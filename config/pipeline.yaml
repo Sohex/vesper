@@ -228,6 +228,43 @@ steps:
     needs: [hydrography, bootstrap_climatology]
     writes: ["hydrography/data/{build}/surface_water.nc", hydrography/analysis/surface_water_report.json]
 
+  - id: topographic_index
+    reads_export: true
+    script: hydrography/scripts/build_topographic_index.py
+    loop: A
+    cost: minutes
+    needs: []
+    writes: ["hydrography/data/{build}/topographic_index_exoplasim-{res}.nc", "hydrography/data/{build}/topographic_index_exoplasim-*.nc", hydrography/analysis/topographic_index_report.json]
+    gate: >
+      GW-26. Terrain only: `ln(a / tan beta)` per region from the export's own
+      upslope contributing area and a local slope, and per GRID CELL the share
+      of that cell's regions whose index exceeds the cell mean. That share is
+      the terrain half of TOPMODEL's saturated-fraction closure,
+      `f_sat = min(f_sat_max exp(-f_grad z_wt), 1)`, and it is the answer GW-6
+      leaves reachable: the valley-to-ridge gradient is below this mesh and
+      stays below it, so the terrain control is carried STATISTICALLY and what
+      comes back is a FRACTION rather than a depth.
+      A SATURATED FRACTION IS A FRACTION OF A POPULATION, and the only
+      population here is the regions inside a climate-grid cell. So this
+      artifact is one per (build, grid) on the coupling matrices' precedent,
+      `f_sat_max` lives at the GRID and not at a region, and there is no
+      per-region saturated fraction to take.
+      NO CONSUMER MAY TAKE `f_sat` YET. The score is declared in
+      `hydrography/config/topographic_index.yaml` before any fraction was
+      computed, it has not been run, and the report says so in
+      `consumers_licensed`. The closure is strictly monotone in the water table
+      depth for a fixed `f_sat_max`, so any discrimination it gains over the
+      depth alone is attributable to the terrain half and to nothing else --
+      which is what makes the score a test rather than a comparison. WET-2,
+      SURF-7 and LSHY-6 are the consumers waiting on it.
+      `f_grad` is DECLARED AND BRACKETED, never fitted, and the bracket is a
+      convention ambiguity: CLIMBER-X's `exp(-f_wtab z)` and ClimaLand's
+      `exp(-f_over/2 z)` differ by exactly a factor of two. ABSOLUTE THRESHOLDS
+      ARE REFUSED and no product keys on one: this index carries a length in
+      `a`, so it shifts with the mesh -- measured at about 0.8 between this
+      project's own two builds -- and it sits far above the range published
+      thresholds are calibrated on.
+
   - id: groundwater
     script: hydrography/scripts/build_groundwater.py
     loop: A

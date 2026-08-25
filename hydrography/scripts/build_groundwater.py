@@ -107,6 +107,52 @@ def rock_permeability(export: Export, cfg: dict, sigma: float = 0.0):
     return k, unassigned, legend
 
 
+def aquifer_thickness(export: Export, cfg: dict, land: np.ndarray):
+    """Saturated thickness per region, metres, and how it was obtained. GW-18.
+
+    `constant` is Gleeson's "on the order of 100 m" everywhere, which is what
+    this component has always run and is a multiplicative constant on every
+    transmissivity.
+
+    `cover_thickness` reads the export's own surviving cover thickness and
+    floors it at the constant. The floor is not a fudge: the constant is the
+    depth Gleeson's lithology maps describe, that depth exists wherever there is
+    rock, and what the cover adds is basin FILL on top of a shallow subsurface
+    already there. Exposed basement keeps the floor rather than dropping out of
+    the conductive network on a zero.
+
+    AND IT IS A THICKNESS, NOT A HISTORY. `docs/src/reference/no-time-axis.md`
+    forbids asking this terrain for an age or an accumulation rate. This asks it
+    for neither: `cover_thickness` is the thickness that is there now.
+    """
+    source = str(cfg["aquifer"].get("thickness_source", "constant"))
+    constant = float(cfg["aquifer"]["thickness_m"])
+    if source == "constant":
+        return np.full(export.n_regions, constant), {
+            "source": "constant", "constant_m": constant}
+    if source != "cover_thickness":
+        raise SystemExit(
+            f"aquifer.thickness_source {source!r} is not one this solver has; "
+            "it is 'constant' or 'cover_thickness'")
+
+    floor = float(cfg["aquifer"].get("thickness_floor_m", constant))
+    cover_m = export.field("cover_thickness").astype(np.float64) * 1000.0
+    if not np.all(np.isfinite(cover_m)):
+        raise SystemExit(
+            "the export's cover_thickness carries non-finite values; a "
+            "thickness that is not a number cannot become a transmissivity")
+    thick = np.maximum(cover_m, floor)
+    on_land = thick[land]
+    return thick, {
+        "source": "cover_thickness",
+        "floor_m": floor,
+        "at_floor_land_fraction": float((cover_m[land] <= floor).mean()),
+        "land_median_m": float(np.median(on_land)),
+        "land_p95_m": float(np.percentile(on_land, 95)),
+        "land_max_m": float(on_land.max()),
+    }
+
+
 def recharge_field(export: Export, config: dict, clim_path: Path):
     """P-E per region, m/s, on the mesh. The same field the lakes are solved on.
 
@@ -220,6 +266,19 @@ def main() -> int:
                     help="turn GW-17's river and lake fixed heads OFF, leaving "
                          "the ocean as the only boundary. On by default for the "
                          "same reason: a river IS the water table where it sits")
+    ap.add_argument("--aquifer-thickness-source", default=None,
+                    choices=["constant", "cover_thickness"],
+                    help="GW-18: override config's aquifer.thickness_source. "
+                         "`cover_thickness` takes the saturated thickness from "
+                         "the export's own surviving cover, floored at the "
+                         "constant, so the range is sourced rather than assumed")
+    ap.add_argument("--unconfined", action="store_true",
+                    help="GW-24: T = K (h - z_bottom) rather than T = K D, with "
+                         "the aquifer base at surface minus the thickness. The "
+                         "transmissivity then depends on the head, so the "
+                         "problem stops being a LINEAR complementarity problem "
+                         "and --uniqueness-check stops being an identity. Read "
+                         "hydrography/notes/subgrid-water-table.md first")
     ap.add_argument("--max-outer", type=int, default=60)
     ap.add_argument("--operator-noise", type=float, default=0.0,
                     help="multiply every face's w/l by lognormal noise of this "
@@ -287,7 +346,15 @@ def main() -> int:
     gravity = float(config["planet"]["gravity_m_s2"])
     k0 = gw.conductivity(k_m2, float(fluid["density_kg_m3"]), gravity,
                          float(fluid["dynamic_viscosity_pa_s"]))
-    thickness_m = float(cfg["aquifer"]["thickness_m"])
+    if args.aquifer_thickness_source is not None:
+        cfg["aquifer"]["thickness_source"] = args.aquifer_thickness_source
+    thickness_m, thickness_note = aquifer_thickness(export, cfg, land)
+    # GW-24. The unconfined form reads a per-region aquifer BASE, and the base is
+    # the same field the confined form reads as a multiplier: `surface - D`. One
+    # thickness field, two readings, and neither invents a second geometry.
+    unconfined = (str(cfg["aquifer"].get("transmissivity", "confined"))
+                  == "unconfined") or args.unconfined
+    min_saturated = float(cfg["aquifer"].get("min_saturated_thickness_m", 1.0))
 
     policy = str(cfg["unassigned"]["policy"])
     if policy not in ("exclude", "impermeable"):
@@ -302,9 +369,18 @@ def main() -> int:
           f"regions ({(unassigned & land).sum() / land.sum() * 100:.2f}%), "
           f"policy {policy!r}")
     live = k0[land][k0[land] > 0]
-    print(f"  aquifer thickness {thickness_m:.0f} m, constant; conductivity "
-          f"spans {np.log10(live.max() / live.min()):.1f} orders of magnitude "
-          f"across lithologies")
+    if thickness_note["source"] == "constant":
+        print(f"  aquifer thickness {thickness_m[0]:.0f} m, constant")
+    else:
+        print(f"  aquifer thickness from {thickness_note['source']}, floored at "
+              f"{thickness_note['floor_m']:.0f} m: land median "
+              f"{thickness_note['land_median_m']:.0f} m, 95th "
+              f"{thickness_note['land_p95_m']:.0f} m, max "
+              f"{thickness_note['land_max_m']:.0f} m, "
+              f"{thickness_note['at_floor_land_fraction']:.1%} of land on the floor")
+    print(f"  transmissivity {'UNCONFINED, T = K (h - z_bottom)' if unconfined else 'confined, T = K D'}"
+          f"; conductivity spans {np.log10(live.max() / live.min()):.1f} orders "
+          f"of magnitude across lithologies")
 
     # -- forcing -----------------------------------------------------------
     print(f"reading the climatology {rel(clim)}")
@@ -381,12 +457,19 @@ def main() -> int:
         else:
             print("local baselevels OFF: the ocean is the only fixed head")
 
+        # GW-24. The aquifer BASE, where it is asked for, is the surface less
+        # the same thickness the confined form multiplies by. It is NaN off
+        # land, which is what tells the solver a face has no column on that
+        # side and must take its neighbour's.
+        base_m = np.where(land, surface_m - thickness_m, np.nan) if unconfined else None
+
         print("solving the water table")
         res = gw.solve(export, geom, k0_m_s=k0, thickness_m=thickness_m,
                        recharge_m_s=recharge, surface_m=surface_m,
                        conductive=conductive, max_outer=args.max_outer,
                        et_max_m_s=et_max, et_lambda_m=et_lambda,
-                       fixed_head_m=fixed_head)
+                       fixed_head_m=fixed_head,
+                       aquifer_base_m=base_m, min_saturated_m=min_saturated)
 
     area_m2 = geom.volume_area_m2
     supply = recharge * area_m2
@@ -407,6 +490,11 @@ def main() -> int:
     depth = res["depth_m"]
     print(f"\nwater table depth on land: median {np.median(depth[land]):.2f} m, "
           f"at the surface on {(depth[land] <= 0.01).mean() * 100:.1f}% of land")
+    drained = np.clip(depth[land] / np.maximum(thickness_m[land], 1e-9), 0.0, 1.0)
+    print(f"  saturated column drained, median {np.median(drained):.3%}, 95th "
+          f"{np.percentile(drained, 95):.3%}: what the confined transmissivity "
+          f"is wrong by,\n  and therefore what GW-24's unconfined form is worth "
+          f"here. `--unconfined` is decided on this.")
 
     with Dataset(data / "regions.nc") as ds:
         terminal = np.asarray(ds["terminal"][:])
@@ -462,10 +550,31 @@ def main() -> int:
             "at_surface_fraction_land": float((depth[land] <= 0.01).mean()),
             "unassigned_land_fraction": float(
                 (unassigned & land).sum() / max(int(land.sum()), 1)),
-            "aquifer_thickness_m": thickness_m,
+            "aquifer_thickness": thickness_note,
+            # GW-24, MEASURED FROM THE CONFINED RUN ITSELF. Under `T = K D` the
+            # transmissivity is wrong by exactly the fraction of the saturated
+            # column the water table has drained, `depth / D`, because that is
+            # the column the unconfined form would have removed. So the confined
+            # solve reports how much the term it omits is worth without anyone
+            # having to solve for it, and the decision to enable `--unconfined`
+            # rests on this number rather than on the argument. Under the
+            # unconfined form it is the correction ALREADY applied.
+            "saturated_column_drained": {
+                str(p): float(np.percentile(
+                    np.clip(depth[land] / np.maximum(thickness_m[land], 1e-9),
+                            0.0, 1.0), p))
+                for p in (50, 75, 95, 99)},
+            "unconfined": bool(unconfined),
+            "at_transmissivity_floor": int(res["at_transmissivity_floor"].sum()),
             "transmissivity_note": (
-                "T = K D with a constant aquifer thickness, so there is no "
-                "depth floor and no cell has a transmissivity that underflows"),
+                "T = K (h - z_bottom): the saturated column is solved for, so a "
+                "cell at the minimum saturated thickness carries a LOWER BOUND "
+                "on its depth rather than a value, and at_transmissivity_floor "
+                "counts them"
+                if unconfined else
+                "T = K D: the transmissivity does not depend on the head, so "
+                "there is no depth floor and no cell has a transmissivity that "
+                "underflows"),
         },
         "git_commit": subprocess.run(
             ["git", "-C", str(PROJECT_ROOT), "rev-parse", "HEAD"],
@@ -563,19 +672,39 @@ def main() -> int:
     # pinned walks a completely different path to it. That is an identity, it
     # can genuinely fail, and it is what would catch a bug in the release and
     # pin logic that a single run cannot see.
-    if args.uniqueness_check and not res.get("converged", True) is False:
+    #
+    # THE SECOND TRAJECTORY MUST SOLVE THE SAME PROBLEM, and for a while it did
+    # not: this call omitted the evapotranspiration sink and the local
+    # baselevels, so once GW-15 and GW-17 landed it was comparing a run with
+    # both against a run with neither and the identity was measuring the
+    # difference between two models. Every argument the sink and the baselevels
+    # are given for is a term in the equation, so leaving them out of the
+    # re-solve makes the comparison meaningless whichever way it comes out.
+    #
+    # AND UNDER THE UNCONFINED FORM IT IS NOT AN IDENTITY. GW-24's
+    # transmissivity depends on the head, so the matrix is not fixed and the
+    # symmetric-positive-definite argument above does not apply. The bar moves
+    # from bit-comparison to `UNCONFINED_HEAD_RELATIVE`, declared in
+    # `groundwater.py` before any unconfined run.
+    if (args.uniqueness_check and not args.divide_test
+            and res.get("converged", True) is not False):
         print("\nUNIQUENESS: re-solving from the opposite initial active set")
         alt = gw.solve(export, geom, k0_m_s=k0, thickness_m=thickness_m,
                        recharge_m_s=recharge, surface_m=surface_m,
                        conductive=conductive, max_outer=args.max_outer,
+                       et_max_m_s=et_max, et_lambda_m=et_lambda,
+                       fixed_head_m=fixed_head,
+                       aquifer_base_m=base_m, min_saturated_m=min_saturated,
                        start_all_free=True)
         d = np.abs(alt["head_m"] - res["head_m"])[conductive]
         scale = max(float(np.abs(res["head_m"][conductive]).max()), 1.0)
         rel_head = float(d.max() / scale)
-        ok = bool(alt.get("converged")
-                  and rel_head < gw.SCHEME_HEAD_RELATIVE)
+        bar_head = (gw.UNCONFINED_HEAD_RELATIVE if unconfined
+                    else gw.SCHEME_HEAD_RELATIVE)
+        ok = bool(alt.get("converged") and rel_head < bar_head)
         report["uniqueness"] = {
-            "criterion_relative_head": gw.SCHEME_HEAD_RELATIVE,
+            "criterion_relative_head": bar_head,
+            "is_identity": not unconfined,
             "max_absolute_head_difference_m": float(d.max()),
             "relative_head_difference": rel_head,
             "alternate_converged": bool(alt.get("converged")),
@@ -583,7 +712,10 @@ def main() -> int:
             "passes": ok,
         }
         print(f"  max |h_altstart - h| {d.max():.3e} m, relative {rel_head:.3e} "
-              f"against {gw.SCHEME_HEAD_RELATIVE:.0e}")
+              f"against {bar_head:.0e}"
+              + ("" if not unconfined else
+                 " (a MEASUREMENT, not an identity: the unconfined "
+                 "transmissivity depends on the head)"))
         print("  " + ("PASS" if ok else "MISS"))
 
     if not res.get("converged", True):
@@ -648,9 +780,15 @@ def main() -> int:
             ("seepage_m3_s", res["seepage_m3_s"], "f4", "region", "m3 s-1",
              "groundwater returning to the surface"),
             ("transmissivity_m2_s", res["transmissivity_m2_s"], "f4", "region",
-             "m2 s-1", "T = K D at constant thickness. NOT Fan's exponential "
-             "decay, which GW-9 removed: exp(h/f) is convex, so a cell mean "
-             "carries exp(sigma^2/2f^2) and has no value at this spacing"),
+             "m2 s-1",
+             ("T = K (h - z_bottom), the unconfined saturated column, GW-24. "
+              "NOT Fan's exponential decay: exp(h/f) is convex, so a cell mean "
+              "carries exp(sigma^2/2f^2) and has no value at this spacing, "
+              "while this form is LINEAR in the head and so has an exact one"
+              if unconfined else
+              "T = K D at the aquifer thickness. NOT Fan's exponential decay, "
+              "which GW-9 removed: exp(h/f) is convex, so a cell mean carries "
+              "exp(sigma^2/2f^2) and has no value at this spacing")),
             ("at_surface", res["pinned"].astype(np.int8), "i1", "region", "1",
              "water table pinned at the land surface"),
             ("sink_fraction", sink_fraction, "f4", "region", "1",

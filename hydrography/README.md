@@ -70,8 +70,10 @@ already had.
 | `data/<build>/coupling_<grid>.nc` | sparse basin-by-grid-cell catchment areas |
 | `data/<build>/hydrography_report.json` | diagnostics, river mouths, marginal seas, provenance |
 | `data/<build>/surface_water.nc` | per region: lake, lake depth, river discharge; per basin: solved area, level, volume, overflow |
+| `data/<build>/topographic_index_<grid>.nc` | per region: the compound topographic index on both slope arms; per grid cell: its mean, its within-cell spread, and `f_sat_max` |
 | `analysis/lake_balance_sweep.json` | solver sensitivity under placeholder forcing |
 | `analysis/surface_water_report.json` | the solved water balance and its forcing |
+| `analysis/topographic_index_report.json` | the index's distribution, the scale measurement, and the score declared before it |
 
 ## The lake solver
 
@@ -329,6 +331,39 @@ error. Two solvers were built on it and neither converged.
 `notes/water-table-convergence.md` carries both, and they are kept because they
 are what a future attempt would otherwise repeat.
 
+### Two options on the same field, and only one changes the problem
+
+`config/groundwater.yaml` carries an aquifer thickness that can be a FIELD and a
+transmissivity that can be UNCONFINED. They read the same number and they are not
+the same change. Both are off by default and
+`notes/subgrid-water-table.md` carries the arithmetic and the verdicts.
+
+**`aquifer.thickness_source: cover_thickness`** takes the saturated thickness
+from the export's own surviving cover over basement, floored at Gleeson's 100 m,
+so the range is sourced rather than assumed. It is a THICKNESS and not a
+history, which is why `docs/src/reference/no-time-axis.md` does not refuse it.
+`T` stays independent of the head, the matrix stays fixed, and every identity
+this component is certified by is untouched. What it does NOT do is source
+GW-17's uniform 2 km: only a small fraction of this world's land carries cover
+that deep, so a sourced thickness contradicts that assumption nearly everywhere
+and should shrink the depth range rather than explain it. The prediction is in
+the config, written before the run.
+
+**`aquifer.transmissivity: unconfined`** is `T = K (h - z_bottom)` with the base
+at surface minus that same thickness. It is real physics -- the confined form
+overstates flow in dry ground and always said so -- and it is LINEAR in the head,
+so unlike Fan's exponential it has an exact cell mean at any resolution. But the
+correction it makes is `depth / 2D`, the fraction of the saturated column the
+table has drained, and `build_groundwater.py` reports that fraction from the
+CONFINED run so the decision rests on a measured number. And it costs: `T`
+depends on the head, so the problem stops being a LINEAR complementarity
+problem, `--uniqueness-check` stops being an identity and becomes a measurement
+against a bar declared in `groundwater.py`, and the outer iteration's
+convergence rate is governed by the same number as the size of the effect.
+`groundwater.py --dupuit-test` checks the scheme against an analytic
+one-dimensional aquifer and prices that trade; nothing may enable this without
+the convergence run the note names.
+
 ### What is checked, and what missed
 
 `groundwater.py` run directly applies the discrete operator to Legendre
@@ -390,6 +425,50 @@ not consistent and the operator check fails by a factor. Water VOLUMES use the
 export's `cell_area`, because every other component computes them that way and
 the reduction identity has to be exact. Whether `cell_area` should be what it is
 belongs upstream in the exporter and is not decided here.
+
+## The topographic index, and the saturated fraction
+
+`build_topographic_index.py` computes `ln(a / tan beta)` per mesh region from
+the export's own upslope contributing area and a local slope, and per GRID CELL
+the share of that cell's regions whose index exceeds the cell mean. It is
+terrain only: no climate, no water table, no solve. GW-26.
+
+**It answers a different question from the water table, deliberately.**
+`notes/subgrid-water-table.md` states the constraint the depth field runs into
+and the rule it licenses: the valley-to-ridge gradient is below this mesh and
+stays there, and sub-grid information may reach a cell-scale parameter only as a
+statistic of the distribution the cell contains. TOPMODEL carries the terrain
+control statistically and returns a saturated FRACTION rather than a depth,
+which is what a wetness classification, a discharge mask and a hydrologic mosaic
+consume anyway. The form is
+`f_sat = min(f_sat_max * exp(-f_grad * z_wt), 1)`, SIMTOP after Niu et al.
+(2005), implemented independently in PALADYN, ClimaLand and CLIMBER-X.
+
+**A fraction is a fraction of a population, and there is only one.** The
+population is the mesh regions inside a climate-grid cell, so `f_sat_max` lives
+at the grid and there is NO per-region saturated fraction here. A region has no
+sub-population and inventing one is exactly what the note refuses. The artifact
+is therefore one per (build, grid), on the coupling matrices' precedent.
+
+**`f_grad` is declared and bracketed, never fitted, and the bracket is a
+convention.** CLIMBER-X writes `exp(-f_wtab * w_table)`; ClimaLand writes
+`exp(-f_over/2 * z_wt)`, where the same numeral means half as much per metre.
+Mixing them is a silent factor of two, and the bracket is exactly that factor.
+
+**Absolute thresholds are refused and no product keys on one.** The published
+ones -- a CDF on integer bins 1 to 15, a critical cell mean of 5.5, a cut at 14 --
+are calibrated against an index computed on Earth at about a kilometre. This
+index carries a length in `a`, so the whole distribution shifts with the mesh,
+measurably so between this project's own two builds, and it sits far above that
+range. `f_sat_max` is a share of a cell's population above that cell's own mean,
+so it survives the offset; a threshold does not.
+
+**Nothing may consume `f_sat` until it is scored.** The bar is in
+`config/topographic_index.yaml`, declared before any fraction was computed, and
+the report's `consumers_licensed` says whether it has been met. The closure is
+strictly monotone in the depth for a fixed `f_sat_max`, so any discrimination it
+gains over the depth alone is attributable to the terrain half and to nothing
+else -- which is what makes the score a test rather than a comparison.
 
 ## The Earth comparator
 

@@ -1,0 +1,76 @@
+{
+  "script": "hydrography/scripts/build_topographic_index.py",
+  "issue": "GW-26",
+  "source_build": "precarve-craton-10m",
+  "grid": "exoplasim-T21",
+  "regions": 10000005,
+  "land_regions": 4328736,
+  "index": {
+    "min_tan_slope": 0.0001,
+    "at_slope_floor_land_fraction": {
+      "plane_fit": 0.09023350003326606,
+      "receiver_drop": 0.1663102115721541
+    },
+    "land_percentiles": {
+      "plane_fit": {
+        "1": 10.9103721965085,
+        "5": 11.843443362840038,
+        "25": 13.789111899808592,
+        "50": 15.77978952595905,
+        "75": 17.748189187514463,
+        "95": 20.815519869713214,
+        "99": 23.50812249216885
+      },
+      "receiver_drop": {
+        "1": 10.478409660203305,
+        "5": 11.524247953639676,
+        "25": 13.778772883831868,
+        "50": 15.980391529028433,
+        "75": 18.140814097969837,
+        "95": 21.764193471571375,
+        "99": 24.268067117524964
+      }
+    },
+    "land_mean": {
+      "plane_fit": 15.91416557067608,
+      "receiver_drop": 16.144987313712953
+    }
+  },
+  "slope_arm": "plane_fit",
+  "grid_cells_with_estimate": 1579,
+  "min_regions_per_cell": 10,
+  "cell_mean_index": {
+    "5": 13.007149760481148,
+    "25": 14.28057679613355,
+    "50": 15.491400983055602,
+    "75": 17.092150851823185,
+    "95": 18.59423749704983
+  },
+  "within_cell_index_sd": {
+    "5": 1.5394896459712089,
+    "50": 2.2302406142997397,
+    "95": 2.673909133859149
+  },
+  "between_cell_index_sd": 1.7819204199173668,
+  "f_sat_max": {
+    "5": 0.3479873818247738,
+    "25": 0.40140392442784717,
+    "50": 0.43614336193841496,
+    "75": 0.47153806452985997,
+    "95": 0.5484944696820065
+  },
+  "cell_mean_above_climberx_cdf_top": 0.8074730842305257,
+  "absolute_thresholds": "refused",
+  "score": {
+    "observation_sets": [
+      "australia_depth_consistent",
+      "us_unconfined"
+    ],
+    "metric": "auc_water_table_within_1m",
+    "bar_auc": 0.573,
+    "harness": "hydrography/scripts/earth_calibration.py"
+  },
+  "scored": false,
+  "consumers_licensed": false,
+  "created": "2026-08-25T00:51:52.456215+00:00"
+}

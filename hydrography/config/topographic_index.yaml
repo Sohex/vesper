@@ -1,0 +1,129 @@
+schema_version: 1
+
+# The compound topographic index and the saturated-area closure built on it.
+# Read by `hydrography/scripts/build_topographic_index.py`. GW-26.
+#
+# WHAT THIS IS FOR. GW-6 established that the valley-to-ridge water table
+# gradient is below this mesh and stays below it: the depth field the solver
+# produces is a function of its recharge forcing where the real one is not, and
+# neither a finer generation nor a finer cell recovers the difference. TOPMODEL
+# carries that terrain control STATISTICALLY instead of resolving it, and the
+# quantity it delivers is a saturated FRACTION rather than a depth. The change
+# of quantity is the whole point: a fraction is what a wetness classification, a
+# discharge mask and a hydrologic mosaic actually consume.
+#
+# WHAT A SATURATED FRACTION IS A FRACTION OF, and it decides where this artifact
+# lives. `f_sat_max` is a rank statistic over the population of terrain inside
+# one cell. The only such population this project holds is the mesh regions
+# inside a climate-grid cell, so the fraction is defined AT THE CLIMATE GRID and
+# not at a region. A region has no sub-population, and inventing one is exactly
+# what GW-6 refuses. That is why this artifact is one per (build, grid), on the
+# coupling matrices' precedent.
+
+# ---------------------------------------------------------------------------
+# The index
+# ---------------------------------------------------------------------------
+#     CTI = ln( a / tan(beta) )
+#
+# `a` is upslope contributing area per unit contour width and `beta` is the
+# local surface gradient. Beven and Kirkby (1979); the implementations this
+# follows are PALADYN's and ClimaLand's SIMTOP, both after Niu et al. (2005),
+# and CLIMBER-X's three schemes at `src/lnd/surface_hydro.f90`.
+index:
+  # `a = flow_accumulation / w`. `flow_accumulation` is the export's own
+  # upstream contributing area on the depression-filled surface, in real area
+  # rather than cell counts, so nothing is reconstructed here. `w` is the
+  # contour width and there is no exact one on a Voronoi mesh; the square root
+  # of the cell's own area is the characteristic width of the cell the water
+  # crosses and is the choice made, declared rather than derived.
+  contour_width: sqrt_cell_area
+
+  # WHICH SLOPE, and it is the project's one slope. `lib/orogen.py`'s
+  # `local_slope_deg` is the dip of a least-squares plane through each region
+  # and its neighbours, and `scripts/smoke_test.py` tests it against an analytic
+  # gradient. It is documented there as a REGIONAL DIP and NOT a hillslope, so
+  # feeding it to a hillslope closure understates the gradient and therefore
+  # OVERSTATES the index -- one-signed, and the same defect GW-9 found when Fan's
+  # e-folding length was fed the same field.
+  #
+  # The alternative arm is the drop to the region's own drainage receiver over
+  # the distance to it, which is the steepest-descent estimate a grid TOPMODEL
+  # uses. It is computed too and shipped beside the primary, because a bracket
+  # that is not reported is not a bracket.
+  slope: plane_fit               # plane_fit | receiver_drop
+  # tan(beta) below this is replaced by it. A depression-filled surface is FLAT
+  # inside a filled pit, so the receiver drop there is exactly zero and the
+  # index is infinite; a plane fit through a flat region returns the same. The
+  # floor is a numerical bound and not a hillslope claim, so the cells that hit
+  # it are counted and reported rather than absorbed. 1e-4 is a fall of 1 m over
+  # 10 km, which is below anything this mesh resolves and above zero.
+  min_tan_slope: 1.0e-4
+
+# ---------------------------------------------------------------------------
+# The saturated-area closure
+# ---------------------------------------------------------------------------
+#     f_sat = min( f_sat_max * exp(-f_grad * z_wt), 1 )
+#
+# for `z_wt` the cell-mean water table depth, positive downward.
+closure:
+  # `f_sat_max` is the share of the cell whose index exceeds the cell mean --
+  # CLIMBER-X's `1 - cti_cdf(cti_mean)` at `surface_hydro.f90:551-560`, computed
+  # here from the region population directly rather than from a binned CDF. It
+  # is a RANK statistic, so it survives an additive shift of the index; that
+  # property is what makes it transportable when the absolute scale is not.
+  f_sat_max: share_above_cell_mean
+
+  # DECLARED AND BRACKETED, NOT FITTED, and the bracket IS a convention
+  # ambiguity rather than a spread of measurements. CLIMBER-X ships
+  # `f_wtab = 2.5` per metre in `nml/lnd_par.nml` for `exp(-f_wtab * w_table)`.
+  # ClimaLand writes the same closure as `exp(-f_over/2 * z_wt)`, so its
+  # constant means half as much per metre. Mixing the two conventions is a
+  # silent factor of two in the surface saturated fraction, and the bracket
+  # below is exactly that factor. A consumer takes both arms or neither.
+  f_grad_bracket_per_m: [1.25, 2.5]
+
+  # THE ABSOLUTE THRESHOLDS ARE REFUSED, and this is the decision rather than an
+  # omission. CLIMBER-X keys three schemes on absolute index values:
+  # `cti_mean_crit = 5.5` below which no wetland forms, `cti_min`, a CDF
+  # tabulated on integer bins 1 to 15, and a cut at 14 above which the maximum
+  # wetland fraction is set to zero. Those are calibrated against an index
+  # computed on Earth at about a kilometre. The index computed here is not on
+  # that scale and cannot be put on it: `a` carries a length, so refining the
+  # mesh shifts the whole distribution, and the measured shift between this
+  # project's own two builds is of order ln 2 per halving. The measured
+  # distribution on this world sits well above 15 at the cell mean, so applied
+  # literally CLIMBER-X's rule would return zero wetland almost everywhere --
+  # which is a statement about the scale of two indices, not about this world.
+  #
+  # So: the RANK statistic above transports and the absolute thresholds do not,
+  # the script writes no absolute-threshold product, and a consumer that needs
+  # one needs an absolute calibration this project does not have.
+  absolute_thresholds: refused
+
+# ---------------------------------------------------------------------------
+# The score, DECLARED BEFORE THE FRACTION WAS COMPUTED
+# ---------------------------------------------------------------------------
+# No consumer may take `f_sat` before this has been run and reported. The depth
+# field it is built on failed its own bar, and a fraction derived from a failed
+# depth is not licensed by the derivation.
+#
+# THE TEST, and it is chosen so that it can only be passed by the terrain half.
+# `f_sat = f_sat_max * exp(-f_grad * z_wt)` is strictly monotone in `z_wt` for a
+# fixed `f_sat_max`, so ranking cells by `f_sat` with a CONSTANT `f_sat_max`
+# reproduces ranking them by depth exactly. Any gain in discrimination over the
+# depth alone is therefore attributable to `f_sat_max` and to nothing else. That
+# makes the attribution exact rather than argued.
+#
+# THE BAR: on the Australian depth-consistent bores, the area under the ROC
+# curve for "observed water table within 1 m of the surface" must exceed
+# 0.573, which is what the model's cell-mean depth reaches on its own. Repeated
+# on the United States bores labelled unconfined, where the depth field has a
+# regime it works in. Both arms of `f_grad_bracket_per_m`, reported separately.
+#
+# A MISS MEANS the index adds nothing to the depth it is multiplied into, and
+# the fraction should be withdrawn rather than shipped with a caveat.
+score:
+  observation_sets: [australia_depth_consistent, us_unconfined]
+  metric: auc_water_table_within_1m
+  bar_auc: 0.573
+  harness: hydrography/scripts/earth_calibration.py

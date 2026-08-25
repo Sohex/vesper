@@ -234,6 +234,11 @@ quantity as GRID-2's hypsometry, since it needs upslope contributing area and
 local slope rather than an elevation distribution, but both come off the same
 mesh and the drainage side already exists in `hydrography`.
 
+The index now exists here, in `hydrography/scripts/build_topographic_index.py`;
+which half of this form transports to it and which does not is
+`hydrography/notes/subgrid-water-table.md` section 5. The rank statistic
+survives the scale difference and the absolute thresholds do not.
+
 Two caveats, neither fatal. `f_sat` still keys on a grid-cell mean water table,
 so it inherits whatever bias that mean carries. And PALADYN estimates its mean
 water table directly from column volumetric water content rather than from a
