@@ -78,8 +78,20 @@ void Soil::init_states() {
 	sompool[SLOWSOM].ntoc = 1.0 / 20.0;
 	sompool[SURFMICRO].ntoc = 1.0 / 20.0;
 
-	// Set initial CENTURY pool P:C ratios
-	// (Parton et al 1988, Fig 2)
+	// Set initial CENTURY pool P:C ratios.
+	//
+	// The citation on this block was Fig. 2 of Parton, Stewart and Cole (1988),
+	// which is the P submodel's flow diagram and carries no C:P values. Three
+	// of these four are Fig. 3's, p. 115: 80, 200 and 80 are the ctop_max ends
+	// of the active, slow and surface microbial lines, so each pool starts at
+	// its most phosphorus-poor end and setptoc() overwrites it on the first
+	// call to somfluxes().
+	//
+	// SURFHUMUS's 150 is not. That paper has no humus pool, and 150 appears in
+	// it only as the lower bound on the C:P of new plant material for wheat
+	// (p. 112) and as the structural litter C:N. Nothing overwrites this one
+	// either: SURFHUMUS is in the nitrogen ramp and not the phosphorus one, so
+	// 150 is the surface humus pool's C:P for the whole of a run. WORLD-SHCP.
 	sompool[SOILMICRO].ptoc = 1.0 / 80.0;
 	sompool[SURFHUMUS].ptoc = 1.0 / 150.0;
 	sompool[SLOWSOM].ptoc = 1.0 / 200.0;

@@ -458,15 +458,45 @@ plant-available P and must not be read straight into a model's labile pool.
 `fac` therefore exceeds `fmax` nearly everywhere and the slow, passive and soil
 microbial pools sit at their MINIMUM C:P always, which is their most
 phosphorus-rich end. That is not a wrong constant. It is a right constant
-reading a pool its source did not define, and the two ways out -- converting the
-threshold into this fork's labile-P currency, or driving `setptoc` with a
-resin-equivalent fraction of that pool -- are modelling decisions rather than
-arithmetic. Neither is taken here.
+reading a pool its source did not define, and neither way out is taken here.
 
-A second, independent reason the threshold cannot simply be rescaled: Parton's
-is a 0 to 20 cm quantity, and LPJ-GUESS-CNP simulates soil organic matter as a
-bulk pool with no explicit depth, which Dantas de Paula et al. (2025) state as a
-known limitation. There is no depth on the receiving side to convert to.
+What `setptoc` writes has exactly one live reader: `transferdecomp`'s `pinc`,
+the phosphorus that rides carbon into a receiving pool. So this sets the
+phosphorus content of every organic transfer in the model, and it is what the
+reported soil and litter phosphorus stock is made of.
+
+### The two ways out are not the same change
+
+They read as a pair of equivalent framings, and they are not, because
+`PMASS_SAT` does a second job. `somfluxes` ends by pinning `soil.pmass_labile`
+to `PMASS_SAT` whenever `!ifplim`, and the only things that move it between that
+pin and the next call's `setptoc` are one day of uptake, deposition, weathering
+and leaching. So under the configuration this project runs, `fac` arrives at
+`fmax` to within a day's net phosphorus flux, which is a fraction of a per cent
+of the axis.
+
+- Converting the THRESHOLD into this fork's labile-P currency moves the pin with
+  it, because the pin reads the same symbol and reads it for the same reason.
+  `fac` tracks `fmax`, and nothing changes under `ifplim 0`. It bites only under
+  `ifplim 1`.
+- Driving `setptoc` with a resin-equivalent FRACTION of `soil.pmass_labile`
+  leaves the pin alone, puts `fac` well below `fmax`, and moves the three pools
+  partway up the ramp in the current configuration, where the reported stock is.
+
+Either way the decision is one scalar: the ratio between this fork's
+`pmass_labile` and the resin-extractable orthophosphate Parton's figure was
+drawn against. It is BRACKETED at 6.6 to 11.3 by the fork's own published
+numbers -- simulated labile P 2.11 PgP and Hedley-labile 3.6 PgP, both against
+Olsen-extractable 0.319 PgP over 0 to 20 cm -- which puts the equivalent
+threshold in this fork's currency at 13 to 23 gP/m2, against a `kplab` of 10 to
+78.
+
+The bracket cannot be tightened from those numbers, and this is the second,
+independent obstacle. Parton's is a 0 to 20 cm quantity; LPJ-GUESS-CNP simulates
+soil organic matter as a bulk pool with no explicit depth, which Dantas de Paula
+et al. (2025) state as a known limitation. The two sides of the ratio do not
+share a support, so there is no depth on the receiving side to convert to, and
+narrowing the bracket needs a run of this fork rather than more arithmetic.
 
 ### What the pinned ramp is worth, in the model's own reported stocks
 
@@ -509,8 +539,9 @@ meaningless in either direction. It is eight times below the latter and fourteen
 below the former, and neither number says anything. Read it as a flag.
 
 The soil organic C:P ratios are at the same place in both configurations: under
-`ifplim 0` because `fac` is pinned exactly to `fmax`, under `ifplim 1` because
-the emergent labile P is far above it.
+`ifplim 0` because `fac` is held at `fmax` by the pin, under `ifplim 1` because
+the emergent labile P is far above it. That coincidence is what makes the two
+framings of WORLD-Z01O behave differently, and it is argued above.
 
 ### `PCONC_SAT` has no source in that paper, or anywhere in the tree
 
@@ -718,7 +749,9 @@ break in a conservation sum.
   declared constant now, so this is a question about the constant alone.
 - `PMASS_SAT`'s driving pool, as WORLD-Z01O. The constant is settled and is not
   the defect; what is open is that `soil.pmass_labile` is a Hedley-labile pool
-  and the threshold is a resin-extractable one, eight times smaller.
+  and the threshold is a resin-extractable one. The choice is now one scalar,
+  bracketed at 6.6 to 11.3, and which of the two places it is applied decides
+  whether the change bites under `ifplim 0` at all.
 - `PCONC_SAT`, as WORLD-PIDX, which has no phosphorus source in the paper the
   ramp cites or anywhere else in the tree, and whose ramp that paper does not
   contain.

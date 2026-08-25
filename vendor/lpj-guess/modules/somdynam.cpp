@@ -103,10 +103,28 @@ static const double NCONC_SAT = 0.02;
 // The consequence is that fac exceeds fmax nearly everywhere, and the slow,
 // passive and soil microbial pools sit at their MINIMUM C:P always, which is
 // their most phosphorus-rich end. That is not a wrong constant. It is a right
-// constant reading a pool its source did not define. Converting the threshold
-// into this fork's labile-P currency, or driving setptoc with a
-// resin-equivalent fraction of that pool, is a modelling decision and not an
-// arithmetic one. WORLD-Z01O.
+// constant reading a pool its source did not define. The one reader of what
+// setptoc writes is transferdecomp()'s pinc, the phosphorus that rides carbon
+// into a receiving pool, so this decides the phosphorus content of every
+// organic transfer in the model.
+//
+// The two ways out are NOT the same change, and what separates them is the
+// SECOND job this constant does. somfluxes() ends by pinning
+// soil.pmass_labile to PMASS_SAT whenever !ifplim, so under the configuration
+// this project runs, fac arrives back at setptoc() equal to fmax to within one
+// day's net phosphorus flux. Raising PMASS_SAT into this fork's labile-P
+// currency therefore moves the pin with it, fac tracks fmax, and NOTHING
+// changes under ifplim 0; it bites only under ifplim 1. Driving setptoc() with
+// a resin-equivalent FRACTION of soil.pmass_labile instead leaves the pin
+// alone, puts fac well below fmax, and moves the three pools partway up the
+// ramp in the current configuration -- which is where the reported soil
+// phosphorus stock is. Whichever is chosen, that scalar is the whole decision:
+// Dantas de Paula et al. (2025) put simulated labile P at 2.11 PgP and
+// Hedley-labile at 3.6 PgP against 0.319 PgP by Olsen over 0 to 20 cm, so the
+// driver over-reads Parton's pool by a BRACKETED factor of 6.6 to 11.3. It
+// cannot be tightened from those numbers, because LPJ-GUESS-CNP's soil organic
+// matter is a bulk pool with no depth and Parton's figure is per 0 to 20 cm,
+// so the two sides of the ratio do not share a support. WORLD-Z01O.
 //
 // PCONC_SAT has no phosphorus source at all. It carries NCONC_SAT's 0.02
 // exactly, and Parton, Stewart and Cole (1988) contains no counterpart to it:
