@@ -73,7 +73,12 @@ read, and the ends are now the per-lithology mosaic rather than one scalar.
 `notes/dust.md` reopens the in-model question at a land-mean optical depth above
 0.10, and the baseline artifact's `reopening_test` block carries that threshold,
 the range it is held against and the verdict. Only the roughest end of the
-bracket is below it.
+bracket is below it, and that is the treatment that tabulates the roughness by
+lithology: resolving the roughness WITHIN a lithology raises the emission at
+every arm, and at every measured within-class spread but the narrowest it lifts
+the roughest arm across the threshold too. The crossing is therefore a floor
+rather than an estimate. `notes/audits/dust-intensity-levers.md` carries the
+measurement.
 
 That was a pre-committed threshold, fixed before the answer was known, and what
 it commits to is that a prescribed field is no longer defensible and the emission
@@ -119,12 +124,31 @@ Earth analogues suggest. That is in `settling_velocity` rather than in a comment
    feeding a 15 km orographic variance to a scheme built for centimetre-scale
    roughness elements returns zero emission everywhere. Sheltering of a patch by
    the terrain around it is therefore not represented, which biases emission up.
+   **The bracket belongs to ONE class.** Holding `evaporite` at its centre and
+   sweeping `playa_clastic` across its own range reproduces almost the whole
+   bracket, and doing the reverse moves the emission by under a percent, which
+   follows from the erodible weights. Narrowing the intensity therefore means
+   narrowing `playa_clastic`'s roughness and nothing else, and neither end of
+   that class's bracket is a measurement of a clastic playa: the smooth end is a
+   modelling convention for an active dust source and the rough one is the
+   sand-desert boundary stepped down an order.
+   **And the roughness within a class is not one value.** That spread is
+   measured, in `config/dust.yaml` under `within_class_z0`, from the repeat
+   entries of Prigent et al. (2005) Table 1. Collapsing it to the tabulated
+   point, which is what the arms do, biases the emission LOW at every arm, so
+   the intensity this component reports is a floor on that axis. It is reported
+   as a correction rather than folded into the arms because each class's bracket
+   is the same kind of range and counting it twice would be double counting.
+   world-03x; `notes/audits/dust-intensity-levers.md`.
 3. **The evaporite erodible weight**, 0.1 with a bracket of 0.0 to 0.3, for
    crust cementation. Declared suppression, not measured efficiency.
 4. **Vegetation cover**, which is not modelled at all. Non-barren land is
    assumed to carry a canopy and not emit, following the project's existing
    declared position, which is generous on a world whose median land runoff is a
-   few mm per Earth year. `--variant arid_bare_ground` brackets it.
+   few mm per Earth year. `--variant arid_bare_ground` brackets it, and that
+   variant turns out to be worth under a fifth on emission at every roughness
+   arm, one-signed. That is why the in-model arm's inability to express it is a
+   declared gap and not a defect; world-4qem.
 5. **Which refractive indices this world's dust has**, `optics.indices`, chosen
    as the measured datasets in the shortwave and OPAC in the thermal infrared,
    with OPAC kept as the absorbing bracket. This is the one entry in the file
@@ -159,6 +183,7 @@ measurement and what would revisit it.
 
 - `scripts/dust_runoff_sensitivity.py` -- one-off: converts a precipitation change into a basin count, which is what prices the catchment half of the dust question in `docs/src/pipeline/sequencing.md` A4. Registered under `one_offs` in `config/pipeline.yaml`.
 - `scripts/extract_high_cadence_wind.py` -- one-off: pulls instantaneous near-surface winds out of a high-cadence run segment. This is what DUST-5 measured and what `build_dust.py --gust-samples` must be given; the 32-sample snapshot climatology fits a Weibull shape about twice too high and costs a factor of 40 on emission. Registered under `one_offs` in `config/pipeline.yaml`.
+- `scripts/dust_intensity_levers.py` -- one-off: which lever moves the intensity, as RATIOS of emission totals against `dust_baseline.json`. It prices the within-class roughness collapse, the between-class collapse, whether the roughness bracket moves the pattern or the total, what the soil texture is worth, what the scalar in-model roughness costs, and what the vegetation bracket costs. Transport is not re-run and the artifact measures the transfer that licenses that. Registered under `one_offs` in `config/pipeline.yaml`; `notes/audits/dust-intensity-levers.md` reads it.
 
 ## The in-model port, and why this component survives it
 
@@ -178,6 +203,20 @@ is kept. Three of them carry the emission chain:
 - `exoplasim/patches/exoplasim-3.4.2-dust-emission.patch`, the three boundary
   fields, the gathers, the `aero_nl` calibration group and Kok (2014) equation
   18 in the source term, behind `ldustemit` and defaulting to off.
+
+**Three fields and no fourth, and that is now a priced decision rather than a
+gap.** The roughness enters the in-model scheme twice: through the drag
+partition, which field 1802 carries per cell, and through `ln(zref/z0)` in the
+friction velocity, which reads the scalar namelist `DUSTZ0` because the model
+computes `zref` from each cell's own temperature and the ratio is not a static
+prefactor. `DUSTZ0` is the roughness mosaic's own erodible-area weighted
+geometric mean at the arm being written, computed from the fields as they are
+built rather than looked up in the config; with it the in-model emission sits
+within a fraction of a percent of the offline arm at every arm, so a fourth
+boundary field carrying the roughness per cell would buy nothing. It used to
+carry the class-blind scalar, whose bracket ends predate the per-lithology
+values and sit outside them, and that put the two arms as much as four times
+apart. world-h24h; `notes/audits/dust-intensity-levers.md`.
 
 The run side is `model.dust_emission` in `config/planet.yaml`, which is absent
 and therefore `none` by default. Setting it makes `run_exoplasim.py` stage the
