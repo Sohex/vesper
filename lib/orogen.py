@@ -198,6 +198,76 @@ _KNOWN_CATALOGUE_HASHES = {
 OCEAN, LAND, INLAND_WATER = 0, 1, 2
 
 
+def plane_fit_slope_deg(off, lst, pos, elev, radius) -> np.ndarray:
+    """Dip of the least-squares plane through each generator and its neighbours.
+
+    The mesh arithmetic of `Export.local_slope_deg`, lifted out of the class so
+    that a mesh which is not an Orogen export can be given the SAME estimator
+    rather than a second one that looks like it. The Earth calibration harness
+    builds its own Fibonacci mesh and its own Voronoi adjacency, and a slope
+    computed there by a different rule would make a comparison against this
+    world's index a comparison of two estimators.
+
+    `off`/`lst` are a symmetric CSR neighbour structure, `pos` the generators on
+    the unit sphere as `(n, 3)`, `elev` their elevation and `radius` the sphere
+    radius IN THE SAME LENGTH UNIT as `elev`; the returned dip does not depend
+    on which unit that is, only on the two agreeing. Read `local_slope_deg`'s
+    docstring for what the number means and what it may not be used for.
+    """
+    off = np.asarray(off, dtype=np.int64)
+    lst = np.asarray(lst, dtype=np.int64)
+    pos = np.asarray(pos, dtype=np.float64)
+    elev = np.asarray(elev, dtype=np.float64)
+    n = off.size - 1
+    degree = np.diff(off)
+    if not (degree >= 3).all():
+        raise RuntimeError(
+            "a region has fewer than three neighbours, so the tangent-plane "
+            "fit below is underdetermined for it")
+
+    # An ARBITRARY orthonormal tangent basis per region, not east/north. Only
+    # the magnitude of the fitted gradient is returned and that is invariant to
+    # the choice, so the basis is picked for robustness: cross the normal with
+    # whichever axis it is least aligned with, which cannot degenerate.
+    normal = pos
+    ref = np.zeros_like(normal)
+    ref[np.arange(n), np.argmin(np.abs(normal), axis=1)] = 1.0
+    east = np.cross(normal, ref)
+    east /= np.linalg.norm(east, axis=1)[:, None]
+    north = np.cross(normal, east)
+
+    src = np.repeat(np.arange(n, dtype=np.int64), degree)
+    dst = lst
+    u = np.zeros(src.size)
+    v = np.zeros(src.size)
+    for k in range(3):
+        step = (pos[dst, k] - pos[src, k]) * float(radius)
+        u += step * east[src, k]
+        v += step * north[src, k]
+        del step
+    rise = elev[dst] - elev[src]
+
+    seg = off[:-1]
+    suu = np.add.reduceat(u * u, seg)
+    suv = np.add.reduceat(u * v, seg)
+    svv = np.add.reduceat(v * v, seg)
+    sur = np.add.reduceat(u * rise, seg)
+    svr = np.add.reduceat(v * rise, seg)
+    del u, v, rise
+
+    det = suu * svv - suv * suv
+    scale = suu * svv
+    bad = det <= 1e-12 * np.maximum(scale, 1e-30)
+    if bad.any():
+        raise RuntimeError(
+            f"{int(bad.sum())} regions have collinear neighbours, so the "
+            f"plane fit is singular there")
+    gu = (svv * sur - suv * svr) / det
+    gv = (suu * svr - suv * sur) / det
+    return np.degrees(np.arctan(np.hypot(gu, gv))).astype(np.float32)
+
+
+
 @dataclass(frozen=True)
 class Basin:
     """One preserved closed basin, as the catalogue describes it.
@@ -372,65 +442,11 @@ class Export:
         own unit-sphere coordinates times the manifest radius.
         """
         off, lst = self.adjacency
-        degree = np.diff(off)
-        if not (degree >= 3).all():
-            raise RuntimeError(
-                "a region has fewer than three neighbours, so the tangent-plane "
-                "fit below is underdetermined for it")
-
-        elev = self.field("elevation_km").astype(np.float64)
-        pos = np.stack([self.field("x"), self.field("y"), self.field("z")],
-                       axis=1).astype(np.float64)
-        radius = float(self.manifest["planet"]["radiusKm"])
-
-        src = np.repeat(np.arange(self.n_regions, dtype=np.int64), degree)
-        dst = lst.astype(np.int64)
-
-        # An ARBITRARY orthonormal tangent basis per region, not east/north.
-        # Only the magnitude of the fitted gradient is returned and that is
-        # invariant to the choice, so the basis is picked for robustness: cross
-        # the normal with whichever axis it is least aligned with, which cannot
-        # degenerate. A true east/north basis does, on the two regions this mesh
-        # puts on the rotation axis.
-        normal = pos
-        ref = np.zeros_like(normal)
-        ref[np.arange(len(normal)), np.argmin(np.abs(normal), axis=1)] = 1.0
-        east = np.cross(normal, ref)
-        east /= np.linalg.norm(east, axis=1)[:, None]
-        north = np.cross(normal, east)
-
-        # Chord to the neighbour, projected into the tangent plane at src.
-        # Accumulated one cartesian component at a time: the stacked form needs
-        # a 15M x 3 float64 temporary and roughly doubles peak memory for no
-        # gain, and this reader is opened inside scripts that are already
-        # holding a climatology.
-        u = np.zeros(src.size)
-        v = np.zeros(src.size)
-        for k in range(3):
-            step = (pos[dst, k] - pos[src, k]) * radius
-            u += step * east[src, k]
-            v += step * north[src, k]
-            del step
-        rise = elev[dst] - elev[src]
-
-        seg = off[:-1].astype(np.int64)
-        suu = np.add.reduceat(u * u, seg)
-        suv = np.add.reduceat(u * v, seg)
-        svv = np.add.reduceat(v * v, seg)
-        sur = np.add.reduceat(u * rise, seg)
-        svr = np.add.reduceat(v * rise, seg)
-        del u, v, rise
-
-        det = suu * svv - suv * suv
-        scale = suu * svv
-        bad = det <= 1e-12 * np.maximum(scale, 1e-30)
-        if bad.any():
-            raise RuntimeError(
-                f"{int(bad.sum())} regions have collinear neighbours, so the "
-                f"plane fit is singular there")
-        gu = (svv * sur - suv * svr) / det
-        gv = (suu * svr - suv * sur) / det
-        return np.degrees(np.arctan(np.hypot(gu, gv))).astype(np.float32)
+        return plane_fit_slope_deg(
+            off, lst,
+            np.stack([self.field("x"), self.field("y"), self.field("z")], axis=1),
+            self.field("elevation_km").astype(np.float64),
+            float(self.manifest["planet"]["radiusKm"]))
 
     # -- basins ----------------------------------------------------------
 
