@@ -58,12 +58,19 @@
 !     makes it the thing the column is checked against rather than a second
 !     opinion about what WANDR did.
 !
-!     pwnew comes back clipped at zero. That clip CREATES WATER when the net
-!     flux takes the store past empty, while the latent heat that removed it
-!     has already been paid to the atmosphere. It is preserved here because
-!     preserving it is the whole point of a reduction, and it is booked in
-!     hydrography/config/land_water_ledger.yaml as `bucket_floor_creation`
-!     from the `unowned_source` boundary. WORLD-HSSB owns measuring it.
+!     pwnew comes back clipped at zero. THE CLIP IS UNREACHABLE, and it is
+!     preserved here because preserving it is the whole point of a reduction.
+!     Three properties of this model put the store at exactly zero and never
+!     past it: fluxmod's humidity solve takes AMAX1 against the level humidity
+!     so the surface evaporation never adds water, the line below it caps that
+!     withdrawal at the store divided by the timestep on every land cell
+!     whatever the snowpack holds, and rainmod builds the snowfall rate as a
+!     subset of the total precipitation rate so precipitation minus snowfall
+!     is rain. What the floor can create is the rounding of a difference that
+!     cancels exactly. WORLD-HSSB measured it, and
+!     hydrography/config/land_water_ledger.yaml carries it as the declared
+!     absence `bucket_floor_creation` with the bound and the two arms that
+!     would catch any of the three properties changing.
 
       pure subroutine bucket_step(pw, pwmax, pflux, pdt, pwnew, proff)
       real, intent(in)  :: pw        ! store before the step (m)
@@ -183,8 +190,10 @@
 
       proff = zexc / pdt
 
-!     The same floor at zero the bucket applies, layer by layer, and the same
-!     unowned crossing with it.
+!     The same floor at zero the bucket applies, layer by layer, and it is
+!     unreachable on the same grounds: negatives originate only in the top
+!     layer and cascade downward, so a column whose total is at or above zero
+!     leaves this loop with every layer at or above zero already.
 
       pwnew(:) = 0.
       do jlay = 1, klay

@@ -98,9 +98,11 @@ The nodes that carry the argument:
   plant to the atmosphere. Two terms rather than one so that a transpiration
   flux with no matching uptake leaves a residual at the interface instead of
   being absorbed.
-- **`unowned_source`** is a boundary that should carry nothing, and carries one
-  term. It exists because a ledger that cannot name an unowned crossing cannot
-  report one.
+- **`unowned_source`** is a boundary that should carry nothing, and carries
+  nothing: the one crossing ever booked here is now a declared absence with a
+  measured bound. It stays because a ledger that cannot name an unowned
+  crossing cannot report one, and because it is the destination one of the
+  graph mutations is built on.
 - **`ocean_export`** is terminal, and terminal means this ledger stops. It
   carries water across the coastline and claims nothing about what happens on
   the other side.
@@ -166,18 +168,32 @@ internally consistent. What the ledger sees is that the domain was credited two
 evaporative fluxes and debited one, because the second store is not in the
 domain, and the residual is exactly the water the coupled system does not have.
 
-`store_below_zero` is the second, because the current implementation does not
-refuse it. `landmod.f90`'s `wandr` adds the net water flux to the bucket and
-then raises it back to zero if it went past, which creates water while the
-latent heat that removed it has already been paid to the atmosphere. That
-crossing is booked in the graph as `bucket_floor_creation` from the
-`unowned_source` boundary, with the bound stated: `fluxmod.f90` limits
-evaporation to the store divided by the timestep before the tendency is
-applied, so the clip can only fire when a withdrawal that limiter did not see
-arrives in the same step, which is the snow-exhaustion path. It may be
-identically zero. It is a term rather than a remark because a crossing nobody
-owns is what a ledger exists to make countable, and WORLD-HSSB owns measuring
-it and removing the term if it is zero.
+`store_below_zero` is the second, because it is the shape `landmod.f90`'s
+floor at zero would have if the climate column could reach it. It cannot. The
+sweep in `bucket_floor_bound` is the third arm of this check and it closes that
+crossing rather than bounding it loosely: three properties of the model make
+the store land at exactly zero and never past it, so what the floor can create
+is the rounding of a difference that cancels. The fixture stays because the
+shape is general -- any coupling that draws on a store harder than it holds has
+it -- and refusing it is what the ledger does instead of clipping.
+
+**The unowned crossing, measured.** `bucket_floor_creation` was the one term
+booked from the `unowned_source` boundary, and it is now a declared absence
+with a bound rather than a term with a sentinel. The three properties that
+close it are `fluxmod.f90`'s AMAX1 against the level humidity, which stops the
+surface evaporation ever adding water; the cap on that same withdrawal at the
+store divided by the timestep, applied on every land cell whatever the snowpack
+holds; and `rainmod.f90` building the snowfall rate as a subset of the total
+precipitation rate, so precipitation minus snowfall is rain and cannot be
+negative. The snow-exhaustion path this was first attributed to is the wrong
+suspect: the cap is unconditional, so a snowpack absorbs part of a withdrawal
+already limited against the soil store and leaves the store fuller than bare
+ground would. The report carries the residue per land cell and timestep, the
+ceiling over one orbit if every land cell clipped at every step, and that
+ceiling against the land soil water stock. Two arms remove one closing property
+each and are required to produce a macroscopic crossing, which is what makes
+the bound a measurement rather than a null result; change any of the three
+properties and this becomes a term again.
 
 **Twelve graph mutations.** `check_graph` returning nothing on the real
 declaration proves nothing on its own: a check that cannot fail and a
@@ -193,7 +209,7 @@ from inside the domain. A mutation the check passes is a defect in the check.
 
 ## What refuses, and until when
 
-All twenty-one terms carry the `undeclared` sentinel today. The ledger is
+Every term carries the `undeclared` sentinel today. The ledger is
 DEFINED and does not CLOSE, and the two are different states. `--strict` refuses
 while any of three conditions stands:
 
@@ -207,7 +223,6 @@ while any of three conditions stands:
 | the signed groundwater lower-boundary exchange | PLHY-4, GW-5 |
 | open-water and lake fluxes at a sub-annual interval on the open-water denominator | LSHY-6 |
 | routed dissolved and particulate transport on this ledger | ANUT-6 |
-| the magnitude of the unowned bucket clip | WORLD-HSSB |
 
 **Stores with a shadow copy.** Four nodes have one. `snowpack` is held as
 ExoPlaSim's `dsnowz` and again as LPJ-GUESS's `soil.snowpack`; `soil_liquid` as
@@ -226,7 +241,7 @@ and an annual surface-water forcing. The fix is not a better annual mean.
 
 An absence is not a term with an undeclared flux. A term with `undeclared` has a
 place in the graph and no number; an absence has no place in the graph, because
-the state it would move does not exist in either model. Seven are declared, each
+the state it would move does not exist in either model. Eight are declared, each
 with what is missing, what it makes unrepresentable, and its owner. The two that
 constrain other components hardest:
 
