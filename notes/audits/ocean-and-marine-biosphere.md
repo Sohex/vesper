@@ -1072,6 +1072,109 @@ property of the geography and it changes with every build and every carve.
 
 ---
 
+## 12. A spatially varying two-band ocean albedo, priced as an interface
+
+Derived 2026-08-25, from the source and the grid alone. This is OCN-7's
+remaining half. Its spectral half was answered negatively -- water is dark and
+nearly flat across the 0.75 um split and a K-star reweighting of the ocean
+albedo is worth about 0.002 -- so what is left is the SPATIAL variation and the
+interface it would need. Nothing here was benchmarked and no wall-clock number
+is offered; the price is what the change would ADD, structurally.
+
+### 12a. The band index already does nothing over open water
+
+`radmod.f90`'s upward loop overwrites the open-water part of both bands, and it
+writes the SAME expression into each. Under `necham = 1`, the default, both
+`dsalb(1,:)` and `dsalb(2,:)` receive `AMIN1(0.05/(zmu0+0.15),0.15)`; under
+`necham6 = 1` both receive the Briegleb polynomial. Only at `necham = 0` and
+`necham6 = 0` does either band keep what `seamod` wrote. So over open water the
+model's albedo is ALREADY spatially varying and zenith-driven, and it is
+already spectrally flat by construction rather than by a choice about water.
+
+Two consequences the row has to be read against. The spatial variation OCN-7
+asks to cost is partly present, in the coordinate the sun moves in rather than
+the one the ocean varies in. And a two-band ocean albedo installed in `seamod`
+is discarded before the shortwave reads it: it would reach the radiation only in
+a configuration with both zenith branches off, which trades a zenith dependence
+the model has for a spatial one it does not. **The term has to land inside
+`radmod`'s own expression, not in `seamod`'s assignment**, and that is the
+interface cost's headline.
+
+### 12b. The staging half costs nothing, because the channel already exists
+
+The two-band per-cell surface albedo channel is built and complete, and the
+ocean is the only surface that reduces it to a scalar.
+
+| stage | land | ocean |
+| --- | --- | --- |
+| surface codes | 175 `dalbcl1`, 176 `dalbcl2`, `surfmod.f90:surfcode` | none |
+| writer | `build_surface_albedo.py`, over the whole grid | none |
+| reader | `mpsurfgp('dalbcl1',...,NHOR,14)` in `landini` | none |
+| restart | `mpgetgp`/`mpputgp` on both | not a record |
+| month interpolation | `dalbclim1(:)=zgw1*dalbcl1(:,jm1)+zgw2*dalbcl1(:,jm2)` | none |
+| use | `dsalb(1,jhor)=dalbclim1(jhor)` and the snow blend above it | `doceanalb(1)`, a scalar |
+
+So a spatially varying ocean albedo needs **no new surface code and no new
+`.sra` column** if it reuses 175 and 176, which are already written over ocean
+cells and simply not read there. What it needs instead is a decision about what
+those two codes MEAN: today they are the background LAND albedo and
+`build_surface_albedo.py` owns them, and writing an ocean value into the ocean
+cells of the same file makes one artifact answer to two generators.
+
+### 12c. What a separate field would cost, and why the reuse question is not cosmetic
+
+The alternative -- declaring an ocean pair of its own -- is priced by the grid
+and the convention that a thread team's working set on one die targets 32 MB.
+A month-resolved two-band field is `2 * 14 * NHOR` reals, and the model compiles
+at `-fdefault-real-8`, so the team total is `2 * 14 * nlat * nlon * 8` bytes:
+
+| rung | cells | new 14-month two-band pair | of the 32 MB target |
+| --- | --- | --- | --- |
+| T42 | 8192 | 1.75 MiB | 5.5 per cent |
+| T85 | 32768 | 7.00 MiB | 21.9 per cent |
+| T170 | 131072 | 28.00 MiB | 87.5 per cent |
+
+At the top of the ladder a single new month-resolved surface pair is most of the
+die budget on its own. A single-month pair is a fourteenth of that and is the
+cheaper shape if the ocean albedo does not need a seasonal cycle -- which is a
+question about whether the field varies with anything seasonal, and OCN-14 owns
+that because the water-leaving part of it is pigment and particles.
+
+### 12d. What the arithmetic costs, which is the part that is genuinely small
+
+Per ocean cell per `radstep` per band, replacing the zenith expression with a
+field reference adds two streaming loads of eight bytes and removes one divide,
+one add and one `AMIN1`. The albedo block already streams `dls`, `dicec`,
+`zmu0`, `dsalb(1,:)`, `dsalb(2,:)` and `dalb`, so it is a third more arrays in
+that block and a small fraction of `radstep`, which carries `NLEV`-deep arrays
+through the two-stream solve.
+
+**It vectorises unchanged.** Every term in the block is an elementwise `(:)`
+expression at unit stride; a scalar broadcast becoming an array reference keeps
+unit stride, adds no gather, no branch and no loop-carried dependency. The
+change is memory traffic and not control flow, which is why the interface
+question and not the arithmetic is where this row's cost lives.
+
+### 12e. What this pricing did NOT establish
+
+- **No optical bound is sourced here.** The row asks for one and the spectral
+  half already answered the K-star reweighting at about 0.002; what a SPATIAL
+  span of open-water albedo is worth on this world needs a modelled water-
+  leaving reflectance, which is OCN-14's, and a Fresnel term, which the zenith
+  branches already carry in a form neither of them derives from this star.
+- **Nothing was benchmarked**, deliberately. The host was contended and a
+  wall-clock number taken there looks like a measurement.
+- **The band-1 normalisation defect is not folded in.** The same `zdenom1` and
+  `zdenom2` that mis-normalise the ice surfaces normalise the ocean and ground
+  ones, so `doceanalb` carries the same band-1 error. That is larger than the
+  spectral question this row closes and it is a different kind of thing;
+  world-a0y owns it.
+- **The two-band collapse is a different row.** `doceanalb(1:2)` holds one value
+  in both elements like every other surface declaration in the model, and
+  OCN-22 owns that.
+
+---
+
 ## Tasks
 
 OCN-1 through OCN-20. Findings 1, 2, 5a, 5b and 5c are the
