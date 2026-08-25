@@ -252,7 +252,7 @@
      &                ,albforest,forcovmx,forcovmn                      &
      &                ,soildiff,sicediff,snowdiff,sicecap,snowcap       &
      &                ,rhosnow,roffvel,roffexp,roffpit                  &
-     &                ,newsurf,rinifor,nwatcini,dwatcini,dgroundalb
+     &                ,newsurf,rinifor,nwatcini,dwatcini,dgroundalb   &
      &                ,snowcovz
 !
       dtclsoil(:) = tmelt
