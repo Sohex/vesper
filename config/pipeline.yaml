@@ -754,6 +754,12 @@ one_offs:
   # Does a run taken in pieces write the same ecological stream as the
   # same run taken whole? A verdict on two artifacts, generating nothing.
   - exoplasim/scripts/compare_eco_streams.py
+  # The same question asked of the model's OWN STATE rather than of a stream:
+  # N steps in one model call against N steps in two, and a zero-step restart
+  # round trip that names any record the restart does not carry. Outside the
+  # graph because it stages its own arms in a working directory the caller
+  # names and nothing downstream reads them. world-8yyh.
+  - exoplasim/scripts/verify_restart_continuity.py
   - exoplasim/scripts/trace_gas_band_model.py
   - exoplasim/scripts/co2_overlap_589.py
   - exoplasim/scripts/reset_restart_accumulators.py

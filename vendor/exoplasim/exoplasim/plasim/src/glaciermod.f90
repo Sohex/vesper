@@ -256,7 +256,19 @@
              sp(:) = -so(:)*cv*cv / (gascon * tgr)
           endif
         endif ! (mypid == NROOT)
-        call mpscsp(sp,spm,1)
+!       ON THE COLD PATH ONLY. This scatters the surface pressure into the
+!       leapfrog MINUS level, which is what a run starting from rest wants:
+!       the two levels are the same state at t = 0. On the restart path
+!       read_atmos_restart has already restored spm as the t - dt level, and
+!       glacierini runs AFTER it -- surfini is called from prolog below the
+!       restart read -- so an unguarded scatter overwrote the minus level with
+!       the current one. That made the first step after every segment boundary
+!       a different step from the one the uninterrupted run took, and it was
+!       the whole of the restart discontinuity: with this guard a run split
+!       into two segments reproduces the same run taken whole in every restart
+!       record, and without it the two differ in 46 of them by the first step.
+!       world-8yyh; notes/audits/ecological-stream-restart-continuity.md.
+        if (nrestart == 0) call mpscsp(sp,spm,1)
         
 !       A CELL-MEAN DEPTH AGAINST A COLUMN THRESHOLD. 30 m is the minimum ice
 !       thickness for a sheet to flow, which is a property of ice and not of the
@@ -332,7 +344,19 @@
              sp(:) = -so(:)*cv*cv / (gascon * tgr)
           endif
         endif ! (mypid == NROOT)
-        call mpscsp(sp,spm,1)
+!       ON THE COLD PATH ONLY. This scatters the surface pressure into the
+!       leapfrog MINUS level, which is what a run starting from rest wants:
+!       the two levels are the same state at t = 0. On the restart path
+!       read_atmos_restart has already restored spm as the t - dt level, and
+!       glacierini runs AFTER it -- surfini is called from prolog below the
+!       restart read -- so an unguarded scatter overwrote the minus level with
+!       the current one. That made the first step after every segment boundary
+!       a different step from the one the uninterrupted run took, and it was
+!       the whole of the restart discontinuity: with this guard a run split
+!       into two segments reproduces the same run taken whole in every restart
+!       record, and without it the two differ in 46 of them by the first step.
+!       world-8yyh; notes/audits/ecological-stream-restart-continuity.md.
+        if (nrestart == 0) call mpscsp(sp,spm,1)
         
         call mpgagp(zoro,doro,1)
         

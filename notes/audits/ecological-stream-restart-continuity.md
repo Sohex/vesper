@@ -20,8 +20,8 @@ closed at the right step and covers the span it declares. That is the property
 `naccueco` and the nineteen `aeco*` accumulators are serialized for, and it is
 the property a replay protocol later depends on.
 
-**The model's own state does not reproduce across a restart, and the divergence
-is immediate rather than accumulated.** With the stream reporting one interval
+**The model's own state did not reproduce across a restart, and the divergence
+was immediate rather than accumulated.** With the stream reporting one interval
 per timestep, the first three intervals of a six-step run are bit-identical to
 the same six steps taken as 3 + 3; the FOURTH interval, the first timestep after
 the restart, already differs by 1.19 K in near-surface air temperature and
@@ -30,7 +30,10 @@ the restart, already differs by 1.19 K in near-surface air temperature and
 
 The second finding is not caused by the first. With the stream switched off the
 two restarts differ by exactly the same pair of hashes, so it is a property of
-the model rather than of anything the stream does. It is tracked as `world-8yyh`.
+the model rather than of anything the stream does. It was tracked as
+`world-8yyh`, and the section below has its cause, which is one unguarded line
+in `glacierini`, and the demonstration that guarding it makes a segmented run
+bit-identical to the whole run in every restart record.
 
 ## What was run
 
@@ -104,6 +107,57 @@ differing in 4830 of 5060 and 483 of 506 elements.
 Both runs reproduce themselves exactly when repeated, so this is not a threading
 race and the determinism gate is not implicated.
 
+## The cause, measured 2026-08-24
+
+**`glacierini` overwrote the leapfrog minus level on the restart path.** It ends
+each of its two branches with `call mpscsp(sp,spm,1)`, which scatters the
+current surface pressure into `spm`, the t - dt level. On a cold start that is
+right: a run beginning from rest has the same state at both levels. On a restart
+it is not, and neither call was guarded. `surfini` is called from `prolog`
+BELOW the restart read, and it calls `glacierini`, so the sequence was
+`read_atmos_restart` restoring the true `spm` and `glacierini` replacing it with
+`sp` a few hundred lines later. The equivalent scatter in `surfini` itself has
+carried an `if (nrestart == 0)` guard all along; the two in `glaciermod.f90` did
+not.
+
+The instrument that named it is a restart round trip: take N steps, then restart
+from that state and take NO steps. Nothing integrates between the two
+`plasim_status` files, so every record that differs is state the restart does not
+carry. There were two, and only one of them was live:
+
+| record | what it is | relative difference | elements |
+| --- | --- | ---: | ---: |
+| `spm` | leapfrog log surface pressure, t - dt | 1.256 | 483/506 |
+| `dglac` | glacier flag | 1.0 | 1019/2048 |
+
+`spm` after the round trip is `sp` before it, exactly and element for element,
+which is the signature of the scatter rather than of an integration. `dglac`
+differs because `glacierini` recomputes the flag from the snow depth while
+`glacierstep` maintains it, and it does not affect the comparison: both arms of
+a segmented run take at least one step and end with the maintained value.
+
+**The demonstration.** With the two calls guarded and nothing else changed, a run
+split into two segments is bit-identical to the same run taken whole in ALL 222
+restart records, at 2 = 1 + 1, at 6 = 3 + 3 and at 24 = 12 + 12, and the
+round trip loses nothing. Unguarded, the same bed differs in 46 of 222 records by
+the first post-restart step. Both `NGLACIER` settings were run, because the two
+calls sit in the two branches of one switch and only one of them is compiled out
+by a namelist.
+
+**This was never a property of any tree.** The same round trip run on `main`, 238
+commits below the branch that first measured the divergence, loses `spm` in the
+same way and by the same amount, and the same guard fixes it there. What the
+project had proved before this is a different property:
+`notes/audits/model-reproducibility.md` establishes that the model gives the same
+bytes twice from ONE restart, which a model can satisfy while integrating a
+different weather either side of every boundary, and this one did.
+
+**A cold-start comparison needs a declared `SEED`.** With `KICK > 0` and no
+`SEED` in `plasim_namelist`, `initrandom` draws the initial perturbation from
+`system_clock`, so two cold starts are two different experiments and any
+comparison between them measures the clock. The bed used here declares one, and
+`verify_restart_continuity.py` refuses a bed that does not.
+
 ## Two things the experiment also established
 
 **The stream does not perturb the model.** The restarts written with `NECO = 1`
@@ -128,12 +182,10 @@ across segment boundaries without a seam in its INTERVALS: no gap, no overlap,
 no interval that covers less than it declares. That is what EFOR-7's acceptance
 checks test and it holds.
 
-What does not yet hold is that the weather either side of a boundary is the
-weather the model would have produced had it never been interrupted. Until
-`world-8yyh` is closed, a forcing block assembled from more than one model call
-carries a discontinuity at each call boundary whose size is the divergence
-above, and a replay protocol that tests its own seam (EFOR-6) would be testing
-that discontinuity as well as the one it means to test. The honest statement for
-now is that a forcing block should be taken from a single model call, and that
-this is a constraint on how the climate is run rather than a property of the
-forcing.
+The weather either side of a boundary now holds too: with the `glacierini` guard
+in place a forcing block assembled from more than one model call is the block a
+single call would have written, so EFOR-6's replay seam tests the seam it means
+to test and nothing else. Every run, climatology and forcing block produced by
+more than one model call BEFORE that guard is a different experiment from the one
+it was taken to be, and carries a discontinuity at each call boundary whose size
+is the divergence measured above.
