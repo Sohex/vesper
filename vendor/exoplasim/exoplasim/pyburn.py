@@ -177,7 +177,6 @@ ilibrary = { "50":["nu"   ,"true_anomaly"                    ,"deg"        ],
             "279":["thetah","half_level_potential_temperature","K"         ],
             "280":["theta","full_level_potential_temperature","K"          ],
             "298":["vegf"     ,"forest_cover"                        ,"1"           ],
-            "298":["vegf"     ,"forest_cover"                        ,"1"           ],
             "299":["veglai"   ,"vegetation_leaf_area_index"          ,"nondimen"    ],
             "300":["veggpp"   ,"vegetation_gross_primary_production" ,"kg C m-2 s-1"],
             "301":["vegnpp"   ,"vegetation_net_primary_production"   ,"kg C m-2 s-1"],
@@ -1556,6 +1555,19 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
             specmodes[w+1] = n
             w+=2
     
+    # THE POTENTIAL-TEMPERATURE DERIVATION IS SHARED ACROSS ITERATIONS OF THE
+    # LOOP BELOW, and these two names are how. Deriving either level's theta
+    # builds both, so whichever of codes 279 and 280 is asked for second reuses
+    # the first's arrays instead of recomputing them.
+    # They hold the RAW arrays and not the transformed ones on purpose:
+    # `rdataset` carries the transformed copy, and handing that back to
+    # `_transformvar` would transform it twice. Bound here rather than only in
+    # the arm that fills them, so the dependence between iterations is stated
+    # where a reader meets the loop, and so the reusing arm cannot be reached
+    # with the names unbound whatever `rdataset` happens to contain.
+    thetah = None
+    theta  = None
+
     for key in variablecodes:
         '''Collect metadata from our built-in list, and extract 
         the variable data if it already exists; if not set a flag
@@ -2191,19 +2203,30 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                 
             elif key==str(thetahcode) or key==str(thetafcode): #Potential temperature
                 
-                if "theta" in rdataset or "thetah" in rdataset:
+                if thetah is not None: #already derived on an earlier iteration
+                    # ONE `meta` FOR BOTH ARMS, AND IT IS NOT INHERITED. The
+                    # half-level arm used to build `meta` while the full-level
+                    # arm did not, which reads as the full-level array being
+                    # labelled with whatever the previous iteration left. It is
+                    # not: the head of this loop reassigns `meta` from
+                    # `ilibrary[key]` on every turn, so the arm that omitted it
+                    # was already answering with the metadata of the key it was
+                    # asked for. Verified for both codes in both orders and with
+                    # an unrelated code between them, in `dataset` and in
+                    # `advancedDataset`, which carry this block identically.
+                    # Building it once here keeps the two arms symmetric so the
+                    # question does not have to be answered again -- world-yzhs.
+                    meta = ilibrary[key][:]
+                    meta.append(key)
                     if key==str(thetahcode):
-                        meta = ilibrary[key][:]
-                        meta.append(key)
                         variable,meta = _transformvar(lon[:],lat[:],thetah,meta,nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
-                        rdataset[meta[0]]= [variable,meta]
                     elif key==str(thetafcode):
                         variable,meta = _transformvar(lon[:],lat[:],theta,meta,nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
-                        rdataset[meta[0]]= [variable,meta]
+                    rdataset[meta[0]]= [variable,meta]
                 else:
                     
                     if "ta" in rdataset:
@@ -2378,6 +2401,19 @@ def advancedDataset(filename, variablecodes, mode='grid', substellarlon=180.0,
             specmodes[w+1] = n
             w+=2
     
+    # THE POTENTIAL-TEMPERATURE DERIVATION IS SHARED ACROSS ITERATIONS OF THE
+    # LOOP BELOW, and these two names are how. Deriving either level's theta
+    # builds both, so whichever of codes 279 and 280 is asked for second reuses
+    # the first's arrays instead of recomputing them.
+    # They hold the RAW arrays and not the transformed ones on purpose:
+    # `rdataset` carries the transformed copy, and handing that back to
+    # `_transformvar` would transform it twice. Bound here rather than only in
+    # the arm that fills them, so the dependence between iterations is stated
+    # where a reader meets the loop, and so the reusing arm cannot be reached
+    # with the names unbound whatever `rdataset` happens to contain.
+    thetah = None
+    theta  = None
+
     for key in variablecodes:
         '''Collect metadata from our built-in list, and extract 
         the variable data if it already exists; if not set a flag
@@ -3028,19 +3064,30 @@ def advancedDataset(filename, variablecodes, mode='grid', substellarlon=180.0,
                 
             elif key==str(thetahcode) or key==str(thetafcode): #Potential temperature
                 
-                if "theta" in rdataset or "thetah" in rdataset:
+                if thetah is not None: #already derived on an earlier iteration
+                    # ONE `meta` FOR BOTH ARMS, AND IT IS NOT INHERITED. The
+                    # half-level arm used to build `meta` while the full-level
+                    # arm did not, which reads as the full-level array being
+                    # labelled with whatever the previous iteration left. It is
+                    # not: the head of this loop reassigns `meta` from
+                    # `ilibrary[key]` on every turn, so the arm that omitted it
+                    # was already answering with the metadata of the key it was
+                    # asked for. Verified for both codes in both orders and with
+                    # an unrelated code between them, in `dataset` and in
+                    # `advancedDataset`, which carry this block identically.
+                    # Building it once here keeps the two arms symmetric so the
+                    # question does not have to be answered again -- world-yzhs.
+                    meta = ilibrary[key][:]
+                    meta.append(key)
                     if key==str(thetahcode):
-                        meta = ilibrary[key][:]
-                        meta.append(key)
                         variable,meta = _transformvar(lon[:],lat[:],thetah,meta,nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
-                        rdataset[meta[0]]= [variable,meta]
                     elif key==str(thetafcode):
                         variable,meta = _transformvar(lon[:],lat[:],theta,meta,nlat,nlon,nlev,ntru,
                                                       ntime,mode=mode,substellarlon=substellarlon,
                                                       physfilter=physfilter,zonal=zonal)
-                        rdataset[meta[0]]= [variable,meta]
+                    rdataset[meta[0]]= [variable,meta]
                 else:
                     
                     if "ta" in rdataset:
