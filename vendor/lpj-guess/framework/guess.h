@@ -246,6 +246,20 @@ const double PFRAC_MINTOMAX_CROPGREEN = 7.77;
  *
  *  BRACKETED 1.02 to 1.35, from the point estimates the test could not
  *  separate: live-root N:P of 16.0 against leaf N:P of 13.8 and 18.2.
+ *
+ *  The derivation is a CONTRAST and the model does not currently deliver it.
+ *  Both this constant and its nitrogen counterpart are applied to a window
+ *  endpoint while fine-root demand is computed from a ratio of window means, so
+ *  the contrast that reaches the simulated plant is
+ *  (1 + PFRAC_MINTOMAX) / (1 + 2.78) = 1.238, the two leaf windows having
+ *  different widths since PFRAC_MINTOMAX was separated from nitrogen's 2.78.
+ *  Yuan's point estimates support 0.879 to 1.164, so 1.238 is outside them.
+ *  Anchoring the tight root and sapwood windows on their mean returns the
+ *  contrast to exactly 1.0 for any pair of leaf window widths and keeps 1.16;
+ *  keeping the endpoint anchor needs 1.16 * 3.78 / 4.68 = 0.937 instead. That
+ *  choice cannot be made on the phosphorus side alone, because the nitrogen
+ *  side is the same construction. It is world-xms4, and the arithmetic is in
+ *  biosphere/notes/plant-physiology-carbon-allocation-audit.md finding 11.
  */
 const double PFRAC_LEAFTOROOT = 1.16;
 
@@ -2364,6 +2378,27 @@ public:
 		// Fraction between min and max C:N ratio White et al. 2000
 		double frac_mintomax = (phenology == CROPGREEN && (ifnlim || ifplim)) ? 5.0 : 2.78;	// Use value also without nlim ?
 
+		// The two tissue proportions below are Friend, Stevens, Knox and Cannell
+		// (1997) Table 4 p. 254: the reciprocals of X_C:N(f/r) = 0.86 and
+		// X_C:N(f/p) = 0.145 are 1.163 and 6.897. Both are MEANS of measured
+		// tissue C:N ratios, and Eqs. 42 to 44 apply them to hold the relative
+		// C:N of foliage, fine roots and sapwood plus bark fixed. There is no
+		// window in that formulation.
+		//
+		// They are applied here to a window ENDPOINT, and the window they end is
+		// anchored on cton_leaf_max while frac_maxtomin sets its width
+		// independently. What canexch.cpp gives the simulated plant is a ratio
+		// of window MEANS, cton_leaf_opt * cton_<tissue>_avr / cton_leaf_avr, so
+		// the applied proportion is [2m/(1+m)] * frac * (1 + frac_mintomax) / 2:
+		// 2.077 for fine roots and 12.355 for sapwood, against the 1.163 and
+		// 6.897 Friend measured. Fixing that divides every fine-root and sapwood
+		// C:N by 1.79, which moves every number the established C-N
+		// configuration has produced, so the values here are unchanged until
+		// that re-commissioning is chosen. world-xms4 owns it, together with the
+		// identical construction on the phosphorus side; the arithmetic and the
+		// repair are in
+		// biosphere/notes/plant-physiology-carbon-allocation-audit.md finding 11.
+
 		// Fraction between leaf and root C:N ratio
 		double frac_leaftoroot = 1.16; // Friend et al. 1997
 
@@ -2376,7 +2411,10 @@ public:
 		// Average leaf C:N ratio
 		cton_leaf_avr = avg_cton(cton_leaf_min, cton_leaf_max);
 
-		// Tighter C:N ratio range for roots and sapwood: picked out thin air
+		// Tighter C:N ratio range for roots and sapwood: picked out thin air.
+		// Anchoring that tighter range on cton_leaf_max, rather than on the
+		// tissue mean the two proportions above are measurements of, is what
+		// puts the 1.79 factor between them and what the model applies.
 		double frac_maxtomin = .9;
 
 		// Maximum fine root C:N ratio
