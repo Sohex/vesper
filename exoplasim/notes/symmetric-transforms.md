@@ -49,10 +49,21 @@ but the model does not use calculus, it uses a recurrence, and a sign convention
 inside a recurrence is exactly the kind of thing that makes a plausible-looking
 parity split wrong.
 
-`verify_legendre_parity.py` reproduces `legini`'s recurrence verbatim, evaluates
-it at `+mu` and `-mu`, and checks both relations mode by mode. At NTRU=10, all
-66 modes, the worst relative violation is **0.00e+00** -- bit-exact, since the
-recurrence is symmetric in `mu` up to sign. The premise holds.
+`verify_legendre_parity.py` reproduced `legini`'s recurrence in Python,
+evaluated it at `+mu` and `-mu`, and checked both relations mode by mode. At
+NTRU=10, all 66 modes, the worst relative violation was **0.00e+00** --
+bit-exact, since the recurrence is symmetric in `mu` up to sign. The premise
+held.
+
+**That gate is DELETED, under `world-x3zd`**, and it is the fourth of the four
+`2508bedb` left pointing at code that no longer exists;
+`paired-latitude-decomposition.md` carries the other three verdicts. The
+premise is a precondition of the parity split above and of nothing else in the
+tree, so with the split gone it has no consumer. What it checked was also its
+own second hand-transcription of `legini`'s recurrence rather than `legini`, so
+a drift between the two would have passed. Anyone who needs the premise again
+takes it from the compiled `legini` the way `verify_weight_factorisation.py`
+does, which is a repair of a different shape from the one this script was.
 
 So the weight matrices divide by which polynomial they carry:
 
