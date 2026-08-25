@@ -38,6 +38,30 @@
       real :: swindmask(NHOR) = 0.
       
       
+!     BOTH SWITCHES BELOW ARE DECLARED OFF FOR THIS WORLD, and the two are off
+!     for different reasons. run_exoplasim.py's declare_storm_diagnostics writes
+!     NSTORMDIAG = 0 and HC_CAPTURE = 0 into hurricane_namelist on every prepare
+!     and every continuation, and expected_namelist_keys checks them, so neither
+!     can arrive at 1 without somebody changing that. CLIM-54 and CLIM-55.
+!
+!     nstormdiag, the index half, is a DECISION. Resolution is not what is wrong
+!     with it: these are environmental indices and coarse fields are their
+!     intended support. What is wrong is that two of the eight fields it writes
+!     are fitted to Earth in places no namelist reaches. gpot builds code 329
+!     out of compiled literals -- absolute vorticity against 1e-5 per second,
+!     relative humidity against 0.5, potential intensity against 70 m/s, shear
+!     against 10 s -- and vreducedvmax folds VITHRESH, an Earth cyclogenesis
+!     cutoff, into the CONTINUOUS field on code 328 rather than into a mask.
+!     CPD below is hardcoded rather than following acpd, and CL is an admitted
+!     fudge. Wanting this diagnostic means re-deriving the indices, which is
+!     work, not a namelist tweak. world-9d1 and world-khn.
+!
+!     hc_capture, the storm-capture half, is a DECLARED GAP and not a decision
+!     that could go the other way: it hunts a resolved vortex, and the support
+!     that takes needs a truncation above the top of this project's resolution
+!     ladder. Lowering SIZETHRESH and WINDTHRESH until something triggered would
+!     produce a statistic about the grid. CLIM-55 is why no storm count exists.
+!
       integer :: nstormdiag = 0 ! Whether or not to compute storm climatology (1/0=yes/no)
       integer :: nuh = 50
       integer :: nstorms = 1     ! Max storms to capture per year

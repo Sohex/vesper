@@ -31,6 +31,7 @@ from run_exoplasim import (  # noqa: E402
     declare_robert_filter,
     declare_conversion_time_level,
     declare_dealias_conversion,
+    declare_storm_diagnostics,
     declare_ecological_stream,
     refuse_eco_codes,
     SHORTWAVE_GAS_KEYS,
@@ -584,6 +585,12 @@ def main() -> None:
     declare_robert_filter(model, config)
     declare_conversion_time_level(model, config)
     declare_dealias_conversion(model, config)
+    # CLIM-54 and CLIM-55, on the same footing as every switch above: the
+    # shipped hurricane_namelist that configure() re-copies happens to carry
+    # both keys at 0, so this segment would integrate the same either way. It is
+    # reapplied so that the value is this project's declaration rather than a
+    # coincidence, and so verify_staged_namelists below has something to check.
+    declare_storm_diagnostics(model)
     # AKAP, T0, TGR, DTROP, ALR and TFRC are on the same footing as the switches
     # above: configure() rewrites planet_namelist and plasim_namelist here, so a
     # continuation that did not re-apply them would revert to p_earth.f90's
