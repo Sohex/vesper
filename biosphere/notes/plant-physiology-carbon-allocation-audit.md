@@ -280,7 +280,8 @@ it:
     <tissue>_max = <tissue>_avr * (1 + m) / (2 * m)
     <tissue>_min = m * <tissue>_max
 
-with `m` = `frac_maxtomin` / `PFRAC_MAXTOMIN` = 0.9. That is the same inversion
+with `m` the window's min-to-max ratio, `frac_maxtomin` on the nitrogen side
+and `PFRAC_MAXTOMIN` on the phosphorus side, both 0.9. That is the same inversion
 `Pft::init_ctop_min()` performs on the leaf window and for the same reason:
 `avg_cton()` and `avg_ctop()` are harmonic means, so a mean has to be inverted
 through them to come back out. `m` therefore sets the WIDTH of the tight window
