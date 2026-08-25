@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
 """Build cGENIE through a config, and measure what one EMIC ocean-year costs.
 
-    python analysis/cgenie_cost.py --years 20 100 --repeats 2 --probe72 --verify
-    python analysis/cgenie_cost.py --case worbe2_36x36x8 --years 20
+    python analysis/cgenie_cost.py --probe72 --years 20 100 --repeats 2 \
+        --reuse-builds --perf --biogem --biogem-years 10 50 --verify
+    python analysis/cgenie_cost.py --stability --probe72 \
+        --case worjh2_36x36x16 --case dan_72_72x72x16_probe \
+        --nyear-sweep 25 30 35 50 100 140 160 200 --ndta-sweep 2 5 10 20 \
+        --out analysis/cgenie_stability.json
+
+The first writes analysis/cgenie_cost.json, the second
+analysis/cgenie_stability.json, and
+notes/audits/cgenie-build-cost-and-grid-ceiling.md is what they found. Drop
+--reuse-builds on a tree that has not been built yet; it reuses the executables
+stashed under the log directory rather than rebuilding, which is safe because
+one is a pure function of the grid macros and the code model.
 
 Worldbuilding. Vesper is an invented planet; this measures a candidate ocean
 component on this host, not any real ocean.
