@@ -10,6 +10,7 @@ import json
 import math
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import uuid
@@ -19,7 +20,7 @@ from netCDF4 import Dataset
 import numpy as np
 import yaml
 
-from _paths import CONFIG, INPUTS, PROJECT_ROOT, RUNS
+from _paths import CONFIG, INPUTS, MODEL_SRC, PROJECT_ROOT, RUNS
 import reset_restart_accumulators
 import rungs
 
@@ -279,6 +280,7 @@ def configure_otherargs(derived: dict) -> dict:
     A/B designed to have a right answer would have measured zero and looked
     like it had confirmed one.
     """
+    lwc = derived["land_water_column"]
     return {
         "N_DAYS_PER_YEAR@plasim_namelist": str(
             derived["rotations_per_orbit_namelist"]
@@ -354,6 +356,40 @@ def configure_otherargs(derived: dict) -> dict:
         # two are the only ones the gravity argument reaches.
         "BO3@radmod_namelist": f"{derived['ozone_height_m']:.6g}",
         "CO3@radmod_namelist": f"{derived['ozone_spread_m']:.6g}",
+        # world-n1nu, rainmod_nl. Written unconditionally, the compiled value
+        # included, for the reason NHDIFF and XMAXD are: `clwref` sets the
+        # cloud water path that both the shortwave optical depth and the
+        # longwave cloud emissivity are built from, and the arms of
+        # exoplasim/notes/cloud-water-reference.md are read against a control
+        # that has to be bit-identical to the compiled default. A key the run
+        # directory does not record is a key no artifact can attribute an arm
+        # to.
+        "CLWREF@rainmod_namelist":
+            f"{derived['cloud_water_reference_kg_m3']:.6g}",
+        # world-py6p, landmod_nl. THE LAND COLUMN, all eight keys and
+        # unconditionally, so the namelist in the run directory says which
+        # scheme the segment integrated. They travel together because they are
+        # one selection: a continuation that reapplied NLANDWCOL and dropped
+        # NLSOILW would run a layered column at landmod's compiled layer count
+        # and shape, which is the bucket wearing the other scheme's name.
+        "NLANDWCOL@landmod_namelist": str(lwc["NLANDWCOL"]),
+        "NLSOILW@landmod_namelist": str(lwc["NLSOILW"]),
+        "NLANDWDRAIN@landmod_namelist": str(lwc["NLANDWDRAIN"]),
+        # PER-LAYER, and written at the declared layer count rather than at
+        # NLSOILWX: landini reads the first `nlsoilw` entries and renormalises
+        # the capacity shape over exactly those, so stating more would state a
+        # shape the model does not read.
+        "DSOILWF@landmod_namelist": ", ".join(
+            f"{v:.6g}" for v in lwc["DSOILWF"]),
+        "DSOILWZ@landmod_namelist": ", ".join(
+            f"{v:.6g}" for v in lwc["DSOILWZ"]),
+        "NLANDWPHASE@landmod_namelist": str(lwc["NLANDWPHASE"]),
+        # THE EVAPORATION LIMITER'S TWO FREE AXES. The third, `drhsfull`, is
+        # landmod's own and is not routed here; these two are the pair that
+        # separates this model's limiter from cGENIE's ENTS, which is what
+        # makes the disagreement a runtime bracket instead of a code fork.
+        "DRHSLOW@landmod_namelist": f"{lwc['DRHSLOW']:.6g}",
+        "NRHSEXP@landmod_namelist": str(lwc["NRHSEXP"]),
     }
 
 
@@ -460,6 +496,203 @@ if abs(freezing_point_k(_REFERENCE_SALINITY) - _REFERENCE_TFREEZE) > 0.01:
         f"{_REFERENCE_SALINITY}, where icemod.f90's TFREEZE says "
         f"{_REFERENCE_TFREEZE}. One of the two is wrong and this is not a "
         "difference to average over.")
+
+
+# COMPILED NAMELIST DEFAULTS, READ FROM THE MODEL RATHER THAN COPIED.
+#
+# `lib/sea_water.py`'s argument, applied to the keys this file routes: a
+# constant copied out of the model into a script stops tracking the model the
+# moment either moves, and nothing fails when it does. Reading it means a
+# configuration that omits a key reproduces the compiled value by construction
+# rather than by a transcription somebody has to re-check.
+LANDMOD_SOURCE = MODEL_SRC / "plasim" / "src" / "landmod.f90"
+LANDCOLUMN_SOURCE = MODEL_SRC / "plasim" / "src" / "landcolumn.f90"
+RAINMOD_SOURCE = MODEL_SRC / "plasim" / "src" / "rainmod.f90"
+
+
+def _fortran_default(source: Path, name: str) -> float:
+    """One scalar module default out of a model source file.
+
+    Raises if the model no longer declares the key: falling back to a literal
+    here would put the transcription back, silently and at the compiled value's
+    old number.
+    """
+    text = source.read_text(encoding="utf-8", errors="replace")
+    m = re.search(rf"^\s*(?:integer|real)\s*::\s*{name}\s*=\s*([-+0-9.eEdD]+)",
+                  text, re.IGNORECASE | re.MULTILINE)
+    if not m:
+        raise SystemExit(
+            f"{source.name} no longer declares {name}. It is a namelist key "
+            "this script writes, and its default must be read from the model, "
+            "never copied into the script that writes it.")
+    return float(m.group(1).replace("d", "e").replace("D", "e"))
+
+
+def landmod_default(name: str) -> float:
+    """A scalar `landmod_nl` default."""
+    return _fortran_default(LANDMOD_SOURCE, name)
+
+
+def rainmod_default(name: str) -> float:
+    """A scalar `rainmod_nl` default."""
+    return _fortran_default(RAINMOD_SOURCE, name)
+
+
+# THE LAND LIQUID WATER COLUMN, `landmod_nl`. LSHY-3 and LSHY-5.
+#
+# Eight keys select the land column's liquid water scheme, its evaporation
+# limiter and its soil phase, and until they had a route from
+# `config/planet.yaml` the selection was reachable only by hand-editing a
+# namelist in a run directory, which the next continuation would overwrite.
+# Every registered hypothesis except the compiled default was unrunnable and
+# the bracket LSHY-3 exists to make a runtime selection was still a code fork.
+# world-py6p.
+
+
+def landmod_default_array(name: str) -> list[float]:
+    """An array `landmod_nl` default, read the same way, across continuations.
+
+    `dsoilwf` and `dsoilwz` are declared as `(/ ... /)` constructors broken over
+    two Fortran continuation lines, so the whole constructor is taken and the
+    continuation markers stripped before the elements are split.
+    """
+    text = LANDMOD_SOURCE.read_text(encoding="utf-8", errors="replace")
+    m = re.search(rf"^\s*real\s*::\s*{name}\s*\([^)]*\)\s*=\s*\(/(.*?)/\)",
+                  text, re.IGNORECASE | re.MULTILINE | re.DOTALL)
+    if not m:
+        raise SystemExit(
+            f"{LANDMOD_SOURCE.name} no longer declares the array {name}. It is "
+            "a landmod_nl key and its default must be read from the model, "
+            "never copied into the script that writes it.")
+    body = re.sub(r"&\s*\n\s*&?", " ", m.group(1))
+    return [float(v.replace("d", "e").replace("D", "e"))
+            for v in body.replace("\n", " ").split(",") if v.strip()]
+
+
+def land_water_layer_limit() -> int:
+    """`NLSOILWX`, the compiled ceiling on the water column's layer count."""
+    text = LANDCOLUMN_SOURCE.read_text(encoding="utf-8", errors="replace")
+    m = re.search(r"^\s*integer\s*,\s*parameter\s*::\s*NLSOILWX\s*=\s*(\d+)",
+                  text, re.IGNORECASE | re.MULTILINE)
+    if not m:
+        raise SystemExit(
+            f"{LANDCOLUMN_SOURCE.name} no longer declares NLSOILWX, which is "
+            "the bound a declared layer count has to be checked against.")
+    return int(m.group(1))
+
+
+# The word each selection is DECLARED by in `config/planet.yaml`, against the
+# integer `landmod_nl` takes. Words rather than integers because these are two
+# named schemes and not a magnitude: `scheme: bucket` says in the config which
+# of LSHY-3's registered hypotheses a run integrated, and 0 does not.
+LAND_WATER_SCHEMES = {"bucket": 0, "layered": 1}
+LAND_WATER_LOWER_BOUNDARIES = {"impermeable": 0, "free_drainage": 1}
+
+
+def land_water_column(config: dict) -> dict:
+    """The eight `landmod_nl` keys of the land column, from the configuration.
+
+    Returns {NAMELIST KEY: value}, integers and floats and per-layer lists,
+    with every key present: they are written unconditionally, defaults
+    included, so the namelist in the run directory records which scheme the
+    segment integrated rather than leaving it to the compiled binary. That is
+    the same argument XMAXD, NHDIFF and GLACPERSIST are written on.
+
+    Read by `derive()`, which passes it to `configure_otherargs`, and by
+    `expected_namelist_keys`, which is a check on the STAGED FILE and shares
+    this mapping the way it already shares `freezing_point_k`: what must not be
+    shared with the staging code is the list of keys, and that list is stated
+    separately in both places.
+
+    The refusals mirror `landini`'s, one of them exactly and one it cannot
+    make. `nlandwphase = 1` needs `nlandwcol = 1` because phase is a property
+    of a layer; landini refuses that too, and refusing here costs a config read
+    instead of a launched model. The agreement between the declared layer count
+    and the length of the per-layer lists is the one landini CANNOT make: it
+    reads the first `nlsoilw` entries of an array whose tail is compiled zeros,
+    so a config that declares two layers and one capacity fraction would give
+    layer two a zero capacity and run.
+    """
+    block = config.get("surface", {}).get("land_water_column", {}) or {}
+    limit = land_water_layer_limit()
+
+    scheme = str(block.get("scheme", "bucket"))
+    if scheme not in LAND_WATER_SCHEMES:
+        raise ValueError(
+            f"surface.land_water_column.scheme {scheme!r} is not one of "
+            f"{sorted(LAND_WATER_SCHEMES)}")
+    boundary = str(block.get("lower_boundary", "impermeable"))
+    if boundary not in LAND_WATER_LOWER_BOUNDARIES:
+        raise ValueError(
+            f"surface.land_water_column.lower_boundary {boundary!r} is not one "
+            f"of {sorted(LAND_WATER_LOWER_BOUNDARIES)}")
+    phase = bool(block.get("soil_phase", False))
+    if phase and scheme != "layered":
+        raise ValueError(
+            "surface.land_water_column.soil_phase needs scheme: layered. "
+            "Phase is a property of a LAYER and the scalar bucket has no layer "
+            "to freeze; landmod.f90's landini refuses the same combination.")
+
+    layers = int(block.get("layers", landmod_default("nlsoilw")))
+    if not 1 <= layers <= limit:
+        raise ValueError(
+            f"surface.land_water_column.layers {layers} is outside 1 to "
+            f"{limit}, which is landcolumn.f90's NLSOILWX")
+
+    fractions = [float(v) for v in block.get(
+        "layer_capacity_fraction", landmod_default_array("dsoilwf")[:layers])]
+    thicknesses = [float(v) for v in block.get(
+        "layer_thickness_m", landmod_default_array("dsoilwz")[:layers])]
+    for name, values in (("layer_capacity_fraction", fractions),
+                         ("layer_thickness_m", thicknesses)):
+        if len(values) != layers:
+            raise ValueError(
+                f"surface.land_water_column.{name} has {len(values)} entries "
+                f"and layers is {layers}. The model reads the first `nlsoilw` "
+                "entries of an array whose tail is compiled zeros, so a short "
+                "list runs with a zero rather than failing.")
+    if any(v < 0.0 for v in fractions) or sum(fractions) <= 0.0:
+        raise ValueError(
+            "surface.land_water_column.layer_capacity_fraction must be "
+            "non-negative and must not sum to zero; landini renormalises it to "
+            "sum to one, so it is a SHAPE and its scale carries nothing.")
+    if any(v <= 0.0 for v in thicknesses):
+        raise ValueError(
+            "surface.land_water_column.layer_thickness_m must be positive: it "
+            "is a depth in metres, and the mapping onto the soil TEMPERATURE "
+            "layers that decide phase is by the water layer's midpoint.")
+
+    limiter = block.get("evaporation_limiter", {}) or {}
+    return {
+        "NLANDWCOL": LAND_WATER_SCHEMES[scheme],
+        "NLSOILW": layers,
+        "NLANDWDRAIN": LAND_WATER_LOWER_BOUNDARIES[boundary],
+        "DSOILWF": fractions,
+        "DSOILWZ": thicknesses,
+        "NLANDWPHASE": int(phase),
+        "DRHSLOW": float(limiter.get("theta_low", landmod_default("drhslow"))),
+        "NRHSEXP": int(limiter.get("exponent", landmod_default("nrhsexp"))),
+    }
+
+
+# THE WORDS AGAINST THE MODEL'S OWN DEFAULT. `landmod.f90` states that the
+# default land liquid water scheme is "the scheme that has always run", the
+# scalar bucket with an impermeable base, and the two dictionaries above are
+# the only place in this project where that claim is turned into an integer. An
+# inverted mapping would put every run on the other scheme while its config and
+# its namelist both read as the default, which is a difference no gate
+# downstream could name. This is a right answer the model already knows, so it
+# is a check that can fail.
+for _word, _table, _key in (("bucket", LAND_WATER_SCHEMES, "nlandwcol"),
+                            ("impermeable", LAND_WATER_LOWER_BOUNDARIES,
+                             "nlandwdrain")):
+    if _table[_word] != int(landmod_default(_key)):
+        raise RuntimeError(
+            f"this file maps {_word!r} to {_table[_word]} and landmod.f90 "
+            f"declares {_key} = {landmod_default(_key):g}. Either the word is "
+            "mapped to the wrong scheme or the model no longer defaults to the "
+            "one that has always run; both change what a configuration that "
+            "declares the default selects.")
 
 
 def derive(config: dict, flux_ratio: float) -> dict:
@@ -585,6 +818,18 @@ def derive(config: dict, flux_ratio: float) -> dict:
         # nothing keeps upstream's fixed geometric placement.
         "ozone_height_m": float(config["model"].get("ozone_height_m", 20000.0)),
         "ozone_spread_m": float(config["model"].get("ozone_spread_m", 5000.0)),
+        # world-n1nu, rainmod_nl. rho_l0, the CCM3 reference in-cloud liquid
+        # water density `mkclouds` anchors its exponential cloud water profile
+        # on. DECLARED at CCM3's own value and read out of rainmod.f90 rather
+        # than copied, so a config that says nothing reproduces the compiled
+        # value exactly and the bracket arms move only what they declare.
+        "cloud_water_reference_kg_m3": float(
+            config["model"].get("cloud_water_reference_kg_m3",
+                                rainmod_default("clwref"))),
+        # world-py6p, landmod_nl. The eight keys of the land liquid water
+        # column: which of LSHY-3's registered hypotheses runs, its evaporation
+        # limiter, and LSHY-5's soil phase. See `land_water_column`.
+        "land_water_column": land_water_column(config),
     }
 
 
@@ -1951,7 +2196,8 @@ def expected_namelist_keys(config: dict) -> dict:
     m = config["model"]
     want: dict = {"radmod_namelist": {}, "icemod_namelist": {}, "plasim_namelist": {},
                   "planet_namelist": {}, "landmod_namelist": {},
-                  "glacier_namelist": {}, "oceanmod_namelist": {}}
+                  "glacier_namelist": {}, "oceanmod_namelist": {},
+                  "rainmod_namelist": {}}
     for key, name, default in SHORTWAVE_GAS_KEYS:
         v = m.get(key)
         if v is not None and float(v) != default:
@@ -2004,6 +2250,29 @@ def expected_namelist_keys(config: dict) -> dict:
         glaciers.get("max_snow_depth_m", -1.0))
     want["glacier_namelist"]["GLACPERSIST"] = float(
         glaciers.get("persistence_orbits", 1.0))
+    # world-n1nu, rainmod_nl, and unconditional for the same reason: the
+    # control arm of the cloud water bracket is the compiled value, so a
+    # continuation that dropped CLWREF would produce a control that agrees with
+    # its own arm by accident rather than by construction.
+    clwref = float(m.get("cloud_water_reference_kg_m3",
+                         rainmod_default("clwref")))
+    want["rainmod_namelist"]["CLWREF"] = float(f"{clwref:.6g}")
+    # world-py6p, landmod_nl. THE LAND COLUMN, all eight, unconditionally.
+    # `land_water_column` is shared with the staging side the way
+    # `freezing_point_k` is: it maps the CONFIG to a value and knows nothing
+    # about what gets written, and the list of keys below is stated here
+    # independently, which is the half that must not come from the staging
+    # code. The two per-layer keys are asked for at the DECLARED layer count,
+    # so a config that declares three layers and a namelist carrying one fails
+    # on its length -- world-720's failure, on the land column.
+    lwc = land_water_column(config)
+    for _key in ("NLANDWCOL", "NLSOILW", "NLANDWDRAIN", "NLANDWPHASE",
+                 "NRHSEXP"):
+        want["landmod_namelist"][_key] = float(lwc[_key])
+    want["landmod_namelist"]["DRHSLOW"] = float(f"{lwc['DRHSLOW']:.6g}")
+    for _key in ("DSOILWF", "DSOILWZ"):
+        want["landmod_namelist"][_key] = [
+            float(f"{v:.6g}") for v in lwc[_key]]
     salinity = config.get("ocean", {}).get("salinity_psu")
     if salinity is not None:
         celsius = freezing_point_k(salinity) - 273.15

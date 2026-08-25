@@ -482,8 +482,9 @@ of every entry in the bundle table below.
 
 **What would mean wrong, and the falsifying conditions, are in the note.** So
 is the decision procedure if an arm fails to equilibrate or crosses the sea-ice
-transition. The arms cannot be run until `clwref` has a route from
-configuration into the model, which is `world-n1nu`.
+transition. `clwref` reaches the model from
+`config/planet.yaml`'s `model.cloud_water_reference_kg_m3`, so the arms are a
+run rather than a code change.
 
 ## The bundle, summed
 

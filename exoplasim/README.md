@@ -321,6 +321,21 @@ the new record the moment it has a policy.
 
 ## The land liquid water scheme is a selection
 
+**The selection is made in `config/planet.yaml`, under
+`surface.land_water_column`.** `run_exoplasim.py` maps that block onto the
+eight `landmod_nl` keys below and writes every one of them unconditionally,
+defaults included, and `continue_exoplasim.py` reapplies them per segment, so
+the namelist in a run directory records which scheme the run integrated instead
+of leaving it to the compiled binary. The compiled defaults are read out of
+`landmod.f90` rather than copied, so a configuration that declares the default
+reproduces it by construction; `expected_namelist_keys` covers all eight, which
+is what stops a continuation from dropping one. The block also refuses two
+things before a run is prepared rather than after the model has started: soil
+phase without a layered column, which `landini` also refuses, and a layer count
+that disagrees with the length of the per-layer lists, which `landini` cannot
+catch because it reads the first `nlsoilw` entries of an array whose tail is
+compiled zeros.
+
 `nlandwcol` in `landmod_nl` chooses between two schemes, and the default is the
 one that has always run.
 
@@ -687,7 +702,9 @@ are the CCM3 cloud-water e-folding length coefficient and the reference
 in-cloud liquid density that `mkclouds` carried as bare literals; `clwhsc`
 below zero, which is the default, means DERIVE it from this planet's own
 `gascon` and `ga`, because it is a length and the heights it is measured
-against are already built that way. `elwland` and `elwsea` in `radmod_nl` are
+against are already built that way. `clwref` is declared in
+`config/planet.yaml` as `model.cloud_water_reference_kg_m3` and written to
+every run's namelist, so its bracket is a run rather than a code change. `elwland` and `elwsea` in `radmod_nl` are
 the surface longwave emissivities `lwr` carried as one literal; they are
 declared in `config/planet.yaml` at the values that literal had. `dql` is not
 diagnostic: it sets shortwave cloud optical depth and longwave cloud

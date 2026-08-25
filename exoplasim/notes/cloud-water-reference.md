@@ -217,13 +217,19 @@ mean and never converted through that slope.
 
 ## What is not settled, and what would settle it
 
-`clwref` has no route from configuration into the model. It is a `rainmod_nl`
-key and `rainini` broadcasts and echoes it, but `run_exoplasim.py` writes no
-`CLWREF` and `config/planet.yaml` declares none, so every run to date has taken
-the compiled value. The arms cannot be run until a `model` key exists and
-`run_exoplasim.py` writes `CLWREF@rainmod_namelist` the way it already writes
-`TSWR3@radmod_namelist` for PHYS-11, with `expected_namelist_keys` covering it.
-That is `world-n1nu`.
+The arms have not been run. The route exists: `config/planet.yaml` declares
+`model.cloud_water_reference_kg_m3`, `run_exoplasim.py` writes
+`CLWREF@rainmod_namelist` unconditionally the way it writes
+`TSWR3@radmod_namelist` for PHYS-11, `continue_exoplasim.py` reapplies it per
+segment, and `expected_namelist_keys` covers it, so a run that dropped the key
+fails its own staging check rather than reverting in silence. The declared
+value is read out of `rainmod.f90` rather than copied, so the control arm
+reproduces the compiled value by construction and the bit-identity the arms are
+read against is a property of the route rather than a coincidence to verify
+each time.
+
+What remains is the three points themselves, on one binary and one restart,
+against the predictions and the three falsifying conditions above.
 
 The Stephens fit itself remains uncited beyond `radmod`'s own header naming
 Stephens (1978) and Stephens et al. (1984); neither is in `references/`. Its
