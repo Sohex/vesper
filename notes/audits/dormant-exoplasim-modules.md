@@ -22,10 +22,10 @@ assumed, and one is a facility this project is half-using without knowing it.
 
 The inventory below is what the run cited above carried, and the gates are
 unchanged except where a later finding is named. What did move is what a run
-now DECLARES about them: `NENERGY`, `NENER3D`, `NENERGYFIX`, `L_AERO` and
-`NDUSTRAD` are written by `run_exoplasim.py` and checked by
-`expected_namelist_keys`, so a segment cannot silently drop back to a compiled
-default, and the dormant Earth constants inside each module say so at the switch
+now DECLARES about them: `NENERGY`, `NENER3D`, `NENERGYFIX`, `L_AERO`,
+`NDUSTRAD`, `NSTORMDIAG` and `HC_CAPTURE` are written by `run_exoplasim.py` and
+checked by `expected_namelist_keys`, so a segment cannot silently drop back to a
+compiled default, and the dormant Earth constants inside each module say so at the switch
 under world-9d1.
 
 ## 1. The inventory, and the switch that gates each one
@@ -34,7 +34,7 @@ under world-9d1.
 | --- | --- | --- |
 | `simba.f90` | `NVEG = 0` | `configure(vegetation=)`, never passed, defaults False |
 | `carbonmod.f90` | `NCARBON = 0`, `NCO2EVOLVE = 0` | `configure(co2weathering=, evolveco2=)`, both default False |
-| `hurricanemod.f90` | `NSTORMDIAG = 0`, `HC_CAPTURE = 0` | `configure(stormclim=)`, never passed |
+| `hurricanemod.f90` | `NSTORMDIAG = 0`, `HC_CAPTURE = 0` | `run_exoplasim.declare_storm_diagnostics`, written and checked |
 | `aeromod.f90`, `aerocore.f90` | `L_AERO = 0` | `model.dust_emission` absent from `config/planet.yaml` |
 | `tpcore.f90`, `trc_routines.f90` | `NQSPEC = 1` | model default; nothing writes it |
 | `lsgmod.f90` | `NLSG = 0`, and `cpl_stub.f90` is compiled in its place | `CMakeLists.txt:184` |
@@ -105,8 +105,21 @@ coarse fields is their intended use rather than a compromise.
 The module is more planet-aware than most of what this project has audited:
 `hurricaneini` takes `RD = gascon` from the model rather than assuming Earth
 air, and `absvorticity` uses the model's own `omega`. Its thermodynamic
-constants are Earth's, which is right for a 1 bar N2/O2 atmosphere, and every
-threshold above is a namelist key rather than a compiled constant.
+constants are Earth's, which is right for a 1 bar N2/O2 atmosphere.
+
+The thresholds above are namelist keys. The Earth calibration inside the
+CONTINUOUS fields is not, and that is the half a re-derivation cannot reach
+through `hurricane_nl`. Two of the eight output codes carry it. `gpot` builds
+the genesis potential index on code 329 out of compiled literals -- absolute
+vorticity against 1e-5 per second, relative humidity against 0.5, potential
+intensity against 70 m/s, shear against 10 s -- none of which appears in the
+namelist. `vreducedvmax` folds `VITHRESH` into code 328 through
+`VRC1 = 2/(3 sqrt(3) VITHRESH)`, so an Earth cyclogenesis cutoff sets the shape
+of a field that is not a mask. The other six -- CAPE, the level of neutral
+buoyancy, the entropy deficit, absolute vorticity, potential intensity and the
+ventilation index -- are thermodynamic or kinematic and carry no cyclogenesis
+calibration, though `CPD` at `:51` is hardcoded rather than tied to `acpd` and
+`CL` is an admitted fudge.
 
 The capture half, `HC_CAPTURE` with the high-cadence stream, is what the
 resolution intuition is about. It hunts a RESOLVED vortex: at least 33 m/s in
@@ -130,16 +143,23 @@ deformation radius, while 12.81 m/s2 puts the scale height at 0.766 of Earth's,
 which lowers it, for a net 0.957. Earth GCMs want roughly 50 km before
 cyclone-like vortices reach realistic intensity, which on this planet is about
 T320. **The capture half is off the resolution ladder this project has, and
-converting up does not put it on.** CLIM-55 owns that as a declared gap.
+converting up does not put it on.** CLIM-55 settled that as a declared gap, on
+DUST-16's precedent, and `exoplasim/README.md` carries it where a reader meets
+the switch. The revisit condition is a target support far finer than the ladder
+contemplates.
 
-**The index half is available at T42 for one namelist key and has never been
-asked for.** There is no prognostic hurricane state, so it is valid on a
-continuation segment as well as a cold start, unlike every surface field, which
-`landmod`'s `landini` takes from the restart. It is not quite free: the eight
-indices are output codes 322 to 329, which are not in `REGULAR_CODES`, and
-`stormclim=True` has to be reapplied per segment for the CLIM-17 reason. What it
-returns is whether this climate's environments admit cyclogenesis at all, not
-how many storms there are. CLIM-54 owns the decision.
+**The index half is one namelist key away and the decision has been taken: it
+stays off.** It would have been cheap. There is no prognostic hurricane state,
+so it is valid on a continuation segment as well as a cold start, unlike every
+surface field, which `landmod`'s `landini` takes from the restart; the cost is
+adding codes 322 to 329 to `REGULAR_CODES` and reapplying the switch per segment
+for the CLIM-17 reason. What refuses it is the paragraph above: two of the eight
+fields would be Earth's calibration wearing this world's units, and a verdict on
+whether this climate's environments admit cyclogenesis would rest on them.
+CLIM-54 settled it, and `run_exoplasim.declare_storm_diagnostics` is where the
+argument sits, at the switch. Wanting the diagnostic means re-deriving `gpot`'s
+normalisations and `vreducedvmax`'s cutoff for this planet, which is work rather
+than a namelist tweak.
 
 Cost when off is not quite zero and is near enough: `hurricanestep` is called
 unconditionally from `plasim`'s main loop and returns after zeroing seven `NHOR`

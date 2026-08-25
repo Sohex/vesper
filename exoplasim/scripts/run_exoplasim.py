@@ -1548,6 +1548,59 @@ def declare_dealias_conversion(model, config: dict) -> bool:
     return True
 
 
+def declare_storm_diagnostics(model) -> dict:
+    """Both halves of hurricanemod, declared OFF rather than left at a default.
+
+    CLIM-54 asked whether the baseline carries the cyclogenesis index
+    diagnostics and CLIM-55 asked that the storm-capture half stay a declared
+    gap. This is where both answers live, because this is where a run meets the
+    switch. Neither is a config key: making them settings would put a broken
+    diagnostic back on the menu, and what is wrong with them is not a value a
+    namelist can carry.
+
+    NSTORMDIAG = 0. The index half is an ENVIRONMENTAL diagnostic and its
+    resolution is not the problem -- indices of this kind exist because a model
+    of this class cannot resolve a storm, so coarse fields are their intended
+    support. What is wrong is that the indices are fitted to Earth in places a
+    namelist cannot reach. `gpot` normalises the genesis potential index by
+    compiled literals -- absolute vorticity against 1e-5 per second, relative
+    humidity against 0.5, potential intensity against 70 m/s, shear against
+    10 s -- none of which is in `hurricane_nl`; `vreducedvmax` folds `VITHRESH`,
+    an Earth cyclogenesis cutoff, into the CONTINUOUS field on code 328 rather
+    than into a mask; and `CPD` is hardcoded at 1005.7 instead of following
+    `acpd`, while `CL` is an admitted fudge. Eight fields would be written and
+    two of them would be Earth's calibration wearing this world's units. The
+    thresholds that mask them are worse: `LAVTHRESH` is 25 per cent too strict
+    against a planetary vorticity 0.8 of Earth's at a 30-hour day. Turning this
+    on is a re-derivation of the indices, not a namelist key. world-9d1,
+    world-khn, and the argument is `notes/audits/dormant-exoplasim-modules.md`
+    finding 3.
+
+    HC_CAPTURE = 0, and this one is a DECLARED GAP on DUST-16's precedent
+    rather than a decision that could go the other way. The capture half hunts a
+    RESOLVED vortex, and the bar is higher on this world than on Earth by two
+    compounding factors: a given truncation buys 20 per cent coarser spacing in
+    kilometres because the planet is 1.2 radii, and the storms are not
+    correspondingly larger. The support Earth GCMs want before cyclone-like
+    vortices reach realistic intensity is off the top of the resolution ladder
+    this project has, and converting up does not put it on. A storm statistic
+    produced by lowering `SIZETHRESH` and `WINDTHRESH` until something triggered
+    would be a property of the grid rather than of the world. CLIM-55 is why no
+    storm count exists and why that absence is not a null result.
+
+    WRITTEN, NOT ASSUMED. Both keys already read 0 from the namelist ExoPlaSim
+    ships, so this changes nothing the model integrates. What it changes is that
+    the value is DECLARED: `expected_namelist_keys` checks both on every prepare
+    and every continuation, so a `stormclim=True` reaching `configure()` from
+    anywhere -- a loaded `.cfg`, a `modify()`, a future caller -- is refused
+    instead of quietly adding eight Earth-calibrated fields to a segment.
+    failure-modes class 22.
+    """
+    model._edit_namelist("hurricane_namelist", "NSTORMDIAG", "0")
+    model._edit_namelist("hurricane_namelist", "HC_CAPTURE", "0")
+    return {"nstormdiag": 0, "hc_capture": 0}
+
+
 def declare_timestep(config: dict) -> float:
     """The step this run integrates at, resolved through the ladder registry.
 
@@ -2359,7 +2412,15 @@ def expected_namelist_keys(config: dict) -> dict:
     want: dict = {"radmod_namelist": {}, "icemod_namelist": {}, "plasim_namelist": {},
                   "planet_namelist": {}, "landmod_namelist": {},
                   "glacier_namelist": {}, "oceanmod_namelist": {},
-                  "rainmod_namelist": {}}
+                  "rainmod_namelist": {}, "hurricane_namelist": {}}
+    # CLIM-54 and CLIM-55, unconditional and not derived from a config key.
+    # `declare_storm_diagnostics` says why both halves of hurricanemod are off;
+    # they are checked here so that off is a state this project asserts rather
+    # than the shipped namelist's default surviving by luck. Every other entry
+    # in this function answers to `config/planet.yaml`, and these two do not
+    # because a diagnostic whose indices are fitted to Earth is not a setting.
+    want["hurricane_namelist"]["NSTORMDIAG"] = 0.0
+    want["hurricane_namelist"]["HC_CAPTURE"] = 0.0
     for key, name, default in SHORTWAVE_GAS_KEYS:
         v = m.get(key)
         if v is not None and float(v) != default:
@@ -3083,6 +3144,7 @@ def main() -> None:
     robert_filter = declare_robert_filter(model, config)
     conversion_time_level = declare_conversion_time_level(model, config)
     dealias_conversion = declare_dealias_conversion(model, config)
+    declare_storm_diagnostics(model)
     set_low_io(model, args.low_io)
     eco_stream = declare_ecological_stream(
         model, args.ecological_stream, args.eco_interval_steps)

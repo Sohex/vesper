@@ -1070,6 +1070,127 @@ property of the geography and it changes with every build and every carve.
 - The segment is at one rung. The instrument takes `--rung` and the argument is
   rung-independent, but only T42 has been run.
 
+## 12. The diagnose half of the q-flux recipe is also built, and what blocks it is the target
+
+CLIM-65 asks for the no-q-flux structural term to be converted from declared to
+measured, on the procedure CLIMBER-X demonstrates: run with prescribed sea
+surface temperatures, write the diagnosed net surface heat flux, read it back and
+apply it against a slab. Finding 2 and section 11 cover the second half. This is
+the first half, and the same answer holds: it is built, and nothing here has to
+be ported.
+
+### 12a. `nocean = 0` prescribes the surface and diagnoses the flux in one pass
+
+`oceanmod.f90`'s climatological-ocean branch does both jobs in the order the
+recipe needs. `mksst` takes the free slab step first; the branch then computes
+
+    yfsst2 = CRHOS * CPS / dtmix * (yclsst2 - ysst) * ymld
+
+before overwriting `ysst` with the prescribed `yclsst2`. So `yfsst2` is the
+surface heat flux, in W/m2, that would have to be supplied to hold the modelled
+mixed layer at the prescribed temperature -- CLIMBER-X's `flx_ocn`, at this
+project's mixed layer depth and at the sea water heat capacity `icemod` declares
+rather than a copied one. It accumulates into `yfssta` and `oceanout` writes it
+as code 903 in the `ocean_output` stream, which every run already produces as
+`MOST_OCEAN.NNNNN`.
+
+Code 903 is the SAME code the apply half reads. `getflxco` takes the prescribed
+correction from `mpsurfgp('yfsst', ...)`, which `surfmod` binds to code 903 as a
+14-month field. So the two passes meet on one code and one `.sra`, and no format
+conversion sits between them: pass one writes the diagnosed flux into the ocean
+stream, and pass two reads a 14-month `.sra` built from it.
+
+The loop is therefore two namelist keys and one new staging step:
+
+1. **Diagnose.** `nocean = 0` with a target sea surface temperature staged at
+   code 169. Harvest code 903 from `MOST_OCEAN.NNNNN`.
+2. **Convert.** Write the harvested field as a 14-month code 903 `.sra`. One
+   pipeline step, the same `.sra` machinery nine other codes already use.
+3. **Apply.** `nocean = 1`, `nfluko = 1`, with that `.sra` staged. Section 11
+   verified this half end to end, including that the field is delivered to the
+   slab at the declared heat capacity and interval and not merely reported.
+
+Two refusals stand in the way and both are the model asking for the same thing.
+`oceanini` aborts on `nocean = 0` and on any `nfluko` without a code-169 sea
+surface temperature field, because relaxing toward the `-999` sentinel is what
+would otherwise happen; `icemod` refuses `nfluko` on the same test. Nothing in
+this project writes code 169.
+
+### 12b. What the measurement would actually be a measurement of
+
+CLIMBER-X's prescribed field is not observations. `coupler.f90`'s `aquaplanet`
+prescribes an ANALYTIC zonally uniform profile in latitude, the idealised
+aquaplanet target, and `l_aqua_slab` then applies the diagnosed `qflux` against a
+30 m slab. So the recipe there produces a slab configuration that reproduces a
+CHOSEN sea surface temperature structure, and its q-flux is the transport that
+choice implies given that atmosphere.
+
+That is the whole of what transfers, and it is worth stating plainly because the
+recipe reads like it produces the missing field. It does not. On Earth the
+prescribed field is observed and the diagnosed q-flux is therefore an estimate of
+a real transport. This world has no observed sea surface temperature and no
+independent estimate of one: `vendor/cgenie` is the only candidate that would
+supply a transporting ocean and it is not an adopted component. So there are
+exactly three things that could be prescribed here, and only one of them is
+useful.
+
+- **The free slab's own climatology.** The diagnosed flux is then the run's
+  residual against itself, near zero by construction, and measures nothing.
+- **A field from an ocean model that transports heat.** This is the honest
+  version and it is OCN-3's problem, not this row's.
+- **A DECLARED sea surface temperature structure**, differing from the free
+  slab's in the way an ocean would -- a reduced equator-to-pole gradient, at a
+  declared magnitude. The diagnosed flux is then the transport that structure
+  implies given this atmosphere, and applying it measures what the climate does
+  when the surface gradient is moved by that much.
+
+The third is the instrument this row can have, and it changes what is measured
+rather than removing the declaration. The MAGNITUDE of the imposed gradient
+change stays declared; what becomes measured is the SENSITIVITY to it, in kelvin
+per unit of imposed change, on the same footing as the constant-diffusivity arm
+and reached by a different lever. A residual measured against a declared target
+is better than a term declared, which is the row's own claim, but it is not the
+transport and calling it that would be the tuning this project forbids.
+
+### 12c. Cost, in the unit that survives a contended host
+
+Two run classes, not one, and the row's "one prescribed-SST run" undercounts.
+
+- **Pass one is cheap and is not a commissioning.** With the surface prescribed
+  there is no mixed layer to equilibrate: the atmosphere adjusts to a fixed lower
+  boundary, and what is left to settle is the sea ice and the land. It is a
+  diagnostic segment in the CLAUDE.md sense, and its purpose is declared as such
+  so its orbits never reach a climatology.
+- **Pass two is a full commissioning.** A slab carrying a q-flux is a different
+  ocean, so it is a bootstrap and a baseline of its own, and its numbers are
+  comparable with the reference only through a paired difference.
+- **The staging step in between** is one script and one `.sra`, and it is the
+  only new code the loop needs.
+
+That is one diagnostic segment plus one commissioning per arm, and an arm is one
+declared gradient change. It is not a desk calculation, and it is not one run.
+
+### 12d. The cheap bound is the diffusivity arm, in true units
+
+The row offers a constant ocean diffusivity as the cheapest bound on the term,
+and CLIM-16 settled that horizontal diffusion stays off and that a constant
+diffusivity is a BOUND on the missing transport rather than the transport. Two
+things about the numbers, because getting them wrong would put a measurement
+against the wrong label.
+
+`hdiffk` now means what it says. `world-mll` removed the compiled Earth radius
+from `hdiffo`, so an arm set to a value realises that value, and
+`config/planet.yaml`'s `horizontal_diffusivity_m2_s` is in the same true units.
+CLIM-16's bracket was declared in namelist values under the old code and the arms
+realised 1.44 times what they were labelled, which is how
+`exoplasim/notes/forcing-bundle-predictions.md` now names them. Its measured
+spread belongs to the realised values and not to the labels, and no arm has ever
+run at a true value equal to the configured default, so there is no measurement
+at the default to compare a new arm against.
+
+`predict_ocean_terms.py` needs no change: it builds its operator on this planet's
+radius, so its defaults have always been true-unit arms.
+
 ---
 
 ## Tasks
@@ -1082,3 +1203,6 @@ acceptance rows OCN-10 through OCN-16, plus LITH-26 for the existing static
 latitude shelf classifier. Section 9 supplies OCN-3's single-host viability and cost row and
 OCN-4's ecosystem tier, its coupling half is OCN-17, its resolution ceiling is
 OCN-18, and its profile-then-optimise split is OCN-19 and OCN-20.
+Section 12 belongs to CLIM-65 rather than to an OCN row: it is the
+diagnose half of the q-flux recipe, and what it is blocked on is a
+declared sea surface temperature target rather than any missing code.

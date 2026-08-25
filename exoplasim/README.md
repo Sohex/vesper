@@ -616,6 +616,48 @@ trend but a mean TOA imbalance of -0.504 W/m2, missing the strict limit by
 relaxed around it, and anything derived from it is a qualitative endpoint rather
 than a result of equal confidence. Preserve that standard.
 
+## What a run does not carry, and why that is not a null result
+
+The model compiles modules this configuration never runs.
+`notes/audits/dormant-exoplasim-modules.md` is the inventory and says which
+absences are decisions. Two of them are recorded here because they are the ones
+somebody will reach for, and both reach the model through
+`run_exoplasim.declare_storm_diagnostics`, which writes them off on every
+prepare and every continuation rather than letting the shipped namelist's
+defaults stand.
+
+**No cyclogenesis indices.** `hurricanemod`'s index half computes potential
+intensity, a tropospheric entropy deficit, a ventilation index, lower-atmosphere
+absolute vorticity and a genesis potential index on codes 322 to 329. These are
+ENVIRONMENTAL indices, built to be read off coarse fields because no model of
+this class resolves a storm, so the grid is not the objection. The objection is
+that two of the eight fields carry Earth's calibration inside them where no
+namelist key can reach: `gpot` normalises the genesis potential index by
+compiled literals, and `vreducedvmax` folds an Earth cyclogenesis cutoff into a
+continuous field rather than into a mask. The masks are worse, and one of them is
+specifically wrong rather than merely unfitted -- the absolute vorticity
+threshold is Earth's, against a planetary vorticity this world does not have.
+Switching this on means re-deriving the indices for this planet's rotation,
+gravity and air; it is not a namelist key, and it is deliberately not a config
+key either, so that a broken diagnostic is not offered as a setting.
+
+**No storm count, and the absence is the finding.** The capture half hunts a
+RESOLVED vortex over a minimum footprint sustained for a minimum time. The bar is
+higher on this world than on Earth by two compounding factors: a given spectral
+truncation buys coarser spacing in kilometres because the planet is larger, and
+the storms are not correspondingly larger, because the slower rotation raises the
+deformation radius while the stronger gravity lowers the scale height and the two
+nearly cancel. The support Earth GCMs want before cyclone-like vortices reach
+realistic intensity sits above the top of this project's resolution ladder, and
+converting a run up does not put it on. So this is a DECLARED GAP on the
+precedent `aeolian/README.md` sets for the nocturnal-inversion jet: the process
+is real, it is not representable at any resolution in the plan, and a storm
+statistic obtained by lowering the capture thresholds until something triggered
+would be a property of the grid rather than of the world. It is conditional
+rather than wrong. The revisit condition is a target support far finer than the
+ladder contemplates; until then, this is why no storm count exists here and why
+that absence is not a null result.
+
 ## Two ExoPlaSim behaviours to know before changing anything
 
 Two behaviours of ExoPlaSim worth knowing before changing anything here. Its
