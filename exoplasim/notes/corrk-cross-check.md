@@ -269,6 +269,227 @@ at the operating path to within the +/-3% Howard state for the band absorptions,
 that being the only stated accuracy either side carries; a disagreement wider
 than 3% at 2.7891 cm is a defect in one of them and not a difference of method.
 
+## What the sources gave, and the number that comes out
+
+**The formulation does not ship with its paper.** `mlawer2012` gives the MT_CKD
+line shape and nothing that can be evaluated: the continuum coefficients are the
+sum of that shape over every water vapour line, so they are a data file that
+travels with LBLRTM, not a table in the article. Its Table 3 and Sect. 4 are
+about REVISIONS to those coefficients rather than the coefficients themselves.
+So the term is bounded from `shine2012`, which reports its size, and
+`mlawer2012` is read for how well it is known.
+
+**Both sides of the ratio are missing the same part of the continuum, and it is
+the part in the windows.** The correlated-k tables carry line centres to +/- 25
+cm-1 with the plinth removed, which is the MT_CKD definition, so the whole
+MT_CKD-convention continuum is absent from them. Eq. 21 is a fit to Yamamoto,
+who summed Howard's laboratory BAND absorptions, so it has no absorption at all
+between the bands. The two therefore lack the same thing, and the agreement in
+the section below is evidence about which part is missing: within the bands the
+continuum is secondary because the lines are already strong (`shine2012` p. 536),
+and Howard's cell measurements carry what there is of it, which is why a Howard
+reconstruction and a modern line list land 0.26% apart at the operating path.
+What neither has is the window continuum, and that is exactly the term
+`shine2012` measures.
+
+**The size.** `shine2012` p. 548: the CAVIAR laboratory continuum "adds about
+1.25 W m-2 (or about 1.5%) to the global-mean clear-sky shortwave absorption,
+relative to that calculated using the MT-CKD model". That fixes clear-sky
+atmospheric shortwave absorption at 83 W/m2, and water vapour is 60% of it by
+`shine2012` p. 536 and 72% of it on this world's own baseline
+(`exoplasim/notes/shortwave-water-vapour.md`), so the CAVIAR increment is 2.1 to
+2.5% of water vapour's shortwave absorption.
+
+**The total is what is missing, not the increment**, because the correlated-k
+side has no continuum of any strength. Write f for the factor by which the
+laboratory determination exceeds MT_CKD in the near-infrared windows. Then the
+increment is (f - 1) times MT_CKD's own contribution and the total is f/(f - 1)
+times the increment, which is the quantity that survives not knowing f:
+`shine2012` p. 535 and p. 547 put f at "up to around an order of magnitude",
+and `mlawer2012` p. 2551 gives the laboratory factors one window at a time, 6-12
+at 4600 cm-1, 2-4 at 6140 cm-1, 2-3 at 9466 cm-1 and 2-4 at 2400-2640 cm-1. Over
+f from 2 to 12 the total runs 2.3 to 5.0% of water vapour shortwave absorption,
+and the middle of the laboratory factors, f = 4, gives 3.1%.
+
+| f, laboratory over MT_CKD in the near-infrared windows | MT_CKD's own share | the total continuum |
+| --- | ---: | ---: |
+| 2 | 2.1-2.5% | 4.2-5.0% |
+| 4 | 0.70-0.83% | 2.8-3.3% |
+| 12 | 0.19-0.23% | 2.3-2.7% |
+
+**Transferring a global mean to this path is the weak link and is bracketed
+rather than argued away.** The quantity here is one homogeneous 760 mm Hg path
+at 290 K holding 2.7891 cm at vmr 1e-2, so a water partial pressure of 10.1 mb;
+an Earth column's water-mass-weighted mean water partial pressure is half its
+surface value for any power-law profile, 6 to 12 mb, and its mass-weighted total
+pressure is about 810 mb against this path's 1013. The self continuum follows the
+water partial pressure and the foreign continuum the total, so this path collects
+MORE continuum per unit water than a column does; the band absorption it is
+divided by rises as well, as the square root of pressure for a strong band, and
+this path is 10 K warmer than a column's water-weighted mean, which cuts the self
+continuum back. Net, the fraction transfers within about 0.8 to 1.4 and the
+direction is toward more.
+
+**So the missing term is 0.15 to 7.0% of the correlated-k absorptance, and 3.1%
+is the estimate.** The floor is MT_CKD taken as correct at the largest f, which
+is the position that disbelieves the CAVIAR laboratory work entirely; the ceiling
+is the laboratory determination at the smallest f with the path transfer at its
+largest.
+
+### The base is corroborated by a fourth method, and the family is one-signed
+
+The three remaining sources are about what a broadband parameterization of this
+kind is scored against, and one of them turns out to score THIS one.
+
+**`ramaswamy1992` puts Lacis and Hansen (1974) against a line-by-line
+calculation directly.** Its Table I, p. 11,491, gives the solar flux absorbed by
+water vapour in a mid-latitude summer column at surface albedo 0.2, in W/m2:
+
+| | 30 deg, direct | 30 deg, total | 75 deg, direct | 75 deg, total |
+| --- | ---: | ---: | ---: | ---: |
+| line-by-line | 168.4 | 178.1 | 68.2 | 71.4 |
+| Lacis and Hansen | 154.3 | 162.3 | 62.5 | 63.6 |
+
+which is line-by-line over Lacis and Hansen of 1.091, 1.097, 1.091 and 1.123, and
+the paper's own verdict on p. 11,510 is that "both methods yield an underestimate
+in absorption". **That is a fourth construction of the same defect, and its
+reference has no continuum either**: the word does not appear in the paper and the
+line data is the AFGL 1982 catalogue. So four methods now put Eq. 21 low by a
+continuum-free 9 to 13%, and they were built from different absorption data on
+different decades' understanding.
+
+It is NOT folded into the bound, because it is a different quantity: a real
+column with a slant path and a reflecting surface rather than the homogeneous
+760 mm Hg path this note and `shortwave_band_weights.py` both define. It
+corroborates the sign and the size and it is not a fifth measurement of the
+number.
+
+**`oreopoulos2012` says the whole family is one-signed against a reference that
+DOES carry the continuum.** CIRC Phase I scores 13 shortwave codes against
+LBLRTM/CHARTS with MT_CKD_2.0, and manuscript p. 11 reports that "only models 2
+and 5 achieve absorption errors within +/-2.5% for all the pristine cases"; the
+conclusions on manuscript p. 18 say "previously found underestimates of SW
+absorption by less spectrally detailed models seem to be confirmed here". Every
+code's mean column-absorption error in its Figure 4 is negative. So a 12 to 16%
+under-absorption for a two-band 1974 scheme is at the outer edge of the
+documented behaviour of this family and not outside it.
+
+**`freidenreich1999` sets the floor on what a good scheme achieves.** Its
+72-interval successor is accurate to within 2% on clear-sky column absorption,
+Table 7 p. 31,404, and the sign never flips across nine profile and zenith-angle
+combinations: -1 to -2% everywhere. It does NOT score original Lacis and Hansen
+-- its "old" water vapour scheme is `ramaswamy1992`'s already-corrected modified
+LH -- so nothing here is a second measurement of Eq. 21.
+
+### BAR 1: the key moves, to 1.16
+
+    correlated-k over Eq. 21, no continuum          1.127
+    with the continuum, estimate                   1.163
+    two-sided bound                        1.129 to 1.206
+
+1.163 - 1.127 = 0.036, which is 0.35 K and clears the 0.02 the bar was set at,
+so `h2o_sw_level` becomes **1.16** and stops being one-signed. The direction is
+the one that was declared: the continuum ADDS absorption to the line-by-line
+side, so it moves Eq. 21 further below a modern calculation, and 1.127 was a
+floor.
+
+The cost side of that bar is small in fact rather than in principle. A config key
+change makes every existing run unresumable, but no run has yet used the k25v
+spectrum or turned `H2OSWL` on -- `radmod.f90`'s default is 1.0 and every
+existing run carries it -- so what the change invalidates is the SETTING and not
+a result. Under rule 7 nothing is made worthless that was not already disposable:
+there is no canonical climatology lineage.
+
+### BAR 2: it is carried as a bracket
+
+The half-width is (1.206 - 1.129)/2 = 0.039, which is 0.38 K and clears the 0.02
+the bar was set at, so the key is quoted with `h2o_sw_level_bracket` and the two
+ends are arms to run rather than a stated uncertainty on a settled number. The
+width is dominated by not knowing f and by the transfer to this path, in that
+order, and neither is resolved by anything this project can compute: closing it
+needs a line-by-line calculation with an MT_CKD or CAVIAR continuum on this
+path, which is a correlated-k bundle this project does not have.
+
+**What the continuum does to `h2osww` is separately negligible and stays at
+1.346.** The continuum absorbs in the windows, where this star's flux boost is
+largest, so it raises the star-over-Sun ratio as well: at 3.1% of the absorption
+and a local boost of 1.45 the correlated-k weight goes from 1.3271 to about
+1.331, which is 0.004 and 0.03 K. That is inside the 0.035 line PHYS-1 fixed for
+itself and far inside the 1.301 to 1.363 bracket, so the weight is untouched.
+
+### BAR 3: the envelope gate in `shortwave_band_weights.py` is falsified, and stops raising
+
+The test was whether an independent modern reference for the same defined
+quantity also falls outside the envelope of Eqs. 21, 22 and 23 widened by
+Howard's +/-3%. It does, at every amount but the driest:
+
+| water path, cm | correlated-k over Eq. 21 | envelope top over Eq. 21 | correlated-k against the envelope |
+| --- | ---: | ---: | --- |
+| 0.01 | 1.153 | 1.506 | inside |
+| 0.1 | 1.105 | 1.039 | outside by 6.4% |
+| 1.0 | 1.124 | 1.030 | outside by 9.1% |
+| 2.7891 | 1.127 | 1.030 | outside by 9.4% |
+| 5.0 | 1.132 | 1.031 | outside by 9.8% |
+| 10.0 | 1.142 | 1.076 | outside by 6.1% |
+
+That is the same pattern the Howard reconstruction shows, inside only at 0.01 cm
+and outside by 6 to 10% elsewhere, and it is a FLOOR because the correlated-k
+side has no continuum: adding it pushes HITRAN2020 further out still. **A bar
+that rejects a modern line list is not a bar on the reconstruction.** The
+envelope is three determinations from 1915, 1956 and 1962, two of which trace to
+the same laboratory data, and what has been established is that all three are low
+rather than that the reconstruction is high.
+
+So the check stops raising and becomes what it can support: a record of how far
+every construction of this quantity, old and new, sits from the published
+envelope. It is NOT widened -- widening a bound to admit the thing that missed it
+is the move `world-zvk2` refused and this does not do it. The gate that replaces
+it is BAR 4's, which has a right answer that can fail.
+
+### BAR 4: the two checks are one quantity, and are now tied together
+
+`shortwave_band_weights.py`'s `ratio_to_eq21` and this note's correlated-k ratio
+have the same numerator definition and the same denominator: the solar-weighted
+fraction of total incident flux absorbed by water vapour in a homogeneous 760 mm
+Hg path holding w precipitable cm, over Eq. 21 at the same w. Only the absorption
+data differs, Howard's nine bands against 76 correlated-k bands on HITRAN2020.
+They are the SAME QUANTITY measured two ways, and at the operating path they
+agree to 0.26%, far inside the +/-3% the bar was set at:
+
+| water path, cm | Howard reconstruction over Eq. 21 | correlated-k over Eq. 21 | apart |
+| --- | ---: | ---: | ---: |
+| 0.01 | 1.319 | 1.153 | 14.4% |
+| 0.1 | 1.109 | 1.105 | 0.4% |
+| 1.0 | 1.126 | 1.124 | 0.2% |
+| 2.7891 | 1.130 | 1.127 | 0.26% |
+| 5.0 | 1.137 | 1.132 | 0.4% |
+| 10.0 | 1.159 | 1.142 | 1.5% |
+
+**The dry end is where they part, and that is a real finding rather than
+scatter.** At 0.01 cm the reconstruction is 14% above the correlated-k answer,
+which is the small-w Elsasser extrapolation and the 0.72 and 0.81 um bands that
+Howard never measured, carried at the 0.94 um band's shape under a scale factor
+no source supplies. It is also the one amount at which both land inside the
+envelope, so the two failures do not overlap. The model does not operate there --
+a T42 column spans roughly 0.3 to 5 cm -- and the weight is a ratio in which the
+dry end largely divides out, so this is recorded and tracked and does not gate.
+
+The two numbers were free to drift apart because nothing compared them.
+`shortwave_band_weights.py` now carries the correlated-k ratio at the operating
+path as a declared constant and raises if its own reconstruction disagrees with
+it by more than Howard's +/-3%, which is the only stated accuracy either side
+has. A change to the band set, to the spectra or to this note's table now fires
+in one place instead of leaving two numbers for one quantity.
+
+### The one thing the model has no term for at all
+
+`radmod.f90` carries a water vapour continuum coefficient, `th2oc`, and it is in
+`lwr` and only in `lwr`. `swr` has ozone in band 1 and water vapour in band 2 and
+nothing else, so there is no shortwave continuum term to set and the continuum
+reaches the shortwave only through `h2oswl`. That is why the correction is a
+level on Eq. 21 rather than a new absorber: a term with the continuum's spectral
+shape would absorb in the windows, which this two-band scheme cannot resolve.
+
 ## What the disagreements would move if they are real
 
 Using the sensitivities `shortwave-water-vapour.md` states for itself:
