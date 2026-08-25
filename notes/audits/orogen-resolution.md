@@ -285,6 +285,16 @@ anchor is Earth relief at Earth gravity and is applied to physical heights that
 already carry this planet's 1/g relief scaling; whether the thresholds should
 carry it too is `world-jh0u`, which records the argument on both sides.
 
+**What the anchored gate marks.** Generated 2026-08-25 at 2,600,001 regions,
+outside `source/` and not a registered build, purely to run the new estimator
+end to end at a real region count: 11.07 per cent of land carries a non-zero
+scarp potential, 1.33 per cent carries more than 0.25, and the mean where
+non-zero is 0.0828. The one-edge gate on the 2.5M build put 12.46 per cent above
+zero and 5.06 per cent above 0.25 at a mean of 0.1316, so the anchored gate is
+about as broad and four times as selective at the strong end. That is the
+expected direction: the inherited pair was never a measurement of an escarpment,
+and the pair that is one admits fewer cells to the top of the range.
+
 **Every export's `scarp_potential` is now worthless rather than stale**, since
 the estimator and both thresholds changed together. Its only consumer is
 `analysis/orogen_resolution_controls.py`, which reads it to measure resolution
