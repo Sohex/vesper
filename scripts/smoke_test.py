@@ -387,13 +387,16 @@ def check_registered_paths_exist() -> list[str]:
     lived in `aeolian/scripts/` -- a path left behind when the script moved, with
     the real one registered three lines below it.
 
-    Cheap, and it fails the moment a script is renamed without the register
-    following, which is the whole point of having one.
+    All three registers are held to it -- `steps`, `checks` and `one_offs` --
+    because a gate row pointing at nothing is the worse case of the two: a step
+    that will not run is noticed the next time someone runs it, while a gate
+    that will not run reports nothing and reads as a pass.
     """
     import yaml
     graph = yaml.safe_load(
         (ROOT / "config" / "pipeline.yaml").read_text(encoding="utf-8"))
     named = ([(s["script"], f"step {s['id']}") for s in graph["steps"]]
+             + [(c["script"], f"check {c['id']}") for c in graph.get("checks", [])]
              + [(o, "one_offs") for o in graph.get("one_offs", [])])
     return [f"{path} is named by {where} in config/pipeline.yaml and does not exist"
             for path, where in named if not (ROOT / path).exists()]
@@ -411,6 +414,10 @@ def check_documented_in_component(files) -> list[str]:
     It checks the NAME is present, not that the description is any good, because
     the second is not mechanisable and the first catches the actual failure:
     a script that nobody wrote down at all.
+
+    `checks` rows are entries here for the same reason `one_offs` are. A gate
+    is run by a person who went looking for it, so a gate absent from its
+    component README is a gate nobody will think to run.
     """
     import yaml
     graph = yaml.safe_load(
@@ -422,6 +429,8 @@ def check_documented_in_component(files) -> list[str]:
     # terrain was named in no README at all. A tool being run occasionally is a
     # reason to write it down, not a reason not to.
     entries = ([(Path(s["script"]), "a pipeline step") for s in graph["steps"]]
+               + [(Path(c["script"]), "registered under checks")
+                  for c in graph.get("checks", [])]
                + [(Path(o), "registered under one_offs")
                   for o in graph.get("one_offs", [])])
     for script, what in entries:
