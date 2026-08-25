@@ -125,7 +125,10 @@ The arguments and the incidents behind these are in
 - **One host, many agents: claim it before timing anything.**
   `python scripts/machine.py --check` before starting heavy work,
   `--claim "<purpose>" --minutes N` before taking a wall-clock, throughput or
-  per-step cost number, `--release` after. A timing is a measurement of a
+  per-step cost number, `--release` after. `--check` reads the PROCESS TABLE as
+  well as the claim, because work that is insensitive to load still generates
+  it and therefore never claims: a checker trusting the claim alone sees an
+  empty file, calls the host quiet, and is wrong. A timing is a measurement of a
   MACHINE STATE as much as of a model, and this project runs many agents on one
   host, so a number taken while someone else is integrating is not a slow
   number, it is a number of a different experiment. Record the load beside any

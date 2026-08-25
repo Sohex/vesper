@@ -47,9 +47,48 @@ def _read():
     return c
 
 
+# What a heavy job looks like in `ps`. Named rather than inferred from CPU alone,
+# because a compiler at 98 per cent is load and a model at 1595 per cent is a
+# different kind of problem, and the reader needs to know which.
+HEAVY = ("most_plasim", "genie.exe", "run_exoplasim", "continue_exoplasim",
+         "cgenie_cost", "stability_probe", "make_profile_bed", "build_model")
+
+
+def _running():
+    """Heavy jobs on this host, whoever started them.
+
+    A CLAIM IS NOT ENOUGH ON ITS OWN. Work that is insensitive to load still
+    GENERATES load, so it never claims -- it has no reason to. A checker that
+    only read the claim file would see nothing, conclude the host was quiet, and
+    be wrong. That is not hypothetical: an eighty-five-orbit precision pair and a
+    serial cGENIE cost probe contended for an hour, each invisible to the other,
+    with no claim held by either. So this reads the process table, which needs no
+    cooperation from anyone.
+    """
+    try:
+        import subprocess
+        out = subprocess.run(["ps", "-eo", "pcpu,args"], capture_output=True,
+                             text=True, timeout=10).stdout
+    except Exception:
+        return []
+    found = []
+    for line in out.splitlines()[1:]:
+        for name in HEAVY:
+            if name in line and "machine.py" not in line:
+                try:
+                    cpu = float(line.split(None, 1)[0])
+                except (ValueError, IndexError):
+                    cpu = 0.0
+                if cpu >= 20.0:
+                    found.append((cpu, line.split(None, 1)[1][:88]))
+                break
+    return sorted(found, reverse=True)
+
+
 def check(verbose=True):
     load1 = os.getloadavg()[0]
     c = _read()
+    busy = _running()
     if verbose:
         print(f"load {load1:.2f} over {os.cpu_count()} logical cores")
         if c:
@@ -59,13 +98,17 @@ def check(verbose=True):
             print("  invalidates it. Wait, or say in your report that you contended.")
         else:
             print("unclaimed")
+        if busy:
+            print(f"  {len(busy)} heavy job(s) running, claimed or not:")
+            for cpu, cmd in busy[:5]:
+                print(f"    {cpu:7.1f}% {cmd}")
         if load1 > QUIET_LOAD:
             print(f"  NOT QUIET: load {load1:.2f} is above {QUIET_LOAD}. Do not take a")
             print("  wall-clock number here. Retired instructions under")
             print("  OMP_WAIT_POLICY=passive survive this; wall clock does not.")
         else:
             print("  quiet enough to time")
-    return 1 if (c or load1 > QUIET_LOAD) else 0
+    return 1 if (c or busy or load1 > QUIET_LOAD) else 0
 
 
 def claim(who, purpose, minutes):
