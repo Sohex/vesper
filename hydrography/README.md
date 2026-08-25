@@ -73,7 +73,7 @@ already had.
 | `data/<build>/coupling_<grid>.nc` | sparse basin-by-grid-cell catchment areas |
 | `data/<build>/hydrography_report.json` | diagnostics, river mouths, marginal seas, provenance |
 | `data/<build>/surface_water.nc` | per region: lake, lake depth, river discharge; per basin: solved area, level, volume, overflow |
-| `data/<build>/topographic_index_<grid>.nc` | per region: the compound topographic index on both slope arms; per grid cell: its mean, its within-cell spread, and `f_sat_max` |
+| `data/<build>/topographic_index_<grid>.nc` | per region: the compound topographic index on both slope arms; per grid cell: its area-weighted mean, its within-cell spread, and `f_sat_max`, the share of the cell's land AREA above that mean |
 | `analysis/lake_balance_sweep.json` | solver sensitivity under placeholder forcing |
 | `analysis/surface_water_report.json` | the solved water balance and its forcing |
 | `analysis/topographic_index_report.json` | the index's distribution, the scale measurement, and the score declared before it |
@@ -517,8 +517,8 @@ belongs upstream in the exporter and is not decided here.
 
 `build_topographic_index.py` computes `ln(a / tan beta)` per mesh region from
 the export's own upslope contributing area and a local slope, and per GRID CELL
-the share of that cell's regions whose index exceeds the cell mean. It is
-terrain only: no climate, no water table, no solve. GW-26.
+the share of that cell's land AREA whose index exceeds the cell's area-weighted
+mean index. It is terrain only: no climate, no water table, no solve. GW-26.
 
 **It answers a different question from the water table, deliberately.**
 `notes/subgrid-water-table.md` states the constraint the depth field runs into
@@ -532,10 +532,25 @@ consume anyway. The form is
 (2005), implemented independently in PALADYN, ClimaLand and CLIMBER-X.
 
 **A fraction is a fraction of a population, and there is only one.** The
-population is the mesh regions inside a climate-grid cell, so `f_sat_max` lives
-at the grid and there is NO per-region saturated fraction here. A region has no
-sub-population and inventing one is exactly what the note refuses. The artifact
-is therefore one per (build, grid), on the coupling matrices' precedent.
+population is the land AREA of the mesh regions inside a climate-grid cell, so
+`f_sat_max` lives at the grid and there is NO per-region saturated fraction
+here. A region has no sub-population and inventing one is exactly what the note
+refuses. The artifact is therefore one per (build, grid), on the coupling
+matrices' precedent.
+
+**Area and region count are different quantities on this mesh**, which is why
+the reduction is named rather than assumed. `f_sat_max` multiplies into a
+fraction of a CELL, so it ranks over that cell's area; CLIMBER-X's CDF is over
+equal-area DEM pixels where the two coincide, and these regions are not
+equal-area. `lib/gridding.py` owns the operators and the artifact records which
+was used for which field: `cell_moments` for the area-weighted cell mean and the
+within-cell spread, `cell_fraction` for the categorical area share. The mean is
+the class boundary, so its weighting is part of the definition.
+
+**What the three rows waiting on this get is settled**, and it is the
+change-of-quantity route: `notes/subgrid-water-table.md` section 5 carries the
+decision and what each of WET-2, SURF-7 and LSHY-6 takes. Two of the three turn
+out to need nothing built.
 
 **`f_grad` is declared and bracketed, never fitted, and the bracket is a
 convention.** CLIMBER-X writes `exp(-f_wtab * w_table)`; ClimaLand writes
@@ -547,7 +562,7 @@ ones -- a CDF on integer bins 1 to 15, a critical cell mean of 5.5, a cut at 14 
 are calibrated against an index computed on Earth at about a kilometre. This
 index carries a length in `a`, so the whole distribution shifts with the mesh,
 measurably so between this project's own two builds, and it sits far above that
-range. `f_sat_max` is a share of a cell's population above that cell's own mean,
+range. `f_sat_max` is a share of a cell's own area above that cell's own mean,
 so it survives the offset; a threshold does not.
 
 **Nothing may consume `f_sat` until it is scored.** The bar is in

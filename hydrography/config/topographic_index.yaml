@@ -66,12 +66,22 @@ index:
 #
 # for `z_wt` the cell-mean water table depth, positive downward.
 closure:
-  # `f_sat_max` is the share of the cell whose index exceeds the cell mean --
-  # CLIMBER-X's `1 - cti_cdf(cti_mean)` at `surface_hydro.f90:551-560`, computed
-  # here from the region population directly rather than from a binned CDF. It
-  # is a RANK statistic, so it survives an additive shift of the index; that
-  # property is what makes it transportable when the absolute scale is not.
-  f_sat_max: share_above_cell_mean
+  # `f_sat_max` is the share of the cell's land AREA whose index exceeds the
+  # cell's area-weighted mean index -- CLIMBER-X's `1 - cti_cdf(cti_mean)` at
+  # `surface_hydro.f90:551-560`, computed here from the region population
+  # directly rather than from a binned CDF. It is a RANK statistic, so it
+  # survives an additive shift of the index; that property is what makes it
+  # transportable when the absolute scale is not.
+  #
+  # AREA, NOT REGION COUNT, and the two are different quantities here.
+  # CLIMBER-X's CDF is over equal-area DEM pixels, where they coincide; this
+  # mesh's land regions span a factor of 5.2 in area from their 5th to their
+  # 95th percentile. `f_sat_max` multiplies into a fraction of a CELL, so the
+  # population it ranks over is that cell's land area, and the cell mean the
+  # share is taken about is the area-weighted one because that mean is the class
+  # boundary. `lib/gridding.py` owns both operators and names which field
+  # semantics each is for.
+  f_sat_max: area_share_above_cell_mean
 
   # DECLARED AND BRACKETED, NOT FITTED, and the bracket IS a convention
   # ambiguity rather than a spread of measurements. CLIMBER-X ships

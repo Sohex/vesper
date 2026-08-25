@@ -18,12 +18,20 @@ WHAT IS COMPUTED, and at which scale each thing lives:
   per REGION      the index itself, `ln(a / tan beta)`, from the export's own
                   upslope contributing area and a local slope. Terrain only:
                   no climate, no water table, no solve.
-  per GRID CELL   `f_sat_max`, the share of the cell's regions whose index
-                  exceeds the cell mean. A saturated fraction is a fraction of a
-                  POPULATION, and the only population this project holds is the
-                  regions inside a climate-grid cell. A region has no
-                  sub-population and GW-6 refuses to invent one, so there is no
-                  per-region saturated fraction here and there cannot be.
+  per GRID CELL   `f_sat_max`, the share of the cell's land AREA whose index
+                  exceeds the cell's area-weighted mean index. A saturated
+                  fraction is a fraction of a cell's AREA, so the population it
+                  is a rank statistic over is that area and not the region
+                  count: this mesh's regions are not equal-area, and a count
+                  weights a sliver and a full cell alike in both the share and
+                  the mean the share is taken about. `lib/gridding.py` owns the
+                  operators; `cell_moments` and `cell_fraction` are the two used
+                  and nothing is reimplemented here.
+                  A region has no sub-population and GW-6 refuses to invent one,
+                  so there is no per-region saturated fraction here and there
+                  cannot be. world-d9u4 decides what the three rows waiting on
+                  that get instead; `hydrography/notes/subgrid-water-table.md`
+                  section 5 carries it.
 
   data/<build>/topographic_index_<grid>.nc
   analysis/topographic_index_report.json
@@ -145,31 +153,44 @@ def compound_index(export: Export, cfg: dict):
     return arms, primary, land, diag
 
 
-def per_cell(cti, land, cell, ncell, min_regions: int):
-    """Cell-mean index and `f_sat_max`, the share of the cell above that mean.
+def per_cell(cti, area_km2, land, cell, ncell, min_regions: int):
+    """Cell-mean index and `f_sat_max`, the share of the cell's AREA above it.
 
     CLIMBER-X computes `1 - cti_cdf(cti_mean)` from a CDF tabulated on integer
     index bins; the same quantity is available directly from the population,
     without a lookup table and without committing to a bin range this world's
     index does not fit inside.
 
+    IT IS A SHARE OF AREA AND NOT OF REGIONS, which is the whole of world-d9u4's
+    answer expressed in code. `f_sat_max` multiplies into a saturated FRACTION
+    OF A CELL, so the population it is a rank statistic over is the cell's land
+    area; CLIMBER-X's CDF is over equal-area DEM pixels, where the two
+    coincide, and the regions of this mesh are not equal-area -- the land
+    population spans a factor of 5.2 from its 5th to its 95th percentile. A
+    region count therefore weights a sliver and a full cell alike, in both the
+    share AND the cell mean that share is taken about, and the mean is the class
+    boundary. `lib/gridding.py` owns the operators and names which is right for
+    which field semantics: `cell_moments` for the INTENSIVE mean and the spread,
+    `cell_fraction` for the CATEGORICAL share of a population in one class.
+    Neither is reimplemented here.
+
+    THE SPREAD IS THE TWO-PASS VARIANCE for the reason `cell_moments` exists:
+    the difference-of-moments form this used cancels, and does not return zero
+    on a constant field.
+
     A cell with too few regions is left unset rather than given a fraction
     computed from a handful of them: a share above a mean is meaningless on
     three samples, and returning one would be a number where there is no
-    estimate.
+    estimate. That guard stays a REGION COUNT, because it is about sample size
+    and not about area.
     """
-    idx = cell[land]
-    val = cti[land]
-    count = np.bincount(idx, minlength=ncell).astype(np.int64)
-    total = np.bincount(idx, weights=val, minlength=ncell)
-    mean = np.divide(total, np.maximum(count, 1))
-    sq = np.bincount(idx, weights=val * val, minlength=ncell)
-    var = np.maximum(sq / np.maximum(count, 1) - mean * mean, 0.0)
-    above = np.bincount(idx, weights=(val > mean[idx]).astype(np.float64),
-                        minlength=ncell)
-    have = count >= int(min_regions)
-    f_sat_max = np.where(have, above / np.maximum(count, 1), np.nan)
-    return count, np.where(have, mean, np.nan), np.sqrt(var), f_sat_max, have
+    mean, var, count, covered = gridding.cell_moments(
+        cell, ncell, area_km2, cti, land)
+    f_sat_max, _ = gridding.cell_fraction(
+        cell, ncell, area_km2, cti > mean[cell], land)
+    have = covered & (count >= int(min_regions))
+    return (count.astype(np.int64), np.where(have, mean, np.nan),
+            np.sqrt(var), np.where(have, f_sat_max, np.nan), have)
 
 
 def main() -> int:
@@ -189,6 +210,13 @@ def main() -> int:
 
     config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
     cfg = yaml.safe_load(CFG_PATH.read_text(encoding="utf-8"))
+    if str(cfg["closure"]["f_sat_max"]) != "area_share_above_cell_mean":
+        raise SystemExit(
+            f"closure.f_sat_max {cfg['closure']['f_sat_max']!r} is not the "
+            "quantity this script computes. It computes the share of a cell's "
+            "land AREA above that cell's area-weighted mean index; a region "
+            "COUNT share is a different quantity on this unequal-area mesh and "
+            "is not available here.")
     if str(cfg["closure"]["absolute_thresholds"]) != "refused":
         raise SystemExit(
             "closure.absolute_thresholds is not 'refused'. This index is not on "
@@ -216,8 +244,10 @@ def main() -> int:
 
     cell, nlat, nlon = gridding.region_cells(export, grid_dir)
     ncell = nlat * nlon
+    area_km2 = export.cell_area.astype(np.float64)
     count, cmean, csd, f_sat_max, have = per_cell(
-        cti, land, cell, ncell, args.min_regions)
+        cti, area_km2, land, cell, ncell, args.min_regions)
+    ledger = gridding.transfer_ledger(cell, ncell, area_km2, land)
     print(f"  {int(have.sum()):,} of {ncell:,} grid cells hold at least "
           f"{args.min_regions} land regions")
     print(f"  cell-mean index 5th/50th/95th: "
@@ -253,8 +283,10 @@ def main() -> int:
             "share of that cell's regions whose index exceeds the cell mean, "
             "which is the saturated fraction's terrain half. A saturated "
             "fraction is a fraction of a population and the only population "
-            "here is the regions inside a grid cell, so there is no per-region "
-            "fraction and GW-6 says why there cannot be.")
+            "here is the land AREA of the regions inside a grid cell, so there "
+            "is no per-region fraction and GW-6 says why there cannot be. "
+            "world-d9u4 records what the three rows that wanted a native-mesh "
+            "one get instead.")
         ds.uncertified = (
             "NO CONSUMER MAY TAKE f_sat FROM THIS UNTIL THE SCORE IN "
             "hydrography/config/topographic_index.yaml HAS BEEN RUN AND "
@@ -300,16 +332,21 @@ def main() -> int:
 
         shape = (nlat, nlon)
         var("cti_mean", cmean.reshape(shape), "f4", ("lat", "lon"), "1",
-            "area-unweighted mean index over the land regions in the cell; NaN "
-            "where the cell holds too few to estimate one")
+            "AREA-WEIGHTED mean index over the cell's land, lib/gridding.py's "
+            "INTENSIVE reduction; NaN where the cell holds too few regions to "
+            "estimate one. It is the boundary f_sat_max is a share above, so "
+            "the weighting is part of the definition and not a refinement")
         var("cti_sd", csd.reshape(shape), "f4", ("lat", "lon"), "1",
             "spread of the index WITHIN the cell, which is the sub-grid "
-            "population this closure exists to use")
+            "population this closure exists to use. Area-weighted and taken in "
+            "two passes about the cell mean, lib/gridding.py's cell_moments")
         var("f_sat_max", f_sat_max.reshape(shape), "f4", ("lat", "lon"), "1",
-            "share of the cell's land regions whose index exceeds the cell "
-            "mean. A RANK statistic, so it survives an additive shift of the "
-            "index; that is what makes it transportable where the absolute "
-            "scale is not")
+            "share of the cell's land AREA whose index exceeds the cell mean, "
+            "lib/gridding.py's CATEGORICAL reduction. It multiplies into a "
+            "fraction of a cell, so it is a share of area and not of regions, "
+            "which on this unequal-area mesh are different quantities. A RANK "
+            "statistic, so it survives an additive shift of the index; that is "
+            "what makes it transportable where the absolute scale is not")
         var("land_regions", count.reshape(shape), "i4", ("lat", "lon"), "1",
             "land regions in the cell, the sample f_sat_max is computed from")
 
@@ -324,6 +361,18 @@ def main() -> int:
         "slope_arm": primary,
         "grid_cells_with_estimate": int(have.sum()),
         "min_regions_per_cell": int(args.min_regions),
+        # WHAT THE REDUCTION IS AND WHAT IT DROPPED. `f_sat_max` is an area
+        # share and the cell mean it is taken about is an area mean, so the
+        # ledger is part of the result rather than a diagnostic beside it:
+        # a cell holding none of the land population has no fraction, and the
+        # closure residual says whether every region that was offered landed.
+        "reduction": {
+            "cell_mean_index": "gridding.cell_moments, INTENSIVE, area-weighted",
+            "within_cell_index_sd": "gridding.cell_moments, two-pass about the cell mean",
+            "f_sat_max": "gridding.cell_fraction, CATEGORICAL, share of the cell's land AREA above the cell mean",
+            "population": "surface_class == LAND",
+            "ledger": ledger,
+        },
         "cell_mean_index": {
             str(p): float(np.nanpercentile(cmean[have], p))
             for p in (5, 25, 50, 75, 95)},

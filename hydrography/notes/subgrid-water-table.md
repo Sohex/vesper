@@ -314,18 +314,68 @@ section 1 says does not exist. That is a constraint on WET-2, SURF-7 and LSHY-6,
 which are the three rows waiting on this: what is available to them is a
 climate-grid-cell fraction, not a native-mesh one.
 
+**And the population is an AREA, not a region count.** `f_sat_max` multiplies
+into a saturated fraction OF A CELL, so what it ranks over is that cell's land
+area. CLIMBER-X's tabulated CDF is over equal-area DEM pixels, where the two
+coincide; the land regions of this mesh are not equal-area and span a factor of
+5.2 from their 5th to their 95th percentile, at a coefficient of variation of
+0.43. A region count weights a sliver and a full cell alike, and it does so
+twice: in the share, and in the cell mean the share is taken about, which is the
+class boundary. Measured on the active build, moving both to area weights shifts
+the cell-mean index by a median of 0.19 -- the same order as the 0.23 between
+the two slope arms, which this note already ships as a bracket -- and moves
+`f_sat_max` by a median of 0.004 at T21 and by up to 0.30 in the worst cell.
+`lib/gridding.py` owns the operators: `cell_moments` for the area-weighted mean
+and the within-cell spread, `cell_fraction` for the categorical area share.
+
 **The sub-grid population is real and is worth having.** On the active build,
 aggregated onto the configured grid, the index's spread WITHIN a cell has a
-median of 2.23 against a spread of cell means BETWEEN cells of 1.78. More of the
+median of 2.22 against a spread of cell means BETWEEN cells of 1.82. More of the
 index's variance is inside the cells than between them, so what a cell-mean
 depth throws away is the larger half. That is the case for computing it at all.
+
+**What the three waiting rows get, which is world-d9u4's decision.** They take
+the grid-cell fraction and change quantity, which is the third of the three
+routes that row named. Section 2's rule decides it rather than a preference
+does: sub-grid information reaches a cell-scale parameter only as a statistic of
+the cell's own distribution. Parameterising a sub-region hypsometry from the
+finer build's statistics puts a distribution BELOW the cell, which section 1
+says is not there; letting each consumer downscale by its own stated rule is the
+same invention moved to where three rows would each make it differently. Only
+the third route stays inside what the terrain supports, and it is the route
+`groundwater_access` already took for the same quantity class under PLHY-5,
+where a per-cell root-access depth was replaced by a per-cell AREA.
+
+Per row, and two of the three turn out not to need anything built:
+
+- **LSHY-6 is already served.** It asks for the native-mesh to climate-grid
+  crossing to preserve the mosaic and explicitly rejects a cell-mean water table
+  depth as an area proxy. A climate-grid saturated AREA is what it asked for;
+  the fraction arrives as one of its response-tile shares, alongside PLHY-5's
+  accessible area. Its dependence on a native-mesh fraction is deleted, not met.
+- **SURF-7 never needed this quantity.** A groundwater discharge mask is a
+  statement about where the solved water table meets the surface, and that is
+  RESOLVED: `water_table.nc` carries `at_surface` and `seepage_m3_s` per region
+  from the solve. `f_sat` is a statistic about the terrain a cell does NOT
+  resolve, so it is not the finer version of that mask and cannot be substituted
+  for it. SURF-7 takes the per-region discharge fields it already has, and its
+  dependence on this row is deleted.
+- **WET-2 is the only row that genuinely wanted a below-mesh fraction**, and it
+  is the one that changes quantity. Its resolved classes -- open lake, river and
+  playa water, and dry mineral soil -- stay per region, from `surface_water.nc`
+  and the depth field. Its saturated non-inundated mineral class is unresolved
+  and crosses as a climate-grid AREA share. Mutual exclusivity, which that row
+  requires, is then a constraint stated at two supports rather than one: the
+  resolved classes partition a cell's land area between them, and the saturated
+  share is taken out of what they leave. That is a real cost of the decision and
+  it belongs to WET-2 to carry.
 
 **The absolute scale does not transport, and the rank statistic does.**
 CLIMBER-X keys three wetland schemes on absolute index values: a CDF tabulated
 on integer bins 1 to 15, `cti_mean_crit = 5.5` below which no wetland forms, and
 a cut at 14 above which the maximum wetland fraction is set to zero. Those are
 calibrated against an index computed on Earth at about a kilometre. The index
-computed here has a land mean of 15.9 and a cell mean above 14 on 80.7% of the
+computed here has a land mean of 15.9 and a cell mean above 14 on 83.3% of the
 cells that hold enough regions to estimate one, so applied literally that rule
 would return no wetland almost everywhere -- a statement about two indices'
 scales, not about this world. The scale is not fixable either: `a` carries a
