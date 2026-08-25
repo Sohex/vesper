@@ -1,9 +1,9 @@
 {
   "note": "Modelled terrain of an invented planet. A pre-carve build is a LIMIT, not a state: every basin number here is what sits in source/ before any carve verdict has been applied.",
-  "generated": "2026-08-25T12:08:02.734929+00:00",
+  "generated": "2026-08-25T12:20:20.911145+00:00",
   "provenance": {
     "script": "hydrography/scripts/catalogue_floor.py",
-    "git_commit": "d24751cf7d43b285feb9edab184a567d9f381529",
+    "git_commit": "1170d31d3045ec4ce18a58b0bed4ac9912ffd531",
     "python": "3.14.7",
     "numpy": "2.5.2"
   },
@@ -13,7 +13,8 @@
       "export": "source/precarve-craton/exoplasim-T42",
       "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
       "catalogue_hash": "7b56935b498da4e8ee0db6861092c21caa524503c3aefaa0fbff3782451612dd",
-      "pre_carve": true,
+      "selection_source": "threshold",
+      "pre_carve_note": "A PRE-CARVE build is a LIMIT, not a state. Every number here is what sits in source/ before any carve verdict has been applied.",
       "resolution": {
         "numRegions": 2500001,
         "radiusKm": 7645.2,
@@ -142,7 +143,8 @@
       "export": "source/precarve-craton-10m/exoplasim-T42",
       "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
       "catalogue_hash": "e84e619dfc4dca6fab7a301144fdc964c1dcb7e73592f591c3b07dd6a6e73c5e",
-      "pre_carve": true,
+      "selection_source": "threshold",
+      "pre_carve_note": "A PRE-CARVE build is a LIMIT, not a state. Every number here is what sits in source/ before any carve verdict has been applied.",
       "resolution": {
         "numRegions": 10000005,
         "radiusKm": 7645.2,

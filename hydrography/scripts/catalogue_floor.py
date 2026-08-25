@@ -388,7 +388,14 @@ def measure(label: str, root: Path) -> dict:
         "export": str(root.relative_to(PROJECT_ROOT)) if root.is_absolute() else str(root),
         "terrain_hash": export.terrain_hash,
         "catalogue_hash": export.catalogue_hash,
-        "pre_carve": basins.get("selectionSource") == "threshold",
+        # `threshold` means no drainage hypothesis was applied, which on this
+        # project's lineage means pre-carve. Reported as what the manifest says
+        # rather than as a derived boolean, because a preserve list that
+        # happened to preserve everything is not the same thing.
+        "selection_source": basins.get("selectionSource"),
+        "pre_carve_note": "A PRE-CARVE build is a LIMIT, not a state. Every "
+                          "number here is what sits in source/ before any carve "
+                          "verdict has been applied.",
         "resolution": resolution,
         "controls": checks,
         "ladder": ladder(catalogue, chosen, area),
