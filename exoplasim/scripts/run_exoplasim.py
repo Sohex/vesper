@@ -46,12 +46,19 @@ SOLAR_EFFECTIVE_TEMPERATURE_K = 5772.0
 # Restore 151 when lib/lapse.environmental_lapse_k_per_km has a climatology to
 # measure, and pass the rate and the guard through rather than restoring the
 # defaults; the exact threading is in world-ld1.
+#
+# 231 is the land column's drainage, WORLD-P9QQ, and it is here unconditionally
+# even though it is identically zero under the default impermeable lower
+# boundary. A code the model writes and no product carries is the state
+# world-j0az found the air extrema in; the cost of carrying it is one 2D field
+# per output bin, and the ledger's `drainage` crossing becomes readable the
+# moment a draining lower boundary is selected rather than one change later.
 REGULAR_CODES = [
     50, 51, 52, 53, 54, 110, 129, 130, 131, 132, 133, 134, 135, 139,
     140, 141, 142, 143, 144, 146, 147, 157, 160, 163, 164, 167,
     168, 170, 171, 172, 174, 175, 176, 177, 178, 179, 180,
     181, 182, 184, 203, 204, 205, 207, 208, 209, 210, 211, 218, 221,
-    230, 232, 238, 259, 260, 261, 262, 263, 264, 267, 318, 320, 321,
+    230, 231, 232, 238, 259, 260, 261, 262, 263, 264, 267, 318, 320, 321,
 ]
 
 # Instantaneous seasonal output omits redundant flux details and expensive
