@@ -23,6 +23,7 @@ from restart_surface import verify_restart_surface_fields  # noqa: E402
 from segments import SEGMENT_PURPOSES  # noqa: E402
 from run_exoplasim import (  # noqa: E402
     declare_parmode,
+    give_the_threads_room,
     declare_dynamics_only,
     declare_hyperdiffusion,
     declare_energy_fixer,
@@ -283,6 +284,8 @@ def main() -> None:
              "integrating. Valid for a paired A/B, never for the canonical "
              "chain")
     args = parser.parse_args()
+    room = give_the_threads_room()
+    print(f"stack: OMP_STACKSIZE={room['omp_stacksize']}, process stack {room['process_stack_soft']}")
     if args.orbits < 1:
         raise ValueError("--orbits must be positive")
     if args.high_cadence and args.high_cadence_interval < 1:

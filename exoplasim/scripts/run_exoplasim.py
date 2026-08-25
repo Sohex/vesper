@@ -1562,6 +1562,48 @@ def namelist_value(path: Path, key: str) -> str:
     raise KeyError(f"{key} not found in {path}")
 
 
+def give_the_threads_room() -> dict:
+    """Make the stack big enough for the rung, on the master AND the team.
+
+    The threaded build compiles with `-frecursive`, so the model's large locals
+    are stack-allocated rather than static -- which the MPI build never needed,
+    because without it those same arrays live in static storage. Two different
+    stacks then have to be big enough, and they are set two different ways:
+
+      * the OpenMP team's threads take `OMP_STACKSIZE`, which defaults to a
+        few megabytes;
+      * the master thread runs on the PROCESS stack, which takes `ulimit -s`
+        and cannot be changed by any OMP variable.
+
+    Neither was set here, so every rung above T42 died with SIGSEGV before it
+    wrote a single record -- read as the model refusing that configuration,
+    which is what kept T85, T127 and T170 out of the stability grid. It is not
+    a refusal; it is a 16 MB process stack.
+
+    `bench_ab.py` already knew this and said so in a comment. It is applied
+    here because the production runner is where it decides whether a rung can
+    be run at all.
+    """
+    import os
+    import resource
+
+    os.environ.setdefault("OMP_STACKSIZE", "512M")
+    soft, hard = resource.getrlimit(resource.RLIMIT_STACK)
+    if soft != hard:
+        try:
+            resource.setrlimit(resource.RLIMIT_STACK, (hard, hard))
+        except (ValueError, OSError) as exc:
+            raise RuntimeError(
+                f"could not raise the stack limit from {soft} to {hard}: "
+                f"{exc}. The master thread runs on this stack and overruns "
+                "16 MB above T42, so a run started under it segfaults with no "
+                "output and reads as a refusal.") from exc
+    soft_now, _ = resource.getrlimit(resource.RLIMIT_STACK)
+    return {"omp_stacksize": os.environ["OMP_STACKSIZE"],
+            "process_stack_soft": "unlimited" if soft_now == resource.RLIM_INFINITY
+                                  else soft_now}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, default=CONFIG)
@@ -1647,6 +1689,8 @@ def main() -> None:
              "cold-starting. Only the spin-up path changes, not the equilibrium.",
     )
     args = parser.parse_args()
+    room = give_the_threads_room()
+    print(f"stack: OMP_STACKSIZE={room['omp_stacksize']}, process stack {room['process_stack_soft']}")
 
     config_path = args.config.resolve()
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
