@@ -344,10 +344,18 @@ def main() -> None:
         print("\ngit status in the worktree is clean of these links.")
 
     if args.check:
+        # MISDIRECTED COUNTS. A link at `X` pointing at `Y` is the deep-link bug
+        # in the module docstring -- `exoplasim/runs/runs -> exoplasim/runs`, one
+        # level too deep, which made every run id under it resolve to nothing --
+        # and it is the failure this script was written for. It is not "missing":
+        # no entry is absent, so the payload count came out complete and --check
+        # printed the warning and then exited 0 beside it. A worktree carrying
+        # one is not correctly linked, whatever the count says.
         missing = len(states.get("linked", [])) + len(states.get("repaired", []))
         blocked = len(states.get("conflict", [])) + len(states.get("shadowed", []))
-        if missing or blocked:
-            print(f"\nINCOMPLETE: {missing} to link or repair, {blocked} blocked.")
+        if missing or blocked or misdirected:
+            print(f"\nINCOMPLETE: {missing} to link or repair, {blocked} blocked, "
+                  f"{len(misdirected)} pointing somewhere else.")
             sys.exit(1)
         print("\ncomplete: every ignored payload is linked.")
 
