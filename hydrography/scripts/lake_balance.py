@@ -70,14 +70,41 @@ class BasinSet:
         self.n = self.level_km.shape[0]
 
     @property
+    def has_impoundment(self):
+        """Does the finished terrain still hold water at spill?
+
+        PRESERVED IS NOT THE SAME AS STILL CLOSED. The catalogue's preserved
+        set is the set the drainage conditioning was told not to breach, and
+        the conditioning honours that for its carve passes only: erosion,
+        ridge sharpening and soil creep run over protected cells by design and
+        the sink is left unprotected so the basin floor can erode. A basin can
+        therefore come out of a generation published as preserved, with
+        `retain: 1` and a hypsometry curve measured on a surface that no longer
+        exists, and impound nothing at all.
+
+        Every quantity below that needs an impoundment -- a lake area, a level,
+        a capacity, a depth to cut -- is undefined on such a basin. Test this
+        rather than membership of the preserved set.
+        """
+        return self.capacity_km3 > 0.0
+
+    @property
     def depth_at_spill_m(self):
         """Spill point down to the basin floor: what a sill has to be cut by.
 
         The depth of the lake when the basin is full, and so the length the
-        overflow has to remove before the depression is gone. Floored at 1 m,
-        which affects the three basins whose sink sits at or above their own
-        spill level -- a rounding artifact of the conditioning surface, not a
-        basin.
+        overflow has to remove before the depression is gone.
+
+        **Floored at 1 m, and the floor is a guard rather than a rounding
+        correction.** The basins it catches are the ones the drainage
+        conditioning flattened: their published `depthKm` runs up to a
+        kilometre and a half on the pre-conditioning surface and their
+        `capacity_km3` here is exactly zero. A 1 m floor makes such a basin
+        carve at any coefficient, which is the right instruction and the wrong
+        reason, so `has_impoundment` names the state and callers report it
+        rather than letting the floor decide silently.
+
+        notes/audits/basin-catalogue-floor.md carries the measurement.
         """
         return np.maximum((self.spill_km - self.sink_elevation_km) * 1000.0, 1.0)
 

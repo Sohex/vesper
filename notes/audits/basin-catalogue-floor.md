@@ -195,3 +195,155 @@ below the declared area floor.
   catalogue only through a generation -- so on everything currently in
   `source/` the verdict above still stands, and the change lands with the
   generation `world-q5ig` carries.
+
+# Preserved is not the same as still closed
+
+Measured on 2026-08-25 against the same two builds, from
+`basins.preserved[].finalPreserved` in each manifest and from `capacity_km3` in
+`hydrography/data/<build>/basins.nc`. Both builds are pre-carve and neither
+carries a preserve or carve list -- `drainageHypothesis` is empty on both -- so
+nothing here is a declared verdict being honoured or broken.
+
+The catalogue's preserved set is the input to the carve list, and the carve list
+is what closes loop A. So what "preserved" entitles a basin to is not a naming
+question.
+
+## What the conditioning does to a preserved basin
+
+| build | preserved | retained < 1 | retained > 1 | retained = 0 | median retained |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| precarve-craton | 3,621 | 2,988 | 633 | 3 | 0.796 |
+| precarve-craton-10m | 9,419 | 7,702 | 1,717 | 18 | 0.804 |
+
+The median preserved basin comes out of a generation with about four fifths of
+the relief the catalogue measured on it. About a sixth come out DEEPER. A
+handful come out with none: 18 at 10M, of which 16 carry `capacity_km3` of
+exactly zero in `basins.nc`, which is an independent instrument -- that file
+recomputes hypsometry from its own priority flood over the finished terrain
+rather than reading the catalogue's curve.
+
+It is not the depth floor and not the height-curve saturation. Of the 18, 16
+have a published `depthKm` clearing the declared 0.05 km floor in kilometres,
+running up to 1.644 km, so `world-yril` making the floor physical leaves every
+one of them in the catalogue.
+
+## Protection is not leaking, and the rim comes down anyway
+
+Preservation is a promise about ONE agent. `buildBasinProtection` builds a
+`noLower` divide band and a per-cell `carveAllowance`, `priorityFloodCarve`
+clamps its carve kernel against them, and `assertDividesNotLowered` proves pass
+by pass that no protected divide went below its floor. Both call sites pass
+protection, and the invariant is a throw rather than a warning. That contract is
+kept.
+
+It is a narrow contract, and `buildBasinProtection` says so: "Ordinary
+hydraulic, thermal and glacial erosion still run over protected cells. Only the
+drainage-enforcement carving is held off". Three further things follow from the
+pipeline's own ordering, and together they are the whole of the effect:
+
+- **The sink is deliberately unprotected.** `buildBasinProtection` clears
+  `noLower` at every sink so the basin floor can erode, which is what lets a
+  sixth of the population deepen.
+- **Erosion runs between the carve passes.** Each `priorityFloodCarve` call
+  re-snapshots its floor from the elevation it finds, so erosion lowering a rim
+  between two passes is invisible to the invariant by construction.
+- **Two passes after the carve are unprotected entirely.** `sharpenRidges` and
+  `applySoilCreep` take no `protection` argument and run after
+  `erodeComposite`, and `remeasureBasins` measures after both.
+
+Attributing the loss confirms it is the rim rather than the floor that moves.
+On `precarve-craton-10m` the final spill sits below the natural one on 8,993 of
+9,419 preserved basins and above it on 426; the sink rises on 1,660 and falls on
+3,755; and among the basins that lost relief the rim accounts for the whole of
+the loss on the median basin. A breached rim and a raised floor are both
+present, the rim dominates, and neither is the carve.
+
+So the answer to "is a median retained fraction of 0.80 the intended behaviour"
+is yes, in the sense that every mechanism producing it is one the pipeline
+deliberately leaves enabled. `vendor/orogen/tools/test-basins.mjs` asserts the
+carve contract and passes because the carve contract holds.
+
+## What is not honest is the publication
+
+The basins that keep nothing are published with `selectedBy: 'threshold'`,
+`retain: 1`, and a `hypsometry` curve computed on the pre-conditioning surface.
+Every one of those three describes a depression the finished terrain does not
+have. Nothing on the artifact distinguishes a preserved basin that still
+impounds from one that does not, and until 2026-08-25 nothing on the Python side
+could: `lib/orogen.py`'s `Basin` carried no retention field at all, and
+`basins.nc` carried none either, so a consumer asking "is this a closed basin"
+got the preserved set and no way to narrow it.
+
+That is now carried rather than argued: `Basin.still_closed`,
+`basins.nc:has_impoundment`, `natural_spill_depth` and `retained_fraction`, and
+`BasinSet.has_impoundment` in `lake_balance.py`.
+
+## The consequence for a carve list, and it is not the zeros
+
+The zeros are 16 basins in 9,419 and they carve, which is the right instruction
+reached by the wrong route: `depth_at_spill_m` floors at 1 m, so any nonzero
+incision drives their retain to 0. `export_carve_list.py` now counts them and
+says so rather than letting the floor pass for a verdict.
+
+The larger consequence is on the marginal class, and it is a basis mismatch
+rather than a defect in either component.
+
+**Hydrography computes retain against the FINISHED depression, in metres.**
+`retain = clip(1 - cut/depth_at_spill, 0, 1)`, and `depth_at_spill_m` comes from
+`basins.nc`, whose spill and sink are both measured on the conditioned terrain,
+in kilometres through the height curve.
+
+**Orogen spends it against the NATURAL depression, in model units.**
+`buildBasinProtection` sets `carveAllowance = (1 - retain) * selected[i].depth`,
+where `depth` is what `detectBasins` measured on the pre-conditioning surface,
+in the dimensionless elevation parameter. It has to be: protection is built
+before erosion, so the finished depth does not exist yet, and the carve operates
+on model elevations.
+
+Both statements are locally correct and neither artifact says which depth it
+means. The two bases differ by exactly `retainedFraction`, and the height curve
+is quartic on land, so the gap is neither small nor a constant:
+
+| build | natural/final depth, model units | the same in km |
+| --- | ---: | ---: |
+| precarve-craton | 1.254 | 1.754 |
+| precarve-craton-10m | 1.242 | 1.686 |
+
+Expressed as the physical metres of rim Orogen is permitted to cut against the
+metres hydrography intended, over every preserved basin on `precarve-craton-10m`:
+
+| retain sent | actual / intended, 5th pct | median | 95th pct |
+| ---: | ---: | ---: | ---: |
+| 0.90 | 0.35 | 2.69 | 8.68 |
+| 0.50 | 0.25 | 2.12 | 8.39 |
+| 0.10 | 0.75 | 1.69 | 6.88 |
+
+The median instruction buys about twice the incision it asks for and the
+population spans a factor of thirty, so it is not a scale factor to divide out.
+Carried through to the impoundment that would survive, using this build's own
+geometry as the estimate of the next generation's:
+
+| intended retain | delivered, 5th pct | median | 95th pct |
+| ---: | ---: | ---: | ---: |
+| 0.75 | 0.51 | 1.00 | 1.00 |
+| 0.50 | 0.16 | 0.83 | 1.00 |
+| 0.25 | 0.01 | 0.47 | 1.00 |
+
+The medians at 1.00 are the other half of it: where erosion has already taken
+the rim below the allowance floor, the allowance does nothing at all and the
+basin keeps whatever erosion left. So a marginal instruction is not
+systematically overspent or underspent; it is not transmitted.
+
+This bites the marginal class alone. Retain 1 gives an allowance of zero and is
+bit-identical to no allowance, and retain 0 clears `noLower` outright; both
+cross exactly. The marginal class is the one the retain machinery exists for --
+`hydrography/notes/retain-fraction.md` calls the notched through-flowing valley
+"one of the few landforms this project decides rather than inherits" -- and it
+is the only class the crossing does not carry.
+
+The estimate above holds this build's geometry still and asks what an allowance
+would have done to it. The next generation's terrain is not this one's, so the
+numbers are the magnitude of the mismatch rather than a prediction of a
+particular basin. What is a property of the conditioning rather than of the
+carve list, and so does transfer, is the natural-to-final ratio in the table
+above.

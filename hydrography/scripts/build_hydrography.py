@@ -309,6 +309,24 @@ def main() -> None:
             ("critical_aridity_index", catch / np.maximum(areas[:, -1], 1e-9) - 1.0, "1",
              "basin overflows, and so should carve its outlet, wherever (E-P)/runoff "
              "over its catchment falls below this"),
+            ("natural_spill_depth", np.array([b.natural_spill_depth for b in ex.basins]), "1",
+             "depression relief on the PRE-CONDITIONING surface, in the generator's "
+             "dimensionless elevation parameter. Carried because Orogen's carve "
+             "allowance is (1 - retain) times THIS depth, while a retain computed "
+             "here divides by the finished depth: the two are different bases and "
+             "the ratio is retained_fraction"),
+            ("retained_fraction", np.array([np.nan if b.retained_fraction is None
+                                            else b.retained_fraction
+                                            for b in ex.basins]), "1",
+             "catalogue's finalPreserved.retainedFraction: the share of the "
+             "pre-conditioning relief the drainage conditioning left standing, as a "
+             "ratio of model-unit depths. Below 1 on almost every basin and above 1 "
+             "where the floor eroded faster than the rim"),
+            ("has_impoundment", (volumes[:, -1] > 0.0).astype("i4"), "1",
+             "1 where the finished terrain still holds water at spill. PRESERVED IS "
+             "NOT THE SAME AS STILL CLOSED: a preserved basin whose rim the "
+             "conditioning took down to its floor is published with retain 1 and "
+             "holds nothing. Test this, not membership of the preserved set"),
         ]:
             v = ds.createVariable(name, data.dtype if data.dtype.kind == "i" else "f8",
                                   ("basin",), zlib=True)
