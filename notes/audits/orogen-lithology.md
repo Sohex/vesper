@@ -877,8 +877,9 @@ and distal-fan band, above 1e-2 the alluvial-fan and bajada band.
 
 **These shares are a bracket rather than a measurement, and the bracket is the
 two columns.** A measured gradient over a mesh edge is scale-dependent on a
-self-affine surface, which is the same effect this file's neighbour audit
-records for the scarp gate, so the finer mesh reports a steeper distribution
+self-affine surface, which is the effect `notes/audits/orogen-resolution.md`
+measures at 1.40x at p50 rising to 1.68x at p99 and which cost the scarp gate
+its one-edge estimator, so the finer mesh reports a steeper distribution
 everywhere. What survives the bracket is the shape: between a third and a half of
 `playa_clastic` lies on gradients a mud flat does not have, and the fraction on
 outright fan gradients is not negligible on either support.

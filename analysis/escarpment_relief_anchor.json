@@ -1,0 +1,117 @@
+{
+  "measured": "2026-08-25",
+  "source": "Copernicus DEM GLO-90, AWS Open Data bucket copernicus-dem-90m",
+  "baseline_km": 90.0,
+  "inner_km": 15.0,
+  "supports_km": [
+    15.19,
+    7.6
+  ],
+  "domains": {
+    "escarpment": {
+      "lon": [
+        28.8,
+        29.8
+      ],
+      "lat": [
+        -29.6,
+        -28.6
+      ],
+      "name": "Drakensberg front, KwaZulu-Natal and Lesotho"
+    },
+    "plateau": {
+      "lon": [
+        25.6,
+        26.6
+      ],
+      "lat": [
+        -29.0,
+        -28.0
+      ],
+      "name": "Free State interior plateau"
+    }
+  },
+  "rule": {
+    "full": "p90 of R over the escarpment box",
+    "min": "p90 of R over the plateau box",
+    "adopt": "mean of the two supports, two significant figures"
+  },
+  "per_support": {
+    "15.19km": {
+      "realised_ball_radius_km": 91.14,
+      "domains": {
+        "escarpment": {
+          "name": "Drakensberg front, KwaZulu-Natal and Lesotho",
+          "cells": 42,
+          "quantiles": {
+            "p50": 0.002591374319083184,
+            "p75": 0.005631003988178283,
+            "p90": 0.006878356506509662,
+            "p95": 0.008113996850763904,
+            "p99": 0.00878733826822059
+          },
+          "max": 0.009053873012923848
+        },
+        "plateau": {
+          "name": "Free State interior plateau",
+          "cells": 56,
+          "quantiles": {
+            "p50": 0.0,
+            "p75": 0.00015344145358335296,
+            "p90": 0.00033484984609430434,
+            "p95": 0.00037413511566171577,
+            "p99": 0.00039584603723152433
+          },
+          "max": 0.000412531235385548
+        }
+      }
+    },
+    "7.6km": {
+      "realised_ball_radius_km": 91.19999999999999,
+      "domains": {
+        "escarpment": {
+          "name": "Drakensberg front, KwaZulu-Natal and Lesotho",
+          "cells": 191,
+          "quantiles": {
+            "p50": 0.001739857480053831,
+            "p75": 0.005984065688615444,
+            "p90": 0.008147890751763457,
+            "p95": 0.009098957925841776,
+            "p99": 0.009974149959128667
+          },
+          "max": 0.010322430332846464
+        },
+        "plateau": {
+          "name": "Free State interior plateau",
+          "cells": 182,
+          "quantiles": {
+            "p50": 0.0,
+            "p75": 0.00023589199267229225,
+            "p90": 0.0003766866615185197,
+            "p95": 0.0004308623281162424,
+            "p99": 0.00047760548929320386
+          },
+          "max": 0.0005083458538875843
+        }
+      }
+    }
+  },
+  "earth": {
+    "scarp_full_relief": 0.0075,
+    "scarp_full_bracket": [
+      0.006878356506509662,
+      0.008147890751763457
+    ],
+    "scarp_min_relief": 0.00036,
+    "scarp_min_bracket": [
+      0.00033484984609430434,
+      0.0003766866615185197
+    ]
+  },
+  "vesper_reference_only": {
+    "gravity_m_s2": 12.81,
+    "relief_scale": 0.7655464480874317,
+    "scarp_full_relief": 0.005741598360655738,
+    "scarp_min_relief": 0.0002755967213114754
+  }
+}

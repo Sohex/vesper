@@ -640,13 +640,48 @@ export function basinAreaFromSlider(v) {
 // km across and a cliff is sub-km — so this is a marker for a downstream
 // higher-resolution pass or a renderer, not geometry.
 //
-// The gradient thresholds are true dimensionless gradients (rise/run), which is
-// the resolution-invariant way to say "steep": the same landform reports the
-// same steepness at any region count. For reference, on a 150k-region planet
-// the median land neighbour pair sits at 0.00065 and the 99th percentile at
-// 0.0065, so these thresholds select the steep tail.
-export const SCARP_MIN_GRADIENT = 0.002;     // below this there is no relief to hang a cliff on
-export const SCARP_FULL_GRADIENT = 0.010;    // at and above this, relief is not the limiting factor
+// Relief is quoted between two DECLARED runs, and the two thresholds are a
+// measured escarpment. A dimensionless gradient is not by itself
+// resolution-invariant: sampled over one mesh edge on a self-affine surface the
+// same landform reports a steeper gradient on a finer mesh, and between this
+// project's two builds that distribution rises by 1.40x at its median and 1.68x
+// at its 99th percentile. What replaces it is how far the ground stands above
+// its own regional surroundings:
+//
+//     relief = (mean land height within SCARP_RELIEF_INNER_KM
+//               - mean land height within SCARP_RELIEF_BASELINE_KM)
+//              / SCARP_RELIEF_BASELINE_KM
+//
+// Both terms are means over declared lengths, so neither carries the mesh's own
+// support, and the measure is one-sided: it marks the upland side of a margin,
+// which is the side a cliff is cut into, and scores the lowland below it zero.
+//
+// THE TWO LENGTHS ARE MEASURED, NOT PREFERRED. analysis/scarp_relief_transport.py
+// walks a declared candidate set of baselines against the 1.15x bar
+// notes/audits/orogen-resolution.md fixes for this class, and against the
+// realisation noise floor a third build 4 per cent away in region count gives,
+// which is 1.03 to 1.05x. A 30 km baseline still misses the bar at 1.28x at p95
+// and 1.34x at p99, and those misses clear the noise floor, so they are the
+// terrain and not scatter: Orogen's information floor is around 20 km and the
+// 15-to-30 km band is where a finer mesh still finds new relief. At 90 km over a
+// 15 km inner mean the same quantiles hold to 0.933, 0.973, 1.051 and 1.134,
+// inside the bar. The inner length is the coarse build's own spacing, the
+// shortest inner ball both meshes can express.
+//
+// The two values are that estimator measured on the southern African Great
+// Escarpment: Copernicus DEM GLO-90 at 90 m, block-averaged to both of this
+// project's mesh spacings, in analysis/escarpment_relief_anchor.py, which
+// carries the domains, the rule and the support bracket. SCARP_FULL_RELIEF is
+// the 90th percentile over a box across the Drakensberg front, SCARP_MIN_RELIEF
+// the 90th percentile over a box on the Free State plateau behind it: so
+// ordinary plateau ground scores zero through the gate and the front itself
+// saturates it. Both are Earth relief at Earth gravity and are applied to
+// physical heights that already carry this planet's 1/g relief scaling. Whether
+// the thresholds should carry it too is world-jh0u.
+export const SCARP_RELIEF_BASELINE_KM = 90;  // the run relief is quoted over
+export const SCARP_RELIEF_INNER_KM = 15;     // the run the near height is averaged over
+export const SCARP_MIN_RELIEF = 0.00036;     // below this there is no relief to hang a cliff on
+export const SCARP_FULL_RELIEF = 0.0075;     // at and above this, relief is not the limiting factor
 export const SCARP_EDGE_KM = 150;            // how far from a cover edge the interface still matters
 export const SCARP_CONTRAST_SCALE = 1.0;     // erodibility contrast giving full scarp weight
 

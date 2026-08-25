@@ -38,7 +38,8 @@ import {
     LITHO_COVER_ARC_KM, LITHO_COVER_RIFT_KM, LITHO_COVER_EVAPORITE_KM,
     LITHO_SALT_CRUST_DEPTH_FRAC,
     LITHO_ERODIBILITY_STRENGTH,
-    SCARP_MIN_GRADIENT, SCARP_FULL_GRADIENT, SCARP_EDGE_KM, SCARP_CONTRAST_SCALE,
+    SCARP_MIN_RELIEF, SCARP_FULL_RELIEF, SCARP_RELIEF_BASELINE_KM,
+    SCARP_RELIEF_INNER_KM, SCARP_EDGE_KM, SCARP_CONTRAST_SCALE,
 } from './terrain-config.js';
 import { avgEdgeKm, PLANET_RADIUS_KM } from './geometry.js';
 import { scaledHeightKm } from './color-map.js';
@@ -776,23 +777,29 @@ export function rockComposition(surface, isLand, cellArea) {
  *   edge     — proximity to where the cover/basement interface daylights, i.e.
  *              where cover survives on one side and has been stripped on the
  *              other. A buried interface produces nothing at the surface.
- *   relief   — local steepness as a physical gradient, km of drop per km of
- *              ground. Flat ground hosts no escarpment however strong the
- *              contrast.
+ *   relief   — how far the ground stands ABOVE its own regional surroundings,
+ *              per km of ground: a near mean over a declared short length less
+ *              a regional mean over a declared long one. Flat ground hosts no
+ *              escarpment however strong the contrast, and the measure is
+ *              one-sided by construction: it marks the upland side of a margin,
+ *              which is the side the cliff is cut into, and scores the lowland
+ *              below it at zero.
  *
- * THE RELIEF TERM IS MEASURED OVER ONE MESH EDGE, AND ITS THRESHOLDS ARE
- * INHERITED RATHER THAN ANCHORED. A gradient sampled over the cell spacing is
- * scale-dependent on a self-affine surface: the same escarpment reports a
- * steeper gradient on a finer mesh, so an absolute threshold on it admits more
- * land at a higher region count. Measured between this project's two builds, at
- * a factor of two in cell spacing, the land gradient distribution rises by 1.41x
- * at its median and 1.70x at its 99th percentile — not one factor, so the shift
- * cannot be divided out. Relief above the land elevation averaged over a FIXED
- * 30 km neighbourhood transports where this does not, holding to within 1.15x
- * over the same pair, but adopting it means restating the two thresholds
- * against a measured escarpment rather than carrying these values across.
- * `SCARP_MIN_GRADIENT` and `SCARP_FULL_GRADIENT` are therefore an inherited
- * calibration, and a scarp fraction is not comparable between region counts.
+ * THE RELIEF TERM IS MEASURED BETWEEN DECLARED RUNS AND ITS THRESHOLDS ARE A
+ * MEASURED ESCARPMENT. It used to be the steepest drop to a lower land
+ * neighbour over one mesh edge, which is scale-dependent on a self-affine
+ * surface: the same escarpment reports a steeper gradient on a finer mesh, so
+ * an absolute threshold on it admitted more land at a higher region count.
+ * Measured between this project's two builds, at a factor of two in cell
+ * spacing, that distribution rose by 1.40x at its median and 1.68x at its 99th
+ * percentile — not one factor, so the shift could not be divided out. Both
+ * terms of this form are means over declared lengths instead, so neither
+ * carries the mesh's own support, and over the same pair it holds to 1.134x at
+ * p99 against a 1.15x bar. A minimum over a ball was tested and rejected: a
+ * minimum is an extreme-value statistic and walks with how many regions the
+ * ball holds. `analysis/scarp_relief_transport.py` is that measurement, with
+ * the realisation noise floor that says which of its ratios can be believed;
+ * `analysis/escarpment_relief_anchor.py` is the anchor.
  *
  * A NOTE ON WHAT KIND OF SCARP. In this model cover is always the weaker layer
  * (sedimentary and volcanic cover runs 0.65–3.5 on the erodibility scale;
@@ -802,7 +809,7 @@ export function rockComposition(surface, isLand, cellArea) {
  * unit over a weak one and therefore a third layer. Treat the field as "an
  * escarpment belongs here", not as a claim about which way it faces.
  */
-export function computeScarpPotential(mesh, r_elevation, lithoState, neighborDist, opts = {}) {
+export function computeScarpPotential(mesh, r_elevation, lithoState, opts = {}) {
     const { numRegions, adjOffset, adjList } = mesh;
     // Subaerial, not elevation > 0: a dry closed-basin floor below sea level is
     // land, and a plateau margin standing inside one is still an escarpment.
@@ -854,6 +861,28 @@ export function computeScarpPotential(mesh, r_elevation, lithoState, neighborDis
         return t * t * (3 - 2 * t);
     };
 
+    // ── relief: the two balls the means are taken over ──
+    // Each is a whole number of hops nearest its declared length, and the rise
+    // is divided by the run the outer count REALISES rather than by the declared
+    // length, so the quoted gradient is over ground actually walked. On this
+    // project's two builds that is 6 hops of 15.19 km against 12 of 7.60 km,
+    // 91.1 km either way, and 1 hop against 2 for the inner mean, 15.19 km
+    // either way. A mesh whose spacing already exceeds a length falls back to
+    // one hop and says so through ballKm.
+    // A mesh whose spacing already exceeds a length falls back to one hop and
+    // says so through ballKm. The inner count is additionally held below the
+    // outer one: on a mesh too coarse to express both lengths the two balls
+    // would otherwise coincide, the rise would be identically zero, and the
+    // whole field would go inert without saying anything. At zero the near term
+    // is the region's own height, which is what a mesh that coarse can offer.
+    const ballHops = Math.max(1, Math.round(SCARP_RELIEF_BASELINE_KM / edgeKm));
+    const innerHops = Math.min(Math.round(SCARP_RELIEF_INNER_KM / edgeKm),
+                               ballHops - 1);
+    const ballKm = ballHops * edgeKm;
+    const stamp = new Int32Array(numRegions).fill(-1);
+    const ball = new Int32Array(numRegions);
+    const ballDepth = new Uint16Array(numRegions);
+
     for (let r = 0; r < numRegions; r++) {
         if (!isLand(r) || dist[r] < 0) continue;
 
@@ -863,37 +892,49 @@ export function computeScarpPotential(mesh, r_elevation, lithoState, neighborDis
         const contrast = Math.min(1, Math.abs(coverK[r] - baseK[r]) / SCARP_CONTRAST_SCALE);
         if (contrast <= 0) continue;
 
-        // Steepest gradient to any lower land neighbour. neighborDist is a chord
-        // on the unit sphere, so multiplying by the planet radius turns the
-        // denominator into kilometres of ground. THE NUMERATOR HAS TO BE
-        // CONVERTED TOO: r_elevation is the generator's shaping parameter and
-        // not a height, and its derivative dh/de = 120e^3(1-e) runs from zero at
-        // sea level through 12.7 km per unit at e = 0.75 and back to zero at the
-        // ceiling. Differencing it raw gave a ratio that was neither a rise over
-        // a run nor even monotone in physical steepness, and that ignored this
-        // planet's 1/g relief scaling, so the same terrain scarped identically
-        // at any gravity. scaledHeightKm is the same converter data-export.js
-        // builds `elevation_km` with.
-        let steepest = 0;
-        for (let i = adjOffset[r], iEnd = adjOffset[r + 1]; i < iEnd; i++) {
-            const nb = adjList[i];
-            // Land neighbours only, taken from the SAME land test as the cell
-            // itself. Measuring against a bathymetric neighbour would score the
-            // continental slope as an escarpment — that drop is the shelf/slope
-            // break, a different landform on a different scale, and it would
-            // light up every coastline. This used to read `r_elevation[nb] <= 0`,
-            // an elevation-sign test, which also discarded every dry closed-basin
-            // floor below sea level: 5.3% of land at 2.5M regions and 8.6% at
-            // 10M, four fifths of it endorheic. A plateau margin standing inside
-            // a dry basin is still an escarpment, which is exactly why the cell's
-            // own land test comes from surface_class.
-            if (!isLand(nb)) continue;
-            if (r_elevation[nb] >= r_elevation[r]) continue;
-            const d = (neighborDist[i] || 1e-9) * radiusKm;
-            const g = (heightKm[r] - heightKm[nb]) / d;
-            if (g > steepest) steepest = g;
+        // How far this ground stands above the mean land height of the ball, per
+        // km of ground. THE HEIGHT HAS TO BE CONVERTED: r_elevation is the
+        // generator's shaping parameter and not a height, and its derivative
+        // dh/de = 120e^3(1-e) runs from zero at sea level through 12.7 km per
+        // unit at e = 0.75 and back to zero at the ceiling. Differencing it raw
+        // gave a ratio that was neither a rise over a run nor even monotone in
+        // physical steepness, and that ignored this planet's 1/g relief scaling,
+        // so the same terrain scarped identically at any gravity. scaledHeightKm
+        // is the same converter data-export.js builds `elevation_km` with.
+        //
+        // Land regions only, taken from the SAME land test as the cell itself.
+        // Averaging in bathymetry would score the continental slope as an
+        // escarpment — that drop is the shelf/slope break, a different landform
+        // on a different scale, and it would light up every coastline. This used
+        // to read `r_elevation[nb] <= 0`, an elevation-sign test, which also
+        // discarded every dry closed-basin floor below sea level: 5.3% of land
+        // at 2.5M regions and 8.6% at 10M, four fifths of it endorheic. A
+        // plateau margin standing inside a dry basin is still an escarpment,
+        // which is exactly why the cell's own land test comes from
+        // surface_class.
+        //
+        // The ball is walked per candidate rather than for every region, because
+        // only regions that already carry an edge and a contrast can score.
+        // One walk feeds both means: the inner ball is the outer one's first
+        // `innerHops` shells, so its members are the same members at a smaller
+        // depth and no second traversal is needed.
+        let sum = 0, count = 0, near = 0, nearCount = 0;
+        stamp[r] = r; ball[0] = r; ballDepth[0] = 0;
+        for (let head = 0, tail = 1; head < tail; head++) {
+            const q = ball[head], depth = ballDepth[head];
+            sum += heightKm[q]; count++;
+            if (depth <= innerHops) { near += heightKm[q]; nearCount++; }
+            if (depth >= ballHops) continue;
+            for (let i = adjOffset[q], iEnd = adjOffset[q + 1]; i < iEnd; i++) {
+                const nb = adjList[i];
+                if (stamp[nb] === r || !isLand(nb)) continue;
+                stamp[nb] = r;
+                ball[tail] = nb; ballDepth[tail] = depth + 1; tail++;
+            }
         }
-        const relief = smoothstep(steepest, SCARP_MIN_GRADIENT, SCARP_FULL_GRADIENT);
+        const rise = count > 0 ? near / nearCount - sum / count : 0;
+        const relief = smoothstep(Math.max(0, rise) / ballKm,
+                                  SCARP_MIN_RELIEF, SCARP_FULL_RELIEF);
 
         out[r] = contrast * edge * relief;
     }

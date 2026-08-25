@@ -149,7 +149,7 @@ sits at the design ceiling and nothing above it was calibrated.
 | `dist_*` export fields | BFS hops, declared `units='cells'` in the manifest | convertible, honestly labelled |
 | erosion pass counts | fixed per slider, no region term | fixed erosion duration, which is what convergence wants |
 | glacial ice accumulation | `iceFlow[target] += iceFlow[r]`, seeded from a per-cell index | DOES NOT SCALE, see below |
-| scarp gradient thresholds | absolute gradient, 0.002 to 0.010, measured over ONE mesh edge | measurement depends on cell spacing; the thresholds are inherited, not anchored |
+| scarp relief thresholds | absolute relief between two declared lengths, 15 km against 90 km | scales; the pair is anchored on a measured escarpment |
 
 Two entries need their own argument.
 
@@ -163,9 +163,10 @@ times the ice flow at four times the region count. Carving goes as
 thresholds are crossed far more readily. The two accumulators disagree about
 what a resolution-independent quantity is.
 
-**Scarp gradient thresholds are absolute but the gradient a mesh can measure is
-not.** Measured 2026-08-24 on the raw mesh of both builds, area-weighted over
-`surface_class == 1`.
+**The gate's thresholds were absolute, and the gradient it put them on was not
+something a mesh can measure the same way twice.** Measured 2026-08-24 on the
+raw mesh of both builds, area-weighted over `surface_class == 1`. This is the
+finding that moved the estimator; what replaced it is two sections below.
 
 **This is NOT the compound topographic index's failure mode, and the difference
 decides the remedy.** CTI shifts by exactly `ln 2` between these two builds
@@ -212,36 +213,82 @@ without discarding the fork's own terrain. Fixed, and the three assertions in
 ### What transports, measured against a bar fixed first
 
 Bar declared before the runs: every land quantile from p50 to p99 must agree
-between the two builds within 1.15x. Baseline length declared before the runs at
-30 km, which is above Orogen's ~20 km terrain-information floor, one fifth of
-`SCARP_EDGE_KM`, and a near-integer hop count on both meshes.
+between the two builds within 1.15x. Baseline lengths declared before the runs
+as 30, 45, 60 and 90 km, all above Orogen's ~20 km terrain-information floor,
+with a near mean over either the region itself or a 15 km ball, 15.19 km being
+the coarse build's own spacing and so the shortest inner ball both meshes can
+express. Adoption rule declared with them: the shortest baseline that clears the
+bar, preferring the form that declares one length over the form that declares
+two. `analysis/scarp_relief_transport.py` is the measurement, re-run 2026-08-25
+on a seeded sample of 200,000 land regions per build.
+
+The estimator is a RISE above the neighbourhood mean and not a drop below it.
+That is what its own one-sidedness says: the median is exactly zero only if the
+measure is zero on the half of land that sits at or below its surroundings, and
+it is the upland side of a margin that a cliff is cut into. The measured
+positive fraction is 0.427 on the coarse build and 0.425 on the fine one.
 
 | relief estimator | p50 | p75 | p90 | p95 | p99 | verdict |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| drop to a lower neighbour over one mesh edge | 1.408 | 1.412 | 1.537 | 1.610 | 1.695 | fails |
-| drop to the MINIMUM land elevation within 30 km, over 30 km | 1.285 | 1.053 | 1.110 | 1.206 | 1.247 | fails |
-| drop below the MEAN land elevation within 30 km, over 30 km | n/a | 0.909 | 0.932 | 1.046 | 1.134 | passes where defined |
+| drop to a lower neighbour over one mesh edge | 1.396 | 1.396 | 1.527 | 1.576 | 1.682 | fails |
+| rise above the 30 km mean, over 30 km | n/a | 0.968 | 1.099 | 1.277 | 1.344 | fails |
+| 15 km mean above the 30 km mean, over 30 km | n/a | 1.078 | 1.172 | 1.234 | 1.299 | fails |
+| rise above the 45 km mean, over 45 km | n/a | 0.954 | 1.067 | 1.209 | 1.293 | fails |
+| 15 km mean above the 60 km mean, over 60 km | n/a | 0.993 | 1.047 | 1.111 | 1.195 | fails |
+| rise above the 90 km mean, over 90 km | n/a | 0.870 | 0.963 | 1.101 | 1.185 | fails |
+| **15 km mean above the 90 km mean, over 90 km** | n/a | 0.933 | 0.973 | 1.051 | 1.134 | **passes** |
 
-The minimum-over-a-ball form fails for a reason worth keeping: a minimum is an
-extreme-value statistic and is biased by how many cells the ball holds, and the
-fine mesh holds three times as many over the same ground. A mean is normalised
-and carries no such bias. Its p50 is not a failure but a structural property: the
-measure is one-sided, so half of land sits at or below its own 30 km mean and the
-median is exactly zero, which leaves the bar undefined rather than missed.
+A minimum over a ball was tested in an earlier pass and rejected for a reason
+worth keeping: a minimum is an extreme-value statistic and is biased by how many
+regions the ball holds, and the fine mesh holds four times as many over the same
+ground. A mean carries no such bias, which is why every row above is a mean.
 
-**So a normalised form transports and a rank form is not needed.** A rank form
-would also pin the areal extent, but it makes the field non-local, and this
-measurement shows a local estimator is enough.
+**The misses are terrain, not scatter.** A third build at 2,600,001 regions,
+4 per cent from the coarse one, puts the realisation noise floor at 1.03 to
+1.05x for every candidate in the table and at 0.994 to 1.021 for the one-edge
+form, so a 1.28x miss at p95 clears it by an order of magnitude. What the 30 km
+rows are measuring is that Orogen's information floor is around 20 km and the
+15 to 30 km band is exactly where a finer mesh still finds relief the coarse one
+does not. No estimator keyed to that band transports; the repair is a longer
+baseline, and 90 km is the shortest of the declared set that reaches one.
 
-**What is NOT settled is the pair of numbers.** Adopting the 30 km form changes
-the distribution the smoothstep reads by an order of magnitude, so 0.002 and
-0.010 cannot be carried across, and choosing new ones by matching the areal
-extent the present gate happens to produce would be calibrating against the
-defect. What settles them is a measured escarpment: relief over 30 km at the foot
-of a Great Escarpment-type plateau margin, which is an external number this
-project does not hold. Until it does, the thresholds stay at their inherited
-values and are labelled as inherited in the module, a scarp fraction is not
-comparable between region counts, and `world-xgaj` carries the change.
+**The one-edge row is the control on the harness.** It reproduces the 1.408,
+1.412, 1.537, 1.610, 1.695 measured in the earlier pass to within 1 per cent,
+which is what says this harness measures the same thing. An earlier draft of
+this note reported a 30 km mean form holding to 0.909, 0.932, 1.046 and 1.134;
+that row does not reproduce and is replaced by the table above, which was
+measured with the harness the control validates.
+
+### The thresholds, anchored on a measured escarpment
+
+`analysis/escarpment_relief_anchor.py`, measured 2026-08-25. Copernicus DEM
+GLO-90 at 90 m from the AWS Registry of Open Data, over the southern African
+Great Escarpment, block-averaged to both of this project's mesh spacings and put
+through the same estimator. Two domain boxes fixed before the run from where the
+escarpment is known to run rather than from any relief the DEM reports: the
+Drakensberg front, and a Free State plateau box 250 km behind it with no margin
+in it. Rule fixed with them, from what each threshold means in the smoothstep:
+the FULL value is the 90th percentile over the escarpment box, which only the
+front itself reaches, and the MIN value is the 90th percentile over the plateau
+box, which ordinary high ground essentially never exceeds. Adopted value is the
+mean of the two supports to two significant figures, and the pair of supports is
+the bracket.
+
+| threshold | 15.19 km support | 7.60 km support | adopted | Earth escarpment it represents |
+| --- | ---: | ---: | ---: | --- |
+| `SCARP_MIN_RELIEF` | 0.000335 | 0.000377 | 0.00036 | 32 m of regional prominence over 91 km |
+| `SCARP_FULL_RELIEF` | 0.006878 | 0.008148 | 0.0075 | 683 m over 91 km |
+
+The support bracket is 1.13x on the FULL value and 1.13x on the MIN value, which
+is the same size as the transport bar and is reported rather than hidden. The
+anchor is Earth relief at Earth gravity and is applied to physical heights that
+already carry this planet's 1/g relief scaling; whether the thresholds should
+carry it too is `world-jh0u`, which records the argument on both sides.
+
+**Every export's `scarp_potential` is now worthless rather than stale**, since
+the estimator and both thresholds changed together. Its only consumer is
+`analysis/orogen_resolution_controls.py`, which reads it to measure resolution
+dependence.
 
 ## The realisation noise floor, and the two claims it killed
 
@@ -417,7 +464,10 @@ needs edges near 1.5 km, about 256 million regions, 26 times the run measured he
 GRAV-6's judgement that the process is sub-grid holds at four times the region
 count and would hold at forty.
 
-## Scarps do strengthen with region count, and the thresholds are why
+## What the one-edge gate did with region count, and why it had to go
+
+Measured on the exported fields of both builds, which carry the gate as it stood
+before the estimator was replaced:
 
 | measure | 2,500,001 | 10,000,005 |
 | --- | --- | --- |
@@ -427,12 +477,13 @@ count and would hold at forty.
 | land fraction with gradient above 0.010 | 0.2643 | 0.3008 |
 | land slope 99th percentile | 5.015 deg | 8.427 deg |
 
-Mean scarp potential rises 51% and the steep tail of the slope distribution
-rises 68%, while relief at fixed separation rose at most 12%. The gap between
-those numbers is the calibration: the landform is better captured, and on top
-of that the absolute 0.002 to 0.010 smoothstep is crossed more readily by a
-gradient measured over shorter runs. The two cannot be separated at the field
-level, which is what LITH-25 records.
+Mean scarp potential rose 51% and the steep tail of the slope distribution rose
+68%, while relief at fixed separation rose at most 12%. The gap between those
+numbers was the calibration rather than the landform: the absolute 0.002 to
+0.010 smoothstep was crossed more readily by a gradient measured over shorter
+runs, and at the field level that could not be separated from better capture of
+the landform itself. Both halves are now gone, since the estimator no longer
+reads one mesh edge and the thresholds are no longer inherited.
 
 ## Sanity of the four times run
 
