@@ -114,6 +114,7 @@ def orbits_for_slope_standard_error(scatter: float, tau: float,
     return float(n)
 
 
+
 # The mixed layer's heat capacity and the radiative damping. Together they set
 # how long an approach takes, which is what turns a drift rate into a remaining
 # offset -- and the offset is what `OFFSET_TOLERANCE_K` passes or fails a run
@@ -128,6 +129,61 @@ _MLD = float(_yaml.safe_load(
     (Path(__file__).resolve().parents[2] / "config" / "planet.yaml")
     .read_text(encoding="utf-8"))["surface"]["mixed_layer_depth_m"])
 SLAB_HEAT_CAPACITY = _MLD * close_state_energy.CRHOS * close_state_energy.CPS
+
+
+# THE WINDOW, DERIVED RATHER THAN PICKED.
+#
+# The criterion that bounds the ANSWER rather than a rate is the extrapolated
+# offset, and on a settled run the exponential fit has nothing to grip, so the
+# fallback tests `slope * tau_expected` against 0.15 K. The slope's own error
+# is therefore multiplied by the relaxation time before the comparison, and the
+# window that criterion needs follows from
+#
+#     var(slope) = scatter^2 * tau * 12 / (n (n^2 - 1))
+#
+# with the bar that a threshold discriminates only when its statistic's
+# standard error is at most a third of it (`RESOLVING_FACTOR`, declared in
+# `main` before it was applied to anything).
+#
+# THE INPUTS ARE PRIOR MEASUREMENTS, EACH WITH A SOURCE, and the number below
+# is computed from them rather than typed, so nobody can move the window
+# without moving an input that has a citation. A ten-orbit window was in use
+# and it does not resolve this criterion: its statistic wandered between 0.031
+# and 0.255 against a 0.15 K allowance on a T21 baseline that had stopped
+# moving, and the verdict flipped seven times over twenty orbits. world-omn.
+#
+# THE ANSWER IS A BRACKET AND THIS IS ITS ESTIMATE. At tau = 1, the value if
+# consecutive orbits were independent, the window is 21 orbits; at tau = 9, the
+# value for a lag-1 correlation of 0.8, it is 44. The factor tau is what the
+# model's memory costs and everything else is what an independent series would
+# have needed anyway. `exoplasim/notes/convergence-lengths.md` carries the
+# bracket; every assessment reports the window ITS OWN run would need, which is
+# what follows the resolution up the ladder.
+NOMINAL_ORBIT_SCATTER_K = 0.07     # the T21 baseline's stationary spread, world-omn
+NOMINAL_TAU_ORBITS = 4.2           # (1+r)/(1-r) at r = 0.615, world-yj9o
+NOMINAL_RELAXATION_ORBITS = 10.0   # this planet's slab; each run reports its own
+# The same 0.15 K and the same factor of three the criteria use, restated here
+# only because the default has to exist before `main` runs. `main` asserts they
+# agree, so the two cannot drift.
+_OFFSET_TOLERANCE_K = 0.15
+_RESOLVING_FACTOR = 3.0
+# THE STATISTIC IS `|offset| + half_width`, NOT `offset`. Both terms are the
+# same slope error multiplied by the same relaxation time, so the quantity
+# compared with the tolerance has about twice the offset's scale. Sizing the
+# window on the offset alone would be sizing it for half the statistic.
+_OFFSET_STATISTIC_TERMS = 2.0
+
+
+def window_for_offset_criterion(scatter: float, tau: float,
+                                relaxation_orbits: float) -> float:
+    """The window at which the offset criterion starts to discriminate."""
+    return orbits_for_slope_standard_error(
+        scatter, tau, _OFFSET_TOLERANCE_K
+        / (_RESOLVING_FACTOR * _OFFSET_STATISTIC_TERMS * relaxation_orbits))
+
+
+DEFAULT_WINDOW_ORBITS = int(np.ceil(window_for_offset_criterion(
+    NOMINAL_ORBIT_SCATTER_K, NOMINAL_TAU_ORBITS, NOMINAL_RELAXATION_ORBITS)))
 
 
 # HOW LONG A RUN TAKES TO GET HERE, AS OPERATIONAL EXPERIENCE. These are what
@@ -239,9 +295,16 @@ def approach_to_equilibrium(orbits: np.ndarray, series: np.ndarray,
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("run_dir", type=Path)
-    parser.add_argument("--window", type=int, default=10,
+    parser.add_argument("--window", type=int, default=DEFAULT_WINDOW_ORBITS,
                         help="orbits in the test window. Counted back from the "
-                             "last PRODUCTION orbit, not the last orbit")
+                             "last PRODUCTION orbit, not the last orbit. The "
+                             f"default, {DEFAULT_WINDOW_ORBITS}, is derived: it "
+                             "is the shortest window at which the offset "
+                             "criterion's statistic has a standard error of a "
+                             "third of its threshold, at the scatter and "
+                             "autocorrelation this model has been measured "
+                             "with. A shorter one does not test that criterion, "
+                             "it flips on it")
     parser.add_argument("--through", type=int, default=None, metavar="ORBITS",
                         help="assess the run AS IF it had stopped after this "
                              "many orbits, ignoring everything later. For "
@@ -435,6 +498,10 @@ def main() -> None:
     # smallest factor at which a statistic sitting on the threshold is more
     # than a chance excursion from either side of it.
     RESOLVING_FACTOR = 3.0
+    # The default window was sized from these two before `main` ran. One copy
+    # of each number, checked rather than trusted.
+    assert (OFFSET_TOLERANCE_K, RESOLVING_FACTOR) == (_OFFSET_TOLERANCE_K,
+                                                      _RESOLVING_FACTOR)
 
     # THE ENERGY-BALANCE CRITERION TESTS STORAGE, NOT REPORTED TOA. Changed
     # 2026-08-17, deliberately and with the reasoning recorded, because the two
@@ -465,7 +532,10 @@ def main() -> None:
     #   What is measurable. The storage estimate on a 10-orbit block differs from
     #   the same run's 20-orbit block by 0.111, 0.115 and 0.116 W/m2 on the three
     #   runs where both exist. A threshold below about 0.11 is measuring the
-    #   sampling noise of the estimator rather than the planet.
+    #   sampling noise of the estimator rather than the planet. That figure was
+    #   taken on 10-orbit blocks and the default window is now wider, so it is a
+    #   CEILING on the estimator's noise here rather than a live floor; the
+    #   binding bound is the temperature-derived one either way and 0.12 stands.
     #
     # The two land within 6% of each other, which is the argument for the number
     # rather than a coincidence to note: below 0.11 is unresolvable, above 0.118
@@ -537,21 +607,25 @@ def main() -> None:
                 "sea_ice_slope_standard_error_fraction_per_orbit"], 0.001),
             # The offset criterion tests a slope multiplied by tau_expected, so
             # its statistic's error is that multiple of the slope's.
-            ("extrapolated_offset", tau_expected * slope_se, OFFSET_TOLERANCE_K)):
+            # The statistic is `|offset| + half_width` and both terms carry the
+            # same slope error times tau_expected, so its scale is twice the
+            # offset's. Sizing on the offset alone sizes for half the test.
+            ("extrapolated_offset",
+             _OFFSET_STATISTIC_TERMS * tau_expected * slope_se,
+             OFFSET_TOLERANCE_K)):
         resolves = bool(np.isfinite(statistic_se)
                         and statistic_se * RESOLVING_FACTOR <= threshold)
         resolving["rows"].append({
             "criterion": name, "threshold": threshold,
             "statistic_standard_error": statistic_se,
             "resolves": resolves})
-    resolving["window_orbits_for_offset_criterion"] = orbits_for_slope_standard_error(
-        ts_scatter, ts_tau,
-        OFFSET_TOLERANCE_K / (RESOLVING_FACTOR * tau_expected))
+    resolving["window_orbits_for_offset_criterion"] = window_for_offset_criterion(
+        ts_scatter, ts_tau, tau_expected)
     # The same window if the orbits were independent, so the price of the
     # memory is visible rather than folded into one number.
     resolving["window_orbits_for_offset_criterion_if_independent"] = \
-        orbits_for_slope_standard_error(
-            ts_scatter, 1.0, OFFSET_TOLERANCE_K / (RESOLVING_FACTOR * tau_expected))
+        window_for_offset_criterion(ts_scatter, 1.0, tau_expected)
+    resolving["default_window_orbits"] = DEFAULT_WINDOW_ORBITS
 
     report = {
         "run_dir": str(run_dir),

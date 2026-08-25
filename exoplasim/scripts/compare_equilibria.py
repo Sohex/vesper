@@ -10,9 +10,9 @@ WHY A TOLERANCE CANNOT BE PICKED. The model is chaotic, so two runs from
 different initial conditions never agree pointwise and their climatologies
 never agree exactly. "Approximately the same state" is meaningless until it is
 said what a difference would have to exceed to mean anything, and the only
-honest scale is the run's OWN year-to-year scatter: a ten-orbit mean has a
-standard error, and two independent ten-orbit means of the SAME climate differ
-by about sqrt(2) times it.
+honest scale is the run's OWN variability: a window mean has a standard error,
+and two independent window means of the SAME climate differ by about sqrt(2)
+times it.
 
 THE CRITERION, fixed here before either arm was compared:
 
@@ -271,7 +271,12 @@ def main() -> int:
     ap.add_argument("run_a", type=Path)
     ap.add_argument("run_b", type=Path)
     ap.add_argument("--window", type=int, default=10,
-                    help="orbits in the equilibrium window of each run")
+                    help="orbits in the equilibrium window of each run. Its "
+                         "only effect on the verdict is how small a difference "
+                         "the test can see: the bound goes as sqrt(tau / "
+                         "window), and the report states the smallest "
+                         "resolvable difference for each metric. A difference "
+                         "below it is an unasked question, not a null result")
     ap.add_argument("--output", type=Path, default=ANALYSIS / "ladder")
     args = ap.parse_args()
 

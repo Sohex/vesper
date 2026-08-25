@@ -62,9 +62,11 @@ NOT doing when the run is too short to allow it.
 
 The offset criterion is the one that bounds the answer rather than a rate. On a
 settled run the exponential fit has nothing to grip, the fallback takes over,
-and the statistic thresholded at 0.15 K is `slope * tau_expected` with
-`tau_expected` about 10 orbits. So the slope's own error is multiplied by ten
-before the comparison, and the window that criterion needs is set by
+and the statistic thresholded at 0.15 K is `|offset| + half_width`, where
+`offset` is `slope * tau_expected` and `half_width` carries the same slope
+error times the same `tau_expected`, about 10 orbits. So the slope's own error
+is multiplied by ten and then counted twice, and the window that criterion
+needs is set by
 
     var(slope) = sigma^2 * tau * 12 / (n (n^2 - 1))
 
@@ -78,12 +80,22 @@ stationary scatter of 0.07 K:
 | 4.2 | 34 orbits | at the lag-1 correlation measured on the 85-orbit pair |
 | 9.0 | 44 orbits | at r = 0.8 |
 
-**So the window is bracketed at 21 to 44 orbits and the estimate is about 34,
-against the 10 in use.** The bracket is what the memory costs: the independent
-case is the floor and every orbit above it is bought by the autocorrelation.
-That is the same order as the twenty orbits of verdict flapping the ten-orbit
-window was measured to cost, so widening is close to free in orbits and buys a
-verdict that means what it says.
+**So the window is bracketed at 21 to 44 orbits and the estimate is 34.1,
+against the 10 that was in use.** `assess_convergence.py`'s default is the
+ceiling of that estimate and is computed from the three inputs above rather
+than typed, so it cannot be moved without moving a number that has a citation.
+The bracket is what the memory costs: the independent case is the floor and
+every orbit above it is bought by the autocorrelation.
+
+Widening is close to free in orbits and buys a verdict that means what it says.
+The ten-orbit window was measured to flap for twenty orbits after the state had
+stopped moving, which is the same order as the extra orbits a window of this
+width needs before it can return anything at all. What changes is that the
+verdict at the end is a verdict. The cost lands hardest on a reconvergence,
+which settles in ten to twenty orbits and would now be assessed over more
+orbits than it took to settle; that is the correct answer rather than an
+awkward one, because a window shorter than the approach it follows is
+assessing orbits that are still moving.
 
 `assess_convergence.py` computes this per run rather than carrying the table:
 `resolving_power.window_orbits_for_offset_criterion`, from the run's OWN

@@ -409,11 +409,19 @@ target as spanning its own. The converter refuses the combination rather than
 taking it, and its self-test walks this route to check that every conversion the
 route asks for is one it accepts. WORLD-FL9C.
 
-**A reconvergence is ten orbits, then three-orbit increments until the
-convergence criteria are met.** Ten first because a shorter block cannot
-separate a trend from the startup transient; three after, because that is the
-smallest increment the criteria can judge and a longer one overshoots the exit
-by more than it costs to test again.
+**A reconvergence is one convergence window, then three-orbit increments until
+the criteria are met.** The first block is the window because the criteria
+cannot be evaluated on fewer orbits than they are taken over; three after,
+because that is the smallest increment the criteria can judge and a longer one
+overshoots the exit by more than it costs to test again.
+
+That first block is longer than the reconvergence itself, which settles in ten
+to twenty orbits. It is not waste: the window is set by how long a mean has to
+be before the model's own variability has averaged out of it, and a block
+shorter than that returns a verdict that flips rather than a verdict.
+`assess_convergence.py` owns the number and derives it;
+`exoplasim/notes/convergence-lengths.md` carries the arithmetic and the bracket
+it lands in.
 
 **The timestep at each rung is the highest that rung can carry, not a safety
 margin.** 45, 30 and 22.5 are the intended values and they are PROVISIONAL:
