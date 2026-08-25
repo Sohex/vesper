@@ -2587,8 +2587,14 @@
 !     a record number cannot tell a missing block from a short one, and the
 !     acceptance check the forcing artifact is subject to is exactly that
 !     distinction.
-      call writescalar(143,real(nstep-naccueco)*deltsec,600)
-      call writescalar(143,real(nstep)*deltsec,601)
+!     nstep+1 AND NOT nstep. The step whose index is nstep has just been
+!     integrated -- plasim.f90 increments the counter further down the loop --
+!     so the state it contributed is valid at the END of that step, at
+!     (nstep+1)*deltsec. Labelling the block [nstep-naccueco, nstep] instead
+!     gives intervals that still tile without gap or overlap and are every one
+!     of them one timestep early, which is a defect no closure check can see.
+      call writescalar(143,real(nstep+1-naccueco)*deltsec,600)
+      call writescalar(143,real(nstep+1)*deltsec,601)
       call writescalar(143,real(naccueco)*deltsec,602)
 
 !     Duration-weighted means. Every timestep is the same length, so the count
