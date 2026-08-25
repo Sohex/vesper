@@ -75,7 +75,7 @@ already had.
 | `data/<build>/basins.nc` | per basin: hypsometric curves, spill level and target, catchment area, capacity |
 | `data/<build>/coupling_<grid>.nc` | sparse basin-by-grid-cell catchment areas |
 | `data/<build>/hydrography_report.json` | diagnostics, river mouths, marginal seas, provenance |
-| `data/<build>/surface_water.nc` | per region: lake, lake depth, river discharge; per basin: solved area, level, volume, overflow |
+| `data/<build>/surface_water.nc` | per region: lake, lake depth, river discharge; per basin: solved area, level, volume, overflow, and the periodic cycle -- area, level and volume in every time bin, the seasonal amplitude, the residence time, and whether the cycle closed |
 | `data/<build>/topographic_index_<grid>.nc` | per region: the compound topographic index on both slope arms; per grid cell: its area-weighted mean, its within-cell spread, and `f_sat_max`, the share of the cell's land AREA above that mean |
 | `data/<build>/wetness_<grid>.nc` | per region: one mutually exclusive wetness class; per grid cell: the AREA share of each class over the cell's land |
 | `analysis/lake_balance_sweep.json` | solver sensitivity under placeholder forcing |
@@ -135,6 +135,38 @@ Running it directly sweeps uniform placeholder forcing, which exercises the
 solver and shows the sensitivity. Under 10 to 200 mm/yr of runoff against 400 to
 1600 mm/yr of lake evaporation, lake area lands between 0.21% and 8.7% of the
 planet. That range is a property of the terrain, not a prediction.
+`--selftest` runs the checks below against synthetic basins and needs no build.
+
+### The periodic steady state
+
+`solve_periodic()` answers the other question. `solve()` finds where a basin
+settles if the forcing never changes; this integrates the same balance through
+the climatology's own time bins against the basin's own hypsometric curve, and
+asks for the YEAR to close on itself. **The convergence criterion is the new
+thing, not the solver**: a basin whose cycle does not repeat to the declared
+tolerance in its own volume is refused rather than reported, and closure
+propagates down the spill cascade, because a basin whose own volume repeats
+while its upstream supply does not is riding a transient.
+
+Bin lengths are absolute and IN THE SAME YEAR THE FLUXES ARE PER. A fixed point
+does not care how long a year is, so a caller mixing two year units gets a wrong
+amplitude and a clean closure; the selftest carries a check that is sensitive to
+it, because the closure test cannot be.
+
+What is published per basin is the AMPLITUDE, not a headline: the peak-to-trough
+area, that swing as a share of the mean, and the residence time that sets it. A
+deep terminal lake holds years of supply and its surface barely moves inside one
+year, while a shallow playa's area is almost all seasonal, so a single number
+over the catalogue would be a statement about the deep end and nothing else. A
+cycle is published only where the swing clears a tenth of the basin's mean area
+AND one mean mesh cell, the second being a statement about the instrument rather
+than the basin.
+
+Only the LAKE's own surface fluxes carry a season. The catchment's delivery is
+flat through the cycle, because the annual mean of P - E is exactly the runoff a
+cell generated over a closed cycle and per-bin clamping would count the wet
+season's supply twice. `config/land_water_ledger.yaml` declares that omission as
+`seasonal_phase_of_catchment_delivery`.
 
 ## Surface water under a real climate
 
