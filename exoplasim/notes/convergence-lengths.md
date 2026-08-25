@@ -124,6 +124,72 @@ The project therefore has no equilibrium series long enough to measure tau on,
 and both instruments now say that rather than assuming a number.
 `compare_equilibria.py` reports a metric indeterminate and refuses the verdict;
 `assess_convergence.py` reports the window its criteria would need and labels it
-a floor. What would settle it is a production span at equilibrium of at least
-ten times tau, which on the estimate above is about 40 orbits AFTER the
-approach has finished.
+a floor. What would settle it is a production span at equilibrium of about
+twenty times tau, which on the estimate above is about 80 orbits AFTER the
+approach has finished; the section below measures where that number comes from
+and why ten times tau is not enough.
+
+## Fixing tau and bounding a mean are different lengths, and only one is affordable
+
+*Measured 2026-08-25 on synthetic series whose tau is known in closed form, so
+the right answer is set rather than compared against. Criteria fixed before the
+run: tau is RECOVERED when the median estimate is within a tenth of the truth
+and its relative RMS error is below a fifth; an interval COVERS when a nominal
+95 per cent t-interval contains the true mean between 92.5 and 97.5 per cent of
+the time. `lib/autocorrelation.py:integrated_time` is the estimator under test,
+against an AR(1) and against a fast-plus-slow mixture that is deliberately not
+AR(1).*
+
+**Fixing tau by direct estimation is out of reach and always will be.** The
+span needed scales as tau itself, so a slower process is not merely harder to
+measure but harder in proportion to what makes it slow, and below that span the
+estimate is biased low rather than merely noisy. The two processes have
+different tau, so the same number of samples buys different multiples of it;
+both columns give the estimate as a fraction of the truth, with the span in
+multiples of that process's own tau in brackets:
+
+| samples | AR(1), tau = 4.19 | mixture, tau = 10.43 |
+| ---: | ---: | ---: |
+| 20 | 0.56 (5) | 0.19 (2) |
+| 85 | 0.85 (20) | 0.44 (8) |
+| 300 | 0.93 (72) | 0.74 (29) |
+| 1200 | 1.00 (286) | 0.91 (115) |
+| 5000 | 1.01 (1192) | 0.97 (479) |
+
+The AR(1) case first meets the criterion at 1200 samples and the mixture at
+5000, which are about 290 and about 480 times their own tau. That agrees with
+the analytic scaling for a truncated lag sum, where the span needed goes as tau
+over the square of the tolerance. In orbits, at any tau this model plausibly
+has, fixing tau means of order a thousand orbits AT EQUILIBRIUM. It is two
+orders of magnitude beyond what this project runs and it is not a target to
+design against.
+
+**Bounding a window mean does not need tau fixed, and is affordable.**
+Non-overlapping batch means take the scatter of the batch means themselves as
+the error of the grand mean, which needs the batches long compared with tau but
+never needs tau's value:
+
+| batches | batch length, in tau | span, in tau | batch means covers | tau from inside the span covers |
+| ---: | ---: | ---: | ---: | ---: |
+| 4 | 5 | 20 | 0.940 | 0.898 |
+| 8 | 5 | 40 | 0.938 | 0.920 |
+| 4 | 10 | 40 | 0.951 | 0.933 |
+| 8 | 10 | 80 | 0.951 | 0.940 |
+
+Batches of two times tau miss the criterion however many of them there are, so
+the batch length and not the batch count is what has to be bought first. A span
+of about twenty times tau is where an honest interval starts, and that is the
+number to design a commissioning run against.
+
+**What this means for a T21 commissioning run.** The approach is about seventy
+orbits from cold, recorded above as experience. A span of twenty times tau
+follows it, and tau is not measured: if it is near the value an AR(1) fitted to
+a lag-1 of 0.615 implies, that span is about eighty orbits and the run is about
+a hundred and fifty; if the model carries the slower component the mixture
+stands in for, tau is larger and so is the span, in proportion. THE BRACKET IS
+THE RESULT. What removes it is not a longer estimate of tau but a run long
+enough to batch, which reports its own interval without needing tau at all.
+
+**The twenty-orbit window is short by a factor of four even under the
+optimistic branch**, which is the answer world-wdsk asked for. It is short in
+the batch length, which is the term no number of extra windows repairs.

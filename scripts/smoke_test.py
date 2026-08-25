@@ -2111,6 +2111,64 @@ def check_tail_fit_stops_above_roundoff() -> list[str]:
                        f"floor came back as {got:+.2f}")
     return bad
 
+def check_slab_capacity_follows_the_run() -> list[str]:
+    """The convergence slab takes its sea water from the RUN, not from the model.
+
+    `CRHOS` and `CPS` are `icemod_nl` keys and every run this project writes
+    declares them, so a run integrated before a change to `icemod.f90` must be
+    assessed at the capacity it used. Read once at import, the pair silently
+    re-verdicts every run older than the change: the capacity sets
+    `tau_expected`, which sets the fallback remaining offset, which is what
+    `OFFSET_TOLERANCE_K` fails a run on. The model's own CPS has already moved
+    by 4.54 per cent once.
+
+    Two synthetic run directories, one overriding the pair and one declaring
+    nothing. The right answers are known in closed form -- the override's own
+    product, and the compiled declaration -- and a module-level constant cannot
+    give both, which is what makes this a test rather than a comparison.
+    """
+    import tempfile
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    sys.path.insert(0, str(ROOT / "lib"))
+    try:
+        import assess_convergence
+        import sea_water
+    except ImportError as exc:
+        return [f"assess_convergence.py or lib/sea_water.py does not import: {exc}"]
+    bad = []
+    compiled = sea_water.constants()
+    mld = assess_convergence._MLD
+    with tempfile.TemporaryDirectory() as tmp:
+        # A run that declares its own sea water, as run_exoplasim.py writes it.
+        override = Path(tmp) / "with_namelist"
+        override.mkdir()
+        crhos, cps = 1011.0, 3777.0
+        (override / "icemod_namelist").write_text(
+            f" &icemod_nl\n CPS = {cps}\n CRHOS = {crhos}\n /END\n", encoding="utf-8")
+        got, water = assess_convergence.slab_heat_capacity(override)
+        want = mld * crhos * cps
+        if abs(got - want) > 1e-6 * want:
+            bad.append(f"a run declaring CRHOS={crhos} CPS={cps} was assessed at "
+                       f"{got:.6e} J/m2/K, not its own {want:.6e}")
+        if water.get("CPS") != cps:
+            bad.append(f"the assessment recorded CPS={water.get('CPS')}, not the "
+                       f"run's {cps}")
+        # A run that declares nothing falls back to the compiled model.
+        bare = Path(tmp) / "no_namelist"
+        bare.mkdir()
+        got_bare, _ = assess_convergence.slab_heat_capacity(bare)
+        want_bare = mld * compiled["CRHOS"] * compiled["CPS"]
+        if abs(got_bare - want_bare) > 1e-6 * want_bare:
+            bad.append(f"a run declaring no sea water was assessed at {got_bare:.6e} "
+                       f"J/m2/K, not the compiled {want_bare:.6e}")
+        # The two must differ, or the check above proves nothing.
+        if abs(got - got_bare) <= 1e-6 * want_bare:
+            bad.append("the override and the compiled default gave the same "
+                       "capacity, so this check cannot see the difference it exists "
+                       "to catch")
+    return bad
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-help", action="store_true",
@@ -2194,6 +2252,8 @@ def main() -> None:
                check_configured_timestep()),
               ("a resume refuses a rewritten spectrum file",
                check_spectrum_guard()),
+              ("the convergence slab's sea water follows the run",
+               check_slab_capacity_follows_the_run()),
               ("the tools environment.md names are on this host",
                check_documented_tools())]
     if not args.skip_help:
