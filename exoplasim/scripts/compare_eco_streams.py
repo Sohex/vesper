@@ -56,9 +56,12 @@ import numpy as np
 
 from _paths import COMPONENT_ROOT  # noqa: F401
 
-# The stream's own codes, from outmod.f90:ecogp. The three scalars are the
-# interval and are what makes a block self-describing.
+# The stream's own codes, from outmod.f90:ecogp. The four scalars are the
+# interval record and are what makes a block self-describing: three bounds on
+# the model's own clock and the position on the orbit, which the bounds cannot
+# give because the orbit is eccentric.
 INTERVAL_START, INTERVAL_END, INTERVAL_DURATION = 600, 601, 602
+ORBITAL_POSITION = 603
 FIELD_NAMES = {
     610: "tas", 611: "ts", 612: "ps", 613: "hus", 614: "wind",
     615: "swdown", 616: "swup", 617: "swnet", 618: "lwnet", 619: "lwup",
@@ -113,8 +116,10 @@ def scalar(block: dict, code: int) -> float | None:
 
 
 def interval(block: dict) -> tuple:
+    """The whole interval record. A stream written before code 603 existed
+    reports None for it on both sides and so still compares equal."""
     return (scalar(block, INTERVAL_START), scalar(block, INTERVAL_END),
-            scalar(block, INTERVAL_DURATION))
+            scalar(block, INTERVAL_DURATION), scalar(block, ORBITAL_POSITION))
 
 
 def compare(whole: list[dict], pieces: list[dict]) -> tuple[list[str], int]:
@@ -133,13 +138,14 @@ def compare(whole: list[dict], pieces: list[dict]) -> tuple[list[str], int]:
     if bad:
         failed += 1
         lines.append(f"BOUNDS     FAIL  {len(bad)} of {len(whole)} intervals "
-                     f"declare different bounds")
+                     f"declare a different interval record")
         for k in bad[:5]:
             lines.append(f"                 interval {k}: whole "
                          f"{interval(whole[k])} segments {interval(pieces[k])}")
     else:
         lines.append(f"BOUNDS     ok    every interval declares the same "
-                     f"start, end and duration in absolute seconds")
+                     f"start, end and duration in absolute seconds and the "
+                     f"same orbital position")
 
     codes = sorted(set(FIELD_NAMES) & set(whole[0]["by_code"]))
     first_diff = None

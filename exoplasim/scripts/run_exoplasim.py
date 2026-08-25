@@ -71,22 +71,49 @@ SOLAR_EFFECTIVE_TEMPERATURE_K = 5772.0
 # biosphere's PAR fraction is a surface quantity anchored on a top-of-atmosphere
 # band ratio for want of these, and its driver wants incident where it currently
 # passes net.
+#
+# 163, 168, 171 AND 238 ARE GONE, and they were never produced. `pyburn`
+# answers a code either from the raw stream or from a derivation branch; these
+# four have neither, so `dataset` marked each derived, matched no branch and
+# dropped it without a word. None of the four is in any climatology.
+# What they asked for is elsewhere or nowhere: 163 `tcc` is total cloud cover,
+# which 164 `clt` already carries from `dcc(:,NLEP)`; 171 `dsw` is a second soil
+# wetness the model does not write, its soil water being 140 `mrso` from
+# `dwatc`; 238 `tsn` is a snow temperature the model has no prognostic for; and
+# 168 `td2m` is a dew point, which the forcing contract does not want because it
+# takes near-surface humidity as specific humidity, the linear quantity the
+# model integrates. Deriving any of them is a new field with a saturation branch
+# to declare, not a restoration -- world-dy7a. `smoke_test.py` now refuses a
+# code in either list that nothing writes or derives.
 REGULAR_CODES = [
     50, 51, 52, 53, 54, 110, 129, 130, 131, 132, 133, 134, 135, 139,
-    140, 141, 142, 143, 144, 146, 147, 157, 160, 163, 164, 167,
-    168, 170, 171, 172, 174, 175, 176, 177, 178, 179, 180,
+    140, 141, 142, 143, 144, 146, 147, 157, 160, 164, 167,
+    170, 172, 174, 175, 176, 177, 178, 179, 180,
     181, 182, 184, 185, 186, 201, 202, 203, 204, 205, 207, 208, 209, 210,
     211, 218, 221,
-    230, 231, 232, 238, 259, 260, 261, 262, 263, 264, 267, 318, 320, 321,
+    230, 231, 232, 259, 260, 261, 262, 263, 264, 267, 318, 320, 321,
 ]
 
 # Instantaneous seasonal output omits redundant flux details and expensive
 # three-dimensional humidity and vertical-motion fields.
+#
+# NO EXTREMA IN THIS LIST, and that is the shape of the stream rather than an
+# omission. 320/321 and 201/202 are running extrema `outaccu` extends every
+# timestep and only `outreset` clears, and `outreset` runs after `outgp` on the
+# REGULAR cadence: in a snapshot record they would cover (nstep mod nafter)
+# timesteps, a window that varies from record to record and is empty on the
+# record after a regular write. Every other field here is an instantaneous
+# sample, so a consumer taking a variance or a distribution over such a field
+# would be reading a sawtooth of window lengths. 201/202 were kept out on this
+# argument under world-j0az; world-adxx took 320/321 out to match and
+# `outmod.f90:snapshotgp` no longer writes them at all. The instantaneous
+# surface temperature this stream carries is 139; the extrema that mean
+# something are the regular stream's.
 SNAPSHOT_CODES = [
     50, 51, 52, 53, 54, 129, 130, 131, 132, 134, 139, 140, 141, 142,
-    143, 144, 160, 163, 164, 167, 168, 170, 171, 172,
+    143, 144, 160, 164, 167, 170, 172,
     175, 180, 181, 182, 210, 211, 218, 230, 232, 259, 260, 261, 263,
-    318, 320, 321,
+    318,
 ]
 
 # THE THREAD STACK, and it belongs here because this is where a run is launched.
@@ -2026,12 +2053,12 @@ def enable_energy_diagnostics(model, config: dict) -> bool:
     return True
 
 
-# The ecological stream's own codes, `outmod.f90:ecogp`. 600 to 602 are the
-# interval bounds and 610 to 628 the fields; `compare_eco_streams.FIELD_NAMES`
-# is the one table of what each field IS. They are listed here only so a
-# postprocessor code list can be refused for carrying one, and the refusal is
-# below.
-ECO_STREAM_CODES = frozenset(range(600, 603)) | frozenset(range(610, 629))
+# The ecological stream's own codes, `outmod.f90:ecogp`. 600 to 603 are the
+# interval record -- the three bounds and the orbital position -- and 610 to 628
+# the fields; `compare_eco_streams.FIELD_NAMES` is the one table of what each
+# field IS. They are listed here only so a postprocessor code list can be
+# refused for carrying one, and the refusal is below.
+ECO_STREAM_CODES = frozenset(range(600, 604)) | frozenset(range(610, 629))
 
 
 def refuse_eco_codes(codes: list[int], which: str) -> None:

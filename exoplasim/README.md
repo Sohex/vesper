@@ -279,7 +279,7 @@ rewrites the namelist on every continuation.
 WHY IT EXISTS. The two alternatives for driving a nonlinear ecological model
 are both bad: accepting the twelve-bin seasonal reduction as weather, or writing
 the model's whole raw payload every timestep, which is about 15 GB per T42
-orbit. This writes nineteen surface fields plus its own interval bounds, reduced
+orbit. This writes nineteen surface fields plus its own interval record, reduced
 at the producer with the operator each field's meaning calls for.
 `biosphere/notes/ecological-forcing-field-contract.md` is what it carries and
 why; `outmod.f90`'s `ecoaccu`, `ecogp` and `ecoreset` are the whole of the
@@ -301,8 +301,11 @@ Three properties worth knowing:
   are not: `world-8yyh`, measured in
   `notes/audits/ecological-stream-restart-continuity.md`.
 
-The codes are 600 to 602 for the interval and 610 to 628 for the fields;
-`compare_eco_streams.py` carries the name of each and is the one table.
+The codes are 600 to 603 for the interval record -- start, end, duration and
+orbital position -- and 610 to 628 for the fields; `compare_eco_streams.py`
+carries the name of each and is the one table. The orbital position is carried
+rather than derived because the orbit is eccentric, so true anomaly is not
+linear in absolute time the way the local solar phase is.
 
 **The stream is read directly and does not go through pyburn.** That is a
 decision, not a gap. `pyburn.readallvariables` builds its time axis by counting

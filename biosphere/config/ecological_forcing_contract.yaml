@@ -21,7 +21,7 @@
 # `biosphere/notes/time-base-unit-contract.md`. Every "per day" here is that
 # document's absolute day of 24 hours.
 
-version: 1
+version: 2
 status: >
   The field rows and the interval record are settled and are what EFOR-3 has to
   carry. The process cadence registry is OPEN by construction: every consuming
@@ -145,21 +145,25 @@ interval_record:
       of a rotation per default interval and never repeats within an orbit.
     status: derived
   - name: orbital_position
-    producer_code: null
+    producer_code: 603
+    producer_expression: "orbnu*180./PI"
     unit: "true anomaly, degrees"
     origin: >
-      NOT PRODUCED at this cadence. The regular stream writes true anomaly as
-      code 50 to unit 40 from `orbnu`, and the ecological stream writes no
-      orbital record at all, so an interval's orbital position is available only
-      by matching against a different stream's output cadence -- which is the
-      cross-stream inference the explicit bounds exist to avoid. It is not
-      derivable from interval_start alone the way the solar phase is, because
-      the orbit is eccentric and true anomaly is not linear in time.
-    settles: >
-      One writescalar of `orbnu*180./PI` beside the three bounds in ecogp, where
-      the value is already in scope. WORLD-WQ8I owns it.
-    status: not_produced
-    owner: world-wq8i
+      CARRIED, and not derived, because it cannot be. The solar phase above is
+      linear in absolute time and so comes from interval_start exactly; true
+      anomaly is not, because the orbit is eccentric. The only other place the
+      model publishes it is code 50 on unit 40, at the regular stream's own
+      cadence, so taking it from there would mean matching an ecological
+      interval against another stream's records by position -- the cross-stream
+      inference the explicit bounds exist to refuse.
+      `orbnu` is radmod's true anomaly in radians, set in `solang` from the
+      fractional day of step nstep; degrees here, to match code 50. The value
+      is the anomaly at the LAST timestep the interval accumulated, so it lies
+      inside [interval_start, interval_end] rather than on either bound: solang
+      labels step nstep by nstep while the state that step contributed is valid
+      at nstep+1, one timestep of arc over a default interval of one absolute
+      day.
+    status: produced
 
 # Identity, once per artifact and refused if it disagrees between intervals.
 identity_record:

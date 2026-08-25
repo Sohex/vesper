@@ -1711,17 +1711,23 @@
       endwhere
       call writegp(140,sigrain,319,0)
 
-!     ***********************
-!     * Minimum Temperature *
-!     ***********************
-         
-      call writegp(140,tempmin,320,0)
-
-!     ***********************
-!     * Maximum Temperature *
-!     ***********************
-         
-      call writegp(140,tempmax,321,0)
+!     NO TEMPERATURE EXTREMA HERE, AND THAT IS THE DECISION. `tempmin` and
+!     `tempmax` are running extrema that `outaccu` extends every timestep and
+!     only `outreset` clears, and `outreset` runs after `outgp` on the REGULAR
+!     cadence. Written here they would cover (nstep mod nafter) timesteps: a
+!     window that changes from record to record and is empty on the record after
+!     a regular write. Every other field in this stream is an instantaneous
+!     sample, which is what the stream is for, and a partial accumulation in that
+!     shape is read as a sample and turned into a variance or a distribution over
+!     a sawtooth of window lengths.
+!     The extrema that mean something are the REGULAR stream's, over the whole
+!     output window: codes 320 and 321 for the surface temperature and 201 and
+!     202 for the near-surface air temperature. The instantaneous surface
+!     temperature this stream does carry is `ts`, code 139. 201 and 202 were kept
+!     out of the snapshot code list for this same reason under world-j0az, and
+!     world-adxx took 320 and 321 out to match. Giving this stream its own
+!     extrema instead would be a second pair of accumulators, a second reset and
+!     a second pair of restart records, for a consumer that has not asked.
       
       ! Hurricane quantities
       !Convective Available Potential Energy at the surface
@@ -2648,6 +2654,10 @@
 !
       subroutine ecogp
       use pumamod
+!     radmod for `orbnu`. The true anomaly lives in radmod and not in pumamod,
+!     so the interval record cannot be written without it; `outsc` in this same
+!     file takes code 50 from the same module for the same reason.
+      use radmod
 
       real :: zwork(NHOR)
       real :: zn
@@ -2669,6 +2679,25 @@
       call writescalar(143,real(nstep+1-naccueco)*deltsec,600)
       call writescalar(143,real(nstep+1)*deltsec,601)
       call writescalar(143,real(naccueco)*deltsec,602)
+
+!     THE ORBITAL POSITION, WITH THE BOUNDS AND NOT ACROSS STREAMS. The interval
+!     bounds fix where the block sits on the model's own clock; they do not fix
+!     where it sits on the orbit, because the orbit is eccentric and true anomaly
+!     is not linear in absolute time. Local solar phase IS linear in it -- the
+!     rotation is uniform -- so the forcing contract derives that one from the
+!     bounds and declares it derived, and carries this one because it cannot.
+!     The alternative is reading code 50 off unit 40 and matching an ecological
+!     interval against the regular stream's own cadence by position, which is
+!     exactly the cross-stream inference the explicit bounds exist to refuse.
+!     `orbnu` is radmod's true anomaly in radians, set in `solang` from the
+!     fractional day of step `nstep`; degrees here to match code 50, which is the
+!     only other place the model publishes it. It is the anomaly at the LAST
+!     timestep the block accumulated, so it lies inside [600,601] rather than on
+!     either bound: `solang` labels step `nstep` by `nstep`, while the state that
+!     step contributed is valid at `nstep+1`. Over a default interval of one
+!     absolute day the offset is one timestep of arc, and naming which instant it
+!     is costs nothing while leaving it unnamed cannot be recovered later.
+      call writescalar(143,orbnu*180./PI,603)
 
 !     Duration-weighted means. Every timestep is the same length, so the count
 !     is the weight.
