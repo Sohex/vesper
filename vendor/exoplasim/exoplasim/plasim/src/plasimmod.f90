@@ -172,7 +172,12 @@
       integer :: nsnapshot = 0  ! switch for snapshot output
       integer :: nhcadence = 0  ! Switch for high-cadence snapshot output
       integer :: neco      = 0  ! switch for the ecological output stream
-      integer :: necostep  = 0  ! timesteps per ecological interval, 0 = one solar_day
+      integer :: necostep  = 0  ! timesteps per ecological interval, 0 = mtspd
+!     0 IS mtspd AND NOT ntspd: one absolute 24-hour day, which is what
+!     LPJ-GUESS integrates on, and NOT one rotation of this world. `solar_day`
+!     is a real variable in icemod and is the rotation period -- 30 h here --
+!     so naming it as the default read as a claim that the two coincide. They
+!     coincide only at rotspd 1. plasim.f90's ecological block has the argument.
       integer :: naccueco  = 0  ! counter for the ecological accumulation
       integer :: hcstartstep = -1 ! Timestep to start high-cadence output
       integer :: hcendstep = -1 ! Timestep on which to end high-cadence output (exclusive)
