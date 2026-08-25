@@ -470,6 +470,17 @@ gravity/pressure audit shape before any external ocean or ecosystem model is
 accepted.  Section 9d is that audit's sharpest case, because an EMIC's skill is
 substantially in a calibration fitted to Earth.
 
+**That audit is `notes/audits/ocean-tier-implicit-earth.md`**, which applies
+`model-earth-centrism.md`'s method and vocabulary to both candidate tiers and
+answers OCN-12 as scoping: the inventory, and the preconditions a tier would
+have to meet before it could be chosen. Its sharpest single item is not a
+constant sweep would reach either. `gem_carbchem.f90:99` turns depth into
+pressure by dividing by ten, which is seawater density times EARTH gravity with
+neither on the line, and it reaches every carbonate equilibrium constant, so the
+carbonate compensation depth sits substantially shallower than the model would
+place it. The ecosystem half is `notes/audits/ecosystem-tier-ecogem-marbl.md`,
+whose section 13 closes the silicon axis.
+
 ### 8d. "Reached the ocean" is a boundary condition, not marine nutrition
 
 ANUT-6 routes terrestrial dissolved and particulate export to the coast;
@@ -855,9 +866,15 @@ Recorded so the next reader knows the edges.
   section 8b names.
 - Section 9 does not establish that cGENIE's remaining Earth constants can be
   changed correctly. It establishes where they are and how many there are.
-  `rsc` and `gsc` feed derived scale factors, and whether the
-  frictional-geostrophic closure and its Earth-fitted transport parameters
-  survive 1.20 radii is unanswered and is OCN-12's to answer.
+  `notes/audits/ocean-tier-implicit-earth.md` takes that further and stops in a
+  specific place: it establishes that `rsc` and `const_rEarth` are two
+  independent statements of the radius that the geochemistry and the circulation
+  read separately, so a port that changes one silently disagrees with the other,
+  and it extends OCN-17's declared bracket from the wind stress scaling alone to
+  the seven-parameter tuned block that ships beside it. Whether the
+  frictional-geostrophic closure survives 1.20 radii remains unanswered, and
+  that audit adds why it is hard to answer: the model's own error function
+  scores against Earth observational fields and is inert here.
 - Section 9g's r^4 cost growth is an estimate from the shape of `ubarsolv`'s
   loops, not a timing. No cGENIE configuration has been compiled or run here at
   any resolution, and the two to four week figure for a 72 x 72 spin-up should be
