@@ -1,8 +1,8 @@
 # Biosphere
 
 > Figures in this document are illustrative of method, and were measured on
-> builds and climates that have since moved. Current values live in
-> `world_state.json`, generated from the artifacts. See the convention in
+> builds, climates and model source that have since moved. Current values live
+> in `world_state.json`, generated from the artifacts. See the convention in
 > `CLAUDE.md`.
 
 
@@ -82,7 +82,8 @@ a result.
 | abiotic nutrients | the ledger is DEFINED and does not CLOSE: `abiotic_nutrient_ledger.py` carries thirteen control volumes and twenty-one terms, every one of them still holding the `undeclared` sentinel with its owning issue named. Rock P and dust mass have useful relative/source artifacts but no absolute flux; `phosphorus_budget.py` does not consume dust deposition, and ANUT-2 through ANUT-6 and ANUT-10 own the terms that would close it |
 | abiotic source screen | geomorphic renewal, arc tephra and marine aerosol are RETAINED against the ledger, volcanic sulfate deposition is registered and not implemented, and fire ash and lightning belong to FIRE-7 and ANUT-4. The exhumation and tephra rates come from Earth's stationary population and not from the terrain; no screen may be carried on an aerosol optical depth |
 | non-N/P adequacy | screened as a critical runoff per element and per lithology, bounds and directions declared before the result. Potassium binds; iron and the trace set REFUSE for want of a release table. The declared model boundary is that any LPJ-GUESS result here is a C-N-P result and not a nutrient-limitation result |
-| phosphorus parameters | every constant registered with its source or its bracket in `notes/phosphorus-cycle-parameterisation.md`; the uptake profile, the leaf C:P window, the root proportion and the labile-P saturation threshold are derived, the sapwood proportion and the litter-P saturation threshold are not, the labile-P threshold reads a pool its source did not define, and `ifplim 1` fails closed naming each |
+| tissue stoichiometry | the fine-root and sapwood C:N and C:P windows are anchored on the tissue MEAN, so the proportion `canexch.cpp` applies to their nutrient demand is the one Friend et al. (1997) measured. The max-anchored form the model used to carry applied 1.79 times it on nitrogen and 2.22 on phosphorus, so every C-N number produced before the repair is worthless rather than stale and the biosphere needs re-commissioning. `notes/plant-physiology-carbon-allocation-audit.md` finding 11 |
+| phosphorus parameters | every constant registered with its source or its bracket in `notes/phosphorus-cycle-parameterisation.md`; the uptake profile, the leaf C:P window, the root proportion and the labile-P saturation threshold are derived, the sapwood proportion and the litter-P saturation threshold are not, the labile-P threshold reads a pool its source did not define, and `ifplim 1` fails closed naming each. The sapwood refusal is now about the element, the proportional form and the level alone: the model applies the constant it declares |
 | phosphorus sinks | leaching, fire and harvest only. Terminal occlusion is a DECLARED ABSENCE, argued in the same note, so a simulated soil that must be old carries its phosphorus depletion in its initial stocks rather than developing it |
 | run harness | written; records inputs, binary and model identity in its manifest |
 | albedo and forest feedback | modelled mode exists; rootable/lake and spectral corrections are BIO-17 and BIO-18 |
