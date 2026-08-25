@@ -328,6 +328,18 @@ generated config per grid, and times the result.
 what the shipped configurations actually cover and where the usable resolution
 stops.
 
+`analysis/cgenie_profile.py` is the second driver, built on the first. It samples
+retired instructions per symbol at two grids and maps each symbol to the file and
+component that defines it, so it says which routine spends the cost rather than
+what a configuration costs, and it carries the guard against this host's
+`kernel.perf_event_max_sample_rate`, which throttles a sampler without reporting
+a lost record. `notes/audits/cgenie-parallelism-and-coupling-support.md` is what
+it found: what fraction of the work a thread team could divide, what Amdahl's law
+then bounds, and the coupling resolution and regridding contract that budget
+supports. It builds from a `git archive` export outside the repository, because a
+worktree's ignored build products are symlinks into the main checkout and a build
+in place would write there.
+
 Run output goes to `OUT_DIR = $(HOME)/cgenie_output`, outside this repository,
 which is why the ignore rules here cover only what a build leaves in the tree.
 

@@ -828,14 +828,20 @@ other.**
   `matinv_gold` all assume the current factorisation, and `GOLDSTEINMAXISLES`
   bounds them.
 
-**The two arguments are different, and one of them now has an answer.** The
-barotropic solve dominates GROWTH with resolution; it may still be a minority of
-RUNTIME at 36 x 36. `notes/audits/cgenie-build-cost-and-grid-ceiling.md` settles
-the runtime half without a profiler, by timing two shipped grids with nearly
-equal cell counts and very different barotropic work, and prices the
-biogeochemistry against the physics at the same grid. What it does NOT do is
-attribute runtime WITHIN the physics, which is still OCN-19's, and still cheap
-next to either piece of work.
+**The two arguments are different, and both now have answers.** The barotropic
+solve dominates GROWTH with resolution and is a small minority of RUNTIME.
+`notes/audits/cgenie-build-cost-and-grid-ceiling.md` settles the runtime half
+without a profiler, by timing two shipped grids with nearly equal cell counts and
+very different barotropic work, and prices the biogeochemistry against the
+physics at the same grid.
+`notes/audits/cgenie-parallelism-and-coupling-support.md` attributes runtime
+WITHIN the physics with a profiler and agrees: `ubarsolv` is 1.83 per cent of
+retired instructions at 36 x 36 x 16 and 2.57 at 72 x 72 x 16, the tracer
+transport is about half the run at both, and the serial share grows by a measured
+1.41 per doubling, so threading is possible and Amdahl's law is not what limits
+it below muffingen's declared ceiling. That document also finds a tenth of the
+run in heap traffic for array-section temporaries, which is world-1pkd and is a
+larger and cheaper saving than either route here.
 
 The acceptance criterion already exists and should be used rather than invented.
 `genie-knowngood/` ships per-component NetCDF output for four configurations,
