@@ -68,6 +68,15 @@ bounds hold there too, which is the case that matters: an interval closed by
 step count alone would have closed four steps late and declared a span it did
 not cover.
 
+That pair is also what caught the interval ORIGIN. `ecogp` first wrote the
+bounds from `nstep`, which at that point in the loop is the index of the step
+just integrated rather than of the next one, so every block was labelled one
+timestep early. The blocks still tiled without gap or overlap and their
+durations were right, so every closure check EFOR-7 would run passed on them.
+The bounds now read [0, 21600], [21600, 43200], [43200, 64800] seconds for the
+first three intervals of a cold run at eight steps of 2700 s, which is the
+tiling from absolute zero that they should always have been.
+
 ## The measurements
 
 Per-timestep divergence, 6 steps whole against 3 + 3, worst cell:
