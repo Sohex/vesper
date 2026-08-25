@@ -1344,6 +1344,86 @@ def check_configured_grid() -> list[str]:
     return []
 
 
+def check_ladder_restatements() -> list[str]:
+    """Every restatement of the ladder, against `lib/rungs.py`.
+
+    The registry has carried this check since SPAT-2 and NOTHING RAN IT, which
+    is the same shape of defect as the copies it exists to catch: a check with
+    no caller certifies nothing, and `plasimmod.f90` names it in a comment
+    directly above its own copy of the ladder. WORLD-J37 wired it in here.
+
+    Three restatements, none removable: CMake has no Python, the vendored
+    package must stay importable knowing nothing about this repository, and the
+    Fortran comment is what someone editing `NLAT_ATM` by hand reads.
+    """
+    sys.path.insert(0, str(ROOT / "lib"))
+    import rungs
+    return rungs.check_restatements(ROOT)
+
+
+def check_ladder_timestep_declarations() -> list[str]:
+    """The three timestep quantities, each against what it restates.
+
+    WORLD-F997: "the timestep at rung X" named three different things in this
+    tree. They are three QUANTITIES rather than a disagreement, and the fix is
+    that each is defined once in `lib/rungs.py` and checked against its source
+    here -- the measured ceilings against the probe grid they are read out of,
+    the escalation route against the chapter that decides it.
+
+    A route table that agrees with no chapter and a ceiling table that agrees
+    with no measurement are exactly how the T170 row came to declare a step the
+    grid marks as starting and dying. WORLD-6QRR.
+    """
+    sys.path.insert(0, str(ROOT / "lib"))
+    import rungs
+    return (rungs.check_stability_ceilings(ROOT)
+            + rungs.check_timestep_restatements(ROOT))
+
+
+def check_configured_timestep() -> list[str]:
+    """`model.timestep_minutes` is a step the route runs this rung at.
+
+    The defect this refuses: the step was one scalar with no dependence on
+    `model.resolution`, so changing the rung left the step where it was and the
+    first T42 arm ran at T21's 45 minutes and died in its forty-seventh orbit.
+    WORLD-TD3, WORLD-J37.
+
+    The DECLARED configuration is judged on both quantities, so an off-route
+    step fails here even when it is below the ceiling. A diagnostic arm is
+    launched from a generated config rather than from this file and reports
+    instead of refusing; `lib/rungs.py:timestep_problems` carries the split.
+
+    THE CONTROL is below and is what makes this a test rather than a
+    description: the same check on T42 at T21's step has to fail.
+    """
+    import yaml
+    sys.path.insert(0, str(ROOT / "lib"))
+    import rungs
+    cfg = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    try:
+        active, rung = rungs.configured_timestep(cfg)
+    except RuntimeError as exc:
+        return [str(exc)]
+    problems = rungs.timestep_problems(rung, active)
+
+    # THE NEGATIVE CONTROL. world-td3's configuration exactly: the rung moved to
+    # T42 and the step left at T21's 45. If this passes, the check above cannot
+    # fail and is worth nothing.
+    if not rungs.timestep_problems("T42", 45.0):
+        problems.append(
+            "the timestep check does not refuse T42 at dt 45, which is the "
+            "configuration world-td3 ran and blew up: a check that cannot fail "
+            "is not a check")
+    # And the other direction: the declared route must be accepted, or the
+    # control above is passing on a check that refuses everything.
+    for rung_ok, dt_ok in rungs.ESCALATION_ROUTE:
+        if rungs.timestep_problems(rung_ok, dt_ok):
+            problems.append(
+                f"the timestep check refuses {rung_ok} at dt {dt_ok}, which is "
+                "on the escalation route it is meant to accept")
+    return problems
+
+
 def check_gate_filter_matches_config() -> list[str]:
     """A transform gate runs the spectral filter `config/planet.yaml` declares.
 
@@ -1667,6 +1747,12 @@ def main() -> None:
                check_no_rung_table_outside_rungs(files + shell_files)),
               ("the configured resolution matches its own grid dimensions",
                check_configured_grid()),
+              ("every restatement of the ladder agrees with lib/rungs.py",
+               check_ladder_restatements()),
+              ("the ceiling and the route agree with what they restate",
+               check_ladder_timestep_declarations()),
+              ("the configured timestep is one the route runs this rung at",
+               check_configured_timestep()),
               ("a resume refuses a rewritten spectrum file",
                check_spectrum_guard()),
               ("the tools environment.md names are on this host",

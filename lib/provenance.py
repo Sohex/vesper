@@ -282,7 +282,6 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.cold_start_profile",
         "model.semi_implicit_reference_temperature_k",
         "model.rayleigh_sponge_rotations",
-        "model.resolution_timestep_minutes",
         "model.filter_kappa",
         "model.filter_power", "model.cloud_absorption_scale",
         # world-n1nu. The CCM3 cloud water reference, a rainmod_nl key
@@ -331,7 +330,6 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.cold_start_profile",
         "model.semi_implicit_reference_temperature_k",
         "model.rayleigh_sponge_rotations",
-        "model.resolution_timestep_minutes",
         "model.filter_kappa",
         "model.filter_power", "model.cloud_absorption_scale",
         # world-n1nu. The CCM3 cloud water reference, a rainmod_nl key
@@ -381,7 +379,6 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.cold_start_profile",
         "model.semi_implicit_reference_temperature_k",
         "model.rayleigh_sponge_rotations",
-        "model.resolution_timestep_minutes",
         "model.filter_kappa",
         "model.filter_power", "model.cloud_absorption_scale",
         # world-n1nu. The CCM3 cloud water reference, a rainmod_nl key
@@ -426,7 +423,6 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.cold_start_profile",
         "model.semi_implicit_reference_temperature_k",
         "model.rayleigh_sponge_rotations",
-        "model.resolution_timestep_minutes",
         "model.filter_kappa",
         "model.filter_power", "model.cloud_absorption_scale",
         # world-n1nu. The CCM3 cloud water reference, a rainmod_nl key

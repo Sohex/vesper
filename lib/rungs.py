@@ -140,6 +140,11 @@ RESTATEMENTS = (
      r'require_one_of\(PLASIM_NLAT\s+"\$\{PLASIM_NLAT\}"\s+([0-9 ]+)\)'),
     ("vendor/exoplasim/exoplasim/__init__.py",
      r'RESOLUTIONS = (\{[^}]*\})'),
+    # A COMMENT, and checked for the same reason as the two above: it is what
+    # someone editing `NLAT_ATM` by hand reads, and it named itself as checked
+    # by this function while sitting outside the table.
+    ("vendor/exoplasim/exoplasim/plasim/src/plasimmod.f90",
+     r'checked by rungs\.check_restatements\. NLAT by rung:\n!\s*([0-9, ]+)\n'),
 )
 
 
@@ -173,10 +178,376 @@ def check_restatements(root) -> list[str]:
         if body.lstrip().startswith("{"):
             got = set(ast.literal_eval(body).values())
         else:
-            got = {int(t) for t in body.split()}
+            # Whitespace or comma separated: CMake's list is spaced and the
+            # Fortran comment's is a comma-separated row.
+            got = {int(t) for t in body.replace(",", " ").split()}
         if got != want:
             problems.append(
                 f"{rel} allows latitudes {sorted(got)} and the ladder is "
                 f"{sorted(want)}: missing {sorted(want - got)}, extra "
                 f"{sorted(got - want)}")
     return problems
+
+
+# ---------------------------------------------------------------------------
+# The timestep: THREE QUANTITIES, kept apart
+# ---------------------------------------------------------------------------
+#
+# "The timestep at rung X" has named three different things in this tree, and
+# reconciling them to one number is the wrong move: each is load-bearing
+# somewhere and they answer different questions. WORLD-F997, WORLD-J37.
+#
+#   STABILITY_CEILING_MINUTES  the coarsest step the rung has been MEASURED to
+#                              start clean at. A property of the rung and of
+#                              `model.filter_kappa`, not a preference.
+#   ESCALATION_ROUTE           the (rung, step) sequence the project RUNS, in
+#                              order. A decision, and the only one of the three
+#                              that says what a run is configured to.
+#   COMMISSIONING_EVIDENCE     what a run of COMMISSIONING LENGTH has shown
+#                              about one (rung, step) pair. A probe cannot say
+#                              this and the ceiling table does not carry it.
+#
+# A fourth quantity used to live here -- every rung at ONE step, so the ladder's
+# rungs would differ only by support -- and is deliberately NOT carried. SPAT-8,
+# the between-rung convergence comparison, was its only consumer and closed when
+# T85 was declared the operating support. `notes/audits/resolution-ladder.md`
+# keeps the argument and records that it has no consumer.
+#
+# `config/planet.yaml` carries `model.timestep_minutes`, the ACTIVE step one run
+# is configured at, and nothing else about the timestep: the ceiling table used
+# to sit beside it and drifted from the grid it was copied out of.
+
+# MEASURED. The coarsest step at which the 900-step probe starts and completes,
+# at kappa 8 and `--tau-scale 1`, from the grid in
+# `exoplasim/notes/physics-filter-stability.md` and the per-cell verdicts in
+# `exoplasim/analysis/stability_probe.json`. `check_stability_ceilings()` below
+# re-derives these from that artifact rather than trusting this copy.
+#
+# T21 and T42 complete every column the probe measured, so 60.0 is the coarsest
+# step TESTED and not a boundary; the probe grid has no column above it.
+#
+# PROVISIONAL, in two ways that are both about what a probe can say. It is a
+# FLOOR: 900 steps is about a seventh of an orbit at dt 45, so a rung marked
+# clean here is qualified against REFUSAL and against nothing else, and
+# `COMMISSIONING_EVIDENCE` is where endurance lives. And every cell was taken at
+# `filter_power` 8 where the model runs 16, which WORLD-37TN re-measures.
+#
+# T31, T63 and T106 are on the ladder and have never been probed, so they have
+# no entry: `stability_ceiling` raises for them rather than interpolating, which
+# is what the 1/N fit would invite and what T170 is the standing warning about.
+STABILITY_CEILING_MINUTES = {
+    "T21": 60.0,
+    "T42": 60.0,
+    "T85": 45.0,
+    "T127": 30.0,
+    "T170": 15.0,
+}
+
+# The artifact the ceilings are read out of, and the two conditions that select
+# the cells that count. A cell at another kappa or on inherited damping is a
+# boundary for a different model.
+STABILITY_GRID = "exoplasim/analysis/stability_probe.json"
+STABILITY_GRID_KAPPA = 8.0
+STABILITY_GRID_TAU_SCALE = 1.0
+# The probe's own three verdicts. `refused_only_at_length` is the one that
+# matters here and the reason a two-verdict reading of the grid goes wrong: the
+# cell STARTED and then died inside the probe's own range, which is neither a
+# refusal nor a clean run. T170 at dt 22.5 is that cell, and it was carried as
+# T170's adopted step for as long as the grid was read as refuses-or-runs.
+# WORLD-6QRR.
+PROBE_CLEAN = "no_refusal_in_steps"
+
+# A DECISION, and the user's: `docs/src/pipeline/sequencing.md` section D is
+# authoritative for it and this is the machine-readable restatement, checked
+# against that chapter by `check_timestep_restatements`.
+#
+# In ORDER, and a rung appears more than once on purpose. The route alternates:
+# each entry changes the rung or the step and never both, so exactly one
+# variable moves at a time and a surprise after a conversion is attributable.
+# The invariant that falls out of it -- and the one WORLD-FL9C is about -- is
+# that EVERY CHANGE OF RUNG HAPPENS AT CONSTANT dt. `_check_route()` is where
+# that is a right answer rather than a description.
+ESCALATION_ROUTE = (
+    ("T21", 45.0),
+    ("T21", 30.0),
+    ("T42", 30.0),
+    ("T42", 22.5),
+    ("T85", 22.5),
+)
+
+# WHAT A COMMISSIONING-LENGTH RUN HAS SHOWN, per (rung, step). The probe grid
+# qualifies a step against refusal and nothing else, and the two are different
+# verdicts: T42 at dt 45 completes every probe arm and is in this table as a
+# late blow-up. Only pairs an actual run has reached appear; a pair with no row
+# has no endurance evidence, which is a different thing from passing.
+#
+# `orbits` is the last orbit the run reached. `verdict` is `endured` for a run
+# that reached a commissioning length without failing, `blew_up` for one that
+# died after starting clean.
+COMMISSIONING_EVIDENCE = {
+    ("T42", 45.0): {
+        "verdict": "blew_up",
+        "orbits": 46,
+        "run": "run_900548ae632e",
+        "detail": "SIGFPE inside the 47th orbit on a gridpoint at -12.81 K at "
+                  "the second level from the top, after 46 orbits of ordinary "
+                  "climate with no trend towards it. WORLD-TD3; "
+                  "notes/audits/resolution-ladder.md and "
+                  "exoplasim/notes/physics-filter-stability.md.",
+    },
+    ("T42", 30.0): {
+        "verdict": "endured",
+        "orbits": 84,
+        "run": "run_1d39fef9bfc2",
+        "detail": "Converged on the corrected damping. Its state does not "
+                  "CONVERT cleanly to T85 across a change of step, which is "
+                  "WORLD-FL9C and is a property of the conversion rather than "
+                  "of this run.",
+    },
+}
+
+
+def _check_ceilings() -> None:
+    """Every ceiling names a rung on the ladder, and is a positive step."""
+    for rung, dt in STABILITY_CEILING_MINUTES.items():
+        if rung not in RUNGS:
+            raise RuntimeError(
+                f"{rung} has a stability ceiling and is not a ladder rung; the "
+                f"ladder is {', '.join(RUNGS)}")
+        if not (dt > 0.0):
+            raise RuntimeError(f"{rung}'s stability ceiling is {dt}")
+
+
+def _check_route() -> None:
+    """The route's own invariants, each with a right answer.
+
+    Three, and the third is what WORLD-FL9C asks of the route:
+
+    1. Every entry is a ladder rung with a measured ceiling.
+    2. Consecutive entries change EXACTLY ONE of (rung, step). Both at once is
+       a state that cannot say which moved it; neither is not a step.
+    3. Every change of rung happens at CONSTANT dt. A conversion across a
+       change of step reinterprets the donor's two stored leapfrog levels as
+       spanning the target's step and copies `nstep` -- which is elapsed time
+       divided by the step -- so the converted run's calendar and stellar phase
+       move by the ratio. The route is built to never ask for one.
+    """
+    for rung, dt in ESCALATION_ROUTE:
+        if rung not in RUNGS:
+            raise RuntimeError(f"the escalation route names {rung}, which is "
+                               f"not a ladder rung")
+        ceiling = STABILITY_CEILING_MINUTES.get(rung)
+        if ceiling is None:
+            raise RuntimeError(
+                f"the escalation route runs {rung} at dt {dt} and {rung} has "
+                "no measured stability ceiling. A route step on an unprobed "
+                "rung is a step nothing has shown the rung can take.")
+        if dt > ceiling:
+            raise RuntimeError(
+                f"the escalation route runs {rung} at dt {dt} and the coarsest "
+                f"step {rung} is measured to start clean at is {ceiling}. The "
+                "ceiling bounds the route; it does not set it.")
+    for (r0, d0), (r1, d1) in zip(ESCALATION_ROUTE, ESCALATION_ROUTE[1:]):
+        moved = (r0 != r1) + (d0 != d1)
+        if moved != 1:
+            raise RuntimeError(
+                f"the escalation route goes {r0} at dt {d0} to {r1} at dt {d1}, "
+                + ("which moves nothing" if moved == 0 else
+                   "which moves the rung and the step at once. The route "
+                   "alternates so that exactly one variable moves per entry."))
+        if r0 != r1 and d0 != d1:                       # unreachable via `moved`
+            raise RuntimeError("a conversion at a changed step")
+
+
+_check_ceilings()
+_check_route()
+
+
+def stability_ceiling(rung: str) -> float:
+    """The coarsest step this rung is MEASURED to start clean at.
+
+    An unprobed rung is an ERROR rather than a fit. `exoplasim/notes/physics-
+    filter-stability.md` measures the 1/N rule predicting T127 exactly and
+    over-predicting T170 by a full step -- the rung it would have been used to
+    plan -- so interpolating here would be reading the one place the rule is
+    known to break.
+    """
+    key = str(rung).upper()
+    geometry(key)                                # refuses a non-ladder rung
+    if key not in STABILITY_CEILING_MINUTES:
+        raise RuntimeError(
+            f"{key} is on the ladder and has never been probed, so it has no "
+            f"measured stability ceiling. Probed rungs are "
+            f"{', '.join(STABILITY_CEILING_MINUTES)}; run "
+            "exoplasim/scripts/stability_probe.py before running it.")
+    return STABILITY_CEILING_MINUTES[key]
+
+
+def route_steps(rung: str) -> tuple[float, ...]:
+    """Every step the escalation route runs this rung at, in route order.
+
+    More than one is normal and is the point: the route reconverges a rung at
+    the NEXT rung's step before converting, so T21 is on the route at 45 and at
+    30. Empty for a ladder rung the route does not visit.
+    """
+    key = str(rung).upper()
+    geometry(key)
+    return tuple(dt for r, dt in ESCALATION_ROUTE if r == key)
+
+
+def timestep_problems(rung: str, timestep_minutes: float) -> list[str]:
+    """What is wrong with running `rung` at this step. Empty when nothing is.
+
+    TWO DIFFERENT VERDICTS, and they are returned as separate lines because
+    they carry different weight. Above the measured ceiling is a step the model
+    is measured to refuse or blow up at. Off the route is a step that may be
+    perfectly stable and is not the escalation the project declared -- which is
+    what a diagnostic arm is, and `filter_timestep_matrix.py` deliberately runs
+    T42 at dt 90 to find a trap boundary. A caller that judges the DECLARED
+    configuration should treat both as failures; one launching a diagnostic
+    should report them and go on.
+    """
+    key = str(rung).upper()
+    problems = []
+    try:
+        ceiling = stability_ceiling(key)
+    except RuntimeError as exc:
+        problems.append(str(exc))
+    else:
+        if float(timestep_minutes) > ceiling:
+            problems.append(
+                f"dt {timestep_minutes} is coarser than the coarsest step "
+                f"{key} is measured to start clean at, {ceiling} "
+                f"({STABILITY_GRID}, kappa {STABILITY_GRID_KAPPA}).")
+    steps = route_steps(key)
+    if not steps:
+        problems.append(
+            f"the escalation route does not visit {key}. It is "
+            + " then ".join(f"{r} at dt {d}" for r, d in ESCALATION_ROUTE)
+            + " (docs/src/pipeline/sequencing.md section D).")
+    elif not any(abs(float(timestep_minutes) - s) < 1e-9 for s in steps):
+        problems.append(
+            f"the escalation route runs {key} at "
+            + " and ".join(str(s) for s in steps)
+            + f", not at {timestep_minutes} "
+              "(docs/src/pipeline/sequencing.md section D).")
+    evidence = COMMISSIONING_EVIDENCE.get((key, float(timestep_minutes)))
+    if evidence and evidence["verdict"] == "blew_up":
+        problems.append(
+            f"{key} at dt {timestep_minutes} has been run to commissioning "
+            f"length and failed: {evidence['detail']}")
+    return problems
+
+
+def configured_timestep(config: dict) -> tuple[float, str]:
+    """`model.timestep_minutes` and the rung it will be run at, as one fact.
+
+    The value stays in `config/planet.yaml` because it is an OPERATIONAL choice
+    that selects a binary and that a diagnostic arm deliberately moves. What
+    moved here is the AUTHORITY over it: the ceiling and the route are declared
+    once, above, and this is where a configuration meets them.
+
+    Returns `(step, rung)` and raises only through `model_grid`, which refuses
+    a resolution paired with another grid's dimensions. The step's own verdict
+    is `timestep_problems`, kept separate because whether an off-route step is a
+    defect depends on the caller. `scripts/check_consistency.py` and `scripts/smoke_test.py`
+    judge the declared configuration and refuse; `run_exoplasim.py` reports.
+    """
+    rung, _, _ = model_grid(config)
+    return float(config["model"]["timestep_minutes"]), rung
+
+
+def check_stability_ceilings(root) -> list[str]:
+    """`STABILITY_CEILING_MINUTES` against the probe grid it was read out of.
+
+    A CHECK WITH A RIGHT ANSWER: the ceiling for a rung is the coarsest dt whose
+    cell, at the declared kappa and tau scale, is `no_refusal_in_steps`. Every
+    other outcome -- `refused`, and `refused_only_at_length` -- is not a clean
+    start, and reading the grid as though it had only those first two is
+    precisely how T170 came to carry dt 22.5. WORLD-6QRR.
+
+    Takes the repository root rather than resolving one, so this module keeps
+    knowing nothing but the ladder. Returns the empty list when they agree, and
+    an empty list when the artifact is absent: the grid is untracked output and
+    a worktree without it is not a disagreement.
+    """
+    import json
+    from pathlib import Path
+
+    path = Path(root) / STABILITY_GRID
+    if not path.is_file():
+        return []
+    try:
+        probes = json.loads(path.read_text(encoding="utf-8"))["probes"]
+    except Exception as exc:                                # noqa: BLE001
+        return [f"{STABILITY_GRID} cannot be read as a probe grid: {exc}"]
+
+    clean: dict[str, float] = {}
+    seen: set[str] = set()
+    for p in probes:
+        if p.get("kappa") != STABILITY_GRID_KAPPA:
+            continue
+        if p.get("tau_scale") != STABILITY_GRID_TAU_SCALE:
+            continue
+        rung, dt = str(p["rung"]).upper(), float(p["dt_minutes"])
+        seen.add(rung)
+        if p.get("outcome") == PROBE_CLEAN:
+            clean[rung] = max(clean.get(rung, 0.0), dt)
+
+    problems = []
+    for rung in sorted(seen | set(STABILITY_CEILING_MINUTES)):
+        declared = STABILITY_CEILING_MINUTES.get(rung)
+        measured = clean.get(rung)
+        if declared is None and measured is not None:
+            problems.append(
+                f"{STABILITY_GRID} measures {rung} clean at dt {measured} and "
+                f"the registry declares no ceiling for it")
+        elif measured is None and declared is not None and rung in seen:
+            problems.append(
+                f"{STABILITY_GRID} has no clean cell for {rung} at kappa "
+                f"{STABILITY_GRID_KAPPA} and the registry declares {declared}")
+        elif (declared is not None and measured is not None
+                and abs(declared - measured) > 1e-9):
+            problems.append(
+                f"{rung}: the registry declares a ceiling of {declared} and "
+                f"the coarsest cell {STABILITY_GRID} marks {PROBE_CLEAN!r} is "
+                f"dt {measured}")
+    return problems
+
+
+# The escalation route, restated in the chapter that DECIDES it. The chapter is
+# authoritative and this direction of the check is deliberate: the table above
+# is what code reads, so it is the copy that can drift silently.
+ROUTE_CHAPTER = "docs/src/pipeline/sequencing.md"
+ROUTE_IN_CHAPTER = r"\bT([0-9]+),? at dt ([0-9]+(?:\.[0-9]+)?)"
+
+
+def check_timestep_restatements(root) -> list[str]:
+    """The route table against `docs/src/pipeline/sequencing.md` section D.
+
+    Reads the chapter's numbered route in ORDER and requires the same sequence
+    of (rung, step) pairs, because the order is the content: the route is a
+    sequence in which one variable moves at a time, and a set would lose the
+    only thing it asserts.
+    """
+    import re
+    from pathlib import Path
+
+    path = Path(root) / ROUTE_CHAPTER
+    if not path.is_file():
+        return [f"{ROUTE_CHAPTER} is not there, and it decides the route"]
+    text = path.read_text(encoding="utf-8")
+    start = text.find("The route escalates resolution and timestep")
+    if start < 0:
+        return [f"{ROUTE_CHAPTER} no longer carries the route in the shape this "
+                "check reads; it decides the route and cannot go unchecked"]
+    end = text.find("\n\n**", start)
+    got = tuple((f"T{m.group(1)}", float(m.group(2)))
+                for m in re.finditer(ROUTE_IN_CHAPTER,
+                                     text[start:end if end > 0 else None]))
+    if got != ESCALATION_ROUTE:
+        return [f"{ROUTE_CHAPTER} section D runs "
+                + " then ".join(f"{r} at dt {d}" for r, d in got)
+                + " and lib/rungs.py declares "
+                + " then ".join(f"{r} at dt {d}" for r, d in ESCALATION_ROUTE)]
+    return []

@@ -100,6 +100,7 @@ import numpy as np                   # noqa: E402
 import yaml                          # noqa: E402
 
 import builds                        # noqa: E402
+import rungs                         # noqa: E402
 from paths import rel                # noqa: E402
 from gridding import coupling_ocean_fraction   # noqa: E402
 from provenance import artifact_drift, artifact_input_drift, BIOSPHERE_INERT_CONFIG_KEYS, INERT_CONFIG_KEYS, config_drift, unknown_inert_keys   # noqa: E402
@@ -1041,34 +1042,49 @@ def main() -> int:
     except Exception as exc:
         rep.add(FAIL, "config", str(exc))
 
-    # -- the active timestep matches the per-rung table ----------------------
+    # -- the active timestep against the ladder registry ---------------------
     #
-    # The filter buys timestep, so the step a rung can take is a MEASURED
-    # property of that rung and of `model.filter_kappa`, not a preference. It
-    # lives in `model.resolution_timestep_minutes`; `model.timestep_minutes` is
-    # the active value. Two places holding a timestep is two places for them to
-    # disagree, and the disagreement would be silent -- the model runs happily
-    # at a step nobody chose for the resolution it is running.
+    # `model.timestep_minutes` is the step ONE run is configured at, and it is
+    # judged against two quantities that `lib/rungs.py` declares: the coarsest
+    # step the rung is MEASURED to start clean at, and the step the escalation
+    # route runs that rung at. Both, not one -- a step can be comfortably below
+    # the ceiling and still not be the escalation the project declared, and a
+    # route step on a rung nothing has probed is a step nothing has qualified.
+    #
+    # This checks the DECLARED configuration, so both verdicts are failures
+    # here. A diagnostic arm deliberately runs off the route and reports rather
+    # than refusing; `lib/rungs.py:timestep_problems` says why the two callers
+    # differ. WORLD-F997, WORLD-J37.
     try:
         model = config["model"]
-        table = model.get("resolution_timestep_minutes") or {}
-        rung = str(model.get("resolution", "")).upper()
-        active = float(model["timestep_minutes"])
-        if not table:
-            rep.add(WARN, "timestep vs the per-rung table", "no table declared")
-        elif rung not in table:
-            rep.add(FAIL, "timestep vs the per-rung table",
-                    f"resolution {rung} has no entry; the adopted step for a rung "
-                    f"is measured, so a rung with no entry has no adopted step")
-        elif abs(float(table[rung]) - active) > 1e-9:
-            rep.add(FAIL, "timestep vs the per-rung table",
-                    f"model.timestep_minutes is {active} and the table says "
-                    f"{table[rung]} for {rung}")
-        else:
-            rep.add(OK, "timestep vs the per-rung table",
-                    f"{rung} at {active} min, kappa {model.get('filter_kappa')}")
+        active, rung = rungs.configured_timestep(config)
+        problems = rungs.timestep_problems(rung, active)
+        for problem in problems:
+            rep.add(FAIL, "timestep vs the ladder registry", problem)
+        if not problems:
+            rep.add(OK, "timestep vs the ladder registry",
+                    f"{rung} at {active} min is on the escalation route and at "
+                    f"or below the measured ceiling "
+                    f"{rungs.stability_ceiling(rung)}, kappa "
+                    f"{model.get('filter_kappa')}")
     except Exception as exc:
-        rep.add(WARN, "timestep vs the per-rung table", f"not checked: {exc}")
+        rep.add(FAIL, "timestep vs the ladder registry", f"not checked: {exc}")
+
+    # -- the registry's own tables against what they restate -----------------
+    #
+    # The ceiling table is read out of the probe grid and the route table is
+    # read out of the chapter that decides the route, so both can drift from
+    # their source silently. They are checked HERE as well as in smoke_test
+    # because this is what runs before an expensive run.
+    for label, problems in (
+            ("stability ceilings vs the probe grid",
+             rungs.check_stability_ceilings(ROOT)),
+            ("escalation route vs sequencing.md section D",
+             rungs.check_timestep_restatements(ROOT))):
+        for problem in problems:
+            rep.add(FAIL, label, problem)
+        if not problems:
+            rep.add(OK, label, "agree")
 
     # -- the energy fixer is declared, coherent, and matches the runs that ran --
     #

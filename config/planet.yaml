@@ -566,6 +566,14 @@ model:
       poisoned: ["-fcheck=all", "-finit-real=snan", "-Og"]
     profile: production
   ncpus: 16
+  # THE ACTIVE STEP, and the only timestep this file carries. What each rung
+  # CAN take and what the escalation route RUNS it at are two further
+  # quantities, and all three used to be called "the timestep at rung X":
+  # `lib/rungs.py` declares the ceiling and the route, and
+  # `scripts/check_consistency.py` judges this value against both. WORLD-F997,
+  # WORLD-J37. A diagnostic arm deliberately runs off the route -- that is what
+  # the stability probe and the filter x timestep matrix are -- so this stays a
+  # per-run choice rather than something derived from the rung.
   timestep_minutes: 45.0
   physics_filter: "gp|exp|sp"
   # The exponential filter's shape, f(n) = exp(-kappa (n/NTRU)^gamma). These are
@@ -644,37 +652,6 @@ model:
   # Irrelevant to a run seeded from a restart, which reads its state.
   # `make_profile_bed.py` already declared one for exactly this reason.
   cold_start_seed: 88888888
-  # DETERMINED, 2026-08-23, by the filter x timestep x resolution sweep;
-  # exoplasim/notes/physics-filter-stability.md carries the arms and
-  # exoplasim/notes/parameter-decisions.md the argument.
-  #
-  # THE ADOPTED STEP PER RUNG. The filter buys timestep, so these are not
-  # independent of `filter_kappa` above and do not survive a change to it. Each
-  # is at or below the coarsest step measured to carry that rung, and the
-  # MEASURED CEILING is the second column, kept beside it because the gap is
-  # where a cheaper run is waiting once someone does the convergence experiment
-  # the roadmap asks for. A step that merely does not blow up is a stability
-  # floor and not a licence: the ceiling is where the model REFUSES or breaks,
-  # not where it stops being right.
-  #
-  #   rung   adopted   ceiling, MEASURED AT kappa 8 AND gamma 8
-  #   T21      45        90 or coarser, untested above
-  #   T42      45        60
-  #   T85      45        45, untested above
-  #   T127     30        30; dt 45 refuses outright
-  #   T170     22.5      22.5; dt 30 starts and blows up after 3.8 min
-  #
-  # EVERY CEILING IS UNREAD AGAINST THE FILTER THE MODEL RUNS. The column was
-  # measured at gamma 8 and the model runs gamma 16, and T42 at dt 90 is known
-  # to refuse at the first and run at the second -- so at least one entry is
-  # wrong in the loose direction. The grid also declared no hyperdiffusion, so
-  # every cell ran the model's own presets rather than the values derived below.
-  # world-37tn carries the re-measurement and
-  # exoplasim/notes/physics-filter-stability.md carries what is contaminated.
-  #
-  # `timestep_minutes` above is the ACTIVE value and must equal this table's
-  # entry for `resolution`; check_consistency.py enforces that, because two
-  # places holding a timestep is two places for them to disagree.
   # DETERMINED, 2026-08-23. Horizontal diffusion, derived rather than inherited;
   # exoplasim/notes/resolution-tuned-parameters.md carries the argument and
   # references/ holds the three sources. ExoPlaSim hard-codes these for T21 and
@@ -723,27 +700,6 @@ model:
       T85: {divergence: 0.1101, vorticity: 0.5506, temperature: 1.3946, humidity: 0.1833}
       T127: {divergence: 0.0737, vorticity: 0.3685, temperature: 0.9334, humidity: 0.1227}
       T170: {divergence: 0.0551, vorticity: 0.2753, temperature: 0.6973, humidity: 0.0917}
-  # THE PER-RUNG STABILITY CEILING, not the step the ladder runs. Three
-  # different quantities have carried the name "the timestep at rung X" and
-  # they must stay apart (WORLD-F997):
-  #   THIS TABLE is the coarsest step each rung was MEASURED to carry.
-  #   `docs/src/pipeline/sequencing.md` section D is the ESCALATION ROUTE the
-  #     project actually runs -- T21 at 45, T42 at 30, T85 at 22.5 -- chosen so
-  #     resolution and timestep alternate and every conversion happens at
-  #     constant dt. That is what a cost or a run is priced against.
-  #   `notes/audits/resolution-ladder.md` carried a third, all rungs at one
-  #     step, to serve a between-rung comparison. SPAT-8 closed when T85 was
-  #     declared the operating support, so that rationale has no consumer.
-  # A step that merely does not blow up is a stability floor and not a licence,
-  # so this table bounds the route rather than setting it. PROVISIONAL: every
-  # cell comes from `exoplasim/notes/physics-filter-stability.md`, whose grid
-  # WORLD-37TN establishes is contaminated four independent ways.
-  resolution_timestep_minutes:
-    T21: 45.0
-    T42: 45.0
-    T85: 45.0
-    T127: 30.0
-    T170: 22.5
   # DERIVED, 2026-08-24. The COLD START's initial temperature profile, which
   # `setzt` builds from a surface temperature, a lapse rate and a tropopause
   # height and which `initfd` reaches only when `nrestart` is 0. Until this
