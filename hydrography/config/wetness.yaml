@@ -1,0 +1,164 @@
+schema_version: 1
+
+# The mutually exclusive wetness classification and its crossing to the climate
+# grid. Read by `hydrography/scripts/build_wetness.py`. WET-2, LSHY-6.
+#
+# WHAT THIS IS FOR. One `PEATLAND` fraction collapses states whose carbon and
+# gas physics differ: persistent peat-forming land, saturated but non-inundated
+# mineral soil, seasonally flooded land, open lake, river and playa water, and
+# dry mineral soil. `biosphere/notes/wetlands-peat-methane-audit.md` finding 2
+# asks for those as mutually exclusive fractions rather than one column, and
+# `biosphere/notes/soil-land-surface-hydraulic-consistency-audit.md` finding 7
+# asks the crossing to the climate grid to keep upland soil, lake and playa, and
+# groundwater-fed land apart instead of averaging them into one medium-wet
+# surface. Both are the same artifact: a partition of a cell's land area whose
+# pieces are named.
+#
+# MUTUAL EXCLUSIVITY IS THE PRODUCT, not a property of it. Overlapping classes
+# double-count area, and every ledger downstream inherits the double count
+# without being able to see it. So the classes are assigned as ONE label per
+# region rather than as a set of masks that happen not to overlap, the shares
+# are required to partition the cell, and `--selftest` runs fixtures built to
+# violate each of those in a named way that the checks must catch.
+#
+# TWO SUPPORTS, AND THAT IS THE COST OF A DECISION ALREADY TAKEN.
+# `hydrography/notes/subgrid-water-table.md` section 5: the resolved classes
+# stay per REGION, and the saturated non-inundated mineral class is not resolved
+# anywhere on this mesh and can only arrive as a climate-grid AREA share. So
+# exclusivity is stated at two supports: the resolved classes partition a cell's
+# land area between them, and the saturated share is taken out of what they
+# leave rather than added beside them.
+
+# ---------------------------------------------------------------------------
+# The classes
+# ---------------------------------------------------------------------------
+# Each carries the support it lives at, the artifact it is derived from, and --
+# where it is not derivable at all -- what is missing. A class with no source is
+# DECLARED AND REFUSED rather than approximated, because a wetness fraction that
+# is a guess is indistinguishable in the file from one that is a measurement.
+classes:
+  # RESOLVED, per region, and each is a solved result rather than a threshold.
+  open_water:
+    support: region
+    source: surface_water.nc:lake
+    rule: the solved equilibrium lake surface, painted by area up the basin's
+      own hypsometry. `surface_water.py` decides this and nothing else in the
+      project does.
+  playa:
+    support: region
+    source: regions.nc:filled_km, regions.nc:terminal, basins.nc:spill_km
+    rule: land inside a closed depression -- its filled surface at or below the
+      basin's spill -- that the solved lake does not cover. The exposed floor
+      and strandline of a basin that does not fill, which is what
+      `pedology/scripts/build_surface_classes.py` already means by playa. A
+      basin that fills to its spill has no exposed floor and contributes none,
+      which falls out of the rule rather than needing a second one.
+  dry_mineral:
+    support: region
+    source: the remainder of the cell's land
+    rule: land that is neither open water nor exposed closed-depression floor.
+      It is the class the saturated share below is taken OUT OF, so it is a
+      residual by construction and is named as one.
+
+  # UNRESOLVED. Each of these is in the audit's list and none of them has a
+  # source in this pipeline. The reason is recorded per class because "not
+  # available" and "not available for THIS reason" are different statements to a
+  # reader deciding whether to wait or to build something.
+  saturated_mineral:
+    support: climate_grid
+    source: topographic_index_exoplasim-{res}.nc:f_sat_max, water_table.nc:depth_m
+    rule: TOPMODEL's saturated area share, taken out of `dry_mineral` and never
+      added beside it. GW-26.
+    unavailable_reason: the closure is unlicensed until its declared score
+      passes, and the score needs a water table this build does not have.
+  seasonal_inundation:
+    support: region
+    unavailable_reason: nothing in this component carries a season. The lake
+      solve is an annual equilibrium, the groundwater solve is a steady state,
+      and `hydrography/config/land_water_ledger.yaml` gives every term reaching
+      these stores an annual `interval_floor`. A seasonal inundated area needs a
+      store that empties and refills inside the year, which is the climate
+      column's or the land model's and not this component's.
+  peat:
+    support: region
+    unavailable_reason: persistence over a seasonal cycle is what distinguishes
+      peat-forming land from saturated mineral soil, and the previous entry says
+      why no such cycle exists here. Peat is also a STOCK with an accumulation
+      behind it; `docs/src/reference/no-time-axis.md` is what that has to answer
+      to.
+  river_water:
+    support: region
+    unavailable_reason: >-
+      `surface_water.nc` carries a discharge and no channel width, so a river
+      AREA cannot be formed from it. Discharge is a rank and a mask, not an
+      area, and turning one into the other needs a hydraulic geometry this
+      project does not hold.
+
+# ---------------------------------------------------------------------------
+# The crossing, and which reduction operator each field gets
+# ---------------------------------------------------------------------------
+# `lib/gridding.py` owns the operators and names which field semantics each is
+# for. A wetness class is CATEGORICAL, so what crosses is the retained AREA
+# share of each class and never a majority label: picking the majority discards
+# every minority surface however much leverage it has, and a narrow riparian
+# strip in a dry cell is exactly the surface these rows exist to keep.
+crossing:
+  class_share: cell_fraction              # CATEGORICAL, share of the cell's land AREA
+  population: surface_class_land          # CLAUDE.md rule 1
+  # A cell holding fewer land regions than this has shares but no useful
+  # partition of them, and it is marked rather than dropped: the area is real
+  # and a consumer that silently loses it has lost land, not noise.
+  min_land_regions_per_cell: 4
+
+# ---------------------------------------------------------------------------
+# What this artifact refuses, by name
+# ---------------------------------------------------------------------------
+# Each of these is a route that produces an ordinary-looking number and a wrong
+# one, and each was named as a defect somewhere before it was refused here.
+refusals:
+  # `biosphere/notes/wetlands-peat-methane-audit.md`: no latitude threshold may
+  # select the physics. The vendored decomposition already does -- a saturated
+  # mineral soil gets a moisture modifier of 0.360 on every pool against 0.025
+  # on the slow and passive pools of a high-latitude peatland stand -- so a
+  # classification that also selected by latitude would put the switch in two
+  # places.
+  regime_selector: none
+  # `soil-land-surface-hydraulic-consistency-audit.md` finding 7: a mean water
+  # table depth or a mean available water capacity may not stand in for an
+  # accessible-area fraction. Runoff generation, groundwater access, lake
+  # evaporation and root access are nonlinear and happen on different fractions,
+  # so no choice of mean fixes it. The quantity is an AREA.
+  area_proxy_from_cell_mean: refused
+  # The saturated fraction is a fraction of a population and the only population
+  # is the mesh regions inside a climate-grid cell. A per-region one would have
+  # to be manufactured from a sub-region hypsometry, which GW-6 says is not
+  # there. `biosphere/scripts/wetland_gate.py` refuses anything else by name.
+  saturated_fraction_support: climate_grid
+  # The index carries a length in `a`, so its whole distribution shifts with the
+  # mesh and only its rank statistics transport.
+  absolute_index_threshold: forbidden
+
+# ---------------------------------------------------------------------------
+# What the shares must close against
+# ---------------------------------------------------------------------------
+# Stated here as an identity a consumer can check rather than as a number this
+# artifact writes. BIO-11's rootable surface fraction does not exist yet; when
+# it does, these are the equations that say the two agree and that no area has
+# been counted twice.
+closure:
+  #     open_water + playa + dry_mineral == 1, over a cell's land area
+  # and, once the saturated share is licensed,
+  #     saturated_mineral + dry_mineral_remaining == dry_mineral
+  # and, once BIO-11 exists,
+  #     rootable == 1 - open_water - barren, with barren from pedology's
+  #     surface classes, and this artifact's `playa` inside that barren.
+  partition_tolerance: 1.0e-9
+  # THE PLAYA RULE AGAINST A QUANTITY THE CATALOGUE ALREADY KNOWS. The rule
+  # selects the land a basin would flood at its spill, and `basins.nc` carries
+  # `area_at_spill_km2` per basin from `build_hydrography.py`'s own hypsometry.
+  # Same area, two routes, so their totals are an identity rather than a
+  # comparison -- and a rule that had quietly selected the endorheic CATCHMENT
+  # instead of the depression floor would miss it by a factor of several, which
+  # is the mistake this class invites.
+  footprint_tolerance: 1.0e-9
+  rootable_surface: bio-11               # not built; the identity is stated, not asserted

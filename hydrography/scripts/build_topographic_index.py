@@ -60,6 +60,32 @@ import gridding
 from orogen import Export, LAND
 
 CFG_PATH = Path(__file__).resolve().parents[1] / "config" / "topographic_index.yaml"
+SCORE_PATH = ANALYSIS / "topographic_index_score.json"
+
+
+def license_state() -> dict:
+    """Whether a consumer may take `f_sat`, read from the score and never set here.
+
+    The score is run by the Earth harness the config names, on a real planet
+    with real bores, and it is the only thing that can license this closure. So
+    the state is READ rather than declared: a build of this artifact cannot
+    license itself, and one run before any score has been taken says so with the
+    same words a failed score does.
+    """
+    if not SCORE_PATH.exists():
+        return {"scored": False, "consumers_licensed": False,
+                "reason": f"no score at {SCORE_PATH.name}; the harness in "
+                          "config/topographic_index.yaml has not been run"}
+    sc = json.loads(SCORE_PATH.read_text())
+    runs = sc.get("runs", {})
+    return {
+        "scored": bool(runs),
+        "consumers_licensed": bool(sc.get("consumers_licensed", False)),
+        "observation_sets_required": sc.get("observation_sets_required"),
+        "scored_sets": sc.get("scored_sets"),
+        "per_set": {k: {"passes": v.get("passes"), "verdict": v.get("verdict")}
+                    for k, v in runs.items()},
+    }
 
 
 def saturated_fraction(f_sat_max, water_table_depth_m, f_grad_per_m: float):
@@ -270,6 +296,10 @@ def main() -> int:
           f"RANK statistic f_sat_max survives that offset;\n  an absolute "
           f"threshold does not, and none is written.")
 
+    lic = license_state()
+    print(f"\n  consumers_licensed: {lic['consumers_licensed']}"
+          + ("" if lic["scored"] else f"   ({lic['reason']})"))
+
     data_dir = (builds.component_data("hydrography", config)
                 if args.build is None
                 else DATA / args.build)
@@ -287,11 +317,16 @@ def main() -> int:
             "is no per-region fraction and GW-6 says why there cannot be. "
             "world-d9u4 records what the three rows that wanted a native-mesh "
             "one get instead.")
+        ds.consumers_licensed = "yes" if lic["consumers_licensed"] else "no"
         ds.uncertified = (
-            "NO CONSUMER MAY TAKE f_sat FROM THIS UNTIL THE SCORE IN "
-            "hydrography/config/topographic_index.yaml HAS BEEN RUN AND "
-            "REPORTED. The depth field this closure multiplies failed its own "
-            "bar; a fraction derived from it is not licensed by the derivation.")
+            "NO CONSUMER MAY TAKE f_sat FROM THIS UNLESS consumers_licensed "
+            "SAYS YES. The license is the score declared in "
+            "hydrography/config/topographic_index.yaml, run by the Earth "
+            "harness and recorded in hydrography/analysis/"
+            "topographic_index_score.json; this file reports it and cannot "
+            "grant it. The depth field this closure multiplies failed its own "
+            "bar; a fraction derived from it is not licensed by the "
+            "derivation.")
         ds.f_grad_bracket_per_m = np.asarray(
             cfg["closure"]["f_grad_bracket_per_m"], dtype=np.float64)
         ds.f_grad_convention = (
@@ -385,8 +420,9 @@ def main() -> int:
         "cell_mean_above_climberx_cdf_top": over,
         "absolute_thresholds": "refused",
         "score": cfg["score"],
-        "scored": False,
-        "consumers_licensed": False,
+        "license": lic,
+        "scored": lic["scored"],
+        "consumers_licensed": lic["consumers_licensed"],
         "created": datetime.now(timezone.utc).isoformat(),
     }
     ANALYSIS.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,213 @@
+{
+  "provenance": {
+    "generated": "2026-08-25T09:46:20+00:00",
+    "git_rev": "cffdb78c6fa72998a041e84ff4ed13fd4c6ee100",
+    "numpy": "2.5.2",
+    "sites": "hydrography/data/earth_validation/aus_wtd_sites.csv"
+  },
+  "runs": {
+    "aus/all/15.19km": {
+      "issue": "GW-26",
+      "region": "aus",
+      "confinement": "all",
+      "edge_km": 15.190378953196356,
+      "support": "T21 (32x64 equal-angle boxes)",
+      "min_regions_per_cell": 10,
+      "bar_auc": 0.573,
+      "label": "observed water table within 1 m of the surface",
+      "bores_in_window": 57093,
+      "bores_on_conducting_land": 53410,
+      "base_rate_all_bores": 0.043362666167384385,
+      "auc_depth_at_mesh_region": 0.5758819904766946,
+      "reduction": {
+        "cell_mean_depth": "gridding.cell_mean, INTENSIVE, area-weighted, population sol['cond']",
+        "cell_mean_index": "gridding.cell_moments, INTENSIVE, area-weighted, population land",
+        "f_sat_max": "gridding.cell_fraction, CATEGORICAL, share of the cell's land AREA above the cell mean",
+        "ledger_depth_population": {
+          "regions_offered": 25994,
+          "cells": 2048,
+          "cells_with_no_population": 2008,
+          "area_offered": 7639070230406.103,
+          "area_landed": 7639070230406.102,
+          "closure_residual_relative": 1.2783787431524695e-16
+        }
+      },
+      "arms": {
+        "plane_fit": {
+          "bores_scored": 53410,
+          "auc_ceiling_at_this_support": 0.6574120674867069,
+          "bores_dropped_for_thin_cells": 0,
+          "cells_with_bores": 34,
+          "base_rate": 0.043362666167384385,
+          "auc_cell_mean_depth_same_support": 0.45808443552143013,
+          "f_sat_max_at_scored_bores": {
+            "5": 0.41152315940103745,
+            "50": 0.47154394682958334,
+            "95": 0.4797938653784365
+          },
+          "f_grad": {
+            "1.25": {
+              "auc_f_sat": 0.45716584684951633,
+              "gain_over_cell_mean_depth": -0.0009185886719138003,
+              "beats_declared_bar": false,
+              "beats_same_support_depth": false,
+              "attribution_identity_gap": 0.0,
+              "attribution_identity_holds": true,
+              "cap_binds_fraction_of_bores": 0.0
+            },
+            "2.5": {
+              "auc_f_sat": 0.4579236022224066,
+              "gain_over_cell_mean_depth": -0.00016083329902355503,
+              "beats_declared_bar": false,
+              "beats_same_support_depth": false,
+              "attribution_identity_gap": 0.0,
+              "attribution_identity_holds": true,
+              "cap_binds_fraction_of_bores": 0.0
+            }
+          }
+        },
+        "receiver_drop": {
+          "bores_scored": 53410,
+          "auc_ceiling_at_this_support": 0.6574120674867069,
+          "bores_dropped_for_thin_cells": 0,
+          "cells_with_bores": 34,
+          "base_rate": 0.043362666167384385,
+          "auc_cell_mean_depth_same_support": 0.45808443552143013,
+          "f_sat_max_at_scored_bores": {
+            "5": 0.3955554077139595,
+            "50": 0.45993333871761416,
+            "95": 0.5029302050379207
+          },
+          "f_grad": {
+            "1.25": {
+              "auc_f_sat": 0.47714964622420675,
+              "gain_over_cell_mean_depth": 0.019065210702776614,
+              "beats_declared_bar": false,
+              "beats_same_support_depth": true,
+              "attribution_identity_gap": 0.0,
+              "attribution_identity_holds": true,
+              "cap_binds_fraction_of_bores": 0.0
+            },
+            "2.5": {
+              "auc_f_sat": 0.45808443552143013,
+              "gain_over_cell_mean_depth": 0.0,
+              "beats_declared_bar": false,
+              "beats_same_support_depth": false,
+              "attribution_identity_gap": 0.0,
+              "attribution_identity_holds": true,
+              "cap_binds_fraction_of_bores": 0.0
+            }
+          }
+        }
+      },
+      "passes": false,
+      "verdict": "f_sat does NOT clear both declared conditions on every arm; the index adds nothing to the depth it multiplies and the fraction is withdrawn rather than shipped with a caveat"
+    },
+    "us/unconfined/15.19km": {
+      "issue": "GW-26",
+      "region": "us",
+      "confinement": "unconfined",
+      "edge_km": 15.190378953196356,
+      "support": "T21 (32x64 equal-angle boxes)",
+      "min_regions_per_cell": 10,
+      "bar_auc": 0.573,
+      "label": "observed water table within 1 m of the surface",
+      "bores_in_window": 79631,
+      "bores_on_conducting_land": 73451,
+      "base_rate_all_bores": 0.03884222134484214,
+      "auc_depth_at_mesh_region": 0.6566546241334618,
+      "reduction": {
+        "cell_mean_depth": "gridding.cell_mean, INTENSIVE, area-weighted, population sol['cond']",
+        "cell_mean_index": "gridding.cell_moments, INTENSIVE, area-weighted, population land",
+        "f_sat_max": "gridding.cell_fraction, CATEGORICAL, share of the cell's land AREA above the cell mean",
+        "ledger_depth_population": {
+          "regions_offered": 40965,
+          "cells": 2048,
+          "cells_with_no_population": 1974,
+          "area_offered": 12045940121079.418,
+          "area_landed": 12045940121079.418,
+          "closure_residual_relative": 0.0
+        }
+      },
+      "arms": {
+        "plane_fit": {
+          "bores_scored": 73451,
+          "auc_ceiling_at_this_support": 0.7739113141574476,
+          "bores_dropped_for_thin_cells": 0,
+          "cells_with_bores": 37,
+          "base_rate": 0.03884222134484214,
+          "auc_cell_mean_depth_same_support": 0.6654845813860336,
+          "f_sat_max_at_scored_bores": {
+            "5": 0.37927166009893565,
+            "50": 0.42623948303884357,
+            "95": 0.45956043172181715
+          },
+          "f_grad": {
+            "1.25": {
+              "auc_f_sat": 0.6723141547963888,
+              "gain_over_cell_mean_depth": 0.006829573410355172,
+              "beats_declared_bar": true,
+              "beats_same_support_depth": true,
+              "attribution_identity_gap": 0.0,
+              "attribution_identity_holds": true,
+              "cap_binds_fraction_of_bores": 0.0
+            },
+            "2.5": {
+              "auc_f_sat": 0.6712640401019792,
+              "gain_over_cell_mean_depth": 0.00577945871594554,
+              "beats_declared_bar": true,
+              "beats_same_support_depth": true,
+              "attribution_identity_gap": 0.0,
+              "attribution_identity_holds": true,
+              "cap_binds_fraction_of_bores": 0.0
+            }
+          }
+        },
+        "receiver_drop": {
+          "bores_scored": 73451,
+          "auc_ceiling_at_this_support": 0.7739113141574476,
+          "bores_dropped_for_thin_cells": 0,
+          "cells_with_bores": 37,
+          "base_rate": 0.03884222134484214,
+          "auc_cell_mean_depth_same_support": 0.6654845813860336,
+          "f_sat_max_at_scored_bores": {
+            "5": 0.37353737974930695,
+            "50": 0.4055270221183927,
+            "95": 0.4393330983431847
+          },
+          "f_grad": {
+            "1.25": {
+              "auc_f_sat": 0.6718688080605912,
+              "gain_over_cell_mean_depth": 0.006384226674557625,
+              "beats_declared_bar": true,
+              "beats_same_support_depth": true,
+              "attribution_identity_gap": 0.0,
+              "attribution_identity_holds": true,
+              "cap_binds_fraction_of_bores": 0.0
+            },
+            "2.5": {
+              "auc_f_sat": 0.668847520198659,
+              "gain_over_cell_mean_depth": 0.0033629388126253934,
+              "beats_declared_bar": true,
+              "beats_same_support_depth": true,
+              "attribution_identity_gap": 0.0,
+              "attribution_identity_holds": true,
+              "cap_binds_fraction_of_bores": 0.0
+            }
+          }
+        }
+      },
+      "passes": true,
+      "verdict": "f_sat clears the declared bar and beats the cell-mean depth at its own support on every arm"
+    }
+  },
+  "observation_sets_required": [
+    "australia_depth_consistent",
+    "us_unconfined"
+  ],
+  "scored_sets": [
+    "australia_depth_consistent",
+    "us_unconfined"
+  ],
+  "consumers_licensed": false
+}

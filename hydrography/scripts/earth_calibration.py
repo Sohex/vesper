@@ -887,6 +887,351 @@ def stage_diagnostics(tag: Path, region: str, confinement: str | None,
     return out
 
 
+
+# --- GW-26: the compound topographic index on the Earth mesh, and the score --
+#
+# The saturated-fraction closure this scores is built for Vesper in
+# `build_topographic_index.py`; everything below points the same construction at
+# the Earth mesh the solver is already calibrated on, because that is the only
+# place a saturated fraction can be told from a well-shaped number. The bar, the
+# support, the comparator and the attribution identity are declared in
+# `hydrography/config/topographic_index.yaml` and are read from there rather
+# than restated.
+
+TI_CFG = ROOT / "hydrography" / "config" / "topographic_index.yaml"
+
+
+def _auc(score, label) -> float:
+    """Area under the ROC curve, with ties taking the rank they earn.
+
+    The closure caps at one, so ties are not a corner case here: every cell the
+    cap binds in carries the same score and a tie-blind AUC would order them by
+    accident. The Mann-Whitney form with average ranks gives such a pair the 0.5
+    it is worth.
+    """
+    from scipy.stats import rankdata
+    label = np.asarray(label, dtype=bool)
+    n1 = int(label.sum())
+    n0 = int(label.size - n1)
+    if n1 == 0 or n0 == 0:
+        return float("nan")
+    r = rankdata(np.asarray(score, dtype=np.float64))
+    return float((r[label].sum() - n1 * (n1 + 1) / 2.0) / (n1 * n0))
+
+
+def stage_cti(tag: Path, region: str, quiet: bool) -> None:
+    """The index per mesh region, both slope arms, cached beside the solve.
+
+    `ln(a / tan beta)` with `a` the upslope contributing area per unit contour
+    width, exactly as `build_topographic_index.py` computes it for Vesper: the
+    accumulation is `stage_drainage`'s own, on the filled surface and in real
+    area, and the contour width is the square root of the cell's own area.
+
+    BOTH SLOPE ARMS, and the plane fit comes from `lib/orogen.py` rather than
+    from a second implementation that would look the same. The Voronoi dual is
+    what supplies the neighbour structure and the exact cell areas, and it is
+    the same dual `stage_drainage` accumulated over, so the index and the
+    accumulation sit on one geometry.
+    """
+    out = region_dir(tag, region) / "earth_cti.npz"
+    if out.exists():
+        print("  index: cached")
+        return
+    from orogen import plane_fit_slope_deg
+
+    cfg = yaml.safe_load(TI_CFG.read_text(encoding="utf-8"))
+    if str(cfg["index"]["contour_width"]) != "sqrt_cell_area":
+        raise SystemExit("index.contour_width is not 'sqrt_cell_area'; this "
+                         "harness computes the same index build_topographic_"
+                         "index.py does and has no other one")
+    floor = float(cfg["index"]["min_tan_slope"])
+
+    xyz = np.load(tag / "earth_xyz.npy")
+    n = xyz.shape[1]
+    f = np.load(region_dir(tag, region) / "earth_fields.npz")
+    d = np.load(region_dir(tag, region) / "earth_drainage.npz")
+    elev = np.nan_to_num(f["elev"], nan=0.0)
+    land = f["land"]
+
+    ex = EarthExport(EARTH_R_KM, xyz[0], xyz[1], xyz[2],
+                     np.full(n, 4 * np.pi * EARTH_R_KM ** 2 / n),
+                     np.where(land, LAND, 0).astype(np.int16))
+    t = time.time()
+    geom = gw.Geometry(ex)
+    off, nb = _csr(geom.src, geom.dst, n)
+    area_m2 = np.asarray(geom.voronoi_area_m2, dtype=np.float64)
+    print(f"  index: Voronoi dual in {time.time()-t:.0f}s")
+
+    pos = np.ascontiguousarray(xyz.T, dtype=np.float64)
+    pos /= np.linalg.norm(pos, axis=1, keepdims=True)
+    tan_plane = np.tan(np.deg2rad(
+        plane_fit_slope_deg(off, nb, pos, elev, EARTH_R_KM * 1000.0)
+        .astype(np.float64)))
+
+    # The receiver-drop arm: the fall to the region's own steepest-descent
+    # receiver over the distance to it. Zero inside a filled pit by
+    # construction, which is one of the two reasons the index needs a floor.
+    recv = d["recv"].astype(np.int64)
+    ok = recv >= 0
+    to = np.where(ok, recv, 0)
+    dot = np.clip(np.einsum("ij,ij->i", pos, pos[to]), -1.0, 1.0)
+    dist_m = EARTH_R_KM * 1000.0 * np.arccos(dot)
+    tan_recv = np.where(ok & (dist_m > 0.0),
+                        (elev - elev[to]) / np.maximum(dist_m, 1.0), 0.0)
+
+    a_m = (d["acc_km2"].astype(np.float64) * 1e6) / np.sqrt(area_m2)
+    arms = {name: np.log(a_m / np.maximum(t_, floor))
+            for name, t_ in (("plane_fit", tan_plane),
+                             ("receiver_drop", tan_recv))}
+    for name, t_ in (("plane_fit", tan_plane), ("receiver_drop", tan_recv)):
+        print(f"    {name:14s} land mean index {arms[name][land].mean():6.2f}   "
+              f"on the slope floor over "
+              f"{float((np.maximum(t_, 0.0)[land] <= floor).mean()):.1%} of land")
+    np.savez_compressed(out, cti_plane_fit=arms["plane_fit"],
+                        cti_receiver_drop=arms["receiver_drop"],
+                        area_m2=area_m2)
+
+
+def _score_boxes(xyz, nlat: int, nlon: int):
+    """Equal-angle boxes at the configured grid's own row and column counts.
+
+    THE SUPPORT IS DECLARED IN THE CONFIG and this is it in code. `f_sat_max` is
+    a rank statistic over the terrain population inside a climate-grid cell, so
+    scoring it needs such a population, and the Earth harness has no climate-grid
+    export to take one from. Equal-angle boxes at the configured counts give a
+    population of the right size; a Gaussian row spacing and an equal-angle one
+    differ by far less than the cell, and nothing here depends on where a box
+    edge sits.
+
+    ONE COORDINATE SOURCE, which is what `CLAUDE.md` rule 3 is about. The boxes
+    are constructed from the mesh's own generators and nothing is matched to an
+    axis from anywhere else; the flat cell index is `row * nlon + col`, the
+    convention `lib/gridding.py` uses.
+    """
+    import gridding
+
+    pos = np.asarray(xyz, dtype=np.float64)
+    unit = pos / np.linalg.norm(pos, axis=0)
+    lat = np.degrees(np.arcsin(np.clip(unit[2], -1.0, 1.0)))
+    lon = np.degrees(np.arctan2(unit[1], unit[0]))
+    # The row centres of nlat equal-angle boxes, north to south. `gridding.row`
+    # bins on the midpoints between centres, which for a uniform spacing are the
+    # box edges exactly, so this is the boxes and not an approximation to them.
+    centres = 90.0 - (np.arange(nlat) + 0.5) * (180.0 / nlat)
+    r, c = gridding.cells(lat, lon, centres, nlon)
+    return r * nlon + c
+
+
+def stage_fsat(tag: Path, edge_km: float, region: str, confinement: str | None,
+               quiet: bool) -> dict:
+    """GW-26's score: does the terrain half of the closure discriminate?
+
+    WHAT IS BEING TESTED, and it is not the closure as a whole. `f_sat =
+    min(f_sat_max exp(-f_grad z_wt), 1)` is strictly monotone in the cell-mean
+    depth for a fixed `f_sat_max`, so ranking cells by it with a CONSTANT
+    `f_sat_max` reproduces ranking them by depth exactly. Any discrimination it
+    gains over the depth alone is therefore `f_sat_max`'s and nothing else's,
+    which is what makes this a test rather than a comparison. That identity is
+    CHECKED here at the tolerance the config declares, because a harness where
+    it fails is measuring something other than what it says.
+
+    TWO CONDITIONS, BOTH DECLARED BEFORE ANY FRACTION WAS SCORED: the declared
+    bar `bar_auc`, which is the depth's own discrimination per bore against the
+    mesh region it falls in, and the cell-mean depth's AUC AT THIS SUPPORT. The
+    second is there because a coarser support moves an AUC on its own, so
+    clearing the first alone would not show the terrain half had done anything.
+    """
+    import pandas as pd
+
+    cfg = yaml.safe_load(TI_CFG.read_text(encoding="utf-8"))
+    sc = cfg["score"]
+    if str(sc["support"]) != "model_grid_equal_angle_boxes":
+        raise SystemExit(f"score.support {sc['support']!r} is not the support "
+                         "this harness takes; it is "
+                         "'model_grid_equal_angle_boxes'")
+    if str(sc["metric"]) != "auc_water_table_within_1m":
+        raise SystemExit(f"score.metric {sc['metric']!r} is not the metric this "
+                         "harness computes")
+    if str(cfg["closure"]["f_sat_max"]) != "area_share_above_cell_mean":
+        raise SystemExit(
+            "closure.f_sat_max is not 'area_share_above_cell_mean'. This "
+            "harness scores the share of a cell's land AREA above that cell's "
+            "area-weighted mean index; a region COUNT share is a different "
+            "quantity and is not available here.")
+    bar = float(sc["bar_auc"])
+    tol = float(sc["attribution_identity_tolerance"])
+    min_regions = int(sc["min_regions_per_cell"])
+    f_grads = [float(v) for v in cfg["closure"]["f_grad_bracket_per_m"]]
+
+    planet = yaml.safe_load((ROOT / "config" / "planet.yaml")
+                            .read_text(encoding="utf-8"))
+    nlat = int(planet["model"]["latitudes"])
+    nlon = int(planet["model"]["longitudes"])
+    grid = f"{planet['model']['resolution']} ({nlat}x{nlon} equal-angle boxes)"
+
+    import gridding
+
+    R = REGIONS[region]
+    rd = region_dir(tag, region)
+    xyz = np.load(tag / "earth_xyz.npy")
+    fld = np.load(rd / "earth_fields.npz")
+    sol = np.load(rd / "earth_solution.npz")
+    idx = np.load(rd / "earth_cti.npz")
+    land = fld["land"]
+    cond = sol["cond"]
+    depth = sol["depth"].astype(np.float64)
+    area_m2 = idx["area_m2"]
+
+    cell = _score_boxes(xyz, nlat, nlon)
+    ncell = nlat * nlon
+
+    # THE CELL-MEAN DEPTH IS THE INTENSIVE REDUCTION over the population that
+    # has a depth at all, which is the conducting land the solver ran on. The
+    # index's population is the LAND, which is the population `f_sat_max` is a
+    # rank statistic over. Two populations, named separately, because a cell's
+    # mean depth over its land and its index over its conducting land are
+    # different quantities and collapsing them would hide which one moved.
+    z_wt, _, z_covered = gridding.cell_mean(cell, ncell, area_m2, depth, cond)
+    depth_ledger = gridding.transfer_ledger(cell, ncell, area_m2, cond)
+
+    per_arm = {}
+    for arm in sc["slope_arms"]:
+        cti = idx[f"cti_{arm}"].astype(np.float64)
+        mean, var, count, covered = gridding.cell_moments(
+            cell, ncell, area_m2, cti, land)
+        f_max, _ = gridding.cell_fraction(
+            cell, ncell, area_m2, cti > mean[cell], land)
+        have = covered & (count >= min_regions) & z_covered
+        per_arm[arm] = {"f_sat_max": f_max, "cti_mean": mean,
+                        "cti_sd": np.sqrt(var), "have": have,
+                        "count": count}
+
+    obs = pd.read_csv(ROOT / "hydrography" / "data" / "earth_validation" / R["sites"],
+                      low_memory=False)
+    if "depth_consistent" in obs.columns:
+        obs = obs[obs.depth_consistent.astype(bool)]
+    if R["score_bbox"]:
+        x0, y0, x1, y1 = R["score_bbox"]
+        obs = obs[obs.lon.between(x0, x1) & obs.lat.between(y0, y1)]
+    if confinement and "confinement" in obs.columns:
+        obs = obs[obs.confinement == confinement]
+    if obs.empty:
+        raise SystemExit(f"no sites left for region={region} confinement={confinement}")
+
+    la = np.radians(obs.lat.to_numpy())
+    lo = np.radians(obs.lon.to_numpy())
+    p = np.stack([np.cos(la) * np.cos(lo), np.cos(la) * np.sin(lo), np.sin(la)],
+                 axis=1)
+    _, bore_region = cKDTree(xyz.T).query(p, workers=-1)
+    use = cond[bore_region]
+    bore_cell = cell[bore_region]
+    offered = int(use.sum())
+
+    label_all = obs.wtd_m.to_numpy() <= 1.0
+    # The depth's own discrimination at the support the declared bar was
+    # measured on: per bore, against the mesh region it falls in. Reported first
+    # because reproducing it is what says the harness is wired to the same
+    # quantity the bar came from.
+    auc_region_depth = _auc(-depth[bore_region][use], label_all[use])
+
+    out = {
+        "issue": "GW-26",
+        "region": region,
+        "confinement": confinement or "all",
+        "edge_km": edge_km,
+        "support": grid,
+        "min_regions_per_cell": min_regions,
+        "bar_auc": bar,
+        "label": "observed water table within 1 m of the surface",
+        "bores_in_window": int(obs.shape[0]),
+        "bores_on_conducting_land": offered,
+        "base_rate_all_bores": float(label_all[use].mean()),
+        "auc_depth_at_mesh_region": auc_region_depth,
+        "reduction": {
+            "cell_mean_depth": "gridding.cell_mean, INTENSIVE, area-weighted, population sol['cond']",
+            "cell_mean_index": "gridding.cell_moments, INTENSIVE, area-weighted, population land",
+            "f_sat_max": "gridding.cell_fraction, CATEGORICAL, share of the cell's land AREA above the cell mean",
+            "ledger_depth_population": depth_ledger,
+        },
+        "arms": {},
+    }
+    print(f"  f_sat score: {offered:,} bores on conducting land, base rate "
+          f"{out['base_rate_all_bores']:.1%}")
+    print(f"    AUC of the depth at the mesh region  {auc_region_depth:.4f}   "
+          f"(the bar {bar:.3f} was measured here)")
+
+    verdicts = []
+    for arm, a in per_arm.items():
+        keep = use & a["have"][bore_cell]
+        lab = label_all[keep]
+        z = z_wt[bore_cell[keep]]
+        f_max = a["f_sat_max"][bore_cell[keep]]
+        auc_cell_depth = _auc(-z, lab)
+        # WHAT THE SUPPORT CAN CARRY AT ALL, which is the instrument this score
+        # is read on and not a second criterion. Every cell-scale predictor has
+        # ONE value per cell, so the best any of them can do is order the cells
+        # by their own observed wet rate; that ceiling is computed here from the
+        # observations themselves. A ceiling near 0.5 would mean the cells this
+        # support cuts do not separate wet bores from dry ones at all, and a
+        # miss under it would say nothing about the terrain statistic. It cannot
+        # move the verdict and is reported so the verdict can be read.
+        rate = np.zeros(ncell)
+        nb_ = np.bincount(bore_cell[keep], minlength=ncell)
+        np.divide(np.bincount(bore_cell[keep], weights=lab.astype(float),
+                              minlength=ncell), nb_, out=rate, where=nb_ > 0)
+        auc_ceiling = _auc(rate[bore_cell[keep]], lab)
+        arm_out = {
+            "bores_scored": int(keep.sum()),
+            "auc_ceiling_at_this_support": auc_ceiling,
+            "bores_dropped_for_thin_cells": int((use & ~a["have"][bore_cell]).sum()),
+            "cells_with_bores": int(np.unique(bore_cell[keep]).size),
+            "base_rate": float(lab.mean()) if keep.any() else float("nan"),
+            "auc_cell_mean_depth_same_support": auc_cell_depth,
+            "f_sat_max_at_scored_bores": {
+                str(q): float(np.percentile(f_max, q)) for q in (5, 50, 95)},
+            "f_grad": {},
+        }
+        print(f"    slope arm {arm}: {arm_out['bores_scored']:,} bores in "
+              f"{arm_out['cells_with_bores']:,} cells")
+        print(f"      AUC of the cell-mean depth at this support "
+              f"{auc_cell_depth:.4f}   (ceiling any cell-scale predictor has "
+              f"here {auc_ceiling:.4f})")
+        for fg in f_grads:
+            f_sat = np.minimum(f_max * np.exp(-fg * z), 1.0)
+            # THE ATTRIBUTION IDENTITY. Hold f_sat_max constant and the closure
+            # is a strictly decreasing function of the depth, so its ranking is
+            # the depth's ranking and the two AUCs must agree to round-off.
+            ident = np.minimum(1.0 * np.exp(-fg * z), 1.0)
+            auc_ident = _auc(ident, lab)
+            gap = abs(auc_ident - auc_cell_depth)
+            auc = _auc(f_sat, lab)
+            capped = float((f_max * np.exp(-fg * z) >= 1.0).mean())
+            arm_out["f_grad"][f"{fg:g}"] = {
+                "auc_f_sat": auc,
+                "gain_over_cell_mean_depth": auc - auc_cell_depth,
+                "beats_declared_bar": bool(auc > bar),
+                "beats_same_support_depth": bool(auc > auc_cell_depth),
+                "attribution_identity_gap": gap,
+                "attribution_identity_holds": bool(gap <= tol),
+                "cap_binds_fraction_of_bores": capped,
+            }
+            verdicts.append(auc > bar and auc > auc_cell_depth)
+            print(f"      f_grad {fg:g}/m: AUC {auc:.4f}  "
+                  f"({auc - auc_cell_depth:+.4f} on the same-support depth)  "
+                  f"identity gap {gap:.2e}  cap binds {capped:.1%}")
+        out["arms"][arm] = arm_out
+
+    out["passes"] = bool(verdicts) and all(verdicts)
+    out["verdict"] = ("f_sat clears the declared bar and beats the cell-mean "
+                      "depth at its own support on every arm"
+                      if out["passes"] else
+                      "f_sat does NOT clear both declared conditions on every "
+                      "arm; the index adds nothing to the depth it multiplies "
+                      "and the fraction is withdrawn rather than shipped with a "
+                      "caveat")
+    print(f"    VERDICT: {'PASS' if out['passes'] else 'MISS'} -- {out['verdict']}")
+    return out
+
 def provenance() -> dict:
     try:
         rev = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
@@ -927,7 +1272,8 @@ def main() -> None:
                          "which only the US table labels")
     ap.add_argument("--stage", default="all",
                     choices=["mesh", "fields", "perm", "drainage", "solve", "score",
-                             "benchmark", "calibrate", "diagnostics", "all"])
+                             "benchmark", "calibrate", "diagnostics",
+                             "cti", "fsat", "all"])
     ap.add_argument("--river-km2", type=float, default=1e4,
                     help="upstream area above which a cell is a river and becomes a "
                          "fixed head at its own elevation (GW-17). 0 disables baselevels")
@@ -974,6 +1320,39 @@ def main() -> None:
             result = stage_score(tag, edge_km, args.quiet, args.region,
                                  args.confinement, args.drain, args.surface,
                                  args.et_lambda)
+        elif st == "cti":
+            stage_cti(tag, args.region, args.quiet)
+        elif st == "fsat":
+            # GW-26's score has its own artifact rather than a key in
+            # earth_calibration.json: that file is the DEPTH's certification and
+            # this is a different quantity, and the license the topographic
+            # index step reads has to be findable without knowing which run key
+            # it was filed under.
+            stage_cti(tag, args.region, args.quiet)
+            fs = stage_fsat(tag, edge_km, args.region, args.confinement,
+                            args.quiet)
+            sp = ROOT / "hydrography" / "analysis" / "topographic_index_score.json"
+            pay = json.loads(sp.read_text()) if sp.exists() else {}
+            pay.setdefault("provenance", provenance())
+            pay["provenance"] = provenance()
+            key = f"{args.region}/{args.confinement or 'all'}/{edge_km:.2f}km"
+            pay.setdefault("runs", {})[key] = fs
+            pay["observation_sets_required"] = yaml.safe_load(
+                TI_CFG.read_text(encoding="utf-8"))["score"]["observation_sets"]
+            # THE LICENSE IS THE AND OF EVERY REQUIRED SET, never of the ones
+            # that happen to be in the file. A score run on one continent and
+            # filed alone would otherwise license a consumer on half the bar.
+            got = {("australia_depth_consistent"
+                    if r["region"] == "aus" else
+                    f"{r['region']}_{r['confinement']}"): r["passes"]
+                   for r in pay["runs"].values()}
+            need = pay["observation_sets_required"]
+            pay["scored_sets"] = sorted(got)
+            pay["consumers_licensed"] = bool(
+                need) and all(got.get(k, False) for k in need)
+            sp.write_text(json.dumps(pay, indent=2) + "\n")
+            print(f"  wrote {sp}\n  consumers_licensed: "
+                  f"{pay['consumers_licensed']}")
 
     if result is not None:
         payload = {}

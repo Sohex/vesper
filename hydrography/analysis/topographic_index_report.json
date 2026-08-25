@@ -82,9 +82,41 @@
     ],
     "metric": "auc_water_table_within_1m",
     "bar_auc": 0.573,
-    "harness": "hydrography/scripts/earth_calibration.py"
+    "harness": "hydrography/scripts/earth_calibration.py",
+    "unit_of_score": "bore",
+    "support": "model_grid_equal_angle_boxes",
+    "min_regions_per_cell": 10,
+    "slope_arms": [
+      "plane_fit",
+      "receiver_drop"
+    ],
+    "f_grad_arms": "both_ends_of_f_grad_bracket_per_m",
+    "also_beat": "cell_mean_depth_auc_at_the_same_support",
+    "attribution_identity_tolerance": 1e-12
   },
-  "scored": false,
+  "license": {
+    "scored": true,
+    "consumers_licensed": false,
+    "observation_sets_required": [
+      "australia_depth_consistent",
+      "us_unconfined"
+    ],
+    "scored_sets": [
+      "australia_depth_consistent",
+      "us_unconfined"
+    ],
+    "per_set": {
+      "aus/all/15.19km": {
+        "passes": false,
+        "verdict": "f_sat does NOT clear both declared conditions on every arm; the index adds nothing to the depth it multiplies and the fraction is withdrawn rather than shipped with a caveat"
+      },
+      "us/unconfined/15.19km": {
+        "passes": true,
+        "verdict": "f_sat clears the declared bar and beats the cell-mean depth at its own support on every arm"
+      }
+    }
+  },
+  "scored": true,
   "consumers_licensed": false,
-  "created": "2026-08-25T08:12:59.455852+00:00"
+  "created": "2026-08-25T09:36:46.044513+00:00"
 }
