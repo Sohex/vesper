@@ -40,7 +40,9 @@ This module is the enforcement, and it can fail:
                what the arithmetic says: an `agrees` whose value is not the
                paper's value or is outside the paper's range, an `outside` that
                has moved inside it, or an entry naming a constant or a response
-               function that does not exist
+               function that does not exist. Also a `boundary` claimed on an
+               entry the sources do settle, or claimed without an owner, since
+               a declared model boundary is a decision and has to be owned
 
 Reduced fixtures run on every invocation, all but one built to be wrong in a
 named way. A fixture that does not get the verdict it was built for is a
@@ -56,6 +58,15 @@ calibration entry whose verdict is `outside` or `unsourced`, and any mainline
 divergence whose verdict is `gate`. An entry the sources settle is no longer
 part of the refusal, and a divergence declared `keep` is settled in the only
 sense a declaration can settle one.
+
+An entry the sources CANNOT settle is the third case, and it is not a residual.
+Where two calibrations disagree and neither is this world's, no further reading
+moves the entry, so it carries a `boundary` line saying what the model boundary
+is and which calibration the operator runs. `--strict` does not refuse on those,
+because they are declared rather than undeclared, and every invocation names
+them under their own heading so a boundary cannot become invisible. The verdict
+stays what the arithmetic says: a boundary is a decision about an `outside`,
+never a way to call it `agrees`.
 
 It is fail-closed in one direction only, on the same terms as `bvoc_gate.py`. A
 run on the Earth-calibrated operator, declared as such, is a correct run of a
@@ -197,7 +208,10 @@ DIVERGENCE_VERDICTS = ("keep", "gate")
 # no source states the quantity, which no arithmetic can check.
 VERDICTS = ("agrees", "outside", "unsourced")
 
-# What `--strict` refuses on, beyond the undeclared preconditions.
+# What `--strict` refuses on, beyond the undeclared preconditions. An entry
+# whose verdict is one of these but which carries a `boundary` line is exempt:
+# it is a declared model boundary rather than a residual, and is reported under
+# its own heading instead. See the module docstring.
 REFUSING_VERDICTS = ("outside", "unsourced")
 
 # How an entry is held to its source. `value` is a constant checked against a
@@ -333,6 +347,16 @@ def _check_calibration(declaration: dict, declared_values: dict,
             bad(what, "its source line names no declared source key")
         if not entry.get("why"):
             bad(what, "carries no argument")
+        boundary = entry.get("boundary")
+        if boundary is not None:
+            if not isinstance(boundary, str) or not boundary.strip():
+                bad(what, "carries an empty boundary line")
+            if verdict not in REFUSING_VERDICTS:
+                bad(what, (f"declares a model boundary on a {verdict!r} entry; a "
+                           "boundary is what is declared where the sources cannot "
+                           "settle the number, and they settle this one"))
+            if not entry.get("owner"):
+                bad(what, "declares a model boundary with no owner")
 
         kind, _, name = what.partition(":")
         value = None
@@ -624,6 +648,13 @@ def _fixtures(declaration: dict, source_text: str, instruction_text: str
         ("a calibration entry naming a response function that does not exist",
          mutate(calibration_target("function:f_denitri_water", "function:no_such_function")),
          "calibration"),
+        ("a model boundary declared on an entry the sources do settle",
+         mutate(calibration_claim("instruction:k_N", "boundary",
+                                  "the sources cannot settle this")),
+         "calibration"),
+        ("a model boundary declared with no owner",
+         mutate(lambda d: _entry(d, "form:denitrification_n2_share").pop("owner", None)),
+         "calibration"),
     ]
 
     results = []
@@ -662,7 +693,13 @@ def main() -> int:
         {"what": entry["what"], "verdict": entry["verdict"],
          "owner": entry.get("owner", "?")}
         for entry in declaration.get("calibration", {}).get("entries", [])
-        if entry.get("verdict") in REFUSING_VERDICTS
+        if entry.get("verdict") in REFUSING_VERDICTS and not entry.get("boundary")
+    ]
+    boundaries = [
+        {"what": entry["what"], "verdict": entry["verdict"],
+         "owner": entry.get("owner", "?"), "boundary": entry["boundary"]}
+        for entry in declaration.get("calibration", {}).get("entries", [])
+        if entry.get("boundary")
     ]
     settled = [
         entry["what"]
@@ -685,6 +722,7 @@ def main() -> int:
         "findings": findings,
         "undeclared_preconditions": undeclared,
         "calibration_unsettled": unsettled,
+        "calibration_boundaries": boundaries,
         "calibration_settled": settled,
         "mainline_release": register.get("release"),
         "mainline_divergences": divergences,
@@ -725,6 +763,13 @@ def main() -> int:
             print("  the rest are what remains undeclared, and are what --strict refuses on:")
             for item in unsettled:
                 print(f"    [{item['verdict']}] {item['what']}  [{item['owner']}]")
+        if boundaries:
+            print(f"\n  {len(boundaries)} declared model boundar(y/ies). The sources")
+            print("  disagree and neither is this world's, so no reading settles these")
+            print("  and --strict does not refuse on them:")
+            for item in boundaries:
+                print(f"    [{item['verdict']}] {item['what']}  [{item['owner']}]")
+                print(f"      {item['boundary'].strip()}")
         if undeclared:
             print(f"\n  {len(undeclared)} Vesper precondition(s) undeclared, so this is an")
             print("  Earth-calibrated operator run on this world's water and pH:")

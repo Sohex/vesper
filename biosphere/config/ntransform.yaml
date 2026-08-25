@@ -312,7 +312,8 @@ mainline_divergences:
         this does NOT settle is the size of the N2 share, and it moves one point
         the wrong way: at 0.90 WFPS mainline's 0.846 is inside Weier's
         interquartile range and this operator's 0.978 is above all of it. That
-        cost is declared, and refused, at form:denitrification_n2_share.
+        cost is declared, and is the model boundary at
+        form:denitrification_n2_share.
     - id: mass_balance_check
       owner: world-i2ch
       verdict: keep
@@ -592,7 +593,17 @@ vesper_preconditions:
 #
 # A `verdict: agrees` entry whose value is not inside its bracket is a failure
 # of this declaration, and so is an `outside` entry that has moved inside it.
-# `--strict` refuses while any entry is `outside` or `unsourced`.
+# `--strict` refuses while any entry is `outside` or `unsourced` and carries no
+# `boundary`.
+#
+# `boundary` is the exception, and it is a decision rather than a reading. An
+# entry carries one where two Earth calibrations disagree, neither is this
+# world's, and no further reading moves it: the line says what the model
+# boundary is and which calibration the operator runs, `--strict` stops
+# refusing on that entry, and the gate names it under its own heading on every
+# invocation. The `verdict` still says what the arithmetic says. A boundary on
+# an entry the sources do settle, or one with no owner, is a failure of this
+# declaration.
 calibration:
   sources:
     xuri2008: >
@@ -1042,6 +1053,28 @@ calibration:
       source: "weier1993 tables 4 and 5 against xuri2008 table 11"
       verdict: outside
       owner: world-bzqj
+      boundary: >
+        The simulated soil's denitrification gas partition runs on Xu-Ri and
+        Prentice (2008) table 9 eqns 5, 6 and 7 with table 11's constants, and
+        the Weier bracket is declared around it rather than applied. The
+        operator IS DyN: table 9 eqns 1 to 4 set the reduction sequence this
+        partition divides, and eqn 1's temperature response is the ftemp in
+        eqns 5 and 6, so taking Weier's N2 share would put one step of a
+        four-step sequence on a different calibration from the three above it
+        and from the ftemp inside it. Weier is a four-soil incubation at one
+        temperature with acetylene block and no NO measurement, so it cannot
+        supply the NO limb the operator also needs; the two cannot be mixed
+        term by term. What that costs is stated and not argued away: the
+        operator's 0.978 is above the whole 0.333 to 0.938 union of Weier's
+        interquartile ranges, and it carries no dependence on water-filled pore
+        space where Weier's medians rise from 0.565 to 0.796 across 60 to 90
+        per cent WFPS. So the declared boundary is that no N2, N2O or NO number
+        this model reports is a prediction of this world's denitrification gas
+        partition. It is the DyN scheme's partition, at the DyN end of a
+        two-calibration Earth disagreement, and the reported N2O:N2 ratio in
+        particular is a floor rather than an estimate. Narrowing it needs a
+        measurement on this world's soils, which is not a thing this project
+        can have; nothing in either paper narrows it further.
       why: >
         The two Earth calibrations disagree about how much of the reduced
         nitrogen leaves as N2, and the operator runs at the DyN end. Weier's

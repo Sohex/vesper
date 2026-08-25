@@ -594,6 +594,15 @@ pressure, oxygen partial pressure, soil gas diffusivity, water-table redox state
 and the atmospheric boundary for the gases the operator emits. So the declared
 model boundary is that any nitrogen-limitation result from it is a result for an
 Earth gas and redox environment driven by this world's water and pH.
+
+A calibration entry can carry a `boundary` line of its own, and one does: the
+denitrification N2 share, where Xu-Ri and Prentice (2008) and Weier et al.
+(1993) disagree, neither is this world's, and the operator runs Xu-Ri's
+partition because the partition is not separable from the reduction sequence it
+divides. `--strict` does not refuse on a declared boundary, the gate names every
+one under its own heading on each invocation, and a `boundary` on an entry the
+sources do settle is itself a gate failure. What it declares is that no N2, N2O
+or NO number this model reports is a prediction of this world's gas partition.
 `notes/soil-nitrogen-transformation-parameterisation.md` is the register, and it
 carries three defects the operator had: the soil map's pH never reached it, its
 no-pH fallback ran on a variable nothing assigns, and its only conservation check
