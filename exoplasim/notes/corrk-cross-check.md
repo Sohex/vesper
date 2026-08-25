@@ -216,6 +216,59 @@ that the model's absolute clear-sky water vapour shortwave absorption is low by
 about 12% relative to a modern line list, before the missing continuum, and that
 is a separate defect from the one PHYS-1 fixes. It is not being fixed here.
 
+## Making 1.127 two-sided: the bars, fixed before the sources were read
+
+The ratio above is one-signed because the correlated-k side carries no water
+vapour continuum, so it is a FLOOR on Eq. 21's deficit and the ceiling is
+missing. Five sources are held for closing it and `references/INDEX.md` says
+what each answers. These are the criteria the answer will be judged by, written
+down before any of them was opened.
+
+**What a unit of `h2oswl` is worth, so the bars can be in kelvin.**
+`h2oswl` multiplies the same water vapour absorptance `h2osww` scales, so it
+inherits that term's sensitivity exactly.
+`exoplasim/notes/shortwave-water-vapour.md` measures 43.2 W/m2 of water vapour
+shortwave absorption on the baseline climatology at `h2osww` = `h2oswl` = 1, and
+prices `h2osww` = 1.346 at +15.0 W/m2 of atmospheric shortwave absorption, +2.9
+W/m2 at the top of the atmosphere and +2.5 K. So d(atmospheric shortwave)/dL is
+1.346 x 43.2 = 58.2 W/m2 per unit `h2oswl`; the top-of-atmosphere share is that
+note's own 0.193, bracket 0.133 to 0.30; and the temperature follows at its
+0.861 K per W/m2. **0.01 of `h2oswl` is 0.10 K, bracket 0.07 to 0.15 K.**
+
+**BAR 1, does the key move.** `h2oswl` changes from 1.127 if the
+continuum-inclusive CENTRAL estimate differs from it by 0.02 or more, which is
+0.2 K: the size of effect this note already treats as material for the CO2
+absolute, and the size of the convective term `shortwave-water-vapour.md` lists
+as not included. Under 0.02 the two-sided bound is recorded and the key keeps
+1.127, because a config key change makes every existing run unresumable and
+0.1 K does not buy that.
+
+**BAR 2, is the bracket carried.** Same conversion. The bound is quoted as a
+bracket on the key rather than as a point value if its half-width reaches 0.02,
+0.2 K. Narrower than that and it is a number with a stated uncertainty; wider,
+and every consumer has to run both arms.
+
+**BAR 3, does `shortwave_band_weights.py` keep raising.** That file gates on the
+Howard reconstruction lying inside the envelope of Lacis and Hansen Eqs. 21, 22
+and 23 widened by Howard's +/-3%, and the gate currently fires. The gate asks
+whether the reconstruction agrees with every published determination of the
+quantity. It is FALSIFIED AS A GATE -- not widened, which would be a criterion
+chosen after the run -- if an independent MODERN reference for the same defined
+quantity falls outside the same widened envelope at the same water amounts,
+because a bar that rejects a known-good answer is not a bar on the
+reconstruction. The correlated-k absorptance in the table above is that
+reference and the test is arithmetic against the three formulas. If correlated-k
+lands INSIDE the envelope where the reconstruction lands outside, the gate
+stands and the reconstruction is what is at fault.
+
+**BAR 4, are the two checks one quantity.** They are the same quantity if and
+only if numerator and denominator are the same defined thing on both sides:
+the absorptance of a homogeneous 760 mm Hg path holding w precipitable cm of
+water, solar-weighted, over Eq. 21 at the same w. If they are, they must agree
+at the operating path to within the +/-3% Howard state for the band absorptions,
+that being the only stated accuracy either side carries; a disagreement wider
+than 3% at 2.7891 cm is a defect in one of them and not a difference of method.
+
 ## What the disagreements would move if they are real
 
 Using the sensitivities `shortwave-water-vapour.md` states for itself:
