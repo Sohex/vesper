@@ -41,39 +41,39 @@ cases report converged.
 
 ### What it says now, with the wind tail measured and gravity in the threshold
 
-Measured 2026-08-17 on the baseline climatology, at k = 2.012 fitted from 1,463
-three-hourly samples (DUST-5) with the saltation threshold corrected for this world's
-gravity (DUST-6), on a climatology built from ten clean NLOWIO = 0 orbits, and
-re-run the same day once HYD-13 corrected the mapping the lake solution is built
-through:
+`aeolian/analysis/dust_baseline.json` carries emission, land-mean and global
+optical depth, deposition and the roughness each arm actually ran at, for all
+three ends of the bracket at once, and it records the Weibull shape it used with
+the sample count and the file it was fitted from. Read that; a table of the same
+numbers here would go stale the next time the roughness mosaic or the wind
+sample does, and it has twice.
 
-| | z0 = 3e-6 m | z0 = 1e-4 m | z0 = 1e-3 m |
-| --- | ---: | ---: | ---: |
-| emission, Tg per Earth year | 171158 | 14029 | 2.4 |
-| land-mean optical depth | 5.235 | 0.376 | 0.00002 |
-| deposition, g/m2 per Earth year | 370.5 | 27.4 | 0.002 |
-
-Earth for scale: about 2000 Tg per year and a land-mean dust optical depth near
-0.03. The central roughness is therefore about seven Earths of emission at
-twelve times Earth's optical depth. This is a dusty world.
+What the artifact says, in shape rather than in figures: Earth emits about 2000
+Tg per Earth year at a land-mean dust optical depth near 0.03, and every arm of
+this world's bracket except the roughest is above both, the central one by
+several times on emission and by more than ten on optical depth. This is a dusty
+world.
 
 **Both of the large corrections went in opposite directions and neither cancelled
 the other.** Measuring the wind tail raised emission by a factor of 40, because a Weibull
-fitted to 32 snapshots 5.7 days apart is too narrow and biases the shape high
-(4.600 fitted against 2.012 measured).
+fitted to 32 snapshots 5.7 days apart is too narrow and biases the shape high:
+DUST-5 fitted 4.600 that way against 2.012 from 1,463 three-hourly samples of the
+same run.
 Putting this world's gravity into the saltation threshold then cut it 30%, a
 6.9% change in the threshold amplified by the same u* nonlinearity working the
 other way. The threshold correction is the fourth root of the gravity ratio and
 not the square root; `aeolian/config/dust.yaml` carries the derivation.
 
 The roughness bracket is the only large uncertainty left and it no longer spans
-the answer: the rough end is 2.4 Tg per year rather than the zero it once read.
+the answer: the rough end returns a real emission rather than the zero it once
+read, and the ends are now the per-lithology mosaic rather than one scalar.
 
 ### The reopening test, stated without tuning
 
 `notes/dust.md` reopens the in-model question at a land-mean optical depth above
-0.10. **It crosses by 3.8x at the central roughness** and by 52x at the smooth
-end. Only the roughest end of the bracket is below it.
+0.10, and the baseline artifact's `reopening_test` block carries that threshold,
+the range it is held against and the verdict. Only the roughest end of the
+bracket is below it.
 
 That was a pre-committed threshold, fixed before the answer was known, and what
 it commits to is that a prescribed field is no longer defensible and the emission
@@ -107,7 +107,12 @@ Earth analogues suggest. That is in `settling_velocity` rather than in a comment
 
 `config/dust.yaml` carries all of it. The widest are, in order:
 
-1. **The subgrid wind shape**, now measured but only to an upper bound.
+1. **The subgrid wind shape**, now measured but only to an upper bound. There is
+   no default gust source and there deliberately is not one: `build_dust.py`
+   refuses to run unless it is given `--gust-samples` or told in as many words to
+   fit from the snapshot climatology instead. The two answers differ by a factor
+   of 40, and an optional argument whose absence means do the wrong thing is
+   `docs/src/practice/failure-modes.md` class 2. DUST-15.
 2. **The aeolian roughness of the erodible surface**, bracketed 3e-6 to 1e-3 m,
    worth a factor of 40 in emission across that range. The grid-cell roughness
    field is deliberately NOT used: its median over source cells is 0.49 m, and
