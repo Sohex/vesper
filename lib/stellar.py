@@ -238,6 +238,19 @@ def solar_partition_identity(tolerance: float = 5.0e-4) -> float:
 
     The one statement in the scheme with a right answer rather than a plausible
     one. Everything else here is checked against it.
+
+    THROUGH BOTH ROUTES, at the same declared tolerance. The blackbody route is
+    `_blackbody_grids` + `_planck` + `_partition`; a real spectrum takes
+    `read_hires` + `_bands` + `_partition`, and the two shared only
+    `_partition`, so `assert_model_grid`, the row split and the `minwavel`
+    deletion -- everything that decides which flux lands in which band for the
+    spectrum the model actually runs -- were outside the one statement with a
+    right answer. The second arm below pushes the same Planck curve through
+    `_bands`, which is that structure. The cut is NOT inert on this grid: the
+    first row sits a float below `MIN_WAVELENGTH_NM` and is deleted, worth
+    about 5e-5 in band 1, so the two arms are genuinely different arithmetic
+    and both have to land on `SOLAR_PARTITION`. `read_hires` is the only part
+    of the real-spectrum route this still does not reach. world-60x0.
     """
     band1, band2 = blackbody_band_fractions(5772.0)
     if abs(band1 + band2 - 1.0) > 1.0e-12:
@@ -247,6 +260,14 @@ def solar_partition_identity(tolerance: float = 5.0e-4) -> float:
             f"5772 K through solarini's grid gives {band1:.6f}, and "
             f"radmod.f90:207 says {SOLAR_PARTITION}. This module no longer "
             "reproduces the model's integration.")
+    grid = np.concatenate(_blackbody_grids())
+    through_bands, _ = _partition(*_bands(grid, _planck(grid, 5772.0)))
+    if abs(through_bands - SOLAR_PARTITION) > tolerance:
+        raise SystemExit(
+            f"the same Planck curve through `_bands`, the split a real "
+            f"spectrum takes, gives {through_bands:.6f} against "
+            f"{SOLAR_PARTITION}. The row split, the grid assertion or the "
+            "minwavel deletion no longer agrees with the model's.")
     return band1
 
 
