@@ -147,6 +147,59 @@ reasons: **every rung runs at one step**, dt 22.5, which is what T170 needs.
 Otherwise the ladder measures resolution plus truncation error and reports the
 sum as resolution.
 
+## A conversion may double the truncation and no more
+
+*Measured 2026-08-24 at 220b7142. 900-step arms, each in a bed built from the
+target rung's own run directory, each compared against a control that differs
+only in which restart is copied in.*
+
+| conversion | jump | target step | result |
+| --- | --- | --- | --- |
+| T21 -> T42 | 2x | dt 22.5 | integrates, and relaxed for 16 orbits |
+| T42 -> T85 | 2x | dt 22.5 | completes |
+| T85 -> T170 | 2x | dt 15 | completes |
+| **T42 -> T170** | **4x** | **dt 15** | **traps** |
+
+The controls are what make this readable. At each target, that rung's OWN
+restart was run through the same bed at the same step: T85's completes at dt
+22.5 and T170's completes at dt 15. So the bed, the namelist, the binary and
+the step are all cleared, and the only thing left is the conversion.
+
+The converter treats the two jumps identically -- the action counts are the
+same to the record, 40 remapped, 10 projected, 114 reset, 27 from the template
+-- so this is a property of the DATA, not of the policy. Doubling the
+truncation produces a state the target integrates; quadrupling it does not.
+
+**So the ladder must step, and the step is a factor of two.** T21 to T170
+directly is a factor of eight and is not available; neither is T42 to T170. The
+rungs that exist -- 21, 42, 85, 127, 170 -- give 21 -> 42 -> 85 -> 170 as three
+doublings, which is the path.
+
+What this does NOT establish is a mechanism, or where between 2x and 4x the
+boundary lies. T42 -> T127 is 3x and untested. And 900 steps is a floor: a
+converted state that starts has not been shown to survive commissioning, which
+is the same caveat the stability grid carries.
+
+## The refusal at T170 is not a startup transient
+
+The cheapest hope for the ladder was that a rung refuses a coarse step only
+because a cold start is the most violent thing it ever integrates, and that a
+spun-up state handed to it would sail through. It does not.
+
+T170 at 900 steps:
+
+| initial state | dt 15 | dt 30 |
+| --- | --- | --- |
+| cold | runs | refuses |
+| T170's own restart | completes | traps |
+| converted from T85 | completes | traps |
+
+dt 30 fails from every initial condition available, including the rung's own
+balanced restart, and the dt 15 column is the control showing those same states
+are otherwise fine. The refusal is a property of the configuration rather than
+of the transient, so buying a coarser step by arriving at it gently is not
+available and the ladder pays T170's dt 15 in full.
+
 ## What is not yet measured
 
 Whether a wider window removes the flicker without moving the orbit at which a
