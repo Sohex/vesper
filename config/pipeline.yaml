@@ -719,6 +719,14 @@ checks:
     script: scripts/check_consistency.py
   - id: smoke_test
     script: scripts/smoke_test.py
+  # Does the model SOURCE compile: gfortran -fsyntax-only over every translation
+  # unit `plasim/CMakeLists.txt` names, in `use` order, under the flag line
+  # config/planet.yaml declares. Not whether a binary is current, which is rule
+  # 4's question and check_consistency's row above. smoke_test runs it, and it
+  # is registered here as well because it is a gate a caller can run alone --
+  # after a Fortran edit, before paying for a build.
+  - id: verify_model_compiles
+    script: exoplasim/scripts/verify_model_compiles.py
 
 # Present, deliberately outside the graph: no step row runs them (some are
 # imported as modules by step scripts).
