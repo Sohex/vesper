@@ -61,7 +61,7 @@ mainline_divergences:
     Michaelis-Menten terms and the min() against the pool stand between a
     coefficient and a flux. It cannot settle which Earth calibration is right,
     because both arms are Earth calibrations; it can say how far apart they put
-    this world. `world-2t4x` owns it.
+    this world. `world-9f1v` owns it.
   entries:
     - id: soil_ph_fallback
       owner: world-i2ch

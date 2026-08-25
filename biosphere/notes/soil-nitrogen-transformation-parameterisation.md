@@ -146,7 +146,7 @@ against the pool stand between a coefficient and a flux. The five also do not
 point the same way on mineral nitrogen -- the gas share raises it, the crossed
 read, the pH correction and the temperature clamp lower it, by amounts that
 depend on a gridcell's water, pH and temperature -- so which dominates is not
-answerable by hand at all. `world-2t4x` owns the arm. It cannot be run until
+answerable by hand at all. `world-9f1v` owns the arm. It cannot be run until
 LPJ-GUESS builds on this tree, which needs a baseline climatology that does not
 exist.
 
@@ -596,7 +596,7 @@ in centimetres of water, and a head is a pressure only through the local gravity
 simulated soil's wilting point is the water content at a head rather than at the
 -1.5 MPa suction plants actually work against. That is a property of the soil
 model rather than of this operator, and it moves both sides of the comparison
-above together, but it is what the comparison rests on. `world-9m7d` owns it.
+above together, but it is what the comparison rests on. `world-slpa` owns it.
 
 ## What holds without any paper: the operator cannot create nitrogen
 
