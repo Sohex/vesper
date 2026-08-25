@@ -324,6 +324,12 @@ extern bool ifbvoc;
 /// activation of acclimated respiration
 extern bool acclimated_respiration;
 
+/// E-folding time of the growth temperature basal respiration acclimates to, ABSOLUTE days
+/** No default. Required whenever acclimated_respiration is true; see the refusal
+ *  in parameters.cpp and biosphere/notes/plant-physiology-carbon-allocation-audit.md.
+ */
+extern double acclim_resp_tau;
+
 ///////////////////////////////////////////////////////////////////////////////////////
 // Arctic and wetland inputs
 

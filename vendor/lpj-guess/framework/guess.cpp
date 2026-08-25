@@ -84,6 +84,8 @@ void Climate::serialize(ArchiveStream& arch) {
 		& agdd0_20
 		& chilldays
 		& ifsensechill
+		& tacc_air
+		& tacc_air_set
 		& coldest_day
 		& warmest_day
 		& dtemp_seasonal

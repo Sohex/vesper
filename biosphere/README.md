@@ -499,6 +499,31 @@ carries three defects the operator had: the soil map's pH never reached it, its
 no-pH fallback ran on a variable nothing assigns, and its only conservation check
 was an `assert` that Release compiles out.
 
+### Respiration acclimates to a growth temperature, or not at all
+
+`respiration_acclimated()` replaces each simulated plant functional type's
+`respcoeff` with a function of the GROWTH temperature its tissue has adjusted to.
+It was being handed the current day's air and 25 cm soil temperature, so the same
+variable drove the acute Lloyd and Taylor response and the acclimation multiplier
+and no acclimation was represented. `Climate::tacc_air` and `Soil::tacc_root`
+carry the memory now: exponential running means with an e-folding time of
+`acclim_resp_tau` absolute days, seeded from the first temperature each gridcell
+sees and serialized so a resume keeps them.
+
+That e-folding time has no value this project can derive, so there is no default
+and `parameters.cpp` refuses `acclimated_respiration 1` without it. The baseline
+takes the standard respiration path, which is what the CNP fork's own
+`global_p.ins` selects and what divides `respcoeff` by the tissue C:N windows.
+`acclimation_gate.py` enforces the state, reports what the memory is worth over
+this world's seasonal cycle across the bracket the held literature supports, and
+refuses an acclimated path with no declared memory length.
+
+```bash
+python biosphere/scripts/acclimation_gate.py            # status, exit 0
+python biosphere/scripts/acclimation_gate.py --strict   # refuses an acclimated
+                                                        # path with no memory
+```
+
 ### The seasonal landmarks are derived, not dated
 
 Summergreen phenology turns on two days of the simulation year: the coldest,

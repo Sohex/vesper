@@ -1152,6 +1152,26 @@ public:
 	 */
 	double gtemp;
 
+	/// Growth temperature the simulated plants' basal respiration rate is acclimated to (deg C)
+	/** The prevailing air temperature the aboveground tissue has adjusted to, as
+	 *  distinct from gtemp above, which is the acute response to today's. Thum et
+	 *  al. (2019) and Atkin et al. (2014) separate the two, and
+	 *  canexch.cpp:respiration_acclimated needs both: gtemp for the acute term and
+	 *  this for the basal rate that replaces respcoeff. An exponential running
+	 *  mean with an e-folding time of acclim_resp_tau ABSOLUTE days, because
+	 *  acclimation is a physiological process and knows nothing about the orbit;
+	 *  see biosphere/notes/time-base-unit-contract.md.
+	 */
+	double tacc_air;
+
+	/// Whether tacc_air holds a temperature yet
+	/** It is set from the first day of forcing the gridcell sees rather than from
+	 *  a constant, so a cell begins acclimated to its own climate and there is no
+	 *  spin-in from an arbitrary starting temperature. Serialized, so a resumed
+	 *  run does not re-acclimate from scratch.
+	 */
+	bool tacc_air_set;
+
 	/// daily temperatures for the last 31 days (deg C)
 	Historic<double, 31> dtemp_31;
 
@@ -1368,6 +1388,8 @@ public:
 		maxtemp = 0.0;
 		gdd5 = 0.0;
 		chilldays = 0;
+		tacc_air = 0.0;
+		tacc_air_set = false;
 		ifsensechill = true;
 		atemp_mean = 0.0;
 
@@ -3954,6 +3976,17 @@ public:
 	 *  incorporating damping of Q10 due to temperature acclimation (Lloyd & Taylor 1994)
 	 */
 	double gtemp;
+
+	/// Root-zone growth temperature the fine roots' basal respiration rate is acclimated to (deg C)
+	/** The counterpart of Climate::tacc_air for the belowground tissue: an
+	 *  exponential running mean of the 0.25 m soil temperature with an e-folding
+	 *  time of acclim_resp_tau absolute days. Separate from gtemp above, which is
+	 *  the acute response to today's soil temperature.
+	 */
+	double tacc_root;
+
+	/// Whether tacc_root holds a temperature yet
+	bool tacc_root_set;
 	/// soil organic matter (SOM) pool with c. 1000 yr turnover (kgC/m2)
 	double cpool_slow;
 	/// soil organic matter (SOM) pool with c. 33 yr turnover (kgC/m2)

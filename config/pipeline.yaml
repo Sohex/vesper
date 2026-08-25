@@ -649,6 +649,26 @@ steps:
       a correct run; `--strict` is the arm that refuses. `lpj_run` needs it so
       the declared C-N-P model boundary sits on the path rather than beside it.
 
+  - id: acclimation_gate
+    script: biosphere/scripts/acclimation_gate.py
+    loop: B
+    cost: seconds
+    needs: []
+    writes: [biosphere/generated/acclimation_gate_report.json]
+    gate: >
+      the memory the simulated plants' basal respiration rate carries. Acclimated
+      respiration replaces each plant functional type's respcoeff with a function
+      of the GROWTH temperature the tissue has adjusted to, and that growth
+      temperature is a running mean whose e-folding time this project cannot
+      derive. It fails on the acclimation multiplier reading an instantaneous
+      temperature again, on a growth temperature missing from a serialize list,
+      on a default appearing for acclim_resp_tau or its refusal going missing,
+      and on the state being seeded from a constant rather than from the forcing.
+      Nine fixtures run on every invocation, three built to be wrong in a named
+      way. It reports what the memory is worth over this world's seasonal cycle
+      across the bracket the held literature supports; `--strict` refuses an
+      acclimated path with no declared memory length.
+
   - id: phenology_gate
     script: biosphere/scripts/phenology_gate.py
     loop: B
@@ -672,7 +692,7 @@ steps:
     script: biosphere/scripts/run_lpj_guess.py
     loop: B
     cost: hours
-    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, mineral_reactivity_gate, phenology_gate]
+    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate]
     writes: [biosphere/runs/]
 
   - id: prospectivity

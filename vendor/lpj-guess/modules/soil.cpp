@@ -33,6 +33,8 @@ void Soil::init_states() {
 	wcont_evap = 0.0;
 	snowpack = 0.0;
 	orgleachfrac = 0.0;
+	tacc_root = 0.0;
+	tacc_root_set = false;
 
 	// Extra initialisation
 	aorgCleach = 0.0;
@@ -3937,6 +3939,8 @@ void Soil::serialize(ArchiveStream& arch) {
 		& dtemp
 		& mtemp
 		& gtemp
+		& tacc_root
+		& tacc_root_set
 		& pad_temp
 		& pad_dz
 		& cpool_slow

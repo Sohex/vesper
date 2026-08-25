@@ -499,6 +499,33 @@ void prdaily(double* mval_prec, double* dval_prec, double* mval_wet, long& seed,
 }
 
 /// Called each simulation day before any other driver or process functions
+/// One day of acclimation of a tissue's basal respiration rate to its temperature
+/** An exponential running mean with an e-folding time of acclim_resp_tau
+ *  ABSOLUTE days, which is what acclimation is measured in: it is a
+ *  physiological process and knows nothing about this world's orbit. ABSOLUTE-RATE
+ *  in biosphere/notes/time-base-unit-contract.md.
+ *
+ *  The state is seeded from the first temperature it sees rather than from a
+ *  constant, so a gridcell begins acclimated to its own climate and no spin-in
+ *  from an arbitrary starting temperature enters the first orbit's carbon
+ *  balance. It is maintained only while acclimated_respiration is on, because
+ *  acclim_resp_tau has no default and is only required to be declared then.
+ */
+static void acclimate(double& state, bool& is_set, double temp) {
+
+	if (!acclimated_respiration) {
+		return;
+	}
+
+	if (!is_set) {
+		state = temp;
+		is_set = true;
+		return;
+	}
+
+	state += (1.0 - exp(-1.0 / acclim_resp_tau)) * (temp - state);
+}
+
 void dailyaccounting_gridcell(Gridcell& gridcell) {
 
 	// DESCRIPTION
@@ -627,6 +654,11 @@ void dailyaccounting_gridcell(Gridcell& gridcell) {
 		}
 	}
 	
+	// The growth temperature the aboveground tissue's basal respiration rate is
+	// acclimated to. Separate from gtemp below, which is the acute response to
+	// today's temperature; see acclimate above.
+	acclimate(climate.tacc_air, climate.tacc_air_set, climate.temp);
+
 	// Today's air temperature into the running seasonal cycle the landmarks
 	// below are derived from. Before the GDD counters, so that a gridcell's own
 	// forcing decides where its midwinter and its midsummer fall.
@@ -896,6 +928,10 @@ void dailyaccounting_patch(Patch& patch) {
 
 	// Determine the soil temperature at 25cm depth
 	double soiltemp25 = soil.get_soil_temp_25();
+
+	// The root-zone growth temperature the fine roots' basal respiration rate is
+	// acclimated to, the belowground counterpart of Climate::tacc_air.
+	acclimate(soil.tacc_root, soil.tacc_root_set, soiltemp25);
 
 	if (iftwolayersoil) {
 		// Update monthly 25cm soil temperature - used for output only
