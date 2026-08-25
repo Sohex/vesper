@@ -32,8 +32,13 @@ it:
 
 - `.claude/` holds the worktrees themselves, and a worktree containing a link to
   the directory it lives in is a loop.
-- `__pycache__`, `docs/book/` and `maps/build/` are cheap regenerable output.
-  Linking them means a worktree's build writes over the main checkout's.
+- `__pycache__`, `docs/book/`, `maps/build/` and `biosphere/generated/` are
+  cheap regenerable output. Linking them means a worktree's build writes over
+  the main checkout's. `biosphere/generated/` joined the list the moment it
+  gained an ignore rule: ten gate scripts write it, several batches run them at
+  once, and a shared link would have them overwriting each other's reports in
+  the main checkout. Nothing reads it across a component boundary -- the record
+  each gate argues lives in `biosphere/notes/`, which is tracked.
 - Everything compiled from tracked source that a worktree may have edited:
   `vendor/exoplasim/` and `vendor/lpj-guess/build/`. This is rule 4's failure
   mode with the safety off. A linked binary directory means the worktree runs
@@ -79,7 +84,7 @@ SKIP_SELF = (".claude/",)
 
 # Held back because they are regenerable output, and a link makes the worktree
 # write over the main checkout's copy.
-SKIP_REGENERABLE = ("docs/book/", "maps/build/")
+SKIP_REGENERABLE = ("docs/book/", "maps/build/", "biosphere/generated/")
 
 # Held back because they are compiled from tracked source the worktree may have
 # edited. See the module docstring and CLAUDE.md rule 4.
