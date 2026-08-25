@@ -305,6 +305,37 @@ steps:
       with loop A, so re-read the flag after each accepted baseline rather than
       transporting either continent's result.
 
+  - id: groundwater_access
+    reads_export: true
+    script: hydrography/scripts/build_groundwater_access.py
+    loop: A
+    cost: minutes
+    needs: [groundwater]
+    writes: ["hydrography/data/{build}/groundwater_access_exoplasim-{res}.nc", hydrography/analysis/groundwater_access_report.json]
+    gate: >
+      PLHY-5. `water_table.nc` is per REGION and LPJ is driven per climate-grid
+      CELL, and the reduction that suggests itself -- average the depth --
+      destroys what groundwater is in the model for. Root access and discharge
+      vegetation depend on the FRACTION of a cell with a shallow table: a mean
+      erases a narrow riparian strip and manufactures a broad one. So the
+      criterion is evaluated ON THE NATIVE REGIONS and what crosses is an AREA.
+      NO HYPSOMETRY IS USED and none is needed: the within-cell depth
+      distribution is in hand, and reconstructing it would be an inference where
+      there is a measurement. A fraction is a fraction of a POPULATION and the
+      only one is the regions inside a cell, so every fraction lives at the grid
+      and there is no per-region access fraction -- GW-6, and the same
+      constraint `topographic_index` states for `f_sat_max`.
+      ACCESS DEPTHS ARE SWEPT, NEVER CHOSEN. 1.5 m is the vendored LPJ-GUESS
+      soil column and is sourced; 5 and 20 m are declared model-form brackets
+      for a phreatophytic access that model cannot represent. `sink_fraction`,
+      `at_surface`, the excluded lithologies and the undefined cells all cross
+      as their own area shares, and `--water-table` repeated once per
+      permeability member writes every fraction along a member axis, so the
+      Gleeson bracket survives the reduction instead of being averaged inside
+      it. `--selftest` runs six invariants with right answers on synthetic
+      input, including the negative control this step exists for: a narrow
+      shallow strip in a deep cell must survive.
+
   - id: soil
     script: pedology/scripts/build_soil.py
     loop: A
