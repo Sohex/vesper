@@ -387,9 +387,12 @@ be divided. Each of these is a reading of the source, not a measurement.
   tracer loop, so it needs nothing.
 - **EMBM's `tstipa.f` is a Jacobi iteration**, not a line solve: `tq2` holds the
   whole previous iterate and the update reads only `tq2` and `tq1`. Every one of
-  its `nii` sweeps is data-parallel over cells with a barrier between them.
-  `tstepa.f` is the same flux-recycling shape as `tstepo_flux.F` in two
-  dimensions.
+  its `nii` sweeps is data-parallel over cells with a barrier between them. It is
+  what runs: `embm.F:195-199` selects it under `dimpa`, which this build defines,
+  and `tstepa.f` -- the explicit alternative, and the same flux-recycling shape as
+  `tstepo_flux.F` in two dimensions -- takes no samples at either grid. The ocean
+  is the other way round: `goldstein.F` selects `tstipo` under `dimpo`, which is
+  NOT defined, so `tstepo` runs.
 - **`surflux.F` is one `(i,j)` loop** running from line 683 to about 1600,
   including the sea-ice surface Newton iteration and the land column. Parallel
   over cells, and the routine with the most locals to classify by a wide margin.
@@ -462,7 +465,7 @@ read off a measurement rather than assumed:
 **EMBM is 12.5 to 19.9 per cent of the instructions, and the offline
 architecture does not run it.** The exchange OCN-10 selects has ExoPlaSim
 computing the fluxes, so EMBM's prognostic temperature and humidity step,
-`tstipa` plus `tstepa` plus the `embm` driver's own loops, has nothing to do.
+`tstipa` plus the `embm` driver's own loops, has nothing to do.
 `surflux`'s 2.8 per cent stays, because something equivalent -- the
 `surflux_goldstein_seaice` path the cost note's section 6 identifies -- still has
 to turn a supplied climatology into ocean fluxes.
