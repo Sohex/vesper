@@ -45,7 +45,19 @@ to itself.
 THE TEMPLATE is a run directory that already has the rung's surface fields
 staged and its binary beside them -- a crashed arm serves, since what failed
 there was the integration and not the staging. Output is switched off, which is
-what keeps a T170 probe from writing twelve gigabytes to measure a step.
+what keeps a T170 probe from writing twelve gigabytes to measure a step. THIS
+PROBE COPIES STAGING AND DOES NOT BUILD IT: with no run directory on disk there
+is no bed to be had at any rung, and the surface family under
+`exoplasim/inputs/<rung>/` has to exist before a run can be staged to copy from.
+
+AND THE STAGING IS RECORDED BY CONTENT. Every cell carries the sha256 of the
+namelist and of each surface `.sra` in its bed, because a cell that names its
+executable and not its surface fields is half attributable -- the same probe on
+the same binary over a different land mask is a different boundary. Run
+directories are untracked and their ids are UUIDs, so `template` alone is a path
+nobody can resolve later. `--template` names the run directory outright; the
+default takes the most recently modified candidate, which is a property of the
+filesystem rather than of the model, and says how many it chose from.
 
 WHICH BINARY, AND HOW IT IS ESTABLISHED. A run directory holds the executable
 that was copied into it when that run was staged, so after any rebuild the copy
@@ -62,6 +74,7 @@ world-anl.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -76,7 +89,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _paths  # noqa: F401
-from _paths import MODEL_RUN  # noqa: E402
+from _paths import INPUTS, MODEL_RUN  # noqa: E402
 import build_model  # noqa: E402
 import rebuild_binaries  # noqa: E402
 from paths import rel  # noqa: E402  from lib/, put on sys.path by _paths
@@ -105,8 +118,16 @@ def find_template(rung: str, need_binary: bool) -> Path:
     because that is the one the probe will run. Under `--restage` the
     executable comes from the registry, so the template is wanted for its
     STAGING alone and a run directory without a binary serves.
+
+    THE CHOICE IS PRINTED AND COUNTED. Selection is by modification time, which
+    is a property of the filesystem and not of the model: with more than one
+    candidate the probe would take a different staging on a different day and
+    the cell would not say so. `--template` names one outright, and every result
+    records the staging's own shas either way, so a cell can be checked rather
+    than re-derived. world-qnue and world-37tn.
     """
     want = f"N{NLAT[rung]:03d}_surf_"
+    candidates = []
     for d in sorted(RUNS.glob("run_*"), key=lambda p: p.stat().st_mtime, reverse=True):
         if not d.is_dir():
             continue
@@ -114,12 +135,45 @@ def find_template(rung: str, need_binary: bool) -> Path:
             continue
         if need_binary and not any(d.glob(f"most_plasim_t{rung[1:]}_l*_p*.x")):
             continue
-        return d
+        candidates.append(d)
+    if candidates:
+        if len(candidates) > 1:
+            print(f"{len(candidates)} run directories could serve as the {rung} "
+                  f"template; taking the most recently modified. Pass --template "
+                  f"to name one.")
+        return candidates[0]
     also = " and a {} binary".format(rung) if need_binary else ""
+    staged = INPUTS / rung.lower()
     raise SystemExit(
-        f"no run directory carries {want}*.sra{also}. "
-        f"Run one arm at {rung} first, even a failing one: what this needs "
-        f"from it is the staging, not the integration.")
+        f"no run directory carries {want}*.sra{also}, so there is nothing to "
+        f"stage a probe bed from.\n"
+        f"  A bed needs a namelist and a staged surface family, and both come "
+        f"from a run directory: this probe copies staging, it does not build "
+        f"it.\n"
+        f"  {rel(staged)} {'exists' if staged.is_dir() else 'DOES NOT EXIST'}, "
+        f"and the surface family under it is what run_exoplasim.py stages a run "
+        f"from. `python scripts/pipeline.py --status` names the steps that write "
+        f"it.\n"
+        f"  So: build the surface family for {rung}, run one arm at {rung} -- a "
+        f"failing one serves, since what this needs from it is the staging and "
+        f"not the integration -- and then re-run this.")
+
+
+def staging_shas(bed: Path) -> dict:
+    """What this bed was staged FROM, by content, not by path.
+
+    A cell that names its executable and not its surface fields is half
+    attributable: the same probe on the same binary over a different land mask
+    is a different boundary. Run directories are untracked and their ids are
+    UUIDs, so `template` alone is a path nobody can resolve three months later.
+    These shas can be checked against any staging that still exists.
+    """
+    out = {}
+    for f in sorted(bed.iterdir()):
+        if f.is_file() and (f.suffix == ".sra" or f.name.endswith("_namelist")
+                            or f.suffix == ".nl"):
+            out[f.name] = hashlib.sha256(f.read_bytes()).hexdigest()
+    return out
 
 
 def resolve_binary(rung: str, levels: int, threads: int, template: Path,
@@ -322,11 +376,13 @@ def probe(rung: str, dt: float, kappa: float | None, steps: int,
                 "per_level": tau_scale is not None}
     first_steps = steps if refusal_only else short_steps
     set_keys(bed, keys | {"N_RUN_STEPS": str(first_steps)})
+    staging = staging_shas(bed)
     t_short, trapped, text = time_run(bed, exe.name, threads)
     result = {"rung": rung, "dt_minutes": dt, "kappa": kappa, "threads": threads,
               "steps_short": first_steps, "steps_long": steps,
               "declared": declared,
               "outcome": "refused" if trapped else "no_refusal_in_steps",
+              "staging_sha256": staging,
               **provenance}
     # A CONTENDED HOST CAN TAKE THE REFUSAL AND NOT THE COST. world-37tn.
     if not refusal_only:
@@ -401,6 +457,12 @@ def main() -> None:
                          "template's copy is not what binary_manifest.json "
                          "registers; this is the other answer, and it is asked "
                          "for rather than applied silently.")
+    ap.add_argument("--template", type=Path, default=None,
+                    help="the run directory to stage every bed from. The "
+                         "default takes the most recently modified one that "
+                         "carries this rung's surface fields, which is a "
+                         "property of the filesystem rather than of the model; "
+                         "name one here when a grid has to be repeatable.")
     ap.add_argument("--out", type=Path, default=OUT)
     args = ap.parse_args()
 
@@ -413,7 +475,17 @@ def main() -> None:
     kappas = [None if k.strip().lower() == "off" else float(k)
               for k in args.kappa.split(",")]
     WORK.mkdir(parents=True, exist_ok=True)
-    template = find_template(args.rung, need_binary=not args.restage)
+    if args.template is not None:
+        template = args.template.resolve()
+        if not template.is_dir():
+            raise SystemExit(f"--template {template} is not a directory")
+        if not any(template.glob(f"N{NLAT[args.rung]:03d}_surf_*.sra")):
+            raise SystemExit(
+                f"--template {rel(template)} carries no "
+                f"N{NLAT[args.rung]:03d}_surf_*.sra, so it cannot stage a "
+                f"{args.rung} bed")
+    else:
+        template = find_template(args.rung, need_binary=not args.restage)
     exe, provenance = resolve_binary(args.rung, int(cfg_model["layers"]),
                                      args.threads, template, args.restage)
     print(f"template: {rel(template)}")

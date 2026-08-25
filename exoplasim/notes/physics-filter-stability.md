@@ -456,19 +456,36 @@ Refusal first, because it is the half that does not need a quiet machine:
 once per rung in T21, T42, T85, T127, T170, then the cost half with the same
 sweep and without `--refusal-only`. `--tau-scale` and `--gamma` default to
 `config/planet.yaml`, which is the point: a cell now records what it was
-measured on in its own `declared` block.
+measured on in its own `declared` block, the executable's name and sha beside
+it, and the sha256 of the namelist and of every surface `.sra` in its bed. Pass
+`--template` so the grid names the staging it was taken on rather than whichever
+run directory was modified last.
 
 ### What has to be true before it is worth running
 
-**Every binary rebuilt, and the manifest naming them.** The probe now refuses an
+**A run directory to stage a bed from, and it is the binding constraint.** The
+probe copies staging; it does not build it. It needs a namelist and the rung's
+surface `.sra` family, and both come from a run directory that already exists.
+With no run directory on disk there is no bed at any rung and the probe refuses
+by name at `find_template` -- which is the state the tree is in after a run
+purge. Getting one back is the whole staging chain: the surface family under
+`exoplasim/inputs/<rung>/` has to be built, and then one arm has to be staged at
+the rung, a failing one being enough. `python scripts/pipeline.py --status`
+names the steps.
+
+**Every binary rebuilt, and the manifest naming them.** The probe refuses an
 executable `binary_manifest.json` does not match, so the staleness world-anl
 found cannot recur -- but that guard only helps once the manifest describes the
-tree. It predates the parmode-axis removal, so `--verify` currently reports
-every MATRIX row missing and the registry directory is empty; that is a stale
-registry and says nothing about the damping. With the model still moving this is
-the binding constraint anyway: rule 7 makes the grid worthless the moment the
+tree. Note that a manifest is a description of source, not of a directory: a
+worktree whose `vendor/exoplasim` files hash to what the manifest records still
+has to build the executables locally, because build directories are deliberately
+not linked between worktrees.
+
+**A settled model source.** Rule 7 makes the grid worthless the moment the
 source under `vendor/exoplasim` moves again, so it is re-taken after the model
-settles and not before.
+settles and not before. A grid taken while a batch is still landing changes to
+the surface builders is in the same position: the staging it was measured on
+would be superseded on arrival.
 
 **And the cost half needs the machine to itself.** It prices a step from wall
 time by differencing two lengths, so a concurrent run does not add noise to it,
