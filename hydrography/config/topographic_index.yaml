@@ -132,8 +132,37 @@ closure:
 #
 # A MISS MEANS the index adds nothing to the depth it is multiplied into, and
 # the fraction should be withdrawn rather than shipped with a caveat.
+# WHAT SUPPORT THE SCORE IS TAKEN AT, and it has to be declared because the
+# quantity being scored does not live where the number in `bar_auc` was
+# measured. 0.573 is the model DEPTH's discrimination per bore against the
+# mesh region the bore falls in, `groundwater-et-sink.md`. `f_sat` lives at a
+# climate-grid cell, so scoring it needs a cell population, and the Earth
+# harness has no climate-grid export to take one from. The support declared
+# here is equal-angle boxes at the configured model grid's own row and column
+# counts, read from `config/planet.yaml`: a Gaussian row spacing and an
+# equal-angle one differ by far less than the cell, and nothing in this score
+# depends on which of the two a box edge sits at.
+#
+# BOTH CONDITIONS MUST HOLD, and the second is the one that cannot be reached
+# by changing support. A coarser support moves an AUC on its own -- fewer,
+# larger units, a different base rate -- so clearing 0.573 alone would not show
+# that the terrain half did anything. The comparator is therefore the cell-mean
+# depth's AUC AT THE SAME SUPPORT, and `f_sat` has to beat both.
+#
+# THE ATTRIBUTION IS AN IDENTITY AND IS CHECKED RATHER THAN ARGUED. With
+# `f_sat_max` held CONSTANT across cells the closure is strictly monotone in the
+# depth, so its ranking of the cells is the depth's ranking exactly and the two
+# AUCs must agree to round-off. A harness where they do not is measuring
+# something other than what it says.
 score:
   observation_sets: [australia_depth_consistent, us_unconfined]
   metric: auc_water_table_within_1m
   bar_auc: 0.573
   harness: hydrography/scripts/earth_calibration.py
+  unit_of_score: bore
+  support: model_grid_equal_angle_boxes
+  min_regions_per_cell: 10
+  slope_arms: [plane_fit, receiver_drop]
+  f_grad_arms: both_ends_of_f_grad_bracket_per_m
+  also_beat: cell_mean_depth_auc_at_the_same_support
+  attribution_identity_tolerance: 1.0e-12
