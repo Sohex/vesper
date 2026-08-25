@@ -11,6 +11,16 @@ settle for itself: for every field crossing the seam, WHAT IT MEANS. A transport
 that carries an agreed set of bytes whose meaning is not agreed is a faster way
 to disagree.
 
+`biosphere/config/ecological_forcing_contract.yaml` is the versioned,
+machine-readable form of everything below, and
+`biosphere/scripts/check_forcing_contract.py` enforces it in both directions:
+the declaration against the producer source that has to satisfy it, and a
+product against the identities. This document is the argument for each row; that
+file is what a builder and a reader are held to. THE ORDER MATTERS AND IT IS THE
+POINT: a transport chosen first makes the contract describe whatever that
+transport can carry, and the fixed-width driver binary is what that looks like
+after the fact.
+
 The absolute day, the Earth year and the orbit are defined once, in
 `biosphere/notes/time-base-unit-contract.md`, and every "per day" below is that
 document's absolute day of 24 hours. This document does not restate it and does
@@ -392,13 +402,59 @@ and the third is fixed in place. `td2m` (`world-dy7a`) is still declared and
 never written. `world-ua4a` moves the BVOC refusal from the run into the gate
 that is supposed to report it.
 
+## Cadence follows processes, not a universal bin count
+
+The interval rows above say what must be recorded per interval. How long an
+interval is belongs to the process that consumes it, and the declaration carries
+that as a registry: one row per consuming process, the fields it needs, and the
+cadence class it needs them over.
+
+Five cadence classes, from the audit's finding 4: the per-interval coordinates,
+the ecological interval itself, selected synchronous subdaily samples, the
+convective substep, and the static fields. The default ecological interval is
+one absolute day, because `NECOSTEP` 0 is the sentinel the model reads as
+`mtspd` and `calmod.f90` defines that as timesteps per 24-HOUR day. It is not
+this world's solar day. The rotation is 30 hours, so the local solar phase
+advances by 0.8 of a rotation every interval, which is why the phase has to be
+recoverable from the bounds rather than assumed constant, and why PCAR-1 cannot
+be served by the interval mean alone.
+
+A registry row's cadence is `undeclared` where the consuming process has not
+stated one, with the issue that owns it and why. That is deliberate and it is
+not a gap in the registry: every consuming process is an open issue, and a
+cadence written there that its owner has not asked for would be the registry
+inventing the requirement it exists to record. BIO-13's is undeclared because
+the issue requires the smooth-versus-event-resolved comparison to be MEASURED
+before adoption, so declaring an interval now would fix a threshold before the
+result it is judged against.
+
+## The orbital position is required per interval and is not produced
+
+The audit's finding 4 requires each forcing interval to record its orbital
+position. The ecological stream records the bounds and the duration and no
+orbital quantity at all.
+
+The local solar phase is derivable and is declared derived: rotation is uniform,
+so the artifact builder forms it exactly from the interval start and the
+rotation period, and a carried copy could only disagree with the bounds it would
+be derived from. True anomaly is not derivable the same way, because the orbit
+is eccentric and the anomaly is not linear in absolute time. The only place the
+model publishes it is code 50 on the regular stream, at that stream's own
+cadence, so taking it from there means matching an ecological interval against
+another stream's records by position -- the cross-stream inference the explicit
+bounds exist to refuse.
+
+What closes it is one `writescalar` of `orbnu*180./PI` beside the three bounds
+in `ecogp`, where the value is already in scope. The declaration carries the row
+with a `not_produced` status and the issue that owns it, so the gap is declared
+rather than absent, and the gate refuses an unproduced interval row that names
+no owner.
+
 ## What this document does not settle
 
-- The transport. EFOR-1 chooses it and EFOR-3 builds it; this contract is what
-  it has to carry, in whatever container.
-- The cadence. EFOR-1 fixes the process intervals and EFOR-2 produces them; the
-  interval rows above say what must be recorded per interval, not how long an
-  interval is.
+- The transport. EFOR-3 builds the artifact and EFOR-4 the reader; this contract
+  is what they have to carry, in whatever container, and neither may add a
+  meaning to a field by the way it stores it.
 - Every process equation downstream of the seam. BIO-13, BIO-23, PCAR-1,
   FIRE-1, FIRE-2 and ANUT-4 keep their own work; what they gain here is one
   shared source sequence with agreed meanings instead of each reconstructing

@@ -1,0 +1,669 @@
+# The ecological forcing contract, versioned.
+#
+# Worldbuilding. Vesper is an invented planet; its simulated climate is
+# ExoPlaSim and its simulated biosphere is LPJ-GUESS. Everything below is about
+# what those two models mean by the fields they hand each other.
+#
+# THIS FILE IS THE CONTRACT AND THE TRANSPORT IS NOT CHOSEN HERE. That order is
+# the point of EFOR-1: a transport picked first makes the contract describe
+# whatever that transport happens to carry, and the 12-bin fixed-width binary
+# below is what that looks like after the fact. EFOR-3 builds the artifact and
+# EFOR-4 the reader; both are held to this file, and neither may add a meaning
+# to a field by the way it stores it.
+#
+# `biosphere/notes/ecological-forcing-field-contract.md` is the argument: why
+# each row says what it says, which defects each column was written for, and
+# what the producer and consumer actually do. This file is the machine-readable
+# half, and `biosphere/scripts/check_forcing_contract.py` enforces it against
+# the producer source and against a product.
+#
+# The absolute day, the Earth year and the orbit are defined once in
+# `biosphere/notes/time-base-unit-contract.md`. Every "per day" here is that
+# document's absolute day of 24 hours.
+
+version: 1
+status: >
+  The field rows and the interval record are settled and are what EFOR-3 has to
+  carry. The process cadence registry is OPEN by construction: every consuming
+  process is an open issue, and a cadence stated here that the consumer has not
+  asked for would be this file inventing the requirement it exists to record.
+  Each process row therefore carries either a cadence with the source that
+  states it, or the `undeclared` sentinel with the issue that owns it.
+version_policy: >
+  The version is an integer and rises when the MEANING of a row changes, never
+  when the transport does. A field added, a unit changed, a converting side
+  moved or an interval semantics restated is a new version; a different
+  container carrying the same rows is not. A consumer refuses an artifact whose
+  declared contract version it does not implement, which is the check the fixed
+  width of VESPDRV never gave: the fourth array changed meaning under an
+  unchanged byte layout, and only a magic bump caught it.
+
+# The producer, named exactly. This is where every row below comes from, and the
+# gate reads this file to confirm each declared code is a code the model writes.
+producer:
+  stream: ecological
+  source_file: vendor/exoplasim/exoplasim/plasim/src/outmod.f90
+  emitter: ecogp
+  accumulator: ecoaccu
+  reset: ecoreset
+  fortran_unit: 143
+  file_pattern: MOST_ECO.NNNNN
+  enable_key: NECO
+  interval_key: NECOSTEP
+  interval_default: >
+    NECOSTEP 0 is the sentinel plasim.f90 reads as mtspd, which calmod.f90
+    defines as timesteps per 24-HOUR day. So the default ecological interval is
+    one absolute day exactly, which is the step LPJ-GUESS integrates on. It is
+    not this world's solar day: the rotation is 30 hours, so the local solar
+    phase advances by 0.8 of a rotation every interval, and that is why the
+    phase has to be recoverable from the bounds rather than assumed constant.
+  not_postprocessed: >
+    The stream does not go through pyburn and must not. pyburn builds its time
+    axis by counting code-139 records, which this stream deliberately does not
+    carry, and postprocessing would mean inferring each block's interval from
+    its position in the file -- the exact inference the explicit bounds exist to
+    refuse. `refuse_eco_codes` holds that against both postprocessor code lists.
+    EFOR-3 reads the raw service-format blocks directly.
+
+# WHAT A FIELD ROW HAS TO SAY. Seven things; six of them have each been the whole
+# of a real defect somewhere in this tree, and the seventh is what identity 7
+# needs in order to have a right answer.
+row_schema:
+  unit: >
+    Including the multiplier. "W/m2" and "hPa" are units; "1" is not a unit when
+    the values run to 100.
+  time_base: >
+    Which clock, and over what span. A rate per real second, a total per
+    absolute day and a mean over a producer interval are three different
+    numbers.
+  kind: >
+    mean, extremum or instantaneous. The regular ExoPlaSim stream is none of the
+    obvious one of these and this stream is explicitly the first.
+  semantics: >
+    intensive or extensive, which is what decides how a consumer may resample.
+    An intensive quantity resamples by duration-weighted mean; an extensive one
+    by sum. Getting this wrong is silent, because both operations return a
+    number of the right magnitude.
+  area_basis: >
+    Per square metre of what. Ground, leaf, land fraction, or whole gridcell.
+  sign: >
+    ExoPlaSim stores upward fluxes negative and says so nowhere in the
+    postprocessed metadata.
+  converts: >
+    The producer converts INTO the contract unit, the consumer converts OUT of
+    it, and nothing converts twice. A field whose row does not name a converting
+    side is not in the contract.
+
+# THE CONTRACT CARRIES NO EXTENSIVE FIELD, and that is a decision rather than an
+# accident. Every flux below is a mean RATE over the declared interval, and the
+# depth or the energy is the rate times the duration the interval record
+# carries. The producer forming a total would have to choose an interval length
+# to form it over, which is the choice that made the 12-bin driver's bin 11
+# carry 18 days of a rate measured over 16.09, and the consumer would then have
+# no way to tell a total from a rate by inspection.
+extensive_fields_carried: none
+
+# The interval record, once per interval, before any field.
+interval_record:
+  - name: interval_start
+    producer_code: 600
+    producer_expression: "real(nstep+1-naccueco)*deltsec"
+    unit: s
+    origin: >
+      Absolute seconds since the run's own step-zero, from the model's step
+      counter. Never inferred from a record index: a consumer that infers an
+      interval from a record number cannot tell a missing block from a short
+      one, and that distinction is exactly what the acceptance check is.
+    status: produced
+  - name: interval_end
+    producer_code: 601
+    producer_expression: "real(nstep+1)*deltsec"
+    unit: s
+    origin: >
+      nstep+1 and not nstep. The step indexed nstep has just been integrated, so
+      the state it contributed is valid at the END of that step. Labelling the
+      block [nstep-naccueco, nstep] gives intervals that still tile without gap
+      or overlap and are every one of them one timestep early, which is a defect
+      no closure check can see.
+    status: produced
+  - name: interval_duration
+    producer_code: 602
+    producer_expression: "real(naccueco)*deltsec"
+    unit: s
+    origin: >
+      Carried as well as the bounds, and equal to end minus start, so a gap is
+      detectable from one record rather than from a difference across two.
+    status: produced
+  - name: local_solar_phase
+    producer_code: null
+    unit: "1, fraction of a rotation"
+    origin: >
+      DERIVED by the artifact builder from interval_start and the rotation
+      period in config/planet.yaml, and not carried as a record. Rotation is
+      uniform, so the derivation is exact and a carried copy could only
+      disagree with the bounds it would be derived from. The phase advances 0.8
+      of a rotation per default interval and never repeats within an orbit.
+    status: derived
+  - name: orbital_position
+    producer_code: null
+    unit: "true anomaly, degrees"
+    origin: >
+      NOT PRODUCED at this cadence. The regular stream writes true anomaly as
+      code 50 to unit 40 from `orbnu`, and the ecological stream writes no
+      orbital record at all, so an interval's orbital position is available only
+      by matching against a different stream's output cadence -- which is the
+      cross-stream inference the explicit bounds exist to avoid. It is not
+      derivable from interval_start alone the way the solar phase is, because
+      the orbit is eccentric and true anomaly is not linear in time.
+    settles: >
+      One writescalar of `orbnu*180./PI` beside the three bounds in ecogp, where
+      the value is already in scope. WORLD-WQ8I owns it.
+    status: not_produced
+    owner: world-wq8i
+
+# Identity, once per artifact and refused if it disagrees between intervals.
+identity_record:
+  - grid_identity
+  - source_build
+  - source_run
+  - contract_version
+
+# The fields. `producer_code` is the service-format code ecogp writes; the gate
+# checks each against the model source, and checks that no code the stream
+# writes is missing from this list.
+fields:
+  - name: air_temperature
+    producer_code: 610
+    producer_expression: dtsa
+    contract_unit: K
+    time_base: mean over the declared interval
+    kind: mean
+    semantics: intensive
+    area_basis: n/a
+    sign: n/a
+    converts: "consumer, which subtracts 273.15"
+    product_name: tas
+    consumed_as: "climate.temp"
+  - name: surface_temperature
+    producer_code: 611
+    producer_expression: "dt(:,NLEP)"
+    contract_unit: K
+    time_base: mean over the declared interval
+    kind: mean
+    semantics: intensive
+    area_basis: n/a
+    sign: n/a
+    converts: producer
+    product_name: ts
+  - name: surface_air_pressure
+    producer_code: 612
+    producer_expression: dp
+    contract_unit: Pa
+    time_base: mean over the declared interval
+    kind: mean
+    semantics: intensive
+    area_basis: n/a
+    sign: n/a
+    converts: "producer; the model's own dp is already Pa, where pyburn's ps is hPa"
+    product_name: ps
+    consumed_by: bio-23
+  - name: specific_humidity
+    producer_code: 613
+    producer_expression: "dq(:,NLEV)"
+    contract_unit: kg/kg
+    time_base: mean over the declared interval
+    kind: mean
+    semantics: intensive
+    area_basis: n/a
+    sign: n/a
+    converts: producer
+    product_name: hus
+    note: >
+      Specific humidity and not relative humidity, deliberately. Specific
+      humidity is what the model carries and is linear, so its interval mean is
+      a mean of the quantity; relative humidity is a nonlinear function of
+      temperature and pressure whose interval mean is not the mean of the
+      function. BIO-23 forms the vapour pressure deficit from this, the
+      pressure and the temperature.
+    consumed_by: bio-23
+  - name: wind_speed
+    producer_code: 614
+    producer_expression: "sqrt(du(:,NLEV)**2 + dv(:,NLEV)**2)"
+    contract_unit: m/s
+    time_base: mean over the declared interval, at the lowest model level
+    kind: mean
+    semantics: intensive
+    area_basis: n/a
+    sign: n/a
+    converts: producer
+    note: >
+      THE INTERVAL MEAN OF THE SPEED, not the speed of the interval mean vector.
+      The two differ whenever the wind turns within an interval and the gap is
+      one-sided, since the magnitude of a mean vector is never above the mean
+      magnitude. `spd`, code 259, is the other one: pyburn derives it as
+      sqrt(ua**2 + va**2) from records that are already interval means, so a
+      wind row taken from `spd` reads LOW and no postprocessing recovers the
+      difference. The mean speed is formable only inside the model, before any
+      averaging, which is why it is a producer-side accumulation.
+    consumed_by: bio-23
+  - name: incident_shortwave
+    producer_code: 615
+    producer_expression: "dfd(:,NLEP)"
+    contract_unit: W/m2
+    time_base: mean over the declared interval
+    kind: mean
+    semantics: intensive
+    area_basis: ground
+    sign: positive downward
+    converts: producer
+    note: >
+      The photon supply to a canopy wants THIS term and not the net one. The net
+      term has already had the surface's own reflection removed at the albedo
+      ExoPlaSim was run with, which on a vegetated gridcell is largely the
+      canopy's own reflection, so a canopy model that then applies its own
+      absorption applies it to light the canopy has already been charged for.
+    consumed_by: pcar-1
+  - name: upward_shortwave
+    producer_code: 616
+    producer_expression: "dfu(:,NLEP)"
+    contract_unit: W/m2
+    time_base: mean over the declared interval
+    kind: mean
+    semantics: intensive
+    area_basis: ground
+    sign: negative, because ExoPlaSim stores upward fluxes negative
+    converts: producer
+  - name: net_shortwave
+    producer_code: 617
+    producer_expression: "dswfl(:,NLEP)"
+    contract_unit: W/m2
+    time_base: mean over the declared interval
+    kind: mean
+    semantics: intensive
+    area_basis: ground
+    sign: positive downward
+    converts: producer
+    note: >
+      Carried alongside the other two rather than instead of them, because the
+      surface energy balance and equilibrium evapotranspiration want the net
+      term where a canopy wants the incident one, and one number cannot answer
+      both. The adapter must not name a net surface energy flux "insolation".
+    consumed_by: bio-23
+  - name: net_longwave
+    producer_code: 618
+    producer_expression: "dlwfl(:,NLEP)"
+    contract_unit: W/m2
+    time_base: mean over the declared interval
+    kind: mean
+    semantics: intensive
+    area_basis: ground
+    sign: positive downward
+    converts: producer
+    consumed_by: bio-23
+  - name: upward_longwave
+    producer_code: 619
+    producer_expression: "dftu(:,NLEP)"
+    contract_unit: W/m2
+    time_base: mean over the declared interval
+    kind: mean
+    semantics: intensive
+    area_basis: ground
+    sign: negative, because ExoPlaSim stores upward fluxes negative
+    converts: producer
+    note: >
+      The DOWNWARD longwave is net minus upward and is not carried as a fourth
+      record, for the same reason the precipitation partitions carry a total and
+      one member: three records that must sum invite a consumer to treat them as
+      independent. BIO-23 forms it, which is what replaces LPJ reconstructing an
+      Earth longwave from an empirical cloud relation.
+    consumed_by: bio-23
+  - name: cosine_solar_zenith
+    producer_code: 620
+    producer_expression: gmu0
+    contract_unit: "1"
+    time_base: mean over the declared interval
+    kind: mean
+    semantics: intensive
+    area_basis: n/a
+    sign: non-negative
+    converts: neither
+    note: >
+      Already the night-inclusive mean of gmu0 over the interval, and NOT a
+      daytime mean. A consumer that reads it as a daytime zenith is reading a
+      quantity diluted by the dark fraction of the interval.
+  - name: total_precipitation
+    producer_code: 621
+    producer_expression: "dprl + dprc"
+    contract_unit: m/s
+    time_base: mean rate over the declared interval
+    kind: mean
+    semantics: intensive
+    area_basis: ground
+    sign: non-negative, positive downward
+    converts: "consumer, which multiplies by the declared duration for a depth"
+    product_name: pr
+  - name: solid_precipitation
+    producer_code: 622
+    producer_expression: dprs
+    contract_unit: m/s
+    time_base: mean rate over the declared interval
+    kind: mean
+    semantics: intensive
+    area_basis: ground
+    sign: non-negative, positive downward
+    converts: consumer
+    product_name: prsn
+    note: >
+      A SUBSET of the total and never a third addend. rainmod.f90 forms dprs
+      from the same zprsc and zprsl that are already inside dprc and dprl, so
+      the liquid share is total minus solid and prl + prc + prsn double counts
+      the snow. The consumer takes the phase from here and does not re-derive it
+      from a daily mean temperature at 0 C; BIO-13 owns that.
+    consumed_by: bio-13
+  - name: convective_precipitation
+    producer_code: 623
+    producer_expression: dprc
+    contract_unit: m/s
+    time_base: mean rate over the declared interval
+    kind: mean
+    semantics: intensive
+    area_basis: ground
+    sign: non-negative, positive downward
+    converts: consumer
+    product_name: prc
+    note: >
+      The other partition, cross-cutting the phase one. The large-scale share is
+      total minus convective. Both partitions travel and the artifact carries
+      the total plus one member of each rather than all of prl, prc and prsn as
+      though they summed.
+    consumed_by: fire-2
+  - name: evaporation
+    producer_code: 624
+    producer_expression: devap
+    contract_unit: m/s
+    time_base: mean rate over the declared interval
+    kind: mean
+    semantics: intensive
+    area_basis: ground
+    sign: negative, because ExoPlaSim stores the upward flux negative
+    converts: "producer negates it into a positive-downward contract sign"
+    product_name: evap
+  - name: air_temperature_max
+    producer_code: 625
+    producer_expression: "MAX over the interval of dtsa"
+    contract_unit: K
+    time_base: extremum over the declared interval
+    kind: extremum
+    semantics: extremal
+    area_basis: n/a
+    sign: n/a
+    converts: producer
+    product_name: tasmax
+    note: >
+      This pair and not the surface pair is what climate.dtr means. cfinput.cpp
+      builds dtr as dmax_temp - dmin_temp from AIR temperature extrema, which
+      fixes its meaning beyond argument, and its only reader is bvoc.cpp's
+      daytime_temp.
+  - name: air_temperature_min
+    producer_code: 626
+    producer_expression: "MIN over the interval of dtsa"
+    contract_unit: K
+    time_base: extremum over the declared interval
+    kind: extremum
+    semantics: extremal
+    area_basis: n/a
+    sign: n/a
+    converts: producer
+    product_name: tasmin
+  - name: surface_temperature_max
+    producer_code: 627
+    producer_expression: "MAX over the interval of dt(:,NLEP)"
+    contract_unit: K
+    time_base: extremum over the declared interval
+    kind: extremum
+    semantics: extremal
+    area_basis: n/a
+    sign: n/a
+    converts: producer
+    product_name: maxt
+    note: >
+      A legitimate field with its own uses, named apart from the air pair
+      because it is not a diurnal air-temperature range. The current driver's
+      fourth array holds this pair, which is what VESPDRV6 renamed.
+  - name: surface_temperature_min
+    producer_code: 628
+    producer_expression: "MIN over the interval of dt(:,NLEP)"
+    contract_unit: K
+    time_base: extremum over the declared interval
+    kind: extremum
+    semantics: extremal
+    area_basis: n/a
+    sign: n/a
+    converts: producer
+    product_name: mint
+
+# Static, carried once per artifact and never repeated as weather. Repeating a
+# static field per interval is how a provenance-bound quantity becomes something
+# a consumer thinks it may interpolate.
+static_fields:
+  - cell_area
+  - land_mask
+  - latitude
+  - longitude
+  - soil_code
+  - regolith_depth
+  - bedrock_water_fraction
+land_mask_note: >
+  The climate model's lsm takes only the values 0 and 1, so a surface flux is
+  per square metre of ground and the cell is entirely that ground. This is NOT
+  true of the Orogen mesh, where land is a partial area per cell, and the two
+  must not be confused: build_lpj_driver.py integrates soil codes over the
+  mesh's partial land areas and takes its land DEFINITION from the binary mask.
+
+# The identities that can fail. An artifact that satisfies the field rows and
+# none of these has not been checked. Each has a right answer, which is what
+# makes it a test rather than a comparison.
+identities:
+  - id: precipitation_phase_partition
+    statement: "solid <= total, and every precipitation component is non-negative"
+    check: check_precipitation
+  - id: precipitation_convective_partition
+    statement: "convective + large-scale = total, to the artifact's stated tolerance"
+    check: check_precipitation
+  - id: shortwave_closure
+    statement: "incident + upward = net, incident >= 0, and the implied albedo is in [0,1]"
+    check: check_shortwave
+  - id: extrema_bracket_their_own_variable
+    statement: >
+      Each extremum brackets the interval mean of the variable it is an extremum
+      OF, and only that one. Neither pair is required to bracket the other
+      temperature, and requiring it would fail on correct data.
+    check: check_extrema
+  - id: declared_units_hold
+    statement: "a field declaring units of 1 does not carry a percentage"
+    check: check_declared_units
+  - id: every_declared_field_present_and_finite
+    statement: >
+      Every field the artifact declares is present, finite and on the declared
+      grid, and no field is present that the artifact does not declare.
+    check: check_present
+  - id: intervals_tile_the_block
+    statement: >
+      The declared intervals tile the declared block: no gap, no overlap, and
+      the sum of the durations equal to the block's span.
+    check: undeclared
+    owner: efor-7
+  - id: consumer_reproduces_the_producer
+    statement: >
+      The consumer's per-day series reproduces the producer's per-interval
+      values. For an intensive quantity the duration-weighted mean of the days
+      in an interval returns the interval mean; for an extensive one the sum of
+      the days returns the interval total. The contract carries no extensive
+      field, so only the first arm has a subject today.
+    check: undeclared
+    owner: efor-4
+
+# THE PROCESS CADENCE REGISTRY.
+#
+# Cadence follows processes, not a universal bin count. Each row is one
+# consuming process, the fields it needs and the interval it needs them over.
+#
+# A cadence is `undeclared` where the consuming process has not stated one. That
+# is not a gap in this file: the process is an open issue and a cadence written
+# here that its owner has not asked for would be this registry inventing the
+# requirement it exists to record. The sentinel carries the owner, and the
+# owner's issue is where the cadence is settled.
+#
+# `biosphere/notes/ecological-climate-forcing-audit.md` finding 4 is the source
+# for the producer-side reduction each cadence class needs.
+cadence_classes:
+  per_interval: >
+    Start, end, duration, orbital position, local solar phase, grid and source
+    identity. Exact coordinates, never inferred from a record number.
+  ecological_interval: >
+    One absolute day by default. Duration-weighted means of the state fields
+    plus named extrema where consumers use them, and mean rates for the fluxes.
+  subdaily: >
+    Selected synchronous samples of temperature, downwelling shortwave, humidity
+    and wind, with no independent interpolation. Shares timestamps with the
+    ecological interval and does not force the daily hydrology and
+    biogeochemistry operators onto the GCM timestep.
+  convective: >
+    Convection-timestep accumulation of a lightning potential and convective
+    precipitation, reduced to the ecological interval as a synchronous
+    diagnostic integral plus an event count and the maximum FIRE-1 defines.
+  static: >
+    Provenance-bound fields carried once per artifact.
+processes:
+  - id: bio-13
+    what: LPJ hydrology consumes a chronological rain and snow sequence
+    fields: [total_precipitation, solid_precipitation, convective_precipitation]
+    cadence: undeclared
+    owner: bio-13
+    why_undeclared: >
+      The issue requires event-resolved rather than smoothed precipitation and
+      requires the smooth-versus-event-resolved comparison to be MEASURED before
+      adoption. Which interval resolves an event on this world is the outcome of
+      that measurement, so declaring one here would fix a threshold before the
+      result it is judged against.
+  - id: bio-23
+    what: local pressure, longwave, humidity and wind reach the physiology
+    fields: [surface_air_pressure, specific_humidity, wind_speed, net_longwave,
+             upward_longwave, net_shortwave, air_temperature]
+    cadence: ecological_interval
+    owner: bio-23
+    source: >
+      These replace quantities LPJ currently discards or reconstructs at a
+      sea-level Earth value, and every one of them is read by an operator that
+      already runs on the 24-hour ecological step. Nothing in the issue asks for
+      structure inside the interval.
+  - id: pcar-1
+    what: photosynthesis integrates over an explicit absolute-time interval
+    fields: [incident_shortwave, air_temperature, specific_humidity]
+    cadence: subdaily
+    owner: pcar-1
+    source: >
+      A 24-hour forcing interval is 0.8 of a rotation, so light and dark periods
+      do not align with it and changing the astronomical daylength alone is
+      insufficient. The issue requires APAR, light saturation, stomatal
+      conductance and light and dark leaf respiration to be integrated over each
+      interval with the rotation phase explicit, which needs structure inside
+      the interval and the phase the interval record carries.
+  - id: fire-1
+    what: the producer-side lightning potential diagnostic
+    fields: [convective_precipitation]
+    cadence: convective
+    owner: fire-1
+    source: >
+      The diagnostic is an upstream convective quantity accumulated at the
+      convection substep. Both convection schemes already derive a cloud-top
+      level and pressure and neither exports it, so the field this row needs
+      does not exist yet and its reduction is FIRE-1's to define.
+  - id: fire-2
+    what: the fire step, against this world's rotation and orbit
+    fields: [convective_precipitation, total_precipitation, air_temperature,
+             specific_humidity, wind_speed, surface_air_pressure,
+             incident_shortwave]
+    cadence: undeclared
+    owner: fire-2
+    why_undeclared: >
+      The issue requires the fire step to be defined against the 30-hour solar
+      day and the orbit, and requires integrated fluxes to be conserved rather
+      than the fields independently smoothed. Which step that is depends on
+      FIRE-1's diagnostic, which does not exist yet.
+  - id: anut-4
+    what: abiotic fixed nitrogen from the flash count
+    fields: [convective_precipitation, surface_air_pressure]
+    cadence: convective
+    owner: anut-4
+    source: >
+      The same upstream diagnostic FIRE-1 produces, taken as a total flash count
+      or discharge energy rather than as FIRE-3's cloud-to-ground ignition
+      field, so the two consumers share one producer-side quantity.
+  - id: lshy-4
+    what: the fast vegetation-climate water loop
+    fields: []
+    cadence: undeclared
+    owner: lshy-4
+    why_undeclared: >
+      This process reads the LAND COLUMN and not the atmosphere, and the land
+      column is EFOR-8's extension of the artifact rather than a row of this
+      contract. Whether the loop is a shared operator or an outer iteration is
+      undecided, and the cadence follows that choice.
+  - id: lshy-5
+    what: snow, frozen soil and thermal state consistent across both models
+    fields: []
+    cadence: undeclared
+    owner: lshy-5
+    why_undeclared: >
+      Also the land column, and also EFOR-8's. State at interval boundaries and
+      flux integrals over intervals is the shape the audit gives it; the
+      interval is the ecological one only if LSHY-3's reduction settles there.
+  - id: efor-8
+    what: the land-column extension of this artifact
+    fields: []
+    cadence: undeclared
+    owner: efor-8
+    why_undeclared: >
+      This contract deliberately stops at the atmosphere's side of the surface.
+      EFOR-8 carries canopy and snow storage, snowmelt, soil temperature and
+      liquid or ice by layer, runoff, drainage, signed groundwater exchange and
+      fulfilled root uptake, and it extends this file rather than replacing it.
+
+# LEGACY SCAFFOLDING, DECLARED DISPOSABLE.
+#
+# Named here so that a reader who finds these in the tree knows they are not the
+# contract and are not owed compatibility. Nothing below is a version of this
+# contract; each is a transport that was chosen before the contract existed, and
+# EFOR-1's whole point is that the order was wrong.
+legacy:
+  - what: the VESPDRV fixed-width driver binary
+    where: vendor/lpj-guess/modules/vesperinput.cpp, biosphere/scripts/build_lpj_driver.py
+    disposable: true
+    why: >
+      A fixed-width record cannot carry a per-interval duration, so its cadence
+      lives in the reader and its meaning lives in a magic number. That is how
+      the fourth array changed variable under an unchanged byte layout: only the
+      magic bump caught it, and only because someone thought to bump it. It is
+      superseded by EFOR-3's self-describing artifact and EFOR-4's reader, and
+      no vesper_driver.bin has ever been written, so the cost of replacing the
+      format is zero until one is.
+  - what: the twelve climatological bins
+    where: pyburn's np.linspace(0, ntimes, 13) reduction and the driver's months
+    disposable: true
+    why: >
+      Twelve is an Earth calendar's month count and nothing in this world's
+      orbit produces it. The bins are not even equal: the remainder is
+      distributed by truncation, so two bins in twelve are longer than the other
+      ten and neither is where a calendar would put a long month. They also do
+      not tile the orbit, since 0.44 per cent of every orbit is in no bin at
+      all. The baseline climatology stays as a map and summary product; it stops
+      being an ecological driver.
+  - what: monthly interpolation in the consumer
+    where: vendor/lpj-guess/modules/vesperinput.cpp
+    disposable: true
+    why: >
+      Interpolating between monthly totals manufactures a smooth series whose
+      wet-day structure is invented by the interpolator. EFOR-4 replaces it with
+      exact chronological intervals, and BIO-13 owns what LPJ hydrology does
+      with them.
