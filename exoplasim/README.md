@@ -346,7 +346,7 @@ unless told they exist.
 | `segments.py` | what a run's segments were for and which orbits that makes usable; the one reader of the manifest's `segments` list |
 | `finalize_existing_segment.py` | record a completed segment after post-run bookkeeping failed; takes the same `--purpose` |
 | `run_stellar_cycle.py` | run or resume a superposed-sinusoid stellar-flux experiment |
-| `rebuild_binaries.py` | rebuild every executable and record which patches each contains |
+| `rebuild_binaries.py` | rebuild every executable and record which patches each contains. `--verify` builds nothing and answers whether the executables on disk are CURRENT -- rule 4's passive half -- and `verify()` is the same answer as data, which `scripts/check_consistency.py` calls rather than restating |
 | `verify_model_compiles.py` | does the model SOURCE compile: `gfortran -fsyntax-only` over every translation unit `plasim/CMakeLists.txt` names, sorted into `use` order and run under the flag line `config/planet.yaml` declares, `-fdefault-real-8` included. It builds no binary and answers nothing about whether one is current, which is rule 4's separate question. Run it after a Fortran edit, before paying for a build; `scripts/smoke_test.py` runs it too, and `--skip-compile` opts out |
 | `make_profile_bed.py` | short, output-free copy of a run directory to measure the model on, and the one thing in the tree that produces a bed a gate can use. Every run directory on disk was written by an older model, so a verbatim copy carries namelist keys the current `namelist` statements no longer declare and lacks the ones the current model requires; this PRUNES the first, reading what the model declares out of `plasim/src` rather than listing it, and FORCES the second from `config/planet.yaml` -- the `icemod_nl` cold-start profile among them, without which `ice_cold_start` refuses to start. Both are reported in the bed manifest. `--verify-namelist-map` prints the namelist-file-to-group pairing it derives and builds nothing |
 | `profile_transforms.sh` | sample every rank with `perf` over a bed; `perf_rank.sh` is its per-rank wrapper |
@@ -386,6 +386,7 @@ unless told they exist.
 | `verify_shtns_model.sh` | the gate the array comparison cannot give: one binary, NSHTNS=0 against NSHTNS=1 on one bed, with the growth curve and a control that drops the spectral filter. The model reaches the transform through a namelist, a build and a call site that comparing arrays never touches |
 | `build_shtns.sh` | builds SHTns from a PINNED revision into `vendor/shtns-install`, untracked as `.venv` is; not a subtree because it is used unmodified, not a system install because that puts a build dependency where no manifest records it. Every convention the model reconciles against is a property of the revision |
 | `verify_omp_collectives.sh` | checks each of `mpimod_omp.f90`'s 39 routines against the answer written down in advance, with mode-dependent data so an index error cannot cancel |
+| `verify_uninitialised_reads.sh` | does anything uninitialised reach a stored value, at the optimisation level this project ships? The trapping form of that question does not arm at `-O2` -- gfortran folds the signalling NaN before the arithmetic -- and `-finit-real=zero` was removed because it hid the answer rather than reporting it. This is the PROPAGATING form, which needs no trap: the declared flag line plus `-finit-real=snan` with FE_INVALID masked, on one bed, restart compared bit for bit against the shipped build's, at NSHTNS=1 and at NSHTNS=0 so a difference the library's own scratch over-read causes is separated from one the model causes. The control is a deliberate uninitialised read reaching the temperature tendency and must break the agreement |
 | `verify_shared_determinism.sh` | runs the threaded build repeatedly on one bed and requires one answer, since a race on shared state shows up as a different answer each time rather than a wrong one; the control is the pre-fix source and must NOT reproduce itself |
 | `_bed_guard.sh` | sourced, not run: refuses a comparison bed that starts cold with a kick and no fixed SEED, because the model seeds that noise from the clock and every comparison on such a bed measures the clock |
 | `bench_rank_layout.py` | rank layouts incl. oversubscribed, on latency AND throughput, with pinning verified |
@@ -539,9 +540,17 @@ So, two rules:
   star-cycle build: the cycle is a namelist switch on these same binaries.
 - **`rebuild_binaries.py --verify` is the cheap check** that no executable is
   stale against the source on disk, which is failure class 11 and has fired
-  repeatedly. `check_consistency.py` runs the same check. It hashes the files
-  rather than reading the subtree commit, so an uncommitted edit under
-  `vendor/` is caught rather than waved through.
+  repeatedly. It builds nothing and links nothing: a manifest read and a sha per
+  source. It hashes the files rather than reading the subtree commit, so an
+  uncommitted edit under `vendor/` is caught rather than waved through, and it
+  reports four separate findings -- an executable of unknown provenance, one
+  built from source that has moved, a MATRIX row with no binary at all, and a
+  toolchain that has moved under unchanged sources. `check_consistency.py` CALLS
+  it, through `rebuild_binaries.verify()`, and reports every one of those as a
+  failure once anything is built; a tree with no executables at all is unbuilt
+  rather than inconsistent and gets a warning. Nothing restates the comparison
+  a second time, which is how the copy that used to live in `check_consistency`
+  came to see only the first two findings and only in `plasim/run`.
 
 The ozone patch is *resident* in the source -- it must be applied for any build
 to be correct. The star-cycle patch is not: it is applied and reversed around its

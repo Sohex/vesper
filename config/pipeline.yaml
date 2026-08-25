@@ -727,6 +727,22 @@ checks:
   # after a Fortran edit, before paying for a build.
   - id: verify_model_compiles
     script: exoplasim/scripts/verify_model_compiles.py
+  # Does anything uninitialised reach a stored value, at the optimisation level
+  # this project ships? The trapping form of that question does not arm at -O2
+  # -- world-5rs measured the positive control -- and `-finit-real=zero` was
+  # removed because it hid the answer rather than reporting it. This is the
+  # PROPAGATING form, which needs no trap: the declared flag line plus
+  # `-finit-real=snan` with FE_INVALID masked, on one bed, restart compared bit
+  # for bit against the shipped build's, with a deliberate uninitialised read as
+  # the control. It is the evidence the 26.03% trade in
+  # exoplasim/notes/the-zeroing-is-an-init-flag.md rests on.
+  #
+  # UNLIKE THE THREE ABOVE it takes arguments -- a bed, a rung, a thread count --
+  # and it is not run by smoke_test. It costs four builds at the rung it is asked
+  # for (two flag lines, twice, once with the control patched in) and six runs of
+  # the bed; nothing else, and it writes no artifact.
+  - id: verify_uninitialised_reads
+    script: exoplasim/scripts/verify_uninitialised_reads.sh
 
 # Present, deliberately outside the graph: no step row runs them (some are
 # imported as modules by step scripts).
