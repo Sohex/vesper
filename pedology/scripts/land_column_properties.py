@@ -109,18 +109,82 @@ def load(path: Path = DECLARATION) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
-def cosby_parameters(sand, clay):
+def cosby_parameter_spread(sand, clay):
+    """Cosby Table 4's S.D. rows: the residual spread WITHIN a texture class.
+
+    THE UNCERTAINTY OF THE ADOPTED CENTRAL CASE, and it comes from the same
+    table and the same fit as the central case itself. Cosby et al. regressed
+    the mean of each hydraulic parameter on texture, which is what
+    `cosby_parameters` evaluates, and they regressed the STANDARD DEVIATION of
+    each parameter within each of the eleven textural classes on the same
+    texture. The second regression is what says how much of a soil a texture
+    does not determine.
+
+    Their coefficients are per PERCENT of sand, silt and clay and are converted
+    to fractions here, once, the way every other Earth-recorded constant in this
+    file is converted at the point it is declared:
+
+        S.D. b        = 0.92 + 0.0492 %clay + 0.0144 %silt   R2 0.524, p 0.012
+        S.D. log Psi_s= 0.72 - 0.0026 %silt + 0.0012 %clay   R2 0.096, p 0.355
+        S.D. Theta_s  = 8.23 - 0.0805 %clay - 0.0070 %sand   R2 0.567, p 0.007
+
+    Two limits on reading these, both from Cosby's own table. The second
+    variable in each row is not significant, exactly as it is not in the mean
+    rows the central case uses, and the `log Psi_s` row explains almost none of
+    the between-class variation in its own spread -- so that spread is close to
+    a constant 0.7 in log10 and is used as one number rather than as a texture
+    response. What none of them carries is the CORRELATION between the three
+    parameters' errors, which Cosby does not report, and that is why the cases
+    built from these are an envelope and not a distribution.
+
+    The same table carries `S.D. log Ks`, which nothing here reads: this
+    contract declares no saturated conductivity, so the spread of one would be
+    the spread of a number that does not exist. It arrives with `lshy-3`.
+    """
+    sand = np.asarray(sand, dtype=float)
+    clay = np.asarray(clay, dtype=float)
+    silt = 1.0 - sand - clay
+    return {
+        "b": 0.92 + 4.92 * clay + 1.44 * silt,
+        "log_psi_s": 0.72 - 0.26 * silt + 0.12 * clay,
+        "theta_s": 0.01 * (8.23 - 8.05 * clay - 0.70 * sand),
+    }
+
+
+def cosby_parameters(sand, clay, deviates=None):
     """Cosby et al. (1984) Table 4 regressions. The contract's parameter source.
 
     `psi_s` is returned in `get_mineral`'s old reciprocal convention -- a stored
     10^-x is a suction of 10^x cm of water -- because the two derivations below
     are both written against it. `air_entry_pressure_pa` is what turns it into
     the pressure the adopted closure works in.
+
+    `deviates` is `(z_b, z_log_psi_s, z_theta_s)` in units of the within-class
+    standard deviation `cosby_parameter_spread` gives, and `None` is the central
+    case. It moves the PARAMETERS and not the states, so every state, every
+    layer and every consumer of one case sees the same soil: that is what the
+    contract means by applying a case coherently.
     """
     silt = 1.0 - sand - clay
     b = 3.10 + 15.7 * clay - 0.3 * sand
     log_psi_s = 1.54 - 0.95 * sand + 0.63 * silt
     theta_s = 0.01 * (50.5 - 14.2 * sand - 3.7 * clay)
+    if deviates is not None:
+        spread = cosby_parameter_spread(sand, clay)
+        z_b, z_psi, z_theta = deviates
+        b = b + z_b * spread["b"]
+        log_psi_s = log_psi_s + z_psi * spread["log_psi_s"]
+        theta_s = theta_s + z_theta * spread["theta_s"]
+        # A case has to stay a soil. The exponent of a retention curve is
+        # positive and a porosity is a fraction of a bulk volume; a case that
+        # leaves either is not a wider bracket, it is a different closure.
+        if np.any(b <= 0.0) or np.any(theta_s <= 0.0) or np.any(theta_s >= 1.0):
+            raise SystemExit(
+                f"uncertainty case {deviates} puts a cell outside the closure: "
+                f"b down to {float(np.min(b)):.3f} and porosity in "
+                f"[{float(np.min(theta_s)):.3f}, {float(np.max(theta_s)):.3f}]. "
+                "The within-class spread is a spread of Cosby's parameters and "
+                "cannot be applied where it leaves the parameter space.")
     psi_s = 10.0 ** (-log_psi_s)
     return b, psi_s, theta_s
 
@@ -223,7 +287,7 @@ CM_WATER_PER_M = 100.0
 NUMERICAL_FLOOR = 1.0e-4
 
 
-def air_entry_pressure_pa(sand, clay, decl: dict):
+def air_entry_pressure_pa(sand, clay, decl: dict, deviates=None):
     """Cosby's air-entry head as a pressure. Earth-recorded, and invariant.
 
     `log_psi_s` is log10 of the air-entry suction in centimetres of water as
@@ -231,7 +295,7 @@ def air_entry_pressure_pa(sand, clay, decl: dict):
     becomes a pressure through Earth's gravity, once, here.
     """
     pot = decl["potential_convention"]
-    _, psi_s, _ = cosby_parameters(sand, clay)
+    _, psi_s, _ = cosby_parameters(sand, clay, deviates)
     head_cm = 1.0 / psi_s            # the suction itself, cm of water on Earth
     return (pot["water_density_kg_m3"] * pot["earth_gravity_m_s2"]
             * head_cm / CM_WATER_PER_M)
@@ -249,7 +313,7 @@ def field_capacity_pressure_pa(decl: dict, gravity_m_s2: float) -> float:
             * pot["field_capacity_drainage_length_m"])
 
 
-def contract_states(sand, clay, decl: dict, gravity_m_s2: float):
+def contract_states(sand, clay, decl: dict, gravity_m_s2: float, deviates=None):
     """The adopted volumetric states: saturation, field capacity, wilting point.
 
     Clapp-Hornberger, `theta(p) = theta_s * (p_ae / p) ** (1 / b)`, clamped at
@@ -257,10 +321,13 @@ def contract_states(sand, clay, decl: dict, gravity_m_s2: float):
     pore space is full and theta is theta_s. Returns `b` as well, because the
     exponent is a declared property of the closure and consumers that need a
     texture-dependent drainage rule take it from here rather than refitting one.
+
+    `deviates` selects an uncertainty case; `None` is the central case and is
+    what every consumer installs. See `cosby_parameters`.
     """
     pot = decl["potential_convention"]
-    b, _, theta_s = cosby_parameters(sand, clay)
-    p_ae = air_entry_pressure_pa(sand, clay, decl)
+    b, _, theta_s = cosby_parameters(sand, clay, deviates)
+    p_ae = air_entry_pressure_pa(sand, clay, decl, deviates)
     p_fc = np.maximum(field_capacity_pressure_pa(decl, gravity_m_s2), p_ae)
     p_wilt = np.maximum(abs(float(pot["wilting_point_pa"])), p_ae)
     theta_fc = theta_s * (p_ae / p_fc) ** (1.0 / b)
@@ -797,8 +864,9 @@ def gravity_field_capacity_shift(decl: dict, soil: dict[str, np.ndarray],
                         "one: it holds the Clapp-Hornberger exponent fixed while "
                         "gravity moves, so it is the whole of the shift a "
                         "gravity-invariant curve can produce, and the "
-                        "within-texture-class variance Cosby reports is larger "
-                        "than the shift. A declared limitation of the adopted "
+                        "within-texture-class spread Cosby reports is larger "
+                        "than the shift -- `uncertainty_cases` measures both "
+                        "moves in the same capacity. A declared limitation of the adopted "
                         "value, not a reason to leave the states at Earth's "
                         "suction: the shift moves every cell the same way, so "
                         "unlike a scatter it does not average out over the map.",
@@ -865,9 +933,12 @@ def adopted_case(decl: dict, soil: dict[str, np.ndarray],
         "limitation": "the gravity shift holds the Clapp-Hornberger exponent "
                       "fixed while gravity moves, so the adopted field capacity "
                       "is an UPPER BOUND on how far a gravity-invariant "
-                      "retention curve can fall. Cosby's within-texture-class "
-                      "variance is larger than the shift and no artifact here "
-                      "carries it, so the reported spread is a lower bound.",
+                      "retention curve can fall.",
+        "uncertainty": "Cosby's within-texture-class residual spread, carried in "
+                       "`uncertainty_cases` and declared in the contract's "
+                       "uncertainty block. It is larger than the gravity shift, "
+                       "and that comparison is measured there rather than "
+                       "asserted here.",
     }
 
     not_adopted = {
@@ -937,7 +1008,152 @@ def adopted_case(decl: dict, soil: dict[str, np.ndarray],
 
 
 # ---------------------------------------------------------------------------
-# 6. The emission. What the consumers read instead of deriving.
+# 6. The uncertainty of the adopted case
+# ---------------------------------------------------------------------------
+
+# The corners of the one-sigma box in Cosby's three parameters. Three
+# parameters and two signs is eight cases, all of them evaluated, because
+# Cosby reports no correlation between the three residuals and so nothing here
+# can say which corner a real soil sits nearest. Taking the extremes over the
+# corners is therefore an ENVELOPE and is labelled as one everywhere it is
+# reported: it is what the spread can be worth, not a percentile of a
+# distribution.
+CASE_DEVIATE = 1.0
+CASE_CORNERS = tuple((zb, zp, zt)
+                     for zb in (-CASE_DEVIATE, CASE_DEVIATE)
+                     for zp in (-CASE_DEVIATE, CASE_DEVIATE)
+                     for zt in (-CASE_DEVIATE, CASE_DEVIATE))
+
+
+def uncertainty_cases(decl: dict, soil: dict[str, np.ndarray],
+                      gravity_m_s2: float) -> dict:
+    """What the adopted states are worth, from Cosby's within-class spread.
+
+    THE CENTRAL CASE'S OWN UNCERTAINTY. Texture explains the mean structure of
+    the retention parameters over 1,448 samples, and the parameter spread that
+    survives inside a texture class is large -- Cosby's Table 3 puts the
+    exponent's within-class standard deviation at a third of its mean. Every
+    consumer installs the central case, so without this the states carry no
+    declared spread at all and the percentiles in this report are a spread
+    ACROSS THE MAP, which is a different fact about a different thing.
+
+    Applied COHERENTLY, which is what makes this a bracket rather than a
+    smoothing: one set of deviates moves the parameters, the parameters set
+    every state, and the states apply to all fifteen layers of the cell. Drawing
+    a layer at a time would average the spread away and report a precision the
+    contract does not have.
+
+    The low and high cases are the per-cell extremes over the corners of the
+    one-sigma box, which is a bound and not a quantile: Cosby reports the three
+    residual spreads separately and no correlation between them, so a case that
+    takes a low exponent with a high porosity cannot be ruled out from the
+    published table, and nothing here can weight it either.
+    """
+    sand, clay = soil["sand"], soil["clay"]
+    usable = layer_usable_fraction(soil["depth"], soil["bedrockfrac"], decl)
+
+    def case(deviates):
+        b, theta_s, theta_fc, theta_wp = contract_states(
+            sand, clay, decl, gravity_m_s2, deviates)
+        return {"b": b, "theta_s": theta_s, "theta_fc": theta_fc,
+                "theta_wp": theta_wp,
+                "awc_mm": column_capacity_mm(theta_fc, theta_wp, usable, decl)}
+
+    central = case(None)
+    corners = [case(z) for z in CASE_CORNERS]
+    names = ("b", "theta_s", "theta_fc", "theta_wp", "awc_mm")
+    low = {name: np.min([c[name] for c in corners], axis=0) for name in names}
+    high = {name: np.max([c[name] for c in corners], axis=0) for name in names}
+
+    # The ordering the contract declares has to survive every case, or a case
+    # is not a soil. This is the check with a right answer.
+    violations = 0
+    for c in corners:
+        violations += int(np.count_nonzero(
+            (c["theta_wp"] > c["theta_fc"] + 1e-12)
+            | (c["theta_fc"] > c["theta_s"] + 1e-12)))
+
+    driving = np.argmax([c["awc_mm"] for c in corners], axis=0)
+    spread = cosby_parameter_spread(sand, clay)
+
+    # The contract declares the gravity shift in field capacity as an upper
+    # bound and says this spread is larger than it. Both are moves in the same
+    # capacity, so the comparison is arithmetic rather than assertion: the
+    # gravity move is the central case against the same closure at Earth's
+    # gravity, and the case move is the wider side of the envelope.
+    earth_g = float(decl["potential_convention"]["earth_gravity_m_s2"])
+    _, _, fc_earth, wp_earth = contract_states(sand, clay, decl, earth_g)
+    awc_earth = column_capacity_mm(fc_earth, wp_earth, usable, decl)
+    gravity_move = np.abs(central["awc_mm"] / np.maximum(awc_earth, 1e-12) - 1.0)
+    case_move = np.maximum(
+        np.abs(low["awc_mm"] / central["awc_mm"] - 1.0),
+        np.abs(high["awc_mm"] / central["awc_mm"] - 1.0))
+    against_gravity = {
+        "gravity_move_in_awc": percentiles(gravity_move),
+        "case_move_in_awc": percentiles(case_move),
+        "case_over_gravity": percentiles(case_move / np.maximum(gravity_move,
+                                                                1e-12)),
+        "cells_where_the_case_move_is_smaller": int(
+            np.count_nonzero(case_move < gravity_move)),
+        "note": "the gravity shift is one-signed and moves every cell the same "
+                "way, so it does not average out over the map; this spread is a "
+                "scatter and does. They are not interchangeable and the "
+                "comparison is of magnitude only.",
+    }
+    return {
+        "source": "cosby1984 Table 4, the S.D. rows: the within-texture-class "
+                  "residual spread of the same parameters whose means are the "
+                  "adopted central case",
+        "reference": "references/cosby_1984_a-statistical-exploration-of-the-"
+                     "relationships-of-soil-moisture-charac.pdf",
+        "deviate": CASE_DEVIATE,
+        "corners": len(CASE_CORNERS),
+        "applied": decl["uncertainty"]["applied"],
+        "is_an_envelope": (
+            "low and high are the per-cell extremes over the corners of the "
+            "one-sigma box in b, log Psi_s and Theta_s. Cosby reports the three "
+            "residual spreads separately and no correlation between them, so "
+            "this is a bound on what the spread can be worth and not a "
+            "percentile of a distribution. A correlation, if it were published, "
+            "could only narrow it."),
+        "within_class_sd": {
+            "b": percentiles(spread["b"]),
+            "log_psi_s": percentiles(spread["log_psi_s"]),
+            "theta_s_volumetric": percentiles(spread["theta_s"]),
+            "b_relative_to_central": percentiles(spread["b"] / central["b"]),
+            "theta_s_relative_to_central": percentiles(
+                spread["theta_s"] / central["theta_s"]),
+        },
+        "awc_mm": {
+            "central": percentiles(central["awc_mm"]),
+            "low": percentiles(low["awc_mm"]),
+            "high": percentiles(high["awc_mm"]),
+            "low_over_central": percentiles(low["awc_mm"] / central["awc_mm"]),
+            "high_over_central": percentiles(high["awc_mm"] / central["awc_mm"]),
+        },
+        "states": {
+            name: {"central": percentiles(central[name]),
+                   "low": percentiles(low[name]),
+                   "high": percentiles(high[name])}
+            for name in ("theta_s", "theta_fc", "theta_wp", "b")
+        },
+        "ordering_violations_over_all_cases": violations,
+        "cells_by_high_corner": {
+            str(CASE_CORNERS[corner]): int(np.count_nonzero(driving == corner))
+            for corner in range(len(CASE_CORNERS))
+            if int(np.count_nonzero(driving == corner))
+        },
+        "installed_by_any_consumer": False,
+        "installed_note": "the emitted states are the central case and every "
+                          "consumer installs that. A case is a states file "
+                          "away: `contract_states` takes the deviates and "
+                          "nothing downstream of it knows which case it read.",
+        "against_the_gravity_shift": against_gravity,
+    }
+
+
+# ---------------------------------------------------------------------------
+# 7. The emission. What the consumers read instead of deriving.
 # ---------------------------------------------------------------------------
 
 # Shared with pedology/scripts/build_soil.py and
@@ -1059,6 +1275,7 @@ def build_report(decl: dict, soil_map: Path, gravity_m_s2: float,
         "frame_consistency": frames,
         "emitted_states": emitted,
         "adopted_case": adopted_case(decl, soil, gravity_m_s2),
+        "uncertainty_cases": uncertainty_cases(decl, soil, gravity_m_s2),
         "undeclared_properties": undeclared_properties(decl),
     }
 
@@ -1178,6 +1395,24 @@ def main(argv: list[str] | None = None) -> int:
               f"{grav['available_capacity_ratio']['median']:.4f} median of Earth's, "
               f"{grav['available_capacity_ratio']['p10']:.4f} to "
               f"{grav['available_capacity_ratio']['p90']:.4f}")
+
+        unc = report["uncertainty_cases"]
+        awc = unc["awc_mm"]
+        print(f"\n  uncertainty of the adopted case, from cosby1984 Table 4's "
+              f"within-class S.D. rows")
+        print(f"    awc envelope          {awc['low']['median']:7.1f} to "
+              f"{awc['high']['median']:7.1f} mm median, "
+              f"x{awc['low_over_central']['median']:.3f} to "
+              f"x{awc['high_over_central']['median']:.3f} of the central case")
+        cmp_g = unc["against_the_gravity_shift"]
+        print(f"    against the gravity shift  "
+              f"{cmp_g['case_move_in_awc']['median']:.3f} against "
+              f"{cmp_g['gravity_move_in_awc']['median']:.3f}, a factor "
+              f"{cmp_g['case_over_gravity']['median']:.1f} at the median cell; "
+              f"smaller on {cmp_g['cells_where_the_case_move_is_smaller']} cells")
+        print(f"    ordering violations   "
+              f"{unc['ordering_violations_over_all_cases']} over "
+              f"{unc['corners']} cases and every cell")
 
         print(f"\n  {len(report['undeclared_properties'])} properties undeclared; "
               "the contract is defined and is not complete")

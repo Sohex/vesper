@@ -242,6 +242,16 @@ correlation; it measures the region where the closure would return a field
 capacity above saturation -- an analytic line in the texture simplex, not a
 search -- and reports the map's margin from it rather than a count.
 
+**The adopted states carry their own bracket, from the same table as their
+mean.** Cosby et al. regressed the within-texture-class standard deviation of
+each retention parameter on texture alongside the mean, and that spread is what
+texture does not determine. The report evaluates the corners of the one-sigma
+box in the exponent, the air-entry head and the porosity, coherently across
+every layer and every state, and reports the resulting capacity envelope
+against the gravity shift in the same units. It is an envelope rather than a
+distribution because Cosby publishes no correlation between the three
+residuals. Every consumer installs the central case.
+
 Gravity is where the contract earns its keep, and the correction is APPLIED.
 Saturation is pore geometry and does not move; the wilting point is a plant
 pressure and does not move; field capacity is a drainage equilibrium over a
@@ -260,8 +270,9 @@ checks the two consistent frames against each other and against the mixed one.
 Three arms are falsifiable: the declaration check is run against ten contracts
 broken in named ways and is required to catch every one; the frame check
 requires two frames to agree and a third not to; and the mutation harness fails
-if a mutation goes uncaught. Eight properties still carry the `undeclared`
-sentinel and `--strict` is the arm that refuses.
+if a mutation goes uncaught. The properties still carrying the `undeclared`
+sentinel are listed by the report with the issue that owns each, and `--strict`
+is the arm that refuses while any remain.
 
 ## One hydraulic description; the two columns still evolve separately
 

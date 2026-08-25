@@ -143,8 +143,9 @@ of it by the shape of the curve. A retention curve whose exponent also responded
 to gravity would fall by less. Two things make the bound worth adopting anyway:
 the shift moves every cell the same way, so unlike a scatter it does not average
 out over the map; and its direction is not in doubt. What it is NOT is a
-precision. Cosby's within-texture-class variance is larger than the shift and no
-artifact here carries it, so the adopted states have no declared bracket at all.
+precision. Cosby's within-texture-class spread is larger than the shift, by more
+than an order of magnitude at the median cell, and the report measures the two
+moves in the same capacity rather than asserting the comparison.
 
 **The trap this section exists to close.** Cosby's parameters are recorded as
 heads in centimetres of water, and a head is a pressure only through the local
@@ -170,11 +171,24 @@ independently averages the spread away by roughly the square root of fifteen and
 reports a precision the description does not have. The contract check refuses a
 declaration that says otherwise.
 
-**The adopted central case has no declared bracket, and saying so is the
-point.** Its uncertainty is Cosby's within-texture-class residual variance,
-which Cosby et al. report as large -- larger than everything else in this
-contract's uncertainty put together -- and which no artifact here carries. LSHY-1
-owns it.
+**The adopted central case's bracket is Cosby's own within-class spread, from
+the same table as its mean.** Cosby et al. regressed the mean of each hydraulic
+parameter on texture, which is what the central case evaluates, and they
+regressed the STANDARD DEVIATION of each parameter within each of the eleven
+textural classes on the same texture. The second regression is what says how
+much of a soil a texture does not determine, and it is large: larger than
+everything else in this contract's uncertainty put together, and larger than the
+gravity shift above. `land_column_properties.py:cosby_parameter_spread` is the
+one place those coefficients are written and the contract's uncertainty block
+declares them.
+
+The cases built from it are an ENVELOPE and are labelled as one. Cosby reports
+the three residual spreads separately and no correlation between them, so the
+low and high cases are the per-cell extremes over the corners of the one-sigma
+box in the exponent, the air-entry head and the porosity: no corner can be
+excluded from the published table and none can be weighted. A published
+correlation could only narrow it. Every consumer installs the CENTRAL case;
+emitting another is one argument to `contract_states`.
 
 The declared endmember brackets in `pedology/config/pedogenesis.yaml` bracket
 something else. They carry their own argument: DECLARED values with Saxton and
@@ -319,7 +333,6 @@ arm that refuses.
 | the frozen-pore impedance EXPONENT; the form is declared and is used by nothing, because the scheme that would need it has no conductivity to reduce | LSHY-5 |
 | composition-dependent thermal properties, so that one material property is not split into an organic profile for water and a constant for heat. The PHASE half is now declared: freeze and thaw exchange the latent heat of fusion with the soil temperature layer that contains the water layer's midpoint, and the sensible heat capacity is still a constant | LSHY-5 |
 | the organic fraction and one vertical rule for it | SDEC-10 |
-| Cosby's within-texture-class variance, which is the uncertainty of the ADOPTED central case and the dominant term. Until it exists the adopted states carry no bracket at all | WORLD-RHTX |
 | the andic hydraulic effect. The adopted closure has no allophane term, so the material is declared, its fraction is read, and nothing in the retention curve responds to it | WORLD-NUPA |
 
 ## What this contract does not own
