@@ -211,6 +211,15 @@ climatology remains the right artifact for maps and equilibrium summaries. It
 is not the right artifact for daily interception, snow, drought, phenology,
 respiration, fire or subdaily photosynthesis.
 
+The producer half of that replacement exists: `NECO` turns on an ecological
+output stream in the climate model, written at the interval an ecological
+consumer integrates over, carrying the fields
+`notes/ecological-forcing-field-contract.md` declares. See
+"The ecological stream" in `exoplasim/README.md`. How the resulting blocks are
+replayed through a spin-up much longer than any of them, what uncertainty that
+construction carries, and what outcome would count as the construction failing
+are fixed in advance in `notes/forcing-replay-preregistration.md`.
+
 The adapter's cycling mechanism was verified with three artificial years at -3,
 0 and +3 K on one cell. Annual NPP locks to the supplied period and responds
 strongly:
