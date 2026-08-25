@@ -635,6 +635,12 @@ def main() -> None:
     # would no longer be measuring against the same thing.
     endmember = None
     retain_primary = retain
+    # Per-basin bracket membership, not just its width. The width says how much
+    # the two bounding climates disagree; it does not say WHICH basins, and a
+    # later pass asking whether a basin that flipped had been bracketed or had
+    # been in the intersection cannot answer that from a count. Recorded on
+    # every basin below when both arms ran, absent when one did.
+    retain_endmember = None
     if args.endmember_climatology is not None:
         endmember = climate_terms(args.endmember_climatology, args, config,
                                   basins, resolution)
@@ -921,6 +927,21 @@ def main() -> None:
                 "id": ids[i],
                 "verdict": str(verdict_name[i]),
                 "retain": round(float(retain[i]), 4),
+                # The two arms and whether they disagreed about this basin. The
+                # bracket's membership, so a later pass can say whether a basin
+                # that flipped had been bracketed or had been cut by both arms.
+                # Null on a single-climate verdict, which is what
+                # `intersection.single_climate` already says.
+                "retain_warm_vegetated_arm": (
+                    None if retain_endmember is None
+                    else round(float(retain_primary[i]), 4)),
+                "retain_cold_bare_rock_arm": (
+                    None if retain_endmember is None
+                    else round(float(retain_endmember[i]), 4)),
+                "bracketed": (
+                    None if retain_endmember is None
+                    else bool((retain_primary[i] <= 0.0)
+                              != (retain_endmember[i] <= 0.0))),
                 "retain_incision": round(float(retain_incision[i]), 4),
                 "retain_margin": round(float(retain_margin[i]), 4),
                 "retain_span_superseded": round(float(retain_span[i]), 4),

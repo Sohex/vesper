@@ -1197,6 +1197,12 @@ one_offs:
   # active one, so a change of `source_build` does not invalidate it.
   # notes/audits/basin-catalogue-floor.md.
   - hydrography/scripts/catalogue_floor.py
+  # Loop A's antitone residual: of the basins a pass carved, how many the
+  # climate that carve produced would not have carved. Outside the graph
+  # because its two inputs are verdicts on DIFFERENT builds, which no `needs`
+  # edge can express, and because nothing consumes its JSON. `--self-test`
+  # runs its four controls on fixtures. notes/audits/carve-overshoot.md.
+  - hydrography/scripts/carve_overshoot.py
   - pedology/scripts/validate_against_earth.py
   - pedology/scripts/probe_runoff_response.py
   - biosphere/scripts/score_prediction.py
