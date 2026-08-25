@@ -98,6 +98,24 @@ ifwalkernplim 0
 ! PFT file whichever way it reads.
 ifbvoc {settings['ifbvoc']}
 
+! Acclimated respiration replaces each PFT's respcoeff with a function of the
+! GROWTH temperature the tissue has adjusted to, and that growth temperature has
+! a memory whose length this project cannot derive: Gifford (2003) reports
+! respiration acclimating in as little as a week, and QUINCY's process-specific
+! memory lengths are in a supplement this project does not hold. The model now
+! carries the memory as Climate::tacc_air and Soil::tacc_root and refuses the
+! option outright unless acclim_resp_tau declares it, so nothing runs on an
+! unstated one.
+!
+! The baseline takes the standard respiration path instead, which is what the
+! CNP fork's own global_p.ins selects. That path divides respcoeff by the tissue
+! C:N windows, so sapwood and fine-root maintenance respiration is invariant
+! under the window rescaling of WORLD-XMS4, where the acclimated path has no
+! such compensation and would move maintenance respiration by up to the full
+! rescaling factor. Turning the acclimated path on is PCAR-11: it needs a
+! declared acclim_resp_tau and a one-factor sensitivity over its bracket.
+acclimated_respiration 0
+
 title "{settings['title']}"
 nyear {settings['nyear']}
 

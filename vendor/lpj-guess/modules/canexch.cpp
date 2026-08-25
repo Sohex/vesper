@@ -2884,7 +2884,7 @@ void respiration(double gtemp_air, double gtemp_soil, lifeformtype lifeform,
 // ACCLIMATED AUTOTROPHIC RESPIRATION
 // Internal function (do not call directly from framework)
 
-void respiration_acclimated(double gtemp_air, double gtemp_soil, double airtemp, double soiltemp, lifeformtype lifeform,
+void respiration_acclimated(double gtemp_air, double gtemp_soil, double tacc_air, double tacc_root, lifeformtype lifeform,
 	double cton_sap, double cton_root,
 	double cmass_sap, double cmass_root_today, double assim, double& resp) {
 
@@ -2899,8 +2899,14 @@ void respiration_acclimated(double gtemp_air, double gtemp_soil, double airtemp,
 	//              response due to temperature acclimation (Eqn 11, Lloyd & Taylor
 	//              1994); Eqn B2 below
 	// gtemp_soil = as gtemp_air given soil temperature
-	// airtemp = patch air temperature
-	// soiltemp = patch soil temperature
+	// tacc_air   = GROWTH temperature of the air the aboveground tissue is
+	//              acclimated to (deg C), Climate::tacc_air. NOT today's air
+	//              temperature: that is what gtemp_air already carries, and
+	//              passing it here made the acute response and the acclimation
+	//              multiplier the same variable, which represents no acclimation
+	//              at all
+	// tacc_root  = GROWTH temperature of the root zone, Soil::tacc_root, on the
+	//              same terms
 	// lifeform   = PFT life form class (TREE or GRASS)
 	// cton_sap   = PFT sapwood C:N ratio
 	// cton_root  = PFT root C:N ratio
@@ -2928,7 +2934,7 @@ void respiration_acclimated(double gtemp_air, double gtemp_soil, double airtemp,
 						//  (7) R_pft = respcoeff_pft * k * c_mass / cton * g(T)
 						// We then substitute respcoeff_pft for the function f(Tacc) to have
 						//  (8) R_acc = f(T_acc) * k * c_mass / cton * g(T)
-						// Where Tacc is the running average of air (airtemp) or soil temperature (soiltemp) , and f(T_acc) being
+						// Where Tacc is the running average of air (tacc_air) or root-zone temperature (tacc_root), and f(T_acc) being
 						//  (9) f(T_acc) = f_maint_rate_ref * pow(10, f_resp_acc * (T_acc - T_acc_ref)
 						
 						// and the parameters:
@@ -2944,13 +2950,13 @@ void respiration_acclimated(double gtemp_air, double gtemp_soil, double airtemp,
 		// Sapwood respiration (Eqn 7)
 		// respcoeff parameter substituted by acclimation function
 
-		resp_sap = 0.25 * pow(10, (-0.008 * (airtemp - 10.15))) * K * cmass_sap / cton_sap * gtemp_air;
+		resp_sap = 0.25 * pow(10, (-0.008 * (tacc_air - 10.15))) * K * cmass_sap / cton_sap * gtemp_air;
 
 		// Root respiration (Eqn 7)
 		// Assumed that root phenology follows leaf phenology
 		// respcoeff parameter substituted by acclimation function
 
-		resp_root = 1.0 * pow(10, (-0.008 * (soiltemp - 10.15))) * K * cmass_root_today / cton_root * gtemp_soil;
+		resp_root = 1.0 * pow(10, (-0.008 * (tacc_root - 10.15))) * K * cmass_root_today / cton_root * gtemp_soil;
 
 		// Growth respiration = 0.25 ( GPP - maintenance respiration)
 
@@ -2969,7 +2975,7 @@ void respiration_acclimated(double gtemp_air, double gtemp_soil, double airtemp,
 		// Root respiration
 		// respcoeff parameter substituted by acclimation function
 
-		resp_root = 1.0 * pow(10, (-0.008 * (soiltemp - 10.15))) * K * cmass_root_today / cton_root * gtemp_soil;
+		resp_root = 1.0 * pow(10, (-0.008 * (tacc_root - 10.15))) * K * cmass_root_today / cton_root * gtemp_soil;
 
 		// Growth respiration (see above)
 
@@ -3106,7 +3112,7 @@ void npp(Patch& patch, Climate& climate, Vegetation& vegetation, const Day& day)
 
 		//Acclimated or standard respiration
 		if(acclimated_respiration)
-			respiration_acclimated(gtemp, patch.soil.gtemp, temp, patch.soil.get_soil_temp_25(), indiv.pft.lifeform,
+			respiration_acclimated(gtemp, patch.soil.gtemp, climate.tacc_air, patch.soil.tacc_root, indiv.pft.lifeform,
 				cton_sap, cton_root,
 				indiv.cmass_sap, cmass_root, assim, resp);
 		else

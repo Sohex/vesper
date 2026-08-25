@@ -84,6 +84,13 @@ void Climate::serialize(ArchiveStream& arch) {
 		& agdd0_20
 		& chilldays
 		& ifsensechill
+		& tacc_air
+		& tacc_air_set
+		& coldest_day
+		& warmest_day
+		& dtemp_seasonal
+		& seasonal_cycle_years
+		& seasonal_cycle_supplied
 		& gtemp
 		& dtemp_31
 		& dprec_31
@@ -132,6 +139,90 @@ void Climate::serialize(ArchiveStream& arch) {
 		& kbdi
 		& ffdi_monthly
 		& weathergenstate;
+}
+
+void Climate::accumulate_seasonal_cycle() {
+
+	// One day of the running seasonal cycle. An input module that hands over the
+	// whole year at once has already done this for every day of it.
+	if (seasonal_cycle_supplied) {
+		return;
+	}
+
+	const double weight = 1.0 / (double)min(seasonal_cycle_years + 1, NYEAR_SEASONAL);
+	dtemp_seasonal[date.day] = (1.0 - weight) * dtemp_seasonal[date.day]
+		+ weight * temp;
+}
+
+void Climate::set_seasonal_cycle(const double* dtemp_year) {
+
+	const int len = date.year_length();
+	const double weight = 1.0 / (double)min(seasonal_cycle_years + 1, NYEAR_SEASONAL);
+
+	for (int d = 0; d < len; d++) {
+		dtemp_seasonal[d] = (1.0 - weight) * dtemp_seasonal[d]
+			+ weight * dtemp_year[d];
+	}
+
+	seasonal_cycle_supplied = true;
+	find_seasonal_landmarks();
+}
+
+void Climate::find_seasonal_landmarks() {
+
+	// The coldest and the warmest day of the simulation year, read off the
+	// running seasonal cycle rather than assumed from a calendar date. A
+	// gridcell's hemisphere never enters: a southern cell's forcing is coldest in
+	// the southern winter and the minimum finds it there. Nor does thermal lag,
+	// which is what scaling Earth's ordinal dates by the year ratio would have
+	// carried over.
+	//
+	// The extremum is taken of the cycle smoothed over one of this world's
+	// months, because a landmark is the centre of a season and not one day's
+	// weather; the ordinal dates this replaces were themselves mid-month values.
+	// The window is circular, since a seasonal cycle has no ends.
+
+	const int len = date.year_length();
+	const int window = max(1, len / 12);
+
+	double coldest_sum = 0.0;
+	double warmest_sum = 0.0;
+	int cold = 0;
+	int warm = 0;
+
+	for (int d = 0; d < len; d++) {
+
+		double sum = 0.0;
+		for (int k = 0; k < window; k++) {
+			int i = (d + k - window / 2) % len;
+			if (i < 0) {
+				i += len;
+			}
+			sum += dtemp_seasonal[i];
+		}
+
+		if (d == 0 || sum < coldest_sum) {
+			coldest_sum = sum;
+			cold = d;
+		}
+		if (d == 0 || sum > warmest_sum) {
+			warmest_sum = sum;
+			warm = d;
+		}
+	}
+
+	// A cycle flat to the last bit has no extremum to find, and the two searches
+	// return the same day. The landmarks are then placed half a year apart, which
+	// is the only choice that assumes nothing about which half of the year is
+	// which and still fires each reset exactly once per simulation year. Nothing
+	// downstream depends on where they land in that case: with no seasonal cycle
+	// the degree-day sum is the same on every day of the year.
+	if (warm == cold) {
+		warm = (cold + len / 2) % len;
+	}
+
+	coldest_day = cold;
+	warmest_day = warm;
 }
 
 void WeatherGenState::serialize(ArchiveStream& arch) {

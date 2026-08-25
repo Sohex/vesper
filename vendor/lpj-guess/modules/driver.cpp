@@ -499,6 +499,33 @@ void prdaily(double* mval_prec, double* dval_prec, double* mval_wet, long& seed,
 }
 
 /// Called each simulation day before any other driver or process functions
+/// One day of acclimation of a tissue's basal respiration rate to its temperature
+/** An exponential running mean with an e-folding time of acclim_resp_tau
+ *  ABSOLUTE days, which is what acclimation is measured in: it is a
+ *  physiological process and knows nothing about this world's orbit. ABSOLUTE-RATE
+ *  in biosphere/notes/time-base-unit-contract.md.
+ *
+ *  The state is seeded from the first temperature it sees rather than from a
+ *  constant, so a gridcell begins acclimated to its own climate and no spin-in
+ *  from an arbitrary starting temperature enters the first orbit's carbon
+ *  balance. It is maintained only while acclimated_respiration is on, because
+ *  acclim_resp_tau has no default and is only required to be declared then.
+ */
+static void acclimate(double& state, bool& is_set, double temp) {
+
+	if (!acclimated_respiration) {
+		return;
+	}
+
+	if (!is_set) {
+		state = temp;
+		is_set = true;
+		return;
+	}
+
+	state += (1.0 - exp(-1.0 / acclim_resp_tau)) * (temp - state);
+}
+
 void dailyaccounting_gridcell(Gridcell& gridcell) {
 
 	// DESCRIPTION
@@ -627,21 +654,37 @@ void dailyaccounting_gridcell(Gridcell& gridcell) {
 		}
 	}
 	
-	if ( (climate.lat >= 0.0 && date.day == COLDEST_DAY_NHEMISPHERE) ||
-	     (climate.lat < 0.0 && date.day == COLDEST_DAY_SHEMISPHERE) ) {
+	// The growth temperature the aboveground tissue's basal respiration rate is
+	// acclimated to. Separate from gtemp below, which is the acute response to
+	// today's temperature; see acclimate above.
+	acclimate(climate.tacc_air, climate.tacc_air_set, climate.temp);
+
+	// Today's air temperature into the running seasonal cycle the landmarks
+	// below are derived from. Before the GDD counters, so that a gridcell's own
+	// forcing decides where its midwinter and its midsummer fall.
+	climate.accumulate_seasonal_cycle();
+
+	if (date.day == climate.coldest_day) {
 		// In midwinter, reset GDD counter for summergreen phenology
 		climate.gdd5 = 0.0;
 		climate.ifsensechill = false;
 	}
-	else if ( (climate.lat >= 0.0 && date.day == WARMEST_DAY_NHEMISPHERE) ||
-	          (climate.lat < 0.0 && date.day == WARMEST_DAY_SHEMISPHERE) ) {
+	else if (date.day == climate.warmest_day) {
 		climate.ifsensechill = true;
 	}
 
 	// Update GDD counters and chill day count
 	climate.gdd5 += max(0.0, climate.temp - 5.0);
 	climate.agdd5 += max(0.0, climate.temp - 5.0);
-	if (climate.temp < 5.0 && climate.chilldays <= Date::MAX_YEAR_LENGTH)
+	// The count indexes Pft::gdd0, which holds one entry per day of the year plus
+	// one, so the last index it may reach is Date::MAX_YEAR_LENGTH. A gridcell
+	// whose monthly mean temperature never crosses the 5 degree base from above
+	// gets no seasonal reset of the count at all, on this world or on Earth, so
+	// the ceiling is reached rather than hypothetical. Holding the count there
+	// costs nothing: the budburst requirement gdd0[chilldays] is
+	// k_chilla + k_chillb * exp(-k_chillk * chilldays), which is already at its
+	// asymptote k_chilla to well below a degree-day by then.
+	if (climate.temp < 5.0 && climate.chilldays < Date::MAX_YEAR_LENGTH)
 		climate.chilldays++;
 
 	climate.gdd0 += max(0.0, climate.temp);
@@ -731,6 +774,11 @@ void dailyaccounting_gridcell(Gridcell& gridcell) {
 			climate.mtemp_min_20[19] = climate.mtemp_min;
 			climate.mtemp_max_20[19] = climate.mtemp_max;
 			climate.agdd0_20.add(climate.agdd0);
+
+			// One more seasonal cycle in the running record, and the landmarks
+			// re-read from it for the year about to start.
+			climate.seasonal_cycle_years++;
+			climate.find_seasonal_landmarks();
 		}
 
 		climate.hmtemp_20[date.month].add(climate.dtemp_31.periodicmean(date.ndaymonth[date.month]));
@@ -880,6 +928,10 @@ void dailyaccounting_patch(Patch& patch) {
 
 	// Determine the soil temperature at 25cm depth
 	double soiltemp25 = soil.get_soil_temp_25();
+
+	// The root-zone growth temperature the fine roots' basal respiration rate is
+	// acclimated to, the belowground counterpart of Climate::tacc_air.
+	acclimate(soil.tacc_root, soil.tacc_root_set, soiltemp25);
 
 	if (iftwolayersoil) {
 		// Update monthly 25cm soil temperature - used for output only

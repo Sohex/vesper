@@ -93,28 +93,51 @@ spectrum/photoprotection sensitivity around it and keep BIO-26's canopy scalar
 separate. Do not invent alien pigments or tune quantum efficiency to the desired
 productivity.
 
-### 3. The enabled acclimated-respiration routine has no acclimation state
+### 3. The acclimated-respiration routine now keeps a growth temperature
 
 `respiration_acclimated()` documents its `Tacc` argument as a running average of
 air or soil temperature and applies the Thum et al. response
-`10^[-0.008 (Tacc - 10.15)]`. Its caller instead supplies the current day's air
-temperature and current 25 cm soil temperature. No running-average state or
-process-specific memory is stored. The same instantaneous temperature therefore
-drives both the acute Lloyd--Taylor response and the nominal acclimation
-multiplier.
+`10^[-0.008 (Tacc - 10.15)]`. Its caller supplied the current day's air
+temperature and current 25 cm soil temperature instead, so the same
+instantaneous temperature drove both the acute Lloyd--Taylor response and the
+nominal acclimation multiplier and no acclimation was represented at all. Thum
+et al. (2019) separates instantaneous meteorology from process-specific memory
+and acclimation to prevailing growth temperature; Gifford (2003) distinguishes
+the short-term temperature response from an acclimated response that can change
+within about a week; Atkin et al. (2014) shows that including acclimation
+materially changes large-scale carbon exchange.
 
-Thum et al. (2019) explicitly separates instantaneous meteorology from
-process-specific memory and acclimation to prevailing growth temperature.
-Gifford (2003) distinguishes the short-term temperature response from an
-acclimated response that can change within about a week, while Atkin et al.
-(2014) shows that including acclimation materially changes large-scale carbon
-exchange. The present call does not implement the cited model form.
+`Climate::tacc_air` and `Soil::tacc_root` carry the memory now. Each is an
+exponential running mean of the daily air or 25 cm soil temperature with an
+e-folding time of `acclim_resp_tau` ABSOLUTE days, updated once a day in
+`driver.cpp`, seeded from the first temperature the gridcell sees rather than
+from a constant, and serialized so a resumed run does not re-acclimate from
+scratch. The acute response reaches the routine as `gtemp_air` and `gtemp_soil`
+exactly as before, so the two are now different variables.
 
-Add explicit, restart-safe air and root-zone acclimation-temperature states with
-a declared absolute-time response constant, initialize them deterministically,
-and test step, constant and restart-continuation cases. Until then, the named
-option should fail closed or the standard respiration path should remain the
-declared baseline.
+The e-folding time has no value this project can derive. Gifford (2003) reports
+respiration acclimating in as little as a week, and QUINCY's process-specific
+memory lengths are in a supplement this project does not hold, so the constant is
+BRACKETED 7 to 30 absolute days with a sourced fast end and a conventional slow
+end. `parameters.cpp` therefore refuses `acclimated_respiration 1` unless the
+instruction file declares `acclim_resp_tau`; there is deliberately no default,
+because a default here is an undeclared physiological memory.
+
+What the bracket is worth on this world is arithmetic and is reported by
+`biosphere/scripts/acclimation_gate.py`: over one seasonal cycle the growth
+temperature keeps 0.97 of the forcing's amplitude at the fast end and 0.70 at the
+slow end, lagging it 6 and 23 days. The basal multiplier's range across the year
+falls from 1.74 on the instantaneous temperature to 1.71 and 1.47. So a
+fortnight's memory barely damps a seasonal cycle on a year this short; what it
+damps is synoptic variation, which is where the defect was largest.
+
+The baseline runs the standard respiration path, `acclimated_respiration 0`,
+which is what the CNP fork's own `global_p.ins` selects. That path divides
+`respcoeff` by the tissue C:N windows, so sapwood and fine-root maintenance
+respiration is invariant under the window rescaling recorded below; the
+acclimated path has no such compensation and moves maintenance respiration by up
+to the full rescaling factor. Turning it on needs a declared memory length and a
+one-factor sensitivity over the bracket, which is PCAR-11.
 
 ### 4. Autotrophic respiration and construction cost are over-compressed
 
@@ -369,16 +392,20 @@ Under the mean anchor `<tissue>_min` is `(1 + m) / 2` of `<tissue>_avr`, so that
 sum is 1.95 times each tissue's own mean, exactly as it was under the max anchor.
 Scaling both windows by the same factor therefore scales that sum inversely and
 leaves `respcoeff / cton` unchanged, so on that path sapwood and fine-root
-maintenance respiration is invariant by construction. The configured path is not
-that one. `build_vesper_pfts.py` defaults its source instruction file to
-`global.ins`, which sets `acclimated_respiration 1`, and
-`respiration_acclimated()` substitutes a temperature function for `respcoeff` and
-never reads it (finding 3), so on the configured path there is no compensation
-and maintenance respiration scales as `1/cton_sap` and `1/cton_root` directly.
-`global_p.ins` sets the switch to 0, so moving the run to the C-N-P instruction
-file would restore the `respcoeff` compensation and remove this effect entirely.
+maintenance respiration is invariant by construction. That is the configured
+path: `build_vesper_pfts.py` defaults its source instruction file to
+`global.ins`, which sets `acclimated_respiration 1`, but the generated run
+instruction file declares `acclimated_respiration 0` and the later declaration
+wins, so the run takes `respiration()` and the compensation with it. The window
+rescaling therefore moves nothing here.
 
-The size of that on the configured path is bounded rather than known.
+On the acclimated path it would. `respiration_acclimated()` substitutes a
+function of the growth temperature for `respcoeff` and never reads it (finding
+3), so there is no compensation and maintenance respiration scales as
+`1/cton_sap` and `1/cton_root` directly. PCAR-11 is what would turn that path on,
+and this is one of the two things it has to weigh.
+
+The size of it on the acclimated path is bounded rather than known.
 `Individual::cton_sap()` returns
 `max(cton_sap_avr * cton_leaf_min / cton_leaf_avr, cmass_sap / nmass_sap)`, and
 the floor moves by the same 1.7905, so a simulated individual whose nitrogen
@@ -389,7 +416,7 @@ NPP at 0.80, 0.66 and 0.47 of its former value for `Rm/A` of 0.20, 0.30 and 0.40
 That ratio is BRACKETED 0.20 to 0.40 rather than measured; this project has no
 accepted respiration diagnostic, which is finding 10.
 
-So the C-N configuration moves by a first-order amount in a known direction on
+So the acclimated path would move by a first-order amount in a known direction on
 every quantity the biosphere returns, and only a run settles the magnitude. Every
 number produced under the max anchor is worthless in rule 7's sense rather than
 stale, and the biosphere's re-commissioning is what replaces them. The canonical

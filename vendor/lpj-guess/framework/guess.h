@@ -335,26 +335,33 @@ const int SOLVESOM_BEGIN = 350;
 /// Number of years to average growth efficiency over in function mortality
 const int NYEARGREFF = 5;
 
-/// Coldest day in N hemisphere (January 15)
-/** Used to decide when to start counting GDD's and leaf-on days
- *  for summergreen phenology.
- */
-const int COLDEST_DAY_NHEMISPHERE = 14;
-
-/// Coldest day in S hemisphere (July 15)
-/** Used to decide when to start counting GDD's and leaf-on days
- *  for summergreen phenology.
- */
-const int COLDEST_DAY_SHEMISPHERE = 195;
-
-/// Warmest day in N hemisphere (same as COLDEST_DAY_SHEMISPHERE)
-const int WARMEST_DAY_NHEMISPHERE = COLDEST_DAY_SHEMISPHERE;
-
-/// Warmest day in S hemisphere (same as COLDEST_DAY_NHEMISPHERE)
-const int WARMEST_DAY_SHEMISPHERE = COLDEST_DAY_NHEMISPHERE;
+// The seasonal landmarks summergreen phenology keys on -- the coldest and the
+// warmest day of the simulation year -- are NOT constants here. LPJ-GUESS
+// carried them as fixed ordinal dates on the Earth calendar it was written for,
+// one per hemisphere and each hemisphere's warmest day aliased to the other's
+// coldest. On this world's calendar the southern date named a day outside the
+// year, so the southern resets never fired and the northern chilling detection,
+// switched off at the northern coldest day, was never switched back on.
+//
+// Climate::coldest_day and Climate::warmest_day carry them instead, read off the
+// temperature forcing itself for each gridcell. That needs no hemisphere test,
+// makes no assumption about thermal lag, and holds for a forcing of any number
+// of orbits. See Climate::find_seasonal_landmarks and
+// biosphere/notes/time-base-unit-contract.md.
 
 /// number of years to average aaet over in function soilnadd
 const int NYEARAAET = 5;
+
+/// Number of simulation years to average the seasonal cycle of air temperature over
+/** Read by Climate::accumulate_seasonal_cycle, which is what
+ *  Climate::coldest_day and Climate::warmest_day are derived from. Twenty, the
+ *  same window mtemp_min_20, mtemp_max_20 and agdd0_20 use, because it answers
+ *  the same question: what climate is the vegetation at this gridcell adapted
+ *  to, rather than what happened this year. SEASONAL-CYCLE, so one sample is one
+ *  seasonal cycle on this world as on Earth and the window is not rescaled; see
+ *  biosphere/notes/time-base-unit-contract.md.
+ */
+const int NYEAR_SEASONAL = 20;
 
 /// number of years to average max snow depth over in function soilnadd
 const int NYEARMAXSNOW = 20;
@@ -1111,10 +1118,59 @@ public:
 	/// true if chill day count may be reset by temperature fall below 5 deg C
 	bool ifsensechill;
 
+	/// Day of the simulation year at the minimum of the forcing's seasonal cycle
+	/// of air temperature, and the day at its maximum
+	/** Derived from dtemp_seasonal, never assumed. The summergreen degree-day
+	 *  sum and the annual leaf-on sum are reset on coldest_day, and chilling
+	 *  detection is switched off there and back on at warmest_day. Both are
+	 *  always valid day indices, in every state of the model including before
+	 *  any forcing has been seen, and they are never equal, so each of the three
+	 *  resets happens exactly once per simulation year on every gridcell.
+	 */
+	int coldest_day;
+	int warmest_day;
+
+	/// Running day-of-year mean air temperature (deg C): the seasonal cycle the
+	/// landmarks are read off
+	double dtemp_seasonal[Date::MAX_YEAR_LENGTH];
+
+	/// Whether an input module supplies the whole seasonal cycle itself
+	/** Set by set_seasonal_cycle. When it is, accumulate_seasonal_cycle does
+	 *  nothing, so a year enters the running mean once and not twice.
+	 */
+	bool seasonal_cycle_supplied;
+
+	/// Simulation years already averaged into dtemp_seasonal
+	/** SEASONAL-CYCLE in the sense of biosphere/notes/time-base-unit-contract.md:
+	 *  the window counts seasonal cycles, and one orbit is one seasonal cycle on
+	 *  this world as on Earth, so it is not rescaled.
+	 */
+	int seasonal_cycle_years;
+
 	/** Respiration response to today's air temperature incorporating damping of Q10
 	 *  due to temperature acclimation (Lloyd & Taylor 1994)
 	 */
 	double gtemp;
+
+	/// Growth temperature the simulated plants' basal respiration rate is acclimated to (deg C)
+	/** The prevailing air temperature the aboveground tissue has adjusted to, as
+	 *  distinct from gtemp above, which is the acute response to today's. Thum et
+	 *  al. (2019) and Atkin et al. (2014) separate the two, and
+	 *  canexch.cpp:respiration_acclimated needs both: gtemp for the acute term and
+	 *  this for the basal rate that replaces respcoeff. An exponential running
+	 *  mean with an e-folding time of acclim_resp_tau ABSOLUTE days, because
+	 *  acclimation is a physiological process and knows nothing about the orbit;
+	 *  see biosphere/notes/time-base-unit-contract.md.
+	 */
+	double tacc_air;
+
+	/// Whether tacc_air holds a temperature yet
+	/** It is set from the first day of forcing the gridcell sees rather than from
+	 *  a constant, so a cell begins acclimated to its own climate and there is no
+	 *  spin-in from an arbitrary starting temperature. Serialized, so a resumed
+	 *  run does not re-acclimate from scratch.
+	 */
+	bool tacc_air_set;
 
 	/// daily temperatures for the last 31 days (deg C)
 	Historic<double, 31> dtemp_31;
@@ -1202,8 +1258,6 @@ public:
 	int testday_temp;
 	/// last day of dry month when we test last year's crossing of sowing precipitation limits; NH:Dec.31(day 364), SH:June 30(day 180), set in getgridcell()
 	int testday_prec;
-	/// date used for sowing if no frost or spring occured during the year between the testmonths; NH:14, SH:195, set in getgridcell()
-	int coldestday;
 	/// used to adapt equations to hemisphere, set in getgridcell()
 	int adjustlat;
 	/// accumulated monthly pet values for this year
@@ -1334,6 +1388,8 @@ public:
 		maxtemp = 0.0;
 		gdd5 = 0.0;
 		chilldays = 0;
+		tacc_air = 0.0;
+		tacc_air_set = false;
 		ifsensechill = true;
 		atemp_mean = 0.0;
 
@@ -1342,17 +1398,29 @@ public:
 		sinelat = sin(lat * DEGTORAD);
 		cosinelat = cos(lat * DEGTORAD);
 
-		// Set crop-specific members
+		// The seasonal cycle is not known until the forcing has been seen, so
+		// the landmarks start at the only pair that assumes nothing: day 0 and
+		// the day half a simulation year from it. An input module that has the
+		// whole year in hand replaces them before day 0 through
+		// set_seasonal_cycle, and every module reaches the derived pair at the
+		// end of the first simulation year.
+		std::fill_n(dtemp_seasonal, Date::MAX_YEAR_LENGTH, 0.0);
+		seasonal_cycle_years = 0;
+		seasonal_cycle_supplied = false;
+		coldest_day = 0;
+		warmest_day = Date::MAX_YEAR_LENGTH / 2;
+
+		// Set crop-specific members. These are Earth ordinal dates in a calendar
+		// that has no day 364, and cropland on this world is fail-closed rather
+		// than corrected: see BIO-27.
 		if (latitude >= 0) {
 			testday_temp = 180;		//June 30(day 180)
 			testday_prec = 364;		//Dec.31(day 364)
-			coldestday = COLDEST_DAY_NHEMISPHERE;
 			adjustlat = 0;
 		}
 		else {
 			testday_temp = 364;		//Dec.31(day 364)
 			testday_prec = 180;		//June 30(day 180)
-			coldestday = COLDEST_DAY_SHEMISPHERE;
 			adjustlat = 181;
 		}
 
@@ -1367,6 +1435,25 @@ public:
 		}
 
 	}
+
+	/// Records today's air temperature in the running seasonal cycle
+	/** Called once per simulated day, after climate.temp is set. The record is a
+	 *  running mean over the last NYEAR_SEASONAL simulation years of the
+	 *  temperature seen on each day of the year.
+	 */
+	void accumulate_seasonal_cycle();
+
+	/// Replaces the seasonal cycle with a whole year of known forcing
+	/** For an input module that holds the whole simulation year before it starts,
+	 *  which is what the Vesper driver file gives. `dtemp_year` is
+	 *  date.year_length() daily mean air temperatures in degrees C. The landmarks
+	 *  are re-derived immediately, so they are right for the first day of the
+	 *  first orbit rather than from the second orbit onwards.
+	 */
+	void set_seasonal_cycle(const double* dtemp_year);
+
+	/// Re-derives coldest_day and warmest_day from the seasonal cycle
+	void find_seasonal_landmarks();
 
 	void serialize(ArchiveStream& arch);
 };
@@ -3889,6 +3976,17 @@ public:
 	 *  incorporating damping of Q10 due to temperature acclimation (Lloyd & Taylor 1994)
 	 */
 	double gtemp;
+
+	/// Root-zone growth temperature the fine roots' basal respiration rate is acclimated to (deg C)
+	/** The counterpart of Climate::tacc_air for the belowground tissue: an
+	 *  exponential running mean of the 0.25 m soil temperature with an e-folding
+	 *  time of acclim_resp_tau absolute days. Separate from gtemp above, which is
+	 *  the acute response to today's soil temperature.
+	 */
+	double tacc_root;
+
+	/// Whether tacc_root holds a temperature yet
+	bool tacc_root_set;
 	/// soil organic matter (SOM) pool with c. 1000 yr turnover (kgC/m2)
 	double cpool_slow;
 	/// soil organic matter (SOM) pool with c. 33 yr turnover (kgC/m2)

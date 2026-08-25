@@ -73,6 +73,7 @@ bool ifrainonwetdaysonly;
 bool ifbvoc;
 
 bool acclimated_respiration;
+double acclim_resp_tau;
 
 // Arctic and wetland options
 bool iftwolayersoil;				// Use the original LPJ-GUESS v4 soil scheme, or not. If true, override many of the switches below. 
@@ -523,6 +524,9 @@ void plib_declarations(int id,xtring setname) {
 
 		declareitem("acclimated_respiration", &acclimated_respiration, 1, CB_NONE,
 			"Activation of acclimated respiration, function substituting the respcoeff values (0,1)");
+
+		declareitem("acclim_resp_tau", &acclim_resp_tau, 0.1, 3650.0, 1, CB_NONE,
+			"E-folding time of the growth temperature basal respiration acclimates to, ABSOLUTE days");
 
 		declareitem("iftwolayersoil", &iftwolayersoil, 1, CB_NONE,
 			"Use the original LPJ-GUESS v4 soil scheme, or not (0,1)"); //COMMENT STEFAN, same here, better to define "not"
@@ -1372,6 +1376,32 @@ void plib_callback(int callback) {
 		if (!itemparsed("ifbvoc")) badins("ifbvoc");
 		
 		if (!itemparsed("acclimated_respiration")) badins("acclimated_respiration");
+
+		// Acclimated respiration substitutes a function of the GROWTH temperature
+		// for respcoeff, and a growth temperature is a running mean with a
+		// memory. The routine used to be handed the current day's air and soil
+		// temperature instead, so the same instantaneous temperature drove both
+		// the acute Lloyd and Taylor response and the nominal acclimation
+		// multiplier, and no acclimation was represented at all. Climate::tacc_air
+		// and Soil::tacc_root carry that memory now, and its e-folding time has
+		// no value this project can derive: Gifford (2003) reports respiration
+		// acclimating in as little as a week, QUINCY gives its lagged responses a
+		// process-specific memory whose length is in a supplement this project
+		// does not hold, and neither is a measurement of anything on this world.
+		// So the run declares it or the option does not start. There is
+		// deliberately no default, because a default here is an undeclared
+		// physiological memory. PCAR-3, and
+		// biosphere/notes/plant-physiology-carbon-allocation-audit.md finding 3.
+		if (acclimated_respiration && !itemparsed("acclim_resp_tau")) {
+			sendmessage("Error", "acclimated_respiration 1 needs acclim_resp_tau, the "
+				"e-folding time in ABSOLUTE days of the growth temperature the basal "
+				"respiration rate acclimates to. It has no default: the acclimation "
+				"function replaces respcoeff with a function of that growth temperature, "
+				"and running it on an undeclared memory is what made it a function of "
+				"today's weather instead. See PCAR-3 and "
+				"biosphere/notes/plant-physiology-carbon-allocation-audit.md.");
+			plibabort();
+		}
 
 		if (!itemparsed("iftwolayersoil")) badins("iftwolayersoil");
 		if (!itemparsed("ifmultilayersnow")) badins("ifmultilayersnow");

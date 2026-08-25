@@ -54,9 +54,9 @@ void phu_init(cropphen_struct& ppftcrop, Gridcellpft& gridcellpft, Patch& patch)
 
 		if (gridcellpft.wintertype) {	// Autumn sowing
 			// if neither spring or winter conditions for the past 20 years
-			if ((gridcellpft.first_autumndate20 == climate.testday_temp || gridcellpft.first_autumndate20 == climate.coldestday)
+			if ((gridcellpft.first_autumndate20 == climate.testday_temp || gridcellpft.first_autumndate20 == climate.coldest_day)
 				&& gridcellpft.first_autumndate % date.year_length() == gridcellpft.first_autumndate20
-				&& (gridcellpft.last_springdate20 == climate.testday_temp || gridcellpft.last_springdate20 == climate.coldestday)
+				&& (gridcellpft.last_springdate20 == climate.testday_temp || gridcellpft.last_springdate20 == climate.coldest_day)
 				&& gridcellpft.last_springdate == gridcellpft.last_springdate20) {
 
 				ppftcrop.pvd = pft.pvd;
@@ -543,8 +543,7 @@ void leaf_phenology_crop(Pft& pft, Patch& patch) {
 			}
 
 			// reset stand.gdd5_intercrop same day as gdd5
-			if (climate.lat >= 0.0 && date.day == COLDEST_DAY_NHEMISPHERE
-				|| climate.lat < 0.0 && date.day == COLDEST_DAY_SHEMISPHERE
+			if (date.day == climate.coldest_day
 				|| climate.gdd5 == 0.0) {
 
 				patch.stand.gdd5_intercrop = 0.0;

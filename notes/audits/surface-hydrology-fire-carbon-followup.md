@@ -37,35 +37,49 @@ Vesper parameters.
 
 ## Findings
 
-### 1. Forest snow masking exists, but its structural and spectral port does not
+### 1. Forest snow masking has a structural operator, and nothing drives it yet
 
-The proposed missing pathway is already active.  Surface code 212 supplies
-`dforest`.  With the production configuration's `NVEG=0`, `landmod.f90` blends
-forested and unforested snow-albedo endpoints by that fraction before blending
-snow with the background surface.  `build_surface_albedo.py` writes code 212
-from modelled tree cover and already forces lakes and barren fractions out of
-the canopy.  A uniform snow layer therefore does **not** simply repaint all
-trees white.
+The pathway was never missing.  Surface code 212 supplies `dforest`.  With the
+production configuration's `NVEG=0`, `landmod.f90` blends forested and
+unforested snow-albedo endmembers by that fraction before blending snow with
+the background surface, and `build_surface_albedo.py` writes code 212 from
+modelled tree cover with lakes and barren fractions already forced out of the
+canopy.  A uniform snow layer therefore does **not** simply repaint all trees
+white.
 
-The residual is still material.  The mask is one scalar tree-cover fraction;
-it has no canopy exposure relative to snow depth, plant/stem area, sky-view or
-gap fraction, intercepted snow, unloading, branch burial, standing dead
-structure or PFT distinction.
-The two forested snow endpoints are initialized as fixed fractions of the
-K-star snow endpoints (`albsmaxf=0.5*albsmax`, with the minimum set from that),
-not derived from K-star radiative transfer through the accepted canopy.  Betts
-and Ball show the size and vegetation dependence of the Earth phenomenon.
-Essery shows that gap fraction, canopy snow and ground snow are separable model
-states, but also found that a simple PFT-weighted scheme, a gap-fraction scheme
-and a two-stream scheme gave similar large-scale results when supplied with
-realistic land cover and parameters.  The first port therefore needs explicit
-exposure and snow states plus a hierarchy of reduced operators; a full
-two-stream canopy is not automatically the best central model.  Those sources
-justify a structural model and tests, not transplanting their Earth albedos.
+The spectral half of the residual is closed.  The forested endmembers were
+fixed multiples of the exposed ones, a ratio measured under another star
+reapplied either side of 0.75 micron; they are now mixtures of the band's
+exposed snow with a canopy albedo, per band, at a masked fraction.
 
-This belongs in `BIO`, because LPJ canopy structure supplies the state and
-ExoPlaSim remains the radiative consumer.  It must extend BIO-17/BIO-18 rather
-than replace the existing mask.
+The structural half is now an operator rather than a scalar.  `snowmaskmod`
+returns the masked fraction from canopy cover, the exposure of the canopy above
+the snow surface, the gap fraction of the plant area it carries, and the
+fraction of the canopy holding snow, which brightens the masking canopy instead
+of being masked.  The form is the gap-fraction scheme of Essery (2013), which
+found a simple PFT-weighted scheme, a gap-fraction scheme and a two-stream
+canopy gave similar large-scale results when given realistic cover and
+parameters -- so a two-stream canopy is a bracket on this operator and not an
+assumed improvement, and it is not built.  What is taken from that source is
+the functional form and the extinction coefficient; every albedo in the
+operator is this world's, computed under this star, and Betts and Ball's Earth
+values are not imported.
+
+Reading upstream's two masking fractions back through the same gap-fraction law
+puts them at plant area indices of about 0.96 and 0.51 at an extinction
+coefficient of one, or about 1.9 and 1.0 at a half.  A closed forest carries
+more than that, so the scalar mask is weak in gap-fraction terms -- which is a
+reason to drive the operator from reported structure rather than to keep tuning
+the scalar.
+
+Nothing drives it yet, deliberately, and its inputs are inert at values that
+return the scalar mask bit for bit.  A canopy height is GRAV-7's, a per-gridcell
+plant or stem area index is what the vegetation component reports under BIO-17,
+and an intercepted-snow fraction predicted rather than declared needs a canopy
+snow store with a mass balance, which is BIO-32.  Turning any of them on moves
+the surface energy balance of every snow-covered forested cell, so it is a
+declared decision: BIO-33.  `exoplasim/scripts/verify_snow_mask.sh` is the
+check that can fail, and the reduction it checks is bitwise.
 
 ### 2. Fire has no persistent surface-disturbance state
 

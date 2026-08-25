@@ -81,6 +81,43 @@
       real    :: forcovmx = 0.6153846  ! canopy fraction masking max-alb snow
       real    :: forcovmn = 0.4        ! canopy fraction masking min-alb snow
 
+!     The structural axes of the canopy/snow mask, all inert at these values.
+!
+!     forcovmx and forcovmn above make the hidden fraction dforest*forcov: a
+!     constant times the cover, blind to how deep the snow is against the
+!     canopy, to how much plant area the canopy carries, and to whether the
+!     canopy is itself holding snow. snowmaskmod generalises that along three
+!     axes and returns the same number to the last bit at the values below,
+!     which is the check that can fail.
+!
+!     They are SCALARS standing in for fields. The canopy cover they multiply,
+!     dforest, arrives per gridcell as surface code 212; a canopy height and a
+!     plant area index vary the same way and will arrive the same way once the
+!     vegetation component reports them, at which point these become the
+!     fallback for a cell the field does not cover. BIO-33 is that wiring.
+!
+!     They are inert here because this world does not report their inputs yet.
+!     forhgt needs a canopy height, which is GRAV-7's; forpai needs a plant or
+!     stem area index per gridcell, which is what the vegetation component will
+!     report under BIO-17; forint needs a canopy snow store with a mass balance
+!     rather than a declared standing fraction, which is BIO-32. Turning any of
+!     them on moves the surface energy balance of every snow-covered forested
+!     cell, so it is a declared decision and not a default. BIO-30.
+!
+!     forext is the extinction coefficient of the canopy gap fraction,
+!     exp(-forext*forpai), read only when forpai is positive so it changes
+!     nothing at these values. One is the coefficient in the gap fraction
+!     Essery (2013) reports for the scheme it evaluates, with the plant area
+!     index counting leaves and stems. A leaf-angle-resolved reading would put
+!     the geometric factor in the coefficient instead, near a half for a
+!     randomly oriented canopy under diffuse light, and would want twice the
+!     plant area index for the same masking; which convention the vegetation
+!     component reports its index in therefore has to travel with it.
+      real    :: forhgt   = -1.0  ! canopy height for snow burial (m; <=0 off)
+      real    :: forpai   = -1.0  ! canopy plant area index (<=0 off)
+      real    :: forext   =  1.0  ! extinction coefficient of the gap fraction
+      real    :: forint   =  0.0  ! intercepted-snow fraction of the canopy
+
 !     River routing, used by roffini here and by oroini in glaciermod.
 !
 !     u = zcvel/zdx * |grad(zoro)|**roffexp, and zoro is GEOPOTENTIAL, so the
@@ -195,7 +232,8 @@
 !$omp&  albsminf,albsminf1,albsminf2,co2conv,dalbcl,dalbcl1,dalbcl2,dalbclim,dalbclim1,dalbclim2,&
 !$omp&  darea,dgroundalbnl,doro,dqs,drhsfull,drhsland,driver,dsmax,dsnowt,dsnowz,dsoilt,dsoilz,dtcl,&
 !$omp&  dtclim,dtclsoil,dts,dtsm,duroff,dvroff,dwatcini,dwater,dwcl,dwclim,dz0clim,dz0climo,dz0land,&
-!$omp&  dzglac,dztop,forcovmn,forcovmx,lversion,newsurf,nlandt,nlandw,nwatcini,nwetsoil,rhosnow,&
+!$omp&  dzglac,dztop,forcovmn,forcovmx,forext,forhgt,forint,forpai,&
+!$omp&  lversion,newsurf,nlandt,nlandw,nwatcini,nwetsoil,rhosnow,&
 !$omp&  snowcovz,&
 !$omp&  rinifor,rlue,rnbiocats,roffexp,roffpit,roffvel,&
 !$omp&  sicecap,sicediff,snowcap,snowdiff,soilcap,soildiff,tau_soil,tau_veg,wsmax)
@@ -241,6 +279,7 @@
       subroutine landini
       use landmod
       use radmod
+      use snowmaskmod
 !
 !     initialize land surface
 !
@@ -250,6 +289,7 @@
      &                ,rlue,co2conv,tau_veg,tau_soil                    &
      &                ,rnbiocats,nwetsoil,soilcap                       &
      &                ,albforest,forcovmx,forcovmn                      &
+     &                ,forhgt,forpai,forext,forint                       &
      &                ,soildiff,sicediff,snowdiff,sicecap,snowcap       &
      &                ,rhosnow,roffvel,roffexp,roffpit                  &
      &                ,newsurf,rinifor,nwatcini,dwatcini,dgroundalb     &
@@ -371,6 +411,10 @@
       call mpbcrn(dsoilz,NLSOIL)
 
       call mpbcrn(albforest,2)
+      call mpbcr(forhgt)
+      call mpbcr(forpai)
+      call mpbcr(forext)
+      call mpbcr(forint)
       call mpbcr(forcovmx)
       call mpbcr(forcovmn)
       call mpbcr(soildiff)
@@ -490,16 +534,29 @@
          dqs(jhor)=dqs(jhor)/(1.-(1./rdbrv-1.)*dqs(jhor))
          dsnow(jhor)=dsnowz(jhor)
          if(dsnow(jhor) > 0.) then
-          zalbmax=dforest(jhor)*albsmaxf+(1.-dforest(jhor))*albsmax
-          zalbmin=dforest(jhor)*albsminf+(1.-dforest(jhor))*albsmin
+          ! The canopy/snow mask. snowmaskmod returns the cover to blend each
+          ! forested endmember at and the weight that moves it toward exposed
+          ! snow, and reduces to dforest and zero at the inert defaults, so the
+          ! four lines below are the same arithmetic they were.
+          call snowcanopymask(dforest(jhor),dsnow(jhor)*1000./rhosnow,        &
+          &                   forhgt,forpai,forext,forcovmx,forcovmn,forint, &
+          &                   zfcovmx,zfcovmn,zfint,zkmx,zkmn)
+          zsfmax =albsmaxf +zfint*(albsmax -albsmaxf)
+          zsfmin =albsminf +zfint*(albsmin -albsminf)
+          zsfmax1=albsmaxf1+zfint*(albsmax1-albsmaxf1)
+          zsfmin1=albsminf1+zfint*(albsmin1-albsminf1)
+          zsfmax2=albsmaxf2+zfint*(albsmax2-albsmaxf2)
+          zsfmin2=albsminf2+zfint*(albsmin2-albsminf2)
+          zalbmax=zfcovmx*zsfmax+(1.-zfcovmx)*albsmax
+          zalbmin=zfcovmn*zsfmin+(1.-zfcovmn)*albsmin
           zdalb=(zalbmax-zalbmin)*(dts(jhor)-263.16)/(tmelt-263.16)
           zalbsnow=MAX(zalbmin,MIN(zalbmax,zalbmax-zdalb))
-          zalbmax1=dforest(jhor)*albsmaxf1+(1.-dforest(jhor))*albsmax1
-          zalbmin1=dforest(jhor)*albsminf1+(1.-dforest(jhor))*albsmin1
+          zalbmax1=zfcovmx*zsfmax1+(1.-zfcovmx)*albsmax1
+          zalbmin1=zfcovmn*zsfmin1+(1.-zfcovmn)*albsmin1
           zdalb1=(zalbmax1-zalbmin1)*(dts(jhor)-263.16)/(tmelt-263.16)
           zalbsnow1=MAX(zalbmin1,MIN(zalbmax1,zalbmax1-zdalb1))
-          zalbmax2=dforest(jhor)*albsmaxf2+(1.-dforest(jhor))*albsmax2
-          zalbmin2=dforest(jhor)*albsminf2+(1.-dforest(jhor))*albsmin2
+          zalbmax2=zfcovmx*zsfmax2+(1.-zfcovmx)*albsmax2
+          zalbmin2=zfcovmn*zsfmin2+(1.-zfcovmn)*albsmin2
           zdalb2=(zalbmax2-zalbmin2)*(dts(jhor)-263.16)/(tmelt-263.16)
           zalbsnow2=MAX(zalbmin2,MIN(zalbmax2,zalbmax2-zdalb2))
           dalb(jhor)=dalbclim(jhor)                                     &
@@ -624,6 +681,7 @@
       subroutine landstep
       use landmod
       use radmod, only: nstartemp, zsolars
+      use snowmaskmod
 
 !
 !     get climatological values if t and/or w are non interactive
@@ -657,16 +715,29 @@
         dqs(jhor)=dqs(jhor)/(1.-(1./rdbrv-1.)*dqs(jhor))
         dsnow(jhor)=dsnowz(jhor)
         if(dsnow(jhor) > 0.) then
-         zalbmax=dforest(jhor)*albsmaxf+(1.-dforest(jhor))*albsmax
-         zalbmin=dforest(jhor)*albsminf+(1.-dforest(jhor))*albsmin
+         ! The canopy/snow mask. snowmaskmod returns the cover to blend each
+         ! forested endmember at and the weight that moves it toward exposed
+         ! snow, and reduces to dforest and zero at the inert defaults, so the
+         ! four lines below are the same arithmetic they were.
+         call snowcanopymask(dforest(jhor),dsnow(jhor)*1000./rhosnow,        &
+         &                   forhgt,forpai,forext,forcovmx,forcovmn,forint, &
+         &                   zfcovmx,zfcovmn,zfint,zkmx,zkmn)
+         zsfmax =albsmaxf +zfint*(albsmax -albsmaxf)
+         zsfmin =albsminf +zfint*(albsmin -albsminf)
+         zsfmax1=albsmaxf1+zfint*(albsmax1-albsmaxf1)
+         zsfmin1=albsminf1+zfint*(albsmin1-albsminf1)
+         zsfmax2=albsmaxf2+zfint*(albsmax2-albsmaxf2)
+         zsfmin2=albsminf2+zfint*(albsmin2-albsminf2)
+         zalbmax=zfcovmx*zsfmax+(1.-zfcovmx)*albsmax
+         zalbmin=zfcovmn*zsfmin+(1.-zfcovmn)*albsmin
          zdalb=(zalbmax-zalbmin)*(dts(jhor)-263.16)/(tmelt-263.16)
          zalbsnow=MAX(zalbmin,MIN(zalbmax,zalbmax-zdalb))
-         zalbmax1=dforest(jhor)*albsmaxf1+(1.-dforest(jhor))*albsmax1
-         zalbmin1=dforest(jhor)*albsminf1+(1.-dforest(jhor))*albsmin1
+         zalbmax1=zfcovmx*zsfmax1+(1.-zfcovmx)*albsmax1
+         zalbmin1=zfcovmn*zsfmin1+(1.-zfcovmn)*albsmin1
          zdalb1=(zalbmax1-zalbmin1)*(dts(jhor)-263.16)/(tmelt-263.16)
          zalbsnow1=MAX(zalbmin1,MIN(zalbmax1,zalbmax1-zdalb1))
-         zalbmax2=dforest(jhor)*albsmaxf2+(1.-dforest(jhor))*albsmax2
-         zalbmin2=dforest(jhor)*albsminf2+(1.-dforest(jhor))*albsmin2
+         zalbmax2=zfcovmx*zsfmax2+(1.-zfcovmx)*albsmax2
+         zalbmin2=zfcovmn*zsfmin2+(1.-zfcovmn)*albsmin2
          zdalb2=(zalbmax2-zalbmin2)*(dts(jhor)-263.16)/(tmelt-263.16)
          zalbsnow2=MAX(zalbmin2,MIN(zalbmax2,zalbmax2-zdalb2))
          dalb(jhor)=dalbclim(jhor)                                     &
