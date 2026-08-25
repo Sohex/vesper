@@ -1,0 +1,256 @@
+# THE WETLAND, PEAT AND METHANE ACTIVATION DECLARATION.
+# Read by biosphere/scripts/wetland_gate.py.
+#
+# Turning the simulated biosphere's peatland and methane modules on is not two
+# switches. It is the point where four models get collapsed into one -- where
+# wetlands are, how water reaches and leaves them, how peat carbon and redox
+# make and consume CH4, and what an atmosphere does with the flux -- and this
+# file is where each of them is either DECLARED or refused. The argument is in
+# biosphere/notes/wetland-activation-contract.md; the finding it rests on is
+# biosphere/notes/wetlands-peat-methane-audit.md.
+#
+# THE SENTINEL IS `undeclared`, AND IT REFUSES. There is no default value for
+# any field here, deliberately: a default is how an Earth number becomes this
+# world's number without anyone deciding it should. Replacing `undeclared` with
+# a value is a DECISION and takes the bd issue named beside it.
+#
+# The gate is fail-closed in one direction only. With `requested: false` it
+# reports what is undeclared and exits 0, because a biosphere run with peat and
+# methane off is a correct run. With `requested: true` it refuses, by name, for
+# every unmet precondition.
+
+version: 1
+
+# The only switch a caller sets. `true` REQUESTS activation; it does not grant
+# it. `biosphere/scripts/run_lpj_guess.py` asks the gate and writes
+# `run_peatland 0`, `ifmethane 0`, `ifsaturatewetlands 0` and `wetland_runon 0`
+# into the instruction file whenever the gate has not granted activation. All
+# four are written rather than inherited, because an inherited zero cannot be
+# told apart from nobody having decided.
+requested: false
+
+# WET-3. The hydrology repair. Every field here names the artifact that closes
+# one defect the audit found in the vendored source, and the gate ALSO probes
+# the source for that defect on every invocation. A probe that stops matching
+# grants nothing on its own: the declaration still has to be made. A probe that
+# still matches while the declaration says the defect is closed is a
+# contradiction, and the gate reports it as one.
+hydrology:
+  # The infiltration path bounded by the water that actually arrived. In
+  # modules/soilwater.cpp the low-latitude wetland block adds each layer's full
+  # saturation deficit whether or not rain_melt could supply it, and
+  # ifsaturatewetlands controls only whether the created amount is recorded.
+  # Saturation must be an outcome of the ledger, never a source term. WET-3.
+  free_water_repair: undeclared
+  # The single daily exchange that closes precipitation, snow, routed surface
+  # water, groundwater recharge and discharge, PLHY uptake and ET, storage and
+  # runoff. PLHY-4 owns the exchange; the wetland consumes it and may not make a
+  # second withdrawal. WET-3.
+  water_ledger: undeclared
+  # What supplies runon, once the fixed wetland_runon scalar is gone. The
+  # groundwater solver's recharge and discharge, on the native mesh, is the
+  # seam; a namelist constant in mm/day applied to every wetland stand is not.
+  # WET-3.
+  runon_source: undeclared
+  # The annual water-table average, on an ordinal the calendar reaches. The
+  # guard in modules/soil.cpp tests date.day == Date::MAX_YEAR_LENGTH, which
+  # Date::next() never produces, so awtp holds its initial 0.0 for the whole run
+  # and pins the simulated acrotelm CO2 to the pore-water value. WET-3.
+  annual_water_table_update: undeclared
+  # A fixture that stops a run mid-year, resumes it, and requires the resumed
+  # state to reproduce the uninterrupted one exactly. Soil::serialize omits
+  # Wtot, wtd, stand_water, mwtp, Frac_ice and rootfrac. WET-3.
+  restart_continuity_fixture: undeclared
+
+  # The prognostic peat-hydrology members the serializer must carry before an
+  # arbitrary-day restart means anything. The gate reads Soil::serialize and
+  # refuses for each one still absent. Adding a name here adds a requirement;
+  # it does not assert the member exists.
+  required_restart_members:
+    - Wtot
+    - wtd
+    - stand_water
+    - mwtp
+    - Frac_ice
+    - rootfrac
+
+# WET-2, and the support question WORLD-D9U4 owns. A saturated fraction is a
+# fraction of a POPULATION, and the only population this project holds is the
+# mesh regions inside a climate-grid cell. There is no per-region saturated
+# fraction: GW-6 established that the sub-region hypsometry one would need does
+# not exist and is not recoverable by a finer generation.
+extent:
+  # The mutually exclusive classification: persistent peat-forming land,
+  # saturated non-inundated mineral soil, seasonal inundation, open
+  # lake/river/playa water, dry mineral soil. Fractions, not thresholds, and
+  # closing against BIO-11's rootable surface without double counting. WET-2.
+  classification: undeclared
+  # The support of the saturated fraction this classification consumes. The
+  # gate accepts `climate_grid` and refuses everything else BY NAME, including
+  # any native-mesh or per-region value: there is no population such a fraction
+  # could be a fraction of. WORLD-D9U4.
+  saturated_fraction_support: undeclared
+  # How a climate-grid fraction reaches a consumer that wants finer. WORLD-D9U4
+  # names three routes -- a stated downscaling rule, a parameterised sub-region
+  # hypsometry declared as a parameterisation rather than a measurement, or a
+  # consumer that changes quantity -- and the choice is a decision. WORLD-D9U4.
+  downscaling_rule: undeclared
+  # What selects the wetland process regime. Latitude may locate a cell for
+  # geometry and diagnostics and may not select physics; the vendored fork's
+  # PEATLAND_WETLAND_LATITUDE_LIMIT of 40.0 does exactly that, and does it on
+  # signed latitude, so a cell at 60 S takes the low-latitude path. WET-2.
+  regime_selector: undeclared
+  # Whether extent may be keyed on an absolute compound-topographic-index
+  # threshold. It may not: `a` carries a length, the distribution shifts with
+  # the mesh by about ln 2 between this project's own two builds, and an
+  # absolute cut calibrated on Earth at about a kilometre is a statement about
+  # two indices' scales. The gate refuses a declared model naming one. WET-2.
+  absolute_index_threshold: forbidden
+
+# WET-4, under docs/src/reference/no-time-axis.md. Peat depth is a rate over a
+# duration and a duration is undefined here, so both of these are TWO-ENDED
+# brackets whose ends must differ. The gate refuses a scalar: a scalar peat age
+# is a claim to a history this project does not keep.
+peat:
+  # Where an accumulation rate comes from, given no time axis. An expected-value
+  # argument over a stationary population, or a declared bracket. Never a
+  # single number and never the terrain. WET-4.
+  accumulation_rate_source: undeclared
+  # Both ends, in orbits.
+  age_bracket: undeclared
+  # Both ends, in metres.
+  depth_bracket: undeclared
+  # The methane-active column, kept separate from the total inventory. The
+  # vendored fork's fixed three 0.1 m acrotelm layers over twelve 0.1 m catotelm
+  # layers is admissible as the active process domain under a declared bracket
+  # and is not a prediction of this world's peat depth. WET-4.
+  methane_active_column: undeclared
+
+# WET-5. The traits themselves, and where they live. PCAR-5 owns the covarying
+# provenance-stamped registry and it does not exist yet, so the placement is
+# blocked rather than improvised: a second registry beside PCAR-5's would break
+# the covariance that is the whole reason for having one.
+traits:
+  # PCAR-5's registry, with its provenance stamp.
+  registry: undeclared
+  # The strategies the registry must distinguish, which is a requirement rather
+  # than an assertion that any of them exists yet. `non_vegetated_inundation` is
+  # a state with an area and no plants; it is in the list because leaving it out
+  # is how inundated area gets assigned a vegetation type by default.
+  required_strategies:
+    - bog_nutrient_strategy
+    - fen_nutrient_strategy
+    - peat_moss
+    - aerenchymatous_emergent
+    - wet_mineral_soil_vegetation
+    - non_vegetated_inundation
+  # Roots, water-table tolerance, exudation, litter quality and gas transport,
+  # coupled to PLHY and SDEC through the registry rather than a second copy.
+  coupled_traits: undeclared
+  # data/ins/wetlandpfts.ins retained as ONE named transplanted-Earth bracket.
+  # Keeping it is the honest central case; keeping it silently is not.
+  transplanted_earth_bracket: undeclared
+  # The aerenchyma, tiller-geometry and phenology traits gas transport reads.
+  # WET-7 needs these and PCAR-5 supplies them.
+  gas_transport_traits: undeclared
+
+# WET-6 and WET-7. Production separated from oxidation and transport.
+process:
+  # Vertically resolved substrate, temperature, saturation and redox from
+  # SDEC-3/SDEC-8, rather than bulk CENTURY respiration times a fixed root
+  # profile times a constant. WET-6.
+  substrate_interface: undeclared
+  # Oxidation exposed as its own flux, not folded into an emission factor.
+  # WET-6.
+  oxidation_separate: undeclared
+  # Local gravity, local pressure and the declared atmospheric gas state, in
+  # place of the fork's 9.81 m s-2, 101325 Pa, 1.7 micro-atm CH4, 209000
+  # micro-atm O2 and zero 10 m wind. BIO-28 and ExoPlaSim forcing supply them.
+  # WET-7.
+  planet_gas_boundary: undeclared
+  # Winter and thaw pulses, dead-tiller venting, pressure- and wind-driven
+  # ebullition, and oxidation of bubbles crossing an unsaturated layer. WET-7.
+  transport_bracket: undeclared
+
+# WET-8. The complete labelled surface ledger. Mutually exclusive, on the same
+# fractions as `extent`, with anything omitted carried as a named uncertainty
+# rather than silently zeroed.
+ledger:
+  surfaces: undeclared
+  # The near-surface aerobic sink, which the current module does not have at
+  # all. Curry's diffusion-reaction model names its state variables. WET-8.
+  dry_soil_sink: undeclared
+  # Lakes, rivers, reservoirs and playas, as broad area, temperature,
+  # productivity and transport brackets, on the same fractions. WET-8.
+  aquatic_sources: undeclared
+
+# WET-10. The atmosphere the flux would be used in.
+atmosphere:
+  # The reduced oxidant and lifetime bracket the surface ledger closes through.
+  # BVOC-6 owns the seam. WET-10.
+  oxidant_interface: undeclared
+  # Set true only by BVOC-6 or WET-10, when the simulated atmosphere's methane
+  # is derived from this world's own surface fluxes rather than prescribed from
+  # a fixed-modern-Earth-biogenic-flux photochemical calculation. While it is
+  # false, a biosphere-derived methane source combined with that prescribed
+  # abundance is not one atmospheric state, and the gate says so.
+  trace_gas_state_closed: false
+
+# WET-11. What an accepted run retains, and the arms fixed before any of them
+# runs. A plausible global total can arise from compensating area, production,
+# oxidation and transport errors, so acceptance is never a total.
+acceptance:
+  # Retained together, or the run is not interpretable. The gate's --check-run
+  # rejects a run directory missing any of these output tables.
+  retained_outputs:
+    - mwtp.out                 # daily-to-monthly water table
+    - mwetland_exchange.out    # routed and groundwater exchange
+    - awetland_area.out        # aggregated surface fractions, per class
+    - awetland_area_native.out # native-mesh fractions, before aggregation
+    - apeat_stock.out          # peat C-N-P stocks and the depth bracket
+    - mch4_production.out
+    - mch4_oxidation.out
+    - mch4_diffusion.out
+    - mch4_plant.out
+    - mch4_ebullition.out
+    - mch4_drysoil_uptake.out
+    - mch4_aquatic.out
+    - aresidual_water.out      # water closure residual
+    - aresidual_cnp.out        # C, N and P closure residuals
+    - aresidual_ch4.out        # atmospheric methane budget imbalance
+  # The residual a closed ledger is allowed, as a fraction of the corresponding
+  # gross flux. Fixed here, before any run exists, so it cannot be widened to
+  # admit a result.
+  residual_tolerance: 1.0e-6
+  # The matched arms, registered before any is run. An arm chosen after its
+  # result is seen is not an arm.
+  registered_arms:
+    - no_methane
+    - source_only_no_atmospheric_feedback
+    - extent_low_end
+    - extent_high_end
+    - redox_and_production
+    - transport_partition
+    - atmospheric_feedback
+
+  # MINIMUM bracket widths, as multiplicative factors. These are a FLOOR on
+  # declared uncertainty and the gate refuses anything narrower: a narrower
+  # bracket is a claim to know this world better than the read Earth studies
+  # know Earth. They are not central values and nothing is computed from them.
+  #
+  # Each is the ratio of the two ends of a range in the literature recorded in
+  # references/INDEX.md and argued in the audit. The production ratio's floor is
+  # the spread between the two constants the vendored fork itself carries.
+  minimum_bracket_factor:
+    # WETCHIMP: 8.6 to 26.9 million km2 across models sharing climate forcing.
+    wetland_extent: 3.12
+    # WETCHIMP: 141 to 264 Tg CH4 per year, same models.
+    wetland_methane_flux: 1.87
+    # Curry: 9 to 47 Tg CH4 per year around a central 28.
+    dry_soil_sink: 5.22
+    # The fork's own CH4:CO2 constants, 0.085 after Wania et al. for the
+    # detailed northern path against 0.027 for the simplified inundated path,
+    # whose source comment says it was changed to match global emissions.
+    production_ratio: 3.14
+  # The declared brackets themselves, once the rows above supply them.
+  declared_bracket_factor: undeclared

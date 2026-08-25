@@ -32,7 +32,9 @@ the CNP fork runs on is registered with its source or its bracket in
 allocation are audited in `notes/plant-physiology-carbon-allocation-audit.md`,
 BVOC emissions, secondary organic aerosol and atmospheric coupling are audited
 in `notes/bvoc-soa-atmospheric-coupling-audit.md`, wetlands, peat and methane
-are audited in `notes/wetlands-peat-methane-audit.md`, and
+are audited in `notes/wetlands-peat-methane-audit.md` and what has to be
+declared and repaired before those switches move is
+`notes/wetland-activation-contract.md`, and
 the ExoPlaSim-to-LPJ weather path is audited in
 `notes/ecological-climate-forcing-audit.md` and the units, time base, sign,
 area basis and converting side of every field crossing that seam are settled in
@@ -416,6 +418,38 @@ from the answer, rather than inheriting the imported PFT file's zero: an
 inherited zero cannot be told apart from nobody having decided. Requesting
 activation in the declaration while a precondition is undeclared makes the run
 exit with every unmet one named.
+
+### The wetlands, their peat and their methane are off, and off is a decision
+
+`wetland_gate.py` is that decision made explicit, and it refuses on two grounds
+rather than one. `run_peatland 1` plus `ifmethane 1` reads like two switches and
+is four models -- where the simulated wetlands are, how water reaches and leaves
+them, how peat carbon and redox make and consume CH4, and what an atmosphere
+does with the flux. `biosphere/config/wetlands.yaml` is where each precondition
+is declared and the sentinel `undeclared` refuses, on the same terms as the BVOC
+declaration; the contract is `notes/wetland-activation-contract.md`.
+
+The second ground is the vendored source itself. The gate probes it on every
+invocation and refuses while the low-latitude wetland path still adds water the
+simulated world never received, while runon is still a namelist scalar carrying
+no catchment, while the annual water-table average is still guarded on an
+ordinal `Date::next()` never produces, and while the prognostic peat hydrology
+is still absent from `Soil::serialize`. A declaration claiming one of those is
+closed while the probe still finds it is reported as a contradiction rather than
+believed. Fourteen fixtures run every time, thirteen built to be wrong in a
+named way.
+
+```bash
+python biosphere/scripts/wetland_gate.py                       # what is undeclared
+python biosphere/scripts/wetland_gate.py --check-run runs/<id> # accept or reject output
+```
+
+`run_lpj_guess.py` asks the gate and writes all four switches into the
+instruction file from the answer. A saturated fraction is a grid-cell quantity
+and the gate refuses any other support for it, which is WORLD-D9U4's constraint
+made enforceable; peat age and depth are two-ended brackets and the gate refuses
+a scalar, because a scalar is a claim to a history `no-time-axis.md` says this
+world does not have.
 
 ### One abiotic nutrient ledger, and it does not close yet
 
