@@ -48,18 +48,33 @@
 /** Daily calculation of NH3 volatilization from soil
  *
  */
-void nh3_volatilization(Patch& patch, Soil& soil, Climate& climate, double& n_budget_check){
+void nh3_volatilization(Patch& patch, Soil& soil, double& n_budget_check){
 
 	double nh3_max = 0.0, f_nit_T = 0.0, nh3_inc = 0.0;
 	double soil_T = soil.get_soil_temp_25();
 	double wcont = soil.get_soil_water_upper();
 
-	// calculating soil pH value, aprec = daily mean precip, based on annual average
+	// The simulated soil's pH, which the soil map supplies per gridcell.
+	//
+	// This used to fall back to Dawson (1977)'s regression of soil pH on annual
+	// precipitation, 3810 / (762 + climate.aprec_lastyear) + 3.5, and that
+	// fallback could not work: nothing in the model ever assigns
+	// aprec_lastyear, and climate.aprec, which would feed it, is reset at day 0
+	// and never accumulated. The regression therefore evaluated at zero
+	// precipitation and returned 8.5 on every gridcell for every day of every
+	// run. Two further things stood between it and a usable number even with a
+	// live input: it is an Earth calibration, and its argument is an annual
+	// precipitation sum, which on this world's shorter year is a smaller number
+	// for the same precipitation rate and so reads as a drier, more alkaline
+	// soil. Refuse instead of substituting a constant nobody chose: an input
+	// path that supplies no pH has to say so.
 	if (soil.soiltype.pH > 0.0) {
 		soil.pH = soil.soiltype.pH;
-	} 
+	}
 	else {
-		soil.pH = 3810 / (762 + (climate.aprec_lastyear)) + 3.5; // Dawson -77
+		fail("nh3_volatilization: ifntransform is set but the input path supplied "
+		     "no soil pH for this gridcell. The soil map's ph column is what "
+		     "carries it; a soil-code-only soil has none.");
 	}
 
 	if (soil.pH > 6.0) { 
@@ -334,7 +349,7 @@ void ntransform(Patch& patch, Climate& climate) {
 		Fluxes& fluxes = patch.fluxes;
 
 		// NH3 volatilization
-		nh3_volatilization(patch, soil, climate, n_budget_check);
+		nh3_volatilization(patch, soil, n_budget_check);
 
 		// N substrate partition
 		substrate_partition(soil);
@@ -348,8 +363,29 @@ void ntransform(Patch& patch, Climate& climate) {
 		// N gas emission
 		n_gas_emission(patch, fluxes, soil, n_budget_check);
 
-		// Warning if soil N transform does not hold mass balance
-		assert(fabs(n_budget_check) < EPS);
+		// The operator's conservation identity: the nitrogen held in the six soil
+		// pools before it runs equals what it holds after, plus the NH3, NO, N2O
+		// and N2 it emitted. nh3_volatilization opens n_budget_check with the
+		// pool sum and n_gas_emission closes it, so a nonzero residual is
+		// nitrogen created or destroyed.
+		//
+		// This was an assert(), which every Release build compiles out under
+		// NDEBUG, so on the binary this project builds the only check on the
+		// operator did not exist. The bar is relative to the nitrogen actually
+		// present, floored at the absolute EPS the assert used so an empty soil
+		// is still held to something. The identity is about twenty additions and
+		// subtractions of doubles, whose rounding is of order 1e-16 relative, so
+		// a relative 1e-10 is four orders of slack and a residual above it is a
+		// defect in the operator rather than arithmetic. The bar is set here
+		// rather than after a result, because there is no result yet.
+		const double REL_EPS = 1.0e-10;
+		double n_total = soil.NH4_mass + soil.NO3_mass + soil.NO2_mass +
+		                 soil.NO_mass + soil.N2O_mass + soil.N2_mass;
+		if (fabs(n_budget_check) > max(EPS, REL_EPS * n_total)) {
+			fail("ntransform: the soil nitrogen transformation operator did not "
+			     "conserve mass on day %d. Residual %g kgN/m2 against %g held.",
+			     date.day, n_budget_check, n_total);
+		}
 	}
 }
 

@@ -97,6 +97,14 @@ private:
 		double spmax;
 		/// annual Phosphorus weathering rate [kgP/m2/y]
 		double pwtr;
+		/// Andic material as a fraction of the cell, from the pedology soil map's
+		/// `andic` column. UNSET_SOIL_FRAC where the input path has no andic
+		/// state, which every soil-code path does not.
+		double andic;
+		/// The share of released phosphorus that andic material takes out of
+		/// circulation, from the soil map's `pfixation` column, over and above
+		/// what any soil does. UNSET_SOIL_FRAC where the input path has none.
+		double p_fixation;
 	};
 
 	void load_mineral_soils(const char* fname, const std::set<coord>& coords);
@@ -114,6 +122,8 @@ private:
 		double pH;
 		double soilC;			// Initial soil C content (kgC/m2), from model output or a database
 		double CN;				// C:N ratio from database
+		double andic;			// Andic material fraction, or UNSET_SOIL_FRAC
+		double p_fixation;		// Andic phosphate fixation share, or UNSET_SOIL_FRAC
 	};
 
 	std::map<coord, int> lpj_map;

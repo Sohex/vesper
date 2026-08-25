@@ -177,6 +177,8 @@ void SoilInput::load_mineral_soils(const char* fname, const std::set<coord>& coo
 	int bd_i = -1;
 	int cn_i = -1; 
 	int soilc_i = -1;
+	int andic_i = -1;
+	int pfix_i = -1;
 
 	for (int i = 0; it != header.end(); ++it, ++i) {
 		if (*it == "sand") {
@@ -203,10 +205,33 @@ void SoilInput::load_mineral_soils(const char* fname, const std::set<coord>& coo
 		else if (*it == "soilc") {
 			soilc_i = i;
 		}
+		// The two mineral-reactivity columns pedology writes. Optional, because
+		// a soil map from anywhere else will not have them; absent, they come
+		// through as UNSET_SOIL_FRAC and the equations that would read them
+		// refuse. biosphere/notes/mineral-reactivity-contract.md is the
+		// contract, biosphere/scripts/mineral_reactivity_gate.py enforces it.
+		else if (*it == "andic") {
+			andic_i = i;
+		}
+		else if (*it == "pfixation") {
+			pfix_i = i;
+		}
 	}
 	if (soilc_i == -1 && iforganicsoilproperties) {
 		fail("Error! No Soil C column found in %s. \nTip: do not use iforganicsoilproperties 1 together with a soilmap file without a SoilC column\n", fname);
 	}
+
+	// sand, clay, orgc, ph and cn are indexed unconditionally below. The comment
+	// above once said the first four were "intentionally left uninitialised, as
+	// those columns are required", but they are initialised to -1 and nothing
+	// tested them, so a soil map missing any of the five read T[-1], which is an
+	// out-of-bounds read on the vector rather than a message about the file.
+	// Name the column instead.
+	if (sand_i == -1) fail("No sand column in the soil map %s\n", fname);
+	if (clay_i == -1) fail("No clay column in the soil map %s\n", fname);
+	if (orgc_i == -1) fail("No orgc column in the soil map %s\n", fname);
+	if (ph_i == -1) fail("No ph column in the soil map %s\n", fname);
+	if (cn_i == -1) fail("No cn column in the soil map %s\n", fname);
 
 	// Create a empty vector T with header.size-2 elements
 	std::vector<double> T((unsigned int)header.size() - 2);
@@ -239,6 +264,9 @@ void SoilInput::load_mineral_soils(const char* fname, const std::set<coord>& coo
 			else {
 				soildata.soilC = 0.0;
 			}
+
+			soildata.andic = andic_i != -1 ? T[andic_i] : UNSET_SOIL_FRAC;
+			soildata.p_fixation = pfix_i != -1 ? T[pfix_i] : UNSET_SOIL_FRAC;
 				
 			// Not all data sets includes bulk density data, here it is set to a negative number if no column with that name. 
 			// TODO, set it to value: 1.6
@@ -289,6 +317,10 @@ SoilInput::SoilProperties SoilInput::get_lpj(coord c) {
 	soiltype.kplab = data[soilcode][12];
 	soiltype.spmax = data[soilcode][13];
 	soiltype.pwtr = data[soilcode][14];
+	// An LPJ soil code is a texture class and carries no mineral-reactivity
+	// state, so there is nothing to set here and nothing to invent.
+	soiltype.andic = UNSET_SOIL_FRAC;
+	soiltype.p_fixation = UNSET_SOIL_FRAC;
 	return soiltype;
 }
 
@@ -318,6 +350,8 @@ SoilInput::SoilProperties SoilInput::get_lpj_organic_soil() {
 	soiltype.kplab = 0.010;
 	soiltype.spmax = 0.145;
 	soiltype.pwtr = 0.000003;
+	soiltype.andic = UNSET_SOIL_FRAC;
+	soiltype.p_fixation = UNSET_SOIL_FRAC;
 	return soiltype;
 }
 
@@ -384,6 +418,15 @@ SoilInput::SoilProperties SoilInput::get_mineral(coord c) {
 	soiltype.spmax = 0.145;
 	soiltype.pwtr = 0.000003;
 
+	// The pedology soil map's mineral-reactivity columns, or the sentinel where
+	// the map has none. Read but not yet used by any equation: the texture-only
+	// SOM protection and P sorption forms are the declared active arm and the
+	// mineral-aware arm refuses for want of the oxide, allophane, aggregate and
+	// cation proxies pedology does not produce.
+	// biosphere/notes/mineral-reactivity-contract.md.
+	soiltype.andic = soil.andic;
+	soiltype.p_fixation = soil.p_fixation;
+
 	return soiltype;
 }
 
@@ -442,6 +485,13 @@ void SoilInput::get_soil_mineral(double lon, double lat, Gridcell& gridcell) {
 	soiltype.water_below_wp = soilprop.wilting_point;
 	soiltype.porosity = soilprop.porosity;
 	soiltype.mineral_frac = 1.0 - soiltype.organic_frac - soiltype.porosity;
+	soiltype.andic_frac = soilprop.andic;
+	soiltype.p_fixation_frac = soilprop.p_fixation;
+	// The soil map's pH. get_mineral reads it into the SoilProperties and
+	// get_lpj sets 6.5 there, but neither get_soil path carried it onto the
+	// Soiltype, so Soiltype::pH stayed at the constructor's -1.0 for every
+	// gridcell and nh3_volatilization always took its no-pH branch.
+	soiltype.pH = soilprop.pH;
 
 	// Phosphorus soil data
 	// FIXED FOR AMAZON FACE AT THE MOMENT
@@ -475,14 +525,26 @@ void SoilInput::get_soil_organic(double lon, double lat, Gridcell& gridcell) {
 		
 		// There is no need to update the soil properties below if this already classified as an organic soil type.
 		if (soilcode==8) {
-			for (int ii = IDX_STD; ii<NLAYERS; ii++) {
-				// Save these values for later before updating the thermal properties
-				soiltype.org_frac_gridcell[ii - IDX_STD] = 1.0 - organic_porosity;
-				soiltype.min_frac_gridcell[ii - IDX_STD] = 0.0;
-				soiltype.porosity_gridcell[ii - IDX_STD] = organic_porosity;
-			}
+			// This branch wrote the three per-layer arrays and returned, which
+			// left every scalar on the Soiltype unwritten: texture, percolation,
+			// the two Gerten capacities, the thermal diffusivities, wtot, the
+			// awc, wp and wsats profiles, the P sorption constants and soilcode
+			// itself. get_soil is the only populator of a Soiltype, so there was
+			// no earlier call to have set them and they were read as whatever
+			// the constructor left.
+			//
+			// The soil code IS the declaration of this soil's properties, so
+			// soil_parameters is a reconstruction rather than a default: it is
+			// the function every other soilcode-driven path uses, and for code 8
+			// its per-layer fill reproduces this loop exactly. data[8] gives
+			// organic_frac 0.20 and porosity 0.800, hence mineral_frac 0.0,
+			// which is 1 - organic_porosity / 0 / organic_porosity for the
+			// organic_porosity of 0.8 that soil.h declares consistent with soil
+			// code 8. So nothing is lost by deferring to it, and soilcode is
+			// then set, which Soil::update_layer_fractions reads.
+			soil_parameters(soiltype, soilcode);
 
-			return; 
+			return;
 		}
 	}
 
@@ -675,8 +737,20 @@ void SoilInput::get_soil_organic(double lon, double lat, Gridcell& gridcell) {
 
 	// Store the soilcode and new soil properties
 	soiltype.runon = wetland_runon;
-	soiltype.soilcode = soilcode -1;								// -1 if soil_code is false
+	// The soil code as read, or -1 where there is none. This was `soilcode - 1`,
+	// which is what its own comment says only for the no-soil-code case, and
+	// which shifted every code by one everywhere else: a gridcell whose LPJ soil
+	// code is 9, Vertisols, was stored as 8, and Soil::update_layer_fractions
+	// reads 8 as "this is the organic soil, use the whole-profile scalars" and so
+	// discarded the per-layer profile computed just above. The other two writers
+	// of this field, get_soil_mineral and soil_parameters, both store the code as
+	// read.
+	soiltype.soilcode = soil_code ? soilcode : -1;
 	soiltype.water_below_wp = soilpropmineral.wilting_point;
+	// The soil map's pH, on the same terms as get_soil_mineral above.
+	soiltype.pH = soilpropmineral.pH;
+	soiltype.andic_frac = soilpropmineral.andic;
+	soiltype.p_fixation_frac = soilpropmineral.p_fixation;
 	// These values are not used when we use the organic fraction to determine soil properties
 	// However, here we update them with the average values
 	soiltype.organic_frac = material_org_avg;
@@ -787,6 +861,12 @@ void soil_parameters(Soiltype& soiltype, int soilcode) {
 	soiltype.kplab = data[soilcode][12];
 	soiltype.spmax = data[soilcode][13];
 	soiltype.pwtr = data[soilcode][14];
+
+	// An LPJ soil code carries no mineral-reactivity state. The sentinel says so
+	// rather than a zero, which would read as "no andic material here" and is a
+	// different claim from "nothing supplied one".
+	soiltype.andic_frac = UNSET_SOIL_FRAC;
+	soiltype.p_fixation_frac = UNSET_SOIL_FRAC;
 
 	if (!ifcentury) {
 		// override the default SOM years with 70-80% of the spin-up period

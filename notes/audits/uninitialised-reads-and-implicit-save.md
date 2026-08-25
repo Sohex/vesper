@@ -155,4 +155,4 @@ variable IS initialised, exactly once, so no `-finit-real` value ever reaches
 it. The two findings share a chapter because they share a remedy discussion
 about build flags, not because either flag addresses the other's defect. The
 remedy for finding 1 is a build configuration; the remedy for finding 2 is
-reading the 103 sites.
+reading the sites the population count leaves standing.

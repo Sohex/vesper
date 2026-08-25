@@ -1,0 +1,234 @@
+# The simulated soil's nitrogen transformation operator, declared.
+#
+# Worldbuilding. Vesper is an invented planet and this file describes the
+# vegetation model's soil nitrogen chemistry as it runs on the simulation of it.
+#
+# `biosphere/scripts/ntransform_gate.py` reads this file. Every constant below
+# is checked against the place the model actually reads it from, and every
+# response function is evaluated over its declared domain and held to the range
+# its role allows. A value here that has drifted from the source is a failure of
+# this declaration, not of the model.
+#
+# The argument, and what each number is calibrated against, is
+# `biosphere/notes/soil-nitrogen-transformation-parameterisation.md`.
+
+# The six operator constants that reach the model through the instruction file.
+# `file` is checked verbatim: the gate parses it and refuses on any difference.
+instruction_parameters:
+  file: vendor/lpj-guess/data/ins/global_soiln.ins
+  values:
+    f_nitri_max: 0.1
+    f_nitri_gas_max: 0.25
+    f_denitri_max: 0.33
+    f_denitri_gas_max: 0.33
+    k_N: 0.083
+    k_C: 0.017
+  # plib's own bounds, from framework/parameters.cpp `declareitem`. A declared
+  # value outside its parser bound would be refused by the model itself, so the
+  # gate checks it here rather than discovering it at run time.
+  parser_bounds:
+    f_nitri_max: [0.01, 1.0]
+    f_nitri_gas_max: [0.0001, 1.0]
+    f_denitri_max: [0.0001, 1.0]
+    f_denitri_gas_max: [0.00001, 1.0]
+    k_N: [0.0001, 1.0]
+    k_C: [0.00001, 1.0]
+
+# The domains every response function is evaluated over. These are properties of
+# the simulated soil, not of the functions, so they are declared once.
+#   soil_temp_c   the model's 25 cm soil temperature. The lower end is the
+#                 operator's own guard, `soil_T >= -40.0`; the upper end is
+#                 above any soil temperature this world's climate produces.
+#   water_upper   Soil::get_soil_water_upper, a fraction of available capacity.
+#                 Sampled past 1.0 because three call sites clamp it with
+#                 min(1.0, wcont), which is only meaningful if it can exceed 1.
+#   wfps          Soil::wfps(0), water-filled pore space as a fraction.
+#   soil_ph       the range pedology's build_soil.py clips its pH field to,
+#                 `pedology/config/pedogenesis.yaml` ph.minimum and ph.maximum.
+#                 Nothing else supplies a pH: the operator refuses without one.
+domains:
+  soil_temp_c: [-40.0, 80.0]
+  water_upper: [0.0, 1.5]
+  wfps: [0.0, 1.0]
+  soil_ph: [3.8, 9.5]
+
+# Every response function in modules/ntransform.cpp, with the role that decides
+# what range it is held to.
+#
+#   pool_multiplier    multiplies a nitrogen pool mass directly, so it must lie
+#                      in [0, 1] over the whole domain or the operator creates
+#                      or destroys nitrogen.
+#   partition_fraction splits a pool into two parts that are recombined later,
+#                      so it must lie in [0, 1] for both parts to be masses.
+#   factor             enters a product that is separately bounded; the gate
+#                      holds it to `range` and the product to `products` below.
+#
+# `literals` are the numbers the form is built from. The gate checks each one
+# appears in modules/ntransform.cpp, so an edit to the model that this file does
+# not follow is a failure rather than a silent divergence.
+response_functions:
+  - name: f_volat_temperature
+    reads: "nh3_volatilization, table 5 eqn 7 of Xu-Ri and Prentice (2008)"
+    form: "min(1.0, exp(308.56 * (1.0/71.02 - 1.0/(T + 46.02))))"
+    variables: {T: soil_temp_c}
+    literals: [308.56, 71.02, 46.02]
+    role: factor
+    range: [0.0, 1.0]
+
+  - name: nh3_multiplier
+    reads: "nh3_volatilization, table 5 eqns 2,3,4,6. The whole coefficient of NH4_mass"
+    # The pH branch: nh3_max is 0.001 above pH 6 and 0.00001 at or below it. The
+    # gate evaluates both branches over the pH domain and takes the worse.
+    form: "(0.001 if pH > 6.0 else 0.00001) * (min(1.0,w) * (1.0 - min(1.0,w))) * fT * fT * exp(2.0*(pH - 10.0))"
+    variables: {pH: soil_ph, w: water_upper, fT: unit_interval}
+    literals: [0.001, 0.00001, 6.0, 2.0, 10.0]
+    role: pool_multiplier
+    range: [0.0, 1.0]
+
+  - name: wet_fraction
+    reads: "substrate_partition, an S-curve on denitrifier activity from Pilegaard (2013)"
+    form: "richards(0.05, 0.95, 7.5, 0.5, w)"
+    variables: {w: water_upper}
+    literals: [0.05, 0.95, 7.5, 0.5]
+    role: partition_fraction
+    range: [0.0, 1.0]
+
+  - name: nitrification_activity
+    reads: "nitrification, the water response multiplying f_nitri_max"
+    form: "min(exp(-log(3.0)*5.0*0.6) * exp(w * log(3.0)*5.0), max(0.0, 4.0 - 5.0*w))"
+    variables: {w: water_upper}
+    literals: [3.0, 4.0, 5.0]
+    role: factor
+    # Peaks at 1.0 where the rising dry limb crosses the falling wet limb. The
+    # wet limb alone reaches 4.0 at zero water, so this bound holds only because
+    # the dry limb is below 1 wherever the wet limb is above it.
+    range: [0.0, 1.0]
+
+  - name: f_nitri_temperature
+    reads: "nitrification, table 8 eqn 2"
+    form: "min(1.0, pow((70.0 - T)/(70.0 - 38.0), 12.0) * exp(12.0*(T - 38.0)/(70.0 - 38.0))) if T < 70.0 else 0.0"
+    variables: {T: soil_temp_c}
+    literals: [70.0, 38.0, 12.0]
+    role: factor
+    range: [0.0, 1.0]
+
+  - name: f_no_nitrification
+    reads: "nitrification, the NO share of nitrification gas loss, Pilegaard (2013)"
+    form: "richards(1.0, 0.5, 20.0, 0.375, x)"
+    variables: {x: wfps}
+    literals: [20.0, 0.375]
+    role: partition_fraction
+    range: [0.0, 1.0]
+
+  - name: f_denitri_temperature
+    reads: "denitrification, table 9 eqn 1"
+    form: "min(1.0, exp(308.56 * (1.0/68.02 - 1.0/(T + 46.02))))"
+    variables: {T: soil_temp_c}
+    literals: [308.56, 68.02, 46.02]
+    role: factor
+    range: [0.0, 1.0]
+
+  - name: f_denitri_water
+    reads: "denitrification, the moisture response of Weier et al. (1993)"
+    form: "min(1.0, exp(13.0360*x - 11.6219))"
+    variables: {x: wfps}
+    literals: [13.0360, 11.6219]
+    role: factor
+    range: [0.0, 1.0]
+
+  - name: f_n2o_no_water
+    reads: "denitrification, the N2O to NO ratio below 0.7 WFPS"
+    form: "max(0.0, min(1.0, 3.2092*x - 0.9210))"
+    variables: {x: wfps}
+    literals: [3.2092, 0.9210]
+    role: factor
+    range: [0.0, 1.0]
+
+  - name: f_n2_n2o_temperature
+    reads: "denitrification, the N2 share of gas loss above 0.7 WFPS"
+    form: "1.0/(1.0 + exp(-(T - 5.0)/10.0))"
+    variables: {T: soil_temp_c}
+    literals: [5.0, 10.0]
+    role: partition_fraction
+    range: [0.0, 1.0]
+
+  - name: f_n2o_n2_water
+    reads: "denitrification, the moisture control on the same split"
+    form: "richards(1.0, 0.0, 62.0, 0.875, x)"
+    variables: {x: wfps}
+    literals: [62.0, 0.875]
+    role: partition_fraction
+    range: [0.0, 1.0]
+
+  - name: gas_emission_multiplier
+    reads: "n_gas_emission, table 10 eqn 2. The coefficient of every gas pool"
+    form: "fT * (1.0 - min(1.0, w))"
+    variables: {fT: unit_interval, w: water_upper}
+    literals: []
+    role: pool_multiplier
+    range: [0.0, 1.0]
+
+# Products that have to stay inside [0,1] for the operator to be conservative.
+# Each is a chain of factors that together multiply one pool mass. The gate
+# evaluates the maximum of each factor over its domain and multiplies them.
+products:
+  - name: gross_nitrification
+    reads: "no3_inc = f_nitri_max * nit_act * f_nit_T * NH4_mass_d"
+    factors: [instruction:f_nitri_max, nitrification_activity, f_nitri_temperature]
+    max: 1.0
+  - name: nitrification_gas_share
+    reads: "ngas_inc = f_denitri_gas_max * no3_inc, then split by f_no"
+    factors: [instruction:f_denitri_gas_max, f_no_nitrification]
+    max: 1.0
+  - name: denitrification_no3_to_no2
+    reads: "no2_inc coefficient of NO3_mass_w, before its own min() clamp"
+    factors: [instruction:f_denitri_max, f_denitri_temperature]
+    max: 1.0
+  - name: denitrification_no2_to_gas
+    reads: "ngas_inc coefficient of NO2_mass_w, before its own min() clamp"
+    factors: [instruction:f_nitri_gas_max, f_denitri_water, f_denitri_temperature]
+    max: 1.0
+
+# What this operator would need to be a Vesper result rather than an Earth
+# operator run on Vesper's water and pH. Each carries the `undeclared` sentinel
+# and the issue that owns it; `--strict` refuses while any of them is undeclared.
+# There is no default value for any field here.
+vesper_preconditions:
+  surface_pressure_response:
+    declared: undeclared
+    owner: sdec-8
+    why: >
+      Every response function above is a function of temperature, water or pH
+      alone. None of them sees a pressure, so the operator gives the same
+      nitrification and denitrification rates at this world's surface pressure
+      as at Earth's.
+  oxygen_partial_pressure_response:
+    declared: undeclared
+    owner: sdec-8
+    why: >
+      Nitrification is obligately aerobic and denitrification is what happens in
+      its absence, so the aerobic and anaerobic split is a function of oxygen
+      supply. The operator substitutes water-filled pore space for it through
+      substrate_partition, which is an Earth calibration at Earth's oxygen
+      partial pressure. config/planet.yaml declares this world's pO2 and nothing
+      in this operator reads it.
+  soil_gas_diffusivity:
+    declared: undeclared
+    owner: sdec-8
+    why: >
+      The water-filled-pore-space responses stand in for gas diffusion through
+      the pore network. Diffusivity depends on the gas, the pore geometry and
+      the pressure, and the operator carries none of the three.
+  water_table_redox_state:
+    declared: undeclared
+    owner: sdec-3
+    why: >
+      Every water term above is Soil::wfps(0) or get_soil_water_upper, the
+      uppermost Gerten layer. A water table, and the reduced zone below it, has
+      no representation here.
+  nitrogen_gas_atmospheric_boundary:
+    declared: undeclared
+    owner: bio-23
+    why: >
+      The NO, N2O and N2 the operator emits leave the model at the soil surface
+      and reach no atmospheric boundary. BIO-23 owns the handoff.

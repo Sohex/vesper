@@ -420,6 +420,65 @@ from the terrain at all, and whether pulse timing survives averaging -- and the
 non-N/P adequacy screen, whose bounds and directions are declared before any
 result is seen. The contract is `notes/abiotic-nutrient-ledger.md`.
 
+### One mineral-reactivity contract, and its second arm refuses
+
+Every mineral control on soil organic matter in the model is a linear function of
+clay, or of clay plus silt, from Parton et al. (1993). The pedology soil map
+already carries an andic areal fraction and an andic phosphate-fixation share,
+and until now nothing read them. Both now cross the interface into
+`Soiltype::andic_frac` and `Soiltype::p_fixation_frac`, with `UNSET_SOIL_FRAC`
+where an input path has no andic state, and no equation reads either -- which is
+what `mineral_reactivity_gate.py` checks, alongside every declared coefficient
+against `somdynam.cpp` and every declared range over the texture simplex and over
+the soil map's own textures.
+
+```bash
+python biosphere/scripts/mineral_reactivity_gate.py            # status, exit 0
+python biosphere/scripts/mineral_reactivity_gate.py --strict   # refuses the
+                                                               # mineral-aware arm
+```
+
+The mineral-aware arm needs four proxies and all four carry the `undeclared`
+sentinel: Fe-Al oxide content, allophane concentration, aggregate capacity and
+polyvalent cation saturation. The pedology `andic` column is the near miss and is
+registered as a partial producer, because it is an areal fraction of andic
+material rather than an allophane concentration. Neither arm may be retuned to a
+desired soil carbon or productivity. `notes/mineral-reactivity-contract.md` is the
+contract, and it carries the two things the texture arm does that are worth
+knowing: its clay control on passive SOM formation is flat above a clay fraction
+of 1/3, which a quarter of this world's land is above, and its microbial
+partition can leave a negative transfer fraction on sandy soils, which this
+world's soil map does not reach.
+
+### The soil nitrogen transformation operator is declared, and bounded
+
+`ifntransform 1` is on in the baseline, and it is not an emissions diagnostic:
+nitrification, denitrification and ammonia volatilisation set how much mineral
+nitrogen the simulated plants can reach. `ntransform_gate.py` is the declaration
+of that operator checked against the source the model reads. It fails on a
+constant that has drifted from `global_soiln.ins`, on a literal no longer in
+`modules/ntransform.cpp`, on a response function that leaves the range its role
+allows anywhere in its declared domain, and on a chain of factors whose product
+would take more nitrogen out of a pool than the pool holds. Seven reduced
+fixtures run on every invocation, six of them built to be wrong in a named way.
+
+```bash
+python biosphere/scripts/ntransform_gate.py            # status, exit 0
+python biosphere/scripts/ntransform_gate.py --strict   # refuses while a Vesper
+                                                       # precondition is undeclared
+```
+
+`biosphere/config/ntransform.yaml` is the declaration and there is no default for
+any precondition in it. All five carry the `undeclared` sentinel today: surface
+pressure, oxygen partial pressure, soil gas diffusivity, water-table redox state
+and the atmospheric boundary for the gases the operator emits. So the declared
+model boundary is that any nitrogen-limitation result from it is a result for an
+Earth gas and redox environment driven by this world's water and pH.
+`notes/soil-nitrogen-transformation-parameterisation.md` is the register, and it
+carries three defects the operator had: the soil map's pH never reached it, its
+no-pH fallback ran on a variable nothing assigns, and its only conservation check
+was an `assert` that Release compiles out.
+
 ### Fire is GLOBFIRM, with flux and occurrence diagnostics
 
 `run_lpj_guess.py` writes `firemodel "GLOBFIRM"` after its `import` of

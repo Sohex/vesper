@@ -169,6 +169,13 @@ const double SOILDEPTH_EVAP = 200.0;
  */
 const double UNSET_SOIL_FRAC = -1.0;
 
+/// Sentinel for a Soiltype whose soil code no input path has set
+/** Soil::update_layer_fractions branches on soilcode == 8, the organic soil,
+ *  and -1 is already the code for a gridcell whose input path supplied none, so
+ *  "never written" needs a value of its own and outside the table's 0 to 9.
+ */
+const int UNSET_SOILCODE = -999;
+
 /// Advantage a fine root in the upper soil layer has for mineral N uptake
 /** The mineral nitrogen profile is taken to decline exponentially with depth
  *  (Franzluebbers et al. 2009), giving roots in SOILDEPTH_UPPER an approximate
@@ -3606,8 +3613,21 @@ public:
 	/// pH
 	double pH;
 
-	/// soilcode, 0 to 8
+	/// LPJ soil code 0 to 9, -1 where the input path supplied none, or
+	/// UNSET_SOILCODE where no input path has written it
 	int soilcode;
+	/// Andic material as a fraction of the gridcell, from the pedology soil map's
+	/// `andic` column, or UNSET_SOIL_FRAC where the input path supplied none
+	/** Not read by any decomposition or sorption equation yet. The declared
+	 *  active arm for SOM protection and P sorption is texture-only; the
+	 *  mineral-aware arm refuses for want of the Fe-Al oxide, allophane,
+	 *  aggregate-capacity and polyvalent-cation proxies the pedology artifact
+	 *  does not produce. `biosphere/notes/mineral-reactivity-contract.md`.
+	 */
+	double andic_frac;
+	/// The share of released phosphorus andic material takes out of circulation,
+	/// over and above what any soil does, or UNSET_SOIL_FRAC
+	double p_fixation_frac;
 	/// volumetric fraction of organic material (m3 m-3) (Hillel, 1998)
 	double organic_frac;
 	// water held below wilting point, important for heat conductance
@@ -3669,6 +3689,15 @@ public:
 		solvesom_begin = SOLVESOM_BEGIN;
 		organic_frac = 0.02;
 		pH = -1.0;
+		// Soil::update_layer_fractions branches on this, so an unwritten one is
+		// an uninitialised read that picks a soil profile. Every input path sets
+		// it; the sentinel is what makes a path that stops setting it visible,
+		// because UNSET_SOILCODE is not 8 and the per-layer branch it then takes
+		// refuses on UNSET_SOIL_FRAC.
+		soilcode = UNSET_SOILCODE;
+		// No mineral-reactivity state until an input path supplies it.
+		andic_frac = UNSET_SOIL_FRAC;
+		p_fixation_frac = UNSET_SOIL_FRAC;
 		
 		// Assume no mineral content on peatlands
 		sand_frac_peat = clay_frac_peat = silt_frac_peat = 0.0;
