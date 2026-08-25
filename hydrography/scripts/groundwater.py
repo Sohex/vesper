@@ -401,8 +401,8 @@ def laplace_beltrami_error(geom: Geometry, degrees=LAPLACE_DEGREES) -> dict:
 # GW-8: what the operator's error is an error IN
 # ---------------------------------------------------------------------------
 
-def orogen_mesh(n_regions: int, *, jitter: float, seed: int = 0,
-                radius_km: float = 6371.0):
+def orogen_mesh(n_regions: int, *, jitter: float, radius_km: float,
+                seed: int = 0):
     """A mesh from Orogen's own generator, at a resolution of your choosing.
 
     `Geometry` needs only generator positions, a radius and a region count, so
@@ -426,6 +426,11 @@ def orogen_mesh(n_regions: int, *, jitter: float, seed: int = 0,
 
     `cell_area` is set uniform and is UNUSED by everything here: these checks
     take their areas from the Voronoi dual, which is the area the faces bound.
+
+    THE RADIUS IS REQUIRED AND HAS NO DEFAULT. Every error this file reports is
+    relative, so the radius cancels out of all of them, which is exactly why a
+    literal here would never be caught by a result. It comes from the build's
+    own export, and `config/planet.yaml` is the source of that.
     """
     from types import SimpleNamespace
 
@@ -632,8 +637,8 @@ def _fitted_order(cell_sizes, errors) -> float:
 
 
 def instrument_sweep(sizes=INSTRUMENT_SIZES, *, jitter: float,
-                     degrees=(2, 3, 4), seed: int = 0,
-                     radius_km: float = 6371.0, verbose: bool = True) -> dict:
+                     radius_km: float, degrees=(2, 3, 4), seed: int = 0,
+                     verbose: bool = True) -> dict:
     """Truncation and solution error against resolution, on Orogen's generator."""
     rows = []
     for n in sizes:
@@ -1902,6 +1907,7 @@ def instrument_report(mesh_arm: str = "auto") -> int:
     export_dir = builds.mesh_export()
     jitter = float(json.loads((export_dir / "manifest.json")
                               .read_text(encoding="utf-8"))["params"]["jitter"])
+    radius_km = Export(export_dir).radius_km
 
     print("INSTRUMENT: what the operator's error is an error in. GW-8.")
     print("  criteria, declared before the run:")
@@ -1915,8 +1921,8 @@ def instrument_report(mesh_arm: str = "auto") -> int:
           f"{POISSON_SOLVER_RELATIVE:.0e}")
 
     print(f"\n  the sweep, on Orogen's generator at the active build's own "
-          f"jitter of {jitter}:")
-    sweep = instrument_sweep(jitter=jitter)
+          f"jitter of {jitter}\n  and its own radius:")
+    sweep = instrument_sweep(jitter=jitter, radius_km=radius_km)
     ok = True
     print("\n  fitted orders in the cell size:")
     for l, o in sorted(sweep["orders"].items()):
@@ -1929,7 +1935,8 @@ def instrument_report(mesh_arm: str = "auto") -> int:
 
     print("\n  the response to a transmissivity perturbation, against its "
           "analytic answer,\n  on the largest mesh of the sweep:")
-    geom = Geometry(orogen_mesh(INSTRUMENT_SIZES[-1], jitter=jitter))
+    geom = Geometry(orogen_mesh(INSTRUMENT_SIZES[-1], jitter=jitter,
+                                radius_km=radius_km))
     resp = response_error(geom)
     for a in sorted(k for k in resp if k != "amplitude_ratio"):
         r = resp[a]

@@ -280,14 +280,17 @@ On the 80,000-region mesh the factor is 6.8 million nonzeros with
 answer without them. The matrix is symmetric positive definite, so no pivoting
 is the correct setting rather than merely the fast one.
 
-**That does NOT transfer to `solve`, and the negative result is recorded so
-that nobody carries it across.** `solve`'s matrix is a free set inside a
-Dirichlet boundary, not a whole mesh with one cell pinned, and the boundary
-coupling makes it diagonally dominant enough that partial pivoting picks the
-diagonal anyway. Measured on that shape at 55,977 free cells, with a spatially
-coherent conductivity spanning Gleeson's 3.4 orders: `nnz(L+U)` 1,042,714 and a
-0.55 GB peak, IDENTICAL with and without the symmetric setting. So `solve` is
-left as it is, and the memory that WORLD-V3UR is blocked on is not this.
+**Do not carry that across to `solve` without measuring it there.** `solve`'s
+matrix is a free set inside a Dirichlet boundary, not a whole mesh with a single
+cell pinned, and the boundary coupling can leave it dominant enough that partial
+pivoting picks the diagonal regardless. On a synthetic of that shape at 55,977
+free cells, with a spatially coherent conductivity spanning Gleeson's 3.4 orders,
+the factor is 1,042,714 nonzeros and a 0.55 GB peak IDENTICALLY with and without
+the symmetric setting, so at that size it buys nothing. A four-times larger
+synthetic did not finish its unsymmetric arm, so whether there is a crossover
+above it is unmeasured, and `solve` is therefore left exactly as it is. What it
+would be worth there is the one thing WORLD-V3UR's memory blocker has not been
+tried against.
 
 ## The divide test as declared is mis-specified, and missed
 
