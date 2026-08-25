@@ -169,6 +169,7 @@ set(_sources
     radmod.f90
     surfmod.f90
     snowmaskmod.f90
+    landcolumn.f90
     landmod.f90
     glaciermod.f90
     seamod.f90

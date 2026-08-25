@@ -18,6 +18,7 @@ python pedology/scripts/build_soil.py --soil-carbon <cpool.out> --iteration 1
 python pedology/scripts/weathering_fluxes.py                   # CO2 and silica
 python pedology/scripts/brine_paths.py                         # the chemical divide
 python pedology/scripts/build_surface_classes.py               # needs brine_paths
+python pedology/scripts/land_column_properties.py              # the hydraulic property contract
 ```
 
 Writes `data/<source_build>/soilmap.txt`, which is LPJ-GUESS's own `SoilInput`
@@ -202,6 +203,37 @@ inlined the conversion without `sand_to_silt_loss_ratio` and without either cap
 on the donor pools, so it predicted more clay than the model does. Any land-mean
 clay figure quoted against the pre-fix bias is comparing to a number that
 measured the score, not the map.
+
+## The land column property contract
+
+`land_column_properties.py` reads `config/land_column_properties.yaml` and is
+the single vertically explicit description of the simulated land column's
+hydraulic and thermal properties: two geometries, four materials with their
+vertical rules, four retention states with their ordering checked, one NAMED
+retention closure with its family stated, correlated uncertainty cases, and the
+aquifer boundary the contract deliberately does not own. It runs no model and
+writes `analysis/land_column_properties_report.json`.
+
+It exists to be compared against, before either consumer-side pedotransfer path
+is removed. On the checked-in soil map it reports pedology's `awc`, ExoPlaSim's
+`dwmax` and LPJ-GUESS's own Cosby derivation with the Vesper regolith and
+bedrock scaling, on the same cells and in the same units, with their ratio,
+their absolute difference and their correlation. It measures the region where
+the Cosby inversion returns a field capacity above saturation -- an analytic
+line in the texture simplex, not a search -- and reports the map's margin from
+it rather than a count. And it derives what this planet's gravity does to field
+capacity, which it reports and does not apply.
+
+Gravity is where the contract earns its keep. Saturation is pore geometry and
+does not move; the wilting point is a plant pressure and does not move; field
+capacity is a drainage equilibrium over a stated length and its matric pressure
+is `rho_w * g * L`, so it does. The declared drainage length reproduces Cosby's
+own field-capacity suction exactly under Earth gravity, and the check fails if
+it stops doing so. `notes/land-column-property-contract.md` is the argument.
+
+Both arms are falsifiable: the declaration check is run against ten contracts
+broken in named ways and is required to catch every one. Eight properties still
+carry the `undeclared` sentinel and `--strict` is the arm that refuses.
 
 ## Both property-feedback paths are wired; the hydraulic loop is not closed
 

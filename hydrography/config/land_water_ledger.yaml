@@ -1,0 +1,699 @@
+# THE LAND WATER LEDGER. Read by hydrography/scripts/land_water_ledger.py.
+#
+# One ledger for the simulated terrestrial water column, from precipitation
+# leaving the air column over a land cell to a named terminal boundary at the
+# coast. The contract is hydrography/notes/land-water-ledger.md; the finding it
+# rests on is biosphere/notes/soil-land-surface-hydraulic-consistency-audit.md,
+# findings 2 through 4.
+#
+# A ledger's whole value is that it balances. Every term below moves a stated
+# mass of water from ONE declared node to ONE declared node, and the checker
+# fails when the graph does not close, when a phase changes with no process
+# named, when a phase change carries the wrong latent heat, when a store is
+# drawn below zero, when one evaporative component is debited from two stores,
+# or when a term that feeds a sub-annual store can only be produced annually.
+#
+# THE SENTINEL IS `undeclared`, AND IT REFUSES, on the same terms as
+# biosphere/config/abiotic_nutrients.yaml. A term carrying it is registered in
+# the graph and supplies no mass; the report names it and the bd issue that
+# owns it. There is no default value for any flux here.
+
+version: 1
+
+# ---------------------------------------------------------------------------
+# UNITS. The canonical internal unit is absolute mass of water.
+# ---------------------------------------------------------------------------
+units:
+  # Every term is reduced to kg of H2O crossing a node boundary in one
+  # interval BEFORE anything is summed. Per-area rates and per-area depths are
+  # presentation only. This is what makes a denominator error fail instead of
+  # silently rescaling: a runoff depth generated over the land fraction of a
+  # cell, a lake evaporation depth generated over the open-water fraction, and
+  # a catchment-mean depth generated over a basin all have different
+  # denominators, and no column name says which one is meant.
+  mass: kg_h2o
+  # Never a depth and never a volume. A depth is a mass only once an area is
+  # named, and a volume is a mass only once a density and a phase are named:
+  # snow at 330 kg/m3 and snow at 500 kg/m3 are the same water and different
+  # volumes, which is exactly the disagreement GRAV-8 owns.
+  substance_basis: h2o
+  # ABSOLUTE time, on the contract in biosphere/notes/time-base-unit-contract.md.
+  time: earth_day
+
+# The interval the report is stated on. Closure is required at EVERY interval
+# down to the model timestep, not only at this one: a ledger that closes
+# annually and not daily is the finding, not the fix. `interval_floor` on each
+# term below is the shortest interval its producing artifact can supply.
+interval_earth_days: 365.2422
+
+# Stores whose state changes materially inside one reporting interval. A term
+# delivering to one of these with `interval_floor: annual` is refused: an
+# annual mean cannot partition a seasonal store, and doing it anyway is what
+# finding 3 of the audit describes.
+sub_annual_stores: [canopy, snowpack, soil_liquid, soil_ice, open_water]
+
+# ---------------------------------------------------------------------------
+# THE CONTROL VOLUME. Declarations, not measurements. A control volume has to
+# be cut somewhere and the ledger says where. Changing a cut changes every
+# stock below it.
+# ---------------------------------------------------------------------------
+control_volume:
+  # Where soil_liquid stops and groundwater begins. The vadose column base,
+  # and the contact LSHY-1's property artifact and PLHY-4's exchange are
+  # joined at. Taken from LPJ-GUESS's physical profile, which is the only
+  # column in this pipeline that HAS a depth: fifteen 100 mm layers, five
+  # upper and ten lower, reaching 1.5 m. ExoPlaSim's bucket has no depth at
+  # all -- `dwmax` is a capacity in metres OF WATER, not a column thickness --
+  # and pedology's regolith depth scales LPJ's capacities without moving a
+  # layer boundary or a root. Deeper than the 1.0 m root zone that
+  # biosphere/config/abiotic_nutrients.yaml cuts its solute pools at: a root
+  # zone is where uptake happens and a vadose column is where water moves, and
+  # the two are different cuts through the same soil.
+  column_base_m: 1.5
+  # The lateral cut. Everything below is per land cell of the configured
+  # climate grid; the native mesh crossing is SPAT-1 through SPAT-4 and
+  # LSHY-6, and this ledger asserts nothing about it.
+  lateral: climate_grid_land_cell
+  # Land comes from `surface_class`, never from `land_mask`. Dry closed-basin
+  # floor below sea level is land here and holds a soil column. See
+  # source/README.md and CLAUDE.md rule 1.
+  land_from: surface_class
+
+# ---------------------------------------------------------------------------
+# LATENT HEAT. The energy axis, carried only far enough to make a phase term
+# checkable. A phase change that books the wrong latent heat conserves water
+# and loses energy, and finding 5 of the audit is that freeze/thaw is
+# reconstructed twice with no shared constant.
+# ---------------------------------------------------------------------------
+latent_heat:
+  # plasimmod.f90 and p_earth.f90 carry these two and derive nothing else.
+  vaporisation_j_per_kg: 2.5008e+6
+  sublimation_j_per_kg: 2.8345e+6
+  # NOT an independent number. ExoPlaSim never declares a latent heat of
+  # fusion: landmod.f90's snowmelt uses (ALS - ALV) directly, so fusion is the
+  # difference and the identity below is exact by construction. The checker
+  # verifies it, which is what catches a fourth constant appearing somewhere
+  # that disagrees with the three that exist.
+  fusion_j_per_kg: 3.337e+5
+  identity: sublimation = vaporisation + fusion
+  identity_tolerance_j_per_kg: 1.0
+
+# ---------------------------------------------------------------------------
+# NODES. The control volumes. Every term names one source and one destination
+# from this set, and nothing leaves the set.
+# ---------------------------------------------------------------------------
+#
+# kind:
+#   `reservoir`  an ordinary control volume: mass in, mass out, a stock.
+#   `boundary`   mass may ENTER the domain here. Its stock is not tracked and
+#                the closure check counts what crosses it as an external input.
+#   `terminal`   mass stops here for THIS ledger. No term may take it as a
+#                source. A terminal node is a boundary condition, not a claim
+#                about what happens beyond it.
+#   `interface`  owned by another component. The ledger books the crossing and
+#                not the pools behind it.
+#
+# area_basis: the denominator a per-area depth or rate at this node is stated
+#   on. Three different denominators appear below and that is the point.
+#
+# owner: the ONE component that advances this store. `shadow_copies` names the
+#   symbols in other components that presently hold an independent copy of the
+#   same store. A shadow copy is not a second store, it is the same water
+#   counted twice, and `--strict` refuses while any node has one.
+nodes:
+  atmosphere:
+    kind: boundary
+    reentrant: true
+    area_basis: cell_land_area
+    what: >
+      The air column over one land cell. Precipitation enters the domain here
+      and every evaporative component returns to it. A boundary rather than a
+      reservoir because the atmospheric water budget is ExoPlaSim's own and
+      this ledger books the crossing, not the column behind it.
+  unowned_source:
+    kind: boundary
+    area_basis: cell_land_area
+    what: >
+      Where water with no owner enters. A boundary that should carry nothing.
+      It exists because a ledger that cannot name an unowned crossing cannot
+      report one, and one term books here today.
+  canopy:
+    kind: reservoir
+    area_basis: cell_land_area
+    owner: unassigned
+    symbol: undeclared
+    shadow_copies: []
+    what: >
+      Water held on leaf and stem surfaces, available to evaporate at the
+      potential rate and not available to a root. ExoPlaSim's land column has
+      no such store at all: precipitation reaches the bucket undiminished.
+      LPJ-GUESS carries `patch.intercep` and removes it before its own snow
+      partition. Declared here as a node with no current owner, because the
+      alternative is to leave interception out of the graph and then be unable
+      to say which model's evaporation includes it.
+  snowpack:
+    kind: reservoir
+    area_basis: cell_land_area
+    owner: exoplasim
+    symbol: dsnowz
+    shadow_copies: ["lpj-guess soil.snowpack"]
+    what: >
+      Snow water equivalent. ONE store. ExoPlaSim advances `dsnowz` from the
+      condensation scheme's `dprs` and melts it on an energy balance;
+      LPJ-GUESS independently partitions precipitation at TSNOW = 0 C and melts
+      its own copy on a degree-day rate. The two are the same snow and they
+      disagree on when it becomes water.
+  soil_liquid:
+    kind: reservoir
+    area_basis: cell_land_area
+    owner: exoplasim
+    symbol: dwatc
+    shadow_copies: ["lpj-guess soil.wcont[NSOILLAYER]"]
+    what: >
+      Liquid water held in the soil column to `column_base_m`, and the only
+      node a root can take from. ExoPlaSim carries one scalar with no vertical
+      structure; LPJ-GUESS carries 15 layers parameterised independently and
+      debits none of ExoPlaSim's store.
+  soil_ice:
+    kind: reservoir
+    area_basis: cell_land_area
+    owner: unassigned
+    symbol: undeclared
+    shadow_copies: ["lpj-guess soil.Frac_ice[NLAYERS]"]
+    what: >
+      Frozen pore water. ExoPlaSim's land column has no soil ice: its five
+      temperature layers evolve on a fixed heat capacity and conductivity and
+      no water in the bucket is ever frozen, so frozen pore space cannot impede
+      infiltration or flow. LPJ-GUESS carries `Frac_ice` per layer and reduces
+      available liquid water under freezing.
+  open_water:
+    kind: reservoir
+    area_basis: cell_open_water_area
+    owner: hydrography
+    symbol: lake storage in surface_water.nc
+    shadow_copies: ["exoplasim driver"]
+    what: >
+      Lakes, channels and floodplains: routed water on the surface. Its area
+      basis is the open-water fraction of a cell and NOT the cell, which is
+      the denominator change the area-basis fixture exercises. ExoPlaSim's
+      `driver` accumulates routed runoff and discharges it to the ocean
+      without ever evaporating.
+  groundwater:
+    kind: reservoir
+    area_basis: cell_land_area
+    owner: hydrography
+    symbol: water_table.nc head
+    shadow_copies: []
+    what: >
+      The saturated store below `column_base_m`. Solved at steady state, so it
+      supplies a mean head and an annual-mean balance and carries no aquifer
+      storage change. That is a declared limit, not a store: see the absence
+      `transient_saturated_storage` below.
+  vegetation:
+    kind: interface
+    area_basis: cell_land_area
+    owner: lpj-guess
+    symbol: patch water pools
+    shadow_copies: []
+    what: >
+      The simulated vegetation, owned by LPJ-GUESS. Water passes through it
+      from a root to a stoma and the ledger books both crossings, so a
+      transpiration flux that is not matched by an uptake is visible rather
+      than absorbed. The plant water storage behind the interface is PLHY's.
+  ocean_export:
+    kind: terminal
+    area_basis: coastline_segment
+    what: >
+      Everything that crosses the coastline, booked and stopped. "Reached the
+      ocean" is a boundary condition for this ledger and OCN owns everything
+      after arrival.
+
+# ---------------------------------------------------------------------------
+# TERMS. Each is one directed transfer of water mass over one interval.
+# `flux` carries the artifact that supplies it, or `undeclared`, which refuses
+# and names its issue.
+# ---------------------------------------------------------------------------
+#
+# transform: what the term does to phase. `none` moves water without changing
+#   it; anything else names the change, and `latent` must be the latent heat
+#   that change actually consumes or releases.
+#
+# et_component: for an evaporative withdrawal, WHICH one. Exactly one term may
+#   carry each component, and it names the single store it debits. Two terms
+#   carrying the same component is finding 4 written down.
+#
+# interval_floor: the shortest interval the producing artifact can supply this
+#   term on. `instantaneous` means the producer carries it at the model
+#   timestep. `annual` means it exists only as an annual mean, and a term with
+#   `annual` reaching a sub-annual store is refused.
+terms:
+  rainfall:
+    from: atmosphere
+    to: canopy
+    phase_from: liquid
+    phase_to: liquid
+    transform: none
+    latent: none
+    flux: undeclared
+    producer: "exoplasim dprl + dprc (landmod.f90 tands)"
+    producer_units: m s-1 of water
+    interval_floor: instantaneous
+    owner: lshy-3
+    note: >
+      Liquid precipitation reaching the surface. It arrives at the canopy and
+      not at the soil, because interception happens before infiltration and a
+      ledger that routes rain straight to the bucket cannot represent a
+      vegetation control on evaporation. In the current implementation the
+      canopy store is absent and this term goes to soil_liquid directly, which
+      is the same as declaring interception zero without saying so.
+  snowfall:
+    from: atmosphere
+    to: snowpack
+    phase_from: ice
+    phase_to: ice
+    transform: none
+    latent: none
+    flux: undeclared
+    producer: "exoplasim dprs (landmod.f90 tands)"
+    producer_units: m s-1 of water equivalent
+    interval_floor: instantaneous
+    owner: lshy-5
+    note: >
+      Solid precipitation. ExoPlaSim's condensation scheme decides the phase
+      thermodynamically at tmelt; LPJ-GUESS re-decides it from daily mean air
+      temperature against TSNOW = 0 C, on the reconstructed driver. One
+      snowfall, two partitions.
+  lake_precipitation:
+    from: atmosphere
+    to: open_water
+    phase_from: liquid
+    phase_to: liquid
+    transform: none
+    latent: none
+    flux: undeclared
+    producer: "hydrography surface_water.py per-basin lake precipitation"
+    producer_units: km Earth-year-1 over the open-water area
+    interval_floor: annual
+    owner: lshy-6
+    note: >
+      Precipitation falling directly on open water. Quoted on the open-water
+      area and not on the land cell, which is the denominator this ledger
+      makes explicit rather than the one a column name implies.
+  canopy_throughfall:
+    from: canopy
+    to: soil_liquid
+    phase_from: liquid
+    phase_to: liquid
+    transform: none
+    latent: none
+    flux: undeclared
+    producer: undeclared
+    producer_units: undeclared
+    interval_floor: instantaneous
+    owner: lshy-3
+    note: what the canopy does not hold or evaporate. Zero in both models today, for opposite reasons.
+  canopy_evaporation:
+    from: canopy
+    to: atmosphere
+    phase_from: liquid
+    phase_to: vapour
+    transform: vaporisation
+    latent: vaporisation
+    et_component: canopy_evaporation
+    flux: undeclared
+    producer: undeclared
+    producer_units: undeclared
+    interval_floor: instantaneous
+    owner: lshy-4
+    note: >
+      Evaporation of intercepted water, at the potential rate because the
+      water is on a surface and not in a pore. ExoPlaSim folds this into
+      `soil_evaporation` through `drhs`; LPJ-GUESS evaporates `patch.intercep`
+      separately. The same water, evaporated by two models from two stores.
+  snowmelt:
+    from: snowpack
+    to: soil_liquid
+    phase_from: ice
+    phase_to: liquid
+    transform: melting
+    latent: fusion
+    flux: undeclared
+    producer: "exoplasim dsmelt (landmod.f90 tands)"
+    producer_units: m s-1 of water equivalent
+    interval_floor: instantaneous
+    owner: lshy-5
+    note: >
+      Melt reaching the soil. ExoPlaSim melts on the surface energy balance
+      and books the energy at (ALS - ALV); LPJ-GUESS melts at
+      (1.5 + 0.007 * prec) * (temp - TSNOW) mm per day, which is a degree-day
+      rate with no energy term at all and therefore no way to be consistent
+      with the first.
+  snow_cap_shedding:
+    from: snowpack
+    to: soil_liquid
+    phase_from: ice
+    phase_to: liquid
+    transform: melting
+    latent: fusion
+    flux: undeclared
+    producer: "exoplasim dsmax branch (landmod.f90 tands)"
+    producer_units: m s-1 of water equivalent
+    interval_floor: instantaneous
+    owner: lshy-5
+    note: >
+      Snow above `dsmax` is discarded as melt water and the surface is cooled
+      to pay for it, so water and energy both close. It is a separate term
+      from `snowmelt` because it is not driven by the energy balance: it is
+      the cap standing in for the glacier this column cannot grow, and its
+      magnitude is a property of a namelist rather than of a climate.
+  snow_sublimation:
+    from: snowpack
+    to: atmosphere
+    phase_from: ice
+    phase_to: vapour
+    transform: sublimation
+    latent: sublimation
+    et_component: snow_sublimation
+    flux: undeclared
+    producer: "exoplasim devap applied to dsnowz (landmod.f90 tands)"
+    producer_units: m s-1 of water equivalent
+    interval_floor: instantaneous
+    owner: lshy-5
+    note: >
+      Where snow lies, `devap` is charged to the snowpack before the soil. The
+      surface flux that produced `devap` was evaluated with `drhs` set to 1
+      over snow, so the rate is the potential one; what the ledger needs and
+      the model does not carry is the split when the snowpack is exhausted
+      part-way through a timestep.
+  soil_freezing:
+    from: soil_liquid
+    to: soil_ice
+    phase_from: liquid
+    phase_to: ice
+    transform: freezing
+    latent: fusion
+    flux: undeclared
+    producer: "exoplasim landphase under nlandwphase = 1 (landmod.f90); nothing under the default"
+    producer_units: m of water equivalent
+    interval_floor: instantaneous
+    owner: lshy-5
+    note: >
+      Pore water freezing in place, limited by the layer's cold content
+      relative to melting and by the water actually there. Under the default
+      the climate column has no soil ice at all, so the heat capacity of a
+      freezing soil does not change and the latent heat is neither released
+      nor absorbed there.
+  soil_thaw:
+    from: soil_ice
+    to: soil_liquid
+    phase_from: ice
+    phase_to: liquid
+    transform: melting
+    latent: fusion
+    flux: undeclared
+    producer: "exoplasim landphase under nlandwphase = 1 (landmod.f90); nothing under the default"
+    producer_units: m of water equivalent
+    interval_floor: instantaneous
+    owner: lshy-5
+  soil_evaporation:
+    from: soil_liquid
+    to: atmosphere
+    phase_from: liquid
+    phase_to: vapour
+    transform: vaporisation
+    latent: vaporisation
+    et_component: soil_evaporation
+    flux: undeclared
+    producer: "exoplasim devap throttled by drhs (fluxmod.f90, landmod.f90)"
+    producer_units: m s-1 of water
+    interval_floor: instantaneous
+    owner: lshy-3
+    note: >
+      Bare-soil and unvegetated evaporation. The limiter is
+      min(1, dwatc / (drhsfull * dwmax)) with drhsfull = 0.4, so the store
+      evaporates at the potential rate anywhere above two fifths full. That
+      shape is a declared choice with a bracket beside it and not a fact: the
+      peer implementation in cGENIE's ENTS uses the fourth power of fractional
+      fill and reaches potential only at a full store. LSHY-3 carries the
+      limiter as a selectable form rather than inheriting either silently.
+  root_uptake:
+    from: soil_liquid
+    to: vegetation
+    phase_from: liquid
+    phase_to: liquid
+    transform: none
+    latent: none
+    flux: undeclared
+    producer: undeclared
+    producer_units: undeclared
+    interval_floor: instantaneous
+    owner: lshy-4
+    note: >
+      Water crossing from the soil into the plant. Booked separately from
+      `transpiration` so that a transpiration flux with no matching uptake
+      leaves a residual at the interface rather than being absorbed. ExoPlaSim
+      has no root extraction at all; the whole of its land evaporation leaves
+      through `soil_evaporation`.
+  groundwater_uptake:
+    from: groundwater
+    to: vegetation
+    phase_from: liquid
+    phase_to: liquid
+    transform: none
+    latent: none
+    et_component: groundwater_uptake
+    flux: undeclared
+    producer: "hydrography groundwater.py et_rate, et_max * exp(-depth/et_lambda)"
+    producer_units: m s-1 over the land cell
+    interval_floor: annual
+    owner: gw-5
+    note: >
+      Withdrawal from the saturated store by plants reaching the water table.
+      The current solver's sink does not separate this from direct evaporation
+      off a shallow table, and PLHY-4 and GW-5 own the split. Its interval
+      floor is annual because the solver is steady state.
+  transpiration:
+    from: vegetation
+    to: atmosphere
+    phase_from: liquid
+    phase_to: vapour
+    transform: vaporisation
+    latent: vaporisation
+    et_component: transpiration
+    flux: undeclared
+    producer: undeclared
+    producer_units: undeclared
+    interval_floor: instantaneous
+    owner: lshy-4
+    note: >
+      The stomatal flux. It leaves through the vegetation interface, so the
+      store it came from is `root_uptake`'s source and nothing else. Today
+      LPJ-GUESS computes it against its own soil water and no part of it
+      reaches the atmospheric latent heat the climate saw.
+  open_water_evaporation:
+    from: open_water
+    to: atmosphere
+    phase_from: liquid
+    phase_to: vapour
+    transform: vaporisation
+    latent: vaporisation
+    et_component: open_water_evaporation
+    flux: undeclared
+    producer: "hydrography carve_verdict.penman_open_water"
+    producer_units: km Earth-year-1 over the open-water area
+    interval_floor: annual
+    owner: lshy-6
+    note: >
+      Evaporation from lake and channel surfaces, at the open-water rate and
+      on the open-water area. ExoPlaSim cannot produce it: routed water lands
+      in `driver`, which discharges to the ocean and never evaporates, so a
+      lake cell's annual evaporation is capped by its own precipitation
+      however `dwmax` is set.
+  surface_runoff:
+    from: soil_liquid
+    to: open_water
+    phase_from: liquid
+    phase_to: liquid
+    transform: none
+    latent: none
+    flux: undeclared
+    producer: "exoplasim drunoff, landmod.f90 wandr under nlandwcol = 0 and wandrcol under nlandwcol = 1"
+    producer_units: m s-1 over the land cell
+    interval_floor: instantaneous
+    owner: lshy-3
+    note: >
+      Saturation-excess overflow. It is the ONLY runoff generation mechanism
+      in the climate column: there is no infiltration capacity, so an
+      infiltration-excess event on a dry soil generates nothing. The
+      hydrography path does not consume it, computing max(P - E, 0) instead
+      and rejecting `mrro` as an incomplete routed diagnostic. Both cannot own
+      the same water, which is why this term has one producer and the
+      partition below is what a second consumer must read.
+  drainage:
+    from: soil_liquid
+    to: groundwater
+    phase_from: liquid
+    phase_to: liquid
+    transform: none
+    latent: none
+    flux: undeclared
+    producer: "hydrography build_groundwater.py recharge = max(P - E, 0); exoplasim ddrain under nlandwcol = 1, nlandwdrain = 1"
+    producer_units: m s-1 over the land cell
+    interval_floor: annual
+    owner: lshy-3
+    note: >
+      Vertical flow out of the base of the vadose column. THIS IS THE TERM
+      FINDING 3 IS ABOUT. The groundwater builder takes the whole positive
+      annual P - E as recharge, the surface-water builder takes the same
+      quantity as catchment runoff, and the climate column has already routed
+      its own bucket overflow. Three consumers, one quantity, no partition.
+      P - E is a sound total export constraint at equilibrium and it is not a
+      partition, and only an explicit partition can make it into one.
+  capillary_rise:
+    from: groundwater
+    to: soil_liquid
+    phase_from: liquid
+    phase_to: liquid
+    transform: none
+    latent: none
+    flux: undeclared
+    producer: undeclared
+    producer_units: undeclared
+    interval_floor: annual
+    owner: plhy-4
+    note: >
+      Upward flow from a shallow water table into the vadose zone. Absent from
+      both columns. It is what makes the lower boundary an exchange rather
+      than an outlet, and it is the reason `drainage` and this term are two
+      terms rather than one signed one: a signed exchange hides which
+      direction was actually taken and cannot be debited once.
+  baseflow:
+    from: groundwater
+    to: open_water
+    phase_from: liquid
+    phase_to: liquid
+    transform: none
+    latent: none
+    flux: undeclared
+    producer: "hydrography groundwater.py seepage"
+    producer_units: m3 s-1 per cell
+    interval_floor: annual
+    owner: anut-6
+    note: >
+      Seepage and baseflow returning to the surface network. The solver
+      already conserves it against its own recharge; what is undeclared is the
+      partition upstream that says how much recharge there was.
+  coastal_discharge:
+    from: open_water
+    to: ocean_export
+    phase_from: liquid
+    phase_to: liquid
+    transform: none
+    latent: none
+    flux: undeclared
+    producer: "hydrography river_discharge; exoplasim driver at the coast"
+    producer_units: m3 s-1
+    interval_floor: annual
+    owner: anut-6
+    note: the terminal boundary. Two producers today, and they are not the same water.
+  bucket_floor_creation:
+    from: unowned_source
+    to: soil_liquid
+    phase_from: liquid
+    phase_to: liquid
+    transform: none
+    latent: none
+    flux: undeclared
+    producer: "exoplasim wandr, dwatc = AMAX1(AMIN1(dwmax, dwatc), 0.)"
+    producer_units: m s-1 over the land cell
+    interval_floor: instantaneous
+    owner: world-hssb
+    note: >
+      The clip at zero. `wandr` adds the net water flux to the store and then
+      raises it back to zero if it went negative, which creates water while
+      the latent heat that removed it has already been paid to the atmosphere.
+      IT IS BOUNDED AND MAY BE ZERO: `fluxmod.f90` limits evaporation to
+      dwatc/deltsec before the tendency is applied, so the clip can only fire
+      when a withdrawal the limiter did not see arrives in the same timestep,
+      which is the snow-exhaustion path where `devap` is charged against a
+      snowpack that empties part-way through. It is a term rather than a
+      remark because a crossing nobody owns is exactly what a ledger exists to
+      make countable, and LSHY-8 owns measuring it.
+
+# ---------------------------------------------------------------------------
+# ABSENCES. Water the coupled system does not carry at all. Each names what is
+# missing, what it makes unrepresentable, and the issue that owns it.
+#
+# An absence is NOT a term with an undeclared flux. A term with `undeclared`
+# has a place in the graph and no number; an absence has no place in the graph
+# because the state it would move does not exist in either model.
+# ---------------------------------------------------------------------------
+absences:
+  soil_water_above_field_capacity:
+    what: >
+      LPJ-GUESS's `wcont` is a fraction of AVAILABLE capacity, refused outside
+      [0, 1], so the wettest state the column can represent is field capacity.
+      Water between field capacity and saturation has nowhere to sit.
+    unrepresentable: >
+      Water-filled pore space derived from `wcont` tops out at the ratio of
+      field capacity to saturation: a median of 0.813 across the checked-in
+      soil map, as low as 0.573, and 164 of 4105 cells that can never reach
+      0.70 WFPS at all. Every process keyed on WFPS therefore has a ceiling
+      that is a property of the texture rather than of the weather, and
+      saturated or near-saturated soil -- which is what a quarter of this land
+      is, being playa clastic -- is a state the column cannot enter.
+    owner: lshy-1
+  canopy_store_in_the_climate_column:
+    what: ExoPlaSim's land column has no interception store.
+    unrepresentable: >
+      Evaporation at the potential rate from a wet canopy over a dry soil, and
+      any vegetation control on the partition of precipitation. The climate's
+      latent heat is therefore a function of the bucket alone.
+    owner: lshy-3
+  soil_ice_in_the_climate_column:
+    what: ExoPlaSim's five soil temperature layers carry no water and no phase.
+    unrepresentable: >
+      Frozen pore space impeding infiltration, the heat capacity and
+      conductivity change that freezing produces, and the latent heat of
+      freeze/thaw in the soil. Melt water therefore always infiltrates,
+      whatever the soil temperature.
+    owner: lshy-5
+  open_water_evaporation_from_routed_water:
+    what: >
+      Routed runoff accumulates in `driver` and discharges to the ocean.
+      Nothing evaporates from it, and `dwatc` gains only from local
+      precipitation minus evaporation.
+    unrepresentable: >
+      A terminal lake. A closed basin's entire water balance is evaporation
+      from water its catchment delivered, and the climate column cannot
+      evaporate delivered water at all, so annual lake evaporation is capped
+      by local precipitation however the bucket depth is set.
+    owner: lshy-6
+  transient_saturated_storage:
+    what: The groundwater solver is a steady-state one and carries no storage change.
+    unrepresentable: >
+      Seasonal head, aquifer storage, and a transient capillary or baseflow
+      response. A first coupled bracket may use a fixed head or an orbit-mean
+      signed exchange; it may not manufacture a seasonal groundwater response
+      from an equilibrium artifact.
+    owner: plhy-4
+  snow_compaction:
+    what: >
+      ExoPlaSim's snow density is the constant `rhosnow = 330` kg/m3 with no
+      compaction; LPJ-GUESS ages its snow from 275 to 500 kg/m3.
+    unrepresentable: >
+      Snow depth as distinct from snow water equivalent, and therefore the
+      insulating thickness that sets the soil temperature under a pack. The
+      one snow term that carries gravity is the compaction that is absent.
+    owner: grav-8
+  subgrid_hydrologic_response:
+    what: >
+      `build_surface_soil_water.py` area-averages land and lake capacities into
+      one cell-mean `dwmax`.
+    unrepresentable: >
+      A cell holding a dry rootable upland and a small groundwater-fed playa.
+      Runoff generation, groundwater access, lake evaporation and root access
+      are nonlinear and occur on different fractions, so no choice of mean
+      reproduces the mosaic and a mean water-table depth cannot substitute for
+      an accessible-area fraction.
+    owner: lshy-6

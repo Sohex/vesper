@@ -221,11 +221,32 @@ steps:
     needs: [bootstrap_run]
     writes: [exoplasim/runs/INDEX.json]
 
+  - id: land_water_ledger
+    script: hydrography/scripts/land_water_ledger.py
+    cost: seconds
+    needs: []
+    writes: [hydrography/analysis/land_water_ledger_report.json]
+    gate: >
+      the one ledger every terrestrial water store and flux books into, from
+      precipitation leaving the air column over a land cell to a named terminal
+      boundary at the coast. It reads hydrography/config/land_water_ledger.yaml,
+      fails on a graph that does not close, on a phase change with no process
+      named, on a phase term carrying the wrong latent heat and on one
+      evaporative component debited from two stores; exercises the mass
+      identity on fixtures built to be wrong; and exercises the graph check
+      itself on declarations built to be wrong. With every term still
+      undeclared it reports and exits 0, because the ledger is the artifact
+      LSHY-1, LSHY-3, LSHY-4, LSHY-5 and PLHY-4 deliver INTO rather than a
+      result about the world; `--strict` is the arm that refuses, and it
+      refuses while any store still has a shadow copy in a second component.
+      surface_water and groundwater need it so the ownership contract sits on
+      the path rather than beside it.
+
   - id: surface_water
     script: hydrography/scripts/surface_water.py
     loop: A
     cost: minutes
-    needs: [hydrography, bootstrap_climatology]
+    needs: [hydrography, bootstrap_climatology, land_water_ledger]
     writes: ["hydrography/data/{build}/surface_water.nc", hydrography/analysis/surface_water_report.json]
 
   - id: topographic_index
@@ -269,7 +290,7 @@ steps:
     script: hydrography/scripts/build_groundwater.py
     loop: A
     cost: minutes
-    needs: [hydrography, bootstrap_climatology, surface_water]
+    needs: [hydrography, bootstrap_climatology, surface_water, land_water_ledger]
     writes: ["hydrography/data/{build}/water_table.nc", hydrography/analysis/groundwater_report.json, hydrography/analysis/groundwater_reduction_test.json, hydrography/analysis/groundwater_divide_test.json, "hydrography/analysis/groundwater_report_sigma*.json", "hydrography/analysis/groundwater_report_noise*.json", "hydrography/analysis/groundwater_report_et*.json"]
     gate: >
       the steady-state water table, and a MEASUREMENT of the net groundwater
@@ -312,11 +333,32 @@ steps:
     needs: [bootstrap_climatology, hydrography, lpj_run]
     writes: [pedology/analysis/soil_report.json, "pedology/data/{build}/soilmap_{res}.txt"]
 
+  - id: land_column_properties
+    script: pedology/scripts/land_column_properties.py
+    cost: seconds
+    needs: [soil]
+    writes: [pedology/analysis/land_column_properties_report.json]
+    gate: >
+      the one vertically explicit hydraulic and thermal description of the land
+      column, and the comparison of every consumer against it. It reads
+      pedology/config/land_column_properties.yaml and fails on a contract that
+      does not hang together -- layers that do not reach the declared base, a
+      root below the column, a state silent on whether it depends on gravity, a
+      drainage length that is not the one Cosby's field-capacity suction was
+      measured at, a retention closure with no family named, uncertainty
+      declared per layer rather than correlated, or an aquifer property shared
+      with the vadose zone -- and exercises that check against ten contracts
+      built wrong. It runs no model: the capacity comparison, the Cosby
+      unclamped-region margin and the gravity correction to field capacity are
+      all read off the checked-in soil map. With properties still undeclared it
+      reports and exits 0; `--strict` is the arm that refuses. surface_soil_water
+      needs it so the description sits upstream of the field it feeds.
+
   - id: surface_soil_water
     script: exoplasim/scripts/build_surface_soil_water.py
     loop: A
     cost: minutes
-    needs: [soil]
+    needs: [soil, land_column_properties]
     writes: ["exoplasim/inputs/{res_lower}/orogen_{res}_surf_0229_provenance.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0229.sra"]
 
   - id: dust

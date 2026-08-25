@@ -10,6 +10,7 @@ python hydrography/scripts/lake_balance.py        # solver smoke test and sweep
 python hydrography/scripts/surface_water.py       # ~3 s, needs a climatology
 python hydrography/scripts/groundwater.py         # the discretisation checks
 python hydrography/scripts/build_groundwater.py   # the water table, needs a climatology
+python hydrography/scripts/land_water_ledger.py   # the store and flux ownership contract
 ```
 
 ## Why this component exists
@@ -74,6 +75,43 @@ already had.
 | `analysis/lake_balance_sweep.json` | solver sensitivity under placeholder forcing |
 | `analysis/surface_water_report.json` | the solved water balance and its forcing |
 | `analysis/topographic_index_report.json` | the index's distribution, the scale measurement, and the score declared before it |
+| `analysis/land_water_ledger_report.json` | the land water ledger's graph, its closure fixtures, its graph mutations, and every store that still has a shadow copy |
+
+## The land water ledger
+
+`land_water_ledger.py` is a contract, not a solver. It reads
+`config/land_water_ledger.yaml` and answers one question about any proposed
+coupling: which store is being debited, by which component, over which
+interval. It refuses the answer "all of them".
+
+The pipeline already has a water balance and it is not the same thing. `P - E`
+closes at equilibrium, the groundwater solver conserves its own recharge
+against its own seepage, and the basin code adds only signed exchange to
+catchment supply. Each is right on its own terms, and together they let one
+interval's positive `P - E` be spent three times: as ExoPlaSim's bucket
+overflow, as this component's catchment runoff, and as the groundwater
+builder's recharge.
+
+The ledger books water mass in kilograms, absolute, with one source and one
+destination per term. Its invariant is that water held in reservoirs plus water
+at terminal nodes equals water held at the start plus water across boundary
+nodes, and a second invariant beside it says each evaporative component is
+debited by exactly one term from exactly one store -- which the mass identity
+does not imply, because two models withdrawing the same millimetre from the
+same store conserve mass and are still wrong.
+
+Both arms are exercised on every invocation: eleven closure fixtures, ten built
+to be wrong in a named way and required to be rejected, and twelve mutations of
+the declaration itself that the graph check is required to catch. A fixture or
+a mutation that does not get its verdict is a defect in the checker and exits
+non-zero.
+
+Every term carries the `undeclared` sentinel today, so the ledger is DEFINED
+and does not CLOSE. `--strict` is the arm that refuses, and it refuses while any
+term is undeclared, while any store still has a shadow copy in a second
+component, or while any term's producer supplies only an annual mean to a store
+that changes inside the year. `notes/land-water-ledger.md` is the contract and
+the argument.
 
 ## The lake solver
 

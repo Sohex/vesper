@@ -1,0 +1,229 @@
+{
+  "generated": "2026-08-25T04:53:15+00:00",
+  "declaration": "pedology/config/land_column_properties.yaml",
+  "declaration_sha256": "c0c5f104176a9b3cac76ea7a2dd21cba4373adfecad70587d217afd1c22c3d84",
+  "version": 1,
+  "soil_map": "pedology/data/precarve-craton-10m/soilmap_T21.txt",
+  "soil_map_sha256": "92f74f2878f2ad9ad3b6536c352fc53476f1ae88d144d9355c41a48a68b3d97f",
+  "units": {
+    "depth": "m",
+    "volumetric_water": "m3_per_m3",
+    "matric_potential": "Pa",
+    "hydraulic_conductivity": "m_per_s",
+    "intrinsic_permeability": "m2",
+    "volumetric_heat_capacity": "J_per_m3_per_K",
+    "thermal_conductivity": "W_per_m_per_K",
+    "bulk_density": "kg_per_m3"
+  },
+  "geometry": {
+    "physical_layer_thickness_m": 0.1,
+    "physical_layer_count": 15,
+    "column_base_m": 1.5,
+    "rootable_base_m": 1.0,
+    "vadose_base_m": 1.5,
+    "consumers": {
+      "exoplasim": {
+        "geometry": "none",
+        "what_it_reads": "awc, as a scalar bucket depth `dwmax` in metres of water",
+        "note": "`dwmax` is a capacity, not a thickness. The land column has no vertical liquid structure at all, so no layer geometry can be given to it until LSHY-3 provides one. Its five SOIL TEMPERATURE layers are a separate geometry, 0.4/0.8/1.6/3.2/6.4 m, which reaches 12.4 m and shares no boundary with either water column.\n"
+      },
+      "lpj_guess": {
+        "geometry": "15 physical layers of 100 mm, grouped 5 upper and 10 lower",
+        "what_it_reads": "sand, clay, silt, pH; NOT awc, NOT bulk density, NOT andic",
+        "note": "`vesperinput.cpp` scales each layer's awc, wp and wsats by the share of that layer above the regolith/bedrock contact plus the bedrock fraction below it, and rescales the two aggregate figures to match. It moves no layer boundary and no root, so a shallow-regolith cell has the same rooting depth as a deep one with less water in it.\n"
+      },
+      "pedology": {
+        "geometry": "one bulk column of `depth` metres",
+        "what_it_writes": "awc, as depth times a texture-weighted volumetric capacity"
+      }
+    }
+  },
+  "retention_closure": {
+    "name": "clapp_hornberger",
+    "family": "brooks_corey",
+    "form": "theta(psi) = theta_s * (psi / psi_s) ** (-1 / b)",
+    "parameter_source": "cosby1984_table4",
+    "air_entry": "discontinuous",
+    "alternatives_registered": [
+      "van_genuchten"
+    ],
+    "note": "Named so the choice is legible and comparable. Cosby et al. support texture as a predictor of MEAN hydraulic behaviour and emphasise that large residual variance remains within texture classes, so the closure carries the shape and the uncertainty cases below carry the spread.\n"
+  },
+  "declaration_failures": [],
+  "declaration_mutations": [
+    {
+      "mutation": "layer_reach_disagrees",
+      "failures": 1,
+      "caught": true,
+      "first": "geometry: 12 layers of 0.1 m reach 1.2000000000000002 m, and column_base_m is 1.5"
+    },
+    {
+      "mutation": "root_below_column_base",
+      "failures": 1,
+      "caught": true,
+      "first": "geometry: the rootable base is below the column base. A root cannot draw from water the column does not carry"
+    },
+    {
+      "mutation": "contact_depth_disagrees",
+      "failures": 1,
+      "caught": true,
+      "first": "geometry: vadose_base_m and aquifer_boundary.contact_depth_m are two names for one contact and they disagree"
+    },
+    {
+      "mutation": "undeclared_state_in_ordering",
+      "failures": 1,
+      "caught": true,
+      "first": "states: ordering names 'turgor', which is not a declared state"
+    },
+    {
+      "mutation": "state_silent_on_gravity",
+      "failures": 1,
+      "caught": true,
+      "first": "state field_capacity: does not say whether it depends on gravity. That is the one question this contract exists to answer the same way twice"
+    },
+    {
+      "mutation": "wilting_point_sign",
+      "failures": 1,
+      "caught": true,
+      "first": "potential_convention: the wilting point is a suction and is negative in this contract's sign convention"
+    },
+    {
+      "mutation": "drainage_length_not_cosbys",
+      "failures": 1,
+      "caught": true,
+      "first": "potential_convention: the drainage length gives an Earth field capacity suction of 3236.2 Pa, and Cosby's 10^2 cm of water is 9806.65 Pa. The two must agree or the drainage length is not what Cosby measured at"
+    },
+    {
+      "mutation": "closure_family_unnamed",
+      "failures": 1,
+      "caught": true,
+      "first": "retention_closure: family 'empirical' is not one of the two implemented families. A closure with no family stated is the thing this block exists to prevent"
+    },
+    {
+      "mutation": "uncertainty_drawn_per_layer",
+      "failures": 1,
+      "caught": true,
+      "first": "uncertainty: cases must be applied coherently. Drawing each layer independently averages the spread away over 15 layers and reports a false precision"
+    },
+    {
+      "mutation": "aquifer_property_shared",
+      "failures": 1,
+      "caught": true,
+      "first": "aquifer_boundary: transmissivity must be scaled separately. A vadose unsaturated conductivity is not an aquifer permeability"
+    }
+  ],
+  "checker_defects": [],
+  "consumer_comparison": {
+    "cells": 1019,
+    "pedology_awc_mm": {
+      "p10": 24.64,
+      "median": 112.8,
+      "p90": 306.976,
+      "mean": 141.9548773307164
+    },
+    "lpj_guess_derived_mm": {
+      "p10": 50.27411061216563,
+      "median": 188.44023493845538,
+      "p90": 261.8762377871362,
+      "mean": 168.62631748295664
+    },
+    "exoplasim_dwmax_m": {
+      "p10": 0.024640000000000002,
+      "median": 0.1128,
+      "p90": 0.306976,
+      "mean": 0.14195487733071638
+    },
+    "exoplasim_source": "the pedology awc column, converted mm to m; not a third derivation",
+    "lpj_over_pedology_ratio": {
+      "p10": 0.8115693153664719,
+      "median": 1.585333209998233,
+      "p90": 2.396934757393269,
+      "mean": 1.5920278132324568
+    },
+    "absolute_difference_mm": {
+      "p10": 20.677569788245314,
+      "median": 54.69946699662705,
+      "p90": 92.95681909885587,
+      "mean": 60.68204572201268
+    },
+    "pearson_correlation": 0.7974429932532883,
+    "reading": "The two fields correlate because both start from related texture and depth. They are not the same capacity: one is a declared endmember mixture with additive organic and allophane terms, the other is a Cosby retention inversion with no andic term and no bulk density.",
+    "soil_carbon_is_zero": true,
+    "soil_carbon_note": "the checked-in map carries zero soil carbon everywhere, so the organic mixing paths of both derivations are inactive and the divergence reported here is the MINERAL one alone"
+  },
+  "cosby_unclamped_region": {
+    "criterion": "1.58 * sand + 0.63 * clay < 0.17 puts field capacity above saturation",
+    "criterion_bound": 0.17,
+    "cells_inside": 0,
+    "closest_cell_criterion": 0.531251,
+    "minimum_saturation_headroom_volumetric": 0.028981006578013058,
+    "any_field_capacity_above_saturation": false,
+    "any_wilting_point_above_field_capacity": false,
+    "verdict": "the map keeps this right, not the code. `get_mineral` clamps nothing, so a soil map that moved into the region would produce a field capacity above saturation and a negative air fraction downstream. The margin is what makes that a bound rather than a hope.",
+    "owner": "world-nga10"
+  },
+  "gravity_field_capacity_shift": {
+    "gravity_m_s2": 12.81,
+    "earth_field_capacity_suction_pa": 9806.65,
+    "vesper_field_capacity_suction_pa": 12810.0,
+    "suction_ratio": 1.3062564688247262,
+    "field_capacity_ratio": {
+      "p10": 0.9574861726827385,
+      "median": 0.9643103366427856,
+      "p90": 0.9714247182340893,
+      "mean": 0.9643797534509273
+    },
+    "available_capacity_ratio": {
+      "p10": 0.9242462234512332,
+      "median": 0.9283284266532594,
+      "p90": 0.9324268764491801,
+      "mean": 0.9283225545392976
+    },
+    "direction": "down, on every cell. Stronger gravity drains a column to a drier state at equilibrium; the wilting point is a plant pressure and does not move, so plant-available water falls.",
+    "applied_by_any_consumer": false,
+    "applied_note": "pedology's declared endmember capacities are Earth field observations and LPJ-GUESS's Cosby inversion evaluates at the Earth suction, so neither carries this. It is a correction this contract makes available and no consumer has taken.",
+    "bracket_note": "an upper bound on the size of the effect, not a correction factor to apply as it stands: it holds the Clapp-Hornberger exponent fixed while gravity moves, and the within-texture-class variance Cosby reports is larger than the shift."
+  },
+  "undeclared_properties": [
+    {
+      "property": "states.residual",
+      "field": "value",
+      "owner": "lshy-3"
+    },
+    {
+      "property": "flow.saturated_conductivity",
+      "field": "value",
+      "owner": "lshy-3"
+    },
+    {
+      "property": "flow.unsaturated_conductivity",
+      "field": "value",
+      "owner": "lshy-3"
+    },
+    {
+      "property": "flow.infiltration_capacity",
+      "field": "value",
+      "owner": "lshy-3"
+    },
+    {
+      "property": "flow.frozen_pore_impedance",
+      "field": "exponent",
+      "owner": "lshy-5"
+    },
+    {
+      "property": "thermal.composition_dependent",
+      "field": "value",
+      "owner": "lshy-5"
+    },
+    {
+      "property": "materials.organic",
+      "field": "fraction_from",
+      "owner": "sdec-10"
+    },
+    {
+      "property": "uncertainty.sources.cosby_within_class_variance",
+      "field": "value",
+      "owner": "lshy-1"
+    }
+  ]
+}

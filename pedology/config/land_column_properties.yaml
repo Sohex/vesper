@@ -1,0 +1,412 @@
+# THE LAND COLUMN PROPERTY CONTRACT. Read by
+# pedology/scripts/land_column_properties.py.
+#
+# One vertically explicit description of the simulated land column's hydraulic
+# and thermal properties, versioned, with its units, its potential convention
+# and its uncertainty cases declared. The contract is
+# pedology/notes/land-column-property-contract.md; the finding it rests on is
+# biosphere/notes/soil-land-surface-hydraulic-consistency-audit.md finding 1,
+# and the ownership graph it feeds is
+# hydrography/config/land_water_ledger.yaml.
+#
+# WHAT THIS IS FOR. Pedology writes one plant-available water capacity and
+# ExoPlaSim installs it as a bucket depth. LPJ-GUESS ignores it and derives
+# saturation, matric potential, wilting point and field capacity for itself
+# from the Cosby texture regressions, then scales the result by regolith depth
+# and weathered-bedrock fraction. Two derivations, one soil, and they disagree
+# by construction rather than by tuning. This file is the single description
+# both are compared against BEFORE either consumer-side path is removed.
+#
+# THE SENTINEL IS `undeclared`, AND IT REFUSES, on the same terms as
+# hydrography/config/land_water_ledger.yaml. A property carrying it is
+# registered and supplies no number; the report names it and the issue that
+# owns it.
+
+version: 1
+
+# ---------------------------------------------------------------------------
+# UNITS. One unit per quantity class, stated once, and never a unit that
+# depends on gravity without saying so.
+# ---------------------------------------------------------------------------
+units:
+  depth: m                       # below the mineral surface, positive downward
+  volumetric_water: m3_per_m3    # of BULK soil volume, never of pore volume
+  # Matric potential is a PRESSURE and never a head. A head in metres of water
+  # is a pressure divided by rho_w * g, and g here is not Earth's, so a
+  # potential carried as a head silently changes value when it crosses into
+  # this world. Every Earth-derived retention parameter below is converted to
+  # a pressure ONCE, using Earth's gravity, at the point it is declared.
+  matric_potential: Pa           # negative in unsaturated soil
+  hydraulic_conductivity: m_per_s
+  intrinsic_permeability: m2
+  volumetric_heat_capacity: J_per_m3_per_K
+  thermal_conductivity: W_per_m_per_K
+  bulk_density: kg_per_m3
+
+# ---------------------------------------------------------------------------
+# THE POTENTIAL CONVENTION, AND WHERE GRAVITY ENTERS.
+#
+# This is the one place a super-Earth changes a soil property with no free
+# parameter, so it is declared before anything is derived from it.
+#
+# Total hydraulic potential per unit weight is  H = psi / (rho_w g) + z.
+# Two of the three states below are defined at a matric potential and the
+# third is not, and they respond to gravity differently:
+#
+#   SATURATION is a geometric property of the pore space. Gravity does not
+#   enter. It is the same number on any planet.
+#
+#   THE WILTING POINT is a PLANT pressure: the suction a root can generate
+#   before it can no longer extract. Gravity does not enter that either, so
+#   the Earth value carries over as a pressure unchanged.
+#
+#   FIELD CAPACITY IS AN OPERATIONAL DRAINAGE EQUILIBRIUM: the water a column
+#   retains against gravity once free drainage has stopped, over a stated
+#   drainage length. The length is a length; the matric pressure that balances
+#   it is rho_w * g * L, and THAT scales with g. Cosby's own field-capacity
+#   suction, 10^2 cm of water, is exactly rho_w * g_earth * 1 m, which is what
+#   makes the drainage length the honest way to state it.
+#
+# So on this world, the same soil drains to a drier state than it would on
+# Earth, the wilting point does not move, and plant-available water falls. The
+# effect is one-directional and derivable, and neither current consumer applies
+# it: pedology's declared endmember capacities are Earth field observations
+# and LPJ-GUESS's Cosby inversion evaluates at the Earth pressure.
+# ---------------------------------------------------------------------------
+potential_convention:
+  # Read at run time from config/planet.yaml, which is the single source of
+  # truth for the planet. Restated here only as the name of the key.
+  gravity_from: config/planet.yaml model-independent planet.gravity_m_s2
+  earth_gravity_m_s2: 9.80665
+  water_density_kg_m3: 1000.0
+  # The drainage length field capacity is defined against. A DECLARATION:
+  # a drainage equilibrium has to be cut somewhere and this says where.
+  # 1 m reproduces Cosby's 10^2 cm of water suction exactly under Earth
+  # gravity, which is why it is 1 m and not a rounder-looking number.
+  field_capacity_drainage_length_m: 1.0
+  # The plant pressure. Earth-derived and gravity-independent, so it crosses
+  # unchanged. 10^4.2 cm of water under Earth gravity, which is the value
+  # `soilinput.cpp` inverts at.
+  wilting_point_pa: -1.5468e+6
+  wilting_point_source: >
+    LPJ-GUESS soilinput.cpp Psi_wilt = 10^-4.2 in the Cosby inversion's units,
+    which is 10^4.2 cm of water suction, 1.5468 MPa under Earth gravity. The
+    conventional -1.5 MPa to within 3 percent, and the model's own number
+    rather than the textbook one.
+
+# ---------------------------------------------------------------------------
+# THE RETENTION CLOSURE. A NAMED PROPERTY WITH ITS FAMILY STATED.
+#
+# This project sits entirely in one family without having recorded that a
+# family was chosen. LPJ-GUESS's Cosby (1984) derivation is a Clapp-Hornberger
+# form and PALADYN uses Clapp-Hornberger too. The alternative family is van
+# Genuchten, and the two differ most in their tails: Brooks-Corey and
+# Clapp-Hornberger have a discontinuous air-entry point and a power-law tail,
+# van Genuchten is smooth through saturation.
+#
+# That difference matters HERE specifically, because wetting and drying through
+# near-saturation is a common state on this land rather than an edge case: a
+# large share of it is playa clastic, which LITH-27 establishes is derived from
+# endorheism and therefore carries the same pre-carve limit and moves with the
+# carve list. The argument is about a class of surface this terrain produces,
+# not about a settled area.
+#
+# This is NOT an argument for switching. It is the reason the closure is a
+# named property with its family stated, so a consumer knows which it is
+# reading and a later comparison has something to vary.
+# ---------------------------------------------------------------------------
+retention_closure:
+  name: clapp_hornberger
+  family: brooks_corey
+  form: theta(psi) = theta_s * (psi / psi_s) ** (-1 / b)
+  parameter_source: cosby1984_table4
+  air_entry: discontinuous
+  alternatives_registered: [van_genuchten]
+  note: >
+    Named so the choice is legible and comparable. Cosby et al. support texture
+    as a predictor of MEAN hydraulic behaviour and emphasise that large
+    residual variance remains within texture classes, so the closure carries
+    the shape and the uncertainty cases below carry the spread.
+
+# ---------------------------------------------------------------------------
+# LAYER GEOMETRY. The contract's own vertical discretisation, and the mapping
+# to each consumer's. Two geometries, stated once each, rather than one
+# geometry restated in three places that do not stay in step.
+# ---------------------------------------------------------------------------
+geometry:
+  # PHYSICAL layers: where water is and moves. Uniform 100 mm to 1.5 m, which
+  # is LPJ-GUESS's physical profile and the only column in the pipeline that
+  # has a depth at all. Matches the ledger's `column_base_m`.
+  physical_layer_thickness_m: 0.1
+  physical_layer_count: 15
+  column_base_m: 1.5
+  # ROOTABLE layers: where uptake is allowed to draw from. A subset of the
+  # physical column, and NOT the same cut. Matches the root zone the abiotic
+  # nutrient ledger cuts its solute pools at.
+  rootable_base_m: 1.0
+  # The contact with the aquifer. Below this the material, its scale and its
+  # owner all change: see `aquifer_boundary`.
+  vadose_base_m: 1.5
+  consumers:
+    exoplasim:
+      geometry: none
+      what_it_reads: awc, as a scalar bucket depth `dwmax` in metres of water
+      note: >
+        `dwmax` is a capacity, not a thickness. The land column has no vertical
+        liquid structure at all, so no layer geometry can be given to it until
+        LSHY-3 provides one. Its five SOIL TEMPERATURE layers are a separate
+        geometry, 0.4/0.8/1.6/3.2/6.4 m, which reaches 12.4 m and shares no
+        boundary with either water column.
+    lpj_guess:
+      geometry: 15 physical layers of 100 mm, grouped 5 upper and 10 lower
+      what_it_reads: sand, clay, silt, pH; NOT awc, NOT bulk density, NOT andic
+      note: >
+        `vesperinput.cpp` scales each layer's awc, wp and wsats by the share of
+        that layer above the regolith/bedrock contact plus the bedrock fraction
+        below it, and rescales the two aggregate figures to match. It moves no
+        layer boundary and no root, so a shallow-regolith cell has the same
+        rooting depth as a deep one with less water in it.
+    pedology:
+      geometry: one bulk column of `depth` metres
+      what_it_writes: awc, as depth times a texture-weighted volumetric capacity
+
+# ---------------------------------------------------------------------------
+# MATERIAL FRACTIONS. What the column is made of, per physical layer. The
+# vertical distribution rule is part of the contract, because pedology and
+# LPJ-GUESS presently use different ones and neither says so.
+# ---------------------------------------------------------------------------
+materials:
+  mineral:
+    fractions_from: pedology soilmap sand, clay, silt
+    vertical_rule: uniform
+    note: >
+      Pedology emits one texture per cell and both consumers apply it to every
+      layer. A texture profile is a real thing this contract does not yet
+      carry; declaring the rule as `uniform` is what makes that visible.
+  organic:
+    fraction_from: undeclared
+    vertical_rule: lawrence_slater_2008_fixed_profile
+    owner: sdec-10
+    note: >
+      LPJ-GUESS redistributes total soil carbon down a fixed Earth profile
+      under `iforganicsoilproperties 1` and mixes mineral and one ideal organic
+      soil following Lawrence and Slater; pedology adds an additive organic
+      term to a bulk capacity with no profile at all. Two rules, one soil.
+      Undeclared rather than zero: the checked-in soil map carries zero soil
+      carbon everywhere, which makes the two rules AGREE today and will not
+      once the biosphere loop has turned.
+  andic:
+    fraction_from: pedology soilmap andic
+    vertical_rule: uniform
+    hydraulic_effect: pedology only
+    note: >
+      Allophane holds water in a way texture does not predict, and pedology
+      adds a volumetric capacity term for it. LPJ-GUESS has no andic term at
+      all, so the two derivations diverge most exactly where the soil is most
+      volcanic.
+  weathered_bedrock:
+    fraction_from: pedology soilmap bedrockfrac
+    vertical_rule: below the regolith contact at `depth`
+    capacity_ceiling: 1.0
+    note: >
+      Capped at 1, so sub-bedrock material can at most match the soil above it.
+      Deeply weathered saprolite really does hold two to four times what its
+      soil does, and representing that needs a genuinely separate bedrock layer
+      with its own porosity rather than a rescaling of the existing profile.
+      The ceiling is a limitation of the model and is recorded so it is visible
+      in results. ExoPlaSim sees regolith depth only through the total capacity
+      and sees no bedrock storage at all.
+
+# ---------------------------------------------------------------------------
+# STATES. Volumetric water content at each declared point on the retention
+# curve, and the ordering that must hold between them.
+# ---------------------------------------------------------------------------
+states:
+  ordering: residual <= wilting_point <= field_capacity <= saturation
+  saturation:
+    definition: total porosity; the geometric pore volume per bulk volume
+    gravity_dependent: false
+    from: cosby1984 Theta_s = 0.01 * (50.5 - 14.2 * sand - 3.7 * clay)
+  field_capacity:
+    definition: >
+      water retained against gravity at drainage equilibrium over
+      `field_capacity_drainage_length_m`
+    gravity_dependent: true
+    evaluated_at: psi = -water_density * gravity * drainage_length
+  wilting_point:
+    definition: water held at the plant limiting pressure
+    gravity_dependent: false
+    evaluated_at: psi = wilting_point_pa
+  residual:
+    definition: water held below the wilting point and not removable by a root
+    gravity_dependent: false
+    value: undeclared
+    owner: lshy-3
+    note: >
+      Both active evaporation limiters pin the residual at zero, so each
+      approaches zero flux only as its store approaches empty and water held
+      below the wilting point is still available to be removed. Declared
+      undeclared rather than zero, because zero is a choice and this contract
+      is where it would be recorded.
+  available:
+    definition: field_capacity - wilting_point
+    gravity_dependent: true
+    gravity_note: >
+      A difference of a state that moves with gravity and one that does not, so
+      it moves, and by more in relative terms than field capacity does. This
+      contract's own check caught the omission: `available` was declared silent
+      on gravity while the two states it is built from were not.
+    note: >
+      This is the ONLY state ExoPlaSim receives, as `awc`. It is a difference
+      of two states and carries neither, so nothing downstream of `dwmax` can
+      recover saturation, and water between field capacity and saturation has
+      nowhere to sit. LPJ-GUESS carries the same limitation from the other
+      side: `wcont` is a fraction of AVAILABLE capacity refused outside [0,1],
+      so water-filled pore space derived from it has a ceiling set by the ratio
+      of field capacity to saturation.
+
+# ---------------------------------------------------------------------------
+# FLOW PROPERTIES.
+# ---------------------------------------------------------------------------
+flow:
+  saturated_conductivity:
+    value: undeclared
+    owner: lshy-3
+    note: >
+      No artifact in this repository carries a saturated hydraulic
+      conductivity. LPJ-GUESS derives an empirical PERCOLATION COEFFICIENT
+      instead, `perc_base = 5.87 - 0.29 * b`, from a linear fit between
+      Haxeltine's percolation coefficient and Cosby's b. That is a
+      dimensionless exponent in a drainage rule and not a conductivity, so it
+      cannot be converted into one, and any gradient-driven column needs a
+      conductivity declared here rather than recovered from it.
+  unsaturated_conductivity:
+    form: K(theta) = K_sat * (theta / theta_s) ** (2 * b + 3)
+    value: undeclared
+    owner: lshy-3
+    note: the Clapp-Hornberger companion to the retention closure above; declared for the family, not yet for the number.
+  infiltration_capacity:
+    value: undeclared
+    owner: lshy-3
+    note: >
+      Absent from both columns. ExoPlaSim's only runoff mechanism is saturation
+      excess -- the bucket overflowing -- so an infiltration-excess event on a
+      dry soil generates no runoff at all, whatever the rainfall rate.
+  frozen_pore_impedance:
+    form: (1 - ice / pore) ** k, on the ice fraction of the pore space
+    exponent: undeclared
+    owner: lshy-5
+    note: >
+      How much ice in the pore space reduces CONDUCTIVITY. The form is declared
+      in landcolumn.f90 as `frozen_impedance` and is used by nothing, because
+      the scheme that would use it is the gradient-driven hypothesis and this
+      column has no conductivity to reduce. The layered column impedes flow the
+      other way and needs no exponent for it: ice occupies pore space, so it
+      comes off the layer's capacity and a frozen layer overflows sooner. Under
+      the default nlandwphase = 0 there is no soil ice at all, so the answer
+      today is "none".
+
+# ---------------------------------------------------------------------------
+# THERMAL PROPERTIES. Phase- and composition-dependent, or a DECLARED reduced
+# approximation. The reduced approximation is what is active.
+# ---------------------------------------------------------------------------
+thermal:
+  active_approximation: constant_two_material
+  reduced_approximation_declared: >
+    ExoPlaSim's five soil temperature layers take one heat capacity and one
+    thermal conductivity per cell, mixed only between soil and glacier ice by
+    the glacier fraction. They do not respond to texture, to organic or andic
+    material, to liquid water, to ice or to regolith geometry. That is a
+    declared reduced approximation and not an oversight; what makes it a defect
+    is that nothing declares it, so a result that depends on soil thermal
+    inertia looks like a property of the soil.
+  constants:
+    soil_heat_capacity_j_m3_k: 2.4e+6
+    glacier_ice_heat_capacity_j_m3_k: 2.07e+6
+    snow_heat_capacity_j_m3_k: 0.6897e+6
+    soil_thermal_conductivity_w_m_k: 1.8
+    snow_thermal_conductivity_w_m_k: 0.31
+    source: landmod.f90 module constants; Earth values, unattributed upstream
+  phase_dependent:
+    heat_capacity: >
+      Active under nlandwphase = 1 only as the LATENT term: landmod's
+      `landphase` exchanges the latent heat of fusion between the water layer
+      and the soil temperature layer that contains its midpoint, so freeze and
+      thaw now cost and release energy in the ground. The SENSIBLE half is
+      still the constant below: the heat capacity does not change with liquid
+      or ice fraction.
+    latent_heat_of_fusion_j_per_kg: als - alv, the difference the model derives
+    layer_mapping: >
+      DECLARED, and by midpoint. The soil temperature layers (`dsoilz`, five,
+      reaching 12.4 m) and the water layers (`dsoilwz`) share no boundary, so a
+      water layer takes the temperature of whichever temperature layer contains
+      its centre. The alternative -- making one column a sub-partition of the
+      other -- changes the soil heat solver's geometry and is a larger decision.
+    owner: lshy-5
+  composition_dependent:
+    value: undeclared
+    owner: lshy-5
+    note: >
+      Lawrence and Slater show organic matter changes hydraulic AND thermal
+      properties together, and their result depends on the vertical organic
+      state. A contract that carries an organic profile for water and a
+      constant for heat has split one material property in two.
+  snow_density_kg_m3:
+    exoplasim: 330.0
+    lpj_guess_start: 275.0
+    lpj_guess_end: 500.0
+    owner: grav-8
+    note: >
+      A constant in the climate column with no compaction, and an ageing curve
+      in the ecology. Snow depth follows from water equivalent and density, and
+      depth is what sets the insulating thickness over the soil, so the two
+      columns insulate differently from the same snowfall. The one snow term
+      that carries gravity is the compaction that is absent.
+
+# ---------------------------------------------------------------------------
+# THE AQUIFER BOUNDARY. What this contract does NOT own.
+# ---------------------------------------------------------------------------
+aquifer_boundary:
+  contact_depth_m: 1.5
+  owned_by: hydrography groundwater solver
+  property: transmissivity, as K times saturated thickness
+  rule: >
+    A vadose-zone unsaturated conductivity is NOT an aquifer permeability.
+    They live at different material and spatial scales, they are measured on
+    different things, and copying one into the other is a category error with
+    plausible units. The two are joined at `contact_depth_m` through the
+    ledger's `drainage` and `capillary_rise` terms and through nothing else.
+  scaled_separately: true
+
+# ---------------------------------------------------------------------------
+# UNCERTAINTY CASES. CORRELATED, and named. Three cases applied coherently
+# across every layer and every property, never sampled per layer.
+#
+# Why correlated: a soil that holds more water at one depth holds more at the
+# next, because the same texture, the same organic content and the same
+# endmember uncertainty produced both. Drawing each layer independently
+# averages the spread away and reports a false precision, which is exactly what
+# a per-layer bracket would do to a 15-layer column.
+# ---------------------------------------------------------------------------
+uncertainty:
+  cases: [low, central, high]
+  applied: coherently across all layers and all properties in one case
+  sources:
+    volumetric_capacity_endmembers:
+      from: pedology/config/pedogenesis.yaml water.volumetric_capacity_by_texture_bracket
+      note: >
+        Declared endmembers with a bracket spanning the conventional range for
+        each class, checked against Saxton and Rawls (2006) for ordering and
+        magnitude rather than taken from it: that regression parameterises a
+        continuous mixture and excluded samples above 60 percent clay, so a
+        pure endmember is outside the data it was fitted on.
+    volumetric_capacity_organic:
+      from: pedology/config/pedogenesis.yaml water.volumetric_capacity_organic_bracket
+    cosby_within_class_variance:
+      value: undeclared
+      owner: lshy-1
+      note: >
+        Cosby et al. report the residual variance within texture classes and it
+        is large. It is the dominant term in this contract's uncertainty and no
+        artifact here carries it, so the reported spread is a LOWER BOUND on
+        the real one and is labelled as such rather than quoted as the range.
