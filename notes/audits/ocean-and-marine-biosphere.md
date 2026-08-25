@@ -1070,6 +1070,92 @@ property of the geography and it changes with every build and every carve.
 - The segment is at one rung. The instrument takes `--rung` and the argument is
   rung-independent, but only T42 has been run.
 
+### 11f. The two paths 11e left, instrumented
+
+Built 2026-08-25. Section 11e recorded that the monthly interpolation and
+`addfc`'s ice branches were deliberately not exercised, and the reason was
+ISOLATION rather than an argument that they should stay untested: a field
+constant in time makes the calendar unable to influence the answer, and an
+ice-free ocean keeps `addfc` in branch (a). With the channel verified, each can
+now be turned on alone, and `verify_ocean_flux_channel.py` carries four arms
+instead of one.
+
+**`monthly` is a SEPARABLE field**, the same spatial pattern times a declared
+per-month scalar, written as twelve records so `surfmod.f90:get_surf_array`
+performs its own cyclic expansion to fourteen. That makes the answer known in a
+way the envelope alone does not: whatever weights `momint` supplies, both terms
+of the convex combination are the same pattern, so each reported record must be
+that pattern times ONE scalar at every cell. A per-cell mixing error, a
+month-space transposition and a partially updated field all break separability
+and none of them breaks the envelope. Four criteria, and the fourth is the one
+that stops the arm passing vacuously: the recovered scalar series has to span at
+least half the declared one, because a model that ignored the month index and
+used one record forever satisfies the other three. The stronger piecewise-linear
+statement needs the calendar and is REPORTED rather than judged; it is a check on
+the calendar port and not on this channel.
+
+**The ice arms close the delivery identity with the term the first arm required
+to be zero.** `mksst` withholds the atmospheric flux from an iced slab,
+`mkiflux` charges the freezing clamp, `addfc` applies part of the correction and
+hands the rest to `yifluxr`, and `mkiflx` folds `yifluxr` into `yiflux`. Every
+one of those is a flux either applied to the slab or charged to `yiflux`, and
+`yiflux` carries the NEGATIVE of what was withheld, so on every ocean cell iced
+or not
+
+    CRHOS * CPS * mld * (SST_k - SST_{k-1}) = (yheata_k + yfssta_k + yifluxa_k) * dt_record
+
+That is "what `addfc` withholds from the slab equals what `mkiflx` adds to
+`yiflux`" written in quantities the ocean stream carries; `yifluxr` is not one of
+them and no new diagnostic was added to make it one. The three signs are declared
+in the instrument's source before any run of these arms exists, and the residual
+under each sign assignment is reported on a failure so the failure names itself.
+`ice` stages a cold declared profile alone and reaches branch (c); `ice_clim`
+stages a sea-ice thickness climatology at code 211 beside it so `ycliced > 0` and
+`addfc` takes branch (b) instead. Both guard against a vacuous pass twice: the
+modelled ice has to appear on a declared fraction of the ocean, overlapping the
+climatological ice for `ice_clim`, and `yiflux` has to be materially nonzero.
+
+**The instrument is checked before the model is run.** Every criterion is a
+statement about a stream, so a stream satisfying all of them exactly is
+synthesised for each arm and each criterion is then perturbed in one named way.
+All four arms pass: the clean stream satisfies every criterion and every
+criterion fails its own break.
+
+### 11g. What that self-check caught, in the criterion 11c already reported
+
+**`TOL_DELIVERY_RELATIVE` had no floor, and a bar with no floor is not a bar.**
+It is a fraction of the LARGEST temperature change in the window and `ysst` is
+stored float32, so the bar in kelvin scales with the window while the noise it
+has to sit above does not. On the segment 11b ran the largest change was 0.469 K
+and the bar was 4.7e-4 K, thirty times the float32 resolution near 290 K; on a
+window whose changes are hundredths of a kelvin the same bar sits BELOW the
+resolution and the criterion reports the storage format rather than the model.
+That is `docs/src/practice/failure-modes.md` class 34 in the instrument rather
+than in a result, and it was invisible until a synthetic stream with small
+changes was put through it.
+
+`MIN_DELIVERY_CHANGE_K` is now a declared floor on every arm including
+`channel`, set where the bar sits three times above the quantisation. **The
+segment 11b ran clears it by a factor of five**, so nothing 11c reported changes
+and the pass it recorded stands.
+
+### 11h. What is instrumented and what is still not verified
+
+The three new arms have been STAGED and their criteria declared and self-checked.
+**None of them has been run**, and until one is, nothing below section 11e's
+"what this section does NOT establish" has moved: the monthly interpolation and
+the two ice branches remain untested against the model. The commands are
+
+    python exoplasim/scripts/verify_ocean_flux_channel.py stage RUNDIR --rung T42 --arm monthly
+    python exoplasim/scripts/verify_ocean_flux_channel.py selftest RUNDIR
+    ...run the model in RUNDIR, cold, over a full orbit, with the staged namelist...
+    python exoplasim/scripts/verify_ocean_flux_channel.py check RUNDIR --record-seconds ... --mixed-layer-m ...
+
+and the same for `--arm ice` and `--arm ice_clim`. The monthly arm needs a full
+orbit or its fourth criterion cannot be met by construction; the ice arms need a
+COLD start, because a restart carries an ocean that is already warm and the
+declared profile never runs.
+
 ---
 
 ## 12. A spatially varying two-band ocean albedo, priced as an interface
