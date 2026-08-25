@@ -210,12 +210,20 @@ def main() -> int:
         out.append({"term": name, "coarse": a, "fine": b,
                     "relative_error": rel, "control": control})
 
-    verdict = ("APPARATUS INVALID: a control missed round-off, so no row here "
+    # THE ROUND TRIP IS A CONTROL AND IS COUNTED AS ONE. The docstring says the
+    # error on U "must fall to the float32 the output is stored in", and
+    # `STORAGE` is that bar, declared at the top of this file. It printed a NOTE
+    # beside a verdict that still read "the quadrature is exact for every term
+    # formed here" and returned 0, so the one row with a bar could miss it
+    # without changing anything the caller could see. world-60x0.
+    if trip > STORAGE:
+        failed.append(f"round trip on U = ua*cos(phi) ({trip:.2e} against "
+                      f"{STORAGE:g})")
+
+    verdict = ("APPARATUS INVALID: a control missed its bound, so no row here "
                "means anything" if failed else
                "the quadrature is exact for every term formed here")
     print(f"\n  {verdict}")
-    if trip > STORAGE:
-        print("  NOTE: the round trip on U did not reach storage precision either")
 
     payload = {"note": "quadrature exactness of the model's nonlinear terms, for "
                        "world-bxr. exoplasim/scripts/transform_exactness.py",

@@ -463,13 +463,23 @@ def main() -> int:
         # side and must take its neighbour's.
         base_m = np.where(land, surface_m - thickness_m, np.nan) if unconfined else None
 
+        # ONE ARGUMENT LIST, BUILT ONCE. The uniqueness check below re-solves
+        # the same problem from the opposite initial active set, and while the
+        # two calls were written out separately the check quietly stopped being
+        # an identity every time a term landed here and not there: GW-15's sink
+        # and GW-17's baselevels were both missing from the re-solve for as long
+        # as they existed. A second trajectory through a DIFFERENT model is not
+        # a comparison, so the two calls now differ in exactly one keyword and
+        # a new term cannot reach one without reaching the other. world-60x0.
+        solve_kwargs = dict(
+            k0_m_s=k0, thickness_m=thickness_m, recharge_m_s=recharge,
+            surface_m=surface_m, conductive=conductive,
+            max_outer=args.max_outer, et_max_m_s=et_max,
+            et_lambda_m=et_lambda, fixed_head_m=fixed_head,
+            aquifer_base_m=base_m, min_saturated_m=min_saturated)
+
         print("solving the water table")
-        res = gw.solve(export, geom, k0_m_s=k0, thickness_m=thickness_m,
-                       recharge_m_s=recharge, surface_m=surface_m,
-                       conductive=conductive, max_outer=args.max_outer,
-                       et_max_m_s=et_max, et_lambda_m=et_lambda,
-                       fixed_head_m=fixed_head,
-                       aquifer_base_m=base_m, min_saturated_m=min_saturated)
+        res = gw.solve(export, geom, **solve_kwargs)
 
     area_m2 = geom.volume_area_m2
     supply = recharge * area_m2
@@ -673,13 +683,12 @@ def main() -> int:
     # can genuinely fail, and it is what would catch a bug in the release and
     # pin logic that a single run cannot see.
     #
-    # THE SECOND TRAJECTORY MUST SOLVE THE SAME PROBLEM, and for a while it did
-    # not: this call omitted the evapotranspiration sink and the local
-    # baselevels, so once GW-15 and GW-17 landed it was comparing a run with
-    # both against a run with neither and the identity was measuring the
-    # difference between two models. Every argument the sink and the baselevels
-    # are given for is a term in the equation, so leaving them out of the
-    # re-solve makes the comparison meaningless whichever way it comes out.
+    # THE SECOND TRAJECTORY MUST SOLVE THE SAME PROBLEM. Every argument the
+    # sink and the baselevels are given for is a term in the equation, so a
+    # re-solve that omits one is comparing two models rather than two paths to
+    # the same solution, and cannot fail in the direction that matters. That is
+    # why `solve_kwargs` is assembled once above and both calls take it whole:
+    # the two differ in `start_all_free` and in nothing else, by construction.
     #
     # AND UNDER THE UNCONFINED FORM IT IS NOT AN IDENTITY. GW-24's
     # transmissivity depends on the head, so the matrix is not fixed and the
@@ -689,13 +698,7 @@ def main() -> int:
     if (args.uniqueness_check and not args.divide_test
             and res.get("converged", True) is not False):
         print("\nUNIQUENESS: re-solving from the opposite initial active set")
-        alt = gw.solve(export, geom, k0_m_s=k0, thickness_m=thickness_m,
-                       recharge_m_s=recharge, surface_m=surface_m,
-                       conductive=conductive, max_outer=args.max_outer,
-                       et_max_m_s=et_max, et_lambda_m=et_lambda,
-                       fixed_head_m=fixed_head,
-                       aquifer_base_m=base_m, min_saturated_m=min_saturated,
-                       start_all_free=True)
+        alt = gw.solve(export, geom, **solve_kwargs, start_all_free=True)
         d = np.abs(alt["head_m"] - res["head_m"])[conductive]
         scale = max(float(np.abs(res["head_m"][conductive]).max()), 1.0)
         rel_head = float(d.max() / scale)

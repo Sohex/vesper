@@ -165,22 +165,81 @@ def check_purge_never_reaches_the_terrain() -> list[str]:
     return bad
 
 
+# The one `<component>/data/` path in the graph that is not per-build, exempt BY
+# NAME and with a reason: the dust optics table is a property of the mineralogy
+# and the stellar spectrum, and no terrain enters it. A pattern would exempt the
+# next flat write too, which is the bug this check exists to catch.
+BUILD_SCOPED_DATA_EXEMPT = {
+    "exoplasim/data/dust": "dust optics are per-mineralogy, not per-terrain",
+}
+
+
 def check_build_scoped_defaults() -> list[str]:
-    """Every per-build default must resolve under the active build."""
+    """Every `<component>/data/` path the graph writes is namespaced by the build.
+
+    `lib/builds.py:component_data` says what a flat `<component>/data/` costs:
+    it holds whichever build was active when it was last written, so a script
+    reading it pairs one terrain's rows with another's columns, and four scripts
+    did. `world_state.py` reported 2,107 basins against a build that had 2,540.
+
+    THE COMPONENT LIST COMES FROM `config/pipeline.yaml`, not from a literal
+    here. It was a literal -- `("hydrography", "pedology")` -- and it asserted
+    that `component_data(c, cfg).name` equals `cfg["source_build"]`, which is the
+    string `component_data` builds the path out of. That comparison cannot fail:
+    it was the resolver agreeing with itself, and it left minerals and maps, both
+    of which write per-build data, unexamined. world-60x0.
+
+    What can fail now is a real disagreement between two independent
+    declarations. The graph says where a step writes; the resolver says where a
+    reader looks. A step that writes a flat `<component>/data/x.nc` fails, and so
+    does a resolver that lands somewhere other than the directory the graph
+    namespaces. Adding a component to the graph puts it under this check with no
+    edit here, which is the half the literal list got wrong.
+
+    `strict=True` is deliberately NOT passed. It refuses a path whose directory
+    does not exist, and a build whose per-build data has not been generated yet
+    is the resting state of the tree rather than a defect; this asks where a
+    reader would look, not whether the artifact is there.
+    """
     sys.path.insert(0, str(ROOT / "lib"))
     import yaml
     from builds import component_data
     cfg = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
-    active = cfg.get("source_build")
-    bad = []
-    for component in ("hydrography", "pedology"):
+    graph = yaml.safe_load((ROOT / "config" / "pipeline.yaml").read_text(encoding="utf-8"))
+    active = str(cfg.get("source_build", ""))
+    if not active:
+        return ["config/planet.yaml declares no source_build"]
+
+    bad, components = [], set()
+    for step in graph.get("steps", []):
+        for w in step.get("writes", []):
+            m = re.match(r"^([A-Za-z0-9_]+)/data/(.+)$", str(w))
+            if not m:
+                continue
+            component, rest = m.group(1), m.group(2)
+            head = rest.split("/")[0]
+            if any(str(w).startswith(k + "/") for k in BUILD_SCOPED_DATA_EXEMPT):
+                continue
+            if head != "{build}":
+                bad.append(f"{step['id']} writes {w}: {component}/data/ is not "
+                           f"namespaced by the build, so it holds whichever "
+                           f"build was active when it was last written")
+                continue
+            components.add(component)
+
+    if not components:
+        bad.append("no step in config/pipeline.yaml writes a per-build "
+                   "<component>/data/{build}/ path, so this check reads nothing")
+    for component in sorted(components):
         try:
             d = component_data(component, cfg)
         except Exception as exc:
             bad.append(f"{component}: component_data raised {exc}")
             continue
-        if d.name != active:
-            bad.append(f"{component}: data dir is {d.name}, active build is {active}")
+        want = ROOT / component / "data" / active
+        if d != want:
+            bad.append(f"{component}: component_data resolves to {d}, but the "
+                       f"graph writes that component's data under {want}")
     return bad
 
 
@@ -1145,7 +1204,8 @@ def main() -> None:
 
     checks = [("imports", check_imports(files)),
               ("no undefined names", check_undefined_names(files)),
-              ("defaults scoped to the active build", check_build_scoped_defaults()),
+              ("every per-build data path is namespaced by the build",
+               check_build_scoped_defaults()),
               ("no artifact selection by sort order", check_no_order_picks(files)),
               ("one grid convention, in lib/gridding.py",
                check_one_grid_convention(files)),

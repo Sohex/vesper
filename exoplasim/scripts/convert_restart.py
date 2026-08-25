@@ -315,6 +315,18 @@ def convert(src: RestartState, tgt: RestartState, *,
 
         elif pol.action == rs.SEED:
             if seed_override is not None:
+                # THE SAME LENGTH BAR AS THE DONOR PATH. The random state is a
+                # fixed-width record of the target executable's, so a seed of
+                # any other length is not a seed for it. `--seed` and
+                # `--keep-template-seed` skipped the check the donor branch
+                # below makes, and wrote a malformed restart in silence.
+                if len(seed_override) != rec.nbytes:
+                    raise ConversionError(
+                        f"the seed supplied is {len(seed_override)} bytes and "
+                        f"the target executable's record is {rec.nbytes}. A "
+                        "seed of the wrong width is not a seed for this "
+                        "executable, and writing it would make the restart "
+                        "unreadable at the record after it.")
                 emit(name, seed_override, pol.semantic, pol.action,
                      {"source": "explicit"})
             elif src.by_name[name].nbytes == rec.nbytes:
@@ -609,17 +621,26 @@ def main() -> int:
             "the schema no longer covers the model source:\n  - "
             + "\n  - ".join(gaps))
     check_compatible(src, tgt, inventory)
-    if args.check_template:
-        print(f"template accepted: {src.geometry.label} {src.real_bytes}-byte "
-              f"-> {tgt.geometry.label} {tgt.real_bytes}-byte, "
-              f"{len(tgt.records)} records")
-        return 0
 
     seed_override = None
     if args.seed is not None:
         seed_override = args.seed.read_bytes()
     elif args.keep_template_seed:
         seed_override = tgt.by_name["seed"].payload
+
+    if args.check_template:
+        # EVERY REFUSAL, which is what the option says it runs. It returned
+        # after `check_compatible` alone, so the seed-size refusal, the
+        # non-whole-level `levels()` refusal, the non-finite `cast()` refusal
+        # and the THICKNESS partner-ordering refusal were all downstream of the
+        # return and none of them could fire: --check-template was a strictly
+        # weaker --dry-run wearing the stronger name. The conversion runs here
+        # and the records are discarded, so nothing is written. world-60x0.
+        convert(src, tgt, seed_override=seed_override)
+        print(f"template accepted: {src.geometry.label} {src.real_bytes}-byte "
+              f"-> {tgt.geometry.label} {tgt.real_bytes}-byte, "
+              f"{len(tgt.records)} records; every refusal ran and none fired")
+        return 0
 
     records, reports = convert(src, tgt, seed_override=seed_override)
     if args.output is None:

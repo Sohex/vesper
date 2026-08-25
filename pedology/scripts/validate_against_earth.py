@@ -50,8 +50,12 @@ published geology by locality rather than read from GLiM, so a site could sit on
 cover rather than basement. Precipitation stands in for runoff via the model's
 own reference ratio, which is the same substitution the model makes internally.
 The sample is small and deliberately spans the climate range rather than
-sampling it evenly. This bounds the divergence claim; it does not calibrate the
-model.
+sampling it evenly. And the predicted texture comes from `build_soil.weather_texture`
+itself, so every term of the conversion is the model's -- except the catena fines
+loss, which moves clay to sand on slope and is left out because a type locality
+carries no slope this script knows. That one term is the whole of the difference
+between what this scores and what the map holds. This bounds the divergence
+claim; it does not calibrate the model.
 """
 
 from __future__ import annotations
@@ -165,7 +169,7 @@ def main() -> None:
     # Parent textures live in the same block as the conversion constants.
     parents = {k: v for k, v in texture_cfg.items() if isinstance(v, dict)}
 
-    from build_soil import weathering_intensity
+    from build_soil import weather_texture, weathering_intensity
 
     rows = []
     for name, lat, lon, rock, family in SITES:
@@ -187,11 +191,23 @@ def main() -> None:
             np.array([clim["precipitation_mm_yr"] * scale]),
             np.array([clim["temperature_c"]]), weathering))[0])
 
-        p = parents[rock]
-        weatherable = (max(0.0, 1.0 - p["quartz"] - p["clay"])
-                       * texture_cfg.get("clay_yield", 1.0))
-        predicted = p["clay"] + weatherable * (
-            1.0 - np.exp(-texture_cfg["clay_conversion"] * w))
+        # THE MODEL'S OWN FUNCTION, not a transcription of it. This arm
+        # inlined the conversion and was three terms short of
+        # `weather_texture`: it had no `sand_to_silt_loss_ratio`, neither of
+        # the `np.minimum(..., sand)` / `np.minimum(..., silt)` caps that stop
+        # a donor pool going negative, and it read `clay_yield` through a
+        # `.get(..., 1.0)` default where the model reads it with no default --
+        # an optional argument whose absence means do the wrong thing quietly.
+        # The caps bound the model's clay BELOW what the inlined arm produced,
+        # so the overstatement this script reports was partly the arm's own.
+        # world-60x0.
+        #
+        # THE CATENA FINES LOSS IS STILL OUT, and deliberately: `build_soil`
+        # moves clay to sand on slope, and a type locality carries no slope
+        # this script knows. It is named in the weaknesses block rather than
+        # left unstated.
+        tex = weather_texture({rock: np.ones(1)}, np.array([w]), texture_cfg)
+        predicted = float(tex["clay"][0])
 
         rows.append({
             "site": name, "lat": lat, "lon": lon, "rock": rock, "family": family,
@@ -253,6 +269,28 @@ def main() -> None:
     fit = np.polyfit([r["clay_predicted"] for r in rows if r[obs_key] is not None],
                      [r[obs_key] for r in rows if r[obs_key] is not None], 1)
 
+    # THE READING FOLLOWS THE SLOPE. It was a fixed sentence saying the model
+    # moves further than Earth across its range, which the regression can
+    # equally deny: `fit[0]` is observed on predicted, so above one it is Earth
+    # that moves further. A verdict line that can only say one thing is not a
+    # reading of the number under it.
+    slope = float(fit[0])
+    if slope > 1.0:
+        reading = (f"The mechanism is real. The regression slope {slope:.2f} of "
+                   "observed on predicted says Earth moves further than the "
+                   "model does across this range, so the model UNDERSTATES the "
+                   "spread rather than overstating it.")
+    else:
+        reading = (f"The mechanism is real and the magnitude is not. The "
+                   f"regression slope {slope:.2f} of observed on predicted says "
+                   "the model moves further than Earth does across this range.")
+    reading += (" The cause is open. It was read as the model not capping clay "
+                "at high intensity, which it does -- that diagnosis came from a "
+                "scoring arm that inlined the conversion without the caps; this "
+                "arm calls weather_texture. What is left out of it is the "
+                "catena fines loss, which moves clay to sand on slope and would "
+                "lower predicted clay where these localities have relief.")
+
     result = {
         "verdict": {
             "claim_survives": bool(obs_div > 0 and mod_div > 0),
@@ -263,11 +301,7 @@ def main() -> None:
             "model_overstatement_factor": round(mod_div / obs_div, 2) if obs_div else None,
             "regression_slope_observed_on_predicted": round(float(fit[0]), 4),
             "regression_intercept": round(float(fit[1]), 4),
-            "reading": ("The mechanism is real and the magnitude is not: the "
-                        f"regression slope {round(float(fit[0]), 2)} says the "
-                        "model moves further than Earth does across its range. "
-                        "The likely cause is that nothing caps clay at high "
-                        "intensity."),
+            "reading": reading,
         },
         "climate_controlled_pairs": pairs,
         "note": "Registered prediction: the model puts basalt 0.257 clay above "

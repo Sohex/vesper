@@ -44,8 +44,10 @@ BUILD = HERE / "build"
 ROOT = HERE.parent
 
 
-def basemap_is_current(climatology: Path | None) -> tuple[bool, str]:
-    """Does the raster on disk show the world the config now describes?
+def basemap_is_current(climatology: Path | None,
+                       basemap_width: int | None = None) -> tuple[bool, str]:
+    """Does the raster on disk show the world the config now describes, at the
+    width being asked for?
 
     Compares the base map's recorded fingerprint against one taken over the
     inputs as they resolve NOW. Cheap -- four hashes -- and it is the check that
@@ -53,6 +55,13 @@ def basemap_is_current(climatology: Path | None) -> tuple[bool, str]:
     the same identities the frame is keyed on rather than over file timestamps.
     A newer climatology written under the same name is exactly the case an mtime
     comparison gets wrong in the direction that matters.
+
+    THE WIDTH IS PART OF THE QUESTION. `build_basemap` records its resolution in
+    the provenance but outside the fingerprint, which is right -- the width does
+    not change which world the picture shows -- yet the caller only forwards
+    `--basemap-width` when a rebuild is already triggered. So asking for a
+    different width against an unmoved fingerprint kept the old raster, and the
+    option ran, reported and changed nothing. world-60x0.
     """
     prov = BUILD / "basemap_provenance.json"
     if not prov.is_file():
@@ -75,6 +84,11 @@ def basemap_is_current(climatology: Path | None) -> tuple[bool, str]:
         surface_water=(water if water.exists() else None),
     )
     if frames.fingerprint(now) == recorded["fingerprint"]:
+        if basemap_width is not None:
+            built = (recorded.get("resolution") or [None])[0]
+            if built != basemap_width:
+                return False, (f"the base map on disk is {built} px wide and "
+                               f"{basemap_width} was asked for")
         return True, "the base map is the world the config describes"
     moved = [k for k, v in now.items() if recorded["inputs"].get(k) != v
              and not k.endswith("_sha256")]
@@ -108,7 +122,7 @@ def main() -> None:
     args = ap.parse_args()
     frames.check_step(args.step)
 
-    current, why = basemap_is_current(args.climatology)
+    current, why = basemap_is_current(args.climatology, args.basemap_width)
     print(why)
     if args.force or not current:
         base_args = []

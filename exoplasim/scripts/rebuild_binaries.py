@@ -342,7 +342,13 @@ def main() -> None:
         prior = (json.loads(MANIFEST.read_text(encoding="utf-8"))
                  if MANIFEST.is_file() else {"binaries": {}})
         drift = describe_toolchain_drift(prior.get("toolchain") or {}, tools)
-        for exe in sorted(RUN.glob("most_plasim_*.x")):
+        # BOTH DIRECTORIES, because the rebuild below clears both. Globbing
+        # RUN alone let an executable in BIN keep a provenance nothing looked
+        # at, which is rule 4's failure mode one directory over: the verify
+        # must cover exactly the set the build replaces. world-60x0.
+        built = sorted(list(RUN.glob("most_plasim_*.x"))
+                       + list(BIN.glob("most_plasim_*.x")))
+        for exe in built:
             rec = prior["binaries"].get(exe.name)
             if rec is None or rec.get("sha256") != sha256(exe):
                 absent.append(exe.name)
@@ -369,8 +375,13 @@ def main() -> None:
             for line in drift:
                 print(f"  {line}")
         if not absent and not stale and not drift and not missing:
-            print(f"all {len(list(RUN.glob('most_plasim_*.x')))} binaries current")
-        raise SystemExit(1 if (absent or stale or drift) else 0)
+            print(f"all {len(built)} binaries current")
+        # `missing` SETS THE EXIT CODE. It was printed and then dropped from the
+        # verdict, so `--verify` announced "IN THE MATRIX AND NOT BUILT" and
+        # exited 0 -- and rule 4 is the rule that a rebuild only refreshes the
+        # configuration you ran and leaves the rest stale in silence, which is
+        # precisely what a configuration with no binary at all is.
+        raise SystemExit(1 if (absent or stale or drift or missing) else 0)
 
     removed = 0
     for d in (RUN, BIN):

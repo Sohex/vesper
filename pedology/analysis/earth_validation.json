@@ -7,7 +7,7 @@
     "model_overstatement_factor": 0.8,
     "regression_slope_observed_on_predicted": 1.1096,
     "regression_intercept": -0.0382,
-    "reading": "The mechanism is real and the magnitude is not. Every climate-controlled pair has the predicted sign, and the regression slope near 0.54 says the model moves about twice as far as Earth does across its whole range, not just between families. The likely cause is that nothing caps clay: at high intensity the model takes basalt to 0.95, and the wettest observed site here is 0.60."
+    "reading": "The mechanism is real. The regression slope 1.11 of observed on predicted says Earth moves further than the model does across this range, so the model UNDERSTATES the spread rather than overstating it. The cause is open. It was read as the model not capping clay at high intensity, which it does -- that diagnosis came from a scoring arm that inlined the conversion without the caps; this arm calls weather_texture. What is left out of it is the catena fines loss, which moves clay to sand on slope and would lower predicted clay where these localities have relief."
   },
   "climate_controlled_pairs": [
     {

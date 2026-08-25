@@ -228,6 +228,27 @@ def heaviest_chain(frames, calls, defined):
     return max(reachable, key=lambda t: t[0]), sorted(recursive)
 
 
+BINARY_NAME = re.compile(r"^most_plasim_(t\d+)_l(\d+)_p(\d+)\.x$")
+
+
+def binary_configuration(binary: Path) -> tuple[str, int, int]:
+    """The rung, level count and thread count a binary was compiled at.
+
+    A binary is one (resolution, layers, threads) configuration compiled in --
+    CLAUDE.md rule 4 -- and the registry writes all three into its NAME. So the
+    executable says what it is, and a comparison against a parse taken at some
+    other configuration does not have to be guessed at.
+    """
+    m = BINARY_NAME.match(binary.name)
+    if m is None:
+        raise SystemExit(
+            f"{binary.name} is not a registry name of the form "
+            "most_plasim_<rung>_l<levels>_p<threads>.x, so nothing says which "
+            "configuration it was compiled at and there is no parse to compare "
+            "it against.")
+    return m.group(1).upper(), int(m.group(2)), int(m.group(3))
+
+
 def validate(binary: Path, frames) -> None:
     """The same declarations, summed a different way, against a real binary.
 
@@ -235,6 +256,14 @@ def validate(binary: Path, frames) -> None:
     symbol each named `<local>.<n>`. Their total is the total this parse sees,
     so the two must agree -- a check with a right answer rather than a
     comparison that can only differ.
+
+    THE CALLER RECONCILES THE CONFIGURATIONS; see `main`. Every size here scales
+    with the rung, the level count and the thread count, and the parse arm took
+    those from `--rung`/`--levels`/`--threads` while the binary carried whatever
+    it was compiled at. Nothing reconciled them, so `--validate` against a
+    binary built at another thread count printed an agreement percentage that
+    meant nothing -- and with no `--rung` it printed one per rung, of which at
+    most one could mean anything. world-60x0.
     """
     import subprocess
     out = subprocess.run(["nm", "-S", str(binary)], check=True, text=True,
@@ -266,6 +295,25 @@ def main() -> None:
     args = ap.parse_args()
 
     ladder = [args.rung] if args.rung else list(rungs.RUNGS)
+    if args.validate is not None:
+        # The binary names its own configuration, so the parse follows it
+        # rather than the flags. A rung, level count or thread count given on
+        # the command line that contradicts the executable is refused rather
+        # than silently compared against.
+        rung, levels, threads = binary_configuration(args.validate)
+        for flag, given, built in (("--rung", args.rung, rung),
+                                   ("--levels", args.levels, levels),
+                                   ("--threads", args.threads, threads)):
+            if given is not None and str(given).upper() != str(built).upper() \
+                    and given != ap.get_default(flag.lstrip("-").replace("-", "_")):
+                raise SystemExit(
+                    f"{flag} says {given} and {args.validate.name} was compiled "
+                    f"at {built}. Every size in this parse scales with it, so "
+                    "the two arms would not be describing the same executable.")
+        ladder = [rung]
+        args.levels, args.threads = levels, threads
+        print(f"validating against {args.validate.name}: {rung}, {levels} "
+              f"levels, {threads} threads")
     print(f"{args.levels} levels, {args.threads} threads, "
           f"{args.precision}-byte reals")
     print(f"{'rung':>6}  {'all locals':>12}  {'heaviest chain':>15}")

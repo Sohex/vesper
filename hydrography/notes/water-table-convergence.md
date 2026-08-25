@@ -133,6 +133,22 @@ With that, the identity passes and does not merely come inside its bar:
 
 Bit-identical, with the same 112 dry regions found from either direction.
 
+**Which model that was measured on.** 2026-08-20, before GW-15's
+evapotranspiration sink and GW-17's local baselevels existed, so both
+trajectories carried neither. It is an honest identity for the equation of that
+date. The equation has since gained both terms and both default ON, and the
+identity has not been re-measured with them: the number above is evidence about
+the model it was run on, not about the model the component now solves. Until it
+is re-run there is no measured uniqueness result for the current equation. The
+command is
+
+    python hydrography/scripts/build_groundwater.py --uniqueness-check
+
+at the unchanged `SCHEME_HEAD_RELATIVE` bar for the confined form. The re-solve
+now takes the primary solve's own argument list whole rather than a copy of it,
+so a term can no longer reach one trajectory and not the other; the copy is how
+the sink and the baselevels came to be missing from this arm in the first place.
+
 ## The catchment check: a real bug, and a bar that could not be met
 
 Three attempts, and they are recorded together because two of them missed and
@@ -185,9 +201,10 @@ Forced by the BOOTSTRAP climatology. This build has no `baseline_climatology`
 and `surface_water.nc` was forced the same way; this project's vocabulary is
 explicit that a bootstrap run's numbers are not the baseline, so these are
 provisional against a baseline that does not yet exist. They are not provisional
-against the solver: the head field passes the uniqueness identity exactly,
-closes to round-off, and the trace machinery reproduces the surface catchments
-exactly.
+against the solver: the head field closes to round-off and the trace machinery
+reproduces the surface catchments exactly. The uniqueness identity is a
+separate claim and is carried by the section above, which says which equation
+it was measured on.
 
 Gleeson's within-class permeability spread is 1.5 to 2.5 orders of magnitude, so
 the depth field is a bracket and every arm is reported. `--sigma` shifts each

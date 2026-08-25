@@ -1174,6 +1174,13 @@ def confined_test(n_cells=200, dx_m=500.0, k_m_s=1e-5, recharge_m_s=2.5e-10,
     fixed[n - 1] = 0.0
     recharge = np.full(n, recharge_m_s)
     recharge[n - 1] = 0.0
+    # `et_max_m_s` AND `aquifer_base_m` ARE OMITTED ON PURPOSE, and the reason
+    # is different for each. The analytic head above is the solution of the
+    # equation with no sink in it, so a run carrying one would not be the case
+    # this compares against; and the aquifer base is what selects the unconfined
+    # form, which is the other arm and is `dupuit_test`. Neither is the missing
+    # argument of world-60x0's class: this is a control that must not carry the
+    # term, not a second trajectory through the same problem.
     res = solve(export, geom, k0_m_s=np.full(n, k_m_s), thickness_m=thickness_m,
                 recharge_m_s=recharge, surface_m=np.full(n, 1e7),
                 conductive=np.ones(n, bool), max_outer=20,
@@ -1242,6 +1249,11 @@ def dupuit_test(n_cells=200, dx_m=500.0, k_m_s=1e-5, recharge_m_s=2.5e-10,
     recharge = np.full(n, recharge_m_s)
     recharge[n - 1] = 0.0
 
+    # `et_max_m_s` is omitted for the same reason the box constraint is held
+    # clear above: the Dupuit parabola is the solution with no sink, so the
+    # control must not carry one. world-60x0's class is a re-solve that drops a
+    # term the primary run has; this is a case whose right answer is known only
+    # while the term is absent.
     res = solve(export, geom, k0_m_s=k0, thickness_m=1.0,
                 recharge_m_s=recharge, surface_m=surface,
                 conductive=np.ones(n, bool), max_outer=max_outer,
