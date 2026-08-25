@@ -113,6 +113,18 @@ def prepare_thread_stack(config: dict) -> dict:
     one build and it is the threaded one, so there is no longer a parallel mode
     that keeps these locals in static storage and never touches a thread stack.
 
+    TWO STACKS, SET TWO DIFFERENT WAYS. The threaded build compiles with
+    `-frecursive`, so the model's large locals are stack-allocated rather than
+    static -- which the deleted MPI build never needed, because without it those
+    arrays lived in static storage. The OpenMP team's threads take
+    `OMP_STACKSIZE`; the MASTER thread runs on the process stack, which takes
+    `ulimit -s` and which no OMP variable can change. Both are raised here.
+
+    Neither was set at all until recently, and the symptom was not a crash
+    anyone read as one: every rung above T42 died with SIGSEGV before writing a
+    record, which read as the model REFUSING that configuration and is what kept
+    T85, T127 and T170 out of the stability grid. It was a 16 MB process stack.
+
     Refuses when the stack is below the floor `stack_floor.py` reads off the
     model source at this rung. That is a check with a right answer rather than a
     number carried forward: a run that cannot hold its own declared locals dies
@@ -1306,20 +1318,35 @@ def declare_hyperdiffusion(model, config: dict) -> dict:
     tau = table[rung]
     ntru = int(rung.lstrip("Tt"))
     nhdiff = int(round(float(hd["cutoff_fraction"]) * ntru))
-    # EVERY LEVEL, WRITTEN OUT. `TDISS*` and `NDEL` are per-level arrays, and a
-    # Fortran namelist assignment of a scalar to an array sets element 1 only:
-    # levels 2 to NLEV then keep whatever readnl's compiled branch left there,
-    # which at T21 is ExoPlaSim's own table in days and at T42 is that branch's
-    # values already in SECONDS. `dayseccheck` discriminates on maxval, so a
-    # mixed array converts nothing and level 1 is read in the wrong unit. The
-    # `n*value` replication is what ExoPlaSim's own wrapper writes; world-720.
-    layers = int(model_cfg["layers"])
-    keys = {"NDEL": f"{layers}*{int(hd['order_alpha'])}",
+    # EVERY LEVEL, NOT JUST THE FIRST. ndel and the four tdiss are ndel(NLEV)
+    # and tdiss*(NLEV) in plasimmod, and a Fortran namelist scalar assigns
+    # ELEMENT ONE and leaves the rest. Written as scalars, these reached the
+    # model top and nine levels in ten kept whatever readnl had preset -- at
+    # T21 `NDEL=4, 9*2`, so world-1nz's grad^8 landed on one level and the
+    # other nine stayed on grad^4 with humidity damped 7.4 times too hard.
+    #
+    # At T42 it was worse than wrong, it was in the wrong UNIT. readnl's
+    # NTRU==42 branch fills the arrays in SECONDS, and `dayseccheck` decides
+    # days-against-seconds from MAXVAL over the whole array, so the preset's
+    # 65664 suppressed the conversion element one needed and tdisst(1) stayed
+    # 2.8224 SECONDS where 2.8224 days was meant: the top level damped 86400
+    # times too hard, and only the top level. That is where the T42 blow-up of
+    # world-td3 starts, and it is why T21, which has no such preset, survives.
+    #
+    # The repeat count is Fortran namelist syntax and the model echoes what it
+    # read; smoke_test checks the echo rather than this line. world-720 is the
+    # same defect found from the model side, and world-1nz is the continuation
+    # that dropped these keys entirely; both are closed by this and by the
+    # call in continue_exoplasim.py.
+    nlev = int(model_cfg["layers"])
+    def _every_level(value) -> str:
+        return f"{nlev}*{value}"
+    keys = {"NDEL": _every_level(int(hd['order_alpha'])),
             "NHDIFF": f"{nhdiff}",
-            "TDISSD": f"{layers}*{float(tau['divergence'])}",
-            "TDISSZ": f"{layers}*{float(tau['vorticity'])}",
-            "TDISST": f"{layers}*{float(tau['temperature'])}",
-            "TDISSQ": f"{layers}*{float(tau['humidity'])}"}
+            "TDISSD": _every_level(float(tau['divergence'])),
+            "TDISSZ": _every_level(float(tau['vorticity'])),
+            "TDISST": _every_level(float(tau['temperature'])),
+            "TDISSQ": _every_level(float(tau['humidity']))}
     for key, value in keys.items():
         model._edit_namelist("plasim_namelist", key, value)
     print(f"hyperdiffusion: {rung} alpha={hd['order_alpha']} "
@@ -2225,7 +2252,6 @@ def main() -> None:
              "cold-starting. Only the spin-up path changes, not the equilibrium.",
     )
     args = parser.parse_args()
-
     config_path = args.config.resolve()
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     # Applied to the loaded config rather than threaded through, so the binary

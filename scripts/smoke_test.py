@@ -1089,6 +1089,107 @@ def check_gate_filter_matches_config() -> list[str]:
         if key not in seen:
             bad.append(f"no driver under exoplasim/scripts sets {key}; the "
                        f"config.{cfg_key} comparison has nothing to check")
+# Settings that configure() re-copies over on every continuation, so a run that
+# does not REAPPLY them integrates its later segments on the compiled defaults.
+# The file records three that were lost this way; the list is here so a fourth
+# cannot be added to run_exoplasim alone.
+REDECLARED_ON_CONTINUE = (
+    "declare_hyperdiffusion", "declare_energy_fixer", "declare_robert_filter",
+    "declare_dynamics_only", "declare_conversion_time_level",
+    "declare_dealias_conversion",
+)
+
+
+def check_continuation_redeclares_everything() -> list[str]:
+    """Whatever a prepare declares, a continuation declares again.
+
+    `model.configure()` re-copies the shipped namelists over the configured
+    ones every time it runs, so a setting written at prepare time and not
+    rewritten on continuation silently reverts partway through a run. That has
+    now happened three times in this file's history -- the stellar spectrum,
+    the shortwave gas weights, and hyperdiffusion.
+
+    Hyperdiffusion was the expensive one, because its fallback is not "off" but
+    a DIFFERENT OPERATOR: `plasim.f90:1443` gives T21 ndel 2 where the config
+    derives 4, grad^4 instead of grad^8. The production baseline integrated 84
+    of its 85 orbits that way. world-1nz.
+    """
+    cont = (ROOT / "exoplasim" / "scripts" / "continue_exoplasim.py").read_text(
+        encoding="utf-8")
+    prep = (ROOT / "exoplasim" / "scripts" / "run_exoplasim.py").read_text(
+        encoding="utf-8")
+    bad = []
+    for name in REDECLARED_ON_CONTINUE:
+        if f"def {name}(" not in prep:
+            bad.append(f"{name} is asserted here and run_exoplasim.py no "
+                       "longer defines it")
+        elif f"{name}(model, config)" not in cont:
+            bad.append(f"run_exoplasim declares {name} and "
+                       "continue_exoplasim.py never reapplies it, so a "
+                       "continued segment reverts to the compiled default")
+    return bad
+
+
+def check_per_level_namelist_keys_cover_every_level() -> list[str]:
+    """A namelist key backed by an NLEV array is written for every level.
+
+    `ndel`, `tdissd`, `tdissz`, `tdisst` and `tdissq` are declared `(NLEV)` in
+    plasimmod, and a Fortran namelist scalar assigns ELEMENT ONE and leaves the
+    rest. Written as scalars they reached the model top and nine levels in ten
+    kept whatever `readnl` had preset. The model echoes what it read, and it
+    read `NDEL=4, 9*2` at T21: world-1nz's grad^8 on one level and grad^4 on
+    the other nine, with humidity damped 7.4 times too hard there.
+
+    At T42 the same scalar landed in the wrong UNIT. `readnl`'s `NTRU==42`
+    branch fills the arrays in seconds, `dayseccheck` decides days-against-
+    seconds from MAXVAL over the whole array, and the preset's 65664 suppressed
+    the conversion element one needed -- leaving the top level damped 86400
+    times too hard and nothing else touched. world-td3.
+
+    This CALLS the writer against the real config and reads what it would put
+    in the namelist, rather than matching its source text: the first version
+    matched text and passed a scalar written through a helper.
+    """
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    import yaml
+    import run_exoplasim
+
+    per_level = ("NDEL", "TDISSD", "TDISSZ", "TDISST", "TDISSQ")
+    config = yaml.safe_load(
+        (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    nlev = int(config["model"]["layers"])
+
+    class _Recorder:
+        def __init__(self):
+            self.written = {}
+
+        def _edit_namelist(self, namelist, key, value):
+            self.written[key] = value
+
+    def _count(value: str) -> int:
+        """How many array elements this namelist value actually supplies."""
+        total = 0
+        for item in str(value).split(","):
+            item = item.strip()
+            if not item:
+                continue
+            total += int(item.split("*", 1)[0]) if "*" in item else 1
+        return total
+
+    bad = []
+    recorder = _Recorder()
+    run_exoplasim.declare_hyperdiffusion(recorder, config)
+    for key in per_level:
+        if key not in recorder.written:
+            bad.append(f"declare_hyperdiffusion no longer writes {key}, which "
+                       "this check asserts is declared for every level")
+            continue
+        supplied = _count(recorder.written[key])
+        if supplied != nlev:
+            bad.append(
+                f"declare_hyperdiffusion writes {key} = "
+                f"{recorder.written[key]!r}, which supplies {supplied} of "
+                f"{nlev} levels -- the rest keep the model's own preset")
     return bad
 
 
@@ -1235,6 +1336,10 @@ def main() -> None:
                check_restart_schema_covers_the_model()),
               ("the transform gates run the configured spectral filter",
                check_gate_filter_matches_config()),
+              ("a continuation redeclares what a prepare declared",
+               check_continuation_redeclares_everything()),
+              ("every per-level namelist key is written for every level",
+               check_per_level_namelist_keys_cover_every_level()),
               ("no artifact path carries a resolution literal",
                check_no_rung_literal_in_a_path(files + shell_files)),
               ("the rung-to-dimension table is lib/rungs.py and nowhere else",

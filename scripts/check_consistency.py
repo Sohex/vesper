@@ -1117,6 +1117,23 @@ def main() -> int:
             rep.add(OK, "runs vs the energy fixer they claim",
                     f"{seen} runs carry the stamp and all agree with their namelist")
 
+        # -- what each run INTEGRATED with, against what was declared -------
+        #
+        # This lived here as a second gate and is now one: `audit_runs` above
+        # runs "runs vs the hyperdiffusion they declare" over every run against
+        # its OWN manifest, through `run_exoplasim.namelist_elements`. That
+        # matters because the keys are written in Fortran's `n*value`
+        # replication -- runs on disk carry `TDISSD = 10*0.0737` -- and the
+        # version that stood here parsed with a bare `float()`, so a correctly
+        # replicated array raised, was skipped, and was reported MISSING. It
+        # could not see world-720's real defect either, a scalar where NLEV
+        # elements are wanted, because it never compared lengths.
+        #
+        # The finding that motivated it stands and is world-1nz: a continuation
+        # re-copies the shipped namelists, so a setting written only at prepare
+        # time reverts partway through, and the hyperdiffusion fallback is a
+        # DIFFERENT OPERATOR, ndel 2 against 4 at T21.
+
         # -- and what the fixer actually had to put back --
         #
         # The fixer HIDES the defect it compensates: with it on, denergy26 minus

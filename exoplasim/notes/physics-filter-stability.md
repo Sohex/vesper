@@ -302,6 +302,59 @@ count in its denominator, which is not the same claim as the state having gone.
 Whether the state was already bad is UNDETERMINED, and this note said otherwise
 before the call site was read.
 
+## T42 at dt 45 survives 46 orbits and dies in the 47th
+
+*Measured 2026-08-24 at b30e314e, T42 on sixteen threads, `-O2`, kappa 8,
+`MPSTEP = 45.0`, cold start, `run_900548ae632e`.*
+
+The grid above qualifies T42 at dt 45 on two orbits. Eighty-five were asked for
+and forty-seven arrived: the run integrated 46 orbits of ordinary climate and
+then took a SIGFPE inside the 47th.
+
+    #0  swr_       at radmod.f90:2530
+    #1  radstep_   at radmod.f90:1523
+    #2  gridpointd_ at plasim.f90:4048
+
+The faulting instruction is `vsqrtsd`, and its operand is `273./dt(jhor,2)` --
+the water-vapour amount's temperature scaling at the second level from the top.
+Read out of the register at the trap, `dt` is **-12.81 K**. `dt` is
+`dt(NHOR,NLEP)` in plasimmod and is temperature, not a tendency, so this is a
+gridpoint at a negative absolute temperature. The instruction is reached down
+the scalar `losun` branch, past a `cmpb`/`je` that skips the night lanes, so it
+is a daylight cell and not a masked-lane artifact.
+
+**Nothing was building towards it.** Per-level minimum temperature across the
+run's own output, every sixth orbit and then every orbit to the end:
+
+| orbit | 0 | 12 | 24 | 36 | 44 | 45 | 46 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| level 1 min, K | 181.1 | 185.2 | 186.4 | 184.9 | 186.7 | 184.5 | 184.3 |
+| level 2 min, K | 183.3 | 190.9 | 191.0 | 190.1 | 191.8 | 190.1 | 190.9 |
+
+Level 2's coldest cell sits at 190 K with no trend, and the four restarts
+before the failure carry no non-positive temperature anywhere. So one cell went
+from about 190 K to below zero inside a single orbit.
+
+### What this changes about the grid
+
+The grid's cells are 400-step probes and one full orbit, and this note already
+says the probe cannot see a late blow-up. The correction is larger than that:
+**an orbit cannot see one either.** T42 at dt 45 passes a two-orbit arm and
+fails at the forty-seventh, so a cell marked as running has been shown to run
+for as long as it was watched and no longer. That is not a criticism of the
+measurement, which was taken for a two-orbit diagnostic and is sound for one.
+It is a statement about what the grid can be used for: it qualifies a step for
+a DIAGNOSTIC, and it does not qualify one for a commissioning run.
+
+The ladder therefore runs T42 at dt 22.5, which this note measures as clean at
+kappa 8 and which is also the step T170 needs -- so the rungs are compared at
+one step rather than at each rung's own margin.
+
+The 1/N law the grid fits does not predict this failure and is not contradicted
+by it. `30 * 127/42` puts T42's stable step near 90 minutes, twice what failed.
+Whatever ends the 47th orbit is not the linear stability boundary those probes
+found, and world-td3 carries the question of what it is.
+
 ## The unbooked filter dissipation is bounded, by an identity that runs the wrong way
 
 The filter preserves `n = 0` exactly -- `f(0) = exp(0) = 1` -- so it cannot move

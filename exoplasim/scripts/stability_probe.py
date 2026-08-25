@@ -181,13 +181,18 @@ def probe(rung: str, dt: float, kappa: float | None, steps: int,
     # and reaches one level of ten is not the arm it reports. world-720.
     if tau_scale is not None:
         hd = cfg_all["model"]["hyperdiffusion"]["timescales_days"][rung]
-        layers = int(cfg_all["model"]["layers"])
-        alpha = int(cfg_all["model"]["hyperdiffusion"]["order_alpha"])
-        keys |= {"TDISSD": f"{layers}*{hd['divergence'] / tau_scale}",
-                 "TDISSZ": f"{layers}*{hd['vorticity'] / tau_scale}",
-                 "TDISST": f"{layers}*{hd['temperature'] / tau_scale}",
-                 "TDISSQ": f"{layers}*{hd['humidity'] / tau_scale}",
-                 "NDEL": f"{layers}*{alpha}"}
+        # Every level. These are NLEV arrays and a namelist scalar sets element
+        # one only, which is what left nine levels in ten on readnl's presets
+        # and, at T42, element one in seconds rather than days. The probe reads
+        # a stability boundary, so it has to declare the damping the runs
+        # declare or it is measuring a different model. See
+        # declare_hyperdiffusion in run_exoplasim.py.
+        nlev = int(cfg_all["model"]["layers"])
+        keys |= {"TDISSD": f"{nlev}*{hd['divergence'] / tau_scale}",
+                 "TDISSZ": f"{nlev}*{hd['vorticity'] / tau_scale}",
+                 "TDISST": f"{nlev}*{hd['temperature'] / tau_scale}",
+                 "TDISSQ": f"{nlev}*{hd['humidity'] / tau_scale}",
+                 "NDEL": f"{nlev}*{int(cfg_all['model']['hyperdiffusion']['order_alpha'])}"}
     set_keys(bed, keys | {"N_RUN_STEPS": str(short_steps)})
     t_short, trapped, text = time_run(bed, exe, ranks)
     result = {"rung": rung, "dt_minutes": dt, "kappa": kappa, "ranks": ranks,
