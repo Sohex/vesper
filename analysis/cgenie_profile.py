@@ -168,6 +168,33 @@ def symbol_index() -> dict[str, dict]:
     return index
 
 
+# THE TRAP THIS GUARD EXISTS FOR, and it cost a whole pass to find.
+#
+# `kernel.perf_event_max_sample_rate` is 3000 samples per second on this host.
+# Above it the kernel THROTTLES: it stops delivering samples for the rest of the
+# window and resumes afterwards, and `perf report` says "Total Lost Samples: 0"
+# because no RECORD was lost. What is lost is the assumption the profile rests
+# on, that every retired instruction is equally likely to be sampled -- the
+# surviving samples are the ones that fell in the unthrottled part of each
+# window, which is a systematic bias and not noise.
+#
+# Taken at a period of 2e7 the shipped grid delivers exactly 1409 samples for
+# 28.18e9 instructions, so nothing was dropped. Taken at 2e6 the same run
+# delivered 7133 of the 14090 the period demands, and the shares moved by up to
+# a factor of 1.6 -- eight standard errors on the counts involved. So the tighter
+# sampling was not a better measurement of the same thing; it was a measurement
+# of a different, throttled process. More samples come from a LONGER run at a
+# period the kernel will honour, never from a shorter period.
+def sample_rate_ok(period: int, instr_per_second: float = 1.5e10) -> tuple[bool, float, int]:
+    """Would this period ask the kernel for more samples than it will deliver?"""
+    try:
+        cap = int(Path("/proc/sys/kernel/perf_event_max_sample_rate").read_text().strip())
+    except OSError:
+        return True, 0.0, 0
+    wanted = instr_per_second / period
+    return wanted <= cap, wanted, cap
+
+
 def perf_profile(outdir: Path, log: Path, period: int) -> dict:
     """`perf record` the already-configured experiment, then read the flat
     profile back per symbol.
@@ -204,6 +231,14 @@ def perf_profile(outdir: Path, log: Path, period: int) -> dict:
     out["samples"] = total
     out["period"] = period
     out["instructions_sampled"] = total * period
+    ok, wanted, cap = sample_rate_ok(period)
+    out["sample_rate_wanted_per_second"] = round(wanted)
+    out["sample_rate_cap_per_second"] = cap
+    if not ok:
+        out["throttled"] = (
+            f"the period asks for about {wanted:.0f} samples per second against a"
+            f" kernel cap of {cap}: the kernel dropped samples in bursts and the"
+            " shares below are biased, not merely noisy. Lengthen the run instead")
     out["symbols"] = rows
     shutil.rmtree(outdir / "perf.data", ignore_errors=True)
     data.unlink(missing_ok=True)
