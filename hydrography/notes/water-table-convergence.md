@@ -136,18 +136,65 @@ Bit-identical, with the same 112 dry regions found from either direction.
 **Which model that was measured on.** 2026-08-20, before GW-15's
 evapotranspiration sink and GW-17's local baselevels existed, so both
 trajectories carried neither. It is an honest identity for the equation of that
-date. The equation has since gained both terms and both default ON, and the
-identity has not been re-measured with them: the number above is evidence about
-the model it was run on, not about the model the component now solves. Until it
-is re-run there is no measured uniqueness result for the current equation. The
-command is
+date. The equation has since gained both terms and both default ON, so the
+number above is evidence about the model it was run on and not about the model
+the component now solves.
 
-    python hydrography/scripts/build_groundwater.py --uniqueness-check
+## The identity on the current equation, and the controls that reject it
 
-at the unchanged `SCHEME_HEAD_RELATIVE` bar for the confined form. The re-solve
-now takes the primary solve's own argument list whole rather than a copy of it,
-so a term can no longer reach one trajectory and not the other; the copy is how
-the sink and the baselevels came to be missing from this arm in the first place.
+Measured 2026-08-25 by
+
+    python hydrography/scripts/groundwater.py --uniqueness-test
+
+on a synthetic 2,304-cell case carrying every term the planet's solve carries:
+an ocean boundary, GW-17's imposed baselevels, GW-15's spatially varying sink,
+three orders of conductivity, a wet patch where the box constraint binds, and a
+block enclosed by excluded lithology so the static dry-set query is reached. The
+bar is `SCHEME_HEAD_RELATIVE`, unchanged, and a control is rejected by that same
+criterion; there is no second bar, so nothing here was chosen after a result.
+
+| Arm | max head difference | relative | verdict required | got |
+| --- | --- | --- | --- | --- |
+| identity, two trajectories | 0.000e+00 m | 0.000e+00 | pass | pass |
+| a third, arbitrary active set | 5.296e-10 m | 1.250e-12 | pass | pass |
+| re-solve without GW-15's sink | 5.301e+00 m | 1.251e-02 | rejected | rejected |
+| re-solve without GW-17's baselevels | 6.244e+01 m | 1.474e-01 | rejected | rejected |
+| `solve` mutated: pinned cells seeded below their surface | 4.467e+00 m | 1.054e-02 | rejected | rejected |
+
+**The identity is bit-identical with both terms in.** It was not before this was
+run; it was untested.
+
+**The two dropped-term rows are the measurement of what the broken arm was
+reporting.** Until world-60x0 the re-solve was given neither term, so it was
+comparing two models, and the size of that comparison is the two rows above: a
+tenth of the head range for the baselevels, a hundredth for the sink. The arm
+could only ever have returned a miss of that order, or have been run in a
+configuration where the omission did not bite. It was never evidence about
+uniqueness.
+
+**The mutated-solver row is why the identity is a test rather than a report.**
+`pinned_seed` reverts one invariant of `solve`: a cell that starts below the
+surface must start FREE, because the seepage accounting reads a pinned cell as
+being at its surface. Both trajectories still converge and still close, and they
+land 4.467 m apart. A check whose only recorded value is a pass is not evidence
+that it can fail, and this is the arm that shows it going red.
+
+The explicit anchoring path is NOT covered here and no control is offered on it:
+a cell carrying GW-15's sink anchors itself, so with the sink on a free block
+only reaches the anchoring code where `et_max` is zero. What a control on the
+anchor release would take is tracked separately.
+
+**The planet arm is a separate claim and is still unmeasured.** The command is
+
+    python hydrography/scripts/build_groundwater.py --uniqueness-check --climatology <path>
+
+at the same bar. It has no result on `precarve-craton-10m`: the reverse
+trajectory starts with every land cell free, so it factors the whole 4.33
+million-cell land set before a single cell is pinned, and this host has not had
+the memory free to do that. The re-solve now takes the primary solve's own
+argument list whole rather than a copy of it, so a term can no longer reach one
+trajectory and not the other; the copy is how the sink and the baselevels came
+to be missing from this arm in the first place.
 
 ## The catchment check: a real bug, and a bar that could not be met
 

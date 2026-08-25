@@ -9,6 +9,7 @@ python hydrography/scripts/build_hydrography.py   # ~13 s, climate-independent
 python hydrography/scripts/lake_balance.py        # solver smoke test and sweep
 python hydrography/scripts/surface_water.py       # ~3 s, needs a climatology
 python hydrography/scripts/groundwater.py         # the discretisation checks
+python hydrography/scripts/groundwater.py --uniqueness-test   # the identity, and the controls it rejects
 python hydrography/scripts/build_groundwater.py   # the water table, needs a climatology
 python hydrography/scripts/land_water_ledger.py   # the store and flux ownership contract
 python hydrography/scripts/build_groundwater_access.py   # that water table on the climate grid
@@ -474,11 +475,17 @@ receives most water from, which is to say following the water uphill.
 `--uniqueness-check` re-solves from the opposite initial active set. The matrix
 is symmetric positive definite, so the complementarity problem has exactly one
 solution and any two trajectories must reach it: an identity, not a comparison.
-**It passes at 0.000e+00** -- bit-identical head fields from either direction.
-Getting there required the dry set to become a static property of the graph
-rather than something discovered mid-iteration; before that it missed by 12.76 m
-because the two trajectories were marking different cells dry and so solving
-slightly different problems.
+Both calls take one argument list whole, so a term added to the equation cannot
+reach one trajectory and not the other; that is not a tidy-up but the repair of
+a defect, and `groundwater.py --uniqueness-test` is the arm that proves the
+identity can still fail. It runs the same identity on a synthetic case carrying
+GW-15's sink and GW-17's baselevels, and three controls it must REJECT: a
+re-solve missing the sink, a re-solve missing the baselevels, and a `solve`
+mutated to seed pinned cells below their surface. What each returned is in
+`hydrography/notes/water-table-convergence.md`, which also carries what it took
+to make the identity pass at all: the dry set had to become a static property of
+the graph rather than something discovered mid-iteration, because two
+trajectories that mark different cells dry are solving different problems.
 
 `--operator-noise` perturbs every face coefficient to ask what GW-8's own
 truncation error does to the answer. It is a sensitivity harness, not a model
