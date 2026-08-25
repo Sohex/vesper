@@ -3,7 +3,7 @@
 /// \brief Input module for Vesper, driven by an ExoPlaSim climatology
 ///
 /// See vesperinput.h. Modelled on demoinput.cpp, which is the module the
-/// LPJ-GUESS documentation points new users at, and departs from it in four
+/// LPJ-GUESS documentation points new users at, and departs from it in five
 /// ways, each forced by this being another planet:
 ///
 ///  1. Insolation is supplied as NETSWRAD_TS, the net downward surface shortwave
@@ -18,6 +18,11 @@
 ///  3. The gridlist, soil codes and climate arrive in one generated binary file
 ///     rather than several curated text files.
 ///  4. The file's year length is checked against the compiled-in one.
+///  5. The fourth climate array is the range of the SURFACE temperature, not
+///     the near-surface air diurnal range, so it is NOT handed to climate.dtr
+///     and ifbvoc is refused. The two are different variables and this world's
+///     climate product carries only the first. See getclimate, and
+///     biosphere/notes/ecological-forcing-field-contract.md.
 ///
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -36,9 +41,13 @@ REGISTER_INPUT_MODULE("vesper", VesperInput)
 namespace {
 
 /// Little-endian, and both writer and reader are x86-64. Checked via the magic.
-const char DRIVER_MAGIC[8] = {'V','E','S','P','D','R','V','5'};
+const char DRIVER_MAGIC[8] = {'V','E','S','P','D','R','V','6'};
 
-/// Bins per year in the driver file. ExoPlaSim's regular_output_bins_per_orbit.
+/// Bins per year in the driver file. These are the MODEL's months, the same
+/// twelve VESPER_MONTH_LENGTHS sizes Date with, because interp_monthly_*
+/// spreads each one over exactly ndaymonth days. build_lpj_driver.py remaps the
+/// producer's own time bins onto them conservatively rather than assuming the
+/// two partitions agree; they do not, and the last one differed by two days.
 const int DRIVER_BINS = 12;
 
 /// Length of the provenance string the driver file carries
@@ -148,11 +157,11 @@ void VesperInput::read_driver() {
 		cell.temp.resize(span);
 		cell.prec.resize(span);
 		cell.insol.resize(span);
-		cell.dtr.resize(span);
+		cell.tsrange.resize(span);
 		read_or_fail(in, &cell.temp[0], span, "temperature");
 		read_or_fail(in, &cell.prec[0], span, "precipitation");
 		read_or_fail(in, &cell.insol[0], span, "insolation");
-		read_or_fail(in, &cell.dtr[0], span, "diurnal range");
+		read_or_fail(in, &cell.tsrange[0], span, "surface temperature range");
 	}
 
 	// Keep only this process's share of the cells.
@@ -230,6 +239,19 @@ void VesperInput::init() {
 		        "only, no pedogenesis)\n\n");
 	}
 
+	// The one reader of climate.dtr is bvoc.cpp's daytime_temp, and this world's
+	// forcing carries no near-surface air temperature range for it to read. See
+	// getclimate below and biosphere/notes/ecological-forcing-field-contract.md.
+	// Fail here rather than at the point of use: a BVOC run that starts is a run
+	// whose leaf temperature came from somewhere.
+	if (ifbvoc) {
+		fail("vesperinput: ifbvoc 1 needs a near-surface AIR temperature range "
+		     "and the Vesper forcing carries only the SURFACE temperature "
+		     "range. ExoPlaSim computes the air extrema as output codes 201 and "
+		     "202 and no product carries them yet. See "
+		     "biosphere/notes/ecological-forcing-field-contract.md.");
+	}
+
 	landcover_input.init();
 	management_input.init();
 
@@ -250,7 +272,7 @@ void VesperInput::interpolate(const Cell& cell, int year_index) {
 	interp_monthly_means_conserve(&cell.temp[offset], dtemp);
 	interp_monthly_totals_conserve(&cell.prec[offset], dprec, 0.0);
 	interp_monthly_means_conserve(&cell.insol[offset], dinsol, 0.0);
-	interp_monthly_means_conserve(&cell.dtr[offset], ddtr, 0.0);
+	interp_monthly_means_conserve(&cell.tsrange[offset], dtsrange, 0.0);
 	loaded_year = year_index;
 }
 
@@ -438,7 +460,33 @@ bool VesperInput::getclimate(Gridcell& gridcell) {
 	climate.temp = dtemp[date.day];
 	climate.prec = dprec[date.day];
 	climate.insol = dinsol[date.day];
-	climate.dtr = ddtr[date.day];
+
+	// climate.dtr does NOT come from the driver file. It means the range of the
+	// near-surface AIR temperature: cfinput.cpp builds it as
+	// dmax_temp - dmin_temp from air temperature extrema, and its one reader,
+	// bvoc.cpp's daytime_temp, reconstructs a daytime air temperature from it.
+	//
+	// What the driver file carries is the range of the SURFACE temperature, and
+	// the two are different variables rather than two estimates of one. On the
+	// bootstrap climatology maxt and mint bracket ts in every cell and fail to
+	// bracket tas in 15,561 cell-bins of 24,576, by up to 28.3 K.
+	//
+	// The air-temperature extrema this world's climate model computes are
+	// atsama and atsami, output codes 201 and 202. They are written by the model
+	// and reach no product: they are absent from pyburn's ilibrary and from
+	// run_exoplasim.REGULAR_CODES. Until they arrive, substituting the surface
+	// range would be delivering a different variable under the right name.
+	// dtsrange is carried alongside for a consumer that wants the surface range
+	// for itself.
+	//
+	// biosphere/notes/ecological-forcing-field-contract.md carries the argument.
+	//
+	// Zero rather than left alone: Climate's constructor does not initialise
+	// dtr, and an indeterminate read is worse than a declared one. Zero states
+	// the assumption the model then runs on, that leaf temperature equals the
+	// daily mean air temperature. VesperInput::init refuses ifbvoc 1 outright,
+	// so nothing reaches daytime_temp on this assumption without saying so.
+	climate.dtr = 0.0;
 
 	if (date.day == 0) {
 

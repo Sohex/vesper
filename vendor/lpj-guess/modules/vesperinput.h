@@ -74,8 +74,13 @@ private:
 		std::vector<double> prec;
 		/// net downward surface shortwave per bin, W/m2
 		std::vector<double> insol;
-		/// diurnal temperature range per bin, degrees C (BVOC only)
-		std::vector<double> dtr;
+		/// Range of the SURFACE temperature per bin, degrees C.
+		/// NOT the near-surface air diurnal range. It is maxt - mint, and
+		/// ExoPlaSim builds those two as extrema of dt(:,NLEP), which brackets
+		/// ts and not tas. climate.dtr means an air-temperature range, so this
+		/// is deliberately not assigned to it; see
+		/// biosphere/notes/ecological-forcing-field-contract.md.
+		std::vector<double> tsrange;
 	};
 
 	/// Land cover input module
@@ -122,7 +127,7 @@ private:
 	double dtemp[Date::MAX_YEAR_LENGTH];
 	double dprec[Date::MAX_YEAR_LENGTH];
 	double dinsol[Date::MAX_YEAR_LENGTH];
-	double ddtr[Date::MAX_YEAR_LENGTH];
+	double dtsrange[Date::MAX_YEAR_LENGTH];
 
 	/// Progress reporting, as in demoinput
 	Timer tprogress, tmute;

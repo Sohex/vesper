@@ -279,6 +279,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpbci(hcstartstep) ! Timestep to start high-cadence output
       call mpbci(hcendstep)   ! Timestep to end high-cadence output (exclusive)
       call mpbci(hcinterval)  ! Number of timesteps per high-cadence write
+      call mpbci(neco    ) ! Switch for the ecological output stream, EFOR-2
+      call mpbci(necostep) ! Timesteps per ecological interval
       call mpbci(ncoeff  ) ! number of modes to print
       call mpbci(ndiag   ) ! write diagnostics interval
       call mpbci(ndivdamp) ! divergence damping countdown
@@ -494,6 +496,31 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       if (mypid == NROOT) then
          if (noutput > 0) call outini    ! Open output file <plasim_output>
+      endif
+!
+!     THE ECOLOGICAL STREAM, EFOR-2. Independent of noutput, because it is a
+!     different consumer's product and not a subset of the climate one.
+!
+!     mtspd is the number of timesteps in one absolute 24-hour day exactly:
+!     prolog derives it as nint(day_24hr)/nint(mpstep*60), makes it even, and
+!     then recomputes mpstep so that mtspd*mpstep*60 = day_24hr. So the default
+!     interval is 86400 s to the model's own arithmetic, with no rounding and no
+!     drift, which is what makes the interval bounds ecogp writes exact.
+!
+!     24 h is the ecological step LPJ-GUESS integrates on, not a claim that this
+!     world's rotation is 24 h; it is 30 h, so the local solar phase advances by
+!     0.8 of a rotation every interval and stays visible in the bounds.
+!     biosphere/notes/time-base-unit-contract.md settles the absolute day.
+      if (neco > 0) then
+         if (necostep < 1) necostep = mtspd
+         if (mypid == NROOT) then
+            call ecoini
+!           deltsec is not set until master, so the interval is reported in
+!           timesteps here and in seconds by the stream itself: ecogp writes
+!           the bounds and the duration as its first three records.
+            write(nud,*) 'Ecological stream on: ',necostep,                 &
+     &                   ' timesteps per interval (mtspd = ',mtspd,')'
+         endif
       endif
 !
 !*    initialize miscellaneous additional parameterization
@@ -797,6 +824,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          if (ngui > 0) call guistep_plasim
          call spectrald
          call outaccu
+         if (neco > 0) call ecoaccu
 
          if (mod(nhcstp,nstps) == 0 .and. nsnapshot > 0) then
            call snapshotsc
@@ -841,6 +869,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
             write(nud,*) "HC STORM CAPTURE step",nhcstp
             call hcadencesp(142)
             call hcadencegp(142)
+         endif
+         if (neco > 0) then
+            if (mod(naccueco,necostep) == 0) then
+               call ecogp
+               call ecoreset
+            endif
          endif
          if (mod(nhcstp,nafter) == 0) then
           if(noutput > 0) then
@@ -910,6 +944,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
       if (nsnapshot > 0 .and. mypid == NROOT) close(140)
       if (nhcadence > 0 .and. mypid == NROOT) close(141)
+      if (neco > 0 .and. mypid == NROOT) close(143)
 !
 !     close efficiency diagnostic file
 !
@@ -924,6 +959,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          
          call put_restart_integer('nstep'   ,nstep   )
          call put_restart_integer('naccuout',naccuout)
+         call put_restart_integer('naccueco',naccueco)
          call put_restart_integer('nlat'    ,NLAT    )
          call put_restart_integer('nlon'    ,NLON    )
          call put_restart_integer('nlev'    ,NLEV    )
@@ -1008,6 +1044,40 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                                            
       call mpputgp('asigrain'    ,asigrain,NHOR,1)
       call mpputgp('tempmax'     ,tempmax ,NHOR,1) 
+      
+!     THE ECOLOGICAL STREAM'S PARTIAL INTERVAL, EFOR-2.
+!
+!     Serialized unconditionally, whether or not the stream is on. An
+!     accumulator saved only while its switch is set is a switch that changes
+!     the restart's contents, and restart_schema.py's inventory is over the
+!     model's call sites and not over a namelist.
+!
+!     WHY IT HAS TO BE SAVED AT ALL: without it a continuation restarts the
+!     interval it was in the middle of, so the first block after a model call
+!     covers a shorter span than it declares. That is not a small error in one
+!     record; it puts a false weather boundary into the sequence, at exactly the
+!     place a replay protocol later tests for a seam. The counter goes with the
+!     accumulators, because a counter that outlives what it counts is the defect
+!     the regular stream's `accuvers` marker exists for.
+      call mpputgp('aecotas'    ,aecotas    ,NHOR,1)
+      call mpputgp('aecots'     ,aecots     ,NHOR,1)
+      call mpputgp('aecops'     ,aecops     ,NHOR,1)
+      call mpputgp('aecohus'    ,aecohus    ,NHOR,1)
+      call mpputgp('aecowind'   ,aecowind   ,NHOR,1)
+      call mpputgp('aecoswd'    ,aecoswd    ,NHOR,1)
+      call mpputgp('aecoswu'    ,aecoswu    ,NHOR,1)
+      call mpputgp('aecoswn'    ,aecoswn    ,NHOR,1)
+      call mpputgp('aecolwn'    ,aecolwn    ,NHOR,1)
+      call mpputgp('aecolwu'    ,aecolwu    ,NHOR,1)
+      call mpputgp('aecoczen'   ,aecoczen   ,NHOR,1)
+      call mpputgp('aecopr'     ,aecopr     ,NHOR,1)
+      call mpputgp('aecoprsn'   ,aecoprsn   ,NHOR,1)
+      call mpputgp('aecoprc'    ,aecoprc    ,NHOR,1)
+      call mpputgp('aecoevap'   ,aecoevap   ,NHOR,1)
+      call mpputgp('aecotasmx'  ,aecotasmx  ,NHOR,1)
+      call mpputgp('aecotasmn'  ,aecotasmn  ,NHOR,1)
+      call mpputgp('aecotsmx'   ,aecotsmx   ,NHOR,1)
+      call mpputgp('aecotsmn'   ,aecotsmn   ,NHOR,1)
       call mpputgp('tempmin'     ,tempmin ,NHOR,1) 
                                            
 !     The six accumulators below are SPECTRAL (NESP,NLEV) and are meaningful
@@ -1033,6 +1103,8 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call put_restart_real('arasc'   ,arasc )
 !        Marks a restart whose accumulator set is complete.
          call put_restart_real('accuvers',1.0)
+!        Marks a restart that carries the ecological stream's partial interval.
+         call put_restart_real('ecovers',1.0)
 !        THE ENERGY FIXER'S INTEGRATED CORRECTION. world-fsr.
 !
 !        `denergyfix` is a controller state, not a diagnostic: it is the uniform
@@ -1340,6 +1412,48 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpgetgp('asigrain'    ,asigrain,NHOR,1)
       call mpgetgp('tempmax'     ,tempmax ,NHOR,1) 
       call mpgetgp('tempmin'     ,tempmin ,NHOR,1) 
+      
+!     THE ECOLOGICAL STREAM'S PARTIAL INTERVAL, EFOR-2, behind its own version
+!     marker for the same reason `accuvers` exists. mpgetgp passes an
+!     UNINITIALISED buffer to get_restart_array and scatters it whatever
+!     happens, so reading a record that is not there under a lowered nexcheck
+!     would scatter garbage rather than leave the array alone. A restart written
+!     before this stream existed therefore starts the interval clean and says
+!     so, which is what it would have done anyway.
+      zecovers = -1.0
+      if (mypid == NROOT) then
+         nexcheck = 0
+         call get_restart_real('ecovers',zecovers)
+         call get_restart_integer('naccueco',naccueco)
+         nexcheck = 1
+      endif
+      call mpbcr(zecovers)
+      call mpbci(naccueco)
+      if (zecovers < 0.0) then
+         call ecoreset
+         if (mypid == NROOT) write(nud,*)                                    &
+     &      'Restart predates the ecological stream: its interval starts clean'
+      else
+         call mpgetgp('aecotas'    ,aecotas    ,NHOR,1)
+         call mpgetgp('aecots'     ,aecots     ,NHOR,1)
+         call mpgetgp('aecops'     ,aecops     ,NHOR,1)
+         call mpgetgp('aecohus'    ,aecohus    ,NHOR,1)
+         call mpgetgp('aecowind'   ,aecowind   ,NHOR,1)
+         call mpgetgp('aecoswd'    ,aecoswd    ,NHOR,1)
+         call mpgetgp('aecoswu'    ,aecoswu    ,NHOR,1)
+         call mpgetgp('aecoswn'    ,aecoswn    ,NHOR,1)
+         call mpgetgp('aecolwn'    ,aecolwn    ,NHOR,1)
+         call mpgetgp('aecolwu'    ,aecolwu    ,NHOR,1)
+         call mpgetgp('aecoczen'   ,aecoczen   ,NHOR,1)
+         call mpgetgp('aecopr'     ,aecopr     ,NHOR,1)
+         call mpgetgp('aecoprsn'   ,aecoprsn   ,NHOR,1)
+         call mpgetgp('aecoprc'    ,aecoprc    ,NHOR,1)
+         call mpgetgp('aecoevap'   ,aecoevap   ,NHOR,1)
+         call mpgetgp('aecotasmx'  ,aecotasmx  ,NHOR,1)
+         call mpgetgp('aecotasmn'  ,aecotasmn  ,NHOR,1)
+         call mpgetgp('aecotsmx'   ,aecotsmx   ,NHOR,1)
+         call mpgetgp('aecotsmn'   ,aecotsmn   ,NHOR,1)
+      endif
                                            
 !     Spectral accumulators, NROOT only -- see the matching comment in epilog.
 !     zaccuvers stays negative for a restart written before this patch: such a
@@ -1521,6 +1635,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , n_run_years , n_run_months  , n_run_days           &
                    , n_days_per_month, n_days_per_year, fixedlon        &
                    , nhcadence, hcstartstep, hcendstep, hcinterval      &
+                   , neco    , necostep                            &
                    , seed    , nfilter , ngptfilter, nspvfilter          &
                    , landhoskn0, nfilterexp, filterkappa                &
                    , syncstr , synctime, nrdrag  , frcmod               &

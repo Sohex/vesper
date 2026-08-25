@@ -1,5 +1,16 @@
       module restartmod
-      integer, parameter :: nresdim  = 200     ! Max number of records
+!     THE RECORD LIMIT, and it is DERIVED rather than guessed. `restart_ini`
+!     stops the model when a restart file holds nresdim records, so this has to
+!     exceed the number of distinct names the model can emit -- which
+!     `restart_schema.inventory_from_source` counts off the call sites, and
+!     `check_policy_covers_source` holds this constant against. It was 200
+!     against 215 emittable names before the ecological stream was added, so a
+!     configuration that wrote enough of the optional records already could not
+!     be continued; the symptom is 'Too many variables in restart file' at the
+!     START of the second segment, after the first has finished and written a
+!     file that looks complete. Kept well clear of the count rather than at it:
+!     yresnam is 16 bytes per slot per thread, so the headroom costs kilobytes.
+      integer, parameter :: nresdim  = 512     ! Max number of records
       integer, parameter :: nreaunit =  33     ! FORTRAN unit for reading
       integer, parameter :: nwriunit =  34     ! FORTRAN unit for writing
       integer, parameter :: nud      =   6     ! FORTRAN unit for diagnostics
