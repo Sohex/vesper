@@ -85,6 +85,13 @@ a harness that cross-checks the current band model against them, so "should the
 radiation be replaced" has to be priced before "should these `pow` calls be
 made cheaper". Optimising a scheme that is about to be swapped is wasted work.
 
+**Priced, and the answer is do not optimise it.**
+`exoplasim/notes/radiation-scheme-price.md` counts both schemes' transcendental
+work in retired instructions and finds the band-resolved candidate cheaper at
+every corner, so the optimisation would be thrown away. It also says where the
+`pow` share comes from: every non-integer `**` in the radiation sits inside a
+`where` block, which is why none of them reaches libmvec's vector `pow`.
+
 ## Filling the transform's team is worth nothing, and that was built to find out
 
 Measured 2026-08-22. The wrappers are `!$omp do schedule(static)` over
