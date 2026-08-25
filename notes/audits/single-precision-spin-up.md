@@ -159,3 +159,116 @@ registry's executable name and take the copy in the run directory; neither has a
 flag naming a binary, and an arm at a precision other than the declared one is
 refused publication because the registry's name carries no precision. That is
 the blocker on this half, and it is a missing route rather than a busy machine.
+
+## The empirical half, taken 2026-08-25
+
+*Measured at 5dcdf64b. The four-byte arm is `build_model.py --res T21 --ranks 16
+--precision 4 --no-publish`, run through `run_exoplasim.py --binary`, which is
+the route world-u5pf opened. Both halves of the experiment below were run on a
+host shared with other work; which numbers that touches is stated where it
+matters.*
+
+### The declared 40-orbit experiment gave an answer that was not stable
+
+The experiment fixed above -- two arms, 40 orbits each, the last 20 as the
+comparison window -- was run. Over orbits 20-39 the four-byte arm was 0.077 K
+COOLER, and `compare_equilibria.py` failed it at 2.04 sigma on surface
+temperature with the other five metrics inside.
+
+That result does not survive a longer run. Repeated at 85 orbits, the four-byte
+arm is 0.187 K WARMER over orbits 65-84, at a nominal 7.24 sigma and failing four
+metrics of six. **The sign reversed.**
+
+The 40-orbit reading carried its own warning and the warning was right. Forty
+orbits against a 0.10 K orbit-to-orbit scatter give a slope standard error of
+1.40 mK/orbit, which over the 118.2 orbits a 691,200-step spin-up takes at dt 45
+is plus or minus 0.33 K -- wider than the 0.026 to 0.156 K the experiment existed
+to test. The lever arm could not carry the claim, that was written down before
+the 85-orbit arm was run, and the failure it predicted is the one that arrived.
+
+### What is actually there, and why the sigma figures are not it
+
+Both 85-orbit runs reproduce their 40-orbit predecessors BIT FOR BIT over orbits
+0-39, in both arms, maximum absolute difference 0.0 K. So everything separating
+the two arms is the compiled precision and nothing is a different draw.
+
+The difference series carries a lag-1 autocorrelation of 0.615. Eighty-five
+orbits therefore hold about twenty independent samples, and the whole-run mean
+difference in global-mean surface temperature is
+
+    +0.0139 +- 0.0352 K
+
+which is four tenths of a standard error. The window figures that look decisive
+are smaller than the eight-byte arm's OWN variability: its four non-overlapping
+20-orbit means are 291.355, 291.835, 291.757 and 291.651 K, a spread of 0.210 K
+and a range of 0.480 K, against window differences of -0.068, -0.105, +0.062 and
++0.187 K. `compare_equilibria.py` takes its standard error on the raw orbit count
+and so understates it by about a factor of two; that is world-yj9o, and it is not
+specific to this comparison.
+
+**The deadband failure mode is not detected.** Its signature is growth with step
+count, and over 497,250 steps -- 72 per cent of a 691,200-step spin-up -- no
+systematic offset survives the model's own low-frequency variability at the 0.035
+K the run can resolve. That is not the same as a bound at the 0.009 to 0.050 K
+the criterion corresponds to, and reaching one needs a window long enough to hold
+seventeen independent samples, which at this autocorrelation is about seventy
+orbits rather than twenty. `exoplasim/notes/convergence-lengths.md` carries that
+arithmetic and the convergence lengths the experiment should have been designed
+against.
+
+### The cost, and it is large at the rung that matters
+
+`bench_ab.py`, paired and interleaved with the arm order flipped every round, on
+cold beds. Cold because a warm bed cannot be shared: see the next section.
+
+| rung | bed steps | fp64 median | fp32 median | gain | range | rounds fp32 faster |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| T21 | 600 | 1.667 s | 1.162 s | +27.5% | +18.8 to +33.4 | 6 of 6 |
+| T21 | 6000 | 13.151 s | 9.491 s | +29.4% | +26.0 to +40.0 | 6 of 6 |
+| T85 | 600 | 26.777 s | 15.765 s | +39.2% | +29.6 to +46.0 | 6 of 6 |
+| T85 | 1500 | 69.245 s | 39.933 s | +40.5% | +15.4 to +51.3 | 6 of 6 |
+
+**Three of those four sets are REFUSED by `bench_ab.py`'s own guard**, and the
+fourth passes only as readable-and-noisy: round-to-round self-scatter runs 24.5
+to 275.7 per cent against the 5 per cent floor this project declares as "no
+difference". The host carried other work throughout and no single set clears the
+declared criterion. That is stated rather than rounded into a pass.
+
+What carries the claim instead is two things the scatter cannot reach. The
+direction is 24 of 24 rounds, and interleaving flips the arm order every round,
+so contention cannot systematically favour one arm. And the T85 median reproduces
+`exoplasim/notes/shtns-viability.md`'s independent 39.69 per cent [+39.63,
++39.82], measured at T170 on sixteen threads from a different bed on a different
+day, to within a point.
+
+The gain grows with the rung because four bytes buys memory bandwidth, and it is
+largest where a spin-up is actually expensive.
+
+### The four-byte arm cannot read an eight-byte restart
+
+Both warm beds aborted inside the model at `plasim.f90:67` on the four-byte
+binary, because `make_profile_bed.py` had copied in the eight-byte run's
+`plasim_restart`. This is not a Python check refusing a file: it is the model
+reading four-byte records out of an eight-byte file. `restart_surface.py:302`
+carries the same assumption one level up, which is why a four-byte run cannot be
+continued at all (world-73sn) and why the runs above are single
+`run_exoplasim.py --run-years N` calls.
+
+So the technique's own handoff -- four bytes spins up, eight bytes does the final
+approach and the judging -- **requires CLIM-52's converter in both directions and
+is not an optional convenience.** Nothing in the tree converts a state between
+precisions today.
+
+### Where that leaves the decision
+
+Measured: the cost gain is real and about 40 per cent at T85, and no climate
+difference survives the model's own variability over 85 T21 orbits at the 0.035 K
+those orbits can resolve. Not measured: a bound at the criterion's own 0.009 to
+0.050 K, which needs a window of about seventy orbits rather than twenty; and
+anything at all about a four-byte arm at T85 or above, where the state is larger
+and the transform tables demote further.
+
+Not physics but plumbing, and it is the whole of what stands in the way: a
+precision converter both ways, a restart reader that takes its record width from
+the executable that wrote the file, and a route by which a four-byte run can be
+continued rather than taken in one call.
