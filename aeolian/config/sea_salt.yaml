@@ -131,11 +131,14 @@ emission:
 # emitted; what removes them is settling, which is a physical answer rather than
 # a truncation.
 earth_check:
-  ocean_mean_u10_m_s: 7.0                   # Grythe section 5.2: the most
-                                            # frequent ocean 10 m speeds are
-                                            # 5-7 m/s, and 5-14 m/s carries
-                                            # about 80% of production. They
-                                            # state no ocean-mean value.
+  # DECLARED AND UNSOURCED, and it is what the absolute arm currently fails on.
+  # Grythe state NO ocean-mean 10 m wind speed anywhere. What they give is the
+  # MODE, section 5.2, "the most frequent wind speeds are 5-7 m s-1 with a
+  # long-tailed distribution towards higher wind speeds", and a mode read as a
+  # mean on a long-tailed distribution is low by construction, which is the sign
+  # of the miss. Emission goes as U10^3.41 here, so entering the band needs
+  # 7.38 m/s and reproducing Grythe's own M86 needs 8.09 m/s. world-3e2d.
+  ocean_mean_u10_m_s: 7.0
   ocean_area_m2: 3.61e+14
   sst_mean_c: 18.0
   # Grythe et al. (2014) Table 2. `dp_um` is that row's own validity range and
