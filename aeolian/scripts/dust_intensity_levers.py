@@ -34,6 +34,12 @@ declared constants that are common to both sides cancel:
   roughness_bracket_decomposition  which lithology's z0 carries the bracket
   texture_sensitivity         emission under this project's own Earth-calibrated
                               clay field, and under its validation scatter
+  drag_partition_worth        what using a drag partition at all is worth here,
+                              which is what to quote beside a model that omits
+                              one
+  export_geometry_scale       whether the export's geometry can supply a
+                              within-class roughness at all, which is the route
+                              world-03x proposed and this rules out
   in_model_scalar_z0          what the scalar DUSTZ0 costs the in-model arm
                               against the offline mosaic (world-h24h)
   vegetation_bracket          what `--variant arid_bare_ground` is worth, which
@@ -240,6 +246,15 @@ class Emitter:
 
     def total(self, populations, clay=None, variant="baseline") -> float:
         """Area-weighted global emission, summed over the sub-populations."""
+        # The arid-bare-ground term is a FLOOR on the emitting fraction of the
+        # whole cell, not of one sub-population, so it cannot be applied inside
+        # a sum over sub-populations without being counted once per term. It is
+        # only ever asked for on the single-population case, and this refuses
+        # the combination rather than returning a plausible wrong number.
+        if variant != "baseline" and len(populations) != 1:
+            raise ValueError(
+                f"variant {variant!r} floors the cell's emitting fraction and "
+                f"cannot be resolved over {len(populations)} sub-populations")
         cl = self.clay if clay is None else clay
         clay_pct = cl * 100.0
         f_clay = np.clip(cl, 0.0, float(self.cfg["emission"]["f_clay_max"]))
@@ -429,7 +444,6 @@ def class_mixture_collapse(em: Emitter) -> dict:
 
 def roughness_bracket_decomposition(em: Emitter) -> dict:
     """Which lithology's roughness carries the bracket."""
-    zc = em.cfg["drag_partition"]["aeolian_z0_by_class_m"]
     full = {e: em.class_resolved(e) for e in ("low", "central", "high")}
     out = {"full_bracket_factor": full["low"] / full["high"], "held": {}}
     for held, swept in (("evaporite", "playa_clastic"),
@@ -516,6 +530,122 @@ def texture_sensitivity(em: Emitter) -> dict:
                 "moves.",
     }
     return out
+
+
+def drag_partition_worth(em: Emitter) -> dict:
+    """What using a drag partition at all is worth, on this world.
+
+    Menut et al. (2013) records that using one lowers fluxes by a factor of 2 to
+    3 against not using one. That is an Earth number over Earth's roughness
+    distribution, and it is only useful here as the thing to quote when these
+    numbers are set beside a model that omits the partition, so it is measured
+    on this world's own roughness rather than borrowed.
+
+    The comparison is against a drag efficiency of exactly one, which is a
+    surface whose only roughness is its own grains. It is not an alternative
+    treatment: MB95's partition is the physics, and this is the size of the term.
+    """
+    out = {"ends": {}}
+    for end in ("low", "central", "high"):
+        mosaic = em.mosaic(end)
+        with_partition = em.total([(mosaic, mosaic, em.erodible)])
+        # `drag_efficiency` reads its argument as a roughness; the no-shelter
+        # limit is the smooth-bed value itself, where the function returns 1.
+        smooth_bed = float(em.cfg["drag_partition"]["z0s_cm"]) / 100.0
+        without = em.total([(mosaic, smooth_bed, em.erodible)])
+        out["ends"][end] = {"with_over_without": with_partition / without}
+    out["reading"] = (
+        "The partition lowers the emission by these factors against a bed that "
+        "keeps all of its stress. Quote it whenever a number from this "
+        "component is set beside a model that does not partition the stress; "
+        "it is not a bracket, because the partition is the physics rather than "
+        "an option.")
+    return out
+
+
+def export_geometry_scale(config: dict, cfg: dict, lakes: Path) -> dict:
+    """Whether the export's geometry can supply a within-class roughness at all.
+
+    world-03x proposed building the within-class distribution from this
+    project's own geometry, on the grounds that a playa has a smooth interior
+    and rougher margins. It cannot, and this is why, measured rather than
+    argued. Two numbers settle it.
+
+    A connected component of erodible substrate is NOT a playa. Taken on
+    `substrate_class` restricted to `surface_class == LAND` -- never
+    `land_mask`, and never `land_mask | is_endorheic`, which misses exactly the
+    depressions too small for the basin catalogue that this question is about --
+    the components run to basin-fill provinces, and the height of a region above
+    its component's own floor is therefore not a height above a playa floor.
+
+    And the scale gap is six orders of magnitude. The mesh edge is kilometres
+    and Orogen designs terrain down to about twenty; the drag partition
+    partitions stress between a bed and centimetre-scale roughness ELEMENTS.
+    That is the category error `aeolian/config/dust.yaml` already records for
+    the grid-cell roughness field, restated at region scale.
+    """
+    from scipy.sparse import csr_matrix
+    from scipy.sparse.csgraph import connected_components
+
+    export = Export(mesh_export(config))
+    lit = json.loads((export.root / "manifest.json").read_text(
+        encoding="utf-8"))["lithology"]
+    ids = {r["code"]: int(r["id"]) for r in lit["rockClasses"]}
+    substrate = export.field("substrate_class")
+    with Dataset(lakes) as ds:
+        wet = np.asarray(ds["lake"][:]).astype(bool)
+    erodible = np.zeros(export.n_regions, dtype=bool)
+    for code in cfg["source"]["erodible_weight"]:
+        erodible |= substrate == ids[code]
+    erodible &= export.surface_class == LAND
+    erodible &= ~wet
+
+    off, lst = export.adjacency
+    src = np.repeat(np.arange(export.n_regions, dtype=np.int64), np.diff(off))
+    dst = lst.astype(np.int64)
+    keep = erodible[src] & erodible[dst]
+    graph = csr_matrix((np.ones(int(keep.sum()), dtype=np.int8),
+                        (src[keep], dst[keep])),
+                       shape=(export.n_regions, export.n_regions))
+    _n, label = connected_components(graph, directed=False)
+    _uniq, label = np.unique(label[erodible], return_inverse=True)
+    npatch = int(label.max()) + 1
+
+    area = export.cell_area.astype(np.float64)[erodible]
+    elevation = export.field("elevation_km").astype(np.float64)[erodible]
+    floor = np.full(npatch, np.inf)
+    np.minimum.at(floor, label, elevation)
+    patch_area = np.zeros(npatch)
+    np.add.at(patch_area, label, area)
+    height_m = (elevation - floor[label]) * 1000.0
+
+    def weighted_quantile(values, weights, q):
+        order = np.argsort(values)
+        v, w = values[order], weights[order]
+        return float(np.interp(q, np.cumsum(w) / w.sum(), v))
+
+    return {
+        "mesh_mean_edge_km": float(
+            export.manifest["basins"]["resolution"]["avgEdgeKm"]),
+        "erodible_regions": int(erodible.sum()),
+        "connected_patches": npatch,
+        "patch_area_km2_area_weighted": {
+            "median": weighted_quantile(patch_area[label], area, 0.5),
+            "p99": weighted_quantile(patch_area[label], area, 0.99),
+        },
+        "height_above_patch_floor_m_area_weighted_median":
+            weighted_quantile(height_m, area, 0.5),
+        "erodible_area_within_10m_of_its_patch_floor":
+            float(area[height_m <= 10.0].sum() / area.sum()),
+        "reading": "The components are basin-fill provinces rather than "
+                   "playas, so height above one's floor does not measure "
+                   "position within a playa. And a mesh edge of kilometres "
+                   "cannot carry the centimetre-scale roughness elements the "
+                   "drag partition wants, which is why the tabulation bias "
+                   "above depends on the SPREAD of the within-class "
+                   "distribution and not on how the geometry arranges it: a "
+                   "cell of this grid already contains the whole population.",
+    }
 
 
 def in_model_scalar_z0(em: Emitter) -> dict:
@@ -633,6 +763,8 @@ def main() -> None:
         "class_mixture_collapse": class_mixture_collapse(em),
         "roughness_bracket_decomposition": roughness_bracket_decomposition(em),
         "texture_sensitivity": texture_sensitivity(em),
+        "drag_partition_worth": drag_partition_worth(em),
+        "export_geometry_scale": export_geometry_scale(config, cfg, em.lakes),
         "in_model_scalar_z0": in_model_scalar_z0(em),
         "vegetation_bracket": vegetation_bracket(em),
     }

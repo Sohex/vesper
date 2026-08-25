@@ -1,6 +1,6 @@
 {
-  "generated": "2026-08-25T04:07:20+00:00",
-  "git_commit": "56a468442619292281ced8118fe4129b09f35a76",
+  "generated": "2026-08-25T04:17:48+00:00",
+  "git_commit": "9d5ca4bc1b2c7bfb420a646cab0aa5771a165045",
   "note": "world-03x. Which lever moves this world's dust intensity. Every figure is a RATIO of emission totals; transport is not run and the emission_to_optical_depth_transfer block is what licenses that.",
   "source_build": "precarve-craton-10m",
   "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
@@ -124,6 +124,32 @@
       "erodible_area_fraction_at_or_above_cap": 0.9162517281213369,
       "note": "Kok equation 3 takes the flux as linear in the clay fraction up to a declared cap, above which the sandblasting relation it inherits rises without bound. Where the cap binds the texture cannot move the flux through that term at all, and only the Fecan residual is left -- which runs the other way, because more clay holds more water before the threshold moves."
     }
+  },
+  "drag_partition_worth": {
+    "ends": {
+      "low": {
+        "with_over_without": 0.3671657289961605
+      },
+      "central": {
+        "with_over_without": 0.10648845839889719
+      },
+      "high": {
+        "with_over_without": 0.015657146111283337
+      }
+    },
+    "reading": "The partition lowers the emission by these factors against a bed that keeps all of its stress. Quote it whenever a number from this component is set beside a model that does not partition the stress; it is not a bracket, because the partition is the physics rather than an option."
+  },
+  "export_geometry_scale": {
+    "mesh_mean_edge_km": 7.595189522169292,
+    "erodible_regions": 836954,
+    "connected_patches": 27401,
+    "patch_area_km2_area_weighted": {
+      "median": 39999.28942990303,
+      "p99": 4617220.423868775
+    },
+    "height_above_patch_floor_m_area_weighted_median": 81.42916926278144,
+    "erodible_area_within_10m_of_its_patch_floor": 0.15043354557751062,
+    "reading": "The components are basin-fill provinces rather than playas, so height above one's floor does not measure position within a playa. And a mesh edge of kilometres cannot carry the centimetre-scale roughness elements the drag partition wants, which is why the tabulation bias above depends on the SPREAD of the within-class distribution and not on how the geometry arranges it: a cell of this grid already contains the whole population."
   },
   "in_model_scalar_z0": {
     "ends": {

@@ -695,9 +695,9 @@ def main() -> None:
     rho_p = cfg["removal"]["particle_density_kg_m3"]
 
     # The bracket is over the aeolian roughness of the erodible surface, which
-    # is the parameter that actually carries the uncertainty. See the long note
+    # is the parameter that actually carries the uncertainty; `source_fractions`
+    # has already built it as the three planes of `z0_cell`. See the long note
     # in aeolian/config/dust.yaml: the grid-cell roughness is NOT used here.
-    dp = cfg["drag_partition"]
     # The wind-tail shape is measured from the snapshot climatology rather than
     # declared, because the declared value turned out to be wrong by enough to
     # move the answer two orders of magnitude. See the config note.

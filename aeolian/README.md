@@ -75,9 +75,10 @@ read, and the ends are now the per-lithology mosaic rather than one scalar.
 the range it is held against and the verdict. Only the roughest end of the
 bracket is below it, and that is the treatment that tabulates the roughness by
 lithology: resolving the roughness WITHIN a lithology raises the emission at
-every arm and lifts the roughest one across the threshold too, so the crossing
-is a floor rather than an estimate. `notes/audits/dust-intensity-levers.md`
-carries the measurement.
+every arm, and at every measured within-class spread but the narrowest it lifts
+the roughest arm across the threshold too. The crossing is therefore a floor
+rather than an estimate. `notes/audits/dust-intensity-levers.md` carries the
+measurement.
 
 That was a pre-committed threshold, fixed before the answer was known, and what
 it commits to is that a prescribed field is no longer defensible and the emission

@@ -77,13 +77,19 @@ measurement supports: the lognormal arms above still drift with the node count
 where the bounded one has converged. The bounded shape spans the width the
 source actually measured.
 
-The correction is one-signed at every arm, so it is a floor on the intensity
-rather than a bracket on it: 1.008 to 1.047 at the smooth arm, and 1.058 to
-2.979 at the rough one. The rough arm is the one that matters for the reopening
-test in `notes/dust.md`, because it is the only arm of the baseline artifact
-below the 0.10 land-mean optical depth threshold. Resolving the tabulation lifts
-it above that threshold at every measured spread except the narrowest, so the
-crossing the test recorded is a floor as well.
+**The correction is one-signed at the central and rough arms and not at the
+smooth one**, and the asymmetry is the drag partition's clamp rather than
+physics. The rough arm gives 1.058 to 2.979; the smooth arm gives 0.916 to
+1.047, and the one value below 1 is the widest lognormal at a class centre of
+1.0e-5 m, where a quarter of that distribution falls below the smooth-bed
+roughness the partition clamps at and cannot get any smoother, leaving the rough
+half of the distribution unopposed. Read the bounded shape there, which is 1.047.
+
+The rough arm is the one that matters for the reopening test in `notes/dust.md`,
+because it is the only arm of the baseline artifact below the 0.10 land-mean
+optical depth threshold. Resolving the tabulation lifts it above that threshold
+at every measured spread except the narrowest, so the crossing the test recorded
+is a floor as well.
 
 ## 2. On this world the roughness is an INTENSITY lever, not a spatial one
 
@@ -163,13 +169,20 @@ own geometry, on the grounds that a playa has a smooth interior and rougher
 margins and the basin solution knows each basin's area, sink and outlet status.
 That was tested and it does not work, for two measured reasons.
 
-Connected components of the erodible substrate on the mesh are not playas. Taken
-on `substrate_class` restricted to `surface_class == 1` and with the solved lake
-extent removed, the 836,954 erodible regions of the 10M-region export form 27,401
-connected patches whose area-weighted 99th percentile is 4.3e6 km2. Those are
-basin-fill provinces, not depressions. The area-weighted median height above a
-patch's own floor is 81 m and only 15% of erodible area lies within 10 m of it,
-so "height above the playa floor" is not what the quantity measures.
+Connected components of the erodible substrate on the mesh are not playas
+(artifact block `export_geometry_scale`). Taken on `substrate_class` restricted
+to `surface_class == 1` and with the solved lake extent removed, the 836,954
+erodible regions of the 10M-region export form 27,401 connected patches whose
+area-weighted 99th percentile is 4.6e6 km2. Those are basin-fill provinces, not
+depressions. The area-weighted median height above a patch's own floor is 81 m
+and only 15% of erodible area lies within 10 m of it, so "height above the playa
+floor" is not what the quantity measures.
+
+The land mask there is `surface_class` and nothing else. `land_mask` would flood
+the dry closed-basin floor this component emits from, and the naive
+`land_mask | is_endorheic` reconstruction would miss the depressions too small
+to have entered the basin catalogue, which are precisely the population a
+playa-margin roughness question is about.
 
 And the scale gap is six orders of magnitude. The mesh has a 7.60 km mean edge
 and Orogen designs terrain down to about 20 km, while the drag partition
@@ -215,7 +228,28 @@ whole of what a fourth boundary field carrying the roughness per cell would
 recover, so the fourth field, its surface code, its gather, its staging and its
 self-test arm are not worth adding.
 
-## 7. What the in-model arm's missing vegetation bracket costs
+## 7. Using a drag partition at all is worth far more here than on Earth
+
+Menut's third caution is that using a drag partition lowers dust fluxes by a
+factor of 2 to 3 against not using one, which matters when these numbers are set
+beside a model that omits it. That is an Earth number over Earth's roughness
+distribution, so it is measured here instead of borrowed, against a drag
+efficiency of one, which is a bed whose only roughness is its own grains.
+
+| roughness arm | emission with the partition, over emission without |
+| --- | --- |
+| smooth | 0.367 |
+| central | 0.106 |
+| rough | 0.0157 |
+
+A factor of 2.7, 9.4 and 64. The partition is worth several times more here than
+Menut's range, and steeply more at the rough arm, because this world's declared
+playa roughnesses sit further above the smooth-bed value than the Earth
+distribution he averaged over. This is not a bracket: the partition is the
+physics, and the figure is what to quote when comparing against a model that
+does not partition the stress.
+
+## 8. What the in-model arm's missing vegetation bracket costs
 
 `build_dust.py --variant arid_bare_ground` lets a cell drier than the declared
 250 mm per Earth year emit regardless of lithology at the declared bare-bedrock
