@@ -11,6 +11,7 @@ python hydrography/scripts/surface_water.py       # ~3 s, needs a climatology
 python hydrography/scripts/groundwater.py         # the discretisation checks
 python hydrography/scripts/build_groundwater.py   # the water table, needs a climatology
 python hydrography/scripts/land_water_ledger.py   # the store and flux ownership contract
+python hydrography/scripts/build_groundwater_access.py   # that water table on the climate grid
 ```
 
 ## Why this component exists
@@ -335,6 +336,41 @@ wetland area additionally needs the native-mesh seasonal treatment above.
 1.5 to 2.5 orders of magnitude. `--sigma -1` and `--sigma +1` shift every class
 by its own standard deviation and are the arms; the central run alone
 overstates what is known.
+
+### Crossing to the climate grid: `build_groundwater_access.py`
+
+`water_table.nc` is per REGION and the biosphere is driven per climate-grid
+CELL, so something has to reduce ten million regions to a few thousand cells.
+Averaging the depth is the reduction that suggests itself and it destroys the
+thing groundwater is in the model for: root access and discharge vegetation
+depend on the FRACTION of a cell with a shallow table, and a mean erases a
+narrow riparian strip in a dry cell while manufacturing a broad one from a
+single wet corner. PLHY-5.
+
+So the access criterion is evaluated on the native regions, where the depth
+lives, and **what crosses to the grid is an AREA**. No hypsometry is used and
+none is needed -- the within-cell distribution is in hand, and reconstructing it
+would be an inference where there is a measurement. GRID-2's hypsometry is for
+criteria that are terrain-conditioned and have no native evaluation.
+
+`sink_fraction`, `at_surface`, the lithologies with no assigned permeability and
+the cells where the sink fraction is undefined each cross as their own share of
+the cell's land, so the regime flags this README says every depth consumer must
+preserve are preserved by construction rather than by discipline. The
+permeability bracket crosses too: `--water-table` once per member writes every
+fraction along a member axis labelled by each file's own `sigma`.
+
+Access depths are SWEPT and never chosen. 1.5 m is the vendored LPJ-GUESS soil
+column, `SOILDEPTH_UPPER + SOILDEPTH_LOWER`, and is therefore the depth below
+which the biosphere as it stands has no roots at all; 5 and 20 m are declared
+model-form brackets for a phreatophytic access that model cannot represent. The
+artifact carries all three and the consumer argues for one.
+
+`--selftest` runs the reduction against six invariants on synthetic input, with
+no build and no solve. The one that matters is the negative control: a cell that
+is deep everywhere except a narrow shallow strip must return the strip's area
+share, which a depth-averaging reduction would fail while every conservation
+check still passed.
 
 **Evaporite has no permeability and is not given one.** Gleeson puts it in the
 "not assigned" row with water and ice. Those regions are removed from the
