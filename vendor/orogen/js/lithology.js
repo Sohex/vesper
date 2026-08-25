@@ -146,10 +146,19 @@ import { avgEdgeKm, PLANET_RADIUS_KM } from './geometry.js';
  * THAT MAKES SOME OF THESE NUMBERS LOAD-BEARING DOWNSTREAM. `evaporite` at 0.50
  * used to be applied to every cell of every closed basin, under the name
  * "Evaporite / playa fill" — a clean-halite reflectance spread over a surface
- * that is mostly not halite. On a planet with 12.65% of its land in closed
- * basins that single constant was worth ~1.7 W/m² per 0.10 of error, about twice
- * the entire radiative effect of exporting its lakes as dry ground. A closed
- * basin is zoned, so the class is now zoned too: see saltCrustMask().
+ * that is mostly not halite. An albedo error over a closed-basin surface is
+ * worth about 1.4 W/m² per 0.10 of error per 0.10 of the land it covers, and on
+ * this planet the closed-basin share of land runs to several tenths, so that
+ * single constant was worth several W/m² — more than the entire radiative effect
+ * of exporting its lakes as dry ground. A closed basin is zoned, so the class is
+ * now zoned too: see saltCrustMask().
+ *
+ * The share itself does not belong in this comment, because it is neither a
+ * property of this table nor stable: `basin_fill` fires on `endorheic`, so every
+ * closed-basin figure is a PRE-CARVE LIMIT that falls as basins are opened, and
+ * the preserved-basin catalogue also grows with the region count. Read the
+ * current fractions from the export's own composition block, or from the
+ * consuming project's world state, and never from prose.
  */
 export const ROCK_CLASSES = [
     // id, code, name, category, erodibility, density

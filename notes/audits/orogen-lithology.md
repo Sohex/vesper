@@ -785,3 +785,102 @@ this terrain the correction is worth about +0.0096 on land-mean albedo, near
 The mechanism for applying it without a new build is
 `model.lithology_albedo_overrides`, whose `replaces` guard refuses to fire
 against a class whose exported value has since moved.
+
+## What `playa_clastic` is derived from, and why a consumer cannot treat it as one surface
+
+Measured 2026-08-24 on the raw mesh of both builds, area-weighted over
+`surface_class == 1`. This is the terrain `land_mask` would flood, so every
+figure here uses the authoritative mask.
+
+**The derivation chain, end to end.** Nothing in it is a measurement of a playa.
+
+1. `basinState.protection` marks the members of every preserved closed basin.
+   `pipeline.js` hands that set to `classifyLithology` as `r_isEndorheic`.
+2. `COVER_SEQUENCE`'s first entry, `basin_fill`, fires on `!!c.endorheic` and on
+   nothing else. It is first in the stratigraphic table deliberately: a closed
+   basin keeps filling after every episodic process has stopped.
+3. Within that set, `saltCrustMask()` splits by height above the basin's own
+   sink. A cell at or below `sinkElevation + 0.25 * depth` becomes `evaporite`;
+   **everything else in the basin becomes `playa_clastic` by subtraction.**
+
+So `playa_clastic` is a residual, defined by two conditions that are both
+geometric: inside a preserved closed basin, and not in its lowest quarter of
+relief. No grain size, no water chemistry and no depositional process enters at
+any point. Orogen's own class name says as much: "Playa mud / alluvial fan fill".
+
+**The chain is confirmed on the artifact.** Basin fill and the endorheic set are
+the same cells: the area of fill lying outside `is_endorheic` is exactly zero on
+both builds, and the residual inside it that carries no fill is 0.00044 and
+0.00047 of land, which is basement stripped of its veneer.
+
+| quantity, share of land | `precarve-craton` 2.5M | `precarve-craton-10m` 10M |
+| --- | ---: | ---: |
+| `playa_clastic` | 0.238693 | 0.279782 |
+| `evaporite` | 0.028487 | 0.029225 |
+| basin fill | 0.267180 | 0.309006 |
+| `is_endorheic` | 0.267620 | 0.309474 |
+| salt share of fill | 0.106621 | 0.094576 |
+| effective fill albedo at 0.50 / 0.19 | 0.2231 | 0.2193 |
+
+**Both columns are pre-carve LIMITS and neither is a state.** Because the cover
+rule fires on the endorheic flag, opening a basin removes the flag and the floor
+reverts to parent material. Failure-modes class 9 governs every number in that
+table.
+
+**The two columns also differ by more than sampling.** `playa_clastic` gains a
+sixth of itself between the two region counts, because the preserved-basin
+catalogue gains small basins as `minCells` stops binding. A consumer that treats
+the class fraction as a property of the planet is carrying a support dependence
+as well as a carve dependence.
+
+### The class spans a basin from its sump to its rim
+
+Normalised height above the sink, `(elevation_pre_conditioning - sinkElevation) /
+depth`, area-weighted over `playa_clastic`:
+
+| build | p5 | p25 | p50 | p75 | p95 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 2.5M | 0.326 | 0.633 | 0.840 | 0.930 | 0.987 |
+| 10M | 0.315 | 0.544 | 0.827 | 0.928 | 0.987 |
+
+Half the class sits above 83 per cent of its basin's relief. It is dominated by
+the basin MARGIN, not by the floor, which is what the class name's second half
+means and what a reader who sees only the first half will miss.
+
+Steepest descent to a lower land neighbour, computed on `elevation_km` so it
+carries the 1/g relief scaling, binned on gradients fixed before the measurement
+was run: below 1e-3 is the playa and mud-flat band, 1e-3 to 1e-2 the sand-flat
+and distal-fan band, above 1e-2 the alluvial-fan and bajada band.
+
+| build | class | <1e-3 | 1e-3 to 1e-2 | >1e-2 |
+| --- | --- | ---: | ---: | ---: |
+| 2.5M | `playa_clastic` | 0.6379 | 0.3058 | 0.0563 |
+| 10M | `playa_clastic` | 0.5328 | 0.3731 | 0.0940 |
+| 2.5M | `evaporite` | 0.7312 | 0.2485 | 0.0203 |
+| 10M | `evaporite` | 0.5929 | 0.3735 | 0.0335 |
+
+**These shares are a bracket rather than a measurement, and the bracket is the
+two columns.** A measured gradient over a mesh edge is scale-dependent on a
+self-affine surface, which is the same effect this file's neighbour audit
+records for the scarp gate, so the finer mesh reports a steeper distribution
+everywhere. What survives the bracket is the shape: between a third and a half of
+`playa_clastic` lies on gradients a mud flat does not have, and the fraction on
+outright fan gradients is not negligible on either support.
+
+### What that means for a consumer
+
+Any consumer that assigns `playa_clastic` a single surface property is assigning
+it to a mixture whose ends are two different landforms with two different values
+of that property. The property need not be albedo: the same argument applies to
+aerodynamic roughness, to infiltration capacity, and to anything else that
+separates a clay pan from a gravel apron.
+
+**The mesh cannot settle such a property, and this measurement does not claim
+to.** Roughness elements are centimetric and the mesh edge is kilometric.
+What the mesh CAN say, and what is measured above, is which sub-landform the
+class is made of, which is what selects WHICH measured value applies. Those are
+two different questions and only the second is answerable here.
+
+`world-ugkw` is the live instance: `playa_clastic` alone carries 10.4 of the
+10.5 factor the roughness bracket puts on dust emission, and both ends of that
+bracket were chosen for a clay plain. The table above says the class is not one.
