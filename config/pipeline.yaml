@@ -24,7 +24,16 @@ loops:
       antitone: a larger carve set produces a smaller next verdict. Exit by
       carving the INTERSECTION of the verdicts taken at the two bounding
       climates, which makes the BRACKETED set a construction rather than a
-      tolerance.
+      tolerance. That bracket is over the VEGETATION state and it does not
+      cover the carve's own antitone feedback: both arms run on pre-carve
+      terrain, and an overshooting basin is one both arms cut, so it is never
+      in the bracketed set. So the exit carries a second number, measured once
+      the carved build has its own baseline: re-take the verdict on the
+      PRE-CARVE basins under the POST-CARVE climatology and report how many of
+      the applied carves would no longer carve. That is the OVERSHOOT,
+      `hydrography/scripts/carve_overshoot.py` computes it, and it is reported
+      beside the bracket width rather than inside it.
+      `notes/audits/carve-overshoot.md` has the argument and the route.
   B:
     name: the soil and biosphere loop
     exit: the criteria in pedology/config/pedogenesis.yaml

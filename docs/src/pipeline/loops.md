@@ -90,8 +90,21 @@ That is a better procedure than a one-sided approach, because a bracket is
 measurable. Take the verdict at both bounding climates -- the cold, bright,
 bare-rock end and the warm, dark, vegetated end -- and carve only the
 intersection. Everything between the two is the BRACKETED set *by
-construction* rather than by a tolerance chosen after the fact, and the width
-of the bracket is the honest uncertainty on the carve.
+construction* rather than by a tolerance chosen after the fact.
+
+**That bracket is over the vegetation state, and it does not cover the
+antitone feedback.** The two arms differ in `land_albedo_source` and in
+nothing else; both run on pre-carve terrain, so both are cold relative to the
+world their own carve produces, and both cut more than that world would. The
+set algebra makes it exact: an overshooting basin is one the intersection cut,
+so both arms cut it, so it is never in the set the two arms disagree about.
+The bracket width therefore carries no information about the overshoot, and
+quoting the width alone as the uncertainty on the carve understates it. The
+intersection is still the right set to carve, being the smallest defensible
+one and therefore the one with the smallest feedback; what changes is that the
+honest uncertainty is the width AND the overshoot, reported side by side in
+basins. `notes/audits/carve-overshoot.md` has the argument, the route that
+isolates the feedback, and the three ways of taking the number wrong.
 
 **`bracketed`, not `marginal`.** `marginal` names a per-basin landform in the
 carve list; `bracketed` names our uncertainty. The definitions and the third
@@ -134,7 +147,16 @@ is how `carved-zoned` was abandoned once its verdict turned out to have been
 computed on antipodal climate: its carves could not be un-cut *within that
 build*, and the build was replaced wholesale.
 
-On iteration 2, the already-carved set should be re-evaluated against the new
-climate and the number that would no longer have carved reported. That number
-is the overshoot, and it is the honest measure of how much the first pass
-cost.
+Once the carved build has its own baseline, the already-carved set is
+re-evaluated against the climate the carve produced and the number that would
+no longer have carved is reported. That number is the overshoot, and it is the
+honest measure of how much the pass cost.
+
+It is taken by holding the GEOMETRY still and moving only the CLIMATE:
+re-take the verdict on the PRE-CARVE build's own basins and coupling matrix,
+under the CARVED build's baseline climatology. Re-running it on the carved
+build measures the next pass instead, because a carved basin's rim has been
+breached and the finished terrain no longer holds the impoundment the
+criterion is about. `hydrography/scripts/carve_overshoot.py` is the
+comparison; it refuses a re-evaluation that does not cover every applied carve
+rather than scoring an unknown as a zero.
