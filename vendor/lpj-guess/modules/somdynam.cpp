@@ -864,15 +864,18 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 	// the figure.
 	setptoc(soil, pmin_mass, SOILMICRO, 80.0, 30.0, 0.0, PMASS_SAT);
 
-	// SURFHUMUS is deliberately absent from the phosphorus ramp and present in
-	// the nitrogen one above, and that asymmetry is not free: the P
-	// immobilisation branch below multiplies sompool[SURFHUMUS].ptoc down by
-	// ptoc_reduction, and nothing ever sets it back, so the surface humus C:P
-	// ratchets upward without bound over a run instead of being re-derived
-	// each day the way SLOWSOM and SOILMICRO are. Parton, Stewart and Cole
+	// SURFHUMUS is absent from the phosphorus ramp and present in the nitrogen
+	// one above, and this line stays commented out: Parton, Stewart and Cole
 	// (1988) has no humus pool to take a (ctop_max, ctop_min) pair from, so
-	// uncommenting this line would import SLOWSOM's pair without a source.
-	// WORLD-16PB, evidenced in
+	// uncommenting it would import SLOWSOM's pair without a source.
+	//
+	// The invariant that makes that safe is the one the P immobilisation branch
+	// below now keeps: A POOL WHOSE P:C IS FLEXED DOWN THERE MUST BE ONE THIS
+	// BLOCK RE-DERIVES. SURFHUMUS was flexed and not re-derived, so its P:C
+	// ratcheted down without bound from the 1/150 soil.cpp initialises it to,
+	// and the surface humus pool asymptotically received carbon carrying no
+	// phosphorus. It is out of that list now. PASSIVESOM is the harmless other
+	// direction: re-derived here, never flexed. WORLD-16PB, evidenced in
 	// biosphere/notes/phosphorus-cycle-parameterisation.md.
 	//setptoc(soil, pmin_mass, SURFHUMUS, 200.0, 90.0, 0.0, PMASS_SAT);
 
@@ -1087,6 +1090,9 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 		}
 		else if (!ifnlim) {
 
+			// Unreachable: the condition above already takes !ifnlim. Upstream's
+			// form, kept because the phosphorus arm below is a copy of it and
+			// the two are only legible together.
 			// Not minding immobilisation higher than nmass_avail during free nitrogen years
 			if (date.year > freenyears) {
 
@@ -1127,18 +1133,32 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 
 		//subtract pflux up to here to calculate total pmineralization
 
-		//Phosphorus reduce decay rates
-		// (negative value = immobilisation)
-		if (tot_net_pmin + pmin_mass + EPS >= 0.0) {
+		// Phosphorus: reduce decay rates when immobilisation exceeds what is
+		// available. (negative value = immobilisation)
+		//
+		// || !ifplim is this fork's, and it restores the nitrogen twin above.
+		// This whole block is that branch with n substituted for p -- every
+		// comment inside it still says nitrogen -- and the copy dropped the
+		// short-circuit from the first condition. Without it, ifplim 0 did not
+		// mean "phosphorus does not limit": it meant the P:C flexing arm ran
+		// and the decay-rate arm did not, which is neither setting. With it,
+		// ifplim 0 means what ifnlim 0 already means. ifplim 1 is untouched:
+		// !ifplim was already false there, so the arm below has never been
+		// reachable under phosphorus limitation and still is not. WORLD-16PB.
+		if ((tot_net_pmin + pmin_mass + EPS >= 0.0) || !ifplim) {
 
 			net_pmineralization = true;
 		}
 		else if (!ifplim) {
 
-			// Not minding immobilisation higher than nmass_avail during free nitrogen years
+			// Unreachable, exactly as the nitrogen arm above it is, and kept
+			// for the same reason: it is upstream's form and the two must be
+			// read together. SURFHUMUS is NOT in the list below any more. It
+			// has no phosphorus ramp to re-derive it, so flexing it down here
+			// was a one-way ratchet on the surface humus pool's P:C rather
+			// than the within-day iteration it is for the other two.
 			if (date.year > freenyears) {
 
-				// Immobilization larger than soil available nitrogen -> reduce targeted N concentration in SOM pool with flexible N:C ratios
 				if (ptimes == 0) {
 					// initial reduction
 					init_negative_pmass = tot_net_pmin + pmin_mass;
@@ -1151,7 +1171,6 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 
 				soil.sompool[SLOWSOM].ptoc *= ptoc_reduction;
 				soil.sompool[SOILMICRO].ptoc *= ptoc_reduction;
-				soil.sompool[SURFHUMUS].ptoc *= ptoc_reduction;
 
 				net_pmineralization = false;
 			}
@@ -1161,7 +1180,7 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 		}
 		else {
 
-			// Immobilization larger than soil available nitrogen -> reduce decay rates
+			// Immobilisation larger than soil available phosphorus -> reduce decay rates
 			if (ptimes < 4) {
 				reduce_decay_rates(decay_reduction_p, net_pmin, reduction_groups[ptimes], tot_net_pmin + pmin_mass);
 			}

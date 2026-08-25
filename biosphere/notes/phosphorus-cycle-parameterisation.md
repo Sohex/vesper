@@ -575,28 +575,43 @@ three `setptoc` calls is the 1988 paper's, and the fork reproduces its
 functional form. What the wrong citation cost was three years of nobody being
 able to check the fourth argument.
 
-### Two defects the same reading exposed
+### Two defects the same reading exposed, and they were one
 
-Neither is a constant, both are in the phosphorus path, and both bite only under
-`ifplim 1`.
+Neither is a constant and both are in the phosphorus path. They sit in the same
+branch of `somfluxes`, and closing the second closes the first.
 
 `SURFHUMUS` is in the nitrogen ramp and not the phosphorus one, and the
-phosphorus immobilisation branch scales `sompool[SURFHUMUS].ptoc` down by
+phosphorus immobilisation branch scaled `sompool[SURFHUMUS].ptoc` down by
 `ptoc_reduction` alongside `SLOWSOM` and `SOILMICRO`. Those two are re-derived
-by `setptoc` at the top of every call to `som_dynamics_century`; `SURFHUMUS` is
-not, because its `setptoc` line is commented out. So its P:C ratchets downward
+by `setptoc` at the top of every call to `somfluxes`; `SURFHUMUS` is not,
+because its `setptoc` line is commented out. So its P:C ratcheted downward
 without bound over a run, from the 1/150 it is initialised to in `soil.cpp`,
-and the surface humus pool eventually receives carbon carrying no phosphorus.
-Uncommenting the line is not the fix on its own: Parton, Stewart and Cole (1988)
-has no humus pool to take a `(ctop_max, ctop_min)` pair from, so that would
-import `SLOWSOM`'s pair without a source.
+and the surface humus pool asymptotically received carbon carrying no
+phosphorus. Uncommenting the line is not the fix: Parton, Stewart and Cole
+(1988) has no humus pool to take a `(ctop_max, ctop_min)` pair from, so that
+would import `SLOWSOM`'s pair without a source. The invariant to keep instead is
+that a pool whose P:C is flexed down in that branch has to be one `setptoc`
+re-derives, and `SURFHUMUS` is out of the list now. `PASSIVESOM` is the harmless
+other direction: re-derived, never flexed.
 
-The nitrogen immobilisation branch short-circuits on `|| !ifnlim` and the
-phosphorus branch has no `|| !ifplim`, so the phosphorus decay-rate reduction
-and the `ptoc` ratchet can both fire in a run with phosphorus limitation off.
-Reaching them needs daily immobilisation above the pinned 2 gP/m2, which is not
-a realistic daily flux, so this is an asymmetry to close rather than an active
-defect in the current configuration.
+The branch it sits in is the nitrogen branch above with `n` substituted for `p`,
+down to every comment inside it still saying nitrogen, and the copy dropped
+`|| !ifnlim` from the first condition. That omission decided which setting the
+ratchet lived in, and it is the opposite of what it looks like. Under
+`ifplim 1` the `else if (!ifplim)` arm is false and control goes to
+`reduce_decay_rates`, so the ratchet was never reachable under phosphorus
+limitation. Under `ifplim 0` it was the live arm. What kept it rare there is the
+second job `PMASS_SAT` does: `somfluxes` ends by pinning `soil.pmass_labile` to
+`PMASS_SAT` whenever `!ifplim`, so `pmin_mass` is exactly 2 gP/m2 at the start
+of every call and the arm fires only on a day whose net phosphorus
+immobilisation exceeds that. The whole daily carbon throughput of the soil
+organic matter pools, carried at the richest C:P the model has, is an order of
+magnitude short of it. So the ratchet was latent, not active, and it was latent
+for a reason unrelated to the code that contained it.
+
+`|| !ifplim` is restored, which makes `ifplim 0` mean what `ifnlim 0` already
+means and leaves `ifplim 1` untouched. Both arms are now unreachable, and both
+are kept, because upstream's form is what the pair is legible against.
 
 ## The strongly sorbed pool was a drain, not a pool
 
@@ -707,8 +722,6 @@ break in a conservation sum.
 - `PCONC_SAT`, as WORLD-PIDX, which has no phosphorus source in the paper the
   ramp cites or anywhere else in the tree, and whose ramp that paper does not
   contain.
-- The `SURFHUMUS` P:C ratchet and the missing `!ifplim` short-circuit beside it,
-  as WORLD-16PB.
 - Whether to represent terminal occlusion after all, now that the cited CENTURY
   submodel is held and does carry it, as WORLD-2LCW.
 - Every derived value above is BRACKETED. A run that uses them has to say which

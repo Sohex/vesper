@@ -1328,18 +1328,18 @@ void plib_callback(int callback) {
 		// and soil microbial pools sit at their minimum C:P always. Choosing
 		// how to reconcile the two is a modelling decision.
 		//
-		// A fourth defect only bites under ifplim 1: the P immobilisation
-		// branch in somdynam.cpp scales sompool[SURFHUMUS].ptoc down and
-		// nothing sets it back, because SURFHUMUS is in the nitrogen ramp and
-		// not the phosphorus one, so surface humus C:P ratchets upward over a
-		// run.
+		// A fourth stood here and is settled. WORLD-16PB: the P immobilisation
+		// branch in somdynam.cpp scaled sompool[SURFHUMUS].ptoc down with
+		// nothing to set it back. SURFHUMUS is out of that list now, and the
+		// branch itself has the || !ifplim short-circuit its nitrogen twin
+		// always had.
 		//
-		// Running with ifplim 1 before those are settled produces a P-limited
-		// world whose soil organic C:P is pinned at its most phosphorus-rich
-		// end and whose woody P demand is nitrogen's, and it produces it
-		// silently, which is worse than not running. Lift this refusal in the
-		// change that settles them, not before. BIO-34, WORLD-PIDX, WORLD-Z01O
-		// and WORLD-16PB; the evidence is in
+		// Running with ifplim 1 before the three are settled produces a
+		// P-limited world whose soil organic C:P is pinned at its most
+		// phosphorus-rich end and whose woody P demand is nitrogen's, and it
+		// produces it silently, which is worse than not running. Lift this
+		// refusal in the change that settles them, not before. BIO-34,
+		// WORLD-PIDX and WORLD-Z01O; the evidence is in
 		// biosphere/notes/phosphorus-cycle-parameterisation.md.
 		if (ifplim) {
 			sendmessage("Error", "ifplim 1 is refused: PFRAC_LEAFTOSAP in guess.h is a "
@@ -1347,12 +1347,11 @@ void plib_callback(int callback) {
 				"wood against leaf rejects its proportional form, and the 6.9 the model "
 				"applies sits below the 10.1 to 15.5 that measurement brackets a forced "
 				"scalar at; PCONC_SAT in somdynam.cpp still carries nitrogen's "
-				"saturation value and has no phosphorus source; PMASS_SAT is its source's "
-				"value but reads a labile P pool its source did not define, so the soil C:P "
-				"ramp saturates everywhere; and the surface humus P:C ratchets downward "
-				"because no phosphorus ramp resets it. See "
-				"biosphere/notes/phosphorus-cycle-parameterisation.md, BIO-34, WORLD-PIDX, "
-				"WORLD-Z01O and WORLD-16PB.");
+				"saturation value and has no phosphorus source; and PMASS_SAT is its "
+				"source's value but reads a labile P pool its source did not define, so "
+				"the soil C:P ramp saturates everywhere. See "
+				"biosphere/notes/phosphorus-cycle-parameterisation.md, BIO-34, WORLD-PIDX "
+				"and WORLD-Z01O.");
 			plibabort();
 		}
 
