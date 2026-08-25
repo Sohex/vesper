@@ -52,16 +52,50 @@ land is on the flat part of the one equation that is supposed to make clay-rich
 soils protect carbon, and the andic contrast that would discriminate among those
 cells is not read.
 
-**The microbial partition can leave a negative remainder.** What leaves the soil
-microbial pool is respiration plus leaching plus the passive share plus the slow
-share, and the slow share is computed as whatever is left. On pure sand at
-saturating percolation the first three sum to 1.003, so the remainder is -0.003
-and the transfer to slow SOM runs backwards. Nothing in `somdynam.cpp` guards the
-sign. It does not bite here -- over the soil map's own 1,019 textures the
-remainder falls no lower than 0.263, measured on the same date -- so it is latent
-in the same sense the uninitialised soil reads were, and it is `world-t67j`. The
-declaration registers the simplex minimum so that any coefficient change which
-moves it fails the gate.
+**The microbial partition can leave a negative remainder, and the range that
+does it is not a soil.** What leaves the soil microbial pool is respiration plus
+leaching plus the passive share plus the slow share, and the slow share is
+computed as whatever is left. On pure sand at saturating percolation the first
+three sum to 1.003, so the remainder is -0.003 and the transfer to slow SOM runs
+backwards. Nothing in `somdynam.cpp` guards the sign.
+
+The remainder form is not this fork's. Parton et al. (1993) eqn 10 on p. 788 is
+`C_AS = (1 - C_AL - C_AP - F_t)`, a bare remainder with no sign guard either. But
+the paper's own eqn 8 is `C_AL = (H2O_30/18)*(0.01 + 0.04*sand)`, and under those
+coefficients the remainder is positive over the whole texture simplex, bottoming
+out at pure sand. What admits a negative value is the CENTURY 5 leaching update
+the code applies instead, `0.03 + 0.12*sand` saturating at 1.9 cm H2O per month
+rather than 18: three times the coefficients over a ninth of the range. That
+update arrived with the LPJ-GUESS subtree and is upstream, not a divergence this
+project made.
+
+Solving the remainder for where it reverses, at saturating percolation it is
+`-0.003 + 0.8*(clay + silt) - 0.032*clay`, so a texture reverses only if its
+clay-plus-silt fraction is below 0.0039 -- a sand fraction above 0.996 -- and
+only if percolation is at least 0.98 of the leaching saturation point. Both have
+to hold at once.
+
+Neither is close to this world, and neither is close to anything the model can
+be handed. This world's sandiest cell is 0.663 sand and the soil map's worst
+remainder is 0.263, over its 1,019 land cells. The LPJ soil code table in
+`soilinput.h`, which is what the model uses when no soil map is supplied, has
+its coarse code at 0.90 sand and a worst remainder of 0.0754; the fixed-texture
+fallback beside it gives 0.569. So the transfer runs forwards on every texture
+any input path in this model can produce, by a margin of a factor of 90 in the
+fine fraction, and `world-t67j` is not a defect on this world. The declaration
+registers all four bounds, so a coefficient change that moves any of them fails
+the gate.
+
+One path does approach it. `somfluxes` reads the fine fractions through
+`Soil::get_clayfrac` and `get_siltfrac`, which return the peat texture on a
+high-latitude peatland stand, but reads the sand fraction for leaching straight
+off `soiltype.sand_frac`, which is always the mineral one. The peat fractions
+are never assigned and stay zero, so on such a stand the respired share is at
+its 0.85 maximum while leaching still scales with mineral sand, and the coarse
+soil code's remainder falls to 0.009. It reverses above 0.975 mineral sand,
+which the soil code table's 0.90 does not reach. `run_peatland` is written as 0
+whenever the wetland gate has not granted activation, so nothing runs this path
+today.
 
 ## The mineral-aware arm refuses, and names four things
 

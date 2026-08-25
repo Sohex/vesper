@@ -1029,7 +1029,27 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 
 		transferdecomp(soil, SOILMICRO, PASSIVESOM, cap, 0.0, respsum, nmin_actual, pmin_actual, nimmob, pimmob, net_min[SOILMICRO], net_pmin[SOILMICRO]);
 
-		// Fraction entering slow SOM pool
+		// Fraction entering slow SOM pool.
+		//
+		// A bare remainder with no sign guard, and that is the source's own
+		// form: Parton et al. (1993) eqn 10, p. 788, is
+		// C_AS = (1 - C_AL - C_AP - F_t). Under that paper's OWN eqn 8,
+		// C_AL = (H2O_30/18)*(0.01 + 0.04*sand), the remainder is positive over
+		// the whole texture simplex, bottoming out at 0.097 on pure sand. It is
+		// the CENTURY 5 leaching update below -- 0.03 + 0.12*sand saturating at
+		// 1.9 cm H2O per month rather than 18 -- that lets it reach -0.003.
+		//
+		// Reversing needs a clay-plus-silt fraction below 0.0039 AND percolation
+		// at 0.98 of the leaching saturation point, both at once. No input path
+		// in this model reaches that: this world's soil map tops out at 0.663
+		// sand with a worst remainder of 0.263, and soilinput.h's coarse LPJ
+		// soil code, the sandiest texture the model can be handed at 0.90, still
+		// leaves 0.0754. So no clamp is applied, because a clamp would have to
+		// decide which of the four shares absorbs an excess that cannot occur,
+		// and max(0, csp) would lose mass. WORLD-T67J, bounded and closed.
+		// biosphere/config/mineral_reactivity.yaml registers all four bounds and
+		// biosphere/scripts/mineral_reactivity_gate.py fails on a coefficient
+		// change that moves any of them.
 		csp = 1.0 - respfrac - soil.orgleachfrac - cap;
 
 		transferdecomp(soil, SOILMICRO, SLOWSOM, csp, 0.0, respsum, nmin_actual, pmin_actual, nimmob, pimmob, net_min[SOILMICRO], net_pmin[SOILMICRO]);

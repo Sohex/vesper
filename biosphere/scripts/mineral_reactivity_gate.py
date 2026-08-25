@@ -20,13 +20,14 @@ It can fail:
              literal no longer appears in modules/somdynam.cpp
   range      a declared equation that leaves its range over the texture domain
   closure    the four microbial-pool fractions summing past 1, which makes the
-             remainder transfer to slow SOM run backwards
+             remainder transfer to slow SOM run backwards; or a declared bound
+             on where that happens that no longer holds
   column     a soil map that does not carry a declared column, or carries one
              outside its declared range
   reader     a line of the model reading a carried field while the arm that
              would use it refuses
-Six reduced fixtures run on every invocation, five built to be wrong in a named
-way. A fixture that does not get its verdict is a defect in this checker.
+Nine reduced fixtures run on every invocation, eight built to be wrong in a
+named way. A fixture that does not get its verdict is a defect in this checker.
 
     python biosphere/scripts/mineral_reactivity_gate.py            # status
     python biosphere/scripts/mineral_reactivity_gate.py --strict   # refuses
@@ -139,11 +140,14 @@ def check(declaration: dict, source_text: str, model_texts: dict[str, str],
                 "detail": (f"reaches [{lo:.6g}, {hi:.6g}] over the texture simplex, "
                            f"outside its declared [{allowed_lo}, {allowed_hi}]")})
 
-    # The closure has two arms. Over the whole texture simplex it is a property
+    # The closure has four arms. Over the whole texture simplex it is a property
     # of the equations, and it is negative at pure sand, which is registered with
     # its value so a coefficient change that moves it fails here. Over the soil
     # map's own textures it is a property of this world, and it has to stay
-    # forwards.
+    # forwards. The third arm is the LPJ soil code table, the sandiest textures
+    # anything else in the model can hand the partition. The fourth is the same
+    # simplex under the leaching coefficients the cited source prints rather than
+    # the ones the model runs, which is what says whose the sign failure is.
     closure = arm["closure"]
     lo, _, worst = _extrema(closure["expression"], simplex)
     declared = closure["simplex_minimum"]
@@ -153,6 +157,69 @@ def check(declaration: dict, source_text: str, model_texts: dict[str, str],
             "detail": (f"over the texture simplex it falls to {lo:.6g} at sand/clay/silt "
                        f"{worst[0]:.3f}/{worst[1]:.3f}/{worst[2]:.3f}, and the declared "
                        f"minimum is {declared}")})
+
+    source_variant = closure.get("source_variant")
+    if source_variant:
+        src_lo, _, src_worst = _extrema(source_variant["expression"], simplex)
+        src_declared = source_variant["simplex_minimum"]
+        if abs(src_lo - src_declared) > source_variant["simplex_tolerance"]:
+            findings.append({
+                "kind": "closure", "what": f"{closure['name']}/source_variant",
+                "detail": (f"under {source_variant['citation']} it falls to {src_lo:.6g} at "
+                           f"sand/clay/silt {src_worst[0]:.3f}/{src_worst[1]:.3f}/"
+                           f"{src_worst[2]:.3f}, and the declared minimum is "
+                           f"{src_declared}")})
+
+    codes = closure.get("soilcode_textures")
+    if codes:
+        code_points = []
+        for code, (sand, clay) in sorted(codes["codes"].items()):
+            code_points.append((sand, clay, 1.0 - sand - clay))
+        code_lo, _, code_worst = _extrema(closure["expression"], code_points)
+        if abs(code_lo - codes["minimum"]) > codes["tolerance"]:
+            findings.append({
+                "kind": "closure", "what": f"{closure['name']}/soilcode_textures",
+                "detail": (f"over the LPJ soil code table it falls to {code_lo:.6g} at "
+                           f"sand/clay/silt {code_worst[0]:.3f}/{code_worst[1]:.3f}/"
+                           f"{code_worst[2]:.3f}, and the declared minimum is "
+                           f"{codes['minimum']}")})
+
+    reach = closure.get("reachability")
+    if reach:
+        code = compile(closure["expression"], "<texture>", "eval")
+        tol = reach["tolerance"]
+
+        def remainder(clay, silt, share=1.0):
+            sand = 1.0 - clay - silt
+            value = eval(code, EVAL_NAMESPACE,  # noqa: S307 - in-repo declaration
+                         {"sand": sand, "clay": clay, "silt": silt})
+            # The leaching term is the only one percolation scales, so a share
+            # below 1 gives back the part of it that is not lost.
+            leached = 0.03 + 0.12 * sand
+            return value + (1.0 - share) * leached
+
+        def solves(label, value, clay, silt, share=1.0):
+            at = remainder(clay, silt, share)
+            if abs(at) > tol:
+                findings.append({
+                    "kind": "closure", "what": f"{closure['name']}/reachability",
+                    "detail": (f"{label} is declared {value} but the remainder there is "
+                               f"{at:.6g}, not zero, so it is not the boundary")})
+
+        # The remainder is linear in clay and in silt separately, so each
+        # declared boundary is checked exactly at the split it was solved on.
+        solves("max_fine_fraction", reach["max_fine_fraction"],
+               reach["max_fine_fraction"], 0.0)
+        solves("fine_fraction_all_reverse", reach["fine_fraction_all_reverse"],
+               0.0, reach["fine_fraction_all_reverse"])
+        solves("min_percolation_share", reach["min_percolation_share"],
+               0.0, 0.0, reach["min_percolation_share"])
+        sand = reach["min_sand_fraction"]
+        if abs((1.0 - sand) - reach["max_fine_fraction"]) > tol:
+            findings.append({
+                "kind": "closure", "what": f"{closure['name']}/reachability",
+                "detail": (f"min_sand_fraction {sand} and max_fine_fraction "
+                           f"{reach['max_fine_fraction']} are not the same texture")})
 
     carried = declaration["carried_state"]
     if soilmap is not None:
@@ -220,6 +287,15 @@ def _fixtures(declaration, source_text, model_texts, soilmap) -> list[dict]:
     def narrow_column(d):
         d["carried_state"]["range"] = [0.0, 0.001]
 
+    def break_source_variant(d):
+        d["texture_only"]["closure"]["source_variant"]["simplex_minimum"] = -0.5
+
+    def break_soilcode(d):
+        d["texture_only"]["closure"]["soilcode_textures"]["codes"][1] = [0.999, 0.0005]
+
+    def break_reachability(d):
+        d["texture_only"]["closure"]["reachability"]["max_fine_fraction"] = 0.05
+
     cases = [
         ("the declaration as it stands", declaration, None),
         ("a coefficient the model source does not contain",
@@ -232,6 +308,12 @@ def _fixtures(declaration, source_text, model_texts, soilmap) -> list[dict]:
          mutate(rename_column), "column"),
         ("a carried column declared narrower than the artifact",
          mutate(narrow_column), "column"),
+        ("the source's own leaching coefficients declared to run backwards",
+         mutate(break_source_variant), "closure"),
+        ("a soil code sandy enough to reverse the transfer",
+         mutate(break_soilcode), "closure"),
+        ("a reachability boundary that is not where the remainder crosses zero",
+         mutate(break_reachability), "closure"),
     ]
 
     results = []
@@ -317,6 +399,25 @@ def main() -> int:
                 print(f"    [{finding['kind']}] {finding['what']}: {finding['detail']}")
         else:
             print("  every declared equation matches the source and holds its range")
+        closure = declaration["texture_only"]["closure"]
+        reach = closure.get("reachability")
+        if reach:
+            print(f"\n  the microbial partition's remainder reverses only above a sand "
+                  f"fraction of\n  {reach['min_sand_fraction']} with percolation at "
+                  f"{reach['min_percolation_share']} of the leaching saturation point")
+            if soilmap is not None:
+                header, rows = soilmap
+                index = {name: i for i, name in enumerate(header)}
+                if "sand" in index:
+                    print(f"    this soil map's sandiest cell: "
+                          f"{max(row[index['sand']] for row in rows):.4g}")
+            codes = closure.get("soilcode_textures")
+            if codes:
+                print(f"    the LPJ soil code table's worst remainder: {codes['minimum']}")
+            variant = closure.get("source_variant")
+            if variant:
+                print(f"    under {variant['citation']}: "
+                      f"{variant['simplex_minimum']}, forwards everywhere")
         if undeclared:
             print(f"\n  the mineral-aware arm refuses: {len(undeclared)} proxy(ies) undeclared")
             for name in undeclared:

@@ -65,23 +65,80 @@ texture_only:
   # slow share, and the slow share is what is left over:
   #   csp = 1 - respfrac - orgleachfrac - cap
   # so a negative csp is a transfer running backwards, and the model has no
-  # guard against it. The gate evaluates it over the texture simplex and over
-  # the soil map's own textures separately, because the two answers differ.
+  # guard against it. The gate evaluates it over four texture domains, because
+  # the answers differ: the whole simplex, the soil map's own textures, the LPJ
+  # soil code table, and the simplex again under the leaching coefficients the
+  # cited source prints rather than the ones the model runs.
   closure:
     name: microbe_partition_remainder
     expression: "1.0 - max(0.0, 0.85 - 0.68*(clay + silt)) - (0.03 + 0.12*sand) - (0.003 + 0.032*clay)"
     unit: fraction of the decayed microbial pool
     # Over the whole texture simplex this goes NEGATIVE, at pure sand, where the
     # respired share is at its 0.85 maximum and organic leaching at its 0.15.
-    # A negative transfer fraction runs the SOILMICRO to SLOWSOM flux backwards
-    # and nothing in somdynam.cpp guards it. Registered rather than repaired:
-    # the repair is a decision about which of the four shares absorbs the excess.
-    # world-t67j owns it. The value is checked, so any coefficient change that
-    # moves it fails this gate.
+    # The remainder form is the source's own eqn 10, unguarded there too, so the
+    # missing sign check is not this fork's. What admits a negative value is the
+    # CENTURY 5 leaching update below, and the range that reaches it is not on
+    # this world: see `reachability` and `source_variant`. Registered rather
+    # than repaired. The value is checked, so any coefficient change that moves
+    # it fails this gate.
     simplex_minimum: -0.003
     simplex_tolerance: 1.0e-9
     # Over the textures the soil map actually carries it has to stay forwards.
     soilmap_minimum: 0.0
+
+    # What the remainder needs in order to go backwards, solved from the
+    # expression above at saturating percolation. Both conditions have to hold
+    # at once, and neither is close on this world.
+    reachability:
+      # At saturating percolation the remainder is
+      #   csp = -0.003 + 0.8*(clay + silt) - 0.032*clay
+      # which for a fixed fine fraction is smallest when all of the fine
+      # fraction is clay. So the LARGEST fine fraction at which any texture
+      # reverses is the all-clay one, and below the all-silt one every texture
+      # reverses whatever the split.
+      max_fine_fraction: 0.00390625
+      fine_fraction_all_reverse: 0.00375
+      # Equivalently a sand fraction above this.
+      min_sand_fraction: 0.99609375
+      # And percolation at least this share of the leaching saturation point,
+      # which is the min(1, dperc/(OMLECH_3*cmpermonth_to_mmperday)) factor.
+      # Solved at pure sand, where the requirement is weakest.
+      min_percolation_share: 0.98
+      tolerance: 1.0e-9
+
+    # Parton et al. (1993) eqn 8 as the paper prints it, before the CENTURY 5
+    # parameter update `somdynam.cpp` applies: C_AL = (H2O_30/18)*(0.01 +
+    # 0.04*sand), read off p. 788 of
+    # `references/parton1993-century-soil-organic-matter.pdf`. With the source's
+    # own coefficients the remainder is bounded BELOW ZERO nowhere on the
+    # simplex; it bottoms out at pure sand, positive. So the source bounds what
+    # the model does not, and the sign failure is entirely the coefficient
+    # update, which is upstream LPJ-GUESS and arrived with the subtree.
+    source_variant:
+      expression: "1.0 - max(0.0, 0.85 - 0.68*(clay + silt)) - (0.01 + 0.04*sand) - (0.003 + 0.032*clay)"
+      citation: "Parton et al. (1993) eqn 8, p. 788"
+      simplex_minimum: 0.097
+      simplex_tolerance: 1.0e-9
+
+    # The other texture source in the model: `soilinput.h`'s LPJ soil code
+    # table, used when no soil map is supplied. Every code is checked, because
+    # the coarse code is the sandiest texture anything in the model can hand the
+    # partition. sand, clay per code, silt taken as the remainder.
+    soilcode_textures:
+      source_file: vendor/lpj-guess/modules/soilinput.h
+      minimum: 0.0754
+      tolerance: 1.0e-9
+      codes:
+        0: [0.90, 0.05]
+        1: [0.90, 0.05]
+        2: [0.35, 0.15]
+        3: [0.30, 0.45]
+        4: [0.60, 0.15]
+        5: [0.60, 0.30]
+        6: [0.20, 0.30]
+        7: [0.45, 0.25]
+        8: [0.28, 0.12]
+        9: [0.10, 0.80]
 
 # The mineral-aware arm. Every proxy below carries the `undeclared` sentinel and
 # names what would have to produce it. There is no default for any of them, and
