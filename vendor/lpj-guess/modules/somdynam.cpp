@@ -913,20 +913,43 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 	// the figure.
 	setptoc(soil, pmin_mass, SOILMICRO, 80.0, 30.0, 0.0, PMASS_SAT);
 
-	// SURFHUMUS is absent from the phosphorus ramp and present in the nitrogen
-	// one above, and this line stays commented out: Parton, Stewart and Cole
-	// (1988) has no humus pool to take a (ctop_max, ctop_min) pair from, so
-	// uncommenting it would import SLOWSOM's pair without a source.
+	// DECLARED DIVERGENCE FROM MAINLINE: surfhumus_ptoc_ramp, owner
+	// WORLD-SHCP. The vendored CNP fork leaves this line commented out,
+	//     //setptoc(soil, pmin_mass, SURFHUMUS, 200.0, 90.0, 0.0, PMASS_SAT);
+	// so the surface humus pool alone among the ramped pools has no phosphorus
+	// ramp, and holds the C:P soil.cpp initialises it to for the whole of a
+	// run. It runs here.
 	//
-	// The invariant that makes that safe is the one the P immobilisation branch
-	// below now keeps: A POOL WHOSE P:C IS FLEXED DOWN THERE MUST BE ONE THIS
-	// BLOCK RE-DERIVES. SURFHUMUS was flexed and not re-derived, so its P:C
-	// ratcheted down without bound from the 1/150 soil.cpp initialises it to,
-	// and the surface humus pool asymptotically received carbon carrying no
-	// phosphorus. It is out of that list now. PASSIVESOM is the harmless other
-	// direction: re-derived here, never flexed. WORLD-16PB, evidenced in
+	// The objection this answers is that Parton, Stewart and Cole (1988) has no
+	// humus pool, so 200 and 90 look like SLOWSOM's pair imported without a
+	// source. They are not imported. The PAIR is Fig. 3's slow line, and the
+	// IDENTIFICATION of surface humus with the slow pool is the model's own,
+	// stated twice in this fork: setntoc() above gives SURFHUMUS exactly
+	// SLOWSOM's (30, 15) off exactly SLOWSOM's driver, the mineral nitrogen
+	// pool, and soil.cpp's own alternative P initialisation, commented out
+	// beside the live one, sets SURFHUMUS and SLOWSOM to the same 1/90, which
+	// is that line's phosphorus-rich end. So the nitrogen side already treats
+	// this pool as the slow pool at the surface, and this is that treatment
+	// carried to the other element rather than a new claim.
+	//
+	// The alternative was a measured surface humus C:P, and it is the wrong
+	// KIND of quantity. What setptoc sets is the P:C at which a pool RECEIVES
+	// carbon -- a stoichiometric target that moves with labile P, by the
+	// phosphatase mechanism of McGill and Cole (1981) the paper builds on --
+	// where a measured forest-floor C:P is an emergent bulk ratio. A fixed
+	// number is the wrong shape for it however well sourced, which is what
+	// WORLD-SHCP found the fork's 1/150 to be.
+	//
+	// The invariant the P immobilisation branch below keeps: A POOL WHOSE P:C
+	// IS FLEXED DOWN THERE MUST BE ONE THIS BLOCK RE-DERIVES. SURFHUMUS was
+	// flexed and not re-derived, so its P:C ratcheted down without bound from
+	// the value soil.cpp initialises it to, and the surface humus pool
+	// asymptotically received carbon carrying no phosphorus. This line is what
+	// re-derives it, so it is back in that list and the two sets are the same
+	// set again, which is what WORLD-16PB asked for. PASSIVESOM is the harmless
+	// other direction: re-derived here, never flexed. Evidenced in
 	// biosphere/notes/phosphorus-cycle-parameterisation.md.
-	//setptoc(soil, pmin_mass, SURFHUMUS, 200.0, 90.0, 0.0, PMASS_SAT);
+	setptoc(soil, pmin_mass, SURFHUMUS, 200.0, 90.0, 0.0, PMASS_SAT);
 
 
 	if (!ifequilsom) {
@@ -1202,10 +1225,11 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 
 			// Unreachable, exactly as the nitrogen arm above it is, and kept
 			// for the same reason: it is upstream's form and the two must be
-			// read together. SURFHUMUS is NOT in the list below any more. It
-			// has no phosphorus ramp to re-derive it, so flexing it down here
-			// was a one-way ratchet on the surface humus pool's P:C rather
-			// than the within-day iteration it is for the other two.
+			// read together. SURFHUMUS is back in the list below, because
+			// WORLD-SHCP gave it the phosphorus ramp that re-derives it. The
+			// set setptoc() covers and the set flexed here are one set again,
+			// which is the invariant that makes flexing a within-day iteration
+			// rather than a one-way ratchet. WORLD-16PB.
 			if (date.year > freenyears) {
 
 				if (ptimes == 0) {
@@ -1220,6 +1244,7 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 
 				soil.sompool[SLOWSOM].ptoc *= ptoc_reduction;
 				soil.sompool[SOILMICRO].ptoc *= ptoc_reduction;
+				soil.sompool[SURFHUMUS].ptoc *= ptoc_reduction;
 
 				net_pmineralization = false;
 			}

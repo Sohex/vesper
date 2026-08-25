@@ -81,19 +81,25 @@ void Soil::init_states() {
 	// Set initial CENTURY pool P:C ratios.
 	//
 	// The citation on this block was Fig. 2 of Parton, Stewart and Cole (1988),
-	// which is the P submodel's flow diagram and carries no C:P values. Three
-	// of these four are Fig. 3's, p. 115: 80, 200 and 80 are the ctop_max ends
-	// of the active, slow and surface microbial lines, so each pool starts at
-	// its most phosphorus-poor end and setptoc() overwrites it on the first
+	// which is the P submodel's flow diagram and carries no C:P values. All
+	// four are Fig. 3's, p. 115: 80, 200, 200 and 80 are the ctop_max ends of
+	// the active, slow, slow and surface microbial lines, so each pool starts
+	// at its most phosphorus-poor end and setptoc() overwrites it on the first
 	// call to somfluxes().
 	//
-	// SURFHUMUS's 150 is not. That paper has no humus pool, and 150 appears in
-	// it only as the lower bound on the C:P of new plant material for wheat
-	// (p. 112) and as the structural litter C:N. Nothing overwrites this one
-	// either: SURFHUMUS is in the nitrogen ramp and not the phosphorus one, so
-	// 150 is the surface humus pool's C:P for the whole of a run. WORLD-SHCP.
+	// DECLARED DIVERGENCE FROM MAINLINE: surfhumus_ptoc_init, owner
+	// WORLD-SHCP. The vendored CNP fork has
+	//     sompool[SURFHUMUS].ptoc = 1.0 / 150.0;
+	// and nothing overwrote it, because that fork gives the surface humus pool
+	// no phosphorus ramp. 150 has no source for a humus pool: the cited paper
+	// has none, and 150 appears in it only as the lower bound on the C:P of new
+	// plant material for wheat (p. 112) and as the structural litter C:N. The
+	// slow line's ctop_max end replaces it, under the same identification of
+	// surface humus with the slow pool that somdynam.cpp's setptoc() block now
+	// runs on, and the value is no longer load-bearing because that block
+	// overwrites it on the first call.
 	sompool[SOILMICRO].ptoc = 1.0 / 80.0;
-	sompool[SURFHUMUS].ptoc = 1.0 / 150.0;
+	sompool[SURFHUMUS].ptoc = 1.0 / 200.0;
 	sompool[SLOWSOM].ptoc = 1.0 / 200.0;
 	sompool[SURFMICRO].ptoc = 1.0 / 80.0;
 	/*sompool[SOILMICRO].ptoc = 1.0 / 30.0;

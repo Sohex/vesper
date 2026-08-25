@@ -1334,9 +1334,16 @@ void plib_callback(int callback) {
 		// under ifplim 0 and live under ifplim 1.
 		//
 		// WORLD-16PB: the P immobilisation branch in somdynam.cpp scaled
-		// sompool[SURFHUMUS].ptoc down with nothing to set it back. SURFHUMUS
-		// is out of that list now, and the branch itself has the || !ifplim
-		// short-circuit its nitrogen twin always had.
+		// sompool[SURFHUMUS].ptoc down with nothing to set it back. The branch
+		// has the || !ifplim short-circuit its nitrogen twin always had, and
+		// WORLD-SHCP gave the surface humus pool the slow pool's phosphorus
+		// ramp, so the set setptoc() re-derives and the set that branch flexes
+		// are one set again.
+		//
+		// WORLD-SHCP: sompool[SURFHUMUS].ptoc was a fixed 1/150 with no source
+		// for a humus pool. It ramps between 200 and 90 off labile P now, on
+		// Fig. 3's slow line, under the identification of surface humus with
+		// the slow pool that this fork's own nitrogen ramp already makes.
 		//
 		// Running with ifplim 1 before the remaining two are settled produces a
 		// P-limited world whose woody P demand is nitrogen's and whose surface

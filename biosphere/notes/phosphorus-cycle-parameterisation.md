@@ -653,19 +653,70 @@ able to check the fourth argument.
 Neither is a constant and both are in the phosphorus path. They sit in the same
 branch of `somfluxes`, and closing the second closes the first.
 
-`SURFHUMUS` is in the nitrogen ramp and not the phosphorus one, and the
+`SURFHUMUS` was in the nitrogen ramp and not the phosphorus one, and the
 phosphorus immobilisation branch scaled `sompool[SURFHUMUS].ptoc` down by
 `ptoc_reduction` alongside `SLOWSOM` and `SOILMICRO`. Those two are re-derived
-by `setptoc` at the top of every call to `somfluxes`; `SURFHUMUS` is not,
-because its `setptoc` line is commented out. So its P:C ratcheted downward
-without bound over a run, from the 1/150 it is initialised to in `soil.cpp`,
-and the surface humus pool asymptotically received carbon carrying no
-phosphorus. Uncommenting the line is not the fix: Parton, Stewart and Cole
-(1988) has no humus pool to take a `(ctop_max, ctop_min)` pair from, so that
-would import `SLOWSOM`'s pair without a source. The invariant to keep instead is
-that a pool whose P:C is flexed down in that branch has to be one `setptoc`
-re-derives, and `SURFHUMUS` is out of the list now. `PASSIVESOM` is the harmless
-other direction: re-derived, never flexed.
+by `setptoc` at the top of every call to `somfluxes`; `SURFHUMUS` was not,
+because its `setptoc` line was commented out. So its P:C ratcheted downward
+without bound over a run, from the 1/150 `soil.cpp` initialised it to, and the
+surface humus pool asymptotically received carbon carrying no phosphorus. The
+invariant to keep is that a pool whose P:C is flexed down in that branch has to
+be one `setptoc` re-derives. It was kept first by taking `SURFHUMUS` out of the
+list, and it is kept now from the other side: the pool has a phosphorus ramp,
+so the set `setptoc` covers and the set that branch flexes are one set again,
+which is what WORLD-16PB asked for. `PASSIVESOM` is the harmless other
+direction: re-derived, never flexed. What gave `SURFHUMUS` its ramp is the
+section below.
+
+### The surface humus pool's C:P is the slow pool's, and it ramps
+
+The fork initialised `sompool[SURFHUMUS].ptoc` to 1/150 and never moved it, so
+150 was the surface humus pool's C:P for the whole of a run and the phosphorus
+content of every transfer into it out of `SURFSTRUCT`, `SURFFWD`, `SURFCWD` and
+`SURFMICRO`. `transferdecomp` reads `sompool[receiver].ptoc` with no `ifplim`
+guard, so that was live in both configurations.
+
+150 has no source for a humus pool. The block cited Fig. 2 of Parton, Stewart
+and Cole (1988), which is the P submodel's flow diagram and carries no C:P
+values; the citation is corrected, and 150 appears in that paper only as the
+lower bound on the C:P of new plant material for wheat (p. 112) and as the
+structural litter C:N. Its three neighbours in the block are Fig. 3's `ctop_max`
+ends and are overwritten on the first call to `somfluxes`, so their provenance
+barely matters; 150 was the one that stood.
+
+The objection that kept the `setptoc` line commented out was that the paper has
+no humus pool, so its 200 and 90 would import `SLOWSOM`'s pair without a source.
+They are not imported. The PAIR is Fig. 3's slow line. The IDENTIFICATION of
+surface humus with the slow pool is the model's own, and this fork states it
+twice:
+
+- `setntoc` gives `SURFHUMUS` exactly `SLOWSOM`'s `(30, 15)` off exactly
+  `SLOWSOM`'s driver, the mineral nitrogen pool. So the nitrogen side already
+  ramps this pool as the slow pool at the surface, from the soil's mineral
+  nutrient, and the phosphorus line is that treatment carried to the other
+  element.
+- `soil.cpp`'s own alternative P initialisation, commented out beside the live
+  one, sets `SURFHUMUS` and `SLOWSOM` to the same 1/90, which is that line's
+  phosphorus-rich end.
+
+The alternative was a measured surface humus C:P, and it is the wrong KIND of
+quantity, not merely a missing one. `setptoc` sets the P:C at which a pool
+RECEIVES carbon: a stoichiometric target that moves with labile P by the
+phosphatase mechanism of McGill and Cole (1981) that the paper builds on. A
+measured forest-floor C:P is an emergent bulk ratio, and a fixed number is the
+wrong shape for this argument however well sourced. That is what the fork's
+1/150 was.
+
+So `setptoc(soil, pmin_mass, SURFHUMUS, 200.0, 90.0, 0.0, PMASS_SAT)` runs, and
+the initialisation moves to 1/200, the slow line's `ctop_max` end, which puts it
+back on the block's own pattern and makes it not load-bearing again.
+
+Both changes are declared divergences from the vendored CNP fork, with its own
+lines recorded verbatim beside them. What moves: under `ifplim 0` the pin holds
+`fac` at `fmax`, so the surface humus pool's C:P goes from a fixed 150 to a
+fixed 90, and the phosphorus riding carbon into it rises by a factor of 1.67.
+Under `ifplim 1` it ramps between 200 and 90 with labile P like the other three.
+Nothing here is execution-verified.
 
 The branch it sits in is the nitrogen branch above with `n` substituted for `p`,
 down to every comment inside it still saying nitrogen, and the copy dropped
