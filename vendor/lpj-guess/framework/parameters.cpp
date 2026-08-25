@@ -1291,12 +1291,11 @@ void plib_callback(int callback) {
 		// et al. (2016) measure the right element in nearly the right tissue
 		// over 58 tropical species and reject the proportional form for
 		// phosphorus while failing to reject it for nitrogen, which is the
-		// control that makes the phosphorus result mean something. And the
-		// constant is applied to a window endpoint where both papers measure a
-		// tissue mean, so what canexch.cpp applies to sapwood P demand is
-		// ctop_sap_avr / ctop_leaf_avr = 15.30, not 6.9. That last one is in the
-		// nitrogen limits too, at 12.36 against a sourced 6.897, so it cannot be
-		// settled for phosphorus alone; that half is world-xms4.
+		// control that makes the phosphorus result mean something. The form is
+		// the refutation, and mean-anchoring the sapwood window under world-xms4
+		// does not touch it: canexch.cpp now applies exactly 6.9, and a forced
+		// scalar from the one paired leaf-and-wood phosphorus dataset would be
+		// BRACKETED 10.1 to 15.5, so the applied value sits below that bracket.
 		//
 		// PCONC_SAT is the litter-P saturation threshold and carries
 		// NCONC_SAT's value exactly. Parton, Stewart and Cole (1988), which
@@ -1324,15 +1323,15 @@ void plib_callback(int callback) {
 		// world whose soil organic C:P is pinned at its most phosphorus-rich
 		// end and whose woody P demand is nitrogen's, and it produces it
 		// silently, which is worse than not running. Lift this refusal in the
-		// change that settles them, not before. BIO-34, WORLD-PIDX, WORLD-Z01O,
-		// WORLD-16PB and world-xms4; the evidence is in
+		// change that settles them, not before. BIO-34, WORLD-PIDX, WORLD-Z01O
+		// and WORLD-16PB; the evidence is in
 		// biosphere/notes/phosphorus-cycle-parameterisation.md.
 		if (ifplim) {
 			sendmessage("Error", "ifplim 1 is refused: PFRAC_LEAFTOSAP in guess.h is a "
 				"nitrogen ratio for sapwood plus bark, the one phosphorus measurement of "
-				"wood against leaf rejects its proportional form, and it is applied to a "
-				"window endpoint so sapwood P demand carries 15.30 rather than the 6.9 the "
-				"constant names; PCONC_SAT in somdynam.cpp still carries nitrogen's "
+				"wood against leaf rejects its proportional form, and the 6.9 the model "
+				"applies sits below the 10.1 to 15.5 that measurement brackets a forced "
+				"scalar at; PCONC_SAT in somdynam.cpp still carries nitrogen's "
 				"saturation value and has no phosphorus source; PMASS_SAT is its source's "
 				"value but reads a labile P pool its source did not define, so the soil C:P "
 				"ramp saturates everywhere; and the surface humus P:C ratchets downward "
