@@ -7,6 +7,8 @@ solver's forcing is climate-independent and can be built before ExoPlaSim runs.
 ```bash
 python hydrography/scripts/build_hydrography.py   # ~13 s, climate-independent
 python hydrography/scripts/lake_balance.py        # solver smoke test and sweep
+python hydrography/scripts/catalogue_floor.py     # which selection floor decides the preserved set
+python hydrography/scripts/carve_overshoot.py --self-test  # the overshoot comparison, on fixtures
 python hydrography/scripts/surface_water.py       # ~3 s, needs a climatology
 python hydrography/scripts/groundwater.py         # the discretisation checks
 python hydrography/scripts/groundwater.py --uniqueness-test   # the identity, and the controls it rejects
