@@ -72,43 +72,96 @@ emission:
 # function it reviews, on 25 years of ECMWF winds, over the same Dp < 10 um
 # range. That is a right answer supplied by the source, so the test can fail.
 #
-# THE TEST IS A RATIO BETWEEN TWO FUNCTIONS, and that is the point. Our wind
-# distribution is a Weibull at an assumed ocean-mean speed and theirs is a
-# reanalysis at 1 degree and 3 hours, so an absolute comparison measures our
-# wind treatment rather than our source function. Running two published
-# functions through the same machinery and requiring the SAME ratio to Grythe's
-# values divides the wind treatment out. Monahan et al. (1986) is the second
-# function, in the harmonised form of Grythe's equations A1 and A2, chosen
-# because it is the most widely used and the one whose spread across published
-# implementations Grythe discusses.
+# THE COMPARISON IS ABOUT MONAHAN, and that has to be said because the obvious
+# reading is that it is about equation 7. Grythe's Table 2 prices each function
+# over ITS OWN validity range, not over a common cut, and it applies the
+# temperature weight only to the rows whose acronym ends in T. So the two rows
+# are not the same kind of quantity:
 #
-# THE SPUME MODE IS EXCLUDED FROM THE COMPARISON AND NOT FROM THE MODEL, and
-# the reason is recorded because it is a real property of equation 7. Grythe's
-# third mode is centred at Dp = 30 um, and its lower tail dominates the mass
-# integral below 10 um: modes 1 and 2 give 6.1 Pg/yr at the check's wind and
-# the third adds 26.9. Grythe's own transport discretised the emitted spectrum
-# into four lognormal classes with modal radii at 80% relative humidity of
-# 0.65, 4.7, 6.8 and 8.9 um, so their reported 8.9 Pg/yr is not the analytic
-# integral of equation 7 to 10 um, and comparing against it with the spume tail
-# included would be comparing two different quantities. The tail stays in the
-# emission because those drops are really emitted; what removes them is
-# settling, which is a physical answer rather than a truncation.
+#   M86   4.51 Pg/yr over Dp 0.8-8 um, NO temperature weight
+#   M86E  5.20 Pg/yr over Dp 0.1-10 um, the same function extrapolated, no weight
+#   G13T  8.91 Pg/yr over Dp 0.01-10 um, WITH the Jaegle weight of equation A7
+#
+# G13T's target therefore carries a temperature weight this check cannot
+# reproduce. The weight is a cubic in sea surface temperature and Grythe applied
+# it cell by cell over 25 years of reanalysis; evaluating it once at an ocean
+# mean is not the same number, because the mean of a cubic is not the cubic of
+# the mean and this world's check has one temperature. Grythe report no
+# weight-free total for equation 7 -- they name that variant G13 and do not
+# table it. So G13T is REPORTED here and not gated, and the two arms that are
+# gated are Monahan's, whose rows carry no weight.
+#
+# THE ABSOLUTE BAND IS GRYTHE'S OWN, and it prices exactly the thing this check
+# cannot control. Of Monahan, section 5.2: "published global fluxes reported in
+# the literature range from 3.3 to 11.7 Pg yr-1 (Lewis and Schwartz, 2004), with
+# at least seven published estimates in between. These different estimates can
+# largely be explained by differences in the models' surface wind and in part by
+# differences in model resolution." That is one source function put through
+# eight machineries, and the spread is the wind treatment. Our wind is a Weibull
+# at an assumed ocean mean and theirs is a reanalysis at 1 degree and 3 hours,
+# so landing inside that band is the strongest absolute statement available and
+# it is one this project did not choose. A unit slip in the integration, a wrong
+# ocean area or an inverted subgrid moment moves the total by orders of
+# magnitude and cannot survive a factor-of-3.5 band.
+#
+# THE SIZE-RANGE RATIO IS WHERE THE INTEGRATOR IS ACTUALLY TESTED, and it is a
+# ratio that carries no wind at all. Monahan factorises exactly into a whitecap
+# term in U10 and a size term in Dp, so the wind cancels between the two rows and
+# M86E/M86 = 5.20/4.51 is a property of the size function and the two intervals
+# and nothing else. Reproducing it tests the mass integration, the size grid and
+# the bin-edge handling against a number Grythe supply. The old form of this
+# check compared two DIFFERENT source functions over the same interval, which
+# shares the size integration between the arms and therefore cannot see an error
+# in it; this compares the same function over two intervals, which cannot see an
+# error in the source function and is meant not to.
+#
+# The tolerance is 5 per cent. Grythe print both totals to three significant
+# figures, so the ratio itself carries about 0.14 per cent of rounding; 5 per
+# cent is an order above that, allows for their integral being over a discrete
+# emission spectrum rather than an analytic one, and is far inside the
+# factor-3.5 wind band, so an integration error still shows.
+#
+# THE SPUME MODE IS EXCLUDED FROM THE G13T LINE AND NOT FROM THE MODEL, and the
+# reason is recorded because it is a real property of equation 7. Grythe's third
+# mode is centred at Dp = 30 um and its lower tail dominates the mass integral
+# below 10 um. Their own transport discretised the emitted spectrum into four
+# lognormal classes with modal radii at 80% relative humidity of 0.65, 4.7, 6.8
+# and 8.9 um, so their reported total is not the analytic integral of equation 7
+# to 10 um. The tail stays in the emission because those drops are really
+# emitted; what removes them is settling, which is a physical answer rather than
+# a truncation.
 earth_check:
-  ocean_mean_u10_m_s: 7.0                   # Grythe Fig. 3: ocean annual means
-                                            # run to about 10 m/s in the
-                                            # westerlies, near 7 in the mean
+  ocean_mean_u10_m_s: 7.0                   # Grythe section 5.2: the most
+                                            # frequent ocean 10 m speeds are
+                                            # 5-7 m/s, and 5-14 m/s carries
+                                            # about 80% of production. They
+                                            # state no ocean-mean value.
   ocean_area_m2: 3.61e+14
   sst_mean_c: 18.0
-  # Grythe et al. (2014) Table 2, global annual production, Dp < 10 um.
-  grythe_table2_pg_per_year:
-    G13T: 8.9
-    M86: 4.5
-  # The two ratios of ours to theirs must agree this closely. They are ratios of
-  # the same wind treatment, so what is left is the source functions.
-  ratio_agreement: 0.20
-  # Monahan et al. (1986) via Grythe equations A1 and A2, the harmonised form:
-  #   W  = 3.84e-6 U10^3.41
-  #   dF/dDp = W * 3.6e5 * Dp^-3 (1 + 0.057 Dp^1.05) * 10^(1.19 exp(-B^2))
+  # Grythe et al. (2014) Table 2. `dp_um` is that row's own validity range and
+  # `temperature_weight` is whether the row carries the equation A7 weight;
+  # both differ row to row and both had been read as common.
+  grythe_table2:
+    M86:  {pg_per_year: 4.51, dp_um: [0.8, 8.0], temperature_weight: false, gated: true}
+    M86E: {pg_per_year: 5.20, dp_um: [0.1, 10.0], temperature_weight: false, gated: true}
+    G13T: {pg_per_year: 8.91, dp_um: [0.01, 10.0], temperature_weight: true, gated: false}
+  # Published global production for the Monahan function across eight
+  # implementations, Grythe section 5.2 quoting Lewis and Schwartz (2004). The
+  # gated arms must land inside it. Pg per Earth year.
+  absolute_pg_per_year_band: [3.3, 11.7]
+  # M86E/M86 is a pure property of the size function and the two intervals,
+  # because the whitecap term cancels. See the argument above for the 5 per cent.
+  size_range_ratio_tolerance: 0.05
+  # The sum over the configured size bins against the total from the same call:
+  # the same integral computed two ways, so this is an IDENTITY rather than a
+  # comparison, and the tolerance is what two trapezoid grids of at least 200
+  # points per decade can differ by. The per-bin field is what the whole
+  # transported budget rides on and nothing was checking it.
+  bin_sum_identity_tolerance: 1.0e-3
+  # Monahan et al. (1986) via Grythe equations A1 and A2, the harmonised form.
+  # Every coefficient checked against the printed equations:
+  #   W_M = 3.84e-6 U10^3.41
+  #   dF/dDp = W_M * 3.6e5 * Dp^-3 (1 + 0.057 Dp^1.05) * 10^(1.19 exp(-B^2))
   #   B  = (0.38 - log10 Dp) / 0.65
   monahan:
     whitecap_coefficient: 3.84e-6

@@ -25,14 +25,28 @@ has no threshold, so for a Weibull of shape k the enhancement is exactly
 with no quadrature error to argue about. Jensen's inequality makes it greater
 than 1 for p > 1, which is the cheap check that it has not been inverted.
 
-## What the Earth check is for
+## What the Earth check is for, and which function it is about
 
-Run as a script, this integrates the source function over a Weibull wind
-distribution at Earth's ocean-mean 10 m wind and Earth's ocean area, and
-compares the global production against the value Grythe et al. state for their
-own function. The right answer comes from the source, so the test can fail. It
-is not a comparison between two of our own formulations, which would only tell
-us they differ.
+Run as a script, this integrates over a Weibull wind distribution at an ocean
+mean 10 m wind and Earth's ocean area and compares against Grythe et al.'s
+Table 2. It is about MONAHAN, not about equation 7, because Table 2 prices each
+function over that row's own validity range and applies the temperature weight
+only to the rows whose acronym ends in T. Equation 7's row carries a weight
+applied cell by cell over a reanalysis, which one mean temperature cannot
+reproduce, and Grythe table no weight-free total for it. Monahan's rows carry
+none, and Monahan appears in Table 2 twice over two different size ranges.
+
+That gives three gates, each with a right answer the project did not choose: the
+absolute production against the range published implementations of Monahan span,
+which is the range Grythe attribute to the wind treatment; the ratio of the two
+Monahan rows, which carries no wind at all because that function factorises into
+a whitecap term and a size term, so it tests the mass integration and the size
+grid; and the sum over the configured size bins against the total from the same
+call, which is an identity. `aeolian/config/sea_salt.yaml` carries every number
+and the argument for each.
+
+Both arms run through `mass_flux`, the entry point `build_sea_salt.py` uses to
+make the field, so the integrator under test is the one that ships.
 """
 
 from __future__ import annotations
@@ -105,15 +119,32 @@ def diameter_grid(cfg: dict, points_per_decade: int = 200) -> np.ndarray:
 
 
 def mass_flux(u10, sst_c, cfg: dict, weibull_k: float | None = None,
-              bin_edges_um=None, modes=None):
+              bin_edges_um=None, modes=None, flux_fn=None):
     """Dry sea-salt mass flux, kg m-2 s-1, total and per size bin.
 
     Mass is taken over the DRY diameter, because that is what the source
     function is expressed in and what the transported budget is carried in. The
     particle is wet in the air; it is dry in the accounting.
+
+    `flux_fn` substitutes another dF/dDp for this world's, and the ONLY caller
+    that passes one is the Earth check: it is what lets the Monahan arm run
+    through the integrator that ships rather than through a second trapezoid
+    written beside it. It takes `(dp_um, u10, cfg, weibull_k)` and has no mode
+    structure, so `flux_fn` and `modes` are mutually exclusive rather than the
+    second being silently ignored.
     """
+    if flux_fn is not None and modes is not None:
+        raise ValueError(
+            "a supplied flux function has no mode structure; pass `modes` only "
+            "with the default source function")
+
+    def dndp_of(d):
+        if flux_fn is not None:
+            return flux_fn(d, u10, cfg, weibull_k)
+        return number_flux_per_dp(d, u10, cfg, weibull_k, modes=modes)
+
     dp = diameter_grid(cfg)
-    dndp = number_flux_per_dp(dp, u10, cfg, weibull_k, modes=modes)
+    dndp = dndp_of(dp)
     rho = cfg["emission"]["dry_density_kg_m3"]
     # mass of one dry particle, kg, from a diameter in um
     m_p = (np.pi / 6.0) * (dp * 1e-6) ** 3 * rho
@@ -127,13 +158,13 @@ def mass_flux(u10, sst_c, cfg: dict, weibull_k: float | None = None,
     if bin_edges_um is not None:
         # Integrated on a grid of its own per bin rather than by slicing the
         # grid above, so a bin edge falling between grid points cannot lose or
-        # double-count a sliver. The sum over bins reproduces the total when the
-        # edges span the configured range, which main() checks.
+        # double-count a sliver. The sum over bins is then the same integral as
+        # `total` computed a second way whenever the edges span the configured
+        # range, which is an IDENTITY and is what `_earth_check` gates on.
         per_bin = []
         for lo, hi in zip(bin_edges_um[:-1], bin_edges_um[1:]):
             d_sub = np.logspace(np.log10(lo), np.log10(hi), 200)
-            i_sub = (number_flux_per_dp(d_sub, u10, cfg, weibull_k,
-                                        modes=modes)
+            i_sub = (dndp_of(d_sub)
                      * ((np.pi / 6.0) * (d_sub * 1e-6) ** 3 * rho).reshape(
                          (d_sub.size,) + (1,) * np.asarray(u10).ndim))
             per_bin.append(np.trapezoid(i_sub, d_sub, axis=0) * tw)
@@ -145,11 +176,11 @@ def monahan_number_flux_per_dp(dp_um, u10, cfg: dict,
                                weibull_k: float | None = None):
     """Monahan et al. (1986), in Grythe's harmonised equations A1 and A2.
 
-    Here only to be the second function in the Earth check. It is not used for
-    anything on this world, and the reason it exists is that an absolute
-    comparison against a published global production measures our wind
-    treatment; a ratio between two functions run through the same machinery
-    does not.
+    Here only for the Earth check. It is not used for anything on this world,
+    and the reason it exists is that Grythe's Table 2 prices this function
+    twice, over two different size ranges and with no temperature weight on
+    either row. That makes it the one function in the table this project can
+    compare against absolutely and in shape at the same time.
     """
     m = cfg["earth_check"]["monahan"]
     dp = np.asarray(dp_um, dtype=float)
@@ -166,49 +197,113 @@ def monahan_number_flux_per_dp(dp_um, u10, cfg: dict,
     return size.reshape(shape) * wind
 
 
-def _integrate_mass(flux_fn, cfg: dict, u10, k, modes=None) -> float:
-    """Tg per Earth year over the whole ocean, from a dF/dDp callable."""
-    e = cfg["earth_check"]
-    dp = diameter_grid(cfg)
-    dndp = flux_fn(dp, np.asarray(u10), cfg, k) if modes is None else \
-        number_flux_per_dp(dp, np.asarray(u10), cfg, k, modes=modes)
-    m_p = (np.pi / 6.0) * (dp * 1e-6) ** 3 * cfg["emission"]["dry_density_kg_m3"]
-    flux = float(np.trapezoid(dndp * m_p, dp))
-    return flux * e["ocean_area_m2"] * 365.25 * 86400.0 / 1e9
+def _pg_per_year(flux_kg_m2_s: float, cfg: dict) -> float:
+    """Ocean-wide production in Pg per Earth year, from a mean areal flux."""
+    return (flux_kg_m2_s * cfg["earth_check"]["ocean_area_m2"]
+            * 365.25 * 86400.0 / 1e12)
+
+
+def _arm(cfg: dict, u10, k, dp_um, modes=None, flux_fn=None):
+    """One Table 2 row, THROUGH THE SHIPPED INTEGRATOR. Pg/yr, and the identity.
+
+    `mass_flux` is the entry point `build_sea_salt.py` uses to make the field,
+    so this exercises the code that runs rather than a trapezoid written beside
+    it: the bin loop, the per-bin grid and the sliver handling are all in the
+    path. The row's own size range is passed as a single bin, because that is
+    how the integrator takes an interval that is not the configured one.
+
+    The temperature weight is divided back out because the Monahan rows of
+    Table 2 carry none. Dividing it out afterwards rather than switching it off
+    inside `mass_flux` keeps the integrator whole, and at one temperature the
+    weight is a scalar so the division is exact.
+
+    Returns the row's production, and separately the sum over the CONFIGURED
+    size bins of the same call, which is the same integral computed a second
+    way and is the identity `_earth_check` gates on.
+    """
+    sst = cfg["earth_check"]["sst_mean_c"]
+    tw, _ = temperature_weight(sst, cfg)
+    # One bin spanning the row's own range: `total` is always the configured
+    # 0.01-10 um integral, so the row's interval has to come through the bin
+    # path, which is also the path the field calculation uses.
+    _, row_bins, _ = mass_flux(u10, sst, cfg, k, bin_edges_um=list(dp_um),
+                               modes=modes, flux_fn=flux_fn)
+    row = row_bins[0]
+    _, per_bin, _ = mass_flux(u10, sst, cfg, k,
+                              bin_edges_um=cfg["size"]["bin_edges_um"],
+                              modes=modes, flux_fn=flux_fn)
+    total, _, _ = mass_flux(u10, sst, cfg, k, modes=modes, flux_fn=flux_fn)
+    identity = abs(float(np.sum(per_bin)) / float(total) - 1.0)
+    return _pg_per_year(float(row) / float(tw), cfg), identity
 
 
 def _earth_check(cfg: dict) -> bool:
-    """Two published functions through one machinery, against Grythe's Table 2.
+    """Monahan through the shipped integrator, against Grythe's Table 2.
 
-    The wind treatment is ours and cancels in the ratio, so what this tests is
-    the source functions and the mass integration. It fails loudly.
+    Three gates, and each has a right answer supplied by the source rather than
+    by this project. The ABSOLUTE production of both Monahan rows must land
+    inside the range published implementations of that function span, which is
+    the range Grythe attribute to the wind treatment and is the only absolute
+    statement this check's wind can support. The RATIO of the two rows must
+    reproduce theirs, and that one carries no wind at all because Monahan
+    factorises into a whitecap term and a size term, so it is the integrator and
+    the size grid that are under test. And the sum over the configured size bins
+    must reproduce the total from the same call, which is an identity.
+
+    G13T is reported and not gated: its Table 2 row carries the equation A7
+    temperature weight, applied cell by cell over a reanalysis, and this check
+    has one temperature. `aeolian/config/sea_salt.yaml` argues it.
     """
     e = cfg["earth_check"]
     k = cfg["subgrid_wind"]["weibull_shape"]
     u = e["ocean_mean_u10_m_s"]
-    target = e["grythe_table2_pg_per_year"]
+    table = e["grythe_table2"]
 
-    ours = {
-        "M86": _integrate_mass(monahan_number_flux_per_dp, cfg, u, k) / 1000.0,
-        "G13T": _integrate_mass(None, cfg, u, k, modes=(0, 1)) / 1000.0,
-    }
-    spume = _integrate_mass(None, cfg, u, k, modes=(2,)) / 1000.0
-    ratios = {n: ours[n] / target[n] for n in ours}
-    spread = abs(ratios["G13T"] - ratios["M86"]) / max(ratios.values())
-    ok = spread <= e["ratio_agreement"]
+    ours, identity = {}, {}
+    for name, row in table.items():
+        fn = monahan_number_flux_per_dp if name.startswith("M86") else None
+        # Equation 7 is compared without its spume mode; the Monahan form has
+        # no mode structure and takes none.
+        modes = None if fn else (0, 1)
+        ours[name], identity[name] = _arm(cfg, u, k, row["dp_um"],
+                                          modes=modes, flux_fn=fn)
 
-    print(f"Earth check: U10 = {u} m/s, Weibull k = {k}, no temperature weight")
+    band_lo, band_hi = e["absolute_pg_per_year_band"]
+    gated = [n for n, row in table.items() if row["gated"]]
+    absolute_ok = all(band_lo <= ours[n] <= band_hi for n in gated)
+
+    theirs_ratio = table["M86E"]["pg_per_year"] / table["M86"]["pg_per_year"]
+    our_ratio = ours["M86E"] / ours["M86"]
+    ratio_miss = abs(our_ratio / theirs_ratio - 1.0)
+    ratio_ok = ratio_miss <= e["size_range_ratio_tolerance"]
+
+    worst_identity = max(identity.values())
+    identity_ok = worst_identity <= e["bin_sum_identity_tolerance"]
+    ok = absolute_ok and ratio_ok and identity_ok
+
+    print(f"Earth check: U10 = {u} m/s, Weibull k = {k}, "
+          f"temperature weight divided out")
     print(f"  subgrid moment ratio p=3.5 {moment_ratio(3.5, k):.4f}  "
           f"p=3.41 {moment_ratio(3.41, k):.4f}  "
           f"p=1 {moment_ratio(1.0, k):.4f} (must be 1.0000)")
-    for n in ("M86", "G13T"):
-        print(f"  {n:5s} ours {ours[n]:6.2f} Pg/yr   Grythe Table 2 "
-              f"{target[n]:5.2f}   ratio {ratios[n]:.3f}")
-    print(f"  the two ratios agree to {spread*100:.1f}%, tolerance "
-          f"{e['ratio_agreement']*100:.0f}%   {'OK' if ok else 'FAIL'}")
-    print(f"  spume mode below Dp = {cfg['emission']['dp_max_um']} um adds "
-          f"{spume:.1f} Pg/yr and is excluded from the comparison, not from "
-          f"the model; see aeolian/config/sea_salt.yaml")
+    for name, row in table.items():
+        lo, hi = row["dp_um"]
+        tag = "gated" if row["gated"] else "REPORTED, not gated: its Table 2 " \
+                                          "row carries the A7 weight"
+        print(f"  {name:5s} Dp {lo:5.2f}-{hi:5.1f} um   ours {ours[name]:7.2f} "
+              f"Pg/yr   Grythe {row['pg_per_year']:5.2f}   "
+              f"ratio {ours[name] / row['pg_per_year']:6.3f}   {tag}")
+    print(f"  ABSOLUTE, the gated arms inside {band_lo}-{band_hi} Pg/yr, the "
+          f"range published implementations of Monahan span: "
+          f"{'OK' if absolute_ok else 'FAIL'}")
+    print(f"  SIZE RANGE, M86E/M86 ours {our_ratio:.4f} against Grythe's "
+          f"{theirs_ratio:.4f}, off by {ratio_miss*100:.2f}%, tolerance "
+          f"{e['size_range_ratio_tolerance']*100:.0f}%   "
+          f"{'OK' if ratio_ok else 'FAIL'}")
+    print(f"  IDENTITY, the configured bins summing to the total, worst "
+          f"{worst_identity:.2e}, tolerance "
+          f"{e['bin_sum_identity_tolerance']:.0e}   "
+          f"{'OK' if identity_ok else 'FAIL'}")
     return ok
 
 
