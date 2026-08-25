@@ -89,7 +89,7 @@ here at any price. That is a stronger statement than the budget's original one
 and it is reached by a different route: not "no cheap version exists" but "the
 mechanism needs an observation this world cannot have".
 
-## 2. Dust deposition reaches the soil and never reaches the cryosphere
+## 2. Dust deposition reaches neither the soil nor the cryosphere
 
 The aeolian component computes a deposition field. Its consumers, derived from
 `needs` in `config/pipeline.yaml`, are `surface_dust`, `dust_source_fields`,
@@ -98,26 +98,70 @@ reads it.** The coupling runs one way only: `build_dust.py` reads snow, at line
 839, purely as an emission suppressor.
 
 That omission is one-signed and this is the wrong world to have it on. Deposition
-over the band the glaciers are in, from `aeolian/analysis/dust_baseline.nc`,
-area-weighted over snow-covered land between 50 and 60 degrees:
+over the band the glaciers are in, area-weighted, re-measured 2026-08-24 on the
+current `aeolian/analysis/dust_baseline.nc` and the bootstrap climatology's own
+`snd` and `lsm`:
 
 | aeolian roughness end | global | land | land 50-60 deg | snow-covered 50-60 deg |
 | --- | ---: | ---: | ---: | ---: |
-| smooth (`aeolian_z0` 3.0e-6 m) | 234.6 | 404.8 | 111.8 | 111.1 |
-| central (1.0e-4 m) | 17.9 | 29.9 | 8.78 | 8.75 |
-| rough (1.0e-3 m) | 0.002 | 0.002 | 0.001 | 0.001 |
+| low | 39.50 | 67.41 | 19.38 | 19.56 |
+| central | 16.81 | 28.53 | 8.53 | 8.70 |
+| high | 3.76 | 6.32 | 1.97 | 2.05 |
 
-in g/m2 per Earth year. For scale, the terrestrial dust-on-snow literature works
-at end-of-season snowpack loads of about 1 to 5 g/m2 and finds broadband snow
-albedo reductions of roughly 0.03 to 0.08, with radiative forcings of tens of
-W/m2 during the melt season. **The central estimate here is above that range and
-the smooth end is twenty times above it.**
+in g/m2 per Earth year. The arms are the per-lithology roughness mosaic, one
+erodible-area weighted geometric mean per end, and the artifact records the
+roughness each ran at. An earlier table here read the same columns off the
+single-scalar arms, whose low end sat below the drag partition's own clamp; the
+central column is essentially unmoved and the low end fell by about six, so the
+bracket on this term is narrower than it was and does not reach zero at the rough
+end any more.
 
-The model has room to absorb it and no term to do so. From
-`run_b014469b8091/MOST_DIAG`, under `k25v`: fresh snow overall albedo 0.538, band
-1 fresh 0.745 to 0.752, band-1 aged minimum 0.4955 to 0.5006. So the snow albedo
-parameterisation already carries an aging range of roughly a quarter in band 1,
-driven by time since snowfall, with no dependence on what has landed on it.
+For scale, the terrestrial dust-on-snow literature works at end-of-season
+snowpack LOADS of about 1 to 5 g/m2 and finds broadband snow albedo reductions of
+roughly 0.03 to 0.08, with radiative forcings of tens of W/m2 during the melt
+season. **Every arm here is at or above that range in the units it reports.**
+
+**Those are not the same units, and that is the finding rather than a caveat.**
+The offline chain reports a FLUX in g/m2 per Earth year; the albedo response
+takes a surface-layer LOAD in g/m2. Converting one into the other needs a
+reservoir: dust accumulating in the layer the light sees, diluted by fresh
+snowfall, concentrated as melt removes the snow around it, and lost when the pack
+goes. That reservoir is the carrier this coupling needs, and nothing in the model
+holds it.
+
+**There is nowhere to receive it, at either end.** Checked against the code
+rather than assumed:
+
+- Land snow albedo, `landmod.f90`: `zalbsnow` interpolates linearly between
+  `albsmin` and `albsmax` on surface temperature over 263.16 K to `tmelt`, per
+  radiation band, then blends toward the background albedo by snow depth. Two
+  declared constants and a temperature ramp. There is no grain size, no snow age,
+  no impurity term and no argument slot for one.
+- Sea-ice albedo, `seamod.f90`: the same shape, `albicemn` to `albice` ramped by
+  `dicealbdt`. Snow on sea ice has no albedo distinct from the ice.
+- The model's snow state is one bulk depth `dsnowz` and one temperature
+  `dsnowt`. There is no layering, so there is no surface layer for a dust load to
+  live in, and no restart record that could carry one.
+- The offline glacier pass, `notes/glacier-rough-pass.md`, is a warmest-month
+  mean below freezing test at elevation. It has no albedo term and no melt energy
+  balance, so a darkening changes nothing in it.
+- The background albedo boundary field is the SNOW-FREE ground albedo, and
+  `landmod` blends away from it as snow deepens, so the term cannot be smuggled
+  in there either: it would wash out exactly where the snow is.
+
+So this is not a wiring gap. The quantity is of the right kind, unlike
+`world-hfsm`'s optical depths against a nutrient ledger, but it is a flux where
+the receiver would need a reservoir, and the reservoir, its restart record and
+the albedo function that would read it all have to be built. A peer at EMIC cost
+has built exactly that: `references/climber-x/src/smb/smb_params.f90` carries
+`lsnow_dust`, `w_snow_dust` and `dust_con_scale` as namelist switches, so this is
+a settled design elsewhere rather than an open one.
+
+The model has room to absorb it. From `run_b014469b8091/MOST_DIAG`, under `k25v`:
+fresh snow overall albedo 0.538, band 1 fresh 0.745 to 0.752, band-1 aged minimum
+0.4955 to 0.5006. So the snow albedo parameterisation already carries an aging
+range of roughly a quarter in band 1, driven by time since snowfall, with no
+dependence on what has landed on it.
 
 **Why it matters more here than the global mean suggests.** `docs/src/pipeline/state.md` section 5b's glacier
 result turns entirely on summer ablation -- "cooling buys brutal winters and
@@ -134,8 +178,14 @@ of magnitude in the table above. That bracket was understood as controlling
 emission and the direct radiative effect. It also controls a snow albedo term,
 and nothing had said so.
 
-**OPEN, as `dust-14`.** Nothing in the cryosphere reads the deposition field and
-the coupling still runs one way. Two later findings bear on the same snow albedo
+**OPEN, as `dust-14`, and it is a decision rather than a defect.** Nothing in the
+cryosphere reads the deposition field and the coupling still runs one way. What
+is now known is that closing it is not wiring: it costs a prognostic snow-dust
+reservoir, its restart record, an albedo function that reads it, and a rebuild of
+every binary. The soil end the finding's title contrasts it against is not
+connected either -- `pedology/scripts/phosphorus_budget.py` says in as many words
+that it does not read `dust_baseline.nc`, and `ANUT-3` owns that. Deposition
+currently reaches neither. Two later findings bear on the same snow albedo
 and neither supplies this term: `world-nfh` fixed the canopy masking applied over
 snow, and `world-e5p` made code 175 archive the albedo the radiation actually
 used. Both are about the albedo the model computes from what it knows; this

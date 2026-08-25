@@ -248,6 +248,19 @@ drag_partition:
 # temporal variance as well as subgrid spatial variance, because the climatology
 # is a 12-bin mean, which argues for a broader distribution than a purely
 # spatial one. k = 2 is the Rayleigh case.
+# WHAT THE FITTED SHAPE CANNOT CONTAIN. The shape is fitted to high-cadence
+# near-surface wind from a run, so it is the tail THE MODEL PRODUCES. A
+# nocturnal-inversion low-level jet -- the Bodele mechanism, a sharp nocturnal
+# inversion decoupling the surface and the jet above it mixing down after
+# sunrise -- lives in the lowest few hundred metres, and the model's lowest full
+# level sits near a hundred metres with the next near five hundred, so the
+# inversion and the jet core fall inside one layer. Sampling the model's wind
+# more often cannot recover a structure the model has no levels to form. The
+# consequence is ONE-SIGNED and it is a floor, not a bracket: basin emission is
+# understated wherever inversion jets would dominate it. Declared, not
+# parameterised, because a parameterisation fitted to nothing is precision
+# theatre; DUST-16, and notes/external-review-abl-obliquity-dust-carbon.md
+# point 1 carries the argument.
 subgrid_wind:
   weibull_shape: 2.0
   weibull_shape_bracket: [1.5, 3.0]

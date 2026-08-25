@@ -522,18 +522,26 @@ and no boundary field follows from this.
 
 Found while re-deriving the above, 2026-08-18. `aeolian/analysis/dust_baseline`
 was regenerated in `018ec97` with the subgrid wind shape fitted to the 32-sample
-snapshot climatology, which is `build_dust.py`'s DEFAULT gust source, rather than
+snapshot climatology, which was `build_dust.py`'s DEFAULT gust source, rather than
 to the 1,463 three-hourly samples DUST-5 measured and which have to be passed
 with `--gust-samples`. The shape went from 2.012 to 4.600, and emission with it
 from 14,029 to 350 Tg per Earth year: a factor of 40, and land-mean optical depth
 from 0.376 to 0.00524.
 
-Nothing warned. The high-cadence extract is still on disk, DUST-5's measurement
-is still the defensible one, and `aeolian/README.md` still describes the world
-the measurement produced. **Every dust number now on disk is the snapshot-fitted
-one**, including `analysis/dust_forcing.json`, `analysis/dust_surface_forcing.nc`
-and the prescribed-dust field DUST-11 would run with, which is 70x too thin. The
-fix is DUST-15: make the measured gust samples the dust step's default input
-and regenerate the chain, then everything below it; it is not DUST-12's to
-make,
-because DUST-12 is which dust, not how much.
+Nothing warned. Every dust number on disk was the snapshot-fitted one, including
+`analysis/dust_forcing.json`, `analysis/dust_surface_forcing.nc` and the
+prescribed-dust field DUST-11 would have run with, which was 70x too thin.
+
+**The fix was not a better default; it was refusing to have one.** DUST-15 asked
+for the measured samples to become the default, and a default is what failed
+here: an optional argument whose absence means do the wrong thing is
+`docs/src/practice/failure-modes.md` class 2, and moving which wrong thing it
+defaults to leaves the class intact. `build_dust.py` now refuses to run at all
+unless it is given `--gust-samples` or told in as many words to fit from the
+snapshot climatology, and it says in the refusal what the two answers differ by.
+The biased fit is still reachable, and only by asking for it.
+
+The chain below it was regenerated on the measured shape; the baseline artifact
+records the shape it used, the sample count and the file it came from, so the
+question "which wind tail is this number standing on" is answerable from the
+artifact rather than from a commit message.

@@ -10,6 +10,15 @@
 # closes that loop, and `aeolian/notes/in-model-dust.md` calls it the largest
 # mechanical one.
 #
+# SUPERSEDED IN ONE PLACE, and the subtree is what is right. The quadrature
+# below spaces its nodes evenly in probability over [0, 1] and scales the total
+# by 1/dustnq. `dustsrc` in the subtree spaces them evenly in SURVIVAL over
+# [0, S_t] and scales by S_t/dustnq, because the probability-space rule's
+# highest node is a ceiling that does not move with the threshold and returns
+# exactly zero wherever u*t clears it. world-494 replaced the same rule offline;
+# world-2lsg replaced it here. Read the subtree for the quadrature and this file
+# for everything else.
+#
 # THE STANDING DECISION IT IMPLEMENTS. The per-cell source map stays OUTSIDE the
 # model. Which ground can emit is a question about lithology, the lake solution
 # and the soil, and answering it needs the mesh export that the climate model has

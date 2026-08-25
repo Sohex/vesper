@@ -23,14 +23,42 @@ each config declares a bracket (dust 2000-5000 m) that spans the compression.
 Bodele mechanism -- a sharp nocturnal inversion decoupling the surface, the
 jet above it mixing down after sunrise -- is exactly what
 `washington2005-bodele-low-level-jet.pdf` (held) documents, and its vertical
-structure is decameters to a few hundred metres. Ten sigma layers cannot form
-it. The project's existing instrument for wind-tail problems, high-cadence
-gust sampling (DUST-5, DUST-15), measures the tail THE MODEL PRODUCES; it
-cannot recover a jet the model cannot represent. So basin deflation is
-understated one-sidedly wherever inversion jets would dominate emission, and
-shallower boundary layers at this gravity sharpen exactly that regime.
-DUST-16 declares the gap; the honest revisit is vertical resolution (L20 at
-T85 under loop D), not a parameterisation fitted to nothing.
+structure is decameters to a few hundred metres.
+
+*Measured against the model's own grid, 2026-08-24.* The bottom two sigma
+levels in the baseline climatology are 0.98282 and 0.92191. Through the
+hypsometric relation at this world's gravity and a 280 K near-surface
+temperature that is a lowest full level near 110 m and a second near 510 m, so
+the model carries two levels below a kilometre and ONE below half a kilometre.
+Both the inversion and the jet core would sit inside the single lowest layer,
+whose wind is that layer's mean. The obstacle is therefore not that the jet is
+weakly resolved; it is that the model has no interior to the layer the jet
+lives in.
+
+Gravity neither causes this nor relieves it. Sigma levels sit at heights
+proportional to the scale height, so at 1.31 g every level is about 24% lower
+in metres AND the nocturnal boundary layer compresses by the same factor; the
+count of levels inside it does not move. What this world's gravity does is
+concentrate the same surface cooling into less air, which strengthens the
+inversion and makes the regime more likely to matter, not more likely to be
+resolved.
+
+The project's existing instrument for wind-tail problems, high-cadence gust
+sampling (DUST-5, DUST-15), measures the tail THE MODEL PRODUCES; it cannot
+recover a jet the model cannot represent. So basin deflation is understated
+one-sidedly. It is a FLOOR rather than a bracket: no end of the declared
+roughness or vegetation brackets moves it, because the missing wind is absent
+from every arm.
+
+DUST-16 declares the gap; the honest revisit is vertical resolution, not a
+parameterisation fitted to nothing. What would settle whether L20 is that
+revisit is one number nobody here has: an L20 binary's own sigma array. Any
+level rule that doubles the count while keeping its shape roughly halves the
+near-surface layer thickness in log-sigma, which puts the lowest level
+somewhere in 30-60 m and the second somewhere in 130-250 m; that is a bracket
+and not a result, and reading the array off a built L20 executable replaces it.
+Even at the optimistic end it buys an interior to the jet layer rather than a
+resolved inversion.
 
 ## 2. The 50 m slab at 32 degrees obliquity and a half-length year
 
