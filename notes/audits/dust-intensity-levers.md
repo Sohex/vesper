@@ -162,6 +162,57 @@ convention at the smooth end ("a low surface roughness on the order of 0.001 cm
 is used to describe active dust sources") to the sand-desert boundary stepped
 down one order at the rough end. Neither end is a measurement of a clastic playa.
 
+### The criteria for re-sourcing that bracket, fixed before any measured value was read
+
+world-ugkw, declared 2026-08-25. What follows was written and committed before
+the roughness literature held in `references/` was opened, so that the bar is
+not the answer.
+
+The narrowing available is not a better single value for a clay plain. It is
+that `playa_clastic` is not a clay plain. Its derivation is geometric and its
+composition is measured in `notes/audits/orogen-lithology.md`: half the class
+sits above 83 per cent of its basin's relief, and on steepest descent it splits
+into a playa and mud-flat band, a sand-flat and distal-fan band, and an
+alluvial-fan and bajada band. So the question the sources have to answer is not
+"what is a clastic playa's z0" but "which measured surfaces is this class a
+mixture of, and in what proportion".
+
+1. **Every end of the replacement bracket is a z0 MEASURED over a named
+   surface.** What is being replaced is a modelling convention at the smooth end
+   and a sand-desert boundary stepped down one order at the rough end, so
+   neither a convention nor an order-of-magnitude step may reappear in the
+   replacement. A value that cannot be attributed to a site and a method does
+   not qualify.
+
+2. **The mixing weights are the steepest-descent band shares already measured**
+   in `notes/audits/orogen-lithology.md`, and the two builds' columns are the
+   weight bracket rather than a value to choose between. Those shares are a
+   statement about the class's COMPOSITION and survive the carve. The class
+   EXTENT does not survive it, and no step of this construction may use the
+   extent.
+
+3. **The combination is the erodible-area-weighted GEOMETRIC mean** already used
+   between classes in `aeolian/config/dust.yaml`, for the reason recorded there:
+   the drag goes as 1/ln(z/z0), so it is ln(z0) that averages. Within a class
+   and between classes are the same operation.
+
+4. **THE PREDICTION THAT CAN FAIL.** The gradient bands say a third to a half of
+   the class lies on sand-flat and fan gradients, and a gravel apron is rougher
+   than a sand sheet rather than smoother, which is the assumption the stepped-
+   down rough end contradicts. So the mix-derived HIGH end must come out ABOVE
+   the declared 1.0e-4 m. If it comes out at or below 1.0e-4 m, that prediction
+   is wrong: the argument from the gradient bands does not reach the roughness,
+   and it is recorded as having failed rather than reworded into a weaker claim.
+
+5. **Whatever the mix does to the emission bracket is adopted.** A replacement
+   that WIDENS the factor of 10.5 is the result and not a reason to keep the old
+   bracket, because the old bracket's ends are not measurements and the new
+   ones are. Physics is not a knob.
+
+6. **If the held sources carry no measured z0 for a mud flat or clay pan, the
+   bracket is not narrowed by argument.** The issue is reported blocked with the
+   paper named, and the declared bracket stands unchanged.
+
 ## 5. What the export's geometry can and cannot supply
 
 world-03x proposed building the within-class distribution from this project's
