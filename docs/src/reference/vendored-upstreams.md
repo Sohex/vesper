@@ -222,10 +222,33 @@ That is also why it is a subtree and not an extraction under `references/`.
 External source this project reads and will not edit is held there instead, and
 `references/INDEX.md` records which trees those are and why.
 
-**It does not build where it stands.** `genie-main/user.mak` sets
-`GENIE_ROOT = $(HOME)/cgenie.muffin` and `RUNTIME_ROOT = ../../cgenie.muffin`,
-so the tree expects to sit at `~/cgenie.muffin`. Repointing those is part of
-OCN-3's "whether it builds here" and is the first fork change anyone will make.
+**It does not build where it stands, and the reason is not the one this file
+used to give.** Three things are in the way and they are independent.
+
+`genie-main/user.mak` sets `GENIE_ROOT = $(HOME)/cgenie.muffin` and
+`RUNTIME_ROOT = ../../cgenie.muffin`, so the tree expects to sit at
+`~/cgenie.muffin`, and `NETCDF_DIR=/usr/local` where this host has netCDF at
+`/usr`. Overriding all three on the make line is enough to get past them.
+
+It needs the **netCDF FORTRAN bindings**, which are a separate package from the
+C ones and were absent here until 2026-08-25. Nothing else in this project
+noticed, because every other netCDF consumer goes through Python's `netCDF4`;
+`nf-config`, `libnetcdff` and `netcdf.mod` are what cGENIE wants and none of
+them ships with `netcdf`. With `netcdf-fortran` installed the build gets past
+every netCDF-dependent module.
+
+What is left is that **cGENIE compiles one executable per GRID, the same way
+ExoPlaSim does.** `genie_control.f90:60` and `:89` fix the atmosphere as
+`ilon1_atm = GENIENX, ilat1_atm = GENIENY` and the sea ice as
+`ilon1_sic = GOLDSTEINNLONS, ilat1_sic = GOLDSTEINNLATS`, all four cpp macros.
+A bare `make` defines none of them, so `genie.F`'s sea-ice accumulation of an
+atmosphere field fails to compile with shapes that are not conformable -- which
+reads like a source defect and is a missing configuration. The shipped configs
+under `genie-main/configs/` set the set consistently (18/18/18/18, eight ocean
+levels), and the build has to run THROUGH one: passing the macros on the make
+line does not reach the compile, because the makefile composes its own define
+line. That is CLAUDE.md rule 4's shape on a second model, and it is what OCN-3's
+"whether it builds here" actually has to settle.
 Run output goes to `OUT_DIR = $(HOME)/cgenie_output`, outside this repository,
 which is why the ignore rules here cover only objects, archives and the
 executable.
