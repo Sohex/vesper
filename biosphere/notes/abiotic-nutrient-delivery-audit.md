@@ -239,7 +239,7 @@ The CNP fork can limit plants by N and P only. Pedology already represents or
 routes material relevant to K, Ca, Mg, S and other solutes, while dust and ash
 can import those elements plus Fe and trace nutrients. None enters a plant
 availability pool. This does not justify immediately adding every element to
-LPJ-GUESS, but it does make “nutrient-limited biosphere” broader than the
+LPJ-GUESS, but it does make "nutrient-limited biosphere" broader than the
 implemented claim.
 
 ANUT-8's screen returns a critical runoff per element and per lithology, from
