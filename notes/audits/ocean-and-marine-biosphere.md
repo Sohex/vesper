@@ -1375,7 +1375,7 @@ albedo is worth about 0.002 -- so what is left is the SPATIAL variation and the
 interface it would need. Nothing here was benchmarked and no wall-clock number
 is offered; the price is what the change would ADD, structurally.
 
-### 12a. The band index already does nothing over open water
+### 13a. The band index already does nothing over open water
 
 `radmod.f90`'s upward loop overwrites the open-water part of both bands, and it
 writes the SAME expression into each. Under `necham = 1`, the default, both
@@ -1394,7 +1394,7 @@ the model has for a spatial one it does not. **The term has to land inside
 `radmod`'s own expression, not in `seamod`'s assignment**, and that is the
 interface cost's headline.
 
-### 12b. The staging half costs nothing, because the channel already exists
+### 13b. The staging half costs nothing, because the channel already exists
 
 The two-band per-cell surface albedo channel is built and complete, and the
 ocean is the only surface that reduces it to a scalar.
@@ -1415,7 +1415,7 @@ those two codes MEAN: today they are the background LAND albedo and
 `build_surface_albedo.py` owns them, and writing an ocean value into the ocean
 cells of the same file makes one artifact answer to two generators.
 
-### 12c. What a separate field would cost, and why the reuse question is not cosmetic
+### 13c. What a separate field would cost, and why the reuse question is not cosmetic
 
 The alternative -- declaring an ocean pair of its own -- is priced by the grid
 and the convention that a thread team's working set on one die targets 32 MB.
@@ -1434,7 +1434,7 @@ cheaper shape if the ocean albedo does not need a seasonal cycle -- which is a
 question about whether the field varies with anything seasonal, and OCN-14 owns
 that because the water-leaving part of it is pigment and particles.
 
-### 12d. What the arithmetic costs, which is the part that is genuinely small
+### 13d. What the arithmetic costs, which is the part that is genuinely small
 
 Per ocean cell per `radstep` per band, replacing the zenith expression with a
 field reference adds two streaming loads of eight bytes and removes one divide,
@@ -1449,7 +1449,7 @@ unit stride, adds no gather, no branch and no loop-carried dependency. The
 change is memory traffic and not control flow, which is why the interface
 question and not the arithmetic is where this row's cost lives.
 
-### 12e. What this pricing did NOT establish
+### 13e. What this pricing did NOT establish
 
 - **No optical bound is sourced here.** The row asks for one and the spectral
   half already answered the K-star reweighting at about 0.002; what a SPATIAL
