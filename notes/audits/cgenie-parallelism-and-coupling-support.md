@@ -706,12 +706,12 @@ and the surface velocity `goldstein.F:780-781` exports as `ustar_ocn` and
 These are intensive state variables, so the crossing is an interpolation and
 there is nothing to conserve. What it costs in fidelity is that the atmosphere
 receives a field with no structure below the ocean's cell size, while its own
-dynamics respond to gradients at its own. At an ocean with 5.6-degree longitudes
-against a T85 atmosphere at 1.4, every sea surface temperature gradient the
-atmosphere sees is a 5.6-degree gradient smeared over four cells: no fronts, no
-western boundary currents, and no straits at all, because `notes/audits/ocean-and-marine-biosphere.md`
-section 8b already records that straits and sills are not represented at these
-resolutions in the first place.
+dynamics respond to gradients at its own. At the recommended ocean's 5.0-degree
+longitudes against a T85 atmosphere's 1.41, every sea surface temperature gradient
+the atmosphere sees is a 5-degree gradient spread over three and a half cells: no
+fronts, no western boundary currents, and no straits at all, because
+`notes/audits/ocean-and-marine-biosphere.md` section 8b already records that
+straits and sills are not represented at these resolutions in the first place.
 
 Two rules follow, and both are about honesty rather than accuracy.
 
@@ -722,9 +722,9 @@ temptation to route a heat transport this way -- an extensive quantity dressed a
 a state -- is what the two words in `lib/gridding.py` exist to separate.
 
 **The support mismatch is declared, not smoothed.** An adequacy claim about the
-coupled system is a claim about a field carried across a factor of four in
-longitude at T85 and a factor of eight at T170, and the honest form of it names
-that factor. Section 5c of the cost note reaches the same place from the price
+coupled system is a claim about a field carried across a factor of about three
+and a half in longitude at T85 and about seven at T170, and the honest form of it
+names that factor. Section 5c of the cost note reaches the same place from the price
 side: a finer ocean is affordable and a matched one is not, so the mismatch is a
 fact to state rather than one to avoid.
 
