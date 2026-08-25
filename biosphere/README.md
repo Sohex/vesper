@@ -517,8 +517,12 @@ constant that has drifted from `global_soiln.ins`, on a literal no longer in
 allows anywhere in its declared domain, on a chain of factors whose product
 would take more nitrogen out of a pool than the pool holds, and on a chain
 declared to be held inside its pool by an explicit `min()` that the operator no
-longer contains. A dozen reduced fixtures run on every invocation, all but one
-built to be wrong in a named way.
+longer contains. It also fails on a declared divergence from mainline
+LPJ-GUESS whose mainline form the operator no longer records beside the changed
+one, or which the operator has gone back to running: both halves are checked, so
+the divergence can neither become a silent fork nor be silently reverted.
+Reduced fixtures run on every invocation, all but one built to be wrong in a
+named way.
 
 ```bash
 python biosphere/scripts/ntransform_gate.py            # status, exit 0
