@@ -237,15 +237,29 @@ def test_schema(donor: Path) -> list[str]:
     said.append(f"the schema predicts every one of {len(state.records)} record "
                 f"lengths in a {state.geometry.label} restart")
 
-    # Negative control: the length heuristic the schema replaces cannot tell an
-    # eight-byte real array from an integer array of twice the count.
-    ints = np.arange(state.geometry.nugp * 2, dtype="<i4").tobytes()
-    reals = np.zeros(state.geometry.nugp, dtype="<f8").tobytes()
-    _require(len(ints) == len(reals),
-             "the length-heuristic control is not set up: the two payloads "
-             "should be the same size")
-    said.append("negative control: an int32 array and a real8 array of the "
-                "same byte length are indistinguishable without the schema")
+    # NEGATIVE CONTROL, RUN ON THE DONOR RATHER THAN ASSERTED. The rule the
+    # schema replaces had only the byte count to go on; the schema reads the
+    # model's own `put_restart_*` call site. So the control is a byte length
+    # this donor actually uses for records written by more than one of those
+    # calls: a length rule must confuse them and the loop above has just shown
+    # the schema does not. It stood as `_require(len(ints) == len(reals))` over
+    # two payloads constructed on the spot -- an arithmetic identity with no
+    # heuristic run on either side, and no way to fail. world-60x0.
+    by_length: dict[int, set[str]] = {}
+    for rec in state.records:
+        writer = getattr(inventory.get(rec.name), "writer", None)
+        if writer:
+            by_length.setdefault(rec.nbytes, set()).add(writer)
+    ambiguous = {n: w for n, w in by_length.items() if len(w) > 1}
+    _require(bool(ambiguous),
+             "no byte length in this donor is shared by records with different "
+             "writers, so a length rule would get nothing wrong here and this "
+             "control says nothing about what the schema buys")
+    writers = sorted({w for ws in ambiguous.values() for w in ws})
+    said.append(f"negative control: {len(ambiguous)} byte length(s) in this "
+                f"donor are used by more than one of {', '.join(writers)}, so "
+                "a rule reading the count alone cannot type them and the "
+                "schema, which reads the writer, just did")
     return said
 
 
@@ -555,6 +569,23 @@ def test_end_to_end(tmp: Path, donor: Path) -> list[str]:
     _refuses(lambda: cv.check_compatible(src, src, inventory),
              "a template whose accumulation window is partial",
              naming="not at the value the model resets them to")
+    # THE EXPLICIT SEED, both ways. `cv.convert` was never called with
+    # `seed_override` by this file, so `--seed` and `--keep-template-seed` --
+    # the two options that decide what random state the target starts from --
+    # had no case at all, and the explicit branch had no length bar to match
+    # the donor branch's. world-60x0.
+    seed_name = next(n for n, pol in rs.POLICY.items()
+                     if pol.action == rs.SEED and n in clean.by_name)
+    right = clean.by_name[seed_name].payload
+    recs_seeded, _ = cv.convert(src, clean, seed_override=right)
+    got = next(r for r in recs_seeded if r.name == seed_name)
+    _require(got.payload == right,
+             f"an explicit seed did not reach the converted '{seed_name}'")
+    _refuses(lambda: cv.convert(src, clean, seed_override=right + b"\x00\x00\x00\x00"),
+             "a seed of the wrong width", naming="not a seed for this")
+    said.append(f"an explicit seed reaches '{seed_name}' unchanged, and one of "
+                "the wrong width is refused rather than written")
+
     said.append("refuses an unknown record, a template whose record set "
                 "differs, a template cut from a run mid-window, and an "
                 "overwrite it was not asked for")

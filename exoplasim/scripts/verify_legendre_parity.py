@@ -93,4 +93,8 @@ print(f"modes checked: {NCSP}   (NTRU={NTRU}, mu={mu})")
 print(f"P(-mu) == (-1)^(m+n) P(mu)   : {bad_p} violations, worst rel {worst_p:.2e}")
 print(f"Q(-mu) == -(-1)^(m+n) Q(mu)  : {bad_q} violations, worst rel {worst_q:.2e}")
 print()
-print("PASS" if bad_p == 0 and bad_q == 0 else "FAIL -- the parity premise does not hold")
+ok = bad_p == 0 and bad_q == 0
+print("PASS" if ok else "FAIL -- the parity premise does not hold")
+# THE EXIT CODE CARRIES THE VERDICT. It printed FAIL and exited 0, so a caller
+# in a script or a gate saw a pass on a premise that does not hold. world-60x0.
+raise SystemExit(0 if ok else 1)
