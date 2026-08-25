@@ -633,17 +633,27 @@ python pedology/scripts/outgassing_gate.py --strict  # refuse on any of it
 ```
 
 `config/outgassing.yaml` is the declaration. The requirement half carries no
-sentinels because it is computed; the supply half is sentinels throughout, and
-that is the finding. The supply currently rests on the planet's mass in Earth
-masses, an exponent of exactly 1 asserted in prose with no reference, and the
-gate refuses while the exponent is undeclared rather than deriving a margin from
-it. The acceptance floor is fixed in the declaration before any number is seen,
-and a floor at or below 1 is itself refused, because that is not a margin.
+sentinels because it is computed. The supply half is declared and external:
+WORLD-G60E supplied the mass-scaling exponent and the chain it claims, the
+per-kilometre boundary flux bracket, the four-way source partition with its own
+fluxes and brackets, the degassing efficiencies where a source separates them,
+and the delivery split between ocean and atmosphere. Each is a floor or a
+bracket rather than a best estimate, so a margin computed from it is a margin
+that survives the range. The acceptance floor is fixed in the declaration before
+any number is seen, and a floor at or below 1 is itself refused, because that is
+not a margin.
 
-Eleven fixtures ship with it: ten declarations built wrong in one named way each
-that must be refused by a named code, and one with every precondition met that
-must be granted. A gate nothing can satisfy refuses for a reason nobody wrote
-down.
+The gate refuses on two different kinds of defect. A field left undeclared is
+refused by name. So is a field that is declared and wrong: a bracket whose ends
+are the wrong way round, a value its own bracket does not contain, fractions
+that do not sum to 1, and fractions that disagree with the fluxes they were
+assembled from. That second kind is arithmetic, so it has a right answer and can
+be refused rather than reviewed.
+
+Seventeen fixtures ship with it: sixteen declarations built wrong in one named
+way each that must be refused by a named code, and one with every precondition
+met that must be granted. A gate nothing can satisfy refuses for a reason nobody
+wrote down.
 
 ### What CHOOSING a weathering scheme costs the same number
 

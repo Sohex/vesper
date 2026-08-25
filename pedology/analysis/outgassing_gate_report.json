@@ -1,50 +1,15 @@
 {
-  "generated": "2026-08-25T05:33:29.607497+00:00",
+  "generated": "2026-08-25T12:19:44.353490+00:00",
   "generator": "pedology/scripts/outgassing_gate.py",
   "declaration": "pedology/config/outgassing.yaml",
-  "declaration_sha256": "891c17782de7bef0903cf618ad0fd822140eb3fd2ed204bdac0c1c184a85b144",
-  "config_sha256": "ce1854d6cad365b923badb29127d34c51ff1d08afb52093324462745a5dbf5bc",
+  "declaration_sha256": "b8d91d55145e4ae2f654213f393436935ad6aa554392793f4e1335f831b318e2",
+  "config_sha256": "8096832f3d6d10fc61855ec5fd4187e09386710fe200df7c3d0e91b907df8a9a",
   "requested": false,
   "requirement_artifact": "pedology/analysis/weathering_fluxes.json",
   "requirement_artifact_present": false,
   "granted": false,
-  "verdict": "NOT SHOWN. The prescribed CO2 is not backed by a demonstrated outgassing rate, for 8 named reasons: OUTGASSING-UNDECLARED-SUPPLY-MASS-SCALING-EXPONENT; OUTGASSING-UNDECLARED-SUPPLY-MASS-SCALING-SOURCE; OUTGASSING-UNDECLARED-SUPPLY-PER-KM-SEGMENT-BRACKET; OUTGASSING-UNDECLARED-SUPPLY-PER-KM-SEGMENT-SOURCE; OUTGASSING-UNDECLARED-SUPPLY-SOURCE-PARTITION; OUTGASSING-UNDECLARED-SUPPLY-DEGASSING-EFFICIENCY; OUTGASSING-UNDECLARED-SUPPLY-ATMOSPHERE-VERSUS-OCEAN-SPLIT; OUTGASSING-REQUIREMENT-ARTIFACT-MISSING. It remains an assumption.",
+  "verdict": "NOT SHOWN. The prescribed CO2 is not backed by a demonstrated outgassing rate, for 1 named reasons: OUTGASSING-REQUIREMENT-ARTIFACT-MISSING. It remains an assumption.",
   "refusals": [
-    {
-      "code": "OUTGASSING-UNDECLARED-SUPPLY-MASS-SCALING-EXPONENT",
-      "detail": "the power of planet mass the outgassing supply estimate claims is undeclared",
-      "issue": "volc-8"
-    },
-    {
-      "code": "OUTGASSING-UNDECLARED-SUPPLY-MASS-SCALING-SOURCE",
-      "detail": "where that exponent comes from is undeclared",
-      "issue": "volc-8"
-    },
-    {
-      "code": "OUTGASSING-UNDECLARED-SUPPLY-PER-KM-SEGMENT-BRACKET",
-      "detail": "the per-kilometre boundary CO2 flux bracket, spanning the observed range is undeclared",
-      "issue": "volc-8"
-    },
-    {
-      "code": "OUTGASSING-UNDECLARED-SUPPLY-PER-KM-SEGMENT-SOURCE",
-      "detail": "where that bracket comes from is undeclared",
-      "issue": "volc-8"
-    },
-    {
-      "code": "OUTGASSING-UNDECLARED-SUPPLY-SOURCE-PARTITION",
-      "detail": "how the global requirement splits across ridge, arc, plume/rift and metamorphic is undeclared",
-      "issue": "volc-8"
-    },
-    {
-      "code": "OUTGASSING-UNDECLARED-SUPPLY-DEGASSING-EFFICIENCY",
-      "detail": "the mantle/slab carbon and degassing efficiencies behind that partition is undeclared",
-      "issue": "volc-8"
-    },
-    {
-      "code": "OUTGASSING-UNDECLARED-SUPPLY-ATMOSPHERE-VERSUS-OCEAN-SPLIT",
-      "detail": "which fraction reaches the atmosphere and which the ocean is undeclared",
-      "issue": "ocn-13"
-    },
     {
       "code": "OUTGASSING-REQUIREMENT-ARTIFACT-MISSING",
       "detail": "pedology/analysis/weathering_fluxes.json does not exist, so the required outgassing has no artifact behind it. config/planet.yaml already records that the check backing the prescribed CO2 is unbacked; this is that statement made refusable",
@@ -52,21 +17,14 @@
     }
   ],
   "required_over_earth": null,
-  "supply_over_earth": null,
+  "supply_over_earth": 1.881009,
   "margin": null,
   "fixtures": [
     {
       "fixture": "the declaration as it stands",
       "expected": "refused for some reason",
       "refusals": [
-        "OUTGASSING-REQUIREMENT-ARTIFACT-MISSING",
-        "OUTGASSING-UNDECLARED-SUPPLY-ATMOSPHERE-VERSUS-OCEAN-SPLIT",
-        "OUTGASSING-UNDECLARED-SUPPLY-DEGASSING-EFFICIENCY",
-        "OUTGASSING-UNDECLARED-SUPPLY-MASS-SCALING-EXPONENT",
-        "OUTGASSING-UNDECLARED-SUPPLY-MASS-SCALING-SOURCE",
-        "OUTGASSING-UNDECLARED-SUPPLY-PER-KM-SEGMENT-BRACKET",
-        "OUTGASSING-UNDECLARED-SUPPLY-PER-KM-SEGMENT-SOURCE",
-        "OUTGASSING-UNDECLARED-SUPPLY-SOURCE-PARTITION"
+        "OUTGASSING-REQUIREMENT-ARTIFACT-MISSING"
       ],
       "pass": true
     },
@@ -135,6 +93,56 @@
       "pass": true
     },
     {
+      "fixture": "a bracket whose low end is above its high end",
+      "expected": "OUTGASSING-BRACKET-DISORDERED",
+      "refusals": [
+        "OUTGASSING-BRACKET-DISORDERED"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a bracket that is not two numbers",
+      "expected": "OUTGASSING-BRACKET-NOT-A-PAIR",
+      "refusals": [
+        "OUTGASSING-BRACKET-NOT-A-PAIR"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "an exponent its own bracket does not contain",
+      "expected": "OUTGASSING-VALUE-OUTSIDE-ITS-BRACKET",
+      "refusals": [
+        "OUTGASSING-VALUE-OUTSIDE-ITS-BRACKET"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a partition that does not sum to 1",
+      "expected": "OUTGASSING-PARTITION-DOES-NOT-SUM",
+      "refusals": [
+        "OUTGASSING-PARTITION-DISAGREES-WITH-ITS-FLUXES",
+        "OUTGASSING-PARTITION-DOES-NOT-SUM"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a partition whose fractions are not the fluxes it quotes them from",
+      "expected": "OUTGASSING-PARTITION-DISAGREES-WITH-ITS-FLUXES",
+      "refusals": [
+        "OUTGASSING-PARTITION-DISAGREES-WITH-ITS-FLUXES",
+        "OUTGASSING-VALUE-OUTSIDE-ITS-BRACKET"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a partition that names three source classes and not four",
+      "expected": "OUTGASSING-PARTITION-CLASS-MISSING",
+      "refusals": [
+        "OUTGASSING-PARTITION-CLASS-MISSING"
+      ],
+      "pass": true
+    },
+    {
       "fixture": "a supply side claiming an absolute outgassing rate the terrain cannot give",
       "expected": "OUTGASSING-ABSOLUTE-RATE-CLAIMED",
       "refusals": [
@@ -149,5 +157,5 @@
       "pass": true
     }
   ],
-  "git_commit": "6045918f7a64dea2c9cbccca8911c32bfbc558ac"
+  "git_commit": "35b6ae9eaf6f361e754c5b8748a1dd11ecbc82f2"
 }

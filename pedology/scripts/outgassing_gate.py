@@ -62,6 +62,40 @@ PRECONDITIONS = (
      "which fraction reaches the atmosphere and which the ocean", "ocn-13"),
 )
 
+# The four source classes the partition has to name. A partition missing one is
+# not a partition of the same thing.
+PARTITION_CLASSES = ("ridge", "arc_recycled", "plume_rift", "metamorphic")
+
+# Every declared bracket, and the value it brackets where there is one. Written
+# out rather than discovered by key name: a check that guesses which keys are
+# brackets stops checking the moment someone names one differently, and stops
+# silently.
+BRACKETS = (
+    ("supply.mass_scaling_exponent",
+     ("supply", "mass_scaling_exponent"),
+     ("supply", "mass_scaling_exponent_bracket")),
+    ("supply.per_km_segment_bracket",
+     None,
+     ("supply", "per_km_segment_bracket")),
+    ("supply.atmosphere_versus_ocean_split.ocean_fraction",
+     ("supply", "atmosphere_versus_ocean_split", "ocean_fraction"),
+     ("supply", "atmosphere_versus_ocean_split", "ocean_fraction_bracket")),
+    ("supply.degassing_efficiency.arc_recycled.subducted_carbon_returned_to_surface",
+     None,
+     ("supply", "degassing_efficiency", "arc_recycled",
+      "subducted_carbon_returned_to_surface")),
+) + tuple(
+    (f"supply.source_partition.{cls}.flux_mol_per_year",
+     ("supply", "source_partition", cls, "flux_mol_per_year"),
+     ("supply", "source_partition", cls, "bracket_mol_per_year"))
+    for cls in PARTITION_CLASSES
+)
+
+# How far a fraction may sit from the flux it claims to be a fraction of, and how
+# far the fractions may sit from summing to 1. Both are rounding room for values
+# quoted to three decimal places, fixed here before any declaration was checked.
+PARTITION_TOLERANCE = 1e-3
+
 
 class Refusal:
     """One named reason the claim is refused.
@@ -143,6 +177,106 @@ def margin(requirement: dict | None, declaration: dict, planet: dict) -> dict:
     return out
 
 
+def _dig(declaration: dict, path: tuple[str, ...]):
+    """Follow a key path, returning the sentinel rather than raising."""
+    node = declaration
+    for key in path:
+        if not isinstance(node, dict) or key not in node:
+            return UNDECLARED
+        node = node[key]
+    return node
+
+
+def check_supply_arithmetic(declaration: dict) -> list[Refusal]:
+    """Is the declared supply side self-consistent?
+
+    Declaring a bracket and declaring a partition are the two places this file
+    can be wrong WITHOUT being undeclared, which is the failure the undeclared
+    checks above cannot see. A bracket whose ends are the wrong way round, a
+    value outside the bracket that is supposed to contain it, and fractions that
+    do not sum to 1 or do not match the fluxes they are quoted from are all
+    arithmetic, so each has a right answer and can be refused rather than
+    reviewed.
+
+    Nothing here fires on an undeclared field: that is already refused by name,
+    and refusing it twice would say the same thing in two voices.
+    """
+    refusals: list[Refusal] = []
+
+    for label, value_path, bracket_path in BRACKETS:
+        bracket = _dig(declaration, bracket_path)
+        if not _declared(bracket):
+            continue
+        if (not isinstance(bracket, (list, tuple)) or len(bracket) != 2
+                or not all(isinstance(x, (int, float)) for x in bracket)):
+            refusals.append(Refusal(
+                "OUTGASSING-BRACKET-NOT-A-PAIR",
+                f"{label} is bracketed by {bracket!r}, which is not two numbers",
+                "volc-8"))
+            continue
+        low, high = float(bracket[0]), float(bracket[1])
+        if not low <= high:
+            refusals.append(Refusal(
+                "OUTGASSING-BRACKET-DISORDERED",
+                f"{label} is bracketed [{low}, {high}], whose low end is above "
+                f"its high end", "volc-8"))
+            continue
+        if value_path is None:
+            continue
+        value = _dig(declaration, value_path)
+        if not isinstance(value, (int, float)):
+            continue
+        if not low <= float(value) <= high:
+            refusals.append(Refusal(
+                "OUTGASSING-VALUE-OUTSIDE-ITS-BRACKET",
+                f"{label} is {value} and its own bracket is [{low}, {high}]. A "
+                f"value its bracket does not contain is one of the two, not both",
+                "volc-8"))
+
+    partition = _dig(declaration, ("supply", "source_partition"))
+    if not _declared(partition):
+        return refusals
+    if not isinstance(partition, dict):
+        refusals.append(Refusal(
+            "OUTGASSING-PARTITION-NOT-A-PARTITION",
+            f"supply.source_partition is {type(partition).__name__}, not a "
+            f"mapping of source class to fraction", "volc-8"))
+        return refusals
+
+    missing = [c for c in PARTITION_CLASSES
+               if not isinstance(partition.get(c), dict)
+               or not isinstance(partition[c].get("fraction"), (int, float))]
+    if missing:
+        refusals.append(Refusal(
+            "OUTGASSING-PARTITION-CLASS-MISSING",
+            f"supply.source_partition names no fraction for "
+            f"{', '.join(missing)}, so it partitions something other than the "
+            f"four declared source classes", "volc-8"))
+        return refusals
+
+    fractions = {c: float(partition[c]["fraction"]) for c in PARTITION_CLASSES}
+    total = sum(fractions.values())
+    if abs(total - 1.0) > PARTITION_TOLERANCE:
+        refusals.append(Refusal(
+            "OUTGASSING-PARTITION-DOES-NOT-SUM",
+            f"the four source fractions sum to {total:.4f}, not 1", "volc-8"))
+
+    fluxes = {c: partition[c].get("flux_mol_per_year") for c in PARTITION_CLASSES}
+    if all(isinstance(v, (int, float)) and v > 0 for v in fluxes.values()):
+        flux_total = sum(float(v) for v in fluxes.values())
+        for c in PARTITION_CLASSES:
+            implied = float(fluxes[c]) / flux_total
+            if abs(implied - fractions[c]) > PARTITION_TOLERANCE:
+                refusals.append(Refusal(
+                    "OUTGASSING-PARTITION-DISAGREES-WITH-ITS-FLUXES",
+                    f"source class {c} is declared at fraction {fractions[c]} "
+                    f"while its own flux is {implied:.4f} of the declared total. "
+                    f"A partition assembled from fluxes has to be the fluxes",
+                    "volc-8"))
+
+    return refusals
+
+
 def evaluate(declaration: dict, planet: dict, requirement: dict | None,
              requirement_path: Path) -> list[Refusal]:
     refusals: list[Refusal] = []
@@ -152,6 +286,8 @@ def evaluate(declaration: dict, planet: dict, requirement: dict | None,
             refusals.append(Refusal(
                 f"OUTGASSING-UNDECLARED-{section.upper()}-{field.upper().replace('_', '-')}",
                 f"{what} is undeclared", issue))
+
+    refusals.extend(check_supply_arithmetic(declaration))
 
     acceptance = declaration.get("acceptance") or {}
     floor = acceptance.get("minimum_margin")
@@ -263,6 +399,21 @@ def _satisfied(declaration: dict) -> dict:
     for section, field, _what, _issue in PRECONDITIONS:
         d.setdefault(section, {})[field] = "declared, for the fixture"
     d.setdefault("supply", {})["mass_scaling_exponent"] = 1.0
+    # The arithmetic checks need shapes rather than sentinels, so the fixture
+    # supplies the plainest self-consistent ones there are: an equal four-way
+    # split of four equal fluxes, and brackets that are one point wide. These are
+    # placeholders in the same sense as the strings above and are not estimates.
+    d["supply"]["source_partition"] = {
+        cls: {"fraction": 0.25, "flux_mol_per_year": 1.0e+12,
+              "bracket_mol_per_year": [1.0e+12, 1.0e+12]}
+        for cls in PARTITION_CLASSES
+    }
+    d["supply"]["mass_scaling_exponent_bracket"] = [1.0, 1.0]
+    d["supply"]["per_km_segment_bracket"] = [1.0, 1.0]
+    d["supply"]["atmosphere_versus_ocean_split"] = {
+        "ocean_fraction": 0.25, "ocean_fraction_bracket": [0.25, 0.25]}
+    d["supply"]["degassing_efficiency"] = {
+        "arc_recycled": {"subducted_carbon_returned_to_surface": [0.0, 1.0]}}
     d.setdefault("acceptance", {})["minimum_margin"] = 1.5
     d.setdefault("premises_the_terrain_cannot_supply", {})["claims_an_absolute_rate"] = False
     return d
@@ -322,6 +473,34 @@ def _fixtures(declaration: dict, planet: dict) -> list[dict]:
         ("an artifact that carries no requirement at all",
          good, {"source_build": planet.get("source_build")},
          "OUTGASSING-REQUIREMENT-NOT-IN-ARTIFACT"),
+        # The arithmetic the declaration can get wrong while still being fully
+        # declared. Each of these passes every undeclared check.
+        ("a bracket whose low end is above its high end",
+         mutate(good, "supply", "per_km_segment_bracket", [4.74e+08, 1.52e+06]), ok_req,
+         "OUTGASSING-BRACKET-DISORDERED"),
+        ("a bracket that is not two numbers",
+         mutate(good, "supply", "per_km_segment_bracket", "a hundredfold"), ok_req,
+         "OUTGASSING-BRACKET-NOT-A-PAIR"),
+        ("an exponent its own bracket does not contain",
+         mutate(good, "supply", "mass_scaling_exponent_bracket", [1.1, 1.34]), ok_req,
+         "OUTGASSING-VALUE-OUTSIDE-ITS-BRACKET"),
+        ("a partition that does not sum to 1",
+         mutate(good, "supply", "source_partition",
+                {**good["supply"]["source_partition"],
+                 "ridge": {**good["supply"]["source_partition"]["ridge"],
+                           "fraction": 0.40}}), ok_req,
+         "OUTGASSING-PARTITION-DOES-NOT-SUM"),
+        ("a partition whose fractions are not the fluxes it quotes them from",
+         mutate(good, "supply", "source_partition",
+                {**good["supply"]["source_partition"],
+                 "ridge": {**good["supply"]["source_partition"]["ridge"],
+                           "flux_mol_per_year": 4.0e+12}}), ok_req,
+         "OUTGASSING-PARTITION-DISAGREES-WITH-ITS-FLUXES"),
+        ("a partition that names three source classes and not four",
+         mutate(good, "supply", "source_partition",
+                {k: v for k, v in good["supply"]["source_partition"].items()
+                 if k != "metamorphic"}), ok_req,
+         "OUTGASSING-PARTITION-CLASS-MISSING"),
         ("a supply side claiming an absolute outgassing rate the terrain cannot give",
          mutate(good, "premises_the_terrain_cannot_supply", "claims_an_absolute_rate", True),
          ok_req, "OUTGASSING-ABSOLUTE-RATE-CLAIMED"),
