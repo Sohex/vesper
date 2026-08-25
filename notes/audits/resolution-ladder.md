@@ -239,7 +239,15 @@ multiple of the convergence window, not a fresh spin-up.
 
 **And the two arms are not at the same equilibrium.** `compare_equilibria.py`,
 whose criterion was fixed before either arm ran, against the runs' own
-ten-orbit scatter:
+ten-orbit scatter. **The bounds in this table are the ones the script reported
+at the time, and they are too tight.** It took the standard error of a window
+mean from the orbit-to-orbit scatter over the root of the count, which assumes
+the orbits are independent samples; measured 2026-08-25 on an 85-orbit T21 pair
+the lag-1 autocorrelation of a difference series is 0.615, which understates the
+error by about a factor of two, and that factor is itself a floor because it was
+taken on a span that is still approaching. Read every bound below as at least
+twice what is printed and every sigma as at most half. What that does to each
+row is set out under the table.
 
 | metric | A | B | B - A | bound | sigma |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -252,6 +260,23 @@ ten-orbit scatter:
 It does not close with time. Checked at 22, 35, 45 and 47 orbits the surface
 offset sits at +0.100, +0.111, +0.096 and +0.106 K, and the two TOA terms hold
 near +2.5 and -2.5 throughout. A run still relaxing narrows; this does not.
+
+**Which rows survive the correction, and which do not.** Halving every sigma
+above leaves the two TOA terms at about 16 and 13 sigma, so the cloud-state
+conclusion below stands with room to spare and does not depend on the error bar
+being right to better than an order of magnitude. The three surface rows land
+near 2.5, 2.2 and 3.5, which clears two sigma but no longer with margin. And
+the model's own non-overlapping 20-orbit means of one T21 run move by 0.21 K,
+which is larger than the +0.106 K surface offset this table calls decisive --
+so the surface temperature and 2 m temperature rows are NOT established against
+the model's low-frequency variability, whatever their nominal sigma. The
+persistence across 22, 35, 45 and 47 orbits is the stronger evidence for them,
+and it is evidence of a different kind: four checks on the same pair of runs
+are not four independent tests.
+
+`exoplasim/notes/convergence-lengths.md` carries the measurement and the
+arithmetic. Re-taking this comparison with the corrected instrument needs both
+arms on disk and is world-yyx8; nothing here is restated from a rerun.
 
 **The two shortwave and longwave terms cancel.** Net TOA differs by about 0.01
 W/m2, so both arms are in energy balance -- they are balanced at DIFFERENT
