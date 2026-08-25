@@ -245,6 +245,93 @@ def perf_profile(outdir: Path, log: Path, period: int) -> dict:
     return out
 
 
+# The classification the note's section 0 fixed before any profile was taken.
+# A routine is PARALLEL when its loop nest runs over the grid indices and every
+# loop-carried dependence in it is a face flux the previous cell already
+# computed, recoverable by recomputing one row, column or level per thread, with
+# no global reduction other than a sum or a maximum. It is SERIAL when it carries
+# a dependence over the whole domain that no such recomputation removes. LEAF is
+# a pure routine called from inside one of the parallel nests, which inherits the
+# caller's classification and needs nothing of its own. Anything absent from this
+# table is UNCLASSIFIED and counts against the parallel fraction, never for it.
+CLASSIFICATION = {
+    # ocean
+    "tstepo_flux_": ("parallel", "k,j,i,l nest; fw/fs/fb carry a face flux forward, recoverable by recomputing one row per thread; limps and dmax are a count and a max"),
+    "tstepo_": ("parallel", "copies and boundary loops over the grid; the six ts_t1/ts1_t1/rho_t1/... copies serve commented-out code"),
+    "co_": ("parallel", "convective adjustment, a vertical algorithm inside each (i,j)"),
+    "krausturner_": ("parallel", "mixed-layer deepening, one column at a time"),
+    "velc_": ("parallel", "vertical integration inside each (i,j)"),
+    "jbar_": ("parallel", "pressure integral down each column"),
+    "wind_": ("parallel", "stress interpolation per cell"),
+    "get_hosing_": ("parallel", "per-cell freshwater forcing"),
+    "eos_": ("leaf", "pure, no locals, called from the tracer and convection nests"),
+    "eosd_": ("leaf", "pure, called once per wet cell from tstepo_flux"),
+    "ediff_": ("leaf", "per-cell diffusivity"),
+    "goldstein_": ("parallel", "the driver's own (i,j,k) loops: flux assembly, island superposition, boundary copies"),
+    "ubarsolv_": ("serial", "banded triangular solve; the forward elimination and back substitution both carry a dependence along the band and no recomputation removes it"),
+    "invert_": ("serial", "the one-off LU factorisation behind ubarsolv, at initialisation only"),
+    "island_": ("serial", "a path integral accumulated around each island boundary"),
+    "matinv_gold_": ("serial", "the isles x isles island system"),
+    # atmosphere (EMBM)
+    "tstipa_": ("parallel", "Jacobi iteration: tq2 holds the whole previous iterate, so each sweep is data-parallel over cells with a barrier between sweeps"),
+    "tstepa_": ("parallel", "the two-dimensional form of tstepo_flux's flux recycling"),
+    "surflux_": ("parallel", "one (i,j) loop carrying the sea-ice surface Newton iteration and the land column"),
+    "embm_": ("parallel", "the driver's own per-cell loops"),
+    "radfor_": ("parallel", "per-latitude insolation"),
+    "ocean_alb_": ("leaf", "per-cell albedo"),
+    # sea ice
+    "tstepsic_": ("parallel", "the same flux recycling on the ice fields"),
+    "tstipsic_": ("parallel", "the same Jacobi iteration on the ice fields"),
+    "gold_seaice_": ("parallel", "the driver's own per-cell loops"),
+}
+
+# libm leaves called from inside the per-cell nests. They are pure and reentrant.
+_LIBM_LEAF = {"pow", "log", "exp", "sqrt", "log10", "atan2", "__ieee754_pow_fma",
+              "pow@plt", "log@plt", "exp@plt"}
+# The heap traffic tstepo_flux's array-section argument creates, one allocation
+# per wet cell per timestep. It is not a decomposition question: it is work that
+# should not exist. Counted apart so it never flatters either fraction.
+_HEAP = {"malloc", "cfree", "free", "malloc@plt", "free@plt", "memcpy@plt",
+         "memset@plt", "memmove", "__libc_malloc"}
+
+
+def classify(rows: list[dict]) -> dict:
+    """Split the profile into what a thread team could divide and what it could not."""
+    buckets = {"parallel": 0.0, "serial": 0.0, "heap": 0.0, "unclassified": 0.0}
+    for row in rows:
+        sym = row["symbol"]
+        kind, why = CLASSIFICATION.get(sym, (None, None))
+        if kind in ("parallel", "leaf"):
+            bucket = "parallel"
+        elif kind == "serial":
+            bucket = "serial"
+        elif sym in _LIBM_LEAF:
+            bucket, why = "parallel", "pure libm leaf of a per-cell nest"
+        elif sym in _HEAP or row.get("dso") == "libc.so.6":
+            bucket, why = "heap", "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        else:
+            bucket, why = "unclassified", "not in the table; counted against the parallel fraction"
+        row["decomposition"] = bucket
+        if why:
+            row["decomposition_reason"] = why
+        buckets[bucket] += row["percent"]
+    out = {"shares_percent": {k: round(v, 3) for k, v in buckets.items()}}
+    # Amdahl, with the heap and the unclassified counted on the SERIAL side, which
+    # is the pessimistic reading and the one a budget should be built on.
+    p = buckets["parallel"] / 100.0
+    s = 1.0 - p
+    out["parallel_fraction"] = round(p, 4)
+    out["amdahl_bound"] = {str(n): round(1.0 / (s + p / n), 2)
+                           for n in (2, 4, 8, 16, 32)}
+    # And the optimistic reading, where only the genuine recurrence is serial.
+    p2 = (buckets["parallel"] + buckets["heap"]) / 100.0
+    s2 = 1.0 - p2
+    out["parallel_fraction_if_heap_removed"] = round(p2, 4)
+    out["amdahl_bound_if_heap_removed"] = {str(n): round(1.0 / (s2 + p2 / n), 2)
+                                           for n in (2, 4, 8, 16, 32)}
+    return out
+
+
 def annotate(rows: list[dict], index: dict[str, dict]) -> list[dict]:
     for row in rows:
         key = row["symbol"].lower().rstrip("_")
@@ -338,6 +425,12 @@ def main() -> int:
     ap.add_argument("--biogem", action="store_true",
                     help="profile the shipped BIOGEM regression case as well")
     ap.add_argument("--only-biogem", action="store_true")
+    ap.add_argument("--tag", default="",
+                    help="suffix for the case key, so an arm at a different run"
+                         " length lands beside the others instead of replacing them")
+    ap.add_argument("--reclassify", action="store_true",
+                    help="re-apply the decomposition table to an existing artifact"
+                         " without running anything")
     ap.add_argument("--logdir", type=Path,
                     default=Path.home() / "cgenie_log" / "profile")
     ap.add_argument("--reuse-builds", action="store_true")
@@ -346,6 +439,22 @@ def main() -> int:
     args = ap.parse_args()
 
     retarget()
+    if args.reclassify:
+        results = json.loads(args.out.read_text())
+        index = symbol_index()
+        for name, rec in results.get("cases", {}).items():
+            if rec.get("symbols"):
+                annotate(rec["symbols"], index)
+                rec["decomposition"] = classify(rec["symbols"])
+        args.out.write_text(json.dumps(results, indent=2) + "\n")
+        for name, rec in results.get("cases", {}).items():
+            dec = rec.get("decomposition")
+            if dec:
+                print(f"== {name} ({rec.get('grid')}) samples={rec.get('samples')}")
+                print("   shares:", dec["shares_percent"])
+                print("   Amdahl:", dec["amdahl_bound"])
+                print("   Amdahl if heap removed:", dec["amdahl_bound_if_heap_removed"])
+        return 0
     args.logdir.mkdir(parents=True, exist_ok=True)
     OUT_ROOT.mkdir(parents=True, exist_ok=True)
     cc.build_probe72_inputs()
@@ -381,8 +490,9 @@ def main() -> int:
                     by_comp[row["component"]] = by_comp.get(row["component"], 0.0) + row["percent"]
                 rec["by_component"] = dict(sorted(by_comp.items(),
                                                   key=lambda kv: -kv[1]))
+                rec["decomposition"] = classify(rec["symbols"])
         rec["grid"] = f"{case['nlons']}x{case['nlats']}x{case['nlevs']}"
-        results["cases"][name] = rec
+        results["cases"][name + args.tag] = rec
 
     if args.biogem or args.only_biogem:
         rec = profile_biogem(args, args.logdir)
@@ -392,7 +502,8 @@ def main() -> int:
             for row in rec["symbols"]:
                 by_comp[row["component"]] = by_comp.get(row["component"], 0.0) + row["percent"]
             rec["by_component"] = dict(sorted(by_comp.items(), key=lambda kv: -kv[1]))
-        results["cases"]["eb_go_gs_ac_bg_36x36x8"] = rec
+            rec["decomposition"] = classify(rec["symbols"])
+        results["cases"]["eb_go_gs_ac_bg_36x36x8" + args.tag] = rec
 
     args.out.write_text(json.dumps(results, indent=2, sort_keys=False) + "\n")
     print(f"wrote {args.out}")
@@ -400,8 +511,16 @@ def main() -> int:
         print(f"\n== {name} ({rec.get('grid')})  samples={rec.get('samples')}")
         if rec.get("error"):
             print("   ERROR:", rec["error"])
+        if rec.get("throttled"):
+            print("   THROTTLED:", rec["throttled"])
         for row in (rec.get("symbols") or [])[:15]:
-            print(f"   {row['percent']:6.2f}%  {row['symbol']:<24} {row.get('component','')}")
+            print(f"   {row['percent']:6.2f}%  {row['symbol']:<24} "
+                  f"{row.get('decomposition',''):<14} {row.get('component','')}")
+        dec = rec.get("decomposition")
+        if dec:
+            print("   shares:", dec["shares_percent"])
+            print("   Amdahl:", dec["amdahl_bound"],
+                  " if heap removed:", dec["amdahl_bound_if_heap_removed"])
     return 0
 
 

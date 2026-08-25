@@ -74,9 +74,194 @@ to be, and what it would buy.
 
 ---
 
-# 2. Where the instructions actually go
+# 2. The instrument, and two ways it lies
 
-Placeholder: filled from `analysis/cgenie_profile.json`.
+Both are recorded before the numbers, because both were found by checking the
+instrument against the size of the effect and both would have produced
+ordinary-looking answers.
+
+## 2a. The kernel throttles the sampler and does not say so
+
+`perf record -e instructions -c <period>` takes one sample per `period` retired
+instructions, which is what makes the shares a property of the binary and its
+input rather than of what else this contended host is doing. But
+`kernel.perf_event_max_sample_rate` is **3000 samples per second** here, and
+above it the kernel stops delivering samples for the rest of the window and
+resumes afterwards. `perf report` still says `Total Lost Samples: 0`, because no
+record was lost. What is lost is the assumption the profile rests on -- that
+every retired instruction is equally likely to be sampled.
+
+Measured: at a period of 2e7 the shipped grid asks for about 750 samples per
+second and delivers exactly the number the period demands, 1409 for 28.18e9
+instructions. At 2e6 the same run asks for about 7500 and delivered **7133 of
+the 14090 the period demands**, and the per-symbol shares moved by up to a factor
+of 1.6 -- eight standard errors on the counts involved. So the tighter sampling
+was not a better measurement of the same thing. It was a measurement of a
+different, throttled process.
+
+**More samples come from a longer run at a period the kernel will honour, never
+from a shorter period.** `analysis/cgenie_profile.py:sample_rate_ok` now computes
+the rate a period asks for, compares it with the cap, and stamps a `throttled`
+line in the artifact when it is over. Every number below is from a period of 2e7,
+under the cap, over 100 model years.
+
+## 2b. The profile is a function of the model state, and a short run is a
+transient
+
+The same binary and the same input, profiled over the first 10 model years and
+over the first 100, do not give the same profile:
+
+| routine | first 10 years | first 100 years |
+| --- | ---: | ---: |
+| `tstepo_flux` | 44.1% | 53.3% |
+| `co` | 6.3% | 3.3% |
+| `eos` | 2.9% | 1.4% |
+| `eosd` | 3.2% | 2.0% |
+| `ubarsolv` | 2.1% | 1.8% |
+
+Every one of those moves in the direction a cold start predicts. The run begins
+from a uniform 10 degree ocean, so convective adjustment and the equation-of-state
+calls inside it are doing their heaviest work at the start and fall away as the
+model stratifies; and `tstepo_flux`'s isoneutral diffusion branch is entered only
+where `dzrho < -1e-12`, so it turns ON as stratification develops. A profile of
+the first ten years of a spin-up is therefore a profile of a transient, and a
+spin-up runs for thousands of years in the OTHER state.
+
+This matters to the verdict only in the direction that makes it safer: the serial
+share falls with integration length and the parallel share rises. It is recorded
+because the difference between the two run lengths at one grid is LARGER than the
+difference between the two grids, and a reader comparing grids across run lengths
+would be comparing states.
+
+---
+
+# 2c. Where the instructions actually go
+
+100 model years, `nyear = 100`, GOLDSTEIN's `debug_loop` off, both grids compiled
+`-mcmodel=medium` so they differ only in the grid. 15,121 samples at the shipped
+grid and 68,236 at the doubled one; the sampled totals, 302.4 G and 1364.7 G
+instructions, agree with the cost note's independently fitted per-year slopes to
+1 and 1 per cent, which is the check that the sampler saw the whole run.
+
+| routine | what it is | 36 x 36 x 16 | 72 x 72 x 16 | divides? |
+| --- | --- | ---: | ---: | --- |
+| `tstepo_flux` | ocean tracer advection and diffusion | 53.28% | 46.60% | yes |
+| `tstipa` | EMBM's implicit temperature and humidity step | 8.48% | 14.41% | yes |
+| `velc` | ocean velocity from the density field | 6.20% | 5.55% | yes |
+| `co` | convective adjustment | 3.31% | 2.82% | yes |
+| `goldstein` | the ocean driver's own per-cell loops | 3.06% | 3.02% | yes |
+| `surflux` | EMBM's surface fluxes and the sea-ice surface solve | 2.49% | 2.82% | yes |
+| `eosd` | vertical density gradient, called per wet cell | 1.96% | 3.92% | leaf |
+| `eos` | density, called per wet cell | 1.41% | 1.75% | leaf |
+| **`ubarsolv`** | **the barotropic streamfunction solve** | **1.83%** | **2.57%** | **no** |
+| `embm` | the EMBM driver's own per-cell loops | 1.55% | 2.66% | yes |
+| `jbar` | pressure torque, integrated down each column | 1.50% | 0.97% | yes |
+| `tstepo` | the tracer step's wrapper, and its dead array copies | 0.56% | 0.38% | yes |
+| `tstepsic` | sea-ice transport | 0.56% | 0.53% | yes |
+| libm `pow`, `log`, `exp` | leaves of the per-cell nests | 3.91% | 3.44% | leaf |
+| libc `malloc`, `free`, `memmove` | see 2d | 9.26% | 7.87% | see 2d |
+
+Three readings, and none of them is what the audit expected before it was
+measured.
+
+**The tracer transport is the run.** `tstepo_flux` alone is half the
+instructions at both grids, and everything around it is a per-cell or per-column
+loop. Section 9h of the ocean audit predicted that the tracer loops are where the
+work worth dividing sits; this is the measurement, and it is more concentrated
+than the prediction.
+
+**The barotropic solve is small and it is the only thing that is genuinely
+serial.** 1.83 per cent at the shipped grid. Section 4a of the cost note reached
+the same conclusion without a profiler, from two shipped grids with nearly equal
+cell counts and a 1.69-fold difference in barotropic work, and returned 0.956
+against a decision rule fixed beforehand. Two independent instruments, the same
+answer.
+
+**EMBM is an eighth of the work at the shipped grid and a fifth at the doubled
+one**, 12.52 per cent against 19.89. That is a component the offline architecture
+does not run, and section 4 is where it is spent.
+
+## 2d. A tenth of the run is heap traffic for a two-line defect
+
+The libc row above is not the model doing anything. `tstepo_flux.F:82` reads
+
+    call eosd(ec,ts1(1,i,j,k:k+1),ts1(2,i,j,k:k+1),zw(k),
+   1     rdza(k),ieos,dzrho,tec)
+
+and `eosd` declares its arguments as `real t(2)`. Those two actual arguments are
+STRIDED sections of a four-dimensional array, so gfortran packs each into a
+contiguous temporary before the call and frees it after. Disassembling the built
+executable confirms it at the instruction level: the basic block around the one
+`call eosd_` in `tstepo_flux_` contains two `call malloc@plt` and three
+`call free@plt`.
+
+That happens once per wet cell per level per ocean timestep -- of order 11,500
+times a step at 36 x 36 x 16, of order 11.5 million times over ten model years --
+and it accounts for **9.26 per cent of the instructions at the shipped grid and
+7.87 per cent at the doubled one**.
+
+It is not a decomposition question. It is work that should not exist, it is
+removable by giving `eosd` two scalars or copying into a two-element local, and
+the change is correctness-preserving, so `genie-knowngood/` and `nccompare`'s
+relative tolerance in units in the last place are already the right test for it.
+**It is a larger, cheaper saving than anything threading offers per unit of
+effort**, and it should be taken before any parallelisation is designed, because
+it also removes an allocator call from the middle of what would become the
+innermost parallel loop.
+
+A second and much smaller instance of the same class sits beside it. `tstepo.F`
+fills `ts_t1`, `ts1_t1`, `rho_t1`, `ts_t2`, `ts1_t2` and `rho_t2` on every ocean
+timestep and nothing reads them: their only consumers are the commented-out
+OpenMP sections. Section 9h of the ocean audit found that statically and could
+not say what it cost. It costs about 0.56 per cent of the run at 36 x 36 x 16 and
+0.38 at 72 x 72 x 16, which is the whole of `tstepo`'s own share.
+
+## 2e. The split, and what Amdahl's law then bounds
+
+Applying section 0's classification, which was fixed before any of this was seen:
+
+| | 36 x 36 x 16 | 72 x 72 x 16 |
+| --- | ---: | ---: |
+| parallel over cells, columns or tracers | 88.85% | 89.34% |
+| serial (`ubarsolv`) | 1.84% | 2.60% |
+| heap traffic (section 2d) | 9.26% | 7.87% |
+| unclassified | 0.14% | 0.03% |
+
+**The serial share at the shipped grid is 1.84 per cent, which is below section
+0's 5 per cent line, so the verdict is that parallelisation is possible and
+Amdahl's law is not what limits it at this grid.**
+
+Two bounds follow, and the difference between them is the section 2d defect
+rather than any property of the decomposition:
+
+| threads | heap traffic left in place | heap traffic removed first |
+| ---: | ---: | ---: |
+| 2 | 1.80 | 1.96 |
+| 4 | 3.00 | 3.79 |
+| 8 | 4.49 | 7.07 |
+| 16 | 5.99 | 12.47 |
+| 32 | 7.18 | 20.18 |
+
+The right-hand column is the one a budget should be built on, because the heap
+traffic is a defect with a two-line fix rather than a part of the calculation.
+The left-hand column is what a thread team would actually see if someone
+parallelised the loops and left the allocator calls inside them, and it is
+recorded so that outcome is recognisable if it happens. Neither column is a
+prediction of measured speedup: Amdahl's law is an upper bound and says nothing
+about memory bandwidth, synchronisation or load imbalance across a land-sea mask.
+
+**The bound at 36 x 36 is not the bound at 144 x 144, and the trend is measured
+rather than assumed.** The serial share rose from 1.84 to 2.60 per cent for a
+doubling, a factor of 1.41. In absolute terms `ubarsolv` went from 5.53e5 to
+3.51e6 instructions per ocean timestep, a factor of 6.34 where the loop bounds
+predict 7.79 -- the shipped grid pays more per band element because its inner
+loops are shorter. Continuing the measured 1.41 per doubling puts the serial
+share near 3.7 per cent at 144 x 144 and 5.2 per cent at 288 x 288, so with the
+heap traffic removed a sixteen-thread bound falls from 12.5 to about 10.3 and
+then about 8.3. **The serial fraction grows, and it does not become the binding
+constraint anywhere below muffingen's declared 72 ceiling or at twice it.** What
+binds first is the r^4 in the timestep, which threads do not touch, and that is
+OCN-20's territory rather than OCN-19's.
 
 ---
 
