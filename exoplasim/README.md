@@ -230,11 +230,18 @@ previous session. `notes/audits/model-build-driver.md` has the measurements.
 | `--profile` | a flag set from `config/planet.yaml`; `production` by default, `checked` adds `-fcheck=all`, and `poisoned` adds `-finit-real=snan` at `-Og`, which is the one level the poison survives to the arithmetic at | no change to the name |
 | `--frame-pointers` | a PROFILING build. DWARF cannot unwind the -O3 code -- 94% of model samples get no caller -- and this costs -1.17% with an identical restart sha, so the profile measures the same model | `..._fp.x` |
 | `--extra-flag=`, `--drop-flag=` | for a verification arm that varies a flag ON PURPOSE. Both are part of the build directory's identity, and a `--drop-flag` naming a flag the declaration does not carry is an error rather than a no-op | no change to the name |
+| `--precision <4\|8>` | a PRECISION ARM, and it is the only lever on precision short of editing the declaration. Departing from `model.precision_bytes` requires `--no-publish` and is refused otherwise | refused: an arm at another precision cannot be published |
 
-Precision is not an option: `config/planet.yaml` declares it. It is the worst of
-these to get wrong, because `-fdefault-real-8` changes the width of `real` in
-every declaration and a real*4 object linked against real*8 ones does not fail
-to link -- it computes.
+Precision is DECLARED by `config/planet.yaml` and the arm above cannot ship. It
+is the worst of these to get wrong, because `-fdefault-real-8` changes the width
+of `real` in every declaration and a real*4 object linked against real*8 ones
+does not fail to link -- it computes; and the registry's executable name carries
+no precision, so a published arm would be indistinguishable from the shipped
+binary. Archive CLIM-22 is twelve single-precision executables shipped under a
+declaration of eight. `-fdefault-real-8` reaches the compiler from the
+declaration rather than from the flag line, so `--drop-flag` cannot reach it and
+an FP32 arm would otherwise mean editing the declared precision of the world to
+run one experiment.
 
 The paired latitude decomposition is retired. It existed to let legmod fold a
 mirror pair together, SHTns replaces legmod and cannot use the permuted layout
@@ -491,7 +498,7 @@ unless told they exist.
 | `segments.py` | what a run's segments were for and which orbits that makes usable; the one reader of the manifest's `segments` list |
 | `finalize_existing_segment.py` | record a completed segment after post-run bookkeeping failed; takes the same `--purpose` |
 | `run_stellar_cycle.py` | run or resume a superposed-sinusoid stellar-flux experiment |
-| `rebuild_binaries.py` | rebuild every executable and record which patches each contains. `--verify` builds nothing and answers whether the executables on disk are CURRENT -- rule 4's passive half -- and `verify()` is the same answer as data, which `scripts/check_consistency.py` calls rather than restating |
+| `rebuild_binaries.py` | rebuild every executable and record which patches each contains. `--verify` builds nothing and answers whether the executables on disk are CURRENT -- rule 4's passive half -- and `verify()` is the same answer as data, which `scripts/check_consistency.py` calls rather than restating. `unregistered(exe)` is the CONSUMER's question instead -- is this particular file one of them -- for anything that copies an executable somewhere and runs it |
 | `verify_model_compiles.py` | does the model SOURCE compile: `gfortran -fsyntax-only` over every translation unit `plasim/CMakeLists.txt` names, sorted into `use` order and run under the flag line `config/planet.yaml` declares, `-fdefault-real-8` included. It builds no binary and answers nothing about whether one is current, which is rule 4's separate question. Run it after a Fortran edit, before paying for a build; `scripts/smoke_test.py` runs it too, and `--skip-compile` opts out |
 | `lint_masked_domains.py` | which domain-sensitive intrinsics and divisions sit inside a masked `where` block in `plasim/src`. A `where` masks the ASSIGNMENT and not the evaluation, so the compiler may evaluate a right-hand side on lanes the mask excludes and the declared `-ffpe-trap` turns a discarded lane into SIGFPE; that is world-bhs, and it is why the flag line is `-O2` and not `-O3`. A text parse, no build and no run. It OVER-reports by construction and says so, and the sites no floor can be argued for carry their reason in its `CLASSIFIED` table, keyed on the argument text so a changed argument is reported again. Exit 1 on anything neither guarded nor classified; `--all` prints the whole population, `--kind divide` the divisions |
 | `lint_implicit_save.py` | which declarations in `plasim/src` acquire SAVE inside a procedure body: an initialiser, an explicit `save`, or a `data` statement. A SAVEd local is static storage and under `-fopenmp` static storage is ONE copy for the whole thread team, which is the defect the Stage 1 thread port tripped over; under the deleted MPI arm each rank was a process and the same source was correct. A text parse, no build and no run, over-reporting the same way `lint_masked_domains.py` does. Each site's verdict is either an `!$omp threadprivate` directive beside the declaration or a row in the script's `CLASSIFIED` table keyed on the variable name; exit 1 on anything with neither |

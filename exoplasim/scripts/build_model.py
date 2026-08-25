@@ -3,6 +3,7 @@
 
     python exoplasim/scripts/build_model.py --res T170 --ranks 16
     python exoplasim/scripts/build_model.py --res T21 --ranks 8 --profile checked
+    python exoplasim/scripts/build_model.py --res T21 --ranks 16 --precision 4 --no-publish
 
 Worldbuilding frame: this builds the Vesper project's climate model, a hard fork
 of ExoPlaSim. Nothing here is about the simulated planet.
@@ -160,15 +161,22 @@ def source_state(patched: list[Path]) -> str:
 
 
 def tag(res: str, levels: int, ranks: int, profile: str,
-        frame_pointers: bool, extra: list[str], source: str = "") -> str:
+        frame_pointers: bool, extra: list[str], source: str = "",
+        precision: int | None = None) -> str:
     """The build directory's name, and it names every input that changes a byte.
 
     Extra flags are hashed rather than spelled out, because they contain
     characters a directory name cannot carry -- but they ARE in the name, so two
     flag arms cannot land in one directory and quietly reuse each other's
     objects. `source` is the same thing for a patched model source, and it goes
-    under `PATCHED_ROOT` rather than beside the registry's builds."""
+    under `PATCHED_ROOT` rather than beside the registry's builds. `precision`
+    is the same thing again for a precision arm, and it is present only when the
+    arm departs from the declared bytes per real: it changes every array in the
+    model, so two precisions sharing a directory would be the worst case of
+    exactly what this name exists to prevent."""
     parts = [res.lower(), f"l{levels}", f"p{ranks}", profile]
+    if precision is not None:
+        parts.append(f"real{precision}")
     if frame_pointers:
         parts.append("fp")
     if extra:
@@ -194,7 +202,7 @@ def executable_name(res: str, levels: int, ranks: int,
 def build(res_arg: str, levels: int, ranks: int, profile: str,
           frame_pointers: bool, jobs: int | None, verbose: bool,
           extra: list[str] | None = None, drop: list[str] | None = None,
-          publish: bool = True) -> Path:
+          publish: bool = True, precision_arm: int | None = None) -> Path:
     extra = list(extra or [])
     drop = list(drop or [])
     res, nlat = resolve(res_arg)
@@ -207,6 +215,24 @@ def build(res_arg: str, levels: int, ranks: int, profile: str,
             f"the globe.")
 
     flags, precision = flag_line(profile)
+    # A PRECISION ARM, and it can never be published. `precision_bytes` is the
+    # declaration and `-fdefault-real-8` reaches the compiler from it rather
+    # than from the flag line, so there is no --drop-flag that gets to it and an
+    # arm at the other precision would otherwise mean editing the declared
+    # precision of the world to run one experiment. Publishing is refused
+    # because the registry's name carries no precision: archive CLIM-22 is
+    # twelve single-precision executables shipped under a declaration of eight,
+    # and they were indistinguishable from the real ones by name.
+    precision_tag = None
+    if precision_arm is not None and precision_arm != precision:
+        if publish:
+            raise SystemExit(
+                f"--precision {precision_arm} departs from the declared "
+                f"{precision} bytes per real, and an arm at another precision "
+                f"cannot be published: the registry's executable name carries no "
+                f"precision, so it would be indistinguishable from the shipped "
+                f"binary. Pass --no-publish.")
+        precision, precision_tag = precision_arm, precision_arm
     # DROP FIRST, so an arm that removes a declared flag and adds a replacement
     # gets both. A flag named here that is not in the declared line is an error
     # rather than a no-op: an arm that silently dropped nothing would be
@@ -264,7 +290,7 @@ def build(res_arg: str, levels: int, ranks: int, profile: str,
               f"meaning the committed source.", file=sys.stderr)
 
     bdir = root / tag(res, levels, ranks, profile, frame_pointers,
-                      drop + extra, source)
+                      drop + extra, source, precision_tag)
     bdir.mkdir(parents=True, exist_ok=True)
 
     configure = [
@@ -333,6 +359,15 @@ def main() -> None:
     ap.add_argument("--profile", default=None,
                     help="build profile from config/planet.yaml "
                          "(default: model.compile_flags.profile)")
+    ap.add_argument("--precision", type=int, default=None, choices=(4, 8),
+                    help="bytes per default real, for a PRECISION ARM. The "
+                         "default is model.precision_bytes and a departure from "
+                         "it needs --no-publish, because the registry's "
+                         "executable name carries no precision. -fdefault-real-8 "
+                         "reaches the compiler from the declaration rather than "
+                         "from the flag line, so --drop-flag cannot reach it and "
+                         "this is the only lever short of editing the declared "
+                         "precision of the world.")
     ap.add_argument("--frame-pointers", action="store_true",
                     help="a PROFILING build: -fno-omit-frame-pointer, named _fp. "
                          "Costs -1.17%% at T170 with an identical restart sha, so a "
@@ -363,7 +398,7 @@ def main() -> None:
             raise SystemExit(f"{f!r} must be one token starting with '-'")
     out = build(a.res, a.levels, a.ranks, profile,
                 a.frame_pointers, a.jobs, a.verbose, a.extra_flag, a.drop_flag,
-                publish=not a.no_publish)
+                publish=not a.no_publish, precision_arm=a.precision)
     if a.print_path:
         print(out)
     else:

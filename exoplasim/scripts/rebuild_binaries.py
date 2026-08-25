@@ -177,6 +177,43 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def registered(name: str) -> dict:
+    """What the manifest records under an executable's name, or an empty dict.
+
+    Read rather than imported by anything that COPIES an executable somewhere
+    and then runs it. A copy carries no provenance of its own -- it is a file
+    with a name -- and the name is the only thing that ties it back to a source
+    set and a flag line.
+    """
+    if not MANIFEST.is_file():
+        return {}
+    return json.loads(MANIFEST.read_text(encoding="utf-8")).get("binaries", {}).get(name, {})
+
+
+def unregistered(exe: Path) -> str | None:
+    """None if `exe` is the executable the manifest registers under its name.
+
+    Otherwise a line naming BOTH shas, which is what a caller has to print for
+    the difference to be actionable: "stale" without the two numbers cannot be
+    told from "the manifest was never written".
+
+    THIS IS FOR A CONSUMER, not for the registry. `verify()` above asks whether
+    the INSTALLED binaries are current; this asks whether the particular file a
+    caller is about to run is one of them, and the two questions came apart
+    once already -- a probe integrated a copy taken from a run directory while
+    `--verify` truthfully reported every installed binary current. world-anl.
+    """
+    got = sha256(exe)
+    want = registered(exe.name).get("sha256")
+    if want == got:
+        return None
+    if want is None:
+        return (f"{exe.name} ({got[:16]}) is in no binary_manifest.json entry, "
+                f"so what source and flags it was built from is unknown")
+    return (f"{exe.name} is {got[:16]} and binary_manifest.json registers "
+            f"{want[:16]} under that name")
+
+
 def model_sources() -> dict[str, str]:
     """Every file a binary is compiled FROM, with its current sha.
 
