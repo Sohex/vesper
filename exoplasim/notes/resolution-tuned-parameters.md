@@ -439,7 +439,7 @@ and the filter is scale-free in `n/NTRU`, so the rung dependence is not the
 filter's. `check_consistency.py` computes a filter-only crossover from the rate
 law and reports 0.625 at T21, which is neither what the spectrum does nor what
 the surviving law predicts; `filter-spectral-price.md` carries the measurement
-and world-3fpe carries the gate.
+and world-ugxo carries the gate.
 
 ## Scrutiny of the derivation, and the trade re-examined
 

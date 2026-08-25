@@ -148,10 +148,29 @@ empties the top whatever the damping does. This is why the depth is read at 0.8
 of the truncation: read at the truncation it returns the roundoff floor, which
 is what the first version of the instrument did.
 
-## What this leaves undecided
+## Every arm here is attributable, which is what makes it usable
+
+Each pair above is same-binary BY SHA, taken from the runs' own manifests: the
+two T21 arms share `e7b54a87` and the two T42 arms share `68ad59e5`, and each
+pair also shares its cold start, its seed, its surface fields by sha and its
+stellar spectrum. That is stated because the neighbouring instrument does not
+have it: the 22 entries in `analysis/stability_probe.json` name no executable,
+no sha and no template, and the file's single `generated` field is rewritten on
+every write, so they cannot be tied to a build at all (world-qnue). Nothing in
+this note calibrates against them.
+
+## What this leaves undecided, and it is more than it was
 
 The weakest kappa that still RUNS. Nothing here touches it: the trap boundary is
 a stability question, the filter buys timestep by a mechanism this note does not
 address, and `physics-filter-stability.md`'s grid is the only instrument that
-discriminates kappa at all. Since the spectrum cannot choose kappa and the trap
-can, kappa 8 stands on the criterion that can see it -- which is where it was.
+discriminates kappa at all.
+
+So the spectrum cannot choose kappa and the trap can -- and the trap's current
+evidence cannot be attributed to a build. `filter_kappa` 8.0 therefore rests on
+a boundary measured under an unknown executable, on damping that reached one
+model level in ten, and at gamma 8 where the model runs gamma 16. **kappa 8 is
+not settled; it is determined by the only criterion that can see it, and that
+criterion has to be re-taken.** What this note removes is the possibility that
+the spectrum could settle it instead. world-37tn carries the re-measurement and
+world-qnue the attribution.

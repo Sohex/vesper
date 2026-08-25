@@ -593,14 +593,19 @@ model:
   # depend on the grid-scale damping alone; and the spectral reach goes as
   # kappa^(-1/gamma), so gamma sets how much of the spectrum kappa can touch.
   #
-  # kappa 8 is DETERMINED by the trap boundary of
+  # kappa 8 comes from the trap boundary of
   # exoplasim/notes/physics-filter-stability.md: it takes the longest stable
   # step at every rung measured, and weaker settings trap. That is the only
-  # criterion that can see it. Against the SPECTRUM it is underdetermined and
-  # will stay so: the whole of kappa 8 is worth 0.196 dex of depletion at 0.8 of
-  # the truncation, a third of what is measured there at T42 and a fifth at T21,
-  # and a factor of two in kappa moves the confinement criterion by less than
-  # that criterion's own quantisation at every rung. Measured, not asserted.
+  # criterion that can see it, and it is NOT SETTLED -- the grid it rests on was
+  # taken at gamma 8, on damping that reached one model level in ten, and from
+  # probe entries that name no executable and cannot be tied to a build
+  # (world-qnue). world-37tn carries the re-measurement.
+  #
+  # The SPECTRUM cannot settle it instead, and that is measured rather than
+  # asserted: the whole of kappa 8 is worth 0.196 dex of depletion at 0.8 of the
+  # truncation, a third of what is measured there at T42 and a fifth at T21, and
+  # a factor of two in kappa moves the confinement criterion by less than that
+  # criterion's own quantisation at every rung.
   filter_kappa: 8.0
   # gamma is DERIVED, 2026-08-23, and was 8 until then. It was solved for from
   # 2*kappa*x^gamma/dt = x/tau_vorticity, requiring the crossover x >= 0.6 at
@@ -617,7 +622,7 @@ model:
   # sits at 0.71 of the truncation at T42 against 0.69 at gamma 8, and a third
   # less of the eddy kinetic energy is taken out of the damped band, on 24
   # orbits. What it costs is 7 per cent of the kinetic-energy conversion left
-  # unbooked, read on two. world-3fpe carries the gate.
+  # unbooked, read on two. world-ugxo carries the gate.
   filter_power: 16
   # DECLARED. The seed for a COLD start's initial kick, and it is here because
   # without it there is none: `initrandom` (plasim.f90:2068) takes the namelist

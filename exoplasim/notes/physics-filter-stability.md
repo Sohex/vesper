@@ -428,6 +428,19 @@ rather than in the reader:
 3. **It was taken at gamma 8.** The model runs `filter_power` 16, and T42 at dt
    90 is measured to refuse at the first and run at the second, so at least one
    ceiling in the table is wrong in the loose direction.
+4. **And the probe cells cannot be attributed to a build.** The 22 entries in
+   `analysis/stability_probe.json` name no executable, no sha256 and no
+   template; the file carries one `generated` field that is rewritten on every
+   write, so there are no per-entry timestamps; `find_template` selected its
+   binary by modification time; and run directories are untracked, so git
+   brackets when an entry was committed rather than what produced it. They are
+   measurements of an unnamed model. The probe now checks its executable
+   against `binary_manifest.json` and refuses on a mismatch, and every new entry
+   records the name, sha256 and build profile -- so this is fixed forward and
+   unfixable backward. world-qnue.
+
+That fourth one is why the grid is re-taken from scratch rather than patched:
+there is no cell in it that a new cell could be compared against.
 
 And one thing about the instrument rather than the inputs: **a probe qualifies a
 step against REFUSAL and against nothing else.** T42 at dt 45 passes a two-orbit
@@ -449,14 +462,15 @@ measured on in its own `declared` block.
 
 ### What has to be true before it is worth running
 
-**Every binary rebuilt, and the probe pointed at the rebuilt one.** The probe
-selects its executable by globbing a template RUN directory, which holds a
-snapshot from when that run was staged, and compares it against nothing --
-world-anl. So a grid taken today is a grid of whatever binary happens to sit
-beside the last run at that rung. With the model still moving this is the
-binding constraint: rule 7 makes the grid worthless the moment the source under
-`vendor/exoplasim` moves again, so it is re-taken after the model settles and
-not before.
+**Every binary rebuilt, and the manifest naming them.** The probe now refuses an
+executable `binary_manifest.json` does not match, so the staleness world-anl
+found cannot recur -- but that guard only helps once the manifest describes the
+tree. It predates the parmode-axis removal, so `--verify` currently reports
+every MATRIX row missing and the registry directory is empty; that is a stale
+registry and says nothing about the damping. With the model still moving this is
+the binding constraint anyway: rule 7 makes the grid worthless the moment the
+source under `vendor/exoplasim` moves again, so it is re-taken after the model
+settles and not before.
 
 **And the cost half needs the machine to itself.** It prices a step from wall
 time by differencing two lengths, so a concurrent run does not add noise to it,
