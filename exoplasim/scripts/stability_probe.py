@@ -28,6 +28,20 @@ cell. So this maps the refusal boundary and prices the rung; whether a
 configuration survives a whole orbit is a longer question and this does not
 answer it.
 
+THE DAMPING IS DECLARED BY DEFAULT. `--tau-scale` is 1.0 unless a caller asks
+otherwise, so every probe writes the derived NHDIFF, NDEL and TDISS* over all
+NLEV levels. It used to write them only when `--tau-scale` was given, and the
+2026-08-23 grid was taken without it -- so every cell of that grid ran the
+model's own compiled defaults rather than the damping the runs use, which makes
+a refusal boundary for a different model. `--inherited-damping` is how a caller
+asks for the old behaviour, and it is an arm rather than an oversight.
+
+REFUSAL AND COST ARE TWO VERDICTS. `--refusal-only` takes the first and reports
+no cost at all, which is what to use on a contended host: a per-step cost
+measured against a shared wall clock is worse than no cost, because it looks
+like a measurement. The cost path differences two lengths and needs the machine
+to itself.
+
 THE TEMPLATE is a run directory that already has the rung's surface fields
 staged and its binary beside them -- a crashed arm serves, since what failed
 there was the integration and not the staging. Output is switched off, which is
@@ -149,7 +163,7 @@ def time_run(bed: Path, exe: str, threads: int) -> tuple[float, bool, str]:
 
 def probe(rung: str, dt: float, kappa: float | None, steps: int,
           threads: int, template: Path, gamma: int,
-          tau_scale: float | None = None) -> dict:
+          tau_scale: float | None = None, refusal_only: bool = False) -> dict:
     tag = ("off" if kappa is None else f"k{kappa:g}") + f"_dt{dt:g}"
     bed, exe = build_bed(rung, template, tag)
     # SEED is declared, not inherited: the template is a run directory made
@@ -206,16 +220,32 @@ def probe(rung: str, dt: float, kappa: float | None, steps: int,
                  "TDISST": f"{nlev}*{hd['temperature'] / tau_scale}",
                  "TDISSQ": f"{nlev}*{hd['humidity'] / tau_scale}",
                  "NDEL": f"{nlev}*{int(cfg_all['model']['hyperdiffusion']['order_alpha'])}"}
-    set_keys(bed, keys | {"N_RUN_STEPS": str(short_steps)})
+    # A CELL SAYS WHAT IT WAS MEASURED ON. The 2026-08-23 grid recorded neither
+    # the filter power nor the hyperdiffusion, and both had moved by the time
+    # anyone read it. world-37tn.
+    declared = {"gamma": gamma, "tau_scale": tau_scale,
+                "hyperdiffusion": "inherited" if tau_scale is None else "derived",
+                "per_level": tau_scale is not None}
+    first_steps = steps if refusal_only else short_steps
+    set_keys(bed, keys | {"N_RUN_STEPS": str(first_steps)})
     t_short, trapped, text = time_run(bed, exe, threads)
     result = {"rung": rung, "dt_minutes": dt, "kappa": kappa, "threads": threads,
-              "steps_short": short_steps, "steps_long": steps,
-              "wall_short_s": round(t_short, 2),
+              "steps_short": first_steps, "steps_long": steps,
+              "declared": declared,
               "outcome": "refused" if trapped else "no_refusal_in_steps"}
+    if not refusal_only:
+        result["wall_short_s"] = round(t_short, 2)
     if trapped:
-        result["failed_after_s"] = round(t_short, 2)
+        if not refusal_only:
+            result["failed_after_s"] = round(t_short, 2)
         frames = [ln.strip() for ln in text.splitlines() if re.match(r"^#\d+ ", ln.strip())]
         result["backtrace"] = frames[:6]
+        shutil.rmtree(bed, ignore_errors=True)
+        return result
+
+    if refusal_only:
+        # NO COST FIELD AT ALL, not a cost with a caveat beside it. A number in
+        # this row would be quoted.
         shutil.rmtree(bed, ignore_errors=True)
         return result
 
@@ -250,10 +280,20 @@ def main() -> None:
                     help="timesteps per probe. The refusal fires on the first "
                          "radiation call, so this is already far more than that "
                          "failure needs; it is long enough to price a step.")
-    ap.add_argument("--tau-scale", type=float, default=None,
+    ap.add_argument("--tau-scale", type=float, default=1.0,
                     help="multiply the derived hyperdiffusion STRENGTH by this "
                          "(so tau is divided by it). 1 is the cascade-absorbing "
-                         "value; larger is stronger damping.")
+                         "value and the DEFAULT; larger is stronger damping.")
+    ap.add_argument("--inherited-damping", action="store_true",
+                    help="write no hyperdiffusion keys at all, leaving every "
+                         "level on plasimmod's compiled defaults. This is what "
+                         "contaminated the 2026-08-23 grid, so it is an "
+                         "explicit arm and never a default. world-37tn.")
+    ap.add_argument("--refusal-only", action="store_true",
+                    help="one probe, refusal verdict, NO cost. Use this when "
+                         "the host is contended: a per-step cost taken against "
+                         "a shared wall clock is worse than none, because it "
+                         "looks like a measurement.")
     ap.add_argument("--gamma", type=int, default=None,
                     help="filter power; default is config/planet.yaml's")
     ap.add_argument("--threads", type=int, default=16,
@@ -277,11 +317,15 @@ def main() -> None:
     for dt in dts:
         for kappa in kappas:
             r = probe(args.rung, dt, kappa, args.steps, args.threads, template,
-                      args.gamma, args.tau_scale)
-            r["tau_scale"] = args.tau_scale
+                      args.gamma, None if args.inherited_damping else args.tau_scale,
+                      args.refusal_only)
+            r["tau_scale"] = None if args.inherited_damping else args.tau_scale
             results.append(r)
             k = "off" if kappa is None else f"{kappa:g}"
-            if r["outcome"] != "refused":
+            if r["outcome"] != "refused" and args.refusal_only:
+                print(f"  {args.rung} kappa {'off' if kappa is None else f'{kappa:g}':>3s} "
+                      f"dt {dt:5.1f}  no refusal in {r['steps_long']} steps", flush=True)
+            elif r["outcome"] != "refused":
                 print(f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}  no refusal in "
                       f"{r['steps_long']} steps, "
                       f"{r['seconds_per_step']:.4f} s/step -> "
@@ -289,8 +333,8 @@ def main() -> None:
                       f"(startup {r['startup_s']:.0f} s; naive single run would "
                       f"say {r['naive_single_run_seconds_per_orbit']/60:.1f})", flush=True)
             else:
-                print(f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}  REFUSED "
-                      f"after {r['failed_after_s']:.1f} s", flush=True)
+                print(f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}  REFUSED",
+                      flush=True)
             prior = json.loads(args.out.read_text()) if args.out.is_file() else {"probes": []}
             prior.setdefault("probes", [])
             prior["probes"] = [p for p in prior["probes"]
