@@ -8,8 +8,8 @@ declares it, and the source the model actually reads.
 `ifntransform 1` is on in the Vesper baseline, so nitrification, denitrification
 and volatilisation set how much mineral nitrogen the simulated plants can reach.
 The operator is Xu-Ri and Prentice (2008) as ported into LPJ-GUESS: every one of
-its response functions is a function of soil temperature, upper-soil water or pH
-and of nothing else. It sees no pressure, no oxygen partial pressure, no gas
+its response functions is a function of soil temperature, upper-soil water,
+water-filled pore space or pH and of nothing else. It sees no pressure, no oxygen partial pressure, no gas
 diffusivity and no water table, which is why this world's declared atmosphere
 cannot reach it. The argument is in
 `biosphere/notes/soil-nitrogen-transformation-parameterisation.md`.
@@ -44,8 +44,8 @@ defect in this checker rather than in the declaration.
 
 `--strict` names exactly what is still undeclared and refuses on that and
 nothing else: the Vesper preconditions that carry the sentinel, plus every
-calibration entry whose verdict is `outside` or `unsourced`. An entry the two
-papers settle is no longer part of the refusal.
+calibration entry whose verdict is `outside` or `unsourced`. An entry the
+sources settle is no longer part of the refusal.
 
 It is fail-closed in one direction only, on the same terms as `bvoc_gate.py`. A
 run on the Earth-calibrated operator, declared as such, is a correct run of a
@@ -161,7 +161,7 @@ def _literal_tokens(text: str) -> set[str]:
 
 # The verdicts the calibration block may carry. `agrees` and `outside` are
 # claims about a number and are re-derived here; `unsourced` is a claim that
-# neither paper states the quantity, which no arithmetic can check.
+# no source states the quantity, which no arithmetic can check.
 VERDICTS = ("agrees", "outside", "unsourced")
 
 # What `--strict` refuses on, beyond the undeclared preconditions.

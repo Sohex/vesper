@@ -16,7 +16,7 @@ litter to productivity whether or not anything reads its gas fluxes.
 Nothing here is verified by execution. LPJ-GUESS does not build on this tree:
 `framework/vesper.h` is generated, and the chain to it runs through a baseline
 run and a baseline climatology that do not exist. Every statement below is
-against the source and against the two papers, and every bound is arithmetic on
+against the source and against the papers, and every bound is arithmetic on
 the declared forms, which `biosphere/scripts/ntransform_gate.py` re-derives on
 each invocation.
 
@@ -37,11 +37,12 @@ water content, water-filled pore space or pH, and of nothing else.
 
 ## The register: every constant against its calibration
 
-Both source papers are now held and read. Xu-Ri and Prentice (2008) is the
+Every source paper is now held and read. Xu-Ri and Prentice (2008) is the
 source of every table the operator cites; Weier et al. (1993) is the source of
 its denitrification moisture response and of its dinitrogen to nitrous oxide
-ratio. Each row below gives what the paper states, what the code has, and
-whether they agree.
+ratio; Linn and Doran (1984) is where the water-filled pore space shape the
+nitrification water response is drawn in comes from. Each row below gives what
+the paper states, what the code has, and whether they agree.
 
 | what | where the model reads it | value | source, and what it says | verdict |
 | --- | --- | --- | --- | --- |
@@ -58,7 +59,8 @@ whether they agree.
 | the denitrification temperature response | `denitrification` | -- | Xu-Ri table 9 eqn 1, which carries NO min | agrees; the port's min is gone |
 | the aerobic/anaerobic split, midpoint | `substrate_partition` | 0.5 | Xu-Ri table 7 settles the VARIABLE, water-filled pore space, and gives no form | unsourced, bracket 0.50 to 0.66 |
 | the aerobic/anaerobic split, shape | `substrate_partition` | 7.5 | the same, and there is no bracket for it either | unsourced |
-| the nitrification water response | `nitrification` | -- | Xu-Ri table 8 eqn 1 has no moisture term | unsourced, and a second moisture control |
+| the nitrification water response, argument | `nitrification` | -- | Linn and Doran fig. 1 draws the shape against WFPS, and p.1268 argues WFPS over water-holding capacity | agrees; it read a fraction of available capacity and now reads `Soil::wfps(0)` |
+| the nitrification water response, shape | `nitrification` | -- | Xu-Ri table 8 eqn 1 has no moisture term; Linn and Doran fig. 1 has the peak at 0.6 but no zero | OUTSIDE that figure at the wet end, and a second moisture control |
 | the NO share of nitrification gas | `nitrification` | -- | Xu-Ri table 11 RNON against RN2ON brackets it at 0.33 to 0.98 | agrees, 0.50 to 0.69 over the reachable WFPS |
 | the denitrification moisture response | `denitrification` | exponent 13.036 | Weier table 2, at 60, 75 and 90% WFPS | agrees, inside the 8.09 to 14.06 that table brackets |
 | the NO and N2O shares of denitrification gas | `denitrification` | 0.002 and 0.02 | Xu-Ri table 9 eqns 5, 6 and 7 with table 11's RNODN and RN2ODN | agrees, inside the 0.2 to 4.9% their sum brackets |
@@ -74,13 +76,14 @@ has drifted from the source is a failure of the declaration.
 
 ## The Earth-calibrated response bracket
 
-Eight of the twenty declared entries are what remain undeclared, and `--strict`
-refuses on exactly those and on the five Vesper preconditions. Six carry a
-machine-checked bracket, one of them among the eight; a seventh, the N2 share
-of denitrification gas, carries its bracket in prose because the quantity is a
-disagreement between two papers rather than a constant in the model. The rest
-carry none, because neither paper states the quantity and no central value is
-fitted here to stand in for one.
+Eight of the twenty-one declared entries are what remain undeclared, and
+`--strict` refuses on exactly those and on the five Vesper preconditions. Six
+carry a machine-checked bracket, one of them among the eight; a seventh, the N2
+share of denitrification gas, carries its bracket in prose because the quantity
+is a disagreement between two papers rather than a constant in the model, and
+an eighth, the nitrification water response's shape, carries its comparison in
+prose for the same reason. The rest carry none, because no paper states the
+quantity and no central value is fitted here to stand in for one.
 
 Where a paper states a range and one number has to go into the model, the rule
 is the same everywhere in the operator: the paper's stated mean where it states
@@ -254,6 +257,81 @@ the upper 50 cm**. Xu-Ri's WFPS is an aeration proxy that means something at
 saturation; this model's upper layer stops at field capacity and drains the rest
 to runoff within the day.
 
+## The nitrification water response: the argument is sourced, the shape is not
+
+`nit_act` multiplies the table 8 eqn 1 rate by a curve Xu-Ri does not have. The
+trail behind it ends outside this project: `ntransform.cpp` arrives complete in
+the upstream fork's bulk import of LPJ-GUESS trunk SVN r8583, so no commit
+explains the curve, and no held LPJ-GUESS paper adds it. What the curve looks
+like says where it came from anyway. A response peaking at 0.6 and falling to
+zero at 0.8 is the water-filled pore space shape, and its origin in the soil
+literature is Linn and Doran (1984).
+
+**That paper settles the argument.** Its whole objective is to replace per cent
+water-holding capacity with per cent WFPS as the index of soil aeration, because
+WHC "depends on soil type, and the methods for its determination vary and are
+often poorly defined" while WFPS needs only gravimetric water content and bulk
+density (p.1268). That is the same objection this note makes to
+`get_soil_water_upper` two sections above, argued by the paper the curve
+descends from. Fig. 1 draws relative nitrification against per cent WFPS.
+`nitrification` read `get_soil_water_upper`, a fraction of available capacity,
+which is a third quantity again -- neither the axis the curve is drawn on nor
+the index its underlying data were measured in. It now reads `Soil::wfps(0)`,
+and every moisture response in the operator reads one quantity.
+
+**It does not settle the shape, and it is not a nitrification measurement.**
+Fig. 1 carries four traces and only one of them is nitrification: the dashed
+trace, attributed in the caption to Greaves and Carter (1920) and, by the same
+caption, converted from an original expressed in per cent water-holding
+capacity. The two solid traces are Linn and Doran's own O2 uptake and CO2
+production, which are respiration. The dotted trace is denitrification, after
+Nommik (1956). Their own nitrous oxide data cannot stand in for the missing
+measurement: they state they "did not determine if N2O production resulted from
+microbial nitrification ... or denitrification" (p.1271) and only assume
+nitrification dominated because their soils sat below 70 per cent WFPS. So the
+support for the shape is at second hand, from a 1920 dataset replotted onto an
+axis it was not measured on. Table 1 is the tabulated form of it: nitrification
+maximum activity at 60, range tested 0 to 100, 22 soils.
+
+**Against that trace the curve is wrong at both ends, and worst at the end that
+matters.** Read off the figure at 400 dpi to about plus or minus 0.03, the
+trace runs 0.11, 0.18, 0.32, 0.62, 0.86, 1.00 at 0.10 to 0.60 WFPS in steps of
+0.10, then 0.61, 0.40 and 0.11 at 0.65, 0.70 and 0.80. `nit_act` gives 0.064,
+0.111, 0.192, 0.333, 0.577, 1.000, then 0.750, 0.500 and 0.000. The rising limb
+therefore runs at 0.54 to 0.67 of the trace over the whole dry side, and the
+falling limb at 1.23 to 1.25 of it just above the peak before dropping to a
+hard zero at 0.80 where the trace is still near 0.11 and where the figure has
+no datum beyond. Linn and Doran's own fitted functions, `WFPS/0.6` rising and
+`0.6/WFPS` falling, are bounded by the paper to 0.30 to 0.70 WFPS and never
+reach zero at all; they are also fitted to the respiration data rather than to
+the nitrification trace, and at 0.65 and 0.70 they give 0.92 and 0.86 against
+the trace's 0.61 and 0.40. The paper offers two candidate falling limbs and
+they disagree with each other by more than either disagrees with `nit_act`.
+Nothing in it supports a hard zero. The 0.8 that does appear in the paper is
+Nommik's threshold above which significant DENITRIFICATION loss occurs, which
+is a different process in the other direction.
+
+**On the stacking the paper argues against, not for.** Fig. 1 is annotated
+across the top with two regimes: WATER LIMITING below 60 per cent WFPS and
+AERATION LIMITING above it, and the abstract names the same split -- "Below 60%
+WFP, water limits microbial activity, but above 60%, aerobic microbial activity
+decreases -- apparently the result of reduced aeration" (p.1267). Those are two
+mechanisms, and this operator already carries one of them. `substrate_partition`
+splits every pool on WFPS and hands `nitrification` only `NH4_mass_d`, the
+aerobic part, which is aeration. So the falling limb applies a control the
+partition has already applied, and the paper is the thing that identifies it as
+the same control. The rising limb is not: water limitation on nitrifier
+activity is not aeration, the partition does not represent it, and the partition
+cannot, because its aerobic share GROWS as the soil dries. Below 0.6 WFPS
+`nit_act` is the only dry-end limit on nitrification anywhere in the operator.
+
+That is as far as a curve can be argued. Whether this operator should carry a
+moisture response on nitrification at all is a structural question about the
+operator, and Xu-Ri answers it the other way by having none. `world-nga9` holds
+the decision; no replacement curve is fitted to fig. 1 here, because a curve
+digitised off a replotted 1920 figure would be another unsourced curve wearing
+a citation.
+
 ## What holds without any paper: the operator cannot create nitrogen
 
 Every response function above multiplies a nitrogen pool mass, directly or
@@ -264,8 +342,8 @@ maxima. All of them hold, and three are worth stating because they hold for a
 reason rather than by construction.
 
 **The nitrification water response is bounded by a crossing, not by a clamp.**
-`nit_act` is the smaller of a rising exponential in water content and the
-falling line `4 - 5w`. The falling limb alone reaches 4.0 at zero water. The
+`nit_act` is the smaller of a rising exponential in water-filled pore space and
+the falling line `4 - 5w`. The falling limb alone reaches 4.0 at zero water. The
 product stays at or below 1.0 only because the rising limb is below 1 everywhere
 the falling limb is above it, and the two cross at exactly 1.0. Nothing in the
 code enforces that, so it is a property of the two constants together and it is
@@ -345,10 +423,11 @@ yet.
 
 Five preconditions carry the `undeclared` sentinel in
 `biosphere/config/ntransform.yaml`, and `--strict` refuses while any of them
-does. None of them has a default, and neither paper settles any of them: both
-are Earth work at Earth's surface pressure and oxygen partial pressure, and
-neither carries a water table. Xu-Ri treats soil water in two sublayers of 0.5
-and 1.0 m; Weier incubated 60 g of repacked soil in a sealed jar.
+does. None of them has a default, and no source settles any of them: every one
+is Earth work at Earth's surface pressure and oxygen partial pressure, and none
+carries a water table. Xu-Ri treats soil water in two sublayers of 0.5 and
+1.0 m; Weier incubated 60 g of repacked soil in a sealed jar; Linn and Doran
+incubated 100 g subsamples compressed to a chosen bulk density in sealed jars.
 
 - **Surface pressure.** No response function takes one. The operator gives the
   same rates at this world's surface pressure as at Earth's.
@@ -382,5 +461,11 @@ not a result for this world's atmosphere.
   dinitrogen/nitrous oxide ratio as affected by soil water, available carbon,
   and nitrate*, Soil Science Society of America Journal 57(1), 66-72,
   `10.2136/sssaj1993.03615995005700010013x`. Tables 2, 4 and 5.
+- Linn and Doran (1984), *Effect of water-filled pore space on carbon dioxide
+  and nitrous oxide production in tilled and nontilled soils*, Soil Science
+  Society of America Journal 48(6), 1267-1272,
+  `10.2136/sssaj1984.03615995004800060013x`. Table 1, fig. 1 and the
+  objectives on p.1268. Its nitrification trace is Greaves and Carter (1920)
+  replotted, not a measurement of this paper's.
 - Pilegaard (2013), *Processes regulating nitric oxide emissions from soils*,
   Phil. Trans. R. Soc. B 368(1621), 20130126, `10.1098/rstb.2013.0126`.

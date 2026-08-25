@@ -187,11 +187,46 @@ void substrate_partition(Soil& soil){
  */
 void nitrification(Patch& patch, Soil& soil) {
 
+	double wfps = soil.wfps(0);
+
+	// nit_act, the water response multiplying the table 8 eqn 1 rate. It is the
+	// smaller of a rising exponential and the falling line 4 - 5w, so it peaks
+	// at exactly 1.0 at 0.6 and is exactly zero at and above 0.8.
+	//
+	// The argument is water-filled pore space. Xu-Ri and Prentice (2008) table
+	// 8 eqn 1 has no moisture term at all, so it settles nothing here; the
+	// curve's shape comes instead from the water-filled pore space literature,
+	// whose origin is Linn and Doran (1984). That paper's fig. 1 plots relative
+	// nitrification against per cent WFPS, peaking at 60 and falling above it,
+	// and its stated reason for choosing that axis is that per cent
+	// water-holding capacity "depends on soil type, and the methods for its
+	// determination vary and are often poorly defined" (p.1268). This function
+	// used to read get_soil_water_upper(), a fraction of AVAILABLE capacity,
+	// which is a third quantity again: neither the axis the curve is drawn on
+	// nor the index its underlying data were measured in. Feeding it here put
+	// the peak of a WFPS curve at a texture-dependent wetness, the same defect
+	// substrate_partition carried before world-b2i2. Every moisture response in
+	// this operator now reads Soil::wfps(0).
+	//
+	// The SHAPE is a separate question and that paper does not settle it. Fig.
+	// 1's nitrification trace is Greaves and Carter (1920) replotted, not Linn
+	// and Doran's own measurement -- they measured CO2 and N2O and state they
+	// "did not determine if N2O production resulted from microbial
+	// nitrification ... or denitrification" (p.1271). Against that trace the
+	// rising limb here runs about 40 per cent low over 0.1 to 0.5 WFPS, and the
+	// falling limb reaches zero at 0.8 where the trace is still near 0.1 and
+	// where no datum lies beyond. The 0.8 that appears in that paper is
+	// Nommik's threshold for significant DENITRIFICATION loss, not a point at
+	// which nitrification stops. Whether the curve should be here at all is a
+	// structural question about this operator rather than about the curve:
+	// fig. 1 attributes the decline above 0.6 to aeration, which
+	// substrate_partition already applies by handing this function only
+	// NH4_mass_d. All of that is registered in biosphere/config/ntransform.yaml
+	// and refused by biosphere/scripts/ntransform_gate.py --strict.
 	double b = log(3.0) * 5.0;
 	double a = exp(-b*6.0/10.0);
-	double wcont = soil.get_soil_water_upper();
-	double act_dry = a*exp(wcont*b);
-	double act_wet = max(0.0,4.0-5.0*wcont);
+	double act_dry = a*exp(wfps*b);
+	double act_wet = max(0.0,4.0-5.0*wfps);
 	double nit_act = min(act_dry,act_wet);
 
 	double f_nit_T, no3_inc, no_inc, n2o_inc, gross_nitrif;
@@ -224,8 +259,6 @@ void nitrification(Patch& patch, Soil& soil) {
 	// nitrification gas share. So the names were right, the reads were crossed,
 	// and it is the reads that moved.
 	double ngas_inc = f_nitri_gas_max * no3_inc;
-
-	double wfps = soil.wfps(0);
 
 	// Pilegaard 2013
 	// only NO and N2O in nitrification 

@@ -108,7 +108,7 @@ response_functions:
   - name: nitrification_activity
     reads: "nitrification, the water response multiplying f_nitri_max"
     form: "min(exp(-log(3.0)*5.0*0.6) * exp(w * log(3.0)*5.0), max(0.0, 4.0 - 5.0*w))"
-    variables: {w: water_upper}
+    variables: {w: wfps}
     literals: [3.0, 4.0, 5.0]
     role: factor
     # Peaks at 1.0 where the rising dry limb crosses the falling wet limb. The
@@ -209,11 +209,12 @@ products:
 # and the issue that owns it; `--strict` refuses while any of them is undeclared.
 # There is no default value for any field here.
 #
-# The two papers behind the calibration block settle none of these. Both are
-# Earth work at Earth's surface pressure and oxygen partial pressure, and
-# neither carries a water table: Xu-Ri and Prentice (2008) treats soil water in
-# two sublayers of 0.5 and 1.0 m, and Weier et al. (1993) incubated 60 g of
-# repacked soil in a sealed jar.
+# The papers behind the calibration block settle none of these. Every one is
+# Earth work at Earth's surface pressure and oxygen partial pressure, and none
+# carries a water table: Xu-Ri and Prentice (2008) treats soil water in two
+# sublayers of 0.5 and 1.0 m, Weier et al. (1993) incubated 60 g of repacked
+# soil in a sealed jar, and Linn and Doran (1984) incubated 100 g subsamples
+# compressed to a chosen bulk density in sealed jars.
 vesper_preconditions:
   surface_pressure_response:
     declared: undeclared
@@ -262,7 +263,7 @@ vesper_preconditions:
 # `verdict` is what the arithmetic says, and the gate re-derives it:
 #   agrees        the model's value is the paper's, or inside the paper's range
 #   outside       the model's value is outside the range its own source gives
-#   unsourced     neither paper states it. There is no bracket to be inside of,
+#   unsourced     no source states it. There is no bracket to be inside of,
 #                 and no central value is fitted here to stand in for one
 #
 # A `verdict: agrees` entry whose value is not inside its bracket is a failure
@@ -291,6 +292,12 @@ calibration:
       Pilegaard (2013), Processes regulating nitric oxide emissions from soils,
       Phil. Trans. R. Soc. B 368(1621) 20130126, 10.1098/rstb.2013.0126.
       references/pilegaard_2013_processes-regulating-nitric-oxide-emissions-from-soils.pdf
+    linn1984: >
+      Linn and Doran (1984), Effect of water-filled pore space on carbon dioxide
+      and nitrous oxide production in tilled and nontilled soils, Soil Science
+      Society of America Journal 48(6) 1267-1272,
+      10.2136/sssaj1984.03615995004800060013x.
+      references/linn1984-water-filled-pore-space-co2-n2o.pdf
 
   entries:
     - what: instruction:f_nitri_max
@@ -477,27 +484,66 @@ calibration:
         The comment says the curve is complete by 0.75 WFPS and it reaches 0.83
         there. Nothing is fitted here to stand in for a source.
 
+    - what: form:nitrification_activity_argument
+      reads: "nitrification, the argument nit_act is evaluated at"
+      source: "linn1984 fig. 1 and its objectives on p.1268"
+      compared: form
+      verdict: agrees
+      why: >
+        This entry is the curve's ARGUMENT and nothing else; its shape is the
+        entry below. The curve peaks at 0.6 and falls to zero at 0.8, which is
+        the water-filled pore space shape, and linn1984 is where that shape
+        enters the soil literature. Its fig. 1 plots relative nitrification
+        against per cent WFPS, and the paper's stated objective is to replace
+        per cent water-holding capacity with WFPS because WHC "depends on soil
+        type, and the methods for its determination vary and are often poorly
+        defined" (p.1268), which is the same objection world-b2i2 made to
+        get_soil_water_upper in substrate_partition. This function read
+        get_soil_water_upper, a fraction of AVAILABLE capacity, which is
+        neither the axis the curve is drawn on nor the index its underlying
+        data were measured in, so it put the peak of a WFPS curve at a
+        texture-dependent wetness. It now reads Soil::wfps(0), as every other
+        moisture response in the operator does. What that costs in reach is
+        declared under the wfps domain above: wfps(0) tops out at field
+        capacity over saturation, so the curve's zero is out of reach on any
+        gridcell whose field capacity over saturation is below 0.8.
+
     - what: function:nitrification_activity
-      source: "xuri2008 table 8 eqn 1"
-      verdict: unsourced
+      source: "xuri2008 table 8 eqn 1, against linn1984 fig. 1 and table 1"
+      compared: form
+      verdict: outside
       owner: world-nga9
       why: >
-        Two things are unsettled here and nothing else is. The FORM: table 8
-        eqn 1 is NO3inc = Nmax * ftemp * NH4_aerobic, with no moisture term at
-        all, because the WFPS partition upstream is where the paper puts the
-        moisture control on nitrification. The port multiplies it by a further
-        water response that peaks at exactly 1.0 at a water content of 0.6 and
-        is exactly zero at and above 0.8, so nitrification stops entirely on
-        any gridcell wetter than that, and it applies a second moisture control
-        on top of substrate_partition's. The ARGUMENT: it is
-        get_soil_water_upper, a fraction of available capacity, where every
-        other moisture response in the operator is Soil::wfps(0), so its peak
-        moves with texture the way the partition's did before world-b2i2.
-        Neither is settled by a source. smith2014, which documents the C-N
-        generation of LPJ-GUESS, adds no moisture term to nitrification: its
-        f(W) is the SOM decomposition scalar, a different function in a
-        different place. So the curve stays as it stands and refuses, rather
-        than being replaced by another unsourced one.
+        The SHAPE and the STACKING, the argument above being settled. linn1984
+        supports a nitrification response peaking at 60 per cent WFPS and
+        falling above it: its table 1 gives nitrification's maximum activity at
+        60 over 22 soils, and its fig. 1 draws the falling limb. It does not
+        support this curve. Fig. 1's nitrification trace is Greaves and Carter
+        (1920) replotted, not Linn and Doran's own measurement -- they measured
+        CO2 and N2O and state they "did not determine if N2O production
+        resulted from microbial nitrification ... or denitrification" (p.1271),
+        so their N2O columns are not a nitrification measurement. Read off that
+        trace at 400 dpi to about +/-0.03, the rising limb here runs at 0.54 to
+        0.67 of it over 0.1 to 0.5 WFPS, and the falling limb runs at 1.23 to
+        1.25 of it at 0.65 and 0.70 and then reaches zero at 0.80, where the
+        trace is still near 0.11 and where no datum lies beyond. The paper's
+        own fitted functions, WFPS/0.6 rising and 0.6/WFPS falling, are bounded
+        to 0.30 to 0.70 WFPS and never reach zero at all. Nothing here supports
+        a hard zero, and the 0.8 that does appear in the paper is Nommik's
+        threshold for significant DENITRIFICATION loss. The STACKING is not
+        settled by any of it, and the paper argues against rather than for:
+        fig. 1 labels the region above 60 per cent WFPS AERATION LIMITING and
+        attributes the decline to "reduced aeration" (p.1267), which is the
+        control substrate_partition already applies by handing this function
+        only NH4_mass_d, while the rise below 60 per cent is labelled WATER
+        LIMITING and is a control the partition does not carry and cannot,
+        since its aerobic share GROWS as the soil dries. Xu-Ri table 8 eqn 1
+        answers the structural question the other way, with no moisture term.
+        smith2014 adds none either: its f(W) is the SOM decomposition scalar, a
+        different function in a different place. So the curve stays as it
+        stands and refuses; no replacement is fitted to fig. 1 here, because a
+        curve digitised off a replotted 1920 figure would be another unsourced
+        curve wearing a citation.
 
     - what: function:f_no_nitrification
       source: "xuri2008 table 11 RNON against RN2ON, and pilegaard2013"
