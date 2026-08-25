@@ -208,6 +208,18 @@ void SoilInput::load_mineral_soils(const char* fname, const std::set<coord>& coo
 		fail("Error! No Soil C column found in %s. \nTip: do not use iforganicsoilproperties 1 together with a soilmap file without a SoilC column\n", fname);
 	}
 
+	// sand, clay, orgc, ph and cn are indexed unconditionally below. The comment
+	// above once said the first four were "intentionally left uninitialised, as
+	// those columns are required", but they are initialised to -1 and nothing
+	// tested them, so a soil map missing any of the five read T[-1], which is an
+	// out-of-bounds read on the vector rather than a message about the file.
+	// Name the column instead.
+	if (sand_i == -1) fail("No sand column in the soil map %s\n", fname);
+	if (clay_i == -1) fail("No clay column in the soil map %s\n", fname);
+	if (orgc_i == -1) fail("No orgc column in the soil map %s\n", fname);
+	if (ph_i == -1) fail("No ph column in the soil map %s\n", fname);
+	if (cn_i == -1) fail("No cn column in the soil map %s\n", fname);
+
 	// Create a empty vector T with header.size-2 elements
 	std::vector<double> T((unsigned int)header.size() - 2);
 
@@ -442,6 +454,11 @@ void SoilInput::get_soil_mineral(double lon, double lat, Gridcell& gridcell) {
 	soiltype.water_below_wp = soilprop.wilting_point;
 	soiltype.porosity = soilprop.porosity;
 	soiltype.mineral_frac = 1.0 - soiltype.organic_frac - soiltype.porosity;
+	// The soil map's pH. get_mineral reads it into the SoilProperties and
+	// get_lpj sets 6.5 there, but neither get_soil path carried it onto the
+	// Soiltype, so Soiltype::pH stayed at the constructor's -1.0 for every
+	// gridcell and nh3_volatilization always took its no-pH branch.
+	soiltype.pH = soilprop.pH;
 
 	// Phosphorus soil data
 	// FIXED FOR AMAZON FACE AT THE MOMENT
@@ -697,6 +714,8 @@ void SoilInput::get_soil_organic(double lon, double lat, Gridcell& gridcell) {
 	// read.
 	soiltype.soilcode = soil_code ? soilcode : -1;
 	soiltype.water_below_wp = soilpropmineral.wilting_point;
+	// The soil map's pH, on the same terms as get_soil_mineral above.
+	soiltype.pH = soilpropmineral.pH;
 	// These values are not used when we use the organic fraction to determine soil properties
 	// However, here we update them with the average values
 	soiltype.organic_frac = material_org_avg;

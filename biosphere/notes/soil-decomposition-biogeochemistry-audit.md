@@ -194,16 +194,30 @@ soil/climate feedback, not a prerequisite for proving the adapter runs.
 ### 8. Soil N transformations assume an Earth gas and redox environment
 
 The active `ntransform.cpp` path partitions nitrification and denitrification
-with fixed Earth-calibrated temperature, water-filled-pore-space and pH
-response curves and constants from `global_soiln.ins`. It uses upper-soil water
-status but no atmospheric pressure/O2 boundary, gas diffusivity, water-table
-redox state or depth structure. Pedology pH reaches the code, but Vesper's
-stronger-gravity pressure field currently does not.
+with fixed Earth-calibrated temperature, water and pH response curves and
+constants from `global_soiln.ins`. It uses upper-soil water status but no
+atmospheric pressure/O2 boundary, gas diffusivity, water-table redox state or
+depth structure.
+
+Pedology pH did NOT reach the code. `SoilInput::get_mineral` read the soil map's
+`ph` column into a local `SoilProperties` and neither `get_soil` path carried it
+onto the `Soiltype`, so the operator took its no-pH branch on every gridcell --
+and that branch evaluated Dawson (1977)'s Earth precipitation-to-pH regression
+against `climate.aprec_lastyear`, which nothing in the model assigns, returning
+8.5 everywhere for every day. Both are repaired, and the operator now refuses an
+input path that supplies no pH rather than substituting a constant. Its only
+conservation check was an `assert`, which every Release build compiles out, and
+it is now compiled in.
 
 Because gaseous loss changes mineral N availability, this is not merely an
 emissions-reporting issue. SDEC-8 joins BIO-23's pressure/O2 handoff and
 SDEC-3/PLHY's saturation state to a registered N-transformation parameter and
-model-form bracket. Methane remains the separate, disabled BIO-28 scope.
+model-form bracket. The register, the bounds that hold without the two source
+papers this project could not obtain, and the variable mismatch in the
+aerobic/anaerobic split are in
+`soil-nitrogen-transformation-parameterisation.md`, and
+`biosphere/scripts/ntransform_gate.py` enforces the declaration. Methane remains
+the separate, disabled BIO-28 scope.
 
 ### 9. Current artifacts cannot diagnose or close this system
 

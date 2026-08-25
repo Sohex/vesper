@@ -591,6 +591,26 @@ steps:
       run. `lpj_run` needs it so the refusal sits on the path rather than
       beside it.
 
+  - id: ntransform_gate
+    script: biosphere/scripts/ntransform_gate.py
+    loop: B
+    cost: seconds
+    needs: []
+    writes: [biosphere/generated/ntransform_gate_report.json]
+    gate: >
+      the declaration of the simulated soil's nitrogen transformation operator,
+      checked against the source the model reads. It reads
+      biosphere/config/ntransform.yaml and fails on a constant that has drifted
+      from global_soiln.ins, on a literal no longer in modules/ntransform.cpp,
+      on a response function that leaves the range its role allows over the
+      declared domain, and on a chain of factors whose product would take more
+      nitrogen out of a pool than the pool holds. Seven reduced fixtures run on
+      every invocation, six built to be wrong in a named way. With every Vesper
+      precondition still undeclared it reports and exits 0, because a run on the
+      declared Earth-calibrated operator is a correct run of a declared model
+      boundary; `--strict` is the arm that refuses. `lpj_run` needs it so the
+      boundary sits on the path rather than beside it.
+
   - id: abiotic_nutrient_ledger
     script: biosphere/scripts/abiotic_nutrient_ledger.py
     loop: B
@@ -613,7 +633,7 @@ steps:
     script: biosphere/scripts/run_lpj_guess.py
     loop: B
     cost: hours
-    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger]
+    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate]
     writes: [biosphere/runs/]
 
   - id: prospectivity
