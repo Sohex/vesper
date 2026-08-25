@@ -414,3 +414,75 @@ water content rather than from a lateral solve, so the column estimator is the
 field's normal practice and this project's Dupuit-Forchheimer solution is the
 departure needing the argument. Nothing in this note decides that; it is a
 decision about which estimator the world's numbers rest on.
+
+## 6. GW-26: the score, run 2026-08-25, and what it says
+
+`earth_calibration.py --stage fsat`, on the cached 15.19 km Earth mesh both
+continents' solves already sit on. Three things had to be declared before it
+could run and were, in `hydrography/config/topographic_index.yaml` and in the
+commit before the first score: the SUPPORT, because 0.573 is the depth's
+discrimination per bore against the mesh REGION it falls in while `f_sat` lives
+at a climate-grid cell; the COMPARATOR, the cell-mean depth's own area under the
+curve at that same support, because a coarser support moves the number on its
+own and clearing 0.573 alone would not show the terrain half had done anything;
+and the attribution IDENTITY, which the harness checks rather than argues.
+
+**The identity holds exactly.** With `f_sat_max` held constant the closure's
+ranking is the depth's ranking, and the two areas under the curve agree to
+0.00e+00 on every arm of every set. So every difference below is the terrain
+half's and nothing else's.
+
+**The verdict is a miss and the license is no**, because the license is the AND
+over both sets the config requires.
+
+| set | ceiling at this support | cell-mean depth | `f_sat`, plane fit | `f_sat`, receiver drop |
+| --- | ---: | ---: | ---: | ---: |
+| Australia, depth-consistent, 53,410 bores in 34 cells | 0.6574 | 0.4581 | 0.4572 / 0.4579 | 0.4771 / 0.4581 |
+| United States, unconfined, 73,451 bores in 37 cells | 0.7739 | 0.6655 | 0.6723 / 0.6713 | 0.6719 / 0.6688 |
+
+The two `f_sat` columns are the two ends of `f_grad_bracket_per_m`, 1.25 and 2.5
+per metre. The bar is 0.573 and the second condition is the cell-mean depth
+column beside it. Both sets reproduce the bar's own provenance first: the depth
+per bore against its mesh region reads 0.5759 in Australia, against the 0.573
+recorded in `groundwater-et-sink.md`, and 0.6567 in the United States.
+
+**The miss is the DEPTH's, not the terrain statistic's, and the ceiling column
+is what says so.** No cell-scale predictor can beat the cells' own observed wet
+rate, and at this support that ceiling is 0.6574 in Australia -- far above the
+0.4581 the cell-mean depth reaches there, which is below the 0.5 of no
+discrimination at all. The support is not what failed; the depth is. In the
+United States, where lateral flow rather than the local sink sets the head, the
+same depth reaches 0.6655 and `f_sat` clears both conditions on every arm. That
+is the regime split `water_table.nc` already reports per cell in
+`sink_fraction`, one quantity removed, and section 1 is where it comes from.
+
+**What the terrain half is worth where the depth is worth anything.** +0.0034 to
++0.0068 on the United States set, positive on all four arms. Small, and in the
+same direction every time. In Australia it reaches +0.0191 at best and cannot
+lift a below-chance depth above the bar.
+
+**One end of the `f_grad` bracket erases the quantity.** At 2.5 per metre the
+exponential in the depth spans so much more than `f_sat_max` does that the
+ranking becomes the depth's ranking exactly: the Australian receiver-drop arm
+returns 0.4581, the cell-mean depth's own figure, to fifteen digits. So the
+bracket is not a spread around one answer. Its upper end is a configuration in
+which the terrain half contributes nothing, and a consumer taking that arm alone
+is taking the depth under another name.
+
+**The index's scale is the mesh, and this is the measurement of it.** The land
+mean index on the Earth mesh at 15.19 km is 17.23 on the plane-fit arm and 17.37
+on the receiver-drop arm over the Australian window, and 16.43 and 16.75 over
+the United States one. That is Earth's own topography out of a DEM, and it still
+sits far above the range CLIMBER-X tabulates its CDF on. So the offset that
+makes `cti_mean_crit = 5.5` and the cut at 14 unusable here is the cell size
+carried in `a`, not something about this world's terrain, and the refusal of
+absolute thresholds now rests on a measurement on real ground rather than on an
+inference from one world.
+
+**What would license the fraction, and it is not this row's to take.** The
+United States arm passes; Australia's does not, because the depth it multiplies
+has no skill in the sink-dominated regime. Restricting the criterion to the
+cells where the sink did not set the depth is what MIN-6 and SURF-7 are already
+asking of the depth field itself. Such a criterion has to be declared before it
+is run rather than chosen now that these numbers are in hand, which is why it is
+filed rather than done here.
