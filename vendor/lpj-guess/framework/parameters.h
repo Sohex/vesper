@@ -306,6 +306,34 @@ extern bool save_state;
 /// Save/restart year
 extern int state_year;
 
+/// The last simulated day of `state_year` the state file covers, or -1
+/** -1, the default, is the year boundary: the state covers the whole of year
+ *  `state_year - 1` and a restart resumes at day 0 of `state_year`. That is the
+ *  only save point this model had, and it is why a restart could not be
+ *  compared against the run it continues at any instant shorter than a
+ *  simulated year.
+ *
+ *  0 or more places the save point at the END of that day of `state_year`; a
+ *  restart then resumes on the following day. Only the "vesper" input module
+ *  serves a mid-year resume: its per-day forcing is indexed by date.day and it
+ *  reloads a year whenever the loaded one is not the wanted one. The stream-
+ *  ordered input modules are not day-addressable and a mid-year restart on one
+ *  of them would resume on the wrong forcing.
+ */
+extern int state_day;
+
+/// Simulation year the save point falls in, when a run both restarts and saves
+/** Defaults to `state_year`, so a run that only saves behaves exactly as it did
+ *  when the save point and the restart point were one number. A run doing both
+ *  needs them apart: the restart point is where it resumes and the save point is
+ *  where it writes, and the second has to be at or after the first.
+ */
+extern int save_year;
+
+/// The last simulated day of `save_year` the written state covers, or -1
+/** Same convention as `state_day`, and defaults to it. */
+extern int save_day;
+
 /// The level of verbosity
 extern int verbosity;
 

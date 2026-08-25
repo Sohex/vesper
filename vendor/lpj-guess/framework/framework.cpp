@@ -207,6 +207,25 @@ int framework(const CommandLineArguments& args) {
 		deserializer = auto_ptr<GuessDeserializer>(new GuessDeserializer(state_path));
 	}
 
+	// The two instants the state file machinery is expressed in, each named as
+	// the LAST simulated day the state covers. state_day and save_day carry -1
+	// for the year boundary, which is the last day of the preceding year; that
+	// is the save point this model used to have and it stays the default.
+	const int resume_year = state_day < 0 ? state_year - 1 : state_year;
+	const int resume_day  = state_day < 0 ? Date::MAX_YEAR_LENGTH - 1 : state_day;
+	const int save_point_year = save_day < 0 ? save_year - 1 : save_year;
+	const int save_point_day  = save_day < 0 ? Date::MAX_YEAR_LENGTH - 1 : save_day;
+
+	// A run that resumes and saves at the SAME instant simulates no days between
+	// reading the state and writing it. That is the round trip: every difference
+	// between the two files is something the write-and-read of a state file does
+	// not carry, with no integration in between to explain it. It cannot see a
+	// member the serializer omits entirely, because such a member is absent from
+	// both files; what it sees is a member the deserialize path reads and then
+	// overwrites. biosphere/scripts/verify_lpj_restart_continuity.py.
+	const bool zero_day_round_trip = restart && save_state &&
+		save_point_year == resume_year && save_point_day == resume_day;
+
 	while (true) {
 
 		// START OF LOOP THROUGH GRID CELLS
@@ -233,8 +252,17 @@ int framework(const CommandLineArguments& args) {
 		if (restart) {
 			// Get the whole grid cell from file...
 			deserializer->deserialize_gridcell(gridcell);
-			// ...and jump to the restart year
-			date.year = state_year;
+			// ...and jump to the day AFTER the last one the state covers.
+			if (resume_day == Date::MAX_YEAR_LENGTH - 1) {
+				date.set_day(resume_year + 1, 0);
+			}
+			else {
+				date.set_day(resume_year, resume_day + 1);
+			}
+
+			if (zero_day_round_trip) {
+				serializer->serialize_gridcell(gridcell);
+			}
 		}
 
 		// Call input/output to obtain climate, insolation and CO2 for this
@@ -258,16 +286,19 @@ int framework(const CommandLineArguments& args) {
 				output_modules.outannual(gridcell);
 
 				gridcell.balance.check_year(gridcell);
+			}
 
-				// Time to save state?
-				if (date.year == state_year-1 && save_state) {
-					serializer->serialize_gridcell(gridcell);
-				}
+			// Time to save state? The end of the named day, which on a year
+			// boundary is after outannual and check_year have run -- where the
+			// only save point this model had used to sit.
+			if (save_state && !zero_day_round_trip &&
+			    date.year == save_point_year && date.day == save_point_day) {
+				serializer->serialize_gridcell(gridcell);
+			}
 
-				// Check whether to abort
-				if (abort_request_received()) {
-					return 99;
-				}
+			// Check whether to abort
+			if (date.islastday && date.islastmonth && abort_request_received()) {
+				return 99;
 			}
 
 			// Advance timer to next simulation day

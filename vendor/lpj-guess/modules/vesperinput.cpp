@@ -441,8 +441,21 @@ bool VesperInput::getclimate(Gridcell& gridcell) {
 	// a stellar cycle is. The wrap also means spin-up sees the whole cycle
 	// rather than one arbitrary phase of it.
 	const int wanted = (years > 1) ? (date.year % years) : 0;
-	if (date.day == 0 && wanted != loaded_year) {
+	if (wanted != loaded_year) {
+		// Whenever the loaded year is not the wanted one, and not only on day 0.
+		// A run resuming from a state file at state_day >= 0 never sees day 0 of
+		// the year it resumes into, and without this it would run the rest of
+		// that year on whatever the arrays last held. The day-0 block below still
+		// owns the seasonal landmarks and the progress report; this only owns the
+		// forcing arrays, and on day 0 the two conditions coincide exactly as
+		// they did when they were one test.
 		interpolate(cell, wanted);
+		if (date.day != 0) {
+			// Day 0 sets the landmarks below. A mid-year resume has to set them
+			// here or summergreen phenology spends the rest of the year on the
+			// landmarks initdrivers starts from, which are not this cell's.
+			climate.set_seasonal_cycle(dtemp);
+		}
 	}
 
 	// Per day of ABSOLUTE time, so the Earth year and not this world's. The
