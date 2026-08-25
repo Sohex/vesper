@@ -394,10 +394,15 @@ static fields; the result is an initial condition, not a continued equilibrium.
 At each rung, settle loop A before trusting anything downstream, because changed
 orography, coastline, precipitation and evaporation can change the carve
 verdict; then rebuild hydrography coupling, groundwater, soil and ecological
-forcing for that support and settle loops B and C. SPAT-8's declared quantities
-are compared between rungs after conservative remapping to one common support,
-and what they report is the size of the coarse-rung error, which is carried as
-structural uncertainty rather than used to stop early.
+forcing for that support and settle loops B and C.
+
+There is no between-rung convergence comparison, and the reason is worth
+stating so it is not reinstated by reflex. Such a comparison answers "which
+rung is fine enough to stop at", and choosing T85 by decision removed that
+question. It cannot be repurposed into "how wrong were the coarse rungs",
+because that needs a converged finer reference to difference against and T85 is
+the finest support being run. The coarse rungs are a ROUTE to T85, not
+candidates being scored against it.
 
 LPJ-GUESS gridcells are independent columns, so its direct cost grows roughly
 with land-cell count, but the biosphere can still determine whether a climate

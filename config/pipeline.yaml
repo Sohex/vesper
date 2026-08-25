@@ -44,9 +44,9 @@ loops:
       a conversion is attributable to the support alone. A reconvergence is TEN
       orbits, then THREE-orbit increments until the convergence criteria are
       met. Advance only after the current support has settled, replaying A, B
-      and C on it. SPAT-8's quantities are still compared between rungs, but
-      what they report is the size of the coarse-rung error carried as
-      structural uncertainty -- they do not decide where to stop. The three
+      and C on it. There is no between-rung convergence comparison: choosing
+      T85 by decision removed the question one would answer, and nothing finer
+      is being run to difference it against. The three
       timesteps are the highest each rung can carry and are PROVISIONAL on
       WORLD-37TN re-measuring the stability grid; they are declared intent,
       not a measured ceiling. `docs/src/pipeline/sequencing.md` section D.
