@@ -1,43 +1,51 @@
 #!/usr/bin/env python3
-"""The land column property contract: one hydraulic and thermal description,
-and the comparison of every consumer against it.
+"""The land column property contract: one hydraulic description of the simulated
+land column, emitted for every consumer to read.
 
 Worldbuilding. Vesper is an invented planet; everything below is about the
-simulation of it -- a declared column of soil, the states and flow properties
-it is described by, and what each of the three consumers currently derives for
-itself instead.
+simulation of it -- a declared column of soil and the states and flow
+properties it is described by.
 
-    python pedology/scripts/land_column_properties.py            # status, exit 0
+    python pedology/scripts/land_column_properties.py            # check, emit, report
     python pedology/scripts/land_column_properties.py --strict   # exit 1 while any property is undeclared
+    python pedology/scripts/land_column_properties.py --no-emit  # check and report only
 
-This module is the enforcement for `pedology/config/land_column_properties.yaml`.
-It does four things, and none of them runs a model:
+This module is the enforcement for `pedology/config/land_column_properties.yaml`
+AND the one implementation of the states it declares. It does five things, and
+none of them runs a model:
 
 1. **The declaration.** Units, geometry, ordering of the retention states, the
    potential convention and the uncertainty cases are checked for internal
    consistency, and the check is then run against declarations broken in named
    ways so it is falsifiable rather than merely quiet.
 
-2. **The three-way capacity comparison**, on the checked-in soil map. Pedology's
-   `awc`, ExoPlaSim's `dwmax` and LPJ-GUESS's own Cosby derivation with the
-   Vesper regolith and bedrock scaling, on the same cells, in the same units.
-   The audit's finding 1 is that these are not the same capacity; this is the
-   number.
+2. **The emission.** The adopted per-cell retention states and the per-layer
+   weathered-bedrock fractions, written to the build's states file. ExoPlaSim
+   installs the capacity column as `dwmax`; LPJ-GUESS takes the states and the
+   fractions through its driver file. Neither derives them, and the derivation
+   is here and nowhere else.
 
-3. **The Cosby inversion's air-entry clamp.** `soilinput.cpp` clamps both
-   matric heads at the air-entry value, because Cosby's equation holds only
-   below air entry and unclamped it returns a field capacity above saturation.
-   The texture region where the clamp binds is derived analytically from the
+3. **The frame check.** Cosby's parameters are recorded as heads on Earth, and
+   a head is a pressure only through the local gravity. Air entry is a
+   capillary pressure and the wilting point is a plant pressure, so both are
+   invariant and both of their heads scale together; field capacity is a
+   drainage equilibrium and is the one state whose defining pressure carries
+   gravity. The check computes the states in two consistent frames, which must
+   agree exactly, and in the frame-mixed variant, which must not.
+
+4. **The Cosby inversion's air-entry clamp.** Cosby's equation holds only below
+   air entry and unclamped it returns a field capacity above saturation. The
+   texture region where the clamp binds is derived analytically from the
    regression coefficients and the soil map is measured against it, so the
    answer is a MARGIN rather than a count of zero.
 
-4. **The gravity correction to field capacity.** Field capacity is a drainage
-   equilibrium, so its matric pressure scales with gravity and this planet's is
-   not Earth's. The wilting point is a plant pressure and does not move. The
-   correction is therefore one-directional, has no free parameter, and neither
-   consumer applies it.
+5. **What the adopted case moved**, against pedology's declared endmember
+   mixture and against the suction the shipped LPJ-GUESS code evaluated at.
+   That is the attribution the removal of the consumer-side pedotransfers
+   needed.
 
-The report goes to `pedology/analysis/land_column_properties_report.json`.
+The report goes to `pedology/analysis/land_column_properties_report.json` and
+carries the emitted file's hash, so the emission's provenance is in it.
 The contract is `pedology/notes/land-column-property-contract.md`.
 """
 
@@ -157,6 +165,243 @@ def lpj_capacity_mm(sand, clay, regolith_depth_m, bedrock_fraction):
         total += available * thickness * usable
         top_mm = top_mm + thickness
     return total
+
+
+# ---------------------------------------------------------------------------
+# THE ADOPTED DERIVATION. One implementation, in pressure, and the only place
+# the simulated column's retention states are computed.
+#
+# The contract names its closure -- Clapp-Hornberger on Cosby Table 4 -- and
+# declares field capacity as a drainage equilibrium at `rho_w * g * L`. Read
+# literally that determines the states from texture, and this is that reading.
+# WORLD-OF6N adopted it; WORLD-SLPA is the same change reached from the gravity
+# side and is subsumed by it.
+#
+# WHY THIS WORKS IN PASCALS AND NOT IN HEADS. Cosby's parameters are recorded
+# as heads in centimetres of water, and a head is a pressure only through the
+# local gravity. Two of the three defining pressures are INVARIANT under a
+# change of gravity and one is not:
+#
+#   the air-entry value is a CAPILLARY pressure, set by pore geometry and
+#   surface tension. Invariant.
+#   the wilting point is a PLANT pressure, the suction a root can generate.
+#   Invariant.
+#   field capacity is a drainage equilibrium against the weight of a column,
+#   `rho_w * g * L`. It is the only one that carries gravity.
+#
+# Converting one of the two invariant heads and not the other mixes two frames
+# and produces a wilting point that moves for a bookkeeping reason. Working in
+# pressure makes that impossible to write: each Earth-recorded head is turned
+# into a pressure ONCE, at Earth's gravity, at the point it is declared, and
+# this world's gravity enters at exactly one place, the field-capacity
+# equilibrium. `frame_consistency` below is the check, and it has something
+# that can fail.
+# ---------------------------------------------------------------------------
+
+CM_WATER_PER_M = 100.0
+
+# The guard `vesperinput.cpp` applies, kept identical to it because the
+# weathered-bedrock rule is one rule and this is now the copy that computes it.
+# LPJ-GUESS carries soil water as a fraction of a layer's capacity, so a layer
+# scaled to exactly zero divides by zero and the NaN zeroes the gridcell's
+# vegetation silently rather than failing.
+NUMERICAL_FLOOR = 1.0e-4
+
+
+def air_entry_pressure_pa(sand, clay, decl: dict):
+    """Cosby's air-entry head as a pressure. Earth-recorded, and invariant.
+
+    `log_psi_s` is log10 of the air-entry suction in centimetres of water as
+    Cosby's Table 4 regression gives it, which is a head measured on Earth. It
+    becomes a pressure through Earth's gravity, once, here.
+    """
+    pot = decl["potential_convention"]
+    _, psi_s, _ = cosby_parameters(sand, clay)
+    head_cm = 1.0 / psi_s            # the suction itself, cm of water on Earth
+    return (pot["water_density_kg_m3"] * pot["earth_gravity_m_s2"]
+            * head_cm / CM_WATER_PER_M)
+
+
+def field_capacity_pressure_pa(decl: dict, gravity_m_s2: float) -> float:
+    """The drainage equilibrium this world's column settles at.
+
+    The ONE place gravity enters the retention states. `L` is the declared
+    drainage length; the pressure that balances the weight of that column is
+    `rho_w * g * L`, and `g` is this planet's.
+    """
+    pot = decl["potential_convention"]
+    return (pot["water_density_kg_m3"] * gravity_m_s2
+            * pot["field_capacity_drainage_length_m"])
+
+
+def contract_states(sand, clay, decl: dict, gravity_m_s2: float):
+    """The adopted volumetric states: saturation, field capacity, wilting point.
+
+    Clapp-Hornberger, `theta(p) = theta_s * (p_ae / p) ** (1 / b)`, clamped at
+    air entry because Cosby's equation holds only below it: at and above it the
+    pore space is full and theta is theta_s. Returns `b` as well, because the
+    exponent is a declared property of the closure and consumers that need a
+    texture-dependent drainage rule take it from here rather than refitting one.
+    """
+    pot = decl["potential_convention"]
+    b, _, theta_s = cosby_parameters(sand, clay)
+    p_ae = air_entry_pressure_pa(sand, clay, decl)
+    p_fc = np.maximum(field_capacity_pressure_pa(decl, gravity_m_s2), p_ae)
+    p_wilt = np.maximum(abs(float(pot["wilting_point_pa"])), p_ae)
+    theta_fc = theta_s * (p_ae / p_fc) ** (1.0 / b)
+    theta_wp = theta_s * (p_ae / p_wilt) ** (1.0 / b)
+    return b, theta_s, theta_fc, theta_wp
+
+
+def layer_usable_fraction(depth_m, bedrock_fraction, decl: dict):
+    """Per physical layer, the share of a layer's capacity the column carries.
+
+    The contract's `materials.weathered_bedrock` vertical rule, and the ONE
+    implementation of it. A layer entirely above the regolith contact keeps all
+    of its capacity; the part below the contact keeps `bedrock_fraction` of it,
+    capped at the declared `capacity_ceiling` so sub-bedrock material can at
+    most match the soil above.
+
+    Returned as a fraction per layer rather than as a capacity, because the same
+    fraction scales this layer's available water, its wilting point and its
+    saturation: the material below the contact holds less of everything, and
+    emitting one number instead of three is what stops them drifting apart.
+
+    `NUMERICAL_FLOOR` is a numerical guard and not physics; it is declared with
+    the constant.
+    """
+    geom = decl["geometry"]
+    nlayer = int(geom["physical_layer_count"])
+    thickness_mm = float(geom["physical_layer_thickness_m"]) * 1000.0
+    ceiling = float(decl["materials"]["weathered_bedrock"]["capacity_ceiling"])
+
+    depth_mm = np.atleast_1d(np.asarray(depth_m, dtype=float)) * 1000.0
+    bedrock = np.atleast_1d(np.asarray(bedrock_fraction, dtype=float))
+    bedrock = np.clip(bedrock, NUMERICAL_FLOOR, ceiling)
+
+    usable = np.empty((depth_mm.size, nlayer), dtype=float)
+    top_mm = 0.0
+    for layer in range(nlayer):
+        share = np.clip((depth_mm - top_mm) / thickness_mm, 0.0, 1.0)
+        usable[:, layer] = share + (1.0 - share) * bedrock
+        top_mm += thickness_mm
+    return usable
+
+
+def column_capacity_mm(theta_fc, theta_wp, usable, decl: dict):
+    """Plant-available capacity over the whole physical column, mm.
+
+    The states integrated over the declared layers with the weathered-bedrock
+    rule applied. This is the capacity ExoPlaSim installs as `dwmax` and the
+    same one LPJ-GUESS's layers sum to, which is what makes the two consumers
+    agree on how much soil there is by construction rather than by coincidence.
+    """
+    geom = decl["geometry"]
+    thickness_mm = float(geom["physical_layer_thickness_m"]) * 1000.0
+    available = np.atleast_1d(np.asarray(theta_fc, dtype=float)
+                              - np.asarray(theta_wp, dtype=float))
+    return available * thickness_mm * usable.sum(axis=1)
+
+
+def frame_consistency(soil: dict[str, np.ndarray], decl: dict,
+                      gravity_m_s2: float) -> dict:
+    """Does the adopted derivation depend on which units the heads are carried in?
+
+    IT MUST NOT, and this is the check with a right answer rather than a
+    difference to eyeball. The same three states are computed three ways:
+
+    - EARTH-EQUIVALENT FRAME. Every head stays in centimetres of water on
+      Earth, and the field-capacity head is raised by `g / g_earth` so that it
+      still names the pressure a column of the declared length exerts here.
+    - VESPER FRAME. Every Earth-recorded head is divided by `g / g_earth` so it
+      names the same pressure as a head of water on this world, and the
+      field-capacity head is the declared drainage length in that unit.
+    - FRAME-MIXED. The wilting head converted and the air-entry head left
+      alone. This is not a frame at all, and it is here because a check that
+      cannot fail proves nothing.
+
+    The first two must agree exactly: `theta = theta_s * (h_ae / h) ** (1 / b)`
+    depends on the two heads only through their ratio, and a frame change
+    multiplies both by the same factor. The third must NOT agree, and the size
+    of its disagreement is what a consumer would have shipped had it converted
+    the plant pressure and forgotten the capillary one.
+    """
+    pot = decl["potential_convention"]
+    sand, clay = soil["sand"], soil["clay"]
+    b, _, theta_s = cosby_parameters(sand, clay)
+    factor = gravity_m_s2 / pot["earth_gravity_m_s2"]
+
+    head_ae_earth = 1.0 / cosby_parameters(sand, clay)[1]
+    head_wilt_earth = (abs(float(pot["wilting_point_pa"]))
+                       / (pot["water_density_kg_m3"] * pot["earth_gravity_m_s2"])
+                       * CM_WATER_PER_M)
+    # The declared drainage length as a head of water on Earth, which is what
+    # Cosby's field-capacity suction is and why the length is declared at all.
+    head_fc_earth = (float(pot["field_capacity_drainage_length_m"])
+                     * CM_WATER_PER_M)
+
+    def available_at(head_fc, head_wilt, head_ae):
+        theta_fc = theta_s * (head_ae / np.maximum(head_fc, head_ae)) ** (1.0 / b)
+        theta_wp = theta_s * (head_ae / np.maximum(head_wilt, head_ae)) ** (1.0 / b)
+        return theta_fc - theta_wp
+
+    shipped = available_at(head_fc_earth, head_wilt_earth, head_ae_earth)
+    earth_frame = available_at(head_fc_earth * factor, head_wilt_earth,
+                               head_ae_earth)
+    vesper_frame = available_at(head_fc_earth, head_wilt_earth / factor,
+                                head_ae_earth / factor)
+    mixed = available_at(head_fc_earth, head_wilt_earth / factor, head_ae_earth)
+
+    _, _, theta_fc_a, theta_wp_a = contract_states(sand, clay, decl, gravity_m_s2)
+    adopted = theta_fc_a - theta_wp_a
+
+    disagreement = float(np.max(np.abs(earth_frame - vesper_frame)))
+    from_adopted = float(np.max(np.abs(adopted - earth_frame)))
+    tolerance = 1e-12
+    defects = []
+    if disagreement > tolerance:
+        defects.append(
+            f"frame consistency: the Earth-equivalent and Vesper frames differ "
+            f"by {disagreement:.3e} volumetric and must agree exactly. The "
+            "states depend on the heads only through their ratio, so a frame "
+            "change cancels; a difference means one head was converted and "
+            "another was not")
+    if from_adopted > tolerance:
+        defects.append(
+            f"frame consistency: the adopted pressure derivation differs from "
+            f"the head derivation by {from_adopted:.3e} volumetric. They are "
+            "the same closure written twice and must agree")
+    if float(np.max(np.abs(mixed - earth_frame))) <= tolerance:
+        defects.append(
+            "frame consistency: the frame-mixed variant agrees with the "
+            "consistent frames, so this check cannot tell them apart and "
+            "proves nothing")
+
+    def ratio(new):
+        return percentiles(new / np.maximum(shipped, 1e-12))
+
+    return {
+        "gravity_ratio_to_earth": float(factor),
+        "field_capacity_head_cm_earth_frame": float(head_fc_earth * factor),
+        "available_ratio_to_shipped": {
+            "earth_equivalent_frame": ratio(earth_frame),
+            "vesper_frame": ratio(vesper_frame),
+            "frame_mixed_wilting_only": ratio(mixed),
+        },
+        "frames_agree_max_abs_volumetric": disagreement,
+        "adopted_matches_head_derivation_max_abs_volumetric": from_adopted,
+        "frame_mixed_is_distinguishable": bool(
+            float(np.max(np.abs(mixed - earth_frame))) > tolerance),
+        "reading": "the two consistent frames are one number and the "
+                   "frame-mixed variant is a different one. The wilting point "
+                   "does not move under a change of gravity, because it and "
+                   "the air-entry value are both invariant pressures recorded "
+                   "as Earth heads and their ratio is what the closure reads. "
+                   "Field capacity is the only state whose defining pressure "
+                   "carries gravity.",
+        "defects": defects,
+        "owner": "world-slpa, subsumed into world-of6n",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -374,13 +619,14 @@ def percentiles(values: np.ndarray) -> dict:
 
 
 def compare_consumers(decl: dict, soil: dict[str, np.ndarray]) -> dict:
-    """Pedology's capacity against LPJ-GUESS's, on the same cells.
+    """Pedology's declared endmember capacity against the shipped Cosby inversion.
 
-    ExoPlaSim's is pedology's divided by 1000 and installed as a bucket depth,
-    so it is the same field in metres and is reported as such rather than as a
-    third estimate: `build_surface_soil_water.py` reads the `awc` column and
-    converts. What differs is not the number but what it is asked to mean --
-    a plant-available capacity standing in for an entire land column.
+    THE TWO DERIVATIONS THIS REPLACED, kept because the attribution is what
+    made the replacement legible. `soilmap.txt`'s `awc` is pedology's endmember
+    mixture with its additive organic and allophane terms; `lpj_capacity_mm` is
+    the Cosby retention inversion at Cosby's own suction with the regolith and
+    bedrock rescaling, transcribed from the source as it stood. Neither is what
+    a consumer installs now: both read the emitted states.
     """
     pedology_mm = soil["awc"]
     lpj_mm = lpj_capacity_mm(soil["sand"], soil["clay"],
@@ -393,8 +639,9 @@ def compare_consumers(decl: dict, soil: dict[str, np.ndarray]) -> dict:
         "pedology_awc_mm": percentiles(pedology_mm),
         "lpj_guess_derived_mm": percentiles(lpj_mm),
         "exoplasim_dwmax_m": percentiles(pedology_mm / 1000.0),
-        "exoplasim_source": "the pedology awc column, converted mm to m; not a "
-                            "third derivation",
+        "exoplasim_source": "what dwmax WAS: the pedology awc column converted "
+                            "mm to m. It is now the emitted states file's "
+                            "awc_mm column on the same terms",
         "lpj_over_pedology_ratio": percentiles(ratio),
         "absolute_difference_mm": percentiles(difference),
         "pearson_correlation": correlation,
@@ -402,7 +649,8 @@ def compare_consumers(decl: dict, soil: dict[str, np.ndarray]) -> dict:
                    "texture and depth. They are not the same capacity: one is a "
                    "declared endmember mixture with additive organic and "
                    "allophane terms, the other is a Cosby retention inversion "
-                   "with no andic term and no bulk density.",
+                   "with no andic term and no bulk density. That is the "
+                   "disagreement the adopted case ended.",
         "soil_carbon_is_zero": bool(np.all(soil["soilc"] == 0.0)),
         "soil_carbon_note": "the checked-in map carries zero soil carbon "
                             "everywhere, so the organic mixing paths of both "
@@ -511,56 +759,58 @@ def gravity_field_capacity_shift(decl: dict, soil: dict[str, np.ndarray],
         "direction": "down, on every cell. Stronger gravity drains a column to a "
                      "drier state at equilibrium; the wilting point is a plant "
                      "pressure and does not move, so plant-available water falls.",
-        "applied_by_any_consumer": False,
-        "applied_note": "pedology's declared endmember capacities are Earth field "
-                        "observations and LPJ-GUESS's Cosby inversion evaluates at "
-                        "the Earth suction, so neither carries this. It is a "
-                        "correction this contract makes available and no consumer "
-                        "has taken.",
-        "bracket_note": "an upper bound on the size of the effect, not a "
-                        "correction factor to apply as it stands: it holds the "
-                        "Clapp-Hornberger exponent fixed while gravity moves, and "
-                        "the within-texture-class variance Cosby reports is larger "
-                        "than the shift.",
+        "applied_by_any_consumer": True,
+        "applied_note": "APPLIED. WORLD-OF6N adopted the contract read literally, "
+                        "so the emitted states evaluate field capacity at "
+                        "rho_w * g * L with this planet's gravity and every "
+                        "consumer installs them. Pedology's declared endmember "
+                        "capacities are Earth field observations and are no "
+                        "longer what any consumer reads.",
+        "bracket_note": "an UPPER BOUND on the size of the effect and adopted as "
+                        "one: it holds the Clapp-Hornberger exponent fixed while "
+                        "gravity moves, so it is the whole of the shift a "
+                        "gravity-invariant curve can produce, and the "
+                        "within-texture-class variance Cosby reports is larger "
+                        "than the shift. A declared limitation of the adopted "
+                        "value, not a reason to leave the states at Earth's "
+                        "suction: the shift moves every cell the same way, so "
+                        "unlike a scatter it does not average out over the map.",
     }
 
 
 # ---------------------------------------------------------------------------
-# 5. What unifying the two derivations would move
+# 5. The adopted central case, and what it moved
 # ---------------------------------------------------------------------------
 
-def unification_cost(decl: dict, soil: dict[str, np.ndarray],
-                     gravity_m_s2: float) -> dict:
-    """What each consumer's capacity becomes if one derivation is made central.
+def adopted_case(decl: dict, soil: dict[str, np.ndarray],
+                 gravity_m_s2: float) -> dict:
+    """The one derivation both consumers read, and what adopting it moved.
 
-    WORLD-OF6N is the removal this contract was built to make attributable, and
-    it needs a decision that is about the world rather than about the code: WHAT
-    THE CENTRAL CASE IS. This costs the candidates so that decision is a
-    one-liner rather than an investigation, and it runs no model.
+    WORLD-OF6N is settled. The central case is the contract read literally: the
+    named closure -- Clapp-Hornberger on Cosby Table 4 -- evaluated at the
+    suction the contract's own potential convention declares, `rho_w * g * L`
+    with this planet's gravity. WORLD-SLPA is the same change reached from the
+    gravity side and is subsumed by it, because landing both would apply the
+    gravity conversion once and a frame-mixing artifact once.
 
-    Three candidates, and they are not symmetric. Two of them are readings of
-    the contract as it already stands, because the contract already NAMES a
-    retention closure and already declares field capacity as a drainage
-    equilibrium at `rho_w * g * L`; taken literally that determines the states
-    from texture and the only open part is which gravity the suction is
-    evaluated at. The third would replace the declared closure with pedology's
-    endmember mixture, which is not a retention curve at all and cannot be
-    expressed in the declared closure -- so it is a change to the DECLARATION
-    and not a change to a consumer.
+    The two alternatives are kept as what was NOT adopted and what each would
+    have cost, which is the attribution the removal needed. Neither is an open
+    option.
+
+    THE COMPARISON'S BASELINE MOVED WITH WORLD-7702. Pedology's `awc` column
+    now stops at the declared column base, so the ratios below are against a
+    capacity that no longer follows regolith past it. That was the larger of
+    the two disagreements between the consumers, and the adopted case settles
+    it by construction: the adopted capacity is an integral over the declared
+    layers, so both consumers cover the same column.
     """
     pedology_mm = soil["awc"]
-    lpj_mm = lpj_capacity_mm(soil["sand"], soil["clay"],
-                             soil["depth"], soil["bedrockfrac"])
-    # The whole per-layer scaling is linear in the available capacity, so the
-    # gravity shift's per-cell ratio carries through the profile exactly.
-    shift = gravity_field_capacity_shift(decl, soil, gravity_m_s2)
-    pot = decl["potential_convention"]
-    b, _, _ = cosby_parameters(soil["sand"], soil["clay"])
-    fc_ratio = ((gravity_m_s2 / pot["earth_gravity_m_s2"]) ** (-1.0 / b))
-    _, theta_fc_e, theta_wp_e = cosby_states(soil["sand"], soil["clay"])
-    available_ratio = ((theta_fc_e * fc_ratio - theta_wp_e)
-                       / np.maximum(theta_fc_e - theta_wp_e, 1e-12))
-    lpj_vesper_mm = lpj_mm * available_ratio
+    lpj_shipped_mm = lpj_capacity_mm(soil["sand"], soil["clay"],
+                                     soil["depth"], soil["bedrockfrac"])
+    _, _, theta_fc, theta_wp = contract_states(soil["sand"], soil["clay"],
+                                               decl, gravity_m_s2)
+    usable = layer_usable_fraction(soil["depth"], soil["bedrockfrac"], decl)
+    adopted_mm = column_capacity_mm(theta_fc, theta_wp, usable, decl)
 
     def moves(new, old):
         ratio = new / np.maximum(old, 1e-12)
@@ -570,55 +820,63 @@ def unification_cost(decl: dict, soil: dict[str, np.ndarray],
                 "land_mean_mm_after": float(new.mean()),
                 "ratio": percentiles(ratio)}
 
-    candidates = {
+    adopted = {
+        "name": "closure_at_vesper_suction",
+        "what": "the contract's named closure at the suction its own potential "
+                "convention declares, rho_w * g * L at this planet's gravity. "
+                "The closure is named and field capacity is declared as a "
+                "drainage equilibrium over a declared length, so this is the "
+                "contract read literally and no part of it is a new choice",
+        "central_case_mm": percentiles(adopted_mm),
+        "exoplasim_dwmax": moves(adopted_mm, pedology_mm),
+        "lpj_guess_capacity": moves(adopted_mm, lpj_shipped_mm),
+        "deleted": "pedology's endmember volumetric capacities, its additive "
+                   "organic term and its allophane term as the source of any "
+                   "consumer's capacity; soilinput.cpp's get_mineral Cosby "
+                   "inversion; and vesperinput.cpp's apply_regolith_depth "
+                   "rescaling, whose rule is now layer_usable_fraction here",
+        "limitation": "the gravity shift holds the Clapp-Hornberger exponent "
+                      "fixed while gravity moves, so the adopted field capacity "
+                      "is an UPPER BOUND on how far a gravity-invariant "
+                      "retention curve can fall. Cosby's within-texture-class "
+                      "variance is larger than the shift and no artifact here "
+                      "carries it, so the reported spread is a lower bound.",
+    }
+
+    not_adopted = {
         "closure_at_earth_suction": {
-            "what": "the contract's declared closure -- Clapp-Hornberger on "
-                    "Cosby Table 4 -- evaluated at Cosby's own field-capacity "
-                    "suction, which is the pressure LPJ-GUESS already uses",
-            "is_a_reading_of_the_contract": True,
-            "central_case_mm": percentiles(lpj_mm),
-            "exoplasim_dwmax": moves(lpj_mm, pedology_mm),
-            "lpj_guess_capacity": moves(lpj_mm, lpj_mm),
-            "deletes": "pedology's endmember volumetric capacities, its "
-                       "additive organic term and its allophane term, from "
-                       "build_soil.py's awc column",
-        },
-        "closure_at_vesper_suction": {
-            "what": "the same closure at the suction the contract's own "
-                    "potential convention declares, rho_w * g * L at this "
-                    "planet's gravity. This is the contract read literally: "
-                    "the closure is named and field capacity is declared as a "
-                    "drainage equilibrium over a declared length",
-            "is_a_reading_of_the_contract": True,
-            "central_case_mm": percentiles(lpj_vesper_mm),
-            "exoplasim_dwmax": moves(lpj_vesper_mm, pedology_mm),
-            "lpj_guess_capacity": moves(lpj_vesper_mm, lpj_mm),
-            "deletes": "the same, and additionally moves LPJ-GUESS off the "
-                       "Earth suction it evaluates at today",
+            "what": "the same closure evaluated at Cosby's own field-capacity "
+                    "suction, which is the pressure the shipped LPJ-GUESS code "
+                    "used. Not adopted: it reads the contract's closure and "
+                    "ignores the contract's potential convention, which "
+                    "declares field capacity as a drainage equilibrium and "
+                    "therefore at this world's gravity",
+            "central_case_mm": percentiles(lpj_shipped_mm),
+            "would_have_moved_exoplasim": moves(lpj_shipped_mm, pedology_mm),
+            "would_have_moved_lpj_guess": moves(lpj_shipped_mm, lpj_shipped_mm),
         },
         "pedology_endmember_mixture": {
             "what": "pedology's declared endmember volumetric capacities with "
-                    "its additive organic and allophane terms. NOT a retention "
-                    "curve: it carries no saturation, no air entry and no "
-                    "exponent, so adopting it means replacing the contract's "
-                    "named closure rather than choosing between consumers",
-            "is_a_reading_of_the_contract": False,
+                    "its additive organic and allophane terms. Not adopted, "
+                    "and not a symmetric option: it is not a retention curve "
+                    "at all -- no saturation, no air entry, no exponent -- so "
+                    "taking it would have replaced the contract's named "
+                    "closure and left saturation and matric potential with "
+                    "nowhere to come from",
             "central_case_mm": percentiles(pedology_mm),
-            "exoplasim_dwmax": moves(pedology_mm, pedology_mm),
-            "lpj_guess_capacity": moves(pedology_mm, lpj_mm),
-            "deletes": "soilinput.cpp's get_mineral pedotransfer and "
-                       "vesperinput.cpp's regolith rescaling, and leaves the "
-                       "contract with a capacity and no retention curve, so "
-                       "saturation and matric potential would have to come "
-                       "from somewhere else",
+            "would_have_moved_exoplasim": moves(pedology_mm, pedology_mm),
+            "would_have_moved_lpj_guess": moves(pedology_mm, lpj_shipped_mm),
         },
     }
 
     andic_mm = (float(_pedogenesis()["andisol"]["volumetric_capacity_allophane"])
-                * soil["andic"] * soil["depth"] * 1000.0)
-    gap_mm = np.abs(lpj_mm - pedology_mm)
+                * soil["andic"]
+                * np.minimum(soil["depth"],
+                             float(decl["geometry"]["column_base_m"]))
+                * 1000.0)
     return {
-        "candidates": candidates,
+        "adopted": adopted,
+        "not_adopted": not_adopted,
         "andic_term_mm": percentiles(andic_mm),
         "andic_cells": int((soil["andic"] > 0.0).sum()),
         "andic_share_of_pedology_awc": percentiles(
@@ -627,24 +885,115 @@ def unification_cost(decl: dict, soil: dict[str, np.ndarray],
             "the allophane term LPJ-GUESS has no equivalent of contributes a "
             "median of nothing and a p90 of a few per cent of pedology's "
             "capacity, against a median absolute gap between the two "
-            "derivations of tens of millimetres. What separates them is that "
+            "derivations of tens of millimetres. What separated them is that "
             "the declared endmember capacities and the Cosby retention "
             "inversion are different numbers for the same texture, not that "
-            "one carries a material the other does not"),
-        "median_absolute_gap_mm": float(np.median(gap_mm)),
+            "one carries a material the other does not. The adopted closure "
+            "carries no allophane term either, so the andic hydraulic effect "
+            "is now a DECLARED absence rather than a disagreement between two "
+            "consumers"),
+        "median_absolute_gap_mm": float(np.median(
+            np.abs(lpj_shipped_mm - pedology_mm))),
         "not_measurable_here": (
             "the change in land runoff ratio and in E over R. Both need a "
             "paired baseline, pedology/scripts/probe_runoff_response.py needs "
             "a climatology to back-solve potential evaporation from, and "
             "config/planet.yaml declares baseline_climatology null. On this "
-            "build the capacity change can be costed and its climate "
-            "consequence cannot"),
+            "build the capacity change is costed and its climate consequence "
+            "is not available at all"),
         "not_execution_verified": (
             "nothing on the LPJ-GUESS side. It does not build on this tree "
             "until a baseline climatology exists, so every LPJ number here is "
             "a transcription of the vendored source evaluated offline"),
         "owner": "world-of6n",
     }
+
+
+# ---------------------------------------------------------------------------
+# 6. The emission. What the consumers read instead of deriving.
+# ---------------------------------------------------------------------------
+
+# Shared with pedology/scripts/build_soil.py and
+# biosphere/scripts/build_lpj_driver.py: every one of these files is keyed on an
+# exactly-compared pair of doubles, so they must all round identically or a
+# lookup silently misses.
+COORD_DECIMALS = 4
+
+STATE_COLUMNS = ("b", "theta_s", "theta_fc", "theta_wp", "awc_mm")
+
+
+def emit_states(decl: dict, soil: dict[str, np.ndarray], gravity_m_s2: float,
+                path: Path) -> dict:
+    """Write the contract's per-cell states, which is what a consumer reads.
+
+    One row per land cell of the soil map, in the soil map's own order and on
+    its own coordinates. The columns are the closure's exponent, the three
+    volumetric states, the plant-available capacity of the whole physical
+    column, and the per-layer usable fraction the weathered-bedrock rule gives.
+
+    WHY THE PER-LAYER FRACTION AND NOT PER-LAYER CAPACITIES. The same fraction
+    scales a layer's available water, its wilting point and its saturation,
+    because material below the regolith contact holds less of everything. One
+    number per layer instead of three is what stops the three drifting apart in
+    a consumer, and it is what makes the column capacity here and the sum over
+    a consumer's layers the same arithmetic rather than two that agree today.
+
+    The capacity column is `awc_mm` and it is the ONLY plant-available capacity
+    any consumer installs. `soilmap.txt`'s `awc` is pedology's own declared
+    endmember mixture, which this report costs against the adopted closure and
+    which no consumer reads.
+    """
+    b, theta_s, theta_fc, theta_wp = contract_states(
+        soil["sand"], soil["clay"], decl, gravity_m_s2)
+    usable = layer_usable_fraction(soil["depth"], soil["bedrockfrac"], decl)
+    capacity = column_capacity_mm(theta_fc, theta_wp, usable, decl)
+    nlayer = int(decl["geometry"]["physical_layer_count"])
+
+    header = ("Lon Lat " + " ".join(STATE_COLUMNS) + " "
+              + " ".join(f"u{layer:02d}" for layer in range(nlayer)))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        handle.write(header + "\n")
+        for cell in range(capacity.size):
+            row = [f"{soil['Lon'][cell]:.{COORD_DECIMALS}f}",
+                   f"{soil['Lat'][cell]:.{COORD_DECIMALS}f}",
+                   f"{b[cell]:.5f}", f"{theta_s[cell]:.6f}",
+                   f"{theta_fc[cell]:.6f}", f"{theta_wp[cell]:.6f}",
+                   f"{capacity[cell]:.3f}"]
+            row.extend(f"{usable[cell, layer]:.6f}" for layer in range(nlayer))
+            handle.write(" ".join(row) + "\n")
+
+    return {
+        "path": str(path.resolve().relative_to(PROJECT_ROOT)),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "cells": int(capacity.size),
+        "physical_layers": nlayer,
+        "gravity_m_s2": gravity_m_s2,
+        "awc_mm": percentiles(capacity),
+        "saturation_volumetric": percentiles(theta_s),
+        "field_capacity_volumetric": percentiles(theta_fc),
+        "wilting_point_volumetric": percentiles(theta_wp),
+        "closure": decl["retention_closure"]["name"],
+        "what_it_is": "the adopted per-cell retention states and the "
+                      "weathered-bedrock usable fraction per physical layer. "
+                      "ExoPlaSim installs awc_mm as dwmax and LPJ-GUESS takes "
+                      "the states and the fractions through the driver file; "
+                      "neither derives them.",
+    }
+
+
+def read_states(path: Path) -> dict[str, np.ndarray]:
+    """Read an emitted states file. The one reader, shared by every consumer."""
+    data = np.genfromtxt(path, names=True)
+    return {name: np.atleast_1d(np.asarray(data[name], dtype=float))
+            for name in data.dtype.names}
+
+
+def usable_columns(states: dict[str, np.ndarray]) -> np.ndarray:
+    """The per-layer usable fractions of an emitted states file, as one array."""
+    names = sorted(name for name in states if name.startswith("u")
+                   and name[1:].isdigit())
+    return np.stack([states[name] for name in names], axis=1)
 
 
 def _pedogenesis() -> dict:
@@ -654,10 +1003,15 @@ def _pedogenesis() -> dict:
 
 # ---------------------------------------------------------------------------
 
-def build_report(decl: dict, soil_map: Path, gravity_m_s2: float) -> dict:
+def build_report(decl: dict, soil_map: Path, gravity_m_s2: float,
+                 states_path: Path | None = None) -> dict:
     soil = read_soil_map(soil_map)
     failures = check_declaration(decl)
     mutations, defects = run_declaration_mutations()
+    frames = frame_consistency(soil, decl, gravity_m_s2)
+    defects = defects + frames["defects"]
+    emitted = (emit_states(decl, soil, gravity_m_s2, states_path)
+               if states_path is not None else None)
     return {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "declaration": "pedology/config/land_column_properties.yaml",
@@ -675,7 +1029,9 @@ def build_report(decl: dict, soil_map: Path, gravity_m_s2: float) -> dict:
         "cosby_air_entry_clamp": air_entry_clamp_region(soil),
         "gravity_field_capacity_shift": gravity_field_capacity_shift(
             decl, soil, gravity_m_s2),
-        "unification_cost": unification_cost(decl, soil, gravity_m_s2),
+        "frame_consistency": frames,
+        "emitted_states": emitted,
+        "adopted_case": adopted_case(decl, soil, gravity_m_s2),
         "undeclared_properties": undeclared_properties(decl),
     }
 
@@ -686,21 +1042,31 @@ def main(argv: list[str] | None = None) -> int:
                         help="defaults to the configured build's soil map")
     parser.add_argument("--strict", action="store_true",
                         help="exit 1 while any contract property is still undeclared")
+    parser.add_argument("--states", type=Path, default=None,
+                        help="where to write the per-cell states every consumer "
+                             "reads; defaults to the configured build's")
+    parser.add_argument("--no-emit", action="store_true",
+                        help="check and report only. The states file is what "
+                             "ExoPlaSim and LPJ-GUESS install, so not writing "
+                             "it leaves whatever is on disk in place")
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)
 
     config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
     gravity = float(config["planet"]["gravity_m_s2"])
+    sys.path.insert(0, str(PROJECT_ROOT / "lib"))
+    import builds
     if args.soil_map is None:
-        sys.path.insert(0, str(PROJECT_ROOT / "lib"))
-        import builds
         args.soil_map = builds.soilmap(config)
+    if args.states is None:
+        args.states = builds.land_column_states(config)
     if not args.soil_map.is_file():
         raise SystemExit(f"{args.soil_map} does not exist. Run "
                          "pedology/scripts/build_soil.py.")
 
     decl = load()
-    report = build_report(decl, args.soil_map, gravity)
+    report = build_report(decl, args.soil_map, gravity,
+                          None if args.no_emit else args.states)
     REPORT.parent.mkdir(parents=True, exist_ok=True)
     REPORT.write_text(json.dumps(report, indent=2, sort_keys=False) + "\n",
                       encoding="utf-8")
@@ -741,19 +1107,38 @@ def main(argv: list[str] | None = None) -> int:
               f"{clamp['minimum_saturation_headroom_volumetric']:.4f} volumetric at "
               "the closest cell")
 
-        unify = report["unification_cost"]
-        print("\n  what one central case would move, world-of6n")
-        for name, cand in unify["candidates"].items():
-            reading = "contract as written" if cand["is_a_reading_of_the_contract"] \
-                else "replaces the declared closure"
-            print(f"    {name:28s} ({reading})")
-            for who in ("exoplasim_dwmax", "lpj_guess_capacity"):
-                move = cand[who]
-                print(f"      {who:20s} "
-                      f"{move['median_mm_before']:7.1f} -> "
-                      f"{move['median_mm_after']:7.1f} mm median, "
-                      f"x{move['ratio']['median']:.3f} "
-                      f"({move['ratio']['p10']:.3f} to {move['ratio']['p90']:.3f})")
+        case = report["adopted_case"]
+        adopted = case["adopted"]
+        print(f"\n  adopted central case, world-of6n: {adopted['name']}")
+        for who in ("exoplasim_dwmax", "lpj_guess_capacity"):
+            move = adopted[who]
+            print(f"      {who:20s} "
+                  f"{move['median_mm_before']:7.1f} -> "
+                  f"{move['median_mm_after']:7.1f} mm median, "
+                  f"x{move['ratio']['median']:.3f} "
+                  f"({move['ratio']['p10']:.3f} to {move['ratio']['p90']:.3f})")
+        for name in case["not_adopted"]:
+            print(f"      not adopted: {name}")
+
+        frames = report["frame_consistency"]
+        ratios = frames["available_ratio_to_shipped"]
+        print(f"\n  frame consistency at {frames['gravity_ratio_to_earth']:.4f} "
+              "Earth gravities, available capacity against the shipped code")
+        for name in ("earth_equivalent_frame", "vesper_frame",
+                     "frame_mixed_wilting_only"):
+            print(f"    {name:26s} {ratios[name]['median']:.4f} median, "
+                  f"{ratios[name]['p10']:.4f} to {ratios[name]['p90']:.4f}")
+        print(f"    the two consistent frames agree to "
+              f"{frames['frames_agree_max_abs_volumetric']:.1e} volumetric, and "
+              "the frame-mixed variant does not agree with them")
+
+        emitted = report["emitted_states"]
+        if emitted is not None:
+            print(f"\n  emitted {emitted['path']}")
+            print(f"    awc                   {emitted['awc_mm']['median']:7.1f} mm "
+                  f"median, {emitted['awc_mm']['p10']:.1f} to "
+                  f"{emitted['awc_mm']['p90']:.1f} p10-p90 over "
+                  f"{emitted['cells']} cells")
 
         grav = report["gravity_field_capacity_shift"]
         print(f"\n  gravity shift at {grav['gravity_m_s2']} m/s2: field capacity "

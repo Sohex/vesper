@@ -239,6 +239,19 @@ def soilmap(config: dict | None = None) -> Path:
     return component_data("pedology", config) / f"soilmap_{res}.txt"
 
 
+def land_column_states(config: dict | None = None) -> Path:
+    """The land column property contract's per-cell states, for the build AND RUNG.
+
+    What `pedology/scripts/land_column_properties.py --emit` writes and what
+    every consumer of the simulated soil's hydraulic states reads. Per build and
+    per rung for exactly the reasons `soilmap` is: the states are derived from
+    the soil map's texture and regolith on a climate grid's land cells, so a
+    name without both in it lets one rung's states reach another rung's model.
+    """
+    res = rungs.model_grid(_config(config))[0]
+    return component_data("pedology", config) / f"land_column_states_{res}.txt"
+
+
 def resolution_of(grid_dir: Path) -> str:
     """Resolution implied by a grid export directory, e.g. `exoplasim-T42` -> T42.
 

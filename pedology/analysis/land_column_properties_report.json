@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-25T06:49:03+00:00",
+  "generated": "2026-08-25T10:54:58+00:00",
   "declaration": "pedology/config/land_column_properties.yaml",
   "declaration_sha256": "c0c5f104176a9b3cac76ea7a2dd21cba4373adfecad70587d217afd1c22c3d84",
   "version": 1,
@@ -133,7 +133,7 @@
       "p90": 0.306976,
       "mean": 0.14195487733071638
     },
-    "exoplasim_source": "the pedology awc column, converted mm to m; not a third derivation",
+    "exoplasim_source": "what dwmax WAS: the pedology awc column converted mm to m. It is now the emitted states file's awc_mm column on the same terms",
     "lpj_over_pedology_ratio": {
       "p10": 0.8115693153664719,
       "median": 1.585333209998233,
@@ -147,7 +147,7 @@
       "mean": 60.68204572201268
     },
     "pearson_correlation": 0.7974429932532883,
-    "reading": "The two fields correlate because both start from related texture and depth. They are not the same capacity: one is a declared endmember mixture with additive organic and allophane terms, the other is a Cosby retention inversion with no andic term and no bulk density.",
+    "reading": "The two fields correlate because both start from related texture and depth. They are not the same capacity: one is a declared endmember mixture with additive organic and allophane terms, the other is a Cosby retention inversion with no andic term and no bulk density. That is the disagreement the adopted case ended.",
     "soil_carbon_is_zero": true,
     "soil_carbon_note": "the checked-in map carries zero soil carbon everywhere, so the organic mixing paths of both derivations are inactive and the divergence reported here is the MINERAL one alone"
   },
@@ -181,22 +181,120 @@
       "mean": 0.9283225545392976
     },
     "direction": "down, on every cell. Stronger gravity drains a column to a drier state at equilibrium; the wilting point is a plant pressure and does not move, so plant-available water falls.",
-    "applied_by_any_consumer": false,
-    "applied_note": "pedology's declared endmember capacities are Earth field observations and LPJ-GUESS's Cosby inversion evaluates at the Earth suction, so neither carries this. It is a correction this contract makes available and no consumer has taken.",
-    "bracket_note": "an upper bound on the size of the effect, not a correction factor to apply as it stands: it holds the Clapp-Hornberger exponent fixed while gravity moves, and the within-texture-class variance Cosby reports is larger than the shift."
+    "applied_by_any_consumer": true,
+    "applied_note": "APPLIED. WORLD-OF6N adopted the contract read literally, so the emitted states evaluate field capacity at rho_w * g * L with this planet's gravity and every consumer installs them. Pedology's declared endmember capacities are Earth field observations and are no longer what any consumer reads.",
+    "bracket_note": "an UPPER BOUND on the size of the effect and adopted as one: it holds the Clapp-Hornberger exponent fixed while gravity moves, so it is the whole of the shift a gravity-invariant curve can produce, and the within-texture-class variance Cosby reports is larger than the shift. A declared limitation of the adopted value, not a reason to leave the states at Earth's suction: the shift moves every cell the same way, so unlike a scatter it does not average out over the map."
   },
-  "unification_cost": {
-    "candidates": {
+  "frame_consistency": {
+    "gravity_ratio_to_earth": 1.3062564688247262,
+    "field_capacity_head_cm_earth_frame": 130.62564688247264,
+    "available_ratio_to_shipped": {
+      "earth_equivalent_frame": {
+        "p10": 0.9241999048146052,
+        "median": 0.9282811568804187,
+        "p90": 0.9323787511319086,
+        "mean": 0.92827531605953
+      },
+      "vesper_frame": {
+        "p10": 0.9241999048146052,
+        "median": 0.9282811568804187,
+        "p90": 0.9323787511319086,
+        "mean": 0.92827531605953
+      },
+      "frame_mixed_wilting_only": {
+        "p10": 0.9598054626837454,
+        "median": 0.9626373602010727,
+        "p90": 0.9652357717348282,
+        "mean": 0.9625738942939454
+      }
+    },
+    "frames_agree_max_abs_volumetric": 5.551115123125783e-17,
+    "adopted_matches_head_derivation_max_abs_volumetric": 8.326672684688674e-17,
+    "frame_mixed_is_distinguishable": true,
+    "reading": "the two consistent frames are one number and the frame-mixed variant is a different one. The wilting point does not move under a change of gravity, because it and the air-entry value are both invariant pressures recorded as Earth heads and their ratio is what the closure reads. Field capacity is the only state whose defining pressure carries gravity.",
+    "defects": [],
+    "owner": "world-slpa, subsumed into world-of6n"
+  },
+  "emitted_states": {
+    "path": "pedology/data/precarve-craton-10m/land_column_states_T21.txt",
+    "sha256": "58de90f3c9a6253a8cb203d123f0f808082f3cae2a6e6c8d4e5aae813b27b329",
+    "cells": 1019,
+    "physical_layers": 15,
+    "gravity_m_s2": 12.81,
+    "awc_mm": {
+      "p10": 46.60616843927622,
+      "median": 175.0326956700348,
+      "p90": 242.5189767650578,
+      "mean": 156.48121366577058
+    },
+    "saturation_volumetric": {
+      "p10": 0.42582152000000006,
+      "median": 0.4373141,
+      "p90": 0.45157842,
+      "mean": 0.4379315025515211
+    },
+    "field_capacity_volumetric": {
+      "p10": 0.30798056008542174,
+      "median": 0.34459794522295956,
+      "p90": 0.3876546938740018,
+      "mean": 0.34560390802380503
+    },
+    "wilting_point_volumetric": {
+      "p10": 0.14163808325896943,
+      "median": 0.18007169043757007,
+      "p90": 0.2258210278373463,
+      "mean": 0.18260736318423335
+    },
+    "closure": "clapp_hornberger",
+    "what_it_is": "the adopted per-cell retention states and the weathered-bedrock usable fraction per physical layer. ExoPlaSim installs awc_mm as dwmax and LPJ-GUESS takes the states and the fractions through the driver file; neither derives them."
+  },
+  "adopted_case": {
+    "adopted": {
+      "name": "closure_at_vesper_suction",
+      "what": "the contract's named closure at the suction its own potential convention declares, rho_w * g * L at this planet's gravity. The closure is named and field capacity is declared as a drainage equilibrium over a declared length, so this is the contract read literally and no part of it is a new choice",
+      "central_case_mm": {
+        "p10": 46.60616843927622,
+        "median": 175.0326956700348,
+        "p90": 242.5189767650578,
+        "mean": 156.48121366577058
+      },
+      "exoplasim_dwmax": {
+        "median_mm_before": 112.8,
+        "median_mm_after": 175.0326956700348,
+        "land_mean_mm_before": 141.9548773307164,
+        "land_mean_mm_after": 156.48121366577058,
+        "ratio": {
+          "p10": 0.751433869047188,
+          "median": 1.469442254580146,
+          "p90": 2.2168522801828208,
+          "mean": 1.4764647365740542
+        }
+      },
+      "lpj_guess_capacity": {
+        "median_mm_before": 188.44023493845538,
+        "median_mm_after": 175.0326956700348,
+        "land_mean_mm_before": 168.62631748295664,
+        "land_mean_mm_after": 156.48121366577058,
+        "ratio": {
+          "p10": 0.9236351604107755,
+          "median": 0.9276693282798849,
+          "p90": 0.9317151871764042,
+          "mean": 0.9276622107861527
+        }
+      },
+      "deleted": "pedology's endmember volumetric capacities, its additive organic term and its allophane term as the source of any consumer's capacity; soilinput.cpp's get_mineral Cosby inversion; and vesperinput.cpp's apply_regolith_depth rescaling, whose rule is now layer_usable_fraction here",
+      "limitation": "the gravity shift holds the Clapp-Hornberger exponent fixed while gravity moves, so the adopted field capacity is an UPPER BOUND on how far a gravity-invariant retention curve can fall. Cosby's within-texture-class variance is larger than the shift and no artifact here carries it, so the reported spread is a lower bound."
+    },
+    "not_adopted": {
       "closure_at_earth_suction": {
-        "what": "the contract's declared closure -- Clapp-Hornberger on Cosby Table 4 -- evaluated at Cosby's own field-capacity suction, which is the pressure LPJ-GUESS already uses",
-        "is_a_reading_of_the_contract": true,
+        "what": "the same closure evaluated at Cosby's own field-capacity suction, which is the pressure the shipped LPJ-GUESS code used. Not adopted: it reads the contract's closure and ignores the contract's potential convention, which declares field capacity as a drainage equilibrium and therefore at this world's gravity",
         "central_case_mm": {
           "p10": 50.27411061216563,
           "median": 188.44023493845538,
           "p90": 261.8762377871362,
           "mean": 168.62631748295664
         },
-        "exoplasim_dwmax": {
+        "would_have_moved_exoplasim": {
           "median_mm_before": 112.8,
           "median_mm_after": 188.44023493845538,
           "land_mean_mm_before": 141.9548773307164,
@@ -208,7 +306,7 @@
             "mean": 1.5920278132324568
           }
         },
-        "lpj_guess_capacity": {
+        "would_have_moved_lpj_guess": {
           "median_mm_before": 188.44023493845538,
           "median_mm_after": 188.44023493845538,
           "land_mean_mm_before": 168.62631748295664,
@@ -219,54 +317,17 @@
             "p90": 1.0,
             "mean": 1.0
           }
-        },
-        "deletes": "pedology's endmember volumetric capacities, its additive organic term and its allophane term, from build_soil.py's awc column"
-      },
-      "closure_at_vesper_suction": {
-        "what": "the same closure at the suction the contract's own potential convention declares, rho_w * g * L at this planet's gravity. This is the contract read literally: the closure is named and field capacity is declared as a drainage equilibrium over a declared length",
-        "is_a_reading_of_the_contract": true,
-        "central_case_mm": {
-          "p10": 46.63936036872039,
-          "median": 175.15778806471505,
-          "p90": 242.68845870480678,
-          "mean": 156.59324478715303
-        },
-        "exoplasim_dwmax": {
-          "median_mm_before": 112.8,
-          "median_mm_after": 175.15778806471505,
-          "land_mean_mm_before": 141.9548773307164,
-          "land_mean_mm_after": 156.59324478715303,
-          "ratio": {
-            "p10": 0.7519807594518015,
-            "median": 1.4705401017435673,
-            "p90": 2.2184346379797732,
-            "mean": 1.4775107939111103
-          }
-        },
-        "lpj_guess_capacity": {
-          "median_mm_before": 188.44023493845538,
-          "median_mm_after": 175.15778806471505,
-          "land_mean_mm_before": 168.62631748295664,
-          "land_mean_mm_after": 156.59324478715303,
-          "ratio": {
-            "p10": 0.9242462234512332,
-            "median": 0.9283284266532594,
-            "p90": 0.9324268764491801,
-            "mean": 0.9283225545392976
-          }
-        },
-        "deletes": "the same, and additionally moves LPJ-GUESS off the Earth suction it evaluates at today"
+        }
       },
       "pedology_endmember_mixture": {
-        "what": "pedology's declared endmember volumetric capacities with its additive organic and allophane terms. NOT a retention curve: it carries no saturation, no air entry and no exponent, so adopting it means replacing the contract's named closure rather than choosing between consumers",
-        "is_a_reading_of_the_contract": false,
+        "what": "pedology's declared endmember volumetric capacities with its additive organic and allophane terms. Not adopted, and not a symmetric option: it is not a retention curve at all -- no saturation, no air entry, no exponent -- so taking it would have replaced the contract's named closure and left saturation and matric potential with nowhere to come from",
         "central_case_mm": {
           "p10": 24.64,
           "median": 112.8,
           "p90": 306.976,
           "mean": 141.9548773307164
         },
-        "exoplasim_dwmax": {
+        "would_have_moved_exoplasim": {
           "median_mm_before": 112.8,
           "median_mm_after": 112.8,
           "land_mean_mm_before": 141.9548773307164,
@@ -278,7 +339,7 @@
             "mean": 1.0
           }
         },
-        "lpj_guess_capacity": {
+        "would_have_moved_lpj_guess": {
           "median_mm_before": 188.44023493845538,
           "median_mm_after": 112.8,
           "land_mean_mm_before": 168.62631748295664,
@@ -289,26 +350,25 @@
             "p90": 1.232182570669175,
             "mean": 0.737872190535359
           }
-        },
-        "deletes": "soilinput.cpp's get_mineral pedotransfer and vesperinput.cpp's regolith rescaling, and leaves the contract with a capacity and no retention curve, so saturation and matric potential would have to come from somewhere else"
+        }
       }
     },
     "andic_term_mm": {
       "p10": 0.0,
       "median": 0.0,
-      "p90": 7.705934400000004,
-      "mean": 3.183964015701669
+      "p90": 5.8791456000000055,
+      "mean": 2.1382052414131496
     },
     "andic_cells": 433,
     "andic_share_of_pedology_awc": {
       "p10": 0.0,
       "median": 0.0,
-      "p90": 0.0359984752479478,
-      "mean": 0.011118526680071213
+      "p90": 0.025265182938939285,
+      "mean": 0.008587703106098691
     },
-    "andic_is_not_the_disagreement": "the allophane term LPJ-GUESS has no equivalent of contributes a median of nothing and a p90 of a few per cent of pedology's capacity, against a median absolute gap between the two derivations of tens of millimetres. What separates them is that the declared endmember capacities and the Cosby retention inversion are different numbers for the same texture, not that one carries a material the other does not",
+    "andic_is_not_the_disagreement": "the allophane term LPJ-GUESS has no equivalent of contributes a median of nothing and a p90 of a few per cent of pedology's capacity, against a median absolute gap between the two derivations of tens of millimetres. What separated them is that the declared endmember capacities and the Cosby retention inversion are different numbers for the same texture, not that one carries a material the other does not. The adopted closure carries no allophane term either, so the andic hydraulic effect is now a DECLARED absence rather than a disagreement between two consumers",
     "median_absolute_gap_mm": 54.69946699662705,
-    "not_measurable_here": "the change in land runoff ratio and in E over R. Both need a paired baseline, pedology/scripts/probe_runoff_response.py needs a climatology to back-solve potential evaporation from, and config/planet.yaml declares baseline_climatology null. On this build the capacity change can be costed and its climate consequence cannot",
+    "not_measurable_here": "the change in land runoff ratio and in E over R. Both need a paired baseline, pedology/scripts/probe_runoff_response.py needs a climatology to back-solve potential evaporation from, and config/planet.yaml declares baseline_climatology null. On this build the capacity change is costed and its climate consequence is not available at all",
     "not_execution_verified": "nothing on the LPJ-GUESS side. It does not build on this tree until a baseline climatology exists, so every LPJ number here is a transcription of the vendored source evaluated offline",
     "owner": "world-of6n"
   },
