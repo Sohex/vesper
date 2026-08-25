@@ -475,6 +475,25 @@ POLICY.update({
                     why="soil water, metres of water"),
     "drunoff": Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE, domain="land",
                       why="surface runoff rate"),
+    "dwatcl": Policy(PROGNOSTIC_GRID, REMAP, RESERVOIR, domain="land",
+                     conserve="soil_water", bounds=(0.0, None),
+                     why="LSHY-3. Soil water by layer, metres of water, for "
+                         "the selectable layered land column. A RESERVOIR on "
+                         "the same terms as dwatc, which remains the column "
+                         "total: the two are one inventory carried at two "
+                         "resolutions, and remapping either as an intensity "
+                         "would not conserve it. Written on every step "
+                         "whatever nlandwcol is, so a run can switch schemes "
+                         "at a restart boundary without a cold start; a "
+                         "restart written before the layers existed is "
+                         "rebuilt from dwatc on the declared layer shape, "
+                         "which is exact at one layer"),
+    "ddrain": Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE, domain="land",
+                     why="LSHY-3. Drainage out of the base of the land "
+                         "column, metres per second. Identically zero under "
+                         "the default impermeable lower boundary, and the "
+                         "term the land water ledger's `drainage` crossing "
+                         "reads once a lower boundary is selected"),
     "dust3": Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE,
                     why="friction velocity cubed, the coupling quantity"),
     "dcc": Policy(DERIVED_GRID, REMAP, INTENSIVE, bounds=(0.0, 1.0),

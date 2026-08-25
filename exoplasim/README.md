@@ -319,6 +319,60 @@ Nothing else needs changing. `convert_restart.py --self-test` and
 `reset_restart_accumulators.py --self-test` both read the schema, so they cover
 the new record the moment it has a policy.
 
+## The land liquid water scheme is a selection
+
+`nlandwcol` in `landmod_nl` chooses between two schemes, and the default is the
+one that has always run.
+
+- **`nlandwcol = 0`, the scalar bucket.** One store `dwatc`, one capacity
+  `dwmax`, and runoff is the store overflowing. Bit-identical to what this model
+  did before the selection existed.
+- **`nlandwcol = 1`, the layered column.** `nlsoilw` layers, shaped by
+  `dsoilwf`, with the lower boundary `nlandwdrain` selects: impermeable, or free
+  drainage that produces a `ddrain` flux out of the base. The surface flux
+  enters the top layer, a withdrawal deeper than the top layer holds draws on
+  the layers below, each layer fills to capacity and passes its excess down, and
+  whatever the base cannot take backs up and leaves as surface runoff.
+
+**The bucket is the layered column at one layer with an impermeable base, and
+that is checked rather than claimed.** The arithmetic lives in
+`plasim/src/landcolumn.f90` as two kernels that depend on nothing -- no
+plasimmod, no resmod, no grid -- so `verify_land_column_reduction.sh` compiles
+them alone and drives both with one flux sequence, requiring bitwise equality.
+That file is separate for exactly this reason: a kernel that can only be run by
+running the model can only be compared by running the model.
+
+Bit-exactness is a design constraint there and not an aspiration.
+`column_step` takes a layer to its capacity with `AMIN1(cap, w)` rather than the
+algebraically identical `w - AMAX1(0., w - cap)`, because the second is not the
+same number in floating point and a reduction right to a tolerance cannot tell a
+refactor from a physics change.
+
+**`dwatc` remains the column total under either scheme.** `fluxmod`'s
+evaporation limiter, `simba`'s water stress factor, `aeromod` and `outmod` all
+read it and none of them knows about layers, so the layered scheme sums its
+layers into it every step. At one layer the sum is over one element and is
+exact.
+
+**The evaporation limiter is three axes rather than one shape.** `drhsfull`,
+`drhslow` and `nrhsexp` give
+`beta = min(1, max((theta - drhslow)/(drhsfull - drhslow), 0)) ** nrhsexp`,
+and the defaults are this model's active form exactly. The default path is taken
+by BRANCH and not by algebra: `x**1.0` with a real exponent is not bitwise `x`,
+which is also why `nrhsexp` is an integer. The point of the general form is that
+the other implementation this project has read, cGENIE's ENTS, sits on the same
+three axes at a different point -- exponent four with the knee at a full store,
+which at equal fractional fill differs from this model by a factor of 39 at 0.4
+of capacity and 2 at 0.8 -- so the disagreement becomes a runtime bracket rather
+than a code fork. Neither limiter is right; that is what a bracket is for.
+
+**What is NOT here.** The third registered hypothesis is gradient-driven flow,
+and it needs an unsaturated conductivity and a matric potential.
+`pedology/config/land_column_properties.yaml` carries both as undeclared, so
+registering two schemes and naming the third is the honest state rather than a
+gap. Neither scheme has an infiltration capacity either, so saturation excess is
+the only runoff mechanism in the land column under both.
+
 ## Every script here
 
 The workflow above uses a few of these. The rest are tools you will not find
@@ -356,6 +410,8 @@ unless told they exist.
 | `bench_ab.py` | interleaved A/B of two executables on one bed, paired per round |
 | `stack_floor.py` | the per-thread stack floor at a rung: the heaviest call chain out of the parallel region, summed over its declared local arrays, with `--validate` against a built binary's BSS |
 | `verify_filter_fold.sh` | bit-identity check on the Legendre filter fold, filters off |
+| `verify_land_column_reduction.sh` | LSHY-3's reduction: the scalar soil water bucket must be the EXACT reduction of the layered land column, not a similar answer. Compiles `landcolumn.f90` -- the model's own kernels, dependency-free and therefore compilable alone -- against a driver that runs both over twenty thousand steps and requires BITWISE equality of store and runoff, at default real and at `-fdefault-real-8` because that is what the model builds with. Three negative controls must break the equality: two layers, free drainage, and the wetness limiter at exponent two |
+| `verify_land_column_reduction.f90` | its driver, and the flux sequence is fixed rather than random so a failure is reproducible; it visits overfilling, emptying past zero, exact-capacity arrivals and long dry spells |
 | `verify_legendre_parity.py` | checks P and its mu-derivative have opposite parity in legini's own recurrence |
 | `compare_restarts.py` | compares two restarts record by record and separates a regrouped sum from a different computation |
 | `verify_inverse_transform.py` | lifts `legmod.f90`'s own `sp2fc`, `sp2fcdmu` and `dv2uv` and checks each against the matrix-vector product with the table and the per-mode factor it was handed, one spectral mode at a time, planetary vorticity included as an offset on the vorticity coefficient; the per-mode factor is not unity, so a factor carried to the wrong mode cannot hide, and seven negative controls must each be rejected |

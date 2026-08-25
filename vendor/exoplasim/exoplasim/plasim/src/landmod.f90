@@ -2,6 +2,7 @@
 
       module landmod
       use pumamod
+      use landcolumn
 !
 !     version identifier (date)
 !
@@ -110,6 +111,51 @@
       real    :: wsmax    = WSMAX_EARTH ! max field capacity of soil water (m)
       real    :: dwatcini = 0           ! water content of soil (m)
 
+!     THE LAND LIQUID WATER SCHEME, LSHY-3. A SELECTION, and the default is
+!     the scheme that has always run.
+!
+!       nlandwcol = 0  the scalar bucket. One store, one capacity, runoff is
+!                      the store overflowing. Bit-identical to what this model
+!                      did before the selection existed, and that is checked
+!                      rather than asserted: exoplasim/scripts/
+!                      verify_land_column_reduction.sh drives both kernels with
+!                      one flux sequence and requires bitwise equality.
+!       nlandwcol = 1  the layered column, nlsoilw layers deep. At nlsoilw = 1
+!                      with an impermeable base it IS the bucket, operation for
+!                      operation, which is what makes it a reduction and not a
+!                      resemblance.
+!
+!     The three registered hypotheses of LSHY-3 are the bucket, this
+!     parsimonious multilayer column, and gradient-driven flow. The third is
+!     NOT here: it needs an unsaturated conductivity and a matric potential,
+!     and pedology/config/land_column_properties.yaml carries both as
+!     undeclared. Registering two and naming the third is the honest state.
+      integer :: nlandwcol   = 0   ! 0: scalar bucket, 1: layered column
+      integer :: nlsoilw     = 1   ! liquid water layers when nlandwcol = 1
+      integer :: nlandwdrain = 0   ! lower boundary: 0 impermeable, 1 free drain
+
+!     Layer capacity as a fraction of dwmax. Only the first nlsoilw entries are
+!     read and they are renormalised to sum to one, so a partial list is a
+!     shape rather than an error. The default puts everything in one layer,
+!     which is the reduction.
+      real    :: dsoilwf(NLSOILWX) = (/1.0, 0.0, 0.0, 0.0,                    &
+     &                                 0.0, 0.0, 0.0, 0.0/)
+
+!     THE EVAPORATION LIMITER, as three axes rather than one hardcoded shape.
+!     beta = min(1, max((theta - drhslow)/(drhsfull - drhslow), 0)) ** nrhsexp
+!     with theta the store as a fraction of capacity. The defaults below are
+!     this model's active form exactly, and the default path is taken by BRANCH
+!     and not by algebra, because x**1.0 with a real exponent is not bitwise x.
+!     nrhsexp is an integer for the same reason.
+!
+!     The bracket the other end of this sits at: cGENIE's ENTS uses nrhsexp = 4
+!     with the knee at a full store, which at equal fractional fill differs
+!     from the form below by a factor of 39 at 0.4 of capacity and 2 at 0.8,
+!     agreeing only when full. Neither is right. Making it selectable is what
+!     turns that into a runtime bracket instead of a code fork.
+      real    :: drhslow  = 0.0   ! theta_low, fraction of capacity
+      integer :: nrhsexp  = 1     ! the exponent c
+
 !     SIMBA - fixed parameters
 
       real    :: rlue     =  3.4E-10 ! Recommended by Pablo Paiewonsky
@@ -172,6 +218,16 @@
       real :: dsnowz(NHOR)        = 0.0    ! snow depth (m water equivalent)
       real :: dwater(NHOR)        = 0.0    ! surface water for soil (m/s)
 !
+!     The layered liquid store, and the drainage out of its base. Both are
+!     inert while nlandwcol = 0: dwatcl is initialised from dwatc and carried
+!     through the restart so that switching the scheme on does not need a cold
+!     start, and ddrain is identically zero because an impermeable base has no
+!     drainage. dwatc remains the COLUMN TOTAL under either scheme, because
+!     fluxmod's evaporation limiter, simba's water stress, aeromod and outmod
+!     all read it and none of them knows about layers.
+      real :: dwatcl(NHOR,NLSOILWX) = 0.0  ! liquid water by layer (m)
+      real :: ddrain(NHOR)          = 0.0  ! drainage out of the column base (m/s)
+!
 !     e) climatological surface
 !
       real :: dtcl(NHOR,0:13)   =  0.0  ! climatological surface temperature
@@ -195,6 +251,7 @@
 !$omp&  albsminf,albsminf1,albsminf2,co2conv,dalbcl,dalbcl1,dalbcl2,dalbclim,dalbclim1,dalbclim2,&
 !$omp&  darea,dgroundalbnl,doro,dqs,drhsfull,drhsland,driver,dsmax,dsnowt,dsnowz,dsoilt,dsoilz,dtcl,&
 !$omp&  dtclim,dtclsoil,dts,dtsm,duroff,dvroff,dwatcini,dwater,dwcl,dwclim,dz0clim,dz0climo,dz0land,&
+!$omp&  dwatcl,ddrain,dsoilwf,drhslow,nlandwcol,nlsoilw,nlandwdrain,nrhsexp,&
 !$omp&  dzglac,dztop,forcovmn,forcovmx,lversion,newsurf,nlandt,nlandw,nwatcini,nwetsoil,rhosnow,&
 !$omp&  snowcovz,&
 !$omp&  rinifor,rlue,rnbiocats,roffexp,roffpit,roffvel,&
@@ -241,10 +298,13 @@
       subroutine landini
       use landmod
       use radmod
+      use restartmod, only: nexcheck
 !
 !     initialize land surface
 !
       namelist/landmod_nl/nlandt,nlandw,albland,dz0land,drhsland        &
+     &                ,nlandwcol,nlsoilw,nlandwdrain,dsoilwf              &
+     &                ,drhslow,nrhsexp                                    &
      &                ,dsnowalbmn,dsnowalbmx,dglacalbmn,dsnowalb        &
      &                ,dsmax,wsmax,drhsfull,dzglac,dztop,dsoilz         &
      &                ,rlue,co2conv,tau_veg,tau_soil                    &
@@ -356,6 +416,50 @@
       call mpbcr(dz0land)
       call mpbcr(drhsland)
       call mpbcr(drhsfull)
+      call mpbci(nlandwcol)
+      call mpbci(nlsoilw)
+      call mpbci(nlandwdrain)
+      call mpbci(nrhsexp)
+      call mpbcr(drhslow)
+      call mpbcrn(dsoilwf,NLSOILWX)
+
+!     LSHY-3. Validate the scheme selection and normalise the layer shape, once
+!     and here, so nothing downstream has to. A shape that does not sum to one
+!     would silently change the column capacity away from dwmax, which is the
+!     field the whole pedology loop feeds, so it is renormalised rather than
+!     rejected -- and ONLY when the column is selected, so the default path
+!     never touches dsoilwf and cannot be moved by rounding.
+      if (nlandwcol == 1) then
+       if (nlsoilw < 1 .or. nlsoilw > NLSOILWX) then
+        if (mypid == NROOT) then
+         write(nud,*)'*** nlsoilw = ',nlsoilw,' is outside 1 to ',NLSOILWX
+        endif
+        stop
+       endif
+       zsum = 0.
+       do jlay=1,nlsoilw
+        if (dsoilwf(jlay) < 0.0) then
+         if (mypid == NROOT) write(nud,*)'*** dsoilwf must be non-negative'
+         stop
+        endif
+        zsum = zsum + dsoilwf(jlay)
+       enddo
+       if (zsum <= 0.0) then
+        if (mypid == NROOT) write(nud,*)'*** dsoilwf sums to zero over nlsoilw'
+        stop
+       endif
+       do jlay=1,nlsoilw
+        dsoilwf(jlay) = dsoilwf(jlay) / zsum
+       enddo
+       do jlay=nlsoilw+1,NLSOILWX
+        dsoilwf(jlay) = 0.
+       enddo
+       if (mypid == NROOT) then
+        write(nud,*)' *** LSHY-3: land liquid water on the layered column,'
+        write(nud,*)' *** nlsoilw = ',nlsoilw,', lower boundary ',nlandwdrain
+        write(nud,*)' *** layer shape ',(dsoilwf(jlay),jlay=1,nlsoilw)
+       endif
+      endif
       call mpbcr(wsmax)
       call mpbcr(dwatcini)
       call mpbcr(dzglac)
@@ -514,7 +618,8 @@
           dsalb(1,jhor)=dalbclim1(jhor)
           dsalb(2,jhor)=dalbclim2(jhor)
           if (dwmax(jhor) > 0.0)                                        &
-          drhs(jhor)=AMIN1(1.,dwatc(jhor)/(drhsfull*dwmax(jhor)))
+     &    drhs(jhor)=land_wetness(dwatc(jhor),dwmax(jhor),drhsfull,      &
+     &                            drhslow,nrhsexp)
          endif
          dz0(jhor)=dz0clim(jhor)
 !
@@ -587,6 +692,31 @@
        call mpgetgp('dalbcl'  ,dalbcl  ,NHOR,    14)
        call mpgetgp('dalbcl1' ,dalbcl1 ,NHOR,    14)
        call mpgetgp('dalbcl2' ,dalbcl2 ,NHOR,    14)
+
+!      The layered store and the drainage, under a LOWERED nexcheck: a restart
+!      written before LSHY-3 existed carries neither record, and a run that
+!      resumes on the default scheme must not stop for a field the default
+!      scheme never reads. What it gets instead is the block below, which
+!      rebuilds the layers from the scalar store the atmospheric restart has
+!      already restored -- the same construction soilini uses on a cold start,
+!      so the two paths agree.
+       nexcheck = 0
+       dwatcl(:,:) = -1.0
+       call mpgetgp('dwatcl'  ,dwatcl  ,NHOR,NLSOILWX)
+       call mpgetgp('ddrain'  ,ddrain  ,NHOR,     1)
+       nexcheck = 1
+       if (ALL(dwatcl(:,:) < 0.0)) then
+        dwatcl(:,:) = 0.
+        do jlay=1,nlsoilw
+         where(dls(:) > 0.0) dwatcl(:,jlay)=dwatc(:)*dsoilwf(jlay)
+        enddo
+        ddrain(:) = 0.
+        if (mypid == NROOT) then
+         write(nud,*)' *** LSHY-3: no dwatcl in this restart; the layered'
+         write(nud,*)' *** store was rebuilt from dwatc on the declared'
+         write(nud,*)' *** layer shape. At nlsoilw = 1 that is exact.'
+        endif
+       endif
 
        n_sea_points = ncountsea(dls)
        
@@ -681,7 +811,8 @@
          dsalb(1,jhor)=dalbclim1(jhor)
          dsalb(2,jhor)=dalbclim2(jhor)
          if (dwmax(jhor) > 0.0)                                        &
-         drhs(jhor)=AMIN1(1., dwatc(jhor)/(drhsfull *dwmax(jhor)))
+     &   drhs(jhor)=land_wetness(dwatc(jhor),dwmax(jhor),drhsfull,       &
+     &                           drhslow,nrhsexp)
         endif
 
 !
@@ -773,6 +904,8 @@
       call mpputgp('dsnowt'  ,dsnowt  ,NHOR, 1)
       call mpputgp('dsnowz'  ,dsnowz  ,NHOR, 1)
       call mpputgp('dsoilt'  ,dsoilt  ,NHOR,NLSOIL)
+      call mpputgp('dwatcl'  ,dwatcl  ,NHOR,NLSOILWX)
+      call mpputgp('ddrain'  ,ddrain  ,NHOR, 1)
       call mpputgp('dz0clim' ,dz0clim ,NHOR, 1)
       call mpputgp('dz0climo',dz0climo,NHOR, 1)
       call mpputgp('dalbcl'  ,dalbcl  ,NHOR,14)
@@ -1217,15 +1350,70 @@
 !
 !     calculate soil water and runoff
 !
+!     THE SCALAR BUCKET, and the default. The three lines this used to be are
+!     now `bucket_step` in landcolumn.f90, unchanged in value and in order, so
+!     that the layered column can be checked against them by a standalone
+!     program rather than by inspection. The `where` becomes a loop because a
+!     kernel takes scalars; the operations per cell are the same operations on
+!     the same values, so the result is the same bits.
+!
       drunoff(:)=0.
-      where (dls(:) > 0.0)
-       dwatc(:)=dwatc(:)+deltsec*dwater(:)
-       drunoff(:)=AMAX1(0.,dwatc(:)-dwmax(:))/deltsec
-       dwatc(:)=AMAX1(AMIN1(dwmax(:),dwatc(:)),0.)
-      end where
+      ddrain(:)=0.
+      do jhor=1,NHOR
+       if (dls(jhor) > 0.0) then
+        call bucket_step(dwatc(jhor),dwmax(jhor),dwater(jhor),deltsec,   &
+     &                   zwnew,zroff)
+        dwatc(jhor)   = zwnew
+        drunoff(jhor) = zroff
+       endif
+      enddo
 !
       return
       end subroutine wandr
+
+!     ===================
+!     SUBROUTINE WANDRCOL
+!     ===================
+
+      subroutine wandrcol
+      use landmod
+!
+!     The layered liquid column, LSHY-3's second registered hypothesis.
+!
+!     `dwatc` stays the column total, because fluxmod's evaporation limiter,
+!     simba's water stress factor, aeromod and outmod all read it and none of
+!     them knows about layers. At nlsoilw = 1 the sum is over one element and
+!     is exact, which is the other half of the reduction.
+!
+      real :: zcap(NLSOILWX)
+      real :: zwl(NLSOILWX)
+      real :: zwn(NLSOILWX)
+!
+      drunoff(:)=0.
+      ddrain(:)=0.
+      do jhor=1,NHOR
+       if (dls(jhor) > 0.0) then
+        zcap(:) = 0.
+        zwl(:)  = 0.
+        do jlay=1,nlsoilw
+         zcap(jlay) = dwmax(jhor) * dsoilwf(jlay)
+         zwl(jlay)  = dwatcl(jhor,jlay)
+        enddo
+        call column_step(nlsoilw,zwl,zcap,dwater(jhor),deltsec,          &
+     &                   nlandwdrain,zwn,zroff,zdrn)
+        zsum = 0.
+        do jlay=1,nlsoilw
+         dwatcl(jhor,jlay) = zwn(jlay)
+         zsum = zsum + zwn(jlay)
+        enddo
+        dwatc(jhor)   = zsum
+        drunoff(jhor) = zroff
+        ddrain(jhor)  = zdrn
+       endif
+      enddo
+!
+      return
+      end subroutine wandrcol
 
 !     ==================
 !     SUBROUTINE SOILINI
@@ -1259,6 +1447,17 @@
         endwhere
        endif
        drunoff(:)=0.
+       ddrain(:)=0.
+!
+!      The layered store starts holding the same water as the scalar one,
+!      distributed by the declared layer shape. At nlsoilw = 1 that puts all
+!      of it in layer 1 and dwatcl(:,1) is dwatc exactly, so a cold start and
+!      a scheme switch agree.
+!
+       dwatcl(:,:)=0.
+       do jlay=1,nlsoilw
+        where(dls(:) > 0.0) dwatcl(:,jlay)=dwatc(:)*dsoilwf(jlay)
+       enddo
 !
       endif
 !
@@ -1286,9 +1485,14 @@
 !     calculate soil water and runoff
 !
       if(nlandw==1) then
-       call wandr
+       if(nlandwcol==1) then
+        call wandrcol
+       else
+        call wandr
+       endif
       else
        drunoff(:)=0.
+       ddrain(:)=0.
        where(dls(:) > 0.)
         drunoff(:)=AMAX1(0.,dwater(:))
         dwatc(:)=dwclim(:)

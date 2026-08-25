@@ -515,7 +515,7 @@ terms:
     transform: none
     latent: none
     flux: undeclared
-    producer: "exoplasim drunoff = max(0, dwatc - dwmax)/deltsec (landmod.f90 wandr)"
+    producer: "exoplasim drunoff, landmod.f90 wandr under nlandwcol = 0 and wandrcol under nlandwcol = 1"
     producer_units: m s-1 over the land cell
     interval_floor: instantaneous
     owner: lshy-3
@@ -535,7 +535,7 @@ terms:
     transform: none
     latent: none
     flux: undeclared
-    producer: "hydrography build_groundwater.py recharge = max(P - E, 0)"
+    producer: "hydrography build_groundwater.py recharge = max(P - E, 0); exoplasim ddrain under nlandwcol = 1, nlandwdrain = 1"
     producer_units: m s-1 over the land cell
     interval_floor: annual
     owner: lshy-3

@@ -1,0 +1,330 @@
+{
+  "generated": "2026-08-25T04:45:25+00:00",
+  "declaration": "hydrography/config/land_water_ledger.yaml",
+  "declaration_sha256": "80fdda8eca16a2b905374a2a677d1063704851bcefe4c47df4338ea2ad5006f1",
+  "version": 1,
+  "units": {
+    "mass": "kg_h2o",
+    "substance_basis": "h2o",
+    "time": "earth_day"
+  },
+  "control_volume": {
+    "column_base_m": 1.5,
+    "lateral": "climate_grid_land_cell",
+    "land_from": "surface_class"
+  },
+  "interval_earth_days": 365.2422,
+  "latent_heat": {
+    "vaporisation_j_per_kg": 2500800.0,
+    "sublimation_j_per_kg": 2834500.0,
+    "fusion_j_per_kg": 333700.0,
+    "identity": "sublimation = vaporisation + fusion",
+    "identity_tolerance_j_per_kg": 1.0
+  },
+  "graph_failures": [],
+  "graph_mutations": [
+    {
+      "mutation": "dangling_destination",
+      "failures": 1,
+      "caught": true,
+      "first": "term snowmelt: to names 'permafrost', which is not a declared node"
+    },
+    {
+      "mutation": "terminal_source",
+      "failures": 2,
+      "caught": true,
+      "first": "term coastal_discharge: source and destination are the same node"
+    },
+    {
+      "mutation": "unnamed_phase_change",
+      "failures": 1,
+      "caught": true,
+      "first": "term snowmelt: transform is none but the phase changes ice to liquid. A phase change is a process, it costs energy, and it needs naming"
+    },
+    {
+      "mutation": "wrong_latent_heat",
+      "failures": 1,
+      "caught": true,
+      "first": "term snowmelt: transform melting releases or consumes the latent heat of fusion, and the term declares 'vaporisation'. A phase term carrying the wrong latent heat conserves water and loses energy"
+    },
+    {
+      "mutation": "reversed_phase_transform",
+      "failures": 1,
+      "caught": true,
+      "first": "term snowmelt: transform freezing moves liquid to ice, not ice to liquid"
+    },
+    {
+      "mutation": "double_debited_component",
+      "failures": 1,
+      "caught": true,
+      "first": "et_component transpiration: debited by 2 terms (soil_evaporation from soil_liquid, transpiration from vegetation). One evaporative component, one debit, one store"
+    },
+    {
+      "mutation": "accumulating_reservoir",
+      "failures": 1,
+      "caught": true,
+      "first": "node open_water: a reservoir with no outflow is an accumulator"
+    },
+    {
+      "mutation": "unfillable_reservoir",
+      "failures": 1,
+      "caught": true,
+      "first": "node soil_ice: a reservoir with no inflow cannot be filled"
+    },
+    {
+      "mutation": "store_without_owner",
+      "failures": 1,
+      "caught": true,
+      "first": "node soil_liquid: a store with no owner. Exactly one component advances each store"
+    },
+    {
+      "mutation": "missing_area_basis",
+      "failures": 1,
+      "caught": true,
+      "first": "node open_water: no area_basis. A per-area depth has no meaning without one, and three different denominators appear here"
+    },
+    {
+      "mutation": "fusion_constant_disagrees",
+      "failures": 1,
+      "caught": true,
+      "first": "latent_heat: sublimation - vaporisation - fusion = -300 J/kg, outside the declared tolerance. ExoPlaSim derives fusion as the difference, so a fusion constant that disagrees is a fourth number"
+    },
+    {
+      "mutation": "boundary_receives_from_inside",
+      "failures": 2,
+      "caught": true,
+      "first": "term surface_runoff: delivers to unowned_source, which is a boundary and is not declared reentrant. Water leaving the domain has a terminal node to go to"
+    }
+  ],
+  "closure_fixtures": [
+    {
+      "fixture": "balanced",
+      "expects": "closes",
+      "residual_kg": 0.0,
+      "outcome": "closed"
+    },
+    {
+      "fixture": "shadow_store_evaporation",
+      "expects": "rejects",
+      "residual_kg": 1800000000000.0,
+      "outcome": "residual"
+    },
+    {
+      "fixture": "double_debited_component",
+      "expects": "rejects",
+      "outcome": "refused",
+      "reason": "evaporative component transpiration is debited a second time, from canopy, having already been debited from soil_liquid. One component, one debit, one store"
+    },
+    {
+      "fixture": "pme_triple_ownership",
+      "expects": "rejects",
+      "outcome": "refused",
+      "reason": "transfer of 2e+12 kg leaves soil_liquid at -2e+12 kg, below zero"
+    },
+    {
+      "fixture": "area_basis_mismatch",
+      "expects": "rejects",
+      "outcome": "refused",
+      "reason": "transfer of 2.4e+11 kg leaves open_water at -1.9e+11 kg, below zero"
+    },
+    {
+      "fixture": "interval_mismatch",
+      "expects": "rejects",
+      "outcome": "refused",
+      "reason": "transfer of 6.31139e+12 kg leaves soil_liquid at -6.21139e+12 kg, below zero"
+    },
+    {
+      "fixture": "unnamed_phase_change",
+      "expects": "rejects",
+      "outcome": "refused",
+      "reason": "transfer snowpack -> soil_liquid changes phase ice to liquid with no process named. A phase change costs energy"
+    },
+    {
+      "fixture": "wrong_latent_heat",
+      "expects": "rejects",
+      "outcome": "refused",
+      "reason": "transfer snowpack -> atmosphere declares vaporisation and moves ice to vapour"
+    },
+    {
+      "fixture": "terminal_source",
+      "expects": "rejects",
+      "outcome": "refused",
+      "reason": "transfer draws on ocean_export, which is terminal"
+    },
+    {
+      "fixture": "store_below_zero",
+      "expects": "rejects",
+      "outcome": "refused",
+      "reason": "transfer of 7e+10 kg leaves soil_liquid at -3e+10 kg, below zero"
+    },
+    {
+      "fixture": "negative_transfer",
+      "expects": "rejects",
+      "outcome": "refused",
+      "reason": "a transfer carries a non-negative mass; reverse the direction instead"
+    }
+  ],
+  "checker_defects": [],
+  "shadow_copies": [
+    {
+      "node": "snowpack",
+      "owner": "exoplasim",
+      "symbol": "dsnowz",
+      "shadow_copies": [
+        "lpj-guess soil.snowpack"
+      ]
+    },
+    {
+      "node": "soil_liquid",
+      "owner": "exoplasim",
+      "symbol": "dwatc",
+      "shadow_copies": [
+        "lpj-guess soil.wcont[NSOILLAYER]"
+      ]
+    },
+    {
+      "node": "soil_ice",
+      "owner": "unassigned",
+      "symbol": "undeclared",
+      "shadow_copies": [
+        "lpj-guess soil.Frac_ice[NLAYERS]"
+      ]
+    },
+    {
+      "node": "open_water",
+      "owner": "hydrography",
+      "symbol": "lake storage in surface_water.nc",
+      "shadow_copies": [
+        "exoplasim driver"
+      ]
+    }
+  ],
+  "interval_refusals": [
+    "term lake_precipitation: delivers to open_water, which changes inside the reporting interval, and its producer (hydrography surface_water.py per-basin lake precipitation) supplies it only as an annual mean. A total is not a partition",
+    "term capillary_rise: delivers to soil_liquid, which changes inside the reporting interval, and its producer (undeclared) supplies it only as an annual mean. A total is not a partition",
+    "term baseflow: delivers to open_water, which changes inside the reporting interval, and its producer (hydrography groundwater.py seepage) supplies it only as an annual mean. A total is not a partition"
+  ],
+  "undeclared_terms": [
+    {
+      "term": "rainfall",
+      "owner": "lshy-3"
+    },
+    {
+      "term": "snowfall",
+      "owner": "lshy-5"
+    },
+    {
+      "term": "lake_precipitation",
+      "owner": "lshy-6"
+    },
+    {
+      "term": "canopy_throughfall",
+      "owner": "lshy-3"
+    },
+    {
+      "term": "canopy_evaporation",
+      "owner": "lshy-4"
+    },
+    {
+      "term": "snowmelt",
+      "owner": "lshy-5"
+    },
+    {
+      "term": "snow_cap_shedding",
+      "owner": "lshy-5"
+    },
+    {
+      "term": "snow_sublimation",
+      "owner": "lshy-5"
+    },
+    {
+      "term": "soil_freezing",
+      "owner": "lshy-5"
+    },
+    {
+      "term": "soil_thaw",
+      "owner": "lshy-5"
+    },
+    {
+      "term": "soil_evaporation",
+      "owner": "lshy-3"
+    },
+    {
+      "term": "root_uptake",
+      "owner": "lshy-4"
+    },
+    {
+      "term": "groundwater_uptake",
+      "owner": "gw-5"
+    },
+    {
+      "term": "transpiration",
+      "owner": "lshy-4"
+    },
+    {
+      "term": "open_water_evaporation",
+      "owner": "lshy-6"
+    },
+    {
+      "term": "surface_runoff",
+      "owner": "lshy-3"
+    },
+    {
+      "term": "drainage",
+      "owner": "lshy-3"
+    },
+    {
+      "term": "capillary_rise",
+      "owner": "plhy-4"
+    },
+    {
+      "term": "baseflow",
+      "owner": "anut-6"
+    },
+    {
+      "term": "coastal_discharge",
+      "owner": "anut-6"
+    },
+    {
+      "term": "bucket_floor_creation",
+      "owner": "world-hssb"
+    }
+  ],
+  "absences": [
+    {
+      "absence": "soil_water_above_field_capacity",
+      "owner": "lshy-1",
+      "what": "LPJ-GUESS's `wcont` is a fraction of AVAILABLE capacity, refused outside [0, 1], so the wettest state the column can represent is field capacity. Water between field capacity and saturation has nowhere to sit."
+    },
+    {
+      "absence": "canopy_store_in_the_climate_column",
+      "owner": "lshy-3",
+      "what": "ExoPlaSim's land column has no interception store."
+    },
+    {
+      "absence": "soil_ice_in_the_climate_column",
+      "owner": "lshy-5",
+      "what": "ExoPlaSim's five soil temperature layers carry no water and no phase."
+    },
+    {
+      "absence": "open_water_evaporation_from_routed_water",
+      "owner": "lshy-6",
+      "what": "Routed runoff accumulates in `driver` and discharges to the ocean. Nothing evaporates from it, and `dwatc` gains only from local precipitation minus evaporation."
+    },
+    {
+      "absence": "transient_saturated_storage",
+      "owner": "plhy-4",
+      "what": "The groundwater solver is a steady-state one and carries no storage change."
+    },
+    {
+      "absence": "snow_compaction",
+      "owner": "grav-8",
+      "what": "ExoPlaSim's snow density is the constant `rhosnow = 330` kg/m3 with no compaction; LPJ-GUESS ages its snow from 275 to 500 kg/m3."
+    },
+    {
+      "absence": "subgrid_hydrologic_response",
+      "owner": "lshy-6",
+      "what": "`build_surface_soil_water.py` area-averages land and lake capacities into one cell-mean `dwmax`."
+    }
+  ]
+}
