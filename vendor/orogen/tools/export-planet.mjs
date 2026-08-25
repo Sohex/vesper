@@ -97,6 +97,12 @@ Headless World Orogen generation + data export.
   --carve-basins FILE    same format, subtractive: threshold selection minus these.
   --list-basins          generate, print the basin catalogue, and exit
 
+  --ice-mask FILE        where ice sits, one float32 per mesh region in region order,
+                         with a FILE.json sidecar. Consumed at generation, so glacial
+                         erosion carves what a climatology says is frozen instead of
+                         the Earth-calibrated latitude ramp. Matched BY REGION INDEX,
+                         and refused unless the sidecar's mesh identity matches.
+
   --no-lithology         uniform erodibility (upstream erosion, no rock types)
   --lithology-strength F 0 = uniform erodibility, 1 = full rock contrast (default: 1)
   --list-rocks           print the rock-class table and exit
@@ -127,6 +133,46 @@ Headless World Orogen generation + data export.
   --help
 `;
 
+/**
+ * Read an ice mask: a flat float32 little-endian array, one value per mesh
+ * region in region order, plus a JSON sidecar at the same path with `.json`
+ * appended.
+ *
+ * The sidecar is not optional. A bare array of numbers cannot say which mesh it
+ * was measured on, and a mask indexed into the wrong mesh applies one planet's
+ * ice to another planet's mountains and returns an ordinary-looking result. The
+ * sidecar carries `numRegions` and `seed`, which together are the mesh's whole
+ * identity, and glacial-ice.js refuses on a mismatch rather than warning.
+ *
+ * Region order, never longitude: the export and every climatology label their
+ * columns differently, and matching across that boundary by coordinate has
+ * silently matched zero cells more than once.
+ */
+function readIceMask(file) {
+    if (!file) throw new Error('--ice-mask expects a path');
+    const sidecarPath = `${file}.json`;
+    if (!fs.existsSync(sidecarPath)) {
+        throw new Error(`--ice-mask needs a sidecar at ${sidecarPath}: a mask with no `
+            + 'mesh identity cannot be checked against the mesh it is indexed into');
+    }
+    const meta = JSON.parse(fs.readFileSync(sidecarPath, 'utf8'));
+    const buf = fs.readFileSync(file);
+    if (buf.byteLength % 4 !== 0) {
+        throw new Error(`--ice-mask ${file} is ${buf.byteLength} bytes, not a whole number of float32`);
+    }
+    const values = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
+    if (meta.numRegions !== undefined && meta.numRegions !== values.length) {
+        throw new Error(`--ice-mask sidecar declares ${meta.numRegions} regions, `
+            + `${file} holds ${values.length}`);
+    }
+    return {
+        values,
+        numRegions: meta.numRegions ?? values.length,
+        seed: meta.seed ?? null,
+        provenance: { file, ...meta },
+    };
+}
+
 function parseArgs(argv) {
     const a = {
         out: null, seed: null, ...DEFAULTS,
@@ -137,6 +183,7 @@ function parseArgs(argv) {
         lithology: true, lithologyStrength: undefined, listRocks: false,
         preserveBasinList: null, carveBasinList: null,
         gridType: 'uniform', gridTruncation: null, subgrid: true, planet: {},
+        iceMask: null,
         code: null, _explicit: new Set(),
     };
     const num = (v, flag) => {
@@ -207,6 +254,7 @@ function parseArgs(argv) {
             case '--list-basins': a.listBasins = true; break;
             case '--preserve-basins': a.preserveBasinList = parseBasinList(fs.readFileSync(argv[++i], 'utf8')); break;
             case '--carve-basins': a.carveBasinList = parseBasinList(fs.readFileSync(argv[++i], 'utf8')); break;
+            case '--ice-mask': a.iceMask = readIceMask(argv[++i]); break;
             case '--no-lithology': a.lithology = false; break;
             case '--lithology-strength': a.lithologyStrength = num(argv[++i], f); break;
             case '--list-rocks': a.listRocks = true; break;
@@ -462,11 +510,20 @@ async function main() {
         lithology: args.lithology,
         lithologyStrength: args.lithologyStrength,
         planet: args.planet,
+        iceMask: args.iceMask,
     }, (pct, label) => {
         if (pct !== lastPct) { log(`  [${String(pct).padStart(3)}%] ${label}`); lastPct = pct; }
     });
 
     log(`Generated in ${((performance.now() - t0) / 1000).toFixed(1)}s`);
+
+    if (ctx.glacialSummary && ctx.glacialSummary.glacIdxSource) {
+        const g = ctx.glacialSummary;
+        log(g.glacIdxSource === 'mask'
+            ? `Ice placed from the supplied mask: ${g.glaciatedCells} glaciated regions`
+            : `Ice placed by the Earth-calibrated latitude ramp (no --ice-mask): `
+              + `${g.glaciatedCells} glaciated regions`);
+    }
 
     if (ctx.hydrology) {
         const big = (ctx.hydrology.dischargeDistribution || [])
