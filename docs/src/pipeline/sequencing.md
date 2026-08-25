@@ -9,6 +9,27 @@ baseline, verdict. Hydrography has to be rebuilt *after* the carve and before
 the climate, because the carve changes the drainage the climate is integrated
 over.
 
+**The first turn is a special case, and it runs without ice.** `orogen` needs
+an ice mask; the mask is written from a baseline climatology; the climatology
+needs a build. That is a pass boundary rather than a cycle, and the way through
+it is two passes:
+
+1. Generate with `--glacial 0`. That is an honest null -- the world has no
+   glacial erosion in it -- and it is chosen over the Earth-calibrated latitude
+   ramp, which would be a guess wearing a number.
+2. Commission that build to a baseline.
+3. Write the mask from its climatology:
+   `analysis/ice_mask_freezing_height.py --write-mask`.
+4. Regenerate with `--ice-mask`.
+
+So the first commissioning is PART of the regeneration rather than something
+that precedes it. It cannot be collapsed into one pass, because Orogen has no
+climate to place ice from before it makes the terrain. It cannot be bolted on
+afterwards either: glacial, hydraulic and thermal erosion share one iteration
+loop, and a mid-loop priority flood cuts outlets through the depressions
+glaciation makes -- so a later glacial pass would leave those depressions
+undrained and move the drainage network the climate was integrated over.
+
 The block below is the COMMISSIONING, and it is the same block whether the
 build is new or is being re-commissioned; a re-commissioning skips the
 generation and starts from a build already in `source/`. Each step reads the

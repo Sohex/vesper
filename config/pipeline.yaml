@@ -758,6 +758,23 @@ steps:
     cost: hours
     needs: [carve_list, ice_mask]
     writes: ["source/{build}/"]
+    first_pass: >
+      TWO PASSES, AND THE FIRST ONE HAS NO ICE. `ice_mask` needs
+      `baseline_climatology`, which needs a build, which is this step -- so on
+      the first pass through loop A neither of this step's `needs` can be
+      satisfied and the edge is not a cycle but a PASS BOUNDARY, the same one
+      `reads_export` exists to keep out of `needs`. Generate the first build
+      with `--glacial 0`, which is an honest null rather than an
+      Earth-calibrated guess; commission it to a baseline; write the mask from
+      that climatology with `ice_mask_freezing_height.py --write-mask`; then
+      regenerate with `--ice-mask`. The commissioning is therefore PART of the
+      regeneration and does not follow it.
+      It cannot be collapsed into one pass, because Orogen has no climate to
+      place ice from before it makes the terrain. It cannot be bolted on
+      afterwards either: glacial, hydraulic and thermal erosion share one
+      iteration loop and a mid-loop priority flood cuts outlets through the
+      depressions glaciation makes, so a later glacial pass would leave them
+      undrained and move the drainage network. WORLD-Q5IG carries the run.
     gate: >
       the carve gate: nothing outstanding may still move an artifact the verdict
       is computed from. READ THE OPEN ISSUES AND DECIDE. Deliberately not computed,
