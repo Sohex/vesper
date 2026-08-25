@@ -57,6 +57,7 @@ from run_exoplasim import (  # noqa: E402
     SNAPSHOT_CODES,
     derive,
     file_sha256,
+    restore_run_executable,
 )
 
 
@@ -399,6 +400,25 @@ def main() -> None:
     # been assessed, and calling orbits post-equilibrium on a run nothing has
     # judged is a claim the manifest can refuse.
     cutoff = manifest.get("equilibrium_cutoff_year_index")
+    # AN ARM RUN HAS NO LINEAGE TO CONTINUE INTO. The prepare stamps
+    # `canonical_lineage_eligible` false when the caller named the binary, which
+    # means the executable is one build_model.py refused to publish -- another
+    # precision, another flag line, a patched model source. The climatology a
+    # post-equilibrium segment exists to produce is what a canonical lineage is
+    # made of, so it is the one purpose an arm may not be given; a spin-up or a
+    # diagnostic segment on an arm is exactly what an arm is for. world-u5pf.
+    if (args.purpose == "post_equilibrium_climatology"
+            and manifest.get("canonical_lineage_eligible") is False):
+        arm = (manifest.get("executable") or {}).get("arm") or {}
+        raise SystemExit(
+            f"{identifier} was integrated by the arm {arm.get('build_tag')}, "
+            f"which is not the registry's binary and is absent from "
+            f"binary_manifest.json by construction. A "
+            f"post_equilibrium_climatology segment produces a climatology, and "
+            f"a climatology from an unpublished arm cannot belong to the "
+            f"canonical lineage. Use --purpose spinup or --purpose diagnostic, "
+            f"and compare the arm against production climatologically rather "
+            f"than by adopting its output.")
     if args.purpose == "post_equilibrium_climatology":
         if cutoff is None:
             raise SystemExit(
@@ -433,6 +453,13 @@ def main() -> None:
         modelname=identifier,
         outputtype=model_cfg["output_type"],
     )
+    # IMMEDIATELY AFTER THE CONSTRUCTION, because that is what overwrote it:
+    # `exo.Model.__init__` copies the registry's executable into the working
+    # directory every time one is made. For an arm run this puts the arm back;
+    # for an ordinary run it is the prepare's binary_manifest.json check asked
+    # again at the boundary where a rebuild lands. world-bdb5, world-u5pf.
+    segment_exe, segment_exe_provenance = restore_run_executable(
+        run_dir, model_cfg, manifest)
     model.configure(
         flux=derived["stellar_flux_w_m2"],
         startemp=float(star["effective_temperature_k"]),
@@ -701,11 +728,9 @@ def main() -> None:
 
     # The binary that ran is the one sitting in the run directory: ExoPlaSim
     # copies it there and runs it in place, so this is what integrated the
-    # orbits above rather than what some index says should have.
-    segment_exe = run_dir / (
-        f"most_plasim_t{int(str(model_cfg['resolution']).lstrip('Tt'))}"
-        f"_l{int(model_cfg['layers'])}_p{int(model_cfg['ncpus'])}.x"
-    )
+    # orbits above rather than what some index says should have. Re-hashed here
+    # rather than reusing what `restore_run_executable` settled, so the segment
+    # records the file as it stands after the run and not as it was checked.
     segment_exe_sha = file_sha256(segment_exe) if segment_exe.is_file() else None
     prepared_exe_sha = (manifest.get("executable") or {}).get("sha256")
     if segment_exe_sha and prepared_exe_sha and segment_exe_sha != prepared_exe_sha:
@@ -744,6 +769,12 @@ def main() -> None:
             # low-I/O change alters the restart layout and a resume across it
             # is not merely unattributed but wrong.
             "executable_sha256": segment_exe_sha,
+            # AND WHOSE it was: the manifest entry it matched, or the arm it is.
+            # A sha alone cannot say whether the binary was a registered one,
+            # and a segment integrated by an unregistered binary is
+            # unattributable in exactly the way world-qnue's stability probe
+            # entries are.
+            "executable_provenance": segment_exe_provenance,
             # WHICH SURFACE these particular orbits were integrated on, checked
             # inside the restart rather than taken from the run directory. A
             # run that adopted a donor's surface keeps integrating it while the

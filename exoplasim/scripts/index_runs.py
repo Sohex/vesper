@@ -90,6 +90,11 @@ def read(run_dir: Path) -> dict | None:
                              if f.is_file()) / 1e9, 2),
         "executable_sha256": ((m.get("executable") or {}).get("sha256")
                               or m.get("executable_sha256")),
+        # WHICH ARM, if the run was one. Run ids are UUIDs, so this index is the
+        # only record of what each run WAS, and an arm run -- another precision,
+        # another flag line, a patched model source -- is not the shipped model
+        # and must not read as it. Null for every ordinary run. world-u5pf.
+        "arm": ((m.get("executable") or {}).get("arm") or {}).get("build_tag"),
         "config_sha256": m.get("config_sha256"),
         "physical": phys,
         "source_build": (m.get("source_config") or {}).get("source_build"),

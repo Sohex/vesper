@@ -21,6 +21,8 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, INPUTS, MODEL_SRC, PROJECT_ROOT, RUNS
+import build_model
+import rebuild_binaries
 import reset_restart_accumulators
 import rungs
 
@@ -128,6 +130,149 @@ def _stack_bytes(value: str) -> int:
     factor = unit.get(text[-1:].lower(), 1024)
     digits = text[:-1] if text[-1:].lower() in unit else text
     return int(float(digits) * factor)
+
+
+def run_executable_name(model_cfg: dict) -> str:
+    """The registry's executable name for a run's configuration.
+
+    ExoPlaSim copies its whole run directory in, so every previously built
+    executable is present and a glob picks the wrong one -- `p8` sorts after
+    `p16`. Composed the way `build_model.executable_name` composes it, with no
+    parallel-mode suffix, and stated once here rather than in each of the three
+    places that used to spell it out.
+    """
+    return (f"most_plasim_t{int(str(model_cfg['resolution']).lstrip('Tt'))}"
+            f"_l{int(model_cfg['layers'])}_p{int(model_cfg['ncpus'])}.x")
+
+
+def check_registered(exe: Path) -> dict:
+    """Refuse an executable `binary_manifest.json` does not register.
+
+    AT PREPARE, and refusing rather than warning. A run has cost nothing at this
+    point, and the file it is about to be handed is the one every orbit after it
+    is integrated by; an orbit is the most expensive thing in this project to
+    have to integrate again. The registry gate exists -- `check_consistency.py`
+    calls `rebuild_binaries.verify()` and rule 8 asks for it before an expensive
+    run -- but it is a gate a caller has to remember, and this is the same
+    question asked where it cannot be skipped. `unregistered()` names BOTH shas,
+    because "stale" without the two numbers cannot be told from "the manifest
+    was never written". world-bdb5.
+    """
+    reason = rebuild_binaries.unregistered(exe)
+    if reason is not None:
+        raise RuntimeError(
+            f"{reason}.\n"
+            f"An unregistered binary has unknown provenance: nothing says what "
+            f"model source or what flag line produced it, so every orbit this "
+            f"run integrates would be unattributable. Rebuild with "
+            f"`python exoplasim/scripts/rebuild_binaries.py` and check with "
+            f"`--verify`; to integrate a deliberate ARM instead, build it with "
+            f"`build_model.py --no-publish` and pass its path to --binary.")
+    entry = rebuild_binaries.registered(exe.name)
+    return {"arm": None,
+            "manifest_entry": {
+                "name": exe.name,
+                "sha256": entry.get("sha256"),
+                "profile": entry.get("profile"),
+                "effective_f90_opts": entry.get("effective_f90_opts"),
+                "manifest": str(rebuild_binaries.MANIFEST),
+            }}
+
+
+def install_run_executable(run_dir: Path, model_cfg: dict,
+                           arm: Path | None) -> tuple[Path, dict]:
+    """Settle which binary this run will be integrated by, and say so.
+
+    Two routes, and the run manifest records which one was taken.
+
+    THE REGISTRY'S, by name, which is every ordinary run. `exo.Model` has
+    already copied it into the run directory; this checks that copy against
+    `binary_manifest.json` and refuses if it is not an entry.
+
+    AN ARM, named by the caller. `build_model.py` can build an arm that departs
+    from the shipped model in precision, in flags, in frame pointers or in a
+    patched model source, and `--no-publish` leaves it in its own build
+    directory -- which is the point, because the registry's naming carries none
+    of those and an arm published under it would be indistinguishable from the
+    shipped binary (archive CLIM-22, world-v3d). That left an arm buildable and
+    unrunnable. The route is opened here without weakening the refusal: the arm
+    is copied OVER the run directory's own copy, under the registry's name,
+    inside this run directory and nowhere else. The published binary is not
+    touched, the registry is not written, and the arm's build tag goes on the
+    manifest so the run cannot later be read as the shipped model. world-u5pf.
+    """
+    exe_path = run_dir / run_executable_name(model_cfg)
+    if not exe_path.is_file():
+        raise RuntimeError(
+            f"expected executable {exe_path} is not in the run directory")
+    if arm is None:
+        provenance = check_registered(exe_path)
+        entry = provenance["manifest_entry"]
+        print(f"executable {exe_path.name} {str(entry['sha256'])[:16]}: "
+              f"binary_manifest.json entry, profile {entry['profile']}")
+        return exe_path, provenance
+    identity = build_model.arm_identity(arm)
+    shutil.copy2(identity["path"], exe_path)
+    print(f"ARM: {identity['build_tag']} ({file_sha256(exe_path)[:16]}) copied "
+          f"over {exe_path.name} in this run directory. It is not the "
+          f"registry's binary, it is absent from binary_manifest.json by "
+          f"construction, and this run is stamped "
+          f"canonical_lineage_eligible = false.")
+    return exe_path, {"arm": identity, "manifest_entry": None}
+
+
+def restore_run_executable(run_dir: Path, model_cfg: dict,
+                           manifest: dict) -> tuple[Path, dict]:
+    """Put back the binary a prepared run was given, before a resume launches it.
+
+    `exo.Model.__init__` copies the registry's executable into the working
+    directory on EVERY construction, and a continuation constructs one. So a run
+    prepared on an arm has its arm overwritten by the shipped model at the start
+    of its second segment, and nothing in the run would say so: the segment
+    record would carry a sha, that sha would be the registry's, and the run
+    would read as an arm experiment that had quietly been half a production run.
+    Copying the arm back in here is what makes an arm run resumable at all.
+
+    For a run that is NOT an arm this is the prepare's registry check asked
+    again, which is the same question at the same boundary: a continuation is
+    another chance to hand the model a binary of unknown provenance, and rule 4
+    makes that likely rather than exotic, because any change under
+    `vendor/exoplasim` is meant to be followed by a rebuild. A rebuilt binary is
+    a registered one and passes; an unregistered one is refused before the
+    segment costs anything.
+    """
+    exe_path = run_dir / run_executable_name(model_cfg)
+    arm = (manifest.get("executable") or {}).get("arm")
+    if arm is None:
+        return exe_path, check_registered(exe_path)
+    src = Path(arm["path"])
+    if not src.is_file():
+        raise RuntimeError(
+            f"{identifier_of(manifest)} was prepared on the arm "
+            f"{arm['build_tag']}, whose executable {src} is gone. An arm lives "
+            f"in its build directory and nothing copies it anywhere durable, so "
+            f"rebuild it with the same build_model.py arguments -- the "
+            f"directory name states them -- or this run cannot be continued as "
+            f"the experiment it is.")
+    identity = build_model.arm_identity(src)
+    if identity["build_tag"] != arm.get("build_tag"):
+        raise RuntimeError(
+            f"--binary provenance moved: this run was prepared on arm "
+            f"{arm.get('build_tag')} and {src} is now {identity['build_tag']}.")
+    got, want = file_sha256(src), (manifest.get("executable") or {}).get("sha256")
+    if want and got != want:
+        raise RuntimeError(
+            f"the arm {arm['build_tag']} is {got[:16]} and this run was "
+            f"prepared on {want[:16]}: it has been rebuilt under the same tag. "
+            f"The tag names every input that changes a byte, so a moved sha "
+            f"under an unchanged tag is the model source having moved. Prepare "
+            f"a new run rather than splicing two models into one trajectory.")
+    shutil.copy2(src, exe_path)
+    return exe_path, {"arm": identity, "manifest_entry": None}
+
+
+def identifier_of(manifest: dict) -> str:
+    return str(manifest.get("run_id") or "this run")
 
 
 def prepare_thread_stack(config: dict) -> dict:
@@ -2637,6 +2782,18 @@ def main() -> None:
              "surface and the difference is what is measured. Stamped on the "
              "run manifest so the run is self-labelling.")
     parser.add_argument(
+        "--binary", type=Path, default=None,
+        help="integrate this run with a named executable instead of the one "
+             "the registry's naming resolves to. It must be an ARM: a build "
+             "made by exoplasim/scripts/build_model.py with --no-publish, "
+             "still in its own build directory, whose directory name states "
+             "every input that makes it differ from the shipped model. The arm "
+             "is copied into THIS run directory only; the published binary and "
+             "binary_manifest.json are untouched. The run is stamped with the "
+             "arm's build tag and with canonical_lineage_eligible = false, and "
+             "continue_exoplasim.py will not take a "
+             "--purpose post_equilibrium_climatology segment on it")
+    parser.add_argument(
         "--restart-from", type=Path, default=None,
         help="Seed the initial state from an existing MOST_REST file instead of "
              "cold-starting. Only the spin-up path changes, not the equilibrium.",
@@ -3049,16 +3206,7 @@ def main() -> None:
         "STARBBTEMP": namelist_value(run_dir / "radmod_namelist", "STARBBTEMP"),
         "NSIMPLEALBEDO": namelist_value(run_dir / "radmod_namelist", "NSIMPLEALBEDO"),
     }
-    # ExoPlaSim copies its whole run directory in, so every previously built
-    # executable is present. Name the one this run will actually use rather than
-    # taking the last glob match, which sorts p8 after p16. Composed the way
-    # `build_model.executable_name` composes it, with no parallel-mode suffix.
-    exe_path = run_dir / (
-        f"most_plasim_t{int(str(model_cfg['resolution']).lstrip('Tt'))}"
-        f"_l{int(model_cfg['layers'])}_p{int(model_cfg['ncpus'])}.x"
-    )
-    if not exe_path.is_file():
-        raise RuntimeError(f"expected executable {exe_path} is not in the run directory")
+    exe_path, exe_provenance = install_run_executable(run_dir, model_cfg, args.binary)
 
     manifest = {
         "schema_version": 1,
@@ -3129,10 +3277,24 @@ def main() -> None:
         "executable": {
             "path": str(exe_path),
             "sha256": file_sha256(exe_path),
-            "note": ("Built precision is not encoded in the filename. If "
-                     "model.precision_bytes changes, pass recompile=True or "
-                     "remove the binary, or the old one is silently reused."),
+            # WHICH MANIFEST ENTRY, or which ARM. The sha above says what file
+            # ran; on its own it cannot say whether that file was one the
+            # registry knows, and a run whose whole life was integrated by an
+            # unregistered binary is unattributable after the fact. The prepare
+            # refuses that case outright, so this block records the verdict it
+            # passed. world-bdb5, world-u5pf.
+            **exe_provenance,
+            "note": ("Built precision is not encoded in the filename. The "
+                     "registry's naming carries no precision at all, which is "
+                     "why `arm` below is the only statement of an arm's."),
         },
+        # An ARM RUN IS NOT PRODUCTION. Set false when the caller named the
+        # binary rather than letting the registry's naming resolve it: the
+        # executable is then one build_model.py refused to publish, and no
+        # climatology built on it belongs to the canonical lineage.
+        # `continue_exoplasim.py` refuses a post_equilibrium_climatology
+        # segment on a run carrying false here.
+        "canonical_lineage_eligible": exe_provenance.get("arm") is None,
         "software": {
             "python": platform.python_version(),
             "exoplasim": getattr(exo, "__version__", "3.4.2"),

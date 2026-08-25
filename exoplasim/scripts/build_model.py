@@ -199,6 +199,69 @@ def executable_name(res: str, levels: int, ranks: int,
     return f"most_plasim_{res.lower()}_l{levels}_p{ranks}{suffix}.x"
 
 
+def arm_identity(exe: Path) -> dict:
+    """What an executable a CALLER named IS, and a refusal if it is not an arm.
+
+    An arm is a build this driver made with `--no-publish`: it stayed in its own
+    build directory instead of being copied into the model run directory under
+    the registry's name. That directory's name is `tag()`, which is composed out
+    of every input that changes a byte of the executable -- the rung, the levels,
+    the thread count, the profile, the precision, the frame pointers, the hash of
+    any extra or dropped flags and the hash of a patched model source. So the
+    directory IS the arm's identity, and it is the only place a precision arm's
+    precision is written down at all: `executable_name` carries none, which is
+    why `build()` refuses to publish one.
+
+    A caller that hands a run pipeline a binary is therefore handed back this
+    dict to stamp on the run manifest, and two paths are refused rather than
+    described:
+
+      the registry's own copy   a run resolves that one by name and needs no
+                                flag to find it. Naming it here would let an
+                                ordinary run acquire an `arm` block and read as
+                                an experiment.
+      anything else             an executable outside a build directory has no
+                                tag, so nothing can say what makes it differ
+                                from the shipped model. That is the state
+                                `binary_manifest.json` calls unknown provenance,
+                                and an arm run whose arm cannot be named is
+                                worth no more than an unattributable one.
+    """
+    exe = Path(exe).resolve()
+    if not exe.is_file():
+        raise SystemExit(f"no executable at {exe}")
+    if exe.parent == MODEL_RUN.resolve():
+        raise SystemExit(
+            f"{exe} is the registry's published binary. A run composes that "
+            f"name itself and checks it against binary_manifest.json; there is "
+            f"nothing for --binary to add. --binary is for an ARM, built with "
+            f"build_model.py --no-publish and left in its own build directory.")
+    parent = exe.parent.resolve()
+    root = parent.parent
+    if root == PATCHED_ROOT.resolve():
+        under = "patched"
+    elif root == BUILD_ROOT.resolve():
+        under = "build"
+    else:
+        raise SystemExit(
+            f"{exe} is not under {BUILD_ROOT}. An arm's identity is its build "
+            f"directory's name, which build_model.py composes from every input "
+            f"that changes a byte of the executable; an executable from "
+            f"anywhere else carries no statement of what makes it differ from "
+            f"the shipped model. Build the arm with "
+            f"`build_model.py ... --no-publish --print-path`.")
+    return {"path": str(exe),
+            "build_tag": parent.name,
+            "build_root": under,
+            "published": False,
+            "note": ("An ARM. build_tag is build_model.py's directory name and "
+                     "names every input that changes a byte of this executable; "
+                     "`real4` in it is a precision arm, `s<hash>` a patched "
+                     "model source, `x<hash>` a flag arm. It is absent from "
+                     "binary_manifest.json by construction, because the "
+                     "registry's naming carries none of that.")}
+
+
 def build(res_arg: str, levels: int, ranks: int, profile: str,
           frame_pointers: bool, jobs: int | None, verbose: bool,
           extra: list[str] | None = None, drop: list[str] | None = None,

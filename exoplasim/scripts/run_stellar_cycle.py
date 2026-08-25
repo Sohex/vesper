@@ -45,6 +45,7 @@ from run_exoplasim import (  # noqa: E402
     physical_fingerprint,
     run_id,
     REGULAR_CODES,
+    check_registered,
     derive,
     file_sha256,
 )
@@ -299,6 +300,12 @@ def main() -> None:
         raise RuntimeError(
             f"{executable} is not built. Run "
             "exoplasim/scripts/rebuild_binaries.py first.")
+    # AND IT IS THE ONE THE REGISTRY KNOWS. Recording the sha said what file a
+    # cycle ran on; it could not say whether that file was a registered build,
+    # so a whole cycle could be integrated on a binary of unknown provenance and
+    # its manifest would look complete. Same check, same refusal, as the prepare
+    # in run_exoplasim.py. world-bdb5.
+    cycle_exe_provenance = check_registered(executable)
 
     # The baseline a cycle varies about must be named, not hardcoded and not
     # chosen by sort order. A cycle is variance around a mean, so starting it
@@ -422,6 +429,9 @@ def main() -> None:
             "initial_restart_sha256": file_sha256(initial_restart),
             "executable_sha256": file_sha256(executable),
             "executable_path": str(executable),
+            # WHICH MANIFEST ENTRY that sha is, rather than the sha alone. See
+            # check_registered above; world-bdb5.
+            "executable_provenance": cycle_exe_provenance,
             "target_orbits": target_orbits,
             "diagnostics": [],
         }
