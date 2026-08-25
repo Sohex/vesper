@@ -1,0 +1,33 @@
+{
+  "generated": "2026-08-25T08:13:42+00:00",
+  "question": "does a per-cell land emissivity buy more, over a scalar set at its own land mean, than the model's surface energy balance can distinguish",
+  "criterion_w_m2": 1.4,
+  "criterion": "the area-weighted standard deviation of the surface net longwave contrast over land, at BOTH out-of-band bounds",
+  "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
+  "grid": [
+    32,
+    64
+  ],
+  "climatology": "bootstrap_regular_climatology.nc",
+  "surface_longwave_loss_land_mean_w_m2": 51.9,
+  "emissivity": {
+    "lithology_land_mean": 0.9357,
+    "declared_scalar": 1.0,
+    "grid_min": 0.9134,
+    "grid_max": 0.9664
+  },
+  "mean_term_w_m2": 3.36,
+  "contrast_w_m2": {
+    "sd": 0.467,
+    "sd_blackbody_beyond_band": 0.172,
+    "max_abs": 2.234,
+    "land_area_share_above_criterion": 0.029,
+    "endorheic_heavy_mean_abs": 0.65,
+    "all_land_mean_abs": 0.306
+  },
+  "verdict": {
+    "carried_to_full_spectrum": false,
+    "blackbody_beyond_band": false,
+    "field_is_worth_carrying": false
+  }
+}

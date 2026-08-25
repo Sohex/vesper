@@ -172,14 +172,25 @@ comment, no unit, no citation. A grep for "emissivity" across `notes/`,
 only large radiative literal in the module with zero coverage anywhere in the
 tree.**
 
-It is used consistently -- `:3238` for emission and `:3547` for the `(1-eps)`
-reflection of downward longwave -- so it is not an energy-conservation defect. It
-is an unexamined number. Its cost is `(1-eps)*(sigma*Ts^4 - LW_down)`, which at
-`eps` = 1.0 over land is identically zero. Measured broadband emissivity of bare
-rock and desert sand is 0.90 to 0.95, so on a world whose land-albedo work turns
-on a large barren fraction that is roughly 3.5 to 7 W/m2 of overstated land
-emission over the driest surfaces, one-signed. Ocean at 0.98 against seawater's
-0.985 to 0.99 is roughly 0.5 to 1.5 W/m2.
+It is used in two places, for emission and for the `(1-eps)` reflection of
+downward longwave, and **the second of the two was not applied at the surface
+level**: the correction loop runs over `jlev = 1,NLEV` and `ztausf` is
+dimensioned `(NHOR,NLEV)`, so the reflected flux went up through the atmosphere
+and was never debited from the surface budget `landmod` and `seamod` settle. So
+it WAS a partition defect, invisible while land emissivity was 1.0 and never
+zero over water at 0.98. Fixed under `world-3ur8`, which names the consequence
+for every run in the tree.
+
+The number itself is no longer unexamined. Surface net longwave is
+`-eps*(sigma*Ts^4 - LWdown)`, exactly linear in the emissivity, so a blackbody
+land surface costs the emissivity error times the model's own surface longwave
+loss: **3.36 W/m2 over land on the active build, one-signed**. `world-38y`
+replaced it with a value derived per rock class from the ECOSTRESS hemispherical
+spectra, and measured a per-cell field out of the same map at 0.47 W/m2 against
+a 1.4 W/m2 criterion, so a field was refused and the scalar kept.
+`notes/audits/surface-longwave.md` carries both. Ocean at 0.98 against
+seawater's 0.985 to 0.99 is still declared and is worth roughly 0.5 to
+1.5 W/m2.
 
 ## 7. The land roughness field is anchored through Earth's gravity
 
@@ -709,7 +720,7 @@ the continuation respectively).
 | 3. `t0 = 250.0` and the energy sink that scales with it | `world-bmf` |
 | 4. the transform gate certifies a superseded filter | `world-tez` |
 | 5. the CO2 shortwave fit diverges from its patch and artifact | `world-vej` |
-| 6. surface longwave emissivity | `world-qvu` |
+| 6. surface longwave emissivity | `world-qvu`, `world-38y`, `world-3ur8` |
 | 7. the roughness anchor is computed at Earth's gravity | `world-44l` |
 | 8. cloud liquid water and cloud optical depth | `world-ofn` |
 | 9. the boundary layer runs at compiled defaults | `world-e2k` |

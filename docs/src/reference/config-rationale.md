@@ -769,32 +769,47 @@ statement that this correction and `h2o_sw_weight`'s have the same sign.
 ## `land_longwave_emissivity` and `sea_longwave_emissivity`
 
 ```
-land_longwave_emissivity: 1.0
+land_longwave_emissivity: <the lithology-weighted land mean>
 sea_longwave_emissivity: 0.98
 ```
 
-DECLARED, not derived, and the only two keys in this file whose values are
-stated in order to be argued with. `lwr` wrote them as one literal,
-`zeps = dls + 0.98*(1-dls)`, so the modelled land emitted as a perfect
-blackbody by construction and everything the land-sea mask does not call land
-took 0.98, with no comment, no unit and no source anywhere in the tree. These
-keys set `ELWLAND` and `ELWSEA` in `radmod_nl` at the values that literal
-carried, so naming them changes no result.
+`lwr` builds a per-cell surface emissivity from these two, one for the land
+fraction of a cell and one for the rest, and it wrote them as one literal until
+they were named: the modelled land emitted as a perfect blackbody by
+construction and everything the land-sea mask did not call land took 0.98, with
+no comment, no unit and no source anywhere in the tree.
 
-Unity over land is not a measurement. Bare rock, desert sand and salt crust are
-0.90 to 0.95 broadband in the thermal window, and the modelled surface's barren
-classes cover a large share of its land. The cost is one-signed: overstated
-land emission, plus the reflection of downward longwave that `lwr` computes as
-`(1 - eps)` and therefore discards entirely while `eps` is 1. Sea water is
-0.985 to 0.99, so the non-land value is slightly low in the same direction.
+THE LAND VALUE IS DERIVED. `analysis/rock_emissivity.py` integrates one minus
+the directional-hemispherical reflectance of the ECOSTRESS spectra against a
+Planck function, per Orogen rock class, and the key is that table area-weighted
+over the active build's land. Only hemispherical measurements are read, because
+Kirchhoff needs the whole hemisphere and a bidirectional reflectance gives an
+upper bound on emissivity rather than an estimate of it. Every class carries a
+solid-to-particulate preparation bracket, and the two arms are the sensitivity
+pair to run rather than a guessed one.
+
+ONE SCALAR IS ENOUGH FOR THE LAND, AND THAT IS MEASURED.
+`analysis/emissivity_contrast.py` asks what a per-cell field out of the same
+lithology map would buy OVER a scalar set at the field's own land mean, in the
+units the surface energy balance reports. Surface net longwave is
+`-eps*(sigma*Ts^4 - LWdown)` and is exactly linear in the emissivity, so the
+answer needs no run. The criterion is 1.4 W/m2, the top of the model's own dry
+adiabatic energy sink, and the field misses it by a factor of three at T21 and
+by a factor of eight at the bound where the spectra's out-of-band behaviour is
+a blackbody. The blackbody land surface it replaces was worth several times the
+whole contrast a field would have bought, one-signed on every land cell. So the
+number was the defect and the shape was not;
+`notes/audits/surface-longwave.md` carries the measurement and `world-vhhs`
+re-runs it at a finer rung, where cell averaging removes less of the contrast.
+
+The sea value is still declared rather than derived. Sea water is 0.985 to
+0.99 in the thermal window, so 0.98 is slightly low, and the bracket to run an
+arm over is 0.98 to 0.99.
 
 Both are written into every run's `radmod_namelist` unconditionally and checked
 there by `verify_staged_namelists`, because a continuation that drops them
-silently returns the modelled surface to the compiled literal.
-
-The per-cell field the lithology map could support is `world-38y`. These two
-scalars exist to make the assumption visible and give it an arm, not to settle
-it.
+silently returns the modelled surface to the compiled literal -- which for the
+land is now a blackbody rather than the value this file carries.
 
 ## `ozone_height_m` and `ozone_spread_m`
 

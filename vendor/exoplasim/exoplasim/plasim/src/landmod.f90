@@ -238,12 +238,22 @@
 !     and could not vary it; soildiff in particular was reachable from nowhere
 !     at all while soilcap was reachable only through cpsoil.
 !
-!     They are SCALARS and the model has no per-cell field for any of them, so
-!     one value covers every lithology. soildiff and soilcap are moist mineral
-!     soil: thermal inertia sqrt(k*rho*c) = 2078 J/m2/K/s**0.5, against roughly
-!     625 for a dry playa or salt crust, so a surface dominated by evaporite
-!     and playa clastics is damped by about 3.3x too much. Giving those classes
-!     their own inertia needs a field, not a different scalar.
+!     They are SCALARS, so one thermal inertia covers the whole planet: 2078
+!     J/m2/K/s**0.5, which is a WET, DENSE mineral soil. A dry playa or salt
+!     crust is nearer 600, so the surfaces this world has most of are damped
+!     several times too much, and that reaches evaporation, P minus E and the
+!     dust emission threshold.
+!
+!     WHAT THAT DIFFERENCE IS MADE OF IS WATER, NOT ROCK, and the distinction
+!     decides what the fix is. In Johansen's interpolation the mineralogy
+!     enters only through the SATURATED conductivity, so parent material is
+!     worth a factor of 1.36 in inertia where the soil is wet and exactly
+!     nothing where it is dry. Sweeping the saturation instead is worth a
+!     factor of 4.9. So a per-cell field out of the lithology map would write a
+!     uniform value over the dry classes it would have been built for; what is
+!     missing is a response to dwatc, which this model carries prognostically
+!     and which the block below does not read.
+!     analysis/soil_thermal_inertia.py is the measurement.
 !
 !     rhosnow is a settled snow density and converts water equivalent to the
 !     physical snow thickness that insulates the soil column below; rhoglac in

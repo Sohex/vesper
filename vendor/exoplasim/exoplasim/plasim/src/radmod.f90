@@ -83,15 +83,20 @@
 !     source anywhere. Named here so a run records what it emitted with; the
 !     defaults reproduce that literal exactly and no run changes.
 !
-!     Both are broadband thermal emissivities, dimensionless, 0 to 1, and both
-!     are DECLARED rather than derived. 1.0 over land is not a measurement:
-!     bare rock, desert sand and salt crust run 0.90 to 0.95 broadband, which
-!     on a world with a large barren land fraction is several W/m2 of
-!     one-signed overstated land emission, and the (1-eps) reflection of
-!     downward longwave at the foot of lwr is identically zero while eps is 1.
-!     Sea water is 0.985 to 0.99. A per-cell field derived from the lithology
-!     map is the honest answer and is a separate piece of work; these two
-!     scalars are what makes the omission visible and gives it an arm.
+!     Both are broadband thermal emissivities, dimensionless, 0 to 1. The
+!     compiled 1.0 over land is a blackbody and is not a measurement; what the
+!     configuration passes is derived, per rock class, from measured
+!     directional-hemispherical reflectance spectra area-weighted over this
+!     world's land, and sits near 0.94 with a preparation bracket of 0.92 to
+!     0.95. Sea water is 0.985 to 0.99, so 0.98 is slightly low.
+!
+!     ONE SCALAR PER SURFACE IS ENOUGH, MEASURED AND NOT ASSUMED. A per-cell
+!     land field out of the same lithology map buys, over a scalar set at that
+!     field's own land mean, under half a W/m2 of surface net longwave at the
+!     resolutions this project runs, against a criterion of 1.4 -- the top of
+!     the model's own dry adiabatic energy sink, which the surface fluxes pay
+!     for. So there is no NHOR array here, deliberately, and the reason is
+!     recorded rather than left to be re-derived.
       real    :: elwland = 1.0    ! surface lw emissivity, land
       real    :: elwsea  = 0.98   ! surface lw emissivity, ocean and sea ice
       real    :: a0o3    = 0.25   ! parameter to define o3 profile
@@ -3554,9 +3559,27 @@
       dftue1(:,NLEP)=dftue1(:,NLEP)-zbue1(:,NLEP)
       dftue2(:,NLEP)=dftue2(:,NLEP)-zbue2(:,NLEP)
 !
-!     correct for non black suface
+!     correct for non black surface
+!
+!     THE REFLECTED FLUX HAS TO LEAVE THE SURFACE LEVEL AS WELL AS PASS THE
+!     ATMOSPHERE. `ztausf` is dimensioned (NHOR,NLEV) so the loop below cannot
+!     reach NLEP, and without the line before it the reflected part of the
+!     downward longwave was propagated up through every atmospheric level and
+!     never debited from the surface. `dlwfl(:,NLEP)` is what `landmod` and
+!     `seamod` settle the surface energy budget with and what output code 177
+!     reports, so the surface was absorbing (1-eps)*LWdown that it had just
+!     reflected, while the lowest atmospheric layer paid for it. The total
+!     column conserved and the partition did not.
+!
+!     At eps = 1 the term is identically zero, which is why the omission was
+!     invisible for land while ELWLAND was 1.0. It was NOT invisible over
+!     water: ELWSEA is 0.98, so the ocean and sea-ice surface has been carrying
+!     a spurious 0.02*LWdown of absorbed longwave. The transmissivity from the
+!     surface to itself is one, so the surface term is the whole reflection.
 !
       zeps(:)=(1.-zeps(:))*dftd(:,NLEP)
+      dftu(:,NLEP)=dftu(:,NLEP)-zeps(:)
+      dftue2(:,NLEP)=dftue2(:,NLEP)-zeps(:)
       do jlev=1,NLEV
        dftu(:,jlev)=dftu(:,jlev)                                        &
      &             -ztausf(:,jlev)*zeps(:)

@@ -1,0 +1,70 @@
+{
+  "generated": "2026-08-25T08:26:28+00:00",
+  "question": "is the modelled soil's thermal inertia controlled by moisture or by parent material",
+  "model": "Johansen's interpolation as Farouki tabulates it; the mineralogy enters only through k_sat, so the dry conductivity is a function of bulk density alone",
+  "column": {
+    "bulk_density_kg_m3": 1300.0,
+    "porosity": 0.519
+  },
+  "landmod_scalars": {
+    "soildiff_w_m_k": 1.8,
+    "soilcap_j_m3_k": 2400000.0,
+    "thermal_inertia_j_m2_k_s05": 2078.5,
+    "saturation_that_reproduces_it": null
+  },
+  "moisture_spread": {
+    "air_dry": 405.7,
+    "saturated": 1991.9,
+    "ratio": 4.91
+  },
+  "lithology_spread": {
+    "air_dry": {
+      "by_parent_material": {
+        "andesite and granodiorite": 405.7,
+        "basalt and carbonate": 405.7,
+        "continental clastics": 405.7,
+        "evaporite salt crust": 405.7,
+        "granite and gneiss": 405.7,
+        "playa mud and fan fill": 405.7,
+        "quartzite": 405.7,
+        "schist and melange": 405.7
+      },
+      "ratio": 1.0
+    },
+    "saturated": {
+      "by_parent_material": {
+        "andesite and granodiorite": 1897.2,
+        "basalt and carbonate": 1807.1,
+        "continental clastics": 2231.5,
+        "evaporite salt crust": 1807.1,
+        "granite and gneiss": 1991.9,
+        "playa mud and fan fill": 1991.9,
+        "quartzite": 2459.7,
+        "schist and melange": 1991.9
+      },
+      "ratio": 1.36
+    }
+  },
+  "bulk_density_sensitivity": {
+    "1100": {
+      "air_dry": 333.4,
+      "saturated": 1920.8,
+      "moisture_ratio": 5.76
+    },
+    "1600": {
+      "air_dry": 537.5,
+      "saturated": 2098.0,
+      "moisture_ratio": 3.9
+    }
+  },
+  "bulk_density_spread": {
+    "air_dry_ratio": 1.61,
+    "note": "bulk density is the one term besides moisture that acts at the dry end. It is texture, not parent material, and the component that carries it is pedology"
+  },
+  "ranking": [
+    "moisture, on one parent material and one texture",
+    "bulk density at the dry end, which is texture and not lithology",
+    "parent-material mineralogy, which is zero at the dry end because Johansen's dry conductivity carries no mineralogy at all"
+  ],
+  "units": "thermal inertia in J/m2/K/s^0.5"
+}

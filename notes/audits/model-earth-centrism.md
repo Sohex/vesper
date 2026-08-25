@@ -23,7 +23,8 @@ the reason a change was made and outlives the change.
 
 Two are open in full. Finding 14, one Earth-average soil thermal pair applied to
 every lithology, whose six constants became namelist scalars but which still has
-no per-cell field behind it (`world-sy9`). And the dormant `jtune` radiation
+no per-cell field behind it, and the term it is missing is moisture rather
+than lithology (`world-sy9`, `world-jsfm`). And the dormant `jtune` radiation
 table, unreachable at every rung because `ndcycle` defaults to 1 (`world-ys9`).
 Everything else below is either settled or reduced to a declared value at the
 number the literal carried, which is stated finding by finding.
@@ -333,28 +334,46 @@ ratio table above, which is still on the fallback sigma set; that is world-d4su.
 modelled ocean got 0.98 and the modelled land a perfect blackbody, with no
 comment, no unit and no source anywhere, and no namelist key.
 
-**Half settled by world-qvu.** The two numbers are named:
+**Settled by world-qvu and world-38y.** The two numbers are named:
 `elwland` and `elwsea` in `radmod_nl` (`radmod.f90:95-96`), applied at `:3212`
 as `zeps(:)=elwland*dls(:)+elwsea*(1.-dls(:))`, and `run_exoplasim.py` writes
 both unconditionally from `config/planet.yaml`'s `land_longwave_emissivity` and
-`sea_longwave_emissivity`. **The declared values are 1.0 and 0.98, the literal's
-own**, so no run changed and the physical defect below is untouched: what the
-fix bought is that a run records what it emitted with, and that a bracket arm
-can move it. The honest answer is a per-cell field derived from the lithology
-map, and that is not built.
+`sea_longwave_emissivity`. world-qvu declared them at the literal's own
+values, which changed no run; world-38y then DERIVED the land value.
+`analysis/rock_emissivity.py` gives a broadband emissivity per rock class from
+the ECOSTRESS hemispherical spectra, Planck-weighted, with a
+solid-to-particulate preparation bracket per class, and the config key carries
+that table area-weighted over this build's land. The sea value is still
+declared.
 
 This is a generic Earth-GCM simplification and it costs more here than on Earth.
 `config/planet.yaml` names evaporite and playa clastics as barren classes
 covering about a quarter of this land, and salt crust and quartz-rich clastics
 run 0.90 to 0.95 broadband in the 8 to 14 micron window.
 
-**What it costs.** At eps = 0.92 and a modelled surface at 300 K the surface
-emits 37 W/m2 less and reflects about 26 W/m2 of downwelling that the code
-discards outright: `zeps(:)=(1.-zeps(:))*dftd(:,NLEP)` at `radmod.f90:3522` is
-identically zero over land while `elwland` is 1.0. Net about 11 W/m2 over that
-terrain, which scaled by a quarter of the land fraction is **0.4 to 1.1 W/m2
-planetary mean**, bracketed on the emissivity range. That is larger than the
-adiabatic term `energy_fixer` was adopted to compensate.
+**What it cost, measured rather than bracketed.** Surface net longwave is
+`-eps*(sigma*Ts^4 - LWdown)` and is exactly linear in the emissivity, so the
+blackbody land surface is worth the emissivity error times the model's own
+surface longwave loss, per cell, with no run needed. On the active build that
+is **3.36 W/m2 over land, one-signed** -- several times the adiabatic term
+`energy_fixer` was adopted to compensate.
+
+**A per-cell field is NOT the answer, and that is measured too.**
+`analysis/emissivity_contrast.py` asks what a field out of the lithology map
+buys over a scalar at its own land mean, against a criterion of 1.4 W/m2 fixed
+before any spectrum was read. At T21 it is worth 0.47 W/m2 area-weighted and
+0.17 at the bound where the spectra's out-of-band behaviour is a blackbody, so
+it misses by a factor of three and of eight. `notes/audits/surface-longwave.md`
+carries it; `world-vhhs` re-runs it at a finer rung.
+
+**And the reflection was never applied at the surface at all.** The correction
+`zeps(:)=(1.-zeps(:))*dftd(:,NLEP)` ran over `jlev = 1,NLEV` and `ztausf` is
+dimensioned `(NHOR,NLEV)`, so the surface level never received it: the
+reflected downward longwave went up through the atmosphere and was never
+debited from the surface budget that `landmod` and `seamod` settle. Invisible
+while `elwland` was 1.0 and never zero over water at `elwsea = 0.98`. Fixed
+under `world-3ur8`, which also names the consequence for every run in the
+tree.
 
 ## 7. The snow-over-forest albedo was one spectrum-blind factor applied to both bands
 
@@ -605,10 +624,18 @@ thermal constants are `landmod_nl` keys and broadcast --
 broadcast at `:376-381` -- at the values the literals carried, so no run
 changed. `rhosnow` joined them under world-1pl; see finding 25.
 
-**What is still open is the physics, and it is the whole of the finding.** These
-are scalars and cannot be fields, so one value covers every lithology whatever a
-run declares. A per-cell thermal inertia derived from the lithology map is a
-source change to `landmod`, not a namelist value, and nothing has been built.
+**What is still open is the physics, and world-yip re-shaped it.** These are
+scalars, so one thermal inertia covers the whole simulated planet. A per-cell
+field out of the LITHOLOGY map is not what would fix it:
+`analysis/soil_thermal_inertia.py` measures the three terms and mineralogy is
+the smallest, worth a factor of 1.36 in inertia at saturation and exactly 1.00
+where the soil is dry, because Johansen's dry conductivity carries no
+mineralogy at all. Sweeping the saturation is worth 4.91 and bulk density at
+the dry end 1.61. So the barren classes are over-damped because they are DRY,
+not because of what they are made of, and the missing term is a response to
+`dwatc`, which the model carries prognostically and the soil heat solver does
+not read. `notes/audits/soil-thermal-inertia.md` is the finding, `world-yip` is
+closed on it and `world-jsfm` carries the moisture dependence.
 
 **What it costs, today.** Thermal inertia I = sqrt(k*rho*c) gives 2078
 J/m2/K/s^0.5 for the default against roughly 625 for a dry playa or salt crust,
@@ -1522,7 +1549,7 @@ finding does. Three rows are open: `world-sy9`, `world-ys9` and `clim-53`.
 | 3. the ocean's diffusion runs on Earth's radius | `world-st4`, `world-mll` | closed; arm labels corrected by world-vho |
 | 4. a 5 m snow cap neuters the glacier module | `world-cwc` | closed; the cap is lifted, not merely settable |
 | 5. cloud liquid water uses an Earth scale height | `world-ofn` | closed; the length is derived from gascon/ga |
-| 6. land longwave emissivity is exactly 1.0 | `world-qvu` | named only; the value is still 1.0 |
+| 6. land longwave emissivity is exactly 1.0 | `world-qvu`, `world-38y`, `world-3ur8` | CLOSED; the land value is derived per rock class, a per-cell field was measured and refused, and lwr's missing surface reflection is fixed |
 | 7. the snow-over-forest albedo is one factor for both bands | `world-nfh` | closed |
 | 8. the critical relative humidity is an Earth grid-box tuning | `world-khn` | declared only; unchanged |
 | 9. precipitation re-evaporation is Earth-calibrated and timestep-dependent | `world-j6v`, `world-khn` | rung branch removed; both physical defects stand |
@@ -1530,7 +1557,7 @@ finding does. Three rows are open: `world-sy9`, `world-ys9` and `clim-53`.
 | 11. the ozone profile sits at a fixed geometric height | `world-ayx` | closed; placed on pressure |
 | 12. the sea-ice albedo ramp keeps an Earth slope | `world-cj4` | closed |
 | 13. the free-convection ocean coefficient embeds Earth's gravity | `world-e2k` | closed; derived from ga |
-| 14. one Earth-average soil thermal pair | `world-sy9` | OPEN; settable, still one value for every lithology |
+| 14. one Earth-average soil thermal pair | `world-sy9`, `world-jsfm` | OPEN; settable, still one value. Measured: the missing term is moisture, not lithology |
 | 15. the archived albedo 175 is the Earth-Sun broadband value | `world-e5p` | closed; the 175/176 collision is documented, not renamed |
 | 16. mean sea-level pressure uses Earth's lapse rate | `world-ld1` | closed by not writing 151; RLAPSE unchanged |
 | 17. Earth's lapse rate sets the cold-start profile | `world-wmw` | closed |

@@ -1,0 +1,446 @@
+{
+  "generated": "2026-08-25T08:04:29+00:00",
+  "quantity": "broadband thermal emissivity of the land surface, per Orogen rock class, one minus directional-hemispherical reflectance weighted by a Planck function",
+  "library": "ECOSTRESS spectral library v1.0 (Meerdink et al. 2019), which absorbs the ASTER library v2.0 (Baldridge et al. 2009); references/INDEX.md carries both",
+  "band_um": [
+    8.0,
+    14.0
+  ],
+  "weight_temperature_k": 290.0,
+  "weight_temperature_bracket_k": [
+    250.0,
+    320.0
+  ],
+  "planck_fraction_in_band": 0.3677,
+  "out_of_band_assumption": "the in-band value is carried to the whole thermal spectrum. The opposing bound is a blackbody outside the band, which pulls every class toward 1 by (1 - in-band fraction) and is reported as blackbody_beyond_band because it is the bound that COMPRESSES the between-class contrast",
+  "samples_dropped_non_hemispherical": 385,
+  "held_out_endmembers": {
+    "halite": {
+      "n": 3,
+      "mean": 0.2768,
+      "min": 0.2124,
+      "max": 0.357
+    }
+  },
+  "held_out_reason": "an optically thick pure halite powder has no absorption band in the thermal window and is measured as a poor emitter. A salt crust on a playa is neither optically pure nor optically thick there, and the library carries no crust sample, so the pure mineral is the wrong preparation rather than a low answer",
+  "classes": {
+    "morb": {
+      "solid": {
+        "n": 44,
+        "mean": 0.9257,
+        "sd": 0.0193,
+        "min": 0.8621,
+        "max": 0.9624
+      },
+      "particulate": {
+        "n": 13,
+        "mean": 0.9731,
+        "sd": 0.0031,
+        "min": 0.9682,
+        "max": 0.9774
+      },
+      "bracket": [
+        0.9257,
+        0.9731
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.9494
+    },
+    "oib": {
+      "solid": {
+        "n": 44,
+        "mean": 0.9257,
+        "sd": 0.0193,
+        "min": 0.8621,
+        "max": 0.9624
+      },
+      "particulate": {
+        "n": 13,
+        "mean": 0.9731,
+        "sd": 0.0031,
+        "min": 0.9682,
+        "max": 0.9774
+      },
+      "bracket": [
+        0.9257,
+        0.9731
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.9494
+    },
+    "flood_basalt": {
+      "solid": {
+        "n": 44,
+        "mean": 0.9257,
+        "sd": 0.0193,
+        "min": 0.8621,
+        "max": 0.9624
+      },
+      "particulate": {
+        "n": 13,
+        "mean": 0.9731,
+        "sd": 0.0031,
+        "min": 0.9682,
+        "max": 0.9774
+      },
+      "bracket": [
+        0.9257,
+        0.9731
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.9494
+    },
+    "arc_basalt": {
+      "solid": {
+        "n": 44,
+        "mean": 0.9257,
+        "sd": 0.0193,
+        "min": 0.8621,
+        "max": 0.9624
+      },
+      "particulate": {
+        "n": 13,
+        "mean": 0.9731,
+        "sd": 0.0031,
+        "min": 0.9682,
+        "max": 0.9774
+      },
+      "bracket": [
+        0.9257,
+        0.9731
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.9494
+    },
+    "arc_andesite": {
+      "solid": {
+        "n": 19,
+        "mean": 0.9019,
+        "sd": 0.0255,
+        "min": 0.8636,
+        "max": 0.9436
+      },
+      "particulate": {
+        "n": 11,
+        "mean": 0.9682,
+        "sd": 0.0091,
+        "min": 0.9491,
+        "max": 0.9744
+      },
+      "bracket": [
+        0.9019,
+        0.9682
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.935
+    },
+    "rift_bimodal": {
+      "solid": {
+        "n": 84,
+        "mean": 0.9149,
+        "sd": 0.0324,
+        "min": 0.8208,
+        "max": 0.9624
+      },
+      "particulate": {
+        "n": 19,
+        "mean": 0.9674,
+        "sd": 0.0098,
+        "min": 0.946,
+        "max": 0.9774
+      },
+      "bracket": [
+        0.9149,
+        0.9674
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.9412
+    },
+    "granite": {
+      "solid": {
+        "n": 40,
+        "mean": 0.9031,
+        "sd": 0.0393,
+        "min": 0.8208,
+        "max": 0.9574
+      },
+      "particulate": {
+        "n": 6,
+        "mean": 0.9551,
+        "sd": 0.0077,
+        "min": 0.946,
+        "max": 0.9688
+      },
+      "bracket": [
+        0.9031,
+        0.9551
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.9291
+    },
+    "granodiorite": {
+      "solid": {
+        "n": 19,
+        "mean": 0.9019,
+        "sd": 0.0255,
+        "min": 0.8636,
+        "max": 0.9436
+      },
+      "particulate": {
+        "n": 11,
+        "mean": 0.9682,
+        "sd": 0.0091,
+        "min": 0.9491,
+        "max": 0.9744
+      },
+      "bracket": [
+        0.9019,
+        0.9682
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.935
+    },
+    "gneiss": {
+      "solid": {
+        "n": 3,
+        "mean": 0.8642,
+        "sd": 0.0174,
+        "min": 0.8527,
+        "max": 0.8842
+      },
+      "particulate": {
+        "n": 16,
+        "mean": 0.9435,
+        "sd": 0.0158,
+        "min": 0.9057,
+        "max": 0.9689
+      },
+      "bracket": [
+        0.8642,
+        0.9435
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.9039
+    },
+    "schist": {
+      "solid": {
+        "n": 9,
+        "mean": 0.883,
+        "sd": 0.0295,
+        "min": 0.8472,
+        "max": 0.9441
+      },
+      "particulate": {
+        "n": 21,
+        "mean": 0.9378,
+        "sd": 0.0296,
+        "min": 0.8488,
+        "max": 0.9689
+      },
+      "bracket": [
+        0.883,
+        0.9378
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.9104
+    },
+    "quartzite": {
+      "solid": {
+        "n": 3,
+        "mean": 0.8425,
+        "sd": 0.0461,
+        "min": 0.7948,
+        "max": 0.8868
+      },
+      "particulate": {
+        "n": 11,
+        "mean": 0.914,
+        "sd": 0.0173,
+        "min": 0.8876,
+        "max": 0.9404
+      },
+      "bracket": [
+        0.8425,
+        0.914
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.8782
+    },
+    "melange": {
+      "solid": {
+        "n": 52,
+        "mean": 0.9203,
+        "sd": 0.0242,
+        "min": 0.8472,
+        "max": 0.9624
+      },
+      "particulate": {
+        "n": 32,
+        "mean": 0.9523,
+        "sd": 0.0291,
+        "min": 0.8488,
+        "max": 0.9774
+      },
+      "bracket": [
+        0.9203,
+        0.9523
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.9363
+    },
+    "shelf_clastic": {
+      "solid": {
+        "n": 18,
+        "mean": 0.92,
+        "sd": 0.0401,
+        "min": 0.8476,
+        "max": 0.9743
+      },
+      "particulate": {
+        "n": 28,
+        "mean": 0.9493,
+        "sd": 0.0186,
+        "min": 0.9035,
+        "max": 0.9722
+      },
+      "bracket": [
+        0.92,
+        0.9493
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.9346
+    },
+    "carbonate": {
+      "solid": {
+        "n": 9,
+        "mean": 0.9316,
+        "sd": 0.013,
+        "min": 0.9104,
+        "max": 0.9581
+      },
+      "particulate": {
+        "n": 14,
+        "mean": 0.8987,
+        "sd": 0.0742,
+        "min": 0.7426,
+        "max": 0.9706
+      },
+      "bracket": [
+        0.8987,
+        0.9316
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.9152
+    },
+    "foreland_clastic": {
+      "solid": {
+        "n": 21,
+        "mean": 0.9101,
+        "sd": 0.0495,
+        "min": 0.7874,
+        "max": 0.9743
+      },
+      "particulate": {
+        "n": 28,
+        "mean": 0.9493,
+        "sd": 0.0186,
+        "min": 0.9035,
+        "max": 0.9722
+      },
+      "bracket": [
+        0.9101,
+        0.9493
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.9297
+    },
+    "continental_clastic": {
+      "solid": {
+        "n": 10,
+        "mean": 0.881,
+        "sd": 0.0502,
+        "min": 0.7874,
+        "max": 0.9743
+      },
+      "particulate": {
+        "n": 18,
+        "mean": 0.9456,
+        "sd": 0.0176,
+        "min": 0.9035,
+        "max": 0.9704
+      },
+      "bracket": [
+        0.881,
+        0.9456
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.9133
+    },
+    "pelagic": {
+      "solid": {
+        "n": 20,
+        "mean": 0.9343,
+        "sd": 0.0248,
+        "min": 0.8745,
+        "max": 0.9705
+      },
+      "particulate": {
+        "n": 28,
+        "mean": 0.9287,
+        "sd": 0.061,
+        "min": 0.7426,
+        "max": 0.9722
+      },
+      "bracket": [
+        0.9287,
+        0.9343
+      ],
+      "bracket_spans_preparations": true,
+      "emissivity": 0.9315
+    },
+    "evaporite": {
+      "solid": {
+        "n": 0
+      },
+      "particulate": {
+        "n": 31,
+        "mean": 0.8629,
+        "sd": 0.0939,
+        "min": 0.6346,
+        "max": 0.9811
+      },
+      "bracket": [
+        0.8629,
+        0.8629
+      ],
+      "bracket_spans_preparations": false,
+      "emissivity": 0.8629
+    },
+    "playa_clastic": {
+      "solid": {
+        "n": 0
+      },
+      "particulate": {
+        "n": 9,
+        "mean": 0.9664,
+        "sd": 0.0102,
+        "min": 0.9504,
+        "max": 0.9799
+      },
+      "bracket": [
+        0.9664,
+        0.9664
+      ],
+      "bracket_spans_preparations": false,
+      "emissivity": 0.9664
+    }
+  },
+  "spread": {
+    "min": 0.8629,
+    "max": 0.9664,
+    "range": 0.1035
+  },
+  "blackbody_beyond_band": {
+    "range": 0.0381
+  }
+}
