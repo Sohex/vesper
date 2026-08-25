@@ -147,11 +147,22 @@
      &       ,nclouds,pdeepth,nevapprec,nbeta,rhbeta,rbeta,rcritmod,rcritslope      &
      &       ,clwhsc,clwref
 !
-!     reset defaults (according to general setup... tuning)
+!     SHALLOW CONVECTION IS ON AT EVERY TRUNCATION AND EVERY LAYER COUNT.
+!     Upstream cleared nshallow when NTRU==21 .and. NLEV==5. It is gone because
+!     no rung is a special case: a switch that changes with the grid makes every
+!     cross-rung comparison carry a physics change it did not ask for, which is
+!     the argument gamma above already carries.
 !
-      if(NTRU==21 .and. NLEV==5) then
-       nshallow=0
-      endif 
+!     THIS IS NOT A NO-OP AT FIVE LAYERS. Nothing writes NSHALLOW in a normal
+!     run -- the Python API has no such parameter and run_exoplasim.py sets it
+!     only inside its dynamics-only diagnostic, which zeroes the physics
+!     wholesale -- so a caller compiling T21 with NLEV 5 now integrates the
+!     module default of 1 above, with shallow convection ON where upstream
+!     turned it off. Such a caller declares NSHALLOW = 0 in rainmod_nl if it
+!     wants upstream's behaviour; the key has always been there. No
+!     configuration this project builds is affected: config/planet.yaml declares
+!     ten layers, NLEV is a compiled parameter, and every entry in
+!     rebuild_binaries.py's MATRIX is ten. world-677x.
 !
 !     THE CRITICAL RELATIVE HUMIDITY, and the 0.85 floor is the subgrid half.
 !     rcrit is the cell-mean relative humidity at which cloud starts to form, so

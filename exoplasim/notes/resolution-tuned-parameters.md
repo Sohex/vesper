@@ -95,11 +95,25 @@ So the radiation half of "tuned for coarse resolution" does not apply to this
 project at all, and the warning about it has always been correct and always been
 noise, since no configuration can clear it.
 
-## 3. Two narrow ones
+## 3. The two narrow ones: one deleted, one that applies
 
-`rainini` clears `nshallow` at T21 with 5 levels, which this project's ten-layer
-configuration does not hit at either rung. `readnl` sets Rayleigh friction
-timescales when `NLEV==10`, which is resolution-independent and applies here.
+`rainini`'s clearing of `nshallow` at T21 with 5 levels is gone. No rung is a
+special case, and this project's ten-layer configuration could not hit it at any
+rung: `config/planet.yaml` declares ten layers, `NLEV` is a compiled parameter
+written into a generated `resmod.f90`, and every entry in
+`rebuild_binaries.py`'s `MATRIX` is ten. **The deletion is NOT a no-op for a
+five-layer caller**, which is what separates it from the hyperdiffusion and
+radiation branches world-677x removed. Nothing writes `NSHALLOW` in a normal
+run -- the Python API has no such parameter, and `run_exoplasim.py` sets it only
+inside `declare_dynamics_only`, which is gated on `model.dynamics_only` and
+zeroes the physics wholesale -- so a caller compiling T21 with five layers now
+integrates `rainmod`'s module default of 1, with shallow convection ON where
+upstream turned it off. That caller declares `NSHALLOW = 0` in `rainmod_nl` to
+get upstream's behaviour; the key has always been there. Nothing this project
+has run or can build moved.
+
+`readnl` sets Rayleigh friction timescales when `NLEV==10`, which is
+resolution-independent and applies here.
 
 The third, `gamma=0.007` at T42 with 10 levels, is gone. `gamma` is the fraction
 of the sub-saturation deficit that falling precipitation evaporates per
