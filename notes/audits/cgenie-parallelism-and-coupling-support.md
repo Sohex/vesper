@@ -389,7 +389,115 @@ which the timestep does not read.
 
 # 4. The coupling resolution
 
-Placeholder.
+## 4a. The constraint that was binding is not binding any more
+
+`notes/audits/ocean-and-marine-biosphere.md` section 6 chose offline coupling on
+one property, that the ocean's cost must not climb the atmosphere's ladder, and
+the cost note measured that the ocean's price is a function of its own grid
+alone. What was left was that a finer ocean costs r^4 on one serial core, so the
+grid was an affordability question with connectivity on the other side of it.
+
+Section 2 removes most of that. Three reductions compose, and each is measured or
+read off a measurement rather than assumed:
+
+**EMBM is 12.5 to 19.9 per cent of the instructions, and the offline
+architecture does not run it.** The exchange OCN-10 selects has ExoPlaSim
+computing the fluxes, so EMBM's prognostic temperature and humidity step,
+`tstipa` plus `tstepa` plus the `embm` driver's own loops, has nothing to do.
+`surflux`'s 2.8 per cent stays, because something equivalent -- the
+`surflux_goldstein_seaice` path the cost note's section 6 identifies -- still has
+to turn a supplied climatology into ocean fluxes.
+
+**EMBM also sets the timestep, and a configuration that does not integrate it
+does not inherit its limit.** The cost note's section 3 proves this with pairs at
+matched `dtatm` and ocean timesteps a factor of two apart failing in the same
+cell, and its section 3c puts the ocean's OWN limit at `nyear` about 13 at
+36 x 36 x 16 and about 52 at 72 x 72 x 16, against the 100 both profiles above
+used. So the ocean could take between two and eight times the timestep EMBM
+permits, and everything left after EMBM is removed runs once per ocean step.
+
+**A tenth of what remains is the section 2d heap defect**, which is a two-line
+fix with an acceptance test that already ships.
+
+Composed at 72 x 72 x 16, from the measured 13.65 G instructions per model year:
+remove EMBM's 17.1 per cent, take the ocean's own timestep instead of EMBM's, and
+remove the heap traffic, and the physics costs about **5.3 G instructions per
+model year**. A 20,000-year spin-up is then about 1.1e14 instructions, roughly
+two hours on one core of this machine, against about one hour for the shipped
+36 x 36 x 16 grid as it stands today. Threading is a further bound of about 11 at
+sixteen threads on top of that.
+
+**This is a composition of measured pieces under one assumption that has not been
+demonstrated**, and the assumption is named in section 6: no EMBM-free
+configuration has been built or run here, and `genie.F` offers only two
+surface-flux paths, each gated on an atmosphere module being in the recipe. Read
+it as the budget the resolution decision should be argued against, not as a
+measurement of a configuration that exists.
+
+## 4b. So the grid is chosen from connectivity, and the recommendation is 72 x 72 x 16
+
+With the cost constraint no longer binding below muffingen's ceiling, only one
+constraint is left, and it is the one section 8b of the ocean audit and section
+5c of the cost note both arrive at: straits, sills and partial coasts. At 10
+degrees of longitude they are not represented at all. Section 5d above adds that
+the coastal mask disagreement between the atmosphere and the ocean is the part of
+the regridding contract that resolution genuinely improves, where conservation is
+settled by construction.
+
+**Recommendation: 72 x 72 x 16 with `igrid = 0`**, the equal-area grid.
+
+- It is the top of muffingen's declared `[1-72]` range for `par_max_i` and
+  `par_max_j`, so it is the finest grid the generator claims, and the cost note
+  demonstrated that the MODEL runs there.
+- 5.0 degrees of longitude is a factor of two better than the shipped grid on the
+  only axis that is still constraining.
+- `igrid = 0` rather than 1 or 2 for a reason the model states itself:
+  `tstipa.f:37-46` raises EMBM's implicit iteration count from 4 to 16 on the
+  constant-latitude grid, and `initialise_goldstein.F:496` makes the equal-area
+  grid's cell area exactly constant, which is what section 5b's factorised
+  conservative remap wants.
+- The ocean's grid does not depend on the atmosphere's rung, so this choice
+  survives the ladder moving.
+
+**36 x 36 x 16 is rejected**, and not on cost -- it is the cheapest thing here.
+It is rejected because it is the resolution at which the connectivity this
+project needs is provably absent, and the affordability argument that was the
+only reason to accept that is no longer true.
+
+**64 x 64 x 16 is the tiebreak candidate, and there is a decision procedure
+rather than a preference.** 64 ocean longitudes divide the longitude count of
+every rung on the ladder except T31's 96: T21's 64, T42's 128, T63's 192, T85's
+256, T106's 320, T127's 384 and T170's 512 are all whole multiples. That makes
+the longitude half of the conservative remap a whole-number block sum with no
+partially covered columns anywhere, which removes a class of bookkeeping rather
+than a class of error -- section 5b's operator is exact either way. It costs 79
+per cent of 72 x 72's cells and gives 5.625 degrees instead of 5.0. So:
+
+> OCN-11's bathymetry contract reports, for each candidate ocean grid, the
+> straits and sills the Orogen mesh says exist and how many of them the grid
+> resolves. Take the COARSEST candidate that resolves the connections the mesh
+> carries; among candidates that pass, prefer one whose longitude count divides
+> the accepted atmosphere rung's.
+
+That is a criterion fixed before the inventory is seen, which is the point.
+
+## 4c. What has to be measured before this is committed to
+
+Three things, none of which this document does, and each of which can fail.
+
+1. **A stability sweep at the chosen grid**, by the cost note's method: GOLDSTEIN's
+   own `Cn` from `diag.f` with GOLDSTEIN's `debug_loop` on and EMBM's off, over
+   `nyear`, with the criterion `Cn < 1` at every diagnostic step. A grid that
+   RUNS is not a grid that is STABLE, and past the limit the model completes and
+   reports success. The ocean's limit also inherits OCN-17's declared `scf`
+   bracket of 1 to 3 linearly, so what comes out is a bracket rather than a
+   number.
+2. **muffingen actually producing `.k1`, `.paths` and `.psiles` at that grid**
+   from the Orogen bathymetry, and REPORTING the island count it resolves --
+   `GOLDSTEINMAXISLES` is a compile-time bound. Whether muffingen runs outside
+   MATLAB at all is world-crky and is not settled.
+3. **Whether an EMBM-free configuration exists.** Section 4a's budget rests on
+   it, and nothing here or in the cost note has built one.
 
 ---
 
