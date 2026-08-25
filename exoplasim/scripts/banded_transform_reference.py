@@ -75,19 +75,73 @@ and putting it in would only add a convention -- the sign of the exponent --
 that has to be agreed between the two sides for no gain. The driver starts from
 Fourier coefficients for exactly that reason.
 
+THE SYNTHESIS HALF, AND WHY IT IS HERE TOO. `dv2uv` turns spectral divergence
+and ABSOLUTE vorticity into the two wind components on the latitudes a thread
+holds. Its only band dependence is which `pmat` and `qmat` rows the thread has
+and which rows of the shared wind globe it writes, and both of those are
+questions only a banded driver can ask -- at one thread the local latitude
+index and the global one are the same integer, so a term applied at the wrong
+latitude is applied at the right one. `verify_inverse_transform.py` drives the
+same loop at one thread against the same arithmetic and cannot see that class
+at all.
+
+PLANETARY VORTICITY, and why the reference needs no formula for it. `dv2uv`
+takes ABSOLUTE vorticity and removes the planetary part from its RESULT rather
+than from the input, because the input aliases the shared spectral state. The
+two are the same thing by an identity that owes nothing to how the removal is
+coded:
+
+    dv2uv(pd, pz) with plavor = P  ==  dv2uv(pd, pz - P at mode w=2) with P = 0
+
+so `pu` and `pv` below are computed from the RELATIVE vorticity with no
+planetary term at all, and the vorticity handed to the driver is that plus P at
+the first component of mode w=2. The mode, the component, the sign and the
+factor are then all pinned by where P enters, and none of them is read off the
+model. P is 1.7, the same declared value `verify_inverse_transform.py` uses, so
+one number means one thing in both gates.
+
+NOT INDEPENDENT, the second one: the per-mode factors `fmu` and `fmv`. The
+driver refuses a filtered build, so `legini` leaves the physics filter at one
+and the factors are m/(n(n+1)) and 1/(n(n+1)); those are restated here rather
+than derived from anything else, exactly as `verify_inverse_transform.py`
+restates them. A shared misreading of what the factor IS would be invisible to
+both. What this arm is for is where the factor lands, not what it is.
+
+`fmu(2)` is zero, because mode w=2 is m = 0 and `fmu` carries a factor of m.
+So the model's second planetary-vorticity line, the one that writes `pv`, adds
+exactly nothing whatever P is, and no arm anywhere can give it teeth. It is
+stated here rather than left for a reader to rediscover from a control that
+passes.
+
 THE FILE. Little-endian float64, no record markers, in this order:
 
-    header  8 values: nlat, nlon, ntru, ncsp, npro, nlpp, scale, version
+    header  12 values: nlat, nlon, ntru, ncsp, npro, nlpp, scale, version,
+                       nlev, plavor, tscale, dvfmax
     sid     nlat            sine of latitude, descending from +1
     gwd     nlat            Gaussian weights, same order
     pmat    ncsp*nlat       w fastest, then l
     qmat    ncsp*nlat       w fastest, then l
     spdrv   2*ncsp          component fastest, then mode
     fc      nlon*nlat       the model's fc(2,NLON/2,NLAT) layout exactly
+    fmu     ncsp
+    fmv     ncsp
+    spd     2*ncsp*nlev     component fastest, then mode, then level
+    spz     2*ncsp*nlev     ABSOLUTE vorticity, same layout
+    pu      2*(nlon/2)*nlat*nlev   the model's pu(2,NLON/2,NLAT,NLEV) layout
+    pv      2*(nlon/2)*nlat*nlev   the same
 
-`scale` is what the driving vector was divided by so that the largest Fourier
-coefficient is 1. Fixing that magnitude is what lets the driver's tolerance be
-an absolute number derived from the length of the sum.
+`scale` is what the analysis driving vector was divided by so that the largest
+Fourier coefficient is 1. Fixing that magnitude is what lets the driver's
+tolerance be an absolute number derived from the length of the sum.
+
+`tscale` and `dvfmax` do the same job for the synthesis arm and are measured
+rather than declared. `tscale` is the largest sum of TERM MAGNITUDES that
+`dv2uv` accumulates into any one output element, the planetary correction
+included, which is what bounds the rounding of that accumulation. `dvfmax` is
+the largest |factor| times the largest |coefficient| over the driving fields,
+which is what the weight-matrix error of one mode gets multiplied by. The
+synthesis fields are NOT normalised: the bound is stated in terms of these two
+numbers and both travel in the file.
 """
 from __future__ import annotations
 
@@ -106,7 +160,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
 import rungs  # noqa: E402
 
 LD = np.longdouble
-VERSION = 1.0
+VERSION = 2.0
+
+# The planetary vorticity the synthesis arm drives, the same declared value
+# verify_inverse_transform.py uses. It is a number this reference chooses, not
+# one read off the planet: what is under test is where the term lands, and a
+# value shared between the two gates keeps one number meaning one thing.
+PLAVOR = 1.7
 
 # The identities the quadrature is pinned by. Both are exact statements, so the
 # bars are rounding bars and nothing else, and both are checked at the rung the
@@ -248,6 +308,105 @@ def synthesise_fc(sp: LD, pmat: LD, modes, nlon: int, nlat: int) -> LD:
     return fc
 
 
+def per_mode_factors(modes) -> tuple[LD, LD]:
+    """fmu and fmv, at the unfiltered build the driver refuses to run without.
+
+    `legini` sets fmu(w) = m/(n(n+1)) * skspgp(n+1) and fmv(w) = 1/(n(n+1)) *
+    skspgp(n+1), and skspgp is one at nfilter = 0. These are RESTATED, not
+    derived from anything independent; the reference header says so and says
+    what that leaves invisible.
+    """
+    ncsp = len(modes)
+    fmu = np.zeros(ncsp, dtype=LD)
+    fmv = np.zeros(ncsp, dtype=LD)
+    for k, (m, n) in enumerate(modes):
+        if n > 0:
+            znn1 = LD(1) / LD(n * (n + 1))
+            fmu[k] = znn1 * LD(m)
+            fmv[k] = znn1
+    return fmu, fmv
+
+
+def driving_field(case: str, modes, nlev: int) -> LD:
+    """A (2, ncsp, nlev) spectral field shaped by the same three cases.
+
+    The levels differ from one another rather than repeating, so a level index
+    pinned to one inside the routine is a wrong answer here and not a passing
+    one. The seed is fixed, so the field is a property of the case.
+    """
+    ncsp = len(modes)
+    out = np.zeros((2, ncsp, nlev), dtype=LD)
+    if case == "dense":
+        rng = np.random.default_rng(20260825)
+        out[:, :, :] = rng.standard_normal((2, ncsp, nlev)).astype(LD)
+    elif case == "corner":
+        for v in range(nlev):
+            out[0, ncsp - 1, v] = LD(1 + v)
+            out[1, ncsp - 1, v] = LD(1 + v)
+    elif case == "zonal":
+        for k, (m, _n) in enumerate(modes):
+            if m == 0:
+                for v in range(nlev):
+                    out[0, k, v] = LD(1 + v)
+    else:
+        raise SystemExit(f"unknown case {case!r}: dense, corner or zonal")
+    for k, (m, _n) in enumerate(modes):
+        if m == 0:
+            out[1, k, :] = LD(0)
+    return out
+
+
+def synthesise_uv(spd: LD, spzrel: LD, pmat: LD, qmat: LD, fmu: LD, fmv: LD,
+                  modes, nlon: int, nlat: int, nlev: int):
+    """dv2uv's four outputs, and the term-magnitude bound the driver needs.
+
+    The four sign patterns are the transform's definition and are written out
+    once here:
+
+        pu1 = sum  qmat*fmv*pz1 + pmat*fmu*pd2
+        pu2 = sum  qmat*fmv*pz2 - pmat*fmu*pd1
+        pv1 = sum  pmat*fmu*pz2 - qmat*fmv*pd1
+        pv2 = sum -pmat*fmu*pz1 - qmat*fmv*pd2
+
+    with pz the RELATIVE vorticity, which is what makes this a reference for
+    the planetary term rather than a restatement of the model's formula for it.
+
+    `tscale` is taken over the ABSOLUTE vorticity, the field the model actually
+    accumulates, and carries the planetary correction as a term of its own,
+    because that accumulation is what rounds.
+    """
+    nm = nlon // 2
+    pu = np.zeros((2, nm, nlat, nlev), dtype=LD)
+    pv = np.zeros((2, nm, nlat, nlev), dtype=LD)
+    au = np.zeros((2, nm, nlat, nlev), dtype=LD)
+    av = np.zeros((2, nm, nlat, nlev), dtype=LD)
+    spz = spzrel.copy()
+    spz[0, 1, :] += LD(PLAVOR)          # mode w=2, first component
+    for k, (m, _n) in enumerate(modes):
+        qv = qmat[k, :, None] * fmv[k]          # (nlat, 1)
+        pu_ = pmat[k, :, None] * fmu[k]
+        zz1, zz2 = spzrel[0, k, :], spzrel[1, k, :]
+        zd1, zd2 = spd[0, k, :], spd[1, k, :]
+        pu[0, m] += qv * zz1 + pu_ * zd2
+        pu[1, m] += qv * zz2 - pu_ * zd1
+        pv[0, m] += pu_ * zz2 - qv * zd1
+        pv[1, m] += -pu_ * zz1 - qv * zd2
+        # The magnitudes the model's own accumulation carries: absolute
+        # vorticity, not relative.
+        az1, az2 = np.abs(spz[0, k, :]), np.abs(spz[1, k, :])
+        ad1, ad2 = np.abs(spd[0, k, :]), np.abs(spd[1, k, :])
+        aq, ap = np.abs(qv), np.abs(pu_)
+        au[0, m] += aq * az1 + ap * ad2
+        au[1, m] += aq * az2 + ap * ad1
+        av[0, m] += ap * az2 + aq * ad1
+        av[1, m] += ap * az1 + aq * ad2
+    # The planetary correction is a term of the accumulation too.
+    au[0, 0] += np.abs(qmat[1, :, None] * fmv[1] * LD(PLAVOR))
+    av[1, 0] += np.abs(pmat[1, :, None] * fmu[1] * LD(PLAVOR))
+    tscale = float(max(np.max(au), np.max(av)))
+    return pu, pv, spz, tscale
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -257,6 +416,10 @@ def main() -> int:
                          "the header so the driver refuses a mismatched file")
     ap.add_argument("--case", default="dense",
                     choices=("dense", "corner", "zonal"))
+    ap.add_argument("--nlev", type=int, default=10,
+                    help="the level count the driver was compiled with; "
+                         "written to the header so the driver refuses a "
+                         "mismatched file")
     ap.add_argument("--out", required=True, help="the binary the driver reads")
     args = ap.parse_args()
 
@@ -293,8 +456,28 @@ def main() -> int:
     sp = sp / LD(scale)
     fc = fc / LD(scale)
 
+    if args.nlev < 1:
+        raise SystemExit("--nlev must be at least 1")
+    fmu, fmv = per_mode_factors(modes)
+    spd = driving_field(args.case, modes, args.nlev)
+    spzrel = driving_field(args.case, modes, args.nlev)
+    if args.case == "dense":
+        # A second draw, so divergence and vorticity are not the same field:
+        # they enter dv2uv through different matrices with different signs, and
+        # driving them equal lets a swap between the two halves cancel.
+        rng = np.random.default_rng(20260826)
+        spzrel = rng.standard_normal((2, ncsp, args.nlev)).astype(LD)
+        for k, (m, _n) in enumerate(modes):
+            if m == 0:
+                spzrel[1, k, :] = LD(0)
+    pu, pv, spz, tscale = synthesise_uv(spd, spzrel, pmat, qmat, fmu, fmv,
+                                        modes, nlon, nlat, args.nlev)
+    dvfmax = float(max(np.max(np.abs(fmu)), np.max(np.abs(fmv)))
+                   * max(np.max(np.abs(spd)), np.max(np.abs(spz))))
+
     header = np.array([nlat, nlon, ntru, ncsp, args.npro, nlat // args.npro,
-                       scale, VERSION], dtype=np.float64)
+                       scale, VERSION, args.nlev, PLAVOR, tscale, dvfmax],
+                      dtype=np.float64)
     with open(args.out, "wb") as fh:
         header.tofile(fh)
         nodes.astype(np.float64).tofile(fh)
@@ -306,6 +489,14 @@ def main() -> int:
         sp.astype(np.float64).T.reshape(-1).tofile(fh)
         # component fastest, then m, then l: fc(2,NLON/2,NLAT)
         fc.astype(np.float64).transpose(2, 1, 0).reshape(-1).tofile(fh)
+        fmu.astype(np.float64).tofile(fh)
+        fmv.astype(np.float64).tofile(fh)
+        # component fastest, then mode, then level: pd(2,NCSP,NLEV)
+        spd.astype(np.float64).transpose(2, 1, 0).reshape(-1).tofile(fh)
+        spz.astype(np.float64).transpose(2, 1, 0).reshape(-1).tofile(fh)
+        # component fastest, then m, then l, then v: pu(2,NLON/2,NLAT,NLEV)
+        pu.astype(np.float64).transpose(3, 2, 1, 0).reshape(-1).tofile(fh)
+        pv.astype(np.float64).transpose(3, 2, 1, 0).reshape(-1).tofile(fh)
 
     print(f"{args.res}  NLAT {nlat}  NLON {nlon}  NTRU {ntru}  modes {ncsp}  "
           f"NPRO {args.npro}  case {args.case}")
@@ -314,6 +505,11 @@ def main() -> int:
     print(f"  orthonormality residual of the reference table: {resid:.3e}")
     print(f"  the driving vector was scaled by {scale:.6e}, so the largest "
           f"Fourier coefficient is 1")
+    print(f"  synthesis arm: {args.nlev} levels, plavor {PLAVOR}, "
+          f"largest |u| {float(np.max(np.abs(pu))):.3e}, "
+          f"largest |v| {float(np.max(np.abs(pv))):.3e}")
+    print(f"  worst term-magnitude sum into one output {tscale:.3e}, "
+          f"largest |factor|*|coefficient| {dvfmax:.3e}")
     print(f"  wrote {args.out}")
     return 0
 

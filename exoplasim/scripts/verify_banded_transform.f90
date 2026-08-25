@@ -46,17 +46,15 @@
 !     immune to, and it is why the synthesis is not done here.
 !
 !     WHAT THIS DOES NOT COVER, stated so that a pass is not read as more
-!     than it is. It checks the ANALYSIS direction and the tables the
-!     synthesis direction reads. It does not integrate the model, so it
-!     says nothing about the physics, about `mkdheat`, or about any
-!     defect that needs a timestep to appear. `dv2uv` is not driven here:
-!     it is a synthesis routine with no partial sum and no reduction, its
-!     only band dependence is the `pmat` and `qmat` rows for the thread's
-!     own latitudes, and ARM A checks those rows directly against the
-!     reference. Its loop is checked by
-!     exoplasim/scripts/verify_inverse_transform.py, against the
-!     matrix-vector product with the table and the per-mode factors it
-!     is handed, planetary vorticity included.
+!     than it is. It checks the ANALYSIS direction, the tables the
+!     synthesis direction reads, and `dv2uv`. It does not integrate the
+!     model, so it says nothing about the physics, about `mkdheat`, or
+!     about any defect that needs a timestep to appear. `sp2fc` and
+!     `sp2fcdmu` are not driven here: they are the same matrix-vector
+!     product over the same rows that ARM A compares directly, they write
+!     the thread's band the way `dv2uv` does and ARM D exercises that
+!     placement, and their loops are checked one mode at a time by
+!     exoplasim/scripts/verify_inverse_transform.py.
 !
 !     THE ARMS.
 !
@@ -73,6 +71,33 @@
 !     gives a different answer run to run rather than a wrong one, so a
 !     tolerance cannot see it and only an equality can. There is no
 !     threshold here to choose.
+!
+!     ARM D. `dv2uv`, across the bands, against the reference's own wind
+!     fields. This is the SYNTHESIS direction and it asks a different
+!     question from ARM A: ARM A says the thread holds the right rows of
+!     the weight matrices, ARM D says the routine puts the answer built
+!     from those rows on the right rows of the shared wind globe. Nothing
+!     in ARM A can see a loop that reads `qmat(2,l)` and writes latitude
+!     l', and at one thread the two indices are the same integer, so
+!     `verify_inverse_transform.py` cannot see it either. world-siq.
+!
+!     PLANETARY VORTICITY IS THE PART THAT NEEDED THIS. `dv2uv` takes
+!     ABSOLUTE vorticity and removes the planetary part from its RESULT,
+!     per latitude, at mode w=2 -- it cannot subtract it from the input,
+!     which aliases the shared spectral state every thread reads. The
+!     reference is not the model's formula for that removal but the
+!     identity underneath it: `dv2uv(pd, pz)` with `plavor = P` is
+!     `dv2uv(pd, pz - P at w=2)` with `P = 0`, so the reference computes
+!     the winds from RELATIVE vorticity with no planetary term at all and
+!     the driver hands the model that vorticity plus P. The mode, the
+!     component, the sign and the factor are pinned by where P is put in,
+!     and none of them is read off the model.
+!
+!     ONE HALF OF THAT REMOVAL IS DEAD ARITHMETIC AND NO ARM CAN GIVE IT
+!     TEETH. Mode w=2 is m = 0, and `fmu` carries a factor of m, so
+!     `fmu(2)` is zero and the model's `pv` planetary line adds exactly
+!     nothing for any P. It is stated here so that a control on that line
+!     is not written and read as passing.
 !
 !     THE BOUNDS. One arm has none, and the rest are derived from the
 !     arithmetic or transplanted with their derivation named. None was
@@ -128,6 +153,39 @@
 !     rung is a bound that was never argued for it, not a defective
 !     build.
 !
+!     ztolf, the per-mode factors, ABSOLUTE: 4*eps. `fmu` and `fmv` are
+!     m/(n(n+1)) and 1/(n(n+1)) at the unfiltered build this driver
+!     refuses to run without, both sides form them by one division, and
+!     neither exceeds one half. This is a rounding bar and not a
+!     tolerance on a computation: it is here so that an ARM D failure
+!     that is really a filtered build says so instead of reporting a
+!     placement error.
+!
+!     ztold, dv2uv, ABSOLUTE: 4*NTP1*(eps*tscale + ztolp*(1+qscale)*
+!     dvfmax). `tscale` and `dvfmax` are measured by the reference and
+!     travel in the file: `tscale` is the largest sum of TERM MAGNITUDES
+!     accumulated into any one output element, the planetary correction
+!     included, and `dvfmax` is the largest |factor| times the largest
+!     |coefficient| over the driving fields. THE FIRST TERM is the
+!     accumulation's own rounding: at most NTP1 modes contribute and each
+!     partial sum is bounded by `tscale`. THE SECOND is the weight
+!     matrices the model built differing from the reference's by ARM A's
+!     own bound -- ztolp absolute on `pmat` and ztolp*qscale on `qmat`,
+!     which is what ARM A2 compares -- carried through NTP1 modes and
+!     multiplied by the factor and coefficient each meets. The four is
+!     the envelope: two terms per output element, doubled again, the same
+!     construction ztolb uses.
+!
+!     ztold IS DOMINATED BY THE TABLE ENVELOPE AND IS LOOSE AGAINST WHAT
+!     ARM D LOOKS FOR, and that is worth saying rather than leaving to be
+!     noticed. ztolp is itself an envelope eleven to thirty-three times
+!     above legini's measured table error, so ztold lands several orders
+!     above what a correct build produces. The defect class ARM D exists
+!     for is a term applied at the wrong latitude, which changes the
+!     result by a whole term rather than by a rounding, and the margin is
+!     printed beside the result so the comparison is visible rather than
+!     asserted.
+!
 !     ztolb, the analysis, ABSOLUTE: 8*NLAT*eps*(1+pscale), where pscale
 !     is the largest |pmat| in the reference table. The analysis is a sum
 !     of NLAT terms each at most max|pmat| * gwd(l) * max|fc|; the
@@ -157,8 +215,8 @@
 !     region and read-only inside it. SHARED: nothing in this module may
 !     become threadprivate, it is the second side of the comparison and
 !     one copy is the point.
-      integer :: nrlat, nrlon, nrtru, nrcsp, nrpro, nrlpp
-      real (kind=8) :: rscale, rversion
+      integer :: nrlat, nrlon, nrtru, nrcsp, nrpro, nrlpp, nrlev
+      real (kind=8) :: rscale, rversion, rplavor, tscale, dvfmax
       real (kind=8) :: pscale, qscale
       real (kind=8), allocatable :: rsid(:)      ! (nlat)
       real (kind=8), allocatable :: rgwd(:)      ! (nlat)
@@ -166,18 +224,30 @@
       real (kind=8), allocatable :: rqmat(:,:)   ! (ncsp,nlat)
       real (kind=8), allocatable :: rspdrv(:)    ! (2*ncsp)
       real (kind=8), allocatable :: rfc(:)       ! (nlon*nlat)
+!     ARM D. The synthesis half: the per-mode factors, the two spectral
+!     fields dv2uv is driven with, and the winds it has to produce.
+!     rspz is ABSOLUTE vorticity; rpu and rpv were computed from the
+!     RELATIVE part with no planetary term, which is what makes them a
+!     reference for that term rather than a copy of the model's formula.
+      real (kind=8), allocatable :: rfmu(:)      ! (ncsp)
+      real (kind=8), allocatable :: rfmv(:)      ! (ncsp)
+      real (kind=8), allocatable :: rspd(:,:,:)  ! (2,ncsp,nlev)
+      real (kind=8), allocatable :: rspz(:,:,:)  ! (2,ncsp,nlev)
+      real (kind=8), allocatable :: rpu(:,:,:,:) ! (2,nlon/2,nlat,nlev)
+      real (kind=8), allocatable :: rpv(:,:,:,:) ! (2,nlon/2,nlat,nlev)
 
 !     Per-thread worst differences, so that one thread's verdict is not
 !     written over another's and the master prints a table rather than
 !     the threads interleaving lines.
       real (kind=8), allocatable :: wgwd(:), wgwc(:)
       real (kind=8), allocatable :: wpmt(:), wqmt(:)
+      real (kind=8), allocatable :: wdvu(:), wdvv(:), wfac(:)
       integer, allocatable :: wrep(:), wlat(:)
 
 !     The declared bounds. Set once, before any arm runs, and printed.
 !     ztolw is verify_gauss_weights.sh's weight bar, not a second one.
       real (kind=8), parameter :: ZWEIGHTBAR = 1.0e-12_8
-      real (kind=8) :: ztolw, ztolc, ztolp, ztolb
+      real (kind=8) :: ztolw, ztolc, ztolp, ztolb, ztolf, ztold
 
 !     The verdict. Raised under !$omp atomic from whichever thread sees a
 !     failure; never lowered.
@@ -193,7 +263,7 @@
       implicit none
 
       character (len=256) :: yfile
-      real (kind=8) :: zhead(8)
+      real (kind=8) :: zhead(12)
       real (kind=8) :: zeps
       integer :: io, j
 
@@ -220,6 +290,10 @@
       nrlpp = nint(zhead(6))
       rscale   = zhead(7)
       rversion = zhead(8)
+      nrlev    = nint(zhead(9))
+      rplavor  = zhead(10)
+      tscale   = zhead(11)
+      dvfmax   = zhead(12)
 
 !     THE REFUSAL THAT STOPS A MISMATCHED FILE PASSING. A reference built
 !     for another rung or another thread count would still read, still
@@ -228,15 +302,16 @@
 !     executable was compiled with, and a disagreement is fatal here
 !     rather than a number further down.
       if (nrlat /= NLAT .or. nrlon /= NLON .or. nrtru /= NTRU .or.            &
-     &    nrcsp /= NCSP .or. nrpro /= NPRO .or. nrlpp /= NLPP) then
+     &    nrcsp /= NCSP .or. nrpro /= NPRO .or. nrlpp /= NLPP .or.            &
+     &    nrlev /= NLEV) then
          write(*,*) 'refusing: the reference does not describe this build.'
-         write(*,'(a,6i7)') '  reference NLAT NLON NTRU NCSP NPRO NLPP:',     &
-     &                      nrlat, nrlon, nrtru, nrcsp, nrpro, nrlpp
-         write(*,'(a,6i7)') '  compiled                               :',     &
-     &                      NLAT, NLON, NTRU, NCSP, NPRO, NLPP
+         write(*,'(a,7i7)') '  reference NLAT NLON NTRU NCSP NPRO NLPP NLEV:',&
+     &                      nrlat, nrlon, nrtru, nrcsp, nrpro, nrlpp, nrlev
+         write(*,'(a,7i7)') '  compiled                                    :',&
+     &                      NLAT, NLON, NTRU, NCSP, NPRO, NLPP, NLEV
          stop 2
       endif
-      if (nint(rversion) /= 1) then
+      if (nint(rversion) /= 2) then
          write(*,*) 'refusing: reference format version', rversion
          stop 2
       endif
@@ -244,19 +319,30 @@
       allocate(rsid(NLAT), rgwd(NLAT))
       allocate(rpmat(NCSP,NLAT), rqmat(NCSP,NLAT))
       allocate(rspdrv(2*NCSP), rfc(NLON*NLAT))
+      allocate(rfmu(NCSP), rfmv(NCSP))
+      allocate(rspd(2,NCSP,NLEV), rspz(2,NCSP,NLEV))
+      allocate(rpu(2,NLON/2,NLAT,NLEV), rpv(2,NLON/2,NLAT,NLEV))
       read(71) rsid
       read(71) rgwd
       read(71) rpmat
       read(71) rqmat
       read(71) rspdrv
       read(71) rfc
+      read(71) rfmu
+      read(71) rfmv
+      read(71) rspd
+      read(71) rspz
+      read(71) rpu
+      read(71) rpv
       close(71)
 
       allocate(wgwd(0:NPRO-1), wgwc(0:NPRO-1))
       allocate(wpmt(0:NPRO-1), wqmt(0:NPRO-1))
+      allocate(wdvu(0:NPRO-1), wdvv(0:NPRO-1), wfac(0:NPRO-1))
       allocate(wrep(0:NPRO-1), wlat(0:NPRO-1))
       wgwd = 0.0_8 ; wgwc = 0.0_8
       wpmt = 0.0_8 ; wqmt = 0.0_8 ; wrep = 0 ; wlat = 0
+      wdvu = 0.0_8 ; wdvv = 0.0_8 ; wfac = 0.0_8
 
 !     The two magnitudes the bounds are stated in terms of, taken from
 !     the REFERENCE and not from anything the model produced.
@@ -269,6 +355,9 @@
       ztolc = ZWEIGHTBAR + zeps / (1.0_8 - maxval(rsid*rsid))
       ztolp = 4.0_8 * NTRU * NTRU * zeps
       ztolb = 8.0_8 * NLAT * zeps * (1.0_8 + pscale)
+      ztolf = 4.0_8 * zeps
+      ztold = 4.0_8 * NTP1 * (zeps * tscale                                   &
+     &                      + ztolp * (1.0_8 + qscale) * dvfmax)
 
       write(*,'(a,i0,a,i0,a,i0,a,i0)')                                        &
      &   'T', NTRU, '  NLAT ', NLAT, '  modes ', NCSP, '  threads ', NPRO
@@ -278,8 +367,13 @@
       write(*,'(a,es10.3)') '  gw/cos2, relative, that + the cos2 loss ', ztolc
       write(*,'(a,es10.3)') '  P and Q, absolute, 4*NTRU^2*eps         ', ztolp
       write(*,'(a,es10.3)') '  analysis,absolute, 8*NLAT*eps*(1+Pmax)  ', ztolb
+      write(*,'(a,es10.3)') '  fmu/fmv, absolute, 4*eps                ', ztolf
+      write(*,'(a,es10.3)') '  dv2uv,   absolute, 4*NTP1*(...)         ', ztold
       write(*,'(a,es10.3)') '  largest |P| in the reference table      ', pscale
       write(*,'(a,es10.3)') '  largest |Q| in the reference table      ', qscale
+      write(*,'(a,es10.3)') '  worst term sum into one dv2uv output    ', tscale
+      write(*,'(a,es10.3)') '  largest |factor|*|coefficient|          ', dvfmax
+      write(*,'(a,f8.3)')   '  planetary vorticity driven at           ', rplavor
       write(*,'(a,i0,a)')  '  ARM C repeats ', NREP, ', bit identical, no bound'
       write(*,*)
 
@@ -310,12 +404,13 @@
       use bandref
       implicit none
 
-      integer :: jl, jg, jw, jrep, j, it
+      integer :: jl, jg, jw, jrep, j, it, jm, jv, ip
       real :: zpart(NESP)
       real :: zslice(NSPP)
       real :: zfull(NESP)
       real :: zkeep(NESP)
       real (kind=8) :: zew, zec, zep, zeq, zeb, zref, zbest
+      real (kind=8) :: zdu, zdv, zdf
       integer :: idiff, iworld, imiss, inear
 
       iworld = 0
@@ -500,6 +595,93 @@
             write(*,'(a)') '  [  ok  ] every repeat agreed to the last bit.'
          endif
       endif
+
+!     -------------- ARM D: dv2uv, across the bands -------------------
+!
+!     The model's own call, spelled the way `invlegd` spells it: the
+!     shared spectral state in, the thread's POINTER into the shared wind
+!     globe out. Every thread transforms the whole spectrum and writes
+!     only its own band, so a routine that reads the right weight rows
+!     and writes the wrong grid rows fails here and nowhere else.
+!
+!     THE ARRAY TEMPORARY THE CHECKED BUILD REPORTS HERE IS THE MODEL'S
+!     OWN. `gu` points at a band of the shared globe, which is a strided
+!     section, and `dv2uv` takes an explicit-shape dummy, so the compiler
+!     packs it in and out. `plasim.f90` calls `dv2uv(sd,sz,gu,gv)` the
+!     same way and gets the same temporary; it is what
+!     probe_grid_contiguity.f90 exists to decide by address rather than
+!     by behaviour. Two lines of runtime warning are the flag profile
+!     saying so, not a defect in this driver.
+!
+!     plavor is threadprivate, so every thread sets it. It is the
+!     reference's declared value rather than the planet's: what is under
+!     test is where the term lands.
+      plavor = real(rplavor)
+
+!     The factors first, and separately, because an ARM D failure that is
+!     really a filtered build has a different fix from a placement error
+!     and must not be reported as one.
+      zdf = 0.0_8
+      do jw = 1 , NCSP
+         zdf = max(zdf, abs(real(fmu(jw),8) - rfmu(jw)))
+         zdf = max(zdf, abs(real(fmv(jw),8) - rfmv(jw)))
+      enddo
+      wfac(mypid) = zdf
+
+      if (mypid == NROOT) then
+         sd(:,:) = 0.0
+         sz(:,:) = 0.0
+         do jv = 1 , NLEV
+            do jw = 1 , NCSP
+!              sd(NESP,NLEV) is dv2uv's pd(2,NESP/2,NLEV) by sequence
+!              association, so mode jw is elements 2*jw-1 and 2*jw.
+               sd(2*jw-1,jv) = real(rspd(1,jw,jv))
+               sd(2*jw  ,jv) = real(rspd(2,jw,jv))
+               sz(2*jw-1,jv) = real(rspz(1,jw,jv))
+               sz(2*jw  ,jv) = real(rspz(2,jw,jv))
+            enddo
+         enddo
+         gu_g(:,:) = 0.0
+         gv_g(:,:) = 0.0
+      endif
+!$omp barrier
+      call dv2uv(sd,sz,gu,gv)
+!$omp barrier
+
+!     Read back out of the SHARED globe by global index rather than
+!     through the pointer, so the comparison does not inherit whatever
+!     the band pointer believes. Row mypid*NHOR + 2*(m-1) + NLON*(l-1)
+!     is dv2uv's pu(:,m,l,v) and belongs to global latitude
+!     mypid*NLPP + l.
+      zdu = 0.0_8 ; zdv = 0.0_8
+      do jv = 1 , NLEV
+         do jl = 1 , NLPP
+            jg = mypid * NLPP + jl
+            do jm = 1 , NLON/2
+               ip = mypid * NHOR + 2*(jm-1) + NLON*(jl-1)
+               zdu = max(zdu, abs(real(gu_g(ip+1,jv),8) - rpu(1,jm,jg,jv)))
+               zdu = max(zdu, abs(real(gu_g(ip+2,jv),8) - rpu(2,jm,jg,jv)))
+               zdv = max(zdv, abs(real(gv_g(ip+1,jv),8) - rpv(1,jm,jg,jv)))
+               zdv = max(zdv, abs(real(gv_g(ip+2,jv),8) - rpv(2,jm,jg,jv)))
+            enddo
+         enddo
+      enddo
+      wdvu(mypid) = zdu
+      wdvv(mypid) = zdv
+!$omp barrier
+
+      if (mypid == NROOT) then
+         write(*,*)
+         write(*,'(a)') '==== ARM D: dv2uv, across the bands ===='
+         write(*,'(a)') '  thread     fmu/fmv           u           v'
+         do it = 0 , NPRO-1
+            write(*,'(i8,3es12.3)') it, wfac(it), wdvu(it), wdvv(it)
+         enddo
+         call judge('ARM D fmu/fmv', maxval(wfac), ztolf)
+         call judge('ARM D u      ', maxval(wdvu), ztold)
+         call judge('ARM D v      ', maxval(wdvv), ztold)
+      endif
+!$omp barrier
 
       return
       end subroutine bandarm

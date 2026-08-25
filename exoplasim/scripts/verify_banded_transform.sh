@@ -53,6 +53,15 @@
 #             must reject it: this is the case ARM A exists for, a thread whose
 #             arithmetic is perfect on the wrong rows of the globe. Without this
 #             one, ARM A would be an arm with no demonstration that it can fail.
+#
+#   plavorband shifts dv2uv's planetary vorticity correction by the thread's own
+#             index inside its band, so thread t applies the right correction t
+#             latitudes from where it belongs. ARM D must reject it. THE POINT OF
+#             THIS ONE IS THAT IT IS A NO-OP AT ONE THREAD -- mypid is zero there
+#             and the expression collapses to the line it replaced -- which is
+#             exactly why verify_inverse_transform.py cannot see this class and
+#             why ARM D exists. world-siq. It patches two lines, legmod's `use`
+#             list and the correction itself, and both counts are checked.
 set -euo pipefail
 
 res="${1:-T21}"
@@ -70,6 +79,19 @@ CASES="dense corner zonal"
 # The ladder is lib/rungs.py and nowhere else.
 nlat=$("$PY" -c "import sys; sys.path.insert(0, '$REPO/lib'); import rungs; print(rungs.geometry('$res')[0])") || {
   echo "unknown resolution $res: it is not a rung in lib/rungs.py" >&2; exit 2; }
+
+# AT LEAST TWO, and this is a property of the controls rather than of the arms.
+# samelats and plavorband both express themselves through mypid, so at one
+# thread each patches the source into exactly the line it replaced and the
+# control passes -- which would be reported as "the arm cannot see it" when what
+# happened is that there was nothing to see. One thread is a configuration this
+# gate has no question about: the bands are the globe.
+if [ "$threads" -lt 2 ]; then
+    echo "refusing: this gate asks what the BANDS do, and at $threads thread" >&2
+    echo "  there is one band covering the globe. Both band controls collapse" >&2
+    echo "  to the source they patch and would pass." >&2
+    exit 2
+fi
 
 if [ $((nlat % threads)) -ne 0 ]; then
     echo "refusing: $threads threads does not divide the $nlat latitudes of $res." >&2
@@ -171,7 +193,7 @@ build () {
 echo "==== the reference ===="
 for c in $CASES; do
     "$PY" "$HERE/banded_transform_reference.py" "$res" --npro "$threads" \
-        --case "$c" --out "$WORK/ref_$c.bin"
+        --nlev "$lev" --case "$c" --out "$WORK/ref_$c.bin"
 done
 
 export OMP_NUM_THREADS="$threads" OMP_PROC_BIND=close OMP_PLACES=cores
@@ -249,6 +271,19 @@ sed -i 's|if (mypid /= NROOT) p(1:n) = zbufd(mypid\*n+1:mypid\*n+n)|if (mypid /=
     mpimod_omp.f90
 control samelats "ARM A"
 cp mpimod_omp.orig.f90 mpimod_omp.f90
+
+# The planetary vorticity correction, applied at a latitude offset by the
+# thread's own index. In bounds, and identically the original line at one
+# thread, which is the whole demonstration: the class ARM D was added for is
+# invisible to any driver that runs the loop on a single band.
+before=$(grep -c '^use pumamod, only:NTRU,NTP1,NCSP,NESP,NLON,NLPP,NLHP,NLAT,NHOR,NLEV,gwd,sid,plavor,nfilter$' legmod.f90 || true)
+[ "$before" -eq 1 ] || { echo "legmod use-list patch site moved: $before hits, expected 1" >&2; exit 1; }
+sed -i 's/^use pumamod, only:NTRU,NTP1,NCSP,NESP,NLON,NLPP,NLHP,NLAT,NHOR,NLEV,gwd,sid,plavor,nfilter$/use pumamod, only:NTRU,NTP1,NCSP,NESP,NLON,NLPP,NLHP,NLAT,NHOR,NLEV,gwd,sid,plavor,nfilter,mypid/' legmod.f90
+before=$(grep -c '^    pu(1,1,l,v) = pu(1,1,l,v) - qmat(2,l) \* fmv(2) \* plavor$' legmod.f90 || true)
+[ "$before" -eq 1 ] || { echo "plavor patch site moved: $before hits, expected 1" >&2; exit 1; }
+sed -i 's/^    pu(1,1,l,v) = pu(1,1,l,v) - qmat(2,l) \* fmv(2) \* plavor$/    pu(1,1,l,v) = pu(1,1,l,v) - qmat(2,mod(mypid+l-1,NLPP)+1) * fmv(2) * plavor   ! CONTROL: the right correction, t latitudes out/' legmod.f90
+control plavorband "ARM D u"
+cp legmod.orig.f90 legmod.f90
 
 echo
 echo "work kept at $WORK"
