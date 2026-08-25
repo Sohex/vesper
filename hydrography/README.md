@@ -640,6 +640,16 @@ total area it selects is the same quantity `basins.nc` carries as
 with a right answer, and the catchment version of the rule misses it by a factor
 of several.
 
+**Both denominators are emitted, because they are different denominators.** A
+lake evaporation is a depth over the cell's open-water area and a catchment
+runoff is a depth over the land cell, and averaging them into a cell mean is
+finding 7 of the hydraulic-consistency audit. So each class carries its AREA
+from `cell_sum`, the EXTENSIVE operator, beside its share from the categorical
+one -- and computing them independently makes the pair a check: the same
+population reduced two ways has to agree, and a share taken over the land
+against an area summed over everything is a population mismatch that both
+numbers would otherwise survive.
+
 **Three of the five classes the audit asks for have no source here, and are
 declared absent with the reason rather than estimated.** A wetness fraction that
 is a guess is indistinguishable in the file from one that is a measurement.

@@ -237,16 +237,57 @@ def cross_to_grid(cell, ncell: int, area_km2, land, labels, names,
     is MARKED and not dropped: its area is real, and a consumer that silently
     loses it has lost land rather than noise.
     """
-    shares = {}
+    shares, areas = {}, {}
     covered = None
     for i, n in enumerate(names):
         f, covered = gridding.cell_fraction(cell, ncell, area_km2,
                                             labels == i, land)
         shares[n] = f
+        # THE AREA AS WELL AS THE SHARE, and it comes from the EXTENSIVE
+        # operator rather than from share times land area. Two reasons. A
+        # consumer converting a depth to a mass needs the DENOMINATOR the
+        # ledger names -- lake evaporation is a depth over the open-water area
+        # and catchment runoff is a depth over the land cell, and averaging
+        # those into a cell mean is the finding this row comes from. And
+        # computing it independently makes the two operators check each other:
+        # a categorical share and an extensive sum over the same class must
+        # agree, and `check_area_closure` requires it.
+        areas[n] = gridding.cell_sum(cell, ncell, area_km2, labels == i)
+    land_area = gridding.cell_sum(cell, ncell, area_km2, land)
     count = np.bincount(np.asarray(cell)[land], minlength=ncell)
     estimated = covered & (count >= int(min_land_regions))
     ledger = gridding.transfer_ledger(cell, ncell, area_km2, land)
-    return shares, covered, estimated, count.astype(np.int64), ledger
+    return shares, areas, land_area, covered, estimated, count.astype(np.int64), ledger
+
+
+def check_area_closure(shares: dict, areas: dict, land_area, covered,
+                       tol: float) -> float:
+    """The categorical share and the extensive area must be the same statement.
+
+    `share * land_area` and the class's own summed area are two reductions of
+    one population by two operators, so their agreement is an identity with a
+    right answer rather than a plausibility check. It is here because the pair
+    is exactly where a population mismatch hides: a share taken over the land
+    and an area summed over everything would both look ordinary and would
+    disagree by the cell's ocean.
+
+    Returns the worst relative departure; raises above `tol`.
+    """
+    land_area = np.asarray(land_area, dtype=np.float64)
+    worst = 0.0
+    for n in shares:
+        want = np.asarray(shares[n], dtype=np.float64) * land_area
+        got = np.asarray(areas[n], dtype=np.float64)
+        d = np.abs(got - want)[covered]
+        scale = np.maximum(land_area[covered], 1e-30)
+        worst = max(worst, float((d / scale).max()) if d.size else 0.0)
+    if worst > tol:
+        raise SystemExit(
+            f"the class shares and the class areas disagree by {worst:.3g} of "
+            f"the cell's land area against a declared {tol:.0e}. They are the "
+            "same population reduced by two operators, so this is a population "
+            "mismatch and not a rounding difference.")
+    return worst
 
 
 def take_saturated_out(shares: dict, f_sat, covered, tol: float):
@@ -437,9 +478,10 @@ def main() -> int:
 
     cell, nlat, nlon = gridding.region_cells(export, grid_dir)
     ncell = nlat * nlon
-    shares, covered, estimated, count, ledger = cross_to_grid(
+    shares, areas, land_area_cell, covered, estimated, count, ledger = cross_to_grid(
         cell, ncell, area_km2, land, labels, names, min_regions)
     check_partition(shares, covered, tol, "the resolved classes")
+    area_residual = check_area_closure(shares, areas, land_area_cell, covered, tol)
     print(f"  {int(covered.sum()):,} of {ncell:,} cells hold land, "
           f"{int(estimated.sum()):,} hold at least {min_regions} land regions")
 
@@ -524,6 +566,20 @@ def main() -> int:
                 "lib/gridding.py's CATEGORICAL reduction. The shares partition "
                 "the cell's land and are checked to; a majority label is not a "
                 "coarse version of them")
+        var("land_area_km2", land_area_cell.reshape(shape), "f8",
+            ("lat", "lon"), "km2",
+            "the cell's land area, lib/gridding.py's EXTENSIVE reduction. The "
+            "denominator a share above is a share OF; a depth converted to a "
+            "mass on the wrong one of these is finding 7 of the "
+            "hydraulic-consistency audit")
+        for n in names:
+            var(f"area_{n}_km2", areas[n].reshape(shape), "f8",
+                ("lat", "lon"), "km2",
+                f"area of class {n} in the cell, lib/gridding.py's EXTENSIVE "
+                "reduction. Emitted beside the share because a lake "
+                "evaporation is a depth over the open-water area and a "
+                "catchment runoff is a depth over the land cell, and the two "
+                "denominators are different")
         var("land_regions", count.reshape(shape), "i4", ("lat", "lon"), "1",
             "land regions in the cell; below the configured minimum the shares "
             "are still area and are marked rather than dropped")
@@ -551,7 +607,10 @@ def main() -> int:
         "f_sat_license": lic,
         "reduction": {
             "class_share": "gridding.cell_fraction, CATEGORICAL, share of the cell's land AREA",
+            "class_area_km2": "gridding.cell_sum, EXTENSIVE, the area itself",
+            "land_area_km2": "gridding.cell_sum, EXTENSIVE",
             "population": "surface_class == LAND",
+            "share_against_area_worst_relative": area_residual,
             "ledger": ledger,
         },
         "cells_with_land": int(covered.sum()),
@@ -605,7 +664,7 @@ def _selftest() -> int:
     labels, names, _ = assign_exclusive(
         {"open_water": lake, "playa": playa,
          "dry_mineral": np.zeros(n, bool)}, land, residual="dry_mineral")
-    shares, covered, _, _, ledger = cross_to_grid(
+    shares, areas, land_area, covered, _, _, ledger = cross_to_grid(
         cell, ncell, area, land, labels, names, 1)
     ok = True
     try:
@@ -665,7 +724,7 @@ def _selftest() -> int:
     lab2, nm2, _ = assign_exclusive(
         {"open_water": lk, "playa": np.zeros(1000, bool),
          "dry_mineral": np.zeros(1000, bool)}, l2, residual="dry_mineral")
-    s2, cov2, _, _, _ = cross_to_grid(c2, 1, a2, l2, lab2, nm2, 1)
+    s2, _, _, cov2, _, _, _ = cross_to_grid(c2, 1, a2, l2, lab2, nm2, 1)
     got = float(s2["open_water"][0])
     check("a small lake survives a cell that is almost all upland",
           abs(got - 0.03) <= 1e-12, f"open-water share {got}")
@@ -687,7 +746,22 @@ def _selftest() -> int:
           "is refused",
           got == 0.0 and caught, msg if not caught else f"residual {got}")
 
-    print(f"\n7 checks, {len(problems)} failed")
+    # 8. The categorical share and the extensive area are the same statement,
+    #    and a share taken over the land against an area summed over everything
+    #    -- the population mismatch, which is what actually goes wrong -- is
+    #    refused.
+    got = check_area_closure(shares, areas, land_area, covered, 1e-12)
+    wrong = {n: gridding.cell_sum(cell, ncell, area, labels == i)
+             for i, n in enumerate(names)}
+    wrong["dry_mineral"] = wrong["dry_mineral"] + gridding.cell_sum(
+        cell, ncell, area, ~land)
+    caught, msg = refuses(
+        lambda: check_area_closure(shares, wrong, land_area, covered, 1e-12))
+    check("the class share and the class area agree, and a population mismatch "
+          "is refused",
+          got <= 1e-12 and caught, msg if not caught else f"residual {got}")
+
+    print(f"\n8 checks, {len(problems)} failed")
     return 1 if problems else 0
 
 

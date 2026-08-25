@@ -45,7 +45,10 @@
   },
   "reduction": {
     "class_share": "gridding.cell_fraction, CATEGORICAL, share of the cell's land AREA",
+    "class_area_km2": "gridding.cell_sum, EXTENSIVE, the area itself",
+    "land_area_km2": "gridding.cell_sum, EXTENSIVE",
     "population": "surface_class == LAND",
+    "share_against_area_worst_relative": 1.0772371244355433e-16,
     "ledger": {
       "regions_offered": 4328736,
       "cells": 2048,
@@ -76,5 +79,5 @@
     }
   },
   "partition_tolerance": 1e-09,
-  "created": "2026-08-25T09:43:09.078801+00:00"
+  "created": "2026-08-25T09:52:08.740703+00:00"
 }

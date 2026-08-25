@@ -322,6 +322,13 @@ steps:
       minority surface however much leverage it has, and a narrow strip of open
       water in a dry cell is the surface these rows exist to keep. Land comes
       from `surface_class`.
+      BOTH DENOMINATORS ARE EMITTED. Each class carries its AREA from
+      `cell_sum`, the EXTENSIVE operator, beside its share from the categorical
+      one, because a lake evaporation is a depth over the open-water area and a
+      catchment runoff is a depth over the land cell. Computing them
+      independently makes the pair a check the artifact refuses on: the same
+      population reduced two ways has to agree, and a population mismatch is
+      what that catches.
       THREE OF THE AUDIT'S FIVE CLASSES HAVE NO SOURCE HERE and are declared
       absent with the reason rather than estimated. The saturated non-inundated
       mineral class is unresolved on this mesh -- `hydrography/notes/subgrid-
