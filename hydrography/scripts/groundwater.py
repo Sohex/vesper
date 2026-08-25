@@ -1967,9 +1967,13 @@ def instrument_report(mesh_arm: str = "auto") -> int:
         r = soln[l]
         good = r["solver_converged"] and r["relative_rms"] < HEAD_MESH_FLOOR
         ok &= good
+        note = ("below the decision bar" if good
+                else "ABOVE THE DECISION BAR"
+                if r["relative_rms"] >= HEAD_MESH_FLOOR
+                else "below the bar, but the solve MISSES its declared residual")
         print(f"    l = {l}   truncation {trunc[l]:8.5f}   solved head "
-              f"{r['relative_rms']:10.3e}   "
-              f"{'below the decision bar' if good else 'AT OR ABOVE THE DECISION BAR'}")
+              f"{r['relative_rms']:10.3e}   residual "
+              f"{r['solver_relative_residual']:8.2e}   {note}")
 
     # The bar is about the mesh the world is solved on. Where the arm ran on a
     # smaller build than the configured one, the sweep's own fitted order
@@ -1977,12 +1981,13 @@ def instrument_report(mesh_arm: str = "auto") -> int:
     configured = Export(export_dir).n_regions
     if configured != export.n_regions:
         ratio = np.sqrt(export.n_regions / configured)
-        print(f"    the configured build carries {configured:,} regions, "
-              f"{ratio:.2f}x smaller cells.\n    Carried across at the sweep's "
-              f"own fitted order, the solved head there is")
+        print(f"    the configured build carries {configured:,} regions, so its "
+              f"cells are {ratio:.2f}x the size\n    of this arm's. Carried "
+              f"across at the sweep's own fitted order, the solved head\n    "
+              f"there is")
         for l in (2, 3, 4):
             o = sweep["orders"][l]["solution"]
-            print(f"      l = {l}   {soln[l]['relative_rms'] * ratio ** -o:10.3e}"
+            print(f"      l = {l}   {soln[l]['relative_rms'] * ratio ** o:10.3e}"
                   f"   (extrapolated, order {o:.2f})")
     return 0 if ok else 1
 

@@ -1118,9 +1118,11 @@ one_offs:
   - exoplasim/scripts/compare_equilibria.py
   # Imported as a module by `build_groundwater.py`, and run directly for the
   # checks that need no climate: the mesh operator against an analytic
-  # Legendre eigenvalue, `--dupuit-test` against the analytic parabola, and
+  # Legendre eigenvalue, `--dupuit-test` against the analytic parabola,
   # `--uniqueness-test`, the uniqueness identity with the controls it must
-  # reject. Outside the graph because each is a verdict and writes nothing.
+  # reject, and `--instrument`, which separates the operator's truncation
+  # error from the error of the field it solves for. Outside the graph because
+  # each is a verdict and writes nothing.
   - hydrography/scripts/groundwater.py
   - hydrography/scripts/validate_lake_solver.py
   - hydrography/scripts/build_earth_wtd_sites.py
