@@ -29,9 +29,12 @@ Its weathering and basin-delivery values are also relative ranks, not
 kgP/m2/time. They are useful hypotheses about sign and geography, but cannot
 be passed to LPJ-GUESS as either weathering or deposition fluxes.
 
-The central architecture should be one phase- and species-resolved nutrient
-ledger. Each source must state material, chemical form, mass per receiving
-area per absolute time, interval, source and destination. Dissolved species
+The central architecture is one phase- and species-resolved nutrient ledger,
+now declared in `biosphere/config/abiotic_nutrients.yaml`, enforced by
+`biosphere/scripts/abiotic_nutrient_ledger.py` and argued in
+`biosphere/notes/abiotic-nutrient-ledger.md`. Each source states material,
+chemical form, mass per receiving area per absolute time, interval, source and
+destination. Dissolved species
 follow the accepted land-water ledger; particulate material follows erosion,
 transport, deposition and dissolution; retained mineral stocks are distinct
 from immediately labile nutrients. LPJ-GUESS should receive only the flux or
@@ -81,8 +84,10 @@ the mass deposited at a destination.
 
 There is no equivalent abiotic N ledger. Lightning is being investigated for
 fire ignition, but no flash-to-fixed-N path exists. The LPJ driver instead
-declares one global deposition value with no source or atmospheric budget.
-ANUT-1 establishes a common ledger before individual sources are implemented.
+declares one global deposition value with no source or atmospheric budget. The
+ANUT-1 ledger is the graph both belong to; it is defined and every one of its
+twenty-one terms still carries the `undeclared` sentinel, so it does not close,
+and each term names the issue that owns its flux.
 
 ### 2. The weathering fields do not determine an absolute P supply or initial stock
 
@@ -217,11 +222,16 @@ likewise radiative-only; over land it is primarily a salinity/base-cation
 input, not a generic fertilizer. Fire ash is nutrient recycling and remains
 FIRE-7's scope.
 
-ANUT-7 registers these as explicit model-form/source screens. It should add a
-source only if its plausible mass can change the root-zone ledger, and retain
-event timing where pulse delivery matters. It must not infer volcanic nutrient
-flux from sulfate optical depth or sea-salt nutrient flux from aerosol
-extinction.
+ANUT-7's register is in the ledger declaration, with its materiality test fixed
+before any magnitude was looked at. Geomorphic renewal, arc tephra and marine
+aerosol are retained; volcanic sulfate deposition is registered and not
+implemented, at about one percent of the weathering sulfur term; fire ash and
+lightning belong to FIRE-7 and ANUT-4. Tephra keeps its pulse timing because
+phosphorus availability is high in young volcanic material and falls with
+development, so an averaged ash flux gets the sign wrong at both ends. The
+exhumation and tephra rates come from Earth's stationary population rather than
+from the terrain, which has no time axis. The checker refuses by name any screen
+carried on an aerosol optical depth or extinction.
 
 ### 8. C-N-P limitation does not prove general nutrient sufficiency
 
@@ -232,12 +242,15 @@ availability pool. This does not justify immediately adding every element to
 LPJ-GUESS, but it does make “nutrient-limited biosphere” broader than the
 implemented claim.
 
-ANUT-8 performs a conservative adequacy screen for K, S, Ca, Mg, Fe and
-biologically important trace elements against parent stocks, plausible
-delivery, loss and plant demand. The durable result is a declared CNP model
-boundary plus fail-closed brackets for any plausible co-limiter. Ocean nutrient
-delivery and marine productivity are outside the terrestrial LPJ result and
-must be stated as a separate boundary rather than silently counted as export.
+ANUT-8's screen returns a critical runoff per element and per lithology, from
+bounds whose directions were declared before any result was seen. Potassium
+binds, needing tens to nearly two hundred millimetres of runoff a year on
+crystalline lithologies where calcium and magnesium need a few; iron and the
+trace set REFUSE, because no per-lithology release table for either exists to be
+conservative with. The declared boundary is that any LPJ-GUESS result on this
+world is a C-N-P result and not a nutrient-limitation result. Ocean nutrient
+delivery and marine productivity are outside the terrestrial LPJ result and are
+a separate boundary rather than export silently counted as nutrition.
 
 ### 9. Acceptance requires stock-and-flux closure across component boundaries
 
@@ -255,7 +268,10 @@ production response experiment remains subject to explicit permission.
 
 ## Order of work
 
-1. Define ANUT-1's ledger and ANUT-9's reduced closure fixtures first.
+1. ANUT-1's ledger is defined and carries reduced closure fixtures that fail on
+   an area-basis mismatch, a dangling destination, a terminal source, an element
+   change, a stock drawn below zero and a reversed sign. ANUT-9 extends them to
+   the real handoffs.
 2. Build absolute weathering under ANUT-2, initial stocks under ANUT-10 and
    atmospheric particulate delivery under ANUT-3 before BIO-5/BIO-8 map their
    fluxes into LPJ.
@@ -263,5 +279,7 @@ production response experiment remains subject to explicit permission.
    chemistry independently of FIRE-3's ground-flash ignition conversion.
 4. Land ANUT-5's N interface with BIO-24's absolute-time contract.
 5. Add ANUT-6 transport after LSHY has assigned each water flux one owner.
-6. Use ANUT-7/ANUT-8 as pre-registered source and co-limitation screens, not
-   as permission to tune additional nutrients to a desired productivity.
+6. ANUT-7 and ANUT-8 are registered as pre-registered source and co-limitation
+   screens rather than as permission to tune additional nutrients to a desired
+   productivity. Their thresholds are in the ledger declaration and were fixed
+   before any magnitude was seen.

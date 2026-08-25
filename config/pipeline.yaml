@@ -554,11 +554,29 @@ steps:
       run. `lpj_run` needs it so the refusal sits on the path rather than
       beside it.
 
+  - id: abiotic_nutrient_ledger
+    script: biosphere/scripts/abiotic_nutrient_ledger.py
+    loop: B
+    cost: seconds
+    needs: []
+    writes: [biosphere/generated/abiotic_nutrient_ledger_report.json]
+    gate: >
+      the one ledger every abiotic nutrient source books into, from source
+      material to the terrestrial root zone and on to a named terminal
+      boundary. It reads biosphere/config/abiotic_nutrients.yaml, fails on a
+      graph that does not close, exercises the mass balance on fixtures built
+      to be wrong, refuses any source screen carried on an aerosol optical
+      depth, and reports the non-N/P adequacy screen's critical runoff per
+      element and per lithology. With every term still undeclared it reports
+      and exits 0, because a biosphere run on the declared nitrogen scalar is
+      a correct run; `--strict` is the arm that refuses. `lpj_run` needs it so
+      the declared C-N-P model boundary sits on the path rather than beside it.
+
   - id: lpj_run
     script: biosphere/scripts/run_lpj_guess.py
     loop: B
     cost: hours
-    needs: [lpj_driver, bvoc_gate]
+    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger]
     writes: [biosphere/runs/]
 
   - id: prospectivity
