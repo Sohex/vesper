@@ -653,4 +653,53 @@ fact to state rather than one to avoid.
 
 # 6. What this did NOT establish
 
-Placeholder.
+- **Nothing here is an implementation and nothing here is an adoption.** No
+  OpenMP directive was written, no file under `vendor/cgenie` was edited, and the
+  tree still has no consumer, no pipeline row and no step. The one compiler flag
+  that moves is the code model, applied to both grids equally so it cancels out
+  of the comparison.
+- **Amdahl's law is an upper bound and no threaded build exists to measure
+  against it.** Load imbalance across a land-sea mask, memory bandwidth, false
+  sharing on the COMMON blocks, and the cost of the halo recomputation section 3c
+  proposes are all unpriced. The bound says what is not achievable; it does not
+  say what is.
+- **The EMBM-free configuration section 4a's budget rests on has not been built
+  or run.** `genie.F` offers exactly two surface-flux paths for GOLDSTEIN and each
+  is gated on an atmosphere module being in the recipe; the second is the right
+  shape and that is a reading of the recipe, not a demonstration. Until it exists,
+  section 4a is arithmetic over measured pieces rather than a measurement.
+- **The ocean's own stability limit has not been measured without EMBM.** The
+  cost note's sweep had EMBM live throughout, and its statement that the ocean
+  could carry two to three times the timestep EMBM permits was read off
+  GOLDSTEIN's `Cn` in configurations EMBM was still integrating. The limit also
+  inherits OCN-17's declared `scf` bracket of 1 to 3 linearly, so it is a bracket.
+- **The profile is a function of the model state and neither run reaches
+  equilibrium.** Section 2b shows the shares moving between 10 and 100 model
+  years by more than they move between the two grids. A 20,000-year spin-up
+  spends nearly all of its time in a state that no run here samples, and the
+  direction of the drift -- the parallel share rising, the serial share falling --
+  is what makes the verdict safe rather than what makes it precise.
+- **The 72 x 72 probe's circulation means nothing.** Its pair of advective
+  wind-speed fields were made by replicating the 36 x 36 fields into 2 x 2
+  blocks, so the instruction counts and the loop structure are a 72 x 72 x 16
+  model's and the ocean state is not evidence about anything.
+- **Every number is at Earth's parameters.** `rsc` and `const_rEarth` are
+  hardcoded, the topographies are Earth's, and
+  `notes/audits/ocean-tier-implicit-earth.md` findings 1 and 4 stand exactly as
+  they were.
+- **The regridding contract in section 5 is a specification, not an
+  implementation.** No weight matrix has been built, no conservation identity has
+  been evaluated, and `lib/gridding.py` still has never been checked against a
+  field whose integral is known -- which is the check survey section 55a asks for
+  and is cheap and separable from everything else here.
+- **The resolution recommendation depends on an inventory that does not exist.**
+  Section 4b's decision procedure needs OCN-11 to report which straits and sills
+  the Orogen mesh carries and how many each candidate grid resolves. Until that
+  exists the recommendation is the coarsest defensible default rather than the
+  answer the procedure returns.
+- **The host was not quiet and no wall-clock number is quoted.** A sibling held a
+  wall-clock claim on this machine throughout and the one-minute load ran between
+  7 and 63 on 32 logical cores. cGENIE is one serial process, so it never waited
+  for a core; retired instructions are a property of the binary and its input and
+  every quantitative claim above rests on those. The profiling added one serial
+  core to a contended machine and that is recorded rather than hidden.
