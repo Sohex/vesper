@@ -147,6 +147,58 @@ the source under `vendor/lpj-guess/` is what is compiled. `framework/vesper.h`
 is the exception only because it is generated from `config/planet.yaml` before
 each build and therefore ignored.
 
+### There is nothing upstream to integrate
+
+The pull command above is documented so the pinned state can be reproduced, not
+because it is outstanding work. The fork is at or ahead of LPJ-GUESS 4.1.1
+everywhere, so a pull would bring back nothing but the licence headers the fork
+deliberately omits.
+
+Compared at the subtree import against the official `guess_4.1` release, 80
+files differ, and 36 of those differ only by the stripped MPL-2.0 header. The 44
+with real content differences are led by exactly the C-N-P files -- `somdynam.cpp`,
+`canexch.cpp`, `guess.cpp`, `guess.h` -- which is the fork's own phosphorus work
+rather than upstream drift; `somdynam.cpp` alone is 695 lines only in the fork
+against 162 only in the release. The decisive test is the SVN `$Date` header per
+file across `modules/` and `framework/`: the fork is older than 4.1.1 on ZERO
+files, identical on 26, and newer on 8, those eight carrying 2022 dates against
+the release's 2021. They are `canexch`, `commonoutput`, `driver`, `growth`,
+`landcover`, `somdynam`, `vegdynam` and `framework/guess.cpp`.
+
+**The method, so a future pull can be re-checked cheaply rather than
+re-investigated.** Fetch the official tarball from Zenodo record 8065737
+("LPJ-GUESS Release v4.1.1 model code", SVN r10118, MPL-2.0, published
+2021-10-13; files `guess_4.1.1.tar.gz`, `.zip` and `releasenotes_4.1.1.txt`),
+compare the `$Date` header of each file under `modules/` and `framework/`
+against the vendored tree, and treat a diff that is only the licence header as
+no diff at all. What matters is whether any file's release date is NEWER than
+the fork's, and no file's is.
+
+### `modules/ntransform.cpp` is stock 4.1.1 with declared divergences
+
+Know this before opening that file. As it arrived, the soil nitrogen
+transformation operator was byte-identical to `guess_4.1/modules/ntransform.cpp`
+apart from the stripped licence header, and it is ON BY DEFAULT: `global.ins`
+imports `global_soiln.ins`, which sets `ifntransform 1`. The CNP fork never
+touched it. So every change this project has made there is a divergence from
+default-on behaviour in a widely used community model, not a fork quirk it
+inherited, and the same is true of `data/ins/global_soiln.ins`, where one
+constant is off its release value.
+
+Every one of them is declared. Each carries mainline's own line verbatim beside
+the changed one in the source, under a `DECLARED DIVERGENCE FROM MAINLINE`
+heading; `biosphere/config/ntransform.yaml` holds the register under
+`mainline_divergences` with the verdict, what settles it and what it is worth;
+and `biosphere/scripts/ntransform_gate.py` checks that mainline's form is
+recorded, that it is not what the model runs, and that the changed line still
+is, so a divergence can become neither a silent fork nor a silent revert. None
+of it is execution-verified, because LPJ-GUESS does not build on this tree. The
+argument for each is
+`biosphere/notes/soil-nitrogen-transformation-parameterisation.md`.
+
+No other file under `vendor/lpj-guess/modules/` carries a register of this kind
+yet. Where one does, it belongs beside this row.
+
 Vendoring the CNP source does not itself enable phosphorus limitation.
 `data/ins/global.ins` and the run harness keep `ifplim 0` until the gridded
 weathering, sorption, deposition, and replacement productivity prediction are

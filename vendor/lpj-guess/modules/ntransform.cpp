@@ -37,6 +37,29 @@
 // When porting between frameworks, the only change required should normally be in the
 // "#include" directive referring to the framework header file.
 
+// THIS FILE IS STOCK LPJ-GUESS 4.1.1 WITH DECLARED DIVERGENCES.
+//
+// Before reading a line of it: as it arrived, this file was byte-identical to
+// guess_4.1/modules/ntransform.cpp (Zenodo record 8065737, SVN r10118) apart
+// from a stripped MPL-2.0 licence header, and it is ON BY DEFAULT for global
+// runs -- data/ins/global.ins imports global_soiln.ins, which sets
+// ifntransform 1. Every change made here is therefore a divergence from
+// default-on behaviour in a widely used community model, not a fork quirk, and
+// each one is recorded at its own site under a
+//
+//     DECLARED DIVERGENCE FROM MAINLINE
+//
+// heading that carries mainline's own line verbatim beside the changed one.
+// The complete register, with the verdict and the reasoning on each, is
+// biosphere/config/ntransform.yaml under `mainline_divergences`; the argument
+// is biosphere/notes/soil-nitrogen-transformation-parameterisation.md; and
+// biosphere/scripts/ntransform_gate.py checks both halves of every record, so
+// a divergence can neither become a silent fork nor be silently reverted.
+//
+// NONE OF IT IS EXECUTION-VERIFIED. LPJ-GUESS does not build on this tree, so
+// every verdict in the register is arithmetic on the declared forms and on the
+// papers, and not a result.
+
 #include "config.h"
 #include "guess.h"
 #include "driver.h"
@@ -69,8 +92,11 @@ void nh3_volatilization(Patch& patch, Soil& soil, double& n_budget_check){
 
 	// The simulated soil's pH, which the soil map supplies per gridcell.
 	//
-	// This used to fall back to Dawson (1977)'s regression of soil pH on annual
-	// precipitation, 3810 / (762 + climate.aprec_lastyear) + 3.5. The port's
+	// DECLARED DIVERGENCE FROM MAINLINE: soil_ph_fallback, owner world-i2ch.
+	// Stock LPJ-GUESS 4.1.1 reads
+	//     soil.pH = 3810 / (762 + (climate.aprec_lastyear)) + 3.5;
+	// where this refuses. That is Dawson (1977)'s regression of soil pH on
+	// annual precipitation. The port's
 	// own constant was wrong: table 5 eqn 5 of Xu-Ri and Prentice (2008) gives
 	// 3810 / (762 + Precipitation_annual) + 3.8, and since pH enters
 	// volatilisation as exp(2 * (pH - 10)), those 0.3 pH units are a factor of
@@ -93,9 +119,17 @@ void nh3_volatilization(Patch& patch, Soil& soil, double& n_budget_check){
 		     "carries it; a soil-code-only soil has none.");
 	}
 
-	// There is no nh3_max here any more. The port multiplied the whole
-	// expression below by 0.001 above pH 6 and 0.00001 at or below it, and
-	// table 5 of Xu-Ri and Prentice (2008) has no such factor. The paper's own
+	// DECLARED DIVERGENCE FROM MAINLINE: nh3_max, owner world-i2ch. Stock
+	// LPJ-GUESS 4.1.1 declares
+	//     double nh3_max = 0.0, f_nit_T = 0.0, nh3_inc = 0.0;
+	// sets
+	//     nh3_max = 0.001;
+	// above pH 6 and
+	//     nh3_max = 0.00001;
+	// at or below it, and multiplies the volatilised fraction by it:
+	//     min(soil.NH4_mass, nh3_max * (min(1.0, wcont)
+	// There is no nh3_max here any more.
+	// Table 5 of Xu-Ri and Prentice (2008) has no such factor. The paper's own
 	// text says why it needs none: the NH3/NH4+ ratio "is virtually zero (about
 	// 0.001) in solutions with pH below 6, but approaches unity (about 0.90) in
 	// solutions with pH above 10", which is what eqn 6's fpH = exp(2 * (pH -
@@ -141,6 +175,12 @@ void substrate_partition(Soil& soil){
 	// change around 66% ending up at 100% around 75%.
 	// Meaning that there is no nitrification at that WFPS.
 	// Derived from Pilegaard 2013
+	//
+	// DECLARED DIVERGENCE FROM MAINLINE: substrate_partition_argument, owner
+	// world-i2ch. Stock LPJ-GUESS 4.1.1 reads
+	//     double wet = richards_curve(0.05,0.95,7.5,0.5,wcont);
+	// off get_soil_water_upper. The curve is unchanged; its ARGUMENT is what
+	// moved.
 	//
 	// The argument is water-filled pore space, and it is what the split is
 	// declared in. Xu-Ri and Prentice (2008) table 7 names the aeration
@@ -192,8 +232,8 @@ void nitrification(Patch& patch, Soil& soil) {
 	// nit_act, the water response multiplying the table 8 eqn 1 rate: a rising
 	// exponential in water-filled pore space, held at 1.0 from 0.6 upwards.
 	//
-	// DECLARED DIVERGENCE FROM MAINLINE, owner world-i2ch. Stock LPJ-GUESS
-	// 4.1.1 reads
+	// DECLARED DIVERGENCE FROM MAINLINE: nitrification_wet_limb, owner
+	// world-i2ch. Stock LPJ-GUESS 4.1.1 reads
 	//     double act_wet = max(0.0,4.0-5.0*wcont);
 	//     double nit_act = min(act_dry,act_wet);
 	// so mainline multiplies the rising limb by a falling line, peaking at
@@ -218,6 +258,14 @@ void nitrification(Patch& patch, Soil& soil) {
 	// substrate_partition carried before world-b2i2. Every moisture response in
 	// this operator now reads Soil::wfps(0).
 	//
+	// DECLARED DIVERGENCE FROM MAINLINE: nitrification_argument, owner
+	// world-i2ch. Stock LPJ-GUESS 4.1.1 reads
+	//     double act_dry = a*exp(wcont*b);
+	// off get_soil_water_upper, which is the same variable mismatch
+	// substrate_partition above carried. The two limbs are separate
+	// divergences from this one: the argument moved without either constant
+	// moving.
+	//
 	// WHY THE FALLING LIMB IS GONE. Fig. 1's nitrification trace is not Linn
 	// and Doran's own measurement -- they measured CO2, O2 and N2O and state
 	// they "did not determine if N2O production resulted from microbial
@@ -241,10 +289,19 @@ void nitrification(Patch& patch, Soil& soil) {
 	// NH4_mass_d -- so the falling limb applied it twice, while nothing else in
 	// this operator limits nitrification as the soil dries, the partition's
 	// aerobic share GROWING as it does. The magnitude of the wet-end decline is
-	// now the partition's alone, and world-nga8 owns its shape. What remains
-	// unsettled here is the rising limb's own constants, which world-xmiq owns:
-	// registered in biosphere/config/ntransform.yaml and refused by
-	// biosphere/scripts/ntransform_gate.py --strict.
+	// now the partition's alone, and world-nga8 owns its shape.
+	//
+	// The rising limb's two constants are unsourced and stay refused, world-xmiq
+	// owning them. Only their product enters -- 5*log(3) is one slope, 5.493 per
+	// unit water-filled pore space, not two independent numbers -- and what that
+	// slope produces is now checkable. Stark and Firestone (1995) measured
+	// nitrification against soil WATER POTENTIAL, and get_mineral's Cosby (1984)
+	// retention curve is what carries this model between the two axes, since
+	// Soil::wfps is Theta/Theta_s exactly and Cosby eqn 1 makes potential a power
+	// law in it. Anchored where they anchor, at -0.1 MPa, their moist soil falls
+	// to 0.51 at -0.5 MPa and to 0.333 at this model's wilting point of -1.554
+	// MPa; this limb falls to a median 0.526 and 0.364 across the current soil
+	// map. What that does not do is source the slope: it is one silt loam.
 	double b = log(3.0) * 5.0;
 	double a = exp(-b*6.0/10.0);
 	double act_dry = a*exp(wfps*b);
@@ -269,6 +326,13 @@ void nitrification(Patch& patch, Soil& soil) {
 	// and 4 of Xu-Ri and Prentice (2008) are NOinc = RNON * NO3inc and N2Oinc =
 	// RN2ON * NO3inc, so the two together take RNON + RN2ON of the flux, and
 	// f_no below splits what leaves.
+	//
+	// DECLARED DIVERGENCE FROM MAINLINE: nitrification_gas_constant, owner
+	// world-i2ch. Stock LPJ-GUESS 4.1.1 reads
+	//     double ngas_inc = f_denitri_gas_max * no3_inc;
+	// and data/ins/global_soiln.ins sets f_denitri_gas_max 0.33, so mainline
+	// emits a third of every kilogram nitrified as NO plus N2O. It is not a
+	// ceiling: no min() stands between this coefficient and the flux.
 	//
 	// This read f_denitri_gas_max, which global_soiln.ins, parameters.h,
 	// parameters.cpp and the declareitem help string all describe as the
@@ -319,6 +383,16 @@ void denitrification(Patch& patch,Soil& soil) {
 	if (water_cont_m3 > 0.0 && wfps_upper>0.4) {
 		// temperature limiting factor for denitrification, 22 deg C == 1 (table 9, eqn 1, Xu-Ri 2008)
 		//
+		// DECLARED DIVERGENCE FROM MAINLINE: denitrification_temperature_clamp,
+		// owner world-i2ch. Stock LPJ-GUESS 4.1.1 reads
+		//     f_den_T = min(1.0, exp(308.56 * (1.0 / 68.02 - 1.0 / (soil_T + 46.02))));
+		// The exponential is untouched; the min{1, .} around it is what is gone.
+		// The paper's own Q10 is what refuses the clamp: table 9 eqn 1 unclamped
+		// is 0.594 at 15 C and 1.211 at 25 C, a Q10 of 2.04, which is the "about
+		// 2" the text claims; clamped, the same interval gives 1.68. The clamp
+		// therefore contradicts the number the paper states about the function it
+		// is applied to.
+		//
 		// Table 9 eqn 1 carries no min{1, .}, unlike table 5 eqn 7 and table 10
 		// eqn 1 which both state one, and the paper's function rises past 1
 		// above 22 C: 1.21 at 25 C, 1.61 at 30 C, 2.07 at 35 C, 3.15 at 45 C.
@@ -349,6 +423,16 @@ void denitrification(Patch& patch,Soil& soil) {
 		// Denitrification rate dependence on moisture, Weier et al. 1993
 		double f_den_w = min(1.0, exp(13.0360 * wfps_upper - 11.6219));
 
+		// DECLARED DIVERGENCE FROM MAINLINE: denitrification_gas_constant,
+		// owner world-i2ch. Stock LPJ-GUESS 4.1.1 reads
+		//     soil.NO2_mass_w * f_nitri_gas_max * d_N_max * f_den_w * f_den_T
+		// on the line below, which is the other half of the crossed pair the
+		// nitrification comment above describes. Uncrossing them puts the two
+		// steps of the reduction sequence on the same ceiling, f_denitri_max and
+		// f_denitri_gas_max both 0.33, where mainline had 0.33 and 0.25. Both
+		// ceilings stay unsourced: table 9 eqns 3 and 4 carry no maximum-rate
+		// constant and table 11 lists none.
+
 		ngas_inc = min(soil.NO2_mass_w, soil.NO2_mass_w * f_denitri_gas_max * d_N_max * f_den_w * f_den_T * soil.NO2_mass_w / (k_N * water_cont_m3 + soil.NO2_mass_w));
 
 		soil.NO2_mass_w -= ngas_inc;
@@ -357,6 +441,16 @@ void denitrification(Patch& patch,Soil& soil) {
 		// Xu-Ri and Prentice (2008). NOinc = RNODN * ftemp * N2inc, N2Oinc =
 		// RN2ODN * ftemp * N2inc, and N2 is what is left, with ftemp the same
 		// table 9 eqn 1 response used above.
+		//
+		// DECLARED DIVERGENCE FROM MAINLINE: denitrification_gas_partition,
+		// owner world-i2ch. Stock LPJ-GUESS 4.1.1 reads
+		//     double f_n2o_no_w = max(0.0, min(1.0, 3.2092 * wfps_upper - 0.9210));
+		//     double f_n2_n2o_T = 1.0 / (1.0 + exp(-(soil_T - 5.0) / 10.0));
+		//     double f_n2o_n2_w = richards_curve(1.0, 0.0, 62.0, 0.875, wfps_upper);
+		//     if (wfps_upper < 0.7){
+		// and branches there, taking no_inc = ngas_inc / (1 + f_n2o_no_w) with
+		// n2_inc zero below, and n2o_inc = ngas_inc * f_n2o_n2_w * f_n2_n2o_T
+		// with no_inc zero above.
 		//
 		// This replaces a branch at 0.7 WFPS that produced no N2 below it and
 		// no NO above it, built from three functions neither paper states: an
@@ -496,6 +590,12 @@ void ntransform(Patch& patch, Climate& climate) {
 		// and N2 it emitted. nh3_volatilization opens n_budget_check with the
 		// pool sum and n_gas_emission closes it, so a nonzero residual is
 		// nitrogen created or destroyed.
+		//
+		// DECLARED DIVERGENCE FROM MAINLINE: mass_balance_check, owner
+		// world-i2ch. Stock LPJ-GUESS 4.1.1 reads
+		//     assert(fabs(n_budget_check) < EPS);
+		// The identity is mainline's and is unchanged; what changed is that it
+		// is now enforced in the binary this project builds.
 		//
 		// This was an assert(), which every Release build compiles out under
 		// NDEBUG, so on the binary this project builds the only check on the

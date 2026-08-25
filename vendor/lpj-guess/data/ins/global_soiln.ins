@@ -19,3 +19,12 @@ f_nitri_gas_max 	0.022	! Maximum gaseus losses in nitrification
 ! stated, so the top of the bound is taken. The sum brackets at 0.2-4.2
 ! per cent. The port ran at 0.33, which is 7.9 times the top of that
 ! bracket and 15 times its mean.
+!
+! DECLARED DIVERGENCE FROM MAINLINE: nitrification_gas_share, owner world-i2ch.
+! Stock LPJ-GUESS 4.1.1 sets
+!     f_nitri_gas_max 0.25
+! and reads it in denitrification, not in nitrification; the crossed reads are
+! recorded in modules/ntransform.cpp beside each of them. Uncrossed, this
+! constant is the nitrification gas share and 0.25 is still 6 times the top of
+! the bracket above. f_denitri_max, f_denitri_gas_max, f_nitri_max, k_N and k_C
+! are all at their mainline values.

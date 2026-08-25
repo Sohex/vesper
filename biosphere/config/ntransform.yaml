@@ -12,6 +12,324 @@
 # The argument, and what each number is calibrated against, is
 # `biosphere/notes/soil-nitrogen-transformation-parameterisation.md`.
 
+# EVERY DIVERGENCE FROM MAINLINE LPJ-GUESS 4.1.1, WITH ITS VERDICT.
+#
+# As it arrived, `vendor/lpj-guess/modules/ntransform.cpp` was byte-identical to
+# guess_4.1/modules/ntransform.cpp (Zenodo record 8065737, SVN r10118) apart
+# from a stripped MPL-2.0 licence header, and the operator is ON BY DEFAULT for
+# global runs: `data/ins/global.ins` imports `global_soiln.ins`, which sets
+# `ifntransform 1`. So every entry below is a change to default-on behaviour in
+# a widely used community model, and none of them is a fork quirk this project
+# inherited.
+#
+# NONE OF IT IS EXECUTION-VERIFIED. LPJ-GUESS does not build on this tree, so
+# every verdict here is arithmetic on the declared forms and on the papers.
+# `comparison_arm` names what would change that and cannot be run here.
+#
+# `verdict` is what this project decided about the change, not what the
+# arithmetic says:
+#   keep    the divergence stands and is declared. `mainline` records the line
+#           the release runs, verbatim, beside the changed one in the source
+#   gate    the divergence stands but is not settled, and `--strict` refuses
+#           while it does. There is no such entry; the kind exists so the next
+#           one has somewhere to go that is not `keep`
+# A divergence that does not survive review is reverted and leaves this file;
+# reverting is the null result, not a defeat.
+#
+# The gate checks BOTH halves of every `keep`. Each `mainline` string has to be
+# in the operator source, so the record cannot go missing, and NOT in it once
+# comments are stripped, so a silent revert fails; `live` has to be in the
+# stripped source, so deleting the changed line fails too. An `instruction`
+# entry is checked against the instruction file instead: the declared value has
+# to differ from `mainline_value`, and `record` has to appear in that file.
+mainline_divergences:
+  release: "LPJ-GUESS 4.1.1, Zenodo record 8065737, SVN r10118, MPL-2.0"
+  execution_verified: false
+  why_not_verified: >
+    LPJ-GUESS does not build on this tree. `framework/vesper.h` is generated,
+    and the chain to it runs through a baseline run and a baseline climatology
+    that do not exist. No divergence below has been run, in either direction.
+  comparison_arm: >
+    What would bound what these are worth, though not whether they are right:
+    one stock-4.1.1 arm against one Vesper arm, the same build, the same
+    climatology, the same instruction file except for the five constants, and
+    ntransform.cpp reverted to the release in the stock arm. The port already
+    exists, so the arm is a second compile and a second run and no new code.
+    The quantities to compare are NET_NITRIF, NET_DENITRIF, NO_SOIL, N2O_SOIL,
+    N2_SOIL, NH3_SOIL and the mineral nitrogen the simulated plants take up,
+    because the by-hand numbers in `worth` are changes to COEFFICIENTS and the
+    Michaelis-Menten terms and the min() against the pool stand between a
+    coefficient and a flux. It cannot settle which Earth calibration is right,
+    because both arms are Earth calibrations; it can say how far apart they put
+    this world. `world-9f1v` owns it.
+  entries:
+    - id: soil_ph_fallback
+      owner: world-i2ch
+      verdict: keep
+      where: operator
+      mainline: ["soil.pH = 3810 / (762 + (climate.aprec_lastyear)) + 3.5;"]
+      live: 'fail("nh3_volatilization: ifntransform is set but the input path supplied "'
+      settles: >
+        Mainline falls back to Dawson (1977)'s regression of soil pH on annual
+        precipitation when the input path supplies no pH; this refuses instead.
+        The fallback is arithmetically dead in mainline as well as here: nothing
+        in the model assigns `aprec_lastyear`, and `climate.aprec`, which would
+        feed it, is reset at day 0 in driver.cpp and never accumulated. It
+        therefore evaluates at zero precipitation and returns 8.5 on every
+        gridcell of every day. Its constant is wrong too: Xu-Ri and Prentice
+        (2008) table 5 eqn 5 gives 3.8 where the port has 3.5, and pH enters
+        volatilisation as exp(2*(pH - 10)), so 0.3 pH units are a factor of 1.8.
+        Nothing is being removed that ever computed anything.
+      worth: >
+        Nothing, on any input path that supplies pH, which is every Vesper path:
+        the branch was unreachable once the soil map's pH reached the Soiltype.
+        On a soil-code-only path the operator now refuses by name where it used
+        to run at a constant pH 8.5 nobody chose.
+    - id: nh3_max
+      owner: world-i2ch
+      verdict: keep
+      where: operator
+      mainline:
+        - "double nh3_max = 0.0, f_nit_T = 0.0, nh3_inc = 0.0;"
+        - "nh3_max = 0.001;"
+        - "nh3_max = 0.00001;"
+        - "min(soil.NH4_mass, nh3_max * (min(1.0, wcont)"
+      live: "nh3_inc = min(soil.NH4_mass, (min(1.0, wcont) * (1.0 - min(1.0, wcont)))"
+      settles: >
+        Forced by arithmetic, and the strongest of the set. Xu-Ri and Prentice
+        (2008) table 5 has no nh3_max, and eqn 6's fpH = exp(2*(pH - 10)) alone
+        returns 3.4e-4 at pH 6 and 1.0 at pH 10, which is exactly the ratio the
+        paper's text states: the NH3/NH4+ ratio "is virtually zero (about 0.001)
+        in solutions with pH below 6, but approaches unity (about 0.90) in
+        solutions with pH above 10". nh3_max is 0.001 above pH 6 and 0.00001 at
+        or below, keyed on the same pH 6, so it is that same ratio rendered as a
+        step, and mainline applies it on top of fpH. Mainline's own comment names
+        it "Maximum conversion ratio from NH4_mass to NH3 gas", which is what fpH
+        is, so the two are the same quantity by the release's own description of
+        them. The reading that would save it -- that nh3_max is a mass-transfer
+        coefficient rather than an equilibrium ratio -- fails on the factor-100
+        step at pH 6, which a transfer coefficient has no reason to have.
+      worth: >
+        The daily volatilised fraction of NH4 rises by 1e3 above pH 6 and 1e5 at
+        or below. Its ceiling at pH 6.5 goes from 2.3e-7 to 2.3e-4 per day and at
+        pH 8.5 from 1.2e-5 to 1.2e-2, so on an alkaline gridcell it is about a
+        per cent of the ammonium pool a day where mainline's was arithmetically
+        absent. It also makes pedology's pH clip load-bearing: the multiplier's
+        margin below 1 falls from four orders to one.
+    - id: substrate_partition_argument
+      owner: world-i2ch
+      verdict: keep
+      where: operator
+      mainline: ["double wet = richards_curve(0.05,0.95,7.5,0.5,wcont);"]
+      live: "double wet = richards_curve(0.05,0.95,7.5,0.5,wfps);"
+      settles: >
+        The curve is untouched and its argument is what moved, from
+        get_soil_water_upper (a fraction of AVAILABLE capacity) to Soil::wfps(0).
+        Xu-Ri and Prentice (2008) table 7 names DyN's aeration variable as "soil
+        moisture as water-filled pore space (WFPS)" and the nitrification section
+        as the WFPS of the top 50 cm, which is this layer. Mainline's own comment
+        describes the curve in WFPS while reading something else, and
+        nitrification and denitrification in the same file already read wfps(0).
+      worth: >
+        On the current Vesper soil map a gridcell at 0.50 WFPS got an anaerobic
+        share anywhere from 0.071 to 0.874 on texture alone, where the curve asks
+        for 0.500 everywhere; the median cell's aerobic share was 1.65 times what
+        the curve asks at 0.50 WFPS. The largest single control the operator has
+        on gaseous loss was a function of sand and clay.
+    - id: nitrification_argument
+      owner: world-i2ch
+      verdict: keep
+      where: operator
+      mainline: ["double act_dry = a*exp(wcont*b);"]
+      live: "double act_dry = a*exp(wfps*b);"
+      settles: >
+        The same variable mismatch, in the same file, one function down: the
+        curve is a water-filled pore space shape, whose origin is Linn and Doran
+        (1984) fig. 1, and mainline evaluates it at a fraction of available
+        capacity. That paper's stated objective is to replace per cent
+        water-holding capacity with WFPS because WHC "depends on soil type, and
+        the methods for its determination vary and are often poorly defined"
+        (p.1268), and a fraction of available capacity is a third quantity again.
+        Neither of the limb's constants moved.
+      worth: >
+        The optimum of a WFPS curve was landing at a texture-dependent wetness.
+        It also changes what part of the curve a gridcell can reach: wfps(0) is
+        bounded above by field capacity over saturation, a median of 0.81 on the
+        current soil map, so a gridcell reaches the optimum only near field
+        capacity and sits on the rising limb the rest of the time.
+    - id: nitrification_wet_limb
+      owner: world-i2ch
+      verdict: keep
+      where: operator
+      mainline:
+        - "double act_wet = max(0.0,4.0-5.0*wcont);"
+        - "double nit_act = min(act_dry,act_wet);"
+      live: "double nit_act = min(1.0,act_dry);"
+      settles: >
+        Refused by the primary measurement and by a double count, argued in full
+        at calibration entry form:nitrification_activity_wet_limb. Greaves and
+        Carter (1920) is 9.6 per cent of the optimum at 80 per cent WHC where
+        mainline is exactly zero, its only zero is at saturation, and no single
+        linear map from its axis to WFPS gives mainline both its peak at 0.6 and
+        its zero at 0.8. Separately, Linn and Doran attribute the decline above
+        the optimum to aeration, and aeration is what substrate_partition already
+        applies by handing nitrification only the aerobic share.
+      worth: >
+        Mainline stops nitrifying entirely on any gridcell above 0.8 WFPS. With
+        the limb gone the whole wet-end decline is the partition's, which is
+        shallower than the measurement: the partition's aerobic share at 0.7 and
+        0.8 WFPS is 0.63 and 0.40 of its 0.6 WFPS value against Greaves and
+        Carter's 0.395 and 0.096, where mainline's stacked pair gave 0.32 and
+        exactly 0. The measurement sits between them, and that magnitude belongs
+        to the partition's shape, which world-nga8 owns.
+    - id: nitrification_gas_constant
+      owner: world-i2ch
+      verdict: keep
+      where: operator
+      mainline: ["double ngas_inc = f_denitri_gas_max * no3_inc;"]
+      live: "double ngas_inc = f_nitri_gas_max * no3_inc;"
+      settles: >
+        One half of a crossed pair. Mainline reads f_denitri_gas_max here and
+        f_nitri_gas_max in denitrification, against its own names; the
+        instruction file's comment, parameters.h's doc comment, parameters.cpp's
+        inline comment and the declareitem help string all four agree with the
+        names, so it is four declarations against two uses and the uses are the
+        outlier. The values corroborate the names: uncrossed, the two steps of
+        the reduction sequence carry the same ceiling, f_denitri_max and
+        f_denitri_gas_max both 0.33, where crossed they carry 0.33 and 0.25 and
+        the nitrification gas share happens to equal the eqn 3 ceiling. The
+        option not taken was to leave the reads crossed and move the value on
+        f_denitri_gas_max instead, which is the same behaviour with one fewer
+        source line changed; it was refused because it puts a constant named for
+        denitrification on a nitrification quantity and encodes the crossing in
+        the numbers.
+      worth: >
+        Nothing by itself: it decides WHICH constant carries the nitrification
+        gas share, and the nitrification_gas_share entry decides what that
+        constant is. Paired with its other half below, its whole behavioural
+        content is the denitrification NO2-to-gas ceiling, 0.25 to 0.33.
+    - id: nitrification_gas_share
+      owner: world-i2ch
+      verdict: keep
+      where: instruction
+      key: f_nitri_gas_max
+      mainline_value: 0.25
+      record: "!     f_nitri_gas_max 0.25"
+      settles: >
+        The number, where the entry above settles which constant carries it.
+        Mainline emits a third of every kilogram nitrified as NO plus N2O, since
+        with the reads crossed the share is f_denitri_gas_max 0.33; uncrossed and
+        unchanged it would be 0.25. Xu-Ri and Prentice (2008) table 11 gives RNON
+        as 0.1 to 4 per cent with a stated mean of 2 and RN2ON as under 0.1 to
+        0.2 per cent, applied by table 8 eqns 3 and 4, so the bracket on the sum
+        is 0.2 to 4.2 per cent. Both mainline readings are outside it by a factor
+        of 6 to 8 on the top and 11 to 15 on the mean. The reading that would
+        save mainline -- that the constant is a ceiling the flux rarely reaches
+        -- fails on the code: `ngas_inc = f * no3_inc` is a straight multiplier
+        with no min() between it and the flux, so it is the share on every day of
+        every gridcell.
+      worth: >
+        The largest of the set for what the simulated plants can reach. Of every
+        kilogram nitrified, 978 grams return to NO3_mass_d where 670 did, so the
+        mineral nitrogen a gridcell gets from a given gross nitrification rises
+        by a factor of 1.46, and the nitrification part of NET_NITRIF, NO_SOIL
+        and N2O_SOIL falls by 15.
+    - id: denitrification_gas_constant
+      owner: world-i2ch
+      verdict: keep
+      where: operator
+      mainline: ["soil.NO2_mass_w * f_nitri_gas_max * d_N_max * f_den_w * f_den_T"]
+      live: "soil.NO2_mass_w * f_denitri_gas_max * d_N_max * f_den_w * f_den_T"
+      settles: >
+        The other half of the crossed pair, on the same evidence. Both ceilings
+        stay unsourced whichever constant carries them: Xu-Ri and Prentice (2008)
+        table 9 eqns 3 and 4 carry no maximum-rate constant and table 11 lists
+        none, which is what calibration entries instruction:f_denitri_max and
+        instruction:f_denitri_gas_max refuse on. This divergence claims
+        consistency with mainline's own four declarations, not a source.
+      worth: >
+        The coefficient of the anaerobic NO2 pool rises by 1.32, from 0.25 to
+        0.33, before the Michaelis-Menten term and the min() against the pool.
+        That is the entire behavioural content of uncrossing the reads.
+    - id: denitrification_temperature_clamp
+      owner: world-i2ch
+      verdict: keep
+      where: operator
+      mainline: ["f_den_T = min(1.0, exp(308.56 * (1.0 / 68.02 - 1.0 / (soil_T + 46.02))));"]
+      live: "f_den_T = exp(308.56 * (1.0 / 68.02 - 1.0 / (soil_T + 46.02)));"
+      settles: >
+        The exponential is untouched and the min{1, .} around it is what is gone.
+        Xu-Ri and Prentice (2008) table 9 eqn 1 carries none, where table 5 eqn 7
+        and table 10 eqn 1 both state one, so the port added it. That is
+        typography; what refuses the clamp is arithmetic on the paper's own
+        claim. The text gives the response an implied Q10 of about 2, and the
+        unclamped function is 0.594 at 15 C and 1.211 at 25 C, a Q10 of 2.04.
+        Clamped, the same interval gives 1.68. So the clamp contradicts the
+        number the paper states about the function it is applied to. The premise
+        that something had to bound it was wrong as well: both transformations
+        the coefficient multiplies are written as min(pool, pool * coefficient),
+        so neither can take more nitrogen from a pool than the pool holds. The
+        -40 C guard stays, because the exponent diverges at -46.02 C.
+      worth: >
+        Both denitrification steps scale linearly in the response the clamp held
+        at 1, so a 25 C soil denitrifies at 1.21 times the clamped rate, a 30 C
+        soil at 1.61, a 35 C soil at 2.07 and a 45 C soil at 3.15. It is monotone
+        in soil temperature and therefore not uniform across the map: warm wet
+        gridcells lose nitrogen faster. On the warmest of them the NO3-to-NO2
+        coefficient reaches the pool clamp, so the step becomes pool-limited
+        rather than rate-limited, which mainline's clamp never allowed.
+    - id: denitrification_gas_partition
+      owner: world-i2ch
+      verdict: keep
+      where: operator
+      mainline:
+        - "double f_n2o_no_w = max(0.0, min(1.0, 3.2092 * wfps_upper - 0.9210));"
+        - "double f_n2_n2o_T = 1.0 / (1.0 + exp(-(soil_T - 5.0) / 10.0));"
+        - "double f_n2o_n2_w = richards_curve(1.0, 0.0, 62.0, 0.875, wfps_upper);"
+        - "if (wfps_upper < 0.7){"
+      live: "no_inc  = R_NO_DENITRI * f_den_T * ngas_inc;"
+      settles: >
+        Four defects, three of them citation failures against papers this project
+        now holds. Mainline produces no N2 at all below 0.7 WFPS, where Weier et
+        al. (1993) tables 4 and 5 make N2 the majority product in 61 per cent of
+        the 60 per cent WFPS observations and 80 per cent of the 75 per cent
+        ones. f_n2o_no_w, an N2O:NO regression, is attributed to Weier, which
+        measured N2 and N2O by acetylene block and never measured NO. f_n2_n2o_T
+        is a logistic in soil temperature from a study incubated at one
+        temperature. And no NO is produced above 0.7 WFPS at all. The replacement
+        is table 9 eqns 5, 6 and 7 with table 11's RNODN and RN2ODN, so four
+        unsourced calibration entries collapse into one that agrees with the
+        source the rest of the operator is.
+      worth: >
+        Total denitrification does not move and all three gases leave the soil,
+        so this changes what is reported and not what the simulated plants can
+        reach. At 25 C the reduced nitrogen now leaves as 97.3 per cent N2, 2.42
+        per cent N2O and 0.24 per cent NO at every water-filled pore space, where
+        below 0.7 WFPS it left as no N2 and about 59 per cent NO and 41 per cent
+        N2O at 0.50 WFPS, and at 0.90 WFPS as 84.6 per cent N2 and 15.4 per cent
+        N2O with no NO. NET_DENITRIF falls by about 37 on the drier half of the
+        old branch and by about 5.8 at the wet end, and N2_SOIL gains it. What
+        this does NOT settle is the size of the N2 share, and it moves one point
+        the wrong way: at 0.90 WFPS mainline's 0.846 is inside Weier's
+        interquartile range and this operator's 0.978 is above all of it. That
+        cost is declared, and refused, at form:denitrification_n2_share.
+    - id: mass_balance_check
+      owner: world-i2ch
+      verdict: keep
+      where: operator
+      mainline: ["assert(fabs(n_budget_check) < EPS);"]
+      live: "if (fabs(n_budget_check) > max(EPS, REL_EPS * n_total)) {"
+      settles: >
+        The identity is mainline's and is unchanged. What changed is that it is
+        enforced in the binary this project builds: every Release build compiles
+        an assert out under NDEBUG, so mainline's only check on the operator did
+        not exist where it mattered. The bar is relative to the nitrogen present,
+        floored at the absolute epsilon the assert used, and was fixed before any
+        result because there is no result yet.
+      worth: >
+        Nothing while the operator conserves mass, which is the point. It cannot
+        change a flux; it can only stop a run that has already gone wrong.
+
 # The six operator constants that reach the model through the instruction file.
 # `file` is checked verbatim: the gate parses it and refuses on any difference.
 instruction_parameters:
@@ -116,16 +434,11 @@ response_functions:
     # constants meeting. It reaches 1.0 and no more, which is what
     # gross_nitrification's product below is derived against.
     range: [0.0, 1.0]
-    # The falling limb this function used to carry, recorded here because it is
-    # mainline LPJ-GUESS 4.1.1 and its removal is a declared divergence rather
-    # than a fork quirk. The gate checks BOTH halves of that: the string is in
-    # modules/ntransform.cpp, so the mainline form stands beside the changed
-    # one, and it is not in the code once comments are stripped, so a silent
-    # revert fails. world-i2ch owns the divergence set; the argument is the
-    # function:nitrification_activity calibration entry below.
-    divergence:
-      mainline: "double act_wet = max(0.0,4.0-5.0*wcont);"
-      owner: world-i2ch
+    # The falling limb this function used to carry, and the argument it used to
+    # be evaluated at, are both declared divergences from mainline LPJ-GUESS
+    # 4.1.1 and are registered under `mainline_divergences` above, as
+    # nitrification_wet_limb and nitrification_argument. The argument here is
+    # what settles which of the two limbs the constants below belong to.
 
   - name: f_nitri_temperature
     reads: "nitrification, table 8 eqn 2"
@@ -309,6 +622,21 @@ calibration:
       Society of America Journal 48(6) 1267-1272,
       10.2136/sssaj1984.03615995004800060013x.
       references/linn1984-water-filled-pore-space-co2-n2o.pdf
+    stark1995: >
+      Stark and Firestone (1995), Mechanisms for soil moisture effects on
+      activity of nitrifying bacteria, Applied and Environmental Microbiology
+      61(1) 218-221, 10.1128/aem.61.1.218-221.1995.
+      references/stark1995-mechanisms-for-soil-moisture-effects-on-nitrifying-bacteria.pdf
+      The only held source that measures nitrification against a dry-end
+      moisture axis this model can reach. One silt loam.
+    cosby1984: >
+      Cosby, Hornberger, Clapp and Ginn (1984), A statistical exploration of the
+      relationships of soil moisture characteristics to the physical properties
+      of soils, Water Resources Research 20(6) 682-690, 10.1029/WR020i006p00682.
+      references/cosby_1984_a-statistical-exploration-of-the-relationships-of-soil-moisture-charac.pdf
+      Not a nitrogen source: the retention curve SoilInput::get_mineral builds
+      the soil from, and therefore the only bridge between a water potential
+      axis and this model's water-filled pore space one.
     greaves1920: >
       Greaves and Carter (1920), Influence of moisture on the bacterial
       activities of the soil, Soil Science 10(5) 361-387,
@@ -578,35 +906,86 @@ calibration:
         recovered by applying the same control twice. The divergence is
         recorded on the response function above; world-i2ch owns it.
 
+    - what: form:nitrification_activity_dry_limb
+      reads: "nitrification, what the rising limb of nit_act produces between two stated water potentials"
+      source: "stark1995 fig. 1 and the p.220 declines, placed on this model's axis by cosby1984"
+      compared: derived
+      bracket: [0.333, 0.430]
+      verdict: agrees
+      why: >
+        The entry below is the limb's two CONSTANTS, which no source states.
+        This is what they produce, which one does. stark1995 measured
+        nitrification in a silt loam against soil WATER POTENTIAL, and this
+        model carries a potential axis: SoilInput::get_mineral builds wilting
+        point and field capacity by inverting cosby1984 eqn 1 at matric heads of
+        10^4.2 and 10^2.0 cm, which are -1.554 and -0.0098 MPa, and Soil::wfps
+        is (wcont*gawc + gwp)/gwsats, which is Theta/Theta_s exactly. So cosby
+        eqn 1 makes potential a power law in water-filled pore space, per
+        gridcell, from the sand and clay the model already reads. No relabelling
+        is performed and none is needed, which is what separates this comparison
+        from the one greaves1920 cannot support.
+        Anchored where stark1995 anchors, at -0.1 MPa: their moist soil falls to
+        0.51 at -0.5 MPa and 0.21 at -2.7 MPa, so log-linearly through their two
+        reported points it is 0.333 at this model's wilting point; their shaken
+        slurries, with NH4 supplied in excess so that only cell dehydration acts,
+        fit k = 15.4*exp(0.58*psi) with r2 0.958, giving 0.430 at the same
+        potential. Those two are the bracket, and they bracket a question rather
+        than a scatter: how much of the dry-end decline nit_act should carry.
+        The operator has no other term for substrate diffusion, and
+        substrate_partition's aerobic share GROWS as the soil dries, so the
+        moist-soil end is the one it should sit near.
+        Evaluated at the water-filled pore space each of those potentials maps to
+        on each of the current soil map's 4105 gridcells, this limb gives a
+        median 0.526 at -0.5 MPa against their 0.510, and a median 0.364 at
+        wilting point against their 0.333, inside the bracket and near its
+        moist-soil end. THREE LIMITS ON CITING IT. It is one soil, so the bracket
+        is between two treatments of the same silt loam and not between soils;
+        stark1995's own discussion says the relationship "will undoubtedly change
+        for different soil types and microbial communities" and that diffusional
+        limitation should be more severe in coarse-textured soils, which is a
+        spread it did not measure. Their -2.7 MPa point is drier than this
+        model's wilting point, so it is outside the reachable window and only the
+        -0.1 to -1.554 MPa span is compared. And their measurement is a 24 h
+        incubation of a sieved, repacked soil at 23 C with ammonium supplied, so
+        it is a laboratory potential response and not a field rate.
+
     - what: function:nitrification_activity
-      source: "greaves1920 table 5, against xuri2008 table 8 eqn 1"
+      source: "greaves1920 table 5 and stark1995, against xuri2008 table 8 eqn 1"
       compared: form
       verdict: unsourced
       owner: world-xmiq
       why: >
         The rising limb's own constants, everything else about this function
-        being settled above. The limb is exp(5*log(3)*(w - 0.6)), so it falls
-        by a factor of 3 for every 0.2 WFPS below the optimum; no source states
-        either constant. greaves1920 cannot settle them and this entry does not
-        pretend it can. Against the 22-soil mean, normalised to the 60 per cent
-        treatment, the limb runs at 0.54 to 0.67 of the measurement over 0.1 to
-        0.5 WFPS, so it is low by about a third. Against the scatter the same
-        table gives, each soil normalised to its own maximum, it is inside the
-        measured range at every one of those points -- but that range is 0.00
-        to 1.00 at 10 per cent WHC and 0.17 to 1.00 at 40, wide enough to admit
-        almost any monotone limb, so being inside it refuses nothing and
-        confirms nothing. The direction and the existence of a dry-end limit
-        are settled: 19 of the 22 soils rise without a reversal to their own
+        being settled above. No source states either, and this entry is what
+        --strict refuses on. TWO CONSTANTS, ONE NUMBER: the limb is
+        exp(5*log(3)*(w - 0.6)) and only the product enters, so 5 and 3 are one
+        slope of 5.493 per unit water-filled pore space written as two factors,
+        and any pair with the same product is the same limb. No measurement can
+        separate them, so a source for "base 3" and a source for "rate 5" do not
+        exist to be found.
+        The direction and the existence of a dry-end limit are settled by
+        greaves1920: 19 of its 22 soils rise without a reversal to their own
         optimum and the other three dip by under 2 per cent of their maximum on
         the way, and nothing else in this operator limits nitrification as the
-        soil dries,
-        the partition's aerobic share GROWING as it does. Xu-Ri table 8 eqn 1
-        has no moisture term at all and smith2014 adds none -- its f(W) is the
-        SOM decomposition scalar, a different function in a different place --
-        so neither states the constants either. No replacement is fitted to
-        table 5 here: a curve fitted to a 22-soil mean from a 1920 amended-soil
-        incubation, on an axis that has to be relabelled to reach WFPS, would
-        be another unsourced curve wearing a citation.
+        soil dries, the partition's aerobic share GROWING as it does. xuri2008
+        table 8 eqn 1 has no moisture term at all and smith2014 adds none -- its
+        f(W) is the SOM decomposition scalar, a different function in a different
+        place. greaves1920 cannot settle the SLOPE and this entry does not
+        pretend it can: against its 22-soil mean the limb runs at 0.54 to 0.67 of
+        the measurement over 0.1 to 0.5 WFPS, low by about a third, and against
+        the scatter of the same table, each soil normalised to its own maximum,
+        it is inside the measured range at every one of those points, but that
+        range is 0.00 to 1.00 at 10 per cent WHC and 0.17 to 1.00 at 40, wide
+        enough to admit almost any monotone limb.
+        What the slope PRODUCES is bracketed, by stark1995 on this model's own
+        retention curve, at form:nitrification_activity_dry_limb above, and the
+        limb is inside that bracket. That is a check the slope passes and not a
+        source for it: it is one soil, so it can refuse a slope and it cannot
+        state one. Nothing is fitted here to stand in for a source -- a curve
+        fitted to a 22-soil mean from a 1920 amended-soil incubation, on an axis
+        that has to be relabelled to reach WFPS, would be another unsourced curve
+        wearing a citation, and a slope fitted to one silt loam would be the same
+        thing with a better axis.
 
     - what: function:f_no_nitrification
       source: "xuri2008 table 11 RNON against RN2ON, and pilegaard2013"

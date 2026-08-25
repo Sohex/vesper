@@ -28,12 +28,14 @@ This module is the enforcement, and it can fail:
                or a chain declared to be held inside its pool by an explicit
                min() in the operator that the operator no longer contains
   bound        a declared constant outside the bound plib parses it against
-  divergence   a response function declared to diverge from mainline
-               LPJ-GUESS whose mainline form modules/ntransform.cpp no longer
-               records beside the changed one, or which it has gone back to
-               running. Both halves are checked, because a divergence that is
-               not recorded is a silent fork and one that is recorded but live
-               is a declaration that has drifted from the model
+  divergence   a declared divergence from mainline LPJ-GUESS 4.1.1 whose
+               mainline form the model no longer records beside the changed
+               one, which it has gone back to running, or whose changed line it
+               no longer contains. All three are checked, because a divergence
+               that is not recorded is a silent fork, one that is recorded but
+               live is a declaration that has drifted from the model, and one
+               whose changed line is gone has been reverted with the record
+               left behind
   calibration  an entry in the calibration block whose declared verdict is not
                what the arithmetic says: an `agrees` whose value is not the
                paper's value or is outside the paper's range, an `outside` that
@@ -49,17 +51,23 @@ defect in this checker rather than in the declaration.
                                                            # named residual
 
 `--strict` names exactly what is still undeclared and refuses on that and
-nothing else: the Vesper preconditions that carry the sentinel, plus every
-calibration entry whose verdict is `outside` or `unsourced`. An entry the
-sources settle is no longer part of the refusal.
+nothing else: the Vesper preconditions that carry the sentinel, every
+calibration entry whose verdict is `outside` or `unsourced`, and any mainline
+divergence whose verdict is `gate`. An entry the sources settle is no longer
+part of the refusal, and a divergence declared `keep` is settled in the only
+sense a declaration can settle one.
 
 It is fail-closed in one direction only, on the same terms as `bvoc_gate.py`. A
 run on the Earth-calibrated operator, declared as such, is a correct run of a
 declared model boundary, so the default arm reports and exits 0. `--strict` is
 the arm that refuses.
 
-Nothing here is verified by execution. LPJ-GUESS does not build on this tree,
-so every statement this module makes is against the source and the declaration.
+NOTHING HERE IS VERIFIED BY EXECUTION, and that is stated in both arms rather
+than left to be inferred. LPJ-GUESS does not build on this tree, so every
+statement this module makes is against the source and the declaration, and no
+divergence from mainline has been run in either direction. The declaration names
+the comparison arm that would bound what they are worth; it cannot be run here
+and its absence is not a finding.
 """
 
 from __future__ import annotations
@@ -177,6 +185,13 @@ def _literal_tokens(text: str) -> set[str]:
     return tokens
 
 
+# What a declared divergence from mainline may say about itself. `keep` is a
+# divergence this project reviewed and stood behind, declared at its own site in
+# the operator; `gate` is one that stands but is not settled, and `--strict`
+# refuses while it does. A divergence that does not survive review is reverted
+# and leaves the declaration, so there is no `revert`.
+DIVERGENCE_VERDICTS = ("keep", "gate")
+
 # The verdicts the calibration block may carry. `agrees` and `outside` are
 # claims about a number and are re-derived here; `unsourced` is a claim that
 # no source states the quantity, which no arithmetic can check.
@@ -190,6 +205,97 @@ REFUSING_VERDICTS = ("outside", "unsourced")
 # no number to check; `derived` is a bracket on a quantity computed from the
 # model rather than on any one of its constants.
 COMPARISONS = ("value", "form", "derived")
+
+
+def _check_divergences(declaration: dict, source_text: str, code_only: str,
+                       instruction_text: str, declared_values: dict) -> list[dict]:
+    """Every declared divergence from mainline, against the source it names.
+
+    Three checks on an `operator` entry, and a divergence needs all three. Each
+    `mainline` string has to be IN the operator source, so the record stands
+    beside the changed code and cannot go missing; NOT in the source once
+    comments are stripped, so a silent revert to mainline fails; and `live` has
+    to be in the stripped source, so deleting the changed line fails as well.
+    Without the third, reverting by deleting both would pass.
+
+    An `instruction` entry is the same shape against the instruction file: the
+    declared value has to differ from mainline's, and `record` has to appear in
+    the file, so mainline's number stands beside the changed one there too.
+    """
+    findings: list[dict] = []
+    register = declaration.get("mainline_divergences")
+    if not register:
+        findings.append({"kind": "divergence", "what": "mainline_divergences",
+                         "detail": "the declaration carries no divergence register"})
+        return findings
+
+    def bad(what: str, detail: str) -> None:
+        findings.append({"kind": "divergence", "what": what, "detail": detail})
+
+    for field in ("release", "why_not_verified", "comparison_arm"):
+        if not register.get(field):
+            bad("mainline_divergences", f"the register carries no {field}")
+    if register.get("execution_verified") is not False:
+        bad("mainline_divergences",
+            "execution_verified is not false, and LPJ-GUESS does not build on "
+            "this tree, so no divergence has been run in either direction")
+
+    seen = set()
+    for entry in register.get("entries", []):
+        what = entry.get("id", "?")
+        if what in seen:
+            bad(what, "two register entries share one id")
+        seen.add(what)
+        if entry.get("verdict") not in DIVERGENCE_VERDICTS:
+            bad(what, f"unknown divergence verdict {entry.get('verdict')!r}")
+        if not entry.get("owner"):
+            bad(what, "a divergence naming no owner")
+        for field in ("settles", "worth"):
+            if not entry.get(field):
+                bad(what, f"a divergence saying nothing about what it {field}")
+
+        where = entry.get("where")
+        if where == "instruction":
+            key = entry.get("key")
+            if key not in declared_values:
+                bad(what, f"names {key!r}, which is not a declared constant")
+                continue
+            if "mainline_value" not in entry:
+                bad(what, "an instruction divergence naming no mainline value")
+                continue
+            if declared_values[key] == entry["mainline_value"]:
+                bad(what, (f"declares a divergence from {entry['mainline_value']}, "
+                           f"and {key} is back at it"))
+            record = entry.get("record")
+            if not record:
+                bad(what, "an instruction divergence recording no mainline line")
+            elif record not in instruction_text:
+                bad(what, (f"declares a divergence from {record!r}, and the "
+                           "instruction file does not record that line beside "
+                           "the changed one"))
+            continue
+        if where != "operator":
+            bad(what, f"unknown divergence site {where!r}")
+            continue
+
+        mainline = entry.get("mainline") or []
+        if not mainline:
+            bad(what, "a divergence naming no mainline form")
+        for form in mainline:
+            if form not in source_text:
+                bad(what, (f"declares a divergence from {form!r}, and "
+                           "modules/ntransform.cpp does not record that form "
+                           "beside the changed one"))
+            elif form in code_only:
+                bad(what, (f"declares a divergence from {form!r}, and "
+                           "modules/ntransform.cpp still runs it"))
+        live = entry.get("live")
+        if not live:
+            bad(what, "a divergence naming no line the operator runs instead")
+        elif live not in code_only:
+            bad(what, (f"declares that modules/ntransform.cpp runs {live!r} "
+                       "instead, and it does not"))
+    return findings
 
 
 def _check_calibration(declaration: dict, declared_values: dict,
@@ -330,8 +436,14 @@ def check(declaration: dict, source_text: str, instruction_text: str
                 findings.append({"kind": "bound", "what": key,
                                  "detail": f"{value} is outside the parser bound [{lo}, {hi}]"})
 
-    tokens = _literal_tokens(source_text)
     code_only = _strip_comments(source_text)
+    # Literals are checked against the code and not against the whole file. The
+    # divergence records put mainline's own numbers in comments beside the
+    # changed ones, and a declared form's literals have to be in what the model
+    # RUNS, not merely somewhere in the file.
+    tokens = _literal_tokens(code_only)
+    findings.extend(_check_divergences(declaration, source_text, code_only,
+                                       instruction_text, declared_values))
     extrema: dict[str, tuple[float, float]] = {}
     functions = {spec["name"]: spec for spec in declaration["response_functions"]}
 
@@ -346,26 +458,6 @@ def check(declaration: dict, source_text: str, instruction_text: str
             if text not in tokens and str(literal) not in tokens:
                 findings.append({"kind": "drift", "what": name,
                                  "detail": f"literal {literal} is not in modules/ntransform.cpp"})
-        divergence = spec.get("divergence")
-        if divergence is not None:
-            mainline = divergence.get("mainline")
-            if not mainline:
-                findings.append({"kind": "divergence", "what": name,
-                                 "detail": "a divergence naming no mainline form"})
-            elif not divergence.get("owner"):
-                findings.append({"kind": "divergence", "what": name,
-                                 "detail": "a divergence naming no owner"})
-            elif mainline not in source_text:
-                findings.append({
-                    "kind": "divergence", "what": name,
-                    "detail": (f"declares a divergence from {mainline!r}, and "
-                               "modules/ntransform.cpp does not record that form "
-                               "beside the changed one")})
-            elif mainline in code_only:
-                findings.append({
-                    "kind": "divergence", "what": name,
-                    "detail": (f"declares a divergence from {mainline!r}, and "
-                               "modules/ntransform.cpp still runs it")})
         try:
             lo, hi = evaluate(spec, domains)
         except Exception as error:  # a form that cannot be evaluated is a finding
@@ -446,14 +538,14 @@ def _fixtures(declaration: dict, source_text: str, instruction_text: str
             d["response_functions"][index]["form"] = form
         return apply
 
-    def set_divergence(name, mainline):
-        def apply(d):
-            for spec in d["response_functions"]:
-                if spec["name"] == name:
-                    spec["divergence"] = {"mainline": mainline, "owner": "test"}
-                    return
-            raise KeyError(name)
-        return apply
+    def _divergence(d, entry_id):
+        for entry in d["mainline_divergences"]["entries"]:
+            if entry["id"] == entry_id:
+                return entry
+        raise KeyError(entry_id)
+
+    def divergence_claim(entry_id, field, value):
+        return lambda d: _divergence(d, entry_id).__setitem__(field, value)
 
     def bad_factor(name):
         def apply(d):
@@ -498,10 +590,27 @@ def _fixtures(declaration: dict, source_text: str, instruction_text: str
         ("a chain declared clamped by a min() the operator does not contain",
          mutate(drop_clamp("denitrification_no3_to_no2")), "product"),
         ("a divergence whose mainline form the operator does not record",
-         mutate(set_divergence("nitrification_activity", "double no_such_line;")),
+         mutate(divergence_claim("nitrification_wet_limb", "mainline",
+                                 ["double no_such_line;"])),
          "divergence"),
         ("a divergence from a form the operator in fact still runs",
-         mutate(set_divergence("nitrification_activity", "double b = log(3.0) * 5.0;")),
+         mutate(divergence_claim("nitrification_wet_limb", "mainline",
+                                 ["double b = log(3.0) * 5.0;"])),
+         "divergence"),
+        ("a divergence whose changed line the operator no longer contains",
+         mutate(divergence_claim("nitrification_wet_limb", "live",
+                                 "double nit_act = no_such_call();")),
+         "divergence"),
+        ("an instruction divergence back at the mainline value it names",
+         mutate(divergence_claim("nitrification_gas_share", "mainline_value", 0.022)),
+         "divergence"),
+        ("an instruction divergence whose mainline value the file does not record",
+         mutate(divergence_claim("nitrification_gas_share", "record",
+                                 "! no such recorded line")),
+         "divergence"),
+        ("a register that claims a divergence has been run",
+         mutate(lambda d: d["mainline_divergences"].__setitem__(
+             "execution_verified", True)),
          "divergence"),
         ("a constant declared to agree with a bracket that excludes it",
          mutate(calibration_claim("instruction:f_nitri_gas_max", "bracket", [0.5, 0.9])),
@@ -560,6 +669,13 @@ def main() -> int:
         for entry in declaration.get("calibration", {}).get("entries", [])
         if entry.get("verdict") == "agrees"
     ]
+    register = declaration.get("mainline_divergences", {})
+    divergences = [
+        {"id": entry.get("id", "?"), "verdict": entry.get("verdict", "?"),
+         "owner": entry.get("owner", "?"), "where": entry.get("where", "?")}
+        for entry in register.get("entries", [])
+    ]
+    gated = [d for d in divergences if d["verdict"] == "gate"]
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -570,6 +686,9 @@ def main() -> int:
         "undeclared_preconditions": undeclared,
         "calibration_unsettled": unsettled,
         "calibration_settled": settled,
+        "mainline_release": register.get("release"),
+        "mainline_divergences": divergences,
+        "execution_verified": bool(register.get("execution_verified")),
         "fixtures": fixtures,
     }
     REPORT.parent.mkdir(parents=True, exist_ok=True)
@@ -589,6 +708,17 @@ def main() -> int:
                 print(f"    [{finding['kind']}] {finding['what']}: {finding['detail']}")
         else:
             print("  the declaration matches the source and every bound holds")
+        if divergences:
+            kept = [d for d in divergences if d["verdict"] == "keep"]
+            print(f"\n  {len(divergences)} declared divergence(s) from "
+                  f"{register.get('release', 'mainline')},")
+            print(f"  {len(kept)} kept and {len(gated)} gated. NONE IS "
+                  "EXECUTION-VERIFIED:")
+            print("  LPJ-GUESS does not build on this tree, so no divergence has been")
+            print("  run in either direction. The declaration names the comparison arm.")
+            for item in divergences:
+                print(f"    [{item['verdict']}] {item['id']} ({item['where']})  "
+                      f"[{item['owner']}]")
         total = len(declaration.get("calibration", {}).get("entries", []))
         print(f"\n  calibration: {len(settled)} of {total} entries agree with the source they name")
         if unsettled:
@@ -610,7 +740,7 @@ def main() -> int:
         return 2
     if findings:
         return 1
-    if args.strict and (undeclared or unsettled):
+    if args.strict and (undeclared or unsettled or gated):
         print("\n--strict: refused, on exactly what is still undeclared and nothing else.",
               file=sys.stderr)
         if undeclared:
@@ -619,6 +749,9 @@ def main() -> int:
         if unsettled:
             print(f"  {len(unsettled)} calibration entr(y/ies) outside or unsourced: "
                   + ", ".join(item["what"] for item in unsettled), file=sys.stderr)
+        if gated:
+            print(f"  {len(gated)} mainline divergence(s) gated: "
+                  + ", ".join(item["id"] for item in gated), file=sys.stderr)
         print("Each has to be declared before this operator's output is a Vesper result.",
               file=sys.stderr)
         return 1
