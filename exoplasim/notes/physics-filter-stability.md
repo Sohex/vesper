@@ -90,6 +90,14 @@ are read, since the weaker arm may simply reproduce arm B.
 and same superseded surface. Configs generated from `config/planet.yaml`,
 differing only in the two knobs named.*
 
+*AT gamma 8, AND ON DAMPING THAT REACHED ONE MODEL LEVEL. The model now runs
+gamma 16, and these arms wrote `NDEL` and the four `TDISS*` as namelist scalars,
+which in Fortran assign element one -- so levels 2 to 10 ran `plasimmod`'s
+compiled defaults and, at T42, level one was read in seconds where days were
+meant. Both are fixed in the writers. What the arms compare is still a
+comparison at fixed damping, so the RELATIONS below stand; the absolute numbers
+are for a configuration nothing runs.*
+
 `denergy26 - denergy27`, which must be zero:
 
 | arm | 26 - 27, W/m2 | spread | KE identity |
@@ -208,6 +216,13 @@ archive CLIM-44 says how much that costs.
 
 *Measured 2026-08-23. One full orbit at dt 22.5 through `run_exoplasim.py`; the
 rest of the grid by `stability_probe.py`, 400 steps with output off.*
+
+*EVERY CELL IS A BOUNDARY FOR A DIFFERENT MODEL, and the section "What it would
+take to re-take this grid" below says how to replace it. The probe wrote no
+hyperdiffusion keys at all, so each cell ran `plasimmod`'s compiled defaults
+rather than the derived damping; and the filter was gamma 8 where the model runs
+gamma 16, which is the one knob T42 at dt 90 is known to change a refusal into a
+run.*
 
 | dt | kappa 8 | kappa off |
 | ---: | --- | --- |
@@ -394,3 +409,70 @@ evidence, and the row closes on the bound rather than on an implementation.
 What would reopen it: a configuration where the identity stops closing at the
 adopted kappa, or a rung whose KE conversion is large enough that six tenths of
 a percent is worth chasing.
+
+## What it would take to re-take this grid
+
+The grid above is the ladder's authority for which rung runs at which step, and
+it is a boundary for a model this project no longer runs. Three things separate
+it from the one that is wanted, and all three are now fixed in the writers
+rather than in the reader:
+
+1. **It declared no hyperdiffusion.** `stability_probe.py` wrote the `TDISS*`
+   and `NDEL` keys only when `--tau-scale` was given and the grid was taken
+   without it, so every cell ran `plasimmod`'s compiled defaults -- `ndel = 2`,
+   `tdissz = 1.10 d` -- rather than the values `config/planet.yaml` derives.
+   `--tau-scale` now defaults to 1.0 and `--inherited-damping` is the explicit
+   arm for the old behaviour.
+2. **The damping reached one model level.** A Fortran namelist scalar assigns
+   element one of an `(NLEV)` array. Both writers now replicate over `NLEV`.
+3. **It was taken at gamma 8.** The model runs `filter_power` 16, and T42 at dt
+   90 is measured to refuse at the first and run at the second, so at least one
+   ceiling in the table is wrong in the loose direction.
+4. **And the probe cells cannot be attributed to a build.** The 22 entries in
+   `analysis/stability_probe.json` name no executable, no sha256 and no
+   template; the file carries one `generated` field that is rewritten on every
+   write, so there are no per-entry timestamps; `find_template` selected its
+   binary by modification time; and run directories are untracked, so git
+   brackets when an entry was committed rather than what produced it. They are
+   measurements of an unnamed model. The probe now checks its executable
+   against `binary_manifest.json` and refuses on a mismatch, and every new entry
+   records the name, sha256 and build profile -- so this is fixed forward and
+   unfixable backward. world-qnue.
+
+That fourth one is why the grid is re-taken from scratch rather than patched:
+there is no cell in it that a new cell could be compared against.
+
+And one thing about the instrument rather than the inputs: **a probe qualifies a
+step against REFUSAL and against nothing else.** T42 at dt 45 passes a two-orbit
+arm and dies in its forty-seventh, so refusal and endurance are two verdicts and
+a re-taken grid has to carry both, with each endurance cell saying how many
+orbits it actually survived.
+
+### The command
+
+Refusal first, because it is the half that does not need a quiet machine:
+
+    python exoplasim/scripts/stability_probe.py --rung T170 \
+        --sweep 45,30,22.5,15,10 --kappa 8,off --refusal-only --steps 600
+
+once per rung in T21, T42, T85, T127, T170, then the cost half with the same
+sweep and without `--refusal-only`. `--tau-scale` and `--gamma` default to
+`config/planet.yaml`, which is the point: a cell now records what it was
+measured on in its own `declared` block.
+
+### What has to be true before it is worth running
+
+**Every binary rebuilt, and the manifest naming them.** The probe now refuses an
+executable `binary_manifest.json` does not match, so the staleness world-anl
+found cannot recur -- but that guard only helps once the manifest describes the
+tree. It predates the parmode-axis removal, so `--verify` currently reports
+every MATRIX row missing and the registry directory is empty; that is a stale
+registry and says nothing about the damping. With the model still moving this is
+the binding constraint anyway: rule 7 makes the grid worthless the moment the
+source under `vendor/exoplasim` moves again, so it is re-taken after the model
+settles and not before.
+
+**And the cost half needs the machine to itself.** It prices a step from wall
+time by differencing two lengths, so a concurrent run does not add noise to it,
+it adds a bias in one direction. `--refusal-only` exists so the half that does
+not care can be taken anyway.

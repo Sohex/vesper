@@ -1,0 +1,82 @@
+{
+  "note": "Spectral price of the physics filter, and whether the instrument can resolve a change in filter_kappa. Criteria fixed in the script before any arm ran. exoplasim/scripts/filter_spectral_cost.py",
+  "generated": "2026-08-25T09:31:25.303704+00:00",
+  "criteria": {
+    "kappa_factor": 2.0,
+    "resolve_sigma": 3.0,
+    "min_windows": 4,
+    "window_orbits": 2,
+    "excess_factor": 2.0
+  },
+  "runs": [
+    {
+      "run": "run_a2dc0ab73074",
+      "rung": "T21",
+      "truncation": 21,
+      "orbits": [
+        40,
+        83
+      ],
+      "window_orbits": 2,
+      "windows": 22,
+      "namelist": {
+        "FILTERKAPPA": "8.0",
+        "NFILTEREXP": "16",
+        "MPSTEP": "45.0",
+        "NDEL": "10*4",
+        "NHDIFF": "8",
+        "TDISSZ": "10*2.2285"
+      },
+      "mean": {
+        "inertial_slope": -1.6988202160992267,
+        "bite_wavenumber": 11.772727272727273,
+        "bite_fraction": 0.5606060606060606,
+        "depth_dex": -0.9688563514267569,
+        "depth_wavenumber": 17.0,
+        "depth_readable": 1.0,
+        "roundoff_floor": 4.820203216260894e-15,
+        "last_live_wavenumber": 20.0,
+        "last_live_fraction": 0.9523809523809524,
+        "depth_at_truncation_dex": -13.038692975846562,
+        "ke_removed_fraction_of_law": 0.20007141110647667,
+        "ke_removed_fraction_of_total": 0.14488176614363935
+      },
+      "sd": {
+        "inertial_slope": 0.07319474676285838,
+        "bite_wavenumber": 0.4289320272288885,
+        "bite_fraction": 0.020425334629947046,
+        "depth_dex": 0.04963983528049582,
+        "depth_wavenumber": 0.0,
+        "depth_readable": 0.0,
+        "roundoff_floor": 9.586078618637535e-17,
+        "last_live_wavenumber": 0.0,
+        "last_live_fraction": 1.136349493877995e-16,
+        "depth_at_truncation_dex": 0.052800048995718045,
+        "ke_removed_fraction_of_law": 0.02241763873492939,
+        "ke_removed_fraction_of_total": 0.015334847112055662
+      },
+      "sensitivity": {
+        "kappa": 8.0,
+        "gamma": 16,
+        "dt_seconds": 2700.0,
+        "tau_vorticity_seconds": 192542.4,
+        "R_at_truncation": 1140.992,
+        "predicted_bite_fraction": 0.6254335294654959,
+        "depth_fraction": 0.8,
+        "predicted_depth_dex": -1.6143179857906076,
+        "factor": 2.0,
+        "d_bite_fraction": 0.029579330158679196,
+        "d_bite_fraction_stronger": 0.028243575051309033,
+        "d_depth_dex": 0.290601025960169,
+        "d_depth_dex_stronger": 0.2957200681996357,
+        "bite_quantisation": 0.047619047619047616
+      },
+      "verdict": {
+        "resolvable_bite": false,
+        "resolvable_depth": true,
+        "bar_bite_fraction": 0.06127600388984114,
+        "bar_depth_dex": 0.14891950584148747
+      }
+    }
+  ]
+}

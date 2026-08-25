@@ -323,124 +323,123 @@ diagnostic is what judges it.
   may need one iteration. Most eddy energy sits at large scales, so the effect is
   expected to be small, and it is a prediction to check rather than an assumption.
 
-## The hyperdiffusion is not what damps this model
+## The hyperdiffusion reaches every level now, and it moves the spectrum
 
-*Measured 2026-08-23, after the derived values were implemented and tested.*
+*First measured 2026-08-23 and read as a null; re-measured 2026-08-25 on a
+damping that reaches all ten levels, which reverses it.*
 
-The derived damping was applied at T42 and run two orbits from the settled
-restart. **The kinetic-energy spectrum did not move**: inertial-range slope
--2.49 against the old configuration's -2.48, bite point m=28 in both, against a
-change in `tau_vorticity` of 3.7x. A diagnostic insensitive to a factor of
-nearly four in the quantity it is meant to judge is either broken or is watching
-the wrong mechanism.
+The 2026-08-23 experiment applied the derived damping at T42, ran two orbits
+from the settled restart, and reported that **the kinetic-energy spectrum did
+not move**: inertial-range slope -2.49 against -2.48, bite point m=28 in both,
+against a change in `tau_vorticity` of 3.7x. That arm did not apply what it
+recorded. `ndel` and the four `tdiss*` are `(NLEV)` arrays and a Fortran
+namelist scalar assigns element one, so levels 2 to 10 kept `readnl`'s presets
+-- `ndel = 2`, `tdissz = 1.10 d`, `tdissd = 0.20 d`, `tdisst = 5.60 d`,
+`tdissq = 0.1 d` -- while level one alone held the derived values. A null
+measured on one level in ten is a null about one level in ten.
 
-It is the wrong mechanism. The physics filter and the hyperdiffusion both damp
-the top of the spectrum, and they are not close:
+### The re-measurement, and it is not a null
 
-| n/N | hyperdiffusion, derived | physics filter | filter stronger by |
-| ---: | ---: | ---: | ---: |
-| 0.5 | 19579 h | 12.0 h | 1632x |
-| 0.7 | 379 h | 0.81 h | 466x |
-| 1.0 | 26.7 h | 0.047 h | 571x |
+Two T21 arms already on disk, `run_8044646ea7f0` and `run_a2dc0ab73074`, 85
+orbits each. Same binary by sha, same cold start, same seed, same surface fields
+by sha, same stellar spectrum, same everything the manifest records. The
+namelist difference is the whole of the experiment: one writes `NDEL = 4` and
+`TDISSZ = 2.2285` as scalars and the other writes `10*4` and `10*2.2285`. So
+levels 2 to 10 run `del^2` at the presets in one arm and the derived `del^4` in
+the other, which is a larger perturbation than the 3.7x in `tau` the first
+experiment attempted.
 
-The filter is applied at BOTH transform directions every timestep, so a field is
-multiplied by `f(n)^2` per step and the implied rate is `2 kappa (n/N)^gamma /
-dt`. At the truncation that is an e-folding every 169 seconds, against the
-hyperdiffusion's 26.7 hours. **Between two and three orders of magnitude, at
-every scale.**
+Measured by `exoplasim/scripts/filter_spectral_cost.py`, orbits 40 to 83 in 22
+disjoint two-orbit windows:
 
-### Where the damping actually starts
+| | level 1 only | all ten levels | separation |
+| --- | ---: | ---: | ---: |
+| depth at 0.8 of the truncation, dex | -1.418 +/- 0.049 | -0.969 +/- 0.050 | **6.4 sigma** |
+| fitted inertial slope | -2.086 +/- 0.060 | -1.699 +/- 0.073 | 4.1 sigma |
+| eddy KE removed | 12.2% +/- 1.1% | 14.5% +/- 1.5% | 1.3 sigma |
+| bite point | 0.567 +/- 0.014 | 0.561 +/- 0.020 | 0.3 sigma |
 
-Against the flow's own cascade rate at T42, the filter overtakes at
-**n/N = 0.41**, and the spectrum's measured departure from its inertial range is
-at **0.44**. Prediction and measurement agree to the resolution of the
-diagnostic, which is what makes this an explanation rather than a coincidence.
+The offset is not a fluctuation of one window range. Across three independent
+stretches of the same pair it is +0.417, +0.450 and +0.448 dex, against a
+within-stretch scatter of 0.04 to 0.06.
 
-So the model damps everything above about 0.44 of its truncation, and the
-confinement criterion the derivation was built to -- damping subdominant to the
-cascade until 0.6 or above -- is missed by the FILTER, not by the diffusion.
+**So the hyperdiffusion does move this spectrum, and by more than the whole of
+`filter_kappa` is worth.** The direction is what the operator order says: the
+presets damp with `del^2` where the derived values damp with `del^4`, so the
+arm on presets takes more out of the middle of the spectrum and leaves a
+steeper slope and a deeper tail.
 
 ### What that overturns
 
-**This row's premise.** The high-rung late failures were attributed to
-hyperdiffusion inherited from T21 being too weak. It cannot be that: whatever
-the hyperdiffusion was set to, the filter was providing several hundred times
-more damping at the same scales. The inherited values were indefensible and are
-now derived, which is worth having on its own, but they were never what was
-holding those runs up or letting them go.
+**The corroborating experiment, and the reading taken from it.** This row was
+filed as "the hyperdiffusion is not what damps this model" and the derived
+values were treated as worth having on principle rather than for any effect
+they had. They have an effect, and it is the largest single term in the
+spectrum's departure from its own inertial range.
 
-**The filter is the lever.** `filter_kappa` was chosen at 8 because it won on
-stability and on the adiabatic residual, with no measurement of what it was
-doing to the resolved spectrum. It is doing a great deal: reaching down to 0.41
-of the truncation, where the design intent was 0.6 and above.
+**The comparison that made the filter look dominant.** The table below was
+computed from a rate law -- `2 kappa x^gamma / dt` -- that
+`filter-spectral-price.md` refutes with two timestep pairs, and it was computed
+at gamma 8 where the model runs gamma 16:
 
-**And the rung-dependence still needs explaining.** The filter is scale-free in
-`n/N`, so it damps the same FRACTION of the spectrum at every truncation; its
-ratio to the cascade at the truncation moves only from 570 at T42 to 282 at
-T170, through the timestep. Neither mechanism is strongly rung-dependent, so the
-late failures at T85 and above are not explained by damping at all and the
-ordinary candidate -- the advective CFL at the shorter grid spacing -- is back
-in front.
+| n/N | hyperdiffusion, derived | filter at gamma 8 | filter at gamma 16 |
+| ---: | ---: | ---: | ---: |
+| 0.5 | 19551 h | 12.0 h | 3072 h |
+| 0.7 | 379 h | 0.81 h | 14.1 h |
+| 1.0 | 26.7 h | 0.047 h | 0.047 h |
 
-## Corrected: the filter was not over-reaching, and the diagnostic was wrong
+Even taking the rate law at face value, the filter's margin over the
+hyperdiffusion at half the truncation falls from 1632x at gamma 8 to 6.4x at
+gamma 16. The filter's real spectral effect is a fixed attenuation of the
+nonlinear tendency rather than a rate on the state, so the two are not
+commensurable as rates at all; `filter-spectral-price.md` carries the argument
+and the measurement.
 
-*2026-08-23. Three claims in the section above do not survive their own test, and
-the cause was one defect in the instrument.*
+**And the rung-dependence still needs explaining.** Neither mechanism is
+strongly rung-dependent, so the late failures at T85 and above are not
+explained by damping, and the ordinary candidate -- the advective CFL at the
+shorter grid spacing -- is still in front.
 
-**The diagnostic normalised by the wrong truncation.** `spectral_tail.py` took
-the FFT's Nyquist as the truncation -- m=64 for a T42 run on 128 longitudes --
-where the model represents nothing above m=42. Everything from m=43 to 64 sits
-at 1e-15, which is roundoff. So a bite point at m=28 was reported as 0.44 of the
-truncation when it is 0.67, and a filter comfortably inside its confinement
-requirement was written up as damping away a third of the resolved spectrum.
+## The gamma trade, on a long window
 
-What that retracts:
+*The spectral half re-measured 2026-08-25 on 24 orbits; the energy half stands
+where it was taken, on two.*
 
-- **"The filter overtakes the cascade at 0.41 and the spectrum bites at 0.44,
-  agreeing to the resolution of the diagnostic."** The agreement was between a
-  correct calculation and a mis-normalised measurement. Against the model's
-  actual truncation the bite at gamma 8 is at **0.60**, marginal against the
-  0.60 floor rather than far below it.
-- **"The model is damping away everything above 0.44 of its truncation."** It is
-  not. Above 0.60 at gamma 8, and above 0.67 at gamma 16.
-- **"kappa sets stability and gamma does not."** Measured false: T42 at dt 90
-  refuses at gamma 8 and does not at gamma 16. `f(N) = exp(-kappa)` is indeed
-  independent of gamma, so the grid-scale damping is unchanged, but the trap
-  does not depend only on that.
+`filter_power` is 16 and was 8. The two sides of that choice, from two T42 arms
+at dt 30 differing in `NFILTEREXP` alone, twelve disjoint two-orbit windows
+each, with the two-orbit energy arms beside them:
 
-### What the gamma change actually buys, and what it costs
+| | gamma 8 | gamma 16 | window |
+| --- | ---: | ---: | --- |
+| spectral bite point | 0.688 +/- 0.007 | 0.714 +/- 0.000 | 24 orbits |
+| depth at 0.8 of the truncation, dex | -1.391 +/- 0.029 | -0.602 +/- 0.020 | 24 orbits |
+| eddy KE removed | 2.64% +/- 0.19% | 1.87% +/- 0.20% | 24 orbits |
+| T42 refusal at dt 90 | refuses | runs | one arm each |
+| adiabatic residual, 26-27 | -0.458 | -1.443 | 2 orbits |
+| kinetic-energy identity | -0.000, closes | +0.151, 7% open | 2 orbits |
 
-Both arms from the settled T42 restart, two orbits, derived hyperdiffusion,
-differing only in `filter_power`:
+The long window narrows the spectral side of the trade and does not change its
+sign: gamma 16 confines the filter to a higher fraction of the truncation and
+leaves a third less of the eddy kinetic energy in the damped band, and both
+separations clear three sigma. The energy side is unchanged and is the cost: the
+kinetic-energy identity closing is what says the dissipation is booked, so 7 per
+cent open is real, and it has still only been read on two orbits.
 
-| | gamma 8 | gamma 16 |
-| --- | ---: | ---: |
-| spectral bite point | 0.60 of truncation | **0.67** |
-| KE preserved at 0.6 of the FFT range | reference | **60x more** |
-| T42 refusal at dt 90 | refuses | **runs** |
-| adiabatic residual, 26-27 | -0.458 | **-1.443** |
-| kinetic-energy identity | -0.000, closes | **+0.151, 7% open** |
+The derived hyperdiffusion carries its own share of the energy side: at gamma 8
+it moved `26 - 27` from +0.315 under PlaSim's T42 branch to -0.458, a sign
+change. That is consistent with the section above -- the diffusion shapes the
+spectral state the identity is sensitive to, and it shapes it by 0.45 dex.
 
-So it is a TRADE and not a free improvement: sharper confinement and a longer
-stable step, paid for with three times the adiabatic non-conservation and a
-kinetic-energy identity that stops closing. The identity closing is what says
-the dissipation is being booked, so 7% open is a real cost and not a cosmetic
-one.
+### The confinement number is not a filter number
 
-The derived hyperdiffusion carries its own share of that: at gamma 8 it moved
-`26 - 27` from +0.315 under PlaSim's T42 branch to -0.458, a sign change. That
-is the diffusion mattering to the energy budget while not mattering to the
-spectrum, which is consistent -- the identity is sensitive to the spectral state
-the diffusion shapes, not to the damping rate at the truncation alone.
-
-### Where that leaves the filter row
-
-Not where it was filed. The premise was that the filter reaches to 0.41 of the
-truncation and throws away a third of every rung; it reaches to 0.60, which is
-the floor rather than a violation of it. `gamma 16` improves confinement to 0.67
-and buys timestep, and it is not obviously worth what it does to the energy
-budget. That is a decision with two measured sides rather than a defect to fix,
-and it should be taken against a longer window than two orbits.
+`spectral_tail.py`'s bite point is where the measured spectrum leaves its own
+extrapolated inertial range, and at gamma 16 that departure is mostly the
+hyperdiffusion's. It measures 0.561 at T21 and 0.714 at T42 on the same filter,
+and the filter is scale-free in `n/NTRU`, so the rung dependence is not the
+filter's. `check_consistency.py` computes a filter-only crossover from the rate
+law and reports 0.625 at T21, which is neither what the spectrum does nor what
+the surviving law predicts; `filter-spectral-price.md` carries the measurement
+and world-ugxo carries the gate.
 
 ## Scrutiny of the derivation, and the trade re-examined
 
