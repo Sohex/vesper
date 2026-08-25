@@ -113,10 +113,13 @@ static const double NCONC_SAT = 0.02;
 //     static const double PMASS_SAT = 0.002;
 // which is Parton's axis maximum carried across unconverted. This project
 // converts the THRESHOLD into the fork's own labile-P currency by the factor
-// 6.6 applied below, giving 0.0132 kgP/m2. There is no register file for this
-// module's divergences yet, on the ntransform.yaml pattern; until there is,
-// this comment and biosphere/notes/phosphorus-cycle-parameterisation.md are
-// the record.
+// 6.6 applied below, giving 0.0132 kgP/m2. biosphere/config/somdynam.yaml is
+// the register, on the ntransform.yaml pattern, and
+// biosphere/scripts/somdynam_gate.py checks that this comment records the
+// fork's line, that the fork's line is not what runs, and that the converted
+// one is. The reference point there is the vendored subtree commit and not a
+// release: LPJ-GUESS 4.1.1 has no phosphorus. The argument is
+// biosphere/notes/phosphorus-cycle-parameterisation.md.
 //
 // The threshold and not the driver, because PMASS_SAT does a SECOND job:
 // somfluxes() ends by pinning soil.pmass_labile to PMASS_SAT whenever !ifplim,
@@ -914,7 +917,8 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 	setptoc(soil, pmin_mass, SOILMICRO, 80.0, 30.0, 0.0, PMASS_SAT);
 
 	// DECLARED DIVERGENCE FROM MAINLINE: surfhumus_ptoc_ramp, owner
-	// WORLD-SHCP. The vendored CNP fork leaves this line commented out,
+	// WORLD-SHCP, registered in biosphere/config/somdynam.yaml. The vendored
+	// CNP fork leaves this line commented out,
 	//     //setptoc(soil, pmin_mass, SURFHUMUS, 200.0, 90.0, 0.0, PMASS_SAT);
 	// so the surface humus pool alone among the ramped pools has no phosphorus
 	// ramp, and holds the C:P soil.cpp initialises it to for the whole of a

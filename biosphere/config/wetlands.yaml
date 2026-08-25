@@ -265,6 +265,97 @@ acceptance:
     - aresidual_water.out      # water closure residual
     - aresidual_cnp.out        # C, N and P closure residuals
     - aresidual_ch4.out        # atmospheric methane budget imbalance
+  # WHAT THE VENDORED FORK CAN ACTUALLY EMIT, PER RETAINED TABLE.
+  #
+  # `run_lpj_guess.py` derives one instruction row from each retained filename's
+  # stem, so `mwtp.out` becomes `file_mwtp "mwtp.out"`, and plib rejects an
+  # instruction file naming a parameter nothing declared. A retained table with
+  # no emitter therefore does not produce an empty file; it produces a run that
+  # aborts while parsing its own instruction file, naming one unknown parameter
+  # and nothing about why it is unknown. This block is what turns that into a
+  # refusal at activation that names every missing table and what each waits on.
+  #
+  # `wetland_gate.py` checks BOTH halves of every entry against
+  # modules/commonoutput.cpp: an `emitted: true` whose parameter the source does
+  # not declare, and an `emitted: false` whose parameter it now does. The second
+  # matters as much as the first, because a table that has become available and
+  # is still recorded as waiting is one nobody will think to ask for.
+  #
+  # Every `waits_on` here is a MODEL and not an output routine. The argument for
+  # each is biosphere/notes/wetland-activation-contract.md section 6.
+  retained_output_status:
+    mwtp.out:
+      emitted: true
+      quantity: patch.soil.mwtp, the monthly water-table position
+    mch4_diffusion.out:
+      emitted: true
+      quantity: Fluxes::CH4C_DIFF
+    mch4_plant.out:
+      emitted: true
+      quantity: Fluxes::CH4C_PLAN
+    mch4_ebullition.out:
+      emitted: true
+      quantity: Fluxes::CH4C_EBUL
+    mch4_production.out:
+      emitted: false
+      waits_on: WET-6
+      why: >-
+        Soil::CH4_prod is computed per layer in the detailed peat path and
+        accumulated nowhere, and the simplified inundated path has no production
+        term at all: its CH4:CO2 constant is an emission factor with oxidation
+        already folded in. A table emitted now would carry a real number over
+        one path and a zero over the other beside a non-zero emission.
+    mch4_oxidation.out:
+      emitted: false
+      waits_on: WET-6
+      why: >-
+        Soil::CH4_oxid, the same shape as production and the same two paths.
+        process.oxidation_separate is the declaration that has to land first.
+    mch4_drysoil_uptake.out:
+      emitted: false
+      waits_on: WET-8
+      why: the module has no near-surface aerobic methane sink
+    mch4_aquatic.out:
+      emitted: false
+      waits_on: WET-8
+      why: the module has no inland-water methane source
+    mwetland_exchange.out:
+      emitted: false
+      waits_on: PLHY-4
+      why: >-
+        the routed and groundwater exchange, which is the same absence
+        hydrology.water_ledger refuses on
+    awetland_area.out:
+      emitted: false
+      waits_on: WET-2
+      why: there is no mutually exclusive wetness classification to aggregate
+    awetland_area_native.out:
+      emitted: false
+      waits_on: WORLD-D9U4
+      why: there is no declared support for a saturated fraction on the native mesh
+    apeat_stock.out:
+      emitted: false
+      waits_on: WET-4
+      why: WET-4 owns the depth bracket a peat stock has to be reported against
+    aresidual_water.out:
+      emitted: false
+      waits_on: PLHY-4
+      why: >-
+        the water ledger itself, and a residual computed over a graph with
+        undeclared terms is not a residual
+    aresidual_cnp.out:
+      emitted: false
+      waits_on: WET-8
+      why: >-
+        the labelled surface ledger the C-N-P closure would be taken over, which
+        ledger.surfaces refuses on
+    aresidual_ch4.out:
+      emitted: false
+      waits_on: WET-10
+      why: >-
+        the atmospheric methane budget closes through an oxidant and lifetime
+        boundary that atmosphere.oxidant_interface refuses on
+
   # The residual a closed ledger is allowed, as a fraction of the corresponding
   # gross flux. Fixed here, before any run exists, so it cannot be widened to
   # admit a result.

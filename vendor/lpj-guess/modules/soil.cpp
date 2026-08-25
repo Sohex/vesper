@@ -88,7 +88,8 @@ void Soil::init_states() {
 	// call to somfluxes().
 	//
 	// DECLARED DIVERGENCE FROM MAINLINE: surfhumus_ptoc_init, owner
-	// WORLD-SHCP. The vendored CNP fork has
+	// WORLD-SHCP, registered in biosphere/config/somdynam.yaml. The vendored
+	// CNP fork has
 	//     sompool[SURFHUMUS].ptoc = 1.0 / 150.0;
 	// and nothing overwrote it, because that fork gives the surface humus pool
 	// no phosphorus ramp. 150 has no source for a humus pool: the cited paper

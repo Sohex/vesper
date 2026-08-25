@@ -81,7 +81,7 @@ a result.
 | productivity prediction | registered, unscored |
 | calendar and astronomy port | mechanical calendar and orbital geometry applied; natural phenology still has unreachable Earth dates under BIO-21 |
 | PFT time base | one contract with four classes, in `notes/time-base-unit-contract.md`; `build_vesper_pfts.py` executes it and names each parameter's class in the file it writes and in its provenance |
-| input module | `vesperinput`, runs end to end and splits across MPI ranks; its 12-bin `VESPDRV7` transport is integration scaffolding to be replaced under EFOR-1 through EFOR-8 |
+| input module | `vesperinput`, runs end to end and splits across MPI ranks. Its `VESPDRV8` transport is CHRONOLOGICAL: the file carries a table of forcing intervals with explicit bounds and duration in absolute seconds and the local solar phase of each, any count, and `integrate_year` takes each absolute day's duration-weighted mean over the intervals overlapping it. So the 24-hour hydrology and biogeochemistry boundary is the consumer's rather than the format's, twelve intervals a year and one per timestep are the same code path, and the smooth curve `interp_monthly_means_conserve` manufactured between bin centres is gone because the producer states an interval mean and says nothing about the shape inside it. `config/ecological_forcing_contract.yaml` is what it has to carry; EFOR-3 and EFOR-8 own the artifact that will replace the binary |
 | soil and water | pedology depth scales LPJ capacity and pedology AWC sets ExoPlaSim's scalar bucket at smoke scale, but the models independently derive hydraulic properties and run separate snow/soil water balances; LSHY-1 through LSHY-7 own the consistency work |
 | abiotic nutrients | the ledger is DEFINED and does not CLOSE: `abiotic_nutrient_ledger.py` carries thirteen control volumes and twenty-one terms, every one of them still holding the `undeclared` sentinel with its owning issue named. Rock P and dust mass have useful relative/source artifacts but no absolute flux; `phosphorus_budget.py` does not consume dust deposition, and ANUT-2 through ANUT-6 and ANUT-10 own the terms that would close it |
 | abiotic source screen | geomorphic renewal, arc tephra and marine aerosol are RETAINED against the ledger, volcanic sulfate deposition is registered and not implemented, and fire ash and lightning belong to FIRE-7 and ANUT-4. The exhumation and tephra rates come from Earth's stationary population and not from the terrain; no screen may be carried on an aerosol optical depth |
@@ -396,6 +396,13 @@ python biosphere/scripts/build_lpj_driver.py      # climate + soil codes + gridl
 cmake --build vendor/lpj-guess/build --parallel 16
 ```
 
+`build_lpj_driver.py --self-test` runs the interval arithmetic and header layout
+fixtures and exits: no climatology, no soil map, no model. It covers the
+operator `vesperinput.cpp:integrate_year` implements and the byte layout that
+module parses, which is what can be executed here -- LPJ-GUESS does not build on
+this tree, so the C++ itself is checked by `g++ -fsyntax-only` against a
+synthetic `vesper.h` and never run.
+
 All three land in `biosphere/generated/`, along with the gate and ledger
 reports. That directory is output and is not tracked: everything in it is
 re-derived by a step registered in `config/pipeline.yaml`, and what each gate
@@ -426,8 +433,8 @@ exit with every unmet one named.
 
 ### The wetlands, their peat and their methane are off, and off is a decision
 
-`wetland_gate.py` is that decision made explicit, and it refuses on two grounds
-rather than one. `run_peatland 1` plus `ifmethane 1` reads like two switches and
+`wetland_gate.py` is that decision made explicit, and it refuses on three
+grounds rather than one. `run_peatland 1` plus `ifmethane 1` reads like two switches and
 is four models -- where the simulated wetlands are, how water reaches and leaves
 them, how peat carbon and redox make and consume CH4, and what an atmosphere
 does with the flux. `biosphere/config/wetlands.yaml` is where each precondition
@@ -447,6 +454,19 @@ mutations of the EVIDENCE so that the contradiction branch stays checkable after
 the repair that made the source agree, and a met declaration against a repaired
 source which must be granted, because a gate nothing can satisfy is a wall
 refusing for a reason nobody wrote down.
+
+The third ground is what the fork can EMIT. An accepted run has to retain
+fifteen tables together, and four of them have a quantity behind them: the
+monthly water table, and the diffusion, plant-transport and ebullition fluxes.
+The other eleven wait on a model rather than on an output routine, and
+`acceptance.retained_output_status` records which model each waits on.
+`run_lpj_guess.py` derives one instruction row from each retained filename's
+stem, so a table with no declared parameter in `modules/commonoutput.cpp` does
+not produce an empty file -- it aborts the run while plib parses the instruction
+file, naming one unknown parameter and nothing about why it is unknown. The gate
+refuses ahead of that, naming every missing table and its owning issue, and it
+checks the reverse direction as well, because a table that has become available
+and is still recorded as waiting is one nobody will think to ask for.
 
 ```bash
 python biosphere/scripts/wetland_gate.py                       # what is undeclared
@@ -608,6 +628,45 @@ carries three defects the operator had: the soil map's pH never reached it, its
 no-pH fallback ran on a variable nothing assigns, and its only conservation check
 was an `assert` that Release compiles out.
 
+### The phosphorus path's divergences from the CNP fork are registered
+
+`somdynam_gate.py` is the same enforcement as `ntransform_gate.py` on a
+different reference point. The soil nitrogen transformation operator is stock
+LPJ-GUESS 4.1.1, which the tree can name by Zenodo record and SVN revision.
+LPJ-GUESS 4.1.1 has no phosphorus at all: `pmass_labile`, `setptoc`, the
+sorption isotherm and both saturation thresholds arrived with the CNP fork, so a
+divergence on this path can be measured against nothing but the commit that
+subtree was imported at, and `biosphere/config/somdynam.yaml` names it.
+
+The declaration carries the three divergences, the two saturation constants, the
+five C:P ramps and the two lines the phosphorus argument rests on. The gate
+fails on a constant whose line `modules/somdynam.cpp` no longer runs or whose
+value is not what that line's own initialiser evaluates to; on a ramp whose
+`setptoc` call the source no longer contains, or contains a different number of
+times, the call being BUILT from the declaration so neither side can move alone;
+on a ramp leaving the P:C range its two endpoints allow; on an invariant the
+model no longer runs, which is how the phosphorus-limitation-off pin being split
+off the ramp threshold is caught even though no constant moved; and on any of
+the three halves of a divergence, so it can become neither a silent fork nor a
+silent revert.
+
+Each entry also says which configuration it is live in. Two of the three are
+inert under the `ifplim 0` this project runs, and that is recorded as waiting
+rather than as harmless: the comparison arm that would bound what they are worth
+needs two runs, and the `ifplim 1` one needs `parameters.cpp`'s refusal lifted
+first.
+
+```bash
+python biosphere/scripts/somdynam_gate.py            # status, exit 0
+python biosphere/scripts/somdynam_gate.py --strict   # refuses while a saturation
+                                                     # constant has no source
+```
+
+`--strict` refuses on `PCONC_SAT`, which carries `NCONC_SAT`'s value and has no
+phosphorus source anywhere in the tree. That is the refusal `parameters.cpp`
+already makes on `ifplim 1`, restated where the constant is declared instead of
+living only in a C++ error string.
+
 ### Respiration acclimates to a growth temperature, or not at all
 
 `respiration_acclimated()` replaces each simulated plant functional type's
@@ -714,4 +773,4 @@ reported year, but it does mean fire is off for the first tenth of it.
 ## One-off tools
 
 - `scripts/score_prediction.py` -- one-off: scores a productivity prediction against an LPJ-GUESS run, the machinery behind BIO-2's nitrogen bracket. Registered under `one_offs` in `config/pipeline.yaml`; it generates nothing the pipeline reads.
-- `scripts/check_forcing_contract.py` -- one-off: a verdict on a climate product against `notes/ecological-forcing-field-contract.md`. Runs the closure, sign and bracketing identities, and carries seven reduced fixtures, six of them wrong in a named way, so it can fail on itself. Registered under `one_offs`; it generates nothing.
+- `scripts/check_forcing_contract.py` -- one-off: the ecological forcing contract, enforced in both directions. `config/ecological_forcing_contract.yaml` is the versioned declaration and `notes/ecological-forcing-field-contract.md` is its argument. It checks the DECLARATION against `outmod.f90:ecogp`, which is the producer that has to satisfy it -- a declared code the model does not write, a code the model writes that no row declares, a row missing a column of the schema, a process requiring a field the contract does not declare, a cadence that is neither a declared class nor the `undeclared` sentinel with an owner -- and it checks a PRODUCT against the closure, sign and bracketing identities. Fourteen declaration fixtures and eight product fixtures, all but one of each wrong in a named way, so it can fail on itself. Registered under `one_offs`; it generates nothing.

@@ -4,15 +4,32 @@ Worldbuilding frame: Vesper is a simulated super-Earth, its climate is
 ExoPlaSim and its biosphere is LPJ-GUESS. Everything below is about the fields
 those two models hand each other.
 
-`biosphere/notes/ecological-forcing-field-contract.md` is the contract; this is
-the half of it that can fail. It runs the identities in that note's "The
-identities that can fail" section against an actual product, and it runs a set
-of reduced fixtures built to be wrong in a named way on every invocation, so a
-fixture that does not get the verdict it was built for is a defect in the
-checker rather than in the product.
+`biosphere/config/ecological_forcing_contract.yaml` is the versioned contract
+and `biosphere/notes/ecological-forcing-field-contract.md` is its argument; this
+is the half of both that can fail. It does two things on every invocation.
 
-    python biosphere/scripts/check_forcing_contract.py                    # fixtures
+THE DECLARATION, against the producer that has to satisfy it. Every field row
+names a service-format code, and `outmod.f90:ecogp` is where those codes are
+written, so the two can be checked against each other: a declared code the model
+does not write is a contract naming a field nobody produces, and a code the
+model writes that no row declares is a field crossing the seam with no agreed
+meaning. It also refuses a row missing any column of the declared schema, a
+process whose required field is not a declared field, a cadence that is neither
+a declared class nor the `undeclared` sentinel with an owner, and an identity
+naming a check this module does not implement.
+
+THE PRODUCT, against the identities. The identities in the contract's own list
+run against an actual product, and a set of reduced fixtures built to be wrong
+in a named way runs on every invocation, so a fixture that does not get the
+verdict it was built for is a defect in the checker rather than in the product.
+
+    python biosphere/scripts/check_forcing_contract.py                    # declaration and fixtures
     python biosphere/scripts/check_forcing_contract.py --climatology X.nc # and a product
+
+THE CONTRACT IS NOT THE TRANSPORT. Nothing here says how the artifact is
+stored, and nothing here may be relaxed because a container would find a row
+inconvenient to carry. EFOR-3 builds the artifact and EFOR-4 the reader; both
+are held to the declaration.
 
 Exit 0 when every fixture got its expected verdict and, where a product was
 given, every REQUIRED check on it passed. A check can also report ABSENT, which
@@ -24,12 +41,17 @@ field as though it were delivered.
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
 import numpy as np
+import yaml
 
 from _paths import CONFIG, PROJECT_ROOT  # noqa: F401
+
+COMPONENT_ROOT = Path(__file__).resolve().parents[1]
+DECLARATION = COMPONENT_ROOT / "config" / "ecological_forcing_contract.yaml"
 
 PASS = "ok"
 FAIL = "FAIL"
@@ -233,6 +255,302 @@ def check_present(data: dict) -> list[tuple[str, str, str]]:
     return out
 
 
+# ---------------------------------------------------------------------------
+# The declaration, against the producer that has to satisfy it.
+# ---------------------------------------------------------------------------
+
+# Every column a field row has to carry. The schema block in the declaration
+# argues each one; this is the list the rows are held to, and a row missing any
+# of them is refused rather than defaulted, because every default here would be
+# a meaning nobody agreed.
+ROW_COLUMNS = ("name", "producer_code", "producer_expression", "contract_unit",
+               "time_base", "kind", "semantics", "area_basis", "sign",
+               "converts")
+
+KINDS = ("mean", "extremum", "instantaneous")
+SEMANTICS = ("intensive", "extensive", "extremal")
+
+UNDECLARED = "undeclared"
+
+
+def _split_args(text: str) -> list[str]:
+    """Split a Fortran argument list on top-level commas.
+
+    Nested calls are the reason: `writescalar(143,real(nstep+1-naccueco)*deltsec,600)`
+    has a comma-free inner call, but a naive split on the first `)` truncates
+    the argument and loses the code entirely.
+    """
+    parts, depth, current = [], 0, []
+    for char in text:
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        if char == "," and depth == 0:
+            parts.append("".join(current).strip())
+            current = []
+        else:
+            current.append(char)
+    parts.append("".join(current).strip())
+    return parts
+
+
+def _ecogp_codes(source_text: str) -> set[int]:
+    """Every service-format code the ecological stream writes.
+
+    Parsed from the emitter itself rather than from a list kept beside it: a
+    list would be a second declaration of the same fact, and the failure this
+    check exists for is the two disagreeing.
+
+    The code sits in a different argument position in the two writers.
+    `writegp(unit, field, code, level)` puts it third and a LEVEL fourth, so
+    taking the last numeric argument would read every field as level zero;
+    `writescalar(unit, value, code)` puts it last.
+    """
+    start = source_text.find("subroutine ecogp")
+    if start < 0:
+        return set()
+    end = source_text.find("subroutine ecoreset", start)
+    body = source_text[start:end if end > 0 else len(source_text)]
+    codes = set()
+    for match in re.finditer(r"call\s+write(gp|scalar)\s*\((.*)\)\s*$",
+                             body, flags=re.M):
+        args = _split_args(match.group(2))
+        if len(args) < 3 or args[0].strip() != "143":
+            continue
+        raw = args[2] if match.group(1) == "gp" else args[-1]
+        if re.fullmatch(r"\d+", raw.strip()):
+            codes.add(int(raw.strip()))
+    return codes
+
+
+def check_declaration(declaration: dict, source_text: str
+                      ) -> list[tuple[str, str, str]]:
+    """The contract against the producer, and against itself."""
+    out: list[tuple[str, str, str]] = []
+
+    def verdict(label: str, bad: list[str]) -> None:
+        out.append((label, PASS if not bad else FAIL,
+                    "" if not bad else "; ".join(bad)))
+
+    version = declaration.get("version")
+    verdict("the contract declares an integer version",
+            [] if isinstance(version, int) and version >= 1 else
+            [f"version is {version!r}"])
+
+    rows = declaration.get("fields", [])
+    interval = declaration.get("interval_record", [])
+
+    bad = [f"{row.get('name', '?')} has no {column}"
+           for row in rows for column in ROW_COLUMNS
+           if column not in row or row[column] in (None, "")]
+    verdict("every field row carries every column of the declared schema", bad)
+
+    bad = [f"{row['name']} declares kind {row.get('kind')!r}"
+           for row in rows if row.get("kind") not in KINDS]
+    bad += [f"{row['name']} declares semantics {row.get('semantics')!r}"
+            for row in rows if row.get("semantics") not in SEMANTICS]
+    verdict("every field row declares a known kind and semantics", bad)
+
+    declared_extensive = [row["name"] for row in rows
+                          if row.get("semantics") == "extensive"]
+    claim = declaration.get("extensive_fields_carried")
+    bad = []
+    if claim == "none" and declared_extensive:
+        bad = [f"declares no extensive field and {declared_extensive} are extensive"]
+    elif claim != "none" and not declared_extensive:
+        bad = [f"declares extensive_fields_carried {claim!r} and no row is extensive"]
+    verdict("the extensive-field claim matches the rows", bad)
+
+    seen_names: set[str] = set()
+    seen_codes: dict[int, str] = {}
+    bad = []
+    for row in rows:
+        if row["name"] in seen_names:
+            bad.append(f"two rows named {row['name']}")
+        seen_names.add(row["name"])
+        code = row.get("producer_code")
+        if code in seen_codes:
+            bad.append(f"{row['name']} and {seen_codes[code]} both claim code {code}")
+        elif code is not None:
+            seen_codes[code] = row["name"]
+    verdict("no two rows share a name or a producer code", bad)
+
+    written = _ecogp_codes(source_text)
+    verdict("the emitter was found and writes codes",
+            [] if written else ["outmod.f90:ecogp parsed to no codes at all"])
+
+    declared_codes = {row["producer_code"] for row in rows
+                      if row.get("producer_code") is not None}
+    declared_codes |= {row["producer_code"] for row in interval
+                       if row.get("producer_code") is not None}
+    if written:
+        missing = sorted(declared_codes - written)
+        verdict("every declared code is one the model writes",
+                [] if not missing else
+                [f"codes {missing} are declared and outmod.f90:ecogp writes none of them"])
+        undeclared = sorted(written - declared_codes)
+        verdict("every code the stream writes is declared",
+                [] if not undeclared else
+                [f"codes {undeclared} cross the seam with no row and so with no agreed meaning"])
+
+    bad = [f"{row.get('name', '?')} is {row.get('status')!r}"
+           for row in interval
+           if row.get("status") not in ("produced", "derived", "not_produced")]
+    bad += [f"{row['name']} is not produced and names no owner"
+            for row in interval
+            if row.get("status") == "not_produced" and not row.get("owner")]
+    verdict("every interval-record row declares a status, and an absent one an owner",
+            bad)
+
+    classes = set(declaration.get("cadence_classes", {}))
+    bad = []
+    for process in declaration.get("processes", []):
+        pid = process.get("id", "?")
+        for field in process.get("fields", []):
+            if field not in seen_names:
+                bad.append(f"{pid} requires {field}, which is not a declared field")
+        cadence = process.get("cadence")
+        if cadence == UNDECLARED:
+            if not process.get("owner"):
+                bad.append(f"{pid} leaves its cadence undeclared and names no owner")
+            if not process.get("why_undeclared"):
+                bad.append(f"{pid} leaves its cadence undeclared and does not say why")
+        elif cadence not in classes:
+            bad.append(f"{pid} declares cadence {cadence!r}, which is not a declared class")
+        elif not process.get("source"):
+            bad.append(f"{pid} declares a cadence and names no source for it")
+    verdict("every process names declared fields and a cadence it can account for", bad)
+
+    implemented = {name for name in globals() if name.startswith("check_")}
+    bad = []
+    for identity in declaration.get("identities", []):
+        target = identity.get("check")
+        if target == UNDECLARED:
+            if not identity.get("owner"):
+                bad.append(f"{identity.get('id')} has no check and names no owner")
+        elif target not in implemented:
+            bad.append(f"{identity.get('id')} names {target!r}, which this module does not implement")
+        if not identity.get("statement"):
+            bad.append(f"{identity.get('id')} states no identity")
+    verdict("every identity names a check this module implements, or an owner", bad)
+
+    bad = [f"{entry.get('what', '?')} is not declared disposable"
+           for entry in declaration.get("legacy", [])
+           if entry.get("disposable") is not True or not entry.get("why")]
+    verdict("every legacy transport is declared disposable, with a reason", bad)
+
+    known = set(REQUIRED) | set(MAY_BE_ABSENT) | set(SIGNS)
+    bad = [f"{row['name']} maps to product field {row['product_name']!r}, "
+           "which this module's product checks do not know"
+           for row in rows
+           if row.get("product_name") and row["product_name"] not in known]
+    verdict("every row's product name is one the product checks know", bad)
+
+    return out
+
+
+def run_declaration(declaration: dict | None = None,
+                    source_text: str | None = None
+                    ) -> list[tuple[str, str, str]]:
+    if declaration is None:
+        declaration = yaml.safe_load(DECLARATION.read_text())
+    if source_text is None:
+        source_text = (PROJECT_ROOT / declaration["producer"]["source_file"]
+                       ).read_text()
+    return check_declaration(declaration, source_text)
+
+
+# Declaration fixtures. The first is the declaration as it stands and has to
+# come back clean; every other is built to be wrong in a named way.
+#
+# The expectation is a SET of check names and not one, on the same terms as the
+# product fixtures: a corruption legitimately breaks the checks derived from it
+# as well. Moving one row's code onto another's takes a code out of the declared
+# set, so the model-writes-it check and the every-code-declared check both fire,
+# and removing the wind row takes a field two processes require with it. Naming
+# the whole set is what makes this a test, since a fixture that breaks one MORE
+# check than declared is as much a defect as one that breaks one fewer.
+def _declaration_fixtures() -> list[dict]:
+    import copy
+
+    declaration = yaml.safe_load(DECLARATION.read_text())
+    source_text = (PROJECT_ROOT / declaration["producer"]["source_file"]).read_text()
+
+    def mutate(fn):
+        d = copy.deepcopy(declaration)
+        fn(d)
+        return d
+
+    def row(d, name):
+        for entry in d["fields"]:
+            if entry["name"] == name:
+                return entry
+        raise KeyError(name)
+
+    def process(d, pid):
+        for entry in d["processes"]:
+            if entry["id"] == pid:
+                return entry
+        raise KeyError(pid)
+
+    cases = [
+        ("the declaration as it stands", declaration, None),
+        ("a field row missing a column of the schema",
+         mutate(lambda d: row(d, "wind_speed").pop("converts")),
+         "every field row carries every column of the declared schema"),
+        ("a row declaring a kind the schema does not have",
+         mutate(lambda d: row(d, "wind_speed").__setitem__("kind", "total")),
+         "every field row declares a known kind and semantics"),
+        ("a row declared extensive against the no-extensive-field claim",
+         mutate(lambda d: row(d, "total_precipitation").__setitem__("semantics", "extensive")),
+         "the extensive-field claim matches the rows"),
+        ("two rows claiming one producer code",
+         mutate(lambda d: row(d, "wind_speed").__setitem__("producer_code", 613)),
+         {"no two rows share a name or a producer code",
+          "every code the stream writes is declared"}),
+        ("a declared code the model does not write",
+         mutate(lambda d: row(d, "wind_speed").__setitem__("producer_code", 999)),
+         {"every declared code is one the model writes",
+          "every code the stream writes is declared"}),
+        ("a code the stream writes that no row declares",
+         mutate(lambda d: d["fields"].remove(row(d, "wind_speed"))),
+         {"every code the stream writes is declared",
+          "every process names declared fields and a cadence it can account for"}),
+        ("an interval row absent from the producer and naming no owner",
+         mutate(lambda d: d["interval_record"][-1].pop("owner")),
+         "every interval-record row declares a status, and an absent one an owner"),
+        ("a process requiring a field the contract does not declare",
+         mutate(lambda d: process(d, "bio-23")["fields"].append("relative_humidity")),
+         "every process names declared fields and a cadence it can account for"),
+        ("a process on a cadence class the contract does not define",
+         mutate(lambda d: process(d, "bio-23").__setitem__("cadence", "hourly")),
+         "every process names declared fields and a cadence it can account for"),
+        ("a cadence left undeclared with no owner",
+         mutate(lambda d: process(d, "bio-13").pop("owner")),
+         "every process names declared fields and a cadence it can account for"),
+        ("an identity naming a check this module does not implement",
+         mutate(lambda d: d["identities"][0].__setitem__("check", "check_nothing")),
+         "every identity names a check this module implements, or an owner"),
+        ("a legacy transport not declared disposable",
+         mutate(lambda d: d["legacy"][0].__setitem__("disposable", False)),
+         "every legacy transport is declared disposable, with a reason"),
+        ("a version that is not an integer",
+         mutate(lambda d: d.__setitem__("version", "1.0")),
+         "the contract declares an integer version"),
+    ]
+
+    results = []
+    for label, candidate, expect in cases:
+        failed = {name for name, status, _ in check_declaration(candidate, source_text)
+                  if status == FAIL}
+        wanted = set() if expect is None else (
+            expect if isinstance(expect, set) else {expect})
+        results.append({"fixture": label, "expected": sorted(wanted) or "clean",
+                        "found": sorted(failed), "pass": failed == wanted})
+    return results
+
+
 def run_checks(data: dict, units: dict | None = None
                ) -> list[tuple[str, str, str]]:
     """Every contract check that can be run on the fields given."""
@@ -393,9 +711,31 @@ def main() -> None:
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
-    print(f"FIXTURES  ({len(_fixtures()) - 1} of {len(_fixtures())} are built "
+    failures = 0
+
+    declaration = yaml.safe_load(DECLARATION.read_text())
+    print(f"DECLARATION  {DECLARATION.relative_to(PROJECT_ROOT)}  "
+          f"version {declaration['version']}")
+    for label, status, detail in run_declaration(declaration):
+        mark = {PASS: "  ok  ", FAIL: " FAIL ", ABSENT: "absent"}[status]
+        print(f"[{mark}] {label}" + (f"\n           {detail}" if detail else ""))
+        if status == FAIL:
+            failures += 1
+
+    dfix = _declaration_fixtures()
+    broken = [f for f in dfix if not f["pass"]]
+    print(f"\nDECLARATION FIXTURES  ({len(dfix) - 1} of {len(dfix)} are built "
           "to be wrong in a named way)")
-    failures = run_fixtures(args.verbose)
+    print(f"[{'  ok  ' if not broken else ' FAIL '}] "
+          f"{len(dfix) - len(broken)} of {len(dfix)} got their verdict")
+    for case in broken:
+        print(f"           BROKEN: {case['fixture']}: expected "
+              f"{case['expected']!r}, found {case['found']}")
+    failures += len(broken)
+
+    print(f"\nPRODUCT FIXTURES  ({len(_fixtures()) - 1} of {len(_fixtures())} are built "
+          "to be wrong in a named way)")
+    failures += run_fixtures(args.verbose)
 
     if args.climatology is not None:
         print(f"\nPRODUCT   {args.climatology}")

@@ -232,6 +232,18 @@ their table parameters are named for those files rather than for upstream's
 list and the model name one thing. The fork also writes `mch4.out`, the total,
 which this list deliberately does not retain: a total is what acceptance is not.
 
+`biosphere/config/wetlands.yaml` records that per table under
+`acceptance.retained_output_status`, and the gate checks both halves of every
+entry against `modules/commonoutput.cpp`. This is not bookkeeping.
+`run_lpj_guess.py` derives one instruction row from each retained filename's
+stem, so `mwtp.out` becomes `file_mwtp "mwtp.out"`, and plib rejects an
+instruction file naming a parameter nothing declared: a retained table with no
+emitter does not produce an empty file, it aborts the run while parsing, naming
+one unknown parameter and nothing about why it is unknown. Activation now
+refuses ahead of that, naming every missing table and the issue it waits on. The
+reverse direction is checked too, because a table that has become available and
+is still recorded as waiting is one nobody will think to ask for.
+
 The other eleven have no quantity behind them, and each waits on a model rather
 than on an output routine. `mch4_production.out` and `mch4_oxidation.out` are
 the closest: `Soil::CH4_prod` and `Soil::CH4_oxid` are computed per layer in the

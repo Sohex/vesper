@@ -38,6 +38,14 @@ arithmetic off the source and the cited measurements.
 | `UOCC` | was `somdynam.cpp` | nowhere | removed | -- | no citation anywhere in the tree | deleted |
 | `Soiltype::pwtr` | the soil input | `somdynam.cpp:soilpadd` | per BIO-5 | kgP/m2 per EARTH year | BIO-5 emits it against `biosphere/notes/time-base-unit-contract.md` | divisor, under that contract |
 
+The three declared divergences from the vendored CNP fork are registered in
+`biosphere/config/somdynam.yaml` and checked by
+`biosphere/scripts/somdynam_gate.py`, which refuses a form the source stops
+recording, a form the source goes back to running, a changed line the source
+loses, a ramp whose `setptoc` call moves, and the phosphorus-limitation-off pin
+being split off the ramp threshold. Its reference point is the vendored subtree
+commit rather than a release, because LPJ-GUESS 4.1.1 has no phosphorus.
+
 Every phosphorus quantity in `somdynam.cpp` is reached only through
 `som_dynamics_century`, the live `ifcentury 1` path. `som_dynamics_lpj`, the
 `ifcentury 0` path, carries no phosphorus at all, so the two decay paths do not

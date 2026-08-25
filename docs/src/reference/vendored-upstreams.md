@@ -229,22 +229,31 @@ of it is execution-verified, because LPJ-GUESS does not build on this tree. The
 argument for each is
 `biosphere/notes/soil-nitrogen-transformation-parameterisation.md`.
 
-The phosphorus path in `modules/somdynam.cpp` and `modules/soil.cpp` carries
-declared divergences and no register. `PMASS_SAT`, the labile-P saturation
-threshold of the soil organic C:P ramp, is converted out of Parton, Stewart and
-Cole (1988)'s resin-extractable currency into the CNP fork's own Hedley-labile
-one; the surface humus pool, which the fork left with no phosphorus ramp and a
-fixed C:P, ramps on the slow pool's line off labile P, and its initialisation
-moves to that line's phosphorus-poor end. Each records the fork's own line
-verbatim beside the changed one under the same `DECLARED DIVERGENCE FROM
-MAINLINE` heading. Unlike `ntransform.cpp` these are divergences from the CNP
-FORK rather than from release 4.1.1, which has no phosphorus at all. There is no
-`somdynam.yaml` and no gate, so nothing mechanically stops a silent revert;
-building that register is WORLD-V46R. The argument is
+### The phosphorus path diverges from THIS FORK, not from a release
+
+`modules/somdynam.cpp` and `modules/soil.cpp` carry three declared divergences.
+`PMASS_SAT`, the labile-P saturation threshold of the soil organic C:P ramp, is
+converted out of Parton, Stewart and Cole (1988)'s resin-extractable currency
+into the CNP fork's own Hedley-labile one; the surface humus pool, which the fork
+left with no phosphorus ramp and a fixed C:P, ramps on the slow pool's line off
+labile P, and its initialisation moves to that line's phosphorus-poor end. Each
+records the fork's own line verbatim beside the changed one under the same
+`DECLARED DIVERGENCE FROM MAINLINE` heading.
+
+The reference point is what differs from `ntransform.cpp`. Release 4.1.1 has no
+phosphorus at all, so there is no release form to compare against and no Zenodo
+record or SVN revision to name: the whole path arrived with the CNP fork, and
+the only fixed point is the subtree commit at the top of this section.
+`biosphere/config/somdynam.yaml` holds the register keyed on that commit and
+`biosphere/scripts/somdynam_gate.py` checks it, on the same three conditions as
+the nitrogen gate plus the ramps those constants drive and the two lines the
+phosphorus argument rests on. It also records which configuration each
+divergence is live in, because two of the three are inert under the `ifplim 0`
+this project runs and are waiting rather than harmless. The argument is
 `biosphere/notes/phosphorus-cycle-parameterisation.md`.
 
-No other file under `vendor/lpj-guess/modules/` carries a register of this kind
-yet. Where one does, it belongs beside this row.
+No other file under `vendor/lpj-guess/modules/` carries a register of this kind.
+Where one does, it belongs beside these two.
 
 Vendoring the CNP source does not itself enable phosphorus limitation.
 `data/ins/global.ins` and the run harness keep `ifplim 0` until the gridded

@@ -327,6 +327,20 @@ def probes() -> dict:
         found["peatland_wetland_latitude_limit"] = (
             float(limit.group(1)) if limit else None)
 
+    # Every output-table parameter commonoutput.cpp declares to plib.
+    #
+    # This is what decides whether a retained table can be ASKED FOR at all.
+    # `run_lpj_guess.py` derives an instruction row from each retained
+    # filename's stem -- `mwtp.out` becomes `file_mwtp "mwtp.out"` -- and plib
+    # rejects an instruction file naming a parameter nothing declared. So a
+    # retained output with no emitter does not produce an empty table; it
+    # produces a run that aborts while parsing, naming one unknown parameter and
+    # nothing about why it is unknown.
+    common = _read(GUESS_SOURCE / "modules" / "commonoutput.cpp")
+    if common:
+        found["declared_output_parameters"] = sorted(set(re.findall(
+            r'declare_parameter\s*\(\s*"(file_\w+)"', common)))
+
     wetpfts = GUESS_SOURCE / "data" / "ins" / "wetlandpfts.ins"
     if wetpfts.is_file():
         text = wetpfts.read_text(errors="replace")
@@ -557,6 +571,62 @@ def _acceptance_refusals(declaration: dict, evidence: dict) -> list[Refusal]:
                     f"the production_ratio floor is {floor}, and the fork's "
                     f"own CH4:CO2 constants now stand at {peat} and "
                     f"{inundated}, a spread of {actual:.3f}", "WET-11"))
+
+    # Every retained table, against the emitter that would have to write it.
+    #
+    # `retained_output_status` says, per table, whether the vendored fork can
+    # emit it and which issue supplies the one that cannot. Both halves are
+    # checked against commonoutput.cpp, so neither a table that quietly lost its
+    # emitter nor one that quietly gained one can sit here unnoticed. Activation
+    # refuses while any is missing, which turns a plib parse error deep inside a
+    # run into a refusal that names each table and what it waits on.
+    status = acceptance.get("retained_output_status")
+    declared_parameters = evidence.get("declared_output_parameters")
+    retained = list(acceptance.get("retained_outputs") or [])
+    if status is None:
+        refusals.append(Refusal(
+            "WET-OUTPUT-STATUS-UNDECLARED",
+            "acceptance.retained_output_status is absent, so nothing says "
+            "which retained tables the fork can emit and a run would find out "
+            "by failing to parse its own instruction file", "WORLD-E5T5"))
+    elif declared_parameters is not None:
+        for name in retained:
+            parameter = f"file_{name.split('.')[0]}"
+            entry = (status or {}).get(name)
+            has_emitter = parameter in declared_parameters
+            if entry is None:
+                refusals.append(Refusal(
+                    "WET-OUTPUT-STATUS-MISSING",
+                    f"{name} is retained and retained_output_status says "
+                    "nothing about it", "WORLD-E5T5"))
+                continue
+            claims_emitter = bool(entry.get("emitted"))
+            if claims_emitter and not has_emitter:
+                refusals.append(Refusal(
+                    "WET-OUTPUT-NO-EMITTER",
+                    f"{name} is declared emitted and commonoutput.cpp declares "
+                    f"no {parameter}. run_lpj_guess.py derives that row from "
+                    "the filename, so an activated run would write an "
+                    "instruction file plib rejects", "WORLD-E5T5"))
+            elif not claims_emitter and has_emitter:
+                refusals.append(Refusal(
+                    "WET-OUTPUT-STATUS-STALE",
+                    f"{name} is declared unemitted and commonoutput.cpp now "
+                    f"declares {parameter}. A table that has become available "
+                    "and is still recorded as waiting is one nobody will think "
+                    "to ask for", "WORLD-E5T5"))
+            elif not claims_emitter:
+                if not entry.get("waits_on"):
+                    refusals.append(Refusal(
+                        "WET-OUTPUT-UNCLAIMED",
+                        f"{name} has no emitter and names no issue that would "
+                        "supply one", "WORLD-E5T5"))
+                else:
+                    refusals.append(Refusal(
+                        "WET-OUTPUT-ABSENT",
+                        f"{name} has no emitter in the vendored fork: "
+                        f"{entry.get('why', 'no reason recorded')}",
+                        str(entry.get("waits_on"))))
 
     tolerance = acceptance.get("residual_tolerance")
     if tolerance is None:
@@ -851,6 +921,31 @@ def _fixtures(declaration: dict, planet: dict, evidence: dict) -> list[dict]:
          mutate(lambda d: d["acceptance"]["minimum_bracket_factor"]
                 .__setitem__("production_ratio", 9.0)),
          "WET-BRACKET-FLOOR-DRIFT"),
+        ("no statement at all about which retained tables the fork can emit",
+         mutate(lambda d: d["acceptance"].pop("retained_output_status")),
+         "WET-OUTPUT-STATUS-UNDECLARED"),
+        ("a retained table the emitter statement says nothing about",
+         mutate(lambda d: d["acceptance"]["retained_output_status"]
+                .pop("mwtp.out")),
+         "WET-OUTPUT-STATUS-MISSING"),
+        ("a table with no emitter and no issue that would supply one",
+         mutate(lambda d: d["acceptance"]["retained_output_status"]
+                .__setitem__("apeat_stock.out", {"emitted": False})),
+         "WET-OUTPUT-UNCLAIMED"),
+        # Both directions against the LIVE source, which is what makes them
+        # tests: the fork declares file_mwtp and does not declare
+        # file_mch4_production, so each mutation is a claim the source refutes.
+        ("a table declared emitted that commonoutput.cpp cannot be asked for",
+         mutate(lambda d: d["acceptance"]["retained_output_status"]
+                .__setitem__("mch4_production.out",
+                             {"emitted": True, "quantity": "wishful"})),
+         "WET-OUTPUT-NO-EMITTER"),
+        ("a table still recorded as waiting after its emitter arrived",
+         mutate(lambda d: d["acceptance"]["retained_output_status"]
+                .__setitem__("mwtp.out",
+                             {"emitted": False, "waits_on": "WET-3",
+                              "why": "stale"})),
+         "WET-OUTPUT-STATUS-STALE"),
     ]
 
     # Mutations of the EVIDENCE rather than the declaration. These carry their
@@ -888,7 +983,9 @@ def _fixtures(declaration: dict, planet: dict, evidence: dict) -> list[dict]:
     # refusals. A gate nothing can satisfy refuses for a reason that is never
     # written down.
     codes = {r.code for r in
-             evaluate(_satisfied(declaration), planet, _repaired(evidence))}
+             evaluate(_satisfied(declaration), planet,
+                      _repaired(evidence,
+                                declaration["acceptance"]["retained_outputs"]))}
     results.append({
         "fixture": "a met declaration against a repaired source is granted",
         "expected": "no refusal", "refusals": len(codes),
@@ -913,6 +1010,12 @@ def _satisfied(declaration: dict) -> dict:
     candidate["atmosphere"]["trace_gas_state_closed"] = True
     floors = candidate["acceptance"]["minimum_bracket_factor"]
     candidate["acceptance"]["declared_bracket_factor"] = dict(floors)
+    # Every retained table declared emitted, which `_repaired` matches by giving
+    # the source the parameters to go with it. Both halves have to move together
+    # or the fixture would pass on a declaration that lies about the fork.
+    candidate["acceptance"]["retained_output_status"] = {
+        name: {"emitted": True, "quantity": "declared, for the fixture"}
+        for name in candidate["acceptance"]["retained_outputs"]}
     return candidate
 
 
@@ -947,7 +1050,7 @@ def _unserialized(evidence: dict, member: str) -> dict:
     return without
 
 
-def _repaired(evidence: dict) -> dict:
+def _repaired(evidence: dict, retained: list[str] | None = None) -> dict:
     """The evidence a repaired vendored source would produce."""
     repaired = copy.deepcopy(evidence)
     repaired["free_water_in_the_wetland_infiltration_path"] = {
@@ -958,6 +1061,9 @@ def _repaired(evidence: dict) -> dict:
     repaired["serialized_soil_members"] = sorted(
         set(evidence.get("serialized_soil_members") or [])
         | {"Wtot", "wtd", "stand_water", "mwtp", "Frac_ice", "rootfrac"})
+    repaired["declared_output_parameters"] = sorted(
+        set(evidence.get("declared_output_parameters") or [])
+        | {f"file_{name.split('.')[0]}" for name in (retained or [])})
     return repaired
 
 

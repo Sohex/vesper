@@ -930,6 +930,13 @@ steps:
       the calendar never reaches, and prognostic peat hydrology absent from the
       serializer. A declaration claiming a defect is closed while the probe
       still finds it is reported as a contradiction rather than believed.
+      It also holds every retained acceptance table against the emitter that
+      would have to write it: run_lpj_guess.py derives an instruction row from
+      each retained filename's stem, so a table with no declared parameter in
+      modules/commonoutput.cpp would abort the run while plib parsed the
+      instruction file, naming one unknown parameter and nothing about why.
+      Both halves are checked, so neither a table that lost its emitter nor one
+      that quietly gained one can sit in the declaration unnoticed.
       A fixture set runs on every invocation: mutations of the declaration built
       to be wrong in a named way, the live declaration which must be refused,
       three mutations of the EVIDENCE so that the contradiction branch stays
@@ -980,6 +987,31 @@ steps:
       declared Earth-calibrated operator is a correct run of a declared model
       boundary; `--strict` is the arm that refuses. `lpj_run` needs it so the
       boundary sits on the path rather than beside it.
+
+  - id: somdynam_gate
+    script: biosphere/scripts/somdynam_gate.py
+    loop: B
+    cost: seconds
+    needs: []
+    writes: [biosphere/generated/somdynam_gate_report.json]
+    gate: >
+      the declaration of the simulated soil's phosphorus path, checked against
+      the source the model reads. Its reference point is a SUBTREE COMMIT and
+      not a release: LPJ-GUESS 4.1.1 has no phosphorus, so nothing here can be
+      compared against one, and the register names the commit the CNP fork was
+      vendored at instead. It reads biosphere/config/somdynam.yaml and fails on
+      a saturation constant whose line modules/somdynam.cpp no longer runs or
+      whose value is not what that line's own initialiser evaluates to, on a C:P
+      ramp whose setptoc call the source no longer contains or contains a
+      different number of times, on a ramp leaving the P:C range its two
+      endpoints allow, on a line the phosphorus argument rests on that the model
+      no longer runs, and on any of the three halves of a declared divergence
+      from the fork. Sixteen fixtures run on every invocation, fifteen built to
+      be wrong in a named way. With PCONC_SAT still unsourced it reports and
+      exits 0, because this project runs ifplim 0 and parameters.cpp already
+      refuses ifplim 1 on that same constant; `--strict` is the arm that
+      refuses. `lpj_run` needs it so the refusal sits on the path rather than
+      beside it.
 
   - id: mineral_reactivity_gate
     script: biosphere/scripts/mineral_reactivity_gate.py
@@ -1068,7 +1100,7 @@ steps:
     script: biosphere/scripts/run_lpj_guess.py
     loop: B
     cost: hours
-    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate, soil_restart_state_gate]
+    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, somdynam_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate, soil_restart_state_gate]
     writes: [biosphere/runs/]
 
   - id: prospectivity
