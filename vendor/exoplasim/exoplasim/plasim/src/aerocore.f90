@@ -1286,9 +1286,10 @@
 !   arithmetic rather than taste. The flux goes as roughly u* cubed above a
 !   threshold, so a gridbox-mean wind emits almost nothing while the same mean
 !   with realistic variance emits a great deal: the two differ by orders of
-!   magnitude, not by a correction. Emission is therefore evaluated at
-!   equal-probability quantiles of a Weibull whose mean is the gridbox u* and
-!   averaged over them, which is Cakmur, Miller and Torres (2004). Going
+!   magnitude, not by a correction. Emission is therefore evaluated over a
+!   Weibull whose mean is the gridbox u* and averaged over it, which is Cakmur,
+!   Miller and Torres (2004); the quadrature that does the averaging is
+!   described at the head of the executable part. Going
 !   in-model replaces a 12-bin climatological mean wind with the model's own
 !   instantaneous one, which is the entire point of going in-model, but the
 !   gridbox is still 15 km across, so the subgrid distribution stays.
@@ -1323,8 +1324,15 @@
     REAL,INTENT(OUT) :: dmmr(im,jm)      ! mixing ratio added to the bottom layer
 
     REAL,PARAMETER :: VONKARM = 0.4
+!   Cap on -ln(S_t). Above it EXP(-zstln) is smaller than any flux the cell can
+!   carry and no node clears the threshold anyway, so the cell emits nothing.
+!   The cap is applied to the EXPONENT and not to its result, because
+!   config/planet.yaml compiles with -ffpe-trap=overflow and (zut/zscale)**dustwk
+!   would abort the run on any cell whose threshold is far above its mean wind.
+!   build_dust.emission_over_weibull clips at the same value.
+    REAL,PARAMETER :: SURVCAP = 700.0
 
-    REAL :: zq(MAX(dustnq,1)) ! quantiles of the Weibull quadrature
+    REAL :: zq(MAX(dustnq,1)) ! -ln of the survival fraction at each node
     REAL :: zsig              ! bottom full-level sigma, clipped
     REAL :: zref              ! height of the bottom level above ground, m
     REAL :: zust              ! friction velocity felt by the erodible bed, m/s
@@ -1338,6 +1346,8 @@
     REAL :: zal               ! Kok 18a fragmentation exponent
     REAL :: zrel              ! (u*st - u*st0)/u*st0
     REAL :: zflux             ! emission summed over the quadrature, kg/m2/s
+    REAL :: zstln             ! -ln(S_t), the exponent of the survival fraction
+    REAL :: zst               ! S_t, the probability the wind clears u*t
     REAL :: zuu               ! friction velocity at one quadrature point
     REAL :: zrho              ! bottom-level air density, kg/m3
     REAL :: zspd              ! bottom-level wind speed, m/s
@@ -1346,12 +1356,34 @@
     dmmr(:,:) = 0.0
     if (ldustemit /= 1) return
 
-!   Equal-probability quantiles of the Weibull: u = c (-ln(1-q))^(1/k) at
-!   q = (n-0.5)/N, which puts the points where the mass is and keeps the steep
-!   tail resolved. They depend on nothing that varies in space or time.
+!   THE QUADRATURE RUNS OVER THE ACTIVE REGION, IN SURVIVAL SPACE. Emission is
+!   zero below the threshold, so with S = exp(-(u/c)**k) the integral over the
+!   subgrid distribution is
+!
+!       E = integral_0^1 flux(u(q)) dq = integral_0^{S_t} flux(u(S)) dS,
+!       S_t = exp(-(u*t/c)**k),   u(S) = c (-ln S)**(1/k)
+!
+!   a FINITE integral whose whole domain emits. Spacing the nodes evenly in S
+!   over [0, S_t] therefore spends every one of them above the threshold, and
+!   reaches arbitrarily far up the wind tail as S approaches zero.
+!
+!   Spacing them evenly in q over the whole of [0, 1] is the same integral and
+!   a far worse rule for it, and the failure is structural rather than a matter
+!   of accuracy: the highest node of that rule sits at u = c(-ln(1/2N))**(1/k),
+!   a CEILING that does not move with the threshold. Wherever u*t exceeds it the
+!   rule returns EXACTLY zero, not because the wind never gets there but because
+!   the integrator cannot represent it, and at the roughest end of this world's
+!   aeolian roughness bracket that is every source cell. The survival rule's
+!   coarsest node is at S_t/2N, which is above u*t by construction, so its error
+!   is a bounded truncation that shrinks with dustnq. world-494, world-2lsg.
+!
+!   zq is the NEGATIVE LOG of the survival fraction at node n. It depends on
+!   nothing that varies in space or time, so it stays hoisted out of the cell
+!   loop; the cell contributes only zstln, and the node is
+!   u = c (zstln + zq(n))**(1/k).
 
     do n = 1 , dustnq
-       zq(n) = (-LOG(1.0 - (REAL(n)-0.5)/REAL(dustnq)))**(1.0/dustwk)
+       zq(n) = -LOG((REAL(n)-0.5)/REAL(dustnq))
     end do
 
 !   The bottom level's height above ground, from the model's own sigma
@@ -1399,13 +1431,15 @@
        zal    = dustca*zrel
 
        zscale = zust/GAMMA(1.0 + 1.0/dustwk)
+       zstln  = EXP(MIN(dustwk*LOG(zut/zscale),LOG(SURVCAP)))
+       zst    = EXP(-zstln)
 
        zflux = 0.0
        do n = 1 , dustnq
-          zuu = zscale*zq(n)
+          zuu = zscale*(zstln + zq(n))**(1.0/dustwk)
           if (zuu > zut) then
 !            The exponent is capped at e**50 as a NUMERICAL guard and not as
-!            physics. Several configure.sh targets build with
+!            physics. config/planet.yaml compiles the model with
 !            -ffpe-trap=overflow, so an unbounded (u*/u*t)**alpha would abort
 !            the run rather than return an inconvenient number. The cap is
 !            twenty orders of magnitude above anything the fitted alpha can
@@ -1415,7 +1449,10 @@
      &                     * EXP(MIN(zal*LOG(zuu/zut),50.))
           endif
        end do
-       zflux = zflux/REAL(dustnq)
+!      dS = S_t / N per node, where the probability-space rule's uniform dq
+!      gave 1 / N and put nearly every node below the threshold.
+
+       zflux = zflux*zst/REAL(dustnq)
 
 !      gsrcw is fbare*fclay. Both are LINEAR prefactors on the flux, which is
 !      exactly why one field carries them both and a second would be

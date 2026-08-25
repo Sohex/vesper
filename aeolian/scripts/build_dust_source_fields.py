@@ -88,6 +88,12 @@ BASELINE = ANALYSIS / "dust_baseline.json"
 # real-field check both assert that it never binds.
 EXP_CAP = 50.0
 
+# The cap the Fortran applies to (u*t/c)**k, which is -ln(S_t), the negative log
+# of the surviving probability above the threshold. Above it the exponential
+# underflows and no quadrature node clears the threshold anyway, so the cell
+# emits nothing. Same value `build_dust.emission_over_weibull` clips at.
+SURV_LN_CAP = 700.0
+
 
 def sha256_of(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -186,15 +192,28 @@ def emission_from_fields(srcw, drage, wpr, spd, temp, rho, wsoil, snow,
     cd = v["DUSTCD0"] * np.exp(-v["DUSTCE"] * rel_)
     al = v["DUSTCA"] * rel_
 
+    # THE QUADRATURE IS IN SURVIVAL SPACE, matching `build_dust.emission_over_
+    # weibull`. `zq(n) = -ln((n-0.5)/N)` is the negative log of the survival
+    # fraction at node n and depends on nothing spatial, which is why the
+    # Fortran hoists it out of the cell loop; the cell contributes only
+    # `zstln = -ln(S_t)`, and the node is `u = c (zstln + zq)^(1/k)`. Spacing
+    # points evenly in S over [0, S_t] puts every one of them above the
+    # threshold and the rule has no ceiling.
     k, n = v["DUSTWK"], int(v["DUSTNQ"])
-    q = (np.arange(n) + 0.5) / n
-    zq = (-np.log(1.0 - q)) ** (1.0 / k)
-    scale = ust / gamma(1.0 + 1.0 / k)
+    zq = -np.log((np.arange(n) + 0.5) / n)
+    scale = np.where(ust > 0.0, ust, 1.0) / gamma(1.0 + 1.0 / k)
+    # In LOG SPACE, and that is a hard requirement rather than a tidiness:
+    # `config/planet.yaml` builds the model with -ffpe-trap=overflow, so a
+    # direct (u*t/c)**k would abort the run on any cell whose threshold is far
+    # above its mean wind instead of returning the zero flux that is correct
+    # there. Capping the exponent bounds it before it is taken.
+    zstln = np.exp(np.minimum(k * np.log(ut / scale), np.log(SURV_LN_CAP)))
+    zst = np.exp(-zstln)
 
     total = np.zeros_like(srcw, dtype=float)
     capped = False
-    for f in zq:
-        u = scale * f
+    for zqn in zq:
+        u = scale * (zstln + zqn) ** (1.0 / k)
         active = (u > ut) & (ust > 0.0)
         if not np.any(active):
             continue
@@ -204,7 +223,9 @@ def emission_from_fields(srcw, drage, wpr, spd, temp, rho, wsoil, snow,
         power = np.exp(np.minimum(arg, EXP_CAP))
         flux = cd * rho * (u * u - ut * ut) / ustst * power
         total += np.where(active, flux, 0.0)
-    total /= n
+    # dS = S_t / N per node, where the old probability-space rule's uniform dq
+    # gave 1 / N and put most nodes below the threshold.
+    total *= zst / n
 
     emit = np.where(snow > v["DUSTSND"], 0.0, total * srcw)
     return np.where(srcw > 0.0, emit, 0.0), capped
@@ -212,20 +233,42 @@ def emission_from_fields(srcw, drage, wpr, spd, temp, rho, wsoil, snow,
 
 # -- the fields ---------------------------------------------------------------
 
-def build_fields(config: dict, cfg: dict, lat, lon, z0_aeolian: float):
-    """The three boundary fields, from the map `build_dust.py` already computes."""
+# Which plane of `source_fractions`'s (low, central, high) roughness stack each
+# bracket end is. The order is that function's, not a convention restated here.
+Z0_END_PLANE = {"low": 0, "central": 1, "high": 2}
+
+
+def build_fields(config: dict, cfg: dict, lat, lon, z0_end: str,
+                 surface_classes: Path | None = None):
+    """The three boundary fields, from the map `build_dust.py` already computes.
+
+    THE DRAG PARTITION IS DRIVEN BY THE PER-CELL ROUGHNESS MOSAIC, the same one
+    `build_dust.run_one` uses. `source_fractions` returns one erodible-area
+    weighted geometric-mean `z0` per cell per bracket end, because a clastic
+    playa and an evaporite pan are a smooth surface and a rough one; feeding the
+    partition the class-blind scalar instead put the mosaic on the offline arm
+    alone and left the boundary field carrying a constant.
+
+    `DUSTZ0` stays SCALAR, and that is a stated gap rather than an oversight: it
+    is the only other place the roughness enters, through `ln(zref/z0)` in the
+    friction velocity, and the model computes that term itself from its own
+    bottom-level height. Honouring the mosaic there needs a fourth boundary
+    field, which is world-2h4d.
+    """
     lakes = component_data("hydrography", config, strict=True) / "surface_water.nc"
-    erodible, land_fraction, per_class, class_detail, terrain = bd.source_fractions(
-        config, cfg, lakes)
+    (erodible, land_fraction, per_class, class_detail, terrain,
+     z0_cell) = bd.source_fractions(config, cfg, lakes, surface_classes)
     clay = bd.soil_clay_grid(soilmap(config), lat, lon)
     clay = np.nan_to_num(clay, nan=0.0)
     clay_pct = clay * 100.0
 
     f_clay = np.clip(clay, 0.0, float(cfg["emission"]["f_clay_max"]))
     srcw = erodible * f_clay
-    drage = bd.drag_efficiency(np.full_like(srcw, z0_aeolian), cfg)
+    z0_plane = np.asarray(z0_cell)[Z0_END_PLANE[z0_end]]
+    drage = bd.drag_efficiency(z0_plane, cfg)
     wpr = bd.fecan_residual_moisture(clay_pct, cfg)
-    return srcw, drage, wpr, land_fraction, per_class, class_detail, terrain, lakes
+    return (srcw, drage, wpr, land_fraction, per_class, class_detail, terrain,
+            lakes, z0_plane)
 
 
 # -- the test that can fail ---------------------------------------------------
@@ -267,8 +310,14 @@ def self_test(config: dict, cfg: dict, tol: float = 1e-10) -> None:
     shape = 2.012
     values = namelist_values(config, cfg, shape,
                              float(cfg["drag_partition"]["aeolian_z0_m"]))
-    drage = np.full(n, bd.drag_efficiency(
-        np.array([values["DUSTZ0"]]), cfg)[0])
+    # THE DRAG PARTITION FIXTURE IS PER CELL, drawn log-uniformly across the
+    # declared aeolian roughness bracket. A constant drage passes the identity
+    # on that axis whatever the boundary field carries, which is how the
+    # per-cell roughness mosaic came to reach the offline arm alone; the point
+    # of a fixture is that the check cannot be satisfied by an accident of it.
+    lo, hi = cfg["drag_partition"]["aeolian_z0_bracket_m"]
+    z0_cells = np.exp(rng.uniform(np.log(float(lo)), np.log(float(hi)), n))
+    drage = bd.drag_efficiency(z0_cells, cfg)
     wpr = bd.fecan_residual_moisture(clay_pct, cfg)
 
     # `emission_over_weibull` reads the gravity factor off the config dict, the
@@ -347,6 +396,11 @@ def main() -> None:
                     help="supplies the grid; defaults to baseline_climatology")
     ap.add_argument("--z0", default="central", choices=("low", "central", "high"),
                     help="which end of the aeolian roughness bracket to write")
+    ap.add_argument("--surface-classes", type=Path, default=None,
+                    help="pedology/analysis/surface_classes.nc. Given, desert "
+                         "pavement suppresses emission on the regions it "
+                         "covers, exactly as build_dust.py --surface-classes "
+                         "does. Absent, no suppression, on both arms")
     ap.add_argument("--self-test", action="store_true",
                     help="check the identity and the mutations; writes nothing")
     args = ap.parse_args()
@@ -383,7 +437,8 @@ def main() -> None:
     values = namelist_values(config, cfg, shape, z0)
 
     (srcw, drage, wpr, land_fraction, per_class, class_detail,
-     terrain, lakes) = build_fields(config, cfg, lat, lon, z0)
+     terrain, lakes, z0_cell) = build_fields(config, cfg, lat, lon, args.z0,
+                                             args.surface_classes)
 
     for name, field in (("dsrcw", srcw), ("ddrage", drage), ("dwpr", wpr)):
         if not np.isfinite(field).all() or field.min() < 0.0:
@@ -411,6 +466,23 @@ def main() -> None:
         },
         "z0_bracket_end": args.z0,
         "aeolian_z0_m": z0,
+        "aeolian_z0_cell_m": {
+            "min": float(z0_cell.min()), "max": float(z0_cell.max()),
+            "note": "the per-cell roughness mosaic the drag partition in 1802 "
+                    "is built from. aeolian_z0_m above is the class-blind "
+                    "scalar, and it is what DUSTZ0 carries for the "
+                    "ln(zref/z0) term only.",
+        },
+        "surface_classes": rel(args.surface_classes) if args.surface_classes else None,
+        "variant": "baseline",
+        "variant_note":
+            "THE THREE FIELDS EXPRESS THE BASELINE VARIANT ONLY. "
+            "build_dust.py --variant arid_bare_ground raises the emitting "
+            "fraction above the erodible one on cells drier than a declared "
+            "precipitation threshold, and that mask is evaluated per time bin "
+            "rather than once, so it is not a static boundary condition. The "
+            "in-model arm therefore has no counterpart to that bracket end; "
+            "world-2h4e.",
         "source_build": str(config["source_build"]),
         "terrain_hash": terrain,
         "lake_solution": rel(lakes),
@@ -456,6 +528,7 @@ def main() -> None:
     print(f"quadrature points  {values['DUSTNQ']}")
     print(f"thresholds         u*st0 {values['DUSTUST0']:.5f}  "
           f"u*st {values['DUSTUSTT']:.5f} m/s, gravity-scaled")
+    print(f"aeolian z0 mosaic  {z0_cell.min():.3g} to {z0_cell.max():.3g} m")
     print(f"drag partition     {drage.min():.5f} to {drage.max():.5f}")
     print(f"source cells       {int((srcw > 0.0).sum())} nonzero, max "
           f"dsrcw {srcw.max():.5f}")
