@@ -16,7 +16,6 @@
       parameter(NHOR = NLON * NLPP)     ! Horizontal part
       parameter(NROOT = 0)              ! Master node
 !
-      parameter(TMELT=273.16)           ! melting temp. for snow (0 deg C)
                                         ! ALL DENSITIES IN (kg/m**3)
       parameter(CRHOI = 920.)           ! DENSITY OF ICE
       parameter(CPI = 2070.)            ! SPECIFIC HEAT OF ICE (J/(kg*K))
@@ -32,6 +31,18 @@
 !     be bracketed where it stood. `iceini` now takes landmod's value, so the
 !     declared 330 below is only what a run with no sea points never reads.
       real :: crhosn = 330.             ! DENSITY OF SNOW (kg/m**3)
+!
+!     THE MELTING POINT IS PUMAMOD'S, NOT A SECOND COPY. This was
+!     `parameter(TMELT=273.16)`, a compile-time constant, while `tmelt` is a
+!     `planet_nl` key that `p_earth.f90` declares as "the freezing point every
+!     soil, snow, sea and ice routine tests against". Both were live: seamod's
+!     sea-ice albedo ramp anchors on pumamod's, icestep's skin-temperature melt
+!     anchored on this one, and a configuration that moved the namelist key
+!     would have split the two silently, with no line carrying the melting
+!     point at all. Same class and same remedy as the snow density above:
+!     `iceini` takes the one declaration, so the value below is only what
+!     stands until it is called.
+      real :: tmelt = 273.16            ! melting temp. for snow (0 deg C)
 !
 !     namelist parameters
 !
@@ -241,7 +252,7 @@
 !$omp&  mpinfo,mypid,myworld,&
 !$omp&  naccuo,naccuout,naout,ncpl_ice_ocean,newsurf,nfluko,ngui,nice,nicec2d,nout,noutput,&
 !$omp&  nperpetual_ice,nprhor,nprint,nproc,nrestart,nseaice,nsnow,nstep,ntskin,ntspd,nud,solar_day,&
-!$omp&  taunc,tfreeze,thicec,version,xaheat,xaout,xcflux,xcfluxa,xcfluxf,xcfluxn,xcfluxna,xcfluxr,&
+!$omp&  taunc,tfreeze,thicec,tmelt,version,xaheat,xaout,xcflux,xcfluxa,xcfluxf,xcfluxn,xcfluxna,xcfluxr,&
 !$omp&  xcfluxra,xclicec,xclicec2,xcliced,xcliced2,xclsst,xclsst2,xclssto,xcpmea,xcroffa,xdt,&
 !$omp&  xfluxc,xfluxca,xflxice,xflxice2,xflxicea,xgw,xheat,xheata,xicec,xicecc,xiced,ximelt,ximelta,&
 !$omp&  xlhdt,xlhfl,xls,xlwfl,xmaxd,xmind,xmld,xoflux,xofluxa,xoheat,xpme,xprs,xqmelt,xqmelta,xroff,&
@@ -347,7 +358,7 @@
 
       subroutine iceini(kstep,krestart,koutput,kdpy,kgui,pts,psst,pmld  &
      &                 ,picec,piced,psnow,ktspd,psolday,pdeglat         &
-     &                 ,prhosnow                                        &
+     &                 ,prhosnow,ptmelt                                 &
                        ,icemod_namelist,oceanmod_namelist,ice_output    &
                        ,ocean_output)
       use icemod
@@ -364,6 +375,7 @@
       real :: psnow(NHOR)
       real :: pdeglat(NLPP)
       real :: prhosnow
+      real :: ptmelt                ! pumamod's melting point, a planet_nl key
       real (kind=8) :: zsi(NLAT)
       real (kind=8) :: zgw(NLAT)
       real :: zgw2(NLON,NLAT)
@@ -386,6 +398,10 @@
       deglat(:) = pdeglat(:)
 !     landmod's rhosnow, the one declaration of the snow density. GRAV-8.
       crhosn    = prhosnow
+!     pumamod's tmelt, the one declaration of the melting point. planet_nl sets
+!     it and plasim.f90 broadcasts it before surfini, so every thread has the
+!     configured value here.
+      tmelt     = ptmelt
 
 !     compute grids properties
 !
@@ -579,7 +595,7 @@
 !
       call oceanini(nstep,nrestart,noutput,kdpy,ngui,xsst,xmld,xoheat   &
      &             ,ntspd,solar_day,oceanmod_namelist,ocean_output      &
-     &             ,TFREEZE,CRHOS,CPS,CLFI,xcoldsst)
+     &             ,TFREEZE,CRHOS,CPS,CLFI,CRHOI,xcoldsst)
 !
       xoflux(:)=xoheat(:)
 !

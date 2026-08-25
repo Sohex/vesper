@@ -92,7 +92,9 @@
       use seamod
 !     rhosnow is the ONE declaration of the snow density, GRAV-8. landini runs
 !     before seaini in surfini, so the value passed on is the one the namelist
-!     set rather than the compiled default.
+!     set rather than the compiled default. TMELT is pumamod's and travels the
+!     same way for the same reason: it is a planet_nl key, and icemod carried a
+!     second compile-time copy of it that no configuration could reach.
       use landmod, only: rhosnow
 !
       real :: zsicf(NHOR) = 0.
@@ -136,7 +138,7 @@
 !
       call iceini(n_start_step,nrestart,noutput,m_days_per_year         &
      &     ,ngui,cts,csst,cmld,cicec,ciced,csnow,mtspd,day_24hr,deglat &
-     &     ,rhosnow                                                    &
+     &     ,rhosnow,TMELT                                              &
      &     ,icemod_namelist,oceanmod_namelist,ice_output,ocean_output)
 !
 !     set puma surface variables
