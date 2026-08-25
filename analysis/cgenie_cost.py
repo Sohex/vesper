@@ -141,6 +141,13 @@ PROBE72 = {
     "dan_72_72x72x16_probe": dict(
         world="dan_72", nlons=72, nlats=72, nlevs=16, prefix="", synthetic_forcing=True,
         mcmodel="medium",
+        # At the shipped nyear = 100 this grid needs ndta >= 8: below that
+        # EMBM's surface solve stops the model, and it is not close. 10 is the
+        # smallest round value inside the boundary. It does not distort the
+        # comparison with the 36 x 36 cases at ndta = 5, because the --stability
+        # sweep shows the wall clock here is flat in ndta from 8 to 20: at this
+        # grid EMBM sets the timestep and the ocean sets the cost.
+        ndta=10,
         files=dict(
             xu="dan_72_NCEP-DOE_Reanalysis_2_average_taux_u.dat",
             yu="dan_72_NCEP-DOE_Reanalysis_2_average_tauy_u.dat",
@@ -824,6 +831,110 @@ def stability_sweep(name: str, case: dict, nyears: list[int], years: int,
     return out
 
 
+# Why the timing arm builds every case FIRST and only then runs them.
+#
+# `genie.job -z` sets REMAKE=FALSE: no make runs, and the job copies
+# `genie-main/genie.exe` into the run directory and executes it there. So an
+# executable can be built, stashed, and restored later, which makes it possible
+# to run the cases ROUND ROBIN rather than one case at a time.
+#
+# It matters because the cases are compared with each other. A sweep that
+# finishes one grid before starting the next gives each grid a different slice
+# of whatever else the host is doing, and a ratio between two of them is then a
+# ratio of two machine states as much as of two grids. Round robin gives every
+# case the same distribution of conditions, and the minimum over repeats takes
+# the least contended sample of each. The absolute numbers remain upper bounds
+# under contention; the ratios are what this buys.
+def build_all(cases: list[str], args, results: dict) -> Path:
+    """Build one executable per case and stash it. Returns the stash directory."""
+    global MCMODEL  # noqa: PLW0603
+    stash = args.logdir / "exe"
+    stash.mkdir(parents=True, exist_ok=True)
+    for name in cases:
+        case = CASES[name]
+        MCMODEL = args.mcmodel or case.get("mcmodel", "")
+        record = results[name]
+        record["code_model"] = MCMODEL or "small (the compiler default user.mak leaves in place)"
+        cfg = CONFIG_DIR / f"bench_{name}.xml"
+        try:
+            write_config(cfg, case, args.years[0], args.nyear, args.maxisles,
+                         ndta=case.get("ndta", 5))
+            run(["/usr/bin/make", *make_args().split(), "cleanall"],
+                args.logdir / f"{name}.clean.log")
+            rc, secs = run(job(f"configs/{cfg.name}", ["-x"], target="genie.exe"),
+                           args.logdir / f"{name}.build.log")
+            record["build_seconds"] = round(secs, 2)
+            record["build_ok"] = rc == 0
+            exe = GENIE_MAIN / "genie.exe"
+            record["exe_bytes"] = exe.stat().st_size if exe.exists() else None
+            if rc != 0 or not exe.exists():
+                record["error"] = f"build failed, see {args.logdir / (name + '.build.log')}"
+                continue
+            shutil.copy2(exe, stash / f"{name}.exe")
+        finally:
+            cfg.unlink(missing_ok=True)
+    return stash
+
+
+def time_all(cases: list[str], args, results: dict, stash: Path) -> None:
+    """Run every built case at every length, round robin, `repeats` times."""
+    global MCMODEL  # noqa: PLW0603
+    best: dict[tuple[str, int], float] = {}
+    size: dict[tuple[str, int], int] = {}
+    load: dict[tuple[str, int], list[float]] = {}
+    for rep in range(args.repeats):
+        for name in cases:
+            case = CASES[name]
+            record = results[name]
+            if not record.get("build_ok") or record.get("error"):
+                continue
+            MCMODEL = args.mcmodel or case.get("mcmodel", "")
+            cfg = CONFIG_DIR / f"bench_{name}.xml"
+            for years in args.years:
+                shutil.copy2(stash / f"{name}.exe", GENIE_MAIN / "genie.exe")
+                try:
+                    write_config(cfg, case, years, args.nyear, args.maxisles,
+                                 ndta=case.get("ndta", 5))
+                    log = args.logdir / f"{name}.run{years}.{rep}.log"
+                    rc, _ = run(job(f"configs/{cfg.name}", ["-z"]), log)
+                    ok, why = run_ok(log)
+                    if rc != 0 or not ok:
+                        record["error"] = f"run {years}y failed ({why or rc}), see {log}"
+                        continue
+                    inner = model_seconds(log)
+                    key = (name, years)
+                    if inner is not None:
+                        best[key] = inner if key not in best else min(best[key], inner)
+                    load.setdefault(key, []).append(loadavg())
+                    outdir = OUT_ROOT / cfg.stem
+                    # genie.job copies the executable into the run directory and
+                    # it is larger than everything the run writes. Storage means
+                    # what the run produced.
+                    size[key] = sum(f.stat().st_size for f in outdir.rglob("*")
+                                    if f.is_file() and f.name != "genie.exe")
+                    shutil.rmtree(outdir, ignore_errors=True)
+                finally:
+                    cfg.unlink(missing_ok=True)
+
+    for name in cases:
+        record = results[name]
+        for years in args.years:
+            key = (name, years)
+            if key in best:
+                record["runs"].append({
+                    "years": years,
+                    "model_seconds": best[key],
+                    "repeats": args.repeats,
+                    "load_average_after": load.get(key, []),
+                    "output_bytes": size.get(key),
+                })
+        if len(record["runs"]) >= 2:
+            (y0, t0), (y1, t1) = ((r["years"], r["model_seconds"]) for r in record["runs"][:2])
+            slope = (t1 - t0) / (y1 - y0)
+            record["seconds_per_model_year"] = round(slope, 4)
+            record["fixed_seconds"] = round(t0 - slope * y0, 3)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--case", action="append", choices=sorted(CASES) + sorted(PROBE72),
@@ -876,11 +987,11 @@ def main() -> int:
         print(f"wrote {args.out}")
         return 0
 
+    records = {}
     for name in cases:
         case = CASES[name]
-        MCMODEL = args.mcmodel or case.get("mcmodel", "")
         isles = island_count(case["world"])
-        record = {
+        records[name] = {
             "case": name,
             "world": case["world"],
             "nlons": case["nlons"],
@@ -890,74 +1001,18 @@ def main() -> int:
             "surface_cells": case["nlons"] * case["nlats"],
             "ubarsolv_work": case["nlons"] ** 2 * case["nlats"],
             "synthetic_forcing": case.get("synthetic_forcing", False),
-            "code_model": MCMODEL or "small (the compiler default user.mak leaves in place)",
             "islands_in_psiles": isles,
             "maxisles_compiled": args.maxisles,
             "nyear": args.nyear,
+            "ndta": case.get("ndta", 5),
             "stability": cfl(case["nlons"], case["nlats"], case["nlevs"], args.nyear),
             "runs": [],
         }
 
-        cfg = CONFIG_DIR / f"bench_{name}.xml"
-        cfg_rel = f"configs/{cfg.name}"
-        try:
-            write_config(cfg, case, args.years[0], args.nyear, args.maxisles)
-            rc, _ = run(["/usr/bin/make", *make_args().split(), "cleanall"],
-                        args.logdir / f"{name}.clean.log")
-            rc, secs = run(job(cfg_rel, ["-x"], target="genie.exe"),
-                           args.logdir / f"{name}.build.log")
-            record["build_seconds"] = round(secs, 2)
-            record["build_ok"] = rc == 0
-            exe = GENIE_MAIN / "genie.exe"
-            record["exe_bytes"] = exe.stat().st_size if exe.exists() else None
-            if rc != 0:
-                record["error"] = f"build failed, see {args.logdir / (name + '.build.log')}"
-                results.append(record)
-                continue
-
-            for years in args.years:
-                write_config(cfg, case, years, args.nyear, args.maxisles)
-                best = None
-                best_model = None
-                for rep in range(args.repeats):
-                    log = args.logdir / f"{name}.run{years}.{rep}.log"
-                    rc, secs = run(job(cfg_rel, ["-z"]), log)
-                    ok, why = run_ok(log)
-                    if rc != 0 or not ok:
-                        record["error"] = f"run {years}y failed ({why or rc}), see {log}"
-                        best = None
-                        break
-                    best = secs if best is None else min(best, secs)
-                    inner = model_seconds(log)
-                    if inner is not None:
-                        best_model = inner if best_model is None else min(best_model, inner)
-                if best is None:
-                    break
-                outdir = OUT_ROOT / cfg.stem
-                # genie.job copies the executable into the run directory, and it
-                # is larger than everything the run writes. Storage means what
-                # the run produced.
-                size = sum(f.stat().st_size for f in outdir.rglob("*")
-                           if f.is_file() and f.name != "genie.exe")
-                record["runs"].append({
-                    "years": years,
-                    "load_average_after": loadavg(),
-                    "model_seconds": best_model,
-                    "wall_seconds": round(best, 3),
-                    "repeats": args.repeats,
-                    "output_bytes": size,
-                })
-                shutil.rmtree(outdir, ignore_errors=True)
-        finally:
-            cfg.unlink(missing_ok=True)
-
-        if len(record["runs"]) >= 2:
-            pairs = [(r["years"], r["model_seconds"] or r["wall_seconds"]) for r in record["runs"][:2]]
-            (y0, t0), (y1, t1) = pairs
-            slope = (t1 - t0) / (y1 - y0)
-            record["seconds_per_model_year"] = round(slope, 4)
-            record["fixed_seconds"] = round(t0 - slope * y0, 3)
-        results.append(record)
+    stash = build_all(cases, args, records)
+    time_all(cases, args, records, stash)
+    results = [records[n] for n in cases]
+    for record in results:
         print(json.dumps(record, indent=2), flush=True)
 
     payload = {"provenance": provenance(), "criterion": {
