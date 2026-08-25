@@ -415,6 +415,28 @@ stops being affordable anyway.
 The gap between the two is `embm.cmn`'s seasonal arrays and `ocean.cmn`'s
 `maxnyr`-dimensioned storage, which the timestep does not read.
 
+## 3e. How big the enumeration is
+
+The seventeen files a parallel region over the ocean, the sea ice and the surface
+fluxes would contain are `tstepo`, `tstepo_flux`, `co`, `krausturner`, `velc`,
+`jbar`, `wind`, `eos`, `ediff`, `get_hosing`, `tstepa`, `tstipa`, `surflux`,
+`radfor`, `ocean_alb`, `tstepsic` and `tstipsic`. Counting the distinct names on
+their type-declaration lines gives **390 declared names, 81 of them arrays**.
+
+That is an UPPER bound and is meant to size the work rather than to be the list.
+It does not separate dummy arguments, which need no private clause, from genuine
+locals, and it counts loop indices. Two things about its shape matter more than
+its total. `surflux.F` alone carries 141 of the 390 and 20 of the 81, over a
+third of the work in one routine, which is the routine with the sea-ice Newton
+iteration and the land column inside it. And the ocean's own tracer path --
+`tstepo_flux`, `co`, `eos`, `ediff`, `velc`, `jbar` -- comes to 90 names and 30
+arrays, which is a day's careful reading rather than a project.
+
+Set beside section 3b, that is the argument for trying `-frecursive` first: if
+dropping `-fno-automatic` reproduces `genie-knowngood/` within a declared ULP
+count, all 390 become automatic and thread-private by the language's own default,
+and the enumeration does not have to happen at all.
+
 ---
 
 # 4. The coupling resolution
