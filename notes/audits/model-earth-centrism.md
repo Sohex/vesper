@@ -314,6 +314,19 @@ cloud emissivity in `radmod`. The correction applied is exactly the one the
 finding named, scaling by `g_earth/g` because liquid water should track vapour
 and vapour's geometric scale height is 0.766 here.
 
+**The `0.00021` beside it is closed separately, by world-8h6.** Both CCM3
+sources are now in `references/` and read, and neither gives the reference
+in-cloud liquid density a range, an uncertainty or a sensitivity; the technical
+note says the profile it anchors was analytically prescribed for CCM2 rather
+than measured, so nothing about it was ever a measurement to inherit a spread
+from. The value stays where world-ofn left it and gets a separately sourced
+bracket to run as arms, in `exoplasim/notes/cloud-water-reference.md`. That note
+carries the per-layer cloud water path, optical depth and cloud emissivity on
+the `NEQSIG = 4` sigma set every run on record uses, and it records that this
+fork's shortwave cloud optics is Stephens rather than the Slingo scheme the CCM3
+value was fixed inside (world-jimc). It does NOT redo the Vesper-over-Earth
+ratio table above, which is still on the fallback sigma set; that is world-d4su.
+
 ## 6. Land longwave surface emissivity is exactly 1.0, and is now declared to be
 
 `lwr` carried `zeps(:) = dls(:) + 0.98*(1.-dls(:))` as a bare literal: the

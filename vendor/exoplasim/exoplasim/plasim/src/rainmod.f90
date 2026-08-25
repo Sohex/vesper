@@ -64,10 +64,34 @@
 !     exactly at Earth's gascon and ga; a positive value overrides and is used
 !     as it stands, in metres.
 !
-!     clwref is ql0, the reference in-cloud liquid water density in kg/m3. It is
-!     a condensate concentration set by microphysics and carries no gravity
-!     dependence, so it is exposed at Kiehl's own value rather than scaled, and
-!     the bracket around it is a separate question.
+!     clwref is rho_l0, the reference in-cloud liquid water density in kg/m3. It
+!     is a condensate concentration set by microphysics and carries no gravity
+!     dependence, so it is exposed at CCM3's own value rather than scaled.
+!
+!     NEITHER CCM3 SOURCE GIVES A RANGE. Kiehl et al. (1998) Eq. 3 and the
+!     technical note's Eq. 4.a.11 both state it as one number with no
+!     uncertainty and no sensitivity, and the note (p. 49) says the profile it
+!     anchors was ANALYTICALLY PRESCRIBED for CCM2 rather than measured. There
+!     is therefore no bracket to inherit. The bracket that gets run as arms is
+!     in exoplasim/notes/cloud-water-reference.md, sourced from in-cloud liquid
+!     water observations, which is a different kind of quantity from the value
+!     and is labelled as such there. world-8h6.
+!
+!     WHAT CONSUMES dql IS NOT CCM3'S OPTICS. CCM3 puts the layer cloud water
+!     path into Slingo (1989) delta-Eddington, where extinction optical depth is
+!     LINEAR in the path and carries a droplet effective radius; radmod's swr is
+!     Stephens (1978), ztau = 2*ALOG10(zlwp+1.5)**3.9, and no effective radius
+!     exists anywhere in this model. The two curve differently in the path --
+!     the Stephens fit is super-linear below about 30 g/m2 and sub-linear above
+!     it -- so whatever cloud water path rho_l0 was chosen to deliver, the
+!     optical depth it delivers HERE is not the one it delivered in CCM3. CCM3
+!     also splits the condensate into liquid and ice by temperature and this
+!     model does not. The LONGWAVE side does match: radmod's
+!     1-dcc*(1-exp(-1.66*acllwr*CWP)) is CCM3 Eq. 12-13 exactly, at acllwr
+!     rather than CCM3's own absorption coefficient. So does the vertical
+!     distribution, to within the difference between evaluating rho_l at the
+!     mid-layer height and CCM3's analytic layer integral (Eq. 4.a.14), which is
+!     under 1.3 per cent wherever the layer carries more than 3 g/m2.
       real :: clwhsc = -1.0    ! cloud water e-folding length coefficient, m per
                                ! ln(1+kg/m2); < 0 = derive from gascon and ga
       real :: clwref = 0.00021 ! reference in-cloud liquid water density (kg/m3)
@@ -123,11 +147,22 @@
      &       ,nclouds,pdeepth,nevapprec,nbeta,rhbeta,rbeta,rcritmod,rcritslope      &
      &       ,clwhsc,clwref
 !
-!     reset defaults (according to general setup... tuning)
+!     SHALLOW CONVECTION IS ON AT EVERY TRUNCATION AND EVERY LAYER COUNT.
+!     Upstream cleared nshallow when NTRU==21 .and. NLEV==5. It is gone because
+!     no rung is a special case: a switch that changes with the grid makes every
+!     cross-rung comparison carry a physics change it did not ask for, which is
+!     the argument gamma above already carries.
 !
-      if(NTRU==21 .and. NLEV==5) then
-       nshallow=0
-      endif 
+!     THIS IS NOT A NO-OP AT FIVE LAYERS. Nothing writes NSHALLOW in a normal
+!     run -- the Python API has no such parameter and run_exoplasim.py sets it
+!     only inside its dynamics-only diagnostic, which zeroes the physics
+!     wholesale -- so a caller compiling T21 with NLEV 5 now integrates the
+!     module default of 1 above, with shallow convection ON where upstream
+!     turned it off. Such a caller declares NSHALLOW = 0 in rainmod_nl if it
+!     wants upstream's behaviour; the key has always been there. No
+!     configuration this project builds is affected: config/planet.yaml declares
+!     ten layers, NLEV is a compiled parameter, and every entry in
+!     rebuild_binaries.py's MATRIX is ten. world-677x.
 !
 !     THE CRITICAL RELATIVE HUMIDITY, and the 0.85 floor is the subgrid half.
 !     rcrit is the cell-mean relative humidity at which cloud starts to form, so
