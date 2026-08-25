@@ -499,6 +499,36 @@ carries three defects the operator had: the soil map's pH never reached it, its
 no-pH fallback ran on a variable nothing assigns, and its only conservation check
 was an `assert` that Release compiles out.
 
+### The seasonal landmarks are derived, not dated
+
+Summergreen phenology turns on two days of the simulation year: the coldest,
+where the growing-degree-day sum and the annual leaf-on sum reset and chilling
+detection switches off, and the warmest, where chilling detection switches back
+on. LPJ-GUESS carried both as fixed ordinal dates on the Earth calendar, one pair
+per hemisphere, and this world's year is shorter than half an Earth year, so the
+southern date named a day the calendar does not have.
+
+`Climate::coldest_day` and `Climate::warmest_day` replace them, read off a
+running day-of-year mean of the air temperature forcing and smoothed over one of
+this world's months. No hemisphere test and no thermal-lag assumption enters, and
+the pair can never collapse onto one day, so each reset fires exactly once per
+orbit on every gridcell including the equator. `VesperInput` hands the whole
+interpolated year over at day 0, so the landmarks are the cell's own from the
+first orbit and follow a driver file of several years as it cycles.
+
+`phenology_gate.py` is the enforcement. It fails on an Earth ordinal date back in
+any compiled source, on a reader no longer keyed on the derived pair, on the
+chill-day count being able to leave the `Pft::gdd0` table it indexes, and on a
+landmark field missing from `Climate::serialize`. Eleven fixtures run on every
+invocation, four of them built to be wrong in a named way.
+
+```bash
+python biosphere/scripts/phenology_gate.py            # status, exit 0
+python biosphere/scripts/phenology_gate.py --strict   # refuses on the one
+                                                      # natural-vegetation event
+                                                      # still on an Earth calendar
+```
+
 ### Fire is GLOBFIRM, with flux and occurrence diagnostics
 
 `run_lpj_guess.py` writes `firemodel "GLOBFIRM"` after its `import` of

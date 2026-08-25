@@ -12,31 +12,47 @@ rescaling, spin-up duration and the known frost limitation. Those are not
 reopened. The findings below are assumptions that remained implicit underneath
 those declared choices.
 
-## 1. Natural phenology still contains Earth ordinal dates
+## 1. Natural phenology took its seasonal landmarks from Earth ordinal dates
 
-`framework/guess.h` defines the northern coldest day as 14 (15 January) and the
-southern coldest day as 195 (15 July), and aliases each hemisphere's warmest day
-to the other's coldest day. Day 195 does not exist in the compiled 181-day
-calendar.
+`framework/guess.h` defined the northern coldest day as 15 January and the
+southern as 15 July, aliasing each hemisphere's warmest day to the other's
+coldest, and the southern date named a day the compiled calendar does not have.
+Three active natural-vegetation paths read them: `modules/driver.cpp` reset the
+summergreen GDD counter and switched chilling detection off and on,
+`modules/growth.cpp` reset annual leaf-on accumulation, and
+`modules/somdynam.cpp` released summergreen leaf litter in the first month of the
+year in the north and the first month of the second half in the south.
 
-These are active natural-vegetation paths, not unused crop machinery:
+So the southern GDD and leaf-on resets never occurred at all, and in the north
+chilling detection was switched off at the northern coldest day and never
+switched back on. `chilldays` was also incremented under an inclusive
+upper-bound test, so losing its seasonal reset advanced it one index past the
+end of `Pft::gdd0` on a cell whose monthly mean never crosses the 5 degree base
+from above -- a defect the vendored source has on Earth too, which the missing
+reset made reachable here.
 
-- `modules/driver.cpp` uses them to reset the summergreen GDD counter and to
-  disable and re-enable chilling detection.
-- `modules/growth.cpp` uses them to reset annual leaf-on accumulation.
-- `modules/somdynam.cpp` releases summergreen leaf litter during month 0 in the
-  north and month 6 in the south, still described as January and July.
+`Climate::coldest_day` and `Climate::warmest_day` carry the landmarks now,
+derived per gridcell from the temperature forcing itself: a running day-of-year
+mean of the air temperature, smoothed over one of this world's months and
+searched circularly for its extremum. No hemisphere test enters, and no thermal
+lag, which is what scaling the two Earth dates by the year ratio would have
+carried over. The two can never be equal, so each reset fires exactly once per
+orbit on every gridcell, the equator included, and on a forcing of any number of
+orbits: `VesperInput` hands the whole interpolated year over at day 0, so a cell
+runs on its own landmarks from the first orbit and follows a multi-year driver
+file as it cycles. The chill-day guard is now exclusive, which holds the count at
+the last valid index; the budburst requirement it looks up is at its `k_chilla`
+asymptote well before that, so the ceiling changes no result.
 
-The southern GDD and leaf-on resets therefore never occur. In the north,
-chilling detection is disabled on day 14 and never re-enabled on the unreachable
-day 195. Because `chilldays` is incremented with an inclusive upper-bound test,
-losing its seasonal reset can also advance it beyond the last valid `Pft::gdd0`
-index on a sufficiently cold cell.
+`biosphere/scripts/phenology_gate.py` is the enforcement, and it carries the
+fixtures: northern, southern, equatorial, flat and sixteen-orbit forcings, a cell
+whose air temperature never reaches the chilling base, and four cases built to be
+wrong in a named way, including the two Earth ordinal dates on this calendar and
+the chill-day guard the vendored source shipped.
 
-The replacement must derive seasonal landmarks from the forcing or its
-registered orbital phase and must cover both hemispheres, the equator and a
-forcing sequence with more than one orbit. Merely scaling 14 and 195 by the year
-ratio would retain an Earth thermal-lag assumption. This is BIO-21.
+One reader remains on an Earth calendar: the summergreen leaf litter release
+month in `modules/somdynam.cpp`. That is BIO-31, and it is what the gate's
+`--strict` arm refuses on.
 
 ## 2. A model year is still treated as an Earth year in ecological rates
 

@@ -649,11 +649,30 @@ steps:
       a correct run; `--strict` is the arm that refuses. `lpj_run` needs it so
       the declared C-N-P model boundary sits on the path rather than beside it.
 
+  - id: phenology_gate
+    script: biosphere/scripts/phenology_gate.py
+    loop: B
+    cost: seconds
+    needs: []
+    writes: [biosphere/generated/phenology_gate_report.json]
+    gate: >
+      where the simulated vegetation's seasonal landmarks come from. The coldest
+      and warmest day of the simulation year decide when the summergreen
+      degree-day sum, the annual leaf-on sum and chilling detection reset, and
+      they are derived per gridcell from the temperature forcing rather than
+      taken from an Earth calendar. It fails on an Earth ordinal date back in any
+      compiled source, on a reader no longer keyed on the derived pair, on a
+      chill-day count able to leave the lookup table it indexes, and on a
+      landmark field missing from Climate::serialize. Eleven fixtures run on
+      every invocation, four built to be wrong in a named way, over northern,
+      southern, equatorial, flat and sixteen-orbit forcings. `--strict` refuses
+      on the one natural-vegetation event still on an Earth calendar, BIO-31.
+
   - id: lpj_run
     script: biosphere/scripts/run_lpj_guess.py
     loop: B
     cost: hours
-    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, mineral_reactivity_gate]
+    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, mineral_reactivity_gate, phenology_gate]
     writes: [biosphere/runs/]
 
   - id: prospectivity
