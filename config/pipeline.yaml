@@ -941,6 +941,22 @@ checks:
   # after a Fortran edit, before paying for a build.
   - id: verify_model_compiles
     script: exoplasim/scripts/verify_model_compiles.py
+  # Does any domain-sensitive intrinsic sit inside a masked `where` block whose
+  # complement can hold an out-of-domain argument? A `where` masks the
+  # ASSIGNMENT and not the evaluation, so the compiler may evaluate the
+  # right-hand side on every lane, and the declared `-ffpe-trap` turns a lane
+  # that was going to be discarded into SIGFPE. That is world-bhs, and it is why
+  # the flag line is -O2 rather than -O3.
+  #
+  # A pure text parse of plasim/src, no build and no run. It OVER-reports by
+  # construction -- it clears its where-stack only on an explicit `end where`,
+  # recognises only a literal set of guard shapes, and knows nothing about the
+  # physics of a mask -- so a clean run is evidence and a dirty one is a work
+  # list. The sites it cannot guard carry their argument in the script's
+  # CLASSIFIED table, keyed on the argument text, so a changed argument is
+  # reported again. Exit 1 on anything neither guarded nor classified.
+  - id: lint_masked_domains
+    script: exoplasim/scripts/lint_masked_domains.py
   # Does anything uninitialised reach a stored value, at the optimisation level
   # this project ships? The trapping form of that question does not arm at -O2
   # -- world-5rs measured the positive control -- and `-finit-real=zero` was

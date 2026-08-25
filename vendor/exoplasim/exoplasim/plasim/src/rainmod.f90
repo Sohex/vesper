@@ -2016,10 +2016,23 @@
 !
 
       zrfac = solar_day * 1000.0 ! convert m/s into mm/day
+!
+!     BOTH FLOORS BELOW ARE THE MASK MADE STRUCTURAL. A `where` masks the
+!     ASSIGNMENT and not the evaluation, so a lane with no convective rain still
+!     forms log(0) and 1/icctot, and the production profile traps on both.
+!
+!     Neither can bind on a lane the mask keeps. The AMAX1(zccmin,...) on the
+!     next line already flattens everything below 0.21 mm/day onto zccmin --
+!     that is where zcca + zccb*log reaches zccmin -- and the floor sits at
+!     1e-30, thirty decades inside the flattened region, so it cannot change a
+!     value that survives. icctot counts the convecting layers and is at least 1
+!     wherever there is convective rain to count; where it is not, the floor
+!     replaces a division by zero rather than a number. world-5a0.
+!
       where(dprc(:) > 0.)
-       zcctot(:)=zcca+zccb*log(dprc(:)*zrfac)
+       zcctot(:)=zcca+zccb*log(max(1.E-30,dprc(:)*zrfac))
        zcctot(:)=AMIN1(zccmax,AMAX1(zccmin,zcctot(:)))
-       zccconv(:)=1.-(1.-zcctot(:))**(1./real(icctot(:)))
+       zccconv(:)=1.-(1.-zcctot(:))**(1./real(max(1,icctot(:))))
       end where
 
 !
@@ -2095,9 +2108,20 @@
       dcc(:,NLEP)=1.
       dqvi(:)=dqvi(:)*dp(:)/ga
       zzh(:)=clwhsc*ALOG(1.+dqvi(:))
+!
+!     THE SCALE HEIGHT IS FLOORED IN THE DIVISOR, and the exponent is clamped
+!     the way every other exponent in this file is. zzh is clwhsc*ALOG(1+dqvi)
+!     and reaches exactly zero on a column with no water vapour at all, which
+!     the mask excludes and the evaluation does not: -zzf/0 traps on
+!     -ffpe-trap=zero. On a lane the mask keeps zzh is positive and the floor
+!     cannot bind, and the clamp cannot change a value either, because the
+!     MAX(dql,1.E-9) on the next line already flattens everything the clamp
+!     could reach: exp(-80) times gascon*dt/(sigma*dp) is about 1e-34, which is
+!     twenty-five decades below that floor. world-5a0.
+!
       do jlev=1,NLEV
        where(zzh(:) > 0. .and. dcc(:,jlev) > 0.)
-        dql(:,jlev)=clwref*EXP(-zzf(:,jlev)/zzh(:))*gascon*dt(:,jlev)   &
+        dql(:,jlev)=clwref*EXP(min(80.,max(-80.,-zzf(:,jlev)/max(1.E-30,zzh(:)))))*gascon*dt(:,jlev)   &
      &             /(sigma(jlev)*dp(:))
         dql(:,jlev)=MAX(dql(:,jlev),1.E-9)
        endwhere

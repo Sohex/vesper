@@ -2373,10 +2373,41 @@
        zrcl1s(:,:)=0.0
        zrcl2s(:,:)=0.0
        ztcl2s(:,:)=1.0
+!
+!     THE CHAIN'S SCRATCH IS PRESET, for the reason the magnification factor
+!     further down is set unconditionally. Every one of these is written inside
+!     the where below and read by the next line of the same block, and a `where`
+!     masks the ASSIGNMENT rather than the evaluation: a lane with no cloud at
+!     this level is never stored to, so the read takes whatever the stack held.
+!     A lane the mask KEEPS is stored before every read of it, so presetting
+!     cannot move a result the model uses. ztau is preset to 1 and not to 0
+!     because 1000/ztau is formed on every lane. world-5a0.
+!
+       zlwp(:) = 0.0
+       ztau(:) = 1.0
+       zlog(:) = 0.0
+       zb1(:)  = 0.0
+       zb2(:)  = 0.0
+       zom0(:) = 0.0
+       zun(:)  = 1.0
+       zuz(:)  = 1.0
+       zu(:)   = 1.0
+       zexp(:) = 1.0
+       zr(:)   = 1.0
        do jlev=1,NLEV
         where(losun(:) .and. (dcc(:,jlev) > 0.))
+!
+!     THE LIQUID WATER PATH IS FLOORED AT ZERO INSIDE THE LOGARITHM, and that
+!     floor is what makes the rest of this chain safe. dql is set to 0 and then
+!     to MAX(dql,1.E-9) in rainmod, so zlwp cannot be negative on any lane the
+!     model has computed and the floor cannot bind on one. What it removes is a
+!     stale lane: ALOG10 of an argument below 1 is negative, and raising a
+!     negative base to 3.9 is a domain error of its own. With the floor in,
+!     ztau is at least 2*ALOG10(1.5)**3.9, so 1000/ztau below cannot divide by
+!     zero and 3.+0.1*ztau cannot leave ALOG's domain. world-5a0.
+!
          zlwp(:) = min(1000.0,1000.*dql(:,jlev)*dp(:)/ga*dsigma(jlev))
-         ztau(:) = 2.0 * ALOG10(zlwp(:)+1.5)**3.9
+         ztau(:) = 2.0 * ALOG10(1.5+max(0.,zlwp(:)))**3.9
          zlog(:) = log(max(1.E-30,1000.0 / ztau(:)))
          zb2(:)  = zb4 / ALOG(3.+0.1*ztau(:))
          zom0(:) = min(0.9999,1.0 - zb5 * zlog(:))
@@ -2494,6 +2525,35 @@
 
       if (iaeron == 1) then
 
+!     THE INTERMEDIATES ARE PRESET TOO, for the reason the magnification factor
+!     above is set unconditionally. Every one of them is written inside a
+!     where(aod1 > 0.) and read inside the same block, and a `where` masks the
+!     ASSIGNMENT and not the evaluation: a lane with no aerosol at this level is
+!     never stored to, so the read takes whatever the stack held, and EXP of a
+!     stale non-finite word raises the invalid the production profile traps on.
+!     A lane the mask KEEPS is stored before it is read at every one of these,
+!     so presetting them cannot move a result the model uses. The values are the
+!     no-aerosol ones the conservative branch below already writes: zero
+!     effective optical depth, unit denominator, unit u-factor. world-5a0.
+!
+!     These stay inside the iaeron test, unlike the transmissivities above.
+!     zaert1 and its siblings are read at every level whether or not an aerosol
+!     acts; these are read only from inside this block.
+
+      zaertf1(:,:) = 0.0
+      zaertf2(:,:) = 0.0
+      zaertf1s(:,:) = 0.0
+      zaertf2s(:,:) = 0.0
+      zaerd1(:,:) = 1.0
+      zaerd2(:,:) = 1.0
+      zaerd1s(:,:) = 1.0
+      zaerd2s(:,:) = 1.0
+      zaeru1(:) = 1.0
+      zaeru2(:) = 1.0
+      ztemp1(:) = 0.0
+      ztemp2(:) = 0.0
+      ztcon(:) = 0.0
+
       ! Aerosol two-stream multiscattering radiative transfer approximation from
       ! Stephens (1978), with data read from outside the model instead of a parameterization
       ! for the effective optical depht and single scattering albedo
@@ -2550,6 +2610,12 @@
       ! arithmetic and would otherwise move the existing dust-only answer by an
       ! ulp for no physical reason.
 
+      ! zext1 is floored the way the three quotients beside it already are. A
+      ! lane with no species present has zext1 exactly 0 and knz 0, so the
+      ! elsewhere excludes it -- and a `where` masks the ASSIGNMENT, not the
+      ! evaluation, so the quotient is still formed and the production profile
+      ! traps on it. world-5a0.
+
         zssa1(:) = 0.
         zbs1(:)  = 0.
         zssa2(:) = 0.
@@ -2560,7 +2626,7 @@
          zssa2(:) = ssa2(klast(:))
          zbs2(:)  = bscat2(klast(:))
         elsewhere (knz(:) > 1)
-         zssa1(:) = zsca1(:)/zext1(:)
+         zssa1(:) = zsca1(:)/MAX(zext1(:),TINY(1.0))
          zbs1(:)  = zbsc1(:)/MAX(zsca1(:),TINY(1.0))
          zssa2(:) = zsca2(:)/MAX(zext2(:),TINY(1.0))
          zbs2(:)  = zbsc2(:)/MAX(zsca2(:),TINY(1.0))
@@ -2569,9 +2635,21 @@
         lcons1(:) = (1.0-zssa1(:)) <= zepsc
         lcons2(:) = (1.0-zssa2(:)) <= zepsc
 
+      ! THE TWO FLOORS BELOW ARE THE lcons TEST, MADE STRUCTURAL. The mask
+      ! excludes the conservative lanes because the exact expression is
+      ! singular there, and a `where` does not: it masks the ASSIGNMENT and
+      ! leaves the compiler free to evaluate the right-hand side on every lane,
+      ! which at 1-ssa = 0 is a division by zero and at 1-ssa < 0 a square root
+      ! of a negative. Both are trapped by the production profile. On a lane the
+      ! mask KEEPS, 1-ssa exceeds zepsc and the u-factor is 1 + 2*b*ssa/(1-ssa),
+      ! which is at least 1, so neither floor can bind on a result the model
+      ! uses. Flooring the u-factor at 1 rather than at 0 is what keeps the
+      ! denominator below it away from zero: it is (u+1)^2 e^t - (u-1)^2 e^-t,
+      ! which for u >= 1 and t >= 0 is at least 4u. world-5a0.
+
         where(losun(:) .and. aod1(:,jlev) > 0. .and. .not. lcons1(:))
-         zaeru1(:) = SQRT((1.0-zssa1(:)+2*zbs1(:)*zssa1(:))/(1.0-zssa1(:))) ! u-factor band 1
-         ztemp1(:) = SQRT((1.0-zssa1(:))*(1.0-zssa1(:)+2*zbs1(:)*zssa1(:)))
+         zaeru1(:) = SQRT(MAX(1.0,(1.0-zssa1(:)+2*zbs1(:)*zssa1(:))/MAX(1.0-zssa1(:),zepsc))) ! u-factor band 1
+         ztemp1(:) = SQRT(MAX(0.0,(1.0-zssa1(:))*(1.0-zssa1(:)+2*zbs1(:)*zssa1(:))))
          zaertf1(:,jlev) = MIN(25.,(ztemp1(:)*aod1(:,jlev))/(zmu0+zero))  ! effective t band 1
          zaerd1(:,jlev) = (((zaeru1(:)+1.0)**2.0)*EXP(zaertf1(:,jlev)) - ((zaeru1(:)-1.0)**2.0)/EXP(zaertf1(:,jlev))) ! denominator band 1
          zaert1(:,jlev) = (4.0*zaeru1(:))/zaerd1(:,jlev) ! transmission band 1
@@ -2616,8 +2694,8 @@
         endwhere
 
         where(losun(:) .and. aod1(:,jlev) > 0. .and. .not. lcons2(:))
-         zaeru2(:) = SQRT((1.0-zssa2(:)+2*zbs2(:)*zssa2(:))/(1.0-zssa2(:))) ! u-factor band 2
-         ztemp2(:) = SQRT((1.0-zssa2(:))*(1.0-zssa2(:)+2*zbs2(:)*zssa2(:)))
+         zaeru2(:) = SQRT(MAX(1.0,(1.0-zssa2(:)+2*zbs2(:)*zssa2(:))/MAX(1.0-zssa2(:),zepsc))) ! u-factor band 2
+         ztemp2(:) = SQRT(MAX(0.0,(1.0-zssa2(:))*(1.0-zssa2(:)+2*zbs2(:)*zssa2(:))))
          zaertf2(:,jlev) = MIN(25.,(ztemp2(:)*aod2(:,jlev))/(zmu0+zero)) ! effective t band 2
          zaerd2(:,jlev) = (((zaeru2(:)+1.0)**2.0)*EXP(zaertf2(:,jlev)) - ((zaeru2(:)-1.0)**2.0)/EXP(zaertf2(:,jlev))) ! denominator band 2
          zaert2(:,jlev) = (4.0*zaeru2(:))/zaerd2(:,jlev) ! transmission band 2
@@ -2695,7 +2773,7 @@
        zscf(:) = rcoeff*dp(:)/101100.0*9.80665/ga
        zrcsu(:,NLEV)=zrcsu(:,NLEV) + (1.0-exp(zscf(:)*log(1.0-0.144))) &
      &                                *(1-newrsc)*nrscat*(1-dcc(:,NLEV)*nclouds)
-       zrcs(:,NLEV)= zrcs(:,NLEV) + (1.0-exp(zscf(:)*log(1.0-(0.219/(1.+0.816*zmu0(:))))))&
+       zrcs(:,NLEV)= zrcs(:,NLEV) + (1.0-exp(zscf(:)*log(1.0-(0.219/(1.+0.816*max(0.,zmu0(:)))))))&
      &                              * zcs(:)*(1-newrsc)*nrscat                    &
      &                            + (1.0-exp(zscf(:)*log(1.0-0.144)))*(1.-zcs(:)-dcc(:,NLEV))&
      &                              * nrscat*(1-newrsc)
