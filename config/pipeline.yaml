@@ -306,7 +306,9 @@ steps:
       without the sink the table pins at the surface over most of the land, and
       without local baselevels the sea is the only boundary and the depth range
       collapses. `--no-groundwater-et` and `--no-baselevels` turn them off, for
-      the reduction identity and for reproducing pre-GW-15 runs. The baselevels
+      reproducing pre-GW-15 runs; `--reduction-test` sets both itself, because
+      the surface-only balance it reduces to carries neither and a reduction
+      keeping one is not an identity. The baselevels
       are why this step needs `surface_water`: that artifact is the only thing
       that knows where the rivers and lakes are.
       READ `hydrography/README.md` BEFORE CONSUMING THE DEPTH FIELD. The

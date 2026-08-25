@@ -454,7 +454,13 @@ away, and the numbers are in the report.
 
 `--reduction-test` drives permeability to zero, which must reproduce the
 surface-only balance exactly rather than closely: every cell returns its own
-recharge as seepage and every basin's `Qg` is zero. It passes bitwise.
+recharge as seepage and every basin's `Qg` is zero. The arm turns GW-15's sink
+and GW-17's baselevels off and says so, because the balance being reduced TO has
+neither: a reduction that keeps the sink returns each cell's recharge less what
+the sink took, and one that keeps the baselevels takes the river cells out of
+the network altogether. That is part of the case, not a flag the caller has to
+remember. The bar is bitwise and it has not been measured since either term
+landed.
 
 `--divide-test` does two things. It reports how far the groundwater catchments
 agree with the surface ones under a table following the FILLED surface, which is
