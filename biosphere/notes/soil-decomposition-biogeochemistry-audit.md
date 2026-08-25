@@ -100,7 +100,8 @@ flux later is a change to one file. The argument is in
 (2010)'s own and is not a copying artifact. `PMASS_SAT` is Parton, Stewart and
 Cole (1988) Fig. 3 exactly and is not a copy, but the labile P pool it gates is
 the fork's wider Hedley-labile one and not that figure's resin-extractable
-orthophosphate, so its ramp saturates everywhere. `PCONC_SAT` has no phosphorus
+orthophosphate, so the figure's axis maximum is now CONVERTED into that currency
+by 6.6 rather than carried across; unconverted its ramp saturated everywhere. `PCONC_SAT` has no phosphorus
 source at all and its ramp can never be reached. Both are their own rows.
 
 ### 3. A bulk SOM column breaks the depth, root and groundwater contracts

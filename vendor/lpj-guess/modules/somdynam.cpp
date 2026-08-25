@@ -97,34 +97,62 @@ static const double NCONC_SAT = 0.02;
 // 2.0 gP/m2 sits on the last of them. The fork's own sorption parameters say
 // the same thing from the inside: kplab, the Langmuir half-saturation for
 // labile P, is 10 to 78 gP/m2 by soil order (Wang et al. 2010, Table A1), so
-// this threshold is 5 to 39 times below the level at which the fork's own
-// isotherm expects labile P to be halfway to saturating.
+// Parton's unconverted axis maximum is 5 to 39 times below the level at which
+// the fork's own isotherm expects labile P to be halfway to saturating.
 //
-// The consequence is that fac exceeds fmax nearly everywhere, and the slow,
-// passive and soil microbial pools sit at their MINIMUM C:P always, which is
-// their most phosphorus-rich end. That is not a wrong constant. It is a right
-// constant reading a pool its source did not define. The one reader of what
-// setptoc writes is transferdecomp()'s pinc, the phosphorus that rides carbon
-// into a receiving pool, so this decides the phosphorus content of every
-// organic transfer in the model.
+// Unconverted, fac exceeds fmax nearly everywhere and the slow, passive and
+// soil microbial pools sit at their MINIMUM C:P always, which is their most
+// phosphorus-rich end. That is not a wrong constant. It is a right constant
+// reading a pool its source did not define. The one reader of what setptoc
+// writes is transferdecomp()'s pinc, the phosphorus that rides carbon into a
+// receiving pool, so this decides the phosphorus content of every organic
+// transfer in the model.
 //
-// The two ways out are NOT the same change, and what separates them is the
-// SECOND job this constant does. somfluxes() ends by pinning
-// soil.pmass_labile to PMASS_SAT whenever !ifplim, so under the configuration
-// this project runs, fac arrives back at setptoc() equal to fmax to within one
-// day's net phosphorus flux. Raising PMASS_SAT into this fork's labile-P
-// currency therefore moves the pin with it, fac tracks fmax, and NOTHING
-// changes under ifplim 0; it bites only under ifplim 1. Driving setptoc() with
-// a resin-equivalent FRACTION of soil.pmass_labile instead leaves the pin
-// alone, puts fac well below fmax, and moves the three pools partway up the
-// ramp in the current configuration -- which is where the reported soil
-// phosphorus stock is. Whichever is chosen, that scalar is the whole decision:
-// Dantas de Paula et al. (2025) put simulated labile P at 2.11 PgP and
-// Hedley-labile at 3.6 PgP against 0.319 PgP by Olsen over 0 to 20 cm, so the
-// driver over-reads Parton's pool by a BRACKETED factor of 6.6 to 11.3. It
-// cannot be tightened from those numbers, because LPJ-GUESS-CNP's soil organic
-// matter is a bulk pool with no depth and Parton's figure is per 0 to 20 cm,
-// so the two sides of the ratio do not share a support. WORLD-Z01O.
+// DECLARED DIVERGENCE FROM MAINLINE: pmass_sat_labile_currency, owner
+// WORLD-Z01O. Vendored LPJ-GUESS-CNP declares
+//     static const double PMASS_SAT = 0.002;
+// which is Parton's axis maximum carried across unconverted. This project
+// converts the THRESHOLD into the fork's own labile-P currency by the factor
+// 6.6 applied below, giving 0.0132 kgP/m2. There is no register file for this
+// module's divergences yet, on the ntransform.yaml pattern; until there is,
+// this comment and biosphere/notes/phosphorus-cycle-parameterisation.md are
+// the record.
+//
+// The threshold and not the driver, because PMASS_SAT does a SECOND job:
+// somfluxes() ends by pinning soil.pmass_labile to PMASS_SAT whenever !ifplim,
+// and that pin is DEFINED as holding labile P at the value where the C:P ramp
+// stops responding. The two uses are one number rather than two that coincide,
+// so converting the threshold and letting the pin follow is one definition
+// propagating and not a side effect. Splitting them into two constants would
+// invent a second number with no independent derivation and let the two drift.
+// The alternative -- leaving the threshold alone and driving setptoc() with a
+// resin-equivalent FRACTION of soil.pmass_labile at the call sites only --
+// would leave the pin behind and is not taken for that reason.
+//
+// 6.6 and not the middle of the bracket. The ratio between this fork's
+// pmass_labile and the resin-extractable orthophosphate Fig. 3 was drawn
+// against is bracketed 6.6 to 11.3 by Dantas de Paula et al. (2025)'s own
+// global numbers: 6.6 is the model's SIMULATED labile P, 2.11 PgP, over
+// Olsen-extractable 0.319 PgP; 11.3 is the OBSERVATIONAL Hedley-labile
+// estimate, 3.6 PgP, over the same Olsen figure. setptoc() consumes the
+// simulated pool and not the observation, so 6.6 is the ratio between the two
+// quantities that are actually wired together. 11.3 would additionally carry
+// the model's 41 per cent under-prediction of its own observational target,
+// counting that error twice. The bracket cannot be tightened further from
+// these numbers, because LPJ-GUESS-CNP's soil organic matter is a bulk pool
+// with no depth and Parton's figure is per 0 to 20 cm, so the two sides of the
+// ratio do not share a support; narrowing it needs a run of this fork.
+//
+// What moves. Under ifplim 0, the configuration this project runs, the pin
+// moves with the threshold, fac still arrives at fmax, and every soil organic
+// C:P ratio is unchanged: the divergence is INERT for the carbon and
+// phosphorus flows. What does change is the reported stock, because
+// commonoutput.cpp writes the pinned pmass_labile into PO4_mass and availp --
+// the reported labile P moves from 2.0 to 13.2 gP/m2, which is the same order
+// as the fork's own simulated 16 gP/m2 instead of an order below it. It is
+// still a constant meaning "not limiting" and still not a simulated stock.
+// Under ifplim 1 the divergence bites for real: the emergent labile P now has
+// a threshold it can sit below, so the three pools ramp instead of saturating.
 //
 // PCONC_SAT has no phosphorus source at all. It carries NCONC_SAT's 0.02
 // exactly, and Parton, Stewart and Cole (1988) contains no counterpart to it:
@@ -142,13 +170,15 @@ static const double NCONC_SAT = 0.02;
 // That bounds any replacement from above; nothing in the cited source anchors
 // it from below. WORLD-PIDX.
 //
-// Neither value is changed here, because neither is settled by arithmetic:
-// PMASS_SAT is correct against its source and wrong against its driver, and
-// PCONC_SAT has no source. parameters.cpp refuses ifplim 1 while that stands,
-// and biosphere/notes/phosphorus-cycle-parameterisation.md carries the
-// evidence, the arithmetic and what each is worth in the model's own reported
-// stocks.
-static const double PMASS_SAT = 0.002;
+// PCONC_SAT is not changed here, because it is not settled by arithmetic: it
+// has no phosphorus source at all, and parameters.cpp goes on refusing
+// ifplim 1 while that stands. biosphere/notes/phosphorus-cycle-parameterisation.md
+// carries the evidence, the arithmetic and what each is worth in the model's
+// own reported stocks.
+//
+// 0.002 kgP/m2 is Fig. 3's axis maximum; 6.6 converts it into this fork's
+// labile-P currency, as argued above.
+static const double PMASS_SAT = 0.002 * 6.6;
 static const double PCONC_SAT = 0.02;
 
 // Phosphorus sorption rate constants, Wang et al. (2007) as restated by
@@ -865,11 +895,12 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 	setntoc(soil, nmin_mass, SURFHUMUS, 30.0, 15.0, 0.0, NMASS_SAT);
 
 	// Set P:C ratios for the slow, passive and soil microbial pools from the
-	// labile P pool. The three (ctop_max, ctop_min) pairs and the saturating
-	// value of the driver are Parton, Stewart and Cole (1988) Fig. 3, p. 115,
-	// line for line; pmin_mass is soil.pmass_labile, which is NOT the labile P
-	// that figure was drawn against. See the PMASS_SAT comment at the top of
-	// this file.
+	// labile P pool. The three (ctop_max, ctop_min) pairs are Parton, Stewart
+	// and Cole (1988) Fig. 3, p. 115, line for line. The saturating value of
+	// the driver is that figure's axis maximum CONVERTED, because pmin_mass is
+	// soil.pmass_labile, the wider Hedley-labile pool, and not the
+	// resin-extractable orthophosphate the figure was drawn against. See the
+	// PMASS_SAT comment at the top of this file.
 
 	setptoc(soil, pmin_mass, SLOWSOM, 200.0, 90.0, 0.0, PMASS_SAT);
 
@@ -1343,12 +1374,15 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 	//
 	// PMASS_SAT is the right constant for this second job as well as for the
 	// ramp: "saturated" here means exactly "at the value where setptoc() stops
-	// responding", so the two uses move together and must not be split. What
-	// follows from it is that the labile P this configuration reports is a
-	// CONSTANT meaning "not limiting", not a simulated stock, and comparing it
-	// against a measured labile P or against this fork's own P-limited run is
-	// meaningless in either direction. commonoutput.cpp writes it into PO4_mass
-	// and availp all the same.
+	// responding", so the two uses are one number and must not be split. That
+	// is why WORLD-Z01O's conversion was applied to PMASS_SAT itself and this
+	// pin followed. What still follows from it is that the labile P this
+	// configuration reports is a CONSTANT meaning "not limiting", not a
+	// simulated stock, and comparing it against a measured labile P or against
+	// this fork's own P-limited run is meaningless in either direction, even
+	// though the conversion has moved it to the same order as the fork's own
+	// simulated pool. commonoutput.cpp writes it into PO4_mass and availp all
+	// the same.
 	if (!ifplim || date.year <= freenyears) {
 		soil.pmass_labile = PMASS_SAT;
 		//soil.pmass_labile = 0.0;

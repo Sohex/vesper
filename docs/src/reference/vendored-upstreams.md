@@ -196,6 +196,17 @@ of it is execution-verified, because LPJ-GUESS does not build on this tree. The
 argument for each is
 `biosphere/notes/soil-nitrogen-transformation-parameterisation.md`.
 
+`modules/somdynam.cpp` carries one declared divergence and no register.
+`PMASS_SAT`, the labile-P saturation threshold of the soil organic C:P ramp, is
+converted out of Parton, Stewart and Cole (1988)'s resin-extractable currency
+into the CNP fork's own Hedley-labile one, and the mainline line is recorded
+verbatim beside the changed one under the same `DECLARED DIVERGENCE FROM
+MAINLINE` heading. Unlike `ntransform.cpp` this is a divergence from the CNP
+FORK rather than from release 4.1.1, which has no phosphorus at all. There is no
+`somdynam.yaml` and no gate, so nothing mechanically stops a silent revert;
+building that register is WORLD-V46R. The argument is
+`biosphere/notes/phosphorus-cycle-parameterisation.md`.
+
 No other file under `vendor/lpj-guess/modules/` carries a register of this kind
 yet. Where one does, it belongs beside this row.
 
