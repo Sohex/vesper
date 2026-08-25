@@ -1,29 +1,29 @@
 {
   "schema_version": 1,
   "kind": "restart_template",
-  "generated": "2026-08-24T23:43:14.680143+00:00",
+  "generated": "2026-08-25T03:54:23.758049+00:00",
   "generator": "exoplasim/scripts/build_restart_template.py",
   "generator_sha256": "2b42dddc10ccf3c18b7f24a0e8dfb31d3d9731af67da36d51b6efc3a9d6e238f",
   "schema_sha256": "817434e7ed100b214cba68f3287167ba2f2a5137a62060ffd2b5c5f98d2f01c2",
   "output": {
-    "path": "/home/cfutro/docs/world/exoplasim/inputs/templates/T42_l10_p16_omp.rest",
-    "sha256": "975f7a0b98efc7ae903497eaf03ddf1f5cea64946230376e8aa45eba8ba6ff59"
+    "path": "/home/cfutro/docs/world/exoplasim/inputs/templates/T85_l10_p16_omp.rest",
+    "sha256": "83df1de3857604b6785d5a61f3cf94f9d91aca1125f44895bdc5eb4727e69569"
   },
   "cut_from": {
-    "run_dir": "exoplasim/runs/run_4fe5e6050df5",
-    "run_id": "run_4fe5e6050df5",
-    "restart": "exoplasim/runs/run_4fe5e6050df5/MOST_REST.00000",
-    "restart_sha256": "afba9effff8d381dd621357625334936cf81032c8598c61504af0c1c41cf74be",
-    "completed_orbits": 85,
-    "status": "equilibrated_for_worldbuilding"
+    "run_dir": "exoplasim/runs/run_41485bece9c8",
+    "run_id": "run_41485bece9c8",
+    "restart": "exoplasim/runs/run_41485bece9c8/MOST_REST.00000",
+    "restart_sha256": "0cfd50f13aa5e6a9dd1c3d755ba5e36aa29ad6edc7c7c8a6685af6705e3d6f79",
+    "completed_orbits": 1,
+    "status": "smoke_complete"
   },
   "executable": {
-    "path": "/home/cfutro/docs/world/exoplasim/runs/run_4fe5e6050df5/most_plasim_t42_l10_p16_omp.x",
-    "sha256": "68ad59e5cecb6889858f7a4583669b6a61c1bc1acbd493ee068f1325506c016a",
+    "path": "/home/cfutro/docs/world/exoplasim/runs/run_41485bece9c8/most_plasim_t85_l10_p16_omp.x",
+    "sha256": "db98d86705ab59ea68a8b0d0e2b731c541dc877167581f37a059a3ed3c0d1fde",
     "note": "Built precision is not encoded in the filename. If model.precision_bytes changes, pass recompile=True or remove the binary, or the old one is silently reused."
   },
   "physical": {
-    "resolution": "T42",
+    "resolution": "T85",
     "layers": 10,
     "ranks": 16,
     "parmode": "omp",
@@ -37,18 +37,18 @@
     "eccentricity": 0.02,
     "glaciers": true,
     "stellar_spectrum": "k25v",
-    "geography": "758a69e1"
+    "geography": "b4308aca"
   },
   "source_build": "precarve-craton-10m",
-  "config_sha256": "aafb53e4e132b133a2e4060804a81a777576f598d2bf18af46ec16b62bf56552",
+  "config_sha256": "8fab85fd86a59a8aff7bbed473d8513e580f5dcb3131fd261ac4080833393bcb",
   "surface_field_sha256": {
-    "129": "2306c0ec722f81da0a1f669b94dd55186f5d75b70279050ee55d8f55c61d84c7",
-    "172": "a69ceb4de85ee6c260e66a3a53f665321104cfca87ae4376c163a65773332027",
-    "173": "3d8217f5918f3c141bf51756b319cff0692b8f519b00eadc959d282ff5a2672c",
-    "174": "85579602e9accf1c2170ac701731d0f7da7eb36b99d81dc11067c654787ae4c7",
-    "175": "7a32c1f7fbf5e0cb406fafbbaae299d298e15418fccd0652e0b934e9b14bf1b5",
-    "176": "2f2627521dd8c8d45c7fc148fc5190d7819464a54828ee96dfba1afdbc0c8707",
-    "212": "f3e95bad7811721b952740e07c6b8278050e82f5ce18725eb8298948640bbdc1"
+    "129": "eb92cb51c022699b9f9be1407b9b7df45309680c1fb68321e19ebc46f6e8c1fa",
+    "172": "b4a7adc51aa5f457bafdbe90dc7cbba628d511522b1246b5dc681916836be6ce",
+    "173": "284c6b673166282d23aeab456a8eb3f759be5f7cfc746dd7dc0a531aad0d371a",
+    "174": "295808b3bab139a89652005eb4dd57e8ba3c58946c6f50ba8477c3db83160b2a",
+    "175": "899d879f2d1b3e04613f835a1c0c493d448168aab48f867b3afec1a1e10bac96",
+    "176": "61713e0142cd74d9c0324d8a950710cd6113957076a9423d0b191c1c01f8c343",
+    "212": "109f73fab8e46280efa8bef2ca728b525fd3964a6f213a8797091f7c8120fab2"
   },
   "surface_fields": {
     "from_file": [
@@ -72,10 +72,10 @@
     "note": "Fields absent from the run directory are preset to uniform namelist values by landmod and never read from file."
   },
   "template": {
-    "geometry": "T42",
+    "geometry": "T85",
     "real_bytes": 8,
     "records": 199,
-    "nesp": 1904,
+    "nesp": 7488,
     "nseedlen": 8,
     "unknown_records": [],
     "accumulators_clean": 113,

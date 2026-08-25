@@ -182,6 +182,15 @@ def build_bed(rung: str, template: Path, tag: str, exe: Path) -> Path:
     if bed.exists():
         shutil.rmtree(bed)
     bed.mkdir(parents=True)
+    # THE EXECUTABLE COMES FROM THE REGISTRY, verified against
+    # binary_manifest.json by the caller, not from whatever sits in the run
+    # directory this bed was staged from. What that selection used to do is why
+    # no cell of the pre-2026-08-25 grid can be believed: it preferred an MPI
+    # binary, fell through to the threaded one when none existed -- which is
+    # every rung now, since rebuild_binaries' MATRIX is five omp rows -- and
+    # then launched it under `mpiexec -np 16`. That does not run one model on
+    # sixteen threads; it runs SIXTEEN INDEPENDENT MODELS in one directory,
+    # over each other's output. world-anl and world-37tn.
     for pattern in ("*_namelist", "*.nl", f"N{NLAT[rung]:03d}_surf_*.sra",
                     "k25v*.dat", "GUI.cfg"):
         for f in template.glob(pattern):
@@ -211,21 +220,31 @@ def set_keys(bed: Path, keys: dict[str, str]) -> None:
 
 
 def time_run(bed: Path, exe: str, threads: int) -> tuple[float, bool, str]:
-    """ONE PROCESS AND `threads` THREADS, launched directly.
+    """ONE PROCESS AND `threads` THREADS, launched directly, on a big stack.
 
     There is no `mpiexec` here and there must not be: the thread count is
     compiled into the executable, so `mpiexec -np N ./most_plasim_..._pN.x`
     would start N copies of an N-thread binary in one directory over one set of
-    restart files. The three exports are what `exoplasim/__init__.py` launches
-    production under; unbound, libgomp lands threads on SMT siblings and across
-    both dies, and this probe reports a per-step cost.
+    restart files.
+
+    `ulimit -s unlimited` through a shell, because the master thread runs on the
+    PROCESS stack and no OMP variable moves it: the threaded build is compiled
+    `-frecursive`, so the model's large locals are stack-allocated, and above
+    T42 the master overruns a 16 MB limit and takes SIGSEGV before writing a
+    record. A probe reads that as a refusal and reports the rung as impossible
+    at every timestep, which is the shape the grid had for T85 and above.
+
+    The three OMP exports are what `exoplasim/__init__.py` launches production
+    under; unbound, libgomp lands threads on SMT siblings and across both dies,
+    and this probe reports a per-step cost.
     """
     env = dict(os.environ, OMP_NUM_THREADS=str(threads),
                OMP_PLACES="cores", OMP_PROC_BIND="close",
                OMP_STACKSIZE=os.environ.get("OMP_STACKSIZE", "512M"))
     started = time.monotonic()
-    proc = subprocess.run([f"./{exe}"], cwd=bed, env=env,
-                          capture_output=True, text=True, timeout=3600)
+    proc = subprocess.run(["bash", "-c", f"ulimit -s unlimited; exec ./{exe}"],
+                          cwd=bed, env=env, capture_output=True, text=True,
+                          timeout=3600)
     elapsed = time.monotonic() - started
     text = (proc.stdout or "") + (proc.stderr or "")
     return elapsed, bool(TRAP.search(text)) or proc.returncode != 0, text
@@ -412,19 +431,30 @@ def main() -> None:
             r["tau_scale"] = None if args.inherited_damping else args.tau_scale
             results.append(r)
             k = "off" if kappa is None else f"{kappa:g}"
-            if r["outcome"] != "refused" and args.refusal_only:
-                print(f"  {args.rung} kappa {'off' if kappa is None else f'{kappa:g}':>3s} "
-                      f"dt {dt:5.1f}  no refusal in {r['steps_long']} steps", flush=True)
-            elif r["outcome"] != "refused":
-                print(f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}  no refusal in "
-                      f"{r['steps_long']} steps, "
+            head = f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}"
+            if r["outcome"] == "refused":
+                print(f"{head}  REFUSED after {r['failed_after_s']:.1f} s",
+                      flush=True)
+            elif r["outcome"] == "refused_only_at_length":
+                # The cell this grid exists to find: it starts, and dies inside
+                # the probe's own range. Reported as its own verdict because a
+                # step that refuses and a step that fails late are different
+                # facts about a rung, and collapsing them is what let T42 at dt
+                # 45 be read as usable when it dies in its forty-seventh orbit.
+                print(f"{head}  RAN {r['steps_short']} steps, REFUSED at "
+                      f"{r['steps_long']} ({r['wall_long_s']:.1f} s)",
+                      flush=True)
+            elif args.refusal_only:
+                # No cost field on a contended host, so nothing to report but
+                # the verdict. world-37tn.
+                print(f"{head}  no refusal in {r['steps_long']} steps",
+                      flush=True)
+            else:
+                print(f"{head}  no refusal in {r['steps_long']} steps, "
                       f"{r['seconds_per_step']:.4f} s/step -> "
                       f"{r['implied_seconds_per_orbit']/60:.1f} min/orbit  "
                       f"(startup {r['startup_s']:.0f} s; naive single run would "
                       f"say {r['naive_single_run_seconds_per_orbit']/60:.1f})", flush=True)
-            else:
-                print(f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}  REFUSED",
-                      flush=True)
             prior = json.loads(args.out.read_text()) if args.out.is_file() else {"probes": []}
             prior.setdefault("probes", [])
             prior["probes"] = [p for p in prior["probes"]

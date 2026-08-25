@@ -346,7 +346,18 @@ MARS_GRAV   = 3.728
 MARS_RADIUS = 3400000.0
 MARS_RD     = 189.0
 L_TIMES_RHOH2O = -333700000.0
-RLAPSE      = 0.0065    #International Standard Atmosphere temperature lapse rate in K/m
+# Earth's International Standard Atmosphere temperature lapse rate, K/m. A
+# DEFAULT AND NOT AN ANSWER: it is used only to reduce surface pressure to sea
+# level as psl (code 151), and that reduction is only as good as the rate it
+# extrapolates with. This project measures its own rate in lib/lapse.py and
+# leaves 151 out of the codes it writes; see world-ld1.
+RLAPSE_EARTH = 0.0065
+# ECMWF's cold-surface guard for the same reduction, K. Calibrated on Earth's
+# surface temperature distribution: it fires wherever the bottom-level
+# temperature is below it and warms tstar by half the shortfall. On a world
+# whose land sits below 255 K for more of its orbit than Earth's does, it fires
+# over ordinary terrain rather than the exceptional case it was written for.
+PSL_COLD_GUARD_K_EARTH = 255.0
 RH2O        = 1000 * 1.380658e-23*6.0221367e+23 / 18.0153
 
 
@@ -1960,10 +1971,11 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                 slp[abs(geopot)<1.0e-4] = aph[abs(geopot)<1.0e-4]
                 
                 mask = abs(geopot)>=1.0e-4
-                alpha = gascon*RLAPSE/gravity
+                alpha = gascon*RLAPSE_EARTH/gravity
                 tstar = (1 + alpha*(aph[mask]/apf[mask]-1))*temp[mask]
-                tstar[tstar<255.0] = 0.5*(255+tstar[tstar<255.0])
-                tmsl = tstar + geopot[mask]*RLAPSE/gravity
+                cold = tstar < PSL_COLD_GUARD_K_EARTH
+                tstar[cold] = 0.5*(PSL_COLD_GUARD_K_EARTH+tstar[cold])
+                tmsl = tstar + geopot[mask]*RLAPSE_EARTH/gravity
                 ZPRT = geopot[mask] / (gascon*tstar)
                 ZPRTAL = np.zeros(ZPRT.shape)
                 mask2 = abs(tmsl-tstar)<1.0e-6
@@ -2796,10 +2808,11 @@ def advancedDataset(filename, variablecodes, mode='grid', substellarlon=180.0,
                 slp[abs(geopot)<1.0e-4] = aph[abs(geopot)<1.0e-4]
                 
                 mask = abs(geopot)>=1.0e-4
-                alpha = gascon*RLAPSE/gravity
+                alpha = gascon*RLAPSE_EARTH/gravity
                 tstar = (1 + alpha*(aph[mask]/apf[mask]-1))*temp[mask]
-                tstar[tstar<255.0] = 0.5*(255+tstar[tstar<255.0])
-                tmsl = tstar + geopot[mask]*RLAPSE/gravity
+                cold = tstar < PSL_COLD_GUARD_K_EARTH
+                tstar[cold] = 0.5*(PSL_COLD_GUARD_K_EARTH+tstar[cold])
+                tmsl = tstar + geopot[mask]*RLAPSE_EARTH/gravity
                 ZPRT = geopot[mask] / (gascon*tstar)
                 ZPRTAL = np.zeros(ZPRT.shape)
                 mask2 = abs(tmsl-tstar)<1.0e-6

@@ -212,119 +212,117 @@ reproduce exactly. If it fails at the same step, it is a property of the
 configuration; if it wanders, something in the run is not deterministic, and
 archive CLIM-44 says how much that costs.
 
-## T170, and the filter requirement gets STRONGER up the ladder
+## The grid, re-measured on the damping the runs actually use
 
-*Measured 2026-08-23. One full orbit at dt 22.5 through `run_exoplasim.py`; the
-rest of the grid by `stability_probe.py`, 400 steps with output off.*
+*Measured 2026-08-24 at a6d7e40c. 900-step probes, `--tau-scale 1`, all five
+rungs, sixteen threads. The cost column was taken on a shared machine and is
+provisional; the verdicts are not.*
 
-*EVERY CELL IS A BOUNDARY FOR A DIFFERENT MODEL, and the section "What it would
-take to re-take this grid" below says how to replace it. The probe wrote no
-hyperdiffusion keys at all, so each cell ran `plasimmod`'s compiled defaults
-rather than the derived damping; and the filter was gamma 8 where the model runs
-gamma 16, which is the one knob T42 at dt 90 is known to change a refusal into a
-run.*
+The previous grid is replaced rather than corrected, because four separate
+things were wrong with how it was taken and each alone invalidates a cell. The
+replacement is itself superseded and is kept as a method rather than as an
+answer: see "What it would take to re-take this grid".
 
-| dt | kappa 8 | kappa off |
-| ---: | --- | --- |
-| 45 | refuses | refuses |
-| 30 | starts, blows up after 3.8 min | refuses |
-| 22.5 | **completes an orbit, 51 min** | refuses |
-| 15 | starts | refuses |
-| 10 | starts | starts |
 
-**The unfiltered model needs dt 10 at T170 where it needed 30 at T42.** That is
-the resolution dependence upstream states as the reason for filtering at all --
-a finer grid resolves sharper gradients off the same orography, so the ringing
-worsens while a scale-free filter keeps cutting the same fraction -- and it is
-now measured rather than quoted. It also settles the shape of the trade: the
-filter is not a fixed overhead to be tuned once, it is buying more timestep the
-further up the ladder the model goes.
+- **The damping reached one level in ten.** `ndel` and the four `tdiss` are
+  `(NLEV)` arrays and a namelist scalar assigns element one, so nine levels
+  kept `readnl`'s presets -- and at T42, element one in seconds where days were
+  meant.
+- **The probe declared no damping at all.** It writes the `TDISS` keys only
+  under `--tau-scale`, and the grid was taken without it, so every cell ran the
+  model's own built-in values rather than the ones `config/planet.yaml`
+  derives.
+- **The probe launched under `mpiexec`.** It preferred the MPI binary and fell
+  through to the threaded one when no MPI binary existed -- which is every rung
+  now -- then ran it as `mpiexec -np 16`. That is sixteen independent models in
+  one directory, not one model on sixteen threads.
 
-The arithmetic pick landed. T127 runs at dt 30, the stable step scales roughly
-as 1/N, and 30 * 127/170 = 22.4 predicted 22.5 -- which is exactly the coarsest
-step that carries T170 through a whole orbit.
+A fourth thing was wrong with what could be measured at all: everything above
+T42 died with SIGSEGV before writing a record, which reads as a refusal and is
+a 16 MB process stack. T85, T127 and T170 appear here for the first time as
+something other than impossible.
 
-### The ladder priced, normalised to dt 45
+### What each rung will start
 
-| rung | s/orbit | x T42 | measured at |
-| --- | ---: | ---: | --- |
-| T21 | 37 | 0.40 | six timesteps |
-| T42 | 93 | 1.00 | seven timesteps |
-| T85 | 296 | 3.18 | four timesteps |
-| T127 | 760 | 8.17 | dt 30 |
-| T170 | 1530 | 16.5 | dt 22.5, one full orbit |
+| rung | dt 60 | dt 45 | dt 30 | dt 22.5 | dt 15 | dt 10 |
+| --- | --- | --- | --- | --- | --- | --- |
+| T21 | runs | runs | runs | runs | runs | runs |
+| T42 | runs | runs | runs | runs | runs | runs |
+| T85 | **late** | runs | runs | runs | runs | runs |
+| T127 | refuses | refuses | runs | runs | runs | runs |
+| T170 | refuses | refuses | refuses | **late** | runs | runs |
 
-T170's declared bracket was 18.7 and it measures 16.5, so the brackets ran 13 to
-30 percent high all the way up. **What a rung actually costs, at the step it can
-actually run**, is the second column times the step ratio: T170 is not 16.5
-times T42, it is 16.5 times T42 AND needs half the step, so an orbit costs 33
-times what T42's does. That factor is the one SPAT-11 exists to state.
+`late` means the 300-step arm ran and the 900-step arm did not: a failure
+inside the probe's own range, which is a different fact from a refusal and is
+now reported as one.
 
-### What the probe is worth, and where it is not
+### The filter buys exactly one step of headroom, at every rung that needs any
 
-Against the full-orbit measurement at dt 22.5 the probe reads 20% high --
-60.8 minutes against 51.0 -- and the offset is consistent across the other
-timesteps, since correcting by it reproduces the linear-in-steps law from the
-one ground truth to within a percent. So the probe is a BRACKET for cost and a
-verdict for refusal, and the two should not be quoted the same way.
+The same grid with the filter off:
 
-Two lengths are differenced rather than one divided, because a single 200-step
-probe read 69.2 minutes an orbit where the truth was 51: a bed shorter than its
-own startup measuring its startup, which is class 34 and was caught here by
-having a ground truth to check against.
+| rung | dt 60 | dt 45 | dt 30 | dt 22.5 | dt 15 | dt 10 |
+| --- | --- | --- | --- | --- | --- | --- |
+| T21 | runs | runs | runs | runs | runs | runs |
+| T42 | runs | runs | runs | runs | runs | runs |
+| T85 | refuses | runs | runs | runs | runs | runs |
+| T127 | refuses | refuses | refuses | runs | runs | runs |
+| T170 | refuses | refuses | refuses | refuses | refuses | runs |
 
-**The probe cannot see a late blow-up**, and T170 at dt 30 is the demonstration:
-it passes 400 steps and dies after 3.8 minutes of integration. A cell that
-passes the probe has only been shown not to REFUSE, within the probe's own step
-count, and its outcome is labelled `no_refusal_in_steps` rather than `ran` for
-that reason.
+T85 goes from late to refusing at 60, T127 loses dt 30, and T170 loses dt 15.
+One rung of the ladder, each time, and never more. That is a sharper statement
+than the earlier "the filter buys timestep": it buys ONE step, and the amount
+does not grow up the ladder even though the requirement does.
 
-T85 at dt 75 is the sharper demonstration, because it first looked like the two
-instruments disagreeing. The probe passed it at 400 steps and the orbit-length
-arm failed after 44 seconds, which reads as a contradiction until the wall time
-is converted: 44 seconds at 0.0519 s a step is about 736 steps, so the failure
-is past where the probe stopped looking. The instruments agree. What was wrong
-was the CLASSIFIER -- a 120-second threshold separating refusals from late
-failures, which is meaningless across rungs where the same wall clock is one
-step at T170 and hundreds at T21. Runs are now classified by what they PRODUCED:
-a refusal writes no output record at all.
+### The boundary does not follow 1/N all the way
 
-### Every ladder cell is ONE DRAW, and that is now fixed forward
+Coarsest step each rung will start clean, at kappa 8: T85 45, T127 30, T170 15.
+The middle of that is the 1/N rule -- 45 * 85/127 = 30.1 predicts T127 exactly.
+T170 breaks it: 45 * 85/170 = 22.5, and 22.5 is the cell that starts and dies.
+So the rule holds to T127 and over-predicts at T170 by a full step, which is
+the rung it would have been used to plan.
 
-The ladder was measured on COLD starts, and `initrandom` (`plasim.f90:2068`)
-takes the namelist `SEED` when `seed(1)` is non-zero and the SYSTEM CLOCK
-otherwise. Nothing wrote `SEED`. So each cell above is one draw of an initial
-kick rather than a verdict that re-running would confirm.
+### What this grid is, and what it is not
 
-The instant refusals are almost certainly robust anyway: they are monotone
-across many cells and both filter settings, and a marginal result decided by a
-random kick would not produce a clean staircase. The LATE failures are the
-exposed ones -- T127 at dt 22.5 and T170 at dt 30 are exactly the shape of
-result an initial condition can move.
+**It is a floor.** A cell marked `runs` has been shown to start and to survive
+900 steps, which at dt 45 is about a seventh of an orbit. T42 at dt 45 is
+`runs` here and dies in its sixty-seventh orbit. Nothing in this table
+qualifies a step for a commissioning run, and the section below is what that
+costs when the distinction is ignored.
 
-They are kept as one draw deliberately. Both are loud, immediate to recognise
-and understood well enough to act on if they turn up in other work, and a
-re-measurement would cost orbits to confirm a boundary nothing is planning to
-sit on. `model.cold_start_seed` is declared from here, so the next cold run is
-reproducible even though these were not.
+### Cost, provisional
 
-### What the T127 dt 22.5 blow-up actually wrote
+Minutes per orbit implied by the probe, kappa 8, where the cell runs. Taken on
+a machine with other work on it, so these are an upper bound and the ratios are
+sounder than the absolutes.
 
-Not a prognostic field. `outmod.f90:611` writes `aroff` -- ACCUMULATED RUNOFF,
-code 160 -- on the line after `aroff(:) = aroff(:)/real(naccuout)`. So the first
-quantity to exceed single precision is a diagnostic accumulator with a step
-count in its denominator, which is not the same claim as the state having gone.
-Whether the state was already bad is UNDETERMINED, and this note said otherwise
-before the call site was read.
+| rung | dt 45 | dt 30 | dt 22.5 | dt 15 |
+| --- | ---: | ---: | ---: | ---: |
+| T21 | 0.2 | 0.3 | 0.3 | 0.5 |
+| T42 | 0.7 | 1.0 | 1.4 | 2.1 |
+| T85 | 3.8 | 5.5 | 8.9 | 11.9 |
+| T127 | -- | 15.6 | 20.5 | 30.2 |
+| T170 | -- | -- | -- | 65.6 |
 
-## T42 at dt 45 survives 46 orbits and dies in the 47th
+At its own coarsest clean step each rung costs 0.2, 0.7, 3.8, 15.6 and 65.6
+minutes an orbit. **T170 is 94 times T42**, not the 16.5 the previous grid
+reported, because it is both slower per step and pinned to a third of the step.
 
-*Measured 2026-08-24 at b30e314e, T42 on sixteen threads, `-O2`, kappa 8,
-`MPSTEP = 45.0`, cold start, `run_900548ae632e`.*
 
-The grid above qualifies T42 at dt 45 on two orbits. Eighty-five were asked for
-and forty-seven arrived: the run integrated 46 orbits of ordinary climate and
-then took a SIGFPE inside the 47th.
+## T42 at dt 45 starts clean, runs for scores of orbits, and still dies
+
+*Measured 2026-08-24, T42 on sixteen threads, `-O2`, kappa 8, `MPSTEP = 45.0`,
+cold start, eighty-five orbits asked for. Two runs, differing only in whether
+the damping reached every level.*
+
+| run | damping | orbits before SIGFPE |
+| --- | --- | ---: |
+| `run_900548ae632e` | element one only | **47** |
+| `run_3e1e116f99ee` | `10*` every level | **68** |
+
+Correcting the damping bought twenty-one orbits and did not remove the failure.
+So the per-level defect was real and expensive, and it was not the whole cause:
+T42 at dt 45 is genuinely marginal, and the grid above marks it `runs` because
+900 steps is a seventh of one orbit.
 
     #0  swr_       at radmod.f90:2530
     #1  radstep_   at radmod.f90:1523
