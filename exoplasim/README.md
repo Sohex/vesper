@@ -227,7 +227,7 @@ previous session. `notes/audits/model-build-driver.md` has the measurements.
 | option | what it selects | name |
 | --- | --- | --- |
 | `--ranks <n>` | the OpenMP thread count; NLAT must divide by it. There is one parallel layer, `mpimod_omp` over a shared address space, so there is no parmode to choose and no suffix to carry | `most_plasim_<res>_l10_p<n>.x` |
-| `--profile` | a flag set from `config/planet.yaml`; `production` by default, `checked` adds `-fcheck=all` and `-finit-real=snan` | no change to the name |
+| `--profile` | a flag set from `config/planet.yaml`; `production` by default, `checked` adds `-fcheck=all`, and `poisoned` adds `-finit-real=snan` at `-Og`, which is the one level the poison survives to the arithmetic at | no change to the name |
 | `--frame-pointers` | a PROFILING build. DWARF cannot unwind the -O3 code -- 94% of model samples get no caller -- and this costs -1.17% with an identical restart sha, so the profile measures the same model | `..._fp.x` |
 | `--extra-flag=`, `--drop-flag=` | for a verification arm that varies a flag ON PURPOSE. Both are part of the build directory's identity, and a `--drop-flag` naming a flag the declaration does not carry is an error rather than a no-op | no change to the name |
 

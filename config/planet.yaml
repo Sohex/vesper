@@ -467,14 +467,34 @@ model:
       # out-of-bounds during the CLIM-40 fold work: an off-by-one in a spectral
       # mode index that aborted in legini instead of returning a plausible
       # wrong climate.
-      # -finit-real=snan initialises every local real to a signalling NaN, so a
-      # read of one can trap at the instruction that uses it rather than
-      # quietly returning a zero. It was in f90_opts as -finit-real=zero, where
-      # it cost 26.03% of T170 [+22.76, +27.29] and the model was measured not
-      # to need it: the restart is bit identical without it, and identical
-      # again under snan with the trap MASKED, so nothing uninitialised reached
-      # a stored value at the length the bench runs.
-      # exoplasim/notes/the-zeroing-is-an-init-flag.md.
+      # -finit-real=snan is NOT here, and the reason is measured rather than
+      # argued. It initialises every local real to a signalling NaN so that a
+      # read of one traps at the instruction that uses it; at every
+      # optimisation level this project ships, gfortran folds that NaN to a
+      # quiet one at compile time and the trap is never armed. Measured in the
+      # model, T21 on sixteen threads with NSHTNS=0: a deliberate uninitialised
+      # read placed at the head of gridpointd faults with SIGFPE at -Og and
+      # exits 0 at -O2 and at -O3, and the -O2 and -O3 binaries carry the
+      # folded quiet NaN in .rodata beside the signalling one the
+      # initialisation stores. It folds for a local written in one branch and
+      # read in another as well, by path splitting.
+      # notes/audits/uninitialised-reads-and-implicit-save.md finding 1.
+      #
+      # So this profile is -fcheck=all, and what it is FOR is bounds, shapes and
+      # argument conformance. It does not see an uninitialised read, and
+      # nothing in the tree does -- `poisoned` below arms the trap but at an
+      # optimisation level production does not run.
+      checked: ["-fcheck=all"]
+      # THE DEBUGGING ARM, NOT A VERIFICATION ARM, and the distinction is the
+      # whole of why it is separate. -Og is a different optimisation level from
+      # production, so a binary built here computes different numbers for that
+      # reason alone and a disagreement with production says nothing. What it
+      # buys is the one configuration in which -finit-real=snan actually traps,
+      # which is where to take a suspected uninitialised read once something
+      # else has pointed at one.
+      #
+      # -Og goes LAST so it wins over whatever f90_opts declares; gcc takes the
+      # last -O on the line.
       #
       # HOW TO RUN IT: with NSHTNS=0. Every build is threaded and nshtns
       # defaults to 1, and SHTns over-reads a lane of its own stack scratch,
@@ -483,18 +503,8 @@ model:
       # before it can say anything about itself. That is CLIM-82, measured on a
       # threaded T170 build, and it decided the trap stays UNMASKED. NSHTNS=0
       # selects legmod, which is the reference arm verify_shtns_model.sh
-      # already compares against, and the same note ran 60 steps at T21 and at
-      # T170 that way without a fault.
-      #
-      # WHAT IS SETTLED AND WHAT IS NOT. -fcheck=all is settled: it caught the
-      # CLIM-40 out-of-bounds. What -finit-real=snan is worth here is world-5rs,
-      # because f90_opts carries -O3 and
-      # notes/audits/uninitialised-reads-and-implicit-save.md finding 1 measured
-      # gfortran folding a signalling NaN to a quiet one before the arithmetic
-      # at -O1 and above, in the case it measured. The positive control that
-      # settles it -- a deliberate uninitialised read in the model, which must
-      # fault -- is written down in that issue.
-      checked: ["-fcheck=all", "-finit-real=snan"]
+      # already compares against.
+      poisoned: ["-fcheck=all", "-finit-real=snan", "-Og"]
     profile: production
   ncpus: 16
   timestep_minutes: 45.0

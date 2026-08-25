@@ -109,7 +109,7 @@ trapping at the line that made it; `overflow` does the same for an infinity. The
 stack under SHTns therefore holds ordinary numbers left by previous Fortran
 frames, and an over-read of one is inert.
 
-So the exposure is confined to the `checked` profile on the threaded build,
+So the exposure is confined to the `poisoned` profile on the threaded build,
 where `-finit-real=snan` deliberately writes the one bit pattern that trips it.
 That is a documented limitation of that profile, not a reason to mask the trap
 in production, and the trap's value is unchanged: in a spectral model one bad
@@ -127,7 +127,8 @@ theoretical exposure that is measured to be inert.
     -O3 -cpp -ffpe-trap=invalid,zero,overflow -ffpe-summary=none
     -march=znver4 -funroll-loops -g
 
-with `checked` adding `-fcheck=all -finit-real=snan`, and `build_model.py`
+with `checked` adding `-fcheck=all`, `poisoned` adding
+`-fcheck=all -finit-real=snan -Og`, and `build_model.py`
 appending `-fdefault-real-8` for the declared precision, `-fopenmp -DOMPSHARED`
 for the threaded build, and `-fno-omit-frame-pointer` for a profiling one.
 

@@ -22,18 +22,24 @@ defect earlier, and what else of its class is sitting in `plasim/src`.
 **Both findings below were acted on and the flag line moved.** The declaration
 is `config/planet.yaml`'s `model.compile_flags.f90_opts` and there is no
 `most_compiler*` file any more. `-finit-real=zero` has LEFT the production
-profile, which is finding 1's remedy: `-finit-real=snan` is in the `checked`
-profile instead, so the poisoned initialisation is where a check can be run
-rather than where it is paid for on every production orbit.
+profile, so the poisoned initialisation is where a check can be run rather than
+where it is paid for on every production orbit.
 
-**That remedy is not yet a working trap, and `world-5rs` is where the decision
-sits.** Two things stand between it and one. The profile is `f90_opts` plus the
-two flags, so it compiles at `-O3`, which is the optimisation level finding 1
-measures the fold at -- the same level the sentence above says the production
-line folds it away at. And every build is threaded since world-38b, so the
-declaration now directs the profile to be run with `NSHTNS=0`; on the SHTns
-path the model faults inside the library at the first timestep. What the profile
-certainly still delivers is `-fcheck=all`.
+**Where it went is the `poisoned` profile, and it had to carry `-Og` with it.**
+A profile that is `f90_opts` plus `-finit-real=snan` compiles at the
+optimisation level this finding measures the fold at, and the control below
+confirms the fold in the model rather than in a test case. `checked` is
+therefore `-fcheck=all`, which is what it certainly delivers, and `poisoned` is
+`-fcheck=all -finit-real=snan -Og`, which is the arm the control faults in.
+Both are run with `NSHTNS=0`: every build is threaded since world-38b, and on
+the SHTns path the model faults inside the library at the first timestep.
+
+**Nothing in the tree now sees an uninitialised read in a production-numerics
+build**, and the flag traded for that, `-finit-real=zero`, was worth 26.03% of
+T170. The one check that does work at production's optimisation level is the
+PROPAGATING one -- `-finit-real=snan` with `FE_INVALID` masked, restart compared
+bit for bit against production on the same bed -- and it is not declared in
+`config/pipeline.yaml` and has not been run since wave 1.
 `notes/audits/model-build-flags.md` is the re-run of the whole line on the
 threaded build and is what a reader wanting today's flags should read.
 
@@ -79,6 +85,47 @@ arithmetic at `-Og` and below, so a debug build is a different optimisation
 level, and its numerics differ from production for that reason alone rather
 than by choice. `-Og` rather than `-O0` is the useful ceiling: it traps, and it
 is far cheaper than `-O0`.
+
+### The same fold, measured inside the model
+
+*Measured 2026-08-24 at 743c67a9, T21 on sixteen threads, one timestep on a cold
+T21 bed with `NSHTNS=0`, gfortran 16.2.1 20260810.*
+
+The table above is a four-element local declared, never assigned and summed in
+one scope, which the compiler can see whole. That leaves open whether the fold
+also reaches a local written in one branch and read in another, which is the
+shape a real defect takes. It does.
+
+A positive control was placed at the head of `gridpointd` in `plasim.f90`: two
+never-assigned four-element locals, one summed straight and one whose only
+assignment sits under a condition the compiler cannot prove false, both summed
+into a `volatile` scalar so neither store can be deleted or sunk. Each
+optimisation level was built twice from the `checked` flag line, once with the
+control and once without, and both binaries were run on the same bed.
+
+| level | with the control | without it |
+| --- | --- | --- |
+| `-Og` | SIGFPE in `gridpointd` at the first timestep | exit 0, restart written |
+| `-O2` | exit 0, restart written | exit 0, restart written |
+| `-O3` | exit 0, restart written | exit 0, restart written |
+
+The control is the only difference between the columns, so the `-Og` fault is
+the control's and the clean exits at `-O2` and `-O3` are the trap not arming.
+
+The mechanism is visible in the instruction stream. At `-Og`, `gridpointd`
+opens with two loops that store the signalling NaN word into the stack slots
+and then a `vaddsd` chain that reads them, so the pattern reaches the FPU. At
+`-O2` and `-O3` there is no `vaddsd` chain at all: the sums are folded at
+compile time and only the `volatile` stores survive. Both binaries carry two
+NaN constants in `.rodata` -- `0x7ff4000000000000`, the signalling pattern the
+initialisation stores, and `0x7ff8000000000000`, the quiet one the fold
+produced -- which is the fold on disk. The branch-merged site folds too,
+because the compiler splits the path and folds each side separately.
+
+So the fold is a property of the optimisation level and not of how visible the
+variable's life is, and `-Og` is where a poisoned initialisation is a trap.
+`config/planet.yaml` declares that arm as the `poisoned` profile;
+`checked` is `-fcheck=all` and does not see this class.
 
 ## Finding 2: implicit SAVE is invisible to the compiler and is a race under threads
 
