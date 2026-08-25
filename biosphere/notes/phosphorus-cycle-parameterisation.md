@@ -28,7 +28,7 @@ arithmetic off the source and the cited measurements.
 | `PUPS_UPPER_ADV` | `guess.h` | `Pft::init_pupscoeff`, then `canexch.cpp:phosphorus_uptake_strength` | 3.18 | dimensionless | Jobbagy and Jackson (2001) profile contrast on the model's own nitrogen value; BRACKET 2.9 to 3.5 | yes, from 2.0 |
 | `PFRAC_MINTOMAX` | `guess.h` | `Pft::init_ctop_limits` and `Pft::init_ctop_min` | 3.68 | dimensionless | McGroddy et al. (2004) foliar dispersion contrast; BRACKET 3.68 to 4.41 | yes, from 2.78 |
 | `PFRAC_MINTOMAX_CROPGREEN` | `guess.h` | `Pft::init_ctop_limits` | 7.77 | dimensionless | the same transfer applied to its nitrogen counterpart 5.0; cropland is refused under BIO-27 | yes, from 5.0 |
-| `PFRAC_LEAFTOROOT` | `guess.h` | `Pft::init_ctop_limits` | 1.16 | dimensionless | Yuan et al. (2011); root N:P is not separable from leaf N:P, so the nitrogen proportion carries; BRACKET 1.02 to 1.35 | no, and now for a reason |
+| `PFRAC_LEAFTOROOT` | `guess.h` | `Pft::init_ctop_limits` | 1.16 | dimensionless | Yuan et al. (2011); root N:P is not separable from leaf N:P, so the nitrogen proportion carries; BRACKET 1.02 to 1.35. Applied to a window endpoint, so the contrast the model runs on is 1.238 and not the derived 1.0; world-xms4 | no, and now for a reason |
 | `PFRAC_LEAFTOSAP` | `guess.h` | `Pft::init_ctop_limits`, then `canexch.cpp` sapwood P demand | 6.9 | dimensionless | UNDERIVED. Nitrogen's, for sapwood PLUS BARK, from Friend et al. (1997) Table 4 p. 254; Heineman et al. (2016) reject the proportional form for phosphorus, and what the model applies is 15.30 rather than 6.9 | no |
 | `PFRAC_MAXTOMIN` | `guess.h` | `Pft::init_ctop_limits` | 0.9 | dimensionless | nothing to transfer: the nitrogen original is declared arbitrary in `Pft::init_cton_limits` | no |
 | `PMASS_SAT` | `somdynam.cpp` | `somfluxes` through `setptoc`, and the P-limitation-off pin | 0.002 | kgP/m2 labile P | Parton, Stewart and Cole (1988) Fig. 3 p. 115, whose labile-P axis saturates at 2.0 gP/m2. DERIVED, and the driving pool is not the paper's | no, and the value is not the defect |
@@ -164,6 +164,19 @@ mean, so what reaches simulated fine-root phosphorus demand is
 as 1.0 therefore arrives at the model as 1.238, because the leaf window was
 widened to 3.68 on the phosphorus side and its nitrogen counterpart was left at
 2.78.
+
+**The derivation stands and the model does not deliver it.** 1.238 is outside the
+0.879 to 1.164 the point estimates above support, so this is not a value inside
+its own bracket; it is the derived quantity failing to reach the simulated plant.
+Two repairs return it. Anchoring the tight root and sapwood windows on their
+mean makes the applied contrast exactly 1.0 for any pair of leaf window widths,
+keeps 1.16, and decouples this constant from `PFRAC_MINTOMAX` permanently.
+Keeping the endpoint anchor needs 1.16 * 3.78 / 4.68 = 0.937 here, and would have
+to be redone every time either leaf window moves. Neither can be taken on the
+phosphorus side alone: the nitrogen side is the same construction, and the choice
+is world-xms4. The complete table across both elements and all four tissue
+proportions, with what each repair costs, is
+`plant-physiology-carbon-allocation-audit.md` finding 11.
 
 ## Sapwood: the constant is nitrogen's, and it is not the quantity the model applies
 
@@ -363,7 +376,9 @@ Three decisions are needed and none of them is arithmetic.
 - If proportionally, whether the constant stays at the leaf window's endpoint or
   moves to the tissue mean its source measures. That is the same question on the
   nitrogen side, where the applied proportion is 12.36 against a sourced 6.897,
-  so it cannot be settled for phosphorus alone. world-xms4.
+  so it cannot be settled for phosphorus alone. world-xms4, and the complete
+  four-constant table with both elements' costs is
+  `plant-physiology-carbon-allocation-audit.md` finding 11.
 - What anchors the level, given that the only paired leaf-and-sapwood phosphorus
   measurement this project holds is one Panamanian fertility gradient.
 
