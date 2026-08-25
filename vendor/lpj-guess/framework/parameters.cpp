@@ -1296,8 +1296,8 @@ void plib_callback(int callback) {
 		// bracket in guess.h, and each is BRACKETED rather than measured, so a
 		// run that uses them has to say which end of each bracket it is on.
 		//
-		// Two are not settled at all, and one is settled against its source
-		// but not against the pool it reads.
+		// Two are not settled at all. Two others were, and are recorded below
+		// with what settled them.
 		//
 		// PFRAC_LEAFTOSAP has no derivable scalar, and both papers behind it
 		// have now been read. Its 6.9 is the reciprocal of Friend et al. (1997)
@@ -1320,38 +1320,48 @@ void plib_callback(int callback) {
 		// model can produce, so the surface microbial pool sits at its maximum
 		// C:P always.
 		//
-		// PMASS_SAT is that paper's Fig. 3 exactly, 2.0 gP/m2 of labile P, and
-		// it is not changed. But Parton's labile P is resin-extractable
-		// orthophosphate and this fork's soil.pmass_labile is the wider
-		// Hedley-labile pool, about eight times larger in the fork's own
-		// global run, so the ramp saturates everywhere and the slow, passive
-		// and soil microbial pools sit at their minimum C:P always. Choosing
-		// how to reconcile the two is a modelling decision.
+		// Two stood here and are settled, and no longer hold this refusal up.
 		//
-		// A fourth stood here and is settled. WORLD-16PB: the P immobilisation
-		// branch in somdynam.cpp scaled sompool[SURFHUMUS].ptoc down with
-		// nothing to set it back. SURFHUMUS is out of that list now, and the
-		// branch itself has the || !ifplim short-circuit its nitrogen twin
-		// always had.
+		// WORLD-Z01O: PMASS_SAT is Parton, Stewart and Cole (1988) Fig. 3
+		// exactly, 2.0 gP/m2, but Parton's labile P is resin-extractable
+		// orthophosphate where this fork's soil.pmass_labile is the wider
+		// Hedley-labile pool, so the soil C:P ramp saturated everywhere.
+		// somdynam.cpp now converts the THRESHOLD into the fork's labile-P
+		// currency by 6.6, the low end of the 6.6-to-11.3 bracket and the one
+		// that compares the model's own simulated labile P against Olsen. The
+		// !ifplim pin on soil.pmass_labile reads the same constant by
+		// definition and follows it, which is why the divergence is inert
+		// under ifplim 0 and live under ifplim 1.
 		//
-		// Running with ifplim 1 before the three are settled produces a
-		// P-limited world whose soil organic C:P is pinned at its most
-		// phosphorus-rich end and whose woody P demand is nitrogen's, and it
+		// WORLD-16PB: the P immobilisation branch in somdynam.cpp scaled
+		// sompool[SURFHUMUS].ptoc down with nothing to set it back. The branch
+		// has the || !ifplim short-circuit its nitrogen twin always had, and
+		// WORLD-SHCP gave the surface humus pool the slow pool's phosphorus
+		// ramp, so the set setptoc() re-derives and the set that branch flexes
+		// are one set again.
+		//
+		// WORLD-SHCP: sompool[SURFHUMUS].ptoc was a fixed 1/150 with no source
+		// for a humus pool. It ramps between 200 and 90 off labile P now, on
+		// Fig. 3's slow line, under the identification of surface humus with
+		// the slow pool that this fork's own nitrogen ramp already makes.
+		//
+		// Running with ifplim 1 before the remaining two are settled produces a
+		// P-limited world whose woody P demand is nitrogen's and whose surface
+		// microbial pool is pinned at its most phosphorus-poor end, and it
 		// produces it silently, which is worse than not running. Lift this
-		// refusal in the change that settles them, not before. BIO-34,
-		// WORLD-PIDX and WORLD-Z01O; the evidence is in
+		// refusal in the change that settles them, not before. BIO-34 and
+		// WORLD-PIDX; the evidence is in
 		// biosphere/notes/phosphorus-cycle-parameterisation.md.
 		if (ifplim) {
 			sendmessage("Error", "ifplim 1 is refused: PFRAC_LEAFTOSAP in guess.h is a "
 				"nitrogen ratio for sapwood plus bark, the one phosphorus measurement of "
 				"wood against leaf rejects its proportional form, and the 6.9 the model "
 				"applies sits below the 10.1 to 15.5 that measurement brackets a forced "
-				"scalar at; PCONC_SAT in somdynam.cpp still carries nitrogen's "
-				"saturation value and has no phosphorus source; and PMASS_SAT is its "
-				"source's value but reads a labile P pool its source did not define, so "
-				"the soil C:P ramp saturates everywhere. See "
-				"biosphere/notes/phosphorus-cycle-parameterisation.md, BIO-34, WORLD-PIDX "
-				"and WORLD-Z01O.");
+				"scalar at; and PCONC_SAT in somdynam.cpp still carries nitrogen's "
+				"saturation value and has no phosphorus source, so the surface microbial "
+				"pool's C:P never leaves its maximum. See "
+				"biosphere/notes/phosphorus-cycle-parameterisation.md, BIO-34 and "
+				"WORLD-PIDX.");
 			plibabort();
 		}
 
@@ -1394,13 +1404,16 @@ void plib_callback(int callback) {
 		// the acute Lloyd and Taylor response and the nominal acclimation
 		// multiplier, and no acclimation was represented at all. Climate::tacc_air
 		// and Soil::tacc_root carry that memory now, and its e-folding time has
-		// no value this project can derive: Gifford (2003) reports respiration
-		// acclimating in as little as a week, QUINCY gives its lagged responses a
-		// process-specific memory whose length is in a supplement this project
-		// does not hold, and neither is a measurement of anything on this world.
-		// So the run declares it or the option does not start. There is
-		// deliberately no default, because a default here is an undeclared
-		// physiological memory. PCAR-3, and
+		// no value this project can derive, only a bracket with both ends
+		// sourced: Gifford (2003) reports respiration acclimating in as little
+		// as a week, and Thum et al. (2019)'s QUINCY supplement Table S1 gives
+		// 30 days for the acclimation of the temperature response of maintenance
+		// respiration in its Eq. S23, which is the relation this routine
+		// implements. Neither is a measurement of anything on this world. So the
+		// run declares it or the option does not start. There is deliberately no
+		// default, because a default here is an undeclared physiological memory.
+		// The bracket and the decision about which path runs are
+		// biosphere/config/respiration_acclimation.yaml. PCAR-3 and WORLD-UHFH;
 		// biosphere/notes/plant-physiology-carbon-allocation-audit.md finding 3.
 		if (acclimated_respiration && !itemparsed("acclim_resp_tau")) {
 			sendmessage("Error", "acclimated_respiration 1 needs acclim_resp_tau, the "

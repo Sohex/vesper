@@ -87,7 +87,7 @@ a result.
 | abiotic source screen | geomorphic renewal, arc tephra and marine aerosol are RETAINED against the ledger, volcanic sulfate deposition is registered and not implemented, and fire ash and lightning belong to FIRE-7 and ANUT-4. The exhumation and tephra rates come from Earth's stationary population and not from the terrain; no screen may be carried on an aerosol optical depth |
 | non-N/P adequacy | screened as a critical runoff per element and per lithology, bounds and directions declared before the result. Potassium binds; iron and the trace set REFUSE for want of a release table. The declared model boundary is that any LPJ-GUESS result here is a C-N-P result and not a nutrient-limitation result |
 | tissue stoichiometry | the fine-root and sapwood C:N and C:P windows are anchored on the tissue MEAN, so the proportion `canexch.cpp` applies to their nutrient demand is the one Friend et al. (1997) measured. The max-anchored form the model used to carry applied 1.79 times it on nitrogen and 2.22 on phosphorus, so every C-N number produced before the repair is worthless rather than stale and the biosphere needs re-commissioning. `notes/plant-physiology-carbon-allocation-audit.md` finding 11 |
-| phosphorus parameters | every constant registered with its source or its bracket in `notes/phosphorus-cycle-parameterisation.md`; the uptake profile, the leaf C:P window, the root proportion and the labile-P saturation threshold are derived, the sapwood proportion and the litter-P saturation threshold are not, the labile-P threshold reads a pool its source did not define, and `ifplim 1` fails closed naming each. The sapwood refusal is now about the element, the proportional form and the level alone: the model applies the constant it declares |
+| phosphorus parameters | every constant registered with its source or its bracket in `notes/phosphorus-cycle-parameterisation.md`; the uptake profile, the leaf C:P window, the root proportion and the labile-P saturation threshold are derived, the sapwood proportion and the litter-P saturation threshold are not, and `ifplim 1` fails closed naming each. Two DECLARED DIVERGENCES from the vendored CNP values: the labile-P threshold is converted into the fork's own Hedley-labile currency, which is inert under `ifplim 0` because the P-limitation-off pin reads the same constant, and the surface humus pool ramps on the slow pool's C:P line instead of holding a fixed unsourced ratio, under the identification the fork's own nitrogen ramp already makes. The sapwood refusal is now about the element, the proportional form and the level alone: the model applies the constant it declares |
 | phosphorus sinks | leaching, fire and harvest only. Terminal occlusion is a DECLARED ABSENCE, argued in the same note, so a simulated soil that must be old carries its phosphorus depletion in its initial stocks rather than developing it |
 | run harness | written; records inputs, binary and model identity in its manifest |
 | albedo and forest feedback | modelled mode exists; rootable/lake and spectral corrections are BIO-17 and BIO-18 |
@@ -594,6 +594,15 @@ pressure, oxygen partial pressure, soil gas diffusivity, water-table redox state
 and the atmospheric boundary for the gases the operator emits. So the declared
 model boundary is that any nitrogen-limitation result from it is a result for an
 Earth gas and redox environment driven by this world's water and pH.
+
+A calibration entry can carry a `boundary` line of its own, and one does: the
+denitrification N2 share, where Xu-Ri and Prentice (2008) and Weier et al.
+(1993) disagree, neither is this world's, and the operator runs Xu-Ri's
+partition because the partition is not separable from the reduction sequence it
+divides. `--strict` does not refuse on a declared boundary, the gate names every
+one under its own heading on each invocation, and a `boundary` on an entry the
+sources do settle is itself a gate failure. What it declares is that no N2, N2O
+or NO number this model reports is a prediction of this world's gas partition.
 `notes/soil-nitrogen-transformation-parameterisation.md` is the register, and it
 carries three defects the operator had: the soil map's pH never reached it, its
 no-pH fallback ran on a variable nothing assigns, and its only conservation check
@@ -617,19 +626,31 @@ a source for each end, and the one-factor sensitivity registered over it. Its
 fast end is how fast Gifford (2003) reports respiration adjusting; its slow end
 is the memory time scale QUINCY declares for the acclimation of maintenance
 respiration, whose Eq. S23 is the relation this fork implements. `run_value_days`
-is which arm a run sits on and its sentinel is `undeclared`.
+is which arm a run sits on; its sentinel is `undeclared`, and under the path
+decision below that sentinel is the settled value rather than a pending one,
+because nothing is on either arm.
 
 The sensitivity carries no pass/fail bar, deliberately: the response is
 arithmetic on a first-order lag and was known before the registration was
 written, so a bar here would be a criterion chosen after the result it judges.
 It is carried as model-form uncertainty instead.
 
-The baseline takes the standard respiration path, which is what the CNP fork's
-own `global_p.ins` selects and what divides `respcoeff` by the tissue C:N
-windows. `acclimation_gate.py` enforces the state, executes the registered
+THE BASELINE TAKES THE STANDARD RESPIRATION PATH, and that is declared as
+`path.runs` with its argument and with what would reopen it, not inherited from
+whichever vendored instruction file is imported. `respiration_acclimated()`
+takes no `respcoeff` argument, so switching paths replaces a coefficient
+`Pft::init_cton_limits` has normalised by the tissue C:N windows with Sprugel et
+al. (1996)'s two fixed reference rates, and that moves the level of sapwood and
+fine-root maintenance respiration, changes what it depends on from leaf
+longevity to growth temperature, and gives up the invariance under a tissue C:N
+window rescaling that kept `respiration()` unmoved by the repair in
+`notes/plant-physiology-carbon-allocation-audit.md` finding 11. Acclimation is
+real and is not what is refused; a switch carrying two unsourced changes with it
+is. `acclimation_gate.py` enforces the state, executes the registered
 sensitivity on every invocation, refuses a declaration that disagrees with
-itself or with the run instruction, and refuses an acclimated path with no
-declared memory length.
+itself or with the run instruction, refuses an acclimated path with no declared
+memory length, and refuses a run instruction on a path the declaration did not
+decide on.
 
 ```bash
 python biosphere/scripts/acclimation_gate.py            # status, exit 0

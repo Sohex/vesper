@@ -249,8 +249,8 @@ figure here is arithmetic and none is a measurement.
   needs one: `PMASS_SAT` is a mass per unit area, `PCONC_SAT` a mass fraction,
   and the `PFRAC_*` ratios are dimensionless, so no orbit enters any of them.
   `parameters.cpp` refuses `ifplim 1` while `PFRAC_LEAFTOSAP` has no derivable
-  scalar, `PCONC_SAT` has no source, and `PMASS_SAT` reads a labile P pool its
-  source did not define. What each one is worth, and what would settle it, is in
+  scalar and `PCONC_SAT` has no source. What each one is worth, and what would
+  settle it, is in
   `biosphere/notes/phosphorus-cycle-parameterisation.md`.
 - Nothing here is verified by execution. LPJ-GUESS does not build on this tree:
   `framework/vesper.h` is generated, and the chain to it runs through a baseline

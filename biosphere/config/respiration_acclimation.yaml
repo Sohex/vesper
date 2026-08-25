@@ -20,6 +20,53 @@
 
 version: 1
 
+# WHICH PATH THE BASELINE RUNS. This is a DECISION and not a reading, and the
+# gate holds the run instruction to it, so the path cannot be flipped in
+# `run_lpj_guess.py` without this line moving too.
+path:
+  runs: false
+  reason: >
+    The acclimated path is not the standard path plus acclimation, and that is
+    the whole of the refusal. `respiration_acclimated()` takes no `respcoeff`
+    argument at all: it substitutes Sprugel et al. (1996)'s two fixed reference
+    rates, 0.25 for wood and 1.0 for fine roots, for a coefficient that
+    `Pft::init_cton_limits` has already normalised by the tissue C:N windows.
+    Switching paths therefore changes three things at once, and only one of them
+    is acclimation.
+    LEVEL. On the vendored Earth plant parameters -- `respcoeff` 1.0,
+    `cton_root` 29, `cton_sap` 330, `frac_mintomax` 2.78, `frac_maxtomin` 0.9 --
+    the normalised `respcoeff` runs 0.63 to 1.72 across leaf longevities of 6 to
+    60 months, against an acclimated wood coefficient of 0.17 to 0.30 and a fine
+    root coefficient of 0.69 to 1.21 over growth temperatures of 0 to 30 C. So
+    the switch moves sapwood maintenance respiration down by a factor of 2 to 10
+    and fine-root maintenance respiration by up to about 2 in either direction,
+    before any acclimation dynamics run.
+    WHAT IT DEPENDS ON. The normalised coefficient carries each simulated plant
+    type's LEAF LONGEVITY, through `cton_leaf_min`, and carries no temperature.
+    The acclimated one carries GROWTH TEMPERATURE and no leaf longevity, and is
+    the same two numbers for every plant type in the model. They are not two
+    calibrations of one coefficient.
+    INVARIANCE. The normalisation is what makes sapwood and fine-root
+    maintenance respiration invariant under a rescaling of the tissue C:N
+    windows, which is why world-xms4's factor of 1.7905 left `respiration()`
+    alone. The acclimated path scales as 1 / cton_sap and 1 / cton_root, so the
+    same rescaling would move maintenance respiration by up to that factor with
+    nothing sourcing the move.
+    Acclimation of respiration to a growth temperature is a real process and is
+    NOT what is refused here. What is refused is a switch that carries two
+    unsourced changes with it and makes them inseparable from the one that is
+    sourced, so no result on that path could be attributed to acclimation. The
+    vendored fork's own C-N-P instruction file selects 0 for the same switch,
+    which is the configuration its published results were produced in.
+  reopens_on: >
+    An acclimated path whose basal level is reconciled with the `respcoeff`
+    normalisation, so that the two paths differ in the acclimation term and in
+    nothing else. That is a change to `respiration_acclimated()` and to
+    `Pft::init_cton_limits`, not an instruction-file setting, and it makes this
+    a question about the process rather than about the switch. `world-vnbc`
+    owns making `build_vesper_pfts.py` state the path rather than inherit it
+    from whichever vendored instruction file it imports.
+
 # The e-folding time of the growth temperature, in ABSOLUTE days. Both ends are
 # sourced, and each names the paper rather than the value's plausibility.
 memory:
@@ -51,7 +98,13 @@ memory:
   # Which end a run is on. `undeclared` is the sentinel and it is not a
   # placeholder for a default: while `acclimated_respiration` is 0 there is no
   # memory to declare, and while it is 1 the gate's `--strict` arm refuses until
-  # this names a value. Replacing it is a DECISION and takes PCAR-11.
+  # this names a value. Under `path.runs: false` above, the sentinel is the
+  # SETTLED value and not a pending one: nothing is on either arm, and the gate
+  # refuses a number here while the run takes the standard path. If the path is
+  # ever turned on, the QUINCY end is the sourced value for this exact
+  # formulation, because Thum et al. (2019) Table S1 gives that memory length
+  # for the acclimation of the temperature response of maintenance respiration
+  # in Eq. S23, which is the relation `respiration_acclimated()` implements.
   run_value_days: undeclared
 
 # THE REGISTERED ONE-FACTOR SENSITIVITY over the bracket. Registered here and

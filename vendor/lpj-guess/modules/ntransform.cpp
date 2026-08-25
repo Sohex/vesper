@@ -463,13 +463,24 @@ void denitrification(Patch& patch,Soil& soil) {
 		// carbon-by-nitrate treatments and found N2 the majority product in
 		// most of those observations.
 		//
-		// What this does NOT settle is the size of the N2 share. At 22 C these
-		// equations leave 97.8 per cent of the reduced nitrogen as N2, where
-		// Weier's medians are 0.565, 0.744 and 0.796 at 60, 75 and 90 per cent
-		// WFPS. The two Earth calibrations disagree, the operator runs at the
-		// DyN end because every other equation in it is DyN's, and the
-		// disagreement is declared as a bracket in
-		// biosphere/config/ntransform.yaml.
+		// What this does NOT settle is the size of the N2 share, and it is a
+		// DECLARED MODEL BOUNDARY rather than a residual. At 22 C these
+		// equations leave 97.8 per cent of the reduced nitrogen as N2, with no
+		// dependence on water-filled pore space, where Weier's medians are
+		// 0.565, 0.744 and 0.796 at 60, 75 and 90 per cent WFPS and the union
+		// of their interquartile ranges is 0.333 to 0.938. Both are Earth
+		// calibrations and neither is this world's.
+		//
+		// The operator stays at the DyN end because the partition is not
+		// separable from the sequence it divides: eqns 1 to 4 above produce the
+		// flux these three split, eqn 1's response is the f_den_T inside eqns 5
+		// and 6, and Weier -- four soils, one temperature, acetylene block, no
+		// NO measured -- has no NO limb to take. The two can be compared and
+		// cannot be mixed term by term. So no N2, N2O or NO number this model
+		// reports is a prediction of this world's gas partition, and the
+		// reported N2O:N2 ratio is a floor rather than an estimate.
+		// biosphere/config/ntransform.yaml carries the boundary and its bracket
+		// at form:denitrification_n2_share. WORLD-BZQJ.
 		no_inc  = R_NO_DENITRI * f_den_T * ngas_inc;
 		n2o_inc = R_N2O_DENITRI * f_den_T * ngas_inc;
 		n2_inc  = ngas_inc - no_inc - n2o_inc;

@@ -107,14 +107,20 @@ ifbvoc {settings['ifbvoc']}
 ! are biosphere/config/respiration_acclimation.yaml; what enforces them is
 ! biosphere/scripts/acclimation_gate.py.
 !
-! The baseline takes the standard respiration path instead, which is what the
-! CNP fork's own global_p.ins selects. That path divides respcoeff by the tissue
-! C:N windows, so sapwood and fine-root maintenance respiration is invariant
-! under the window rescaling of WORLD-XMS4, where the acclimated path has no
-! such compensation and would move maintenance respiration by up to the full
-! rescaling factor. That, and not the memory length, is what turning the
-! acclimated path on now waits on: the declaration is complete and its
-! run_value_days is the arm a run would sit on.
+! THE BASELINE TAKES THE STANDARD RESPIRATION PATH, and that is a decision
+! rather than an inheritance: it is declared as path.runs in
+! biosphere/config/respiration_acclimation.yaml, the gate holds this line to
+! it, and the CNP fork's own global_p.ins selects the same. The memory length
+! is not what settles it. respiration_acclimated()
+! takes no respcoeff argument at all, so switching paths replaces a coefficient
+! Pft::init_cton_limits has normalised by the tissue C:N windows with Sprugel
+! et al. (1996)'s two fixed reference rates, and that changes three things at
+! once: the level of sapwood and fine-root maintenance respiration, what it
+! depends on (leaf longevity on one path, growth temperature on the other), and
+! whether it is invariant under a tissue C:N window rescaling, which is what
+! kept respiration() unmoved by WORLD-XMS4. Acclimation is real and is not what
+! is refused; a switch that carries two unsourced changes with it is. The
+! arithmetic and what would reopen it are in that same declaration. WORLD-UHFH.
 acclimated_respiration 0
 ! The simulated wetlands, their peat and their methane. Four switches, written
 ! rather than inherited for the same reason: an inherited zero cannot be told

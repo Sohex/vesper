@@ -119,8 +119,10 @@ range and the replacement's 0.978 is above all of it. One point moves the wrong
 way while the rest of the domain is repaired, and no choice of table 11 constant
 reconciles the two papers: RN2ODN would have to be 25 to 45 per cent to reach
 Weier's medians, against a stated 0.2 to 4.7. That cost is not hidden in the
-verdict; it is `form:denitrification_n2_share`, verdict `outside`, and `--strict`
-still refuses on it.
+verdict; it is `form:denitrification_n2_share`, verdict `outside`, and it is
+now a DECLARED MODEL BOUNDARY rather than a residual. `--strict` no longer
+refuses on it and the gate names it under its own heading instead, which is
+argued below.
 
 What would have produced a REVERT is a divergence resting on a reading of a paper
 that a second reading could undo, with no arithmetic behind it and a real cost in
@@ -183,7 +185,7 @@ paper states, what the code has, and whether they agree.
 | the NO share of nitrification gas | `nitrification` | -- | Xu-Ri table 11 RNON against RN2ON brackets it at 0.33 to 0.98 | agrees, 0.50 to 0.69 over the reachable WFPS |
 | the denitrification moisture response | `denitrification` | exponent 13.036 | Weier table 2, at 60, 75 and 90% WFPS | agrees, inside the 8.09 to 14.06 that table brackets |
 | the NO and N2O shares of denitrification gas | `denitrification` | 0.002 and 0.02 | Xu-Ri table 9 eqns 5, 6 and 7 with table 11's RNODN and RN2ODN | agrees, inside the 0.2 to 4.9% their sum brackets |
-| the N2 share of denitrification gas | `denitrification` | -- | Weier tables 4 and 5 against Xu-Ri table 11 | OUTSIDE Weier at the high end: 0.978 against medians 0.565 to 0.796 |
+| the N2 share of denitrification gas | `denitrification` | -- | Weier tables 4 and 5 against Xu-Ri table 11 | OUTSIDE Weier at the high end: 0.978 against medians 0.565 to 0.796. DECLARED MODEL BOUNDARY: the operator runs Xu-Ri's partition and the Weier bracket is declared around it |
 | the denitrification moisture threshold | `denitrification` | 0.4 WFPS | neither paper states one | unsourced |
 | the Michaelis-Menten divisor | `denitrification` | available-water depth | Xu-Ri table 11 gives kg m-3 of an unstated volume | unsourced |
 | `pH_soil` | nowhere | 3.5 to 8.5 declared | -- | a declared instruction parameter that no line of the model reads |
@@ -265,14 +267,38 @@ The union of those interquartile ranges is 0.333 to 0.938, and Xu-Ri's own
 tables 9 and 11 sit above all of it, because eqns 5 and 6 make NO and N2O small
 fixed fractions of the reduction flux and eqn 7 leaves everything else as N2.
 The operator runs at the Xu-Ri end and therefore outside Weier's bracket at the
-high end. That is a declared disagreement between two Earth calibrations, and
-the reason the operator sits at that end is that it IS DyN: every other equation
-in it is Xu-Ri's, and this was the one place the port substituted its own. What
-the port had was worse than either -- a branch at 0.7 WFPS built from three
-functions neither paper states, producing no N2 at all below the branch where
-Weier's medians are 1.3 and 2.9 and where N2 is the majority product in 61 and
-80 per cent of the observations. Nothing here settles which Earth number this
-world's soil should carry.
+high end. What the port had was worse than either -- a branch at 0.7 WFPS built
+from three functions neither paper states, producing no N2 at all below the
+branch where Weier's medians are 1.3 and 2.9 and where N2 is the majority
+product in 61 and 80 per cent of the observations.
+
+THE BRACKET IS THE MODEL BOUNDARY, and the operator stays at the Xu-Ri end.
+The reason is that the partition is not separable from the sequence it divides.
+Table 9 eqns 1 to 4 produce the reduced NO2 flux that eqns 5, 6 and 7 split, and
+eqn 1's temperature response is the same `ftemp` that appears inside eqns 5 and
+6, so moving the N2 share to Weier would put one step of a four-step sequence on
+a different calibration from the three above it and from the response inside it.
+Weier cannot supply the rest of the step either: it is a four-soil incubation at
+one temperature, measured by acetylene block, and it never measured NO, so it
+has no NO limb to take. The two calibrations can be compared and cannot be mixed
+term by term.
+
+What the boundary costs is stated rather than argued away. The operator's 0.978
+is above the whole 0.333 to 0.938 union, and it carries no dependence on
+water-filled pore space where Weier's medians rise from 0.565 to 0.796 across 60
+to 90 per cent. So no N2, N2O or NO number this model reports is a prediction of
+this world's denitrification gas partition: it is the DyN scheme's partition, at
+the DyN end of a two-calibration Earth disagreement, and the reported N2O:N2
+ratio in particular is a floor rather than an estimate. Nothing in either paper
+narrows that, and narrowing it needs a measurement on this world's soils.
+
+`boundary` is the declaration kind this is recorded under, in
+`biosphere/config/ntransform.yaml`. It is only for an entry the sources cannot
+settle: the `verdict` still says what the arithmetic says, `--strict` stops
+refusing on that entry alone, and `ntransform_gate.py` prints every boundary
+under its own heading on every invocation, so one cannot become invisible. A
+`boundary` claimed on an entry the sources do settle, or with no owner, is a
+failure of the declaration and the gate has a fixture for each.
 
 **The aerobic and anaerobic split.** Xu-Ri settles the variable and gives no
 form, pointing instead at PnET-DNDC's anaerobic balloon, so the split's midpoint

@@ -31,7 +31,7 @@ arithmetic off the source and the cited measurements.
 | `PFRAC_LEAFTOROOT` | `guess.h` | `Pft::init_ctop_limits`, then `canexch.cpp` fine-root P demand | 1.16 | dimensionless | Yuan et al. (2011); root N:P is not separable from leaf N:P, so the nitrogen proportion carries; BRACKET 1.02 to 1.35. The tissue window is mean-anchored, so the contrast the model runs on is the derived 1.0 for any leaf window width | no, and now for a reason |
 | `PFRAC_LEAFTOSAP` | `guess.h` | `Pft::init_ctop_limits`, then `canexch.cpp` sapwood P demand | 6.9 | dimensionless | UNDERIVED. Nitrogen's, for sapwood PLUS BARK, from Friend et al. (1997) Table 4 p. 254; Heineman et al. (2016) reject the proportional form for phosphorus, and the 6.9 the model applies sits below the 10.1 to 15.5 that dataset brackets a forced scalar at | no |
 | `PFRAC_MAXTOMIN` | `guess.h` | `Pft::init_ctop_limits` | 0.9 | dimensionless | nothing to transfer: the nitrogen original is declared arbitrary in `Pft::init_cton_limits`. It sets the tissue window's WIDTH only, so it no longer moves the applied proportion | no |
-| `PMASS_SAT` | `somdynam.cpp` | `somfluxes` through `setptoc`, and the P-limitation-off pin | 0.002 | kgP/m2 labile P | Parton, Stewart and Cole (1988) Fig. 3 p. 115, whose labile-P axis saturates at 2.0 gP/m2. DERIVED, and the driving pool is not the paper's | no, and the value is not the defect |
+| `PMASS_SAT` | `somdynam.cpp` | `somfluxes` through `setptoc`, and the P-limitation-off pin | 0.002 * 6.6 | kgP/m2 labile P | Parton, Stewart and Cole (1988) Fig. 3 p. 115, whose labile-P axis saturates at 2.0 gP/m2, CONVERTED into this fork's Hedley-labile currency by 6.6, the low end of the 6.6 to 11.3 bracket | yes, and it is a declared divergence from the vendored 0.002 |
 | `PCONC_SAT` | `somdynam.cpp` | `somfluxes` and `equilsom` through `setptoc` | 0.02 | phosphorus fraction of litter dry mass | UNDERIVED. Nitrogen's value exactly, on a ramp the cited source does not contain. Bounded above by 7.6e-4 | no |
 | `USORB` | `somdynam.cpp` | `somfluxes` | 0.0067 / `VESPER_EARTH_YEAR_DAYS` | per absolute day | Wang et al. (2010) Appendix D | divisor, under the time-base contract |
 | `USSORB` | `somdynam.cpp` | `somfluxes` | 0.0067 / `VESPER_EARTH_YEAR_DAYS` | per absolute day | the same, and equal to `USORB` in that source | divisor, under the time-base contract |
@@ -455,25 +455,25 @@ Yang and Post (2011) is the same finding from the other side: Hedley-labile P
 exceeds vegetation demand even in strongly weathered soils, so it is not
 plant-available P and must not be read straight into a model's labile pool.
 
-`fac` therefore exceeds `fmax` nearly everywhere and the slow, passive and soil
-microbial pools sit at their MINIMUM C:P always, which is their most
-phosphorus-rich end. That is not a wrong constant. It is a right constant
-reading a pool its source did not define, and neither way out is taken here.
+Unconverted, `fac` therefore exceeds `fmax` nearly everywhere and the slow,
+passive and soil microbial pools sit at their MINIMUM C:P always, which is their
+most phosphorus-rich end. That is not a wrong constant. It is a right constant
+reading a pool its source did not define.
 
 What `setptoc` writes has exactly one live reader: `transferdecomp`'s `pinc`,
 the phosphorus that rides carbon into a receiving pool. So this sets the
 phosphorus content of every organic transfer in the model, and it is what the
 reported soil and litter phosphorus stock is made of.
 
-### The two ways out are not the same change
+### The threshold is converted, and the conversion goes on the threshold
 
-They read as a pair of equivalent framings, and they are not, because
-`PMASS_SAT` does a second job. `somfluxes` ends by pinning `soil.pmass_labile`
-to `PMASS_SAT` whenever `!ifplim`, and the only things that move it between that
-pin and the next call's `setptoc` are one day of uptake, deposition, weathering
-and leaching. So under the configuration this project runs, `fac` arrives at
-`fmax` to within a day's net phosphorus flux, which is a fraction of a per cent
-of the axis.
+The two candidate changes read as a pair of equivalent framings and they are
+not, because `PMASS_SAT` does a second job. `somfluxes` ends by pinning
+`soil.pmass_labile` to `PMASS_SAT` whenever `!ifplim`, and the only things that
+move it between that pin and the next call's `setptoc` are one day of uptake,
+deposition, weathering and leaching. So under the configuration this project
+runs, `fac` arrives at `fmax` to within a day's net phosphorus flux, which is a
+fraction of a per cent of the axis.
 
 - Converting the THRESHOLD into this fork's labile-P currency moves the pin with
   it, because the pin reads the same symbol and reads it for the same reason.
@@ -483,22 +483,61 @@ of the axis.
   leaves the pin alone, puts `fac` well below `fmax`, and moves the three pools
   partway up the ramp in the current configuration, where the reported stock is.
 
-Either way the decision is one scalar: the ratio between this fork's
-`pmass_labile` and the resin-extractable orthophosphate Parton's figure was
-drawn against. It is BRACKETED at 6.6 to 11.3 by the fork's own published
-numbers -- simulated labile P 2.11 PgP and Hedley-labile 3.6 PgP, both against
-Olsen-extractable 0.319 PgP over 0 to 20 cm -- which puts the equivalent
-threshold in this fork's currency at 13 to 23 gP/m2, against a `kplab` of 10 to
-78.
+THE THRESHOLD IS THE ONE THAT IS CONVERTED. The pin is not a coincidental second
+reader of the same symbol; it is DEFINED as holding labile P at the value where
+the C:P ramp stops responding, exactly as the nitrogen side pins `NH4_mass` to
+`NMASS_SAT`. Moving the threshold and letting the pin follow is therefore one
+definition propagating rather than a side effect, and splitting the two into
+separate constants would invent a second number with no independent derivation
+and let the pair drift apart.
 
-The bracket cannot be tightened from those numbers, and this is the second,
-independent obstacle. Parton's is a 0 to 20 cm quantity; LPJ-GUESS-CNP simulates
-soil organic matter as a bulk pool with no explicit depth, which Dantas de Paula
-et al. (2025) state as a known limitation. The two sides of the ratio do not
-share a support, so there is no depth on the receiving side to convert to, and
-narrowing the bracket needs a run of this fork rather than more arithmetic.
+THE SCALAR IS 6.6. The ratio between this fork's `pmass_labile` and the
+resin-extractable orthophosphate Parton's figure was drawn against is BRACKETED
+at 6.6 to 11.3 by the fork's own published numbers, and the two ends are not two
+estimates of one quantity:
 
-### What the pinned ramp is worth, in the model's own reported stocks
+- 6.6 is the model's SIMULATED labile P, 2.11 PgP, over Olsen-extractable
+  0.319 PgP over 0 to 20 cm.
+- 11.3 is the OBSERVATIONAL Hedley-labile estimate, 3.6 PgP, over the same Olsen
+  figure.
+
+`setptoc` reads the simulated pool, not the observation, so 6.6 is the ratio
+between the two quantities that are actually wired together. The model
+under-predicts its own observational target by 41 per cent, and 11.3 carries
+that error as well as the definitional conversion, so using it would count the
+under-prediction twice. `PMASS_SAT` is therefore `0.002 * 6.6` = 0.0132 kgP/m2,
+which is 13.2 gP/m2 against a `kplab` of 10 to 78 and against the fork's own
+simulated 16 gP/m2.
+
+The bracket cannot be tightened from those numbers, and this is a second,
+independent obstacle that the choice of end does not remove. Parton's is a 0 to
+20 cm quantity; LPJ-GUESS-CNP simulates soil organic matter as a bulk pool with
+no explicit depth, which Dantas de Paula et al. (2025) state as a known
+limitation. The two sides of the ratio do not share a support, so there is no
+depth on the receiving side to convert to, and narrowing the bracket needs a run
+of this fork rather than more arithmetic.
+
+### The conversion is a declared divergence, and what it moves
+
+Vendored LPJ-GUESS-CNP has `PMASS_SAT = 0.002`, Parton's axis maximum carried
+across unconverted, and this fork now diverges from it. Both the mainline value
+and the applied one are recorded at the constant.
+
+Under `ifplim 0`, the configuration this project runs, the divergence is INERT
+for the carbon and phosphorus flows: the pin moves with the threshold, `fac`
+still arrives at `fmax`, and every soil organic C:P ratio is where it was. What
+does change is the reported stock. `commonoutput.cpp` writes the pinned
+`pmass_labile` into `PO4_mass` and `availp`, so the reported labile P moves from
+2.0 to 13.2 gP/m2, which is the same order as the fork's own simulated
+16 gP/m2 instead of an order below it. It remains a constant meaning "not
+limiting" and not a simulated stock; what the conversion removes is the reader's
+false impression that the model is reporting a phosphorus-poor world.
+
+Under `ifplim 1` the divergence bites for real. The emergent labile P now has a
+threshold it can sit below, so the slow, passive and soil microbial pools ramp
+instead of saturating, and the section below is the size of that.
+
+### What the saturated ramp was worth, in the model's own reported stocks
 
 The fork's published global run reports litter plus soil C of 1474.1 PgC and
 litter plus soil P of 51.9 PgP, a bulk organic C:P of 28.4 by mass. That is
@@ -517,10 +556,11 @@ and occluded fractions, not organic ones.
 
 This is the size of the effect and not an argument for a value. A correct
 threshold that worsened that comparison would still be the correct threshold.
-What the arithmetic establishes is that the disabled ramp is worth up to a
+What the arithmetic establishes is that the saturated ramp is worth up to a
 factor of five on the largest phosphorus stock this model reports, so it is not
-a tidiness question, and that no comparison against a measured soil organic P is
-worth making until the driving pool is settled.
+a tidiness question. That is the scale of what the converted threshold buys back
+under `ifplim 1`, and it is not a claim about where the pools land, which needs
+a run.
 
 ### The phosphorus-limitation-off pin is not a second defect
 
@@ -528,20 +568,22 @@ worth making until the driving pool is settled.
 limitation is off, which is the configuration this project runs. That is the
 right constant for the second job as well as the first: "saturated" here means
 exactly "at the value where `setptoc` stops responding", the nitrogen side pins
-`NH4_mass` to `NMASS_SAT` for the same reason, and the two uses move together if
-the threshold ever moves.
+`NH4_mass` to `NMASS_SAT` for the same reason, and the two uses move together
+when the threshold moves, as they did under the conversion above.
 
 What follows from it is a reporting hazard rather than a modelling one. Under
 `ifplim 0` the labile P written to `PO4_mass` and `availp` is a CONSTANT meaning
 "not limiting", identical in every simulated cell, and comparing it against a
 measured labile P or against this fork's own phosphorus-limited run is
-meaningless in either direction. It is eight times below the latter and fourteen
-below the former, and neither number says anything. Read it as a flag.
+meaningless in either direction. The conversion moves it onto the same order as
+the fork's own simulated pool, which makes it less misleading to read and no
+more meaningful to compare. Read it as a flag.
 
-The soil organic C:P ratios are at the same place in both configurations: under
-`ifplim 0` because `fac` is held at `fmax` by the pin, under `ifplim 1` because
-the emergent labile P is far above it. That coincidence is what makes the two
-framings of WORLD-Z01O behave differently, and it is argued above.
+Before the conversion, the soil organic C:P ratios were at the same place in
+both configurations: under `ifplim 0` because `fac` was held at `fmax` by the
+pin, under `ifplim 1` because the emergent labile P was far above it. That
+coincidence is what made the two candidate changes behave differently, and it is
+argued above.
 
 ### `PCONC_SAT` has no source in that paper, or anywhere in the tree
 
@@ -611,19 +653,70 @@ able to check the fourth argument.
 Neither is a constant and both are in the phosphorus path. They sit in the same
 branch of `somfluxes`, and closing the second closes the first.
 
-`SURFHUMUS` is in the nitrogen ramp and not the phosphorus one, and the
+`SURFHUMUS` was in the nitrogen ramp and not the phosphorus one, and the
 phosphorus immobilisation branch scaled `sompool[SURFHUMUS].ptoc` down by
 `ptoc_reduction` alongside `SLOWSOM` and `SOILMICRO`. Those two are re-derived
-by `setptoc` at the top of every call to `somfluxes`; `SURFHUMUS` is not,
-because its `setptoc` line is commented out. So its P:C ratcheted downward
-without bound over a run, from the 1/150 it is initialised to in `soil.cpp`,
-and the surface humus pool asymptotically received carbon carrying no
-phosphorus. Uncommenting the line is not the fix: Parton, Stewart and Cole
-(1988) has no humus pool to take a `(ctop_max, ctop_min)` pair from, so that
-would import `SLOWSOM`'s pair without a source. The invariant to keep instead is
-that a pool whose P:C is flexed down in that branch has to be one `setptoc`
-re-derives, and `SURFHUMUS` is out of the list now. `PASSIVESOM` is the harmless
-other direction: re-derived, never flexed.
+by `setptoc` at the top of every call to `somfluxes`; `SURFHUMUS` was not,
+because its `setptoc` line was commented out. So its P:C ratcheted downward
+without bound over a run, from the 1/150 `soil.cpp` initialised it to, and the
+surface humus pool asymptotically received carbon carrying no phosphorus. The
+invariant to keep is that a pool whose P:C is flexed down in that branch has to
+be one `setptoc` re-derives. It was kept first by taking `SURFHUMUS` out of the
+list, and it is kept now from the other side: the pool has a phosphorus ramp,
+so the set `setptoc` covers and the set that branch flexes are one set again,
+which is what WORLD-16PB asked for. `PASSIVESOM` is the harmless other
+direction: re-derived, never flexed. What gave `SURFHUMUS` its ramp is the
+section below.
+
+### The surface humus pool's C:P is the slow pool's, and it ramps
+
+The fork initialised `sompool[SURFHUMUS].ptoc` to 1/150 and never moved it, so
+150 was the surface humus pool's C:P for the whole of a run and the phosphorus
+content of every transfer into it out of `SURFSTRUCT`, `SURFFWD`, `SURFCWD` and
+`SURFMICRO`. `transferdecomp` reads `sompool[receiver].ptoc` with no `ifplim`
+guard, so that was live in both configurations.
+
+150 has no source for a humus pool. The block cited Fig. 2 of Parton, Stewart
+and Cole (1988), which is the P submodel's flow diagram and carries no C:P
+values; the citation is corrected, and 150 appears in that paper only as the
+lower bound on the C:P of new plant material for wheat (p. 112) and as the
+structural litter C:N. Its three neighbours in the block are Fig. 3's `ctop_max`
+ends and are overwritten on the first call to `somfluxes`, so their provenance
+barely matters; 150 was the one that stood.
+
+The objection that kept the `setptoc` line commented out was that the paper has
+no humus pool, so its 200 and 90 would import `SLOWSOM`'s pair without a source.
+They are not imported. The PAIR is Fig. 3's slow line. The IDENTIFICATION of
+surface humus with the slow pool is the model's own, and this fork states it
+twice:
+
+- `setntoc` gives `SURFHUMUS` exactly `SLOWSOM`'s `(30, 15)` off exactly
+  `SLOWSOM`'s driver, the mineral nitrogen pool. So the nitrogen side already
+  ramps this pool as the slow pool at the surface, from the soil's mineral
+  nutrient, and the phosphorus line is that treatment carried to the other
+  element.
+- `soil.cpp`'s own alternative P initialisation, commented out beside the live
+  one, sets `SURFHUMUS` and `SLOWSOM` to the same 1/90, which is that line's
+  phosphorus-rich end.
+
+The alternative was a measured surface humus C:P, and it is the wrong KIND of
+quantity, not merely a missing one. `setptoc` sets the P:C at which a pool
+RECEIVES carbon: a stoichiometric target that moves with labile P by the
+phosphatase mechanism of McGill and Cole (1981) that the paper builds on. A
+measured forest-floor C:P is an emergent bulk ratio, and a fixed number is the
+wrong shape for this argument however well sourced. That is what the fork's
+1/150 was.
+
+So `setptoc(soil, pmin_mass, SURFHUMUS, 200.0, 90.0, 0.0, PMASS_SAT)` runs, and
+the initialisation moves to 1/200, the slow line's `ctop_max` end, which puts it
+back on the block's own pattern and makes it not load-bearing again.
+
+Both changes are declared divergences from the vendored CNP fork, with its own
+lines recorded verbatim beside them. What moves: under `ifplim 0` the pin holds
+`fac` at `fmax`, so the surface humus pool's C:P goes from a fixed 150 to a
+fixed 90, and the phosphorus riding carbon into it rises by a factor of 1.67.
+Under `ifplim 1` it ramps between 200 and 90 with labile P like the other three.
+Nothing here is execution-verified.
 
 The branch it sits in is the nitrogen branch above with `n` substituted for `p`,
 down to every comment inside it still saying nitrogen, and the copy dropped
@@ -708,8 +801,8 @@ agreement:
   terminal, so the rate directly sets this world's long-run soil phosphorus
   stock, and Parton's K3 acts on his secondary P pool over 0 to 20 cm in a
   monthly model, not on this fork's strongly sorbed pool at a daily step. That
-  is the same pool-definition question `PMASS_SAT` is caught in, on a flux
-  nothing can undo.
+  is the same pool-definition question the `PMASS_SAT` conversion answers for
+  the C:P ramp, on a flux nothing can undo.
 - `equilsom` spins the soil organic matter pools for 40000 model years to solve
   their equilibrium analytically. It is a numerical device and not 40000 years
   of this world's history, and `pmass_sorbed` and `pmass_strongly_sorbed` are
@@ -747,11 +840,6 @@ break in a conservation sum.
   the measurement rejects, or a nonlinear wood-leaf phosphorus relation, and what
   anchors the level if a scalar is kept. The applied proportion equals the
   declared constant now, so this is a question about the constant alone.
-- `PMASS_SAT`'s driving pool, as WORLD-Z01O. The constant is settled and is not
-  the defect; what is open is that `soil.pmass_labile` is a Hedley-labile pool
-  and the threshold is a resin-extractable one. The choice is now one scalar,
-  bracketed at 6.6 to 11.3, and which of the two places it is applied decides
-  whether the change bites under `ifplim 0` at all.
 - `PCONC_SAT`, as WORLD-PIDX, which has no phosphorus source in the paper the
   ramp cites or anywhere else in the tree, and whose ramp that paper does not
   contain.
