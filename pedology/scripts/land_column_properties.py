@@ -24,11 +24,12 @@ It does four things, and none of them runs a model:
    The audit's finding 1 is that these are not the same capacity; this is the
    number.
 
-3. **The Cosby inversion's unclamped region.** `soilinput.cpp` inverts the
-   retention curve without clamping, so field capacity can come back above
-   saturation. The region is derived analytically from the regression
-   coefficients and the soil map is measured against it, so the answer is a
-   MARGIN rather than a count of zero.
+3. **The Cosby inversion's air-entry clamp.** `soilinput.cpp` clamps both
+   matric heads at the air-entry value, because Cosby's equation holds only
+   below air entry and unclamped it returns a field capacity above saturation.
+   The texture region where the clamp binds is derived analytically from the
+   regression coefficients and the soil map is measured against it, so the
+   answer is a MARGIN rather than a count of zero.
 
 4. **The gravity correction to field capacity.** Field capacity is a drainage
    equilibrium, so its matric pressure scales with gravity and this planet's is
@@ -106,16 +107,27 @@ def cosby_parameters(sand, clay):
     return b, psi_s, theta_s
 
 
-def cosby_states(sand, clay, psi_field_capacity=COSBY_PSI_FIELD_CAPACITY):
+def cosby_states(sand, clay, psi_field_capacity=COSBY_PSI_FIELD_CAPACITY,
+                 clamp=True):
     """Saturation, field capacity and wilting point, volumetric.
 
-    UNCLAMPED, because the model is. `theta_field_capacity` above `theta_s` is
-    a real output of this code for a soil dry enough in sand, and clamping it
-    here would hide the region the third check exists to measure.
+    CLAMPED AT AIR ENTRY, because the model is. Cosby's equation 1 holds only
+    below the air-entry value; at and above it the pore space is full and
+    theta is theta_s. `get_mineral` takes both heads through `min(..., Psi_s)`
+    for that reason, so this transcription does too -- WORLD-NGA10 put the
+    clamp in the code, and a transcription that kept the unclamped form would
+    be comparing against a model that no longer exists.
+
+    `clamp=False` is what `air_entry_clamp_region` uses to measure how far the
+    soil map sits from the texture corner where the clamp starts binding. That
+    margin is a property of the map and is worth carrying whether or not the
+    code is right, because it is what says how close the nearest cell is.
     """
     b, psi_s, theta_s = cosby_parameters(sand, clay)
-    theta_fc = theta_s * (psi_field_capacity / psi_s) ** (1.0 / b)
-    theta_wp = theta_s * (COSBY_PSI_WILTING / psi_s) ** (1.0 / b)
+    psi_fc = np.minimum(psi_field_capacity, psi_s) if clamp else psi_field_capacity
+    psi_wp = np.minimum(COSBY_PSI_WILTING, psi_s) if clamp else COSBY_PSI_WILTING
+    theta_fc = theta_s * (psi_fc / psi_s) ** (1.0 / b)
+    theta_wp = theta_s * (psi_wp / psi_s) ** (1.0 / b)
     return theta_s, theta_fc, theta_wp
 
 
@@ -400,41 +412,53 @@ def compare_consumers(decl: dict, soil: dict[str, np.ndarray]) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 3. The Cosby inversion's unclamped region
+# 3. The Cosby inversion's air-entry clamp, and the map's margin from it
 # ---------------------------------------------------------------------------
 
-def unclamped_region(soil: dict[str, np.ndarray]) -> dict:
-    """Where the Cosby inversion returns field capacity above saturation.
+def air_entry_clamp_region(soil: dict[str, np.ndarray]) -> dict:
+    """Where the Cosby inversion's air-entry clamp binds, and how far the map is.
 
-    `theta_fc = theta_s * (psi_fc / psi_s) ** (1 / b)` exceeds `theta_s` when
-    `psi_fc > psi_s`, that is when `log10(psi_s^-1) > 2`. Substituting the
-    regression for that log and silt = 1 - sand - clay gives
+    Unclamped, `theta_fc = theta_s * (psi_fc / psi_s) ** (1 / b)` exceeds
+    `theta_s` when `psi_fc > psi_s`, that is when `log10(psi_s^-1) > 2`.
+    Substituting the regression for that log and silt = 1 - sand - clay gives
 
         1.58 * sand + 0.63 * clay < 0.17
 
-    which is a straight line in the texture simplex and needs no search. The
-    map is measured against it as a MARGIN, because a count of zero says
-    nothing about how close the nearest cell is.
+    which is a straight line in the texture simplex and needs no search.
+
+    `get_mineral` now clamps both heads at `Psi_s`, so a cell inside that
+    region no longer returns a field capacity above saturation; it returns
+    saturation, which is the physically right answer and is a DIFFERENT number
+    from the one the retention curve would give. The map is still measured
+    against the line as a MARGIN, because a count of zero says nothing about
+    how close the nearest cell is, and because a map that moved inside would
+    have its field capacity set by the clamp rather than by its texture.
     """
     sand, clay = soil["sand"], soil["clay"]
     theta_s, theta_fc, theta_wp = cosby_states(sand, clay)
+    _, theta_fc_raw, theta_wp_raw = cosby_states(sand, clay, clamp=False)
     criterion = 1.58 * sand + 0.63 * clay
     inside = criterion < 0.17
     headroom = theta_s - theta_fc
     return {
-        "criterion": "1.58 * sand + 0.63 * clay < 0.17 puts field capacity above "
-                     "saturation",
+        "criterion": "1.58 * sand + 0.63 * clay < 0.17 is where the air-entry "
+                     "clamp binds; unclamped the inversion returns a field "
+                     "capacity above saturation there",
         "criterion_bound": 0.17,
         "cells_inside": int(inside.sum()),
         "closest_cell_criterion": float(criterion.min()),
         "minimum_saturation_headroom_volumetric": float(headroom.min()),
         "any_field_capacity_above_saturation": bool((theta_fc > theta_s).any()),
         "any_wilting_point_above_field_capacity": bool((theta_wp > theta_fc).any()),
-        "verdict": "the map keeps this right, not the code. `get_mineral` clamps "
-                   "nothing, so a soil map that moved into the region would "
-                   "produce a field capacity above saturation and a negative air "
-                   "fraction downstream. The margin is what makes that a bound "
-                   "rather than a hope.",
+        "clamp_changes_any_cell": bool(
+            np.any(theta_fc_raw != theta_fc) or np.any(theta_wp_raw != theta_wp)),
+        "verdict": "the CODE keeps this right, and the map has never needed to. "
+                   "WORLD-NGA10 clamped both heads at Psi_s in `get_mineral`, "
+                   "so the inversion cannot return a field capacity above "
+                   "saturation for any texture. No cell of this map is inside "
+                   "the region, so the clamp changes no current soil property; "
+                   "the margin is what says how far that is from being true by "
+                   "accident.",
         "owner": "world-nga10",
     }
 
@@ -502,6 +526,133 @@ def gravity_field_capacity_shift(decl: dict, soil: dict[str, np.ndarray],
 
 
 # ---------------------------------------------------------------------------
+# 5. What unifying the two derivations would move
+# ---------------------------------------------------------------------------
+
+def unification_cost(decl: dict, soil: dict[str, np.ndarray],
+                     gravity_m_s2: float) -> dict:
+    """What each consumer's capacity becomes if one derivation is made central.
+
+    WORLD-OF6N is the removal this contract was built to make attributable, and
+    it needs a decision that is about the world rather than about the code: WHAT
+    THE CENTRAL CASE IS. This costs the candidates so that decision is a
+    one-liner rather than an investigation, and it runs no model.
+
+    Three candidates, and they are not symmetric. Two of them are readings of
+    the contract as it already stands, because the contract already NAMES a
+    retention closure and already declares field capacity as a drainage
+    equilibrium at `rho_w * g * L`; taken literally that determines the states
+    from texture and the only open part is which gravity the suction is
+    evaluated at. The third would replace the declared closure with pedology's
+    endmember mixture, which is not a retention curve at all and cannot be
+    expressed in the declared closure -- so it is a change to the DECLARATION
+    and not a change to a consumer.
+    """
+    pedology_mm = soil["awc"]
+    lpj_mm = lpj_capacity_mm(soil["sand"], soil["clay"],
+                             soil["depth"], soil["bedrockfrac"])
+    # The whole per-layer scaling is linear in the available capacity, so the
+    # gravity shift's per-cell ratio carries through the profile exactly.
+    shift = gravity_field_capacity_shift(decl, soil, gravity_m_s2)
+    pot = decl["potential_convention"]
+    b, _, _ = cosby_parameters(soil["sand"], soil["clay"])
+    fc_ratio = ((gravity_m_s2 / pot["earth_gravity_m_s2"]) ** (-1.0 / b))
+    _, theta_fc_e, theta_wp_e = cosby_states(soil["sand"], soil["clay"])
+    available_ratio = ((theta_fc_e * fc_ratio - theta_wp_e)
+                       / np.maximum(theta_fc_e - theta_wp_e, 1e-12))
+    lpj_vesper_mm = lpj_mm * available_ratio
+
+    def moves(new, old):
+        ratio = new / np.maximum(old, 1e-12)
+        return {"median_mm_before": float(np.median(old)),
+                "median_mm_after": float(np.median(new)),
+                "land_mean_mm_before": float(old.mean()),
+                "land_mean_mm_after": float(new.mean()),
+                "ratio": percentiles(ratio)}
+
+    candidates = {
+        "closure_at_earth_suction": {
+            "what": "the contract's declared closure -- Clapp-Hornberger on "
+                    "Cosby Table 4 -- evaluated at Cosby's own field-capacity "
+                    "suction, which is the pressure LPJ-GUESS already uses",
+            "is_a_reading_of_the_contract": True,
+            "central_case_mm": percentiles(lpj_mm),
+            "exoplasim_dwmax": moves(lpj_mm, pedology_mm),
+            "lpj_guess_capacity": moves(lpj_mm, lpj_mm),
+            "deletes": "pedology's endmember volumetric capacities, its "
+                       "additive organic term and its allophane term, from "
+                       "build_soil.py's awc column",
+        },
+        "closure_at_vesper_suction": {
+            "what": "the same closure at the suction the contract's own "
+                    "potential convention declares, rho_w * g * L at this "
+                    "planet's gravity. This is the contract read literally: "
+                    "the closure is named and field capacity is declared as a "
+                    "drainage equilibrium over a declared length",
+            "is_a_reading_of_the_contract": True,
+            "central_case_mm": percentiles(lpj_vesper_mm),
+            "exoplasim_dwmax": moves(lpj_vesper_mm, pedology_mm),
+            "lpj_guess_capacity": moves(lpj_vesper_mm, lpj_mm),
+            "deletes": "the same, and additionally moves LPJ-GUESS off the "
+                       "Earth suction it evaluates at today",
+        },
+        "pedology_endmember_mixture": {
+            "what": "pedology's declared endmember volumetric capacities with "
+                    "its additive organic and allophane terms. NOT a retention "
+                    "curve: it carries no saturation, no air entry and no "
+                    "exponent, so adopting it means replacing the contract's "
+                    "named closure rather than choosing between consumers",
+            "is_a_reading_of_the_contract": False,
+            "central_case_mm": percentiles(pedology_mm),
+            "exoplasim_dwmax": moves(pedology_mm, pedology_mm),
+            "lpj_guess_capacity": moves(pedology_mm, lpj_mm),
+            "deletes": "soilinput.cpp's get_mineral pedotransfer and "
+                       "vesperinput.cpp's regolith rescaling, and leaves the "
+                       "contract with a capacity and no retention curve, so "
+                       "saturation and matric potential would have to come "
+                       "from somewhere else",
+        },
+    }
+
+    andic_mm = (float(_pedogenesis()["andisol"]["volumetric_capacity_allophane"])
+                * soil["andic"] * soil["depth"] * 1000.0)
+    gap_mm = np.abs(lpj_mm - pedology_mm)
+    return {
+        "candidates": candidates,
+        "andic_term_mm": percentiles(andic_mm),
+        "andic_cells": int((soil["andic"] > 0.0).sum()),
+        "andic_share_of_pedology_awc": percentiles(
+            andic_mm / np.maximum(pedology_mm, 1e-12)),
+        "andic_is_not_the_disagreement": (
+            "the allophane term LPJ-GUESS has no equivalent of contributes a "
+            "median of nothing and a p90 of a few per cent of pedology's "
+            "capacity, against a median absolute gap between the two "
+            "derivations of tens of millimetres. What separates them is that "
+            "the declared endmember capacities and the Cosby retention "
+            "inversion are different numbers for the same texture, not that "
+            "one carries a material the other does not"),
+        "median_absolute_gap_mm": float(np.median(gap_mm)),
+        "not_measurable_here": (
+            "the change in land runoff ratio and in E over R. Both need a "
+            "paired baseline, pedology/scripts/probe_runoff_response.py needs "
+            "a climatology to back-solve potential evaporation from, and "
+            "config/planet.yaml declares baseline_climatology null. On this "
+            "build the capacity change can be costed and its climate "
+            "consequence cannot"),
+        "not_execution_verified": (
+            "nothing on the LPJ-GUESS side. It does not build on this tree "
+            "until a baseline climatology exists, so every LPJ number here is "
+            "a transcription of the vendored source evaluated offline"),
+        "owner": "world-of6n",
+    }
+
+
+def _pedogenesis() -> dict:
+    return yaml.safe_load((COMPONENT_ROOT / "config" / "pedogenesis.yaml")
+                          .read_text(encoding="utf-8"))
+
+
+# ---------------------------------------------------------------------------
 
 def build_report(decl: dict, soil_map: Path, gravity_m_s2: float) -> dict:
     soil = read_soil_map(soil_map)
@@ -521,9 +672,10 @@ def build_report(decl: dict, soil_map: Path, gravity_m_s2: float) -> dict:
         "declaration_mutations": mutations,
         "checker_defects": defects,
         "consumer_comparison": compare_consumers(decl, soil),
-        "cosby_unclamped_region": unclamped_region(soil),
+        "cosby_air_entry_clamp": air_entry_clamp_region(soil),
         "gravity_field_capacity_shift": gravity_field_capacity_shift(
             decl, soil, gravity_m_s2),
+        "unification_cost": unification_cost(decl, soil, gravity_m_s2),
         "undeclared_properties": undeclared_properties(decl),
     }
 
@@ -581,13 +733,27 @@ def main(argv: list[str] | None = None) -> int:
               f"{cmp_['absolute_difference_mm']['median']:7.1f} mm median")
         print(f"    pearson               {cmp_['pearson_correlation']:7.3f}")
 
-        clamp = report["cosby_unclamped_region"]
-        print(f"\n  cosby unclamped region  {clamp['cells_inside']} cells inside; "
+        clamp = report["cosby_air_entry_clamp"]
+        print(f"\n  cosby air-entry clamp   {clamp['cells_inside']} cells inside; "
               f"closest cell at {clamp['closest_cell_criterion']:.3f} against a "
               f"bound of {clamp['criterion_bound']}")
         print(f"    saturation headroom   "
               f"{clamp['minimum_saturation_headroom_volumetric']:.4f} volumetric at "
               "the closest cell")
+
+        unify = report["unification_cost"]
+        print("\n  what one central case would move, world-of6n")
+        for name, cand in unify["candidates"].items():
+            reading = "contract as written" if cand["is_a_reading_of_the_contract"] \
+                else "replaces the declared closure"
+            print(f"    {name:28s} ({reading})")
+            for who in ("exoplasim_dwmax", "lpj_guess_capacity"):
+                move = cand[who]
+                print(f"      {who:20s} "
+                      f"{move['median_mm_before']:7.1f} -> "
+                      f"{move['median_mm_after']:7.1f} mm median, "
+                      f"x{move['ratio']['median']:.3f} "
+                      f"({move['ratio']['p10']:.3f} to {move['ratio']['p90']:.3f})")
 
         grav = report["gravity_field_capacity_shift"]
         print(f"\n  gravity shift at {grav['gravity_m_s2']} m/s2: field capacity "

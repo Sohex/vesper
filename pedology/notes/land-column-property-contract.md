@@ -171,18 +171,55 @@ Cosby's, a closure family with no implementation, uncertainty drawn per layer,
 and an aquifer property shared with the vadose zone -- and the check is required
 to catch every one.
 
-**The Cosby inversion's unclamped region.** `get_mineral` inverts the retention
-curve without clamping, so field capacity comes back above saturation wherever
-the air-entry suction falls below the field-capacity suction. Substituting the
-regressions and `silt = 1 - sand - clay` gives the region as a straight line in
-the texture simplex, `1.58 * sand + 0.63 * clay < 0.17`, which needs no search.
-The report measures the soil map against it as a MARGIN and not as a count,
-because a count of zero says nothing about how close the nearest cell is. Today
-the map keeps this right and the code does not: a soil map that moved into the
-region would produce a field capacity above saturation, a negative air fraction
-downstream, and a hard failure in the thermal diffusivity update. WORLD-NGA10
-owns clamping it, and this contract specifies the clamp rather than editing
-`soilinput.cpp`, which a sibling batch owns.
+**The Cosby inversion's air-entry clamp.** Cosby's equation holds only below the
+air-entry value; at and above it the pore space is full and the water content
+is saturation. Unclamped, the inversion returns a field capacity above
+saturation wherever the air-entry suction falls below the field-capacity
+suction, and substituting the regressions and `silt = 1 - sand - clay` gives
+that region as a straight line in the texture simplex,
+`1.58 * sand + 0.63 * clay < 0.17`, which needs no search. WORLD-NGA10 clamped
+both heads at the air-entry value in `get_mineral`, so the CODE is what keeps
+this right and the map has never had to. The check transcribes the clamp,
+because a transcription that kept the unclamped form would be comparing against
+a model that no longer exists, and it still measures the soil map against the
+line as a MARGIN and not as a count -- a count of zero says nothing about how
+close the nearest cell is, and a map that moved inside would have its field
+capacity set by the clamp rather than by its texture.
+
+## What one central case would move
+
+The removal this contract was built to make attributable is WORLD-OF6N, and it
+needs a decision that is about the world rather than about the code: what the
+central case IS. The report costs the candidates so that decision is a
+one-liner, and it runs no model.
+
+Two of the three are readings of this contract as it already stands. The
+closure is NAMED -- Clapp-Hornberger on Cosby Table 4 -- and field capacity is
+declared as a drainage equilibrium at `rho_w * g * L`, so taken literally the
+states follow from texture and the only open part is which gravity the suction
+is evaluated at. Adopting the second of those is the contract read literally
+and is the only candidate that moves BOTH consumers. The third would replace
+the named closure with pedology's endmember mixture, which is not a retention
+curve at all: it carries no saturation, no air entry and no exponent, so
+saturation and matric potential would have to come from somewhere else. That
+makes it a change to the declaration rather than a choice between consumers,
+which is what the report says and why it is not offered as a symmetric option.
+
+The allophane term is not what separates the two derivations, which is worth
+saying because the contract's own materials block reads as though it is. It
+contributes a median of nothing and a p90 of a few per cent of pedology's
+capacity, against a median absolute gap of tens of millimetres, and it is zero
+on more than half the cells. What separates them is that the declared endmember
+capacities and the Cosby retention inversion are different numbers for the same
+texture.
+
+Two things the report cannot supply, and says so rather than estimating. The
+change in land runoff ratio and in E over R needs a paired baseline, and
+`probe_runoff_response.py` needs a climatology to back-solve potential
+evaporation from; `config/planet.yaml` declares `baseline_climatology` null. And
+nothing on the LPJ-GUESS side is execution-verified: it does not build on this
+tree until a baseline climatology exists, so every LPJ number here is a
+transcription of the vendored source evaluated offline.
 
 ## What is still undeclared, and who owns it
 

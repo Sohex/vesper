@@ -21,7 +21,7 @@ It does four things, in this order, because each depends on the one before it:
 
 2. **Closure, on fixtures that can fail.** A ledger that only ever runs on real
    inputs has no failing case, so the balance is exercised on reduced synthetic
-   domains where the answer is known in advance. Eight of the nine fixtures are
+   domains where the answer is known in advance. Ten of the eleven fixtures are
    built to be WRONG in a named way and are required to be rejected; a fixture
    that does not get the verdict it was built for is a defect in this checker
    and exits non-zero even when nothing else is wrong.
@@ -515,10 +515,14 @@ def _fixture_terminal_source(decl):
 def _fixture_store_below_zero(decl):
     """A withdrawal larger than the store holds.
 
-    This is the shape of `wandr`'s clip: the net flux takes the bucket past
-    zero and the model raises it back, creating water while the latent heat
-    that removed it has already been paid. The ledger refuses instead, which is
-    what makes the clip a term with an owner rather than a rounding.
+    This is the shape `landmod.f90`'s floor at zero would have if it were
+    reachable: the net flux takes the bucket past zero and the model raises it
+    back, crediting water while the latent heat that removed it has already
+    been paid. `bucket_floor_bound` shows the climate column cannot get there,
+    which is why the crossing is a declared absence rather than a term. The
+    fixture stays because the shape is general -- any coupling that draws on a
+    store harder than it holds has it -- and refusing it is what the ledger
+    does instead of clipping.
     """
     led = Ledger(decl)
     led.seed("soil_liquid", 4.0 * MM_KG)
@@ -682,12 +686,317 @@ def run_graph_mutations(path: Path = DECLARATION) -> tuple[list[dict], list[str]
 
 
 # ---------------------------------------------------------------------------
+# 4. The unowned crossing, measured
+# ---------------------------------------------------------------------------
+#
+# `bucket_floor_creation` is the one term booked from the `unowned_source`
+# boundary: `landmod.f90`'s land water step adds the net surface flux to the
+# store and then raises it back to zero, which credits the store water no node
+# was debited for, while the latent heat that removed that water has already
+# been paid to the air column.
+#
+# THIS MEASURES IT RATHER THAN DESIGNING FOR IT, and the answer is that the
+# crossing does not exist in exact arithmetic. Three properties of the model's
+# own code close it, and none of them is the snow path the declaration first
+# named:
+#
+#   1. `fluxmod.f90`'s humidity solve takes AMAX1 against the level's own
+#      humidity before anything else, so the surface evaporation is never
+#      negative and the land column cannot gain water from the air here.
+#   2. The line below it limits that same quantity to the store divided by the
+#      timestep, on every land cell, whatever the snowpack is doing. So the
+#      withdrawal charged to the store over one step is at most the store.
+#   3. Every other contribution to the land surface flux adds. Snowfall is a
+#      SUBSET of the total precipitation in `rainmod.f90`, so precipitation
+#      minus snowfall is the rain and is non-negative; melt and the snow depth
+#      cap both return water; and where the snowpack absorbs the evaporation
+#      the remainder charged to the store is smaller still.
+#
+# The snow-exhaustion path the declaration named is the wrong suspect. The
+# limit is applied unconditionally, so a snowpack can only take part of a
+# withdrawal that was already capped against the soil store, and exhausting it
+# leaves the store FULLER than the bare-ground case rather than emptier.
+#
+# What is left is the rounding of a difference that cancels exactly, and the
+# sweep below bounds it. The two arms after it are what make the sweep a
+# check: each removes one of the properties above and each is required to
+# produce a crossing many orders larger. A sweep that cannot report a crossing
+# is not evidence that there is none.
+
+# The model's dry gas constant is derived from the declared composition at run
+# time; this is the value config/planet.yaml records that derivation at. The
+# bound is insensitive to it: it enters the limit and the flux at the same
+# place and cancels.
+DRY_GAS_CONSTANT_J_KG_K = 287.017
+
+# `landmod.f90`'s wetness knee: the fraction of capacity above which the land
+# column evaporates at the potential rate.
+WETNESS_KNEE = 0.4
+
+WATER_DENSITY_KG_M3 = 1000.0
+
+EARTH_RADIUS_M = 6371000.0
+
+# The swept axes. Deliberately wider than this world reaches, because the
+# result is a BOUND. In order: the mass of the lowest model layer, the surface
+# pressure, the surface temperature, the turbulent transfer coefficient, the
+# surface saturation humidity, the level humidity as a share of it, the bucket
+# depth from the driest cell of the soil map to the model's uniform default,
+# and the store as a share of the withdrawal the unlimited solve would take,
+# which straddles the point the limit starts binding rather than sampling
+# around it.
+_SWEEP_LAYER_MASS_KG_M2 = (200.0, 500.0, 780.0, 1200.0, 2000.0)
+_SWEEP_SURFACE_PRESSURE_PA = (0.5e5, 1.0e5, 1.5e5)
+_SWEEP_SURFACE_TEMPERATURE_K = (230.0, 280.0, 320.0, 340.0)
+_SWEEP_TRANSFER_M_S = (1e-4, 1e-3, 1e-2, 5e-2, 2e-1)
+_SWEEP_SURFACE_HUMIDITY = (1e-5, 1e-3, 1e-2, 5e-2, 1.5e-1)
+_SWEEP_LEVEL_SHARE = (0.0, 0.1, 0.5, 0.9, 0.999)
+_SWEEP_BUCKET_M = (0.010, 0.05, 0.2, 0.5)
+_SWEEP_STORE_SHARE = (0.0, 1e-12, 1e-6, 0.25, 0.5, 0.9, 0.99, 0.999,
+                      1.0, 1.0001, 1.01, 2.0)
+# (large-scale rain, convective rain, large-scale snow, convective snow), m/s.
+# Split this way because `rainmod.f90` builds the total and the snowfall rate
+# out of the same four condensate sums, which is property 3 above.
+_SWEEP_PRECIP_M_S = ((0.0, 0.0, 0.0, 0.0),
+                     (1e-8, 0.0, 0.0, 0.0),
+                     (0.0, 1e-7, 0.0, 0.0),
+                     (0.0, 0.0, 1e-7, 0.0),
+                     (0.0, 0.0, 0.0, 1e-6),
+                     (1e-8, 0.0, 1e-7, 0.0),
+                     (1e-6, 1e-6, 1e-6, 1e-6))
+_SWEEP_SNOWPACK_M = (0.0, 1e-9, 1e-6, 1e-4, 1e-2, 1.0)
+
+
+def _sweep(deltsec: float, ga: float, limiter: bool = True,
+           snow_is_subset: bool = True) -> dict:
+    """One timestep of the land water chain over every swept combination.
+
+    `fluxmod.f90` vdiff's humidity solve and evaporation limit, then
+    `landmod.f90` tands' snow partition, then `landcolumn.f90` bucket_step's
+    floor, in the order the model runs them and in the model's own real kind.
+    The branches that depend only on the precipitation and the snowpack are
+    taken outside the array expression, so each is evaluated as the model
+    evaluates it rather than as a blended `where`.
+
+    `limiter` and `snow_is_subset` are the falsification arms and are true for
+    the model as it stands.
+    """
+    import itertools
+
+    import numpy as np
+
+    grid = np.meshgrid(*(np.asarray(axis, dtype=float) for axis in (
+        _SWEEP_LAYER_MASS_KG_M2, _SWEEP_SURFACE_PRESSURE_PA,
+        _SWEEP_SURFACE_TEMPERATURE_K, _SWEEP_TRANSFER_M_S,
+        _SWEEP_SURFACE_HUMIDITY, _SWEEP_LEVEL_SHARE, _SWEEP_BUCKET_M,
+        _SWEEP_STORE_SHARE)), indexing="ij")
+    layer_mass, dp, ts, dtransh, dq_lep, share, dwmax, store_share = (
+        axis.ravel() for axis in grid)
+    dsigma = layer_mass * ga / dp
+    dq_lev = share * dq_lep
+    keep = dsigma <= 0.5
+    layer_mass, dp, ts, dtransh = (a[keep] for a in (layer_mass, dp, ts, dtransh))
+    dq_lep, dwmax, store_share = (a[keep] for a in (dq_lep, dwmax, store_share))
+    dsigma, dq_lev = dsigma[keep], dq_lev[keep]
+
+    worst, worst_index, worst_key = 0.0, None, None
+    cases = bound_cases = exhausted_cases = 0
+    for deltsec2, precip, dsnowz in itertools.product(
+            (deltsec, 2.0 * deltsec), _SWEEP_PRECIP_M_S, _SWEEP_SNOWPACK_M):
+        rain_l, rain_c, snow_l, snow_c = precip
+        dprl, dprc = rain_l + snow_l, rain_c + snow_c
+        dprs = snow_l + snow_c
+        if not snow_is_subset:
+            dprs = dprs + dprl + dprc
+
+        zkonst1 = ga * deltsec2 / (DRY_GAS_CONSTANT_J_KG_K * dsigma)
+        zkonst2 = dsigma / deltsec2 / ga
+        # The store, placed against the withdrawal the unlimited solve takes.
+        zk_full = zkonst1 * dtransh / ts
+        zqn_full = np.maximum(dq_lev,
+                              (dq_lev + zk_full * dq_lep) / (1.0 + zk_full))
+        full = dp * zkonst2 / 1000.0 * (zqn_full - dq_lev) * deltsec
+        dwatc = store_share * full
+        live = (dwatc >= 0.0) & (dwatc <= dwmax)
+
+        drhs = np.where(dwmax <= 0.0, 1.0,
+                        np.minimum(1.0, dwatc / (WETNESS_KNEE * dwmax)))
+        zkdiff = drhs * zkonst1 * dtransh / ts
+        zqn = np.maximum(dq_lev, (dq_lev + zkdiff * dq_lep) / (1.0 + zkdiff))
+        unlimited = zqn
+        if limiter:
+            zqn = np.minimum(zqn, dwatc / deltsec * 1000.0 / dp / zkonst2 + dq_lev)
+        devap = -dp * zkonst2 / 1000.0 * (zqn - dq_lev)
+
+        zdsnowz = np.full_like(devap, dprs if dprs > 0.0 else 0.0)
+        if dsnowz > 0.0:
+            zdsnowz = zdsnowz + devap
+        zsnowz = np.maximum(0.0, dsnowz + zdsnowz * deltsec)
+        zdsnowz = (zsnowz - dsnowz) / deltsec
+        dwater = devap + dprl + dprc - zdsnowz
+        zw = dwatc + deltsec * dwater
+        created = np.where(live, np.maximum(0.0, -zw), 0.0)
+
+        cases += int(live.sum())
+        bound_cases += int((live & (zqn < unlimited)).sum())
+        exhausted_cases += int((live & (zsnowz == 0.0)
+                                & (dsnowz > 0.0 or dprs > 0.0)).sum())
+        here = int(created.argmax())
+        if created[here] > worst:
+            worst = float(created[here])
+            worst_index = here
+            worst_key = (deltsec2, precip, dsnowz)
+
+    case = None
+    if worst_index is not None:
+        deltsec2, precip, dsnowz = worst_key
+        i = worst_index
+        case = {"lowest_layer_mass_kg_m2": float(layer_mass[i]),
+                "surface_pressure_pa": float(dp[i]),
+                "surface_temperature_k": float(ts[i]),
+                "transfer_coefficient_m_s": float(dtransh[i]),
+                "surface_humidity": float(dq_lep[i]),
+                "level_humidity": float(dq_lev[i]),
+                "bucket_depth_m": float(dwmax[i]),
+                "leapfrog_seconds": float(deltsec2),
+                "precipitation_m_s": list(precip),
+                "snowpack_m": float(dsnowz)}
+    return {"cases": cases, "limiter_bound": bound_cases,
+            "snowpack_exhausted": exhausted_cases,
+            "worst_created_m": worst, "worst_case": case}
+
+
+def bucket_floor_bound() -> dict:
+    """What `bucket_floor_creation` is worth, in kilograms.
+
+    The depth bound comes from the sweep and is a property of the model's
+    arithmetic alone. Turning it into a mass needs an area and an interval, and
+    the ledger's own rule is that the area is an argument: the land cells and
+    their areas come from the soil map of the configured build on the
+    configured grid, so the denominator is the land cell the crossing is stated
+    on rather than a reconstruction of one.
+    """
+    import numpy as np
+    import yaml as _yaml
+    from numpy.polynomial.legendre import leggauss
+
+    import builds
+    import orbit
+
+    config = _yaml.safe_load((PROJECT_ROOT / "config" / "planet.yaml")
+                             .read_text(encoding="utf-8"))
+    ga = float(config["planet"]["gravity_m_s2"])
+    radius_m = float(config["planet"]["radius_earth"]) * EARTH_RADIUS_M
+    model = config["model"]
+    nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
+    deltsec = float(model["timestep_minutes"]) * 60.0
+    steps_per_orbit = int(round(orbit.orbital_year_days(config)
+                                * float(config["planet"]["rotation_hours"])
+                                * 3600.0 / deltsec))
+
+    measured = _sweep(deltsec, ga)
+
+    # The falsification arms. Each removes ONE of the properties the bound
+    # rests on and is required to produce a crossing far above the rounding
+    # residue. The bar is one micrometre of water in one step: twelve orders
+    # above the residue, and still far below anything the ledger would report
+    # as a term. An arm that stays at the residue means the sweep is measuring
+    # nothing, which is a defect in the check and not a result about the model.
+    macroscopic_m = 1e-6
+    arms = []
+    for name, kwargs, why in (
+        ("evaporation_limit_removed", {"limiter": False},
+         "fluxmod's cap of the withdrawal at the store divided by the "
+         "timestep is what empties the store exactly rather than past empty"),
+        ("snowfall_not_a_subset_of_precipitation", {"snow_is_subset": False},
+         "rainmod builds the snowfall rate out of the same condensate sums "
+         "the total is built from, so precipitation minus snowfall is the "
+         "rain and cannot be negative"),
+    ):
+        arm = _sweep(deltsec, ga, **kwargs)
+        arms.append({"arm": name, "why_it_matters": why,
+                     "worst_created_m": arm["worst_created_m"],
+                     "reached_macroscopic": arm["worst_created_m"] >= macroscopic_m})
+
+    weights = leggauss(nlat)[1][::-1]
+    latitudes = np.rad2deg(np.arcsin(leggauss(nlat)[0][::-1]))
+    area_by_latitude = weights * 2.0 * np.pi * radius_m * radius_m / nlon
+
+    soilmap = builds.soilmap(config)
+    lines = soilmap.read_text(encoding="utf-8").splitlines()
+    header = lines[0].split()
+    lat_column, awc_column = header.index("Lat"), header.index("awc")
+    rows = [line.split() for line in lines[1:] if line.strip()]
+    cell_lat = np.array([float(row[lat_column]) for row in rows])
+    awc_mm = np.array([float(row[awc_column]) for row in rows])
+    nearest = np.abs(cell_lat[:, None] - latitudes[None, :]).argmin(axis=1)
+    cell_area = area_by_latitude[nearest]
+
+    worst_m = measured["worst_created_m"]
+    per_cell_step_kg = worst_m * WATER_DENSITY_KG_M3 * float(cell_area.max())
+    ceiling_kg = (worst_m * WATER_DENSITY_KG_M3 * float(cell_area.sum())
+                  * steps_per_orbit)
+    stock_kg = float((awc_mm / 1000.0 * cell_area).sum()) * WATER_DENSITY_KG_M3
+
+    defects = [f"bucket floor arm {arm['arm']} did not reach a macroscopic "
+               "crossing, so the sweep cannot report one and its bound on the "
+               "unmutated model is not evidence"
+               for arm in arms if not arm["reached_macroscopic"]]
+
+    return {
+        "term": "bucket_floor_creation",
+        "verdict": (
+            "no crossing in exact arithmetic. The land water step's floor at "
+            "zero is unreachable: the surface evaporation is non-negative, it "
+            "is capped at the store divided by the timestep on every land "
+            "cell whatever the snowpack holds, and every other contribution "
+            "to the surface flux adds. What is left is the rounding of a "
+            "difference that cancels exactly"),
+        "snow_exhaustion_path": (
+            "not the mechanism. The cap is applied unconditionally, so a "
+            "snowpack absorbs part of a withdrawal already limited against "
+            "the soil store and leaves the store fuller than bare ground "
+            "would, not emptier"),
+        "rests_on": [
+            "fluxmod.f90 vdiff: AMAX1 against the level humidity, so the "
+            "surface evaporation never adds water to the land surface flux",
+            "fluxmod.f90 vdiff: the withdrawal is capped at dwatc/deltsec on "
+            "every land cell",
+            "rainmod.f90: the snowfall rate is a subset of the total "
+            "precipitation rate",
+            "landmod.f90 soilini and the floor itself: the store enters every "
+            "step at or above zero, which restart_schema.py carries as the "
+            "lower bound on dwatc and dwatcl",
+        ],
+        "swept_cases": measured["cases"],
+        "cases_with_the_limit_binding": measured["limiter_bound"],
+        "cases_with_the_snowpack_exhausted": measured["snowpack_exhausted"],
+        "worst_created_m_per_cell_step": worst_m,
+        "worst_created_kg_per_cell_step": per_cell_step_kg,
+        "worst_case": measured["worst_case"],
+        "orbit_ceiling_kg": ceiling_kg,
+        "orbit_ceiling_basis": (
+            "every land cell of the configured build, at every timestep of "
+            "one orbit, at the worst crossing the sweep found. Nothing can "
+            "reach it: the floor is touched at all only where the cap binds"),
+        "land_soil_water_stock_kg": stock_kg,
+        "orbit_ceiling_over_stock": ceiling_kg / stock_kg if stock_kg else None,
+        "land_cells": len(rows),
+        "steps_per_orbit": steps_per_orbit,
+        "soil_map": str(soilmap.relative_to(PROJECT_ROOT)),
+        "falsification_arms": arms,
+        "checker_defects": defects,
+    }
+
+
+# ---------------------------------------------------------------------------
 
 def build_report(decl: dict) -> dict:
     graph = check_graph(decl)
     fixtures, defects = run_fixtures(decl)
     mutations, mutation_defects = run_graph_mutations()
-    defects = defects + mutation_defects
+    floor = bucket_floor_bound()
+    defects = defects + mutation_defects + floor["checker_defects"]
     return {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "declaration": "hydrography/config/land_water_ledger.yaml",
@@ -707,6 +1016,7 @@ def build_report(decl: dict) -> dict:
         "absences": [{"absence": name, "owner": body.get("owner"),
                       "what": " ".join(body["what"].split())}
                      for name, body in decl["absences"].items()],
+        "bucket_floor_bound": floor,
     }
 
 
@@ -742,6 +1052,14 @@ def main(argv: list[str] | None = None) -> int:
                   f"{row['symbol']}, also held as {', '.join(row['shadow_copies'])}")
         for line in report["interval_refusals"]:
             print(f"  TIMING  {line}")
+        floor = report["bucket_floor_bound"]
+        print(f"  BOUND   {floor['term']}: "
+              f"{floor['worst_created_kg_per_cell_step']:.3g} kg per land cell "
+              f"and timestep at worst over {floor['swept_cases']} swept cases, "
+              f"{floor['orbit_ceiling_kg']:.3g} kg over one orbit if every "
+              f"land cell clipped at every step, "
+              f"{floor['orbit_ceiling_over_stock']:.3g} of the land soil "
+              "water stock")
         print(f"  {len(report['undeclared_terms'])} of {len(decl['terms'])} terms "
               "undeclared; the ledger is defined and does not close")
         for problem in hard:

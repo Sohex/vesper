@@ -295,6 +295,17 @@
       real :: dsoili(NHOR,NLSOILWX) = 0.0  ! soil ice by layer (m water equiv.)
       real :: ddrain(NHOR)          = 0.0  ! drainage out of the column base (m/s)
 !
+!     The drainage's output accumulator, WORLD-P9QQ. `outmod` fills it, divides
+!     it by the output counter and resets it on the pattern `aroff` uses for
+!     the surface runoff, and it lives HERE rather than beside `aroff` in
+!     plasimmod because the land column owns the flux it accumulates. Without
+!     it the ledger's `drainage` crossing names a producer the postprocessor
+!     cannot deliver: `ddrain` reaches the restart and nothing else, so a run
+!     on nlandwcol = 1 with nlandwdrain = 1 computes a flux no product carries.
+!     Identically zero under the default impermeable base, which is why the
+!     scheme could land without it.
+      real :: adrain(NHOR)          = 0.0  ! accumulated drainage (m/s)
+!
 !     e) climatological surface
 !
       real :: dtcl(NHOR,0:13)   =  0.0  ! climatological surface temperature
@@ -318,7 +329,7 @@
 !$omp&  albsminf,albsminf1,albsminf2,co2conv,dalbcl,dalbcl1,dalbcl2,dalbclim,dalbclim1,dalbclim2,&
 !$omp&  darea,dgroundalbnl,doro,dqs,drhsfull,drhsland,driver,dsmax,dsnowt,dsnowz,dsoilt,dsoilz,dtcl,&
 !$omp&  dtclim,dtclsoil,dts,dtsm,duroff,dvroff,dwatcini,dwater,dwcl,dwclim,dz0clim,dz0climo,dz0land,&
-!$omp&  dwatcl,dsoili,ddrain,dsoilwf,dsoilwz,drhslow,nlandwcol,nlsoilw,nlandwdrain,nrhsexp,nlandwphase,dzglac,dztop,&
+!$omp&  dwatcl,dsoili,ddrain,adrain,dsoilwf,dsoilwz,drhslow,nlandwcol,nlsoilw,nlandwdrain,nrhsexp,nlandwphase,dzglac,dztop,&
 !$omp&  forcovmn,forcovmx,lversion,newsurf,nlandt,nlandw,nwatcini,nwetsoil,rhosnow,forext,forhgt,forint,forpai,&
 !$omp&  snowcovz,&
 !$omp&  rinifor,rlue,rnbiocats,roffexp,roffpit,roffvel,&
@@ -815,9 +826,15 @@
        nexcheck = 0
        dwatcl(:,:) = -1.0
        dsoili(:,:) = 0.
+       adrain(:) = 0.
        call mpgetgp('dwatcl'  ,dwatcl  ,NHOR,NLSOILWX)
        call mpgetgp('dsoili'  ,dsoili  ,NHOR,NLSOILWX)
        call mpgetgp('ddrain'  ,ddrain  ,NHOR,     1)
+!      `adrain` needs no rebuild if the record is absent. It is an
+!      accumulator over the output window, so a restart written before it
+!      existed loses a partial window and nothing else; zeroed above, it
+!      starts the window the target run is going to finish anyway.
+       call mpgetgp('adrain'  ,adrain  ,NHOR,     1)
        nexcheck = 1
        if (ALL(dwatcl(:,:) < 0.0)) then
         dwatcl(:,:) = 0.
@@ -1036,6 +1053,7 @@
       call mpputgp('dwatcl'  ,dwatcl  ,NHOR,NLSOILWX)
       call mpputgp('dsoili'  ,dsoili  ,NHOR,NLSOILWX)
       call mpputgp('ddrain'  ,ddrain  ,NHOR, 1)
+      call mpputgp('adrain'  ,adrain  ,NHOR, 1)
       call mpputgp('dz0clim' ,dz0clim ,NHOR, 1)
       call mpputgp('dz0climo',dz0climo,NHOR, 1)
       call mpputgp('dalbcl'  ,dalbcl  ,NHOR,14)

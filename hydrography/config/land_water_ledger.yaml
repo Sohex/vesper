@@ -134,9 +134,12 @@ nodes:
     kind: boundary
     area_basis: cell_land_area
     what: >
-      Where water with no owner enters. A boundary that should carry nothing.
-      It exists because a ledger that cannot name an unowned crossing cannot
-      report one, and one term books here today.
+      Where water with no owner enters. A boundary that should carry nothing,
+      and today carries nothing: the one crossing ever booked here, the land
+      water step's floor at zero, is a declared absence below with a measured
+      bound. The node stays because a ledger that cannot name an unowned
+      crossing cannot report one, and because it is the destination the
+      `boundary_receives_from_inside` mutation is built on.
   canopy:
     kind: reservoir
     area_basis: cell_land_area
@@ -596,29 +599,6 @@ terms:
     interval_floor: annual
     owner: anut-6
     note: the terminal boundary. Two producers today, and they are not the same water.
-  bucket_floor_creation:
-    from: unowned_source
-    to: soil_liquid
-    phase_from: liquid
-    phase_to: liquid
-    transform: none
-    latent: none
-    flux: undeclared
-    producer: "exoplasim wandr, dwatc = AMAX1(AMIN1(dwmax, dwatc), 0.)"
-    producer_units: m s-1 over the land cell
-    interval_floor: instantaneous
-    owner: world-hssb
-    note: >
-      The clip at zero. `wandr` adds the net water flux to the store and then
-      raises it back to zero if it went negative, which creates water while
-      the latent heat that removed it has already been paid to the atmosphere.
-      IT IS BOUNDED AND MAY BE ZERO: `fluxmod.f90` limits evaporation to
-      dwatc/deltsec before the tendency is applied, so the clip can only fire
-      when a withdrawal the limiter did not see arrives in the same timestep,
-      which is the snow-exhaustion path where `devap` is charged against a
-      snowpack that empties part-way through. It is a term rather than a
-      remark because a crossing nobody owns is exactly what a ledger exists to
-      make countable, and LSHY-8 owns measuring it.
 
 # ---------------------------------------------------------------------------
 # ABSENCES. Water the coupled system does not carry at all. Each names what is
@@ -686,6 +666,37 @@ absences:
       insulating thickness that sets the soil temperature under a pack. The
       one snow term that carries gravity is the compaction that is absent.
     owner: grav-8
+  bucket_floor_creation:
+    what: >
+      `landmod.f90`'s land water step adds the net surface flux to the store
+      and then raises it back to zero. That floor would credit the store water
+      no node was debited for, while the latent heat that removed the water
+      has already been paid to the air column. It is unreachable in exact
+      arithmetic, so there is no crossing to book.
+    unrepresentable: >
+      Nothing. This is an absence of a DEFECT rather than of a state, and it
+      is declared rather than deleted so the graph records that the crossing
+      was looked for and bounded. Three properties of the model close it, each
+      independently: `fluxmod.f90` takes AMAX1 against the level humidity, so
+      the surface evaporation never adds water; the line below caps the
+      withdrawal at the store divided by the timestep on every land cell,
+      whatever the snowpack holds; and every other contribution to the surface
+      flux adds, because `rainmod.f90` builds the snowfall rate as a subset of
+      the total precipitation rate. The snow-exhaustion path this was first
+      attributed to is the wrong suspect: the cap is unconditional, so a
+      snowpack absorbs part of a withdrawal already limited against the soil
+      store and leaves it fuller than bare ground would.
+    measured_bound: >
+      What survives is the rounding of a difference that cancels exactly.
+      `land_water_ledger.py:bucket_floor_bound` sweeps the chain in the
+      model's own real kind and reports the worst crossing per land cell and
+      timestep, the ceiling over one orbit if every land cell clipped at every
+      timestep, and that ceiling against the land soil water stock. Two
+      falsification arms remove one closing property each and are required to
+      produce a macroscopic crossing, so the bound is a measurement and not a
+      null result. If any of the three properties is changed, this absence
+      becomes a term again.
+    owner: world-hssb
   subgrid_hydrologic_response:
     what: >
       `build_surface_soil_water.py` area-averages land and lake capacities into

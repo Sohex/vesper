@@ -405,6 +405,7 @@
       use carbonmod
       use radmod
       use glaciermod
+      use landmod
 
       if (nlowio .eq. 0) then
 !       *********************
@@ -603,6 +604,18 @@
 
       aroff(:)=aroff(:)/real(naccuout)
       call writegp(40,aroff,160,0)
+
+!     ************
+!     * drainage *
+!     ************
+!
+!     WORLD-P9QQ. The flux out of the base of the land column, the other half
+!     of the partition the surface runoff above is one half of. Identically
+!     zero under the default impermeable lower boundary; a code that no
+!     product carries is what the ledger's `drainage` crossing was missing.
+
+      adrain(:)=adrain(:)/real(naccuout)
+      call writegp(40,adrain,231,0)
 
 !     ***************
 !     * cloud cover *
@@ -1300,6 +1313,7 @@
       use carbonmod
       use radmod
       use glaciermod
+      use landmod
 
 !       *********************
 !       * specific humidity *
@@ -1397,6 +1411,12 @@
 !     **********
 
       call writegp(140,drunoff,160,0)
+
+!     ************
+!     * drainage *
+!     ************
+
+      call writegp(140,ddrain,231,0)
 
 !     ***************
 !     * cloud cover *
@@ -1733,6 +1753,7 @@
       use pumamod
       use carbonmod
       use radmod
+      use landmod
       use glaciermod
       
       integer, intent(in) :: kunit
@@ -1822,6 +1843,12 @@
 !     **********
 
       call writegp(kunit,drunoff,160,0)
+
+!     ************
+!     * drainage *
+!     ************
+
+      call writegp(kunit,ddrain,231,0)
 
 !     ***************
 !     * cloud cover *
@@ -2216,6 +2243,7 @@
       subroutine outreset
       use pumamod
       use carbonmod
+      use landmod
 !
 !     reset accumulated arrays and counter
 !
@@ -2237,6 +2265,7 @@
       ataux(:)=0.
       atauy(:)=0.
       aroff(:)=0.
+      adrain(:)=0.
       asmelt(:)=0.
 !       asndch(:)=0. !Let the net snow change keep accumulating
       aqvi(:)=0.
@@ -2347,6 +2376,7 @@
       use carbonmod
       use radmod
       use glaciermod
+      use landmod
 !
 !     accumulate diagnostic arrays
 !
@@ -2378,6 +2408,7 @@
       ataux(:)=ataux(:)+dtaux(:)
       atauy(:)=atauy(:)+dtauy(:)
       aroff(:)=aroff(:)+drunoff(:)
+      adrain(:)=adrain(:)+ddrain(:)
       asmelt(:)=asmelt(:)+dsmelt(:)
       asndch(:)=asndch(:)+dsndch(:)
       aqvi(:)=aqvi(:)+dqvi(:)

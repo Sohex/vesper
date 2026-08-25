@@ -504,6 +504,16 @@ POLICY.update({
                          "the default impermeable lower boundary, and the "
                          "term the land water ledger's `drainage` crossing "
                          "reads once a lower boundary is selected"),
+    "adrain": Policy(ACCUMULATOR, RESET, model_reset="zero",
+                     why="WORLD-P9QQ. The output accumulator for ddrain, "
+                         "declared in landmod beside the flux it accumulates "
+                         "rather than beside aroff in plasimmod, and reset by "
+                         "outmod's outreset like every other output "
+                         "accumulator. An ACCUMULATOR and not a reservoir: it "
+                         "is a rate summed over the output window and divided "
+                         "by the counter, so a restart that lacks the record "
+                         "loses a partial window and nothing more, which is "
+                         "why landmod reads it under a lowered nexcheck"),
     "dust3": Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE,
                     why="friction velocity cubed, the coupling quantity"),
     "dcc": Policy(DERIVED_GRID, REMAP, INTENSIVE, bounds=(0.0, 1.0),

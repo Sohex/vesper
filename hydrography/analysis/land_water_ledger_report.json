@@ -1,7 +1,7 @@
 {
-  "generated": "2026-08-25T04:52:04+00:00",
+  "generated": "2026-08-25T06:38:00+00:00",
   "declaration": "hydrography/config/land_water_ledger.yaml",
-  "declaration_sha256": "12c18d11cf528cb18fe6d9c210586628e06e901cd945cf2e9034920ac5d640af",
+  "declaration_sha256": "4e9158704b8c57aa4f86e4f7d92724734015118309573d68e53abc39d6fe198b",
   "version": 1,
   "units": {
     "mass": "kg_h2o",
@@ -284,10 +284,6 @@
     {
       "term": "coastal_discharge",
       "owner": "anut-6"
-    },
-    {
-      "term": "bucket_floor_creation",
-      "owner": "world-hssb"
     }
   ],
   "absences": [
@@ -322,9 +318,69 @@
       "what": "ExoPlaSim's snow density is the constant `rhosnow = 330` kg/m3 with no compaction; LPJ-GUESS ages its snow from 275 to 500 kg/m3."
     },
     {
+      "absence": "bucket_floor_creation",
+      "owner": "world-hssb",
+      "what": "`landmod.f90`'s land water step adds the net surface flux to the store and then raises it back to zero. That floor would credit the store water no node was debited for, while the latent heat that removed the water has already been paid to the air column. It is unreachable in exact arithmetic, so there is no crossing to book."
+    },
+    {
       "absence": "subgrid_hydrologic_response",
       "owner": "lshy-6",
       "what": "`build_surface_soil_water.py` area-averages land and lake capacities into one cell-mean `dwmax`."
     }
-  ]
+  ],
+  "bucket_floor_bound": {
+    "term": "bucket_floor_creation",
+    "verdict": "no crossing in exact arithmetic. The land water step's floor at zero is unreachable: the surface evaporation is non-negative, it is capped at the store divided by the timestep on every land cell whatever the snowpack holds, and every other contribution to the surface flux adds. What is left is the rounding of a difference that cancels exactly",
+    "snow_exhaustion_path": "not the mechanism. The cap is applied unconditionally, so a snowpack absorbs part of a withdrawal already limited against the soil store and leaves the store fuller than bare ground would, not emptier",
+    "rests_on": [
+      "fluxmod.f90 vdiff: AMAX1 against the level humidity, so the surface evaporation never adds water to the land surface flux",
+      "fluxmod.f90 vdiff: the withdrawal is capped at dwatc/deltsec on every land cell",
+      "rainmod.f90: the snowfall rate is a subset of the total precipitation rate",
+      "landmod.f90 soilini and the floor itself: the store enters every step at or above zero, which restart_schema.py carries as the lower bound on dwatc and dwatcl"
+    ],
+    "swept_cases": 27952428,
+    "cases_with_the_limit_binding": 537264,
+    "cases_with_the_snowpack_exhausted": 1965203,
+    "worst_created_m_per_cell_step": 2.7755575615628914e-17,
+    "worst_created_kg_per_cell_step": 0.015375722341084246,
+    "worst_case": {
+      "lowest_layer_mass_kg_m2": 2000.0,
+      "surface_pressure_pa": 100000.0,
+      "surface_temperature_k": 230.0,
+      "transfer_coefficient_m_s": 0.2,
+      "surface_humidity": 0.15,
+      "level_humidity": 0.135,
+      "bucket_depth_m": 0.01,
+      "leapfrog_seconds": 2700.0,
+      "precipitation_m_s": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "snowpack_m": 0.0
+    },
+    "orbit_ceiling_kg": 63753.595257604255,
+    "orbit_ceiling_basis": "every land cell of the configured build, at every timestep of one orbit, at the worst crossing the sweep found. Nothing can reach it: the floor is touched at all only where the cap binds",
+    "land_soil_water_stock_kg": 5.2157294408686696e+16,
+    "orbit_ceiling_over_stock": 1.2223332513771309e-12,
+    "land_cells": 1019,
+    "steps_per_orbit": 7312,
+    "soil_map": "pedology/data/precarve-craton-10m/soilmap_T21.txt",
+    "falsification_arms": [
+      {
+        "arm": "evaporation_limit_removed",
+        "why_it_matters": "fluxmod's cap of the withdrawal at the store divided by the timestep is what empties the store exactly rather than past empty",
+        "worst_created_m": 0.08555220627991214,
+        "reached_macroscopic": true
+      },
+      {
+        "arm": "snowfall_not_a_subset_of_precipitation",
+        "why_it_matters": "rainmod builds the snowfall rate out of the same condensate sums the total is built from, so precipitation minus snowfall is the rain and cannot be negative",
+        "worst_created_m": 0.005400000000000027,
+        "reached_macroscopic": true
+      }
+    ],
+    "checker_defects": []
+  }
 }

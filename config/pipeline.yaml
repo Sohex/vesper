@@ -379,9 +379,10 @@ steps:
       measured at, a retention closure with no family named, uncertainty
       declared per layer rather than correlated, or an aquifer property shared
       with the vadose zone -- and exercises that check against ten contracts
-      built wrong. It runs no model: the capacity comparison, the Cosby
-      unclamped-region margin and the gravity correction to field capacity are
-      all read off the checked-in soil map. With properties still undeclared it
+      built wrong. It runs no model: the capacity comparison, the margin from
+      the Cosby inversion's air-entry clamp, the gravity correction to field
+      capacity and the cost of making one derivation central are all read off
+      the checked-in soil map. With properties still undeclared it
       reports and exits 0; `--strict` is the arm that refuses. surface_soil_water
       needs it so the description sits upstream of the field it feeds.
 
