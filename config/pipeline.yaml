@@ -494,6 +494,22 @@ steps:
       bracket, and `model.land_longwave_emissivity` is its land-area-weighted
       mean. `notes/audits/surface-longwave.md` is the finding.
 
+  - id: soil_thermal_inertia
+    script: analysis/soil_thermal_inertia.py
+    cost: seconds
+    needs: []
+    writes: [analysis/soil_thermal_inertia.json]
+    gate: >
+      Which term controls the modelled soil column's thermal inertia: moisture,
+      texture or parent material. Johansen's interpolation as Farouki
+      tabulates it, on a declared column, with the model's own scalar pair read
+      out of `landmod.f90` rather than copied. It needs no build and no run --
+      what it compares is two spreads of one published relation -- so it sits
+      outside every loop. The answer ranks moisture first and mineralogy last,
+      and last means exactly zero at the dry end, which is why there is no
+      per-cell lithology thermal field. `notes/audits/soil-thermal-inertia.md`
+      is the finding.
+
   - id: emissivity_contrast
     reads_export: true
     script: analysis/emissivity_contrast.py
