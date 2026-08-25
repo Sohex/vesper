@@ -635,7 +635,7 @@ def stage_stellar_spectrum(model, run_dir: Path, spectrum: str | None) -> str | 
 
 
 def verify_stellar_spectrum(model, config: dict) -> None:
-    """Refuse to run if the configured spectrum never reached the namelist.
+    """Refuse to run unless the CONFIGURED spectrum is the one in the namelist.
 
     `radmod.f90:813` takes the spectrum branch only when `NSTARFILE > 0`;
     otherwise `solarini` builds a Planck curve at `STARBBTEMP` and says so
@@ -668,11 +668,27 @@ def verify_stellar_spectrum(model, config: dict) -> None:
             f"STARFILEHR={entries.get('STARFILEHR')!r}. The model would run on a "
             "blackbody at STARBBTEMP instead. Pass starspec= to configure() and "
             "call stage_stellar_spectrum() after it.")
-    staged = Path(model.workdir) / entries["STARFILEHR"]
-    if not staged.is_file():
-        raise RuntimeError(
-            f"radmod_namelist names {entries['STARFILEHR']} but it is not in "
-            f"{model.workdir}; readdat would die at end of file.")
+    # THE NAME IS COMPARED, not merely read. `name` was bound from the config
+    # and then used only inside the error messages above, so the gate asserted
+    # that A spectrum was configured rather than THE configured one, and a run
+    # directory carrying another config's STARFILEHR passed the check written
+    # against exactly this class of silent revert. Both entries are checked,
+    # because `stage_stellar_spectrum` writes both and `solarini` reads both:
+    # the low-resolution file sets the band split and the high-resolution one
+    # the within-band weighting. world-60x0.
+    want = {"STARFILE": f"{name}.dat", "STARFILEHR": f"{name}_hr.dat"}
+    for key, expect in want.items():
+        if entries.get(key) != expect:
+            raise RuntimeError(
+                f"config names stellar spectrum {name!r}, so {namelist} must "
+                f"carry {key}={expect!r}; it carries {entries.get(key)!r}. The "
+                "model would integrate against a different star from the one "
+                "this run is configured for.")
+        staged = Path(model.workdir) / expect
+        if not staged.is_file():
+            raise RuntimeError(
+                f"radmod_namelist names {expect} but it is not in "
+                f"{model.workdir}; readdat would die at end of file.")
 def stellar_spectrum_digest(config: dict) -> dict | None:
     """Content digests of the two spectrum FILES the model will actually read.
 

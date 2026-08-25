@@ -619,12 +619,16 @@ def self_test() -> int:
             if (run_dir / name).is_file():
                 shutil.copyfile(run_dir / name, work / name)
         raw = restart.read_bytes()
+        cells, dwmax_field, dwmax_want = None, None, None
         for code in sorted(codes):
             field = SURFACE_RESTART_FIELDS[code]
             staged = staged_path(run_dir, code)
             shutil.copyfile(staged, work / staged.name)
             nlat, nlon = _grid_from(staged)
+            cells = nlat * nlon
             want = expected_field(field, read_sra(staged, nlat, nlon))
+            if field.record == "dwmax":
+                dwmax_field, dwmax_want = field, want
             raw = overwrite_record(raw, field.record,
                                    want.astype("<f8").tobytes())
         cold = work / "MOST_REST.00000"
@@ -641,7 +645,10 @@ def self_test() -> int:
         # WSMAX_EARTH, the scalar the removed block assigned. Taken from the
         # value the restarts on disk actually carry rather than from a literal,
         # so the fixture is the substitution this project would have suffered.
-        cells = 64 * 128
+        # The CELL COUNT comes from the fixture's own staged file, as every
+        # other length in this function does. It was `64 * 128`, so a donor at
+        # any rung but T21 made `overwrite_record` raise outside the try and
+        # crash the self-test instead of reporting a verdict.
         flat = np.full(cells, 0.5, dtype="<f8")
         b = work / "MOST_REST.00001"
         b.write_bytes(overwrite_record(raw, "dwmax", flat.tobytes()))
@@ -668,6 +675,57 @@ def self_test() -> int:
                 failures.append(f"C failed without naming dalbcl: {exc}")
             else:
                 print("  C dalbcl flattened to albland: REFUSED, naming dalbcl")
+
+        # D AND E: THE DONOR-SURFACE BRANCH, which is the half of this function
+        # the production call reaches through `manifest=` and
+        # `allow_superseded=`. The self-test passed neither, so `override` was
+        # always None and the code that decides whether the staged .sra or the
+        # donor's seed copy is the authority was never executed by it -- a check
+        # built from a shorter argument list than the call it stands for.
+        # world-60x0.
+        #
+        # The seed differs from the staged file in exactly one record and the
+        # restart carries the seed, which is the state a run prepared with
+        # --superseded-surface-ok is in. D is that state UNRESTATED and must be
+        # refused; E is the same state restated and must pass AGAINST THE SEED,
+        # which is the assertion that says the branch ran at all.
+        if dwmax_field is None:
+            failures.append("D/E could not be built: the fixture stages no code "
+                            "landing in dwmax, so there is no record to make "
+                            "the seed differ in")
+        else:
+            seed_raw = overwrite_record(
+                raw, dwmax_field.record,
+                (np.asarray(dwmax_want, dtype="<f8") + 0.25).tobytes())
+            (work / "MOST_REST.seed").write_bytes(seed_raw)
+            d = work / "MOST_REST.00003"
+            d.write_bytes(seed_raw)
+            donor = {"initial_state":
+                     {"superseded_surface_override": "run_selftest_donor"}}
+            try:
+                verify_restart_surface_fields(work, d, codes, manifest=donor)
+                failures.append(
+                    "D should have failed and did not: a run whose staged .sra "
+                    "no longer describes the donor surface it integrates was "
+                    "accepted without the adoption restated")
+            except RuntimeError as exc:
+                if "superseded-surface-ok" not in str(exc):
+                    failures.append(f"D failed for the wrong reason: {exc}")
+                else:
+                    print("  D donor surface, adoption not restated: REFUSED")
+            try:
+                rep = verify_restart_surface_fields(
+                    work, d, codes, manifest=donor, allow_superseded=True)
+                if rep["reference"] != "seed":
+                    failures.append(
+                        f"E was checked against the {rep['reference']!r} "
+                        "reference rather than the seed, so the donor-surface "
+                        "branch did not run and D proved nothing about it")
+                else:
+                    print("  E donor surface, adoption restated: PASS against "
+                          "the seed")
+            except RuntimeError as exc:
+                failures.append(f"E should have passed and did not: {exc}")
 
     if failures:
         for line in failures:

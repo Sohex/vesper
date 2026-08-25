@@ -249,8 +249,8 @@ def spectra(refresh: bool = False) -> tuple[Spectrum, Spectrum]:
     return out[0], out[1]
 
 
-def run_checks(t376: CorrK, t1000: CorrK, sun: Spectrum, water_cm: float,
-               t_k: float, co2_atmos_cm: float) -> list[str]:
+def run_checks(t376: CorrK, t1000: CorrK, sun: Spectrum, star: Spectrum,
+               water_cm: float, t_k: float, co2_atmos_cm: float) -> list[str]:
     """The three things that could have failed, before any number is quoted.
 
     EVERY ONE OF THESE HAS A RIGHT ANSWER AND A BOUND DERIVED FROM IT. They
@@ -269,11 +269,16 @@ def run_checks(t376: CorrK, t1000: CorrK, sun: Spectrum, water_cm: float,
        must lie in [1, ratio_expected]. A misread file layout, a table read at
        the wrong index, or the same table read twice all land outside it.
 
-    2. THE BAND BINNING CONSERVES FLUX. The per-band fractions and a direct
-       integration of the same spectrum over the table's full span are the same
-       sum in two groupings, so they differ only by float64 reassociation. The
-       bound is `N * eps` over the band count, which is a rigorous upper bound
-       on any association order.
+    2. THE BAND BINNING CONSERVES FLUX, FOR BOTH SPECTRA. The per-band fractions
+       and a direct integration of the same spectrum over the table's full span
+       are the same sum in two groupings, so they differ only by float64
+       reassociation. The bound is `N * eps` over the band count, which is a
+       rigorous upper bound on any association order. It ran on the solar
+       spectrum alone, and every number this script exists to quote -- `h2osww`
+       and `co2sww` are both ratios of a stellar broadband to a solar one --
+       rests on the STELLAR partition, which nothing looked at. A hole in the
+       star grid, or a star spectrum whose support stops short of the table
+       span, gave a wrong ratio under "all three hold". world-60x0.
 
     3. THE RANDOM-OVERLAP DIVISION. `T_mix / T_dry` is what isolates H2O, and
        the two tables must return the same H2O absorptance from it. The error
@@ -306,40 +311,45 @@ def run_checks(t376: CorrK, t1000: CorrK, sun: Spectrum, water_cm: float,
             "it toward 1, so nothing physical puts it outside that range: the "
             "table layout is being read wrong")
 
-    f = flux_fractions(t376, sun)
     edges = sorted((float(lo), float(hi)) for lo, hi in t376.edges)
     lo_cm1, hi_cm1 = float(edges[0][0]), float(edges[-1][1])
-    direct = sun.fraction_in_band(lo_cm1, hi_cm1)
     # THE HOLE DETECTOR STAYS EVEN THOUGH THE JOIN NOW CLOSES. It is the only
     # instrument that can see flux inside the span and inside no band, and it is
     # what found the 1974.95 to 2000 cm-1 sliver the old round-number cut left.
     # Reporting the count rather than assuming zero is the whole point.
     holes = [(edges[i][1], edges[i + 1][0]) for i in range(len(edges) - 1)
              if edges[i + 1][0] > edges[i][1]]
-    hole_flux = sum(sun.fraction_in_band(a, b) for a, b in holes)
-    slack = len(f) * float(np.finfo(np.float64).eps)
     tlo, thi, tjoin = t376.truncated
     print(f"  IR and VI joined at {t376.join:.6f} cm-1, the VI set's own first "
           f"edge; the IR band straddling it is cut from {tlo:.6f}-{thi:.6f} to "
           f"{tlo:.6f}-{tjoin:.6f} and keeps its own k")
-    print(f"  flux fraction inside the {lo_cm1:g}-{hi_cm1:g} cm-1 table span, solar: "
-          f"{f.sum():.5f} in {len(f)} bands + {hole_flux:.5f} in {len(holes)} gap(s) "
-          f"= {direct:.5f} integrated in one piece "
-          "(the rest is below 0.33 um, where neither gas absorbs)")
-    if abs(f.sum() + hole_flux - direct) > slack:
-        failed.append(
-            f"the per-band flux fractions and the gaps sum to "
-            f"{f.sum() + hole_flux:.9f} and the same spectrum integrated over "
-            f"the whole span gives {direct:.9f}. The band fractions are "
-            "differences of one cumulative integral, so a contiguous partition "
-            f"telescopes exactly and can only differ by {slack:.1e} of float64 "
-            "reassociation: the band edges overlap, or the span is misread")
-    if holes:
-        failed.append(
-            f"{len(holes)} window(s) carrying {hole_flux:.6f} of the flux sit "
-            "inside the table span and inside no band, so the correlated-k "
-            "tables price them as transparent in both gas sets. The join is "
-            f"made at the VI set's first edge and should leave none: {holes}")
+    # BOTH SPECTRA, because both are broadband-weighted downstream. The star is
+    # the one the quoted ratios divide by.
+    for spec in (sun, star):
+        f = flux_fractions(t376, spec)
+        direct = spec.fraction_in_band(lo_cm1, hi_cm1)
+        hole_flux = sum(spec.fraction_in_band(a, b) for a, b in holes)
+        slack = len(f) * float(np.finfo(np.float64).eps)
+        print(f"  flux fraction inside the {lo_cm1:g}-{hi_cm1:g} cm-1 table span, "
+              f"{spec.label}: {f.sum():.5f} in {len(f)} bands + {hole_flux:.5f} in "
+              f"{len(holes)} gap(s) = {direct:.5f} integrated in one piece "
+              "(the rest is below 0.33 um, where neither gas absorbs)")
+        if abs(f.sum() + hole_flux - direct) > slack:
+            failed.append(
+                f"for {spec.label} the per-band flux fractions and the gaps sum "
+                f"to {f.sum() + hole_flux:.9f} and the same spectrum integrated "
+                f"over the whole span gives {direct:.9f}. The band fractions are "
+                "differences of one cumulative integral, so a contiguous "
+                "partition telescopes exactly and can only differ by "
+                f"{slack:.1e} of float64 reassociation: the band edges overlap, "
+                "or the span is misread")
+        if holes:
+            failed.append(
+                f"{len(holes)} window(s) carrying {hole_flux:.6f} of {spec.label}'s "
+                "flux sit inside the table span and inside no band, so the "
+                "correlated-k tables price them as transparent in both gas sets. "
+                "The join is made at the VI set's first edge and should leave "
+                f"none: {holes}")
 
     print("  T_mix/T_dry must return the same H2O absorptance from both tables:")
     for q in (1e-3, 1e-2, 1e-1):
@@ -443,7 +453,7 @@ def main() -> None:
     # nothing, and every quoted number came out of a run that had checked
     # nothing. They cost about a second.
     print("CHECKS")
-    failed = run_checks(t376, CorrK(TABLE_1000), sun, args.water_cm, t_k,
+    failed = run_checks(t376, CorrK(TABLE_1000), sun, star, args.water_cm, t_k,
                         args.co2_earth)
     if failed:
         for line in failed:
