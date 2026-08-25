@@ -60,7 +60,12 @@ be a preference rather than a criterion:
                           evaporation is available at this step, and 1% is
                           below every water-balance term the carve verdict
                           weighs. Bracketed over lapse rate and reference
-                          temperature and reported as a bracket.
+                          temperature and reported as a bracket. The bar has
+                          NOT been moved since the first measurement crossed
+                          it: there is no sourced replacement to move it to,
+                          and a bar placed after the result it judges is not a
+                          criterion. What was corrected is the bracket, and
+                          what the corrections are is fixed below.
   roughness_recalibration NOT a Jensen gap. The solved orographic coefficient
                           is a calibration that changes with the support, and
                           what is reported is how much of a cross-rung
@@ -70,6 +75,48 @@ be a preference rather than a criterion:
                           the mesh; the arm measures the same cell on this
                           project's two builds and reports the ratio over that
                           run and over the declared one.
+
+## The saturation arm's corrections, and the verdict rule, fixed in advance
+
+Three things in the arm were wrong for this planet or for this model, and each
+is a defect independent of which way it moves the answer. Two of them are
+corrected here; the third is reported rather than repaired because nothing at
+this step can repair it.
+
+1. THE LAPSE CEILING WAS EARTH'S. The bracket ran to 9.8 K per km, which is
+   Earth's `g/cp` and not this planet's. `lib/lapse.py` owns the quantity and
+   already treats the configured dry adiabat as the ceiling a measured rate
+   must fall below, raising when it does not, so that is the ceiling the
+   bracket takes. This planet's is steeper, so the correction WIDENS the
+   bracket and moves the arm further from a verdict rather than closer to one.
+2. THE FUNCTION WAS NOT THE MODEL'S. The arm evaluated an idealised
+   Clausius-Clapeyron with a constant latent heat. The model evaluates
+   Magnus-Teten with two coefficient sets and a phase switch at `tmelt`
+   (`plasimmod.f90:ra1s/ra2s/ra4s`), and at the cold corner of the reference
+   bracket a cell's high ground falls on the ice side, where the coefficients
+   are steeper. The arm now evaluates the model's own function, with the
+   coefficients READ from `p_earth.f90` in the manner `lib/sea_water.py`
+   established rather than copied.
+3. THE FLOOR HAS NOTHING UNDER IT. 4.0 K per km is a declared floor, not a
+   bound: `lib/lapse.py` states that the measured environmental rate sits
+   BELOW the moist adiabatic rate evaluated at the window-mean state, which is
+   why it deliberately declines to floor there. Nothing at this step bounds
+   the land-mean lapse rate away from zero, and the gap goes to zero with it.
+   The low end of this arm's bracket is therefore a choice and the arm reports
+   it as one.
+
+The verdict rule, fixed before the corrected arm was run:
+
+  - at or below the bar at EVERY corner of the corrected bracket, at some
+    rung: admissible at that rung and above, no operator needed;
+  - above the bar at EVERY corner: material whatever the climate turns out to
+    be, and the correction is a sub-grid orographic term in the surface
+    evaporation rather than a finer rung;
+  - crossing the bar inside the bracket: NO VERDICT. What settles it is
+    `lapse.environmental_lapse_k_per_km` on an accepted baseline climatology,
+    which is the one input the corner sweep is standing in for. It is not
+    settled by a finer rung, because refinement moves the gap by less than the
+    bracket does.
 
 ## What this cannot measure here
 
