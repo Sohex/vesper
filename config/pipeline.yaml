@@ -404,6 +404,28 @@ steps:
     needs: [stellar_spectrum]
     writes: [analysis/ice_albedo.json]
 
+  - id: spatial_reduction_gap
+    reads_export: true
+    script: analysis/spatial_reduction_gap.py
+    cost: minutes
+    needs: []
+    writes: [analysis/spatial_reduction_gap.json]
+    gate: >
+      SPAT-7. Which mesh-to-grid reductions does the ORDER of the operation
+      change enough to matter, measured rather than argued. Terrain only: no
+      climate run, no soil solve, no biosphere, so it sits outside every loop
+      and depends on the export alone. Each arm reports its gap in the units
+      the CONSUMING step reports and against that step's own instrument -- the
+      roughness builder's `z_ref` bracket, Dunne's scatter on the weathering
+      exponent, the pedogenesis model's minimum depth -- because one percentage
+      across six quantities would be a preference and not a criterion. Arms
+      that need a climate field SWEEP it, since `baseline_climatology` is null
+      and `water_table.nc` does not exist, and an arm that crosses its bar
+      inside its bracket is reported as crossing rather than resolved.
+      `notes/audits/nonlinear-spatial-reductions.md` is the finding; SPAT-4's
+      operators in `lib/gridding.py` are what a material gap is corrected with,
+      and a gap inside its instrument is a reason NOT to carry an expectation.
+
   - id: shortwave_band_weights
     script: exoplasim/scripts/shortwave_band_weights.py
     cost: minutes

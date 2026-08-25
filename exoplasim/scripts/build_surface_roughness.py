@@ -38,6 +38,22 @@ value, everything else takes a canopy value scaled by forest fraction. It is
 integrated to the grid over land only, so a coastal cell is not dragged toward
 open water.
 
+**It is integrated in `ce`, not in the length.** The model applies one exchange
+coefficient to a whole cell and the turbulent flux is linear in it, so what the
+cell owes the atmosphere is the area mean of `ce` over its own surfaces, and the
+roughness written out is the length that reproduces that mean. `ce` is
+logarithmic in `z0`, so the two orders are different reductions, and this
+world's land is the case where they part: bare ground and canopy are two orders
+apart in `z0`, so a cell that is mostly playa with a canopy minority has its
+exchange set by the minority once the lengths are mixed. SPAT-7 measured the
+difference on the 10M mesh -- negligible in the land mean, 24 times inside the
+`z_ref` bracket this file already declares, but past that bracket on a few
+percent of land area which GROWS with refinement, and reaching 30% on closed
+basin floors. Those cells are the reason this field exists. The inversion needs
+`z_ref`, which is unknown before a climatology; it is taken at the midpoint of
+the liquid-water bracket and the report carries what the whole bracket is worth,
+which is 1.5e-4 of the land mean.
+
 `z0_orographic` is the part worth retaining the native mesh for. The 10M
 fine-support reference contributes about 1,221 regions per global T42 cell on
 average (and about 76 even at T170), enough to measure the distribution of
@@ -56,6 +72,16 @@ value ExoPlaSim was tuned against and changes only the distribution, which is th
 part that is physically wrong. `--target-mean` overrides it if there is ever a
 reason to move the mean as well, and the solved coefficient is reported so the
 implied relation can be judged.
+
+**A LADDER COMPARISON MUST PASS ONE COEFFICIENT TO EVERY RUNG.** The solve is per
+grid, and it has to be, because the subgrid relief it multiplies is per grid:
+measured on the 10M mesh the median falls by 5.96 from T21 to T170 while the
+solved coefficient rises by 1.98 to hold the land mean. So two rungs built with
+the defaults differ by their terrain AND by their calibration, and a convergence
+claim taken across them is measuring both. `--orographic-coefficient` fixes it;
+the default still solves, so a single-rung build is unchanged. This is SPAT-8's
+constraint and `notes/audits/nonlinear-spatial-reductions.md` carries the
+numbers.
 
 This is deliberately the same move `build_surface_albedo.py --mode scaled` makes:
 where a global constant is calibrated and its spatial pattern is not, keep the
@@ -87,7 +113,7 @@ from builds import resolution_of, grid_export, mesh_export
 # is failure class 17. The same idiom continue_exoplasim.py uses on
 # run_exoplasim.py, and for the same reason.
 from build_surface_albedo import MODE_FOREST_FRACTION
-from gridding import land_weighted, region_cells
+from gridding import cell_moments, region_cells
 from provenance import config_stamp
 from orogen import Export, LAND
 # ONE derivation of the height a bulk transfer coefficient is taken over.
@@ -127,6 +153,12 @@ def main() -> None:
     ap.add_argument("--mesh", type=Path, default=None)
     ap.add_argument("--grid", type=Path, default=None)
     ap.add_argument("--output", type=Path, default=None)
+    ap.add_argument("--orographic-coefficient", type=float, default=None,
+                    help="fix the coefficient relating subgrid relief to a "
+                         "roughness instead of solving it on this grid. A "
+                         "ladder comparison MUST pass one value to every rung: "
+                         "the solve is per grid, so two rungs otherwise differ "
+                         "by their terrain and by their calibration at once")
     ap.add_argument("--target-mean", type=float, default=None,
                     help="area-weighted land mean to anchor to; defaults to "
                          "ExoPlaSim's own dz0land")
@@ -193,42 +225,86 @@ def main() -> None:
                 f"{mesh.terrain_hash[:16]}; re-run surface_water.py")
         z0_surface = np.where(lake & is_land, OCEAN_Z0_M, z0_surface)
 
-    _, z0_surf_grid, _ = land_weighted(mesh, grid_dir, z0_surface)
-
     # Orographic term: the standard deviation of elevation among the mesh regions
-    # inside each cell, which is subgrid relief by construction.
+    # inside each cell, which is subgrid relief by construction. `cell_moments`
+    # in `lib/gridding.py` is the operator; the three bincounts used to be here.
     cells, nlat, nlon = region_cells(mesh, grid_dir)
     n = nlat * nlon
     sel = is_land
+    _, var, counts, land_flat = cell_moments(cells, n, area, elev_km, sel)
     w = np.bincount(cells[sel], weights=area[sel], minlength=n)
-    m1 = np.bincount(cells[sel], weights=area[sel] * elev_km[sel], minlength=n)
-    m2 = np.bincount(cells[sel], weights=area[sel] * elev_km[sel] ** 2, minlength=n)
-    with np.errstate(invalid="ignore", divide="ignore"):
-        mean = np.where(w > 0, m1 / np.maximum(w, 1e-30), 0.0)
-        var = np.where(w > 0, m2 / np.maximum(w, 1e-30) - mean ** 2, 0.0)
-    sigma_m = np.sqrt(np.maximum(var, 0.0)).reshape(nlat, nlon) * 1000.0
-    counts = np.bincount(cells[sel], minlength=n).reshape(nlat, nlon)
+    sigma_m = np.sqrt(var).reshape(nlat, nlon) * 1000.0
+    counts = counts.reshape(nlat, nlon)
 
-    land_cells = w.reshape(nlat, nlon) > 0
-    gw = np.fromfile(grid_dir / "grid" / "gauss_weights.bin", dtype="float64")
+    land_cells = land_flat.reshape(nlat, nlon)
     weight = np.where(land_cells, w.reshape(nlat, nlon), 0.0)
 
     def land_mean(field):
         return float((field * weight).sum() / weight.sum())
 
+    # THE SURFACE TERM IS REDUCED IN THE EXCHANGE COEFFICIENT, NOT IN THE LENGTH.
+    #
+    # The model applies one `ce` to the whole cell and the turbulent flux is
+    # linear in it, so what a cell owes the atmosphere is the AREA MEAN OF `ce`
+    # over its own surfaces. `ce` is not linear in `z0` -- it is
+    # `k^2 / ln(z_ref/z0)^2` -- so averaging the lengths first and taking `ce`
+    # of that is not the same reduction, and this world's land is exactly the
+    # case where the two part company: the barren classes carry a roughness two
+    # orders below the canopy, so a cell that is mostly playa with a canopy
+    # minority has its exchange set by the minority once the lengths are mixed.
+    # SPAT-7 measured it on the 10M mesh: negligible in the land mean, 24 times
+    # inside the step's own `z_ref` bracket, but past that bracket on a few
+    # percent of land area which GROWS with refinement, and reaching 30% on the
+    # closed-basin floors the carve verdict integrates evaporation over. Those
+    # cells are the reason this field exists. `analysis/spatial_reduction_gap.py`
+    # is the measurement and `notes/audits/nonlinear-spatial-reductions.md` the
+    # finding.
+    #
+    # So: `ce` per mesh region, area-mean over the cell's land, and the
+    # roughness written out is the length that reproduces that mean. The
+    # inversion needs `z_ref`, which is not known before a climatology exists,
+    # so it is taken at the MIDPOINT of the same liquid-water bracket the report
+    # already declares and the bracket's own effect on the answer is reported
+    # rather than hidden.
+    z_ref_anchor = reference_height_m(0.5 * (CE_BRACKET_K[0] + CE_BRACKET_K[1]),
+                                      config)
+
+    def effective_z0(k_oro: float, z_ref: float) -> np.ndarray:
+        """Cell roughness whose `ce` is the area mean of the regions' own."""
+        z0_region = np.sqrt(z0_surface[sel] ** 2
+                            + (k_oro * sigma_m.reshape(-1)[cells[sel]]) ** 2)
+        ce_region = KARMAN ** 2 / np.log(z_ref / np.maximum(z0_region, 1e-6)) ** 2
+        ce_bar = np.bincount(cells[sel], weights=area[sel] * ce_region,
+                             minlength=n)
+        np.divide(ce_bar, w, out=ce_bar, where=land_flat)
+        out = np.zeros(n)
+        np.multiply(z_ref, np.exp(-KARMAN / np.sqrt(np.maximum(ce_bar, 1e-30))),
+                    out=out, where=land_flat)
+        return out.reshape(nlat, nlon)
+
     # Solve the orographic coefficient so the land mean lands on the target.
+    # 60 bisections resolve the coefficient to 1e-18 on [0, 1]; the 200 this
+    # carried were free when the trial was arithmetic on the grid and are not
+    # now that each one reduces the mesh.
     target = args.target_mean if args.target_mean is not None else EXOPLASIM_DZ0LAND_M
-    lo, hi = 0.0, 1.0
-    for _ in range(200):
-        mid = 0.5 * (lo + hi)
-        trial = land_mean(np.sqrt(z0_surf_grid ** 2 + (mid * sigma_m) ** 2))
-        if trial < target:
-            lo = mid
-        else:
-            hi = mid
-    k_oro = 0.5 * (lo + hi)
-    z0 = np.sqrt(z0_surf_grid ** 2 + (k_oro * sigma_m) ** 2)
+    if args.orographic_coefficient is not None:
+        k_oro = float(args.orographic_coefficient)
+    else:
+        lo, hi = 0.0, 1.0
+        for _ in range(60):
+            mid = 0.5 * (lo + hi)
+            if land_mean(effective_z0(mid, z_ref_anchor)) < target:
+                lo = mid
+            else:
+                hi = mid
+        k_oro = 0.5 * (lo + hi)
+    z0 = effective_z0(k_oro, z_ref_anchor)
     field = np.where(land_cells, z0, OCEAN_Z0_M)
+
+    # What the unknown reference height is worth in the field itself, reported
+    # as a bracket because it cannot be verified before a climatology exists.
+    z0_bracket = [land_mean(effective_z0(k_oro, reference_height_m(t, config)))
+                  for t in CE_BRACKET_K]
 
     output = args.output or (INPUTS / resolution.lower()
                              / f"orogen_{resolution}_surf_{ROUGHNESS_CODE:04d}.sra")
@@ -262,6 +338,21 @@ def main() -> None:
                 "median": round(float(np.median(sigma_m[land_cells])), 2),
                 "max": round(float(sigma_m[land_cells].max()), 2)},
             "mesh_regions_per_land_cell_median": int(np.median(counts[land_cells])),
+            # SPAT-8 must hold this fixed across the ladder. It is SOLVED per
+            # grid, so a difference between two rungs is part terrain and part
+            # calibration: measured on the 10M mesh it moves by a factor 1.98
+            # from T21 to T170 while the subgrid relief it multiplies falls by
+            # 5.96. `--orographic-coefficient` supplies one value for a whole
+            # ladder comparison; the default still solves, so a single-rung
+            # build is unchanged.
+            "coefficient_was_solved": args.orographic_coefficient is None,
+        },
+        "surface_aggregation": {
+            "operator": "area mean of ce over the cell's land, inverted to a "
+                        "length; lib/gridding.py owns the reduction operators",
+            "reference_height_anchor_m": round(z_ref_anchor, 2),
+            "land_mean_m_over_reference_air_bracket": [round(v, 5)
+                                                       for v in z0_bracket],
         },
         "land_mean_m": round(land_mean(z0), 5),
         "land_min_m": round(float(z0[land_cells].min()), 6),
@@ -291,9 +382,11 @@ def main() -> None:
     print(f"  range {z0[land_cells].min():.5f} to {z0[land_cells].max():.3f} m")
     print(f"  orographic coefficient solved to {k_oro:.5f}, subgrid stdev median "
           f"{np.median(sigma_m[land_cells]):.1f} m")
-    print(f"  exchange coefficient {ce(z0[land_cells].min()):.5f} (flattest, "
-          f"barest) to {ce(z0[land_cells].max()):.5f} (roughest), against a "
-          f"uniform {ce(EXOPLASIM_DZ0LAND_M):.5f}")
+    lo_t, hi_t = CE_BRACKET_K
+    print(f"  exchange coefficient {ce(z0[land_cells].min(), lo_t):.5f} "
+          f"(flattest, barest) to {ce(z0[land_cells].max(), lo_t):.5f} "
+          f"(roughest), against a uniform "
+          f"{ce(EXOPLASIM_DZ0LAND_M, lo_t):.5f}, all at {lo_t} K")
     print(f"wrote {output}\n      {report_path}")
 
 
