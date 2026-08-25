@@ -19,7 +19,7 @@
 
 import { KOPPEN_CLASSES as KOPPEN_TABLE } from './koppen.js';
 import { BASIN_SURFACE_CLASSES, usesLandHeightBranch } from './basins.js';
-import { ROCK_CLASSES } from './lithology.js';
+import { ROCK_CLASSES, SHELF_SUBSTRATE_BOOTSTRAP } from './lithology.js';
 import { elevToHeightKm, scaledHeightKm } from './color-map.js';
 import { planetSummary } from './planet-params.js';
 import { hashTypedArray, hashJson } from './sha256.js';
@@ -1363,9 +1363,12 @@ function summariseLithology(data) {
         },
         exhumationNote: 'Cells whose exposed rock changed during erosion because the cover layer '
                       + 'was stripped away, revealing basement.',
-        climateCaveat: 'carbonate vs shelf_clastic is assigned by absolute latitude as a proxy for '
-                     + 'sea-surface temperature — the one climate-flavoured call in this module. '
-                     + 'Reclassify those cells downstream if you have real SST.',
+        // A LABELLED BOOTSTRAP, not a result. This is the one climate call in a
+        // module whose own planetSummary says Orogen does not do climate, and it
+        // is made with an Earth constant. Emitted as structure rather than as a
+        // sentence so a downstream reclassifier can key on it, and declared
+        // beside the rule in lithology.js so the label cannot drift from it.
+        shelfSubstrateBootstrap: SHELF_SUBSTRATE_BOOTSTRAP,
         compositionLand: L.composition,
         compositionGlobal: L.compositionSeafloor,
         // State the denominator. compositionLand used to be measured against

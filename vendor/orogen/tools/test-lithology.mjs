@@ -20,6 +20,7 @@ import { setDelaunator } from '../js/sphere-mesh.js';
 import {
     ROCK_CLASSES, classifyLithology, buildErodibility, buildLithoState,
     updateExhumation, finalSurfaceRock, rockComposition, computeScarpPotential, saltCrustMask,
+    SHELF_SUBSTRATE_BOOTSTRAP,
     COVER_SEQUENCE,
 } from '../js/lithology.js';
 import { runGeneratePipeline } from '../js/pipeline.js';
@@ -657,6 +658,41 @@ function shelfClassId(r_xyz, R) {
     const latDeg = Math.abs(Math.asin(Math.max(-1, Math.min(1, r_xyz[1]))) * 180 / Math.PI);
     return latDeg < LITHO_CARBONATE_LAT_DEG ? R.carbonate : R.shelf_clastic;
 }
+
+test('the shelf substrate bootstrap label still describes the classifier', () => {
+    // LITH-26. The carbonate/clastic split is an Earth latitude band carried as
+    // a bootstrap, and the export says so through
+    // manifest.lithology.shelfSubstrateBootstrap. A label that has drifted from
+    // the rule it labels is worse than none, because a downstream reclassifier
+    // reads it to learn what it is overwriting. So the declaration is checked
+    // against what the classifier actually did on a whole planet.
+    const c = withLitho();
+    const byId = Object.fromEntries(ROCK_CLASSES.map(x => [x.id, x.code]));
+    const B = SHELF_SUBSTRATE_BOOTSTRAP;
+    assert.deepEqual([...B.classes].sort(), ['carbonate', 'shelf_clastic'],
+        'the label names classes the rule does not produce');
+    assert.equal(B.latitudeDeg, LITHO_CARBONATE_LAT_DEG,
+        'the label and the constant the classifier reads have diverged');
+
+    let warm = 0, cool = 0;
+    for (let r = 0; r < c.mesh.numRegions; r++) {
+        const code = byId[c.lithology.r_coverRock[r]];
+        if (!B.classes.includes(code)) continue;
+        const y = Math.max(-1, Math.min(1, c.r_xyz[3 * r + 1]));
+        const latDeg = Math.abs(Math.asin(y) * 180 / Math.PI);
+        if (code === 'carbonate') {
+            assert.ok(latDeg < B.latitudeDeg,
+                `carbonate at ${latDeg.toFixed(2)} degrees, outside the declared band`);
+            warm++;
+        } else {
+            assert.ok(latDeg >= B.latitudeDeg,
+                `shelf_clastic at ${latDeg.toFixed(2)} degrees, inside the declared band`);
+            cool++;
+        }
+    }
+    assert.ok(warm > 0 && cool > 0,
+        `only one side of the band was populated (${warm} carbonate, ${cool} clastic), so nothing was asserted`);
+});
 
 test('COVER_SEQUENCE declares every cover class that reaches a real planet', () => {
     // The point of the table: a new cover class cannot arrive without someone

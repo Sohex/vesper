@@ -524,19 +524,51 @@ export function classifyLithology(mesh, r_xyz, r_elevation, tectonics, debugLaye
 }
 
 /**
- * Carbonate platform vs terrigenous clastics.
+ * Carbonate platform vs terrigenous clastics. A BOOTSTRAP, NOT A RESULT.
  *
- * The one classification here with a climate flavour: carbonate platforms are a
- * warm-water phenomenon. Latitude is pure geometry so this stays inside
- * Orogen's remit, but it is a proxy for sea-surface temperature, and a
- * downstream stage holding real ExoPlaSim SST can reclassify these cells with
- * better information. Flagged in the manifest for exactly that reason.
+ * This is the one place Orogen makes a climate call, and planetSummary in
+ * planet-params.js says in as many words that Orogen does not: obliquity,
+ * eccentricity and insolation are passed through for a downstream stage because
+ * they drive climate and climate is handled there. Latitude is geometry, but a
+ * latitude BAND is not; LITHO_CARBONATE_LAT_DEG is Earth's photozoan carbonate
+ * belt written as a coordinate, and it does not transport to a planet with a
+ * different obliquity and a different primary.
+ *
+ * What actually separates the two is warm shallow water and low terrigenous
+ * input, and the second is usually the decider: an equatorial shelf off a large
+ * wet catchment is clastic, and a cool-water heterozoan carbonate factory runs
+ * well outside any warm belt. Neither variable is available in this module.
+ *
+ * So the rule stays, labelled, rather than being re-fitted to a number nobody
+ * can derive or replaced by a single class nobody can justify. The manifest
+ * carries `lithology.shelfSubstrateBootstrap`, which names the classes, the
+ * rule, the constant and what has to arrive before a downstream pass overwrites
+ * them. LITH-26 owns that pass; `notes/audits/orogen-lithology.md` carries what
+ * is known about the correction, including that its SIGN is not known.
  */
 function shelfClass(r_xyz, r) {
     const y = Math.max(-1, Math.min(1, r_xyz[3 * r + 1]));
     const latDeg = Math.abs(Math.asin(y) * 180 / Math.PI);
     return latDeg < LITHO_CARBONATE_LAT_DEG ? BY_CODE.carbonate : BY_CODE.shelf_clastic;
 }
+
+/**
+ * The label the export carries for what shelfClass did, kept next to the rule so
+ * the two cannot drift. A consumer reads this to learn that these two classes
+ * are a bootstrap and what would replace them; tools/test-lithology.mjs reads it
+ * to assert that the label still describes the classifier's behaviour.
+ */
+export const SHELF_SUBSTRATE_BOOTSTRAP = {
+    classes: ['carbonate', 'shelf_clastic'],
+    rule: 'abs(latitude) < latitudeDeg gives carbonate, otherwise shelf_clastic',
+    latitudeDeg: LITHO_CARBONATE_LAT_DEG,
+    provenance: 'Earth photozoan carbonate belt, carried as geometry',
+    standsFor: ['warm shallow water', 'low terrigenous input'],
+    supersededBy: 'a downstream pass holding sea-surface state, carbonate saturation, biological '
+                + 'carbonate production and terrigenous sediment delivery',
+    treatAs: 'bootstrap',
+    issue: 'LITH-26',
+};
 
 /** Exposed rock: cover where it survives, basement where it has been stripped. */
 export function surfaceRock(basement, cover, coverThicknessKm, r_elevation, mesh) {

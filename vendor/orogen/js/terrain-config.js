@@ -588,7 +588,11 @@ export const LITHO_PLATEAU_T = 0.45;         // plateau weight marking a capped 
 export const LITHO_LIP_T = 0.02;             // flood-basalt contribution marking a LIP (km)
 export const LITHO_HOTSPOT_T = 0.05;         // hotspot contribution marking an ocean island (km)
 export const LITHO_SHELF_DIST_CELLS = 2.0;   // shelf reach, in units of 100 km
-export const LITHO_CARBONATE_LAT_DEG = 30;   // warm-water carbonate belt; see shelfClass()
+// EARTH'S photozoan carbonate belt, carried as a labelled bootstrap and not as a
+// value for this planet: see shelfClass() and LITH-26. It is exported through
+// manifest.lithology.shelfSubstrateBootstrap so a downstream reclassifier can
+// read the assumption rather than infer it.
+export const LITHO_CARBONATE_LAT_DEG = 30;   // degrees absolute latitude, Earth
 
 // Cover thicknesses, km. The veneer erosion has to strip before basement shows.
 export const LITHO_COVER_BASIN_KM = 3.0;
