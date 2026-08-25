@@ -228,21 +228,46 @@ def check_declaration(decl: dict) -> list[str]:
 
 
 def undeclared_properties(decl: dict) -> list[dict]:
-    """Every property still carrying the sentinel, with the issue that owns it."""
+    """Every property still carrying the sentinel, with the issue that owns it.
+
+    ANY leaf equal to `undeclared` counts, not a fixed list of key names. The
+    first version of this looked for `value` and `fraction_from` only, and went
+    quiet the moment a property was refined enough to name its own field: the
+    frozen-pore impedance gained a declared FORM with an undeclared EXPONENT and
+    silently left the register while still being undeclared. A sentinel that
+    only fires on the key names someone thought of is not a sentinel.
+    """
     found: list[dict] = []
 
-    def walk(node, path):
+    def owner_of(chain):
+        for node in reversed(chain):
+            if isinstance(node, dict) and node.get("owner"):
+                return node["owner"]
+        return "unowned"
+
+    def walk(node, path, chain):
         if isinstance(node, dict):
-            if node.get("value") == UNDECLARED or node.get("fraction_from") == UNDECLARED:
-                found.append({"property": ".".join(path),
-                              "owner": node.get("owner", "unowned")})
-                return
             for key, value in node.items():
-                walk(value, path + [key])
+                if value == UNDECLARED:
+                    found.append({"property": ".".join(path),
+                                  "field": key,
+                                  "owner": owner_of(chain + [node])})
+                else:
+                    walk(value, path + [key], chain + [node])
+        elif isinstance(node, list):
+            for item in node:
+                walk(item, path, chain)
 
     for section in ("states", "flow", "thermal", "materials", "uncertainty"):
-        walk(decl[section], [section])
-    return found
+        walk(decl[section], [section], [])
+    # One row per property, not one per undeclared field under it.
+    seen, unique = set(), []
+    for row in found:
+        if row["property"] in seen:
+            continue
+        seen.add(row["property"])
+        unique.append(row)
+    return unique
 
 
 # ---------------------------------------------------------------------------
@@ -579,7 +604,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\n  {len(report['undeclared_properties'])} properties undeclared; "
               "the contract is defined and is not complete")
         for row in report["undeclared_properties"]:
-            print(f"    {row['property']:<44} {row['owner']}")
+            print(f"    {row['property'] + '.' + row['field']:<48} {row['owner']}")
         for problem in hard:
             print(f"  FAIL {problem}")
         print(f"\nwrote {REPORT.relative_to(PROJECT_ROOT)}")

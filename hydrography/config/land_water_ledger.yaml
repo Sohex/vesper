@@ -393,14 +393,16 @@ terms:
     transform: freezing
     latent: fusion
     flux: undeclared
-    producer: undeclared
-    producer_units: undeclared
+    producer: "exoplasim landphase under nlandwphase = 1 (landmod.f90); nothing under the default"
+    producer_units: m of water equivalent
     interval_floor: instantaneous
     owner: lshy-5
     note: >
-      Pore water freezing in place. Absent from the climate column entirely,
-      so the heat capacity of a freezing soil does not change and the latent
-      heat is neither released nor absorbed there.
+      Pore water freezing in place, limited by the layer's cold content
+      relative to melting and by the water actually there. Under the default
+      the climate column has no soil ice at all, so the heat capacity of a
+      freezing soil does not change and the latent heat is neither released
+      nor absorbed there.
   soil_thaw:
     from: soil_ice
     to: soil_liquid
@@ -409,8 +411,8 @@ terms:
     transform: melting
     latent: fusion
     flux: undeclared
-    producer: undeclared
-    producer_units: undeclared
+    producer: "exoplasim landphase under nlandwphase = 1 (landmod.f90); nothing under the default"
+    producer_units: m of water equivalent
     interval_floor: instantaneous
     owner: lshy-5
   soil_evaporation:

@@ -1,7 +1,7 @@
 {
-  "generated": "2026-08-25T04:31:45+00:00",
+  "generated": "2026-08-25T04:53:15+00:00",
   "declaration": "pedology/config/land_column_properties.yaml",
-  "declaration_sha256": "98a4e80e5002db124288c24c51e9453682fd7170e805fbd8ab4c41e020fd606c",
+  "declaration_sha256": "c0c5f104176a9b3cac76ea7a2dd21cba4373adfecad70587d217afd1c22c3d84",
   "version": 1,
   "soil_map": "pedology/data/precarve-craton-10m/soilmap_T21.txt",
   "soil_map_sha256": "92f74f2878f2ad9ad3b6536c352fc53476f1ae88d144d9355c41a48a68b3d97f",
@@ -187,34 +187,42 @@
   "undeclared_properties": [
     {
       "property": "states.residual",
+      "field": "value",
       "owner": "lshy-3"
     },
     {
       "property": "flow.saturated_conductivity",
+      "field": "value",
       "owner": "lshy-3"
     },
     {
       "property": "flow.unsaturated_conductivity",
+      "field": "value",
       "owner": "lshy-3"
     },
     {
       "property": "flow.infiltration_capacity",
+      "field": "value",
       "owner": "lshy-3"
     },
     {
       "property": "flow.frozen_pore_impedance",
+      "field": "exponent",
       "owner": "lshy-5"
     },
     {
       "property": "thermal.composition_dependent",
+      "field": "value",
       "owner": "lshy-5"
     },
     {
       "property": "materials.organic",
+      "field": "fraction_from",
       "owner": "sdec-10"
     },
     {
       "property": "uncertainty.sources.cosby_within_class_variance",
+      "field": "value",
       "owner": "lshy-1"
     }
   ]

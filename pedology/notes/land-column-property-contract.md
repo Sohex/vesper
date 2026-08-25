@@ -195,8 +195,8 @@ arm that refuses.
 | saturated hydraulic conductivity; no artifact here carries one, and LPJ's `perc_base` is a dimensionless drainage exponent that cannot be converted into one | LSHY-3 |
 | unsaturated conductivity: the family is declared, the number is not | LSHY-3 |
 | infiltration capacity, absent from both columns, which is why saturation excess is the only runoff mechanism | LSHY-3 |
-| frozen pore impedance, whose current answer is "none" because the climate column has no soil ice | LSHY-5 |
-| composition-dependent thermal properties, so that one material property is not split into an organic profile for water and a constant for heat | LSHY-5 |
+| the frozen-pore impedance EXPONENT; the form is declared and is used by nothing, because the scheme that would need it has no conductivity to reduce | LSHY-5 |
+| composition-dependent thermal properties, so that one material property is not split into an organic profile for water and a constant for heat. The PHASE half is now declared: freeze and thaw exchange the latent heat of fusion with the soil temperature layer that contains the water layer's midpoint, and the sensible heat capacity is still a constant | LSHY-5 |
 | the organic fraction and one vertical rule for it | SDEC-10 |
 | Cosby's within-texture-class variance, the dominant uncertainty term | LSHY-1 |
 

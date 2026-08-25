@@ -100,22 +100,37 @@
 !     which is `bucket_step` operation for operation. Both loops are empty at
 !     one layer, so nothing else runs and nothing else can differ.
 
-      pure subroutine column_step(klay, pw, pcap, pflux, pdt, klower,          &
+      pure subroutine column_step(klay, pw, pice, pcap, pflux, pdt, klower,    &
      &                            pwnew, proff, pdrn)
       integer, intent(in)  :: klay              ! number of layers in use
-      real,    intent(in)  :: pw(NLSOILWX)      ! layer store before (m)
+      real,    intent(in)  :: pw(NLSOILWX)      ! layer liquid store before (m)
+      real,    intent(in)  :: pice(NLSOILWX)    ! layer ice, m of water equivalent
       real,    intent(in)  :: pcap(NLSOILWX)    ! layer capacity (m)
       real,    intent(in)  :: pflux             ! net water flux to the surface (m/s)
       real,    intent(in)  :: pdt               ! timestep (s)
       integer, intent(in)  :: klower            ! lower boundary code
-      real,    intent(out) :: pwnew(NLSOILWX)   ! layer store after (m)
+      real,    intent(out) :: pwnew(NLSOILWX)   ! layer liquid store after (m)
       real,    intent(out) :: proff             ! surface runoff (m/s)
       real,    intent(out) :: pdrn              ! drainage out of the base (m/s)
       real    :: zw(NLSOILWX)
+      real    :: zcap(NLSOILWX)
       real    :: zexc
       integer :: jlay
 
       zw(:) = pw(:)
+
+!     FROZEN PORE SPACE IS OCCUPIED PORE SPACE. Ice in a layer is not available
+!     to hold liquid, so it comes off the capacity and a frozen layer fills and
+!     overflows sooner. That is how ice impedes infiltration here: not by a
+!     fitted impedance factor on a conductivity this column does not have, but
+!     by taking up the room. `frozen_impedance` below is the conductivity form,
+!     declared for the gradient-driven hypothesis that would need it.
+!
+!     At zero ice this is `pcap(j) - 0.0`, which is bitwise `pcap(j)`, so the
+!     reduction to the bucket is untouched.
+      do jlay = 1, klay
+       zcap(jlay) = AMAX1(0., pcap(jlay) - pice(jlay))
+      enddo
 
 !     The surface flux enters the top layer. There is no infiltration capacity
 !     here, so this scheme generates saturation-excess runoff only, exactly as
@@ -141,15 +156,15 @@
 !     Downward cascade: each layer fills to capacity and passes the rest on.
 
       do jlay = 1, klay - 1
-       zexc      = AMAX1(0., zw(jlay) - pcap(jlay))
-       zw(jlay)  = AMIN1(pcap(jlay), zw(jlay))
+       zexc      = AMAX1(0., zw(jlay) - zcap(jlay))
+       zw(jlay)  = AMIN1(zcap(jlay), zw(jlay))
        zw(jlay+1) = zw(jlay+1) + zexc
       enddo
 
 !     The base.
 
-      zexc     = AMAX1(0., zw(klay) - pcap(klay))
-      zw(klay) = AMIN1(pcap(klay), zw(klay))
+      zexc     = AMAX1(0., zw(klay) - zcap(klay))
+      zw(klay) = AMIN1(zcap(klay), zw(klay))
       if (klower == LOWER_FREEDRAIN) then
        pdrn = zexc / pdt
        zexc = 0.
@@ -162,8 +177,8 @@
 
       do jlay = klay - 1, 1, -1
        zw(jlay) = zw(jlay) + zexc
-       zexc     = AMAX1(0., zw(jlay) - pcap(jlay))
-       zw(jlay) = AMIN1(pcap(jlay), zw(jlay))
+       zexc     = AMAX1(0., zw(jlay) - zcap(jlay))
+       zw(jlay) = AMIN1(zcap(jlay), zw(jlay))
       enddo
 
       proff = zexc / pdt
@@ -178,6 +193,115 @@
 
       return
       end subroutine column_step
+
+!     ====================
+!     SUBROUTINE PHASE_STEP
+!     ====================
+!
+!     Freeze and thaw in one soil layer, LSHY-5. Water and energy both close,
+!     and they close for the same reason: the mass moved between the two stores
+!     and the temperature change are the SAME number read two ways, so an
+!     implementation that gets one right cannot get the other wrong.
+!
+!     WHAT DRIVES IT is the layer's cold or heat content relative to melting,
+!     not a rate and not a threshold on air temperature. A layer at ptmelt - dT
+!     can freeze at most the water whose latent heat of fusion would raise it
+!     back to ptmelt, and a layer above melting can thaw at most the ice whose
+!     fusion would lower it back. Both are limited by the water actually there.
+!     That is what makes the exchange conservative rather than parameterised,
+!     and it is the property the fixtures check.
+!
+!     THE MODEL HAS NO SOIL ICE TODAY. Its five soil temperature layers evolve
+!     on a fixed heat capacity and conductivity, no water in the bucket is ever
+!     frozen, and melt water therefore always infiltrates whatever the soil
+!     temperature. LPJ-GUESS carries `Frac_ice` per layer and reduces available
+!     liquid under freezing, so the two columns disagree about whether water
+!     that reached the ground is liquid. This kernel is the climate side of
+!     closing that; `hydrography/config/land_water_ledger.yaml` books it as
+!     `soil_freezing` and `soil_thaw`.
+!
+!     LATENT HEAT: plfus, and never plv or pls. The model declares a latent
+!     heat of vaporisation and one of sublimation and derives fusion as the
+!     difference, so the caller passes the difference. A phase term carrying the
+!     wrong latent heat conserves water and loses energy by a factor of seven
+!     and a half, which is what the wrong-latent-heat fixture demonstrates.
+
+      pure subroutine phase_step(pliq, pice, ptem, pcap, pdz, ptmelt, plfus,   &
+     &                           prhow, pliqn, picen, ptemn)
+      real, intent(in)  :: pliq    ! liquid water in the layer (m)
+      real, intent(in)  :: pice    ! ice in the layer, m of water equivalent
+      real, intent(in)  :: ptem    ! layer temperature (K)
+      real, intent(in)  :: pcap    ! volumetric heat capacity (J/m3/K)
+      real, intent(in)  :: pdz     ! layer thickness (m)
+      real, intent(in)  :: ptmelt  ! melting point (K)
+      real, intent(in)  :: plfus   ! latent heat of fusion (J/kg)
+      real, intent(in)  :: prhow   ! water density (kg/m3)
+      real, intent(out) :: pliqn   ! liquid after (m)
+      real, intent(out) :: picen   ! ice after (m water equivalent)
+      real, intent(out) :: ptemn   ! temperature after (K)
+      real :: zheat, zcapdz, zmove, zlat
+
+      pliqn  = pliq
+      picen  = pice
+      ptemn  = ptem
+      zcapdz = pcap * pdz
+      if (zcapdz <= 0.0 .or. plfus <= 0.0) return
+
+!     Energy per unit area between the layer and melting. Positive is cold
+!     content available to freeze liquid; negative is heat available to thaw.
+      zheat = zcapdz * (ptmelt - ptem)
+
+      if (zheat > 0.0 .and. pliq > 0.0) then
+       zmove = AMIN1(pliq, zheat / (prhow * plfus))
+       pliqn = pliq - zmove
+       picen = pice + zmove
+       zlat  = prhow * zmove * plfus
+       ptemn = ptem + zlat / zcapdz
+      else if (zheat < 0.0 .and. pice > 0.0) then
+       zmove = AMIN1(pice, (-zheat) / (prhow * plfus))
+       picen = pice - zmove
+       pliqn = pliq + zmove
+       zlat  = prhow * zmove * plfus
+       ptemn = ptem - zlat / zcapdz
+      endif
+
+      return
+      end subroutine phase_step
+
+!     ==========================
+!     FUNCTION FROZEN_IMPEDANCE
+!     ==========================
+!
+!     The factor ice in the pore space multiplies a hydraulic conductivity by.
+!     DECLARED HERE AND USED BY NOTHING YET, because the scheme that would use
+!     it is the gradient-driven hypothesis and this column has no conductivity:
+!     `pedology/config/land_column_properties.yaml` carries
+!     `flow.saturated_conductivity` as undeclared and says why. The layered
+!     column impedes flow the other way, by taking the ice out of the capacity
+!     in `column_step`, which needs no conductivity at all.
+!
+!     The form is (1 - f_ice) ** kexp on the ice fraction of the pore space,
+!     which is one at no ice and zero at a fully frozen pore, so the reduction
+!     to the no-ice case is exact rather than asymptotic. kexp is an axis and
+!     not a constant, on the same grounds as the evaporation limiter's: this is
+!     a place two models would differ and the difference should be selectable.
+
+      pure function frozen_impedance(pice, ppore, kexp) result(pfac)
+      real,    intent(in) :: pice   ! ice, m of water equivalent
+      real,    intent(in) :: ppore  ! pore volume, m of water equivalent
+      integer, intent(in) :: kexp
+      real :: pfac
+      real :: zf
+
+      if (ppore <= 0.0) then
+       pfac = 0.0
+       return
+      endif
+      zf   = AMIN1(1., AMAX1(0., pice / ppore))
+      pfac = (1. - zf) ** kexp
+
+      return
+      end function frozen_impedance
 
 !     ======================
 !     FUNCTION LAND_WETNESS

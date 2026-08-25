@@ -293,11 +293,18 @@ flow:
       excess -- the bucket overflowing -- so an infiltration-excess event on a
       dry soil generates no runoff at all, whatever the rainfall rate.
   frozen_pore_impedance:
-    value: undeclared
+    form: (1 - ice / pore) ** k, on the ice fraction of the pore space
+    exponent: undeclared
     owner: lshy-5
     note: >
-      How much ice in the pore space reduces conductivity. ExoPlaSim's column
-      has no soil ice, so its answer today is "none".
+      How much ice in the pore space reduces CONDUCTIVITY. The form is declared
+      in landcolumn.f90 as `frozen_impedance` and is used by nothing, because
+      the scheme that would use it is the gradient-driven hypothesis and this
+      column has no conductivity to reduce. The layered column impedes flow the
+      other way and needs no exponent for it: ice occupies pore space, so it
+      comes off the layer's capacity and a frozen layer overflows sooner. Under
+      the default nlandwphase = 0 there is no soil ice at all, so the answer
+      today is "none".
 
 # ---------------------------------------------------------------------------
 # THERMAL PROPERTIES. Phase- and composition-dependent, or a DECLARED reduced
@@ -320,6 +327,22 @@ thermal:
     soil_thermal_conductivity_w_m_k: 1.8
     snow_thermal_conductivity_w_m_k: 0.31
     source: landmod.f90 module constants; Earth values, unattributed upstream
+  phase_dependent:
+    heat_capacity: >
+      Active under nlandwphase = 1 only as the LATENT term: landmod's
+      `landphase` exchanges the latent heat of fusion between the water layer
+      and the soil temperature layer that contains its midpoint, so freeze and
+      thaw now cost and release energy in the ground. The SENSIBLE half is
+      still the constant below: the heat capacity does not change with liquid
+      or ice fraction.
+    latent_heat_of_fusion_j_per_kg: als - alv, the difference the model derives
+    layer_mapping: >
+      DECLARED, and by midpoint. The soil temperature layers (`dsoilz`, five,
+      reaching 12.4 m) and the water layers (`dsoilwz`) share no boundary, so a
+      water layer takes the temperature of whichever temperature layer contains
+      its centre. The alternative -- making one column a sub-partition of the
+      other -- changes the soil heat solver's geometry and is a larger decision.
+    owner: lshy-5
   composition_dependent:
     value: undeclared
     owner: lshy-5

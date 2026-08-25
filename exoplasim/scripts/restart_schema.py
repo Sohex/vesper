@@ -488,6 +488,16 @@ POLICY.update({
                          "restart written before the layers existed is "
                          "rebuilt from dwatc on the declared layer shape, "
                          "which is exact at one layer"),
+    "dsoili": Policy(PROGNOSTIC_GRID, REMAP, RESERVOIR, domain="land",
+                     conserve="soil_water", bounds=(0.0, None),
+                     why="LSHY-5. Soil ice by layer, metres of WATER "
+                         "equivalent, so it is the same substance as dwatcl "
+                         "and conserves against the same inventory: freeze "
+                         "and thaw move mass between the two and neither is a "
+                         "source. A RESERVOIR for that reason, and remapping "
+                         "it as an intensity would break the pair. Zero under "
+                         "the default nlandwphase = 0, where the land column "
+                         "has no soil ice at all"),
     "ddrain": Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE, domain="land",
                      why="LSHY-3. Drainage out of the base of the land "
                          "column, metres per second. Identically zero under "

@@ -366,6 +366,59 @@ which at equal fractional fill differs from this model by a factor of 39 at 0.4
 of capacity and 2 at 0.8 -- so the disagreement becomes a runtime bracket rather
 than a code fork. Neither limiter is right; that is what a bracket is for.
 
+### Soil phase, and the two columns that share no boundary
+
+`nlandwphase = 1` freezes and thaws the liquid in each water layer against the
+soil temperature at its depth. It needs `nlandwcol = 1`, because phase is a
+property of a layer and the scalar bucket has no layer to freeze, and it is off
+by default: this model's five soil temperature layers carry no water and no
+phase, so melt water always infiltrates whatever the soil temperature.
+
+**Ice occupies pore space, and that is the whole infiltration impedance.** A
+layer's capacity in `column_step` is its capacity less its ice, so a frozen
+layer fills and overflows sooner. No conductivity is involved, which is just as
+well: the column has none, and `pedology/config/land_column_properties.yaml`
+carries `flow.saturated_conductivity` as undeclared. `frozen_impedance` in
+`landcolumn.f90` is the conductivity form, declared for the gradient-driven
+hypothesis that would need it and used by nothing.
+
+**Water and energy close for the same reason.** The mass that changes phase and
+the temperature change are the same number read two ways: a layer at
+`tmelt - dT` freezes at most the water whose latent heat of fusion would raise
+it back to `tmelt`, and that latent heat is exactly what the layer's
+temperature is then moved by. The latent heat is `als - alv`, because this model
+declares vaporisation and sublimation and derives fusion as the difference, and
+that is the constant `landmod.f90`'s own snowmelt already uses.
+
+`verify_land_column_reduction.sh` checks both identities across a sweep in
+temperature and in how much water is present, so the energy-limited and
+water-limited branches are visited in both directions. **The tolerance is
+DERIVED and not chosen**: the energy identity is read through a temperature
+difference near 273 K, so its relative precision is degraded by the ratio of the
+absolute temperature to the change, and each case carries its own bound computed
+from machine epsilon and that ratio. The reported number is the worst residual
+over its own bound, which comes out the same at default real and at
+`-fdefault-real-8` -- the confirmation that the bound is the right scaling
+rather than a number that happened to pass. Control 4 books the exchange at the
+latent heat of vaporisation instead of fusion and must break the energy identity
+while leaving the water identity intact, which is exactly what a wrong latent
+heat does.
+
+**`dsoilwz` is the water column's layer thicknesses, and the model has never had
+them.** `dwmax` is a capacity in metres OF WATER and says nothing about depth;
+`dsoilwf` is a share of that capacity. Phase needs a depth, because the
+temperature that decides it lives on the `dsoilz` soil temperature layers and
+those share no boundary with the water layers. The mapping is declared and is by
+midpoint: a water layer takes the temperature of whichever temperature layer
+contains its centre. The default is one water layer of 1.5 m, which is the
+property contract's column base and LPJ-GUESS's physical profile.
+
+**The snow half is not here.** ExoPlaSim's snow density is the constant
+`rhosnow = 330` kg/m3 with no compaction while LPJ-GUESS ages its snow from 275
+to 500, and snow DEPTH is what sets the insulating thickness over the soil, so
+the two columns insulate differently from the same snowfall. GRAV-8 owns that,
+and it is the one snow term that carries gravity.
+
 **What is NOT here.** The third registered hypothesis is gradient-driven flow,
 and it needs an unsaturated conductivity and a matric potential.
 `pedology/config/land_column_properties.yaml` carries both as undeclared, so

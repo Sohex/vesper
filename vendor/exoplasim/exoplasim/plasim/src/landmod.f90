@@ -156,6 +156,35 @@
       real    :: drhslow  = 0.0   ! theta_low, fraction of capacity
       integer :: nrhsexp  = 1     ! the exponent c
 
+!     SOIL PHASE, LSHY-5. Off by default, which is what this model does today:
+!     its five soil temperature layers carry no water and no phase, so melt
+!     water always infiltrates whatever the soil temperature and freeze/thaw
+!     neither absorbs nor releases latent heat in the ground. LPJ-GUESS carries
+!     an ice fraction per layer and reduces available liquid under freezing, so
+!     the two columns presently disagree about whether water that reached the
+!     ground is liquid.
+!
+!     nlandwphase = 1 needs nlandwcol = 1: phase is a property of a LAYER, and
+!     the scalar bucket has no layer to freeze. Ice occupies pore space, so it
+!     comes off the layer's capacity in `column_step` and a frozen layer
+!     overflows sooner; that is the infiltration impedance, and it needs no
+!     conductivity, which this column does not have.
+      integer :: nlandwphase = 0  ! 0: no soil ice, 1: freeze and thaw
+
+!     THE WATER COLUMN'S THICKNESSES, in metres, which the model has never had.
+!     `dwmax` is a CAPACITY in metres of water and says nothing about how deep
+!     the column is, and `dsoilwf` is a share of that capacity, not a thickness.
+!     Phase needs a depth, because the temperature that decides it lives on the
+!     SOIL TEMPERATURE layers, `dsoilz`, and those share no boundary with the
+!     water layers. The mapping is by midpoint: a water layer takes the
+!     temperature of whichever temperature layer contains its centre.
+!
+!     The default is one layer of 1.5 m, which is
+!     pedology/config/land_column_properties.yaml's declared column base and
+!     LPJ-GUESS's physical profile. Inert while nlandwphase = 0.
+      real    :: dsoilwz(NLSOILWX) = (/1.5, 0.0, 0.0, 0.0,                    &
+     &                                 0.0, 0.0, 0.0, 0.0/)
+
 !     SIMBA - fixed parameters
 
       real    :: rlue     =  3.4E-10 ! Recommended by Pablo Paiewonsky
@@ -226,6 +255,7 @@
 !     fluxmod's evaporation limiter, simba's water stress, aeromod and outmod
 !     all read it and none of them knows about layers.
       real :: dwatcl(NHOR,NLSOILWX) = 0.0  ! liquid water by layer (m)
+      real :: dsoili(NHOR,NLSOILWX) = 0.0  ! soil ice by layer (m water equiv.)
       real :: ddrain(NHOR)          = 0.0  ! drainage out of the column base (m/s)
 !
 !     e) climatological surface
@@ -251,7 +281,8 @@
 !$omp&  albsminf,albsminf1,albsminf2,co2conv,dalbcl,dalbcl1,dalbcl2,dalbclim,dalbclim1,dalbclim2,&
 !$omp&  darea,dgroundalbnl,doro,dqs,drhsfull,drhsland,driver,dsmax,dsnowt,dsnowz,dsoilt,dsoilz,dtcl,&
 !$omp&  dtclim,dtclsoil,dts,dtsm,duroff,dvroff,dwatcini,dwater,dwcl,dwclim,dz0clim,dz0climo,dz0land,&
-!$omp&  dwatcl,ddrain,dsoilwf,drhslow,nlandwcol,nlsoilw,nlandwdrain,nrhsexp,&
+!$omp&  dwatcl,dsoili,ddrain,dsoilwf,dsoilwz,drhslow,nlandwcol,nlsoilw,&
+!$omp&  nlandwdrain,nrhsexp,nlandwphase,&
 !$omp&  dzglac,dztop,forcovmn,forcovmx,lversion,newsurf,nlandt,nlandw,nwatcini,nwetsoil,rhosnow,&
 !$omp&  snowcovz,&
 !$omp&  rinifor,rlue,rnbiocats,roffexp,roffpit,roffvel,&
@@ -304,7 +335,7 @@
 !
       namelist/landmod_nl/nlandt,nlandw,albland,dz0land,drhsland        &
      &                ,nlandwcol,nlsoilw,nlandwdrain,dsoilwf              &
-     &                ,drhslow,nrhsexp                                    &
+     &                ,drhslow,nrhsexp,nlandwphase,dsoilwz                &
      &                ,dsnowalbmn,dsnowalbmx,dglacalbmn,dsnowalb        &
      &                ,dsmax,wsmax,drhsfull,dzglac,dztop,dsoilz         &
      &                ,rlue,co2conv,tau_veg,tau_soil                    &
@@ -421,7 +452,9 @@
       call mpbci(nlandwdrain)
       call mpbci(nrhsexp)
       call mpbcr(drhslow)
+      call mpbci(nlandwphase)
       call mpbcrn(dsoilwf,NLSOILWX)
+      call mpbcrn(dsoilwz,NLSOILWX)
 
 !     LSHY-3. Validate the scheme selection and normalise the layer shape, once
 !     and here, so nothing downstream has to. A shape that does not sum to one
@@ -458,6 +491,30 @@
         write(nud,*)' *** LSHY-3: land liquid water on the layered column,'
         write(nud,*)' *** nlsoilw = ',nlsoilw,', lower boundary ',nlandwdrain
         write(nud,*)' *** layer shape ',(dsoilwf(jlay),jlay=1,nlsoilw)
+       endif
+      endif
+
+!     LSHY-5. Phase is a property of a layer, so it needs the layered column.
+      if (nlandwphase == 1) then
+       if (nlandwcol /= 1) then
+        if (mypid == NROOT) then
+         write(nud,*)'*** nlandwphase = 1 needs nlandwcol = 1: the scalar'
+         write(nud,*)'*** bucket has no layer to freeze'
+        endif
+        stop
+       endif
+       do jlay=1,nlsoilw
+        if (dsoilwz(jlay) <= 0.0) then
+         if (mypid == NROOT) then
+          write(nud,*)'*** dsoilwz must be positive for every water layer in'
+          write(nud,*)'*** use: phase needs a depth to find a temperature at'
+         endif
+         stop
+        endif
+       enddo
+       if (mypid == NROOT) then
+        write(nud,*)' *** LSHY-5: soil phase active on the water column,'
+        write(nud,*)' *** layer thicknesses ',(dsoilwz(jlay),jlay=1,nlsoilw)
        endif
       endif
       call mpbcr(wsmax)
@@ -702,11 +759,14 @@
 !      so the two paths agree.
        nexcheck = 0
        dwatcl(:,:) = -1.0
+       dsoili(:,:) = 0.
        call mpgetgp('dwatcl'  ,dwatcl  ,NHOR,NLSOILWX)
+       call mpgetgp('dsoili'  ,dsoili  ,NHOR,NLSOILWX)
        call mpgetgp('ddrain'  ,ddrain  ,NHOR,     1)
        nexcheck = 1
        if (ALL(dwatcl(:,:) < 0.0)) then
         dwatcl(:,:) = 0.
+        dsoili(:,:) = 0.
         do jlay=1,nlsoilw
          where(dls(:) > 0.0) dwatcl(:,jlay)=dwatc(:)*dsoilwf(jlay)
         enddo
@@ -905,6 +965,7 @@
       call mpputgp('dsnowz'  ,dsnowz  ,NHOR, 1)
       call mpputgp('dsoilt'  ,dsoilt  ,NHOR,NLSOIL)
       call mpputgp('dwatcl'  ,dwatcl  ,NHOR,NLSOILWX)
+      call mpputgp('dsoili'  ,dsoili  ,NHOR,NLSOILWX)
       call mpputgp('ddrain'  ,ddrain  ,NHOR, 1)
       call mpputgp('dz0clim' ,dz0clim ,NHOR, 1)
       call mpputgp('dz0climo',dz0climo,NHOR, 1)
@@ -1387,6 +1448,7 @@
 !
       real :: zcap(NLSOILWX)
       real :: zwl(NLSOILWX)
+      real :: zil(NLSOILWX)
       real :: zwn(NLSOILWX)
 !
       drunoff(:)=0.
@@ -1395,11 +1457,13 @@
        if (dls(jhor) > 0.0) then
         zcap(:) = 0.
         zwl(:)  = 0.
+        zil(:)  = 0.
         do jlay=1,nlsoilw
          zcap(jlay) = dwmax(jhor) * dsoilwf(jlay)
          zwl(jlay)  = dwatcl(jhor,jlay)
+         zil(jlay)  = dsoili(jhor,jlay)
         enddo
-        call column_step(nlsoilw,zwl,zcap,dwater(jhor),deltsec,          &
+        call column_step(nlsoilw,zwl,zil,zcap,dwater(jhor),deltsec,      &
      &                   nlandwdrain,zwn,zroff,zdrn)
         zsum = 0.
         do jlay=1,nlsoilw
@@ -1414,6 +1478,87 @@
 !
       return
       end subroutine wandrcol
+
+!     ===================
+!     SUBROUTINE LANDPHASE
+!     ===================
+
+      subroutine landphase
+      use landmod
+!
+!     LSHY-5. Freeze and thaw the liquid in each water layer against the soil
+!     temperature at its depth, conserving water and energy.
+!
+!     THE TWO COLUMNS SHARE NO BOUNDARY. The soil temperature layers are
+!     `dsoilz`, five of them reaching 12.4 m, and the water layers are
+!     `dsoilwz`, which the model did not have until this row. The mapping is
+!     declared and is by MIDPOINT: a water layer takes the temperature of
+!     whichever temperature layer contains its centre. That is a choice and it
+!     is written down rather than emergent; the alternative -- making one
+!     column a sub-partition of the other -- changes the soil heat solver's
+!     geometry and is a larger decision than this row.
+!
+!     OPERATOR SPLIT. `tands` has already solved the soil temperatures for this
+!     step and `wandrcol` has already moved the liquid. This adjusts both for
+!     the phase change afterwards, which is what makes the exchange exactly
+!     conservative: the latent heat leaves one store and arrives in the other
+!     as the same number, with no solver between them to round it.
+!
+      real :: zwl(NLSOILWX)
+      real :: zil(NLSOILWX)
+      real :: zztop(NLSOILWX)
+      real :: ztop, zmid
+      integer :: itlay(NLSOILWX)
+!
+!     Which temperature layer each water layer's midpoint falls in. A property
+!     of the two declared geometries and not of the cell, so it is worked out
+!     once rather than per cell.
+!
+      ztop = 0.
+      do jlay=1,nlsoilw
+       zmid = ztop + 0.5*dsoilwz(jlay)
+       zztop(jlay) = ztop
+       ztop = ztop + dsoilwz(jlay)
+       zbot = 0.
+       itlay(jlay) = NLSOIL
+       do jt=1,NLSOIL
+        zbot = zbot + dsoilz(jt)
+        if (zmid <= zbot) then
+         itlay(jlay) = jt
+         exit
+        endif
+       enddo
+      enddo
+!
+      do jhor=1,NHOR
+       if (dls(jhor) > 0.0) then
+        zcapv = sicecap*dglac(jhor) + soilcap*(1.-dglac(jhor))
+        do jlay=1,nlsoilw
+         zwl(jlay) = dwatcl(jhor,jlay)
+         zil(jlay) = dsoili(jhor,jlay)
+        enddo
+        zsum = 0.
+        do jlay=1,nlsoilw
+         it = itlay(jlay)
+         call phase_step(zwl(jlay),zil(jlay),dsoilt(jhor,it),zcapv,      &
+     &                   dsoilwz(jlay),tmelt,als-alv,1000.,             &
+     &                   zliqn,zicen,ztemn)
+         dwatcl(jhor,jlay) = zliqn
+         dsoili(jhor,jlay) = zicen
+         dsoilt(jhor,it)   = ztemn
+         zsum = zsum + zliqn
+        enddo
+!
+!       dwatc is the LIQUID total, not the water total. Frozen pore water is
+!       not available to evaporate, and dwatc is what fluxmod's evaporation
+!       limiter and simba's water stress read.
+!
+        dwatc(jhor) = zsum
+       endif
+      enddo
+!
+      return
+      end subroutine landphase
 
 !     ==================
 !     SUBROUTINE SOILINI
@@ -1455,6 +1600,7 @@
 !      a scheme switch agree.
 !
        dwatcl(:,:)=0.
+       dsoili(:,:)=0.
        do jlay=1,nlsoilw
         where(dls(:) > 0.0) dwatcl(:,jlay)=dwatc(:)*dsoilwf(jlay)
        enddo
@@ -1487,6 +1633,7 @@
       if(nlandw==1) then
        if(nlandwcol==1) then
         call wandrcol
+        if(nlandwphase==1) call landphase
        else
         call wandr
        endif
