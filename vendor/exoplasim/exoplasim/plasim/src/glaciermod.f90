@@ -167,6 +167,18 @@
         call mpgetgp('persistt',persistt  ,NHOR,1)
       else
         call mpsurfgp('doro'    ,doro    ,NHOR,1)
+!       THE ONE PLACE OROSCALE IS APPLIED, and it is on the cold path because
+!       this is where the staged field first enters the model. ExoPlaSim
+!       invokes the executable once per orbit, so anything scaled outside this
+!       branch is scaled again on every invocation: groundoro comes back out of
+!       the restart record groundsg above and doro out of 'doro', both already
+!       carrying whatever scaling the cold start applied. oroini used to scale
+!       groundoro and glacierini used to scale doro a second time on top of it,
+!       so a non-unit oroscale raised the staged orography to the power of the
+!       number of invocations. Inert at the compiled default of 1.0, which is
+!       why it stood; multiplying by exactly 1.0 is the identity, so moving it
+!       here leaves groundsg bit-equal to the staged field. world-6qee.
+        doro(:) = doro(:) * oroscale
         groundoro(:) = doro(:)
         glacieroro(:) = 0.0
         if (icesheeth .ge. 0.0) then
@@ -221,7 +233,10 @@
            
 !          Compute spectral orography
         so(:) = 0.
-        doro(:) = doro(:) * oroscale  ! Scale orography
+!       doro is groundoro + glacieroro as oroini just built it, and groundoro
+!       was scaled where the staged field entered the model. Scaling it again
+!       here applied oroscale twice to the ground part within one call and once
+!       more on every later invocation. world-6qee.
         foro(:) = doro(:)
         
         
@@ -309,7 +324,10 @@
                 
 !        Compute spectral orography
         so(:) = 0.
-        doro(:) = doro(:) * oroscale  ! Scale orography
+!       doro is groundoro + glacieroro as oroini just built it, and groundoro
+!       was scaled where the staged field entered the model. Scaling it again
+!       here applied oroscale twice to the ground part within one call and once
+!       more on every later invocation. world-6qee.
         foro(:) = doro(:)
         
         
@@ -434,7 +452,9 @@
       
       if (nglacier .gt. 0.5) then
       
-      groundoro(:) = groundoro(:)*oroscale
+!     groundoro arrives already scaled -- from the cold start's own read, or
+!     from the restart record that start wrote. It is NOT scaled here: oroini
+!     runs on every model invocation and this compounded. world-6qee.
       
 !     Glacier thickness enters the orography as geopotential, and every reader
 !     of doro divides by ga to get metres back, so the gravity used here has to

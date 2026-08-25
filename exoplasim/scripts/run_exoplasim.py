@@ -478,6 +478,15 @@ def configure_otherargs(derived: dict) -> dict:
         # parameter for it and it is an ordinary `icemod_nl` key, so it goes
         # the same route N_DAYS_PER_YEAR does. CLIM-17.
         "TFREEZE@icemod_namelist": f"{derived['sea_water_freezing_point_k']:.4f}",
+        # THE OROGRAPHY IS THE STAGED EXPORT AND NOTHING RESCALES IT, declared
+        # rather than inherited from p_earth.f90's compiled 1.0. This project's
+        # terrain comes from World Orogen and reaches the model as code 129, so
+        # a scale factor on it is never a setting this world wants -- but it is
+        # a planet_nl key nothing was writing, so the value the model integrated
+        # was whatever the vendored default happened to be. Written here rather
+        # than through `configure(orography=...)`, whose branch also forces
+        # NGLACIER and would fight the glacier settings above. world-6qee.
+        "OROSCALE@planet_namelist": "1.0",
         # THE OTHER THREE WAYS SALINITY REACHES THE MODEL, and they travel with
         # the freezing point rather than behind it: a bracket that moves only
         # TFREEZE moves one of four. Density is the mixed-layer heat capacity
@@ -2715,6 +2724,12 @@ def expected_namelist_keys(config: dict) -> dict:
     # exists to catch. failure-modes class 22.
     if m.get("energy_fixer") is not None:
         want["plasim_namelist"]["NENERGYFIX"] = 1.0 if m["energy_fixer"] else 0.0
+    # world-6qee, and unconditional for NSTORMDIAG's reason rather than
+    # derived from a config key: no orography scaling is an assertion about
+    # this world, not a knob it sets. `configure_otherargs` writes it on every
+    # prepare and every resume, so an absent key means a continuation dropped
+    # it and the model reverted to p_earth.f90's compiled literal.
+    want["planet_namelist"]["OROSCALE"] = 1.0
     if m.get("robert_filter") is not None:
         want["planet_namelist"]["PNU"] = float(m["robert_filter"])
         if m.get("energy_diagnostics_3d", False):

@@ -91,10 +91,15 @@ plarad        = 6371220.0     ! Radius
 ! oroscale scales the orography read from the surface file. It belongs to
 ! planet_nl and to no other group because it has to be SET BEFORE IT IS USED:
 ! planet_ini is the only namelist read that happens before surface_ini, and
-! every reader of oroscale -- surfmod's scaling of doro and glaciermod's three
-! -- runs inside surface_ini. It was in no namelist at all, so the documented
+! both readers of oroscale -- surfmod's scaling of doro and glacierini's
+! scaling of the staged field where it enters the model -- run inside
+! surface_ini. It was in no namelist at all, so the documented
 ! configure(orography=) wrote a name landmod_nl does not declare, and
 ! landmod's bare read would have aborted the run. world-vv4.
+! Both readers are on the COLD PATH ONLY, and that is load bearing: ExoPlaSim
+! invokes the executable once per orbit, so a scaling applied outside a
+! nrestart == 0 branch is applied again on every invocation and compounds.
+! world-6qee.
 oroscale      =       1.0     ! Orography scaling
 
 ! *********

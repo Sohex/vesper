@@ -582,6 +582,24 @@ so a basin that only just overflows becomes a through-flowing valley with a
 residual lake rather than a fully trenched one. A JSON array of ids, or of
 `{id, retain}` objects, is accepted too.
 
+**The fraction is of the basin's NATURAL spill depth, in the dimensionless
+elevation parameter** — `depth` as `detectBasins` measured it on the
+pre-conditioning surface, not `depthKm` and not the depression the finished
+terrain ends up with. `buildBasinProtection` sets `carveAllowance` to
+`(1 - retain) · depth` and `inciseOutlets` cuts the notch to the same, so that
+is the currency the number is spent in. It is not a free choice: protection is
+built before erosion runs, so no finished depth exists yet, and the carve
+operates on model elevations throughout.
+
+A verdict computed against a physical depth in km, or against the depression
+the previous generation finished with, is therefore on a different basis and
+has to be converted before it is written. The two differ by
+`finalPreserved.retainedFraction`, and the height curve is quartic on land, so
+the gap is neither small nor a constant — on one 10M-region terrain a median
+factor of 1.24 in model units and 1.69 in km. Both endpoints are exempt: retain
+1 gives an allowance of zero and is bit-identical to no allowance, and retain 0
+clears the divide outright, so only the partial fractions carry a basis at all.
+
 ### Ids are stable across the loop
 
 Basin ids are computed from the **pre-conditioning surface**, which is produced

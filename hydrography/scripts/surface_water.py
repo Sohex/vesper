@@ -6,8 +6,10 @@ was forcing. This runs it against whichever ExoPlaSim climatology
 runoff down the drainage network to get river discharge. Two products, one water
 balance:
 
-    data/<build>/surface_water.nc   per region: lake, lake depth, river discharge
-                            per basin: area, level, volume, overflow
+    data/<build>/surface_water.nc   per region: lake, lake depth, river discharge,
+                            and the periodic lake cycle painted onto regions
+                            per basin: area, level, volume, overflow, and the
+                            periodic steady state through the climatology's bins
 
 This is the first thing in the project to decide `surface_class == 2`, which
 World Orogen deliberately leaves empty. It is a result, not a picture, and it
@@ -202,6 +204,40 @@ def region_grid_cells(export, field_lat):
     return climatology_cells(export, builds.grid_export(), field_lat)
 
 
+def _fill_order(terminal, filled_km, area_km2, n_basins):
+    """The ascending-flooded-surface order each basin is filled in, once.
+
+    Depends on the terrain and the basin membership and NOT on how much water
+    is in any basin, so it is the same order in every time bin of a cycle. It
+    is hoisted out because the sort is over every region in a basin and
+    `paint_lake_cycle` would otherwise repeat it once per bin.
+
+    Returns `(order, within, bounds)`: the region indices grouped by basin and
+    ascending in filled surface, the area cumulated within each basin along
+    that order, and the group boundaries.
+    """
+    sel = np.flatnonzero(terminal >= 0)
+    order = sel[np.lexsort((filled_km[sel], terminal[sel]))]
+    bounds = np.searchsorted(terminal[order], np.arange(n_basins + 1))
+    cumulative = np.cumsum(area_km2[order])
+    start = np.zeros(order.size)
+    for b in range(n_basins):
+        lo, hi = bounds[b], bounds[b + 1]
+        if hi > lo:
+            start[lo:hi] = cumulative[lo] - area_km2[order[lo]]
+    return order, cumulative - start, bounds
+
+
+def _paint(order, within, bounds, n_regions, budget_km2):
+    """Regions under water once each basin is filled to its own area budget."""
+    wet = np.zeros(n_regions, bool)
+    budget = np.zeros(order.size)
+    for b in range(budget_km2.size):
+        budget[bounds[b]:bounds[b + 1]] = budget_km2[b]
+    wet[order] = within <= budget
+    return wet
+
+
 def paint_lakes(terminal, filled_km, area_km2, solved_area_km2):
     """Which regions lie under water, filling each basin to its solved area.
 
@@ -213,24 +249,67 @@ def paint_lakes(terminal, filled_km, area_km2, solved_area_km2):
     stops a basin at what it actually holds: a lake too small to reach a whole
     region simply is not drawn.
     """
-    wet = np.zeros(terminal.size, bool)
-    sel = np.flatnonzero(terminal >= 0)
-    order = sel[np.lexsort((filled_km[sel], terminal[sel]))]
-    groups = terminal[order]
-    bounds = np.searchsorted(groups, np.arange(solved_area_km2.size + 1))
+    order, within, bounds = _fill_order(terminal, filled_km, area_km2,
+                                        solved_area_km2.size)
+    return _paint(order, within, bounds, terminal.size, solved_area_km2)
 
-    cumulative = np.cumsum(area_km2[order])
-    start = np.zeros(order.size)
-    for b in range(solved_area_km2.size):
-        lo, hi = bounds[b], bounds[b + 1]
-        if hi > lo:
-            start[lo:hi] = cumulative[lo] - area_km2[order[lo]]
-    within = cumulative - start
-    budget = np.zeros(order.size)
-    for b in range(solved_area_km2.size):
-        budget[bounds[b]:bounds[b + 1]] = solved_area_km2[b]
-    wet[order] = within <= budget
-    return wet
+
+def paint_lake_cycle(terminal, filled_km, area_km2, area_by_bin_km2,
+                     bin_weight, cycle_closed):
+    """The periodic lake cycle, painted onto regions bin by bin.
+
+    WORLD-9IY5, and it is one operation rather than a new one: the periodic
+    solve gives each closed basin a lake AREA in every time bin, and painting
+    an area onto regions is exactly what `paint_lakes` does for the annual
+    equilibrium. This runs the same fill, once per bin, and reduces the bins to
+    per-region quantities that a classification can partition on.
+
+    **THIS IS THE CLOSED-BASIN THIRD OF THE SEASONAL QUANTITY AND NOTHING
+    ELSE.** `hydrography/notes/land-water-ledger.md` splits seasonally
+    inundated land in three. A FLOODPLAIN's inundated area needs a
+    height-above-nearest-drainage distribution and a routing model, neither of
+    which exists in this project, and a seasonally saturated SOIL is a water
+    content rather than an area. Merging either into what this returns would
+    put three quantities under one name, and the merge would be invisible in
+    the file.
+
+    **A BASIN WHOSE YEAR DID NOT CLOSE HAS NO CYCLE**, so it is not painted at
+    all and `decided` is false over every region that drains to it. That is the
+    same refusal `solve_periodic` makes, carried across the crossing rather
+    than dropped by it: a reader must be able to tell a region that is dry all
+    year from one whose basin was refused, and a zero cannot say both.
+
+    Returns a dict of per-region arrays:
+      `cycle_fraction`  share of ONE CYCLE the region spends under water,
+                        weighted by the bins' own lengths rather than counted,
+                        because the bins need not be equal.
+      `bins_wet`        how many bins it is under water, which is the exact
+                        integer the permanent/seasonal split is taken on.
+      `decided`         its basin closed its year, so the two above mean
+                        something.
+    """
+    n_regions = terminal.size
+    nbin, n_basins = np.asarray(area_by_bin_km2).shape
+    bin_weight = np.asarray(bin_weight, dtype=float)
+    if bin_weight.shape != (nbin,):
+        raise ValueError(f"bin_weight is {bin_weight.shape}, expected ({nbin},)")
+    closed = np.asarray(cycle_closed, dtype=bool)
+    order, within, bounds = _fill_order(terminal, filled_km, area_km2, n_basins)
+
+    cycle_fraction = np.zeros(n_regions)
+    bins_wet = np.zeros(n_regions, np.int16)
+    for k in range(nbin):
+        # A refused basin gets a zero budget, so nothing of it is painted in
+        # any bin and `decided` below is what says so.
+        budget = np.where(closed, np.asarray(area_by_bin_km2[k], dtype=float), 0.0)
+        wet_k = _paint(order, within, bounds, n_regions, budget)
+        cycle_fraction += bin_weight[k] * wet_k
+        bins_wet += wet_k
+    decided = np.zeros(n_regions, bool)
+    in_basin = terminal >= 0
+    decided[in_basin] = closed[terminal[in_basin]]
+    return {"cycle_fraction": cycle_fraction, "bins_wet": bins_wet,
+            "decided": decided, "bins": nbin}
 
 
 def route_overflow(discharge, receiver, spill_exit, overflow_m3_s, land):
@@ -304,6 +383,99 @@ def river_discharge(export, receiver, runoff_per_region):
     return np.array(flow)
 
 
+def _selftest() -> int:
+    """The crossing, against identities the painting must satisfy.
+
+    Every check can fail and each has a right answer fixed by construction
+    rather than by a result. The first is the one that makes the crossing the
+    same operation as the annual one rather than a second implementation of it.
+    """
+    problems: list[str] = []
+    n_checks = 0
+
+    def check(name: str, ok: bool, detail: str = "") -> None:
+        nonlocal n_checks
+        n_checks += 1
+        print(f"[{'  ok  ' if ok else ' FAIL '}] {name}{'' if ok else ': ' + detail}")
+        if not ok:
+            problems.append(name)
+
+    rng = np.random.default_rng(20260825)
+    n_regions, n_basins, nbin = 600, 5, 6
+    terminal = rng.integers(-1, n_basins, n_regions)
+    filled_km = rng.uniform(0.0, 1.0, n_regions)
+    area_km2 = rng.uniform(50.0, 400.0, n_regions)
+    # Basin capacities well inside what the members can hold, so the fill stops
+    # partway and the seasonal ring is not empty by construction.
+    per_basin = np.array([area_km2[terminal == b].sum() for b in range(n_basins)])
+    annual = 0.5 * per_basin
+    closed = np.array([True, True, True, False, True])
+    weights = rng.dirichlet(np.ones(nbin))
+
+    # ONE BIN AT FULL WEIGHT IS THE ANNUAL PAINT. Same operation, so it must
+    # give the same regions, not merely a similar count.
+    one = paint_lake_cycle(terminal, filled_km, area_km2, annual[None, :],
+                           np.array([1.0]), np.ones(n_basins, bool))
+    direct = paint_lakes(terminal, filled_km, area_km2, annual)
+    check("one bin at full weight reproduces the annual paint region for region",
+          bool(((one["bins_wet"] > 0) == direct).all()),
+          f"{int(((one['bins_wet'] > 0) != direct).sum())} regions differ")
+
+    # A FORCING WITH NO SEASON MUST PAINT NO SEASON. A per-bin painter that
+    # rounded, or that mixed the order between bins, would leak regions here.
+    steady = np.tile(annual, (nbin, 1))
+    st = paint_lake_cycle(terminal, filled_km, area_km2, steady, weights,
+                          np.ones(n_basins, bool))
+    wet_all = st["bins_wet"] == nbin
+    check("a steady area gives every painted region the whole cycle",
+          bool(((st["bins_wet"] == 0) | wet_all).all())
+          and float(np.abs(st["cycle_fraction"][wet_all] - 1.0).max()) < 1e-12,
+          f"{int(((st['bins_wet'] != 0) & ~wet_all).sum())} regions part-wet")
+
+    # THE DURATION IS IN CYCLE UNITS, NOT BIN COUNTS. A painter that averaged
+    # over bins instead of weighting by their lengths passes every check above
+    # and fails this one, and unequal bins are the normal case.
+    lop = np.zeros((nbin, n_basins))
+    lop[0] = annual
+    lo = paint_lake_cycle(terminal, filled_km, area_km2, lop, weights,
+                          np.ones(n_basins, bool))
+    touched = lo["bins_wet"] > 0
+    check("the duration is weighted by the bins' own lengths",
+          float(np.abs(lo["cycle_fraction"][touched] - weights[0]).max()) < 1e-12,
+          f"got {lo['cycle_fraction'][touched][:3]} for a bin of {weights[0]:.4f}")
+
+    # NESTED BY CONSTRUCTION: the fill order does not depend on the budget, so
+    # a bigger lake covers everything a smaller one did. bins_wet must then be
+    # exactly how many bins reach the region, which is an independent count.
+    varying = annual[None, :] * rng.uniform(0.2, 1.0, (nbin, 1))
+    va = paint_lake_cycle(terminal, filled_km, area_km2, varying, weights,
+                          np.ones(n_basins, bool))
+    tally = np.zeros(n_regions, np.int16)
+    for k in range(nbin):
+        tally += paint_lakes(terminal, filled_km, area_km2, varying[k])
+    check("bins_wet equals the bins that reach the region, counted separately",
+          bool((va["bins_wet"] == tally).all()),
+          f"{int((va['bins_wet'] != tally).sum())} regions disagree")
+    check("a varying forcing does produce a seasonal ring",
+          bool(((va["bins_wet"] > 0) & (va["bins_wet"] < nbin)).any()),
+          "the fixture has no season to detect")
+
+    # A REFUSED BASIN IS NOT PAINTED AND SAYS SO. A zero that meant both dry
+    # and unsolved is the failure this separates.
+    ref = paint_lake_cycle(terminal, filled_km, area_km2, steady, weights, closed)
+    members = terminal == 3
+    check("a basin whose year did not close is refused, not painted dry",
+          not bool(ref["bins_wet"][members].any())
+          and not bool(ref["decided"][members].any())
+          and bool(ref["decided"][terminal == 0].all()),
+          "the refusal did not cross")
+    check("a region in no basin is never decided",
+          not bool(ref["decided"][terminal < 0].any()), "off-basin regions decided")
+
+    print(f"\n{n_checks} checks, {len(problems)} failed")
+    return 1 if problems else 0
+
+
 def main():
     import argparse
     ap = argparse.ArgumentParser()
@@ -313,7 +485,13 @@ def main():
     ap.add_argument("--climatology", type=Path, default=None,
                     help="baseline_regular_climatology.nc to force the lakes with")
     ap.add_argument("--output", type=Path, default=None)
+    ap.add_argument("--selftest", action="store_true",
+                    help="run the basin-to-region crossing's identity checks; "
+                         "needs no build and no climatology")
     args = ap.parse_args()
+
+    if args.selftest:
+        raise SystemExit(_selftest())
 
     global _DATA, _CLIM_FILE
     import yaml as _yaml
@@ -433,6 +611,20 @@ def main():
     wet = paint_lakes(terminal, filled_km, area, solution["area_km2"])
     lake_depth = np.where(wet, level[np.maximum(terminal, 0)] - filled_km, 0.0)
 
+    # THE CROSSING FROM BASIN TO REGION. The periodic solve is per basin and
+    # every consumer of a seasonal wetness is per region, so the cycle is
+    # painted the same way the annual solve is, once per bin. world-9iy5.
+    cycle = paint_lake_cycle(terminal, filled_km, area,
+                             periodic["area_km2"], bin_weights,
+                             periodic["closed"])
+    seasonal_region = (cycle["decided"] & (cycle["bins_wet"] > 0)
+                       & (cycle["bins_wet"] < nbin))
+    permanent_region = cycle["decided"] & (cycle["bins_wet"] == nbin)
+    print(f"  painted the cycle onto regions: {int(permanent_region.sum()):,} "
+          f"under water in every bin, {int(seasonal_region.sum()):,} in some "
+          f"bins and not all, over {int(cycle['decided'].sum()):,} regions "
+          "whose basin closed its year")
+
     planet_km2 = float(area.sum())
     lake_km2 = float(area[wet].sum())
     print(f"  {int(solution['area_km2'].size - solution['dry'].sum())} basins hold water, "
@@ -481,6 +673,22 @@ def main():
              "lake surface less the filled terrain"),
             ("discharge_m3_s", discharge, "f4", "region", "m3 s-1",
              "runoff accumulated down the drainage tree"),
+            # The periodic cycle, crossed to regions. world-9iy5. CLOSED-BASIN
+            # LAKE AREA ONLY: not a floodplain's inundation, which needs a
+            # height-above-nearest-drainage distribution and a routing model
+            # this project does not have, and not a seasonally saturated soil,
+            # which is a water content rather than an area.
+            ("lake_cycle_decided", cycle["decided"], "i1", "region", "1",
+             "the basin this region drains to closed its year, so the two "
+             "fields below mean something. READ THIS FIRST: a zero in them is "
+             "otherwise ambiguous between dry all year and never solved"),
+            ("lake_cycle_fraction", cycle["cycle_fraction"], "f4", "region", "1",
+             "share of one cycle the region spends under the periodic lake, "
+             "weighted by the time bins' own lengths"),
+            ("lake_cycle_bins_wet", cycle["bins_wet"], "i2", "region", "1",
+             "time bins the region is under the periodic lake, out of the "
+             "climatology's own. The exact integer a permanent/seasonal split "
+             "is taken on; the fraction above is the duration"),
             ("basin_area_km2", solution["area_km2"], "f8", "basin", "km2",
              "solved equilibrium lake area"),
             ("basin_level_km", level, "f8", "basin", "km", "solved lake surface"),
@@ -565,6 +773,21 @@ def main():
             "basins_with_published_season": int(periodic["seasonal"].sum()),
             "seasonal_area_km2_at_peak": float(periodic["area_km2"].max(axis=0).sum()),
             "seasonal_area_km2_at_trough": float(periodic["area_km2"].min(axis=0).sum()),
+            # THE CROSSING, per region rather than per basin. world-9iy5. The
+            # areas above are what the solve holds; these are what a
+            # classification can partition, and they are smaller because a
+            # lake narrower than a mesh region is not painted.
+            "regions_with_a_decided_cycle": int(cycle["decided"].sum()),
+            "regions_under_water_in_every_bin": int(permanent_region.sum()),
+            "regions_under_water_in_some_bins": int(seasonal_region.sum()),
+            "painted_seasonal_area_km2": float(area[seasonal_region].sum()),
+            "painted_permanent_area_km2": float(area[permanent_region].sum()),
+            "crossing_note": ("closed-basin lake area only. A floodplain's "
+                              "inundated area needs a height-above-nearest-"
+                              "drainage distribution and a routing model that "
+                              "do not exist here, and a seasonally saturated "
+                              "soil is a water content rather than an area. "
+                              "Neither is merged into this."),
             "what_carries_a_season": ("residence time, and the product is per basin "
                                       "because of it: a deep terminal lake holds "
                                       "years of supply and its surface barely moves "

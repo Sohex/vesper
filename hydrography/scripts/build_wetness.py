@@ -66,12 +66,19 @@ saturated-area closure is WITHDRAWN in `config/topographic_index.yaml`: the
 score that was the only thing able to license it was run and missed, and no
 narrower support can resolve the gain it would have had to show. So that class
 is absent permanently rather than pending, and this script forms no saturated
-share from any input. Seasonal inundation and peat need a season, and
-nothing in this component carries one: the lake solve is an annual equilibrium,
-the groundwater solve is a steady state, and every term reaching those stores in
-`config/land_water_ledger.yaml` has an annual interval floor. A wetness fraction
-that is a guess is indistinguishable in the file from one that is a measurement,
-so an unavailable class is absent and says why rather than being estimated.
+share from any input. Peat needs a season and nothing in this component carries
+one: the groundwater solve is a steady state and every term reaching those
+stores in `config/land_water_ledger.yaml` has an annual interval floor. The
+CLOSED-BASIN third of seasonal inundation is the one that has moved:
+`surface_water.py` solves the lake balance as a periodic steady state through
+the climatology's own time bins and now paints that cycle onto regions, so
+`surface_water.nc` carries `lake_cycle_fraction`, `lake_cycle_bins_wet` and
+`lake_cycle_decided` per region. What remains before this script can form the
+class is the partition against `open_water` and `playa`, which the two of them
+have to be measured against and no artifact exists to measure. A wetness
+fraction that is a guess is indistinguishable in the file from one that is a
+measurement, so an unavailable class is absent and says why rather than being
+estimated.
 """
 
 from __future__ import annotations
