@@ -7,11 +7,15 @@ Worldbuilding. Vesper is an invented planet; what follows is the derivation of
 one surface property of the simulated land, and every number is a property of a
 laboratory spectrum or of the model, not of anywhere real.
 
-This is the derivation behind `surface.lithology_emissivity` in
-`config/planet.yaml`, which `exoplasim/scripts/build_surface_emissivity.py`
-turns into an ExoPlaSim boundary condition at surface code 177. It stands to
-the longwave what `analysis/rock_albedo.py` stands to the shortwave, and it is
-built out of the same library.
+This is the derivation behind `model.land_longwave_emissivity` in
+`config/planet.yaml`, which `run_exoplasim.py` writes into `radmod_nl` as
+ELWLAND: the key carries this table area-weighted over the active build's land.
+It stands to the longwave what `analysis/rock_albedo.py` stands to the
+shortwave, and it is built out of the same library.
+
+There is deliberately no per-cell field. `analysis/emissivity_contrast.py` is
+the test of whether one is worth carrying and the answer is no, by a factor of
+three; `notes/audits/surface-longwave.md` carries the measurement.
 
 ## What the model does with the number
 
