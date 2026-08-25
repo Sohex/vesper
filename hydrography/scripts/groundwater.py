@@ -120,8 +120,8 @@ RESPONSE_AMPLITUDE_INVARIANCE = 1.2
 # instrument statement stands.
 HEAD_MESH_FLOOR = 0.005
 # The linear solve has to be finished far below the discretisation error it is
-# being used to measure, or the measurement is of the solver. Conjugate
-# gradients on the Jacobi-preconditioned operator, to this relative residual.
+# being used to measure, or the measurement is of the solver. The same direct
+# factorisation `solve` uses, and this is the relative residual it must reach.
 POISSON_SOLVER_RELATIVE = 1e-10
 # The resolution sweep, declared with the bars. Four meshes, each a factor of
 # four in region count and so a factor of two in cell size, spanning three
@@ -467,9 +467,8 @@ def _laplacian_operator(geom: Geometry):
     the operator is already stored as face weights."""
     n = geom.export.n_regions
     src, dst, g = geom.src, geom.dst, geom.geom
-    diag = np.zeros(n)
-    np.add.at(diag, src, g)
-    np.add.at(diag, dst, g)
+    diag = (np.bincount(src, weights=g, minlength=n)
+            + np.bincount(dst, weights=g, minlength=n))
 
     def matvec(u):
         u = np.asarray(u, dtype=np.float64).ravel()
@@ -479,68 +478,83 @@ def _laplacian_operator(geom: Geometry):
 
 
 def _gather(n, src, dst, g, u):
-    out = np.zeros(n)
-    np.add.at(out, src, g * u[dst])
-    np.add.at(out, dst, g * u[src])
-    return out
+    """`sum_j g_ij u_j` per cell. `np.bincount` and not `np.add.at`: this runs
+    once per conjugate-gradient iteration on a few million faces, and the
+    unbuffered form is what makes the sweep unaffordable rather than slow."""
+    return (np.bincount(src, weights=g * u[dst], minlength=n)
+            + np.bincount(dst, weights=g * u[src], minlength=n))
 
 
-def poisson_solution_error(geom: Geometry, degrees=LAPLACE_DEGREES,
-                           rtol: float = POISSON_SOLVER_RELATIVE,
-                           maxiter: int = 100_000) -> dict:
+def poisson_solution_error(geom: Geometry, degrees=LAPLACE_DEGREES) -> dict:
     """The error in the field the operator SOLVES for, against the same
     analytic answer `laplace_beltrami_error` scores the operator on.
 
     `laplace_beltrami_error` applies `L` to a known `P_l` and scores the
-    residual. This does the opposite and is what a consumer of the water table
-    actually receives: it hands the operator the analytic right-hand side
+    residual. This does the opposite, and it is the one a consumer of the water
+    table receives: it hands the operator the analytic right-hand side
     `-l(l+1)/R^2 P_l` and asks for the field, then scores that field against
     `P_l`. Nothing about this world enters it either.
 
-    THE NULL SPACE IS DEFLATED, NOT PINNED. On a closed sphere `L` annihilates
-    the constants, so the system is singular and consistent. Pinning a cell
-    would break the symmetry and put the pinned cell's own truncation error
-    into every other cell; instead the operator is regularised by a rank-one
-    term `sigma * mean(u)`, which is symmetric, leaves the solution's mean at
-    zero, and changes nothing else. Both sides are compared with their means
-    removed, for the same reason.
+    THE NULL SPACE COSTS ONE EQUATION AND NOTHING ELSE. On a closed sphere `L`
+    annihilates the constants, so the system is singular and, because the
+    right-hand side is made mean-zero, consistent. Deleting one equation and
+    fixing that cell's head at zero is then EXACT rather than an
+    approximation: `1^T L = 0`, so the deleted equation is the sum of the
+    others and holds automatically. What comes back is the true solution up to
+    the constant, and both sides are compared with their means removed.
 
-    The linear solve is certified rather than assumed: the achieved relative
-    residual is returned per degree, and a degree that did not reach `rtol` is
-    reported as unconverged rather than scored.
+    A DIRECT FACTORISATION, for the reason `solve` gives at length: this is a
+    planar-graph Laplacian, minimum degree on `A + A^T` is the right ordering
+    for a symmetric pattern, and diagonally preconditioned conjugate gradients
+    on it did not converge in a usable number of passes when it was tried here.
+    The residual is measured and returned rather than assumed.
+
+    AND THE ORDERING IS NOT ENOUGH ON ITS OWN. SuperLU still pivots for
+    stability by default, which reorders rows during the factorisation and
+    throws away the fill the symmetric ordering just bought. This matrix is
+    symmetric positive definite, so it needs no pivoting at all, and
+    `diag_pivot_thresh=0` with `SymmetricMode` says so. Measured on the 80,000
+    region mesh of the sweep, whose face weights span five orders of magnitude:
+    6.8 million nonzeros in the factor with symmetric mode against a 2.5 GB
+    working set and no answer in minutes without it. The setting is not an
+    optimisation here, it is what makes the arm runnable at all.
     """
-    from scipy.sparse.linalg import LinearOperator, cg
     from scipy.special import eval_legendre
 
     n = geom.export.n_regions
     z = geom.export.z.astype(np.float64)
     area = geom.flux_area_m2
-    matvec, diag = _laplacian_operator(geom)
-    sigma = float(diag.mean())
+    src, dst, g = geom.src, geom.dst, geom.geom
+    diag = (np.bincount(src, weights=g, minlength=n)
+            + np.bincount(dst, weights=g, minlength=n))
+    rows = np.concatenate([np.arange(n), src, dst])
+    cols = np.concatenate([np.arange(n), dst, src])
+    vals = np.concatenate([diag, -g, -g])
+    keep = (rows > 0) & (cols > 0)
+    a = sp.coo_matrix((vals[keep], (rows[keep] - 1, cols[keep] - 1)),
+                      shape=(n - 1, n - 1)).tocsc()
 
-    def regularised(u):
-        u = np.asarray(u, dtype=np.float64).ravel()
-        return matvec(u) + sigma * u.mean()
+    from scipy.sparse.linalg import splu
+    lu = splu(a, permc_spec="MMD_AT_PLUS_A", diag_pivot_thresh=0.0,
+              options=dict(SymmetricMode=True))
 
-    op = LinearOperator((n, n), matvec=regularised, dtype=np.float64)
-    inv_diag = 1.0 / diag
-    pre = LinearOperator((n, n), matvec=lambda v: inv_diag * np.asarray(v).ravel(),
-                         dtype=np.float64)
-
+    matvec, _ = _laplacian_operator(geom)
     out = {}
     for l in degrees:
         u = eval_legendre(l, z)
         rhs = area * (l * (l + 1) / geom.radius_m ** 2) * u
         rhs = rhs - rhs.mean()
-        h, info = cg(op, rhs, rtol=rtol, atol=0.0, maxiter=maxiter, M=pre)
-        resid = float(np.linalg.norm(regularised(h) - rhs) / np.linalg.norm(rhs))
+        h = np.zeros(n)
+        h[1:] = lu.solve(rhs[1:])
+        resid = float(np.linalg.norm(matvec(h) - rhs) / np.linalg.norm(rhs))
         want = u - u.mean()
         got = h - h.mean()
         out[l] = {
             "relative_rms": float(np.sqrt(np.mean((got - want) ** 2))
                                   / np.sqrt(np.mean(want ** 2))),
             "solver_relative_residual": resid,
-            "solver_converged": bool(info == 0 and resid <= rtol),
+            "solver_converged": bool(np.all(np.isfinite(h))
+                                     and resid < POISSON_SOLVER_RELATIVE),
         }
     return out
 
@@ -1937,7 +1951,12 @@ def instrument_report(mesh_arm: str = "auto") -> int:
         return 0 if ok else 1
 
     root = export_dir if mesh_arm == "auto" else Path(mesh_arm)
-    print(f"\n  the mesh in use, {root.parent.name}/{root.name}:")
+    if not (root / "manifest.json").is_file():
+        root = builds.mesh_export_of(root)
+    print(f"\n  a real export, {root.parent.name}/{root.name}. THE ARM'S COST IS "
+          f"A DIRECT\n  FACTORISATION OF THE WHOLE MESH, not of a free set: "
+          f"name a smaller build\n  than the active one where the fill will "
+          f"not fit.")
     export = Export(root)
     geom = Geometry(export)
     print(f"    {export.n_regions:,} regions, Voronoi area closes on the "
@@ -1945,12 +1964,26 @@ def instrument_report(mesh_arm: str = "auto") -> int:
     trunc = laplace_beltrami_error(geom, (2, 3, 4))
     soln = poisson_solution_error(geom, (2, 3, 4))
     for l in (2, 3, 4):
-        s = soln[l]
-        good = s["solver_converged"] and s["relative_rms"] < HEAD_MESH_FLOOR
+        r = soln[l]
+        good = r["solver_converged"] and r["relative_rms"] < HEAD_MESH_FLOOR
         ok &= good
         print(f"    l = {l}   truncation {trunc[l]:8.5f}   solved head "
-              f"{s['relative_rms']:10.3e}   "
+              f"{r['relative_rms']:10.3e}   "
               f"{'below the decision bar' if good else 'AT OR ABOVE THE DECISION BAR'}")
+
+    # The bar is about the mesh the world is solved on. Where the arm ran on a
+    # smaller build than the configured one, the sweep's own fitted order
+    # carries the number across, and the extrapolation is labelled as one.
+    configured = Export(export_dir).n_regions
+    if configured != export.n_regions:
+        ratio = np.sqrt(export.n_regions / configured)
+        print(f"    the configured build carries {configured:,} regions, "
+              f"{ratio:.2f}x smaller cells.\n    Carried across at the sweep's "
+              f"own fitted order, the solved head there is")
+        for l in (2, 3, 4):
+            o = sweep["orders"][l]["solution"]
+            print(f"      l = {l}   {soln[l]['relative_rms'] * ratio ** -o:10.3e}"
+                  f"   (extrapolated, order {o:.2f})")
     return 0 if ok else 1
 
 
@@ -2028,7 +2061,7 @@ def main() -> int:
                          "Dupuit parabola, on a synthetic one-dimensional "
                          "aquifer. Needs no mesh and no climate.")
     ap.add_argument("--instrument", action="store_true",
-                    help="GW-8: what the operator's 12% truncation error is an "
+                    help="GW-8: what the operator's truncation error is an "
                          "error IN. A resolution sweep on meshes from Orogen's "
                          "own generator, separating truncation from solution "
                          "error, and the operator's error on a transmissivity "
