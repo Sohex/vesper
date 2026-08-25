@@ -112,8 +112,8 @@ clothes. Each exclusion is reported by name, never silently dropped.
   `groundoro + glacieroro`, so it legitimately moves as ice accumulates. The
   LITHOGRAPHIC half is a separate record, `groundsg`, and that one is the staged
   field exactly: `glacierini` reads the `.sra` into `doro` on a cold start and
-  copies it to `groundoro` unchanged, and no arithmetic but a multiplication by
-  `oroscale` ever touches it (`glaciermod.f90:170,437`). Nothing spectral does:
+  copies it to `groundoro` unchanged, and no arithmetic but one multiplication
+  by `oroscale` ever touches it (`glaciermod.f90:181,182`). Nothing spectral does:
   the fit goes into the spectral array `so`, and the gridpoint round trip that
   would overwrite `doro` with it is inside a `npro == 1` print block the threaded
   build never enters.
@@ -124,9 +124,9 @@ clothes. Each exclusion is reported by name, never silently dropped.
   staged, and the rest is this run's own ice. This is the check CLIM-70 declared
   it could not make, and it needed the second record rather than the spectral fit
   reproduced. It is withdrawn, by name and with the reason, under either of the
-  two settings that take the right answer away -- `NGLACIER` other than 1, which
-  leaves `groundoro` at zero, and `OROSCALE` other than 1.0, which makes the
-  record the staged field times a power of it (world-6qee).
+  two settings that take the right answer away -- `NGLACIER` other than 1, and
+  `OROSCALE` other than 1.0, which makes the record the staged field times the
+  scale rather than the staged field.
 * Codes 229 `dwmax` and 212 `dforest` under `NVEG = 2`. Coupled vegetation
   overwrites both prognostically every timestep (`simba.f90:484,487`), so under
   that setting the staged field stops being the right answer the moment the run
@@ -250,17 +250,20 @@ def not_comparable(nglacier: int, oroscale: float) -> dict[int, str]:
     out: dict[int, str] = {}
     if nglacier != 1:
         out[129] = (
-            f"NGLACIER = {nglacier}, so glaciermod's oroini leaves groundoro at "
-            "zero (glaciermod.f90:437 is inside the nglacier branch) and the "
-            "restart's groundsg is not the lithographic orography. The only "
-            "orography record is then doro, which carries the spectral fit")
+            f"NGLACIER = {nglacier}, so the doro record this run writes is the "
+            "bare ground with no ice orography in it and the pair of records "
+            "code 129 is read against does not mean what it means under "
+            "nglacier = 1. Whether groundsg is still the staged field under "
+            "this setting is world-zq1k and this exclusion is wider than the "
+            "reason it was given")
     elif oroscale != 1.0:
         out[129] = (
-            f"OROSCALE = {oroscale}, and glacierini reads groundoro out of the "
-            "restart while oroini multiplies it by oroscale again on every "
-            "start (glaciermod.f90:164,437), so the restart's groundsg is the "
-            "staged field times oroscale once per model invocation and the "
-            "staged file is not its right answer. world-6qee")
+            f"OROSCALE = {oroscale}, and glacierini scales the staged field by "
+            "it where that field enters the model (glaciermod.f90:181), so the "
+            "restart's groundsg is the staged field TIMES oroscale and the "
+            "staged file is not its right answer. Scaled exactly once, as "
+            "world-6qee settled; the record is well defined, it is the .sra "
+            "that is not the thing to compare it with")
     return out
 
 
@@ -554,8 +557,10 @@ def verify_restart_surface_fields(run_dir: Path, restart: Path, codes: set[int],
     # stand for the topography rather than for one record. `doro` is the
     # orography the dynamics is built on, and it is not the staged field: it is
     # the lithographic half plus the ice sheet. The identity `oroini` writes it
-    # by is exact -- one addition in the same precision, `glaciermod.f90:453` --
-    # so `doro == groundsg + dglacsg` is a right answer with no tolerance, and
+    # by is exact -- one addition in the same precision, `glaciermod.f90:473`,
+    # and nothing scales it afterwards since world-6qee moved oroscale to the
+    # cold read -- so `doro == groundsg + dglacsg` is a right answer with no
+    # tolerance at any oroscale, and
     # holding it means the whole of `doro`'s departure from the staged file is
     # the model's own ice and nothing else. Without it a substituted `doro`
     # would pass on a `groundsg` that was never read.
