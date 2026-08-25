@@ -610,7 +610,7 @@ def main() -> int:
 
 
 def _selftest() -> int:
-    """Six checks, and four of them are fixtures built to be WRONG in a named way.
+    """Nine checks, and four of them are fixtures built to be WRONG in a named way.
 
     A check that has only ever seen correct input has not been tested, so every
     rule this script enforces is handed a case that violates it and is required
@@ -619,8 +619,11 @@ def _selftest() -> int:
     return the lake's area share, which a majority label returns as zero.
     """
     problems: list[str] = []
+    n_checks = 0
 
     def check(name: str, ok: bool, detail: str = "") -> None:
+        nonlocal n_checks
+        n_checks += 1
         print(f"[{'  ok  ' if ok else ' FAIL '}] {name}{'' if ok else ': ' + detail}")
         if not ok:
             problems.append(name)
@@ -631,6 +634,26 @@ def _selftest() -> int:
         except SystemExit as exc:
             return True, str(exc)
         return False, "accepted"
+
+    # The config the rest of this script is nothing without. It went
+    # unparseable once and stayed that way, because --selftest returned before
+    # it was ever read and no other check loads it: a class description gained
+    # a bare "three: " inside a plain scalar and every run of the real script
+    # died on the first line. So the first check is that the file loads and
+    # that its refusals still say what the enforcement below expects.
+    try:
+        _cfg = read_config()
+        cfg_ok, cfg_detail = True, ""
+    except Exception as exc:                                # noqa: BLE001
+        _cfg, cfg_ok, cfg_detail = None, False, f"{type(exc).__name__}: {exc}"
+    check("config/wetness.yaml parses and its refusals hold", cfg_ok, cfg_detail)
+    if _cfg is not None:
+        # Every class either names a source or says why it has none. A class
+        # with neither is a share a consumer would form from nothing.
+        stated = [k for k, v in _cfg["classes"].items()
+                  if not (v.get("source") or v.get("unavailable_reason"))]
+        check("every class names a source or says why it has none",
+              not stated, f"neither on {stated}")
 
     rng = np.random.default_rng(20260825)
     n, ncell = 4000, 25
@@ -730,7 +753,7 @@ def _selftest() -> int:
           "is refused",
           got <= 1e-12 and caught, msg if not caught else f"residual {got}")
 
-    print(f"\n8 checks, {len(problems)} failed")
+    print(f"\n{n_checks} checks, {len(problems)} failed")
     return 1 if problems else 0
 
 

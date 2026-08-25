@@ -77,9 +77,45 @@ classes:
       the scatter its own support puts on it, so no narrower criterion can
       license it either. This class is absent permanently rather than pending,
       and reviving it is a new closure with a new criterion. GW-26.
+  groundwater_fed:
+    support: climate_grid
+    source: >-
+      none yet. The tile LSHY-6 asks to keep distinct from upland soil and
+      from lake and playa: land whose water comes from the table rather than
+      from the season's rain.
+    unavailable_reason: >-
+      two candidate sources, and they fail for different
+      reasons, so a reader deciding whether to wait or to build needs both.
+      GW-26's saturated-area closure is withdrawn PERMANENTLY and reviving it
+      needs a different INSTRUMENT rather than a narrower criterion. World-n9sd
+      measured the instrument: resampling the cells, the gain the terrain half
+      carries over the cell-mean depth alone is at or below its own scatter on
+      all eight arms of both Earth observation sets, so point bore depths at
+      cell scale are blind to the effect and no cut of `sink_fraction` makes
+      them see it. What would license a revival is an AREAL observation -- a
+      measured saturation or inundation extent -- not more bores.
+      PLHY-5's `groundwater_access` needs no closure at all: it evaluates the
+      access criterion on the native regions where the depth lives and crosses
+      an AREA, which is exactly this tile. What it needs is `water_table.nc`,
+      and no build in `source/` has one -- `hydrography/data/<build>/` carries
+      none on either. The cost is the `groundwater` step and then
+      `groundwater_access`, both `cost: minutes` in `config/pipeline.yaml`, with
+      `groundwater` needing `surface_water` and a climatology first.
+    licensing_constraint: >-
+      whichever route revives it, the tile carries the
+      regime with it or it is not licensed. The depth it would come from scores
+      0.4581 against Earth's Australian bores, below the 0.5 of no
+      discrimination, and 0.6655 on the United States unconfined set, so it
+      works where lateral flow sets the head and not where the local sink does.
+      `groundwater_access_<grid>.nc` already reports the `sink_fraction` regime
+      share per cell, including its two kinds of no-answer. A share that mixes
+      the licensed regime with the unlicensed one is a number with no verdict
+      attached, which is what `area_proxy_from_cell_mean` below refuses in the
+      other direction.
   seasonal_inundation:
     support: region
-    unavailable_reason: nothing in this component carries a season yet. The lake
+    unavailable_reason: >-
+      nothing in this component carries a season yet. The lake
       solve is an annual equilibrium, the groundwater solve is a steady state,
       and `hydrography/config/land_water_ledger.yaml` gives every term reaching
       these stores an annual `interval_floor`. Ownership is settled in
