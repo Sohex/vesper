@@ -221,11 +221,32 @@ steps:
     needs: [bootstrap_run]
     writes: [exoplasim/runs/INDEX.json]
 
+  - id: land_water_ledger
+    script: hydrography/scripts/land_water_ledger.py
+    cost: seconds
+    needs: []
+    writes: [hydrography/analysis/land_water_ledger_report.json]
+    gate: >
+      the one ledger every terrestrial water store and flux books into, from
+      precipitation leaving the air column over a land cell to a named terminal
+      boundary at the coast. It reads hydrography/config/land_water_ledger.yaml,
+      fails on a graph that does not close, on a phase change with no process
+      named, on a phase term carrying the wrong latent heat and on one
+      evaporative component debited from two stores; exercises the mass
+      identity on fixtures built to be wrong; and exercises the graph check
+      itself on declarations built to be wrong. With every term still
+      undeclared it reports and exits 0, because the ledger is the artifact
+      LSHY-1, LSHY-3, LSHY-4, LSHY-5 and PLHY-4 deliver INTO rather than a
+      result about the world; `--strict` is the arm that refuses, and it
+      refuses while any store still has a shadow copy in a second component.
+      surface_water and groundwater need it so the ownership contract sits on
+      the path rather than beside it.
+
   - id: surface_water
     script: hydrography/scripts/surface_water.py
     loop: A
     cost: minutes
-    needs: [hydrography, bootstrap_climatology]
+    needs: [hydrography, bootstrap_climatology, land_water_ledger]
     writes: ["hydrography/data/{build}/surface_water.nc", hydrography/analysis/surface_water_report.json]
 
   - id: topographic_index
@@ -269,7 +290,7 @@ steps:
     script: hydrography/scripts/build_groundwater.py
     loop: A
     cost: minutes
-    needs: [hydrography, bootstrap_climatology, surface_water]
+    needs: [hydrography, bootstrap_climatology, surface_water, land_water_ledger]
     writes: ["hydrography/data/{build}/water_table.nc", hydrography/analysis/groundwater_report.json, hydrography/analysis/groundwater_reduction_test.json, hydrography/analysis/groundwater_divide_test.json, "hydrography/analysis/groundwater_report_sigma*.json", "hydrography/analysis/groundwater_report_noise*.json", "hydrography/analysis/groundwater_report_et*.json"]
     gate: >
       the steady-state water table, and a MEASUREMENT of the net groundwater
