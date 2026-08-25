@@ -87,3 +87,68 @@ binary" exactly as unanswerable as it was.
 `make_profile_bed.py` and `reproducibility_matrix.py` each still carry their own
 statement of the same comparison. They are correct, and converging them onto
 `rebuild_binaries.unregistered` is bookkeeping rather than a repair.
+
+## What to do about the probe entries no binary can be named for
+
+*Re-derived 2026-08-25 against `exoplasim/analysis/stability_probe.json` as it
+stands.*
+
+The scope is the whole file rather than a subset of it, and the reason is a
+commit order. `stability_probe.json` was re-measured entire on 2026-08-24
+(`220b7142`, "The stability grid, re-measured on the model the project actually
+runs"), and the probe learned to record its executable the next morning
+(`8b68dc30`, world-anl). So the discriminator world-qnue proposed -- an entry
+that carries `executable_sha256` is attributable and one that does not is not --
+is correct and currently selects nothing: no entry in the file carries the
+field, and `stability_probe.py` at HEAD writes it on every result.
+
+Re-running the whole grid is not the cheapest correct answer, and re-running none
+of it leaves declared values resting on an unnamed model. The cells that carry a
+decision are the ones a declaration cites, and they are the re-derivation list.
+
+**The adopted step per rung.** `config/planet.yaml`
+`model.resolution_timestep_minutes`, and `model.timestep_minutes` for the active
+rung, at the declared `model.filter_kappa`.
+
+**The refusal boundary.** Two cells per rung: the coarsest step that ran and the
+finest that refused. A ceiling is a bracket, so one cell of the pair cannot
+establish it and both have to be attributable.
+
+**The filter arms.** `model.filter_kappa` rests on the cells where the filter
+changes the verdict rather than on the ones where it does not, and there are
+four of those: the filter buys a step at T85, at T127 and twice at T170, and
+buys nothing at T21 or T42. Each of the four needs both arms.
+
+**The escalation steps.** `docs/src/pipeline/sequencing.md` section D runs T42 at
+dt 30 and T85 at dt 22.5, which are not the config table's adopted values for
+those rungs, so they are two more cells a declaration cites.
+
+| rung | cells to re-derive, at kappa 8 | and at no filter |
+| --- | --- | --- |
+| T21 | dt 45 (adopted, escalation), dt 60 (coarsest run) | -- |
+| T42 | dt 30 (escalation), dt 45 (adopted), dt 60 (coarsest run) | -- |
+| T85 | dt 22.5 (escalation), dt 45 (adopted, coarsest run), dt 60 (refuses) | dt 60 |
+| T127 | dt 30 (adopted, coarsest run), dt 45 (refuses) | dt 30 |
+| T170 | dt 15 (coarsest run), dt 22.5 (adopted, refuses at length) | dt 15, dt 22.5 |
+
+Sixteen of the sixty. The other forty-four are interior points of a cost curve
+and a refusal map: they are worth re-taking when the grid is re-taken and no
+declaration falls if they stay unattributed.
+
+**A partial re-run leaves a mixed file, and nothing in the file says so.** The
+dedup key on write is `(rung, dt_minutes, kappa)`, so re-running sixteen cells
+replaces exactly those sixteen and leaves forty-four beside them; the `note`
+field is rewritten on the same pass and asserts that each probe names the
+executable that produced it, which would then be false of most of the file. The
+per-entry discriminator survives and the file-level statement does not, so the
+statement is the thing to fix -- either by writing the count of attributed
+entries beside the note, or by refusing to leave an unattributed entry in a file
+the same pass has written to.
+
+**One declaration already disagrees with the file it rests on.** The config's
+adopted step for T170 is dt 22.5, and its ceiling column gives the same value;
+the current grid has T170 at dt 22.5 and kappa 8 refusing only at length, and
+`exoplasim/notes/physics-filter-stability.md` puts the coarsest step T170 will
+start clean at dt 15. `check_consistency.py` compares `model.timestep_minutes`
+against the table entry for the ACTIVE rung only, so a table entry for a rung
+nothing is running is checked against nothing.
