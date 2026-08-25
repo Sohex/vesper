@@ -28,14 +28,20 @@ This module is the enforcement, and it can fail:
                or a chain declared to be held inside its pool by an explicit
                min() in the operator that the operator no longer contains
   bound        a declared constant outside the bound plib parses it against
+  divergence   a response function declared to diverge from mainline
+               LPJ-GUESS whose mainline form modules/ntransform.cpp no longer
+               records beside the changed one, or which it has gone back to
+               running. Both halves are checked, because a divergence that is
+               not recorded is a silent fork and one that is recorded but live
+               is a declaration that has drifted from the model
   calibration  an entry in the calibration block whose declared verdict is not
                what the arithmetic says: an `agrees` whose value is not the
                paper's value or is outside the paper's range, an `outside` that
                has moved inside it, or an entry naming a constant or a response
                function that does not exist
 
-A dozen reduced fixtures run on every invocation, all but one built to be wrong
-in a named way. A fixture that does not get the verdict it was built for is a
+Reduced fixtures run on every invocation, all but one built to be wrong in a
+named way. A fixture that does not get the verdict it was built for is a
 defect in this checker rather than in the declaration.
 
     python biosphere/scripts/ntransform_gate.py            # status, exit 0
@@ -145,6 +151,18 @@ def evaluate(spec: dict, domains: dict, samples: int = SAMPLES
 
     walk(0, {})
     return lo, hi
+
+
+def _strip_comments(text: str) -> str:
+    """The operator source with C and C++ comments removed.
+
+    The divergence check needs to tell a mainline expression RECORDED in a
+    comment from the same expression LIVE in the code, which is the whole point
+    of recording it: the mainline form has to stand beside the changed one
+    without being what the model runs.
+    """
+    text = re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
+    return re.sub(r"//[^\n]*", " ", text)
 
 
 def _literal_tokens(text: str) -> set[str]:
@@ -313,6 +331,7 @@ def check(declaration: dict, source_text: str, instruction_text: str
                                  "detail": f"{value} is outside the parser bound [{lo}, {hi}]"})
 
     tokens = _literal_tokens(source_text)
+    code_only = _strip_comments(source_text)
     extrema: dict[str, tuple[float, float]] = {}
     functions = {spec["name"]: spec for spec in declaration["response_functions"]}
 
@@ -327,6 +346,26 @@ def check(declaration: dict, source_text: str, instruction_text: str
             if text not in tokens and str(literal) not in tokens:
                 findings.append({"kind": "drift", "what": name,
                                  "detail": f"literal {literal} is not in modules/ntransform.cpp"})
+        divergence = spec.get("divergence")
+        if divergence is not None:
+            mainline = divergence.get("mainline")
+            if not mainline:
+                findings.append({"kind": "divergence", "what": name,
+                                 "detail": "a divergence naming no mainline form"})
+            elif not divergence.get("owner"):
+                findings.append({"kind": "divergence", "what": name,
+                                 "detail": "a divergence naming no owner"})
+            elif mainline not in source_text:
+                findings.append({
+                    "kind": "divergence", "what": name,
+                    "detail": (f"declares a divergence from {mainline!r}, and "
+                               "modules/ntransform.cpp does not record that form "
+                               "beside the changed one")})
+            elif mainline in code_only:
+                findings.append({
+                    "kind": "divergence", "what": name,
+                    "detail": (f"declares a divergence from {mainline!r}, and "
+                               "modules/ntransform.cpp still runs it")})
         try:
             lo, hi = evaluate(spec, domains)
         except Exception as error:  # a form that cannot be evaluated is a finding
@@ -381,8 +420,8 @@ def check(declaration: dict, source_text: str, instruction_text: str
     return findings
 
 
-# The fixtures. Six are built to be wrong in a named way; the seventh is the
-# declaration as it stands, which has to come back clean. A fixture that does
+# The fixtures. The first is the declaration as it stands and has to come back
+# clean; every other is built to be wrong in a named way. A fixture that does
 # not get its verdict is a defect in the checker.
 def _fixtures(declaration: dict, source_text: str, instruction_text: str
               ) -> list[dict]:
@@ -405,6 +444,15 @@ def _fixtures(declaration: dict, source_text: str, instruction_text: str
     def unbounded_form(index, form):
         def apply(d):
             d["response_functions"][index]["form"] = form
+        return apply
+
+    def set_divergence(name, mainline):
+        def apply(d):
+            for spec in d["response_functions"]:
+                if spec["name"] == name:
+                    spec["divergence"] = {"mainline": mainline, "owner": "test"}
+                    return
+            raise KeyError(name)
         return apply
 
     def bad_factor(name):
@@ -449,6 +497,12 @@ def _fixtures(declaration: dict, source_text: str, instruction_text: str
          mutate(bad_factor("nonexistent_constant")), "product"),
         ("a chain declared clamped by a min() the operator does not contain",
          mutate(drop_clamp("denitrification_no3_to_no2")), "product"),
+        ("a divergence whose mainline form the operator does not record",
+         mutate(set_divergence("nitrification_activity", "double no_such_line;")),
+         "divergence"),
+        ("a divergence from a form the operator in fact still runs",
+         mutate(set_divergence("nitrification_activity", "double b = log(3.0) * 5.0;")),
+         "divergence"),
         ("a constant declared to agree with a bracket that excludes it",
          mutate(calibration_claim("instruction:f_nitri_gas_max", "bracket", [0.5, 0.9])),
          "calibration"),
