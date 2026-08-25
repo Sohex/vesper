@@ -284,11 +284,21 @@ def main() -> None:
     flipped = resolved_disch & resolved_area & (
         (ratio_disch >= 1.0) != (ratio_area >= 1.0))
 
-    identity = single_lithology_check(export, terminal, mapping, release_table,
-                                      cols, nbasin, mean,
-                                      weights[args.weighting])
-    identity["criterion"] = "worst relative error below 1e-9"
-    identity["passes"] = bool(identity["worst_relative_error"] < 1e-9)
+    # BOTH WEIGHTINGS, because both are published. The identity ran on
+    # `args.weighting` alone while `ca_over_hco3_area`, `ca_over_hco3_discharge`
+    # and the flip count between them all go out in the report, so the routing
+    # behind half the numbers was never held against its own right answer. The
+    # identity does not depend on the weights -- the weighted mean of a constant
+    # is that constant -- so it is the same claim about each routing and there
+    # is no reason to make it about one. world-60x0.
+    identity = {}
+    for name in ("discharge", "area"):
+        row = single_lithology_check(export, terminal, mapping, release_table,
+                                     cols, nbasin, results[name][0],
+                                     weights[name])
+        row["criterion"] = "worst relative error below 1e-9"
+        row["passes"] = bool(row["worst_relative_error"] < 1e-9)
+        identity[name] = row
 
     # Silica delivered per basin: umol/l x m3/yr -> mol/yr. 1 m3 is 1000 l and
     # umol is 1e-6 mol, so the two conversions cancel to 1e-3.
@@ -306,9 +316,11 @@ def main() -> None:
           f"{np.nanmedian(r):.3f}  max {np.nanmax(r):.3f}")
     print(f"  basins with a catchment but no runoff: {int(dry.sum())}")
     print(f"  basins whose path flips between weightings: {int(flipped.sum())}")
-    print(f"  single-lithology identity: {identity['single_lithology_basins']} "
-          f"basins, worst relative error {identity['worst_relative_error']:.2e} "
-          f"-> {'PASS' if identity['passes'] else 'FAIL'}")
+    for name, row in identity.items():
+        print(f"  single-lithology identity, {name}-weighted: "
+              f"{row['single_lithology_basins']} basins, worst relative error "
+              f"{row['worst_relative_error']:.2e} "
+              f"-> {'PASS' if row['passes'] else 'FAIL'}")
 
     out = {
         "generated_utc": datetime.now(timezone.utc).isoformat(),
@@ -400,6 +412,23 @@ def main() -> None:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
     print(f"wrote {rel(args.output)}")
+
+    # THE IDENTITY GATES. It was computed, printed as PASS or FAIL, written to
+    # the report and then dropped: the file went out and the process exited 0
+    # with a definitional identity failed in it, and nothing downstream reading
+    # brine_paths.json would know. Raised after the write, so the numbers that
+    # failed are on disk to read.
+    missed = [name for name, row in identity.items() if not row["passes"]]
+    if missed:
+        raise SystemExit(
+            "the single-lithology identity fails for the "
+            + " and ".join(f"{n}-weighted routing (worst relative error "
+                           f"{identity[n]['worst_relative_error']:.2e})"
+                           for n in missed)
+            + ". A basin draining one rock class must return that rock's own "
+            "row whatever the weights are, so this is an indexing or a join "
+            "error and every solute number in "
+            f"{rel(args.output)} is computed through it.")
 
 
 if __name__ == "__main__":
