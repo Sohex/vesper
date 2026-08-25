@@ -43,9 +43,20 @@ Applied to the baseline annual-mean SST (ocean zonal-mean contrast 41.0 K):
 
 | hdiffk, m2/s | rms heating, W/m2 of ocean | largest single cell |
 | --- | ---: | ---: |
-| 300 | 0.75 | 22.5 |
-| 1000 (the default) | 2.51 | 75.1 |
-| 3000 | 7.53 | 225.3 |
+| 300 | 0.72 | 21.5 |
+| 1000 (the default) | 2.40 | 71.7 |
+| 3000 | 7.19 | 215.1 |
+
+The heating is a temperature tendency times the mixed layer's heat capacity, and
+that capacity is read from the model rather than written down: sea water's
+density and specific heat are `icemod_nl` keys, `icemod` passes them to
+`oceanini`, and `lib/sea_water.py` reads the declaration and then the run's own
+namelist. `predict_ocean_terms.py` carried them as literals with the specific
+heat at fresh water's value, so every figure in this section is the published
+one scaled by the exact ratio of the two specific heats. The operator is linear
+in the capacity, which is what makes the rescale exact rather than approximate;
+a regenerated table needs a declared `baseline_climatology`, and there is
+deliberately no fallback.
 
 **These are TRUE diffusivities, and the arms measured below did not run at
 them.** `predict_ocean_terms.py` has always built its operator on this planet's
@@ -54,12 +65,12 @@ first column; `hdiffo` did not, until `world-mll`, and divided by a compiled
 Earth radius instead. Arms that ran before that fix realised
 (PLARAD/6.371E6)^2 = 1.4401 times the coefficient their namelist declared. The
 operator is linear in `hdiffk`, so the CLIM-16 bracket, which realised
-432/1440/4320, predicts 1.08/3.61/10.84 W/m2 rms rather than the three rows
+432/1440/4320, predicts 1.03/3.45/10.35 W/m2 rms rather than the three rows
 above. `hdiffk` means what it says from `world-mll` on, and a new arm set to
 1000 realises 1000.
 
-The pattern at the default, by latitude band: -0.16 W/m2 at 0-20 degrees,
--0.27 at 20-40, +0.37 at 40-60, +0.36 at 60-90. Low latitudes lose heat to
+The pattern at the default, by latitude band: -0.15 W/m2 at 0-20 degrees,
+-0.26 at 20-40, +0.35 at 40-60, +0.34 at 60-90. Low latitudes lose heat to
 high latitudes, which is the transport the term exists to stand in for. The
 extreme cells sit at coastlines and the ice edge, where the anomaly gradient
 is sharpest.
