@@ -76,14 +76,13 @@ file_nflux "nflux.out"
 
 !file_msoiltempdepth25 "soiltemp25cm.out"
 !file_mch4 "mch4.out"
-!file_mch4diff "mch4_diffusion.out"
-!file_mch4plan "mch4_plant.out"
-!file_mch4ebull "mch4_ebullition.out"
+!file_mch4_diffusion "mch4_diffusion.out"
+!file_mch4_plant "mch4_plant.out"
+!file_mch4_ebullition "mch4_ebullition.out"
 
 !file_msnow "msnowdepth.out"
 !file_mwtp "mwtp.out"
 !file_mald "mald.out"
-!file_wetland_water_added "wetland_water_added.out"
 
 !file_mburned_area_out "monthly_burned_area.out"
 
@@ -157,10 +156,15 @@ ifcarbonfreeze 1		! Whether to allow some decomposition below 0 degC in upland s
 
 ! WETLAND SWITCHES (no effect when run_peatland 0)
 ifinundationstress 1		! Whether to reduce daily NPP if there's inundation on peatlands (1), or not (0)
-wetland_runon 0			! Extra daily water input to (>0), or output from (<0), wetlands (mm/day). 
-				! 0 by default, non-zero for site specific studies.
+wetland_runon 0			! Retained so that an instruction file that sets it still parses. It supplies
+				! nothing: modules/soil.cpp no longer reads soiltype.runon, because a
+				! namelist scalar in mm/day applied to every wetland stand carries no
+				! catchment. Water reaching a wetland stand from outside its own column
+				! comes through PLHY-4's routing and groundwater exchange.
 ifmethane 0			! Whether to run the methane model and calculate methane fluxes
-ifsaturatewetlands 0		! Whether to take water from runoff to saturate low latitide wetlands (1), or not (0)
+ifsaturatewetlands 0		! MUST be 0. 1 selected an infiltration path that added each layer's full
+				! saturation deficit whether or not rain_melt could supply it, and
+				! modules/soilwater.cpp now fails on it rather than creating the water.
 
 
 !///////////////////////////////////////////////////////////////////////////////

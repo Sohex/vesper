@@ -42,7 +42,6 @@ CommonOutput::CommonOutput() {
 	declare_parameter("file_cpool", &file_cpool, 300, "Soil C output file");
 	declare_parameter("file_clitter", &file_clitter, 300, "Litter C output file");
 	declare_parameter("file_runoff", &file_runoff, 300, "Runoff output file");
-	declare_parameter("file_wetland_water_added", &file_wetland_water_added, 300, "Wetland water added output file");
 
 	declare_parameter("file_firert", &file_firert, 300, "Fire retrun time output file");
 
@@ -119,9 +118,9 @@ CommonOutput::CommonOutput() {
 	declare_parameter("file_msoiltempdepth145", &file_msoiltempdepth145, 300, "Soil temperature output file (145cm depth)");
 
 	declare_parameter("file_mch4", &file_mch4, 300, "Monthly CH4 emissions, total");
-	declare_parameter("file_mch4diff", &file_mch4diff, 300, "Monthly CH4 emissions, diffusion");
-	declare_parameter("file_mch4plan", &file_mch4plan, 300, "Monthly CH4 emissions, plant-mediated");
-	declare_parameter("file_mch4ebull", &file_mch4ebull, 300, "Monthly CH4 emissions, ebullition");
+	declare_parameter("file_mch4_diffusion", &file_mch4_diffusion, 300, "Monthly CH4 emissions, diffusion");
+	declare_parameter("file_mch4_plant", &file_mch4_plant, 300, "Monthly CH4 emissions, plant-mediated");
+	declare_parameter("file_mch4_ebullition", &file_mch4_ebullition, 300, "Monthly CH4 emissions, ebullition");
 	declare_parameter("file_msnow", &file_msnow, 300, "Monthly snow depth");
 	declare_parameter("file_mwtp", &file_mwtp, 300, "Monthly water table depth");
 	declare_parameter("file_mald", &file_mald, 300, "Monthly active layer depth");
@@ -292,10 +291,6 @@ void CommonOutput::define_output_tables() {
 	runoff_columns += ColumnDescriptor("Drain",            8, 1);
 	runoff_columns += ColumnDescriptor("Base",             8, 1);
 	runoff_columns += ColumnDescriptor("Total",            9, 1);
-
-	// WETLAND WATER ADDED
-	ColumnDescriptors wetland_water_added_columns;
-	wetland_water_added_columns += ColumnDescriptor("H2OAdded", 10, 1);
 
 	// SPECIESHEIGHTS
 	ColumnDescriptors speciesheights_columns;
@@ -483,7 +478,6 @@ void CommonOutput::define_output_tables() {
 	}
 
 	create_output_table(out_runoff,			file_runoff,         runoff_columns);
-	create_output_table(out_wetland_water_added, file_wetland_water_added, wetland_water_added_columns);
 	create_output_table(out_speciesheights, file_speciesheights, speciesheights_columns);
 	create_output_table(out_aiso,           file_aiso,           aiso_columns);
 	create_output_table(out_amon,           file_amon,           amon_columns);
@@ -535,9 +529,9 @@ void CommonOutput::define_output_tables() {
     
 	// Methane
 	create_output_table(out_mch4,           file_mch4,           month_columns);
-	create_output_table(out_mch4diff,       file_mch4diff,       month_columns);
-	create_output_table(out_mch4plan,       file_mch4plan,       month_columns);
-	create_output_table(out_mch4ebull,      file_mch4ebull,      month_columns);
+	create_output_table(out_mch4_diffusion,       file_mch4_diffusion,       month_columns);
+	create_output_table(out_mch4_plant,       file_mch4_plant,       month_columns);
+	create_output_table(out_mch4_ebullition,      file_mch4_ebullition,      month_columns);
     
 	// Snow
 	create_output_table(out_msnow,          file_msnow,          month_columns);
@@ -835,8 +829,8 @@ void CommonOutput::outannual(Gridcell& gridcell) {
 		mch4[m] = mch4_diff[m] = mch4_ebull[m] = mch4_plant[m] = msnowdepth[m] = mwtp[m] = mald[m] = 0.0;
 	}
 
-	double aaet, apet, aevap, arunoff, aintercep, awetland_water_added;
-	aaet = apet = aevap = arunoff = aintercep = awetland_water_added = 0.0;
+	double aaet, apet, aevap, arunoff, aintercep;
+	aaet = apet = aevap = arunoff = aintercep = 0.0;
 
 	double landcover_cmass[NLANDCOVERTYPES]={0.0};
 	double landcover_nmass[NLANDCOVERTYPES]={0.0};
@@ -922,7 +916,6 @@ void CommonOutput::outannual(Gridcell& gridcell) {
 	double drainrunoff_gridcell=0.0;
 	double baserunoff_gridcell=0.0;
 	double runoff_gridcell=0.0;
-	double wetland_water_added_gridcell = 0.0;
 	double dens_gridcell=0.0;
 	double firert_gridcell=0.0;
 	double burned_area_gridcell=0.0;
@@ -1494,7 +1487,6 @@ void CommonOutput::outannual(Gridcell& gridcell) {
 			drainrunoff_gridcell+=patch.adrainrunoff*to_gridcell_average;
 			baserunoff_gridcell+=patch.abaserunoff*to_gridcell_average;
 			runoff_gridcell += patch.arunoff*to_gridcell_average;
-			wetland_water_added_gridcell += patch.awetland_water_added*to_gridcell_average;
 
 			// Fire return time
 			if (!patch.has_fires() || patch.fireprob < 0.001) {
@@ -1668,7 +1660,6 @@ void CommonOutput::outannual(Gridcell& gridcell) {
 	outlimit(out,out_runoff,				drainrunoff_gridcell);
 	outlimit(out,out_runoff,				baserunoff_gridcell);
 	outlimit(out,out_runoff,				runoff_gridcell);
-	outlimit(out,out_wetland_water_added,	wetland_water_added_gridcell);
 	
 	outlimit(out,out_aiso,		aiso_gridcell);
 	outlimit(out,out_amon,		amon_gridcell);
@@ -1791,9 +1782,9 @@ void CommonOutput::outannual(Gridcell& gridcell) {
 		outlimit(out,out_msoiltempdepth135, msoilt[m][13]);
 		outlimit(out,out_msoiltempdepth145, msoilt[m][14]);
 		outlimit(out,out_mch4, mch4[m]);
-		outlimit(out,out_mch4diff, mch4_diff[m]);
-		outlimit(out,out_mch4plan, mch4_plant[m]);
-		outlimit(out,out_mch4ebull, mch4_ebull[m]);		
+		outlimit(out,out_mch4_diffusion, mch4_diff[m]);
+		outlimit(out,out_mch4_plant, mch4_plant[m]);
+		outlimit(out,out_mch4_ebullition, mch4_ebull[m]);		
 		outlimit(out,out_msnow, msnowdepth[m]);
 		outlimit(out,out_mwtp, mwtp[m]);
 		outlimit(out,out_mald, mald[m]);

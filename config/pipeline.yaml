@@ -728,12 +728,14 @@ steps:
       the calendar never reaches, and prognostic peat hydrology absent from the
       serializer. A declaration claiming a defect is closed while the probe
       still finds it is reported as a contradiction rather than believed.
-      Fifteen fixtures run on every invocation: thirteen mutations built to be
-      wrong in a named way, the live declaration which must be refused, and a met
-      declaration against a repaired source which must be GRANTED, because a gate
-      nothing can satisfy is a wall. With no request it reports and exits 0, because a biosphere run
-      with peat and methane off is a correct run. `lpj_run` needs it so the
-      refusal sits on the path rather than beside it.
+      A fixture set runs on every invocation: mutations of the declaration built
+      to be wrong in a named way, the live declaration which must be refused,
+      three mutations of the EVIDENCE so that the contradiction branch stays
+      checkable after the repair that made the source agree, and a met
+      declaration against a repaired source which must be GRANTED, because a
+      gate nothing can satisfy is a wall. With no request it reports and exits
+      0, because a biosphere run with peat and methane off is a correct run.
+      `lpj_run` needs it so the refusal sits on the path rather than beside it.
 
   - id: ntransform_gate
     script: biosphere/scripts/ntransform_gate.py
@@ -932,6 +934,21 @@ checks:
   # the bed; nothing else, and it writes no artifact.
   - id: verify_uninitialised_reads
     script: exoplasim/scripts/verify_uninitialised_reads.sh
+  # Is a continued LPJ-GUESS run the same experiment as the run it continues?
+  # Two runs of the same length over the same forcing, one taken whole and one
+  # split at a simulated year boundary, compared table for table and row for row
+  # over every year from the restart point. State the serializer does not carry
+  # shows up as the resumed run integrating a year the uninterrupted run never
+  # had, which is a wrong answer rather than a different one. It is the
+  # behavioural half of the WET-3 restart repair, where the wetland_gate probe
+  # over Soil::serialize is the static half.
+  #
+  # LIKE the row above it takes arguments -- a run length, a restart year, a
+  # rank count -- and it is not run by smoke_test. It needs a compiled model and
+  # a built forcing, neither of which exists until a baseline climatology does,
+  # and it exits naming what is missing rather than reporting a pass.
+  - id: verify_lpj_restart_continuity
+    script: biosphere/scripts/verify_lpj_restart_continuity.py
 
 # Present, deliberately outside the graph: no step row runs them (some are
 # imported as modules by step scripts).

@@ -26,11 +26,13 @@ It is fail-closed in one direction only. A biosphere run with peat and methane
 OFF is a correct run, so with `requested: false` the gate reports and exits 0.
 Only a request to activate can be refused.
 
-Fifteen fixtures run on every invocation. Thirteen are mutations built to be
-wrong in one named way each; one is the declaration as it stands, which must be
-refused for some reason; and the last is a met declaration against a repaired
-source, which must be granted, because a gate nothing can satisfy is a wall
-refusing for a reason that is never written down. A fixture that does not get
+A fixture set runs on every invocation. Most are mutations of the declaration,
+built to be wrong in one named way each; one is the declaration as it stands,
+which must be refused for some reason; three mutate the EVIDENCE instead, so
+that what the gate does when a declaration and the source disagree stays
+checkable after the repair that made the source agree; and the last is a met
+declaration against a repaired source, which must be granted, because a gate
+nothing can satisfy is a wall refusing for a reason that is never written down. A fixture that does not get
 the verdict it was built for is a defect in this checker, and the gate exits
 non-zero on it.
 
@@ -283,8 +285,12 @@ def probes() -> dict:
     if soil:
         found["constant_wetland_runon"] = bool(re.search(
             r"soiltype\.runon\s*=\s*wetland_runon\s*;", soil))
+        # The defect is the ORDINAL, not the constant. `day` runs 0 through
+        # MAX_YEAR_LENGTH - 1, so a guard on MAX_YEAR_LENGTH itself never fires
+        # and a guard on MAX_YEAR_LENGTH - 1 fires on the last simulated day of
+        # the year. The lookahead is what tells those two apart.
         found["annual_water_table_guard"] = bool(re.search(
-            r"date\.day\s*==\s*Date::MAX_YEAR_LENGTH", soil))
+            r"date\.day\s*==\s*Date::MAX_YEAR_LENGTH(?!\s*-)", soil))
         # The whole set, not a count: `_source_refusals` reads it from here so
         # that every refusal is a function of the declaration and this evidence
         # and of nothing else, which is what makes the gate testable against a
@@ -841,18 +847,36 @@ def _fixtures(declaration: dict, planet: dict, evidence: dict) -> list[dict]:
          mutate(drop("traits", "required_strategies",
                      "non_vegetated_inundation")),
          "WET-STRATEGY-MISSING"),
-        ("the free-water repair declared while the source still creates water",
-         mutate(put("hydrology", "free_water_repair", "done, honestly")),
-         "WET-DECLARATION-CONTRADICTED"),
         ("a production-ratio floor that no longer matches the fork constants",
          mutate(lambda d: d["acceptance"]["minimum_bracket_factor"]
                 .__setitem__("production_ratio", 9.0)),
          "WET-BRACKET-FLOOR-DRIFT"),
     ]
 
+    # Mutations of the EVIDENCE rather than the declaration. These carry their
+    # own source facts because the property they check is what the gate does
+    # when a declaration and the source disagree, and that cannot be shown
+    # against a source where the defect is absent. They stay meaningful after a
+    # repair lands, which is exactly what a fixture written against live
+    # evidence stops doing the moment the repair it was built for arrives.
+    defective = _defective(evidence)
+    cases += [
+        ("the free-water repair declared while the source still creates water",
+         mutate(put("hydrology", "free_water_repair", "done, honestly")),
+         "WET-DECLARATION-CONTRADICTED", defective),
+        ("the runon source declared while the source still assigns the scalar",
+         mutate(put("hydrology", "runon_source", "done, honestly")),
+         "WET-DECLARATION-CONTRADICTED", defective),
+        ("a serializer missing one required peat-hydrology member",
+         declaration, "WET-SOURCE-RESTART-UNSERIALIZED",
+         _unserialized(evidence, "Wtot")),
+    ]
+
     results = []
-    for label, candidate, expect in cases:
-        codes = {r.code for r in evaluate(candidate, planet, evidence)}
+    for case in cases:
+        label, candidate, expect = case[0], case[1], case[2]
+        facts = case[3] if len(case) > 3 else evidence
+        codes = {r.code for r in evaluate(candidate, planet, facts)}
         ok = bool(codes) if expect is None else expect in codes
         results.append({"fixture": label,
                         "expected": expect or "refused for some reason",
@@ -890,6 +914,37 @@ def _satisfied(declaration: dict) -> dict:
     floors = candidate["acceptance"]["minimum_bracket_factor"]
     candidate["acceptance"]["declared_bracket_factor"] = dict(floors)
     return candidate
+
+
+def _defective(evidence: dict) -> dict:
+    """The evidence the vendored source produced before the WET-3 repairs.
+
+    The inverse of `_repaired`, and it exists for the same reason: a fixture
+    that reads live evidence can only exercise the branch the source is
+    currently on, so the contradiction branch became untestable the moment the
+    repair landed. Both directions are named here so both stay checkable.
+    """
+    defective = copy.deepcopy(evidence)
+    defective["free_water_in_the_wetland_infiltration_path"] = {
+        "rain_melt_clamped_to_zero": True,
+        "full_deficit_added_regardless": True,
+        "switch_only_records_the_created_water": True,
+        "defect_present": True}
+    defective["constant_wetland_runon"] = True
+    defective["annual_water_table_guard"] = True
+    defective["day_resets_to_zero_at_year_end"] = True
+    defective["serialized_soil_members"] = sorted(
+        set(evidence.get("serialized_soil_members") or [])
+        - {"Wtot", "wtd", "stand_water", "mwtp", "Frac_ice", "rootfrac"})
+    return defective
+
+
+def _unserialized(evidence: dict, member: str) -> dict:
+    """The evidence a serializer missing exactly one required member gives."""
+    without = copy.deepcopy(evidence)
+    without["serialized_soil_members"] = sorted(
+        set(evidence.get("serialized_soil_members") or []) - {member})
+    return without
 
 
 def _repaired(evidence: dict) -> dict:

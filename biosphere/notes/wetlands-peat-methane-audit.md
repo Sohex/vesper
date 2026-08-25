@@ -26,12 +26,16 @@ detailed peatland and every stand south of it as a simplified inundated mineral
 wetland; fixes a 1.5 m Earth peat column and Earth gas boundary conditions; and
 has no connection to Vesper groundwater or routed surface water.
 
-There is also a direct conservation blocker. The low-latitude wetland
-infiltration path fills every soil layer to capacity regardless of available
-rain. `ifsaturatewetlands` controls only whether the created water is recorded
-for a later attempt to subtract it from runoff; it does not control whether the
-water is added. Even with the switch on, an unmet remainder can remain as an
-external source rather than routed runon. This path must not be activated.
+The direct conservation blocker this audit found has since been repaired, under
+WORLD-C4J8, and finding 3 below records both what it was and what stands in its
+place. The low-latitude wetland infiltration path filled every soil layer to
+capacity regardless of available rain; `ifsaturatewetlands` controlled only
+whether the created water was recorded for a later attempt to subtract it from
+runoff, not whether the water was added; and even with the switch on an unmet
+remainder could remain as an external source rather than routed runon. The path
+is now bounded by the rain that arrived, and the one daily exchange that would
+deliver routed and groundwater water to a wetland stand is PLHY-4's and does
+not exist, so the wetland has a NAMED absence where it had a source term.
 
 What has to be declared and repaired before any of those switches move is in
 `biosphere/notes/wetland-activation-contract.md`, and
@@ -182,30 +186,41 @@ by BIO-11 and hydrography, with explicit prevention of double counting.
 Sub-grid topographic index or hypsometry may provide a bounded extent model,
 but no latitude threshold or coarse-cell mean depth may select the physics.
 
-### 3. Current low-latitude wetland hydrology creates water
+### 3. Low-latitude wetland hydrology created water; the path is now bounded
 
-In `initial_infiltration()`, a low-latitude `PEATLAND` stand computes every
-layer's saturation deficit and adds that full deficit. It does so even when
-`rain_melt` is smaller: `rain_melt` is clamped to zero and the whole deficit is
-added regardless. `ifsaturatewetlands` only records the amount, and it records
-the whole `total_potential` rather than the created part, so the record
-over-states even where the rain could have supplied the water. Later,
-`hydrology()` tries to subtract the record from runoff; if runoff is too small,
-the remainder survives as `awetland_water_added`. With the switch off, the same
-water is added but not recorded at all.
+As audited, `initial_infiltration()` had a low-latitude `PEATLAND` stand compute
+every layer's saturation deficit and add that full deficit. It did so even when
+`rain_melt` was smaller: `rain_melt` was clamped to zero and the whole deficit
+added regardless. `ifsaturatewetlands` only recorded the amount, and recorded the
+whole `total_potential` rather than the created part, so the record over-stated
+even where the rain could have supplied the water. `hydrology()` then tried to
+subtract the record from runoff; where runoff was too small the remainder
+survived as `awetland_water_added`. With the switch off the same water was added
+and not recorded at all. Three further defects sat on the same path: a
+`soiltype.runon = wetland_runon` scalar in place of a routed quantity, an annual
+water-table average guarded on `date.day == Date::MAX_YEAR_LENGTH` which
+`Date::next()` never produces, and a `Soil::serialize` that omitted `Wtot`,
+`wtd`, `stand_water`, `mwtp`, `Frac_ice` and `rootfrac`.
 
-The detailed peat path is not closed either: its own source comment notes that
-its evapotranspiration treatment makes the hydrologic cycle impossible to
-close, and `wetland_runon` is a constant applied only when water is already
-flowing. Wania et al. identify missing groundwater as a primary reason fen
-water tables and vegetation can be wrong and state that bog/fen separation
-requires it.
+All four are repaired under WORLD-C4J8 and
+`biosphere/notes/wetland-activation-contract.md` section 2 describes what stands
+in their place: infiltration bounded by `min(soil.rain_melt, total_potential)`
+and distributed in proportion to each layer's deficit, no runon term at all
+until PLHY-4's exchange declares one, the annual average on
+`Date::MAX_YEAR_LENGTH - 1`, and the six members serialized with
+`biosphere/scripts/verify_lpj_restart_continuity.py` as the behavioural check.
 
-There must be one daily water ledger linking precipitation, snow, surface
-routing, PLHY uptake/ET, groundwater recharge/discharge, storage and runoff.
-The wetland receives actual routed or groundwater water and returns all losses;
-saturation is a state outcome, never a source term. The unreachable annual
-water-table update and restart state are part of this correctness repair.
+What is NOT repaired is the model this path needs. The detailed peat path is
+still not closed: its own source comment notes that its evapotranspiration
+treatment makes the hydrologic cycle impossible to close. Wania et al. identify
+missing groundwater as a primary reason fen water tables and vegetation can be
+wrong and state that bog/fen separation requires it. There must be one daily
+water ledger linking precipitation, snow, surface routing, PLHY uptake/ET,
+groundwater recharge/discharge, storage and runoff; the wetland receives actual
+routed or groundwater water and returns all losses, and saturation is a state
+outcome, never a source term. `hydrography/config/land_water_ledger.yaml` is the
+graph that ledger closes on and PLHY-4 owns the exchange, which is why
+`hydrology.water_ledger` is the one field of the hydrology block still refusing.
 
 ### 4. Peat stock and vertical structure cannot be inferred from one equilibrium run
 

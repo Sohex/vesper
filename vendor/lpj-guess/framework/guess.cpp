@@ -563,7 +563,6 @@ void Patch::serialize(ArchiveStream& arch) {
 		& aevap
 		& aintercep
 		& arunoff
-		& awetland_water_added
 		& apet
 		& eet_net_veg
 		& wdemand
