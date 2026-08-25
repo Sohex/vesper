@@ -1296,7 +1296,7 @@ void plib_callback(int callback) {
 		// tissue mean, so what canexch.cpp applies to sapwood P demand is
 		// ctop_sap_avr / ctop_leaf_avr = 15.30, not 6.9. That last one is in the
 		// nitrogen limits too, at 12.36 against a sourced 6.897, so it cannot be
-		// settled for phosphorus alone.
+		// settled for phosphorus alone; that half is world-xms4.
 		//
 		// PCONC_SAT is the litter-P saturation threshold and carries
 		// NCONC_SAT's value exactly. Parton, Stewart and Cole (1988), which
@@ -1324,8 +1324,8 @@ void plib_callback(int callback) {
 		// world whose soil organic C:P is pinned at its most phosphorus-rich
 		// end and whose woody P demand is nitrogen's, and it produces it
 		// silently, which is worse than not running. Lift this refusal in the
-		// change that settles them, not before. BIO-34, WORLD-PIDX, WORLD-Z01O
-		// and WORLD-16PB; the evidence is in
+		// change that settles them, not before. BIO-34, WORLD-PIDX, WORLD-Z01O,
+		// WORLD-16PB and world-xms4; the evidence is in
 		// biosphere/notes/phosphorus-cycle-parameterisation.md.
 		if (ifplim) {
 			sendmessage("Error", "ifplim 1 is refused: PFRAC_LEAFTOSAP in guess.h is a "

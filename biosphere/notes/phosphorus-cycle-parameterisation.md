@@ -230,6 +230,7 @@ That is a check that can fail and is failing: after `init_ctop_limits()`,
 sourced from, and it is 2.22 times it. Recorded and not changed, because the
 same defect is in the nitrogen limits that the established C-N configuration runs
 on, and because moving it is one of the decisions below rather than arithmetic.
+It is tracked as world-xms4, which owns both elements together.
 
 ### Heineman et al. (2016) tests the form on the right element and nearly the right tissue
 
@@ -362,7 +363,7 @@ Three decisions are needed and none of them is arithmetic.
 - If proportionally, whether the constant stays at the leaf window's endpoint or
   moves to the tissue mean its source measures. That is the same question on the
   nitrogen side, where the applied proportion is 12.36 against a sourced 6.897,
-  so it cannot be settled for phosphorus alone.
+  so it cannot be settled for phosphorus alone. world-xms4.
 - What anchors the level, given that the only paired leaf-and-sapwood phosphorus
   measurement this project holds is one Panamanian fertility gradient.
 

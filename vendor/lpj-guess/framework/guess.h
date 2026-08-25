@@ -279,7 +279,7 @@ const double PFRAC_LEAFTOROOT = 1.16;
  *  multiplier is 0.94737 * 6.9 * (1 + 3.68) / 2 = 15.30, not 6.9. The nitrogen
  *  side is the same construction on its 2.78 window and applies 12.36 against
  *  Friend's own 6.897, so this one is not a phosphorus defect and cannot be
- *  fixed here alone.
+ *  fixed here alone. It is world-xms4.
  *
  *  Choosing among a refuted scalar, a nonlinear wood-leaf P relation, and moving
  *  the constant to the tissue mean is a modelling decision, and it is BIO-34's
