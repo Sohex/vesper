@@ -33,8 +33,11 @@ falsifies these.
 project builds and runs. Falsified by one named namelist key. Every such claim
 below was checked against the model's own namelist echo in
 `run_2b20e3324bb0/MOST_DIAG.00003` rather than against source defaults or
-harness intent, because three keys (`NSWRCL`, `NEWRSC`, `NMOMENT`) appear in no
-harness file at all and are invisible any other way.
+harness intent, because three keys (`NSWRCL`, `NEWRSC`, `NMOMENT`) appeared in no
+harness file at all and were invisible any other way. `NSWRCL` is now staged and
+checked by `run_exoplasim.py` at its compiled 1, so the shortwave cloud scheme a
+run used is readable from the run's own namelist; clim-68. `NEWRSC` and
+`NMOMENT` are still diagnostic-echo-only.
 
 **Unreferenced.** No caller anywhere, established by a comment-stripped sweep of
 every procedure name across all 58 files in `plasim/src`, not merely the

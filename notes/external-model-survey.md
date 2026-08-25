@@ -5358,33 +5358,49 @@ person to grep for `365` in this tree will find them, and three of the four woul
 be broken by "fixing" them.
 
 
-## 58. The radiation sweep: a correction that never acts, and a calendar off by eight
+## 58. The radiation sweep: a correction on the wrong key, and a calendar off by eight
 
 *Read 2026-08-22 across the radiation and atmosphere modules of
 `vendor/exoplasim`, checked against the diagnostics of an actual run rather than
 against the source alone. Two findings here are the most consequential of the
 whole sweep, because both are live and both were invisible from the namelist.*
 
-### 58a. Half of the cloud-absorption correction is dead code
+### 58a. The cloud-absorption correction reaches the model through one key
 
 `config/planet.yaml` carries `cloud_absorption_scale: 1.192`, derived through a
 Mie calculation from liquid water's refractive index and documented as worth
-about +2.0 K. `run_exoplasim.py:171-175` applies it to two keys, `TSWR3` and
-`ACL2`.
+about +2.0 K. `run_exoplasim.py` applied it to two `radmod_nl` keys, `TSWR3` and
+`ACL2`. Only one of them has a reader.
 
-**`ACL2` never acts.** Its only computational uses are at `radmod.f90:2393-2396`,
-inside a block opening `if (nswrcl == 0)` at `:2387` and closing at `:2461`. And
-`nswrcl` defaults to **1** at `:182`, which is what every run in `bench/` records.
-The cloud absorptivities are read from the namelist, broadcast, and never
-consumed.
+**`swr` carries two shortwave cloud schemes and `nswrcl` picks between them.**
+`nswrcl` defaults to 1, which is what every run records, and 1 selects the
+COMPUTED branch: the layer's optics are built from its cloud water path, and its
+single-scattering albedo is `1 - tswr3*mu0^2*log(1000/tau)`. `nswrcl = 0`
+selects a PRESCRIBED branch instead, three sets of albedos and absorptivities
+indexed by third of sigma.
 
-`TSWR3` is live -- but only at `radmod.f90:2382`, four lines ABOVE the branch. It
-has a second use at `:2445` which is inside it and equally dead.
+**`ACL2` never acts.** Its only computational uses are inside the `nswrcl == 0`
+branch. The cloud absorptivities are read from the namelist, broadcast, and
+never consumed.
 
-So the correction is applied at half strength, and nothing says so. Reading the
-declaration at `:206` gives a wrong account of the model, which is class 32
-exactly; the difference from every earlier instance is that **this project
-deliberately set the value, computed it carefully, and got nothing for it.**
+**`TSWR3` acts in both of its uses.** `zb5 = tswr3*zmu00**2` is formed above the
+branch and consumed inside the computed branch for the diffuse stream; a second
+use sets `zom0` from `tswr3` directly, also in the computed branch, for the
+direct beam. An earlier reading of this section had the two the other way round
+and was wrong on both.
+
+So the correction was applied to one of the two keys it was written to, and
+nothing said so. THE MEASUREMENT SURVIVES INTACT: the PHYS-11 arms swept both
+keys under `nswrcl = 1`, so what they measured was `tswr3` alone and the +/-2.6 K
+is `tswr3`'s. What was wrong was the attribution, not the number.
+
+**Resolved by clim-68 as `tswr3`-only.** Making `acl2` act means `nswrcl = 0`,
+which would replace the two-stream layer solution with a lookup that does not see
+the cloud water path at all -- a worse scheme chosen to give a correction
+somewhere to land, which is class 16 backwards. The scaled `ACL2` write is gone,
+at a cost of exactly zero kelvin, and `NSWRCL` is now staged at 1 so the branch
+selection is a recorded fact rather than a compiled default readable only from
+the model's diagnostic echo.
 
 ### 58b. The calendar's seconds-per-day is eight times too large, and the run log says so
 

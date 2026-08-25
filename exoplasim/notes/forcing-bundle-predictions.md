@@ -312,8 +312,15 @@ rather than arithmetic.** Two effects oppose. This star puts 0.618 of its flux
 in range 2 against the Sun's 0.483, a naive 1.28 on range-2 cloud absorption;
 but it concentrates that energy nearer 0.8-1.5 um, where liquid water absorbs
 less than in the 2-3 um bands the Sun's range-2 tail reaches. So the honest
-bracket on the absorption-like keys (`tswr3`, `acl2`) is 0.78 to 1.28, spanning
-both signs of the correction.
+bracket on the absorption-like key is 0.78 to 1.28, spanning both signs of the
+correction.
+
+**The bracket is on `tswr3` alone, and so was the measurement.** `acl2` is read
+only by the prescribed-cloud branch `nswrcl = 0` selects, and every arm in this
+bundle ran `nswrcl = 1`, so the arms that were labelled as moving both keys were
+moving one. The measured slope is unaffected -- what the arms swept was the
+computed branch's single-scattering albedo -- and only the attribution changes.
+clim-68.
 
 **Predicted magnitude bound: 0 +/- 0.6 K.** Clouds are booked at 12.0 W/m2 of
 Earth's shortwave absorption beside the water vapour term; +/-28% of that is

@@ -836,11 +836,11 @@ model:
   # the model and stamped on the run manifest. A change in the underlying defect
   # has to be able to show rather than be absorbed silently. world-mzy.
   energy_fixer: true
-  # PHYS-11, DERIVED 2026-08-20 and no longer 1.0. Multiplies the two
-  # ABSORPTION-like cloud keys, `tswr3` and the `acl2` triplet, in radmod_nl.
+  # PHYS-11, DERIVED 2026-08-20 and no longer 1.0. Multiplies ONE radmod_nl
+  # key, `tswr3`, the single-scattering albedo tuning in spectral range 2.
   # Lacis and Hansen's absorptances are fractions of SOLAR flux, so every one of
-  # them has to be re-weighted for this host; these are the ones that never
-  # were. `cloud_band_weight.py` derives it the way the gas weights were
+  # them has to be re-weighted for this host; this is one that never was.
+  # `cloud_band_weight.py` derives it the way the gas weights were
   # derived: from a quantity carrying no spectrum, liquid water's k(lambda) out
   # of Hale and Querry (1973) Table I, through Mie to a co-albedo, flux-weighted
   # over range 2 against a 5772 K Sun. 1.184 to 1.205 across droplet effective
@@ -848,6 +848,15 @@ model:
   # scalings, so the answer barely depends on either; 1.192 is the median.
   # Worth about +2.0 K on the arms' own measured slope, which is why the flux
   # re-derivation must follow it and not precede it.
+  #
+  # IT REACHES THE MODEL THROUGH `tswr3` ALONE, and that is the whole of it.
+  # `swr` has two shortwave cloud schemes: `nswrcl` at 1 computes layer optics
+  # from the cloud water path and sets the single-scattering albedo as
+  # `1 - tswr3*mu0^2*log(1000/tau)`, so `tswr3` multiplies exactly the co-albedo
+  # this factor is a ratio of. `nswrcl` at 0 instead reads a prescribed
+  # absorptivity `acl2` per third of sigma. `acl2` has no reader outside that
+  # branch, `nswrcl` is 1 for every run this project makes, and the harness now
+  # writes it so the namelist records which scheme the shortwave used. clim-68.
   cloud_absorption_scale: 1.192
   # DECLARED at CCM3's own value, and EXPOSED rather than changed. `clwref` in
   # `rainmod_nl` is rho_l0, the reference in-cloud liquid water density that

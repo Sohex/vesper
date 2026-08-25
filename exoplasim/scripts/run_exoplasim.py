@@ -334,13 +334,31 @@ def configure_otherargs(derived: dict) -> dict:
         "NHDIFF@oceanmod_namelist": str(derived["ocean_horizontal_diffusion"]),
         "HDIFFK@oceanmod_namelist":
             f"{derived['ocean_horizontal_diffusivity_m2_s']:.6g}",
-        # PHYS-11, radmod_nl. The compiled values are tswr3 0.0055 and
-        # acl2 (0.05, 0.10, 0.20); at scale 1.0 these reproduce them exactly.
+        # PHYS-11, radmod_nl, and it lands on TSWR3 ALONE. The compiled value
+        # is 0.0055, so scale 1.0 reproduces it exactly.
+        #
+        # `swr` carries two shortwave cloud schemes and NSWRCL picks between
+        # them. The computed branch, NSWRCL = 1, solves a two-stream layer
+        # whose single-scattering albedo is `1 - tswr3*mu0^2*log(1000/tau)`, so
+        # `tswr3` multiplies the co-albedo and the flux-weighted co-albedo
+        # ratio `cloud_band_weight.py` derives is exactly its multiplier. Both
+        # of `tswr3`'s uses are inside that branch, one for the diffuse stream
+        # through `zb5` and one for the direct beam.
+        #
+        # The prescribed branch, NSWRCL = 0, is the only reader of `acl2`, so
+        # scaling `acl2` under NSWRCL = 1 wrote a number the modelled radiation
+        # cannot consume. It is no longer written. Dropping it is bit-identical
+        # for every run this project makes, and the +2.0 K the PHYS-11 arms
+        # measured was always `tswr3`'s: those arms ran NSWRCL = 1 too. clim-68.
         "TSWR3@radmod_namelist":
             f"{0.0055 * derived['cloud_absorption_scale']:.6g}",
-        "ACL2@radmod_namelist": ", ".join(
-            f"{v * derived['cloud_absorption_scale']:.6g}"
-            for v in (0.05, 0.10, 0.20)),
+        # NSWRCL, written unconditionally at radmod's compiled default so the
+        # run's namelist records WHICH cloud scheme the shortwave used. Nothing
+        # in this project had ever named it, so the branch selection was
+        # readable only from the model's own diagnostic echo, and a
+        # continuation that flipped it would have replaced the two-stream
+        # optics with a three-level lookup silently. clim-68.
+        "NSWRCL@radmod_namelist": "1",
         # world-nfh, landmod_nl. Snow seen through a canopy is a mixture of the
         # band's exposed snow with the band's canopy albedo, so the canopy
         # albedo has to arrive per band. landmod's compiled default is the
@@ -2315,11 +2333,11 @@ def expected_namelist_keys(config: dict) -> dict:
     want["radmod_namelist"]["BO3"] = float(m.get("ozone_height_m", 20000.0))
     want["radmod_namelist"]["CO3"] = float(m.get("ozone_spread_m", 5000.0))
     # world-nfh, the per-band canopy albedo, and PHYS-11's cloud absorption
-    # pair. All three are written unconditionally by `configure_otherargs` and
-    # all three are ARRAYS or scale one: ALBFOREST is per band, ACL2 is the
-    # three-layer cloud triplet, and dropping either reverts the modelled
-    # surface and cloud to radmod's and landmod's compiled Earth-Sun broadband
-    # endmembers. ALBFOREST is the one this gate could not hold until the
+    # scale. Both are written unconditionally by `configure_otherargs`, so both
+    # are checked unconditionally: ALBFOREST is per band and dropping it reverts
+    # the modelled canopy to landmod's compiled Earth-Sun broadband endmember in
+    # both bands, and dropping TSWR3 reverts the modelled cloud to radmod's
+    # Earth tuning. ALBFOREST is the one this gate could not hold until the
     # comparison carried sequences; world-2wd.
     #
     # Rounded to the six significant digits `configure_otherargs` writes, for
@@ -2329,8 +2347,12 @@ def expected_namelist_keys(config: dict) -> dict:
         float(f"{float(v):.6g}") for v in m["vegetation_albedo_bands"]]
     cloud_scale = float(m.get("cloud_absorption_scale", 1.0))
     want["radmod_namelist"]["TSWR3"] = float(f"{0.0055 * cloud_scale:.6g}")
-    want["radmod_namelist"]["ACL2"] = [
-        float(f"{v * cloud_scale:.6g}") for v in (0.05, 0.10, 0.20)]
+    # clim-68. NSWRCL selects the shortwave cloud scheme, and TSWR3 acts only
+    # in the computed branch it selects at 1. Checking it is what makes the
+    # line above mean anything: a segment that reached the prescribed branch
+    # would carry a scaled TSWR3 no code reads, and `acl2`, which that branch
+    # does read, is left at radmod's Earth tuning deliberately.
+    want["radmod_namelist"]["NSWRCL"] = 1.0
     # CLIM-16, oceanmod_nl, and unconditional for the same reason. NLEV_OCE is
     # 1 so HDIFFK is a one-element array, which is why one element is what this
     # asks for.
