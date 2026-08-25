@@ -74,9 +74,12 @@ already had.
 | `data/<build>/hydrography_report.json` | diagnostics, river mouths, marginal seas, provenance |
 | `data/<build>/surface_water.nc` | per region: lake, lake depth, river discharge; per basin: solved area, level, volume, overflow |
 | `data/<build>/topographic_index_<grid>.nc` | per region: the compound topographic index on both slope arms; per grid cell: its area-weighted mean, its within-cell spread, and `f_sat_max`, the share of the cell's land AREA above that mean |
+| `data/<build>/wetness_<grid>.nc` | per region: one mutually exclusive wetness class; per grid cell: the AREA share of each class over the cell's land |
 | `analysis/lake_balance_sweep.json` | solver sensitivity under placeholder forcing |
 | `analysis/surface_water_report.json` | the solved water balance and its forcing |
 | `analysis/topographic_index_report.json` | the index's distribution, the scale measurement, and the score declared before it |
+| `analysis/topographic_index_score.json` | the score itself, per observation set, and the license every consumer of `f_sat` reads |
+| `analysis/wetness_report.json` | the class shares, the partition, the identity the playa rule is checked against, and every class declared absent with its reason |
 | `analysis/land_water_ledger_report.json` | the land water ledger's graph, its closure fixtures, its graph mutations, and every store that still has a shadow copy |
 
 ## The land water ledger
@@ -565,12 +568,98 @@ measurably so between this project's own two builds, and it sits far above that
 range. `f_sat_max` is a share of a cell's own area above that cell's own mean,
 so it survives the offset; a threshold does not.
 
-**Nothing may consume `f_sat` until it is scored.** The bar is in
-`config/topographic_index.yaml`, declared before any fraction was computed, and
-the report's `consumers_licensed` says whether it has been met. The closure is
-strictly monotone in the depth for a fixed `f_sat_max`, so any discrimination it
-gains over the depth alone is attributable to the terrain half and to nothing
-else -- which is what makes the score a test rather than a comparison.
+**Nothing may consume `f_sat` until it is scored, and it has been.** The bar,
+the support, the comparator and the attribution identity are in
+`config/topographic_index.yaml`, all declared before any fraction was scored;
+`earth_calibration.py --stage fsat` runs it on the two continents the depth
+field was scored on and writes `analysis/topographic_index_score.json`, which is
+where every consumer reads its license. The closure is strictly monotone in the
+depth for a fixed `f_sat_max`, so any discrimination it gains over the depth
+alone is attributable to the terrain half and to nothing else -- which is what
+makes the score a test rather than a comparison, and the harness checks that
+identity to a declared tolerance before reading anything off it.
+
+**The verdict is a miss, the license is no, and the miss is the depth's.** The
+United States unconfined set clears both conditions on every slope arm and both
+ends of the `f_grad` bracket; Australia misses both on every arm, and there the
+cell-mean depth it multiplies is itself below the 0.5 of no discrimination while
+the ceiling any cell-scale predictor has at that support is far above it. So
+the terrain half is not what fails: where the depth field has skill the
+statistic adds a little to it, and where the evapotranspiration sink sets the
+depth and the flow solve carries almost no spatial variance, nothing multiplied
+into that depth recovers. It is the same regime split `water_table.nc` already
+reports per cell in `sink_fraction`, one quantity removed, and it is why the
+license is the AND over both required sets rather than the best of them.
+
+**One thing the bracket does that reading the closure does not show.** At the
+upper end of `f_grad` the exponential in the depth spans so much more than
+`f_sat_max` does that the ranking becomes the depth's ranking exactly, and the
+terrain half contributes nothing at all. The bracket is therefore not a spread
+around one answer; one of its ends erases the quantity this artifact exists to
+supply.
+
+**And the scale argument now has a measurement on real terrain.** The same index
+computed on the Earth mesh, at the spacing the comparator runs at, lands well
+above the range published absolute thresholds are calibrated on -- on Earth's own
+topography, sampled from a DEM. So the offset is the cell size carried in `a`
+and not something about Vesper, which is what the refusal of absolute thresholds
+rests on. `notes/subgrid-water-table.md` section 5 carries the numbers.
+
+## The wetness classification
+
+`build_wetness.py` gives every land region ONE wetness class and crosses those
+classes to the climate grid as AREA shares. WET-2 and LSHY-6.
+
+**Mutual exclusivity is the product, not a property of it.** Overlapping
+wetness classes double-count area, and the double count does not announce
+itself downstream: the shares still look like shares and simply sum above one,
+and a ledger that renormalises them hides it completely. So a region gets one
+label rather than a set of masks that happen not to overlap, the shares are
+required to partition the cell's land, and `--selftest` hands every rule a case
+built to violate it that the check is required to refuse -- a playa mask that
+forgot to exclude the lake, land in no class with no residual named, a saturated
+share added beside the resolved classes instead of taken out of them, and a
+playa rule that selected the endorheic catchment instead of the depression
+floor.
+
+**A class is CATEGORICAL, so a majority label is not a coarse version of it.**
+`lib/gridding.py`'s `cell_fraction` is what a class gets, over the cell's land:
+a majority discards every minority surface however much leverage it has, and a
+narrow strip of open water in an otherwise dry cell is exactly the surface
+finding 7 of the hydraulic-consistency audit is about. Land comes from
+`surface_class`.
+
+**The playa class is the depression FLOOR and not the endorheic catchment**, and
+the difference is most of this world's land. A region is playa when its
+depression-filled surface lies at or below its basin's spill and the solved lake
+does not cover it -- the exposed floor and strandline of a basin that does not
+fill. A basin that does fill contributes none, which falls out of the rule
+rather than needing a second one. The rule is CHECKED rather than argued: the
+total area it selects is the same quantity `basins.nc` carries as
+`area_at_spill_km2` from its own hypsometry, so the two totals are an identity
+with a right answer, and the catchment version of the rule misses it by a factor
+of several.
+
+**Three of the five classes the audit asks for have no source here, and are
+declared absent with the reason rather than estimated.** A wetness fraction that
+is a guess is indistinguishable in the file from one that is a measurement.
+Saturated non-inundated mineral soil is unresolved on this mesh --
+`notes/subgrid-water-table.md` section 5 -- and can only arrive as a
+climate-grid area share taken OUT of the mineral class, which is what makes
+exclusivity a constraint at two supports; it also needs `f_sat`, which is
+scored and not licensed. Seasonal inundation and peat need a season, and nothing
+in this component carries one: the lake solve is an annual equilibrium, the
+groundwater solve is a steady state, and every term reaching those stores in
+`config/land_water_ledger.yaml` has an annual interval floor. River water needs
+a channel width the project does not hold, so a discharge stays a rank and a
+mask rather than becoming an area.
+
+**What it refuses, by name and in code.** No latitude or other geographic
+selector may pick a class, because the vendored decomposition already switches
+on one and a classification that switched too would put the physics in two
+places. No cell-mean water table depth or available water capacity may stand in
+for an area fraction. No per-region saturated fraction. No absolute threshold on
+the topographic index. Each is a config key the script reads and exits on.
 
 ## The Earth comparator
 
@@ -701,7 +790,7 @@ for another carve iteration, and the counts are in `world_state.json` and
 ## One-off tools
 
 - `scripts/build_earth_wtd_sites.py` -- one-off: assembles Australian bore water table depths into one site table for GW-3, the first leg of the solver's Earth comparator. Reads the Australian Groundwater Explorer's per-state download, whose `level_<state>.csv` sits BESIDE the geodatabase rather than inside it. Reconciles three datums against an identity that can fail, and reports the quality flag rather than filtering on it, because the codes are per-agency and filtering would select which state survives. Registered under `one_offs` in `config/pipeline.yaml`.
-- `scripts/earth_calibration.py` -- one-off: the GW-3 Earth comparator end to end, mesh, ETOPO, GLHYMPS permeability, recharge, drainage, solve and score, with `--edge-km` or `--regions` setting the mesh so the same case can be run at more than one cell size. The original was written inline and lost, which is GW-20 and is why this exists as a script: the one number that judges this component was recorded and not reproducible. Stages cache under `data/earth_validation_cache/edge<E>km/` and are skipped when present; the cache is gitignored and regenerable, the result is `analysis/earth_calibration.json`. Runs with the sink and the river baselevels ON, as the pipeline gate requires. Registered under `one_offs` in `config/pipeline.yaml`.
+- `scripts/earth_calibration.py` -- one-off: the GW-3 Earth comparator end to end, mesh, ETOPO, GLHYMPS permeability, recharge, drainage, solve and score, with `--edge-km` or `--regions` setting the mesh so the same case can be run at more than one cell size. The original was written inline and lost, which is GW-20 and is why this exists as a script: the one number that judges this component was recorded and not reproducible. Stages cache under `data/earth_validation_cache/edge<E>km/` and are skipped when present; the cache is gitignored and regenerable, the result is `analysis/earth_calibration.json`. Runs with the sink and the river baselevels ON, as the pipeline gate requires. `--stage cti` and `--stage fsat` are GW-26's arm: the same compound topographic index computed on the Earth mesh, and the declared score of the saturated-fraction closure against bores, written to `analysis/topographic_index_score.json`, which is the only thing that can license a consumer of `f_sat`. Registered under `one_offs` in `config/pipeline.yaml`.
 - `scripts/build_us_wtd_sites.py` -- one-off: the United States half of the Earth comparator's observations, GW-22, companion to `build_earth_wtd_sites.py`. `external-data.md` says take Australia FIRST and the US second; this is the second leg, and it exists because GW-21 concluded the limit on the Australian score is the input fields rather than the formulation or the mesh, which is a claim resting on one region. Fetches USGS `monitoring-locations` and `field-measurements` at parameter code 72019, depth to water in feet below land surface, paging blind on the `next` link because `numberMatched` is absent from every response. The US set can be BETTER than the Australian one rather than merely bigger: `aquifer_type_code` separates confined from unconfined directly, where Australia can only infer it from bore depth, and a `Static` qualifier marks readings not taken while pumping, which `external-data.md` notes Fan's four columns cannot support. Writes `data/earth_validation/us_wtd_sites.csv`. Registered under `one_offs` in `config/pipeline.yaml`.
 - `scripts/fetch_recharge.py` -- one-off: pulls a window of the global recharge grid by BYTE RANGE rather than downloading it. `RechargeTotal.nc` is a classic netCDF3 whose one variable is a contiguous big-endian float64 array, so whole rows can be ranged out of a multi-gigabyte file; the script carries the data offset and the exact windows, which is the part `docs/src/reference/external-data.md` cannot hold compactly. Windows are deliberately WIDER than the region they serve wherever a bbox edge would cut land, because a cell with no coverage is not land, so it is ocean, so it is a fixed head at sea level. Registered under `one_offs` in `config/pipeline.yaml`.
 - `scripts/validate_lake_solver.py` -- one-off: checks the lake solver against real endorheic basins on Copernicus DEM tiles, which is where HYD-7's mesh-scale storage deficit was measured. Registered under `one_offs` in `config/pipeline.yaml`; it generates nothing the pipeline reads.

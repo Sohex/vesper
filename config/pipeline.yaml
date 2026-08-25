@@ -299,6 +299,43 @@ steps:
       project's own two builds -- and it sits far above the range published
       thresholds are calibrated on.
 
+  - id: wetness
+    reads_export: true
+    script: hydrography/scripts/build_wetness.py
+    loop: A
+    cost: minutes
+    needs: [hydrography, surface_water]
+    writes: ["hydrography/data/{build}/wetness_exoplasim-{res}.nc", "hydrography/data/{build}/wetness_exoplasim-*.nc", hydrography/analysis/wetness_report.json]
+    gate: >
+      WET-2 and LSHY-6. One wetness class per REGION, and per GRID CELL the AREA
+      share of each class over the cell's land. MUTUAL EXCLUSIVITY IS THE
+      PRODUCT: overlapping wetness classes double-count area and every ledger
+      downstream inherits the double count with no way to see it, so a region
+      gets one label rather than a set of masks that happen not to overlap, the
+      shares are required to partition the cell, and `--selftest` hands each
+      rule a case built to violate it that the check must refuse -- a playa mask
+      that forgot to exclude the lake, land in no class with no residual named,
+      and the saturated share added beside the resolved classes instead of taken
+      out of them.
+      A CLASS IS CATEGORICAL, so what crosses is `lib/gridding.py`'s
+      `cell_fraction` and never a majority label: a majority discards every
+      minority surface however much leverage it has, and a narrow strip of open
+      water in a dry cell is the surface these rows exist to keep. Land comes
+      from `surface_class`.
+      THREE OF THE AUDIT'S FIVE CLASSES HAVE NO SOURCE HERE and are declared
+      absent with the reason rather than estimated. The saturated non-inundated
+      mineral class is unresolved on this mesh -- `hydrography/notes/subgrid-
+      water-table.md` section 5 -- and can only arrive as a climate-grid area
+      share taken OUT of the mineral class, which makes exclusivity a constraint
+      at two supports and is the cost that decision left to WET-2; it also needs
+      `f_sat`, which `topographic_index` has scored and NOT licensed. Seasonal
+      inundation and peat need a season, and nothing in this component carries
+      one: the lake solve is an annual equilibrium, the groundwater solve is a
+      steady state, and every term reaching those stores in
+      `hydrography/config/land_water_ledger.yaml` has an annual interval floor.
+      River water needs a channel width the project does not hold, so a
+      discharge stays a rank and a mask rather than becoming an area.
+
   - id: groundwater
     script: hydrography/scripts/build_groundwater.py
     loop: A

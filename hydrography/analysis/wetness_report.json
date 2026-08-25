@@ -1,0 +1,80 @@
+{
+  "script": "hydrography/scripts/build_wetness.py",
+  "issues": [
+    "WET-2",
+    "LSHY-6"
+  ],
+  "source_build": "precarve-craton-10m",
+  "grid": "exoplasim-T21",
+  "regions": 10000005,
+  "land_regions": 4328736,
+  "depression_footprint_land_fraction": 0.21033562467279726,
+  "endorheic_catchment_land_fraction": 0.8102907447451213,
+  "footprint_against_catalogue_area_at_spill_relative": 0.0,
+  "classes_resolved": {
+    "open_water": {
+      "regions": 603824,
+      "land_area_fraction": 0.1419118453528296
+    },
+    "playa": {
+      "regions": 290820,
+      "land_area_fraction": 0.06842377931996765
+    },
+    "dry_mineral": {
+      "regions": 3434092,
+      "land_area_fraction": 0.7896643753272027
+    }
+  },
+  "classes_absent": {
+    "saturated_mineral": "the closure is unlicensed until its declared score passes, and the score needs a water table this build does not have. Measured here: f_sat is not licensed: the declared score in hydrography/config/topographic_index.yaml",
+    "seasonal_inundation": "nothing in this component carries a season. The lake solve is an annual equilibrium, the groundwater solve is a steady state, and `hydrography/config/land_water_ledger.yaml` gives every term reaching these stores an annual `interval_floor`. A seasonal inundated area needs a store that empties and refills inside the year, which is the climate column's or the land model's and not this component's.",
+    "peat": "persistence over a seasonal cycle is what distinguishes peat-forming land from saturated mineral soil, and the previous entry says why no such cycle exists here. Peat is also a STOCK with an accumulation behind it; `docs/src/reference/no-time-axis.md` is what that has to answer to.",
+    "river_water": "`surface_water.nc` carries a discharge and no channel width, so a river AREA cannot be formed from it. Discharge is a rank and a mask, not an area, and turning one into the other needs a hydraulic geometry this project does not hold."
+  },
+  "f_sat_license": {
+    "consumers_licensed": false,
+    "observation_sets_required": [
+      "australia_depth_consistent",
+      "us_unconfined"
+    ],
+    "per_set": {
+      "aus/all/15.19km": false,
+      "us/unconfined/15.19km": true
+    },
+    "reason": "the declared score in hydrography/config/topographic_index.yaml"
+  },
+  "reduction": {
+    "class_share": "gridding.cell_fraction, CATEGORICAL, share of the cell's land AREA",
+    "population": "surface_class == LAND",
+    "ledger": {
+      "regions_offered": 4328736,
+      "cells": 2048,
+      "cells_with_no_population": 409,
+      "area_offered": 318136980.5317639,
+      "area_landed": 318136980.5317639,
+      "closure_residual_relative": 0.0
+    }
+  },
+  "cells_with_land": 1639,
+  "cells_with_partition_estimated": 1612,
+  "min_land_regions_per_cell": 4,
+  "class_share_percentiles": {
+    "open_water": {
+      "5": 0.0,
+      "50": 0.06385962124910723,
+      "95": 0.38672256347041933
+    },
+    "playa": {
+      "5": 0.0,
+      "50": 0.0,
+      "95": 0.20649853248668476
+    },
+    "dry_mineral": {
+      "5": 0.5927555624508483,
+      "50": 0.8667430885229502,
+      "95": 1.0
+    }
+  },
+  "partition_tolerance": 1e-09,
+  "created": "2026-08-25T09:43:09.078801+00:00"
+}

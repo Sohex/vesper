@@ -94,6 +94,13 @@ hydrography/data/*/surface_water.nc
 # and ARE tracked, in hydrography/analysis/topographic_index_report.json.
 hydrography/data/*/topographic_index_*.nc
 
+# WET-2's wetness classification, per region and so the same size as the
+# rasters above, and one file per grid. Rebuilt in seconds by
+# hydrography/scripts/build_wetness.py from artifacts that are themselves
+# regenerable. The class shares, the partition and the declared absences are
+# small and ARE tracked, in hydrography/analysis/wetness_report.json.
+hydrography/data/*/wetness_*.nc
+
 # LPJ-GUESS output: one set of files per gridcell per year, tens of MB per run
 # and regenerable from the driver file. The manifest and the analysis products
 # that summarise a run are tracked under biosphere/analysis/.

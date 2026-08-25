@@ -1008,12 +1008,18 @@ def _score_boxes(xyz, nlat: int, nlon: int):
     axis from anywhere else; the flat cell index is `row * nlon + col`, the
     convention `lib/gridding.py` uses.
     """
+    import gridding
+
     pos = np.asarray(xyz, dtype=np.float64)
-    lat = np.degrees(np.arcsin(np.clip(pos[2] / np.linalg.norm(pos, axis=0), -1, 1)))
-    lon = np.degrees(np.arctan2(pos[1], pos[0])) % 360.0
-    row = np.clip(((90.0 - lat) / (180.0 / nlat)).astype(np.int64), 0, nlat - 1)
-    col = np.clip((lon / (360.0 / nlon)).astype(np.int64), 0, nlon - 1)
-    return row * nlon + col
+    unit = pos / np.linalg.norm(pos, axis=0)
+    lat = np.degrees(np.arcsin(np.clip(unit[2], -1.0, 1.0)))
+    lon = np.degrees(np.arctan2(unit[1], unit[0]))
+    # The row centres of nlat equal-angle boxes, north to south. `gridding.row`
+    # bins on the midpoints between centres, which for a uniform spacing are the
+    # box edges exactly, so this is the boxes and not an approximation to them.
+    centres = 90.0 - (np.arange(nlat) + 0.5) * (180.0 / nlat)
+    r, c = gridding.cells(lat, lon, centres, nlon)
+    return r * nlon + c
 
 
 def stage_fsat(tag: Path, edge_km: float, region: str, confinement: str | None,
