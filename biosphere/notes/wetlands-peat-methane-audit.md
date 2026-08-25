@@ -112,21 +112,20 @@ table would place bubbles below an unsaturated layer. Snow at or above the
 threshold stops diffusion, and live leaf biomass/phenology removes plant
 transport too early to represent dead tiller venting and winter/thaw pulses.
 
-Restart state is incomplete. `Soil::serialize` retains `wtp`, `awtp` and
-several yesterday gas stores, and does not retain `Wtot`, `wtd`, `stand_water`,
-`mwtp`, `Frac_ice` or `rootfrac`. `Frac_ice` is the current ice fraction and is
-distinct from the `Frac_ice_yesterday` that is retained; `rootfrac` is
-initialized on day zero only. An arbitrary-day restart therefore needs an
-exact-continuity fixture before either peat hydrology or methane output can be
-accepted. The annual water-table update itself tests
-`date.day == Date::MAX_YEAR_LENGTH`. `Date::next()` resets `day` to 0 on the
-last day of the last month, so `day` never exceeds `MAX_YEAR_LENGTH - 1` and
-that block is unreachable on the original and the Vesper calendar alike. `awtp`
-therefore holds the 0.0 it is initialized to for the whole run, and across
-restarts because it is serialized. The consequence reaches the carbon:
-`update_acrotelm_co2` interpolates the acrotelm CO2 concentration linearly in
-`awtp` between the atmospheric value at -300 mm and the pore-water value at 0,
-so `awtp == 0` pins the simulated acrotelm to the pore-water concentration
+Restart state is complete, and the sweep that made it so is in
+`biosphere/notes/soil-restart-state.md`: every member of the Soil class is now
+either serialized or recorded, with its evidence, as rebuilt before its first
+read or as diagnostic. The peat hydrology members went in under WORLD-C4J8; the
+three quantities `canopy_exchange` reads the day before `hydrology_peat` writes
+them, and the four annual accumulators an arbitrary-day save point stops
+protecting, went in under WORLD-SC4T. The annual water-table update reached
+`awtp` only after WORLD-C4J8 moved its guard off `date.day ==
+Date::MAX_YEAR_LENGTH`, an ordinal `Date::next()` never produces because it
+resets `day` to 0 on the last day of the last month. While that guard stood,
+`awtp` held its initial 0.0 for whole runs and across restarts, and
+`update_acrotelm_co2`, which interpolates the acrotelm CO2 concentration
+linearly in `awtp` between the atmospheric value at -300 mm and the pore-water
+value at 0, pinned the simulated acrotelm to the pore-water concentration
 everywhere and always.
 
 ### Vesper interfaces
