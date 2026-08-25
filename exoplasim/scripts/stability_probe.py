@@ -32,6 +32,18 @@ THE TEMPLATE is a run directory that already has the rung's surface fields
 staged and its binary beside them -- a crashed arm serves, since what failed
 there was the integration and not the staging. Output is switched off, which is
 what keeps a T170 probe from writing twelve gigabytes to measure a step.
+
+WHICH BINARY, AND HOW IT IS ESTABLISHED. A run directory holds the executable
+that was copied into it when that run was staged, so after any rebuild the copy
+beside the surface fields is an older model while the registry's is the current
+one. That is not rule 4 -- the rebuild was complete -- it is a CONSUMER reading
+a copy the manifest does not track, and it cost a cycle on 2026-08-24 when the
+probe printed pre-repair surface albedos off a superseded executable and they
+read as a patch having failed to take. So the executable is checked against
+`exoplasim/binary_manifest.json` before anything is integrated, this REFUSES
+when the two disagree, and every result records the name and sha of what ran.
+`--restage` takes the registry's current executable instead and says so.
+world-anl.
 """
 from __future__ import annotations
 
@@ -50,6 +62,9 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _paths  # noqa: F401
+from _paths import MODEL_RUN  # noqa: E402
+import build_model  # noqa: E402
+import rebuild_binaries  # noqa: E402
 from paths import rel  # noqa: E402  from lib/, put on sys.path by _paths
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -69,45 +84,100 @@ def steps_per_orbit(dt_minutes: float) -> float:
     return ORBIT_HOURS * 60.0 / dt_minutes
 
 
-def find_template(rung: str) -> Path:
-    """A run directory carrying this rung's staged surface fields and binary."""
+def find_template(rung: str, need_binary: bool) -> Path:
+    """A run directory carrying this rung's staged surface fields.
+
+    `need_binary` is the default and asks for the executable beside them too,
+    because that is the one the probe will run. Under `--restage` the
+    executable comes from the registry, so the template is wanted for its
+    STAGING alone and a run directory without a binary serves.
+    """
     want = f"N{NLAT[rung]:03d}_surf_"
-    best = None
     for d in sorted(RUNS.glob("run_*"), key=lambda p: p.stat().st_mtime, reverse=True):
         if not d.is_dir():
             continue
         if not any(d.glob(f"{want}*.sra")):
             continue
-        if not any(d.glob(f"most_plasim_t{rung[1:]}_l*_p*.x")):
+        if need_binary and not any(d.glob(f"most_plasim_t{rung[1:]}_l*_p*.x")):
             continue
-        best = d
-        break
-    if best is None:
+        return d
+    also = " and a {} binary".format(rung) if need_binary else ""
+    raise SystemExit(
+        f"no run directory carries {want}*.sra{also}. "
+        f"Run one arm at {rung} first, even a failing one: what this needs "
+        f"from it is the staging, not the integration.")
+
+
+def resolve_binary(rung: str, levels: int, threads: int, template: Path,
+                   restage: bool) -> tuple[Path, dict]:
+    """The executable this probe will run, and its provenance. CHECKED.
+
+    A run directory holds the executable that was copied into it when that run
+    was staged, so its copy is as old as the run and nothing about the probe's
+    numbers says which model produced them. Refusing is preferred to running:
+    the numbers look ordinary either way, which is
+    `docs/src/practice/failure-modes.md` class 34, and a boundary measured on a
+    superseded executable is worse than no boundary because it will be quoted.
+
+    Restaging from the registry is the friendlier answer and is available, but
+    it is `--restage` and never automatic. Doing both -- checking, then quietly
+    substituting -- would leave "which binary was this" exactly as unanswerable
+    as it is now.
+    """
+    if restage:
+        exe = MODEL_RUN / build_model.executable_name(rung, levels, threads, False)
+        if not exe.is_file():
+            raise SystemExit(
+                f"--restage wants {exe.name} in {rel(MODEL_RUN)} and it is not "
+                f"built. Run exoplasim/scripts/rebuild_binaries.py.")
+    else:
+        # A registry binary, not a profiling arm: `_fp` carries
+        # -fno-omit-frame-pointer and costs -1.17%, so a cost measured on one
+        # is not the model's cost. There is one parallel mode, so nothing else
+        # to exclude.
+        candidates = sorted(b for b in template.glob(f"most_plasim_t{rung[1:]}_l*_p*.x")
+                            if not b.name.endswith("_fp.x"))
+        if not candidates:
+            raise SystemExit(f"{rel(template)} carries no {rung} executable")
+        exe = candidates[0]
+
+    problem = rebuild_binaries.unregistered(exe)
+    if problem is not None:
+        remedy = ("Rebuild (exoplasim/scripts/rebuild_binaries.py) so the "
+                  "registry and the manifest agree."
+                  if restage else
+                  "Pass --restage to take the registry's current executable "
+                  "and use the template for its staging alone, or rebuild "
+                  "(exoplasim/scripts/rebuild_binaries.py) and restage the run.")
         raise SystemExit(
-            f"no run directory carries {want}*.sra and a {rung} binary. "
-            f"Run one arm at {rung} first, even a failing one: what this needs "
-            f"from it is the staging, not the integration.")
-    return best
+            f"REFUSING: {problem}.\n"
+            f"  taken from {rel(exe.parent)}\n"
+            f"  This probe would price and bound a model nobody can name, and "
+            f"its numbers would read as current. {remedy}")
+
+    record = rebuild_binaries.registered(exe.name)
+    return exe, {"executable": exe.name,
+                 "executable_sha256": record["sha256"],
+                 "executable_from": "registry" if restage else "template",
+                 "build_profile": record.get("profile"),
+                 "template": rel(template)}
 
 
-def build_bed(rung: str, template: Path, tag: str) -> tuple[Path, str]:
+def build_bed(rung: str, template: Path, tag: str, exe: Path) -> Path:
     bed = WORK / f"bed_{rung}_{tag}"
     if bed.exists():
         shutil.rmtree(bed)
     bed.mkdir(parents=True)
-    # A registry binary, not a profiling arm: `_fp` carries
-    # -fno-omit-frame-pointer and costs -1.17%, so a cost measured on one is not
-    # the model's cost. There is one parallel mode, so nothing else to exclude.
-    binary = sorted(b for b in template.glob(f"most_plasim_t{rung[1:]}_l*_p*.x")
-                    if not b.name.endswith("_fp.x"))
-    exe = binary[0]
     for pattern in ("*_namelist", "*.nl", f"N{NLAT[rung]:03d}_surf_*.sra",
                     "k25v*.dat", "GUI.cfg"):
         for f in template.glob(pattern):
             if f.is_file():
                 shutil.copy2(f, bed / f.name)
+    # The template's own executable is NOT swept in by the patterns above, so a
+    # bed carries exactly the one `resolve_binary` checked. Under --restage the
+    # template's copy would otherwise sit beside it under a different name.
     shutil.copy2(exe, bed / exe.name)
-    return bed, exe.name
+    return bed
 
 
 def set_keys(bed: Path, keys: dict[str, str]) -> None:
@@ -148,10 +218,10 @@ def time_run(bed: Path, exe: str, threads: int) -> tuple[float, bool, str]:
 
 
 def probe(rung: str, dt: float, kappa: float | None, steps: int,
-          threads: int, template: Path, gamma: int,
-          tau_scale: float | None = None) -> dict:
+          threads: int, template: Path, gamma: int, exe: Path,
+          provenance: dict, tau_scale: float | None = None) -> dict:
     tag = ("off" if kappa is None else f"k{kappa:g}") + f"_dt{dt:g}"
-    bed, exe = build_bed(rung, template, tag)
+    bed = build_bed(rung, template, tag, exe)
     # SEED is declared, not inherited: the template is a run directory made
     # before `model.cold_start_seed` existed, and `initrandom` falls back to the
     # system clock when seed(1) is zero. A probe nobody can re-run is a boundary
@@ -207,11 +277,15 @@ def probe(rung: str, dt: float, kappa: float | None, steps: int,
                  "TDISSQ": f"{nlev}*{hd['humidity'] / tau_scale}",
                  "NDEL": f"{nlev}*{int(cfg_all['model']['hyperdiffusion']['order_alpha'])}"}
     set_keys(bed, keys | {"N_RUN_STEPS": str(short_steps)})
-    t_short, trapped, text = time_run(bed, exe, threads)
+    t_short, trapped, text = time_run(bed, exe.name, threads)
+    # WHICH BINARY, IN EVERY RESULT. A refusal boundary and a per-step cost are
+    # both properties of one executable, and a result that does not name it can
+    # only be re-derived, never checked. world-anl.
     result = {"rung": rung, "dt_minutes": dt, "kappa": kappa, "threads": threads,
               "steps_short": short_steps, "steps_long": steps,
               "wall_short_s": round(t_short, 2),
-              "outcome": "refused" if trapped else "no_refusal_in_steps"}
+              "outcome": "refused" if trapped else "no_refusal_in_steps",
+              **provenance}
     if trapped:
         result["failed_after_s"] = round(t_short, 2)
         frames = [ln.strip() for ln in text.splitlines() if re.match(r"^#\d+ ", ln.strip())]
@@ -220,7 +294,7 @@ def probe(rung: str, dt: float, kappa: float | None, steps: int,
         return result
 
     set_keys(bed, keys | {"N_RUN_STEPS": str(steps)})
-    t_long, trapped_long, _ = time_run(bed, exe, threads)
+    t_long, trapped_long, _ = time_run(bed, exe.name, threads)
     result["wall_long_s"] = round(t_long, 2)
     if trapped_long:
         # Ran short and refused long: that is a LATE failure inside the probe's
@@ -258,26 +332,38 @@ def main() -> None:
                     help="filter power; default is config/planet.yaml's")
     ap.add_argument("--threads", type=int, default=16,
                     help="the thread count the binary was compiled for")
+    ap.add_argument("--restage", action="store_true",
+                    help="take the executable from the model's run/ directory "
+                         "rather than from the template, and use the template "
+                         "for its staging alone. The default REFUSES when the "
+                         "template's copy is not what binary_manifest.json "
+                         "registers; this is the other answer, and it is asked "
+                         "for rather than applied silently.")
     ap.add_argument("--out", type=Path, default=OUT)
     args = ap.parse_args()
 
+    cfg_model = yaml.safe_load(
+        (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))["model"]
     if args.gamma is None:
-        args.gamma = int(yaml.safe_load(
-            (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8")
-        )["model"]["filter_power"])
+        args.gamma = int(cfg_model["filter_power"])
     dts = ([float(x) for x in args.sweep.split(",")] if args.sweep
            else [args.dt if args.dt else 45.0])
     kappas = [None if k.strip().lower() == "off" else float(k)
               for k in args.kappa.split(",")]
     WORK.mkdir(parents=True, exist_ok=True)
-    template = find_template(args.rung)
+    template = find_template(args.rung, need_binary=not args.restage)
+    exe, provenance = resolve_binary(args.rung, int(cfg_model["layers"]),
+                                     args.threads, template, args.restage)
     print(f"template: {rel(template)}")
+    print(f"binary:   {exe.name} {provenance['executable_sha256'][:16]} "
+          f"(profile {provenance['build_profile']}, "
+          f"from the {provenance['executable_from']})")
 
     results = []
     for dt in dts:
         for kappa in kappas:
             r = probe(args.rung, dt, kappa, args.steps, args.threads, template,
-                      args.gamma, args.tau_scale)
+                      args.gamma, exe, provenance, args.tau_scale)
             r["tau_scale"] = args.tau_scale
             results.append(r)
             k = "off" if kappa is None else f"{kappa:g}"
@@ -296,9 +382,13 @@ def main() -> None:
             prior["probes"] = [p for p in prior["probes"]
                                if not (p["rung"] == r["rung"] and p["dt_minutes"] == r["dt_minutes"]
                                        and p["kappa"] == r["kappa"])] + [r]
-            prior["note"] = ("Refusal boundary and per-step cost. Short probes: "
-                             "this cannot see a LATE blow-up. "
-                             "exoplasim/scripts/stability_probe.py")
+            prior["note"] = (
+                "Refusal boundary and per-step cost. Short probes: this cannot "
+                "see a LATE blow-up. Each probe names the executable that "
+                "produced it and the sha binary_manifest.json registers for it; "
+                "an entry without `executable_sha256` predates that and cannot "
+                "be attributed to a model source. "
+                "exoplasim/scripts/stability_probe.py")
             prior["generated"] = datetime.now(timezone.utc).isoformat()
             args.out.parent.mkdir(parents=True, exist_ok=True)
             args.out.write_text(json.dumps(prior, indent=2))
