@@ -1003,8 +1003,9 @@ statement available that the field is not merely reported but delivered.
 ### 11d. What the verification caught
 
 **The fitted record interval missed by 4.75 per cent on the first pass, and the
-model was right.** `close_ocean_energy.py` and `close_state_energy.py` both
-carried `CRHOS = 1030.0` and `CPS = 4180.0` as literals attributed to
+model was right.** `close_ocean_energy.py`, `close_state_energy.py` and
+`predict_ocean_terms.py` each carried `CRHOS = 1030.0` and `CPS = 4180.0`, and
+`assess_convergence.py` imported the pair from the second, all attributed to
 `oceanmod.f90`. `oceanmod` does not own them: `icemod.f90` declares both as
 `icemod_nl` keys and passes them to `oceanini` so the two modules cannot hold
 different sea water, and its `CPS` is sea water's specific heat at S = 34.7 and

@@ -15,7 +15,7 @@ hold different sea water.
     CPS      specific heat
     CLFI     the heat of fusion of sea ice, depressed below pure ice's by brine
 
-WHY THEY ARE NOT COPIED. Three analysis scripts carried `CRHOS = 1030.0` and
+WHY THEY ARE NOT COPIED. Four analysis scripts carried `CRHOS = 1030.0` and
 `CPS = 4180.0` as literals attributed to `oceanmod.f90`, which does not own
 them. When the model moved CPS to sea water's value at S = 34.7 and its freezing
 point, the copies stayed at fresh water's 4180 at about 25 C, and every slab

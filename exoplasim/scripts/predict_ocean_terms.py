@@ -44,13 +44,22 @@ from numpy.polynomial.legendre import leggauss
 from _paths import CONFIG, PROJECT_ROOT  # noqa: F401  (puts lib/ on sys.path)
 
 import climatology  # noqa: E402  from lib/
+import sea_water  # noqa: E402  from lib/
 import sensitivity  # noqa: E402  from lib/
 from paths import climatology_path  # noqa: E402
 from run_exoplasim import freezing_point_k  # noqa: E402
 
 EARTH_RADIUS_M = 6371000.0
-CRHOS, CPS = 1030.0, 4180.0        # oceanmod.f90's own sea water constants
 ALBEDO_PER_ICE_AREA = (0.25, 0.40) # planetary albedo per unit new ice area; see module docstring
+
+# THE SLAB'S HEAT CAPACITY COMES FROM THE MODEL. Density and specific heat are
+# icemod_nl keys that icemod passes to oceanini, so oceanmod does not own them
+# and a run can set them. The pair stood here as literals attributed to
+# oceanmod.f90 with CPS at 4180, fresh water at about 25 C, while the model had
+# moved to sea water's value at S = 34.7 and its freezing point; the prediction
+# below is a heat flux per unit temperature change, so it carried their ratio.
+_SEA_WATER = sea_water.constants()
+CRHOS, CPS = _SEA_WATER["CRHOS"], _SEA_WATER["CPS"]
 
 
 def hdiffo_tendency(T: np.ndarray, sea: np.ndarray, k: float, a: float,
