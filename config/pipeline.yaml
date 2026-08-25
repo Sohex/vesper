@@ -994,6 +994,15 @@ one_offs:
   - exoplasim/scripts/mie_dust.py
   - analysis/orogen_resolution.py
   - analysis/orogen_resolution_controls.py
+  # The three measurements behind the length-carrying statistics, beside the two
+  # above and outside the graph for the same reason: each is a verdict on the
+  # export and on a constant, not a product any step consumes. The first two
+  # read builds; the third reads an Earth DEM this repository does not fetch,
+  # and its output is the record of an external measurement two constants in
+  # `vendor/orogen/js/terrain-config.js` rest on. world-uyfb, world-xgaj.
+  - analysis/subgrid_slope_support.py
+  - analysis/scarp_relief_transport.py
+  - analysis/escarpment_relief_anchor.py
   - analysis/ice_mask_freezing_height.py
   - hydrography/scripts/fetch_recharge.py
   - exoplasim/scripts/run_albedo_bracket.sh
