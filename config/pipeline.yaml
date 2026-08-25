@@ -802,6 +802,12 @@ one_offs:
   - exoplasim/scripts/continue_exoplasim.py
   - aeolian/scripts/dust_runoff_sensitivity.py
   - aeolian/scripts/extract_high_cadence_wind.py
+  # Which lever moves the dust intensity: the tabulated roughness, or the soil
+  # texture. Outside the graph because every figure it writes is a RATIO of
+  # emission totals taken against `dust_baseline.json`, so it consumes that
+  # artifact and nothing consumes it; it is a sensitivity study, not a product.
+  # world-03x; notes/audits/dust-intensity-levers.md.
+  - aeolian/scripts/dust_intensity_levers.py
   - scripts/archive_runs.py
   - scripts/archive_builds.py
   - scripts/compare_exports.py
