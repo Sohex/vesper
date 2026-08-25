@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-25T05:10:35+00:00",
+  "generated": "2026-08-25T09:32:05+00:00",
   "issue": "SPAT-7",
   "build": "precarve-craton-10m",
   "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
@@ -8,7 +8,7 @@
     "roughness_exchange": "the step's own z_ref bracket over 273.15-313.15 K",
     "clay_conversion": "a factor 1.35 in the weathering intensity, Dunne's S_y.x carried in pedogenesis.yaml",
     "regolith_erodibility": "regolith.minimum_depth_m",
-    "saturation_deficit": "0.01 of e_sat, declared"
+    "saturation_deficit": "0.01 of e_sat, declared; unchanged since the first measurement crossed it"
   },
   "by_rung": {
     "T21": {
@@ -458,52 +458,68 @@
         "bar_relative": 0.01,
         "lapse_bracket_k_per_km": [
           4.0,
-          9.8
+          12.7476
         ],
+        "lapse_ceiling_is": "this planet's dry adiabat, lib/lapse.py",
+        "lapse_floor_is": "declared; nothing at this step bounds it",
         "reference_air_bracket_k": [
           273.15,
           313.15
         ],
+        "critical_lapse_k_per_km": {
+          "273.15": 3.9499,
+          "313.15": 4.6412
+        },
+        "saturation_function": "plasimmod.f90 Magnus-Teten, phase switch at tmelt, coefficients read from p_earth.f90",
+        "magnus_teten_coefficients": {
+          "ra1": 610.78,
+          "ra2": 17.2693882,
+          "ra4": 35.86,
+          "ra1i": 610.66,
+          "ra2i": 21.875,
+          "ra4i": 7.65,
+          "tmelt": 273.16
+        },
         "by_bracket_corner": {
-          "lapse4.0_t273.15": {
-            "land_mean_relative_gap": 0.014074,
+          "lapse4_t273.15": {
+            "land_mean_relative_gap": 0.010308,
             "per_cell_relative_gap": {
-              "50": 0.000729,
-              "75": 0.010145,
-              "95": 0.054703,
-              "99": 0.086699
+              "50": 6e-06,
+              "75": 0.005561,
+              "95": 0.043829,
+              "99": 0.071764
             },
-            "land_area_fraction_above_bar": 0.346702
+            "land_area_fraction_above_bar": 0.288143
           },
-          "lapse4.0_t313.15": {
-            "land_mean_relative_gap": 0.008196,
+          "lapse4_t313.15": {
+            "land_mean_relative_gap": 0.0075,
             "per_cell_relative_gap": {
-              "50": 0.000417,
-              "75": 0.005934,
-              "95": 0.031822,
-              "99": 0.049207
+              "50": 0.00038,
+              "75": 0.005436,
+              "95": 0.029068,
+              "99": 0.044755
             },
-            "land_area_fraction_above_bar": 0.274178
+            "land_area_fraction_above_bar": 0.267686
           },
-          "lapse9.8_t273.15": {
-            "land_mean_relative_gap": 0.077058,
+          "lapse12.7476_t273.15": {
+            "land_mean_relative_gap": 0.120349,
             "per_cell_relative_gap": {
-              "50": 0.004139,
-              "75": 0.053634,
-              "95": 0.303242,
-              "99": 0.512807
+              "50": 0.003435,
+              "75": 0.078076,
+              "95": 0.475671,
+              "99": 0.867279
             },
-            "land_area_fraction_above_bar": 0.558929
+            "land_area_fraction_above_bar": 0.568239
           },
-          "lapse9.8_t313.15": {
-            "land_mean_relative_gap": 0.045385,
+          "lapse12.7476_t313.15": {
+            "land_mean_relative_gap": 0.0683,
             "per_cell_relative_gap": {
-              "50": 0.002454,
-              "75": 0.032415,
-              "95": 0.177614,
-              "99": 0.295221
+              "50": 0.003681,
+              "75": 0.048164,
+              "95": 0.263949,
+              "99": 0.445564
             },
-            "land_area_fraction_above_bar": 0.511446
+            "land_area_fraction_above_bar": 0.551164
           }
         }
       }
@@ -955,52 +971,68 @@
         "bar_relative": 0.01,
         "lapse_bracket_k_per_km": [
           4.0,
-          9.8
+          12.7476
         ],
+        "lapse_ceiling_is": "this planet's dry adiabat, lib/lapse.py",
+        "lapse_floor_is": "declared; nothing at this step bounds it",
         "reference_air_bracket_k": [
           273.15,
           313.15
         ],
+        "critical_lapse_k_per_km": {
+          "273.15": 4.351,
+          "313.15": 5.1555
+        },
+        "saturation_function": "plasimmod.f90 Magnus-Teten, phase switch at tmelt, coefficients read from p_earth.f90",
+        "magnus_teten_coefficients": {
+          "ra1": 610.78,
+          "ra2": 17.2693882,
+          "ra4": 35.86,
+          "ra1i": 610.66,
+          "ra2i": 21.875,
+          "ra4i": 7.65,
+          "tmelt": 273.16
+        },
         "by_bracket_corner": {
-          "lapse4.0_t273.15": {
-            "land_mean_relative_gap": 0.01154,
+          "lapse4_t273.15": {
+            "land_mean_relative_gap": 0.008136,
             "per_cell_relative_gap": {
-              "50": 0.000167,
-              "75": 0.004483,
-              "95": 0.04791,
-              "99": 0.087621
+              "50": -1e-05,
+              "75": 0.00104,
+              "95": 0.037318,
+              "99": 0.072862
             },
-            "land_area_fraction_above_bar": 0.275934
+            "land_area_fraction_above_bar": 0.22041
           },
-          "lapse4.0_t313.15": {
-            "land_mean_relative_gap": 0.006667,
+          "lapse4_t313.15": {
+            "land_mean_relative_gap": 0.006089,
             "per_cell_relative_gap": {
-              "50": 9.5e-05,
-              "75": 0.002603,
-              "95": 0.027693,
-              "99": 0.050169
+              "50": 8.7e-05,
+              "75": 0.00238,
+              "95": 0.025325,
+              "99": 0.045781
             },
-            "land_area_fraction_above_bar": 0.213035
+            "land_area_fraction_above_bar": 0.203695
           },
-          "lapse9.8_t273.15": {
-            "land_mean_relative_gap": 0.065951,
+          "lapse12.7476_t273.15": {
+            "land_mean_relative_gap": 0.104251,
             "per_cell_relative_gap": {
-              "50": 0.000984,
-              "75": 0.024739,
-              "95": 0.264677,
-              "99": 0.540308
+              "50": 3.8e-05,
+              "75": 0.032661,
+              "95": 0.425126,
+              "99": 0.906698
             },
-            "land_area_fraction_above_bar": 0.453244
+            "land_area_fraction_above_bar": 0.457497
           },
-          "lapse9.8_t313.15": {
-            "land_mean_relative_gap": 0.0381,
+          "lapse12.7476_t313.15": {
+            "land_mean_relative_gap": 0.057913,
             "per_cell_relative_gap": {
-              "50": 0.000565,
-              "75": 0.014551,
-              "95": 0.155205,
-              "99": 0.301544
+              "50": 0.000867,
+              "75": 0.022018,
+              "95": 0.233862,
+              "99": 0.46499
             },
-            "land_area_fraction_above_bar": 0.399776
+            "land_area_fraction_above_bar": 0.442199
           }
         }
       }
@@ -1452,52 +1484,68 @@
         "bar_relative": 0.01,
         "lapse_bracket_k_per_km": [
           4.0,
-          9.8
+          12.7476
         ],
+        "lapse_ceiling_is": "this planet's dry adiabat, lib/lapse.py",
+        "lapse_floor_is": "declared; nothing at this step bounds it",
         "reference_air_bracket_k": [
           273.15,
           313.15
         ],
+        "critical_lapse_k_per_km": {
+          "273.15": 4.9001,
+          "313.15": 5.8517
+        },
+        "saturation_function": "plasimmod.f90 Magnus-Teten, phase switch at tmelt, coefficients read from p_earth.f90",
+        "magnus_teten_coefficients": {
+          "ra1": 610.78,
+          "ra2": 17.2693882,
+          "ra4": 35.86,
+          "ra1i": 610.66,
+          "ra2i": 21.875,
+          "ra4i": 7.65,
+          "tmelt": 273.16
+        },
         "by_bracket_corner": {
-          "lapse4.0_t273.15": {
-            "land_mean_relative_gap": 0.00902,
+          "lapse4_t273.15": {
+            "land_mean_relative_gap": 0.006011,
             "per_cell_relative_gap": {
-              "50": 5.5e-05,
-              "75": 0.002272,
-              "95": 0.040779,
-              "99": 0.082112
+              "50": -2.1e-05,
+              "75": 4.9e-05,
+              "95": 0.0303,
+              "99": 0.067548
             },
-            "land_area_fraction_above_bar": 0.21713
+            "land_area_fraction_above_bar": 0.166611
           },
-          "lapse4.0_t313.15": {
-            "land_mean_relative_gap": 0.005176,
+          "lapse4_t313.15": {
+            "land_mean_relative_gap": 0.004719,
             "per_cell_relative_gap": {
-              "50": 3.1e-05,
-              "75": 0.001312,
-              "95": 0.023506,
-              "99": 0.04683
+              "50": 2.9e-05,
+              "75": 0.001196,
+              "95": 0.021447,
+              "99": 0.042665
             },
-            "land_area_fraction_above_bar": 0.16507
+            "land_area_fraction_above_bar": 0.156324
           },
-          "lapse9.8_t273.15": {
-            "land_mean_relative_gap": 0.05341,
+          "lapse12.7476_t273.15": {
+            "land_mean_relative_gap": 0.084839,
             "per_cell_relative_gap": {
-              "50": 0.00033,
-              "75": 0.013012,
-              "95": 0.233132,
-              "99": 0.519986
+              "50": -2e-06,
+              "75": 0.014558,
+              "95": 0.373195,
+              "99": 0.887236
             },
-            "land_area_fraction_above_bar": 0.371209
+            "land_area_fraction_above_bar": 0.37291
           },
-          "lapse9.8_t313.15": {
-            "land_mean_relative_gap": 0.030375,
+          "lapse12.7476_t313.15": {
+            "land_mean_relative_gap": 0.046547,
             "per_cell_relative_gap": {
-              "50": 0.000188,
-              "75": 0.007569,
-              "95": 0.134627,
-              "99": 0.283959
+              "50": 0.000289,
+              "75": 0.011511,
+              "95": 0.204582,
+              "99": 0.443889
             },
-            "land_area_fraction_above_bar": 0.321657
+            "land_area_fraction_above_bar": 0.357837
           }
         }
       }
@@ -1949,52 +1997,68 @@
         "bar_relative": 0.01,
         "lapse_bracket_k_per_km": [
           4.0,
-          9.8
+          12.7476
         ],
+        "lapse_ceiling_is": "this planet's dry adiabat, lib/lapse.py",
+        "lapse_floor_is": "declared; nothing at this step bounds it",
         "reference_air_bracket_k": [
           273.15,
           313.15
         ],
+        "critical_lapse_k_per_km": {
+          "273.15": 5.3985,
+          "313.15": 6.4788
+        },
+        "saturation_function": "plasimmod.f90 Magnus-Teten, phase switch at tmelt, coefficients read from p_earth.f90",
+        "magnus_teten_coefficients": {
+          "ra1": 610.78,
+          "ra2": 17.2693882,
+          "ra4": 35.86,
+          "ra1i": 610.66,
+          "ra2i": 21.875,
+          "ra4i": 7.65,
+          "tmelt": 273.16
+        },
         "by_bracket_corner": {
-          "lapse4.0_t273.15": {
-            "land_mean_relative_gap": 0.007372,
+          "lapse4_t273.15": {
+            "land_mean_relative_gap": 0.00465,
             "per_cell_relative_gap": {
-              "50": 3.1e-05,
-              "75": 0.001449,
-              "95": 0.033521,
-              "99": 0.075082
+              "50": -1.6e-05,
+              "75": 3.6e-05,
+              "95": 0.023386,
+              "99": 0.060905
             },
-            "land_area_fraction_above_bar": 0.184244
+            "land_area_fraction_above_bar": 0.136585
           },
-          "lapse4.0_t313.15": {
-            "land_mean_relative_gap": 0.004214,
+          "lapse4_t313.15": {
+            "land_mean_relative_gap": 0.00384,
             "per_cell_relative_gap": {
-              "50": 1.8e-05,
-              "75": 0.000832,
-              "95": 0.019229,
-              "99": 0.042815
+              "50": 1.6e-05,
+              "75": 0.000758,
+              "95": 0.017493,
+              "99": 0.038961
             },
-            "land_area_fraction_above_bar": 0.136611
+            "land_area_fraction_above_bar": 0.128478
           },
-          "lapse9.8_t273.15": {
-            "land_mean_relative_gap": 0.044428,
+          "lapse12.7476_t273.15": {
+            "land_mean_relative_gap": 0.070375,
             "per_cell_relative_gap": {
-              "50": 0.000185,
-              "75": 0.008405,
-              "95": 0.195547,
-              "99": 0.476586
+              "50": -2.4e-05,
+              "75": 0.007607,
+              "95": 0.311645,
+              "99": 0.803049
             },
-            "land_area_fraction_above_bar": 0.327246
+            "land_area_fraction_above_bar": 0.327612
           },
-          "lapse9.8_t313.15": {
-            "land_mean_relative_gap": 0.025076,
+          "lapse12.7476_t313.15": {
+            "land_mean_relative_gap": 0.038583,
             "per_cell_relative_gap": {
-              "50": 0.000105,
-              "75": 0.004861,
-              "95": 0.112204,
-              "99": 0.262135
+              "50": 0.000162,
+              "75": 0.007409,
+              "95": 0.171525,
+              "99": 0.406614
             },
-            "land_area_fraction_above_bar": 0.281502
+            "land_area_fraction_above_bar": 0.317107
           }
         }
       }
@@ -2446,52 +2510,68 @@
         "bar_relative": 0.01,
         "lapse_bracket_k_per_km": [
           4.0,
-          9.8
+          12.7476
         ],
+        "lapse_ceiling_is": "this planet's dry adiabat, lib/lapse.py",
+        "lapse_floor_is": "declared; nothing at this step bounds it",
         "reference_air_bracket_k": [
           273.15,
           313.15
         ],
+        "critical_lapse_k_per_km": {
+          "273.15": 5.871,
+          "313.15": 7.0727
+        },
+        "saturation_function": "plasimmod.f90 Magnus-Teten, phase switch at tmelt, coefficients read from p_earth.f90",
+        "magnus_teten_coefficients": {
+          "ra1": 610.78,
+          "ra2": 17.2693882,
+          "ra4": 35.86,
+          "ra1i": 610.66,
+          "ra2i": 21.875,
+          "ra4i": 7.65,
+          "tmelt": 273.16
+        },
         "by_bracket_corner": {
-          "lapse4.0_t273.15": {
-            "land_mean_relative_gap": 0.006185,
+          "lapse4_t273.15": {
+            "land_mean_relative_gap": 0.003698,
             "per_cell_relative_gap": {
-              "50": 2.1e-05,
-              "75": 0.000998,
-              "95": 0.028322,
-              "99": 0.068467
+              "50": -1.1e-05,
+              "75": 3e-05,
+              "95": 0.0186,
+              "99": 0.05448
             },
-            "land_area_fraction_above_bar": 0.160291
+            "land_area_fraction_above_bar": 0.112235
           },
-          "lapse4.0_t313.15": {
-            "land_mean_relative_gap": 0.00353,
+          "lapse4_t313.15": {
+            "land_mean_relative_gap": 0.003214,
             "per_cell_relative_gap": {
-              "50": 1.2e-05,
-              "75": 0.000571,
-              "95": 0.016214,
-              "99": 0.038869
+              "50": 1.1e-05,
+              "75": 0.00052,
+              "95": 0.014776,
+              "99": 0.0353
             },
-            "land_area_fraction_above_bar": 0.113531
+            "land_area_fraction_above_bar": 0.10651
           },
-          "lapse9.8_t273.15": {
-            "land_mean_relative_gap": 0.037586,
+          "lapse12.7476_t273.15": {
+            "land_mean_relative_gap": 0.059142,
             "per_cell_relative_gap": {
-              "50": 0.000127,
-              "75": 0.005862,
-              "95": 0.167085,
-              "99": 0.434308
+              "50": -2.9e-05,
+              "75": 0.004103,
+              "95": 0.264838,
+              "99": 0.732483
             },
-            "land_area_fraction_above_bar": 0.293796
+            "land_area_fraction_above_bar": 0.292861
           },
-          "lapse9.8_t313.15": {
-            "land_mean_relative_gap": 0.021145,
+          "lapse12.7476_t313.15": {
+            "land_mean_relative_gap": 0.0326,
             "per_cell_relative_gap": {
-              "50": 7.3e-05,
-              "75": 0.003374,
-              "95": 0.095751,
-              "99": 0.239024
+              "50": 0.000112,
+              "75": 0.005164,
+              "95": 0.146431,
+              "99": 0.372831
             },
-            "land_area_fraction_above_bar": 0.251322
+            "land_area_fraction_above_bar": 0.283688
           }
         }
       }
@@ -2536,6 +2616,7 @@
         "regions": 2500001,
         "mesh_spacing_km": 15.1904,
         "land_median_tan_beta": 0.004809,
+        "land_median_tan_beta_declared_run": 0.002435,
         "land_median_stdev_m": 73.057,
         "land_median_catena_divisor": 0.981125
       },
@@ -2543,11 +2624,13 @@
         "regions": 10000005,
         "mesh_spacing_km": 7.5952,
         "land_median_tan_beta": 0.009464,
+        "land_median_tan_beta_declared_run": 0.002396,
         "land_median_stdev_m": 71.882,
         "land_median_catena_divisor": 0.963524
       },
       "ratio_10m_over_2p5m": {
         "tan_beta": 1.968,
+        "tan_beta_declared_run": 0.984,
         "stdev_m": 0.9839,
         "catena_divisor": 0.9821
       }

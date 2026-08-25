@@ -133,6 +133,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -147,7 +148,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "exoplasim" / "scripts"))
 import builds                                                  # noqa: E402
 from gridding import RUNGS, region_cells                       # noqa: E402
 from orogen import Export, LAND                                # noqa: E402
-from lapse import reference_height_m                           # noqa: E402
+from lapse import dry_adiabat_k_per_km, reference_height_m     # noqa: E402
 # ONE definition of how much forest the land carries, and one of the height a
 # bulk transfer coefficient is taken over. Both are imported from the step that
 # owns them rather than restated, which is `failure-modes.md` class 17: a second
@@ -173,15 +174,59 @@ DUNNE_SCATTER = 1.35        # S_y.x = 0.13 log units, pedogenesis.yaml
 RHO_SWEEP = (0.01, 0.1, 0.5, 1.0, 3.0, 10.0, 100.0)
 
 # Lapse rate bracket for the saturation-deficit arm, K per km. `lib/lapse.py`
-# owns the rates this world runs at; the bracket spans dry-adiabatic-ish to
-# strongly moist, because which one applies is a property of a climatology this
-# step does not have.
-LAPSE_BRACKET_K_PER_KM = (4.0, 9.8)
+# owns the rates this world runs at and the ceiling comes from it, because a
+# stably stratified column cannot lapse faster than THIS planet's dry adiabat
+# and `lapse.environmental_lapse_k_per_km` already raises on a measured rate
+# that does. The floor is DECLARED and has nothing under it: lapse.py states
+# that the measured rate sits below the moist adiabatic rate at the window-mean
+# state, so no moist floor is available, and the gap goes to zero with the rate.
+LAPSE_FLOOR_K_PER_KM = 4.0
 REFERENCE_AIR_BRACKET_K = CE_BRACKET_K       # the same liquid-water span
 SATURATION_BAR = 0.01                        # 1% of e_sat, declared above
 
-L_VAP = 2.5e6               # J/kg, latent heat of vaporisation
-R_VAP = 461.5               # J/kg/K, gas constant for water vapour
+# The model's saturation vapour pressure is Magnus-Teten with two coefficient
+# sets and a phase switch at `tmelt`, not an idealised Clausius-Clapeyron. The
+# coefficients are READ from the planet module rather than copied, which is what
+# `lib/sea_water.py` established: a copied model constant goes stale silently
+# when the model moves, and this set moved once already when the ice branch was
+# added.
+PLANET_SOURCE = (PROJECT_ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim"
+                 / "src" / "p_earth.f90")
+MAGNUS_TETEN_NAMES = ("ra1", "ra2", "ra4", "ra1i", "ra2i", "ra4i", "tmelt")
+
+
+def magnus_teten() -> dict:
+    """The model's Magnus-Teten coefficients, read from `p_earth.f90`."""
+    text = PLANET_SOURCE.read_text(encoding="utf-8")
+    out = {}
+    for name in MAGNUS_TETEN_NAMES:
+        m = re.search(rf"^\s*{name}\s*=\s*([0-9.eEdD+-]+)", text, re.MULTILINE)
+        if m is None:
+            raise RuntimeError(
+                f"{PLANET_SOURCE.name} no longer declares {name}; the arm "
+                "cannot evaluate the model's saturation function")
+        out[name] = float(m.group(1).replace("d", "e").replace("D", "e"))
+    return out
+
+
+def model_e_sat(t_k: np.ndarray, c: dict) -> np.ndarray:
+    """`plasimmod.f90:ra1s/ra2s/ra4s` and `ra4d`, in Pa, elementwise.
+
+    The phase follows the temperature, as it does at every land saturation site
+    (`landmod.f90:716,932`); the denominator carries the same floor `ra4d`
+    applies. A sea surface does NOT select this way, and this arm is land only.
+    """
+    t = np.asarray(t_k, dtype=np.float64)
+    ice = t < c["tmelt"]
+    a1 = np.where(ice, c["ra1i"], c["ra1"])
+    a2 = np.where(ice, c["ra2i"], c["ra2"])
+    a4 = np.where(ice, c["ra4i"], c["ra4"])
+    return a1 * np.exp(a2 * (t - c["tmelt"]) / np.maximum(t - a4, 1.0))
+
+
+def lapse_bracket_k_per_km(config: dict) -> tuple[float, float]:
+    """Declared floor to this planet's own dry adiabat."""
+    return (LAPSE_FLOOR_K_PER_KM, dry_adiabat_k_per_km(config))
 
 
 # --------------------------------------------------------------------------
@@ -537,22 +582,56 @@ def regolith_arm(mesh: Export, cell, ncell, land, area, pedo) -> dict:
 # arm 4: subgrid elevation through Clausius-Clapeyron
 # --------------------------------------------------------------------------
 
-def saturation_arm(mesh: Export, cell, ncell, land, area) -> dict:
+def _critical_lapse(land_mean, t0: float, ceiling: float) -> float | None:
+    """The lapse rate at which the land-mean gap reaches the bar, K per km.
+
+    THIS IS NOT A NEW BAR. The bar is unchanged; this reports where it sits on
+    the one axis the whole verdict turns on, so that a climatology settles the
+    arm with a single comparison instead of a re-measurement. The gap rises
+    monotonically with the lapse rate from zero at an isothermal column, so a
+    bisection is exact to the tolerance stated.
+
+    `None` means the bar is not reached anywhere this planet can lapse: the
+    reduction is admissible at that rung whatever the climatology turns out to
+    be, which is the one outcome that is a PASS rather than a deferral.
+    """
+    if land_mean(ceiling, t0) <= SATURATION_BAR:
+        return None
+    lo, hi = 0.0, ceiling
+    for _ in range(40):
+        mid = 0.5 * (lo + hi)
+        if land_mean(mid, t0) > SATURATION_BAR:
+            hi = mid
+        else:
+            lo = mid
+    return round(0.5 * (lo + hi), 4)
+
+
+def saturation_arm(mesh: Export, cell, ncell, land, area, config) -> dict:
     """What a mean-elevation cell costs in saturation vapour pressure.
 
     `build_boundary_conditions.py` averages elevation over a cell's land and
     hands the model one height. Temperature is LINEAR in height through a lapse
     rate, so that reduction is exact for temperature and the Jensen term is
-    zero. Saturation vapour pressure is not: it is exponential in temperature,
-    so the cell's own spread of heights raises the mean saturation deficit
-    above the one computed at the mean height. That is the term a single
-    elevation per cell discards, and evaporation is what consumes it.
+    zero. Saturation vapour pressure is not: the model's Magnus-Teten function
+    is convex in temperature over the whole liquid-water span, so the cell's own
+    spread of heights raises the mean saturation deficit above the one computed
+    at the mean height. That is the term a single elevation per cell discards,
+    and evaporation is what consumes it.
+
+    The function evaluated is the MODEL'S, phase switch included, because the
+    quantity being measured is a curvature and the two functions do not have
+    the same one. At the cold corner a cell's high ground falls below `tmelt`,
+    where the model's coefficients are steeper than the liquid ones.
 
     Bracketed twice over, and both brackets are reported: the lapse rate,
     because which one applies is a property of a climatology this step does not
     have, and the reference air temperature, over the span in which surface
-    water is liquid.
+    water is liquid. The lapse ceiling is this planet's dry adiabat and the
+    floor is declared with nothing under it, both per the criterion above.
     """
+    coeff = magnus_teten()
+    bracket = lapse_bracket_k_per_km(config)
     elev_km = mesh.field("elevation_km").astype(np.float64)
     a = area[land]
     c = cell[land]
@@ -560,17 +639,25 @@ def saturation_arm(mesh: Export, cell, ncell, land, area) -> dict:
     have = w > 0
     m1 = np.bincount(c, weights=a * elev_km[land], minlength=ncell)
     mean = np.where(have, m1 / np.maximum(w, 1e-30), 0.0)
+    anomaly = elev_km[land] - mean[c]
+    land_area = w[have]
+
+    def gap_field(lapse: float, t0: float) -> np.ndarray:
+        # e_sat at each region's own height, against e_sat at the cell mean
+        # height. `t0` is the temperature the mean height sits at.
+        ratio = model_e_sat(t0 - lapse * anomaly, coeff) / model_e_sat(t0, coeff)
+        num = np.bincount(c, weights=a * ratio, minlength=ncell)
+        return np.where(have, num / np.maximum(w, 1e-30), 1.0) - 1.0
+
+    def land_mean(lapse: float, t0: float) -> float:
+        g = gap_field(lapse, t0)[have]
+        return float((g * land_area).sum() / land_area.sum())
 
     rows = {}
-    for lapse in LAPSE_BRACKET_K_PER_KM:
+    for lapse in bracket:
         for t0 in REFERENCE_AIR_BRACKET_K:
-            # e_sat ratio against the cell mean height, per region.
-            dt = -lapse * (elev_km[land] - mean[c])
-            ratio = np.exp(L_VAP / R_VAP * (1.0 / t0 - 1.0 / (t0 + dt)))
-            num = np.bincount(c, weights=a * ratio, minlength=ncell)
-            gap = np.where(have, num / np.maximum(w, 1e-30), 1.0) - 1.0
-            land_area = w[have]
-            rows[f"lapse{lapse}_t{t0}"] = {
+            gap = gap_field(lapse, t0)
+            rows[f"lapse{lapse:g}_t{t0}"] = {
                 "land_mean_relative_gap": round(
                     float((gap[have] * land_area).sum() / land_area.sum()), 6),
                 "per_cell_relative_gap": {
@@ -581,8 +668,17 @@ def saturation_arm(mesh: Export, cell, ncell, land, area) -> dict:
                           / land_area.sum()), 6),
             }
     return {"bar_relative": SATURATION_BAR,
-            "lapse_bracket_k_per_km": list(LAPSE_BRACKET_K_PER_KM),
+            "lapse_bracket_k_per_km": [round(v, 4) for v in bracket],
+            "lapse_ceiling_is": "this planet's dry adiabat, lib/lapse.py",
+            "lapse_floor_is": "declared; nothing at this step bounds it",
             "reference_air_bracket_k": list(REFERENCE_AIR_BRACKET_K),
+            "critical_lapse_k_per_km": {
+                str(t0): _critical_lapse(land_mean, t0, bracket[1])
+                for t0 in REFERENCE_AIR_BRACKET_K},
+            "saturation_function": "plasimmod.f90 Magnus-Teten, phase switch "
+                                   "at tmelt, coefficients read from "
+                                   "p_earth.f90",
+            "magnus_teten_coefficients": coeff,
             "by_bracket_corner": rows}
 
 
@@ -693,7 +789,8 @@ def main() -> int:
                                         pedo["texture"]),
             "regolith_erodibility": regolith_arm(mesh, cell, ncell, land,
                                                 area, pedo),
-            "saturation_deficit": saturation_arm(mesh, cell, ncell, land, area),
+            "saturation_deficit": saturation_arm(mesh, cell, ncell, land,
+                                                 area, config),
         }
         print(f"{rung}: done")
 
@@ -712,7 +809,9 @@ def main() -> int:
                                "intensity, Dunne's S_y.x carried in "
                                "pedogenesis.yaml",
             "regolith_erodibility": "regolith.minimum_depth_m",
-            "saturation_deficit": f"{SATURATION_BAR} of e_sat, declared",
+            "saturation_deficit": f"{SATURATION_BAR} of e_sat, declared; "
+                                  "unchanged since the first measurement "
+                                  "crossed it",
         },
         "by_rung": {k: {n: v for n, v in arm.items()}
                     for k, arm in per_rung.items()},

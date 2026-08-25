@@ -1,6 +1,6 @@
 # Which mesh-to-grid reductions the order of operations changes, and by how much
 
-**Measured:** 2026-08-24, on `precarve-craton-10m`, terrain hash
+**Measured:** 2026-08-24, saturation arm re-measured 2026-08-25, on `precarve-craton-10m`, terrain hash
 `ab0d679b`, 10,000,005 regions, at every rung of the T21/T42/T85/T127/T170
 ladder. `analysis/spatial_reduction_gap.py` is the measurement and
 `analysis/spatial_reduction_gap.json` its output.
@@ -31,7 +31,7 @@ criterion.
 | roughness through the exchange coefficient | the roughness builder's own `z_ref` bracket over the liquid-water span, which is the ignorance it already declares |
 | parent texture through weathering | a factor 1.35 in the weathering intensity, Dunne's `S_y.x` of 0.13 log units carried in `pedology/config/pedogenesis.yaml` |
 | erodibility through the regolith depth law | `regolith.minimum_depth_m`, the thinnest profile the pedogenesis model distinguishes |
-| subgrid elevation through Clausius-Clapeyron | 1% of the saturation vapour pressure, declared rather than sourced |
+| subgrid elevation through Clausius-Clapeyron | 1% of the saturation vapour pressure, declared rather than sourced. It is the one bar here that is not an instrument, and it has not been moved: there is nothing sourced to move it to, and a bar placed after the result it judges is not a criterion |
 
 Two further cases are not Jensen gaps at all and are reported as what they are:
 a calibration that moves with the support, and a statistic that carries a length
@@ -42,7 +42,7 @@ from the mesh.
 | reduction | consuming step | verdict | gap, in the consumer's units |
 | --- | --- | --- | --- |
 | erodibility mixed before the regolith depth law | `soil` | **MATERIAL, by an order of magnitude** | 0.19 to 0.28 m of regolith at the land mean, against a 0.02 m bar, on 63 to 87% of land area |
-| subgrid elevation through saturation vapour pressure | `boundary_conditions`, then evaporation | **MATERIAL over the upper half of its bracket** | 0.35% to 7.7% of `e_sat`, against a 1% bar; crosses the bar inside the bracket |
+| subgrid elevation through saturation vapour pressure | `boundary_conditions`, then evaporation | **NO VERDICT, and the whole of it turns on one number** | 0.32% to 12.0% of `e_sat` against a 1% bar; the bar is crossed once the land-mean lapse rate passes 3.95 to 7.07 K per km, against this planet's dry adiabat of 12.75 |
 | surface roughness averaged as a length | `surface_roughness` | **NOT material in the land mean; material on a growing tail** | 0.29% to -0.01% at the land mean against a 7.0% instrument, but past the instrument on 1.9% of land area at T21 rising to 4.2% at T170, and reaching 30% on the closed-basin floors |
 | parent texture mixed before weathering | `soil` | **NOT material, and the premise is wrong** | the clay total is exactly 0.0 at every intensity and every rung; sand and silt trade at most 0.0047 of the land mean, inside Dunne's own scatter everywhere |
 | the orographic coefficient re-solved per rung | `surface_roughness` | a support-dependent CALIBRATION, not a gap | moves by a factor 1.98 across the ladder while the relief it multiplies falls by 5.96 |
@@ -88,34 +88,94 @@ runs 0.278, 0.262, 0.234, 0.209, 0.187 m across T21 to T170, so T170 still
 carries 9.4 times the bar, and the land area above the bar only falls from 87%
 to 63%. A finer climate grid is not a route out of this one.
 
-## 2. Subgrid elevation through Clausius-Clapeyron
+## 2. Subgrid elevation through the model's saturation vapour pressure
 
 `build_boundary_conditions.py` averages elevation over a cell's land and hands
 the model one height. Temperature is linear in height through a lapse rate, so
 that reduction is EXACT for temperature and there is no Jensen term to find.
-Saturation vapour pressure is exponential in temperature, so the cell's own
-spread of heights raises the mean saturation deficit above the one computed at
-the mean height, and evaporation is what consumes that.
+Saturation vapour pressure is convex in temperature over the whole liquid-water
+span, so the cell's own spread of heights raises the mean saturation deficit
+above the one computed at the mean height, and evaporation is what consumes
+that.
 
-Bracketed twice, because neither factor is known before a climatology exists:
-the lapse rate over 4.0 to 9.8 K per km, and the reference air temperature over
-the liquid-water span.
+### Two things the first measurement got wrong, corrected 2026-08-25
 
-| rung | 4.0 K/km, 313 K | 4.0 K/km, 273 K | 9.8 K/km, 313 K | 9.8 K/km, 273 K |
+Both were corrected before the arm was re-run and the correction was committed
+first, because a criterion fixed after the result it judges is not a criterion.
+The bar was NOT touched.
+
+**The lapse ceiling was Earth's.** The bracket ran to 9.8 K per km, which is
+Earth's `g/cp`. This planet's dry adiabat is 12.75 K per km, and `lib/lapse.py`
+already treats it as the ceiling a measured environmental rate must fall below,
+raising when it does not. That is the ceiling the bracket now takes. The
+correction WIDENS the bracket and moves the arm further from a verdict, which
+is the test that it is a correction and not a preference.
+
+**The function was not the model's.** The arm evaluated an idealised
+Clausius-Clapeyron with a constant latent heat of 2.5e6 J/kg. The model
+evaluates Magnus-Teten through `plasimmod.f90:ra1s/ra2s/ra4s` with two
+coefficient sets and a phase switch at `tmelt`, and the quantity being measured
+is a curvature, which the two functions do not share. At the cold end of the
+reference bracket a cell's high ground falls below `tmelt`, where the model's
+coefficients are steeper and the gap is consequently smaller than the liquid
+branch alone reports. The arm now reads the coefficients out of `p_earth.f90`
+in the manner `lib/sea_water.py` established rather than copying them.
+
+**The floor has nothing under it.** 4.0 K per km is declared, not bounded.
+`lib/lapse.py` states that the measured environmental rate sits BELOW the moist
+adiabatic rate evaluated at the window-mean state, which is why it deliberately
+declines to floor there; nothing at this step keeps the land-mean rate away
+from zero, and the gap goes to zero with it. So the low end of the bracket is a
+choice and the arm reports it as one.
+
+### The corrected bracket
+
+| rung | 4.0 K/km, 313 K | 4.0 K/km, 273 K | 12.75 K/km, 313 K | 12.75 K/km, 273 K |
 | --- | ---: | ---: | ---: | ---: |
-| T21 | 0.82% | 1.41% | 4.54% | 7.71% |
-| T42 | 0.67% | 1.15% | 3.81% | 6.60% |
-| T85 | 0.52% | 0.90% | 3.04% | 5.34% |
-| T127 | 0.42% | 0.74% | 2.51% | 4.44% |
-| T170 | 0.35% | 0.62% | 2.11% | 3.76% |
+| T21 | 0.75% | 1.03% | 6.83% | 12.03% |
+| T42 | 0.61% | 0.81% | 5.79% | 10.43% |
+| T85 | 0.47% | 0.60% | 4.65% | 8.48% |
+| T127 | 0.38% | 0.47% | 3.86% | 7.04% |
+| T170 | 0.32% | 0.37% | 3.26% | 5.91% |
 
-Land-mean relative gap in `e_sat`. The bar is crossed on 11% to 56% of land area
-depending on the corner. So this one CROSSES ITS BAR INSIDE ITS BRACKET and is
-not resolved here: at the dry-adiabatic, cold corner it is material at every
-rung, and at the moist, warm corner it is below the bar at T85 and above. What
-settles it is a climatology, not a finer grid, and the honest statement is the
-bracket rather than a number. The 95th-percentile cell reaches 26% at the wet
-corner, so the land mean understates what individual cells carry.
+Land-mean relative gap in `e_sat`. The bar is crossed on 10.6% to 56.8% of land
+area depending on the corner, and the 95th-percentile cell reaches 47.6% at the
+steepest corner, so the land mean understates what individual cells carry.
+
+### The verdict, and the one number it turns on
+
+NO VERDICT. The gap crosses the bar inside the bracket, so the measurement has
+neither passed nor failed and reporting it as either would be a preference.
+
+What the correction bought is that the undecidedness is now known to lie on ONE
+axis. The reference-temperature bracket is worth a factor of about 1.8 across
+the whole ladder and never reaches the bar on its own at the declared floor;
+the lapse-rate bracket is worth a factor of 12 to 16 and carries the crossing.
+So the arm reports the lapse rate at which the land mean reaches the bar, which
+converts the deferral into a comparison a climatology settles in one step.
+
+| rung | critical lapse, 273 K | critical lapse, 313 K | fraction of the dry adiabat |
+| --- | ---: | ---: | ---: |
+| T21 | 3.95 | 4.64 | 0.31 to 0.36 |
+| T42 | 4.35 | 5.16 | 0.34 to 0.40 |
+| T85 | 4.90 | 5.85 | 0.38 to 0.46 |
+| T127 | 5.40 | 6.48 | 0.42 to 0.51 |
+| T170 | 5.87 | 7.07 | 0.46 to 0.55 |
+
+K per km, against a dry adiabat of 12.75 K per km. The decision procedure is
+fixed here, before the climatology that answers it exists: measure the
+land-area-weighted environmental lapse rate with
+`lapse.environmental_lapse_k_per_km` on the first accepted baseline
+climatology, and compare it against this table at the rung in use. Above it the
+reduction needs a sub-grid orographic term in the surface evaporation; at or
+below it the reduction is admissible and no operator is needed.
+
+Refinement is not a route out. The critical rate rises by only a factor 1.49
+from T21 to T170 while the bracket it is being compared against spans a factor
+of 3.2, so a finer rung moves the answer by less than the ignorance does. That
+is the same conclusion the roughness recalibration reaches in section 5 for a
+different reason, and it is why this belongs to SPAT-5's partial-surface
+decision rather than to a rung choice.
 
 ## 3. Surface roughness averaged as a length. Not material, except where it is
 
@@ -281,9 +341,11 @@ stale.
   operator, and it is in `pedology/`. `lib/gridding.py:cell_expectation` is the
   operator; nothing in this batch applied it, because `pedology/` was owned
   elsewhere while this was measured.
-- The saturation-deficit term cannot be settled without a climatology. It is
-  bracketed and the bracket is reported; it is not evidence for or against a
-  rung.
+- The saturation-deficit term cannot be settled without a climatology, and the
+  bracket is reported rather than collapsed. What IS settled is the decision
+  procedure: the critical lapse rate per rung is fixed above, so the first
+  accepted baseline climatology answers the arm with one comparison rather than
+  a re-measurement. It is not evidence for or against a rung.
 - The texture reduction needs no operator and finding 4's bullet about it should
   be read as withdrawn: the aggregation is affine and the nonlinearity is in a
   climate variable with no sub-grid population.
