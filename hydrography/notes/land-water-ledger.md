@@ -71,11 +71,13 @@ their owner. Four kinds, and the kind decides what the closure check does:
 
 The vertical cut is `column_base_m`: where `soil_liquid` stops and
 `groundwater` begins. It is a declaration and not a measurement, and it is
-deliberately not either model's current column, because neither has one that
-means the same thing. ExoPlaSim's `dwmax` is a capacity in metres OF WATER and
-carries no column thickness at all; LPJ-GUESS's fifteen layers reach a depth
-and then scale their capacity by regolith depth and weathered-bedrock fraction
-without moving a layer boundary or a root. The lateral cut is the climate-grid
+taken from the only column in the pipeline that has a depth at all: LPJ-GUESS's
+fifteen 100 mm layers, five upper and ten lower, reaching 1.5 m. ExoPlaSim's
+`dwmax` is a capacity in metres OF WATER and carries no column thickness;
+pedology's regolith depth scales LPJ's per-layer capacities without moving a
+layer boundary or a root. It is deeper than the 1.0 m root zone the abiotic
+nutrient ledger cuts its solute pools at, because a root zone is where uptake
+happens and a vadose column is where water moves. The lateral cut is the climate-grid
 land cell, and land comes from `surface_class`.
 
 The nodes that carry the argument:

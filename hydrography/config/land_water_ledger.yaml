@@ -58,13 +58,18 @@ sub_annual_stores: [canopy, snowpack, soil_liquid, soil_ice, open_water]
 # stock below it.
 # ---------------------------------------------------------------------------
 control_volume:
-  # Where soil_liquid stops and groundwater begins. The vadose column base.
-  # This is the contact LSHY-1's property artifact and PLHY-4's exchange are
-  # joined at, and it is deliberately NOT the same number as either model's
-  # current column: ExoPlaSim's bucket has no depth at all (dwmax is a
-  # capacity in metres of water, not a column thickness), and LPJ-GUESS's
-  # 15 layers reach 3.0 m with a capped sub-regolith extension on top.
-  column_base_m: 3.0
+  # Where soil_liquid stops and groundwater begins. The vadose column base,
+  # and the contact LSHY-1's property artifact and PLHY-4's exchange are
+  # joined at. Taken from LPJ-GUESS's physical profile, which is the only
+  # column in this pipeline that HAS a depth: fifteen 100 mm layers, five
+  # upper and ten lower, reaching 1.5 m. ExoPlaSim's bucket has no depth at
+  # all -- `dwmax` is a capacity in metres OF WATER, not a column thickness --
+  # and pedology's regolith depth scales LPJ's capacities without moving a
+  # layer boundary or a root. Deeper than the 1.0 m root zone that
+  # biosphere/config/abiotic_nutrients.yaml cuts its solute pools at: a root
+  # zone is where uptake happens and a vadose column is where water moves, and
+  # the two are different cuts through the same soil.
+  column_base_m: 1.5
   # The lateral cut. Everything below is per land cell of the configured
   # climate grid; the native mesh crossing is SPAT-1 through SPAT-4 and
   # LSHY-6, and this ledger asserts nothing about it.

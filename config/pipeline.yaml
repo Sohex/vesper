@@ -333,11 +333,32 @@ steps:
     needs: [bootstrap_climatology, hydrography, lpj_run]
     writes: [pedology/analysis/soil_report.json, "pedology/data/{build}/soilmap_{res}.txt"]
 
+  - id: land_column_properties
+    script: pedology/scripts/land_column_properties.py
+    cost: seconds
+    needs: [soil]
+    writes: [pedology/analysis/land_column_properties_report.json]
+    gate: >
+      the one vertically explicit hydraulic and thermal description of the land
+      column, and the comparison of every consumer against it. It reads
+      pedology/config/land_column_properties.yaml and fails on a contract that
+      does not hang together -- layers that do not reach the declared base, a
+      root below the column, a state silent on whether it depends on gravity, a
+      drainage length that is not the one Cosby's field-capacity suction was
+      measured at, a retention closure with no family named, uncertainty
+      declared per layer rather than correlated, or an aquifer property shared
+      with the vadose zone -- and exercises that check against ten contracts
+      built wrong. It runs no model: the capacity comparison, the Cosby
+      unclamped-region margin and the gravity correction to field capacity are
+      all read off the checked-in soil map. With properties still undeclared it
+      reports and exits 0; `--strict` is the arm that refuses. surface_soil_water
+      needs it so the description sits upstream of the field it feeds.
+
   - id: surface_soil_water
     script: exoplasim/scripts/build_surface_soil_water.py
     loop: A
     cost: minutes
-    needs: [soil]
+    needs: [soil, land_column_properties]
     writes: ["exoplasim/inputs/{res_lower}/orogen_{res}_surf_0229_provenance.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0229.sra"]
 
   - id: dust
