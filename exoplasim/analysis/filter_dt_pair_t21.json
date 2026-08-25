@@ -56,24 +56,25 @@
         "ke_removed_fraction_of_total": 0.01049907959328301
       },
       "sensitivity": {
+        "law": "spec/law = exp(-2*kappa*x**gamma); carries no timestep",
+        "d_bite_is_an_upper_bound": true,
         "kappa": 8.0,
         "gamma": 16,
         "dt_seconds": 2700.0,
-        "tau_vorticity_seconds": 192542.4,
-        "R_at_truncation": 1140.992,
-        "predicted_bite_fraction": 0.6254335294654959,
+        "predicted_bite_fraction": 0.8218529008506531,
         "depth_fraction": 0.8,
-        "predicted_depth_dex": -1.6143179857906076,
+        "predicted_depth_dex": -0.1955888466868549,
         "factor": 2.0,
-        "d_bite_fraction": 0.029579330158679196,
-        "d_bite_fraction_stronger": 0.028243575051309033,
-        "d_depth_dex": 0.290601025960169,
-        "d_depth_dex_stronger": 0.2957200681996357,
+        "d_bite_fraction": 0.036386536519600776,
+        "d_bite_fraction_stronger": 0.034843866744428076,
+        "d_depth_dex": 0.09779442334342744,
+        "d_depth_dex_stronger": 0.1955888466868549,
         "bite_quantisation": 0.047619047619047616
       },
       "verdict": {
         "resolvable_bite": false,
-        "resolvable_depth": true,
+        "resolvable_bite_is_upper_bound": true,
+        "resolvable_depth": false,
         "bar_bite_fraction": 0.0420349918811785,
         "bar_depth_dex": 0.14828947821071184
       }
@@ -125,27 +126,32 @@
         "ke_removed_fraction_of_total": 0.010905281391595918
       },
       "sensitivity": {
+        "law": "spec/law = exp(-2*kappa*x**gamma); carries no timestep",
+        "d_bite_is_an_upper_bound": true,
         "kappa": 8.0,
         "gamma": 16,
         "dt_seconds": 1350.0,
-        "tau_vorticity_seconds": 192542.4,
-        "R_at_truncation": 2281.984,
-        "predicted_bite_fraction": 0.5971899544141869,
+        "predicted_bite_fraction": 0.8218529008506531,
         "depth_fraction": 0.8,
-        "predicted_depth_dex": -1.9100380539902433,
+        "predicted_depth_dex": -0.1955888466868549,
         "factor": 2.0,
-        "d_bite_fraction": 0.028243575051309033,
-        "d_bite_fraction_stronger": 0.026968140502156124,
-        "d_depth_dex": 0.2957200681996357,
-        "d_depth_dex_stronger": 0.29835048600046554,
+        "d_bite_fraction": 0.036386536519600776,
+        "d_bite_fraction_stronger": 0.034843866744428076,
+        "d_depth_dex": 0.09779442334342744,
+        "d_depth_dex_stronger": 0.1955888466868549,
         "bite_quantisation": 0.047619047619047616
       },
       "verdict": {
         "resolvable_bite": false,
-        "resolvable_depth": true,
+        "resolvable_bite_is_upper_bound": true,
+        "resolvable_depth": false,
         "bar_bite_fraction": 0.07189089710574227,
         "bar_depth_dex": 0.16797804001571734
       }
     }
-  ]
+  ],
+  "restated": {
+    "at": "2026-08-25T13:12:52.040303+00:00",
+    "why": "The `sensitivity` and `verdict` blocks were computed from a rate law two timestep pairs refute. They are recomputed from this file's own recorded namelist under spec/law = exp(-2*kappa*x**gamma). The measured `mean` and `sd` are as taken and are untouched."
+  }
 }

@@ -1227,37 +1227,70 @@ def main() -> int:
 
     # -- the filter is confined to the scales it is meant to damp -------------
     #
-    # The physics filter, not the hyperdiffusion, is this model's small-scale
-    # damping: two to three orders of magnitude stronger at every scale. Where
-    # it overtakes the flow's own cascade is therefore where the model stops
-    # resolving, and at gamma 8 that was 0.41 of the truncation -- most of the
-    # rung being paid for and thrown away. This is a DEFAULT guard rather than a
-    # diagnostic to remember: a filter that reaches too far down fails here.
+    # WHAT THE FILTER DOES, because the gate follows from where it is applied.
+    # `legmod.f90` folds `f(n) = exp(-kappa (n/NTRU)^gamma)` into every per-mode
+    # transform weight in both directions, and what passes through those weights
+    # is the nonlinear TENDENCY: no filtered value is ever stored back into the
+    # prognostic spectral state. So the filter attenuates the SOURCE that fills a
+    # wavenumber by a fixed factor rather than damping the state at a rate, a
+    # source scaled by `f^2` against an unchanged sink equilibrates at
+    # `spec/law = f(x)^2 = exp(-2 kappa x^gamma)`, and the filter takes half of
+    # what the flow would otherwise put at
     #
-    # Crossover of 2*kappa*x^gamma/dt against the cascade rate x/tau_vorticity:
-    #   x = (dt / (2 kappa tau))**(1/(gamma-1))
+    #     x_f = (ln 2 / (2 kappa)) ** (1/gamma),   x = n/NTRU
+    #
+    # which carries no timestep and no rung. That REPLACES the rate-law crossover
+    # `(dt / (2 kappa tau))**(1/(gamma-1))` this gate used to solve. Two timestep
+    # pairs differing in MPSTEP alone, same binary by sha and same cold start,
+    # move the measured spectrum by 0.1 and 0.2 sigma where that law predicts
+    # several times the instrument's own three-sigma bar.
+    # `exoplasim/notes/filter-spectral-price.md`.
+    #
+    # THE FLOOR IS UNCHANGED AT 0.60. What moved is the quantity, not the bar.
+    # Re-choosing the bar to suit the corrected quantity would be choosing a
+    # criterion after seeing the result it judges.
+    #
+    # THIS GATE DOES NOT PREDICT THE MEASURED BITE POINT, and the old one's
+    # claim to was its second defect: it reported 0.625 at T21 where the run
+    # measured 0.561 and 0.655 at T42 where the run measured 0.714, wrong in
+    # both directions at once. A run's departure from its own inertial range
+    # carries the derived hyperdiffusion and the spectrum's own steepening as
+    # well, and the hyperdiffusion is the larger of the two levers -- reaching
+    # every model level moves the T21 spectrum further than the whole of
+    # `filter_kappa` is worth. That criterion is a property of a RUN and has an
+    # instrument: `exoplasim/scripts/spectral_tail.py` fails a run whose bite
+    # point sits below 0.6 of the truncation. A config gate has no spectrum to
+    # read, and asserting one from arithmetic is what produced the disagreement.
+    #
+    # WHAT IT CAN SEE. `x_f` goes as `kappa**(-1/gamma)`, so at gamma 16 it is
+    # nearly blind to kappa and is in practice a guard on GAMMA -- which is the
+    # degree of freedom that moves it, and which was 8 until 2026-08-23. The
+    # kappa the floor holds up to at the declared gamma is reported so the
+    # margin is a number, and the filter's own depletion at 0.8 of the
+    # truncation is reported beside it because that one IS linear in kappa.
     try:
         model = config["model"]
-        hd = model.get("hyperdiffusion") or {}
-        rung = str(model.get("resolution", "")).upper()
         kappa = float(model["filter_kappa"])
         gamma = int(model["filter_power"])
-        dt = float(model["timestep_minutes"]) * 60.0
-        tau = float(hd["timescales_days"][rung]["vorticity"]) * 86400.0
-        reach = (dt / (2.0 * kappa * tau)) ** (1.0 / (gamma - 1))
         floor = float(model.get("filter_confinement_floor", 0.60))
+        reach = (math.log(2.0) / (2.0 * kappa)) ** (1.0 / gamma)
+        kappa_ceiling = math.log(2.0) / (2.0 * floor ** gamma)
+        depth_dex = 2.0 * kappa * 0.8 ** gamma / math.log(10.0)
         if not model.get("physics_filter"):
             rep.add(OK, "filter confinement", "no filter configured")
         elif reach < floor:
             rep.add(FAIL, "filter confinement",
-                    f"{rung} at kappa {kappa:g}, gamma {gamma}, dt {dt/60:g} min "
-                    f"overtakes the cascade at {reach:.3f} of the truncation, "
-                    f"below the {floor:.2f} floor: everything above that is "
-                    f"resolution being damped away")
+                    f"kappa {kappa:g}, gamma {gamma}: the filter takes half of "
+                    f"the flow's own amplitude by {reach:.3f} of the truncation, "
+                    f"below the {floor:.2f} floor -- everything above that is "
+                    f"resolution being damped away. At gamma {gamma} the floor "
+                    f"holds to kappa {kappa_ceiling:.4g}")
         else:
             rep.add(OK, "filter confinement",
-                    f"{rung} damps from {reach:.3f} of the truncation "
-                    f"(floor {floor:.2f})")
+                    f"kappa {kappa:g}, gamma {gamma}: half-attenuation at "
+                    f"{reach:.3f} of the truncation (floor {floor:.2f}, which at "
+                    f"this gamma holds to kappa {kappa_ceiling:.4g}); the filter "
+                    f"alone takes {depth_dex:.3f} dex at 0.8 of the truncation")
     except Exception as exc:
         rep.add(WARN, "filter confinement", f"not checked: {exc}")
 
