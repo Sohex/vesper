@@ -339,7 +339,18 @@ def cfl(nlons: int, nlats: int, nlevs: int, nyear: int) -> dict:
 def write_config(path: Path, case: dict, years: int, nyear: int, maxisles: int,
                  npstp: int | None = None, debug_loop: bool = False,
                  ndta: int = 5) -> None:
-    kloop = 5
+    # THE ATMOSPHERE'S TIMESTEP AND ITS CALL FREQUENCY ARE TWO SETTINGS AND
+    # THEY MUST AGREE. `initialise_embm.F:578` sets EMBM's step as
+    # `dtatm = dt_ocean/ndta`, but how often EMBM is CALLED is `katm_loop` in
+    # `genie.F:300`, which defaults to 1, so EMBM steps once per genie step.
+    # With `kocn_loop` genie steps per ocean step, EMBM therefore advances
+    # `kocn_loop/ndta` times the ocean's time in the same interval. That is one
+    # only when `kocn_loop == ndta`, which is why the shipped default pairs
+    # ndta = 5 with kocn_loop = 5. Raising ndta on its own does not sub-step the
+    # atmosphere: it slows the atmosphere's clock relative to the ocean's, and
+    # the run is then not a model of anything even where it is stable. So the
+    # ocean loop count is tied to ndta here rather than fixed at 5.
+    kloop = ndta
     koverall = years * kloop * nyear
     pre = case["prefix"]
     files = dict(
@@ -901,7 +912,15 @@ def build_all(cases: list[str], args, results: dict) -> Path:
     return stash
 
 
-def slope_and_intercept(per_rep: dict[int, dict[int, float]], years: list[int]) -> dict:
+# Above this one-minute load average a wall-clock number is a measurement of the
+# host rather than of the model, and is labelled as such rather than dropped: a
+# number recorded as unreliable is evidence about the instrument, a deleted one
+# is nothing. scripts/machine.py uses the same threshold.
+QUIET_LOAD = 4.0
+
+
+def slope_and_intercept(per_rep: dict[int, dict[int, float]], years: list[int],
+                        loads: dict[int, float] | None = None) -> dict:
     """Fit each REPEAT separately and keep the cheapest fit.
 
     The obvious estimator -- minimum over repeats at each length, then one line
@@ -923,18 +942,106 @@ def slope_and_intercept(per_rep: dict[int, dict[int, float]], years: list[int]) 
         if y0 not in t or y1 not in t:
             continue
         slope = (t[y1] - t[y0]) / (y1 - y0)
+        load = loads.get(rep) if loads else None
         fits.append({"repeat": rep, "seconds_per_model_year": round(slope, 4),
                      "fixed_seconds": round(t[y0] - slope * y0, 3),
-                     "model_seconds": {str(y): t[y] for y in years if y in t}})
+                     "model_seconds": {str(y): t[y] for y in years if y in t},
+                     "load_average": load,
+                     "contaminated": None if load is None else load > QUIET_LOAD})
     if not fits:
         return {}
-    best = min(fits, key=lambda f: f["seconds_per_model_year"])
+    clean = [f for f in fits if f["contaminated"] is False]
+    best = min(clean or fits, key=lambda f: f["seconds_per_model_year"])
     return {
         "seconds_per_model_year": best["seconds_per_model_year"],
         "fixed_seconds": best["fixed_seconds"],
         "from_repeat": best["repeat"],
+        "from_a_quiet_host": bool(clean),
+        "load_average_of_that_fit": best["load_average"],
         "per_repeat_fits": fits,
     }
+
+
+# The cost figure that does not have to be re-taken.
+#
+# Wall clock on this host is a measurement of a machine state as much as of the
+# model: it runs many agents at once, and a run that shares the last-level cache
+# and the memory controller with a sixteen-thread integration is slower without
+# anything about cGENIE having changed. RETIRED INSTRUCTIONS are not. They are a
+# property of the binary and its input, they are the same on a busy host and an
+# idle one, and for a strictly serial process there is no spin-wait to correct
+# for -- there are no barriers to spin at. So the durable price of an
+# ocean-year is quoted here in instructions, and seconds are quoted beside it
+# for whoever has to wait.
+_PERF_EVENTS = "instructions,task-clock"
+
+
+def perf_run(outdir: Path, log: Path) -> dict:
+    """Re-run an already configured experiment under perf, in its own directory.
+
+    `genie.job` has by this point written the namelists, staged the inputs and
+    copied the executable into `outdir`, so running it again there repeats
+    exactly the same integration."""
+    cmd = ["perf", "stat", "-x,", "-e", _PERF_EVENTS, "./genie.exe"]
+    proc = subprocess.run(cmd, cwd=outdir, capture_output=True, text=True, check=False)
+    log.write_text(proc.stdout + "\n----- perf -----\n" + proc.stderr)
+    out: dict = {}
+    for line in proc.stderr.split("\n"):
+        parts = line.split(",")
+        if len(parts) < 3:
+            continue
+        value, _, event = parts[0], parts[1], parts[2]
+        try:
+            out[event.strip()] = float(value)
+        except ValueError:
+            out[event.strip()] = None
+    if "Shutdown complete; home time" not in proc.stdout:
+        out["error"] = "the run under perf did not reach the shutdown banner"
+    return out
+
+
+def perf_all(cases: list[str], args, results: dict, stash: Path) -> None:
+    """Instructions per ocean-year, per case, from two lengths as before."""
+    global MCMODEL  # noqa: PLW0603
+    for name in cases:
+        case = CASES[name]
+        record = results[name]
+        if not record.get("build_ok") or record.get("error"):
+            continue
+        MCMODEL = args.mcmodel or case.get("mcmodel", "")
+        cfg = CONFIG_DIR / f"bench_{name}.xml"
+        counts: dict[int, float] = {}
+        arm: list[dict] = []
+        for years in args.years:
+            shutil.copy2(stash / f"{name}.exe", GENIE_MAIN / "genie.exe")
+            try:
+                write_config(cfg, case, years, args.nyear, args.maxisles,
+                             ndta=case.get("ndta", 5))
+                setup = args.logdir / f"{name}.perfsetup{years}.log"
+                rc, _ = run(job(f"configs/{cfg.name}", ["-z"]), setup)
+                ok, why = run_ok(setup)
+                if rc != 0 or not ok:
+                    record["perf_error"] = f"setup {years}y failed ({why or rc})"
+                    break
+                outdir = OUT_ROOT / cfg.stem
+                got = perf_run(outdir, args.logdir / f"{name}.perf{years}.log")
+                got["years"] = years
+                got["load_average"] = loadavg()
+                arm.append(got)
+                if got.get("instructions"):
+                    counts[years] = got["instructions"]
+                shutil.rmtree(outdir, ignore_errors=True)
+            finally:
+                cfg.unlink(missing_ok=True)
+        record["perf"] = {"runs": arm}
+        if len(counts) >= 2:
+            y0, y1 = args.years[0], args.years[1]
+            slope = (counts[y1] - counts[y0]) / (y1 - y0)
+            record["perf"]["instructions_per_model_year"] = slope
+            record["perf"]["fixed_instructions"] = counts[y0] - slope * y0
+            record["perf"]["note"] = (
+                "retired instructions are a property of the binary and its input,"
+                " not of what else the host was doing")
 
 
 def time_from_logs(cases: list[str], args, results: dict) -> None:
@@ -969,12 +1076,14 @@ def time_from_logs(cases: list[str], args, results: dict) -> None:
                 record["runs"].append({"years": years, "model_seconds": min(times),
                                        "repeats": len(times)})
         record.update(slope_and_intercept(per_rep, args.years))
+        record["loads_unknown_from_logs"] = True
 
 
 def time_all(cases: list[str], args, results: dict, stash: Path) -> None:
     """Run every built case at every length, round robin, `repeats` times."""
     global MCMODEL  # noqa: PLW0603
     per_rep: dict[str, dict[int, dict[int, float]]] = {}
+    rep_load: dict[str, dict[int, float]] = {}
     best: dict[tuple[str, int], float] = {}
     size: dict[tuple[str, int], int] = {}
     load: dict[tuple[str, int], list[float]] = {}
@@ -1002,6 +1111,8 @@ def time_all(cases: list[str], args, results: dict, stash: Path) -> None:
                     if inner is not None:
                         best[key] = inner if key not in best else min(best[key], inner)
                         per_rep.setdefault(name, {}).setdefault(rep, {})[years] = inner
+                        rep_load.setdefault(name, {})[rep] = max(
+                            rep_load.get(name, {}).get(rep, 0.0), loadavg())
                     load.setdefault(key, []).append(loadavg())
                     outdir = OUT_ROOT / cfg.stem
                     # genie.job copies the executable into the run directory and
@@ -1025,7 +1136,8 @@ def time_all(cases: list[str], args, results: dict, stash: Path) -> None:
                     "load_average_after": load.get(key, []),
                     "output_bytes": size.get(key),
                 })
-        record.update(slope_and_intercept(per_rep.get(name, {}), args.years))
+        record.update(slope_and_intercept(per_rep.get(name, {}), args.years,
+                                          rep_load.get(name, {})))
 
 
 def main() -> int:
@@ -1051,6 +1163,8 @@ def main() -> int:
                     help="sweep nyear on one build and read the model's own Cn, instead of timing")
     ap.add_argument("--nyear-sweep", type=int, nargs="+", default=[50, 100, 200, 400])
     ap.add_argument("--stability-years", type=int, default=10)
+    ap.add_argument("--perf", action="store_true",
+                    help="also count retired instructions per ocean-year, which no host load changes")
     ap.add_argument("--reuse-builds", action="store_true",
                     help="use the executables already stashed under --logdir/exe instead of rebuilding")
     ap.add_argument("--reuse-runs", action="store_true",
@@ -1106,11 +1220,17 @@ def main() -> int:
             "runs": [],
         }
 
+    stash = args.logdir / "exe"
     if args.reuse_runs:
         time_from_logs(cases, args, records)
     else:
         stash = build_all(cases, args, records)
         time_all(cases, args, records, stash)
+    if args.perf:
+        if args.reuse_runs:
+            for n in cases:
+                records[n]["build_ok"] = (stash / f"{n}.exe").exists()
+        perf_all(cases, args, records, stash)
     results = [records[n] for n in cases]
     for record in results:
         print(json.dumps(record, indent=2), flush=True)

@@ -156,76 +156,127 @@ the atmosphere's guard stays live.
 # 3. Two limits, two components, two namelist integers
 
 `nyear` is the ocean's tracer timestep. It is NOT the atmosphere's.
-`initialise_embm.F:578` sets `dtatm = tv/ndta`, and `ndta` is a separate
-namelist integer in `ini_embm_nml` defaulting to 5, so EMBM takes `ndta`
-sub-steps per ocean step. Whether a refinement forces the OCEAN's step down or
-only EMBM's is the entire ceiling question, because they cost differently.
+`initialise_embm.F:578` sets EMBM's step as `dtatm = dt_ocean/ndta`, and `ndta`
+is a separate namelist integer in `ini_embm_nml` defaulting to 5. Whether a
+refinement forces the OCEAN's step down or only EMBM's is the entire ceiling
+question, because the two cost differently.
 
-## 3a. Sweeping nyear alone finds a boundary, and it is the atmosphere's
+**`ndta` is not a sub-step knob on its own, and getting that wrong produces
+runs that are stable and meaningless.** How often EMBM is CALLED is `katm_loop`
+at `genie.F:300`, which defaults to 1, so EMBM steps once per genie step. With
+`kocn_loop` genie steps per ocean step, EMBM advances `kocn_loop/ndta` times the
+ocean's time over the same interval, and that is one only when
+`kocn_loop == ndta`. The shipped default pairs `ndta = 5` with `kocn_loop = 5`
+for exactly that reason. Raising `ndta` alone slows the atmosphere's clock
+relative to the ocean's rather than sub-stepping it, and nothing in the model
+complains. Every configuration below therefore moves `kocn_loop` with `ndta`.
 
-At the default `ndta = 5`, with the ocean's `diag` on and EMBM's guard live, the
-boundary is sharp on both grids and every failure below it is the same failure:
-EMBM's sea-ice surface solve does not converge and `surflux.F` stops the model.
-The ocean's own `Cn` at the last stable point is nowhere near one.
+## 3a. Both grids stop, both times in the atmosphere, and the ocean is nowhere near its limit
 
-| grid | last unstable nyear | ocean dt there | first stable nyear | ocean dt there | model's own Cn at the first stable point |
+`analysis/cgenie_stability.json` is `nyear` crossed with `ndta` on both grids,
+with the ocean's `diag` on and EMBM's guard live. Two things are true of every
+cell of it.
+
+The ocean's own `Cn` depends on `nyear` and on nothing else: at 36 x 36 x 16 it
+is 0.13 at `nyear = 100` whether `ndta` is 2, 5, 10 or 20, and 0.52 at 72 x 72
+under the same four. That is what an advective Courant number has to do, and it
+is the check that the sweep is measuring what it claims to.
+
+And every failure is EMBM's sea-ice surface solve stopping the model. At the
+shipped `ndta = 5`:
+
+| grid | last unstable nyear | ocean dt there | first stable nyear | ocean dt there | ocean Cn at the first stable point |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | 36 x 36 x 16 | 30 | 12.2 d | 35 | 10.4 d | 0.39 |
-| 72 x 72 x 16 | 140 | 2.61 d | 160 | 2.28 d | 0.33 |
+| 72 x 72 x 16 | 140 | 2.61 d | 160 | 2.28 d | 0.32 |
 
-Two things fall out. The ocean has a factor of about three of unused Courant
-headroom at the point where the model stops, on BOTH grids, so the ocean is not
-what stops it. And the boundary moves by a factor of about 4.6 for a factor of 2
-in resolution: close to quadratic, and not the linear scaling an advective limit
-would give.
+So the ocean has a factor of about three of unused Courant headroom at the point
+where the model stops, on BOTH grids. It is not what stops it.
 
 A control was run for the obvious objection, that switching GOLDSTEIN's
 diagnostic on is itself doing something. It is not: 72 x 72 x 16 at
 `nyear = 100, ndta = 5` stops at the same EMBM step in the same cell,
-`(36, 43)`, with `debug_loop` false and with it true. The instability is a
-property of the configuration and the diagnostic only makes it visible.
+`(36, 43)`, with `debug_loop` false and with it true. The diagnostic makes the
+instability visible; it does not cause it.
 
-## 3b. The boundary is a property of dtatm alone, and it was predicted before it was run
+## 3b. The atmosphere's boundary is a property of its own timestep, and only that
 
-If the boundary belongs to EMBM it should depend only on `dtatm = dt_ocean/ndta`
-and not on the ocean's step at all. Read off the 72 x 72 rows above, EMBM's
-boundary sits at `dtatm` between 0.457 d and 0.522 d. That predicts, before any
-run: at `nyear = 100` the model is unstable for `ndta <= 7` and stable for
-`ndta >= 8`, and at `nyear = 50` unstable for `ndta <= 14`.
+Across the whole grid, EMBM fails exactly when `dtatm` is above a threshold that
+does not depend on the ocean's step:
 
-Every one of those held. The sharpest evidence is not the boundary but a
-coincidence the hypothesis requires: `nyear = 100, ndta = 5` and
-`nyear = 50, ndta = 10` are the same `dtatm` at ocean timesteps a factor of two
-apart, and both stop **at the same EMBM step, in the same cell**. The ocean's
-step is not in it.
+| grid | largest dtatm that failed | smallest dtatm that survived |
+| --- | ---: | ---: |
+| 36 x 36 x 16 | 2.435 d | 2.087 d |
+| 72 x 72 x 16 | 0.522 d | 0.457 d |
 
-So a finer ocean grid does not force the ocean's timestep down. It forces
-EMBM's. And EMBM is a one-layer atmosphere on the same horizontal grid, so
-sub-stepping it is cheap: over `ndta` from 8 to 20 at 72 x 72 the wall clock of a
-ten-year integration does not trend, which says the ocean's three-dimensional
-tracer work is the cost and EMBM is not.
+Every one of the 64 cells is on the correct side of that. The sharpest evidence
+is not the boundary itself but a coincidence the hypothesis requires: pairs with
+the SAME `dtatm` and ocean timesteps a factor of two apart fail in the same
+cell. At 72 x 72, `nyear = 50, ndta = 10` and `nyear = 100, ndta = 5` are both
+`dtatm = 0.7305 d` and both stop in cell `(36, 43)`; `nyear = 25, ndta = 10` and
+`nyear = 50, ndta = 5` are both `1.4610 d` and both stop in cell `(1, 19)`. The
+ocean's step is not in it.
 
-## 3c. Take the atmosphere out of the way and the ocean's own limit appears
+The threshold falls by a factor of between 4.0 and 5.3 for a factor of 2 in
+resolution. That is quadratic, not the linear scaling an advective limit would
+give, and EMBM's step is semi-implicit with a FIXED four iterations
+(`tstipa.f:44`, `nii = 4`, `cimp = 0.5`) against a temperature eddy diffusivity
+whose shipped amplitude is 5.0e6 m2/s. The iteration count was chosen for the
+shipped grid and does not move with it.
 
-The prediction written down beforehand had a fourth clause, and that one FAILED,
-which is how the second limit was found. It said that at `nyear = 50` on
-72 x 72 the model would become stable once `ndta` reached 16. Raising `ndta` to
-16 does exactly half of that: EMBM's solve stops failing, as predicted. The run
-is still not stable, and now for the other reason. The model's own `Cn` reaches 1.61, over the criterion,
-and the same configuration at `ndta = 20` gives 1.64.
+## 3c. Sub-step the atmosphere properly and the ocean's own limit appears
 
-That is the ocean's own ceiling, and it behaves as an advective Courant number
-should. At 72 x 72 with `ndta` converged, `Cn` is 0.81 at `nyear = 100` and 1.64
-at `nyear = 50`: a ratio of 2.01 for a factor of two in timestep, linear to
-within a percent. Solving for `Cn = 1` puts the ocean's own largest usable
-timestep at 72 x 72 x 16 at about 4.5 days, `nyear` about 81.
+Because EMBM's limit is on `dtatm`, raising `ndta` should relieve it and expose
+whatever is behind it. It does. At 72 x 72, `nyear = 100` is unstable at
+`ndta = 5` and stable at `ndta = 10` with the ocean's `Cn` at 0.52. Pushing
+further, `nyear = 50, ndta = 20` puts `dtatm` at 0.365 d, comfortably inside
+EMBM's threshold, and EMBM's solve does not fail. The run is still not stable,
+and now for the other reason: the model's own `Cn` reaches 1.04, over the
+criterion.
 
-The same construction at 36 x 36 x 16, where `Cn` is 0.134 at the shipped
-`nyear = 100`, puts the ocean's own limit there at about 27 days. **The shipped
-grid runs at a seventh of the timestep its own ocean could carry**, and what
-holds it there is EMBM.
+That is the ocean's own ceiling. It behaves as an advective Courant number
+should: at 72 x 72 `Cn` is 0.52 at `nyear = 100` and 1.04 at `nyear = 50`, a
+ratio of 2.00 for a factor of two in timestep. So the ocean's own largest usable
+timestep at 72 x 72 x 16 is about 7.0 days, `nyear` about 52.
 
-## 3d. What the connector says about the same ceiling
+The same construction at 36 x 36 x 16, where `Cn` is 0.13 at `nyear = 100`,
+puts the ocean's own limit there at `nyear` about 13. **At both grids the ocean
+could carry a timestep about three times the one EMBM permits**, and the two
+limits scale together: the ocean's `Cn` at fixed `nyear` is 4.00 times larger at
+72 x 72 than at 36 x 36, the same quadratic as EMBM's.
+
+## 3d. What that makes the cost of a refinement
+
+Both limits are quadratic in resolution and both components do work proportional
+to cell count, which is also quadratic. Refining the horizontal grid by a factor
+r therefore costs r^2 in cells and r^2 in timesteps in EACH component:
+**cost per model year goes as r^4**, whichever limit is being respected.
+
+`notes/audits/ocean-and-marine-biosphere.md` section 9g estimated r^4 by reading
+`ubarsolv`'s loop structure and attributing the growth to the barotropic solve.
+The exponent is right and the attribution is not: the growth is the TIMESTEP, in
+the atmosphere first and the ocean second, and section 4 finds the barotropic
+solve too small to see at these grids.
+
+## 3e. How the criterion fixed in advance actually did
+
+Worth recording, because the point of fixing a criterion before the run is that
+it can then be wrong in a way you can see. The a-priori form -- advective
+Courant below one at a nominal 0.5 m/s surface current -- puts the boundary at
+`nyear` about 61 on 36 x 36 and about 171 on 72 x 72. Measured at the shipped
+`ndta = 5`, the boundary is between 30 and 35, and between 140 and 160.
+
+So it was conservative by about 1.8x on the shipped grid and by about 1.1x on
+the doubled one, and it named the right order of magnitude both times. It did
+that for the wrong reason twice over: the limit it describes is the ocean's,
+which is a factor of three further away than where the model actually stops, and
+a nominal-speed advective criterion is LINEAR in resolution where both real
+limits are quadratic. The two agree only where they happen to cross, near
+72 x 72. The criterion was a usable predictor and was not the explanation, and
+telling those apart is exactly what the model's own `Cn` and EMBM's guard were
+needed for.
+
+## 3f. What the connector says about the same ceiling
 
 `references/muffingen` is the generator for the `.k1`, `.paths` and `.psiles`
 files a new geography needs, and it is where OCN-18's second half sits.
@@ -254,18 +305,3 @@ The island count itself is a compile-time bound, `GOLDSTEINMAXISLES`, and the
 sweeps here compile with it raised well past the shipped default, so it is a
 build parameter rather than a ceiling.
 
-## 3e. How the criterion fixed in advance actually did
-
-Worth recording, because the point of fixing a criterion before the run is that
-it can then be wrong in a way you can see. The a-priori form -- advective
-Courant below one at a nominal 0.5 m/s surface current -- puts the boundary at
-`nyear` about 61 on 36 x 36 and about 171 on 72 x 72. Measured, it is between 30
-and 35, and between 140 and 160.
-
-So it was conservative by about 1.8x on the shipped grid and by about 1.1x on
-the doubled one, and it named the right order of magnitude both times. It did
-that for the wrong reason: a nominal-speed advective criterion is LINEAR in
-resolution and the limit that actually binds is quadratic, so the two agree only
-where they happen to cross, which is near 72 x 72. The criterion was a usable
-predictor and is not the explanation, and the difference is exactly what the
-model's own `Cn` and EMBM's guard were needed to tell apart.
