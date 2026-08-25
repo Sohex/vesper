@@ -25,12 +25,17 @@ refused nowhere at all, and that asymmetry is what most of the fixes below
 closed: the surface reader, the restart reader and the thread decomposition each
 refuse by name now.
 
-Two findings were already owned and are not restated: the hyperdiffusion branch
-at `plasim.f90:1544` and the unreachable `jtune` radiation table at
-`radmod.f90:968`. The first was a `NTRU==42` preset; world-rt1 and world-8bs
-between them made the project write every hyperdiffusion key on every segment,
-so the preset is overwritten rather than relied on. The second is `world-ys9`
-and is **still open**.
+Two findings were already owned and are not restated: the hyperdiffusion preset
+in `readnl` and the unreachable `jtune` radiation table in `radini`. The first
+was a `NTRU==42` preset; world-rt1 and world-8bs between them made the project
+write every hyperdiffusion key on every segment, so it was overwritten rather
+than relied on, and `config/planet.yaml` derives the damping per rung. The
+second was gated on a namelist value read eighty-eight lines below it and could
+not fire at any rung. **Both are deleted under `world-677x`**, so no truncation
+is a special case in `plasim.f90` or `radmod.f90`. What remains of the class is
+`rainmod.f90`'s `NTRU==21 .and. NLEV==5` clearing of `nshallow`, on a
+five-layer configuration this project does not build, and the layer-count and
+`nlat` branches in `world-helo`.
 
 ## 1. A filter-stripped control binary occupied the registry's build directory
 

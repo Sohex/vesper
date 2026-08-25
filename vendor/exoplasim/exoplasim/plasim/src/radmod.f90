@@ -965,79 +965,22 @@
 !
 !     gsol0   : solar constant (w/m2)
 !
-      jtune=0
-      if(ndheat > 0) then 
-       if(NTRU==21 .or. NTRU==1) then
-        if(NLEV==5) then
-         if(NDCYCLE==1) then
-          jtune=0
-         else
-          if(NEQSIG==1) then
-           jtune=0
-          else
-           tswr1=0.02
-           tswr2=0.065
-           tswr3=0.004
-           th2oc=0.024
-           jtune=1
-          endif
-         endif 
-        elseif(NLEV==10) then
-         if(NDCYCLE==1) then
-          jtune=0
-         else
-          if(NEQSIG==1) then
-           jtune=0
-          else
-           th2oc=0.024
-           tswr1=0.077
-           tswr2=0.065
-           tswr3=0.0055 
-           jtune=1
-          endif
-         endif 
-        endif
-       elseif(NTRU==31) then
-        if(NLEV==10) then
-         if(NDCYCLE==1) then
-          jtune=0
-         else
-          if(NEQSIG==1) then
-           jtune=0
-          else
-           tswr1=0.077
-           tswr2=0.067
-           tswr3=0.0055
-           th2oc=0.024
-           jtune=1
-          endif
-         endif
-        endif
-       elseif(NTRU==42) then
-        if(NLEV==10) then
-         if(NDCYCLE==1) then
-          jtune=0
-         else
-          if(NEQSIG==1) then
-           jtune=0
-          else
-           tswr1=0.089
-           tswr2=0.06
-           tswr3=0.0048
-           th2oc=0.0285
-           jtune=1
-          endif
-         endif
-        endif
-       endif
-      endif
+!     NO TRUNCATION IS A SPECIAL CASE, and the table that made three of them
+!     one never fired. Upstream carried a per-(NTRU, NLEV) shortwave tuning
+!     here -- tswr1, tswr2, tswr3 and th2oc, selected through a flag named
+!     jtune, with branches for T21/T1, T31 and T42 -- and every branch of it
+!     was unreachable at every truncation. Each one reached its coefficients
+!     only when ndcycle was not 1; ndcycle's compiled default is 1 (:205) and
+!     read(11,radmod_nl) is below this point, so ndcycle held its compiled
+!     value whenever the test was made and the flag was always 0. The block
+!     ended by announcing its own failure, on every run at every truncation:
+!     'No radiation setup for this resolution ... you may need to tune'.
 !
-      if(jtune==0) then
-       if(mypid==NROOT) then
-        write(nud,*)'No radiation setup for this resolution (NTRU,NLEV)'
-        write(nud,*)'using default setup. You may need to tune the radiation'
-       endif
-      endif
+!     What the modelled radiation uses now is what it has always used: the
+!     module defaults at :72-75, and whatever the namelist sets over them.
+!     This project sets TSWR3 from model.cloud_absorption_scale and leaves
+!     tswr1, tswr2 and th2oc at those defaults.
+!     world-ys9, world-677x; exoplasim/notes/resolution-tuned-parameters.md.
 !
 !**   1) read and print version & namelist parameters
 !

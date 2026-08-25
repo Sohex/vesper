@@ -64,8 +64,11 @@ passes only `physicsfilter`, so the other two take `configure()`'s defaults.
 `NDEL`, `NHDIFF`, `TDISSD`, `TDISSZ`, `TDISST` and `TDISSQ` are absent from that
 namelist entirely, because `continue_exoplasim.py` never calls
 `declare_hyperdiffusion` and `configure()` does not write them either. A
-continuation therefore integrates on `plasim.f90`'s hard-coded T21/T42 damping
-rather than the values this project derived.
+continuation therefore integrated on whatever `readnl` left compiled in --
+`plasimmod.f90`'s module defaults, or the `NTRU==42` preset `readnl` then
+carried -- rather than on the values this project derived. `world-8bs` made
+`continue_exoplasim.py` call the same function, and `world-677x` deleted the
+preset, so an unwritten key now means the module defaults at every rung.
 
 `expected_namelist_keys` at `run_exoplasim.py:1462` checks neither set, which is
 why `verify_staged_namelists` passes. `run_2b20e3324bb0` reached

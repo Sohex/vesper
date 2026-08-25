@@ -5,14 +5,18 @@ runs, checked against the model's own output. Nothing here is about the
 simulated planet. Read 2026-08-23 at ExoPlaSim 3.4.2.*
 
 The guidance around this model says, in effect, use it at coarse resolution and
-be careful above that, without saying what moves. Four places in the source
-branch on resolution, and they are not one phenomenon: **one is live and
-silently wrong above T42, one is unreachable code at every resolution, and two
-are narrow.**
+be careful above that, without saying what moves. Upstream ExoPlaSim answers
+that in four places that branch on resolution, and they are not one phenomenon:
+**one was live and silently wrong above T42, one was unreachable code at every
+resolution, and two are narrow.** This fork carries neither of the first two any
+more. The damping the first of them supplied is derived per rung in
+`config/planet.yaml` instead, and section 1 is what that replaced; the second
+could never fire and is deleted outright.
 
-## 1. Hyperdiffusion: upstream gives every rung above T42 T21's, and this project overrides it
+## 1. Hyperdiffusion: upstream gives every rung above T42 T21's, and this fork derives it per rung
 
-`plasim.f90:1544` is the whole of the resolution dependence:
+Upstream's `readnl` carried the whole of the model's resolution dependence in
+one preset:
 
     if(NTRU==42) then
      nhdiff=16
@@ -23,8 +27,8 @@ are narrow.**
      tdissd(:)=0.06 * day_24hr
     endif
 
-There is no branch for T85, T127 or T170, so they fall through to the module
-defaults at `plasimmod.f90:206,447,874-877`, which are T21's:
+There is no branch for T85, T127 or T170, so upstream they fall through to the
+module defaults at `plasimmod.f90:206,447,918-921`, which are T21's:
 
 | | T21 defaults, used at T85/T127/T170 | T42 branch |
 | --- | --- | --- |
@@ -41,13 +45,14 @@ the gridpoints. Confirmed from the model's own namelist echo rather than from
 the source -- `NHDIFF=16` in a T42 run and `NHDIFF=15` in a T170 one, with
 `NDEL= 10*4` against `NDEL= 10*2`.
 
-The units are NOT a problem, which is worth recording because they look like
-one. The T42 branch multiplies by `day_24hr` and the module defaults do not, so
-the echo shows 65664 at T42 against 5.6 at T170. `dayseccheck`
-(`plasim.f90:1768`) catches exactly that: below one timestep it assumes days and
-converts, logging as it goes, and the T170 diag carries
-`assuming [days] - converting to [sec]` for all three. The values differ; the
-units do not.
+The units were NOT a problem, which is worth recording because they looked like
+one. The T42 branch multiplied by `day_24hr` and the module defaults do not, so
+the echo showed 65664 at T42 against 5.6 at T170. `dayseccheck` catches exactly
+that: below one timestep it assumes days and converts, logging as it goes, and
+the T170 diag carries `assuming [days] - converting to [sec]` for all three. The
+values differed; the units did not. With the branch gone every compiled default
+is in days at every truncation, so the only way into a mixed-unit array is a
+caller writing seconds into element 1 as a scalar, which `dayseccheck` stops.
 
 WHAT THIS PREDICTS, and it is testable rather than asserted: under-damped small
 scales at high resolution should show up as a shorter stable timestep and as
@@ -56,23 +61,32 @@ T127 fails after twenty minutes at dt 22.5 and T170 after 3.8 at dt 30 -- so
 the hyperdiffusion inherited from T21 is a live candidate for the ladder's
 stability ceiling and has not been separated from the CFL limit.
 
-That prediction is refuted further down, and the branch is no longer what this
-project integrates. `config/planet.yaml` carries `model.hyperdiffusion` with a
-derived timescale table for every rung on the ladder;
+That prediction is refuted further down, and no rung is a special case in this
+fork. `config/planet.yaml` carries `model.hyperdiffusion` with a derived
+timescale table for every rung on the ladder;
 `run_exoplasim.py:declare_hyperdiffusion` writes `NDEL`, `NHDIFF` and the four
 `TDISS*` into `plasim_namelist` as layer-count-replicated lists and refuses a
 rung the table does not name, `continue_exoplasim.py` calls the same function so
 a continuation cannot drop them, and `scripts/check_consistency.py` compares the
-table against the rule it claims to come from. `readnl` reads the namelist AFTER
-applying the branch above and `initpm` builds the operator after that, so the
-override needs no source change and no rebuild. What the section describes is
-therefore a property of ExoPlaSim, not of a run this project prepares today.
+table against the rule it claims to come from. Because `readnl` reads the
+namelist after the point the preset stood at and `initpm` builds the operator
+after that, the override needed no source change: the preset ran and was
+overwritten on every run this project has made, at every rung, which is what
+makes deleting it a no-op here.
 
-## 2. Radiation: UNREACHABLE at every resolution, including T42
+The T42 NUMBERS are not lost with it. `order_alpha` 4 and `cutoff_fraction`
+0.381 are recorded in that config block as inherited from T42, and the cutoff is
+applied as a fraction of the truncation rather than as an absolute wavenumber,
+so the damping starts at the same place in the spectrum at every rung instead of
+confining most of T21's and almost none of T170's. What went is the privileged
+CASE. A caller of this fork that writes none of those keys now gets the module
+defaults at every truncation, T42 included, in days.
 
-`radmod.f90:968-1035` sets shortwave transmissivities and the water-vapour
+## 2. Radiation: UNREACHABLE at every resolution, including T42, and deleted
+
+Upstream's `radini` set shortwave transmissivities and the water-vapour
 continuum per resolution -- `tswr1`, `tswr2`, `tswr3`, `th2oc` -- through a
-variable named `jtune`, with branches for T21/T1, T31 and T42. Every branch is
+variable named `jtune`, with branches for T21/T1, T31 and T42. Every branch was
 guarded:
 
     if(NDCYCLE==1) then
@@ -80,26 +94,48 @@ guarded:
     else
      ... tswr1=0.089 ... jtune=1
 
-`ndcycle` defaults to 1 at `radmod.f90:205`, and **the block runs at line 968
-while `read(11,radmod_nl)` is at line 1056** -- eighty-eight lines later. So
-`ndcycle` is always its compiled default when the test is made, whatever the
-namelist says, and `jtune` is always 0.
+`ndcycle`'s compiled default is 1 at `radmod.f90:205`, and **the block stood
+eighty-eight lines above `read(11,radmod_nl)` in the same subroutine**, which is
+the only place `ndcycle` is ever assigned. `radini` is called once, from
+`prolog`. So `ndcycle` held its compiled default whenever the test was made,
+whatever the namelist said, and `jtune` was always 0.
 
-The model announces it: *"No radiation setup for this resolution (NTRU,NLEV) /
+The model announced it: *"No radiation setup for this resolution (NTRU,NLEV) /
 using default setup. You may need to tune the radiation"*. **Every run this
-project has ever made prints it** -- 88 run directories across T21, T42, T85,
-T127 and T170, including all sixty-six T42 runs, where a branch exists and
-cannot fire.
+project made before the deletion printed it** -- 88 run directories across T21,
+T42, T85, T127 and T170, including all sixty-six T42 runs, where a branch
+existed and could not fire.
 
-So the radiation half of "tuned for coarse resolution" does not apply to this
-project at all, and the warning about it has always been correct and always been
-noise, since no configuration can clear it.
+So the radiation half of "tuned for coarse resolution" never applied to any
+ExoPlaSim run at any resolution unless the diurnal cycle was off, and the
+warning about it was correct and unactionable at the same time. It is an
+ordering defect, not a tuning question: the block read a namelist value before
+the namelist was read. The whole of it is deleted from this fork, message
+included, and `world-677x` records the deletion.
+
+Nothing this project integrates moves. `jtune` was 0 here as it was everywhere,
+so the modelled radiation used the module defaults at `radmod.f90:72-75`, and
+that is what it uses now: `th2oc` 0.024, `tswr1` 0.077, `tswr2` 0.065 and
+`tswr3` 0.0055. This project writes `TSWR3` over its default from
+`model.cloud_absorption_scale` and leaves the other three alone. The value the
+T42 branch would have reached, had it been reachable, is not any of them.
 
 ## 3. Two narrow ones
 
 `rainini` clears `nshallow` at T21 with 5 levels, which this project's ten-layer
-configuration does not hit at either rung. `readnl` sets Rayleigh friction
-timescales when `NLEV==10`, which is resolution-independent and applies here.
+configuration does not hit at any rung; it is the last `NTRU` branch left in the
+model source. `readnl` sets Rayleigh friction timescales when `NLEV==10`, which
+is a layer-count branch rather than a truncation one and applies here -- and is
+overwritten by the `TFRC` this project declares, since it too runs before the
+namelist read. Two more `NLEV==20` blocks in `readnl` run AFTER that read and
+would overwrite a declared `TFRC`; they need `nrdrag` 1, whose compiled default
+is 0 and which nothing here sets. `world-helo` carries all three.
+
+`initpm` picks a timestep from `nlat` in three arms labelled T21, T31 and
+everything above, but only when the caller supplies neither `mpstep` nor
+`ntspd`. This project writes `MPSTEP` from `model.timestep_minutes` on every
+run, so the ladder is unreachable here; deleting it would change what an
+auto-timestep run integrates, so it stands. `world-helo`.
 
 The third, `gamma=0.007` at T42 with 10 levels, is gone. `gamma` is the fraction
 of the sub-saturation deficit that falling precipitation evaporates per
