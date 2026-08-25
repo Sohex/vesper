@@ -98,6 +98,17 @@ hydrography/data/*/topographic_index_*.nc
 # and regenerable from the driver file. The manifest and the analysis products
 # that summarise a run are tracked under biosphere/analysis/.
 biosphere/runs/
+
+# The generated LPJ-GUESS inputs and the gate reports beside them. Every file
+# here is written by a step registered in config/pipeline.yaml -- vesper.h and
+# its provenance, vesper_pfts.ins, vesper_driver.bin, and the gate and ledger
+# reports -- and each is re-derived from config/planet.yaml, a climatology and
+# the tracked fork source. Nothing outside biosphere/ reads any of them, so
+# unlike the aeolian and hydrography reports there is no record here to keep:
+# what each gate ARGUES is in biosphere/notes/, which is tracked. The directory
+# sat untracked-and-unignored instead, which is the shape a `git add -A` sweeps
+# into the tree.
+biosphere/generated/
 pedology/data/earth_validation_cache/
 
 # The GW-3 Earth calibration's mesh, sampled fields, permeability, solve and
@@ -210,6 +221,7 @@ exoplasim/bench/
 # this stays complete by being tested rather than by being remembered.
 .beads/backup
 .beads/embeddeddolt
+biosphere/generated
 source/*/*/raw
 source/*/*/grid
 source/*/*/planet.nc

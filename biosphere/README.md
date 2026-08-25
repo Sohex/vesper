@@ -396,6 +396,11 @@ python biosphere/scripts/build_lpj_driver.py      # climate + soil codes + gridl
 cmake --build vendor/lpj-guess/build --parallel 16
 ```
 
+All three land in `biosphere/generated/`, along with the gate and ledger
+reports. That directory is output and is not tracked: everything in it is
+re-derived by a step registered in `config/pipeline.yaml`, and what each gate
+argues is in `biosphere/notes/`, which is.
+
 ### The volatile organic source is off, and off is a decision
 
 `bvoc_gate.py` is that decision made explicit. `ifbvoc 1` reads like one switch
