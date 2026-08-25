@@ -47,7 +47,6 @@ private:
 	xtring file_mnpp,file_mlai,file_mgpp,file_mra,file_maet,file_mpet,file_mevap,file_mrunoff,file_mintercep,file_mrh;
 	xtring file_mnee,file_mwcont_upper,file_mwcont_lower;
 	xtring file_firert,file_speciesheights;
-	xtring file_wetland_water_added;
 
 	// bvoc
 	xtring file_aiso, file_miso, file_amon, file_mmon, file_amon_mt1, file_amon_mt2, file_mmon_mt1, file_mmon_mt2;
@@ -73,7 +72,6 @@ private:
 
 	// Output tables
 	Table out_cmass, out_anpp, out_agpp, out_agpp_no, out_agpp_ns, out_agpp_ps, out_fpc, out_aaet, out_dens, out_lai, out_cflux, out_doc, out_cpool, out_clitter, out_firert, out_runoff, out_speciesheights;
-	Table out_wetland_water_added;
 
 	Table out_mnpp, out_mlai, out_mgpp, out_mra, out_maet, out_mpet, out_mevap, out_mrunoff, out_mintercep;
 	Table out_mrh, out_mnee, out_mwcont_upper, out_mwcont_lower;

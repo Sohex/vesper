@@ -5018,10 +5018,6 @@ public:
 	double abaserunoff;
 	/// annual sum of runoff (mm/year)
 	double arunoff;
-	/// water added to wetlands today (mm)
-	double wetland_water_added_today;
-	/// annual sum of water added to wetlands (mm/year)
-	double awetland_water_added;
 	/// annual sum of potential evapotranspiration (mm/year)
 	double apet;
 

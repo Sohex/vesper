@@ -35,72 +35,95 @@ The gate is fail-closed in one direction only. With `requested: false` it
 reports what is undeclared and exits 0, because a biosphere run with peat and
 methane off is a correct run. Only a request to activate can be refused.
 
-## 2. The hydrology is not repaired, and the refusal holds until it is
+## 2. The hydrology repair, and what still refuses under it
 
-Four defects below the wetland path are present in the vendored source as it
-stands. Each is a statement about a named location, each has a probe in the
-gate, and each probe refuses activation while it still matches. A probe that
-stops matching does not by itself grant anything: the corresponding declaration
-in `biosphere/config/wetlands.yaml` still has to be made, and it names the
-artifact that closes the defect.
+Four defects below the wetland path were present in the vendored source. Each is
+a statement about a named location, each has a probe in the gate, and each probe
+refused activation while it still matched. All four are now repaired, and a
+probe that stops matching grants nothing on its own: the corresponding
+declaration in `biosphere/config/wetlands.yaml` still has to be made, it names
+the artifact that closes the defect, and the gate reports a declaration made
+while its probe still matches as a contradiction rather than believing it.
 
-**The low-latitude wetland path creates water.** In
-`vendor/lpj-guess/modules/soilwater.cpp`, the `is_true_wetland_stand()` block
-computes each layer's saturation deficit `potential_layer[ly]`, clamps
-`soil.rain_melt` to zero when it is smaller than the total deficit, and then
-adds the FULL deficit to every layer regardless. The water added is not bounded
-by the water available. `ifsaturatewetlands` does not control whether the water
-is added; it controls only whether `patch.wetland_water_added_today` records it.
-The recorded amount is the whole `total_potential` rather than the created part,
-so even the record over-states in the case where the rain could have supplied
-it. `vendor/lpj-guess/modules/soil.cpp` then tries to subtract the record from
-runoff and, where runoff is smaller, carries the remainder into
-`patch.awetland_water_added` -- an annual diagnostic of water this world's
-simulated hydrosphere never held.
+**Saturation is an outcome, never a source term.** In
+`vendor/lpj-guess/modules/soilwater.cpp` the `is_true_wetland_stand()` block
+computes each layer's saturation deficit `potential_layer[ly]` and infiltrates
+`min(soil.rain_melt, total_potential)`, distributed in proportion to each
+layer's remaining deficit, on the same terms as the peatland and upland branches
+beside it. What it does NOT do is add the full deficit whether or not the rain
+could supply it, which is what it did: `soil.rain_melt` was clamped to zero when
+it fell short and every layer took its whole deficit anyway. `ifsaturatewetlands`
+selected nothing about whether that water was added -- it selected only whether
+`patch.wetland_water_added_today` recorded it, and it recorded the whole
+`total_potential` rather than the created part -- so the module now fails on
+`ifsaturatewetlands 1` rather than offering a switch with no referent.
 
-What replaces it: saturation is an OUTCOME of the water ledger, never a source
-term. The wetland receives routed surface water and groundwater discharge
-through the one exchange PLHY-4 requires, and it returns every loss. There is no
-second withdrawal and no infiltration path that may exceed what arrived.
+`hydrography/config/land_water_ledger.yaml` books every crossing that has no
+owner against its `unowned_source` boundary, and this path was one of them. The
+diagnostic pair that counted it is gone with it: `patch.wetland_water_added_today`,
+`patch.awetland_water_added`, the runoff clawback in
+`vendor/lpj-guess/modules/soil.cpp` that charged the created water back against
+a wetland stand's own runoff, and the `wetland_water_added` output table. None
+of them can carry anything but zero once the path is bounded, and a table
+reporting a permanent zero is worse than an absent one. What a wetland stand
+does receive from outside its own column is PLHY-4's exchange, and WET-11 names
+the diagnostic it gets reported through: `mwetland_exchange.out`.
 
-**`wetland_runon` is a constant, not a flux.** `soil.cpp` assigns
-`soiltype.runon = wetland_runon`, a namelist scalar in mm/day applied to every
-wetland stand on the planet, and only where water is already flowing. It is not
-a routed quantity and carries no catchment. What replaces it is the groundwater
-solver's recharge and discharge, which already resolve local baselevels,
-gravity-correct hydraulic conductivity and a `sink_fraction` diagnostic on the
-native mesh. `wetland_runon` stays at 0 and the declaration has to name the
-exchange that supplies runon instead.
+**Runon is an exchange, not a namelist constant.** `soil.cpp` assigned
+`soiltype.runon = wetland_runon`, a scalar in mm/day applied to every wetland
+stand on the planet and only where water was already flowing, carrying no
+catchment and no baselevel. Both the assignment and the read are gone. The
+ledger books the two directions of the exchange that replaces it as
+`capillary_rise` (groundwater to soil_liquid) and `drainage` (soil_liquid to
+groundwater), PLHY-4 owns them, and their flux is `undeclared` -- so the term is
+ABSENT rather than approximated. An absent term is one the ledger can name; a
+constant is a second account of where the water came from. `wetland_runon` is 0
+in every instruction file this project writes, granted or refused, so removing
+it preserves the behaviour of every run made here.
 
-**The annual water-table average is never computed.** In `soil.cpp` the block
-that averages `wtp` over the year is guarded by `date.day ==
-Date::MAX_YEAR_LENGTH`. `Date::next()` in `vendor/lpj-guess/framework/guess.h`
-resets `day` to 0 on the last day of the last month, so `day` never exceeds
-`MAX_YEAR_LENGTH - 1` and the block is unreachable on the Earth calendar and on
-this world's. `awtp` therefore holds the 0.0 it is initialised to, for the whole
-run and across restarts, because it IS serialized. The consequence is not
-cosmetic: `update_acrotelm_co2` computes the acrotelm CO2 concentration as a
-linear interpolation in `awtp` between the atmospheric value at -300 mm and the
-pore-water value at 0, so `awtp == 0` pins the simulated acrotelm to the
-pore-water concentration everywhere, always. What replaces it is the ordinal
-test the calendar actually reaches, and a fixture that fails when the average is
-still zero after a simulated year with a non-zero water table.
+**The annual water-table average runs on an ordinal the calendar reaches.** The
+block in `soil.cpp` that averages `wtp` over the year is guarded on
+`date.day == Date::MAX_YEAR_LENGTH - 1`. It was guarded on
+`Date::MAX_YEAR_LENGTH`, which `Date::next()` in
+`vendor/lpj-guess/framework/guess.h` never produces: `day` resets to 0 on the
+last day of the last month, so it never exceeds `MAX_YEAR_LENGTH - 1` and the
+block was unreachable on the Earth calendar and on this world's. `awtp`
+therefore held the 0.0 it is initialised to, for the whole run and across
+restarts because it IS serialized. The consequence was not cosmetic:
+`update_acrotelm_co2` computes the acrotelm CO2 concentration as a linear
+interpolation in `awtp` between the atmospheric value at -300 mm and the
+pore-water value at 0, so `awtp == 0` pinned the simulated acrotelm to the
+pore-water concentration everywhere, always. The block is kept rather than
+deleted because `awtp` has a reader; what was wrong was the ordinal.
 
-**The restart state is incomplete.** `Soil::serialize` in `soil.cpp` carries
-`wtp`, `awtp` and several yesterday gas stores, and does NOT carry `Wtot`,
-`wtd`, `stand_water`, `mwtp`, `Frac_ice` or `rootfrac`. Four of those are
-prognostic peat hydrology; `Frac_ice` is the current ice fraction, distinct from
-the `Frac_ice_yesterday` that is serialized; `rootfrac` is initialised on day
-zero only. An arbitrary-day restart therefore resumes with a different simulated
-state than the run it continues. What replaces it is serialization of every one
-of them plus an exact-continuity fixture: a run stopped and resumed mid-year has
-to reproduce the uninterrupted run bit for bit, which is a check with a wrong
-answer rather than a different one.
+**The restart carries the prognostic peat hydrology.** `Soil::serialize` now
+carries `Wtot`, `wtd`, `stand_water`, `mwtp`, `Frac_ice` and `rootfrac`
+alongside the `wtp` and `awtp` it already had. `Frac_ice` is the CURRENT ice
+fraction and is a different quantity from the `Frac_ice_yesterday` that was
+serialized, which is why the latter was not a substitute; `rootfrac` is rebuilt
+on day zero of each simulated year, so it matters for a restart taken anywhere
+else. `biosphere/config/wetlands.yaml` carries the list under
+`hydrology.required_restart_members` and the gate reads the serializer
+statically against it.
 
-**Where these repairs go.** All four are changes to `vendor/lpj-guess`, which
-this contract does not make. They are specified here so that the work is a
-change with a stated target rather than a discovery, and the gate holds the
-refusal until each is done and declared.
+The behavioural half is `biosphere/scripts/verify_lpj_restart_continuity.py`: a
+whole run against one split at a simulated year boundary, compared table for
+table and row for row over every year from the restart point, with a wrong
+answer rather than a merely different one. It is a YEAR boundary because
+`framework/framework.cpp` serializes exactly once, at the end of year
+`state_year - 1`, and a restarted run resumes at day 0 of `state_year` and can
+never reach that save point again. Neither a mid-year stop nor the zero-step
+round trip that found world-8yyh in the climate model is expressible here, and
+giving this model a save point that would make them expressible is WORLD-FUJ4.
+The fixture has not been RUN: no compiled model and no built forcing exist until
+a baseline climatology does, and it exits saying so rather than reporting a pass
+it did not earn.
+
+**What still refuses under the repair.** `hydrology.water_ledger` -- the one
+daily exchange closing precipitation, snow, surface routing, PLHY uptake and ET,
+groundwater recharge and discharge, storage and runoff. PLHY-4 owns it, it does
+not exist, and the repairs above are what make its absence a NAMED absence
+rather than a constant standing in for it.
 
 ## 3. A saturated fraction is a grid-cell quantity
 
@@ -229,7 +252,9 @@ never supply one.
 ## 7. The order
 
 1. Repair the four hydrology defects of section 2 with peat and methane still
-   off, and add the restart-continuity fixture.
+   off, and add the restart-continuity fixture. DONE. What remains of step 1 is
+   `hydrology.water_ledger`: PLHY-4's one daily exchange, which the repairs turn
+   from a constant standing in for it into a named absence.
 2. Settle WORLD-D9U4, then derive the mutually exclusive surface fractions on
    the support it chooses, closing against BIO-11's rootable surface.
 3. Place the wetland traits in PCAR-5's registry once it exists, and declare the
@@ -240,5 +265,5 @@ never supply one.
    before anything changes the prescribed atmospheric methane.
 6. Only then run the pre-registered matched cases, with explicit permission.
 
-Nothing in steps 2 through 6 may be attempted while step 1 stands, and the gate
-is what makes that a refusal rather than an intention.
+Nothing in steps 2 through 6 may be attempted while any part of step 1 stands,
+and the gate is what makes that a refusal rather than an intention.

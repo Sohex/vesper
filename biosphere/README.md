@@ -436,14 +436,33 @@ no catchment, while the annual water-table average is still guarded on an
 ordinal `Date::next()` never produces, and while the prognostic peat hydrology
 is still absent from `Soil::serialize`. A declaration claiming one of those is
 closed while the probe still finds it is reported as a contradiction rather than
-believed. Fifteen fixtures run every time: thirteen built to be wrong in a
-named way, the live declaration which must be refused, and a met declaration
-against a repaired source which must be granted, because a gate nothing can
-satisfy is a wall refusing for a reason nobody wrote down.
+believed. A fixture set runs every time: mutations of the declaration built to
+be wrong in a named way, the live declaration which must be refused, three
+mutations of the EVIDENCE so that the contradiction branch stays checkable after
+the repair that made the source agree, and a met declaration against a repaired
+source which must be granted, because a gate nothing can satisfy is a wall
+refusing for a reason nobody wrote down.
 
 ```bash
 python biosphere/scripts/wetland_gate.py                       # what is undeclared
 python biosphere/scripts/wetland_gate.py --check-run runs/<id> # accept or reject output
+```
+
+`verify_lpj_restart_continuity.py` is the behavioural half of the last of those
+four, where the serializer probe is the static half. It runs the same forcing
+twice, once whole and once split at a simulated year boundary, and requires the
+resumed run to reproduce the uninterrupted one table for table and row for row
+over every year from the restart point. The boundary is a year boundary because
+`framework.cpp` serializes exactly once, at the end of year `state_year - 1`,
+and a restarted run resumes at day 0 of `state_year` and can never reach that
+save point again -- so neither a mid-year stop nor the zero-step round trip that
+found `world-8yyh` in the climate model is expressible here, and WORLD-FUJ4 owns
+giving this model a save point that would make them expressible. It needs a
+compiled model and a built forcing and exits naming what is missing rather than
+reporting a pass it did not earn.
+
+```bash
+python biosphere/scripts/verify_lpj_restart_continuity.py --nyear 12 --state-year 8
 ```
 
 `run_lpj_guess.py` asks the gate and writes all four switches into the

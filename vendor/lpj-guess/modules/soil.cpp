@@ -535,7 +535,6 @@ void Soil::hydrology_lpjf_twolayer(const Climate& climate, double fevap) {
 		patch.adrainrunoff = 0.0;
 		patch.abaserunoff = 0.0;
 		patch.arunoff = 0.0;
-		patch.awetland_water_added = 0.0;
 	}
 
 	// Reset monthlys
@@ -1199,38 +1198,12 @@ void Soil::hydrology_lpjf(const Climate& climate, double fevap) {
 	// Total runoff
 	runoff = runoff_surf + runoff_drain + runoff_baseflow;
 
-	// water added when patch.stand.is_true_wetland_stand() should be be subtracted from runoff
-	// in proportion to its components
-	if (patch.stand.is_true_wetland_stand() && ifsaturatewetlands) {
-
-		if (runoff <= patch.wetland_water_added_today && runoff > 0.0) {
-
-			// Not enough runoff to balance the water added to the wetland, i.e. we added more than was run off.
-
-			// Update wetland_water_added by taking back the amount used for runoff.
-			patch.wetland_water_added_today -= runoff;
-
-			// All runoff removed 
-			runoff_surf = 0.0;
-			runoff_baseflow = 0.0;
-			runoff_drain = 0.0;
-			runoff = 0.0;
-
-		}
-		else if (runoff > patch.wetland_water_added_today  && runoff > 0.0) {
-
-			// Enough runoff to balance the water added to the wetland so we take it back.
-			runoff_surf -= patch.wetland_water_added_today * runoff_surf / runoff;
-			runoff_drain -= patch.wetland_water_added_today * runoff_drain / runoff;
-			runoff_baseflow -= patch.wetland_water_added_today * runoff_baseflow / runoff;
-			// Recalculate total runoff 
-			runoff = runoff_surf + runoff_drain + runoff_baseflow;
-
-			// Reset wetland_water_added
-			patch.wetland_water_added_today = 0.0;
-
-		}
-	}
+	// A wetland stand's runoff used to have the water the infiltration path
+	// created charged back against it here, and what runoff could not cover was
+	// carried into patch.awetland_water_added as an annual record of water this
+	// world never held. initial_infiltration() now bounds that path by
+	// soil.rain_melt, so there is nothing to charge back and this stand's runoff
+	// is its runoff. biosphere/notes/wetland-activation-contract.md section 2.
 
 	// save percolation from system (needed in leaching())
 	dperc = runoff_baseflow + runoff_drain;
@@ -1239,7 +1212,6 @@ void Soil::hydrology_lpjf(const Climate& climate, double fevap) {
 	patch.adrainrunoff += runoff_drain;
 	patch.abaserunoff += runoff_baseflow;
 	patch.arunoff += runoff;
-	patch.awetland_water_added += patch.wetland_water_added_today;
 	patch.aaet += aet_total;
 	patch.aevap += evap;
 
@@ -1368,7 +1340,6 @@ void Soil::hydrology_peat(const Climate& climate, double fevap) {
 		patch.adrainrunoff = 0.0;
 		patch.abaserunoff = 0.0;
 		patch.arunoff = 0.0;
-		patch.awetland_water_added = 0.0;
 	}
 
 	// Reset monthlys
@@ -1507,28 +1478,27 @@ void Soil::hydrology_peat(const Climate& climate, double fevap) {
 	else
 		runoff_surf = 0.0;
 
-	// .ins file option: 
-	// run on or off - but only when there's flowing water
-
-	double runon = 0.0;
-
-	// runon set in global.ins
-	soiltype.runon = wetland_runon;
-
-	if (runoff_surf > 0.0) {
-
-		double runofforon = soiltype.runon;
-
-		if (runofforon < 0) 
-			runoff_surf -= runofforon;	// e.g. 3 mm/day for bog-like/hummock conditions
-
-		if (runofforon > 0)
-			runon += runofforon;		// 3-5 mm/day for fen-like conditions
-	}
+	// RUNON IS AN EXCHANGE, NOT A NAMELIST CONSTANT.
+	//
+	// soiltype.runon was assigned the wetland_runon scalar here and then applied
+	// on any day this stand had flowing water: one mm/day for every wetland
+	// stand on the planet, carrying no catchment, no baselevel and no water
+	// table it had to come from. hydrography/config/land_water_ledger.yaml books
+	// the two directions of this exchange as `capillary_rise` (groundwater to
+	// soil_liquid) and `drainage` (soil_liquid to groundwater), and books
+	// routed surface water through `open_water`. PLHY-4 owns the exchange and
+	// its flux is `undeclared`, so the term is ABSENT here rather than
+	// approximated: an absent term is a term this ledger can name, and a
+	// constant is a second account of where the water came from.
+	//
+	// wetland_runon is 0 in every instruction file this project writes --
+	// biosphere/scripts/wetland_gate.py switches() writes it, granted or
+	// refused -- so this preserves the behaviour of every run made here.
+	// biosphere/notes/wetland-activation-contract.md section 2.
 
 	double Wtot_init = Wtot;
 
-	Wtot += runon - runoff_surf;
+	Wtot -= runoff_surf;
 
 	// Add standing water, if any
 	Wtot += stand_water;
@@ -1803,7 +1773,17 @@ void Soil::hydrology_peat(const Climate& climate, double fevap) {
 	if (firstHydrologyCalc) 
 		firstHydrologyCalc = false;
 
-	if (date.day == Date::MAX_YEAR_LENGTH) {
+	// The last ordinal of the simulation year, which is MAX_YEAR_LENGTH - 1 and
+	// not MAX_YEAR_LENGTH: Date::next() in framework/guess.h resets day to 0 on
+	// the last day of the last month, so `day` never reaches MAX_YEAR_LENGTH on
+	// this world's calendar or on Earth's. Guarded on MAX_YEAR_LENGTH, this
+	// block never ran, awtp held the 0.0 it is initialised to for the whole run
+	// and across restarts because it IS serialized, and update_acrotelm_co2
+	// interpolates linearly in awtp between the atmospheric concentration at
+	// -300 mm and PORE_WATER_CO2 at 0 -- so the simulated acrotelm CO2 was
+	// pinned to the pore-water value everywhere and always.
+	// biosphere/notes/wetland-activation-contract.md section 2.
+	if (date.day == Date::MAX_YEAR_LENGTH - 1) {
 
 		// Calculate annual average WTP. Needed in update_acrotelm_co2
 		awtp = 0.0;
@@ -3962,6 +3942,22 @@ void Soil::serialize(ArchiveStream& arch) {
 		// optimise for memory in state files
 		& awtp
 		& wtp
+		// The prognostic peat hydrology. Without these an arbitrary-day restart
+		// resumes a DIFFERENT simulated state than the run it continues: Wtot,
+		// wtd and stand_water are the acrotelm water column and the water table
+		// it implies, mwtp is the running monthly average, rootfrac is built on
+		// day zero only, and Frac_ice is the CURRENT ice fraction -- distinct
+		// from Frac_ice_yesterday above, which is a different quantity and not
+		// a substitute. biosphere/notes/wetland-activation-contract.md
+		// section 2, and biosphere/config/wetlands.yaml
+		// hydrology.required_restart_members, which is the list the gate
+		// checks this block against.
+		& Wtot
+		& wtd
+		& stand_water
+		& mwtp
+		& Frac_ice
+		& rootfrac
 		& ch4_store
 		& co2_store
 		& CO2_soil_yesterday

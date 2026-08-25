@@ -36,31 +36,49 @@ requested: false
 # still matches while the declaration says the defect is closed is a
 # contradiction, and the gate reports it as one.
 hydrology:
-  # The infiltration path bounded by the water that actually arrived. In
-  # modules/soilwater.cpp the low-latitude wetland block adds each layer's full
-  # saturation deficit whether or not rain_melt could supply it, and
-  # ifsaturatewetlands controls only whether the created amount is recorded.
-  # Saturation must be an outcome of the ledger, never a source term. WET-3.
-  free_water_repair: undeclared
+  # The infiltration path bounded by the water that actually arrived.
+  # Saturation is an outcome of the ledger, never a source term. WET-3.
+  free_water_repair: >-
+    modules/soilwater.cpp bounds the mineral-wetland infiltration by
+    min(soil.rain_melt, total_potential) and distributes it in proportion to
+    each layer's remaining deficit, on the same terms as the peatland and
+    upland branches beside it. ifsaturatewetlands selected the path that added
+    the full deficit regardless, and the module now fails on it rather than
+    creating the water.
   # The single daily exchange that closes precipitation, snow, routed surface
   # water, groundwater recharge and discharge, PLHY uptake and ET, storage and
   # runoff. PLHY-4 owns the exchange; the wetland consumes it and may not make a
   # second withdrawal. WET-3.
   water_ledger: undeclared
-  # What supplies runon, once the fixed wetland_runon scalar is gone. The
-  # groundwater solver's recharge and discharge, on the native mesh, is the
-  # seam; a namelist constant in mm/day applied to every wetland stand is not.
-  # WET-3.
-  runon_source: undeclared
-  # The annual water-table average, on an ordinal the calendar reaches. The
-  # guard in modules/soil.cpp tests date.day == Date::MAX_YEAR_LENGTH, which
-  # Date::next() never produces, so awtp holds its initial 0.0 for the whole run
-  # and pins the simulated acrotelm CO2 to the pore-water value. WET-3.
-  annual_water_table_update: undeclared
-  # A fixture that stops a run mid-year, resumes it, and requires the resumed
-  # state to reproduce the uninterrupted one exactly. Soil::serialize omits
-  # Wtot, wtd, stand_water, mwtp, Frac_ice and rootfrac. WET-3.
-  restart_continuity_fixture: undeclared
+  # What supplies runon, once the fixed wetland_runon scalar is gone. WET-3.
+  runon_source: >-
+    hydrography/config/land_water_ledger.yaml, the `capillary_rise` and
+    `drainage` terms, whose flux PLHY-4 owns and has not declared. Until it
+    does, the term is ABSENT from modules/soil.cpp rather than approximated:
+    the wetland_runon scalar and the soiltype.runon read are both gone, and an
+    absent term is one this ledger can name where a constant is a second
+    account of where the water came from.
+  # The annual water-table average, on an ordinal the calendar reaches. WET-3.
+  annual_water_table_update: >-
+    modules/soil.cpp guards it on date.day == Date::MAX_YEAR_LENGTH - 1, the
+    last ordinal Date::next() reaches on this world's calendar and on Earth's.
+    Guarded on MAX_YEAR_LENGTH the block never ran, awtp held its initial 0.0
+    across the whole run and across restarts because it IS serialized, and
+    update_acrotelm_co2 pinned the simulated acrotelm CO2 to the pore-water
+    value everywhere and always.
+  # A fixture that stops a run, resumes it, and requires the resumed state to
+  # reproduce the uninterrupted one exactly. WET-3.
+  restart_continuity_fixture: >-
+    biosphere/scripts/verify_lpj_restart_continuity.py, comparing a whole run
+    against one split at a simulated year boundary, table for table and row for
+    row, over every year from the restart point. The boundary is where it is
+    because framework/framework.cpp serializes exactly once, at the end of year
+    state_year - 1, and a restarted run resumes at day 0 of state_year and can
+    never reach that save point again: neither a mid-year stop nor ExoPlaSim's
+    zero-step round trip is expressible in this model, and WORLD-FUJ4 owns
+    giving it one. The fixture has not been RUN, because no compiled model or
+    built forcing exists until a baseline climatology does, and it exits saying
+    so rather than reporting a pass it did not earn.
 
   # The prognostic peat-hydrology members the serializer must carry before an
   # arbitrary-day restart means anything. The gate reads Soil::serialize and

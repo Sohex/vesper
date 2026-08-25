@@ -186,12 +186,12 @@ void initial_infiltration(Patch& patch, Climate& climate) {
 	soil.percolate = soil.rain_melt >= 0.1;
 	soil.max_rain_melt = soil.rain_melt;
 
-	// Reset annuals
-	if (date.day == 0) {
-		patch.awetland_water_added = 0.0;
-	}
- 
-	patch.wetland_water_added_today = 0.0;
+	// patch.wetland_water_added_today and patch.awetland_water_added were reset
+	// here. They counted the water the block below created, and the block below
+	// no longer creates any, so what they carried is identically zero and they
+	// are gone rather than reported as a zero. The exchange that does deliver
+	// water to a wetland stand is PLHY-4's, and WET-11 names the diagnostic it
+	// gets reported through: mwetland_exchange.out.
 
 	if (soil.percolate) {
 
@@ -388,8 +388,30 @@ void initial_infiltration(Patch& patch, Climate& climate) {
 
 			// MINERAL WETLANDS
 
-			// Saturate the soil
-			// The calculations rely on the fact that, in each layer: wcont = Faw_layer / soiltype.awc;
+			// Infiltrate what arrived. The calculations rely on the fact that,
+			// in each layer: wcont = Faw_layer / soiltype.awc;
+			//
+			// SATURATION IS AN OUTCOME OF THE WATER LEDGER, NEVER A SOURCE
+			// TERM. This block used to clamp soil.rain_melt to zero whenever it
+			// was smaller than the total saturation deficit and then add the
+			// full deficit to every layer anyway, so a simulated wetland stand
+			// received water the simulated world never held.
+			// hydrography/config/land_water_ledger.yaml books every crossing
+			// that has no owner against its `unowned_source` boundary, and this
+			// was one of them. What a wetland stand gets that upland stands do
+			// not is the routed surface water and groundwater discharge PLHY-4
+			// owns, delivered through the one daily exchange, and not an
+			// infiltration path allowed to exceed what arrived.
+			//
+			// biosphere/notes/wetland-activation-contract.md section 2.
+			if (ifsaturatewetlands) {
+				fail("initial_infiltration (MINERAL WETLANDS) - ifsaturatewetlands "
+					 "selects an infiltration path that created water, and that path "
+					 "has been replaced by one bounded by soil.rain_melt. Water "
+					 "reaching a wetland stand from outside its own column comes "
+					 "through PLHY-4's groundwater and routing exchange; set "
+					 "ifsaturatewetlands 0. See biosphere/notes/wetland-activation-contract.md.");
+			}
 
 			// available water for each soil layer (mm)
 			double Faw_layer[NSOILLAYER];
@@ -419,25 +441,27 @@ void initial_infiltration(Patch& patch, Climate& climate) {
 
 			} // for loop (ly)
 
-			if (soil.rain_melt < total_potential)
-				soil.rain_melt = 0.0;
-			else
-				soil.rain_melt -= total_potential;
+			// Only what arrived may infiltrate. The rest of the deficit stays a
+			// deficit, and the rest of the rain stays in rain_melt for the
+			// runoff and percolation that follow. Same bound, and the same
+			// proportional distribution, as the peatland and upland branches
+			// above.
+			double water_in = min(soil.rain_melt, total_potential);
+			if (water_in < 0.0)
+				water_in = 0.0;
+			soil.rain_melt -= water_in;
 
 			if (total_potential > 0.0) {
 
-				// Add water to saturate each soil soil layer if total_potential > 0.0 mm
+				// Distribute what infiltrated in proportion to each layer's
+				// remaining capacity, if total_potential > 0.0 mm
 				for (int ly = 0; ly<NSOILLAYER; ly++) {
 
-					double water_input_ly = potential_layer[ly];
+					double water_input_ly = water_in * (potential_layer[ly] / total_potential);
 
 					// Add water to the layer, and update wcont and Frac_water for this layer:
 					soil.add_layer_soil_water(ly, water_input_ly);
 				}
-
-				// Record the water added to this wetland today
-				if (ifsaturatewetlands)
-					patch.wetland_water_added_today = total_potential;
 			}
 
 			soil.update_soil_water(); // update wcont_evap, whc[], Frac_water etc. based on wcont
