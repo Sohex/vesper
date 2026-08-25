@@ -1,19 +1,22 @@
 """Where the standing and running water is, under a real climate.
 
 `lake_balance.py` has always been able to solve for lake extent; what it lacked
-was forcing. This runs it against the ExoPlaSim baseline climatology through
-`coupling_*.nc`, and accumulates the same runoff down the drainage network to
-get river discharge. Two products, one water balance:
+was forcing. This runs it against whichever ExoPlaSim climatology
+`config/planet.yaml` names, through `coupling_*.nc`, and accumulates the same
+runoff down the drainage network to get river discharge. Two products, one water
+balance:
 
     data/<build>/surface_water.nc   per region: lake, lake depth, river discharge
                             per basin: area, level, volume, overflow
 
 This is the first thing in the project to decide `surface_class == 2`, which
 World Orogen deliberately leaves empty. It is a result, not a picture, and it
-carries the caveats of its forcing: the baseline run is T42 and predates the
-carve, and the lakes it implies are not fed back into it. A world with this much
-open water would evaporate more and be cloudier, so the climate that produced
-these lakes is not the climate that would exist with them.
+carries the caveats of its forcing, and the forcing is named on the artifact
+rather than assumed: a bootstrap climatology gives bootstrap lakes, and its
+numbers are not the baseline. The lakes are not fed back into the run that
+produced them either. A world with this much open water would evaporate more and
+be cloudier, so the climate that produced these lakes is not the climate that
+would exist with them.
 
     python hydrography/scripts/surface_water.py
 """
@@ -390,7 +393,11 @@ def main():
     with Dataset(out, "w") as ds:
         ds.createDimension("region", n)
         ds.createDimension("basin", basins.n)
-        ds.title = "Lakes and rivers under the baseline climatology"
+        # Named from the forcing rather than asserted. A bootstrap run's numbers
+        # are NOT the baseline, `climatology_path` hands over whichever the
+        # config names, and stamping "baseline" on a bootstrap-forced lake set
+        # is how a limit comes to be quoted as a state.
+        ds.title = f"Lakes and rivers under {_CLIM_FILE.stem}"
         ds.terrain_hash = export.terrain_hash
         ds.setncattr("vesper_source_build", build.name)
         ds.forcing = rel(_CLIM_FILE)
