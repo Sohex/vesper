@@ -1,13 +1,13 @@
 {
-  "generated": "2026-08-25T04:17:48+00:00",
-  "git_commit": "9d5ca4bc1b2c7bfb420a646cab0aa5771a165045",
+  "generated": "2026-08-25T08:10:28+00:00",
+  "git_commit": "02c5e710baaa0f8bac01185a1a5e8449e255fd15",
   "note": "world-03x. Which lever moves this world's dust intensity. Every figure is a RATIO of emission totals; transport is not run and the emission_to_optical_depth_transfer block is what licenses that.",
   "source_build": "precarve-craton-10m",
   "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
   "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
   "baseline_report": "aeolian/analysis/dust_baseline.json",
   "baseline_report_sha256": "379ba413ac0f9c2ee8b94b71bd0e24f8603f49cb3700b2f8a63b948bb25d169f",
-  "dust_config_sha256": "d96a1cb7181d0a916dc5cbe87653f69346f5d556a35dc8be88efca407c54a48b",
+  "dust_config_sha256": "40f35f582538b5d5ffc6468c4a91007d9c7cac195b1a7506c5a3545d3cdf3749",
   "excluded_time_bins": [],
   "weibull_shape_used": 2.064576345725738,
   "pattern_vs_intensity": {
@@ -44,36 +44,36 @@
   },
   "tabulation_bias": {
     "sigma_g": {
-      "central": 2.736,
+      "central": 2.523,
       "bracket": [
         1.297,
-        5.095
+        5.273
       ]
     },
     "quadrature_points": 33,
     "ends": {
       "low": {
-        "central": 1.008064459178792,
-        "smallest_spread": 1.007074124221562,
-        "largest_spread": 0.9161631944454748,
-        "bounded_uniform_in_log": 1.0472679953984496
+        "central": 1.6895480870602357,
+        "smallest_spread": 1.057031190371455,
+        "largest_spread": 2.983230650108585,
+        "bounded_uniform_in_log": 1.3112646960502403
       },
       "central": {
-        "central": 1.2488242857251928,
-        "smallest_spread": 1.0173067702217895,
-        "largest_spread": 1.3999560629033685,
-        "bounded_uniform_in_log": 1.1159392434010202
+        "central": 6.690056322369909,
+        "smallest_spread": 1.3610706929845047,
+        "largest_spread": 23.968615087809393,
+        "bounded_uniform_in_log": 3.132527403752765
       },
       "high": {
-        "central": 1.8237754365767633,
-        "smallest_spread": 1.0579885286250776,
-        "largest_spread": 2.979323231791061,
-        "bounded_uniform_in_log": 1.3868201488171992
+        "central": 67.20735038258957,
+        "smallest_spread": 2.6235775180206633,
+        "largest_spread": 447.760040600237,
+        "bounded_uniform_in_log": 15.263494583519556
       }
     },
     "central_end_bracket": [
-      1.0173067702217895,
-      1.3999560629033685
+      1.3610706929845047,
+      23.968615087809393
     ],
     "direction": "raises emission",
     "verdict": "the wrong sign: resolving the tabulation RAISES the emission, so the tabulation cannot be why the intensity is high",
@@ -84,20 +84,20 @@
     }
   },
   "class_mixture_collapse": {
-    "low": 1.0032588467445729,
-    "central": 1.006294566632109,
-    "high": 1.0139114840718733,
+    "low": 1.0041843616659025,
+    "central": 1.132656827081766,
+    "high": 1.6727746193140403,
     "reading": "Resolving the two lithologies rather than collapsing them to one geometric mean per cell changes the emission by the fractions above. The collapse stays: a correction this size does not earn a second code path through the emission integral, and the number is here so that the choice is priced rather than assumed."
   },
   "roughness_bracket_decomposition": {
-    "full_bracket_factor": 10.501112392460712,
+    "full_bracket_factor": 1142.6361882068986,
     "held": {
       "evaporite_at_its_centre": {
-        "bracket_factor": 10.415130012793892,
+        "bracket_factor": 141.98276192033083,
         "swept": "playa_clastic"
       },
       "playa_clastic_at_its_centre": {
-        "bracket_factor": 1.0062504035913458,
+        "bracket_factor": 1.8629532297293412,
         "swept": "evaporite"
       }
     },
@@ -112,11 +112,11 @@
       "source": "pedology/analysis/earth_validation.json"
     },
     "emission_ratio": {
-      "earth_regression_calibrated": 0.9435466155598304,
-      "plus_validation_rmse": 1.326360778544414,
-      "minus_validation_rmse": 0.6077414486541275,
-      "halved": 0.4022285749764143,
-      "doubled": 1.6907848093844966
+      "earth_regression_calibrated": 0.9297533070790011,
+      "plus_validation_rmse": 1.4424259490614857,
+      "minus_validation_rmse": 0.6110343491531567,
+      "halved": 0.41795175372257376,
+      "doubled": 2.1178065656978164
     },
     "clay_cap": {
       "f_clay_max": 0.2,
@@ -128,13 +128,13 @@
   "drag_partition_worth": {
     "ends": {
       "low": {
-        "with_over_without": 0.3671657289961605
+        "with_over_without": 0.016368562797979616
       },
       "central": {
-        "with_over_without": 0.10648845839889719
+        "with_over_without": 0.00033302301158712086
       },
       "high": {
-        "with_over_without": 0.015657146111283337
+        "with_over_without": 4.058616293901829e-06
       }
     },
     "reading": "The partition lowers the emission by these factors against a bed that keeps all of its stress. Quote it whenever a number from this component is set beside a model that does not partition the stress; it is not a bracket, because the partition is the physics rather than an option."
@@ -154,31 +154,31 @@
   "in_model_scalar_z0": {
     "ends": {
       "low": {
-        "mosaic_area_weighted_geometric_mean_m": 1.0114312134878093e-05,
+        "mosaic_area_weighted_geometric_mean_m": 9.956822915698652e-05,
         "class_blind_scalar_m": 3.3e-06,
-        "in_model_over_offline_with_class_blind_scalar": 0.6462795970313882,
-        "in_model_over_offline_with_mosaic_mean": 0.997419986348521
+        "in_model_over_offline_with_class_blind_scalar": 0.12778060276646594,
+        "in_model_over_offline_with_mosaic_mean": 1.0018287120653377
       },
       "central": {
-        "mosaic_area_weighted_geometric_mean_m": 3.031662952218444e-05,
+        "mosaic_area_weighted_geometric_mean_m": 0.00038728627927946905,
         "class_blind_scalar_m": 0.0001,
-        "in_model_over_offline_with_class_blind_scalar": 1.746237238485639,
-        "in_model_over_offline_with_mosaic_mean": 0.9970357045837948
+        "in_model_over_offline_with_class_blind_scalar": 0.2758602489157028,
+        "in_model_over_offline_with_mosaic_mean": 1.0060403726868836
       },
       "high": {
-        "mosaic_area_weighted_geometric_mean_m": 0.00010093189833934738,
+        "mosaic_area_weighted_geometric_mean_m": 0.0007960921774750866,
         "class_blind_scalar_m": 0.001,
-        "in_model_over_offline_with_class_blind_scalar": 4.049279483247662,
-        "in_model_over_offline_with_mosaic_mean": 0.9964029243069871
+        "in_model_over_offline_with_class_blind_scalar": 1.394903346660249,
+        "in_model_over_offline_with_mosaic_mean": 1.0089607941617145
       }
     },
     "reading": "The class-blind scalar is not the mosaic's mean and never was: it is the pre-world-c8m bracket, whose ends sit outside the per-lithology ones. Feeding it to the log term puts the in-model arm off the offline one by the first ratio above, which is a comparison defeated before it starts. Setting DUSTZ0 to the mosaic's own area-weighted geometric mean leaves the second ratio, and that residual is the whole of what a fourth boundary field carrying z0 per cell would recover."
   },
   "vegetation_bracket": {
     "ends": {
-      "low": 1.1654971292242633,
-      "central": 1.1761980620603703,
-      "high": 1.1981090036505462
+      "low": 1.2043331137771052,
+      "central": 1.2808797094247868,
+      "high": 1.3666663827881118
     },
     "threshold_mm_per_earth_year": 250.0,
     "bare_bedrock_weight": 0.3,

@@ -213,6 +213,90 @@ mixture of, and in what proportion".
    bracket is not narrowed by argument.** The issue is reported blocked with the
    paper named, and the declared bracket stands unchanged.
 
+### What the measurements said, and it is not a narrowing
+
+Measured 2026-08-25 on the same build and climatology, after
+`aeolian/config/dust.yaml` took the values `aeolian/scripts/playa_roughness_mix.py`
+derives. Evidence: `aeolian/analysis/playa_roughness_mix.json` and the re-run
+`aeolian/analysis/dust_intensity_levers.json`.
+
+**The endmembers.** Greeley et al. (1997) Table 2 carries aerodynamic
+wind-profile determinations for all three of the class's landform bands, which is
+the same quantity `evaporite` already takes from MacKinnon et al. (2004). Lunar
+Lake, a 14 km2 silty-clay playa in central Nevada, is the only aerodynamically
+measured clastic playa in the sources this project holds. Death Valley supplies
+ten alluvial-fan determinations and Gobabeb two interdune-flat ones. Greeley's
+own Table 2 was used and not Prigent et al. (2005) Table 1, which reproduces
+those rows and prints Golden Canyon NE 1989 a factor of about 9 high.
+
+**The prediction held.** The clause fixed above said the mix-derived high end
+must exceed 1.0e-4 m. It comes out at 8.0e-4 m. The margin is not marginal: the
+SMOOTHEST playa anyone has aerodynamically measured, 1.26e-4 m, already sits
+above the entire bracket the clay-plain argument produced. Both ends of the old
+bracket were below every relevant measurement, and the central value was low by
+a factor of 13.
+
+**The class ordering flips.** `playa_clastic` now comes out rougher than
+`evaporite` rather than five times smoother. Where the two surfaces have both
+been measured aerodynamically they agree to within 30 per cent, so what
+separates the classes here was never clay against salt: `evaporite` is the
+lowest quarter of a basin's relief and is floor, `playa_clastic` is everything
+above it and is mostly margin, and the margin is the rougher surface. The
+Marticorena et al. (1997) smooth-clay-against-embossed-gypsum distinction is
+about a clay plain, and this class is not one.
+
+**AND THE INTENSITY BRACKET WIDENS BY TWO ORDERS OF MAGNITUDE.** The z0 bracket
+narrowed, from a factor of 10 to a factor of 8, and the emission bracket it
+implies went the other way:
+
+| | z0 bracket | emission bracket factor | drag partition, with over without, at the centre |
+| --- | --- | ---: | ---: |
+| the clay-plain argument | 1.0e-5 to 1.0e-4 m | 10.50 | 0.1065 |
+| the measured mixture | 1.0e-4 to 8.0e-4 m | 1142.6 | 3.33e-4 |
+
+Sweeping one class while the other is held at its centre still puts almost all
+of it on `playa_clastic`: 141.98 against `evaporite`'s 1.86, so the conclusion
+that this is the one class whose roughness matters survives, in a stronger form.
+
+The mechanism is the drag partition, and it is arithmetic rather than a surprise.
+The efficiency falls from 0.527 at the new bracket's smooth end to 0.238 at its
+rough end, against 0.846 to 0.527 across the old bracket. Because the threshold
+friction velocity goes as 1/feff and the emission integrates a cubic above that
+threshold over a Weibull, the same factor in z0 buys a far larger factor in
+emission the further down feff has already fallen. The class did not become more
+uncertain; it moved into a steeper part of a scheme it was previously sitting
+near the flat end of.
+
+Criterion 5 above governs the verdict and was fixed before any of this was
+computed: a replacement that widens the emission bracket is the result and not a
+reason to keep the old one. The old bracket's ends are not measurements.
+
+**What the instrument can carry, checked before the number is quoted.**
+`aeolian/config/dust.yaml` records that the Shao and Lu approximation the
+partition uses "is within 20% of a rigorous integration for feff above 0.2". At
+the new bracket's rough end feff is 0.238, so the whole bracket is inside that
+range but its rough end is close to the edge, and a rougher value than 8.0e-4 m
+would leave it. The second limit is the subgrid wind: at the new central
+roughness the partition suppresses emission to 3.33e-4 of an unpartitioned bed
+against 0.1065 before, so the surviving emission comes from further out in the
+Weibull tail, and the declared shape parameter carries correspondingly more of
+the answer than it did. Neither limit is a reason to prefer the old values, both
+of which were further from any measurement; they say what the next narrowing has
+to be about, and it is the wind tail rather than the roughness.
+
+**One consequence for every consumer.** Absolute emission at the new central
+roughness is smaller than at the old one by roughly the ratio of those two
+partition factors. `aeolian/analysis/dust_baseline.json`, `dust_baseline.nc` and
+everything derived from them are WORTHLESS rather than stale, in the sense rule
+7 gives the word.
+
+**What did NOT change, and it is the half that matters for sizing.** The class
+EXTENT is a pre-carve limit and no step of this derivation used it. The band
+shares are a composition statement and survive the carve. So the leverage this
+issue rests on is still an upper bound on the carved world's, and this
+re-sourcing does not change that: it changes what the class IS, not how much of
+it there is.
+
 ## 5. What the export's geometry can and cannot supply
 
 world-03x proposed building the within-class distribution from this project's
