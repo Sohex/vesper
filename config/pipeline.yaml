@@ -478,6 +478,39 @@ steps:
     needs: [stellar_spectrum]
     writes: [analysis/ice_albedo.json]
 
+  - id: rock_emissivity
+    script: analysis/rock_emissivity.py
+    cost: seconds
+    needs: []
+    writes: [analysis/rock_emissivity.json]
+    gate: >
+      Broadband thermal emissivity per rock class, one minus the
+      directional-hemispherical reflectance of the ECOSTRESS spectra weighted
+      by a Planck function. Unlike the albedo derivations it does NOT need the
+      stellar spectrum: what weights a thermal emissivity is the surface's own
+      emission, not the light falling on it, so this step depends on the
+      library and on a declared weighting temperature alone and sits outside
+      every loop. Each class carries a solid-to-particulate preparation
+      bracket, and `model.land_longwave_emissivity` is its land-area-weighted
+      mean. `notes/audits/surface-longwave.md` is the finding.
+
+  - id: emissivity_contrast
+    reads_export: true
+    script: analysis/emissivity_contrast.py
+    cost: seconds
+    needs: [rock_emissivity]
+    writes: [analysis/emissivity_contrast.json]
+    gate: >
+      Does a per-cell land emissivity buy more than the surface energy balance
+      can distinguish, over a scalar set at its own land mean. The criterion is
+      1.4 W/m2 of surface net longwave, the top of the model's own dry adiabatic
+      energy sink, fixed in the script and not to be moved. It needs a
+      climatology for the loss scale and takes one explicitly, because a flux
+      scale belongs to one run on one terrain. The answer at T21 is no, which
+      is why there is no per-cell emissivity field and no surface code for one;
+      `world-vhhs` re-runs it at a finer rung, where cell averaging removes
+      less of the contrast.
+
   - id: spatial_reduction_gap
     reads_export: true
     script: analysis/spatial_reduction_gap.py
