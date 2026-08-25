@@ -524,19 +524,51 @@ export function classifyLithology(mesh, r_xyz, r_elevation, tectonics, debugLaye
 }
 
 /**
- * Carbonate platform vs terrigenous clastics.
+ * Carbonate platform vs terrigenous clastics. A BOOTSTRAP, NOT A RESULT.
  *
- * The one classification here with a climate flavour: carbonate platforms are a
- * warm-water phenomenon. Latitude is pure geometry so this stays inside
- * Orogen's remit, but it is a proxy for sea-surface temperature, and a
- * downstream stage holding real ExoPlaSim SST can reclassify these cells with
- * better information. Flagged in the manifest for exactly that reason.
+ * This is the one place Orogen makes a climate call, and planetSummary in
+ * planet-params.js says in as many words that Orogen does not: obliquity,
+ * eccentricity and insolation are passed through for a downstream stage because
+ * they drive climate and climate is handled there. Latitude is geometry, but a
+ * latitude BAND is not; LITHO_CARBONATE_LAT_DEG is Earth's photozoan carbonate
+ * belt written as a coordinate, and it does not transport to a planet with a
+ * different obliquity and a different primary.
+ *
+ * What actually separates the two is warm shallow water and low terrigenous
+ * input, and the second is usually the decider: an equatorial shelf off a large
+ * wet catchment is clastic, and a cool-water heterozoan carbonate factory runs
+ * well outside any warm belt. Neither variable is available in this module.
+ *
+ * So the rule stays, labelled, rather than being re-fitted to a number nobody
+ * can derive or replaced by a single class nobody can justify. The manifest
+ * carries `lithology.shelfSubstrateBootstrap`, which names the classes, the
+ * rule, the constant and what has to arrive before a downstream pass overwrites
+ * them. LITH-26 owns that pass; `notes/audits/orogen-lithology.md` carries what
+ * is known about the correction, including that its SIGN is not known.
  */
 function shelfClass(r_xyz, r) {
     const y = Math.max(-1, Math.min(1, r_xyz[3 * r + 1]));
     const latDeg = Math.abs(Math.asin(y) * 180 / Math.PI);
     return latDeg < LITHO_CARBONATE_LAT_DEG ? BY_CODE.carbonate : BY_CODE.shelf_clastic;
 }
+
+/**
+ * The label the export carries for what shelfClass did, kept next to the rule so
+ * the two cannot drift. A consumer reads this to learn that these two classes
+ * are a bootstrap and what would replace them; tools/test-lithology.mjs reads it
+ * to assert that the label still describes the classifier's behaviour.
+ */
+export const SHELF_SUBSTRATE_BOOTSTRAP = {
+    classes: ['carbonate', 'shelf_clastic'],
+    rule: 'abs(latitude) < latitudeDeg gives carbonate, otherwise shelf_clastic',
+    latitudeDeg: LITHO_CARBONATE_LAT_DEG,
+    provenance: 'Earth photozoan carbonate belt, carried as geometry',
+    standsFor: ['warm shallow water', 'low terrigenous input'],
+    supersededBy: 'a downstream pass holding sea-surface state, carbonate saturation, biological '
+                + 'carbonate production and terrigenous sediment delivery',
+    treatAs: 'bootstrap',
+    issue: 'LITH-26',
+};
 
 /** Exposed rock: cover where it survives, basement where it has been stripped. */
 export function surfaceRock(basement, cover, coverThicknessKm, r_elevation, mesh) {
@@ -801,6 +833,39 @@ export function rockComposition(surface, isLand, cellArea) {
  * the realisation noise floor that says which of its ratios can be believed;
  * `analysis/escarpment_relief_anchor.py` is the anchor.
  *
+ * BOTH SIDES OF THE RELIEF GATE CARRY THE 1/g SCALING, SO THE GATE IS GRAVITY-
+ * INVARIANT IN MODEL UNITS. The rise is a physical height and carries Orogen's
+ * relief scaling through scaledHeightKm. The thresholds are Earth relief at
+ * Earth gravity, and they are multiplied by the same reliefScale here. That is
+ * one relation applied to both sides of an inequality rather than to one:
+ *
+ *   - Orogen scales land relief as 1/g because crustal strength caps the load a
+ *     root can carry and that ceiling is sigma/(rho g). See planet-params.js.
+ *   - The relief a rock mass can hold up is capped by the same quantity.
+ *     Schmidt and Montgomery (1995), quoted at Montgomery (2001) eq. 7, put the
+ *     maximum stable hillslope height at
+ *         Hc = 4 C sin(theta) cos(phi) / [rho g (1 - cos(theta - phi))]
+ *     and argue from it to a limit on topographic development, which is the
+ *     landscape-scale statement this term needs rather than a single-slope one.
+ *     Same power of gravity, so the two cancel and only the Earth ratio of the
+ *     two strengths survives -- which is exactly what an Earth-measured pair of
+ *     thresholds already carries.
+ *   - SCARP_MIN_RELIEF is not a strength number and does not rest on that: it is
+ *     the 90th percentile of a flat Earth plateau's own relief, a floor
+ *     separating flat ground from not-flat. Orogen multiplies the whole land
+ *     relief distribution by reliefScale, so a floor defined as a percentile of
+ *     that distribution has to move with it or it stops meaning flat.
+ *   - It also takes this gate out of a bias the model admits to. scaledHeightKm
+ *     says the uniform 1/g on land over-suppresses isostatically compensated
+ *     plateaus and is an upper bound on the correction, and plateau margins are
+ *     precisely what this field marks. In a ratio where both sides carry the
+ *     factor, that over-suppression cancels instead of reaching the verdict.
+ *
+ * The cancellation is exact only where every member of the ball stands above sea
+ * level, because scaledHeightKm leaves negative heights unscaled: a ball reaching
+ * into a dry closed basin below sea level keeps a residual gravity dependence.
+ * That is the converter being right about bathymetry, not a defect here.
+ *
  * A NOTE ON WHAT KIND OF SCARP. In this model cover is always the weaker layer
  * (sedimentary and volcanic cover runs 0.65–3.5 on the erodibility scale;
  * crystalline basement runs 0.35–0.45). So these are stripped-edge scarps —
@@ -933,8 +998,12 @@ export function computeScarpPotential(mesh, r_elevation, lithoState, opts = {}) 
             }
         }
         const rise = count > 0 ? near / nearCount - sum / count : 0;
+        // Earth-measured thresholds, transported to this planet's gravity by the
+        // same factor the rise carries. At reliefScale 1 these are the constants
+        // unchanged, bit for bit.
         const relief = smoothstep(Math.max(0, rise) / ballKm,
-                                  SCARP_MIN_RELIEF, SCARP_FULL_RELIEF);
+                                  SCARP_MIN_RELIEF * reliefScale,
+                                  SCARP_FULL_RELIEF * reliefScale);
 
         out[r] = contrast * edge * relief;
     }

@@ -42,36 +42,155 @@ requirement:
 # ---------------------------------------------------------------------------
 # The supply side: what this planet could actually produce
 # ---------------------------------------------------------------------------
-# Every field here is a sentinel, and that is the finding rather than an
-# omission. The comparison currently in weathering_fluxes.py puts the supply at
-# the planet's mass in Earth masses -- an exponent of exactly 1 on mass, asserted
-# in prose with no reference -- and stops there.
+# WORLD-G60E supplied this half. Every number below is external and Earth-
+# measured; none of it is a terrain measurement and none of it is a rate this
+# project computed. What Orogen contributes is boundary GEOMETRY and RELATIVE
+# throughput, and the premises block at the foot of this file says why an
+# absolute rate is not available at all.
+#
+# The declared values are floors and brackets rather than best estimates. A
+# supply side exists to be compared against a requirement, so where a source
+# gives a range the conservative end is declared and the range is carried beside
+# it, and a margin computed from the floor is a margin that survives the range.
 supply:
   # required_supply_over_earth = (M / M_earth) ** mass_scaling_exponent.
-  # The present code uses 1.0 implicitly. Radiogenic heat production scales with
-  # mass at fixed bulk composition, but outgassing tracks melt production, which
-  # tracks heat FLUX through a surface, and the two do not carry the same power
-  # of mass. Declaring the exponent means declaring which of those chains is
-  # being claimed.
-  mass_scaling_exponent: undeclared
-  mass_scaling_source: undeclared
+  #
+  # THE CHAIN BEING CLAIMED IS MELT PRODUCTION UNDER PLATE TECTONICS, not
+  # radiogenic heat production. Kite, Manga and Gaidos (2009) take crust
+  # production as the proxy for degassing rate -- "we consider the rate of crust
+  # production to be a good proxy for the rate of degassing", refined to the flux
+  # of mantle processed through melting zones -- and compute it from a thermal
+  # evolution model calibrated on Earth's crustal thickness rather than on its
+  # observed volcanic rate.
+  #
+  # WHY 1.0 AND WHAT BRACKETS IT. Their result is that the rate of volcanism per
+  # unit mass "increases monotonically with increasing mass, for all times", so
+  # the exponent is at least 1 at every age; and that per unit mass it "vary only
+  # by a factor of three on planets < 3 Gyr old and > 1 M_earth", so over 1 to 25
+  # Earth masses the exponent is at most 1 + ln(3)/ln(25) = 1.34 at those ages.
+  # The declared value is the floor of that bracket. It is numerically the
+  # exponent the earlier code used, so nothing about the margin moves; what
+  # changes is that the 1.0 now stands on the melt-production chain and is
+  # labelled a floor rather than asserted as an estimate.
+  #
+  # THE UPPER END IS NOT ESTABLISHED FOR THIS WORLD, because Kite's factor of
+  # three is qualified "< 3 Gyr old", a stronger mass dependence develops for
+  # older planets, and config/planet.yaml declares no planet age -- the project
+  # has no time axis and the premises block already refuses a thermal history.
+  # An unestablished upper end costs nothing here: the monotonic result holds at
+  # every age, so the floor is safe whatever the age turns out to be.
+  #
+  # PLATE TECTONICS IS ASSUMED AND THAT ASSUMPTION IS CHEAP AT THIS MASS. Kite
+  # finds plate buoyancy a severe hurdle for massive planets, and calibrates it:
+  # the buoyancy stress to be overcome on a 16 M_earth planet at 4.5 Gyr equals
+  # Earth's at 1.8 Gyr. This planet is 1.881 M_earth, far below that.
+  mass_scaling_exponent: 1.0
+  mass_scaling_exponent_bracket: [1.0, 1.34]
+  mass_scaling_source: "Kite, Manga, Gaidos (2009), ApJ 700, 1732, 10.1088/0004-637X/700/2/1732. Melt production under plate tectonics, per unit mass, monotonic in mass at all times and within a factor of three over 1 to 25 Earth masses below 3 Gyr. The declared 1.0 is the floor of that bracket, not its centre."
 
   # VOLC-8's segment bracket. Per-kilometre CO2 flux along a plate boundary spans
   # more than a hundredfold in the observed record, so a uniform fault-length
   # verdict is not a bracket. Declared as [low, high] in mol CO2 per km per year.
-  per_km_segment_bracket: undeclared
-  per_km_segment_source: undeclared
+  #
+  # THE SPREAD IS THE POINT AND IT IS MEASURED, not an uncertainty band. Le Voyer
+  # et al. (2019) compute a flux for each of 711 mid-ocean ridge segments from
+  # segment-average primary magma CO2 content and segment-average magma
+  # production, and those two vary independently, so the normalised flux ranges
+  # over a factor of 312 -- from SWIR17, depleted and slow-spreading, to JUAN1,
+  # high primary CO2 at moderate spreading rate. High fluxes are independent of
+  # spreading rate. A boundary-length verdict that used one number would be
+  # picking a point inside that range and calling it a capacity.
+  #
+  # IT IS NOT A RIDGE-ONLY BRACKET. Brune et al. (2017), as reported by Tamburello
+  # et al. (2018), put about 40 Mt CO2 per year across 20,000 km of active
+  # continental rift, which is 4.6e7 mol per km per year and falls inside this
+  # bracket rather than beside it. So the same bracket carries the extensional
+  # continental boundary as well as the oceanic one.
+  per_km_segment_bracket: [1.52e+06, 4.74e+08]
+  per_km_segment_source: "Le Voyer et al. (2019), G-cubed 20, 1387-1424, 10.1029/2018GC007630, table of 711 ridge segments: 1.52e6 mol/yr/km at SWIR17 to 4.74e8 at JUAN1. Cross-checked against Brune et al. (2017) via Tamburello et al. (2018), Nat. Commun. 9, 4608, 10.1038/s41467-018-07087-z: 40 Mt CO2/yr over 20,000 km of continental rift is 4.6e7 mol/yr/km, inside the bracket."
 
   # How the global requirement partitions across sources. Declared as fractions
   # summing to 1 over ridge, arc_recycled, plume_rift and metamorphic, each with
   # its own carbon content, melt production and degassing efficiency exposed.
-  source_partition: undeclared
-  degassing_efficiency: undeclared
+  #
+  # NO SINGLE SOURCE PARTITIONS ALL FOUR, and that assembly is the declared
+  # assumption rather than something hidden under the fractions. Marty and
+  # Tolstikhin (1998) partition the three MAGMATIC terms and give a global
+  # magmatic flux of 6e12 mol/yr with a range of 4 to 10e12. Metamorphic and
+  # tectonic degassing is outside that total and is assembled separately from the
+  # continental-rift and orogenic censuses. The fractions below are each source
+  # term over the assembled total of 7.4e12 mol/yr; every numerator is stated so
+  # the arithmetic can be redone against a different assembly.
+  source_partition:
+    basis: "fractions of an assembled global CO2 degassing flux of 7.4e12 mol/yr"
+    ridge:
+      fraction: 0.297
+      flux_mol_per_year: 2.20e+12
+      bracket_mol_per_year: [0.47e+12, 3.10e+12]
+      source: "Marty, Tolstikhin (1998), Chem. Geol. 145, 233-248, 2.2 +/- 0.9 e12 mol/yr from CO2/3He and magma emplacement rate. The low end of the bracket is Le Voyer et al. (2019), 1.32 (+0.77/-0.85) e12 mol/yr from 711 segments, which is the better-sampled and lower estimate; the ridge term is uncertain by about 1.7x between the two."
+    arc_recycled:
+      fraction: 0.338
+      flux_mol_per_year: 2.50e+12
+      bracket_mol_per_year: [1.20e+12, 3.30e+12]
+      source: "Marty, Tolstikhin (1998), about 2.5e12 mol/yr including plutonism, of which approximately 80 per cent is slab-derived. The low end is Fischer et al. (2019), Sci. Rep. 9, 18716, 10.1038/s41598-019-54682-1: 51.3 +/- 5.7 Tg CO2/yr of subaerial volcanic flux, arc-dominated, which is 1.17e12 mol/yr. The high end is Marty's own spread across methods."
+    plume_rift:
+      fraction: 0.176
+      flux_mol_per_year: 1.30e+12
+      bracket_mol_per_year: [0.05e+12, 3.00e+12]
+      source: "Residual of Marty, Tolstikhin's global magmatic 6e12 after ridge and arc, consistent with their own bound of at most 3e12 for plumes. The low end is Fischer et al. (2019), who find hot spot and continental rift VOLCANIC fluxes orders of magnitude smaller than arc fluxes; the disagreement between the two readings is the width of this bracket and is not resolved here."
+    metamorphic:
+      fraction: 0.189
+      flux_mol_per_year: 1.40e+12
+      bracket_mol_per_year: [0.90e+12, 2.10e+12]
+      source: "Outside Marty and Tolstikhin's magmatic total. Low end: Brune et al. (2017) via Tamburello et al. (2018), about 40 Mt CO2/yr from 20,000 km of active continental rift, 0.91e12 mol/yr; the Himalayan orogenic estimate they report is about the same size again. High end: Fischer et al. (2019)'s extrapolation of 93 Tg CO2/yr from diffuse degassing structures, 2.11e12 mol/yr, which those authors call preliminary."
+
+  # The carbon content, melt production and degassing efficiency behind that
+  # partition, EXPOSED where a source separates them and marked as folded where
+  # none does. A folded term declared as folded is a different statement from a
+  # folded term declared as a fraction, and only the first can be argued with.
+  degassing_efficiency:
+    ridge:
+      primary_magma_co2: "104 ppm to 1.90 wt% across 753 new and 2446 compiled MORB glasses"
+      melt_production: "16.5 km3/yr global, from segment crustal thickness times spreading rate"
+      degassing_efficiency: 1.0
+      efficiency_is_folded: false
+      note: "Le Voyer et al. (2019) build the flux as primary magma CO2 content times magma production, so the declared efficiency of 1 is that source's own assumption that the primary carbon budget of the erupted and intruded magma is delivered. Retention in quenched glass at ridge-crest pressure is not separated by that source and would lower this."
+      source: "Le Voyer et al. (2019), 10.1029/2018GC007630"
+    arc_recycled:
+      slab_derived_fraction: 0.80
+      subducted_carbon_returned_to_surface: [0.18, 0.80]
+      efficiency_is_folded: false
+      note: "The return fraction is the live disagreement in this term and it is a factor of four wide. Kelemen and Manning (2015) argue for the top of it -- what goes down mostly comes up -- against earlier reviews at 40 per cent (Gorman), 20 to 80 per cent (Dasgupta and Hirschmann) and 18 to 70 per cent (Johnston). Plank and Manning (2019) show the input mix and the mobilisation efficiency vary from trench to trench, so a single global value is a mean over a distribution and not a property."
+      source: "Marty, Tolstikhin (1998) for the slab-derived fraction; Kelemen, Manning (2015), PNAS 112, E3997, 10.1073/pnas.1507889112, and Plank, Manning (2019), Nature 574, 343-352, 10.1038/s41586-019-1643-z, for the return fraction"
+    plume_rift:
+      efficiency_is_folded: true
+      note: "FOLDED. Marty and Tolstikhin build the plume flux from time-averaged magma production and estimated geochemical source contributions, and do not separate a degassing efficiency from the source carbon content. Nothing here separates them either, so the fraction above carries both."
+    metamorphic:
+      efficiency_is_folded: true
+      note: "FOLDED, and differently: a metamorphic or tectonic flux is measured at the surface as a discharge, so there is no melt production and no degassing efficiency to separate. What the censuses give is an area or a boundary length times a measured specific flux, which is the per-km bracket above rather than an efficiency."
 
   # Which fraction reaches the atmosphere and which is delivered to the ocean.
   # OCN-13's hydrothermal and chemical boundary consumes this, and a source
   # bracket can be handed to it without opening the carbon feedback.
-  atmosphere_versus_ocean_split: undeclared
+  #
+  # THIS IS A DELIVERY LOCATION, NOT AN ULTIMATE FATE. Ridge CO2 enters the water
+  # column under kilometres of ocean and reaches the atmosphere only through
+  # ocean mixing and carbonate chemistry, which is OCN-13's subject and not this
+  # file's. What is declared here is where the flux is put.
+  #
+  # THE BRACKET IS WIDE AND THAT IS THE FINDING. Numerator and denominator are
+  # independently uncertain and no source co-varies them: the ridge term spans
+  # 0.47 to 3.1e12 mol/yr between Le Voyer and Marty, and the assembled total
+  # spans 4.9 to 12.1e12. Any ocean-side carbon budget resting on this term
+  # carries an order of magnitude in its share.
+  atmosphere_versus_ocean_split:
+    ocean_fraction: 0.297
+    ocean_fraction_bracket: [0.04, 0.63]
+    atmosphere_fraction: 0.703
+    assigned_to_ocean: [ridge]
+    assigned_to_atmosphere: [arc_recycled, plume_rift, metamorphic]
+    note: "The assignment is by where each source class erupts, and it is only as clean as that. Submarine arc volcanism and the submarine flanks of ocean islands are on the ocean side of the boundary and are inside the arc and plume terms here, so the declared ocean fraction is a floor on the ocean share as well as a central value on the ridge share. Fischer et al. (2019) measure SUBAERIAL volcanoes only, which is why their total cannot settle this split by itself."
+    source: "Assembled from the source_partition above; the class-to-medium assignment is this project's and is declared rather than cited."
 
 # ---------------------------------------------------------------------------
 # Acceptance, fixed before any result is seen

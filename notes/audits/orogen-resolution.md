@@ -280,10 +280,70 @@ the bracket.
 | `SCARP_FULL_RELIEF` | 0.006878 | 0.008148 | 0.0075 | 683 m over 91 km |
 
 The support bracket is 1.13x on the FULL value and 1.13x on the MIN value, which
-is the same size as the transport bar and is reported rather than hidden. The
-anchor is Earth relief at Earth gravity and is applied to physical heights that
-already carry this planet's 1/g relief scaling; whether the thresholds should
-carry it too is `world-jh0u`, which records the argument on both sides.
+is the same size as the transport bar and is reported rather than hidden.
+
+### Both sides of the gate carry the 1/g scaling, so the gate is gravity-invariant
+
+The anchor is Earth relief at Earth gravity, and the gate reads physical heights
+that already carry this planet's 1/g relief scaling. WORLD-JH0U asked whether the
+thresholds should carry it too. They should, and the gate now multiplies each by
+`reliefScale` where it uses them. Four things say so, and the first is the one
+that needed a source.
+
+**The relation exists and is the landscape-scale one.** Schmidt and Montgomery
+(1995), quoted at Montgomery (2001) eq. 7, give the maximum stable hillslope
+height from Culmann's limit-equilibrium model as
+
+    Hc = 4 C sin(theta) cos(phi) / [rho g (1 - cos(theta - phi))]
+
+and argue from it to a "limit to topographic development, beyond which incision
+of valley bottoms will induce bedrock landsliding that lowers peak elevations",
+which is a statement about relief and not about one slope. That is the quantity
+this term gates on, and its gravity dependence is 1/(rho g).
+
+**It is the same relation Orogen already applies to the numerator.**
+`planet-params.js` justifies `reliefScale` as crustal strength capping the load a
+root can carry, a ceiling of sigma/(rho g). Scaling the terrain by that relation
+and refusing it to the bar applies one relation to one side of an inequality.
+Because both sides carry the same power of gravity, only the Earth ratio of the
+two strengths survives the cancellation, and an Earth-measured pair of thresholds
+already carries exactly that ratio.
+
+**The MIN threshold rests on a different argument, and it needs saying.** 32 m of
+prominence over 91 km is not a strength number: it is the 90th percentile of a
+flat Earth plateau's own relief, a floor separating flat ground from not-flat.
+Orogen multiplies the whole land relief distribution by `reliefScale`, so a floor
+defined as a percentile of that distribution has to move with it or it stops
+meaning flat. Same factor, different reason.
+
+**It takes the gate out of a bias the model admits to.** `color-map.js` states
+that the uniform 1/g on land over-suppresses isostatically compensated plateaus
+and is an upper bound on the correction, because only the strength-supported part
+of relief should scale and Orogen carries no crustal-thickness field. Plateau
+margins are precisely what this field marks, so under an unscaled bar that known
+over-suppression reached the verdict directly. In a ratio where both sides carry
+the factor it cancels.
+
+The cancellation is exact only where every member of the ball stands above sea
+level. `scaledHeightKm` leaves heights below sea level unscaled, so a ball
+reaching into a dry closed basin keeps a residual gravity dependence; that is the
+converter being right about bathymetry rather than a defect in the gate.
+
+This reverses LITH-25's stated intent that a higher-gravity planet host fewer
+scarps for the same tectonics. That intent was stated with no source on the
+threshold side, and a correct term is not weighed against the agreement it
+disturbs.
+
+| threshold | Earth | transported to this project's gravity |
+| --- | ---: | ---: |
+| `SCARP_MIN_RELIEF` | 0.00036, 33 m over 91 km | 0.000276, 25 m |
+| `SCARP_FULL_RELIEF` | 0.0075, 683 m over 91 km | 0.005744, 523 m |
+
+What it costs was measured on the 20,000-region test harness world and not on a
+build, because regenerating terrain is loop A: the transport takes the scarp
+field from 1.99 to 2.75 per cent of land above 0.25 and moves individual scores
+by up to 0.246. That fixes the sign and the order; a build number waits on a
+generation.
 
 **What the anchored gate marks.** Generated 2026-08-25 at 2,600,001 regions,
 outside `source/` and not a registered build, purely to run the new estimator

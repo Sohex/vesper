@@ -81,12 +81,17 @@ threshold means:
 
 The anchor is Earth relief at Earth gravity. Orogen's own heights carry a 1/g
 relief scaling, `reliefScale = REFERENCE_GRAVITY_MS2 / gravityMS2`, and the
-maintainable relief of the sub-grid cliff the gate is asking about scales the
-same way. So the constants are declared as the Earth measurement and multiplied
-by `reliefScale` where they are used, which leaves them checkable against this
-script and leaves the gate gravity-aware. The Vesper-side value at this
-project's gravity is reported here for reference and is NOT what the module
-carries.
+relief a rock mass can maintain scales the same way -- Schmidt and Montgomery
+(1995), quoted at Montgomery (2001) eq. 7, put the maximum stable hillslope
+height at `4 C sin(theta) cos(phi) / [rho g (1 - cos(theta - phi))]` and argue
+from it to a limit on topographic development. So the constants are declared as
+the Earth measurement and multiplied by `reliefScale` where they are used, which
+leaves them checkable against this script and makes the gate gravity-invariant
+in model units: both sides of the comparison carry the same power of gravity.
+WORLD-JH0U settled that. The `vesper_reference_only` block reports what that
+transport comes to at this project's gravity; the module computes it from
+`reliefScale` at the point of use rather than reading this file, so the block is
+a cross-check and not the source of truth.
 """
 from __future__ import annotations
 

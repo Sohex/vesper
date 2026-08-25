@@ -588,7 +588,11 @@ export const LITHO_PLATEAU_T = 0.45;         // plateau weight marking a capped 
 export const LITHO_LIP_T = 0.02;             // flood-basalt contribution marking a LIP (km)
 export const LITHO_HOTSPOT_T = 0.05;         // hotspot contribution marking an ocean island (km)
 export const LITHO_SHELF_DIST_CELLS = 2.0;   // shelf reach, in units of 100 km
-export const LITHO_CARBONATE_LAT_DEG = 30;   // warm-water carbonate belt; see shelfClass()
+// EARTH'S photozoan carbonate belt, carried as a labelled bootstrap and not as a
+// value for this planet: see shelfClass() and LITH-26. It is exported through
+// manifest.lithology.shelfSubstrateBootstrap so a downstream reclassifier can
+// read the assumption rather than infer it.
+export const LITHO_CARBONATE_LAT_DEG = 30;   // degrees absolute latitude, Earth
 
 // Cover thicknesses, km. The veneer erosion has to strip before basement shows.
 export const LITHO_COVER_BASIN_KM = 3.0;
@@ -675,13 +679,19 @@ export function basinAreaFromSlider(v) {
 // the 90th percentile over a box across the Drakensberg front, SCARP_MIN_RELIEF
 // the 90th percentile over a box on the Free State plateau behind it: so
 // ordinary plateau ground scores zero through the gate and the front itself
-// saturates it. Both are Earth relief at Earth gravity and are applied to
-// physical heights that already carry this planet's 1/g relief scaling. Whether
-// the thresholds should carry it too is world-jh0u.
+// saturates it.
+//
+// BOTH ARE EARTH RELIEF AT EARTH GRAVITY, AND ARE DECLARED THAT WAY RATHER THAN
+// PRE-TRANSPORTED. computeScarpPotential multiplies each by `reliefScale` where
+// it uses them, for the reason set out there: the relief a rock mass can
+// maintain goes as 1/(rho g), which is the same power of gravity Orogen applies
+// to the heights the gate reads. Holding the constants Earth-side is what keeps
+// them checkable against analysis/escarpment_relief_anchor.py, which measures
+// Earth and nothing else.
 export const SCARP_RELIEF_BASELINE_KM = 90;  // the run relief is quoted over
 export const SCARP_RELIEF_INNER_KM = 15;     // the run the near height is averaged over
-export const SCARP_MIN_RELIEF = 0.00036;     // below this there is no relief to hang a cliff on
-export const SCARP_FULL_RELIEF = 0.0075;     // at and above this, relief is not the limiting factor
+export const SCARP_MIN_RELIEF = 0.00036;     // Earth: below this there is no relief to hang a cliff on
+export const SCARP_FULL_RELIEF = 0.0075;     // Earth: at and above this, relief is not the limiting factor
 export const SCARP_EDGE_KM = 150;            // how far from a cover edge the interface still matters
 export const SCARP_CONTRAST_SCALE = 1.0;     // erodibility contrast giving full scarp weight
 

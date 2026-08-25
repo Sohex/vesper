@@ -781,7 +781,11 @@ steps:
       With `requested: false` in pedology/config/outgassing.yaml it reports what
       is undeclared and exits 0. With `requested: true` -- which is what claiming
       anywhere that the prescribed CO2 is SUPPORTED by outgassing means -- it
-      refuses by name for every unmet precondition.
+      refuses by name for every unmet precondition. It refuses on two kinds of
+      defect: a field left undeclared, and a field declared and WRONG -- a
+      disordered bracket, a value its own bracket does not contain, fractions
+      that do not sum to 1, and fractions that disagree with the fluxes they
+      were assembled from.
 
   - id: weathering_fluxes
     script: pedology/scripts/weathering_fluxes.py

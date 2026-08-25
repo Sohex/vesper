@@ -907,3 +907,109 @@ above the whole of the declared bracket, and the class is now rougher than
 `evaporite` rather than five times smoother, because it is basin margin and
 `evaporite` is basin floor. `notes/audits/dust-intensity-levers.md` section 4
 carries the derivation and what it cost the dust intensity.
+
+## The shelf carbonate/clastic split is an Earth climate band written as geometry
+
+Measured and argued 2026-08-25 for LITH-26.
+
+`shelfClass()` gives `carbonate` below 30 degrees absolute latitude and
+`shelf_clastic` above it, for both the `shelf` (ocean) and `coastal` (continent)
+entries of `COVER_SEQUENCE`. Two rock classes that differ by a factor of nearly
+five in erodibility, 2.20 against 0.45, are separated by a coordinate.
+
+**The module says elsewhere that it does not do this.** `planetSummary()` in
+`planet-params.js` declares obliquity, eccentricity and insolation as
+`passedThroughForDownstream` with the note that Orogen does not consume them
+"because it drives climate and climate is handled downstream". `shelfClass()` is
+the single exception, and it takes the climate value from Earth.
+
+### What separates the two, and why neither variable is here
+
+A carbonate platform needs warm shallow water and low terrigenous input, and the
+second is usually the decider. A shelf off a large wet catchment is clastic at any
+latitude, and a cool-water heterozoan carbonate factory runs well outside any warm
+belt. Orogen has neither variable at the point the rule fires: the context object
+the `COVER_SEQUENCE` walk carries has tectonic archetypes, distances and basin
+state, and no moisture, temperature or discharge field.
+
+The rule also has no depth term. `shelfCells` is a distance from the coast in
+mesh cells, not a water depth, so the rule cannot express the euphotic window a
+photozoan factory actually lives in even in Earth terms, although Orogen carries
+the elevation that would be needed to.
+
+### Orogen's own climate module is not the fix
+
+`climate-config.js` clamps the ITCZ at 20.27 degrees and puts the subtropical
+highs at 31.27 degrees. Those are Earth constants of the same kind, fitted to
+Earth. Driving the rock map from them would replace one Earth latitude band with
+another and bury the assumption a level deeper, and it would make the rock map
+depend on a heuristic climate rather than on the accepted climatology.
+
+### The sign of the correction is not known, which is the finding
+
+This planet has 32 degrees of obliquity against Earth's 23.44, and a K2.5V
+primary. Two consequences pull in opposite directions.
+
+Annual-mean insolation, normalised to its own equatorial value, on a circular
+orbit, integrated over true longitude:
+
+| latitude | obliquity 23.44 | obliquity 32.0 |
+| ---: | ---: | ---: |
+| 20 | 0.945 | 0.950 |
+| 30 | 0.879 | 0.891 |
+| 40 | 0.790 | 0.813 |
+| 60 | 0.569 | 0.644 |
+
+The profile is flatter, which moves a band defined on the annual mean POLEWARD.
+
+Seasonal amplitude of daily-mean insolation, in units of the stellar constant:
+
+| latitude | amplitude, 23.44 | amplitude, 32.0 | winter minimum, 23.44 | winter minimum, 32.0 |
+| ---: | ---: | ---: | ---: | ---: |
+| 30 | 0.199 | 0.265 | 0.161 | 0.117 |
+| 40 | 0.256 | 0.341 | 0.111 | 0.066 |
+
+The swing is a third larger and the winter minimum is roughly a third lower,
+which cuts the band EQUATORWARD for a factory that needs sustained warmth rather
+than a warm annual mean.
+
+Which wins depends on ocean heat transport and mixed-layer depth, so it is a
+climatology question and not a geometry one. The K2.5V primary adds a third axis
+the latitude rule cannot see at all: a redder spectrum delivers less
+photosynthetically available radiation per unit total flux through water, which
+moves the depth window rather than the latitude band.
+
+**So there is no honest re-fit of the number available, in either direction.**
+Choosing one would be calibrating against nothing.
+
+### Verdict, and the procedure that would settle it
+
+The rule stays and is LABELLED. Deleting the split was considered and rejected:
+it would mean assigning every shelf one of two classes that differ by a factor of
+five in erodibility, which is a larger claim than the proxy makes and would move
+terrain, since erodibility feeds elevation. Re-fitting the number was rejected
+above. Labelling is what is left, and it is what the issue's own instruction asks
+for.
+
+`SHELF_SUBSTRATE_BOOTSTRAP` is declared in `lithology.js` beside the rule and
+emitted as `manifest.lithology.shelfSubstrateBootstrap`, naming the two classes,
+the rule, the constant, what the constant stands for, and what would supersede it.
+`tools/test-lithology.mjs` asserts the label still describes the classifier on a
+whole planet, so the two cannot drift.
+
+What has to arrive before anything overwrites those cells, all of it downstream of
+Orogen and none of it available now:
+
+1. A declared canonical climatology. `config/planet.yaml` has
+   `baseline_climatology: null`, so there is no sea-surface state to read.
+2. OCN-11's ocean spatial-support and bathymetry contract, which is what makes a
+   shelf cell addressable from a climatology at all.
+3. OCN-13's carbonate chemistry, for saturation state rather than temperature
+   alone.
+4. OCN-14's marine biology, for carbonate production.
+5. ANUT-6's terrigenous sediment delivery, which is the variable that usually
+   decides and is the one furthest from anything Orogen holds.
+
+The replacement belongs in a downstream pass over the 10M support, not in Orogen,
+and it should emit unknown and mixed fractions where those five inputs do not
+separate the classes rather than forcing the binary the bootstrap forces.

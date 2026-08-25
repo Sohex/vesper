@@ -20,10 +20,12 @@ import { setDelaunator } from '../js/sphere-mesh.js';
 import {
     ROCK_CLASSES, classifyLithology, buildErodibility, buildLithoState,
     updateExhumation, finalSurfaceRock, rockComposition, computeScarpPotential, saltCrustMask,
+    SHELF_SUBSTRATE_BOOTSTRAP,
     COVER_SEQUENCE,
 } from '../js/lithology.js';
 import { runGeneratePipeline } from '../js/pipeline.js';
-import { LITHO_CARBONATE_LAT_DEG, SCARP_MIN_RELIEF, SCARP_RELIEF_BASELINE_KM,
+import { LITHO_CARBONATE_LAT_DEG, SCARP_MIN_RELIEF, SCARP_FULL_RELIEF,
+         SCARP_RELIEF_BASELINE_KM,
          SCARP_RELIEF_INNER_KM } from '../js/terrain-config.js';
 import { avgEdgeKm, PLANET_RADIUS_KM } from '../js/geometry.js';
 import { scaledHeightKm } from '../js/color-map.js';
@@ -358,6 +360,83 @@ test('every scarp stands above the mean land height of its own ball', () => {
     assert.ok(checked > 0, 'no region scored, so the assertion proved nothing');
 });
 
+test('the relief gate is gravity-invariant: both sides carry the 1/g scaling', () => {
+    // world-jh0u. The rise is a physical height and carries reliefScale through
+    // scaledHeightKm; the Earth-measured thresholds are multiplied by the same
+    // factor where the gate uses them. So the same terrain scores the same at
+    // any gravity, and the gate compares a relief against a relief rather than
+    // against a length that belongs to another planet.
+    //
+    // Asserted on an all-subaerial elevation field. scaledHeightKm deliberately
+    // leaves heights below sea level unscaled, so a ball reaching into a dry
+    // closed basin keeps a residual gravity dependence; that is the converter
+    // being right about bathymetry and it is not what is under test here.
+    const c = withLitho();
+    const litho = classifyLithology(c.mesh, c.r_xyz, c.r_elevation, c.tectonics, c.debugLayers, {});
+    const state = buildLithoState(litho, c.r_elevation, c.cellArea, 1);
+    const land = c.basins.r_isSubaerial;
+    const elev = Float32Array.from(c.r_elevation);
+    for (let r = 0; r < elev.length; r++) if (land[r] === 1 && elev[r] <= 0) elev[r] = 1e-4;
+
+    const RELIEF_SCALE = 9.81 / 12.81;         // this project's gravity, near enough
+    const earth = computeScarpPotential(c.mesh, elev, state,
+        { isLand: land, reliefScale: 1 });
+    const heavy = computeScarpPotential(c.mesh, elev, state,
+        { isLand: land, reliefScale: RELIEF_SCALE });
+
+    // An INDEPENDENT walk of the same ball, so the guard below cannot be made
+    // true by the module's own loop. It answers one question: are any scoring
+    // regions inside the smoothstep, where moving a threshold actually moves
+    // the answer? If every one of them saturated, invariance would hold for a
+    // reason that has nothing to do with the change.
+    const { numRegions, adjOffset, adjList } = c.mesh;
+    const edgeKm = avgEdgeKm(numRegions, PLANET_RADIUS_KM);
+    const hops = Math.max(1, Math.round(SCARP_RELIEF_BASELINE_KM / edgeKm));
+    const innerHops = Math.min(Math.round(SCARP_RELIEF_INNER_KM / edgeKm), hops - 1);
+    const ballKm = hops * edgeKm;
+    const height = (r) => scaledHeightKm(elev[r], 1, land[r] === 1);
+
+    let interior = 0, wouldMove = 0, maxDiff = 0, scored = 0;
+    for (let r = 0; r < numRegions; r++) {
+        maxDiff = Math.max(maxDiff, Math.abs(earth[r] - heavy[r]));
+        if (earth[r] <= 0) continue;
+        scored++;
+        let frontier = [r], seen = new Set([r]), sum = 0, count = 0, near = 0, nearCount = 0;
+        for (let d = 0; d <= hops; d++) {
+            const next = [];
+            for (const q of frontier) {
+                sum += height(q); count++;
+                if (d <= innerHops) { near += height(q); nearCount++; }
+                if (d === hops) continue;
+                for (let i = adjOffset[q]; i < adjOffset[q + 1]; i++) {
+                    const nb = adjList[i];
+                    if (seen.has(nb) || land[nb] !== 1) continue;
+                    seen.add(nb); next.push(nb);
+                }
+            }
+            frontier = next;
+        }
+        const g = Math.max(0, near / nearCount - sum / count) / ballKm;
+        if (g > SCARP_MIN_RELIEF && g < SCARP_FULL_RELIEF) {
+            interior++;
+            // And what the unscaled-threshold form would have said about the
+            // same region: the rise damped by gravity, the bar left at Earth's.
+            const t = (x, a, b) => { const u = Math.max(0, Math.min(1, (x - a) / (b - a)));
+                                     return u * u * (3 - 2 * u); };
+            if (Math.abs(t(g * RELIEF_SCALE, SCARP_MIN_RELIEF, SCARP_FULL_RELIEF)
+                         - t(g, SCARP_MIN_RELIEF, SCARP_FULL_RELIEF)) > 1e-9) wouldMove++;
+        }
+    }
+
+    assert.ok(scored > 0, 'no region scored, so the assertion proved nothing');
+    assert.ok(interior > 0,
+        'every scoring region saturates the relief term, so the thresholds are not under test');
+    assert.ok(wouldMove > 0,
+        'leaving the thresholds unscaled would change nothing, so this asserts nothing');
+    assert.ok(maxDiff < 1e-6,
+        `the gate moved with gravity by ${maxDiff.toExponential(3)}; the thresholds are not carrying reliefScale`);
+});
+
 test('sinking a region below its neighbourhood removes its own scarp', () => {
     // Directional and falsifiable: the measure is one-sided, so the plateau
     // side of a margin carries relief and the lowland below carries none.
@@ -579,6 +658,41 @@ function shelfClassId(r_xyz, R) {
     const latDeg = Math.abs(Math.asin(Math.max(-1, Math.min(1, r_xyz[1]))) * 180 / Math.PI);
     return latDeg < LITHO_CARBONATE_LAT_DEG ? R.carbonate : R.shelf_clastic;
 }
+
+test('the shelf substrate bootstrap label still describes the classifier', () => {
+    // LITH-26. The carbonate/clastic split is an Earth latitude band carried as
+    // a bootstrap, and the export says so through
+    // manifest.lithology.shelfSubstrateBootstrap. A label that has drifted from
+    // the rule it labels is worse than none, because a downstream reclassifier
+    // reads it to learn what it is overwriting. So the declaration is checked
+    // against what the classifier actually did on a whole planet.
+    const c = withLitho();
+    const byId = Object.fromEntries(ROCK_CLASSES.map(x => [x.id, x.code]));
+    const B = SHELF_SUBSTRATE_BOOTSTRAP;
+    assert.deepEqual([...B.classes].sort(), ['carbonate', 'shelf_clastic'],
+        'the label names classes the rule does not produce');
+    assert.equal(B.latitudeDeg, LITHO_CARBONATE_LAT_DEG,
+        'the label and the constant the classifier reads have diverged');
+
+    let warm = 0, cool = 0;
+    for (let r = 0; r < c.mesh.numRegions; r++) {
+        const code = byId[c.lithology.r_coverRock[r]];
+        if (!B.classes.includes(code)) continue;
+        const y = Math.max(-1, Math.min(1, c.r_xyz[3 * r + 1]));
+        const latDeg = Math.abs(Math.asin(y) * 180 / Math.PI);
+        if (code === 'carbonate') {
+            assert.ok(latDeg < B.latitudeDeg,
+                `carbonate at ${latDeg.toFixed(2)} degrees, outside the declared band`);
+            warm++;
+        } else {
+            assert.ok(latDeg >= B.latitudeDeg,
+                `shelf_clastic at ${latDeg.toFixed(2)} degrees, inside the declared band`);
+            cool++;
+        }
+    }
+    assert.ok(warm > 0 && cool > 0,
+        `only one side of the band was populated (${warm} carbonate, ${cool} clastic), so nothing was asserted`);
+});
 
 test('COVER_SEQUENCE declares every cover class that reaches a real planet', () => {
     // The point of the table: a new cover class cannot arrive without someone
