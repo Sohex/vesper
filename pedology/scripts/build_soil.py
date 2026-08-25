@@ -38,8 +38,8 @@ import netCDF4 as nc
 import numpy as np
 import yaml
 
-from _paths import (ANALYSIS, CONFIG, DATA, PEDOGENESIS, PROJECT_ROOT,
-                    climatology_path)
+from _paths import (ANALYSIS, CONFIG, COMPONENT_ROOT, DATA, PEDOGENESIS,
+                    PROJECT_ROOT, climatology_path)
 
 import climatology as climatology_lib  # noqa: E402  from lib/, via _paths.
 # Aliased because `climatology` is a local Path in main(); see build_surface_classes.py.
@@ -57,6 +57,21 @@ COORD_DECIMALS = 4
 
 EARTH_YEAR_DAYS = orbit.EARTH_CALENDAR_YEAR_DAYS
 KELVIN = 273.15
+
+LAND_COLUMN_CONTRACT = COMPONENT_ROOT / "config" / "land_column_properties.yaml"
+
+
+def column_base_m() -> float:
+    """How deep the simulated land column goes, from the contract that declares it.
+
+    Read rather than written as a literal, because the depth is one fact and
+    `pedology/config/land_column_properties.yaml` is where it is declared: the
+    physical column is `physical_layer_count` layers of
+    `physical_layer_thickness_m`, and the contract's own check refuses a
+    declaration whose layers do not reach `column_base_m`.
+    """
+    decl = yaml.safe_load(LAND_COLUMN_CONTRACT.read_text(encoding="utf-8"))
+    return float(decl["geometry"]["column_base_m"])
 
 # Which pH parent group each Orogen rock category maps to. Kept in code rather
 # than config because it is a classification of the *export's* vocabulary, not a
@@ -569,10 +584,31 @@ def main() -> None:
                     + pedo["andisol"]["bulk_density_andic"] * andisol["andic"])
 
     # Plant-available water capacity, mm: volumetric capacity from texture times
-    # the depth of regolith that actually exists. This is what ExoPlaSim's dwmax
-    # bucket should be, and its runoff is literally the overflow of that bucket,
-    # so it is the field that closes the loop back to the climate.
+    # the depth of regolith that actually exists, cut at the declared base of
+    # the simulated land column.
+    #
+    # THE CUT IS THE DEFINITION AND NOT A TRUNCATION. This is a PLANT-AVAILABLE
+    # capacity. The land column property contract declares fifteen 100 mm
+    # layers to `column_base_m`, LPJ-GUESS's root distribution spans exactly
+    # those fifteen layers, and the contract's rootable base is shallower still
+    # at `rootable_base_m`, so no root and no evaporating surface in this
+    # pipeline can reach water below the column base. Regolith runs deeper than
+    # that on part of this map, and multiplying a plant-available capacity by
+    # the whole of it puts water that nothing can draw on into a number that
+    # says how much can be drawn on.
+    #
+    # The water below the base is not lost physics. It belongs to the aquifer
+    # term, which the contract already declares this column stops at, and
+    # `hydrography/config/land_water_ledger.yaml` registers
+    # `transient_saturated_storage` as an UNREPRESENTABLE owned by PLHY-4
+    # because the groundwater solver is steady-state and carries no storage
+    # change. Deepening the column instead -- 26 layers to cover the regolith
+    # p90 and 43 for the p99, against NSOILLAYER appearing across six
+    # LPJ-GUESS modules -- becomes worth doing when that solver gains storage,
+    # and not before. WORLD-7702.
     water = pedo["water"]
+    column_base = column_base_m()
+    column_depth = np.minimum(depth, column_base)
     volumetric = (water["volumetric_capacity_by_texture"]["sand"] * texture["sand"]
                   + water["volumetric_capacity_by_texture"]["silt"] * texture["silt"]
                   + water["volumetric_capacity_by_texture"]["clay"] * texture["clay"]
@@ -581,7 +617,7 @@ def main() -> None:
                   # see. Additive for the same reason the organic term is.
                   + pedo["andisol"]["volumetric_capacity_allophane"]
                   * andisol["andic"])
-    water_capacity = np.clip(volumetric * depth * 1000.0,
+    water_capacity = np.clip(volumetric * column_depth * 1000.0,
                              water["minimum_mm"], water["maximum_mm"])
 
     # The same capacity at both ends of the declared brackets on the volumetric
@@ -597,7 +633,7 @@ def main() -> None:
                + bracket["clay"][end] * texture["clay"]
                + water["volumetric_capacity_organic_bracket"][end] * organic_fraction
                + pedo["andisol"]["volumetric_capacity_allophane"] * andisol["andic"])
-        return np.clip(vol * depth * 1000.0,
+        return np.clip(vol * column_depth * 1000.0,
                        water["minimum_mm"], water["maximum_mm"])
 
     water_capacity_low = _capacity_at(0)
@@ -721,6 +757,13 @@ def main() -> None:
             "water_capacity_mm": mean(water_capacity),
             "water_capacity_mm_bracket": [mean(water_capacity_low),
                                           mean(water_capacity_high)],
+            "column_base_m": column_base,
+            "land_cells_regolith_below_column_base": int(
+                np.count_nonzero(land & (depth > column_base))),
+            "land_cells": int(np.count_nonzero(land)),
+            "median_share_of_regolith_below_column_base": float(np.median(
+                (1.0 - column_base / depth)[land & (depth > column_base)]))
+                if np.any(land & (depth > column_base)) else 0.0,
             "bedrock_water_fraction": mean(bedrock_fraction),
             "soil_carbon_kg_m2": mean(carbon),
             "runoff_mm_per_earth_year": mean(runoff),
@@ -731,6 +774,16 @@ def main() -> None:
             "frost_cycling_fraction_of_orbit": mean(frost_fraction),
             "slope_fines_lost": mean(fines_loss),
         },
+        "column_base_note": (
+            "the plant-available capacity is cut at the land column property "
+            "contract's declared base. Nothing in this pipeline draws water "
+            "from below it: the physical column is fifteen layers to that "
+            "depth, LPJ-GUESS's root distribution spans exactly those layers, "
+            "and the contract's rootable base is shallower still. Water in "
+            "regolith deeper than the base belongs to the aquifer term, which "
+            "hydrography/config/land_water_ledger.yaml registers as the "
+            "unrepresentable `transient_saturated_storage` under PLHY-4. "
+            "WORLD-7702."),
         "regolith_note": (
             "LPJ-GUESS has a fixed 1.5 m physical profile. VesperInput consumes "
             "regolith depth and weathered-bedrock fraction by scaling each "
