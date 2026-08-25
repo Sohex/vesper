@@ -100,34 +100,43 @@ def lithology_fractions(config: dict) -> tuple[dict[str, np.ndarray], Export, Pa
     return fractions, mesh, grid_dir
 
 
-def subgrid_slope(mesh: Export, grid_dir: Path) -> np.ndarray:
-    """Representative within-cell gradient, from mesh elevation spread.
+def subgrid_slope(mesh: Export, grid_dir: Path, baseline_km: float) -> np.ndarray:
+    """Within-cell elevation spread, expressed over a DECLARED run.
 
-    Standard deviation of mesh-region elevation inside each grid cell, divided by
-    the mesh spacing. Land regions only, so a coastal cell is not handed the
-    continental shelf as a hillslope.
+    Area-weighted standard deviation of mesh-region elevation inside each grid
+    cell, over `baseline_km` of ground. Land regions only, so a coastal cell is
+    not handed the continental shelf as a hillslope.
+
+    THE RUN IS DECLARED AND IS NOT THE MESH SPACING. Dividing by the export's
+    own `avgEdgeKm` put the region count into the answer: the divisor halves
+    when the region count quadruples, so the quotient doubles on terrain that
+    has converged. Measured between this project's two builds, WORLD-UYFB and
+    `analysis/subgrid_slope_support.py`: the quotient moves by 2.01 to 2.14x
+    across the land quantiles while the spread it is built from moves by 1.005
+    to 1.069x, and the residual once the spacing ratio is divided out is 1.000
+    at every quantile. The length in the definition was the whole of the shift.
+    That is the compound topographic index's mechanism, not the self-affine one
+    the scarp gradient has and not a population bias; over a declared run the
+    same quantiles agree to 1.069x, inside the 1.15x bar
+    `notes/audits/orogen-resolution.md` fixed for this class.
+
+    WHAT THE MAGNITUDE IS. A spread over a declared length, and not the
+    terrain's hillslope gradient: a T42 cell is hundreds of kilometres across
+    and real catenas run at 100 m. The field carries the PATTERN -- mountains
+    thin, basins deep -- and `catena.slope_transport` is declared against real
+    hillslope gradients rather than fitted to this distribution. So no absolute
+    threshold keyed to a measured gradient belongs on it, and what survives a
+    change of baseline is the ordering of the cells rather than the value.
     """
-    from gridding import region_cells
+    from gridding import cell_moments, region_cells
 
     cell, nlat, nlon = region_cells(mesh, grid_dir)
     elevation_m = mesh.elevation_km.astype(np.float64) * 1000.0
     is_land = mesh.surface_class == LAND
-    spacing_km = float(
-        mesh.manifest["basins"]["resolution"]["avgEdgeKm"])
-
-    ncell = nlat * nlon
-    count = np.zeros(ncell)
-    total = np.zeros(ncell)
-    square = np.zeros(ncell)
-    np.add.at(count, cell[is_land], 1.0)
-    np.add.at(total, cell[is_land], elevation_m[is_land])
-    np.add.at(square, cell[is_land], elevation_m[is_land] ** 2)
-
-    with np.errstate(invalid="ignore", divide="ignore"):
-        mean = np.where(count > 0, total / np.maximum(count, 1), 0.0)
-        variance = np.where(count > 1, square / np.maximum(count, 1) - mean ** 2, 0.0)
-    spread = np.sqrt(np.maximum(variance, 0.0))
-    return (spread / (spacing_km * 1000.0)).reshape(nlat, nlon)
+    _, variance, _, _ = cell_moments(cell, nlat * nlon,
+                                     mesh.cell_area.astype(np.float64),
+                                     elevation_m, population=is_land)
+    return (np.sqrt(variance) / (baseline_km * 1000.0)).reshape(nlat, nlon)
 
 
 def weathering_intensity(runoff_mm_yr: np.ndarray, temperature_c: np.ndarray,
@@ -463,17 +472,20 @@ def main() -> None:
     # Slope for the transport term, from the native mesh rather than from this
     # grid, and it has to be.
     #
-    # Catena is a hillslope process and a T42 cell is about 330 km across.
-    # Differencing neighbouring cell centres gives a land-mean gradient of 0.001,
+    # Catena is a hillslope process and a T42 cell is hundreds of kilometres
+    # across. Differencing neighbouring cell centres gives a land-mean gradient
     # three orders of magnitude below a real hillslope, and the term does
-    # nothing. The mesh resolves 15.19 km, so within-cell elevation spread over
-    # that spacing is a far better representative gradient.
+    # nothing. The mesh resolves the within-cell elevation spread, which is a
+    # far better representative statistic; the run it is quoted over comes from
+    # `catena.gradient_baseline_km` and NOT from the mesh, for the reason
+    # `subgrid_slope` gives.
     #
     # It is still an underestimate: real catenas run at 100 m scale and gradients
     # of 0.1 to 0.5. So this term reproduces the *pattern*, mountains thin and
     # basins deep, rather than the absolute magnitude, and `slope_transport` is
-    # set against that pattern. Recorded rather than tuned away.
-    tan_beta = subgrid_slope(mesh, grid_dir)
+    # declared against real hillslope gradients. Recorded rather than tuned away.
+    tan_beta = subgrid_slope(mesh, grid_dir,
+                             float(pedo["catena"]["gradient_baseline_km"]))
 
     # Fraction of the orbit whose diurnal range straddles freezing. Freeze-thaw
     # cycling shatters rock; ground frozen solid all bin does not.

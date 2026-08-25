@@ -65,11 +65,11 @@ be a preference rather than a criterion:
                           is a calibration that changes with the support, and
                           what is reported is how much of a cross-rung
                           difference belongs to it rather than to the terrain.
-  subgrid_slope_support   NOT a Jensen gap. `pedology/scripts/build_soil.py:
-                          subgrid_slope` divides a within-cell elevation
-                          spread by the MESH spacing, so it carries a length
-                          from the mesh; the arm measures the same cell on this
-                          project's two builds and reports the ratio.
+  subgrid_slope_support   NOT a Jensen gap. A within-cell elevation spread
+                          quoted over the MESH spacing carries a length from
+                          the mesh; the arm measures the same cell on this
+                          project's two builds and reports the ratio over that
+                          run and over the declared one.
 
 ## What this cannot measure here
 
@@ -544,14 +544,17 @@ def saturation_arm(mesh: Export, cell, ncell, land, area) -> dict:
 # --------------------------------------------------------------------------
 
 def support_arm(config, rung: str, pedo) -> dict:
-    """`subgrid_slope` on this project's two builds, at the same grid.
+    """The within-cell elevation spread on this project's two builds, one grid.
 
-    The statistic is an elevation spread over the MESH spacing, so it carries a
-    length from the mesh rather than from the terrain. Both builds are the same
-    planet at the same seed; the ratio between them is what changing the region
-    count alone does to a quantity the pedogenesis model consumes as a
-    gradient. Reported as the ratio and as what it is worth in metres of
-    regolith through the catena divisor, which is the consuming step.
+    Both builds are the same planet at the same seed, so the ratio between them
+    is what changing the region count alone does. The arm reports the spread
+    over BOTH runs: the mesh spacing, which is what the statistic used to carry
+    and which moves with the region count, and `catena.gradient_baseline_km`,
+    the declared run `pedology/scripts/build_soil.py:subgrid_slope` now divides
+    by. Which of the three shift mechanisms this one is, and the tests that
+    separate them, are `analysis/subgrid_slope_support.py`; this arm only sizes
+    the spread and what it is worth in metres of regolith through the catena
+    divisor, which is the consuming step.
     """
     s = float(pedo["catena"]["slope_transport"])
     out = {}
@@ -575,12 +578,17 @@ def support_arm(config, rung: str, pedo) -> dict:
         with np.errstate(invalid="ignore", divide="ignore"):
             m = np.where(n > 0, t1 / np.maximum(n, 1), 0.0)
             v = np.where(n > 1, t2 / np.maximum(n, 1) - m ** 2, 0.0)
-        tanb = np.sqrt(np.maximum(v, 0.0)) / spacing_m
+        spread_m = np.sqrt(np.maximum(v, 0.0))
+        tanb = spread_m / spacing_m
+        baseline_m = float(pedo["catena"]["gradient_baseline_km"]) * 1000.0
+        tanb_declared = spread_m / baseline_m
         have = n > 1
         out[name] = {
             "regions": int(mesh.n_regions),
             "mesh_spacing_km": round(spacing_m / 1000.0, 4),
             "land_median_tan_beta": round(float(np.median(tanb[have])), 6),
+            "land_median_tan_beta_declared_run": round(
+                float(np.median(tanb_declared[have])), 6),
             "land_median_stdev_m": round(float(np.median(np.sqrt(
                 np.maximum(v[have], 0.0)))), 3),
             "land_median_catena_divisor": round(
@@ -590,6 +598,9 @@ def support_arm(config, rung: str, pedo) -> dict:
         a, b = out["precarve-craton"], out["precarve-craton-10m"]
         out["ratio_10m_over_2p5m"] = {
             "tan_beta": round(b["land_median_tan_beta"] / a["land_median_tan_beta"], 4),
+            "tan_beta_declared_run": round(
+                b["land_median_tan_beta_declared_run"]
+                / a["land_median_tan_beta_declared_run"], 4),
             "stdev_m": round(b["land_median_stdev_m"] / a["land_median_stdev_m"], 4),
             "catena_divisor": round(
                 b["land_median_catena_divisor"] / a["land_median_catena_divisor"], 4),

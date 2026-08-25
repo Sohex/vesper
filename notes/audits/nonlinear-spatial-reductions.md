@@ -46,7 +46,7 @@ from the mesh.
 | surface roughness averaged as a length | `surface_roughness` | **NOT material in the land mean; material on a growing tail** | 0.29% to -0.01% at the land mean against a 7.0% instrument, but past the instrument on 1.9% of land area at T21 rising to 4.2% at T170, and reaching 30% on the closed-basin floors |
 | parent texture mixed before weathering | `soil` | **NOT material, and the premise is wrong** | the clay total is exactly 0.0 at every intensity and every rung; sand and silt trade at most 0.0047 of the land mean, inside Dunne's own scatter everywhere |
 | the orographic coefficient re-solved per rung | `surface_roughness` | a support-dependent CALIBRATION, not a gap | moves by a factor 1.98 across the ladder while the relief it multiplies falls by 5.96 |
-| `subgrid_slope` as an elevation spread over the mesh spacing | `soil` | a length carried from the MESH, not a gap | doubles between this project's two builds while the spread it is built from moves 1.6% |
+| `subgrid_slope` as an elevation spread over the mesh spacing | `soil` | a length carried from the MESH, not a gap | doubled between this project's two builds while the spread it is built from moved 1.6%; the run is now declared, and 11.8% of regolith depth at the land mean rests on the change |
 
 ## 1. Erodibility mixed before the regolith depth law. The large one
 
@@ -212,12 +212,12 @@ removing it would move the global roughness ExoPlaSim was tuned against.
 instead, the default still solves, and a single-rung build is unchanged. SPAT-8
 must pass it.
 
-## 6. `subgrid_slope` measures the mesh, not the gradient
+## 6. `subgrid_slope` measured the mesh, not the gradient
 
-Not a Jensen gap either. `build_soil.py:subgrid_slope` divides the within-cell
-elevation spread by the MESH spacing and hands the result to the catena term as
-a gradient. The spread is a legitimate cell statistic; the divisor is a length
-that belongs to the mesh, so the statistic carries the mesh's resolution into a
+Not a Jensen gap either. `build_soil.py:subgrid_slope` divided the within-cell
+elevation spread by the MESH spacing and handed the result to the catena term as
+a gradient. The spread is a legitimate cell statistic; the divisor was a length
+that belongs to the mesh, so the statistic carried the mesh's resolution into a
 quantity the pedogenesis model reads as terrain.
 
 Measured on the same T42 cells, on this project's two builds of the same planet
@@ -230,18 +230,48 @@ at the same seed:
 
 The elevation spread the statistic is built from moves by 1.6%, which is the
 terrain converging as `notes/audits/orogen-resolution.md` says it does. The
-inferred gradient DOUBLES, 1.968, because the divisor halved. This is the same
-shape as the compound topographic index's shift of 0.86, about `ln 2`, between
-the same two builds: a statistic that carries a length transports as a rank and
-not as an absolute value.
+inferred gradient DOUBLES, 1.968, because the divisor halved.
 
-The consequence for the catena divisor is small at these gradients -- 0.9811
-against 0.9635, so 1.8% of regolith depth -- because `slope_transport` is 4.0
-and the gradients are of order 0.01. It is not small in what it means: the
-gradient itself is not a property of the world, and anything keyed on its
-absolute value, a threshold above all, inherits the mesh. The pedogenesis model
-reads it as a pattern and says so, which is why the depth consequence is 1.8%
-rather than a factor of two.
+### Which mechanism, measured 2026-08-25
+
+A statistic that shifts with the region count has one of three mechanisms and
+they take different repairs, so the shift was decomposed rather than assumed:
+`analysis/subgrid_slope_support.py`, on the same two builds, at T42, over the
+4,629 cells both builds give at least 30 land regions, against the 1.15x
+transport bar `orogen-resolution.md` fixed for this class.
+
+| test | what it separates | p50 | p75 | p90 | p95 | p99 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| spread over the mesh spacing, fine/coarse | the shift itself | 2.128 | 2.126 | 2.138 | 2.082 | 2.009 |
+| residual once the spacing ratio is divided out | a LENGTH in the definition | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| spread on a seeded 1-in-4 subsample of the fine build | a population bias | 0.968 | 0.994 | 1.001 | 0.999 | 1.007 |
+| spread, fine/coarse | the terrain's own support dependence | 1.064 | 1.063 | 1.069 | 1.041 | 1.005 |
+
+The residual is exactly one at every quantile: the explicit divisor is the whole
+of the shift. That is the compound topographic index's mechanism, whose `a`
+carries a length and which moves by about `ln 2` between the same two builds. It
+is NOT the population bias that disqualified a minimum-over-a-ball relief form,
+and it is NOT the self-affine mechanism `computeScarpPotential`'s one-edge
+gradient has, where the shift drifts from 1.408 at p50 to 1.695 at p99 and
+cannot be divided out. The distinction is what makes the repair a normalisation:
+over a declared run the same quantiles agree to within 1.069x, inside the bar,
+because the numerator is a within-cell statistic of a fixed cell and the terrain
+has converged.
+
+So `catena.gradient_baseline_km` declares the run, at 30 km, above Orogen's
+measured ~20 km terrain-information floor and the same baseline the scarp relief
+term uses. The magnitude is not the terrain's hillslope gradient and never was:
+a T42 cell is hundreds of kilometres across, real catenas run at 100 m, and
+`slope_transport` is declared against real hillslope gradients rather than
+fitted to this distribution. What the field carries is the pattern.
+
+The consequence is in the catena divisor and is not negligible. At the land mean
+over those cells, `1 + slope_transport * tan(beta)` was 1.0777 on the coarse
+build against 1.1642 on the fine one; over the declared run it is 1.0393 and
+1.0416, agreeing to 0.2%. Regolith depth at the land mean on the current build
+therefore rises by 11.8%, which is far above the 0.02 m the pedogenesis model
+distinguishes. The soil map staged before this change is worthless rather than
+stale.
 
 ## What follows
 
@@ -256,6 +286,9 @@ rather than a factor of two.
   be read as withdrawn: the aggregation is affine and the nonlinearity is in a
   climate variable with no sub-grid population.
 - A convergence comparison across the ladder must fix the roughness
-  coefficient and must not read `subgrid_slope` as a gradient that transports.
+  coefficient. `subgrid_slope` transports over its declared run, but its
+  magnitude is a spread over a declared length rather than a hillslope
+  gradient, so a threshold anchored on measured hillslopes does not belong on
+  it at any region count.
 - The roughness reduction is corrected in place, and every staged
   `orogen_*_surf_0173.sra` predates the correction.
