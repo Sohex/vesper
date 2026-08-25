@@ -66,6 +66,17 @@ class BasinSet:
             self.catchment_km2 = np.asarray(ds["catchment_km2"][:])
             self.capacity_km3 = np.asarray(ds["capacity_km3"][:])
             self.area_at_spill_km2 = np.asarray(ds["area_at_spill_km2"][:])
+            # The catalogue's finalPreserved.retainedFraction: final over
+            # natural spill depth, both in the generator's dimensionless
+            # elevation parameter. It is the ONE quantity that converts a
+            # retain computed against the finished depression in metres into
+            # the basis Orogen spends it against, and `export_carve_list.py`
+            # is its only consumer. Optional because basins.nc predates the
+            # field; a consumer that needs it says so by name rather than
+            # every other consumer failing to open the file.
+            self.retained_fraction = (
+                np.asarray(ds["retained_fraction"][:])
+                if "retained_fraction" in ds.variables else None)
             self.terrain_hash = ds.terrain_hash
         self.n = self.level_km.shape[0]
 

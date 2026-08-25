@@ -347,3 +347,51 @@ numbers are the magnitude of the mismatch rather than a prediction of a
 particular basin. What is a property of the conditioning rather than of the
 carve list, and so does transfer, is the natural-to-final ratio in the table
 above.
+
+## The basis the interface now declares, and what the conversion closes
+
+The carve list's retain is declared to be a fraction of the depression's
+NATURAL relief in the generator's dimensionless elevation parameter. That is
+the basis `buildBasinProtection` spends `(1 - retain)` against and the only
+depth that exists when protection is built, and it is now stated on the format
+in `vendor/orogen/tools/README.md`, on the two functions that spend it in
+`vendor/orogen/js/basins.js`, and in the carve list's own header.
+`export_carve_list.py:to_natural_relief_basis` puts the verdict into it before
+writing, multiplying the incision fraction by `retainedFraction`.
+
+Measured on 2026-08-25 from `basins.preserved[].finalPreserved.retainedFraction`
+and `basins.preserved[].natural.spillDepth` in each manifest, as the ratio of
+the incision Orogen is permitted in MODEL UNITS to the incision intended:
+
+| build | ratio before, p05 / median / p95 | after, p05 / median / p95 |
+| --- | ---: | ---: |
+| precarve-craton | 0.75 / 1.26 / 2.71 | 1.0000 / 1.0000 / 1.0000 |
+| precarve-craton-10m | 0.73 / 1.24 / 2.65 | 1.0000 / 1.0000 / 1.0000 |
+
+The before column is `1 / retainedFraction` and does not depend on the retain
+sent; the after column is exact on every basin whose instruction the mechanism
+can express, which is the identity `export_carve_list.py --selftest` asserts.
+The remaining spread is the two ends the mechanism cannot express, and both are
+countable rather than argued.
+
+**Saturation, and it is confined to the deep end of the marginal class.** An
+intended cut deeper than the whole natural relief cannot be an allowance, and
+the closest instruction Orogen has is carve. It requires
+`retainedFraction > 1 / (1 - retain)`, so it reaches only the basins the
+conditioning left DEEPER than the catalogue measured them, and only where the
+verdict is already cutting most of the depression. On `precarve-craton-10m`, of
+9,401 basins with a measurable ratio: none saturate at retain 0.90, 94 at 0.50
+and 1,103 at 0.10. On `precarve-craton`, of 3,618: none, 35 and 381. That is a
+verdict class moving, so it is reported per pass in the sidecar's
+`carve_list_basis.verdict_class_moved` rather than absorbed.
+
+**The residual is a bracket because the ratio is an estimate.** The conversion
+uses this generation's per-basin `retainedFraction` as the estimate of the
+next generation's, which is defensible because the ratio is a property of the
+conditioning rather than of the carve list. Its population spread is what
+bounds that: `retainedFraction` runs 0.369 / 0.797 / 1.340 at the 5th, 50th and
+95th percentile on `precarve-craton` and 0.378 / 0.804 / 1.372 on
+`precarve-craton-10m`, so a basin whose next-generation ratio lands at the
+population's tails instead of its own median gets between 0.46 and 1.68 times
+the intended incision. That is the honest residual, and it is a sixth of the
+factor of thirty the mismatch carried.

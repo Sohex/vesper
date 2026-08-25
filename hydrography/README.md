@@ -802,6 +802,23 @@ rim, 0 carves it and anything between cuts a notch and tapers it over the divide
 band. `--carve-basins FILE` is subtractive. Both are documented in the fork's
 `tools/README.md`.
 
+**Retain crosses to Orogen as a fraction of the depression's NATURAL relief, in
+model units, and that is not the basis it is computed on.** The incision the
+overflow achieves is a length in metres and it is divided by the FINISHED
+depression, because that is the depth a sill still has to be cut through.
+`buildBasinProtection` spends `(1 - retain)` against `detectBasins`'s
+pre-conditioning depth in the generator's dimensionless elevation parameter, and
+it has no alternative: protection is built before erosion runs, so the finished
+depth does not exist yet, and the carve operates on model elevations. So
+`export_carve_list.py:to_natural_relief_basis` converts before it writes,
+multiplying the incision fraction by the catalogue's `retainedFraction`. The
+list header and `tools/README.md` both state the basis, and `--selftest` holds
+the conversion to the identity that the permitted incision equals the intended
+one. Two assumptions ride on it and the sidecar's `method.carve_list_basis`
+declares both: the fraction is read across a depression on the height curve's
+secant rather than its local slope, and the ratio is this generation's estimate
+of the next one's, bracketed by the ratio's own population spread.
+
 **`carve_list.json` records the criterion's inputs, not only its verdict.**
 Alongside each basin's retain fraction it writes the three catchment means the
 overflow test is built from -- `precipitation_km_per_year`,

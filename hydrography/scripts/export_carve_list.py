@@ -35,8 +35,13 @@ spill point down to the floor.
     cut    = coefficient * erodibility * slope**SLOPE_EXPONENT * Q**INCISION_EXPONENT
     retain = clip(1 - cut / depth_at_spill, 0, 1)
 
-Retain is then the fraction of the impoundment that survives, which is what
-Orogen cuts with and what a reader of the map sees.
+That is the fraction of the FINISHED impoundment that survives, in metres,
+which is the basis stream power is written in. **It is not the basis Orogen
+spends it against**: `buildBasinProtection` sets the allowance to
+`(1 - retain)` times the depression's NATURAL relief in the model's
+dimensionless elevation parameter, because protection is built before erosion
+and the finished depth does not exist yet. `to_natural_relief_basis` converts
+before the list is written, and the list and the format both declare the basis.
 
 Three of those four terms are measured per basin and only the coefficient is
 free. `erodibility` is the export's own field, a relative stream-power
@@ -185,6 +190,64 @@ def incision_retain(q_km3_per_year, year_s: float, depth_m, erodibility,
         cut = cut * np.power(np.asarray(slope, dtype=float), slope_exponent)
     depth = np.maximum(np.asarray(depth_m, dtype=float), 1.0)
     return np.clip(1.0 - cut / depth, 0.0, 1.0)
+
+
+def to_natural_relief_basis(retain, retained_fraction):
+    """Rebase a retain from the finished depression to the one Orogen spends it against.
+
+    **The carve list's retain is a fraction of the depression's NATURAL relief,
+    measured in the generator's dimensionless elevation parameter.** That is
+    the basis `vendor/orogen/js/basins.js:buildBasinProtection` spends
+    `(1 - retain)` against, and it is not a choice: protection is built before
+    erosion runs, so the finished depth does not exist yet, and the carve
+    operates on model elevations. `vendor/orogen/tools/README.md` declares it
+    on the format, and this is where the verdict is put into it.
+
+    `incision_retain` divides by the FINISHED depression in metres, because
+    that is the length the overflow has to remove and metres are what stream
+    power is written in. The two bases differ by exactly the catalogue's
+    `retainedFraction` -- final over natural spill depth, both in model units
+    -- so with `f` for the incision as a fraction of the finished depression,
+
+        retain_finished = 1 - f
+        retain_natural  = 1 - f * retained_fraction
+
+    Two things that conversion assumes, and both are stated rather than
+    absorbed. The fraction of a depression's relief is read as basis-free
+    within the one depression, which is the secant of the height curve across
+    that depression rather than its local slope; the curve is quartic on land,
+    so this is a linearisation over the depression and not an identity. And
+    `retained_fraction` is measured on THIS generation's conditioning while
+    the allowance is spent on the NEXT one's, so the per-basin value is an
+    estimate of a quantity that does not exist yet. It is a property of the
+    conditioning rather than of the carve list, which is what makes it
+    transferable; the sidecar carries the population spread as the bracket on
+    it.
+
+    Both endpoints are verdicts rather than fractions and mean the same thing
+    on either basis, so they pass through exactly: retain 1 is an allowance of
+    zero and is bit-identical to no allowance, and retain 0 clears `noLower`
+    outright. Only the marginal class is rebased, and the marginal class is
+    the one the retain machinery exists for.
+
+    Returns (rebased retain, mask of basins the ratio could be applied to).
+    A basin whose `retained_fraction` is absent or zero has no finished
+    depression to have measured a ratio on; it keeps its finished-basis value
+    and is counted.
+
+    notes/audits/basin-catalogue-floor.md, "Preserved is not the same as still
+    closed", measures what the mismatch was worth before this conversion:
+    a median 2.1x the intended incision with a 5th-to-95th spread of 0.25 to
+    8.4, so it was never a scale factor that could be divided out.
+    """
+    r = np.asarray(retain, dtype=float)
+    ratio = np.asarray(retained_fraction, dtype=float)
+    usable = np.isfinite(ratio) & (ratio > 0.0)
+    rebased = np.where(usable, 1.0 - (1.0 - r) * np.where(usable, ratio, 1.0), r)
+    # Endpoints are instructions, not fractions.
+    rebased = np.where(r >= 1.0, 1.0, rebased)
+    rebased = np.where(r <= 0.0, 0.0, rebased)
+    return np.clip(rebased, 0.0, 1.0), usable
 
 
 def outlet_gradient(basins_path: Path, regions_path: Path, export: Export,
@@ -501,6 +564,90 @@ def climate_terms(clim_path, args, config, basins):
     retain_margin = np.where(carved, 0.0, np.clip(margin / TOLERANCE, 0.0, 1.0))
     return {"staged_background_albedo": staged_albedo,
             "mrro": mrro, "means": means, "year_s": year_s, "crit": crit, "runoff": runoff, "precip": precip, "idx_pen": idx_pen, "idx_wet": idx_wet, "q_pen": q_pen, "q_wet": q_wet, "carved": carved, "overflows_wet": overflows_wet, "disputed": disputed, "e_pen": e_pen, "e_wet": e_wet, "margin": margin, "retain_margin": retain_margin, "ocean_validation": ocean_validation, "penman_error_pct": penman_error_pct}
+def _selftest() -> int:
+    """The basis conversion, against identities rather than against outcomes.
+
+    Every check has a right answer and can fail. The first is the one the
+    conversion exists for: the physical incision Orogen is PERMITTED, once the
+    allowance has been spent against the natural relief, must equal the
+    incision hydrography INTENDED against the finished depression. Before the
+    conversion that identity failed by a median factor of 2.1 on
+    `precarve-craton-10m`, with a 5th-to-95th spread of 0.25 to 8.4.
+    """
+    problems: list[str] = []
+    n_checks = 0
+
+    def check(name: str, ok: bool, detail: str = "") -> None:
+        nonlocal n_checks
+        n_checks += 1
+        print(f"[{'  ok  ' if ok else ' FAIL '}] {name}{'' if ok else ': ' + detail}")
+        if not ok:
+            problems.append(name)
+
+    rng = np.random.default_rng(20260825)
+    # A ratio population spanning both sides of 1: the conditioning takes relief
+    # off most basins and puts it on about a sixth.
+    ratio = np.concatenate([rng.uniform(0.2, 1.0, 400),
+                            rng.uniform(1.0, 2.5, 100)])
+    natural_depth = rng.uniform(0.01, 1.0, ratio.size)   # model units
+    final_depth = ratio * natural_depth
+    intended = rng.uniform(0.02, 0.98, ratio.size)       # retain, finished basis
+    sent, usable = to_natural_relief_basis(intended, ratio)
+
+    # THE IDENTITY. The allowance is spent as (1 - retain) * natural depth; the
+    # cut intended is (1 - retain_finished) * finished depth. Same length.
+    permitted = (1.0 - sent) * natural_depth
+    wanted = (1.0 - intended) * final_depth
+    expressible = sent > 0.0
+    err = np.abs(permitted - wanted)[expressible] / np.maximum(
+        wanted[expressible], 1e-15)
+    check("the permitted incision equals the intended incision",
+          bool(usable.all()) and float(err.max()) < 1e-12,
+          f"max relative error {float(err.max()):.3g}")
+
+    # The unconverted crossing must FAIL that identity, or the check above is
+    # measuring nothing. It is the defect this conversion removes.
+    naive = np.abs((1.0 - intended) * natural_depth - wanted) / wanted
+    check("the unconverted crossing fails it, so the check is not vacuous",
+          float(np.median(naive)) > 0.1,
+          f"median relative error {float(np.median(naive)):.3g}")
+
+    # Endpoints are instructions, not fractions, and mean the same on either
+    # basis. A conversion that touched them would turn every carve into a
+    # partial preservation.
+    for value, name in ((0.0, "carve"), (1.0, "preserve")):
+        out, _ = to_natural_relief_basis(np.full(ratio.size, value), ratio)
+        check(f"retain {value:.0f} ({name}) crosses exactly",
+              bool((out == value).all()),
+              f"{int((out != value).sum())} entries moved")
+
+    # Order is meaning: a verdict that keeps more rim must send a larger retain.
+    order = np.argsort(intended)
+    one_ratio = np.full(ratio.size, 0.8)
+    mono, _ = to_natural_relief_basis(intended[order], one_ratio)
+    check("a larger retain stays a larger retain at one ratio",
+          bool((np.diff(mono) >= -1e-15).all()), "the mapping is not monotone")
+
+    # A basin the conditioning left with no depression has no ratio to convert
+    # with, and must not be silently converted with a zero.
+    out, ok = to_natural_relief_basis(np.array([0.4, 0.4, 0.4]),
+                                      np.array([np.nan, 0.0, 0.5]))
+    check("a basin with no measurable ratio keeps its finished-basis value",
+          (not ok[0]) and (not ok[1]) and bool(ok[2])
+          and out[0] == 0.4 and out[1] == 0.4 and abs(out[2] - 0.7) < 1e-12,
+          f"got {out.tolist()} usable {ok.tolist()}")
+
+    # Saturation is honest, not a clip that hides an error: an intended cut
+    # deeper than the whole natural relief cannot be an allowance, and carve is
+    # the closest instruction Orogen has.
+    out, _ = to_natural_relief_basis(np.array([0.1]), np.array([2.0]))
+    check("an intended cut deeper than the natural relief saturates to carve",
+          float(out[0]) == 0.0, f"got {float(out[0])}")
+
+    print(f"\n{n_checks} checks, {len(problems)} failed")
+    return 1 if problems else 0
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     # Every per-build path below defaults to None and is resolved AFTER
@@ -574,7 +721,13 @@ def main() -> None:
                          "background albedo by naming the build it was staged "
                          "from. A name from lib/orogen.py's registry; any other "
                          "build is refused.")
+    ap.add_argument("--selftest", action="store_true",
+                    help="run the basis conversion's identity checks; needs "
+                         "no build and no climatology")
     args = ap.parse_args()
+
+    if args.selftest:
+        raise SystemExit(_selftest())
 
     _bd = component_data("hydrography", strict=True)
     # LOADED BEFORE THE DEFAULTS: `coupling_path` reads `model.resolution`,
@@ -593,6 +746,19 @@ def main() -> None:
 
     basins = BasinSet(args.basins)
     resolution = str(config["model"]["resolution"]).upper()
+
+    # The list is written in the basis Orogen spends it against, and that
+    # conversion needs the catalogue's own natural-to-final depth ratio. It is
+    # not optional: without it the marginal class crosses the interface as a
+    # fraction of one depression spent against another, which on this terrain
+    # is a median 2.1x the intended incision.
+    if basins.retained_fraction is None:
+        raise SystemExit(
+            f"{args.basins} carries no `retained_fraction`, so a retain "
+            "computed against the finished depression cannot be put into the "
+            "natural-relief basis the carve list declares. Rebuild it with "
+            "hydrography/scripts/build_hydrography.py, which writes the field.")
+    retained_fraction = basins.retained_fraction
 
     # The primary arm: the warm, vegetated end of section 4's bracket.
     primary = climate_terms(args.climatology, args, config, basins)
@@ -622,8 +788,13 @@ def main() -> None:
     coefficient, coefficient_bracket, standing_target, standing_here = (
         calibrate_coefficient(q_pen, year_s, basins.depth_at_spill_m, sill_ero,
                               slope, basin_latitude, band_land_mkm2))
-    retain_incision = incision_retain(q_pen, year_s, basins.depth_at_spill_m,
-                                      sill_ero, coefficient, slope=slope)
+    retain_incision_finished = incision_retain(
+        q_pen, year_s, basins.depth_at_spill_m, sill_ero, coefficient,
+        slope=slope)
+    # Into the basis the list declares. `basis_usable` is false where the
+    # conditioning left no finished depression to have measured a ratio on.
+    retain_incision, basis_usable = to_natural_relief_basis(
+        retain_incision_finished, retained_fraction)
     print(f"outlet gradient   {slope_measured:5d} basins measured, "
           f"population {slope_reference:.5f} m/m")
     print(f"coefficient       {coefficient:7.1f} m per (m3/s)^0.5, bracket "
@@ -634,6 +805,10 @@ def main() -> None:
     # Either is a reason to leave a rim standing: that the basin may not overflow
     # at all, or that its overflow cannot cut. Taking the larger keeps both.
     retain = np.maximum(retain_incision, retain_margin)
+    # The same composite on the basis the incision was COMPUTED on, kept only
+    # so the sidecar can say what the conversion moved. Never written to the
+    # list: Orogen cannot spend it.
+    retain_finished = np.maximum(retain_incision_finished, retain_margin)
 
     # THE INTERSECTION, and it is the same idiom one line up: taking the larger
     # retain keeps the rim wherever EITHER climate would have kept it, which is
@@ -656,11 +831,17 @@ def main() -> None:
     if args.endmember_climatology is not None:
         endmember = climate_terms(args.endmember_climatology, args, config,
                                   basins)
+        retain_endmember_incision_finished = incision_retain(
+            endmember["q_pen"], year_s, basins.depth_at_spill_m, sill_ero,
+            coefficient, slope=slope)
         retain_endmember = np.maximum(
-            incision_retain(endmember["q_pen"], year_s,
-                            basins.depth_at_spill_m, sill_ero, coefficient,
-                            slope=slope),
+            to_natural_relief_basis(retain_endmember_incision_finished,
+                                    retained_fraction)[0],
             endmember["retain_margin"])
+        retain_finished = np.maximum(
+            retain_finished,
+            np.maximum(retain_endmember_incision_finished,
+                       endmember["retain_margin"]))
         retain = np.maximum(retain_primary, retain_endmember)
         cut_primary = retain_primary <= 0.0
         cut_endmember = retain_endmember <= 0.0
@@ -708,6 +889,74 @@ def main() -> None:
     n_no_impoundment = int(no_impoundment.sum())
     n_no_impoundment_carved = int((no_impoundment & (retain <= 0.0)).sum())
 
+    # WHAT THE BASIS CONVERSION MOVED, and what is left over after it. The
+    # criteria here are fixed by construction rather than chosen: the marginal
+    # class is the one the conversion touches, the shift is reported over that
+    # class, and the residual is a bracket because the ratio used is this
+    # generation's estimate of the next one's.
+    marginal_here = (retain > 0.0) & (retain < 1.0)
+    marginal_finished = (retain_finished > 0.0) & (retain_finished < 1.0)
+    n_rebased = int((marginal_here | marginal_finished).sum())
+    shift = retain[marginal_here] - retain_finished[marginal_here]
+    verdict_finished = np.where(retain_finished <= 0.0, "carve",
+                                np.where(retain_finished >= 1.0, "preserve",
+                                         "marginal"))
+    n_verdict_moved = int((verdict_name != verdict_finished).sum())
+    ratio_usable = retained_fraction[basis_usable]
+    ratio_q = (np.percentile(ratio_usable, [5, 25, 50, 75, 95])
+               if ratio_usable.size else np.full(5, np.nan))
+    basis_report = {
+        "basis": "fraction of the depression's NATURAL spill depth, in the "
+                 "generator's dimensionless elevation parameter -- the "
+                 "quantity buildBasinProtection spends (1 - retain) against. "
+                 "vendor/orogen/tools/README.md declares it on the format.",
+        "why_not_the_finished_depth": "protection is built before erosion "
+                 "runs, so the finished depression does not exist when the "
+                 "allowance is set, and the carve operates on model "
+                 "elevations. Orogen cannot change basis; the conversion "
+                 "belongs here.",
+        "conversion": "retain = 1 - (1 - retain_finished_depth_basis) * "
+                 "retained_fraction, with both endpoints passed through: "
+                 "retain 1 is an allowance of zero and retain 0 clears "
+                 "noLower, and both mean the same on either basis",
+        "assumptions": [
+            "the fraction of a depression's relief is read as basis-free "
+            "within that one depression, which is the height curve's secant "
+            "across it rather than its local slope. The curve is quartic on "
+            "land, so this is a linearisation over the depression.",
+            "retained_fraction is measured on THIS generation's conditioning "
+            "and the allowance is spent on the NEXT one's. It is a property "
+            "of the conditioning rather than of the carve list, which is what "
+            "makes it transferable, and the residual below is its bracket.",
+        ],
+        "retained_fraction_quantiles_5_25_50_75_95": [round(float(x), 4) for x in ratio_q],
+        "residual_ratio_bracket": (
+            [round(float(ratio_q[0] / ratio_q[2]), 3),
+             round(float(ratio_q[4] / ratio_q[2]), 3)]
+            if ratio_usable.size and ratio_q[2] > 0 else None),
+        "residual_note": "the factor between the incision Orogen spends and "
+                 "the incision intended, if the next generation's "
+                 "conditioning gives a basin the population's 5th or 95th "
+                 "percentile ratio in place of the per-basin value used here. "
+                 "A BRACKET, not a point: the per-basin conversion is exact "
+                 "against this build and the next build's ratio is unknown.",
+        "basins_without_ratio": int((~basis_usable).sum()),
+        "basins_without_ratio_note": "no finished depression to have measured "
+                 "a ratio on. They keep their finished-basis value, which for "
+                 "these is the 1 m depth guard driving retain to 0, and 0 "
+                 "means the same on either basis.",
+        "marginal_basins_rebased": n_rebased,
+        "marginal_shift_5_50_95": (
+            [round(float(x), 4) for x in np.percentile(shift, [5, 50, 95])]
+            if shift.size else None),
+        "verdict_class_moved": n_verdict_moved,
+        "verdict_class_moved_note": "basins whose class differs between the "
+                 "two bases. A marginal basin whose intended incision exceeds "
+                 "the whole natural relief cannot be expressed as an "
+                 "allowance and saturates to carve, which is the honest "
+                 "reading of an overflow that removes the depression.",
+    }
+
     with Dataset(args.basins) as ds:
         ids = [str(x) for x in ds["basin_id"][:]]
 
@@ -746,6 +995,7 @@ def main() -> None:
     land_surface = str(config["model"].get("land_albedo_source", "uniform"))
     glaciers = ("glaciers enabled" if (config["surface"].get("glaciers") or {}).get("enabled")
                 else "glaciers off")
+    n_without_ratio = int((~basis_usable).sum())
     header = f"""# Vesper carve verdict, {pass_label}
 #
 # Produced from a converged ExoPlaSim climatology: {resolution},
@@ -778,6 +1028,17 @@ def main() -> None:
 # The counts above are of the whole {n_total:d}-entry catalogue. This pass could
 # only decide the {n_here:d} basins the current build still has; the rest were
 # carved by an earlier pass and are held at 0 to keep the loop monotone.
+#
+# THE BASIS. retain here is a fraction of the depression's NATURAL spill depth,
+# in the generator's dimensionless elevation parameter -- the depth
+# buildBasinProtection spends (1 - retain) against, and the only depth that
+# exists when protection is built. The incision above is a LENGTH in metres
+# against the FINISHED depression, so it is converted before it is written:
+#     retain = 1 - (1 - retain_finished) * retainedFraction
+# using this build's own natural-to-final ratio as the estimate of the next
+# generation's. Both endpoints pass through exactly, and the sidecar carries
+# the ratio's population spread as the bracket on that estimate.
+# {n_without_ratio:4d} entries had no ratio to convert with and are all at retain 0.
 #
 # Carved basins are listed explicitly at retain 0, so this file is the
 # complete verdict.
@@ -846,10 +1107,15 @@ def main() -> None:
             "penman_ocean_validation_ratio": ocean_validation["ratio"],
             "retain_mapping": "max(incision, margin), the larger of what the "
                               "overflow cannot cut and what the overflow test "
-                              "cannot decide",
+                              "cannot decide, then put into the basis "
+                              "carve_list_basis declares",
             "retain_incision_mapping":
                 f"1 - {coefficient:.4g} * erodibility * slope**{SLOPE_EXPONENT:g} "
-                f"* Q**{INCISION_EXPONENT:g} / depth_at_spill_m, clipped to [0, 1]",
+                f"* Q**{INCISION_EXPONENT:g} / depth_at_spill_m, clipped to [0, 1], "
+                "and then rebased -- the incision is a LENGTH and depth_at_spill_m "
+                "is the finished depression in metres, which is not the depth "
+                "Orogen spends the allowance against",
+            "carve_list_basis": basis_report,
             "retain_incision_coefficient_m_per_sqrt_q": round(coefficient, 4),
             "retain_incision_coefficient_bracket": [round(b, 4) for b in coefficient_bracket],
             "retain_incision_exponent": INCISION_EXPONENT,
@@ -981,6 +1247,15 @@ def main() -> None:
                     else bool((retain_primary[i] <= 0.0)
                               != (retain_endmember[i] <= 0.0))),
                 "retain_incision": round(float(retain_incision[i]), 4),
+                # The same quantity on the basis it was COMPUTED on: a fraction
+                # of the FINISHED depression in metres. Orogen cannot spend it
+                # -- see method.carve_list_basis -- and it is carried so the
+                # conversion is auditable rather than implicit.
+                "retain_incision_finished_depth_basis":
+                    round(float(retain_incision_finished[i]), 4),
+                "retained_fraction": (
+                    None if not np.isfinite(retained_fraction[i])
+                    else round(float(retained_fraction[i]), 4)),
                 "retain_margin": round(float(retain_margin[i]), 4),
                 "retain_span_superseded": round(float(retain_span[i]), 4),
                 "overflow_km3_per_year": round(float(q_pen[i]), 6),
@@ -1028,6 +1303,9 @@ def main() -> None:
     else:
         print(f"marginal  {n_marginal:5d}")
     print(f"preserve  {n_preserve:5d}  retain 1.0")
+    print(f"basis     retain is a fraction of the NATURAL relief in model "
+          f"units; {n_rebased} marginal entries rebased, "
+          f"{n_verdict_moved} changed class, {n_without_ratio} had no ratio")
     print(f"\nwrote {args.out_list}\n      {args.out_json}")
 
 

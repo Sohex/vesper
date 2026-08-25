@@ -757,7 +757,12 @@ steps:
       by a tolerance chosen afterwards. Pass the cold arm's climatology as
       --endmember-climatology; without it this is ONE arm of the bracket and the
       sidecar's `intersection.single_climate` says so rather than letting a
-      reader mistake it for two
+      reader mistake it for two. The list is written in the basis Orogen spends
+      it against -- a fraction of the depression's NATURAL relief in model
+      units, not of the finished one in metres -- and `method.carve_list_basis`
+      declares the conversion, its two assumptions and the residual bracket on
+      the ratio it uses. `--selftest` holds the conversion to the identity that
+      the permitted incision equals the intended one, and needs no build
 
   # Where ice can persist, at the MESH's resolution rather than the model's. The
   # model forms no permanent land ice at any truncation this project will run --

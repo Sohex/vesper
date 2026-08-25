@@ -705,7 +705,16 @@ export function selectBasins(basins, opts = {}) {
  *                  ~900 m out of a rim. They must not touch these.
  *   carveAllowance — how far below its running elevation a divide cell may be
  *                  carved: 0 for a fully preserved rim, (1-retain)·depth for a
- *                  partially preserved one.
+ *                  partially preserved one. THE BASIS IS `b.depth`: the
+ *                  depression's natural relief in the dimensionless elevation
+ *                  parameter, as detectBasins measured it on the
+ *                  pre-conditioning surface. Not `depthKm`, and not the
+ *                  depression the finished terrain ends up with — neither
+ *                  exists here. A caller computing retain against a physical
+ *                  depth, or against a finished one, is on a different basis
+ *                  and must convert before it hands the list over; the two
+ *                  differ by finalPreserved.retainedFraction. tools/README.md
+ *                  states this on the file format.
  *   basinIndex   — which preserved basin owns each cell, or -1.
  *
  * Reads no elevations. The floors are relative, so this can be built before
@@ -779,9 +788,12 @@ export function buildBasinProtection(mesh, selected, opts = {}) {
     // of the basin floor, which we explicitly leave enabled.
     for (let i = 0; i < selected.length; i++) noLower[selected[i].sink] = 0;
 
-    // Allowance is a fraction of the owning basin's natural depth, so
-    // "retain 0.8" means the rim may lose a fifth of the basin's relief — a
-    // proportional incision, not a breach.
+    // Allowance is a fraction of the owning basin's natural depth IN MODEL
+    // UNITS, so "retain 0.8" means the rim may lose a fifth of the basin's
+    // pre-conditioning relief — a proportional incision, not a breach. The
+    // height curve is quartic on land, so this is not the same fifth as a
+    // fifth of the depression in km, and it is not the same fifth as a fifth
+    // of what the last generation finished with.
     for (let r = 0; r < numRegions; r++) {
         if (!noLower[r]) continue;
         const bi = basinIndex[r];
@@ -807,7 +819,8 @@ export function buildBasinProtection(mesh, selected, opts = {}) {
  *
  * The cut is a notch at the basin's saddle, deepest at the spill point and
  * ramping back up over the divide band, lowering the rim by (1 - retain) of the
- * basin's relief. A basin that only just overflows therefore ends up a
+ * basin's NATURAL relief in model units — `b.depth`, the same basis
+ * buildBasinProtection spends the allowance in. A basin that only just overflows therefore ends up a
  * through-flowing valley holding a residual lake, rather than either an intact
  * closed basin or a fully trenched one.
  */
