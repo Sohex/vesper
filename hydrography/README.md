@@ -75,7 +75,7 @@ already had.
 | `data/<build>/basins.nc` | per basin: hypsometric curves, spill level and target, catchment area, capacity |
 | `data/<build>/coupling_<grid>.nc` | sparse basin-by-grid-cell catchment areas |
 | `data/<build>/hydrography_report.json` | diagnostics, river mouths, marginal seas, provenance |
-| `data/<build>/surface_water.nc` | per region: lake, lake depth, river discharge; per basin: solved area, level, volume, overflow, and the periodic cycle -- area, level and volume in every time bin, the seasonal amplitude, the residence time, and whether the cycle closed |
+| `data/<build>/surface_water.nc` | per region: lake, lake depth, river discharge, and the periodic cycle painted onto regions -- how much of the cycle each region spends under water, in how many bins, and whether its basin closed its year; per basin: solved area, level, volume, overflow, and the periodic cycle -- area, level and volume in every time bin, the seasonal amplitude, the residence time, and whether the cycle closed |
 | `data/<build>/topographic_index_<grid>.nc` | per region: the compound topographic index on both slope arms; per grid cell: its area-weighted mean, its within-cell spread, and `f_sat_max`, the share of the cell's land AREA above that mean |
 | `data/<build>/wetness_<grid>.nc` | per region: one mutually exclusive wetness class; per grid cell: the AREA share of each class over the cell's land |
 | `analysis/lake_balance_sweep.json` | solver sensitivity under placeholder forcing |
@@ -167,6 +167,20 @@ flat through the cycle, because the annual mean of P - E is exactly the runoff a
 cell generated over a closed cycle and per-bin clamping would count the wet
 season's supply twice. `config/land_water_ledger.yaml` declares that omission as
 `seasonal_phase_of_catchment_delivery`.
+
+**The cycle crosses to regions the same way the annual solve does.**
+`paint_lake_cycle` runs `paint_lakes`'s fill once per bin against that bin's own
+lake area, so the crossing is one operation and not a second implementation of
+it -- the selftest holds it to reproducing the annual paint region for region
+when it is given one bin at full weight. What comes out per region is the share
+of the cycle spent under water, weighted by the bins' own lengths rather than
+counted, the exact number of bins, and whether the owning basin closed its year.
+The last one is read FIRST: a basin whose cycle was refused is not painted at
+all, and a zero would otherwise be ambiguous between dry all year and never
+solved. It is the CLOSED-BASIN third of seasonally inundated land and nothing
+else -- a floodplain's inundated area needs a height-above-nearest-drainage
+distribution and a routing model this project does not have, and a seasonally
+saturated soil is a water content rather than an area.
 
 ## Surface water under a real climate
 
@@ -880,8 +894,11 @@ for another carve iteration, and the counts are in `world_state.json` and
 - Catchments are assigned to grid cells by region centre, matching the
   exporter's categorical resampling rule, so a cell straddling a divide is
   attributed whole.
-- The solver finds equilibrium, not a seasonal cycle. Basins with large storage
-  relative to annual throughput will lag; nothing here models that.
+- `solve()` finds equilibrium and `solve_periodic()` finds the cycle, and the
+  two are separate answers rather than a coarse and a fine version of one. A
+  basin's lag is what `solve_periodic` returns as its residence time, and the
+  amplitude it damps is published per basin because of it. What neither carries
+  is a season in the catchment's delivery, for the reason above.
 
 ## One-off tools
 

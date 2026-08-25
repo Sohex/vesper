@@ -123,11 +123,22 @@ classes:
       which basins are a cycle rather than a transient and `basin_has_season`
       which carry a swing the hypsometric curve can express.
     unavailable_reason: >-
-      what is missing is the crossing, not the quantity. The closed-basin area
-      above is per BASIN and this class is per REGION, and painting a bin's
-      lake area onto regions is the same operation `paint_lakes` performs for
-      the annual solve, once per bin. Until it does, this class stays absent
-      rather than approximated from the annual lake.
+      the crossing now exists and the PARTITION does not.
+      `surface_water.py:paint_lake_cycle` paints each bin's lake area onto
+      regions the same way `paint_lakes` paints the annual solve, and
+      `surface_water.nc` carries `lake_cycle_bins_wet`, `lake_cycle_fraction`
+      and `lake_cycle_decided` per region. What is left is which class owns
+      which region once a cycle exists: a region under water in EVERY bin is
+      permanent open water and a region under water in some bins is this
+      class, but `open_water` above is the ANNUAL equilibrium paint and
+      `playa` is what that paint leaves exposed inside the depression, so the
+      three overlap in the strandline and the partition has to be re-cut
+      against the cycle. That is a decision about which solve decides open
+      water, and it needs the two paints measured against each other on a
+      real climatology; `config/planet.yaml` carries
+      `baseline_climatology: null` and neither paint exists on disk. WORLD-T8I5.
+      Until then this class stays absent rather than approximated from the
+      annual lake.
       The other two thirds of the quantity are not hydrography's and are not
       pending here. A FLOODPLAIN's inundated area needs a
       height-above-nearest-drainage CDF and a routing model, neither of which
