@@ -124,8 +124,12 @@
      &        glacpersist,glacpersec
       endif
 
+!     ROOT PRINTS, EVERY THREAD STOPS -- glacpersist is broadcast, so the
+!     branch is taken on every thread and nud is one shared unit. world-0ihs.
       if (glacpersec <= 0.0) then
-         write(nud,*)' *** error: glacpersist = ',glacpersist
+         if (mypid == NROOT) then
+            write(nud,*)' *** error: glacpersist = ',glacpersist
+         endif
          stop 1
       endif
       

@@ -21,7 +21,7 @@ The record is kept for two things it establishes independently of the layout:
 what a survey of "routes through the primitives" misses, and what the two halves
 of the symmetric transform were measured to be worth.
 
-Three gates were left pointing at the deleted code, and the three verdicts are
+Four gates were left pointing at the deleted code, and the four verdicts are
 not the same verdict:
 
 | gate | what became of it |
@@ -29,6 +29,7 @@ not the same verdict:
 | `verify_latitude_pairing.py` | DELETED with its pipeline row under `world-h8o`. It lifted `ilatperm`; there was no function left to point it at, and repointing it would have made it pass vacuously |
 | `verify_symmetric_transform.py` | RENAMED and re-scoped to `verify_inverse_transform.py` under `world-2div`. Its mirror controls perturbed lines that no longer exist, but the half that never depended on the layout survives and is worth more than it was: the fork's per-mode factor hoist is live in those loops |
 | `verify_omp_collectives.f90` | REPAIRED under `world-8y1e`. It called `ilatperm` and so failed in the compiler rather than with a message. Only the placement block was broken, and the scatter is contiguous again, so that block asserts the contiguous placement instead |
+| `verify_legendre_parity.py` | DELETED with its `config/pipeline.yaml` and `exoplasim/README.md` rows under `world-x3zd`. It checked the parity premise, whose only consumer is the deleted parity split; and it checked a Python transcription of `legini` rather than `legini`, so it could pass on a recurrence the model no longer had. `symmetric-transforms.md` keeps what it measured |
 
 ## The change
 

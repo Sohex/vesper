@@ -242,7 +242,12 @@
        dtsa(:)=dt(:,NLEV)*sigma(NLEV)**zexp                             &
      &        *(1.+(1./rdbrv-1.)*dq(:,NLEV))
       else
-       write(nud,*) '!ERROR: wrong ntsa in fluxmod (only 1 or 2 valied)!'
+!      ROOT PRINTS, EVERY THREAD STOPS -- the pattern landini and vegini
+!      already use. ntsa is broadcast, so the branch is taken on every thread
+!      and an unguarded message was NPRO interleaved copies of it. world-0ihs.
+       if (mypid == NROOT) then
+        write(nud,*) '!ERROR: wrong ntsa in fluxmod (only 1 or 2 valied)!'
+       endif
        stop
       end if
 
@@ -270,8 +275,18 @@
 
       zbz0(:)=znl(:)/dz0(:)
       
+!     NOT ROOT-GUARDED, AND DELIBERATELY: this reports the thread's OWN
+!     gridcell, so guarding it on mypid == NROOT would silence exactly the
+!     cells that are not thread 0's. The write is serialised instead, and the
+!     thread id goes in the record so the cell can be found: jhor is an index
+!     into the thread's NHOR chunk and means nothing without it. world-0ihs.
       do jhor=1,NHOR
-         if (zbz0(jhor) .le. -1.0) write(nud,*) dt(jhor,NLEV),dtsa(jhor),zlnsig,dz0(jhor)
+         if (zbz0(jhor) .le. -1.0) then
+!$omp critical (nudwrite)
+            write(nud,*) 'thread',mypid,'jhor',jhor,                    &
+     &                   dt(jhor,NLEV),dtsa(jhor),zlnsig,dz0(jhor)
+!$omp end critical (nudwrite)
+         endif
       enddo
 !
 !     bulk richardson number
@@ -286,10 +301,16 @@
 
       do jhor=1,NHOR
        if (zbz0(jhor)+1. .le. -1.0) then
+!$omp critical (nudwrite)
           write(nud,*) "negative z/z0"
-          write(nud,*) zbz0(jhor)
+          write(nud,*) 'thread',mypid,'jhor',jhor,zbz0(jhor)
+!$omp end critical (nudwrite)
        endif
-       if (ALOG(zbz0(jhor)+1.) == 0.0) write(nud,*) zbz0(jhor)
+       if (ALOG(zbz0(jhor)+1.) == 0.0) then
+!$omp critical (nudwrite)
+          write(nud,*) 'thread',mypid,'jhor',jhor,zbz0(jhor)
+!$omp end critical (nudwrite)
+       endif
        zkblnz2=(vonkarman/ALOG(zbz0(jhor)+1.))**2
 
 !

@@ -157,7 +157,7 @@ committed: `git show HEAD:legmod.f90` returns the folded file. So a re-check
 builds its unfolded arm from a commit before `52b96305` and drives the
 comparison through the script that takes both executables as arguments:
 
-    exoplasim/scripts/verify_filter_fold.sh <bed> <unfolded.x> <folded.x> <ranks> <steps>
+    exoplasim/scripts/verify_filter_fold.sh <bed> <unfolded.x> <folded.x> <threads> <steps>
     exoplasim/scripts/bench_ab.py --bed ... --a ... --b ...   # the A/B
 
 with both arms built at `-ffp-contract=off`, which reaches the compiler as an

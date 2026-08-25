@@ -105,6 +105,27 @@ None was chosen after seeing what the model produced.
 - The repeat arm has no bound either: four repeats in one process must agree bit
   for bit. A reduction summing in arrival order gives a different answer run to
   run rather than a wrong one, which a tolerance cannot see.
+- The per-mode factors `fmu` and `fmv` are bounded at 4*eps absolute. Both sides
+  form m/(n(n+1)) and 1/(n(n+1)) by one division and neither exceeds one half,
+  so this is a rounding bar and not a tolerance on a computation. It is separate
+  from the synthesis bound so that a failure which is really a filtered build
+  says so instead of reporting a placement error.
+- `dv2uv` is bounded at 4*NTP1*(eps*Tsum + Ptol*(1+Qmax)*Fmax), with Tsum the
+  largest sum of TERM MAGNITUDES the routine accumulates into one output element
+  and Fmax the largest |factor| times the largest |coefficient| over the driving
+  fields, both measured by the reference and carried in the file. The first term
+  is the accumulation's own rounding over at most NTP1 modes with each partial
+  sum bounded by Tsum; the second is the model's weight matrices differing from
+  the reference's by the table bound above, carried through NTP1 modes. The four
+  is two terms per output element doubled again, the same envelope the analysis
+  bound uses.
+
+  **That bound is dominated by the table envelope and is loose against what the
+  arm looks for.** The table bound is already eleven to thirty-three times above
+  the measured table error, so the synthesis bound lands several orders above
+  what a correct build produces. What the arm exists to catch is a term applied
+  at the wrong latitude, which moves the result by a whole term rather than by a
+  rounding, and the measured margin below is nine orders.
 
 ## `legini`'s tables against the reference, across the ladder
 
@@ -163,6 +184,37 @@ The tightest margin anywhere is the weights at T127, 2.6 times inside a bar
 `verify_gauss_weights.sh` owns, so that gate fails before this one does. The
 analysis arm sits three orders inside its bound at every rung.
 
+### The synthesis arm
+
+*Added 2026-08-25 under world-siq, and NOT run across the whole ladder: T21 on
+two and on four threads, T85 and T170 on eight. The rest of the rungs above are
+the analysis arm's and carry no synthesis measurement.* The factor arm returns
+2.776e-17 against its 8.882e-16 bar at every rung and thread count measured, and
+does not move with either, which is what a rounding bar on one division should
+do.
+
+| rung, threads | worst case | worst `u` | worst `v` | bound |
+| --- | --- | --- | --- | --- |
+| T21, 4 | dense | 1.399e-14 | 1.377e-14 | 3.642e-09 |
+| T85, 8 | zonal | 1.910e-14 | 1.910e-14 | 8.936e-07 |
+| T170, 8 | zonal | 1.124e-13 | 1.124e-13 | 1.407e-05 |
+
+**The bound loosens with the rung and the measurement does not**, which is the
+table envelope showing through: `Qmax` grows with NTRU and the envelope is
+multiplied by it, while what the arm actually returns stays at the last few bits
+of a result of order one. So the synthesis bound is a bound on the arithmetic
+and not a sharp instrument, and it is not one at any rung: the failures it
+exists for move the answer by a whole term. What it cannot see is a last-bit
+error, which is the table arm's question and is bounded three orders tighter
+there.
+
+**The synthesis arm also rejects two controls it was not built for.** At T21 on
+four threads `samelats` gives 2.326 on `u` and `slideband` 0.699, and `noweight`
+leaves it passing at 1.582e-15. That is the arm split behaving as it should: a
+wrong scatter and a slid band both move which latitude the winds land on, and a
+weight dropped from the ANALYSIS accumulation cannot reach a synthesis routine
+at all.
+
 ## The controls, and what each proves
 
 | control | what it breaks | rejected by | measured at T21 |
@@ -170,6 +222,7 @@ analysis arm sits three orders inside its bound at every rung.
 | noweight | the quadrature weight dropped from `fc2sp` | the analysis arm | 5.06 against a 2.17e-13 bound |
 | slideband | every band slid one latitude row, so neighbours share one | the analysis arm | 0.265 against the same bound |
 | samelats | the scatter hands every thread the master's latitudes | the placement arm | every non-master row wrong |
+| plavorband | `dv2uv`'s planetary correction shifted by the thread's own index inside its band | the synthesis arm, on `u` | 0.455 against a 1.18e-9 bound |
 
 `noweight` and `slideband` leave the table arm passing and `samelats` leaves the
 analysis arm failing as well, which is the two arms behaving as their split
@@ -177,19 +230,32 @@ predicts: a thread's weight matrices come from the scatter, and its Fourier
 rows come from the band pointer, and only a control that moves the scatter moves
 both.
 
+**`plavorband` is a NO-OP at one thread, and that is the whole demonstration.**
+The patch reads `qmat(2, mod(mypid+l-1,NLPP)+1)`, and at one thread `mypid` is
+zero and `NLPP` is `NLAT`, so the expression is the line it replaced. Built and
+run that way at T21 the synthesis arm returns 1.582e-15 and passes; built at
+four threads it returns 0.455 and fails. That is the class `verify_inverse_-
+transform.py` cannot see however carefully it drives the loop, and it is why the
+gate refuses to run at fewer than two threads: at one thread both band controls
+collapse into the source they patch and would pass for the wrong reason.
+
 ## What a pass does not cover
 
 - Anything that needs a timestep. The driver does not integrate the model, so
   it is silent on `mkdheat` and on every physics term.
-- `dv2uv` under the bands. It is a synthesis routine with no partial sum and no
-  reduction, and its only band dependence is the `pmat` and `qmat` rows for the
-  thread's own latitudes, which the table arm checks directly. Its loop is
-  checked by `verify_inverse_transform.py`, at one thread, against the
-  matrix-vector product with the table and the per-mode factors it is handed,
-  planetary vorticity included as an offset on the vorticity coefficient. What
-  is not checked anywhere is that planetary vorticity term UNDER THE BANDS, and
-  pinning that needs the vector convention
-  `probe_shtns_vector_conventions.f90` was written to discover.
+- What the per-mode factors ARE. `fmu` and `fmv` are restated in the reference
+  from `legini`'s own definitions rather than derived from anything independent,
+  exactly as `verify_inverse_transform.py` restates them, so a shared misreading
+  of the definition is invisible to both. The synthesis arm is about where the
+  factor lands, not what it is.
+- The `pv` half of the planetary vorticity removal. Mode w=2 is m = 0 and `fmu`
+  carries a factor of m, so `fmu(2)` is zero and that line adds nothing for any
+  planetary vorticity. No arm can give it teeth and a control on it would pass;
+  it is dead arithmetic rather than an untested path.
+- `sp2fc` and `sp2fcdmu` as loops. They are the same matrix-vector product over
+  the same rows the table arm compares directly, and the synthesis arm exercises
+  the band placement they share with `dv2uv`; their loops are checked one mode
+  at a time by `verify_inverse_transform.py`.
 - The growth of a last-bit difference with run length. That needs two model arms
   differing at last-bit scale and there is one build. `verify_shtns_model.sh`
   carries the same curve on NSHTNS=0 against NSHTNS=1, which is still a live

@@ -610,8 +610,12 @@
       tau_veg  = tau_veg  * m_days_per_year * day_24hr
       tau_soil = tau_soil * m_days_per_year * day_24hr
 
+!     ROOT PRINTS, EVERY THREAD STOPS -- the pattern the LSHY-3 and LSHY-5
+!     refusals below already use. Both taus are broadcast above. world-0ihs.
       if (tau_veg < 1.0 .or. tau_soil < 1.0) then
-         write(nud,*)' *** error: tau_veg = ',tau_veg,'  tau_soil = ',tau_soil
+         if (mypid == NROOT) then
+          write(nud,*)' *** error: tau_veg = ',tau_veg,'  tau_soil = ',tau_soil
+         endif
          stop 1
        endif
 

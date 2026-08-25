@@ -42,7 +42,16 @@ so the reference below simply subtracts P from the first Fourier component of
 mode w=2 of the vorticity and takes the ordinary matrix-vector product. That
 pins the mode, the component, the two outputs it touches, the two signs and the
 two factors, with no appeal to the model's own formula. It does NOT pin the term
-under the threaded grid bands, which is world-siq.
+under the threaded grid bands, and it cannot: this driver runs one band covering
+the globe, so the local latitude index and the global one are the same integer
+and a term applied at the wrong latitude is applied at the right one.
+`verify_banded_transform.sh`'s ARM D drives the same identity at NPRO threads,
+and carries the control that is a no-op here.
+
+`fmu(2)` is zero, because mode w=2 is m = 0 and `fmu` carries a factor of m. So
+the model's second planetary-vorticity line, the one that writes `pv`, adds
+nothing whatever P is, and a control on it would pass. That is why the control
+below perturbs the `pu` line and not that one.
 
 THE NEGATIVE CONTROLS. Seven, each the source with one line perturbed, each of
 which must be rejected:

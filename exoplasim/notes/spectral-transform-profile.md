@@ -90,8 +90,11 @@ mlock_kb` is 516 and `RLIMIT_MEMLOCK` is 8 MB, and Open MPI's transport has
 locked pages against the latter before perf asks for its ring buffer. What makes
 it worth writing down is that it does NOT reproduce outside mpiexec -- perf
 tested by hand works, and then every rank in the job writes nothing.
-`--mmap-pages 32` is the fix and is `perf_rank.sh`'s default, verified at 16
-ranks with `Total Lost Samples: 0`. A smaller buffer is not free: an overflow
+`--mmap-pages 32` is the fix, verified at 16 ranks with
+`Total Lost Samples: 0`, and it is `profile_transforms.sh`'s default through
+`PERF_MMAP_PAGES`. One threaded process locks nothing before perf asks, so the
+refusal itself belongs to the launcher that is gone; the buffer size is kept
+because it is the size this workload has been sampled at. A smaller buffer is not free: an overflow
 drops whatever ran while perf was behind, which is not a random sample, so
 `score_transform_profile.py` refuses to score a pass that lost any.
 

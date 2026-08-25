@@ -31,10 +31,22 @@ import time
 from pathlib import Path
 
 
-def launcher(spec: str, ranks: int) -> tuple[list[str], dict]:
+def launcher(spec: str, threads: int) -> tuple[list[str], dict]:
     """How to start one arm, and the environment it needs.
 
-    `mpi`             mpiexec -np <ranks>, which binds rank r to core r.
+    There is one build configuration to launch. The model is a threaded build,
+    the thread count is compiled into the binary, and `threads` here only says
+    how long an `omp@` core list has to be.
+
+    `omp[:policy]`    one process. The two exports are not optional and not
+                      tuning: libgomp does NOT bind by default, its placement
+                      changes run to run, and with sixteen threads some land on
+                      SMT siblings while whole cores sit idle -- which on this
+                      processor also randomises which die a thread gets. Bound
+                      this way a thread takes core t, which is what
+                      `exoplasim/__init__.py` launches production under, so the
+                      two arms are compared on production's placement rather
+                      than on their defaults. `policy` sets OMP_WAIT_POLICY.
     `omp@<cores>`     as `omp`, but with an explicit thread-to-core order:
                       a comma-separated core list, thread t taking the t'th
                       entry. Each core expands to both its SMT siblings, so a
@@ -42,29 +54,18 @@ def launcher(spec: str, ranks: int) -> tuple[list[str], dict]:
                       it and only the ORDER differs from the control. The
                       decomposition is unchanged, so an arm that differs only
                       in placement must stay bit identical.
-    `omp[:policy]`    one process; the thread count is compiled in. The two
-                      exports are not optional and not tuning: libgomp does NOT
-                      bind by default, its placement changes run to run, and
-                      with sixteen threads some land on SMT siblings while whole
-                      cores sit idle -- which on this processor also randomises
-                      which die a thread gets. Bound this way a thread takes
-                      core t, exactly as Open MPI gives rank t core t, so the
-                      two arms are compared on the same placement rather than on
-                      their defaults. `policy` sets OMP_WAIT_POLICY.
     """
     import os
-    if spec == "mpi":
-        return ["mpiexec", "-np", str(ranks), "./probe_ab.x"], dict(os.environ)
     head = spec.split(":")[0].split("@")[0]
     if head != "omp":
-        raise SystemExit(f"unknown launcher {spec!r}; use mpi, omp[:active|passive] or omp@<cores>")
+        raise SystemExit(f"unknown launcher {spec!r}; use omp[:active|passive] or omp@<cores>")
     env = dict(os.environ)
     env["OMP_STACKSIZE"] = env.get("OMP_STACKSIZE", "512M")
     env["OMP_PROC_BIND"] = "close"
     if "@" in spec.split(":")[0]:
         order = [int(c) for c in spec.split(":")[0].split("@", 1)[1].split(",")]
-        if len(order) != ranks or sorted(order) != sorted(set(order)):
-            raise SystemExit(f"omp@ needs {ranks} distinct cores, got {len(order)}")
+        if len(order) != threads or sorted(order) != sorted(set(order)):
+            raise SystemExit(f"omp@ needs {threads} distinct cores, got {len(order)}")
         nsib = os.cpu_count() // 2
         env["OMP_PLACES"] = ",".join(f"{{{c},{c + nsib}}}" for c in order)
     else:
@@ -74,8 +75,7 @@ def launcher(spec: str, ranks: int) -> tuple[list[str], dict]:
     # OMP_STACKSIZE sizes the NON-MASTER threads only; the master runs on the
     # process stack, which is ulimit -s. The model's large locals become
     # stack-allocated under -frecursive, and at T127 the master overruns a
-    # 16 MB limit and segfaults. The MPI build never needed this, because
-    # without -frecursive those same arrays are static.
+    # 16 MB limit and segfaults.
     return ["bash", "-c", "ulimit -s unlimited; exec ./probe_ab.x"], env
 
 
@@ -102,7 +102,7 @@ def set_namelist(bed: Path, settings: list[str]) -> None:
     nl.write_text("\n".join(lines) + "\n")
 
 
-def run_once(bed: Path, exe: Path, ranks: int, spec: str = "mpi",
+def run_once(bed: Path, exe: Path, threads: int, spec: str = "omp",
              settings: list[str] | None = None) -> tuple[float, str]:
     local = bed / "probe_ab.x"
     shutil.copy2(exe, local)
@@ -110,7 +110,7 @@ def run_once(bed: Path, exe: Path, ranks: int, spec: str = "mpi",
         set_namelist(bed, settings)
     for stale in ("plasim_status", "Abort_Message"):
         (bed / stale).unlink(missing_ok=True)
-    cmd, env = launcher(spec, ranks)
+    cmd, env = launcher(spec, threads)
     t0 = time.perf_counter()
     r = subprocess.run(cmd, cwd=bed, capture_output=True, text=True, env=env)
     dt = time.perf_counter() - t0
@@ -133,11 +133,13 @@ def main() -> None:
     ap.add_argument("--b", type=Path, required=True)
     ap.add_argument("--label-a", default="A")
     ap.add_argument("--label-b", default="B")
-    ap.add_argument("--ranks", type=int, default=16)
-    ap.add_argument("--a-launch", default="mpi",
-                    help="mpi, or omp[:active|passive]")
-    ap.add_argument("--b-launch", default="mpi",
-                    help="mpi, or omp[:active|passive]")
+    ap.add_argument("--threads", type=int, default=16,
+                    help="the thread count the binaries were compiled for; "
+                         "only an omp@ core list is checked against it")
+    ap.add_argument("--a-launch", default="omp",
+                    help="omp[:active|passive], or omp@<core order>")
+    ap.add_argument("--b-launch", default="omp",
+                    help="omp[:active|passive], or omp@<core order>")
     ap.add_argument("--a-nl", action="append", default=[], metavar="KEY=VALUE",
                     help="namelist setting forced for arm A; repeatable")
     ap.add_argument("--b-nl", action="append", default=[], metavar="KEY=VALUE",
@@ -148,7 +150,7 @@ def main() -> None:
 
     bed, a, b = args.bed.resolve(), args.a.resolve(), args.b.resolve()
     print(f"bed {bed.name}: {args.label_a} vs {args.label_b}, "
-          f"{args.rounds} interleaved rounds, {args.ranks} ranks")
+          f"{args.rounds} interleaved rounds, {args.threads} threads")
 
     # TWO warm-ups, one per arm. One was not enough: with a single warm-up the
     # first timed round came in 30-40% slow in EVERY arm at T21 and moved the
@@ -157,8 +159,8 @@ def main() -> None:
     # `notes/audits/aocl-and-model-build-flags.md` found between blocked
     # sessions, one level down.
     print("warm-up (both arms) ...", flush=True)
-    run_once(bed, a, args.ranks, args.a_launch, args.a_nl)
-    run_once(bed, b, args.ranks, args.b_launch, args.b_nl)
+    run_once(bed, a, args.threads, args.a_launch, args.a_nl)
+    run_once(bed, b, args.threads, args.b_launch, args.b_nl)
 
     ta: list[float] = []
     tb: list[float] = []
@@ -174,7 +176,7 @@ def main() -> None:
         first_is_a = rnd % 2 == 1
         pair = [arm_a, arm_b] if first_is_a else [arm_b, arm_a]
         for exe, spec, settings, times, shas in pair:
-            dt, sha = run_once(bed, exe, args.ranks, spec, settings)
+            dt, sha = run_once(bed, exe, args.threads, spec, settings)
             times.append(dt)
             shas.add(sha)
         print(f"  round {rnd:2d}: {args.label_a}={ta[-1]:7.2f}  "
@@ -188,7 +190,7 @@ def main() -> None:
     tail = gains[1:] or gains
     med_tail = st.median(tail)
     result = {
-        "bed": bed.name, "ranks": args.ranks, "rounds": args.rounds,
+        "bed": bed.name, "threads": args.threads, "rounds": args.rounds,
         "a_launch": args.a_launch, "b_launch": args.b_launch,
         "label_a": args.label_a, "label_b": args.label_b,
         "a_median_s": st.median(ta), "b_median_s": st.median(tb),
