@@ -97,7 +97,6 @@ REPO="$(cd "$HERE/../.." && pwd)"
 PKG="$REPO/vendor/exoplasim/exoplasim"
 BUILD="$REPO/.venv/bin/python $REPO/exoplasim/scripts/build_model.py"
 SRC="$PKG/plasim/src"
-low="$(echo "$res" | tr 'A-Z' 'a-z')"
 WORK="$REPO/exoplasim/bench/_tnumerics"
 
 require_settled_bed "$bed"
@@ -130,7 +129,7 @@ else
 fi
 
 build_arm() {
-    local arm="$1" stamp="$WORK/.stamp" name
+    local arm="$1" stamp="$WORK/.stamp" built
     restore
     if [ "$arm" = "wrongband" ]; then
         sed -i 's/^      lo = mypid \* NHOR + 1$/      lo = max(1, mypid * NHOR + 1 - NLON)   ! CONTROL: bands overlap by a row/' \
@@ -138,12 +137,25 @@ build_arm() {
         grep -q "CONTROL: bands overlap by a row" "$SRC/plasimmod.f90" || {
             echo "control patch missed" >&2; exit 1; }
     fi
-    name="most_plasim_${low}_l10_p${n}.x"
     : > "$stamp"
-    ( $BUILD --res "$res" --ranks "$n" ) >"$WORK/build_$arm.log" 2>&1 || true
-    [ -f "$PKG/plasim/run/$name" ] && [ "$PKG/plasim/run/$name" -nt "$stamp" ] || {
-        echo "build failed or stale: $arm (see $WORK/build_$arm.log)" >&2; exit 1; }
-    cp -f "$PKG/plasim/run/$name" "$WORK/ref/$arm.x"
+    # --no-publish AND --print-path, for two reasons that both bite here.
+    # An ARM must not land in the model run directory under the registry's
+    # naming: publishing overwrites the shipped executable and leaves
+    # check_consistency reporting the binary a run would pick up as having
+    # unknown provenance, which is rule 4 reached from inside a check
+    # (world-v3d). And the control arm CANNOT publish at all -- it writes a
+    # `! CONTROL:` marker into plasimmod.f90 and build_model.py refuses to put
+    # a patched source under the registry's tag (world-70k), so this gate's
+    # control build failed outright until it stopped asking to. The patched
+    # build lands under build/patched/ with a hash of what it patched, so the
+    # two arms cannot share objects either.
+    built=$( $BUILD --res "$res" --ranks "$n" --no-publish --print-path \
+        2>"$WORK/build_$arm.log" ) || {
+        echo "build failed: $arm (see $WORK/build_$arm.log)" >&2; exit 1; }
+    [ -f "$built" ] && [ "$built" -nt "$stamp" ] || {
+        echo "build produced nothing newer than the stamp: $arm "\
+             "(see $WORK/build_$arm.log)" >&2; exit 1; }
+    cp -f "$built" "$WORK/ref/$arm.x"
     echo "  built $arm  $(sha256sum "$WORK/ref/$arm.x" | cut -c1-16)"
 }
 
