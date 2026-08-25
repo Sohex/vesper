@@ -88,12 +88,17 @@ place the form bends at all. For a Gaussian head with mean column `m` and spread
 | 5 | 1.1e-8 |
 
 So the unconfined form is admissible wherever the saturated column is about
-three times the sub-grid relief and no longer. At the 100 m thickness floor
-against a median 20 to 34 m of relief the ratio is 3 to 5 and the correction is
-under 0.02%; against the roughest quartile's 117 to 177 m the ratio falls below
+three times the sub-grid relief and no longer. The column is the thickness less
+the depth, so the worst case is a thin aquifer with a deep table, and the
+thickness floor is its upper bound: at the 100 m floor against a median 20 to
+34 m of relief the ratio is at best 3 to 5 and the correction at best under
+0.02%, while against the roughest quartile's 117 to 177 m the ratio falls below
 one and the correction reaches tens of percent. **That is the constraint GW-6
 puts on GW-18's floor**, and it is a reason to keep the floor at Gleeson's 100 m
-rather than lower it, stated in advance of any run.
+rather than lower it, stated in advance of any run. It is also the reason the
+run must report `at_transmissivity_floor`: a cell whose column has reached
+`min_saturated_thickness_m` is on a numerical bound, and its depth is a lower
+bound rather than a value.
 
 **The second half of the rule.** Sub-grid information may reach a cell-scale
 parameter ONLY as a statistic of the distribution the cell contains -- a
