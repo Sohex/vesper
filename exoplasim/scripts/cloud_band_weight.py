@@ -20,9 +20,10 @@ and every run records 1, which selects the COMPUTED-cloud branch of `swr`.
 switch, so scaling it changes nothing. `tswr3` acts twice in the computed
 branch, once for the diffuse stream through `zb5` and once for the direct beam,
 so the weight this script produces reaches the model through `tswr3` alone.
-`clim-68` is open on what to do about that; nothing here depends on the
-resolution, because the weight is a property of the star and the droplets and
-not of which key carries it.
+`clim-68` settled that as `tswr3`-only: the harness no longer scales `acl2`, and
+it stages `NSWRCL` at 1 so a run's namelist records which cloud scheme its
+shortwave used. Nothing here changed, because the weight is a property of the
+star and the droplets and not of which key carries it.
 
 The 2026-08-20 arm bundle measured what that omission is worth: +/-2.6 K over
 the declared 0.78 to 1.28 bracket, larger than the entire forcing bundle. That

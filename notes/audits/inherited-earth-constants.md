@@ -204,10 +204,16 @@ range 2 against a 5772 K Sun. 1.184 to 1.205 across droplet effective radii 5 to
 15 um and across both the weak-absorption and thick-layer scalings, so the answer
 barely depends on either; 1.192 is the median.
 
-`cloud_absorption_scale` multiplies the two ABSORPTION-like keys, `tswr3` and the
-`acl2` triplet. Worth about +2.0 K on the arms' own measured slope, which is why
-the flux re-derivation has to follow it and not precede it. The arms measured
-+/-2.6 K.
+`cloud_absorption_scale` multiplies ONE key, `tswr3`. Worth about +2.0 K on the
+arms' own measured slope, which is why the flux re-derivation has to follow it
+and not precede it. The arms measured +/-2.6 K.
+
+The harness applied the factor to the `acl2` triplet as well, and `acl2` has no
+reader outside the `nswrcl == 0` branch of `swr`. `nswrcl` is 1 in every run
+this project has made, including the PHYS-11 arms, so the whole of the measured
+slope is `tswr3`'s and the `acl2` half of the write was inert. The scaled write
+is gone and the harness now stages `NSWRCL` at 1 explicitly, so a run's namelist
+records which of the two cloud schemes its shortwave used. clim-68.
 
 **What is NOT covered, and stays Earth's:** `tswr1`, `tswr2`, `acllwr`, `rcl1`
 and `rcl2`. Those are albedo-like and longwave rather than shortwave
