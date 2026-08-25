@@ -1441,6 +1441,8 @@
 
       dfu(:,:)   = 0.0         ! short wave radiation upward
       dfd(:,:)   = 0.0         ! short wave radiation downward
+      dfdsw1(:)  = 0.0         ! surface short wave downward, band 1
+      dfdsw2(:)  = 0.0         ! surface short wave downward, band 2
       dftu(:,:)  = 0.0         ! long wave radiation upward
       dftd(:,:)  = 0.0         ! long wave radiation downward
       dswfl(:,:) = 0.0         ! total short wave radiation
@@ -3008,6 +3010,12 @@
         zfu2(:)=-zt2(:,jlev)*zrl2(:,jlev)*z1mrabr(:)
         dfu(:,jlev)=zfu1(:)*zftop1(:)+zfu2(:)*zftop2(:)
         dfd(:,jlev)=zfd1(:)*zftop1(:)+zfd2(:)*zftop2(:)
+!       THE BAND SPLIT, KEPT RATHER THAN SUMMED AWAY. WORLD-3QFZ. Each band's
+!       contribution to `dfd` above, stored at every level so that what survives
+!       the loop is the last one, NLEP, the surface. `dfd` keeps its own
+!       statement unchanged so the sum is contracted exactly as it was.
+        dfdsw1(:)=zfd1(:)*zftop1(:)
+        dfdsw2(:)=zfd2(:)*zftop2(:)
         dswfl(:,jlev)=dfu(:,jlev)+dfd(:,jlev)
        endwhere
       enddo

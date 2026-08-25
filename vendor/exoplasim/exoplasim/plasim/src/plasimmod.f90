@@ -747,6 +747,20 @@
       real :: dflux(NHOR,NLEP)         ! net radiation (SW + LW)
       real :: dfu(NHOR,NLEP)           ! solar radiation upward
       real :: dfd(NHOR,NLEP)           ! solar radiation downward
+!
+!     THE SURFACE DOWNWARD SOLAR FLUX, BAND BY BAND. WORLD-3QFZ. `swr` forms
+!     each band's contribution to `dfd` and adds them in the same statement, so
+!     the split existed inside the routine and left it only as the sum. These
+!     two hold the last level `swr` reaches, which is the surface, and the
+!     bands are the model's own shortwave pair: 1 is the visible and
+!     ultraviolet, 2 the near infrared, split where `lib/stellar.py` splits
+!     them. Their SUM is the incident surface shortwave, which is not the same
+!     quantity as the net flux `dswfl(:,NLEP)` carries.
+!
+!     Zeroed in `radstep` beside `dfd`, because `swr` assigns only where the sun
+!     is up and a dark cell must read zero rather than the last sunlit value.
+      real :: dfdsw1(NHOR)   = 0.      ! surface solar downward, band 1
+      real :: dfdsw2(NHOR)   = 0.      ! surface solar downward, band 2
       real :: dftu(NHOR,NLEP)          ! thermal radiation upward
       real :: dftd(NHOR,NLEP)          ! thermal radiation downward
       real :: dtdtlwr(NHOR,NLEV)       ! lwr temperature tendencies
@@ -851,6 +865,8 @@
       real :: atsol(NHOR) = 0. ! acculumated top solar radiation
       real :: atthr(NHOR) = 0. ! acculumated top thermal radiation
       real :: assolu(NHOR)= 0. ! acculumated surface solar radiation upward
+      real :: afdsw1(NHOR)= 0. ! accumulated surface solar downward, band 1
+      real :: afdsw2(NHOR)= 0. ! accumulated surface solar downward, band 2
       real :: asthru(NHOR)= 0. ! acculumated surface thermal radiation upward
       real :: atsolu(NHOR)= 0. ! acculumated top solar radiation upward
       real :: ataux(NHOR) = 0. ! acculumated zonal wind stress
@@ -1104,10 +1120,10 @@
 !$omp&  aadz0,aaglacieroro,aagroundoro,aammr,aanrho,aasd,aaso,aasp,aasqout,aast,aasz,acapen,acc,&
 !$omp&  achim,acpd,adener3d,adenergy,adv,aero_namelist,aevap,agpi,akap,alaav,alambm,alhfl,alnb,alr,&
 !$omp&  als,alv,ampoti,aorbnu,aprc,aprl,aprs,aqvi,arasc,ardist,aroff,ashfl,asigrain,asmelt,asndch,&
-!$omp&  assol,assolu,asthr,asthru,ataux,atauy,ats0,atsa,atsama,atsami,atsol,atsolu,atthr,aventi,&
+!$omp&  afdsw1,afdsw2,assol,assolu,asthr,asthru,ataux,atauy,ats0,atsa,atsama,atsami,atsol,atsolu,atthr,aventi,&
 !$omp&  avrmpi,azdecl,azmuz,bm1,c,capen,ccc,chim,chlat,co2,cola,crap,csm,csq,cst,csu,csv,ct,cv,&
 !$omp&  daeros,dalb,damp,dampsp,dawn,day_24hr,dcc,dclforc,dconv,deglat,delt,delt2,deltsec,deltsec2,&
-!$omp&  dener3d,denergy,devap,dfd,dflux,dforest,&
+!$omp&  dener3d,denergy,devap,dfd,dfdsw1,dfdsw2,dflux,dforest,&
 !$omp&  dftd,dftu,dfu,dglac,dglacalbmn,dgp2d,dgp3d,dgroundalb,dicealbmn,dicealbmx,dicec,diced,dlhdt,&
 !$omp&  dlhfl,dls,dlwfl,dmld,doceanalb,dp,dp0,dprc,dprl,dprs,dq,dqco2,dqdt,dql,dqo3,dqsat,dqt,dqvi,&
 !$omp&  drhs,drunoff,dsalb,dshdt,dshfl,dsigma,dsmelt,dsndch,dsnow,dsnowalb,dsnowalbmn,dsnowalbmx,&

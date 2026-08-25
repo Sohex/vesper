@@ -1033,6 +1033,13 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call mpputgp('atauy' ,atauy ,NHOR,1)
       call mpputgp('atsolu',atsolu,NHOR,1)
       call mpputgp('assolu',assolu,NHOR,1)
+!     The surface downward solar flux by band, WORLD-3QFZ. Written every time,
+!     read only behind the accumulator marker below, which is why that marker
+!     had to move: a restart written before these existed carries a counter
+!     these two cannot match, and a diluted first output window is exactly the
+!     defect `accuvers` exists to refuse.
+      call mpputgp('afdsw1',afdsw1,NHOR,1)
+      call mpputgp('afdsw2',afdsw2,NHOR,1)
       call mpputgp('asthru',asthru,NHOR,1)
       call mpputgp('aqvi'  ,aqvi  ,NHOR,1)
       call mpputgp('atsa'  ,atsa  ,NHOR,1)
@@ -1101,8 +1108,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call put_restart_real('azdecl'  ,azdecl)
          call put_restart_real('ardist'  ,ardist)
          call put_restart_real('arasc'   ,arasc )
-!        Marks a restart whose accumulator set is complete.
-         call put_restart_real('accuvers',1.0)
+!        Marks a restart whose accumulator set is complete. 2.0 adds the two
+!        band-resolved surface downward solar accumulators, WORLD-3QFZ.
+         call put_restart_real('accuvers',2.0)
 !        Marks a restart that carries the ecological stream's partial interval.
          call put_restart_real('ecovers',1.0)
 !        THE ENERGY FIXER'S INTEGRATED CORRECTION. world-fsr.
@@ -1464,7 +1472,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if (mypid == NROOT) then
          nexcheck = 0
          call get_restart_real('accuvers',zaccuvers)
-         if (zaccuvers > 0.0) then
+         if (zaccuvers >= 2.0) then
             call get_restart_array('aasosp' ,aaso   ,NESP,NESP,   1)
             call get_restart_array('aaspsp' ,aasp   ,NESP,NESP,   1)
             call get_restart_array('aastsp' ,aast   ,NESP,NESP,NLEV)
@@ -1485,12 +1493,14 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          nexcheck = 1
       endif
       call mpbcr(zaccuvers)
-      if (zaccuvers < 0.0) then
+      if (zaccuvers < 2.0) then
          call outreset          ! no accumulator set: start the interval clean
          if (mypid == NROOT) write(nud,*)                                   &
-     &      'Restart predates the accumulator fix: partial output interval', &
+     &      'Restart predates the accumulator set: partial output interval', &
      &      ' discarded and naccuout reset to 0'
       else
+         call mpgetgp('afdsw1'       ,afdsw1      ,NHOR,1)
+         call mpgetgp('afdsw2'       ,afdsw2      ,NHOR,1)
          call mpgetgp('agpi'         ,agpi        ,NHOR,1)
          call mpgetgp('aventi'       ,aventi      ,NHOR,1)
          call mpgetgp('alaav'        ,alaav       ,NHOR,1)
