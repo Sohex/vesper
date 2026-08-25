@@ -31,6 +31,12 @@ vertical-resolution conversion are separate features with their own reasons:
 the file stores `nstep` rather than elapsed time and both leapfrog levels, so
 changing the step duration changes the represented derivative.
 
+THE TIMESTEP HALF OF THAT CONTRACT IS ENFORCED, and until world-fl9c it was
+stated and unchecked. The step is not in the restart, so it comes from
+--source-timestep-minutes and --target-timestep-minutes, or from a manifest
+under either flag's --*-manifest partner; --timestep-unchecked is the explicit
+arm for a conversion taken without it and records itself in the report.
+
 WHAT IS NOT HERE, and is `--report`ed rather than silently done: the model-owned
 post-load fixup. Fields that are functions of other restart state -- albedo,
 roughness, saturation humidity -- cannot be rebuilt here without writing a
@@ -108,6 +114,93 @@ def load(path: Path) -> RestartState:
 # ---------------------------------------------------------------------------
 # Refusals: everything checked before a byte of output exists
 # ---------------------------------------------------------------------------
+
+# The timestep contract's tolerance, declared before it was ever run against a
+# pair. Equal means equal: these are namelist minutes, not a measurement, and
+# the steps the ladder uses (45, 30, 22.5, 15) are separated by whole minutes.
+TIMESTEP_RTOL = 1e-9
+
+
+def check_timestep(source_minutes, target_minutes, unchecked: bool = False) -> dict:
+    """Refuse a conversion across a change of timestep. WORLD-FL9C.
+
+    THE CONTRACT WAS STATED AND NOT ENFORCED. This module's own docstring has
+    required equal timestep since v1 and nothing looked, so every conversion
+    taken across a change of step violated it silently.
+
+    WHAT GOES WRONG, and it is arithmetic rather than a suspicion:
+
+    - `nstep` is COPIED (`restart_schema.py`), and its policy says in as many
+      words that this is "sound only because v1 requires equal timesteps".
+      Elapsed time is `nstep * dt`, so a state carried from a dt-45 donor into
+      a dt-22.5 run keeps the count and halves the time: the calendar and the
+      stellar cycle, which take their phase from that count, put the planet
+      somewhere else in its orbit.
+    - The file stores BOTH leapfrog levels. The difference between them is a
+      derivative over the DONOR's step, and the target model reads it as
+      spanning its own, so the state opens on a tendency scaled by the ratio.
+
+    WHAT THIS DOES NOT CLAIM. It does not claim to be the cause of the SIGFPE
+    world-fl9c observed. That fault is at `radmod.f90`'s
+    `SQRT(273./dt(:,jlev))`, where `dt(NHOR,NLEP)` is the gridpoint TEMPERATURE
+    field (`plasimmod.f90:677`) and not a timestep at all, so what the model
+    refuses there is a non-positive gridpoint temperature -- the same signature
+    as world-td3's death at -12.81 K. This refuses a violated contract, which
+    is a thing with a right answer, rather than a mechanism inferred from two
+    runs.
+
+    `unchecked` is the explicit arm for a conversion taken with no timestep in
+    hand. It records itself in the report; it is not a default.
+    """
+    record = {"source_minutes": None, "target_minutes": None,
+              "checked": False, "unchecked_by_request": bool(unchecked)}
+    if source_minutes is not None:
+        record["source_minutes"] = float(source_minutes)
+    if target_minutes is not None:
+        record["target_minutes"] = float(target_minutes)
+    a, b = record["source_minutes"], record["target_minutes"]
+
+    if a is None or b is None:
+        if unchecked:
+            return record
+        missing = " and ".join(
+            n for n, v in (("the source's", a), ("the target's", b)) if v is None)
+        raise ConversionError(
+            f"this conversion is refused: {missing} timestep is not known, and "
+            "the contract requires them equal. `nstep` is copied and elapsed "
+            "time is nstep * dt, so a conversion across a change of step moves "
+            "the planet in its orbit. Give --source-timestep-minutes and "
+            "--target-timestep-minutes, or a manifest carrying each, or "
+            "--timestep-unchecked to record that this conversion was taken "
+            "without the contract being checked.")
+
+    record["checked"] = True
+    if abs(a - b) > TIMESTEP_RTOL * max(abs(a), abs(b), 1.0):
+        raise ConversionError(
+            f"this conversion is refused: the source was integrated at dt {a} "
+            f"minutes and the target runs at dt {b}. The contract requires "
+            "them EQUAL -- `nstep` is copied and elapsed time is nstep * dt, "
+            f"so the converted run's calendar and stellar phase move by a "
+            f"factor of {b / a:.6g}, and the two stored leapfrog levels are a "
+            "derivative over the source's step read as spanning the target's. "
+            "Reconverge the donor at the target's step first; that is what "
+            "docs/src/pipeline/sequencing.md section D's reconvergence steps "
+            "are for, and it is why the declared route changes the rung and "
+            "the step alternately and never together.")
+    return record
+
+
+def timestep_from_manifest(path) -> float | None:
+    """`model.timestep_minutes` out of a run manifest, or None."""
+    if path is None:
+        return None
+    manifest = json.loads(Path(path).read_text(encoding="utf-8"))
+    for block in (manifest.get("source_config"), manifest):
+        model = (block or {}).get("model") or {}
+        if "timestep_minutes" in model:
+            return float(model["timestep_minutes"])
+    return None
+
 
 def check_compatible(src: RestartState, tgt: RestartState,
                      inventory: dict) -> None:
@@ -497,7 +590,8 @@ def template_provenance(template: Path) -> dict | None:
     return json.loads(side.read_text(encoding="utf-8"))
 
 
-def build_report(src, tgt, out_path, reports, source_manifest) -> dict:
+def build_report(src, tgt, out_path, reports, source_manifest,
+                 timestep=None) -> dict:
     recompute = sorted(r.name for r in reports
                        if rs.POLICY[r.name].rebuilt_by_model)
     # An accumulator the model never resets spans the whole run rather than one
@@ -522,6 +616,10 @@ def build_report(src, tgt, out_path, reports, source_manifest) -> dict:
         "output": {"path": str(out_path), "sha256": sha256(out_path)},
         "source_manifest": source_manifest,
         "config_rtol": CONFIG_RTOL,
+        # WHAT THE TIMESTEP CONTRACT SAW. Recorded rather than implied, because
+        # `checked: false` and "the steps agreed" are different states and a
+        # reader of the report cannot tell them apart from a missing field.
+        "timestep": timestep,
         "records": [{"name": r.name, "semantic": r.semantic, "action": r.action,
                      "source_bytes": r.source_bytes,
                      "target_bytes": r.target_bytes, **r.detail}
@@ -578,7 +676,22 @@ def main() -> int:
                          "reset values.")
     ap.add_argument("--source-manifest", type=Path,
                     help="the donor run's run_manifest.json, recorded in the "
-                         "report as the converted state's provenance")
+                         "report as the converted state's provenance and read "
+                         "for the donor's timestep")
+    ap.add_argument("--target-manifest", type=Path,
+                    help="a run_manifest.json for the configuration the "
+                         "converted state will be run in, read for its timestep")
+    ap.add_argument("--source-timestep-minutes", type=float,
+                    help="the step the donor was integrated at; overrides "
+                         "--source-manifest")
+    ap.add_argument("--target-timestep-minutes", type=float,
+                    help="the step the converted state will be run at; "
+                         "overrides --target-manifest")
+    ap.add_argument("--timestep-unchecked", action="store_true",
+                    help="take the conversion with the equal-timestep contract "
+                         "unchecked, and say so in the report. The explicit "
+                         "arm, not a default: nstep is copied and elapsed time "
+                         "is nstep * dt.")
     ap.add_argument("--report", type=Path,
                     help="where the conversion report JSON is written")
     ap.add_argument("--seed", type=Path,
@@ -622,6 +735,17 @@ def main() -> int:
             + "\n  - ".join(gaps))
     check_compatible(src, tgt, inventory)
 
+    # BEFORE a byte of output exists, like every other refusal. The step is not
+    # in the restart file, so it arrives from the flags or from a manifest.
+    timestep = check_timestep(
+        args.source_timestep_minutes
+        if args.source_timestep_minutes is not None
+        else timestep_from_manifest(args.source_manifest),
+        args.target_timestep_minutes
+        if args.target_timestep_minutes is not None
+        else timestep_from_manifest(args.target_manifest),
+        unchecked=args.timestep_unchecked)
+
     seed_override = None
     if args.seed is not None:
         seed_override = args.seed.read_bytes()
@@ -657,7 +781,8 @@ def main() -> int:
         report = build_report(src, tgt, args.output, reports,
                               {"path": str(args.source_manifest),
                                "run_id": manifest.get("run_id")}
-                              if manifest else None)
+                              if manifest else None,
+                              timestep=timestep)
         args.report.write_text(json.dumps(report, indent=2) + "\n")
         print(f"wrote {args.report}")
     return 0

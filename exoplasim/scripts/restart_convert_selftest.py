@@ -592,6 +592,59 @@ def test_end_to_end(tmp: Path, donor: Path) -> list[str]:
     return said
 
 
+def test_timestep() -> list:
+    """The equal-timestep contract, both ways round. WORLD-FL9C.
+
+    The two conversions world-fl9c took are both here, and both are refused:
+    a dt-30 donor into a dt-22.5 target and a dt-45 donor into the same. One of
+    the two ran 900 steps and the other trapped, and that difference is NOT the
+    discriminant this tests -- 900 steps is about a seventh of an orbit
+    (`exoplasim/notes/physics-filter-stability.md`), which is the length the
+    project's own standard says qualifies a state against refusal and nothing
+    else. The discriminant is the contract, which both violate.
+
+    The positive case is the escalation route's own shape: every change of rung
+    on that route happens at CONSTANT dt, so a conversion the route asks for is
+    a conversion this accepts.
+    """
+    said = []
+    for donor_dt in (30.0, 45.0):
+        _refuses(lambda dt=donor_dt: cv.check_timestep(dt, 22.5),
+                 f"a dt-{donor_dt:g} donor into a dt-22.5 target",
+                 naming="The contract requires them EQUAL")
+    said.append("refuses both of world-fl9c's conversions, 30 -> 22.5 and "
+                "45 -> 22.5, on the contract rather than on which one trapped")
+
+    _refuses(lambda: cv.check_timestep(None, 22.5),
+             "a conversion with the donor's step unknown",
+             naming="is not known")
+    _refuses(lambda: cv.check_timestep(22.5, None),
+             "a conversion with the target's step unknown",
+             naming="is not known")
+    said.append("refuses a conversion whose steps it cannot see, rather than "
+                "passing an unenforceable contract")
+
+    record = cv.check_timestep(None, 22.5, unchecked=True)
+    _require(record["unchecked_by_request"] and not record["checked"],
+             "--timestep-unchecked did not record itself as unchecked")
+    said.append("--timestep-unchecked records itself in the report")
+
+    for (r0, d0), (r1, d1) in zip(rungs.ESCALATION_ROUTE,
+                                  rungs.ESCALATION_ROUTE[1:]):
+        if r0 == r1:
+            continue                       # a reconvergence, not a conversion
+        record = cv.check_timestep(d0, d1)
+        _require(record["checked"],
+                 f"the route's {r0} -> {r1} conversion was not checked")
+    said.append("accepts every conversion the escalation route asks for, which "
+                "is the invariant that route is built on: the rung changes at "
+                "constant dt")
+
+    _require(cv.check_timestep(22.5, 22.5)["checked"],
+             "an equal-step conversion was not accepted")
+    return said
+
+
 def run() -> int:
     donor = _donor()
     sections = []
@@ -602,7 +655,8 @@ def run() -> int:
                           ("spectral projection", test_spectral),
                           ("Gaussian remap", test_grid),
                           ("precision", lambda: test_precision(tmp, donor)),
-                          ("end to end", lambda: test_end_to_end(tmp, donor))):
+                          ("end to end", lambda: test_end_to_end(tmp, donor)),
+                          ("timestep contract", test_timestep)):
             try:
                 sections.append((title, fn(), None))
             except Failed as exc:
