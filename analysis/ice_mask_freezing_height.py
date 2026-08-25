@@ -28,6 +28,17 @@ freezing-height criterion.
 
 The criterion is THERMAL: it says where ice can persist, not where a glacier
 forms, which additionally needs accumulation.
+
+`--write-mask PATH` emits the mask Orogen consumes: one float32 per mesh region
+in region order, plus a `PATH.json` sidecar. The sidecar is not optional. The
+mask is matched to the terrain BY REGION INDEX, and a mesh is a pure function of
+the seed and the region count, so those two are the identity the generator
+checks before indexing anything. Matching by longitude across this boundary has
+silently matched zero cells three times; see CLAUDE.md rule 3.
+
+A mask carries no duration. It says WHERE the model's climate keeps ground below
+freezing in the warmest bin, never for how long, so the glacial strength slider
+Orogen scales it by stays a declared choice; `docs/src/reference/no-time-axis.md`.
 """
 from __future__ import annotations
 
@@ -55,15 +66,28 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--climatology", type=Path, required=True)
     ap.add_argument("--build", type=Path, default=None,
-                    help="export root; defaults to the configured source_build")
+                    help="export root carrying raw/, the per-region mesh arrays; "
+                         "defaults to the configured source_build")
+    ap.add_argument("--grid-export", type=Path, default=None,
+                    help="export whose GRID the climatology was run on. Only the T42 "
+                         "export keeps raw/, so a climatology at another truncation "
+                         "needs the mesh from one export and the grid from another; "
+                         "the region-to-cell mapping is built from this one")
     ap.add_argument("--margins-k", type=float, nargs="*", default=[0.0, -5.0, -10.0],
                     help="report the area below freezing plus each margin, as a "
                          "crude sensitivity to the criterion's sharpness")
     ap.add_argument("--out", type=Path,
                     default=PROJECT_ROOT / "analysis" / "ice_mask_freezing_height.json")
+    ap.add_argument("--write-mask", type=Path, default=None,
+                    help="also write the per-region mask Orogen's --ice-mask reads, "
+                         "plus its .json sidecar")
+    ap.add_argument("--mask-margin-k", type=float, default=0.0,
+                    help="offset on the freezing criterion used for the WRITTEN mask, "
+                         "declared before the mask is made rather than tuned after")
     a = ap.parse_args()
 
     root = a.build or builds.mesh_export()
+    grid_root = Path(a.grid_export) if a.grid_export else Path(root)
     e = Export(Path(root), require_known_build=False)
     d = Dataset(str(a.climatology))
     ts = np.asarray(d["ts"][:], float)
@@ -74,12 +98,12 @@ def main() -> None:
 
     # rule 3: the export and the climatology label their columns differently, so
     # this goes by INDEX through the one grid convention and never by longitude.
-    row, col = gridding.climatology_cells(e, Path(root), clim_lat)
+    row, col = gridding.climatology_cells(e, grid_root, clim_lat)
     land = np.asarray(e.surface_class, int) > 0
     area = np.asarray(e.cell_area, float)
     elev = np.asarray(e.elevation_km, float)
 
-    gnc = Dataset(str(Path(root) / "planet.nc"))
+    gnc = Dataset(str(grid_root / "planet.nc"))
     grid_elev = np.asarray(gnc["elevation_km"][:], float)
     t_cell = warmest[row, col]
     z_cell = grid_elev[row, col]
@@ -89,6 +113,8 @@ def main() -> None:
     glac = np.asarray(d["glac"][:], float) if "glac" in d.variables else None
     out = {
         "climatology": str(a.climatology),
+        "mesh_export": str(root),
+        "grid_export": str(grid_root),
         "lapse_k_per_km_warmest": rate,
         "grid_cells_with_glac": (int((glac.max(axis=0) > 0).sum())
                                  if glac is not None else None),
@@ -128,8 +154,51 @@ def main() -> None:
         v = float(area[land & (t_local < FREEZE_K + m)].sum() / la)
         out["by_margin_k"][f"{m:g}"] = v
         print(f"     margin {m:+5.1f} K              {v:7.3%}")
+    if a.write_mask is not None:
+        write_mask(a.write_mask, root, e, t_local, land, a.mask_margin_k, rate, a.climatology)
+        out["mask"] = {"path": str(a.write_mask), "margin_k": a.mask_margin_k}
+
     a.out.write_text(json.dumps(out, indent=2) + "\n")
     print(f"\nwrote {a.out}")
+
+
+def write_mask(path: Path, root: Path, e, t_local, land, margin_k: float,
+               rate: float, climatology: Path) -> None:
+    """Emit the per-region ice mask and the sidecar that identifies its mesh.
+
+    The mask is BINARY at the criterion rather than a ramp across it. A ramp
+    would need a width, and no measurement here sets one; a declared width
+    chosen after seeing the map is not a criterion. The sensitivity to the
+    criterion's sharpness is reported instead, by `--margins-k`.
+
+    Ocean regions are zero. Orogen zeroes them again on its own ocean mask, so
+    this is agreement rather than reliance: the two disagree over dry
+    closed-basin floor below sea level, and land here is `surface_class`, which
+    is the side that keeps it (CLAUDE.md rule 1).
+    """
+    manifest = json.loads((Path(root) / "manifest.json").read_text())
+    values = np.zeros(t_local.shape, dtype=np.float32)
+    values[land & (t_local < FREEZE_K + margin_k)] = 1.0
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(values.tobytes())
+    sidecar = {
+        "numRegions": int(values.size),
+        "seed": manifest.get("seed"),
+        "regionsRequested": manifest.get("params", {}).get("N"),
+        "sourceBuild": str(root),
+        "terrainHash": manifest.get("hashes", {}).get("finalElevation"),
+        "climatology": str(climatology),
+        "criterion": "warmest-bin surface temperature, lapse-corrected to the "
+                     "mesh region's own elevation, below freezing",
+        "marginK": margin_k,
+        "lapseKPerKmWarmest": rate,
+        "glaciatedRegions": int(values.sum()),
+        "generator": "analysis/ice_mask_freezing_height.py",
+    }
+    Path(str(path) + ".json").write_text(json.dumps(sidecar, indent=2) + "\n")
+    print(f"\nwrote {path} ({sidecar['glaciatedRegions']} glaciated regions "
+          f"of {sidecar['numRegions']}) and its sidecar")
 
 
 if __name__ == "__main__":

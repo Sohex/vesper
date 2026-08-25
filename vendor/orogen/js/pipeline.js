@@ -31,6 +31,7 @@ import {
 } from './basins.js';
 import { regionCellArea } from './geometry.js';
 import { makePlanet, planetSummary } from './planet-params.js';
+import { validateIceMask } from './glacial-ice.js';
 import {
     classifyLithology, buildLithoState, finalSurfaceRock, rockComposition, ROCK_CLASSES,
     computeScarpPotential, buildAlbedo, saltCrustMask,
@@ -357,6 +358,12 @@ export function runGeneratePipeline(params, onProgress = () => {}) {
     let t0 = performance.now();
     const { mesh, r_xyz } = buildSphere(N, jitter, rng);
     timing.push({ stage: 'Sphere mesh (Fibonacci + Delaunay + pole)', ms: performance.now() - t0 });
+
+    // Check the ice mask against the mesh the moment the mesh exists. The check
+    // repeats inside glacial-ice.js where the indexing actually happens, but at
+    // ten million regions erosion is most of an hour downstream of here, and a
+    // mask from the wrong mesh should not cost that before it is refused.
+    if (iceMask) validateIceMask(iceMask, mesh.numRegions, seed);
 
     t0 = performance.now();
     const neighborDist = computeNeighborDist(mesh, r_xyz);

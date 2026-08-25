@@ -79,7 +79,7 @@ hydrography/            pedology/scripts/build_soil.py        hydrography/script
    |                        v
    |                  back to ExoPlaSim
    v
-carve list -> back to World Orogen -> new terrain
+carve list + ice mask -> back to World Orogen -> new terrain
 ```
 
 Three loops close in that diagram and a fourth is cut across iterations;
