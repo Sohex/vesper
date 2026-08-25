@@ -1541,15 +1541,22 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       endif
 !
 
-      if(NTRU==42) then
-       nhdiff=16
-       ndel(:)=4
-       tdissq(:)=0.1  * day_24hr
-       tdisst(:)=0.76 * day_24hr
-       tdissz(:)=0.3  * day_24hr
-       tdissd(:)=0.06 * day_24hr
-      endif
-
+!     NO TRUNCATION IS A SPECIAL CASE. Upstream set nhdiff, ndel and the four
+!     tdiss* here for NTRU 42 alone, so one truncation carried its own damping
+!     and every other one fell through to the module defaults at
+!     plasimmod.f90:206, :447 and :918-921. The values were not the problem;
+!     privileging a truncation was, because nhdiff is an ABSOLUTE wavenumber
+!     and the same 16 confines a different fraction of the spectrum at each.
+!
+!     The T42 numbers survive in config/planet.yaml's model.hyperdiffusion,
+!     recorded there as inherited from T42 and applied as a FRACTION of the
+!     truncation so the confinement is the same at every rung.
+!     run_exoplasim.py:declare_hyperdiffusion writes NHDIFF, NDEL and all four
+!     TDISS* into the namelist read below, from the prepare path and the
+!     continuation path alike, and refuses a rung its table does not name.
+!     A caller that writes none of those keys gets the module defaults at every
+!     truncation, in [days], which dayseccheck converts.
+!     world-677x; exoplasim/notes/resolution-tuned-parameters.md.
 !
 !     read namelist
 !
@@ -1774,12 +1781,12 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !     This routine decides [days] against [sec] from maxval alone and then
 !     converts every level. A namelist that sets element 1 only -- which is what
-!     a Fortran scalar assignment to an array key does -- leaves the rest at the
-!     compiled default, and at NTRU 42 those defaults have already been filled
-!     in SECONDS by the branch in readnl. The array is then mixed-unit: maxval
-!     sees the seconds, converts nothing, and level 1's value is read as a
-!     timescale of a few seconds beside its neighbours' tens of thousands. That
-!     is four orders of magnitude of damping on the top model level, silently.
+!     a Fortran scalar assignment to an array key does -- leaves levels 2..NLEV
+!     at their compiled defaults, so a scalar written in one unit beside
+!     defaults in the other gives a mixed-unit array. maxval then picks a single
+!     unit for the whole of it, one level is converted the wrong way, and that
+!     level carries orders of magnitude too much or too little damping,
+!     silently. Write the key as NLEV*value and the question does not arise.
 !
 !     A right answer rather than a comparison: an array whose positive entries
 !     straddle the discriminator cannot be in one unit, whatever the units are.
