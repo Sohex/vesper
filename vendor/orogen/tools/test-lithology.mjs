@@ -243,11 +243,17 @@ test('exhumation never adds cover, and ignores cells that did not erode', () => 
 test('scarp potential is a bounded fraction, land only', () => {
     const c = withLitho();
     const sp = c.lithology.r_scarpPotential;
+    // Land is the SUBAERIAL surface, the same test computeScarpPotential is
+    // given. This assertion used to read `r_elevation[r] <= 0`, which is
+    // land_mask, and so demanded that a plateau margin standing inside a dry
+    // closed basin below sea level score zero. That is the terrain this fork
+    // exists to preserve, and it is an escarpment like any other.
+    const subaerial = c.basins.r_isSubaerial;
     assert.equal(sp.length, c.mesh.numRegions);
     for (let r = 0; r < c.mesh.numRegions; r++) {
         assert.ok(Number.isFinite(sp[r]), `non-finite at ${r}`);
         assert.ok(sp[r] >= 0 && sp[r] <= 1, `out of range (${sp[r]}) at ${r}`);
-        if (c.r_elevation[r] <= 0) {
+        if (!subaerial[r]) {
             assert.equal(sp[r], 0, `ocean cell ${r} has scarp potential`);
         }
     }
@@ -258,7 +264,7 @@ test('scarp potential is non-trivial but not everywhere', () => {
     const sp = c.lithology.r_scarpPotential;
     let land = 0, nz = 0;
     for (let r = 0; r < c.mesh.numRegions; r++) {
-        if (c.r_elevation[r] <= 0) continue;
+        if (!c.basins.r_isSubaerial[r]) continue;
         land++; if (sp[r] > 0) nz++;
     }
     const frac = nz / land;
@@ -382,7 +388,10 @@ test('preserved endorheic basins take closed-basin fill, zoned into salt and cla
     const playaId = ROCK_CLASSES.find(x => x.code === 'playa_clastic').id;
     let inBasin = 0, salt = 0, playa = 0;
     for (let r = 0; r < c.mesh.numRegions; r++) {
-        if (c.basins.r_isEndorheic[r] && c.r_elevation[r] > 0) {
+        // Subaerial, not elevation > 0: the dry basin floors below sea level are
+        // exactly where basin fill accumulates, so an elevation-sign test drops
+        // the most characteristic cells this assertion is about.
+        if (c.basins.r_isEndorheic[r] && c.basins.r_isSubaerial[r]) {
             inBasin++;
             if (c.lithology.r_coverRock[r] === saltId) salt++;
             if (c.lithology.r_coverRock[r] === playaId) playa++;

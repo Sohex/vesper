@@ -41,6 +41,7 @@ import {
     SCARP_MIN_GRADIENT, SCARP_FULL_GRADIENT, SCARP_EDGE_KM, SCARP_CONTRAST_SCALE,
 } from './terrain-config.js';
 import { avgEdgeKm, PLANET_RADIUS_KM } from './geometry.js';
+import { scaledHeightKm } from './color-map.js';
 
 /**
  * Rock classes.
@@ -775,9 +776,23 @@ export function rockComposition(surface, isLand, cellArea) {
  *   edge     — proximity to where the cover/basement interface daylights, i.e.
  *              where cover survives on one side and has been stripped on the
  *              other. A buried interface produces nothing at the surface.
- *   relief   — local steepness as a true gradient, so the measure means the same
- *              at every region count. Flat ground hosts no escarpment however
- *              strong the contrast.
+ *   relief   — local steepness as a physical gradient, km of drop per km of
+ *              ground. Flat ground hosts no escarpment however strong the
+ *              contrast.
+ *
+ * THE RELIEF TERM IS MEASURED OVER ONE MESH EDGE, AND ITS THRESHOLDS ARE
+ * INHERITED RATHER THAN ANCHORED. A gradient sampled over the cell spacing is
+ * scale-dependent on a self-affine surface: the same escarpment reports a
+ * steeper gradient on a finer mesh, so an absolute threshold on it admits more
+ * land at a higher region count. Measured between this project's two builds, at
+ * a factor of two in cell spacing, the land gradient distribution rises by 1.41x
+ * at its median and 1.70x at its 99th percentile — not one factor, so the shift
+ * cannot be divided out. Relief above the land elevation averaged over a FIXED
+ * 30 km neighbourhood transports where this does not, holding to within 1.15x
+ * over the same pair, but adopting it means restating the two thresholds
+ * against a measured escarpment rather than carrying these values across.
+ * `SCARP_MIN_GRADIENT` and `SCARP_FULL_GRADIENT` are therefore an inherited
+ * calibration, and a scarp fraction is not comparable between region counts.
  *
  * A NOTE ON WHAT KIND OF SCARP. In this model cover is always the weaker layer
  * (sedimentary and volcanic cover runs 0.65–3.5 on the erodibility scale;
@@ -795,9 +810,16 @@ export function computeScarpPotential(mesh, r_elevation, lithoState, neighborDis
     // for callers with no basin pass.
     const isLand = opts.isLand ? (r) => opts.isLand[r] === 1 : (r) => r_elevation[r] > 0;
     const radiusKm = opts.radiusKm ?? PLANET_RADIUS_KM;
+    const reliefScale = opts.reliefScale ?? 1;
     const edgeKm = avgEdgeKm(numRegions, radiusKm);
     const out = new Float32Array(numRegions);
     if (!lithoState) return out;
+
+    // Physical height, once, so the relief term is a real rise over a real run.
+    const heightKm = new Float64Array(numRegions);
+    for (let r = 0; r < numRegions; r++) {
+        heightKm[r] = scaledHeightKm(r_elevation[r], reliefScale, isLand(r));
+    }
 
     const cover = lithoState.coverThicknessKm;
     const coverK = lithoState.coverErodibility;
@@ -841,20 +863,34 @@ export function computeScarpPotential(mesh, r_elevation, lithoState, neighborDis
         const contrast = Math.min(1, Math.abs(coverK[r] - baseK[r]) / SCARP_CONTRAST_SCALE);
         if (contrast <= 0) continue;
 
-        // Steepest true gradient to any lower land neighbour. neighborDist is a
-        // chord on the unit sphere, so multiplying by the planet radius turns
-        // the ratio into a real rise/run.
+        // Steepest gradient to any lower land neighbour. neighborDist is a chord
+        // on the unit sphere, so multiplying by the planet radius turns the
+        // denominator into kilometres of ground. THE NUMERATOR HAS TO BE
+        // CONVERTED TOO: r_elevation is the generator's shaping parameter and
+        // not a height, and its derivative dh/de = 120e^3(1-e) runs from zero at
+        // sea level through 12.7 km per unit at e = 0.75 and back to zero at the
+        // ceiling. Differencing it raw gave a ratio that was neither a rise over
+        // a run nor even monotone in physical steepness, and that ignored this
+        // planet's 1/g relief scaling, so the same terrain scarped identically
+        // at any gravity. scaledHeightKm is the same converter data-export.js
+        // builds `elevation_km` with.
         let steepest = 0;
         for (let i = adjOffset[r], iEnd = adjOffset[r + 1]; i < iEnd; i++) {
             const nb = adjList[i];
-            // Land neighbours only. Measuring against a bathymetric neighbour
-            // would score the continental slope as an escarpment — that drop is
-            // the shelf/slope break, a different landform on a different scale,
-            // and it would light up every coastline.
-            if (r_elevation[nb] <= 0) continue;
+            // Land neighbours only, taken from the SAME land test as the cell
+            // itself. Measuring against a bathymetric neighbour would score the
+            // continental slope as an escarpment — that drop is the shelf/slope
+            // break, a different landform on a different scale, and it would
+            // light up every coastline. This used to read `r_elevation[nb] <= 0`,
+            // an elevation-sign test, which also discarded every dry closed-basin
+            // floor below sea level: 5.3% of land at 2.5M regions and 8.6% at
+            // 10M, four fifths of it endorheic. A plateau margin standing inside
+            // a dry basin is still an escarpment, which is exactly why the cell's
+            // own land test comes from surface_class.
+            if (!isLand(nb)) continue;
             if (r_elevation[nb] >= r_elevation[r]) continue;
             const d = (neighborDist[i] || 1e-9) * radiusKm;
-            const g = (r_elevation[r] - r_elevation[nb]) / d;
+            const g = (heightKm[r] - heightKm[nb]) / d;
             if (g > steepest) steepest = g;
         }
         const relief = smoothstep(steepest, SCARP_MIN_GRADIENT, SCARP_FULL_GRADIENT);
