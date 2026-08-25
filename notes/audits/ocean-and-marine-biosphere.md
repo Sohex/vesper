@@ -763,15 +763,18 @@ happen to use.
   "prevents convergence and obscures instabilities". Refining the grid means
   raising `nyear` by hand, which multiplies the per-year cost by a further factor
   of about r, and forgetting to raise it produces an unstable run rather than a
-  complaint.
+  complaint. The one guard that does exist is EMBM's rather than the ocean's,
+  and setting EMBM's `debug_loop` disarms it; section 2a of the measurement
+  document has it.
 
-Taken together the barotropic cost per model year goes roughly as r^4 on one
-core. Doubling to 72 x 72 is therefore of order 16x, which turns 9a's 24 to 48
-hours into something between two and four weeks for the same 20,000-year
-spin-up. **That estimate is read off the loop structure and is NOT a
-measurement**, which is exactly why OCN-3 asks for wall clock on this machine:
-the tier's whole attraction is its price, and its price is a property of
-36 x 36 rather than of the model.
+Read off the loop structure, that gives a barotropic cost per model year of
+roughly r^4 on one core. **It has since been built, run and timed**, and the
+exponent survives while its cause does not:
+`notes/audits/cgenie-build-cost-and-grid-ceiling.md` finds the barotropic solve
+NEGLIGIBLE at these grids, and the growth coming from the timestep instead --
+in the ATMOSPHERE first and the ocean second, both close to quadratic in
+resolution. That document replaces this paragraph's estimate with a measurement
+and replaces the two-to-four-week figure with a measured one.
 
 Two further ceilings are worth knowing before anyone tries.
 `GOLDSTEINMAXISLES` defaults to 10 (`ocean.cmn:24-25`) and caps the island
@@ -825,12 +828,14 @@ other.**
   `matinv_gold` all assume the current factorisation, and `GOLDSTEINMAXISLES`
   bounds them.
 
-**Which of the two pays more is unmeasured, and the two arguments are
-different.** The barotropic solve dominates GROWTH with resolution; it may still
-be a minority of RUNTIME at 36 x 36, where twelve or more BIOGEM tracers are
-doing the bulk of the work. Those are not the same claim and this audit
-establishes neither. A profile at the shipped grid decides the order, and it is
-cheap next to either piece of work.
+**The two arguments are different, and one of them now has an answer.** The
+barotropic solve dominates GROWTH with resolution; it may still be a minority of
+RUNTIME at 36 x 36. `notes/audits/cgenie-build-cost-and-grid-ceiling.md` settles
+the runtime half without a profiler, by timing two shipped grids with nearly
+equal cell counts and very different barotropic work, and prices the
+biogeochemistry against the physics at the same grid. What it does NOT do is
+attribute runtime WITHIN the physics, which is still OCN-19's, and still cheap
+next to either piece of work.
 
 The acceptance criterion already exists and should be used rather than invented.
 `genie-knowngood/` ships per-component NetCDF output for four configurations,
@@ -852,10 +857,10 @@ is spent on a host that has been chosen, not on one that is being evaluated.
 
 Recorded so the next reader knows the edges.
 
-- Nothing has been built on this machine. cGENIE's source and licence have been
-  read at v0.9.50 and its costs are quoted from its authors' papers on Earth
-  configurations, but nothing has been compiled or timed HERE, which is the only
-  number OCN-3 accepts.
+- Nothing was built on this machine FOR THIS AUDIT: its cGENIE costs are quoted
+  from the authors' papers on Earth configurations. It has since been built and
+  timed here, and `notes/audits/cgenie-build-cost-and-grid-ceiling.md` is that
+  measurement.
 - MITgcm was dropped on the coupling-class argument rather than on a measurement
   of it. Nobody here has timed a coarse global MITgcm configuration or its
   spin-up, and the claim that its connectivity is priced out of reach is an
@@ -874,18 +879,19 @@ Recorded so the next reader knows the edges.
   frictional-geostrophic closure survives 1.20 radii remains unanswered, and
   that audit adds why it is hard to answer: the model's own error function
   scores against Earth observational fields and is inert here.
-- Section 9g's r^4 cost growth is an estimate from the shape of `ubarsolv`'s
-  loops, not a timing. No cGENIE configuration has been compiled or run here at
-  any resolution, and the two to four week figure for a 72 x 72 spin-up should be
-  treated as an order of magnitude that OCN-18 exists to replace.
-- Nothing here checks what muffingen produces above 36 x 36. That it CAN write
-  larger dimensions is read from `muffingen.m:1580-1584`; whether the island and
-  path generation stays correct there is unknown, and so is whether the tool runs
-  outside MATLAB.
+- Section 9g's r^4 cost growth was an estimate from the shape of `ubarsolv`'s
+  loops. OCN-18 has replaced it with a measurement, which keeps the exponent and
+  moves the cause off the barotropic solve entirely.
+- Nothing here checks what muffingen produces above 36 x 36, and the
+  measurement document does not either: it demonstrates only that the MODEL runs
+  at 72 x 72, which is the top of muffingen's own declared `[1-72]` range.
+  Whether the island and path generation stays correct there is unknown, and so
+  is whether the tool runs outside MATLAB.
 - Section 9h does not establish which half of the ocean component dominates
-  runtime at 36 x 36. It establishes that the growth argument and the runtime
-  argument are different and that nobody here has measured either. OCN-19's
-  profile is the first thing that should happen if this host is selected.
+  runtime at 36 x 36. The measurement document answers the barotropic half of
+  that and the biogeochemistry half; attributing runtime within the physics is
+  still OCN-19's, and is still the first thing that should happen if this host
+  is selected.
 - Whether a fill-reducing reordering or an iterative solve is the better answer
   is not established either, and the island machinery that constrains both has
   been located but not priced.

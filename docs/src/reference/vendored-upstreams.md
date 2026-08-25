@@ -222,8 +222,8 @@ That is also why it is a subtree and not an extraction under `references/`.
 External source this project reads and will not edit is held there instead, and
 `references/INDEX.md` records which trees those are and why.
 
-**It does not build where it stands, and the reason is not the one this file
-used to give.** Three things are in the way and they are independent.
+**It builds, links and runs here.** Getting there took the five things below.
+They are independent, and none of them is a source defect.
 
 `genie-main/user.mak` sets `GENIE_ROOT = $(HOME)/cgenie.muffin` and
 `RUNTIME_ROOT = ../../cgenie.muffin`, so the tree expects to sit at
@@ -237,21 +237,43 @@ noticed, because every other netCDF consumer goes through Python's `netCDF4`;
 them ships with `netcdf`. With `netcdf-fortran` installed the build gets past
 every netCDF-dependent module.
 
-What is left is that **cGENIE compiles one executable per GRID, the same way
-ExoPlaSim does.** `genie_control.f90:60` and `:89` fix the atmosphere as
-`ilon1_atm = GENIENX, ilat1_atm = GENIENY` and the sea ice as
-`ilon1_sic = GOLDSTEINNLONS, ilat1_sic = GOLDSTEINNLATS`, all four cpp macros.
-A bare `make` defines none of them, so `genie.F`'s sea-ice accumulation of an
-atmosphere field fails to compile with shapes that are not conformable -- which
-reads like a source defect and is a missing configuration. The shipped configs
-under `genie-main/configs/` set the set consistently (18/18/18/18, eight ocean
-levels), and the build has to run THROUGH one: passing the macros on the make
-line does not reach the compile, because the makefile composes its own define
-line. That is CLAUDE.md rule 4's shape on a second model, and it is what OCN-3's
-"whether it builds here" actually has to settle.
+**cGENIE compiles one executable per GRID, the same way ExoPlaSim does.**
+`genie_control.f90` fixes the atmosphere as `ilon1_atm = GENIENX,
+ilat1_atm = GENIENY` and `genie-goldstein/src/fortran/ocean.cmn` fixes the ocean
+and sea ice as `GOLDSTEINNLONS/NLATS/NLEVS`. A bare `make` defines none of them,
+and the `#ifndef` fallbacks in the two files DO NOT AGREE: the atmosphere falls
+back to the 64 x 32 IGCM grid and the ocean to 36 x 36, so `genie.F`'s sea-ice
+accumulation of an atmosphere field fails to compile with shapes that are not
+conformable. That reads like a source defect and is a missing configuration.
+The build therefore has to run THROUGH a config, because `makefile.arc` takes
+the macros from `GENIE_FPPFLAGS` and only `genie.job` composes that, from the
+`<build>` block of a config file. That is CLAUDE.md rule 4's shape on a second
+model.
+
+Two smaller things shape the command. The default make target also builds
+`nccompare`, whose `src/c/compare.cpp` includes `netcdf.hh` from the legacy
+netCDF C++ interface, which this host does not have, so the target has to be
+`genie.exe`. And the build must be SERIAL: the dependency generator
+`genie-main/finc.py` is Python 2 and fails under this host's `python`, so no
+`.d` files are written and a parallel make races on `.mod` files.
+
+A fourth thing appears only at larger grids. Every field cGENIE holds is in a
+named COMMON block sized from the grid macros, and `user.mak` compiles with
+`-fno-automatic`, so all of it is static; past roughly a gigabyte of it the
+default `-mcmodel=small` cannot reach it and the LINK fails with
+`relocation truncated to fit: R_X86_64_PC32 ... defined in COMMON section`. A
+72 x 72 x 16 ocean is past that line and needs `-mcmodel=medium`. Like the grid
+macros, that is a per-configuration build flag rather than a source change.
+
+`analysis/cgenie_cost.py` is the driver that puts those together; it records the
+exact command and the toolchain in its provenance block, builds through a
+generated config per grid, and times the result.
+`notes/audits/cgenie-build-cost-and-grid-ceiling.md` is what it found, including
+what the shipped configurations actually cover and where the usable resolution
+stops.
+
 Run output goes to `OUT_DIR = $(HOME)/cgenie_output`, outside this repository,
-which is why the ignore rules here cover only objects, archives and the
-executable.
+which is why the ignore rules here cover only what a build leaves in the tree.
 
 **What it carries that open rows already name.** `genie-goldstein` is the
 frictional-geostrophic ocean OCN-19 and OCN-20 are about, and its `invert.f`
