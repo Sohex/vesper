@@ -28,8 +28,12 @@ and at every grid tested the one that binds first is the ATMOSPHERE's.
 
 # 1. What it took to build, and why one executable is not enough
 
-Four things stood between the vendored tree and a running executable. None of
-them is a source defect and none needed the tree changed.
+Five things stood between the vendored tree and a running executable, the fifth
+only at large grids. None of them is a source defect and none needed the tree
+changed. The netCDF FORTRAN bindings, absent on this host until 2026-08-25 and
+a separate package from the C ones, are the sixth and are recorded in
+`docs/src/reference/vendored-upstreams.md` because they are a host fact rather
+than a property of the tree.
 
 **The tree expects to be somewhere else.** `genie-main/user.mak` sets
 `GENIE_ROOT = $(HOME)/cgenie.muffin` and `RUNTIME_ROOT = ../../cgenie.muffin`,
@@ -64,8 +68,8 @@ Every field cGENIE holds is in a named COMMON sized from the grid macros and
 `genie-embm/src/fortran/embm.cmn` alone dimensions its seasonal arrays
 `(maxi, maxj, maxnyr)` with `maxnyr = 400`. The 72 x 72 x 16 grid is past that
 line and needs `-mcmodel=medium`. That is a build flag, not a source change, and
-this document prices it separately in section 3 so it does not sit inside a grid
-cost.
+this document prices it separately, with a same-grid control in section 4, so it
+does not sit inside a grid cost.
 
 ## 1a. There is no thread-count axis, and that is a property worth having
 
@@ -174,6 +178,12 @@ headroom at the point where the model stops, on BOTH grids, so the ocean is not
 what stops it. And the boundary moves by a factor of about 4.6 for a factor of 2
 in resolution: close to quadratic, and not the linear scaling an advective limit
 would give.
+
+A control was run for the obvious objection, that switching GOLDSTEIN's
+diagnostic on is itself doing something. It is not: 72 x 72 x 16 at
+`nyear = 100, ndta = 5` stops at the same EMBM step in the same cell,
+`(36, 43)`, with `debug_loop` false and with it true. The instability is a
+property of the configuration and the diagnostic only makes it visible.
 
 ## 3b. The boundary is a property of dtatm alone, and it was predicted before it was run
 

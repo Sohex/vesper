@@ -539,7 +539,7 @@ def build_probe72_inputs() -> Path:
     return PROBE_DIR
 
 
-def biogem_cost(logdir: Path, years: list[int], repeats: int) -> dict:
+def biogem_cost(logdir: Path, years: list[int], repeats: int, reuse: bool = False) -> dict:
     """What the biogeochemistry costs, from the shipped BIOGEM regression case.
 
     The physics-only sweep above is EMBM plus GOLDSTEIN plus sea ice with two
@@ -562,6 +562,24 @@ def biogem_cost(logdir: Path, years: list[int], repeats: int) -> dict:
         t = t.replace("genie_eb_go_gs_ac_bg", cfg.stem, 1)
         cfg.write_text(t)
 
+    per_rep: dict[int, dict[int, float]] = {}
+    if reuse:
+        for n in years:
+            best = None
+            for rep in range(repeats):
+                log = logdir / f"biogem.run{n}.{rep}.log"
+                if not log.exists() or not run_ok(log)[0]:
+                    continue
+                inner = model_seconds(log)
+                if inner is None:
+                    continue
+                per_rep.setdefault(rep, {})[n] = inner
+                best = inner if best is None else min(best, inner)
+            if best is not None:
+                out["runs"].append({"years": n, "model_seconds": best})
+        out["build_ok"] = bool(per_rep)
+        out.update(slope_and_intercept(per_rep, years))
+        return out
     try:
         write(years[0])
         run(["/usr/bin/make", *make_args().split(), "cleanall"], logdir / "biogem.clean.log")
@@ -582,17 +600,15 @@ def biogem_cost(logdir: Path, years: list[int], repeats: int) -> dict:
                     out["error"] = f"run {n}y failed ({why or rc}), see {log}"
                     return out
                 inner = model_seconds(log)
+                if inner is not None:
+                    per_rep.setdefault(rep, {})[n] = inner
                 best = inner if best is None else min(best, inner)
             outdir = OUT_ROOT / cfg.stem
             size = sum(f.stat().st_size for f in outdir.rglob("*")
                        if f.is_file() and f.name != "genie.exe")
             out["runs"].append({"years": n, "model_seconds": best, "output_bytes": size})
             shutil.rmtree(outdir, ignore_errors=True)
-        if len(out["runs"]) >= 2:
-            (y0, t0), (y1, t1) = ((r["years"], r["model_seconds"]) for r in out["runs"][:2])
-            slope = (t1 - t0) / (y1 - y0)
-            out["seconds_per_model_year"] = round(slope, 4)
-            out["fixed_seconds"] = round(t0 - slope * y0, 3)
+        out.update(slope_and_intercept(per_rep, years))
     finally:
         cfg.unlink(missing_ok=True)
     return out
@@ -855,6 +871,15 @@ def build_all(cases: list[str], args, results: dict) -> Path:
         MCMODEL = args.mcmodel or case.get("mcmodel", "")
         record = results[name]
         record["code_model"] = MCMODEL or "small (the compiler default user.mak leaves in place)"
+        if (stash / f"{name}.exe").exists() and args.reuse_builds:
+            # The executable is a pure function of the grid macros and the code
+            # model, so re-timing does not need a rebuild. Said explicitly here
+            # because rule 4 is about exactly this: an executable that no longer
+            # matches its configuration is silently wrong.
+            record["build_ok"] = True
+            record["build_reused"] = True
+            record["exe_bytes"] = (stash / f"{name}.exe").stat().st_size
+            continue
         cfg = CONFIG_DIR / f"bench_{name}.xml"
         try:
             write_config(cfg, case, args.years[0], args.nyear, args.maxisles,
@@ -876,9 +901,80 @@ def build_all(cases: list[str], args, results: dict) -> Path:
     return stash
 
 
+def slope_and_intercept(per_rep: dict[int, dict[int, float]], years: list[int]) -> dict:
+    """Fit each REPEAT separately and keep the cheapest fit.
+
+    The obvious estimator -- minimum over repeats at each length, then one line
+    through the two minima -- is wrong on a busy host, and wrong in a way that
+    hides. The two minima can come from different repeats, so their difference
+    is not a difference of two runs that saw the same machine, and the slope it
+    gives can be anything. A first pass in that form returned a 36 x 36 x 32
+    ocean as CHEAPER per model year than the 36 x 36 x 16 one, which cannot be
+    true and is the reason this function exists.
+
+    Fitting within a repeat keeps the two lengths adjacent in time, so they saw
+    nearly the same machine, and taking the minimum slope over repeats picks the
+    least contended of those fits. Every repeat's fit is reported so the scatter
+    is visible rather than asserted."""
+    y0, y1 = years[0], years[1]
+    fits = []
+    for rep in sorted(per_rep):
+        t = per_rep[rep]
+        if y0 not in t or y1 not in t:
+            continue
+        slope = (t[y1] - t[y0]) / (y1 - y0)
+        fits.append({"repeat": rep, "seconds_per_model_year": round(slope, 4),
+                     "fixed_seconds": round(t[y0] - slope * y0, 3),
+                     "model_seconds": {str(y): t[y] for y in years if y in t}})
+    if not fits:
+        return {}
+    best = min(fits, key=lambda f: f["seconds_per_model_year"])
+    return {
+        "seconds_per_model_year": best["seconds_per_model_year"],
+        "fixed_seconds": best["fixed_seconds"],
+        "from_repeat": best["repeat"],
+        "per_repeat_fits": fits,
+    }
+
+
+def time_from_logs(cases: list[str], args, results: dict) -> None:
+    """Re-derive the fits from runs that already happened.
+
+    The measurement is the log: `genie.job` wraps the executable in `time`, so
+    every run's own wall clock is in the file it wrote. Re-reading them costs no
+    machine time and changes nothing about what was measured, which is what
+    makes it the right way to correct an ESTIMATOR after the fact rather than
+    re-running and quietly getting different numbers."""
+    for name in cases:
+        record = results[name]
+        per_rep: dict[int, dict[int, float]] = {}
+        for rep in range(args.repeats):
+            for years in args.years:
+                log = args.logdir / f"{name}.run{years}.{rep}.log"
+                if not log.exists():
+                    continue
+                ok, _ = run_ok(log)
+                inner = model_seconds(log)
+                if ok and inner is not None:
+                    per_rep.setdefault(rep, {})[years] = inner
+        if not per_rep:
+            record["error"] = f"no usable run logs under {args.logdir}"
+            continue
+        record["build_ok"] = True
+        record["code_model"] = (args.mcmodel or CASES[name].get("mcmodel", "")
+                                or "small (the compiler default user.mak leaves in place)")
+        for years in args.years:
+            times = [t[years] for t in per_rep.values() if years in t]
+            if times:
+                record["runs"].append({"years": years, "model_seconds": min(times),
+                                       "repeats": len(times)})
+        record.update(slope_and_intercept(per_rep, args.years))
+
+
 def time_all(cases: list[str], args, results: dict, stash: Path) -> None:
     """Run every built case at every length, round robin, `repeats` times."""
     global MCMODEL  # noqa: PLW0603
+    per_rep: dict[str, dict[int, dict[int, float]]] = {}
     best: dict[tuple[str, int], float] = {}
     size: dict[tuple[str, int], int] = {}
     load: dict[tuple[str, int], list[float]] = {}
@@ -905,6 +1001,7 @@ def time_all(cases: list[str], args, results: dict, stash: Path) -> None:
                     key = (name, years)
                     if inner is not None:
                         best[key] = inner if key not in best else min(best[key], inner)
+                        per_rep.setdefault(name, {}).setdefault(rep, {})[years] = inner
                     load.setdefault(key, []).append(loadavg())
                     outdir = OUT_ROOT / cfg.stem
                     # genie.job copies the executable into the run directory and
@@ -928,11 +1025,7 @@ def time_all(cases: list[str], args, results: dict, stash: Path) -> None:
                     "load_average_after": load.get(key, []),
                     "output_bytes": size.get(key),
                 })
-        if len(record["runs"]) >= 2:
-            (y0, t0), (y1, t1) = ((r["years"], r["model_seconds"]) for r in record["runs"][:2])
-            slope = (t1 - t0) / (y1 - y0)
-            record["seconds_per_model_year"] = round(slope, 4)
-            record["fixed_seconds"] = round(t0 - slope * y0, 3)
+        record.update(slope_and_intercept(per_rep.get(name, {}), args.years))
 
 
 def main() -> int:
@@ -958,6 +1051,10 @@ def main() -> int:
                     help="sweep nyear on one build and read the model's own Cn, instead of timing")
     ap.add_argument("--nyear-sweep", type=int, nargs="+", default=[50, 100, 200, 400])
     ap.add_argument("--stability-years", type=int, default=10)
+    ap.add_argument("--reuse-builds", action="store_true",
+                    help="use the executables already stashed under --logdir/exe instead of rebuilding")
+    ap.add_argument("--reuse-runs", action="store_true",
+                    help="re-derive the fits from run logs already in --logdir; builds nothing")
     ap.add_argument("--ndta-sweep", type=int, nargs="+", default=[5],
                     help="EMBM sub-steps per ocean step; the atmosphere's own timestep knob")
     args = ap.parse_args()
@@ -1009,8 +1106,11 @@ def main() -> int:
             "runs": [],
         }
 
-    stash = build_all(cases, args, records)
-    time_all(cases, args, records, stash)
+    if args.reuse_runs:
+        time_from_logs(cases, args, records)
+    else:
+        stash = build_all(cases, args, records)
+        time_all(cases, args, records, stash)
     results = [records[n] for n in cases]
     for record in results:
         print(json.dumps(record, indent=2), flush=True)
@@ -1022,7 +1122,7 @@ def main() -> int:
         "stated": "before any run in this file's docstring",
     }, "cases": results,
         "knowngood": verify_knowngood(args.logdir) if args.verify else None,
-        "biogem": biogem_cost(args.logdir, args.biogem_years, args.repeats)
+        "biogem": biogem_cost(args.logdir, args.biogem_years, args.repeats, args.reuse_runs)
         if args.biogem else None}
     args.out.write_text(json.dumps(payload, indent=2) + "\n")
     print(f"wrote {args.out}")
