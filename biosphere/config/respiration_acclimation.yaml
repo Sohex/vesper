@@ -1,0 +1,78 @@
+# THE RESPIRATION ACCLIMATION DECLARATION. Read by
+# biosphere/scripts/acclimation_gate.py.
+#
+# Worldbuilding. Vesper is an invented planet and this file describes the
+# vegetation model's autotrophic respiration as it runs on the simulation of it.
+#
+# `respiration_acclimated()` replaces each simulated plant functional type's
+# `respcoeff` with `f(T_acc) = f_ref * 10^(-0.008 (T_acc - 10.15))`, where
+# `T_acc` is the GROWTH temperature the tissue has adjusted to: an exponential
+# running mean of the daily air or 25 cm soil temperature over `acclim_resp_tau`
+# ABSOLUTE days. That memory length is the whole of what this file declares.
+# `framework/parameters.cpp` refuses `acclimated_respiration 1` unless the
+# instruction file states it, and there is deliberately no default, because a
+# default there is an undeclared physiological memory.
+#
+# The argument is `biosphere/notes/plant-physiology-carbon-allocation-audit.md`.
+# Declaring the bracket does not turn the option on: what turns it on is
+# `acclimated_respiration` in `biosphere/scripts/run_lpj_guess.py`, and the
+# reason the baseline leaves it off is stated there and in that note.
+
+version: 1
+
+# The e-folding time of the growth temperature, in ABSOLUTE days. Both ends are
+# sourced, and each names the paper rather than the value's plausibility.
+memory:
+  # The two arms. `run_value_days` below says which one a run is on; the gate
+  # refuses a run instruction that names a memory outside this interval.
+  bracket_days: [7.0, 30.0]
+
+  ends:
+    fast:
+      value_days: 7.0
+      sourced: true
+      source: >
+        Gifford (2003), references/gifford2003-plant-respiration.pdf. Reports
+        plant respiration acclimating to a temperature change in as little as a
+        week, which is a bound on how fast the adjustment can be rather than a
+        fitted running-mean length.
+    slow:
+      value_days: 30.0
+      sourced: true
+      source: >
+        Thum et al. (2019) QUINCY supplement Table S1,
+        references/thum2019-quincy-supplement.pdf. The memory time scale of the
+        acclimation of the temperature response of maintenance respiration, for
+        Eq. S23, which is the same relation this fork implements and which
+        Table S2 parameterises with the same slope from Atkin et al. (2014).
+        Table S1 gives other processes 2, 3, 7 and 20 days, so this is the
+        length for THIS process and not one model-wide window.
+
+  # Which end a run is on. `undeclared` is the sentinel and it is not a
+  # placeholder for a default: while `acclimated_respiration` is 0 there is no
+  # memory to declare, and while it is 1 the gate's `--strict` arm refuses until
+  # this names a value. Replacing it is a DECISION and takes PCAR-11.
+  run_value_days: undeclared
+
+# THE REGISTERED ONE-FACTOR SENSITIVITY over the bracket. Registered here and
+# executed by the gate on every invocation, so the response is a property of the
+# declaration rather than something re-derived by whoever asks next.
+sensitivity:
+  factor: acclim_resp_tau
+  arms_days: [7.0, 30.0]
+  # What the factor moves, in the model's own terms. One factor, two arms, and
+  # nothing else varies between them.
+  responds:
+    - the amplitude of this world's seasonal cycle that the growth temperature
+      keeps, against the amplitude of the forcing that drives it
+    - the days by which the growth temperature lags that forcing
+    - the annual range of the basal respiration multiplier f(T_acc), against
+      the range the instantaneous temperature gives
+  # NO PASS/FAIL THRESHOLD, deliberately. The response is arithmetic on a
+  # first-order lag and was known before this registration was written, so any
+  # bar put on it here would be a criterion chosen after the result it judges.
+  # The response is carried as model-form uncertainty instead: a run on either
+  # arm reports the other arm's value beside it, and neither arm is chosen to
+  # move a comparison.
+  threshold: none
+  propagated_as: model-form uncertainty

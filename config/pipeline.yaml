@@ -804,14 +804,20 @@ steps:
       respiration replaces each plant functional type's respcoeff with a function
       of the GROWTH temperature the tissue has adjusted to, and that growth
       temperature is a running mean whose e-folding time this project cannot
-      derive. It fails on the acclimation multiplier reading an instantaneous
-      temperature again, on a growth temperature missing from a serialize list,
-      on a default appearing for acclim_resp_tau or its refusal going missing,
-      and on the state being seeded from a constant rather than from the forcing.
-      Nine fixtures run on every invocation, three built to be wrong in a named
-      way. It reports what the memory is worth over this world's seasonal cycle
-      across the bracket the held literature supports; `--strict` refuses an
-      acclimated path with no declared memory length.
+      derive and so brackets. It reads
+      biosphere/config/respiration_acclimation.yaml and fails on the acclimation
+      multiplier reading an instantaneous temperature again, on a growth
+      temperature missing from a serialize list, on a default appearing for
+      acclim_resp_tau or its refusal going missing, on the state being seeded
+      from a constant rather than from the forcing, on a declaration that
+      disagrees with itself, and on a run instruction naming a memory the
+      declaration does not carry. Sixteen fixtures run on every invocation, six
+      built to be wrong in a named way, and the declaration fixtures drive a
+      reference declaration rather than the live file so a fixture verdict is
+      never a statement about the tree. It executes the one-factor sensitivity
+      registered over the bracket and reports its response, which carries no
+      pass/fail bar and is propagated as model-form uncertainty; `--strict`
+      refuses an acclimated path with no declared memory length.
 
   - id: phenology_gate
     script: biosphere/scripts/phenology_gate.py

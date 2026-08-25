@@ -115,13 +115,36 @@ from a constant, and serialized so a resumed run does not re-acclimate from
 scratch. The acute response reaches the routine as `gtemp_air` and `gtemp_soil`
 exactly as before, so the two are now different variables.
 
-The e-folding time has no value this project can derive. Gifford (2003) reports
-respiration acclimating in as little as a week, and QUINCY's process-specific
-memory lengths are in a supplement this project does not hold, so the constant is
-BRACKETED 7 to 30 absolute days with a sourced fast end and a conventional slow
-end. `parameters.cpp` therefore refuses `acclimated_respiration 1` unless the
+The e-folding time has no value this project can derive, so it is BRACKETED 7 to
+30 absolute days and both ends are sourced. Gifford (2003) reports respiration
+acclimating in as little as a week, which bounds how fast the adjustment can be.
+The slow end is QUINCY's, and it is the same process rather than a neighbouring
+one: Table S1 of the Thum et al. (2019) supplement gives the acclimation of the
+temperature response of maintenance respiration a memory time scale of 30 days,
+for its Eq. S23, `f = f_ref * 10^(f_resp_acclim (T_acclim - T_acclim,ref))` --
+the relation `respiration_acclimated()` implements. That table gives other
+processes 2, 3, 7 and 20 days, so the length is process-specific and not one
+model-wide window. `parameters.cpp` refuses `acclimated_respiration 1` unless the
 instruction file declares `acclim_resp_tau`; there is deliberately no default,
 because a default here is an undeclared physiological memory.
+
+The two held sources for that relation agree on its slope and differ on its
+reference temperature. The fork cites Sprugel et al. (1996), a chapter this
+project does not hold, for `f_resp_acc = -0.008` and `T_acc_ref = 10.15` in
+Celsius; QUINCY's Table S2 cites Atkin et al. (2014), which is held, for the
+same slope at 283.15 K. The 0.15 K offset is worth 0.3% in the multiplier, so
+the constants are sourced from held literature either way and the fork's values
+stand.
+
+`biosphere/config/respiration_acclimation.yaml` is the declaration: the bracket,
+a source for each end, `run_value_days` for which arm a run sits on, and the
+one-factor sensitivity registered over the bracket. `acclimation_gate.py` reads
+it, executes the sensitivity on every invocation, and refuses a declaration that
+disagrees with itself or a run instruction that names a memory the declaration
+does not carry. The sensitivity carries no pass/fail bar: the response is
+arithmetic on a first-order lag and was known before the registration was
+written, so a bar would be a criterion chosen after the result it judges, and it
+is carried as model-form uncertainty instead.
 
 What the bracket is worth on this world is arithmetic and is reported by
 `biosphere/scripts/acclimation_gate.py`: over one seasonal cycle the growth
@@ -136,8 +159,8 @@ which is what the CNP fork's own `global_p.ins` selects. That path divides
 `respcoeff` by the tissue C:N windows, so sapwood and fine-root maintenance
 respiration is invariant under the window rescaling recorded below; the
 acclimated path has no such compensation and moves maintenance respiration by up
-to the full rescaling factor. Turning it on needs a declared memory length and a
-one-factor sensitivity over the bracket, which is PCAR-11.
+to the full rescaling factor. That interaction, and not the memory length, is
+what turning it on now waits on.
 
 ### 4. Autotrophic respiration and construction cost are over-compressed
 

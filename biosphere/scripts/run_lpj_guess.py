@@ -100,20 +100,21 @@ ifbvoc {settings['ifbvoc']}
 
 ! Acclimated respiration replaces each PFT's respcoeff with a function of the
 ! GROWTH temperature the tissue has adjusted to, and that growth temperature has
-! a memory whose length this project cannot derive: Gifford (2003) reports
-! respiration acclimating in as little as a week, and QUINCY's process-specific
-! memory lengths are in a supplement this project does not hold. The model now
-! carries the memory as Climate::tacc_air and Soil::tacc_root and refuses the
-! option outright unless acclim_resp_tau declares it, so nothing runs on an
-! unstated one.
+! a memory this project cannot derive but can bracket. The model carries it as
+! Climate::tacc_air and Soil::tacc_root and refuses the option outright unless
+! acclim_resp_tau declares the length, so nothing runs on an unstated one. The
+! bracket, both its sources and the one-factor sensitivity registered over it
+! are biosphere/config/respiration_acclimation.yaml; what enforces them is
+! biosphere/scripts/acclimation_gate.py.
 !
 ! The baseline takes the standard respiration path instead, which is what the
 ! CNP fork's own global_p.ins selects. That path divides respcoeff by the tissue
 ! C:N windows, so sapwood and fine-root maintenance respiration is invariant
 ! under the window rescaling of WORLD-XMS4, where the acclimated path has no
 ! such compensation and would move maintenance respiration by up to the full
-! rescaling factor. Turning the acclimated path on is PCAR-11: it needs a
-! declared acclim_resp_tau and a one-factor sensitivity over its bracket.
+! rescaling factor. That, and not the memory length, is what turning the
+! acclimated path on now waits on: the declaration is complete and its
+! run_value_days is the arm a run would sit on.
 acclimated_respiration 0
 ! The simulated wetlands, their peat and their methane. Four switches, written
 ! rather than inherited for the same reason: an inherited zero cannot be told

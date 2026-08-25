@@ -28,20 +28,27 @@ enforcement, and it can fail:
              physiological memory
   seeding    the growth temperature initialised to a constant rather than to
              the first temperature the gridcell sees
+  declaration
+             `biosphere/config/respiration_acclimation.yaml` disagreeing with
+             itself, or a run instruction naming a memory the declaration does
+             not carry: outside the bracket, or set at all while the
+             declaration says the memory is undeclared
 
-Eight fixtures run on every invocation, three of them built to be wrong in a
-named way: the shipped behaviour with no memory at all, a resume that drops the
-state, and a state seeded from zero rather than from the forcing. A fixture that
-does not get the verdict it was built for is a defect in this checker rather than
-in the model.
+Fixtures run on every invocation, several of them built to be wrong in a named
+way: the shipped behaviour with no memory at all, a resume that drops the state,
+a state seeded from zero rather than from the forcing, and four declarations the
+declaration check must refuse. A fixture that does not get the verdict it was
+built for is a defect in this checker rather than in the model.
 
-The gate also reports what the memory is worth on this world's seasonal cycle,
-over the bracket the held literature supports, because the e-folding time is
-BRACKETED and not measured. Gifford (2003) reports plant respiration acclimating
-to a temperature change in as little as a week; QUINCY gives its lagged responses
-a process-specific memory whose length is in a supplement this project does not
-hold. So the bracket's fast end is sourced and its slow end is a convention, and
-`--strict` refuses while the run's value is undeclared.
+The bracket, its sources and the one-factor sensitivity over it are DECLARED in
+`biosphere/config/respiration_acclimation.yaml`; this module reads them rather
+than carrying them, so the declaration is the thing a reader argues with. The
+sensitivity is executed here on every invocation and its response goes into the
+report: what fraction of this world's seasonal amplitude the growth temperature
+keeps on each arm, how many days it lags, and what the basal multiplier's annual
+range becomes against the instantaneous temperature the routine used to run on.
+It carries no pass/fail bar, for the reason the declaration states. `--strict`
+refuses while the run's value is undeclared.
 
     python biosphere/scripts/acclimation_gate.py            # status, exit 0
     python biosphere/scripts/acclimation_gate.py --strict   # refuses while the
@@ -55,6 +62,7 @@ run a Python statement of the same update rule rather than the compiled one.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import math
 import re
@@ -64,27 +72,20 @@ from pathlib import Path
 
 import yaml
 
-from _paths import CONFIG, GENERATED, GUESS_SOURCE
+from _paths import CONFIG, COMPONENT_ROOT, GENERATED, GUESS_SOURCE
 from orbit import model_year_days  # noqa: E402
 from paths import rel  # noqa: E402
 
 REPORT = GENERATED / "acclimation_gate_report.json"
+DECLARATION = COMPONENT_ROOT / "config" / "respiration_acclimation.yaml"
 
 FRAMEWORK = GUESS_SOURCE / "framework"
 MODULES = GUESS_SOURCE / "modules"
 
-# The e-folding time of the growth temperature, in ABSOLUTE days. The fast end is
-# Gifford (2003), which reports respiration acclimating to a temperature change
-# in as little as a week. The slow end is the month-long growth-temperature
-# window the acclimating land-surface literature conventionally uses, and this
-# project holds no source for it, so it is a convention and is labelled one.
-TAU_BRACKET_DAYS = (7.0, 30.0)
-TAU_BRACKET_SOURCES = {
-    "fast": "Gifford (2003), references/gifford2003-plant-respiration.pdf: plant "
-            "respiration acclimates to a temperature change in as little as a week",
-    "slow": "convention, unsourced in this tree. QUINCY's process-specific memory "
-            "lengths are in a supplement this project does not hold",
-}
+# The sentinel the declaration uses for a memory length nobody has chosen. It is
+# not a placeholder for a default: the model refuses the acclimated path without
+# a declared length, so this is what "the option is not in use" looks like.
+UNDECLARED = "undeclared"
 
 # The response of the basal rate to the growth temperature, from Sprugel et al.
 # (1996) as the vendored source cites it.
@@ -94,6 +95,15 @@ RESP_ACC_REF_TEMP = 10.15
 
 def read_source(path: Path) -> str:
     return path.read_text(encoding="latin-1")
+
+
+def load_declaration(path: Path = DECLARATION) -> dict:
+    """The declared memory bracket and the sensitivity registered over it."""
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def bracket_days(declaration: dict) -> tuple[float, float]:
+    return tuple(float(v) for v in declaration["memory"]["bracket_days"])
 
 
 # ---------------------------------------------------------------------------
@@ -250,11 +260,128 @@ def check_source() -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# The declaration, checked against itself and against the run instruction
+# ---------------------------------------------------------------------------
+
+def check_declaration(declaration: dict, *, enabled: int | None,
+                      run_tau: float | None) -> list[dict]:
+    """The declared bracket agrees with itself and with what the run asks for.
+
+    Split out from `main` and given only its inputs so the fixtures can drive it
+    with declarations built to be wrong. Every case has a right answer: a
+    bracket is or is not the interval its own two ends span, a run instruction
+    does or does not name a memory the declaration carries.
+    """
+    findings = []
+    memory = declaration.get("memory") or {}
+    ends = memory.get("ends") or {}
+
+    try:
+        low, high = bracket_days(declaration)
+    except Exception as exc:
+        return [{"kind": "declaration", "what": "memory.bracket_days",
+                 "detail": f"not a pair of numbers: {exc}"}]
+
+    if not low < high:
+        findings.append({"kind": "declaration", "what": "memory.bracket_days",
+                         "detail": f"{low} is not below {high}, so the bracket "
+                                   "is not an interval"})
+
+    for name, expected in (("fast", low), ("slow", high)):
+        end = ends.get(name) or {}
+        value = end.get("value_days")
+        if value is None or float(value) != expected:
+            findings.append({
+                "kind": "declaration", "what": f"memory.ends.{name}",
+                "detail": f"value_days {value} is not the {name} end of the "
+                          f"declared bracket, {expected}"})
+        if not str(end.get("source") or "").strip():
+            findings.append({
+                "kind": "declaration", "what": f"memory.ends.{name}",
+                "detail": "carries no source. An end may be a convention, but "
+                          "it may not be silent about being one"})
+
+    arms = (declaration.get("sensitivity") or {}).get("arms_days")
+    if arms is None or [float(a) for a in arms] != [low, high]:
+        findings.append({
+            "kind": "declaration", "what": "sensitivity.arms_days",
+            "detail": f"{arms} does not span the declared bracket [{low}, {high}], "
+                      "so the registered sensitivity is over some other factor "
+                      "range than the one the run is bracketed by"})
+
+    declared = memory.get("run_value_days")
+    if declared != UNDECLARED:
+        try:
+            declared = float(declared)
+        except (TypeError, ValueError):
+            findings.append({
+                "kind": "declaration", "what": "memory.run_value_days",
+                "detail": f"{declared!r} is neither a number nor {UNDECLARED!r}"})
+            declared = None
+        else:
+            if not low <= declared <= high:
+                findings.append({
+                    "kind": "declaration", "what": "memory.run_value_days",
+                    "detail": f"{declared} is outside the declared bracket "
+                              f"[{low}, {high}]"})
+            if not enabled:
+                findings.append({
+                    "kind": "declaration", "what": "memory.run_value_days",
+                    "detail": f"names {declared} days while the run takes the "
+                              "standard respiration path, so nothing is on that "
+                              f"arm. {UNDECLARED!r} is what an unused memory says"})
+
+    if run_tau is not None:
+        if declared == UNDECLARED:
+            findings.append({
+                "kind": "declaration", "what": "acclim_resp_tau",
+                "detail": f"the run instruction declares {run_tau} days and the "
+                          "declaration says the memory is undeclared, so the run "
+                          "carries a physiological memory nothing argued for"})
+        elif declared is not None and float(run_tau) != declared:
+            findings.append({
+                "kind": "declaration", "what": "acclim_resp_tau",
+                "detail": f"the run instruction declares {run_tau} days and the "
+                          f"declaration says {declared}"})
+        if not low <= float(run_tau) <= high:
+            findings.append({
+                "kind": "declaration", "what": "acclim_resp_tau",
+                "detail": f"the run instruction declares {run_tau} days, outside "
+                          f"the declared bracket [{low}, {high}]"})
+    return findings
+
+
+# ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
-def _fixtures(length: int) -> list[dict]:
-    tau = sum(TAU_BRACKET_DAYS) / 2.0
+def _reference_declaration() -> dict:
+    """A well-formed declaration, written here and not read from the tree.
+
+    The declaration fixtures mutate this rather than the live file, so a fixture
+    verdict is a statement about `check_declaration` and never about
+    `biosphere/config/respiration_acclimation.yaml`. The live file is checked
+    once, into `findings`.
+    """
+    return {
+        "version": 1,
+        "memory": {
+            "bracket_days": [7.0, 30.0],
+            "ends": {
+                "fast": {"value_days": 7.0, "sourced": True, "source": "a paper"},
+                "slow": {"value_days": 30.0, "sourced": True, "source": "a paper"},
+            },
+            "run_value_days": UNDECLARED,
+        },
+        "sensitivity": {"factor": "acclim_resp_tau", "arms_days": [7.0, 30.0],
+                        "responds": [], "threshold": "none",
+                        "propagated_as": "model-form uncertainty"},
+    }
+
+
+def _fixtures(length: int, declaration: dict) -> list[dict]:
+    low, high = bracket_days(declaration)
+    tau = (low + high) / 2.0
     warm = 25.0
 
     def constant(day):
@@ -326,6 +453,59 @@ def _fixtures(length: int) -> list[dict]:
     cases.append((f"seeding from zero starts a warm cell {round(error, 3)} times "
                   "off its basal rate", abs(error - 1.0) > 0.05, "spin_in"))
 
+    # The declaration check, driven from the REFERENCE declaration rather than
+    # the live one. A fixture that read the live file would report an edit to
+    # biosphere/config/respiration_acclimation.yaml as a defect in this checker,
+    # which is the wrong verdict on the wrong artifact: the live declaration is
+    # what `findings` is for. Positive first, because a gate whose negatives all
+    # fire and whose positives were never built proves only that it can say no.
+    ref = _reference_declaration()
+    ref_low, ref_high = bracket_days(ref)
+
+    cases.append(("a declaration with no memory in use and the standard path is "
+                  "accepted", not check_declaration(ref, enabled=0, run_tau=None),
+                  "clean"))
+
+    on_slow = copy.deepcopy(ref)
+    on_slow["memory"]["run_value_days"] = ref_high
+    cases.append(("a run on the slow arm, declared and asked for, is accepted",
+                  not check_declaration(on_slow, enabled=1, run_tau=ref_high),
+                  "clean"))
+
+    # Built to be wrong: a memory outside the bracket the declaration argues.
+    cases.append(("a run instruction asking for a memory past the slow end is "
+                  "refused",
+                  bool(check_declaration(on_slow, enabled=1, run_tau=ref_high * 2.0)),
+                  "outside_bracket"))
+
+    # Built to be wrong: a run carrying a memory the declaration never named.
+    cases.append(("a run instruction with a memory the declaration leaves "
+                  "undeclared is refused",
+                  bool(check_declaration(ref, enabled=1, run_tau=ref_high)),
+                  "undeclared_memory"))
+
+    # Built to be wrong: a bracket that is not the interval its own ends span.
+    widened = copy.deepcopy(ref)
+    widened["memory"]["bracket_days"] = [ref_low, ref_high * 3.0]
+    cases.append(("a bracket that is not the interval its own ends span is refused",
+                  bool(check_declaration(widened, enabled=0, run_tau=None)),
+                  "bracket_disagrees"))
+
+    # Built to be wrong: an end that does not say where it came from.
+    silent = copy.deepcopy(ref)
+    silent["memory"]["ends"]["slow"]["source"] = ""
+    cases.append(("an end that carries no source is refused",
+                  bool(check_declaration(silent, enabled=0, run_tau=None)),
+                  "silent_end"))
+
+    # Built to be wrong: a sensitivity registered over some other range.
+    narrowed = copy.deepcopy(ref)
+    narrowed["sensitivity"]["arms_days"] = [ref_low, (ref_low + ref_high) / 2.0]
+    cases.append(("a sensitivity registered over a range that is not the bracket "
+                  "is refused",
+                  bool(check_declaration(narrowed, enabled=0, run_tau=None)),
+                  "sensitivity_off_bracket"))
+
     return [{"fixture": label, "expected": expect, "pass": bool(ok)}
             for label, ok, expect in cases]
 
@@ -339,27 +519,52 @@ def main() -> int:
 
     config = yaml.safe_load(CONFIG.read_text())
     length = model_year_days(config)
-
-    findings = check_source()
-    fixtures = _fixtures(length)
-    bracket = [seasonal_response(tau, length) for tau in TAU_BRACKET_DAYS]
+    declaration = load_declaration()
 
     # What the run instruction file actually asks for.
     runner = (Path(__file__).resolve().parent / "run_lpj_guess.py").read_text()
     enabled = re.search(r"^acclimated_respiration (\d)", runner, re.M)
     declared_tau = re.search(r"^acclim_resp_tau ([0-9.]+)", runner, re.M)
+    baseline_enabled = int(enabled.group(1)) if enabled else None
+    baseline_tau = float(declared_tau.group(1)) if declared_tau else None
+
+    findings = check_source() + check_declaration(
+        declaration, enabled=baseline_enabled, run_tau=baseline_tau)
+    fixtures = _fixtures(length, declaration)
+
+    # The registered one-factor sensitivity, executed. The arms come from the
+    # declaration, so what is reported here is what was registered there and not
+    # a range this module chose.
+    registered = declaration["sensitivity"]
+    arms = [float(a) for a in registered["arms_days"]]
+    bracket = [seasonal_response(tau, length) for tau in arms]
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "year_length_days": length,
         "source": rel(GUESS_SOURCE),
+        "declaration": rel(DECLARATION),
         "findings": findings,
         "fixtures": fixtures,
-        "tau_bracket_days": list(TAU_BRACKET_DAYS),
-        "tau_bracket_sources": TAU_BRACKET_SOURCES,
+        "tau_bracket_days": list(bracket_days(declaration)),
+        "tau_bracket_sources": {
+            name: (end.get("source") or "").strip()
+            for name, end in declaration["memory"]["ends"].items()},
+        "tau_bracket_sourced": {
+            name: bool(end.get("sourced"))
+            for name, end in declaration["memory"]["ends"].items()},
+        "registered_sensitivity": {
+            "factor": registered["factor"],
+            "arms_days": arms,
+            "responds": registered["responds"],
+            "threshold": registered["threshold"],
+            "propagated_as": registered["propagated_as"],
+            "response": bracket,
+        },
         "seasonal_response_over_bracket": bracket,
-        "baseline_acclimated_respiration": int(enabled.group(1)) if enabled else None,
-        "baseline_acclim_resp_tau": float(declared_tau.group(1)) if declared_tau else None,
+        "declared_run_value_days": declaration["memory"]["run_value_days"],
+        "baseline_acclimated_respiration": baseline_enabled,
+        "baseline_acclim_resp_tau": baseline_tau,
     }
     REPORT.parent.mkdir(parents=True, exist_ok=True)
     REPORT.write_text(json.dumps(report, indent=2) + "\n")
@@ -379,13 +584,18 @@ def main() -> int:
         else:
             print("  the growth temperatures exist, are updated daily, survive a")
             print("  resume, and no default stands in for the memory's length")
-        print(f"\n  what the memory is worth over one seasonal cycle:")
+        print(f"\n  the registered one-factor sensitivity over "
+              f"{registered['factor']}, executed:")
         for entry in bracket:
             print(f"    tau {entry['tau_days']:>4} d: keeps {entry['amplitude_kept']:.2f} "
                   f"of the cycle's amplitude, lags it {entry['lag_days']} days, "
                   f"basal rate ranges {entry['basal_rate_range_acclimated']:.2f} "
                   f"against {entry['basal_rate_range_instantaneous']:.2f} instantaneous")
-        print(f"\n  baseline: acclimated_respiration "
+        print(f"    threshold: {registered['threshold']}, carried as "
+              f"{registered['propagated_as']}")
+        print(f"\n  declaration: {rel(DECLARATION)}, run_value_days "
+              f"{report['declared_run_value_days']}")
+        print(f"  baseline: acclimated_respiration "
               f"{report['baseline_acclimated_respiration']}, "
               f"acclim_resp_tau {report['baseline_acclim_resp_tau']}")
         print(f"\n  report: {rel(REPORT)}")
