@@ -582,7 +582,7 @@ calibration:
       source: "greaves1920 table 5, against xuri2008 table 8 eqn 1"
       compared: form
       verdict: unsourced
-      owner: world-nga9
+      owner: world-xmiq
       why: >
         The rising limb's own constants, everything else about this function
         being settled above. The limb is exp(5*log(3)*(w - 0.6)), so it falls

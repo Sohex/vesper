@@ -242,8 +242,8 @@ void nitrification(Patch& patch, Soil& soil) {
 	// this operator limits nitrification as the soil dries, the partition's
 	// aerobic share GROWING as it does. The magnitude of the wet-end decline is
 	// now the partition's alone, and world-nga8 owns its shape. What remains
-	// unsettled here is the rising limb's own constants, registered with their
-	// bracket in biosphere/config/ntransform.yaml and refused by
+	// unsettled here is the rising limb's own constants, which world-xmiq owns:
+	// registered in biosphere/config/ntransform.yaml and refused by
 	// biosphere/scripts/ntransform_gate.py --strict.
 	double b = log(3.0) * 5.0;
 	double a = exp(-b*6.0/10.0);

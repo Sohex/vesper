@@ -410,7 +410,7 @@ and 0.17 to 1.00 at 40, wide enough to admit almost any monotone limb, so being
 inside it neither confirms the constants nor refuses them. A 22-soil bracket is
 not an instrument fine enough to settle this shape, and saying it passed would
 be reporting noise. That, and nothing else about this function, is what
-`ntransform_gate.py --strict` refuses on. No replacement is fitted here: a curve
+`ntransform_gate.py --strict` refuses on, and `world-xmiq` owns it. No replacement is fitted here: a curve
 fitted to a 22-soil mean from a 1920 amended-soil incubation, on an axis that
 has to be relabelled to reach WFPS, would be another unsourced curve wearing a
 citation.
