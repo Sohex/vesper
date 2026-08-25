@@ -758,11 +758,11 @@
       where(dt(:,NLEP) > TMELT .or. dls(:) < 0.5)
        dlhfl(:)=devap(:)*ALV*1000.
        dlhdt(:)=-1.*ALV*zkdiff(:)*zkonst2*dp(:)                         &
-     &         *ra2*(TMELT-ra4)*dq(:,NLEP)/(dt(:,NLEP)-ra4)**2
+     &         *ra2*(TMELT-ra4)*dq(:,NLEP)/ra4d(dt(:,NLEP),ra4)**2
       elsewhere
        dlhfl(:)=devap(:)*ALS*1000.
        dlhdt(:)=-1.*ALS*zkdiff(:)*zkonst2*dp(:)                         &
-     &         *ra2i*(TMELT-ra4i)*dq(:,NLEP)/(dt(:,NLEP)-ra4i)**2
+     &         *ra2i*(TMELT-ra4i)*dq(:,NLEP)/ra4d(dt(:,NLEP),ra4i)**2
       endwhere
       where(dlhfl(:) == 0.) dlhdt(:)=0.
 !

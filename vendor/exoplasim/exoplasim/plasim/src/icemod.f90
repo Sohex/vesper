@@ -1764,9 +1764,6 @@
       real :: zflr(NHOR) = 0.
 !     Implicitly SAVE, so one copy shared by the whole team.
 !$omp threadprivate(zflr)
-      real :: zsum(2) = 0.
-!     Implicitly SAVE, so one copy shared by the whole team.
-!$omp threadprivate(zsum)
 !
 !     debug arrays
 !
@@ -2087,10 +2084,8 @@
       real :: zc(NLON,NLAT,0:13)
       real :: zd(NLON,NLAT,0:13)
 
-      real :: zhfac(0:13)=(/0.912,0.942,1.,1.058,1.124,1.161,1.175,1.058,0.931 &
-                        ,0.883,0.88,0.876,0.912,0.942/)
-!     Implicitly SAVE, so one copy shared by the whole team.
-!$omp threadprivate(zhfac)
+      real, parameter :: zhfac(0:13)=(/0.912,0.942,1.,1.058,1.124,1.161,1.175 &
+                        ,1.058,0.931,0.883,0.88,0.876,0.912,0.942/)
 
 !     convert ice compactness to thickness (see CCM3 report pp 127-129)
 

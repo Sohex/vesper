@@ -248,9 +248,7 @@
       integer :: il(8)         ! last    header
       integer :: icmon
       character (len=18) :: yf ! file name
-      character (len=20) :: yformat = "(8E12.6)"
-!     Implicitly SAVE, so one copy shared by the whole team.
-!$omp threadprivate(yformat)
+      character (len=20), parameter :: yformat = "(8E12.6)"
       real    :: zy(NUGP,0:13) ! code with annual cycle
       logical :: lm(0:13)      ! month read flag
       logical :: lex           ! file exists

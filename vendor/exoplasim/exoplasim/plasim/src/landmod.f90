@@ -703,7 +703,7 @@
        do jhor=1,NHOR
         if(dls(jhor) > 0.0) then
          dtsm(jhor)=dts(jhor)
-         dqs(jhor)=rdbrv*ra1s(dts(jhor))*EXP(ra2s(dts(jhor))*(dts(jhor)-tmelt)/(dts(jhor)-ra4s(dts(jhor)))) &
+         dqs(jhor)=rdbrv*ra1s(dts(jhor))*EXP(ra2s(dts(jhor))*(dts(jhor)-tmelt)/ra4d(dts(jhor),ra4s(dts(jhor)))) &
      &            /psurf
          dqs(jhor)=dqs(jhor)/(1.-(1./rdbrv-1.)*dqs(jhor))
          dsnow(jhor)=dsnowz(jhor)
@@ -919,7 +919,7 @@
       do jhor=1,NHOR
        if(dls(jhor) > 0.0) then
         dtsm(jhor)=dts(jhor)
-        dqs(jhor)=rdbrv*ra1s(dts(jhor))*EXP(ra2s(dts(jhor))*(dts(jhor)-tmelt)/(dts(jhor)-ra4s(dts(jhor))))  &
+        dqs(jhor)=rdbrv*ra1s(dts(jhor))*EXP(ra2s(dts(jhor))*(dts(jhor)-tmelt)/ra4d(dts(jhor),ra4s(dts(jhor))))  &
      &           /dp(jhor)
         dqs(jhor)=dqs(jhor)/(1.-(1./rdbrv-1.)*dqs(jhor))
         dsnow(jhor)=dsnowz(jhor)
@@ -2077,12 +2077,8 @@
       subroutine getalb
       use landmod
       
-      real :: aa = 5.2
-!     Implicitly SAVE, so one copy shared by the whole team.
-!$omp threadprivate(aa)
-      real :: yy = 4.0
-!     Implicitly SAVE, so one copy shared by the whole team.
-!$omp threadprivate(yy)
+      real, parameter :: aa = 5.2
+      real, parameter :: yy = 4.0
       real :: bf = 0.0
 !     Implicitly SAVE, so one copy shared by the whole team.
 !$omp threadprivate(bf)
