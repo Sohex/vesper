@@ -69,14 +69,38 @@ restart record, an albedo function that reads it". The peer's answer is cheaper
 than that: a flux-ratio diagnostic, one extra scalar of state, and the albedo
 function.
 
-**And this project already holds the grain-resolved reflectance data.**
+**And this project already holds the grain-resolved reflectance data**, which
+turns out to matter more than it first looks.
 `vendor/exoplasim/exoplasim/plasim/src/specblock.f90` ships `fsnowalb`,
-`msnowalb` and `csnowalb`: fine, medium and coarse grain snow reflectance over
-965 wavelengths. No code path selects among them -- `radmod.f90` uses the
-`iceblend` blends instead, and the one line that would have combined the three is
-commented out. So the grain axis has a data anchor in this tree already, unused,
-and `references/exocam/tools/spectral_albedos/snow100um.txt` is a second one.
-That matters for section 5 below.
+`msnowalb` and `csnowalb`: fine, medium and coarse granular snow reflectance over
+965 wavelengths, from the same JHU becknic library every other endmember here
+came from. No code path selects among them -- `radmod.f90` uses the `iceblend`
+family instead, and the one line that would have combined the three is commented
+out. `references/exocam/tools/spectral_albedos/snow100um.txt` is a second anchor.
+
+The `iceblend` family is not a grain axis, and it is worth saying so precisely,
+because it looks like one. `plasim/src/specs/combinedspec-snow_ice.ipynb` is the
+notebook that built those arrays, and it is in the tree. Each blend is a weighted
+mixture of five component spectra -- clear ice, frost, and coarse, fine and
+medium granular snow -- with the snow components at fixed proportions and the
+CLEAR ICE fraction solved by bisection against a declared broadband albedo target
+under a 5772 K blackbody. So `iceblendmin` and `iceblendmax`, the endpoints
+`landmod`'s snow albedo ramp interpolates between on surface temperature, differ
+in how much clear ice is mixed in, tuned to hit a solar broadband number. They do
+not differ in grain size, and the temperature ramp between them is not an ageing
+law in any physical sense.
+
+That is why a dust coefficient grafted onto that ramp would be doubly unanchored:
+not only is there no grain radius for the darkening to scale with, the two
+endpoints it interpolates between are themselves mixture fits to an Earth target.
+
+It also points at the constructive route, and section 6 returns to it. The three
+grain-resolved spectra plus `analysis/ice_albedo.py`, which already reproduces
+`radmod`'s star-weighting arithmetic to machine precision, are between them
+enough to derive a two-band snow albedo as a function of grain radius FOR THIS
+STAR, on a three-point axis, from data already in the tree. That is the half a
+dust coefficient needs in order to mean what its source measured, and it does not
+require SEMI.
 
 ## 2. The four-component structure is real, but it is not direct and diffuse
 
@@ -238,24 +262,29 @@ surface energy conservation check, `energy_cons_surf1` under `check_energy`,
 which is the kind of identity CLAUDE.md's testing convention asks for and which a
 port could keep as its acceptance test.
 
-**On the snow albedo, it carries the same class of defect this project has
-already found once.** Dang et al. 2015's coefficients -- 0.9856, -0.0202,
--0.0125 for the diffuse visible clean-snow albedo, and the parallel sets for the
-other three components -- are fits to band-INTEGRATED albedo under a solar
-spectrum, with a visible/near-infrared boundary that is that scheme's own and not
-0.75 um. Under a K2.5V host, more flux sits in the near infrared and the
-in-band spectral distribution shifts, so the band-integrated fit no longer
-describes the band. That is `notes/external-model-survey.md` section 9b's finding
-arriving from a second model: snow and ice albedo endmembers were never
-re-derived for this star. The difference is that ExoPlaSim's endmembers CAN be
-re-derived, because it ships the reflectance spectra they came from, and Dang's
-cannot, because it ships only the fitted polynomials.
+**On the snow albedo, it is a step backwards in spectral fidelity, and that is
+the one thing about SEMI worth arguing over.** Dang et al. 2015's coefficients --
+0.9856, -0.0202, -0.0125 for the diffuse visible clean-snow albedo, and the
+parallel sets for the other three components -- are fits to band-INTEGRATED
+albedo under a solar spectrum, with a visible/near-infrared boundary that is that
+scheme's own and not 0.75 um. Under a K2.5V host, more flux sits in the near
+infrared and the in-band spectral distribution shifts, so the band-integrated fit
+no longer describes the band. Dang's polynomials cannot be re-derived here,
+because the scheme ships the fits and not the spectra they came from.
 
-So SEMI survives the refusal that killed the PDD scheme, and it inherits a
-smaller version of the problem section 9b names. That is not a reason to reject
-it -- physics is not a knob, and an energy balance with a spectrally imperfect
-albedo is strictly better than a temperature index with no shortwave at all --
-but it is the reason the adoption shape in section 6 is not a straight port.
+ExoPlaSim's endmembers are in the opposite position, and `phys-14`'s overturned
+verdict is the evidence: `radmod` already integrates the shipped reflectance
+blends against the configured stellar spectrum, splits at 0.75 um, and assigns
+this star's numbers rather than solar defaults. `analysis/ice_albedo.py`
+reproduces that arithmetic as the registered `ice_albedo` step. So on the axis
+that matters for a non-solar host, this model is currently AHEAD of the scheme it
+would be adopting, and behind it on grain size and impurities. The two schemes
+are strong in different places.
+
+So SEMI survives the refusal that killed the PDD scheme. An energy balance with a
+spectrally imperfect albedo is strictly better than a temperature index with no
+shortwave at all, and physics is not a knob. But the right adoption is not a
+straight port of the albedo half, and section 6 says what it is instead.
 
 **The other inherited constants**, all PHYS-class, in one list so a port does not
 discover them one at a time: `frac_vu = 0.45` (section 2, this project has the
@@ -316,6 +345,23 @@ rows:
    elevation derivatives are obtained. That is a change to `radmod`, `outmod`,
    `pyburn` and the diagnostic block, and it is the half of `clim-63` that is
    ExoPlaSim work rather than CLIMBER-X reading.
+
+**And one piece is worth doing FIRST, independently of both.** Section 5 leaves
+the albedo half of SEMI as the part that should not be ported as written. The
+replacement is derivable from data already in the tree: take the three
+grain-resolved snow spectra out of `specblock.f90`, weight each against this
+star's spectrum through `analysis/ice_albedo.py`'s existing arithmetic, and get a
+two-band snow albedo on a three-point grain-radius axis for this star. Fit Dang's
+functional form to THOSE points rather than importing his coefficients, and the
+dust term's grain scaling then has a local anchor.
+
+That is a small, self-contained piece of work with a check that can fail -- the
+solar-weighted arm must reproduce the published values within the tolerance
+`ice_albedo.py` already establishes for the existing blends -- and it does not
+need SEMI, a fine grid, or `phys-13`. It is also the shortest honest route to
+closing `dust-14`, because it supplies exactly the missing half: a grain size for
+a published dust coefficient to scale against. Whether the grain size then
+EVOLVES, and by what law, is the part that still arrives with a mass balance.
 
 Item 2 has a cheaper first step that is worth naming: SEMI's derivatives exist to
 let the balance re-solve the surface albedo on the fine grid without re-running

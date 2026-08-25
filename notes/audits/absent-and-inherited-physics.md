@@ -179,10 +179,22 @@ the calibration joining them are one module.
 
 Two data anchors for the grain axis already exist and neither is used.
 `vendor/exoplasim/exoplasim/plasim/src/specblock.f90` ships `fsnowalb`,
-`msnowalb` and `csnowalb`, fine, medium and coarse grain snow reflectance over
-965 wavelengths; `radmod.f90` integrates the `iceblend` blends instead, and the
+`msnowalb` and `csnowalb`, fine, medium and coarse granular snow reflectance over
+965 wavelengths; `radmod.f90` integrates the `iceblend` family instead, and the
 one line that would have combined the three is commented out.
 `references/exocam/tools/spectral_albedos/snow100um.txt` is the second.
+
+**The ramp's own endpoints are not a grain axis either**, which makes a graft onto
+them worse than it looks. `plasim/src/specs/combinedspec-snow_ice.ipynb`, the
+notebook that generated the `iceblend` arrays and which is in the tree, builds
+each blend as a weighted mixture of clear ice, frost, and coarse, fine and medium
+granular snow, with the snow components at fixed proportions and the CLEAR ICE
+fraction solved by bisection against a declared broadband albedo target under a
+5772 K blackbody. So `iceblendmin` and `iceblendmax` differ in how much clear ice
+is mixed in, tuned to hit a solar broadband number, and the surface temperature
+ramp between them is not an ageing law. `phys-14`'s overturned verdict establishes
+that the blends themselves ARE re-weighted to this star by `radmod`; the mixture
+fractions inside them are the part that is a fit to an Earth target.
 
 The model has room to absorb it. From `run_b014469b8091/MOST_DIAG`, under `k25v`:
 fresh snow overall albedo 0.538, band 1 fresh 0.745 to 0.752, band-1 aged minimum
