@@ -109,6 +109,12 @@ def namelist_values(config: dict, cfg: dict, weibull_shape: float,
     purpose: `aeolian/config/dust.yaml` owns them and a plausible-looking number
     in the model would be a fourth place for each one to go stale.
 
+    `DUSTZ0` is the one value here that is NOT a config constant: it is the
+    roughness mosaic's own erodible-area weighted geometric mean at the bracket
+    end being written, computed by `build_fields` from the same fields the .sra
+    files carry. Reading it from the config instead is what put the in-model arm
+    at a roughness the offline arm never ran at; world-h24h.
+
     The two thresholds leave here ALREADY SCALED for this planet's gravity, by
     the fourth root of the gravity ratio. The scaling is applied on this side
     because this is the side that reads `config/planet.yaml`. Both take the same
@@ -249,11 +255,22 @@ def build_fields(config: dict, cfg: dict, lat, lon, z0_end: str,
     partition the class-blind scalar instead put the mosaic on the offline arm
     alone and left the boundary field carrying a constant.
 
-    `DUSTZ0` stays SCALAR, and that is a stated gap rather than an oversight: it
-    is the only other place the roughness enters, through `ln(zref/z0)` in the
-    friction velocity, and the model computes that term itself from its own
-    bottom-level height. Honouring the mosaic there needs a fourth boundary
-    field, which is world-h24h.
+    `DUSTZ0` STAYS SCALAR AND IS THE MOSAIC'S OWN MEAN. It is the only other
+    place the roughness enters, through `ln(zref/z0)` in the friction velocity,
+    and it cannot be folded into field 1802 because the model computes `zref`
+    from each cell's own temperature, so the ratio is not a static prefactor.
+    What a scalar there costs is measured rather than assumed: with the mosaic's
+    erodible-area weighted geometric mean in it the in-model emission sits
+    within a fraction of a percent of the offline arm, so the fourth boundary
+    field a per-cell z0 would need buys nothing.
+    `aeolian/scripts/dust_intensity_levers.py` carries the figures and
+    world-h24h the decision.
+
+    It used to carry `aeolian_z0_m`, the CLASS-BLIND scalar, whose bracket ends
+    are the pre-world-c8m ones and sit outside the per-lithology values
+    entirely. That is a different roughness rather than a coarser one, and it
+    put the in-model arm at up to four times the offline emission on the same
+    world.
     """
     lakes = component_data("hydrography", config, strict=True) / "surface_water.nc"
     (erodible, land_fraction, per_class, class_detail, terrain,
@@ -267,8 +284,9 @@ def build_fields(config: dict, cfg: dict, lat, lon, z0_end: str,
     z0_plane = np.asarray(z0_cell)[Z0_END_PLANE[z0_end]]
     drage = bd.drag_efficiency(z0_plane, cfg)
     wpr = bd.fecan_residual_moisture(clay_pct, cfg)
+    z0_scalar = bd.mosaic_scalar_z0(z0_plane, erodible, lat)
     return (srcw, drage, wpr, land_fraction, per_class, class_detail, terrain,
-            lakes, z0_plane)
+            lakes, z0_plane, z0_scalar)
 
 
 # -- the test that can fail ---------------------------------------------------
@@ -427,18 +445,16 @@ def main() -> None:
         raise SystemExit(
             f"climatology grid is {lat.size}x{lon.size}, config says {nlat}x{nlon}")
 
-    dp = cfg["drag_partition"]
-    z0 = {"central": float(dp["aeolian_z0_m"]),
-          "low": float(dp["aeolian_z0_bracket_m"][0]),
-          "high": float(dp["aeolian_z0_bracket_m"][1])}[args.z0]
+    (srcw, drage, wpr, land_fraction, per_class, class_detail,
+     terrain, lakes, z0_cell, z0) = build_fields(config, cfg, lat, lon, args.z0,
+                                                 args.surface_classes)
 
+    # DUSTZ0 IS THE MOSAIC'S OWN MEAN, computed from the fields just built
+    # rather than looked up in the config, so the two arms cannot drift apart
+    # again. build_fields says what a scalar there costs and what it does not.
     report = json.loads(args.baseline_report.read_text(encoding="utf-8"))
     shape = measured_weibull_shape(report)
     values = namelist_values(config, cfg, shape, z0)
-
-    (srcw, drage, wpr, land_fraction, per_class, class_detail,
-     terrain, lakes, z0_cell) = build_fields(config, cfg, lat, lon, args.z0,
-                                             args.surface_classes)
 
     for name, field in (("dsrcw", srcw), ("ddrage", drage), ("dwpr", wpr)):
         if not np.isfinite(field).all() or field.min() < 0.0:
@@ -467,11 +483,20 @@ def main() -> None:
         "z0_bracket_end": args.z0,
         "aeolian_z0_m": z0,
         "aeolian_z0_cell_m": {
-            "min": float(z0_cell.min()), "max": float(z0_cell.max()),
+            # OVER EMITTING CELLS ONLY. A cell with no erodible ground carries
+            # the config's scalar as a placeholder rather than a claim, and
+            # reporting the whole plane's range let that placeholder read as
+            # part of the mosaic.
+            "min": float(z0_cell[srcw > 0].min()) if np.any(srcw > 0) else None,
+            "max": float(z0_cell[srcw > 0].max()) if np.any(srcw > 0) else None,
             "note": "the per-cell roughness mosaic the drag partition in 1802 "
-                    "is built from. aeolian_z0_m above is the class-blind "
-                    "scalar, and it is what DUSTZ0 carries for the "
-                    "ln(zref/z0) term only.",
+                    "is built from. aeolian_z0_m above is that mosaic's "
+                    "erodible-area weighted geometric mean, and it is what "
+                    "DUSTZ0 carries for the ln(zref/z0) term. Scalarising that "
+                    "term is what world-h24h priced: it leaves the in-model "
+                    "emission within a fraction of a percent of the offline "
+                    "arm, so a fourth boundary field carrying z0 per cell is "
+                    "not worth its own surface code.",
         },
         "surface_classes": rel(args.surface_classes) if args.surface_classes else None,
         "variant": "baseline",
@@ -481,8 +506,12 @@ def main() -> None:
             "fraction above the erodible one on cells drier than a declared "
             "precipitation threshold, and that mask is evaluated per time bin "
             "rather than once, so it is not a static boundary condition. The "
-            "in-model arm therefore has no counterpart to that bracket end; "
-            "world-4qem.",
+            "in-model arm therefore has no counterpart to that bracket end, "
+            "and what it costs is measured: the variant raises emission by "
+            "under a fifth at every end of the roughness bracket, one-signed, "
+            "so an in-model total is a floor by that much rather than a "
+            "quantity of unknown standing. world-4qem, with the figures in "
+            "aeolian/analysis/dust_intensity_levers.json.",
         "source_build": str(config["source_build"]),
         "terrain_hash": terrain,
         "lake_solution": rel(lakes),

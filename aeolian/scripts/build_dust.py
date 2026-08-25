@@ -176,6 +176,29 @@ def drag_efficiency(z0_m: np.ndarray, cfg: dict) -> np.ndarray:
     return np.clip(1.0 - np.log(z0_cm / z0s) / denom, 0.0, 1.0)
 
 
+def mosaic_scalar_z0(z0_plane: np.ndarray, erodible: np.ndarray,
+                     lat: np.ndarray) -> float:
+    """The one roughness that stands for the whole mosaic, as a scalar.
+
+    GEOMETRIC, because the drag goes as 1/ln(z/z0) and it is ln(z0) that
+    averages over a patchwork, and weighted by ERODIBLE AREA rather than by
+    erodible fraction, because the Gaussian grid's cells are not the same size
+    and the mosaic is a property of ground rather than of cells.
+
+    There is one statement of it because two consumers need the same number:
+    this script reports it as the roughness an arm actually ran at, and
+    `build_dust_source_fields.py` writes it as the namelist `DUSTZ0` the
+    in-model friction velocity divides by. The two were different numbers until
+    world-h24h, and the in-model arm emitted up to four times the offline one
+    for no reason but that.
+    """
+    weight = erodible * np.cos(np.deg2rad(lat))[:, None]
+    denom = float(weight.sum())
+    if denom <= 0.0:
+        raise ValueError("no erodible area: there is no mosaic to average")
+    return float(np.exp((np.log(z0_plane) * weight).sum() / denom))
+
+
 def flag_anomalous_bins(spd: np.ndarray, factor: float = 2.5) -> list[int]:
     """Time bins whose near-surface wind is wildly out of line with the rest.
 
@@ -765,14 +788,17 @@ def main() -> None:
         emit_annual = climatology.masked_mean(emission, bin_centres, good)
         emit_mean = gmean(emit_annual)
         outcomes[shelter] = {
-            # A FIELD, so it is reported as one: the erodible-weighted
+            # A FIELD, so it is reported as one: the erodible-area weighted
             # geometric mean over emitting cells, and the range across them.
             # A single number here would hide that a clastic playa and an
             # evaporite pan sit at different roughnesses in the same arm.
+            # The mean is `mosaic_scalar_z0` and not an expression written out
+            # here, because `build_dust_source_fields.py` writes the same number
+            # as the namelist DUSTZ0 and a second statement of it is how the two
+            # arms came to run at different roughnesses in the first place.
             "aeolian_z0_m": {
-                "erodible_weighted_geometric_mean": float(np.exp(
-                    (np.log(z0a) * erodible).sum()
-                    / max(float(erodible.sum()), 1e-30))),
+                "erodible_weighted_geometric_mean":
+                    mosaic_scalar_z0(z0a, erodible, lat),
                 "min_over_emitting_cells": float(z0a[erodible > 0].min())
                 if np.any(erodible > 0) else None,
                 "max_over_emitting_cells": float(z0a[erodible > 0].max())
