@@ -931,6 +931,69 @@ def check_continuation_redeclares_everything() -> list[str]:
     return bad
 
 
+def check_per_level_namelist_keys_cover_every_level() -> list[str]:
+    """A namelist key backed by an NLEV array is written for every level.
+
+    `ndel`, `tdissd`, `tdissz`, `tdisst` and `tdissq` are declared `(NLEV)` in
+    plasimmod, and a Fortran namelist scalar assigns ELEMENT ONE and leaves the
+    rest. Written as scalars they reached the model top and nine levels in ten
+    kept whatever `readnl` had preset. The model echoes what it read, and it
+    read `NDEL=4, 9*2` at T21: world-1nz's grad^8 on one level and grad^4 on
+    the other nine, with humidity damped 7.4 times too hard there.
+
+    At T42 the same scalar landed in the wrong UNIT. `readnl`'s `NTRU==42`
+    branch fills the arrays in seconds, `dayseccheck` decides days-against-
+    seconds from MAXVAL over the whole array, and the preset's 65664 suppressed
+    the conversion element one needed -- leaving the top level damped 86400
+    times too hard and nothing else touched. world-td3.
+
+    This CALLS the writer against the real config and reads what it would put
+    in the namelist, rather than matching its source text: the first version
+    matched text and passed a scalar written through a helper.
+    """
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    import yaml
+    import run_exoplasim
+
+    per_level = ("NDEL", "TDISSD", "TDISSZ", "TDISST", "TDISSQ")
+    config = yaml.safe_load(
+        (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    nlev = int(config["model"]["layers"])
+
+    class _Recorder:
+        def __init__(self):
+            self.written = {}
+
+        def _edit_namelist(self, namelist, key, value):
+            self.written[key] = value
+
+    def _count(value: str) -> int:
+        """How many array elements this namelist value actually supplies."""
+        total = 0
+        for item in str(value).split(","):
+            item = item.strip()
+            if not item:
+                continue
+            total += int(item.split("*", 1)[0]) if "*" in item else 1
+        return total
+
+    bad = []
+    recorder = _Recorder()
+    run_exoplasim.declare_hyperdiffusion(recorder, config)
+    for key in per_level:
+        if key not in recorder.written:
+            bad.append(f"declare_hyperdiffusion no longer writes {key}, which "
+                       "this check asserts is declared for every level")
+            continue
+        supplied = _count(recorder.written[key])
+        if supplied != nlev:
+            bad.append(
+                f"declare_hyperdiffusion writes {key} = "
+                f"{recorder.written[key]!r}, which supplies {supplied} of "
+                f"{nlev} levels -- the rest keep the model's own preset")
+    return bad
+
+
 def check_restart_schema_covers_the_model() -> list[str]:
     """Every restart record the model writes has a policy, with the right reset.
 
@@ -1069,6 +1132,8 @@ def main() -> None:
                check_restart_schema_covers_the_model()),
               ("a continuation redeclares what a prepare declared",
                check_continuation_redeclares_everything()),
+              ("every per-level namelist key is written for every level",
+               check_per_level_namelist_keys_cover_every_level()),
               ("no artifact path carries a resolution literal",
                check_no_rung_literal_in_a_path(files)),
               ("the configured resolution matches its own grid dimensions",

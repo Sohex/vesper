@@ -1026,12 +1026,32 @@ def declare_hyperdiffusion(model, config: dict) -> dict:
     tau = table[rung]
     ntru = int(rung.lstrip("Tt"))
     nhdiff = int(round(float(hd["cutoff_fraction"]) * ntru))
-    keys = {"NDEL": f"{int(hd['order_alpha'])}",
+    # EVERY LEVEL, NOT JUST THE FIRST. ndel and the four tdiss are ndel(NLEV)
+    # and tdiss*(NLEV) in plasimmod, and a Fortran namelist scalar assigns
+    # ELEMENT ONE and leaves the rest. Written as scalars, these reached the
+    # model top and nine levels in ten kept whatever readnl had preset -- at
+    # T21 `NDEL=4, 9*2`, so world-1nz's grad^8 landed on one level and the
+    # other nine stayed on grad^4 with humidity damped 7.4 times too hard.
+    #
+    # At T42 it was worse than wrong, it was in the wrong UNIT. readnl's
+    # NTRU==42 branch fills the arrays in SECONDS, and `dayseccheck` decides
+    # days-against-seconds from MAXVAL over the whole array, so the preset's
+    # 65664 suppressed the conversion element one needed and tdisst(1) stayed
+    # 2.8224 SECONDS where 2.8224 days was meant: the top level damped 86400
+    # times too hard, and only the top level. That is where the T42 blow-up of
+    # world-td3 starts, and it is why T21, which has no such preset, survives.
+    #
+    # The repeat count is Fortran namelist syntax and the model echoes what it
+    # read; smoke_test checks the echo rather than this line.
+    nlev = int(model_cfg["layers"])
+    def _every_level(value) -> str:
+        return f"{nlev}*{value}"
+    keys = {"NDEL": _every_level(int(hd['order_alpha'])),
             "NHDIFF": f"{nhdiff}",
-            "TDISSD": f"{float(tau['divergence'])}",
-            "TDISSZ": f"{float(tau['vorticity'])}",
-            "TDISST": f"{float(tau['temperature'])}",
-            "TDISSQ": f"{float(tau['humidity'])}"}
+            "TDISSD": _every_level(float(tau['divergence'])),
+            "TDISSZ": _every_level(float(tau['vorticity'])),
+            "TDISST": _every_level(float(tau['temperature'])),
+            "TDISSQ": _every_level(float(tau['humidity']))}
     for key, value in keys.items():
         model._edit_namelist("plasim_namelist", key, value)
     print(f"hyperdiffusion: {rung} alpha={hd['order_alpha']} "
