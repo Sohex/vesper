@@ -262,6 +262,75 @@ constrain other components hardest:
   delivered -- is not representable. Raising `dwmax` on the lake fraction buys
   the seasonal partition and not the annual total, and the builder says so.
 
+## Who owns a seasonal inundated area
+
+WET-2 asks for a mutually exclusive wetness classification AND a seasonal
+inundated area. The classification exists; the seasonal half had no owner, and
+the reason it had none is that it is THREE quantities wearing one name. They
+have different supports, different stores and different states of readiness, and
+the ownership question only has an answer once they are separated.
+
+**One. The inundated area of a CLOSED BASIN, varying through the year.** Support
+is the basin, crossing to the climate grid through the coupling matrix that
+already exists. The store is the basin's own water volume. The curve that turns
+that volume into an area is `basins.nc`'s level, area and volume at 128 levels,
+which `build_hydrography.py` already computes from the priority-flood ordering
+and which is exactly the right curve for a depression filling. Nothing has to be
+invented. THIS ONE IS HYDROGRAPHY'S, and what it costs is the three changes
+below rather than a new model.
+
+`surface_water.py` reduces the climatology with `annual_mean` at read time and
+solves for one equilibrium, exiting unless it converges to it. The climatology
+file carries time bins and `lib/climatology.py` owns their weights, so the
+forcing is already there. What changes is that the balance integrates the basin
+storage THROUGH those bins instead of over their mean, that
+`carve_verdict.penman_open_water` is evaluated per bin -- it already integrates
+the diurnal cycle for the same Jensen reason, so a bin is not a new kind of
+evaluation -- and that the convergence criterion stops being an equilibrium and
+becomes a periodic steady state, where the year has to close on itself. That
+last is a new criterion, not a new solver.
+
+And the ledger has to move with it. `open_water_evaporation` and
+`surface_runoff` carry `interval_floor: annual`, and the note on the first says
+why: the producer is annual, and ExoPlaSim cannot supply it at all, because
+routed water lands in `driver` and never evaporates. The absence
+`open_water_evaporation_from_routed_water` records that. Both are LSHY-6's, so
+the interval floors are LSHY-6's to lower, and a seasonal basin balance that
+booked against an annual floor would be exactly the refusal the ledger exists to
+make. The size of the answer is set by residence time: a deep terminal lake
+holds years of supply and its area barely moves within one, while a shallow
+playa's is nearly all seasonal, so the quantity is real and concentrated in the
+low-capacity basins.
+
+**Two. The inundated area of a FLOODPLAIN along a river, varying through the
+year.** Support is the routing cell, the store is channel plus floodplain
+storage, and the curve is a height-above-nearest-drainage CDF per routing cell.
+None of the three exists here. `notes/external-model-survey.md` section 52a
+records what CaMa-Flood does with them -- two prognostic scalars, everything
+else diagnostic, and a small runtime cost -- and that the cost is the
+preprocessing: HAND does not exist in this project, the upscaling package that
+produces it is external and raster, and the basin curves above are a different
+quantity that shares the word. THIS ONE SHOULD NOT EXIST YET. It needs a routing
+model this project does not have, and giving it an owner before that would be
+naming a component rather than building one.
+
+**Three. Seasonally saturated SOIL that is not standing water.** This is not an
+inundated area at all. ExoPlaSim's land water column and LPJ-GUESS's soil column
+both carry a water CONTENT per cell or per patch and neither carries an area,
+and turning a content into an area is a saturated-fraction closure. The only one
+this project had is withdrawn -- `subgrid-water-table.md` section 7 -- so the
+route is closed, and listing those two columns as candidates for an inundated
+AREA is a category error rather than a shortlist. What they can supply is a
+seasonally varying water content, which is a different quantity and needs a
+different consumer.
+
+**So the answer WET-2, WET-8 and WET-10 get** is that a seasonal aquatic area is
+available for closed basins and is not available for floodplains, and each of
+them has to say which it needs. A methane ledger that treats "seasonally
+inundated" as one class would be booking two supports and a category error into
+one number, which is the same defect WET-2's exclusivity rule exists to prevent
+one level down.
+
 ## What would settle the parts that are open
 
 Nothing here needs a climate run or an LPJ-GUESS run. The declaration, the

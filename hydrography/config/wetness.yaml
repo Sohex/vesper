@@ -79,12 +79,20 @@ classes:
       and reviving it is a new closure with a new criterion. GW-26.
   seasonal_inundation:
     support: region
-    unavailable_reason: nothing in this component carries a season. The lake
+    unavailable_reason: nothing in this component carries a season yet. The lake
       solve is an annual equilibrium, the groundwater solve is a steady state,
       and `hydrography/config/land_water_ledger.yaml` gives every term reaching
-      these stores an annual `interval_floor`. A seasonal inundated area needs a
-      store that empties and refills inside the year, which is the climate
-      column's or the land model's and not this component's.
+      these stores an annual `interval_floor`. Ownership is settled in
+      `hydrography/notes/land-water-ledger.md`, and it splits the quantity in
+      three: a closed BASIN's inundated area through the year is HYDROGRAPHY's,
+      it needs no curve that does not already exist in basins.nc, and its cost
+      is a periodic-steady-state lake balance over the climatology's own time
+      bins plus LSHY-6 lowering two interval floors; a FLOODPLAIN's is a routing
+      cell's, needs a height-above-nearest-drainage CDF and a routing model
+      neither of which exists here, and should not have an owner yet; and a
+      seasonally saturated SOIL is a water content rather than an area, so
+      neither the climate column nor the land model can supply one without a
+      saturated-fraction closure, and this project's is withdrawn.
   peat:
     support: region
     unavailable_reason: persistence over a seasonal cycle is what distinguishes
