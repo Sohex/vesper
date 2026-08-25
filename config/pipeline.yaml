@@ -148,11 +148,38 @@ steps:
     needs: []
     writes: ["exoplasim/inputs/{res_lower}/roughness_{res_lower}_report.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0173.sra"]
 
+  - id: ocean_tier_gate
+    script: exoplasim/scripts/ocean_tier_gate.py
+    loop: A
+    cost: seconds
+    needs: []
+    writes: [exoplasim/analysis/ocean_tier_gate_report.json]
+    gate: >
+      the declaration of the adopted ocean tier, checked against the source the
+      model compiles. The tier is ExoPlaSim's slab -- oceanmod, icemod and
+      seamod -- and NOT vendor/cgenie, which is a candidate under OCN-3 that
+      nothing reads. It reads exoplasim/config/ocean_tier.yaml and fails on a
+      quantity two modules act on that is no longer stated once and handed on,
+      on a constant whose declaration line the source no longer runs or whose
+      value is not what that line's own initialiser evaluates to, on a constant
+      whose declared reachability its module's namelist block contradicts, on
+      the sea-ice albedo ramp leaving the hull of its own endpoints over any
+      corner of the endpoint bracket a run can produce, on a line the tier's
+      argument rests on that the model no longer runs, and on a fail-closed
+      guard that has gone from the source. Nineteen fixtures run on every
+      invocation, eighteen built to be wrong in a named way. With Earth
+      constants of the modelled sea still unsourced it reports and exits 0,
+      because a run on the declared tier is a correct run of a declared model
+      boundary; --strict is the arm that refuses. bootstrap_run and
+      baseline_run need it so the boundary sits on the path rather than beside
+      it. Nothing here is verified by execution; what the slab DELIVERS is
+      verified by running the model, in verify_ocean_flux_channel.py.
+
   - id: bootstrap_run
     script: exoplasim/scripts/run_exoplasim.py
     loop: A
     cost: hours
-    needs: [rebuild_binaries, boundary_conditions, surface_albedo, surface_roughness]
+    needs: [rebuild_binaries, boundary_conditions, surface_albedo, surface_roughness, ocean_tier_gate]
     writes: []
     presence: by_index   # UUID-named; ask exoplasim/runs/INDEX.json, not the path
 
@@ -683,7 +710,7 @@ steps:
     script: exoplasim/scripts/run_exoplasim.py
     loop: A
     cost: hours
-    needs: [surface_water, surface_albedo, surface_soil_water, rebuild_binaries]
+    needs: [surface_water, surface_albedo, surface_soil_water, rebuild_binaries, ocean_tier_gate]
     writes: []
     presence: by_index
 

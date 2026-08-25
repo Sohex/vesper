@@ -1,0 +1,640 @@
+# The adopted ocean tier, declared.
+#
+# WORLDBUILDING CONTEXT: Vesper is an invented planet and this file declares
+# constants of the climate model that simulates it. Ocean, sea ice, sea water
+# and snow below name modelled substances.
+#
+# WHICH TIER THIS IS. The ocean that runs is ExoPlaSim's slab: oceanmod.f90
+# integrates one mixed layer, icemod.f90 runs the sea-ice thermodynamics and
+# owns the sea water, and seamod.f90 is the surface the atmosphere sees.
+# vendor/cgenie is a CANDIDATE under OCN-3 that nothing reads and that does not
+# build where it stands, so it is not declared here and a lint on it would be a
+# lint on a configuration no step produces.
+#
+# WHAT THIS FILE IS FOR. notes/audits/ocean-tier-implicit-earth.md asked, of
+# the candidates, where an Earth number reaches this world with nothing saying
+# it was chosen, and its headline was two independent statements of one
+# quantity that no check compared. That question re-derived against the tier
+# that actually runs is what this file answers, and
+# exoplasim/scripts/ocean_tier_gate.py is the enforcement.
+#
+# `reach` is the column that audit added and it is the one that decides how a
+# constant fails. `namelist` is settable by a run and appears in its module's
+# own *_nl block; `handed` is passed between modules so the two cannot hold
+# different values; `compile_time` is reachable by a source edit and nothing
+# else. `origin` says where the number came from: `earth` is an Earth
+# measurement standing unexamined, `declared` is a Vesper decision, `derived`
+# follows from one.
+
+what: >
+  The adopted ocean tier of the Vesper climate model: the slab, its sea ice and
+  the sea surface the atmosphere sees, declared and checked against the source
+  the model compiles.
+
+sources:
+  ice: vendor/exoplasim/exoplasim/plasim/src/icemod.f90
+  ocean: vendor/exoplasim/exoplasim/plasim/src/oceanmod.f90
+  sea: vendor/exoplasim/exoplasim/plasim/src/seamod.f90
+
+# ---------------------------------------------------------------------------
+# ONE QUANTITY, ONE DECLARATION.
+#
+# The audit's headline, re-derived here. A quantity two modules both act on
+# must be stated once and handed on, because two statements agree until one is
+# edited and then disagree with nothing comparing them. Each entry names the
+# owner's declaration, every receiver's assignment, and the forms that must NOT
+# be back in the source -- without the third, reverting by re-adding a second
+# compile-time copy beside the handoff would pass.
+# ---------------------------------------------------------------------------
+single_declaration:
+  - id: melting_point
+    quantity: the melting point of the modelled water, K
+    owner:
+      source: sea
+      # pumamod's, a planet_nl key. p_earth.f90 calls it "the freezing point
+      # every soil, snow, sea and ice routine tests against", which was not
+      # true of icemod while icemod had its own.
+      via: "use pumamod"
+    receivers:
+      - source: ice
+        declaration: "      real :: tmelt = 273.16            ! melting temp. for snow (0 deg C)"
+        assignment: "tmelt     = ptmelt"
+        handoff: "call iceini"
+    forbidden:
+      - source: ice
+        form: "parameter(TMELT="
+        why: >
+          a second compile-time melting point in icemod. seamod's sea-ice
+          albedo ramp anchors on pumamod's and icestep's skin-temperature melt
+          on icemod's, so a configuration that moved planet_nl's tmelt would
+          split them with no line carrying the melting point at all.
+    why: >
+      tmelt is namelist-reachable and icemod's copy was not, so the split was
+      reachable from configuration alone rather than only from a source edit.
+
+  - id: sea_ice_density
+    quantity: the density of the modelled sea ice, kg/m3
+    owner:
+      source: ice
+      declaration: "      parameter(CRHOI = 920.)           ! DENSITY OF ICE"
+    receivers:
+      - source: ocean
+        declaration: "      real :: CRHOI    = 920.           ! Density of sea ice (kg/m**3)"
+        assignment: "CRHOI   = pcrhoi"
+        handoff: "call oceanini"
+    forbidden:
+      - source: ocean
+        form: "parameter(CRHOI"
+        why: >
+          a second compile-time sea-ice density in oceanmod. addfc builds
+          branch (c)'s melt flux yiced*CRHOI*CLFI/dtmix from oceanmod's and
+          icemod weighs the same ice, and its snow-ice flooding threshold
+          CRHOS-CRHOI, from its own.
+    why: >
+      neither statement was namelist-reachable, so this one splits only under a
+      source edit -- which is what the audit says a port does first.
+
+  - id: sea_water
+    quantity: the four numbers salinity reaches the model through
+    owner:
+      source: ice
+      declaration: "      real :: TFREEZE   =  271.25  ! freezing temp. for sea ice at S=34.7"
+    receivers:
+      - source: ocean
+        declaration: "      real :: TFREEZE  = 271.25         ! Freezing point (K)"
+        assignment: "TFREEZE = ifreezet"
+        handoff: "call oceanini"
+    forbidden:
+      - source: ocean
+        form: "parameter(TFREEZE"
+        why: >
+          a compile-time freezing point in oceanmod would make icemod_nl's key
+          silently inert on the slab side, which is where mksst and addfc clamp
+          the sea surface temperature.
+    why: >
+      lib/sea_water.py reads these from icemod.f90 and the run's own namelist
+      rather than copying them; four analysis scripts once carried the pair as
+      literals at fresh water's specific heat and every slab heat capacity
+      built from them was 4.75 per cent too large.
+
+  - id: snow_density
+    quantity: the density of the modelled snow, kg/m3
+    owner:
+      source: sea
+      via: "use landmod, only: rhosnow"
+    receivers:
+      - source: ice
+        declaration: "      real :: crhosn = 330.             ! DENSITY OF SNOW (kg/m**3)"
+        assignment: "crhosn    = prhosnow"
+        handoff: "call iceini"
+    forbidden:
+      - source: ice
+        form: "parameter(CRHOSN"
+        why: GRAV-8's defect, restated so it cannot come back.
+    why: >
+      landmod's rhosnow is an namelist key and icemod's was a hardcoded
+      parameter used the same way, water equivalent times 1000 over the
+      density to reach a physical thickness.
+
+# ---------------------------------------------------------------------------
+# THE CONSTANTS. Each `declaration` must be a line the source runs, and `value`
+# must be what that line's own initialiser evaluates to -- so a number changed
+# in the source and a number changed here fail the same check. `reach` must
+# agree with whether the symbol is in its module's namelist block.
+# ---------------------------------------------------------------------------
+constants:
+  values:
+    - name: TFREEZE
+      source: ice
+      declaration: "      real :: TFREEZE   =  271.25  ! freezing temp. for sea ice at S=34.7"
+      value: 271.25
+      reach: namelist
+      namelist: icemod_nl
+      origin: earth
+      sourced: true
+      source_of_value: >
+        run_exoplasim.py derives it from config/planet.yaml's ocean salinity
+        through the UNESCO (1983) freezing-point polynomial and writes it to
+        icemod_namelist, so the compiled value is only the Earth default that
+        stands when nothing sets it.
+      bites: where sea ice forms at all.
+
+    - name: CRHOS
+      source: ice
+      declaration: "      real :: CRHOS     = 1030.    ! density of sea water (kg/m**3)"
+      value: 1030.0
+      reach: namelist
+      namelist: icemod_nl
+      origin: earth
+      sourced: true
+      source_of_value: >
+        derived with TFREEZE from the declared salinity by run_exoplasim.py.
+      bites: >
+        the mixed-layer heat capacity with CPS, and the snow-ice flooding
+        threshold as the DIFFERENCE CRHOS-CRHOI, where a one per cent density
+        error is a ten per cent threshold error.
+
+    - name: CPS
+      source: ice
+      declaration: "      real :: CPS       = 3990.34  ! specific heat of sea water (J/(kg*K))"
+      value: 3990.34
+      reach: namelist
+      namelist: icemod_nl
+      origin: earth
+      sourced: true
+      source_of_value: >
+        sea water at S = 34.7 and its freezing point, UNESCO (1983); derived
+        from the declared salinity by run_exoplasim.py.
+      bites: the mixed-layer heat capacity, and every slab closure residual.
+
+    - name: CLFI
+      source: ice
+      declaration: "      real :: CLFI      = 3.28E5   ! heat of fusion of sea ice (J/kg)"
+      value: 328000.0
+      reach: namelist
+      namelist: icemod_nl
+      origin: declared
+      sourced: true
+      source_of_value: >
+        config/planet.yaml ocean.sea_ice_fusion_j_kg, DECLARED rather than
+        derived: it is a function of the ice's own salinity and temperature and
+        this model carries neither as a variable.
+      bites: how much energy a metre of ice is worth, in icemod and in addfc.
+
+    - name: CRHOI
+      source: ice
+      declaration: "      parameter(CRHOI = 920.)           ! DENSITY OF ICE"
+      value: 920.0
+      reach: compile_time
+      origin: earth
+      sourced: false
+      bites: >
+        the mass of a metre of modelled ice, everywhere; and with CRHOS the
+        snow-ice flooding threshold.
+
+    - name: CPI
+      source: ice
+      declaration: "      parameter(CPI = 2070.)            ! SPECIFIC HEAT OF ICE (J/(kg*K))"
+      value: 2070.0
+      reach: compile_time
+      origin: earth
+      sourced: false
+      bites: the heat capacity of the modelled ice slab in the skin-temperature step.
+
+    - name: CPSN
+      source: ice
+      declaration: "      parameter(CPSN = 2090.)           ! SPECIFIC HEAT OF SNOW (J/(kg*K))"
+      value: 2090.0
+      reach: compile_time
+      origin: earth
+      sourced: false
+      bites: the heat capacity of modelled snow on sea ice.
+
+    - name: CKAPI
+      source: ice
+      declaration: "      parameter(CKAPI = 2.03)           ! HEAT CONDUCTIVITY IN ICE (W/(m*K))"
+      value: 2.03
+      reach: compile_time
+      origin: earth
+      sourced: false
+      bites: >
+        the conductive flux through the modelled ice, which is what sets the
+        equilibrium thickness at a given surface energy balance.
+
+    - name: CKAPSN
+      source: ice
+      declaration: "      parameter(CKAPSN = 0.31)          ! HEAT CONDUCTIVITY IN SNOW (W/(m*K))"
+      value: 0.31
+      reach: compile_time
+      origin: earth
+      sourced: false
+      bites: the insulating effect of modelled snow on sea ice.
+
+    - name: CLFSN
+      source: ice
+      declaration: "      parameter(CLFSN = 3.337E5)        ! HEAT OF FUSION OF SNOW (J/kg)"
+      value: 333700.0
+      reach: compile_time
+      origin: earth
+      sourced: false
+      bites: what melting a snowfall into the modelled sea costs.
+
+    - name: tmelt
+      source: ice
+      declaration: "      real :: tmelt = 273.16            ! melting temp. for snow (0 deg C)"
+      value: 273.16
+      reach: handed
+      origin: earth
+      sourced: true
+      source_of_value: >
+        pumamod's, a planet_nl key set by p_earth.f90 and handed to iceini.
+        The value below is only what stands until iceini is called.
+      bites: the skin-temperature melt in icestep and the sea-ice albedo ramp.
+
+    - name: crhosn
+      source: ice
+      declaration: "      real :: crhosn = 330.             ! DENSITY OF SNOW (kg/m**3)"
+      value: 330.0
+      reach: handed
+      origin: earth
+      sourced: true
+      source_of_value: landmod's rhosnow, a landmod_nl key, handed to iceini. GRAV-8.
+      bites: the physical thickness a snow water equivalent reaches on sea ice.
+
+    - name: xmind
+      source: ice
+      declaration: "      real :: xmind         = 0.1  ! minimal ice thickness (m)"
+      value: 0.1
+      reach: namelist
+      namelist: icemod_nl
+      origin: earth
+      sourced: false
+      bites: >
+        the thinnest ice the model carries, and through zrcpl = xmind*CRHOI*CPI
+        the heat capacity of the skin-temperature layer.
+
+    - name: xmaxd
+      source: ice
+      declaration: "      real :: xmaxd         = 9.0  ! maximal ice thickness (m; neg. = no limit)"
+      value: 9.0
+      reach: namelist
+      namelist: icemod_nl
+      origin: earth
+      sourced: true
+      source_of_value: config/planet.yaml, written to icemod_namelist by run_exoplasim.py.
+      bites: the thickest ice the model carries; the excess becomes xcfluxr.
+
+    - name: thicec
+      source: ice
+      declaration: "      real :: thicec        = 0.5  ! threshold to obtain make mask from comp. "
+      value: 0.5
+      reach: namelist
+      namelist: icemod_nl
+      origin: earth
+      sourced: false
+      bites: whether a cell is MASKED as iced, at icestep and mkicec.
+
+    - name: cicemin
+      source: ice
+      declaration: "      real :: cicemin       = 0.5  ! minimum compactness to be ice"
+      value: 0.5
+      reach: namelist
+      namelist: icemod_nl
+      origin: earth
+      sourced: false
+      bites: >
+        whether falling snow lands on the modelled ice or melts into the water,
+        at subsnow's two sites. A SECOND threshold on the same field as thicec
+        and not a restatement of it; it was unreachable until world-xdmj, so a
+        bracket that moved thicec left this one at its compiled value.
+
+    - name: hlead
+      source: ice
+      declaration: "      real :: hlead         = 0.5  ! lead-closing growth scale (m)"
+      value: 0.5
+      reach: namelist
+      namelist: icemod_nl
+      origin: earth
+      sourced: true
+      source_of_value: config/planet.yaml, written to icemod_namelist by run_exoplasim.py.
+      bites: >
+        the whole of this model's lead parameterisation: how much new ice has
+        to grow before a cell counts as iced for albedo and roughness.
+
+    - name: albsea
+      source: sea
+      declaration: "      real    :: albsea   = 0.069 ! albedo for free ocean"
+      value: 0.069
+      reach: namelist
+      namelist: seamod_nl
+      origin: earth
+      sourced: true
+      source_of_value: >
+        surfacespecs.py's oceanblend against a 5772 K Planck reproduces 0.069;
+        against this star's spectrum it is 0.068, and OCN-7 records that a
+        K-star reweighting of the ocean albedo is worth 0.002.
+      bites: >
+        the open-water albedo of the BROADBAND diagnostic. At nstartemp = 1 the
+        shortwave reads dsalb and radmod additionally substitutes a
+        zenith-dependent formula over open water, so this scalar reaches the
+        radiation only at nstartemp = 0.
+
+    - name: albice
+      source: sea
+      declaration: "      real    :: albice   = 0.7   ! max. albedo for sea ice"
+      value: 0.7
+      reach: namelist
+      namelist: seamod_nl
+      origin: earth
+      sourced: false
+      bites: the cold end of the broadband sea-ice albedo ramp.
+
+    - name: albicemn
+      source: sea
+      declaration: "      real    :: albicemn  = 0.5  ! min. albedo for sea ice (non-spectral)"
+      value: 0.5
+      reach: namelist
+      namelist: seamod_nl
+      origin: earth
+      sourced: false
+      bites: the warm end of the broadband sea-ice albedo ramp, at the melting point.
+
+    - name: dicealbdt
+      source: sea
+      declaration: "      real    :: dicealbdt = 10.0 ! width of the sea-ice albedo ramp (K)"
+      value: 10.0
+      reach: namelist
+      namelist: seamod_nl
+      origin: earth
+      sourced: true
+      source_of_value: >
+        upstream's implied width at Earth's broadband span: it ramped with an
+        absolute slope of 0.025 per K, which is a span of 0.25 over 10 K.
+      bites: >
+        how far below the melting point the modelled sea ice reaches its cold
+        albedo, in both bands at once.
+
+    - name: charnock
+      source: sea
+      declaration: "      real    :: charnock = 0.018 ! albedo for free ocean"
+      value: 0.018
+      reach: namelist
+      namelist: seamod_nl
+      origin: earth
+      sourced: false
+      bites: >
+        the roughness length over open water, through
+        charnock*|tau|*gascon*T/(ga*p). The trailing comment is upstream's and
+        is wrong: this is not an albedo.
+
+    - name: dz0sea
+      source: sea
+      declaration: "      real    :: dz0sea   = 1.5E-5! roughness length sea"
+      value: 1.5e-5
+      reach: namelist
+      namelist: seamod_nl
+      origin: earth
+      sourced: false
+      bites: the floor under the Charnock roughness, and the cold-start value.
+
+    - name: dz0ice
+      source: sea
+      declaration: "      real    :: dz0ice   = 0.001 !  \"          \"    ice"
+      value: 0.001
+      reach: namelist
+      namelist: seamod_nl
+      origin: earth
+      sourced: false
+      bites: the roughness length of the modelled sea ice.
+
+    - name: mldepth
+      source: ocean
+      declaration: "      real :: mldepth           = 50.   ! mixed layer depth (scalar) (m)"
+      value: 50.0
+      reach: namelist
+      namelist: oceanmod_nl
+      origin: earth
+      sourced: true
+      source_of_value: >
+        config/planet.yaml surface.mixed_layer_depth_m, DECLARED and not
+        determined; run_exoplasim.py passes it to configure().
+      bites: the slab's heat capacity with CRHOS and CPS, and its response time.
+
+    - name: hdiffk
+      source: ocean
+      declaration: "      real :: hdiffk(NLEV_OCE)  = 1.E3  ! horizontal diffusion coeff. [m**2/s]"
+      value: 1000.0
+      reach: namelist
+      namelist: oceanmod_nl
+      origin: earth
+      sourced: true
+      source_of_value: >
+        config/planet.yaml ocean.horizontal_diffusivity_m2_s, written
+        unconditionally by run_exoplasim.py. CLIM-16 keeps nhdiff off: this is
+        a BOUND on the missing transport in an A/B, not the transport.
+      bites: >
+        the only horizontal heat transport the slab has, and it acts on an
+        angular grid, so what it realises depends on planet_nl's radius.
+
+    - name: solar_day
+      source: ocean
+      declaration: "      real :: solar_day    = 86400.0    ! 24 * 60 * 60 (for Earth)"
+      value: 86400.0
+      reach: handed
+      origin: earth
+      sourced: true
+      source_of_value: >
+        icemod's solar_day, itself pumamod's day_24hr, handed through oceanini.
+        The value below is only what stands until oceanini is called.
+      bites: >
+        the ocean timestep dtmix = solar_day/ntspd and the newtonian cooling
+        timescale, both of which are wrong by the day-length ratio if the
+        compiled value is ever the one that runs.
+
+# ---------------------------------------------------------------------------
+# THE SEA-ICE ALBEDO RAMP. The form is built from this declaration and the
+# source has to contain it exactly `occurrences` times, because seaini and
+# seastep each write it and one moving without the other is a cold start that
+# disagrees with every step after it.
+#
+# The range statement is the one with a known failing state. Upstream ramped
+# with an ABSOLUTE slope tied to 273.0, which is neither the melting point nor
+# the freezing point, and at the melting point it returned 0.004 BELOW its own
+# declared minimum. The fractional form cannot: it is a convex combination of
+# its two endpoints and a convex combination of the open-water and ice values,
+# so it lies in the convex hull of the three whatever the driver does.
+# ---------------------------------------------------------------------------
+ramps:
+  sea_ice_albedo:
+    source: sea
+    # `fractional` is the form the model runs: the ramp is a FRACTION, zero at
+    # the warm anchor and one at `width` below it, and both bands saturate
+    # together. `absolute_slope` is the form upstream ran and is implemented in
+    # the gate so the range statement has something that can fail: it ramps the
+    # albedo by `slope` per K below `anchor` and clips at the maximum, which
+    # only reaches the declared minimum where the span is slope*width exactly.
+    form: fractional
+    driver: dts
+    warm_anchor: tmelt
+    width: dicealbdt
+    fraction: zsicf
+    occurrences: 2
+    # What the superseded form would have used. Carried so the gate can build
+    # it and so the numbers upstream ran on are not lost with it.
+    superseded:
+      form: absolute_slope
+      anchor: 273.0
+      slope: 0.025
+    # The endpoint bracket the sweep runs over. These are plasimmod's
+    # declarations, which radmod re-derives from the stellar spectrum at init,
+    # so the sweep takes CORNERS of a bracket rather than the compiled values:
+    # the statement being checked is that the ramp cannot leave the hull of its
+    # endpoints, and that has to hold for every endpoint set a run can produce.
+    endpoint_bracket:
+      open_water: [0.03, 0.12]
+      ice_min: [0.35, 0.60]
+      ice_max: [0.55, 0.85]
+    forbidden_forms:
+      - form: "0.025"
+        why: >
+          upstream's absolute albedo slope per K. Its return would be the
+          fractional ramp reverted with the width constant left behind.
+      - form: "273.0-dts"
+        why: >
+          upstream's ramp anchor, which is neither tmelt nor TFREEZE.
+
+# ---------------------------------------------------------------------------
+# LINES THE ARGUMENT RESTS ON. Each is a statement the model has to still run
+# for something written down elsewhere to be true.
+# ---------------------------------------------------------------------------
+invariants:
+  - name: ocean_radius_is_the_planets
+    source: ocean
+    line: "use pumamod, only: plarad"
+    why: >
+      hdiffo works on an angular grid, so the radius is what turns the angular
+      Laplacian into a metric one. A compiled Earth radius would make the
+      realised diffusivity (a_earth/a)**2 times what the namelist asked for,
+      and oceanmod's header states that the radius is NOT a parameter here.
+
+  - name: ocean_timestep_is_the_planets_day
+    source: ocean
+    line: "dtmix = solar_day / real(ntspd)"
+    why: >
+      ntspd is steps per SOLAR DAY, so the ocean's timestep is only right while
+      solar_day is the one icemod handed over rather than the compiled 86400.
+
+  - name: slab_clamps_at_the_declared_freezing_point
+    source: ocean
+    line: "where(ysst(:,1) < TFREEZE .and. yls(:) < 1.)"
+    why: >
+      mkiflux is where the slab stops cooling and the residual becomes a flux
+      into the ice. It has to test the freezing point icemod handed over, not
+      a literal.
+
+  - name: sea_saturation_is_liquid_unconditionally
+    source: sea
+    line: "dqs(:)=rdbrv*ra1*EXP(ra2*(dt(:,NLEP)-tmelt) /ra4d(dt(:,NLEP),ra4))/dp(:)"
+    why: >
+      fluxmod takes the ALV arm for every cell with dls < 0.5 whatever its
+      temperature, so a sea saturation that switched on temperature would sit
+      under a liquid latent heat. world-ako. It also anchors on tmelt, which is
+      the one declaration.
+
+  - name: albedo_diagnostic_is_what_the_radiation_used
+    source: sea
+    line: "dalb(:)=zsolars(1)*dsalb(1,:)+zsolars(2)*dsalb(2,:)"
+    why: >
+      radstep runs before surfstep, so seastep overwrites radmod's diagnostic
+      of the albedo it used. seaalbarchive puts the flux-weighted combination
+      back, and dalb is what outmod writes as code 175.
+
+# ---------------------------------------------------------------------------
+# THE FAIL-CLOSED GUARDS. Each is a refusal the model makes rather than running
+# on a default. A guard that goes missing is a run that proceeds on an Earth
+# number or on an unset field, which is the failure the audit prices as cheap
+# to guard and expensive to discover.
+# ---------------------------------------------------------------------------
+refusals:
+  - name: ocean_diffusion_needs_a_radius
+    source: ocean
+    form: "oceanmod: nhdiff > 0 needs a planet radius"
+    guards: >
+      hdiffk is stated in m2/s and acts on an angular grid, so a run with no
+      declared radius would realise a diffusivity nothing states.
+
+  - name: ocean_flux_correction_needs_a_climatology
+    source: ocean
+    form: "oceanmod: nfluko needs a sea surface temperature"
+    guards: >
+      the flux correction is a relaxation toward a climatology; with yclsst at
+      its -999 sentinel addfc and mkfc would drive the ocean at a field that
+      says only that no such field exists.
+
+  - name: prescribed_ocean_needs_a_climatology
+    source: ocean
+    form: "oceanmod: nocean = 0 prescribes the sea surface"
+    guards: >
+      nocean = 0 does not integrate an ocean, it PRESCRIBES one: oceanstep sets
+      ysst to yclsst2 every step.
+
+  - name: ocean_flux_correction_needs_its_field
+    source: ocean
+    form: "oceanmod: nfluko = 1 needs the ocean flux"
+    guards: >
+      surface code 903 is the prescribed heat-transport channel and its absence
+      would be a silent zero rather than a refusal.
+
+  - name: ice_flux_correction_needs_a_climatology
+    source: ice
+    form: "icemod: nfluko needs a sea surface temperature"
+    guards: the ice side of the same relaxation.
+
+  - name: ice_thickness_relaxation_needs_a_climatology
+    source: ice
+    form: "icemod: nfluko = 2 relaxes sea ice toward a"
+    guards: surface code 211, the thickness climatology.
+
+  - name: prescribed_ice_needs_a_climatology
+    source: ice
+    form: "icemod: nice = 0 prescribes sea ice from a"
+    guards: surface codes 210 and 211.
+
+  - name: prescribed_skin_temperature_needs_a_climatology
+    source: ice
+    form: "icemod: ntskin = 0 takes the skin temperature from"
+    guards: surface code 169.
+
+  - name: ice_flux_correction_needs_its_field
+    source: ice
+    form: "icemod: nfluko = 1 needs the ice flux correction"
+    guards: surface code 709.
+
+  - name: cold_start_must_be_declared
+    source: ice
+    form: "icemod: a cold start with no sea surface"
+    guards: >
+      this world has no sea surface temperature climatology to begin from, and
+      an ocean is what the model PRODUCES. Without this the model left yclsst
+      at its sentinel, tested every ocean cell below the freezing point, and
+      shaped the resulting cover with an Earth Arctic-Antarctic table. world-6fh.

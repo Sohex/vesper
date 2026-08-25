@@ -567,6 +567,92 @@ a blocker, and this inventory was taken without it.
 
 ---
 
+# The ADOPTED tier, on the same question
+
+Audited 2026-08-25, and this section inverts the document's scope. Everything
+above is about candidates. The ocean that RUNS is ExoPlaSim's slab --
+`oceanmod.f90` integrates one mixed layer, `icemod.f90` runs the sea-ice
+thermodynamics and owns the sea water, `seamod.f90` is the surface the
+atmosphere sees -- and the same question asked of it returns the same headline
+in a different place.
+
+## A1. Two quantities were stated twice, and one of the splits was reachable from configuration
+
+**The melting point.** `icemod.f90` declared `parameter(TMELT=273.16)` while
+`tmelt` is a `planet_nl` key that `p_earth.f90` itself describes as the freezing
+point every soil, snow, sea and ice routine tests against. Both statements were
+live on the same modelled ice: `seamod`'s sea-ice albedo ramp anchors on
+pumamod's and `icestep`'s skin-temperature melt anchored on icemod's. This is the
+audit's finding-1 class with a worse property than the two radii have --
+**it splits from configuration alone**, because one of the two is namelist-
+reachable and the other could only be reached by a source edit, so a run that
+moved the key would have left no line carrying the melting point at all.
+
+**The sea-ice density.** `oceanmod.f90` and `icemod.f90` each declared
+`parameter(CRHOI = 920.)`, neither reachable. `addfc`'s branch (c) builds its
+melt flux `yiced*CRHOI*CLFI/dtmix` from oceanmod's while icemod weighs the same
+ice, and its snow-ice flooding threshold `CRHOS-CRHOI`, from its own. This one
+splits only under a source edit, which is what the audit says a port does first.
+
+Both are now stated once and handed on, the melting point through `iceini`
+beside the snow density GRAV-8 already routed that way, and the sea-ice density
+through `oceanini` beside the sea-water quartet that is there for exactly this
+reason. `exoplasim/scripts/ocean_tier_gate.py` is the check the audit's
+precondition 1 asks for, in the shape it asks for it: the owner's declaration,
+every receiver's assignment, the handoff, and the forms that must not come back.
+
+## A2. A threshold was reachable in one of its two uses
+
+`icemod.f90` tests the modelled ice compactness against two 0.5 thresholds.
+`thicec` decides whether a cell is MASKED as iced, at `icestep` and `mkicec`, and
+is an `icemod_nl` key. `cicemin` decides whether falling snow lands on the ice or
+melts into the water, at `subsnow`'s two sites, and was reachable from nothing.
+So a bracket that moved the mask left the snow partition on the compiled value.
+
+Exposed rather than merged, and that is the substantive judgement here: the model
+uses them for different decisions and nothing in the source says they are one
+number, so making them one would be a physics change made for tidiness. This is
+the remedy `hlead` got, which was a local variable credited to Hippler (1979) and
+unreachable from any namelist.
+
+## A3. The reachability column, for the tier that runs
+
+Of the constants of the modelled sea and its ice that the declaration covers,
+the split falls in a different place than it does on the candidate side. The
+sea water quartet, the two sea-ice lengths, the lead scale, the albedo ramp and
+the mixed-layer depth are all namelist keys and this project sets them from
+`config/planet.yaml`. What is not reachable is the **material properties of the
+modelled ice and snow**: density, the two specific heats, the two conductivities
+and the heat of fusion of snow. Those are compile-time and each is an Earth
+measurement standing where nothing says it was chosen. They are what
+`ocean_tier_gate.py --strict` refuses on, together with the namelist keys that
+are reachable but still carry an Earth number with no source.
+
+The conductivity pair is the sharpest of them. `CKAPI` and `CKAPSN` set the
+conductive flux through the modelled ice and the insulation the snow on it
+provides, which is what fixes the equilibrium thickness at a given surface energy
+balance -- and the peer that runs this configuration reports excessive ice.
+
+## A4. What this section did NOT establish
+
+- **Nothing was run.** Every statement is against the source. What the slab
+  DELIVERS is verified by running the model, in section 11 and in
+  `verify_ocean_flux_channel.py`; nothing here repeats that.
+- **No number was changed.** Both duplicated quantities held the same value on
+  both sides and `planet_nl`'s `tmelt` is what the compiled `TMELT` was, so
+  every current configuration integrates identically. What changed is that the
+  values can now move, and move in one place when they do.
+- **The unreachable material properties are inventoried, not bracketed.** What
+  ice and snow on this world are made of is a Vesper decision the models will not
+  raise, and the gate names the six rather than guessing at them.
+- **`icemod`'s freezing point is still salinity-INDEPENDENT**, which the
+  "checked and clean" section above records from the other direction: the
+  candidate computes it from the local salinity and the adopted tier takes it as
+  a single declared number. That remains true and is not a defect of the
+  handoffs above.
+
+---
+
 ## Tasks
 
 OCN-12 is the row this document answers, and it answers it as scoping: the

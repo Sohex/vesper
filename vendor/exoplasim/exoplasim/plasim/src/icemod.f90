@@ -119,6 +119,16 @@
       real :: xmaxd         = 9.0  ! maximal ice thickness (m; neg. = no limit)
       real :: thicec        = 0.5  ! threshold to obtain make mask from comp. 
 !
+!     THE SECOND COMPACTNESS THRESHOLD, and it is a second one rather than a
+!     restatement of thicec. thicec decides whether a cell is MASKED as iced,
+!     at icestep and at mkicec; cicemin decides whether falling snow lands on
+!     the ice or into the water, at subsnow's two sites. Both test xicec and
+!     both stood at 0.5, but only thicec was reachable, so a bracket that moved
+!     the mask left the snow partition on the compiled value. Exposed rather
+!     than merged: the model uses them for different decisions and nothing in
+!     the source says they are one number. Same remedy hlead got.
+      real :: cicemin       = 0.5  ! minimum compactness to be ice
+!
 !     THE LEAD-CLOSING SCALE, and the whole of this model's lead
 !     parameterisation. mkicec closes a cell's compactness with an e-folding
 !     of hlead metres of new ice growth, and icestep then thresholds the
@@ -140,7 +150,6 @@
 !     global real
 !
       real :: xdt           = 0.   ! timestep (sec.)
-      real :: cicemin       = 0.5  ! minimum compactness to be ice
       real :: solar_day  = 86400.0 ! length of day [sec]
 !
 !     global arrays
@@ -384,7 +393,7 @@
 !
       namelist/icemod_nl/nout,nfluko,nperpetual_ice,ntspd,nprint,nprhor &
      &               ,nice,nseaice,nsnow,ntskin,ncpl_ice_ocean,taunc   &
-     &               ,xmind,xmaxd,thicec,TFREEZE,CRHOS,CPS,CLFI          &
+     &               ,xmind,xmaxd,thicec,cicemin,TFREEZE,CRHOS,CPS,CLFI  &
      &               ,tsst_eq,tsst_pol,hice_ini,hlead,newsurf,naout
 !
 !     copy input parameter to icemod
@@ -451,6 +460,7 @@
       call mpbcr(xmind)
       call mpbcr(xmaxd)
       call mpbcr(thicec)
+      call mpbcr(cicemin)
       call mpbcr(TFREEZE)
       call mpbcr(CRHOS)
       call mpbcr(CPS)
