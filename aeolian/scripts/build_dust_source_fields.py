@@ -253,7 +253,7 @@ def build_fields(config: dict, cfg: dict, lat, lon, z0_end: str,
     is the only other place the roughness enters, through `ln(zref/z0)` in the
     friction velocity, and the model computes that term itself from its own
     bottom-level height. Honouring the mosaic there needs a fourth boundary
-    field, which is world-2h4d.
+    field, which is world-h24h.
     """
     lakes = component_data("hydrography", config, strict=True) / "surface_water.nc"
     (erodible, land_fraction, per_class, class_detail, terrain,
@@ -482,7 +482,7 @@ def main() -> None:
             "precipitation threshold, and that mask is evaluated per time bin "
             "rather than once, so it is not a static boundary condition. The "
             "in-model arm therefore has no counterpart to that bracket end; "
-            "world-2h4e.",
+            "world-4qem.",
         "source_build": str(config["source_build"]),
         "terrain_hash": terrain,
         "lake_solution": rel(lakes),
