@@ -118,9 +118,9 @@ CommonOutput::CommonOutput() {
 	declare_parameter("file_msoiltempdepth145", &file_msoiltempdepth145, 300, "Soil temperature output file (145cm depth)");
 
 	declare_parameter("file_mch4", &file_mch4, 300, "Monthly CH4 emissions, total");
-	declare_parameter("file_mch4diff", &file_mch4diff, 300, "Monthly CH4 emissions, diffusion");
-	declare_parameter("file_mch4plan", &file_mch4plan, 300, "Monthly CH4 emissions, plant-mediated");
-	declare_parameter("file_mch4ebull", &file_mch4ebull, 300, "Monthly CH4 emissions, ebullition");
+	declare_parameter("file_mch4_diffusion", &file_mch4_diffusion, 300, "Monthly CH4 emissions, diffusion");
+	declare_parameter("file_mch4_plant", &file_mch4_plant, 300, "Monthly CH4 emissions, plant-mediated");
+	declare_parameter("file_mch4_ebullition", &file_mch4_ebullition, 300, "Monthly CH4 emissions, ebullition");
 	declare_parameter("file_msnow", &file_msnow, 300, "Monthly snow depth");
 	declare_parameter("file_mwtp", &file_mwtp, 300, "Monthly water table depth");
 	declare_parameter("file_mald", &file_mald, 300, "Monthly active layer depth");
@@ -529,9 +529,9 @@ void CommonOutput::define_output_tables() {
     
 	// Methane
 	create_output_table(out_mch4,           file_mch4,           month_columns);
-	create_output_table(out_mch4diff,       file_mch4diff,       month_columns);
-	create_output_table(out_mch4plan,       file_mch4plan,       month_columns);
-	create_output_table(out_mch4ebull,      file_mch4ebull,      month_columns);
+	create_output_table(out_mch4_diffusion,       file_mch4_diffusion,       month_columns);
+	create_output_table(out_mch4_plant,       file_mch4_plant,       month_columns);
+	create_output_table(out_mch4_ebullition,      file_mch4_ebullition,      month_columns);
     
 	// Snow
 	create_output_table(out_msnow,          file_msnow,          month_columns);
@@ -1782,9 +1782,9 @@ void CommonOutput::outannual(Gridcell& gridcell) {
 		outlimit(out,out_msoiltempdepth135, msoilt[m][13]);
 		outlimit(out,out_msoiltempdepth145, msoilt[m][14]);
 		outlimit(out,out_mch4, mch4[m]);
-		outlimit(out,out_mch4diff, mch4_diff[m]);
-		outlimit(out,out_mch4plan, mch4_plant[m]);
-		outlimit(out,out_mch4ebull, mch4_ebull[m]);		
+		outlimit(out,out_mch4_diffusion, mch4_diff[m]);
+		outlimit(out,out_mch4_plant, mch4_plant[m]);
+		outlimit(out,out_mch4_ebullition, mch4_ebull[m]);		
 		outlimit(out,out_msnow, msnowdepth[m]);
 		outlimit(out,out_mwtp, mwtp[m]);
 		outlimit(out,out_mald, mald[m]);

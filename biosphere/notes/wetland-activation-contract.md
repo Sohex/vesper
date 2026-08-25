@@ -222,6 +222,34 @@ the gate's `--check-run` rejects a run directory that is missing any of them,
 carries a non-finite or impossible value, covers fewer simulated cells than the
 productivity output, or has no forcing hash in its manifest.
 
+**What the fork can emit today, and what each remaining table waits on.** Four
+of the fifteen have a quantity behind them. `mwtp.out` is `patch.soil.mwtp`, the
+monthly water-table position, which the annual-average repair of section 2 also
+made non-trivial. `mch4_diffusion.out`, `mch4_plant.out` and
+`mch4_ebullition.out` are `Fluxes::CH4C_DIFF`, `CH4C_PLAN` and `CH4C_EBUL`, and
+their table parameters are named for those files rather than for upstream's
+`file_mch4diff`, `file_mch4plan` and `file_mch4ebull`, so that the retention
+list and the model name one thing. The fork also writes `mch4.out`, the total,
+which this list deliberately does not retain: a total is what acceptance is not.
+
+The other eleven have no quantity behind them, and each waits on a model rather
+than on an output routine. `mch4_production.out` and `mch4_oxidation.out` are
+the closest: `Soil::CH4_prod` and `Soil::CH4_oxid` are computed per layer in the
+detailed peat path and never accumulated anywhere, but the simplified inundated
+path has no production or oxidation term at all -- its CH4:CO2 constant IS an
+emission factor with oxidation folded in -- so a table emitted now would carry a
+real number over the detailed path and a zero over the simplified one, beside a
+non-zero emission. That is WET-6's `process.oxidation_separate`, and it has to
+land before either table means anything. `mch4_drysoil_uptake.out` and
+`mch4_aquatic.out` are WET-8: the module has no aerobic dry-soil sink and no
+inland-water source. `mwetland_exchange.out` is PLHY-4's exchange, the same
+absence `hydrology.water_ledger` refuses on. `awetland_area.out` and
+`awetland_area_native.out` are WET-2 and WORLD-D9U4: there is no mutually
+exclusive wetness classification and no declared support for a saturated
+fraction. `apeat_stock.out` is WET-4, which owns the depth bracket a stock is
+reported against. The three `aresidual_*.out` tables are the ledgers themselves,
+and a residual computed over a graph with undeclared terms is not a residual.
+
 The matched cases are pre-registered before any of them can be run: a
 no-methane arm, a source-only arm with no atmospheric feedback, an extent arm at
 both ends of the extent bracket, a redox and production arm, a transport

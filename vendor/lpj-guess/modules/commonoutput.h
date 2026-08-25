@@ -65,7 +65,7 @@ private:
 	xtring file_msoiltempdepth5, file_msoiltempdepth15, file_msoiltempdepth25, file_msoiltempdepth35, file_msoiltempdepth45, file_msoiltempdepth55, file_msoiltempdepth65, file_msoiltempdepth75, file_msoiltempdepth85, file_msoiltempdepth95, file_msoiltempdepth105, file_msoiltempdepth115, file_msoiltempdepth125, file_msoiltempdepth135, file_msoiltempdepth145;
 	
 	// Methane fluxes
-	xtring file_mch4, file_mch4diff, file_mch4plan, file_mch4ebull; 
+	xtring file_mch4, file_mch4_diffusion, file_mch4_plant, file_mch4_ebullition; 
 	
 	// Snow, water table depth and active layer depth
 	xtring file_msnow, file_mwtp, file_mald;
@@ -87,7 +87,7 @@ private:
 	Table out_simfireanalysis;
 
 	// Methane, snow, water table and active layer depth
-	Table out_mch4, out_mch4diff, out_mch4plan, out_mch4ebull, out_msnow, out_mwtp, out_mald;
+	Table out_mch4, out_mch4_diffusion, out_mch4_plant, out_mch4_ebullition, out_msnow, out_mwtp, out_mald;
 
 	// Soil temperatures
 	Table out_msoiltempdepth5, out_msoiltempdepth15, out_msoiltempdepth25, out_msoiltempdepth35, out_msoiltempdepth45, out_msoiltempdepth55, out_msoiltempdepth65, out_msoiltempdepth75, out_msoiltempdepth85, out_msoiltempdepth95, out_msoiltempdepth105, out_msoiltempdepth115, out_msoiltempdepth125, out_msoiltempdepth135, out_msoiltempdepth145;
