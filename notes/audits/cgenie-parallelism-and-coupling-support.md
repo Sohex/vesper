@@ -105,8 +105,7 @@ the rate a period asks for, compares it with the cap, and stamps a `throttled`
 line in the artifact when it is over. Every number below is from a period of 2e7,
 under the cap, over 100 model years.
 
-## 2b. The profile is a function of the model state, and a short run is a
-transient
+## 2b. The profile is a function of the model state, and a short run is a transient
 
 The same binary and the same input, profiled over the first 10 model years and
 over the first 100, do not give the same profile:
@@ -133,9 +132,7 @@ because the difference between the two run lengths at one grid is LARGER than th
 difference between the two grids, and a reader comparing grids across run lengths
 would be comparing states.
 
----
-
-# 2c. Where the instructions actually go
+## 2c. Where the instructions actually go
 
 100 model years, `nyear = 100`, GOLDSTEIN's `debug_loop` off, both grids compiled
 `-mcmodel=medium` so they differ only in the grid. 15,121 samples at the shipped
