@@ -189,12 +189,19 @@ the intensity of the mean. Quoting either without the other overstates by 50% or
 understates by a third. Neither is wrong; they answer different questions, and
 the one that feeds the solute fluxes is the mean of the intensity.
 
-**The texture model carries a known positive clay bias**, which any land-mean
-clay figure inherits. `validate_against_earth.py` over 15 type localities:
-predicted clay exceeds SoilGrids by **+0.062** on average, correlation 0.840, and
-the mafic-felsic divergence the model exists to reproduce comes out 0.231 against
-an observed 0.179. The direction is right and the magnitude is 29% high. Read a
-land-mean clay of 0.29 as nearer 0.23 in Earth-comparable terms.
+**The texture model is scored against Earth by `validate_against_earth.py`**,
+over type localities whose lithology is known from published geology. It puts
+`build_soil.weather_texture` itself against SoilGrids, so the only term of the
+conversion the score leaves out is the catena fines loss, which needs a slope a
+type locality does not carry. `analysis/earth_validation.json` holds the bias,
+the correlation and the mafic-felsic divergence the model exists to reproduce,
+each against its observed counterpart.
+
+The clay bias that figure once reported was largely the scoring arm's own: it
+inlined the conversion without `sand_to_silt_loss_ratio` and without either cap
+on the donor pools, so it predicted more clay than the model does. Any land-mean
+clay figure quoted against the pre-fix bias is comparing to a number that
+measured the score, not the map.
 
 ## Both property-feedback paths are wired; the hydraulic loop is not closed
 
