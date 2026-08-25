@@ -110,6 +110,7 @@ bool disturb_pasture;
 bool grassforcrop;
 
 xtring state_path;
+xtring save_path;
 bool restart;
 bool save_state;
 int state_year;
@@ -580,6 +581,7 @@ void plib_declarations(int id,xtring setname) {
 		declareitem("grassforcrop",&grassforcrop,1,CB_NONE,"grassforcrop");
 
 		declareitem("state_path", &state_path, 300, CB_NONE, "State files directory (for restarting from, or saving state files)");
+		declareitem("save_path", &save_path, 300, CB_NONE, "Where a saving run writes, when that is not state_path. Only a run that both restarts and saves needs it");
 		declareitem("restart", &restart, 1, CB_NONE, "Whether to restart from state files");
 		declareitem("save_state", &save_state, 1, CB_NONE, "Whether to save new state files");
 		declareitem("state_year", &state_year, 1, 20000, 1, CB_NONE, "Save/restart year. Unspecified means just after spinup");
@@ -1503,6 +1505,21 @@ void plib_callback(int callback) {
 
 		if (state_path == "" && (save_state || restart)) {
 			badins("state_path");
+		}
+
+		if (!itemparsed("save_path")) {
+			save_path = state_path;
+		}
+
+		// The serializer truncates its file in its constructor and framework.cpp
+		// constructs it before the deserializer, so a run doing both with one
+		// directory destroys the state it is about to read.
+		if (save_state && restart && save_path == state_path) {
+			sendmessage("Error",
+				"A run that both restarts and saves needs save_path set to a "
+				"directory other than state_path: the serializer truncates what "
+				"it opens, and it opens before the deserializer reads.");
+			plibabort();
 		}
 
 		if (grassforcrop) {

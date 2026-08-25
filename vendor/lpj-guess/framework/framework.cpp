@@ -200,7 +200,7 @@ int framework(const CommandLineArguments& args) {
 	auto_ptr<GuessDeserializer> deserializer;
 
 	if (save_state) {
-		serializer = auto_ptr<GuessSerializer>(new GuessSerializer(state_path, GuessParallel::get_rank(), GuessParallel::get_num_processes()));
+		serializer = auto_ptr<GuessSerializer>(new GuessSerializer(save_path, GuessParallel::get_rank(), GuessParallel::get_num_processes()));
 	}
 
 	if (restart) {

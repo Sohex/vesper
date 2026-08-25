@@ -303,6 +303,15 @@ extern bool restart;
 /// Whether to save state files
 extern bool save_state;
 
+/// Where a saving run WRITES, when that is not where a restarting run reads
+/** Defaults to `state_path`. A run doing both needs them apart, and not as a
+ *  convenience: PartitionedMapSerializer opens its file with std::ios::trunc in
+ *  its constructor, and framework.cpp constructs the serializer before the
+ *  deserializer, so one path for both would truncate the state the run is about
+ *  to read. parameters.cpp refuses that case by name.
+ */
+extern xtring save_path;
+
 /// Save/restart year
 extern int state_year;
 
