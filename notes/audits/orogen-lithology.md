@@ -833,6 +833,22 @@ catalogue gains small basins as `minCells` stops binding. A consumer that treats
 the class fraction as a property of the planet is carrying a support dependence
 as well as a carve dependence.
 
+**And one consumer already does.** The offline dust component measures that
+`playa_clastic` alone reproduces 10.415 of its emission bracket's 10.501, which
+is what makes narrowing that class's roughness the largest available reduction
+in that component's uncertainty (`world-ugkw`). That leverage is carried by the
+class FRACTION, and the fraction above is a limit: opening a basin clears the
+endorheic flag and the floor reverts to parent material, so the share falls once
+the carve list is applied. 10.415 of 10.501 is therefore an upper bound on this
+class's share of the dust bracket rather than its share in the carved world, and
+a narrowing effort sized on the pre-carve number is sized on the largest value it
+will ever take.
+
+What does not move with the carve is the class's COMPOSITION -- basin margin
+rather than clay plain, half of it above 83 per cent of its basin's relief -- so
+the conclusion that the bracket's rough end is too low rather than too high
+survives the extent shrinking. Extent is a limit; composition is not.
+
 ### The class spans a basin from its sump to its rim
 
 Normalised height above the sink, `(elevation_pre_conditioning - sinkElevation) /
