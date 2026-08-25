@@ -31,6 +31,16 @@ because they are large, shared, or named by something other than the build. Thos
 carry their identity as attributes or in a provenance sidecar, and the consumer
 verifies it here. That is what this module is for.
 
+**A path keyed by something OTHER than the build** is the third case and the
+staged surface fields are it. `exoplasim/inputs/<rung>/orogen_<RUNG>_surf_<code>.sra`
+is keyed by the RUNG, and `surface_albedo` rewrites it per BUILD, so the
+directory holds one build's field at a time and the filename cannot say which.
+Namespacing is not available -- the model reads that path -- so
+`staged_surface_field` is the one door: it checks the build at the read and
+returns the record a consumer stamps into its own product. A DELIBERATE
+cross-build read declares itself by NAMING the build it means, never by a flag
+that turns the check off.
+
 Use `require_build` at the point of reading, not at the end. A check that runs
 after the expensive part has already used the wrong input still wastes the run.
 
@@ -48,6 +58,8 @@ import json
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+from paths import rel  # noqa: E402  same package directory
 
 # Stamped onto climatologies by exoplasim/scripts/build_climatology.py.
 BUILD_ATTR = "vesper_source_build"
@@ -480,6 +492,127 @@ SURFACE_INERT_CONFIG_KEYS = {
 }
 
 
+def _staged_reports(rung_dir: Path):
+    """Every provenance record beside a staged surface field, code by code.
+
+    Yields `(code, report_path, record)`. The two naming conventions in the
+    directory -- `*report*.json` from the albedo, roughness and boundary
+    builders and `*_provenance.json` from the dust and soil-water builders --
+    are BOTH scanned, because which one a generator chose is an accident of
+    when it was written and a reader that knew only one would report an
+    unstamped field for half the directory.
+    """
+    for path in sorted(list(rung_dir.glob("*report*.json"))
+                       + list(rung_dir.glob("*_provenance.json"))):
+        try:
+            rec = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(rec, dict):
+            continue
+        codes = rec.get("codes")
+        if codes is None and rec.get("code") is not None:
+            codes = [rec["code"]]
+        for code in codes or ():
+            try:
+                yield int(code), path, rec
+            except (TypeError, ValueError):
+                continue
+
+
+def staged_surface_field(code: int, config: dict | None = None, *,
+                         for_build: str | None = None, root: Path | None = None):
+    """The staged `.sra` for one surface code, WITH the build it was staged from.
+
+    `exoplasim/inputs/<rung>/orogen_<RUNG>_surf_<code>.sra` is keyed by the RUNG
+    ALONE, and `surface_albedo` is a loop A step that rewrites it per build, so
+    the directory holds exactly one build's field at a time and the path cannot
+    say which. Five consumers built that path by hand from
+    `model.resolution`. Rule 5 says pointing one component at another's output
+    is deliberate and never defaulted; this is the door that makes it so.
+
+    Returns the record a consumer must put in its own product:
+    `path`, `sha256`, `terrain_hash`, `build`, `declared`. Stamping it is the
+    other half -- the check makes a wrong read loud NOW, and the record makes
+    the pairing auditable AFTERWARDS, which is what a verdict already written
+    needs.
+
+    **The deliberate cross-build read is declared by NAMING THE BUILD, not by
+    turning the check off.** `for_build` is a build name from the registry in
+    `lib/orogen.py`; the read then succeeds only against THAT build and fails
+    against any other, including the active one. The carve overshoot
+    measurement is a cross-build read by construction -- the staged albedo is
+    the right one while the carved build is staged and the wrong one for
+    anything re-run on the pre-carve build afterwards -- so it needs a way to
+    say which build it means, and a boolean `--allow-any` would have let the
+    same silence back in under a flag.
+
+    Raises `SystemExit` when the file is absent, when no provenance record
+    beside it names the code, or when the build it was staged from is not the
+    one asked for. An unstamped field is UNOBSERVABLE and is refused rather
+    than trusted, because the whole failure this closes is silent.
+    """
+    import builds as _builds
+    from orogen import _KNOWN_TERRAIN_HASHES
+    if config is None:
+        import yaml
+        config = yaml.safe_load(
+            (PROJECT_ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    root = PROJECT_ROOT if root is None else Path(root)
+    rung = str(config["model"]["resolution"]).upper()
+    rung_dir = root / "exoplasim" / "inputs" / rung.lower()
+    path = rung_dir / f"orogen_{rung}_surf_{int(code):04d}.sra"
+    if not path.is_file():
+        raise SystemExit(
+            f"staged surface code {code} is not at {rel(path, root)}; run the "
+            f"config/pipeline.yaml step that writes it")
+
+    stamps = [(p, rec) for c, p, rec in _staged_reports(rung_dir) if c == int(code)]
+    hashes = {rec.get("terrain_hash") for _, rec in stamps}
+    hashes.discard(None)
+    if not hashes:
+        raise SystemExit(
+            f"{rel(path, root)} has no provenance record beside it naming code "
+            f"{code}, so the build it was staged from is unknown. An unstamped "
+            f"staged field is not the same as a current one; re-run its "
+            f"generator so it writes its report.")
+    if len(hashes) > 1:
+        raise SystemExit(
+            f"the records beside {rel(path, root)} disagree about which build "
+            f"code {code} was staged from: {sorted(h[:16] for h in hashes)}")
+    staged = hashes.pop()
+
+    wanted = _builds.terrain_hash(config)
+    declared = for_build is not None
+    if declared:
+        named = {v["name"]: k for k, v in _KNOWN_TERRAIN_HASHES.items()}
+        if for_build not in named:
+            raise SystemExit(
+                f"--for-build {for_build!r} is not a build in lib/orogen.py's "
+                f"registry; a cross-build read is declared by NAMING the build "
+                f"it means, so an unregistered name cannot declare anything")
+        wanted = named[for_build]
+    if staged != wanted:
+        who = (_KNOWN_TERRAIN_HASHES.get(staged) or {}).get("name", "an "
+                                                            "unregistered build")
+        raise SystemExit(
+            f"{rel(path, root)} was staged from {who} ({staged[:16]}), and this "
+            f"read is against {for_build or active_build(config)} "
+            f"({wanted[:16]}). The path is keyed by the rung alone, so the "
+            f"directory holds one build's field at a time. Re-run the "
+            f"surface_albedo step for the build you mean, or, if the "
+            f"cross-build read is deliberate, declare it by naming the build.")
+
+    return {
+        "code": int(code),
+        "path": rel(path, root),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "terrain_hash": staged,
+        "build": (_KNOWN_TERRAIN_HASHES.get(staged) or {}).get("name"),
+        "declared_cross_build": for_build,
+    }
+
+
 INPUT_STAMP_KEY = "source_inputs"
 
 
@@ -509,7 +642,6 @@ def input_stamp(paths) -> dict:
     is covered by `terrain_hash` and does not belong here; a configuration file
     is covered by `source_config` and does not either.
     """
-    from paths import rel
     out = {}
     for path in paths:
         path = Path(path)

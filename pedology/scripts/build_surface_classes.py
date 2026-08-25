@@ -93,7 +93,7 @@ import builds
 from gridding import climatology_cells
 from orogen import INLAND_WATER, LAND, Export
 from paths import rel
-from provenance import require_build
+from provenance import require_build, staged_surface_field
 
 from brine_paths import MEYBECK, ROCK_TO_MEYBECK
 import solute_routing
@@ -139,7 +139,7 @@ def load_penman():
     return module
 
 
-def monthly_climate(climatology: Path, gravity: float, resolution: str):
+def monthly_climate(climatology: Path, config: dict, gravity: float):
     """Per-bin precipitation and potential evaporation, mm per Earth year.
 
     Vesper's year is 183 days in 12 output bins, so a bin is 15.2 days and the
@@ -169,16 +169,23 @@ def monthly_climate(climatology: Path, gravity: float, resolution: str):
         diurnal = (np.asarray(ds["maxt"][:], dtype=float)
                    - np.asarray(ds["mint"][:], dtype=float))
 
+    # The staged background land albedo, resolved through the one door rather
+    # than by rebuilding the path from `model.resolution`. That path is keyed by
+    # the RUNG alone while `surface_albedo` rewrites it per BUILD, so it cannot
+    # say which build's field is in it, and this read used to take whichever was
+    # there. `staged_surface_field` refuses a field from another build and hands
+    # back the record that goes into this script's own report, so the pairing is
+    # auditable after the fact. world-xgtj, CLAUDE.md rule 5.
+    staged_albedo = staged_surface_field(174, config)
     land_albedo = penman.read_sra_field(
-        PROJECT_ROOT / "exoplasim" / "inputs" / resolution.lower()
-        / f"orogen_{resolution}_surf_0174.sra", *ps.shape[1:])
+        PROJECT_ROOT / staged_albedo["path"], *ps.shape[1:])
 
     pet = np.empty_like(pr)
     for t in range(pr.shape[0]):
         pet[t] = penman.penman_open_water(
             ts[t], tas[t], q_air[t], wind[t], ps[t], rss[t], rls[t],
             land_albedo, gravity, diurnal_range=diurnal[t]) * scale
-    return lat, pr, pet, centres
+    return lat, pr, pet, centres, staged_albedo
 
 
 def region_chemistry(export: Export, terminal: np.ndarray, brine: dict,
@@ -259,7 +266,6 @@ def main() -> None:
     config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
     rules = yaml.safe_load(RULES.read_text(encoding="utf-8"))
     build = str(config["source_build"])
-    resolution = str(config["model"]["resolution"]).upper()
     gravity = float(config["planet"]["gravity_m_s2"])
 
     climatology = args.climatology or climatology_path()
@@ -324,8 +330,8 @@ def main() -> None:
     brine["_basin_order"] = basin_ids
 
     # --- climate, per region --------------------------------------------
-    clim_lat, pr_bins, pet_bins, bin_centres = monthly_climate(climatology, gravity,
-                                                  resolution)
+    (clim_lat, pr_bins, pet_bins, bin_centres,
+     staged_albedo) = monthly_climate(climatology, config, gravity)
     row, col = climatology_cells(export, grid_dir, clim_lat)
     # Weighted: the bins are not equal in length. CLIM-13.
     precip = climatology_lib.annual_mean(pr_bins, bin_centres)[row, col]
@@ -668,6 +674,11 @@ def main() -> None:
         "terrain_hash": export.terrain_hash,
         "climatology": rel(climatology),
         "climatology_sha256": hashlib.sha256(climatology.read_bytes()).hexdigest(),
+        # Which build's staged background albedo the Penman evaporation was
+        # taken over. The path is keyed by the rung alone, so recording it by
+        # name would say nothing; the record carries the terrain hash and the
+        # file's own sha256. world-xgtj.
+        "staged_background_albedo": staged_albedo,
         "dust_field": rel(dust),
         "dust_bracket_end": args.dust_end,
         "brine_paths": rel(brine_path),
