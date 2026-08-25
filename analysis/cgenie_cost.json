@@ -1,6 +1,6 @@
 {
   "provenance": {
-    "repo_head": "95f02f17492eed970628184b9bdf0f39ab20a2b2",
+    "repo_head": "19576a43d277e8b8a8e76e92202023ab3a18483e",
     "repo_dirty": false,
     "fortran": "GNU Fortran (GCC) 16.2.1 20260810",
     "netcdf_c": "netCDF 4.9.3",
@@ -8,7 +8,7 @@
     "netcdf_flibs": "-L/usr/lib -lnetcdff -lnetcdf",
     "host": "yggdrasil",
     "cores": 32,
-    "load_average_at_start": 18.98,
+    "load_average_at_start": 5.5,
     "timing_estimator": "minimum over --repeats, of the model's own `time real` rather than the wrapper's, on a host that runs other work. cGENIE is one serial process and cores were free throughout; cache and memory bandwidth were not exclusively its own. Each run records the load average it finished under.",
     "cpu": "AMD Ryzen 9 7950X3D 16-Core Processor",
     "kernel": "7.1.8-1-cachyos",
@@ -55,21 +55,21 @@
       "runs": [
         {
           "years": 20,
-          "model_seconds": 2.33,
+          "model_seconds": 2.989,
           "repeats": 2,
           "load_average_after": [
-            25.26,
-            8.41
+            22.66,
+            41.52
           ],
           "output_bytes": 564547
         },
         {
           "years": 100,
-          "model_seconds": 12.191,
+          "model_seconds": 10.773,
           "repeats": 2,
           "load_average_after": [
-            27.11,
-            10.44
+            21.69,
+            35.9
           ],
           "output_bytes": 564547
         }
@@ -78,52 +78,52 @@
       "build_ok": true,
       "build_reused": true,
       "exe_bytes": 8878768,
-      "seconds_per_model_year": 0.1233,
-      "fixed_seconds": -0.135,
+      "seconds_per_model_year": 0.0973,
+      "fixed_seconds": 1.043,
       "from_repeat": 1,
       "from_a_quiet_host": false,
-      "load_average_of_that_fit": 10.44,
+      "load_average_of_that_fit": 41.52,
       "per_repeat_fits": [
         {
           "repeat": 0,
-          "seconds_per_model_year": 0.1606,
-          "fixed_seconds": 0.26,
+          "seconds_per_model_year": 0.1889,
+          "fixed_seconds": 0.625,
           "model_seconds": {
-            "20": 3.472,
-            "100": 16.318
+            "20": 4.404,
+            "100": 19.518
           },
-          "load_average": 27.11,
+          "load_average": 22.66,
           "contaminated": true
         },
         {
           "repeat": 1,
-          "seconds_per_model_year": 0.1233,
-          "fixed_seconds": -0.135,
+          "seconds_per_model_year": 0.0973,
+          "fixed_seconds": 1.043,
           "model_seconds": {
-            "20": 2.33,
-            "100": 12.191
+            "20": 2.989,
+            "100": 10.773
           },
-          "load_average": 10.44,
+          "load_average": 41.52,
           "contaminated": true
         }
       ],
       "perf": {
         "runs": [
           {
-            "instructions": 34351329485.0,
-            "task-clock": 1963.59,
+            "instructions": 34351629985.0,
+            "task-clock": 2000.59,
             "years": 20,
-            "load_average": 2.77
+            "load_average": 25.21
           },
           {
-            "instructions": 176407489641.0,
-            "task-clock": 10043.9,
+            "instructions": 176404492477.0,
+            "task-clock": 9760.12,
             "years": 100,
-            "load_average": 2.63
+            "load_average": 18.72
           }
         ],
-        "instructions_per_model_year": 1775702001.95,
-        "fixed_instructions": -1162710554.0,
+        "instructions_per_model_year": 1775660781.15,
+        "fixed_instructions": -1161585638.0,
         "note": "retired instructions are a property of the binary and its input, not of what else the host was doing"
       }
     },
@@ -153,21 +153,21 @@
       "runs": [
         {
           "years": 20,
-          "model_seconds": 3.381,
+          "model_seconds": 3.902,
           "repeats": 2,
           "load_average_after": [
-            26.54,
-            10.73
+            21.47,
+            35.82
           ],
           "output_bytes": 564549
         },
         {
           "years": 100,
-          "model_seconds": 26.348,
+          "model_seconds": 22.981,
           "repeats": 2,
           "load_average_after": [
-            22.19,
-            13.56
+            20.15,
+            35.73
           ],
           "output_bytes": 564549
         }
@@ -176,52 +176,52 @@
       "build_ok": true,
       "build_reused": true,
       "exe_bytes": 8956592,
-      "seconds_per_model_year": 0.2633,
-      "fixed_seconds": 0.018,
-      "from_repeat": 0,
+      "seconds_per_model_year": 0.2385,
+      "fixed_seconds": -0.868,
+      "from_repeat": 1,
       "from_a_quiet_host": false,
-      "load_average_of_that_fit": 26.54,
+      "load_average_of_that_fit": 35.82,
       "per_repeat_fits": [
         {
           "repeat": 0,
-          "seconds_per_model_year": 0.2633,
-          "fixed_seconds": 0.018,
+          "seconds_per_model_year": 0.4024,
+          "fixed_seconds": -0.735,
           "model_seconds": {
-            "20": 5.284,
-            "100": 26.348
+            "20": 7.312,
+            "100": 39.5
           },
-          "load_average": 26.54,
+          "load_average": 21.47,
           "contaminated": true
         },
         {
           "repeat": 1,
-          "seconds_per_model_year": 0.4278,
-          "fixed_seconds": -5.174,
+          "seconds_per_model_year": 0.2385,
+          "fixed_seconds": -0.868,
           "model_seconds": {
-            "20": 3.381,
-            "100": 37.602
+            "20": 3.902,
+            "100": 22.981
           },
-          "load_average": 13.56,
+          "load_average": 35.82,
           "contaminated": true
         }
       ],
       "perf": {
         "runs": [
           {
-            "instructions": 56225811548.0,
-            "task-clock": 3392.13,
+            "instructions": 56226775619.0,
+            "task-clock": 3287.2,
             "years": 20,
-            "load_average": 2.7
+            "load_average": 17.38
           },
           {
-            "instructions": 294077303405.0,
-            "task-clock": 16417.59,
+            "instructions": 294041904390.0,
+            "task-clock": 18500.77,
             "years": 100,
-            "load_average": 2.52
+            "load_average": 13.91
           }
         ],
-        "instructions_per_model_year": 2973143648.2125,
-        "fixed_instructions": -3237061416.25,
+        "instructions_per_model_year": 2972689109.6375,
+        "fixed_instructions": -3227006573.75,
         "note": "retired instructions are a property of the binary and its input, not of what else the host was doing"
       }
     },
@@ -251,21 +251,21 @@
       "runs": [
         {
           "years": 20,
-          "model_seconds": 6.528,
+          "model_seconds": 7.825,
           "repeats": 2,
           "load_average_after": [
-            20.45,
-            12.71
+            19.81,
+            35.69
           ],
           "output_bytes": 564549
         },
         {
           "years": 100,
-          "model_seconds": 31.42,
+          "model_seconds": 40.218,
           "repeats": 2,
           "load_average_after": [
-            19.72,
-            8.38
+            21.46,
+            36.73
           ],
           "output_bytes": 564549
         }
@@ -274,52 +274,52 @@
       "build_ok": true,
       "build_reused": true,
       "exe_bytes": 8972976,
-      "seconds_per_model_year": 0.3112,
-      "fixed_seconds": 0.305,
+      "seconds_per_model_year": 0.4049,
+      "fixed_seconds": -0.273,
       "from_repeat": 1,
       "from_a_quiet_host": false,
-      "load_average_of_that_fit": 12.71,
+      "load_average_of_that_fit": 36.73,
       "per_repeat_fits": [
         {
           "repeat": 0,
-          "seconds_per_model_year": 0.4925,
-          "fixed_seconds": -0.586,
+          "seconds_per_model_year": 0.7593,
+          "fixed_seconds": 0.664,
           "model_seconds": {
-            "20": 9.264,
-            "100": 48.663
+            "20": 15.849,
+            "100": 76.59
           },
-          "load_average": 20.45,
+          "load_average": 21.46,
           "contaminated": true
         },
         {
           "repeat": 1,
-          "seconds_per_model_year": 0.3112,
-          "fixed_seconds": 0.305,
+          "seconds_per_model_year": 0.4049,
+          "fixed_seconds": -0.273,
           "model_seconds": {
-            "20": 6.528,
-            "100": 31.42
+            "20": 7.825,
+            "100": 40.218
           },
-          "load_average": 12.71,
+          "load_average": 36.73,
           "contaminated": true
         }
       ],
       "perf": {
         "runs": [
           {
-            "instructions": 99563297711.0,
-            "task-clock": 5706.91,
+            "instructions": 99554449918.0,
+            "task-clock": 7004.84,
             "years": 20,
-            "load_average": 2.4
+            "load_average": 14.37
           },
           {
-            "instructions": 525925826231.0,
-            "task-clock": 29855.97,
+            "instructions": 525900006158.0,
+            "task-clock": 31520.62,
             "years": 100,
-            "load_average": 2.07
+            "load_average": 10.34
           }
         ],
-        "instructions_per_model_year": 5329531606.5,
-        "fixed_instructions": -7027334419.0,
+        "instructions_per_model_year": 5329319453.0,
+        "fixed_instructions": -7031939142.0,
         "note": "retired instructions are a property of the binary and its input, not of what else the host was doing"
       }
     },
@@ -349,21 +349,21 @@
       "runs": [
         {
           "years": 20,
-          "model_seconds": 3.786,
+          "model_seconds": 3.556,
           "repeats": 2,
           "load_average_after": [
-            22.62,
-            8.03
+            21.26,
+            36.75
           ],
           "output_bytes": 564687
         },
         {
           "years": 100,
-          "model_seconds": 18.222,
+          "model_seconds": 18.227,
           "repeats": 2,
           "load_average_after": [
-            27.55,
-            6.99
+            20.32,
+            31.4
           ],
           "output_bytes": 564687
         }
@@ -372,52 +372,52 @@
       "build_ok": true,
       "build_reused": true,
       "exe_bytes": 8882864,
-      "seconds_per_model_year": 0.1805,
-      "fixed_seconds": 0.177,
+      "seconds_per_model_year": 0.1834,
+      "fixed_seconds": -0.112,
       "from_repeat": 1,
       "from_a_quiet_host": false,
-      "load_average_of_that_fit": 8.03,
+      "load_average_of_that_fit": 36.75,
       "per_repeat_fits": [
         {
           "repeat": 0,
-          "seconds_per_model_year": 0.2846,
-          "fixed_seconds": -0.312,
+          "seconds_per_model_year": 0.3688,
+          "fixed_seconds": 0.423,
           "model_seconds": {
-            "20": 5.379,
-            "100": 28.143
+            "20": 7.799,
+            "100": 37.305
           },
-          "load_average": 27.55,
+          "load_average": 21.26,
           "contaminated": true
         },
         {
           "repeat": 1,
-          "seconds_per_model_year": 0.1805,
-          "fixed_seconds": 0.177,
+          "seconds_per_model_year": 0.1834,
+          "fixed_seconds": -0.112,
           "model_seconds": {
-            "20": 3.786,
-            "100": 18.222
+            "20": 3.556,
+            "100": 18.227
           },
-          "load_average": 8.03,
+          "load_average": 36.75,
           "contaminated": true
         }
       ],
       "perf": {
         "runs": [
           {
-            "instructions": 54308274826.0,
-            "task-clock": 3459.42,
+            "instructions": 54307688123.0,
+            "task-clock": 3271.77,
             "years": 20,
-            "load_average": 4.7
+            "load_average": 9.76
           },
           {
-            "instructions": 278727528832.0,
-            "task-clock": 15905.99,
+            "instructions": 278725404089.0,
+            "task-clock": 20848.92,
             "years": 100,
-            "load_average": 7.11
+            "load_average": 25.9
           }
         ],
-        "instructions_per_model_year": 2805240675.075,
-        "fixed_instructions": -1796538675.5,
+        "instructions_per_model_year": 2805221449.575,
+        "fixed_instructions": -1796740868.5,
         "note": "retired instructions are a property of the binary and its input, not of what else the host was doing"
       }
     },
@@ -447,21 +447,21 @@
       "runs": [
         {
           "years": 20,
-          "model_seconds": 3.668,
+          "model_seconds": 3.263,
           "repeats": 2,
           "load_average_after": [
-            26.94,
-            9.71
+            20.37,
+            29.04
           ],
           "output_bytes": 564687
         },
         {
           "years": 100,
-          "model_seconds": 18.756,
+          "model_seconds": 17.998,
           "repeats": 2,
           "load_average_after": [
-            26.93,
-            10.65
+            31.44,
+            23.65
           ],
           "output_bytes": 564687
         }
@@ -470,52 +470,52 @@
       "build_ok": true,
       "build_reused": true,
       "exe_bytes": 8891056,
-      "seconds_per_model_year": 0.1886,
-      "fixed_seconds": -0.104,
+      "seconds_per_model_year": 0.1842,
+      "fixed_seconds": -0.421,
       "from_repeat": 1,
       "from_a_quiet_host": false,
-      "load_average_of_that_fit": 10.65,
+      "load_average_of_that_fit": 29.04,
       "per_repeat_fits": [
         {
           "repeat": 0,
-          "seconds_per_model_year": 0.2577,
-          "fixed_seconds": -0.057,
+          "seconds_per_model_year": 0.3164,
+          "fixed_seconds": 0.867,
           "model_seconds": {
-            "20": 5.097,
-            "100": 25.714
+            "20": 7.196,
+            "100": 32.511
           },
-          "load_average": 26.94,
+          "load_average": 31.44,
           "contaminated": true
         },
         {
           "repeat": 1,
-          "seconds_per_model_year": 0.1886,
-          "fixed_seconds": -0.104,
+          "seconds_per_model_year": 0.1842,
+          "fixed_seconds": -0.421,
           "model_seconds": {
-            "20": 3.668,
-            "100": 18.756
+            "20": 3.263,
+            "100": 17.998
           },
-          "load_average": 10.65,
+          "load_average": 29.04,
           "contaminated": true
         }
       ],
       "perf": {
         "runs": [
           {
-            "instructions": 51944045059.0,
-            "task-clock": 3553.2,
+            "instructions": 51946574258.0,
+            "task-clock": 4614.36,
             "years": 20,
-            "load_average": 6.7
+            "load_average": 32.63
           },
           {
-            "instructions": 266435852836.0,
-            "task-clock": 17286.31,
+            "instructions": 266452636416.0,
+            "task-clock": 23427.92,
             "years": 100,
-            "load_average": 4.83
+            "load_average": 44.73
           }
         ],
-        "instructions_per_model_year": 2681147597.2125,
-        "fixed_instructions": -1678906885.25,
+        "instructions_per_model_year": 2681325776.975,
+        "fixed_instructions": -1679941281.5,
         "note": "retired instructions are a property of the binary and its input, not of what else the host was doing"
       }
     },
@@ -545,21 +545,21 @@
       "runs": [
         {
           "years": 20,
-          "model_seconds": 3.551,
+          "model_seconds": 3.726,
           "repeats": 2,
           "load_average_after": [
-            26.22,
-            10.65
+            33.17,
+            23.65
           ],
           "output_bytes": 564556
         },
         {
           "years": 100,
-          "model_seconds": 18.078,
+          "model_seconds": 17.799,
           "repeats": 2,
           "load_average_after": [
-            23.41,
-            8.33
+            43.76,
+            17.59
           ],
           "output_bytes": 564556
         }
@@ -568,52 +568,52 @@
       "build_ok": true,
       "build_reused": true,
       "exe_bytes": 9123872,
-      "seconds_per_model_year": 0.1816,
-      "fixed_seconds": -0.081,
+      "seconds_per_model_year": 0.1759,
+      "fixed_seconds": 0.208,
       "from_repeat": 1,
       "from_a_quiet_host": false,
-      "load_average_of_that_fit": 10.65,
+      "load_average_of_that_fit": 23.65,
       "per_repeat_fits": [
         {
           "repeat": 0,
-          "seconds_per_model_year": 0.2728,
-          "fixed_seconds": 0.097,
+          "seconds_per_model_year": 0.3869,
+          "fixed_seconds": -1.464,
           "model_seconds": {
-            "20": 5.553,
-            "100": 27.376
+            "20": 6.274,
+            "100": 37.226
           },
-          "load_average": 26.22,
+          "load_average": 43.76,
           "contaminated": true
         },
         {
           "repeat": 1,
-          "seconds_per_model_year": 0.1816,
-          "fixed_seconds": -0.081,
+          "seconds_per_model_year": 0.1759,
+          "fixed_seconds": 0.208,
           "model_seconds": {
-            "20": 3.551,
-            "100": 18.078
+            "20": 3.726,
+            "100": 17.799
           },
-          "load_average": 10.65,
+          "load_average": 23.65,
           "contaminated": true
         }
       ],
       "perf": {
         "runs": [
           {
-            "instructions": 57787036854.0,
-            "task-clock": 3462.18,
+            "instructions": 57792270063.0,
+            "task-clock": 5157.45,
             "years": 20,
-            "load_average": 4.6
+            "load_average": 45.31
           },
           {
-            "instructions": 302683067717.0,
-            "task-clock": 18291.59,
+            "instructions": 302680140179.0,
+            "task-clock": 19032.37,
             "years": 100,
-            "load_average": 5.68
+            "load_average": 31.4
           }
         ],
-        "instructions_per_model_year": 3061200385.7875,
-        "fixed_instructions": -3436970861.75,
+        "instructions_per_model_year": 3061098376.45,
+        "fixed_instructions": -3429697466.0,
         "note": "retired instructions are a property of the binary and its input, not of what else the host was doing"
       }
     },
@@ -643,21 +643,21 @@
       "runs": [
         {
           "years": 20,
-          "model_seconds": 16.412,
+          "model_seconds": 20.606,
           "repeats": 2,
           "load_average_after": [
-            19.58,
-            6.86
+            50.99,
+            23.27
           ],
           "output_bytes": 564531
         },
         {
           "years": 100,
-          "model_seconds": 88.601,
+          "model_seconds": 114.22,
           "repeats": 2,
           "load_average_after": [
-            8.41,
-            2.77
+            44.78,
+            27.32
           ],
           "output_bytes": 564559
         }
@@ -666,52 +666,52 @@
       "build_ok": true,
       "build_reused": true,
       "exe_bytes": 9119232,
-      "seconds_per_model_year": 0.8707,
-      "fixed_seconds": 1.534,
-      "from_repeat": 0,
+      "seconds_per_model_year": 1.1702,
+      "fixed_seconds": -2.797,
+      "from_repeat": 1,
       "from_a_quiet_host": false,
-      "load_average_of_that_fit": 19.58,
+      "load_average_of_that_fit": 27.32,
       "per_repeat_fits": [
         {
           "repeat": 0,
-          "seconds_per_model_year": 0.8707,
-          "fixed_seconds": 1.534,
+          "seconds_per_model_year": 2.0584,
+          "fixed_seconds": -3.255,
           "model_seconds": {
-            "20": 18.947,
-            "100": 88.601
+            "20": 37.913,
+            "100": 202.583
           },
-          "load_average": 19.58,
+          "load_average": 50.99,
           "contaminated": true
         },
         {
           "repeat": 1,
-          "seconds_per_model_year": 0.9348,
-          "fixed_seconds": -2.285,
+          "seconds_per_model_year": 1.1702,
+          "fixed_seconds": -2.797,
           "model_seconds": {
-            "20": 16.412,
-            "100": 91.199
+            "20": 20.606,
+            "100": 114.22
           },
-          "load_average": 6.86,
+          "load_average": 27.32,
           "contaminated": true
         }
       ],
       "perf": {
         "runs": [
           {
-            "instructions": 262117399810.0,
-            "task-clock": 18349.41,
+            "instructions": 262129467386.0,
+            "task-clock": 17609.55,
             "years": 20,
-            "load_average": 4.05
+            "load_average": 20.51
           },
           {
-            "instructions": 1365034489936.0,
-            "task-clock": 194578.66,
+            "instructions": 1364619004549.0,
+            "task-clock": 88714.24,
             "years": 100,
-            "load_average": 18.98
+            "load_average": 5.5
           }
         ],
-        "instructions_per_model_year": 13786463626.575,
-        "fixed_instructions": -13611872721.5,
+        "instructions_per_model_year": 13781119214.5375,
+        "fixed_instructions": -13492916904.75,
         "note": "retired instructions are a property of the binary and its input, not of what else the host was doing"
       }
     }
@@ -720,7 +720,7 @@
     "reference": "genie-knowngood/genie_eb_go_gs_knowngood/goldstein/gold_spn_av_0000000020_00.nc",
     "build_ok": true,
     "run_ok": true,
-    "run_seconds": 2.257,
+    "run_seconds": 2.23,
     "produced": true,
     "variables_only_in_reference": [],
     "fields": {
@@ -848,45 +848,57 @@
     "runs": [
       {
         "years": 10,
-        "model_seconds": 5.1,
-        "output_bytes": 9820973
+        "model_seconds": 4.856,
+        "output_bytes": 9820973,
+        "perf": {
+          "instructions": 47553335201.0,
+          "task-clock": 5578.06
+        }
       },
       {
         "years": 50,
-        "model_seconds": 23.072,
-        "output_bytes": 23805424
+        "model_seconds": 25.874,
+        "output_bytes": 23805424,
+        "perf": {
+          "instructions": 238102339716.0,
+          "task-clock": 37642.53
+        }
       }
     ],
-    "build_seconds": 88.42,
+    "build_seconds": 93.57,
     "build_ok": true,
-    "seconds_per_model_year": 0.4493,
-    "fixed_seconds": 0.607,
-    "from_repeat": 1,
+    "seconds_per_model_year": 0.5254,
+    "fixed_seconds": -0.399,
+    "from_repeat": 0,
     "from_a_quiet_host": false,
     "load_average_of_that_fit": null,
     "per_repeat_fits": [
       {
         "repeat": 0,
-        "seconds_per_model_year": 0.4528,
-        "fixed_seconds": 0.651,
+        "seconds_per_model_year": 0.5254,
+        "fixed_seconds": -0.399,
         "model_seconds": {
-          "10": 5.179,
-          "50": 23.291
+          "10": 4.856,
+          "50": 25.874
         },
         "load_average": null,
         "contaminated": null
       },
       {
         "repeat": 1,
-        "seconds_per_model_year": 0.4493,
-        "fixed_seconds": 0.607,
+        "seconds_per_model_year": 0.5829,
+        "fixed_seconds": -0.712,
         "model_seconds": {
-          "10": 5.1,
-          "50": 23.072
+          "10": 5.117,
+          "50": 28.434
         },
         "load_average": null,
         "contaminated": null
       }
-    ]
+    ],
+    "perf": {
+      "instructions_per_model_year": 4763725112.875,
+      "fixed_instructions": -83915927.75
+    }
   }
 }

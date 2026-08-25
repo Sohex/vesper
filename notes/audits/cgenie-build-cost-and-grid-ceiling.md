@@ -189,7 +189,7 @@ for exactly that reason. Raising `ndta` alone slows the atmosphere's clock
 relative to the ocean's rather than sub-stepping it, and nothing in the model
 complains. Every configuration below therefore moves `kocn_loop` with `ndta`.
 
-## 3a. Both grids stop, both times in the atmosphere, and the ocean is nowhere near its limit
+## 3a. Both grids stop in the atmosphere, and the ocean is nowhere near its limit
 
 `analysis/cgenie_stability.json` is `nyear` crossed with `ndta` on both grids,
 with the ocean's `diag` on and EMBM's guard live. Two things are true of every
@@ -259,9 +259,9 @@ timestep at 72 x 72 x 16 is about 7.0 days, `nyear` about 52.
 
 The same construction at 36 x 36 x 16, where `Cn` is 0.13 at `nyear = 100`,
 puts the ocean's own limit there at `nyear` about 13. **At both grids the ocean
-could carry a timestep about three times the one EMBM permits**, and the two
-limits scale together: the ocean's `Cn` at fixed `nyear` is 4.00 times larger at
-72 x 72 than at 36 x 36, the same quadratic as EMBM's.
+could carry a timestep between two and a half and three times the one EMBM
+permits**, and the two limits scale together: the ocean's `Cn` at fixed `nyear`
+is 4.00 times larger at 72 x 72 than at 36 x 36, the same quadratic as EMBM's.
 
 ## 3d. What that makes the cost of a refinement
 
@@ -313,8 +313,8 @@ files a new geography needs, and it is where OCN-18's second half sits.
   automatic version exists.
 - **It is GPL-3**, where cGENIE is MIT. Consuming its output is unencumbered;
   vendoring the generator would bring a different licence into this tree.
-- **Whether it runs under Octave is still not demonstrated.** The manual says
-  MATLAB throughout and states no position either way. The only interface that
+- **Whether it runs under Octave is still not demonstrated**, and is world-crky.
+  The manual says MATLAB throughout and states no position either way. The only interface that
   would decide it is the low-level `netcdf.*` family, used in about 170 places,
   which Octave provides through a separate package; nothing here has run it.
   That is the one part of OCN-18 this document does not close.
@@ -349,7 +349,7 @@ seconds measure that.
 | `g3660l` | 36 x 60 x 8 | 9108 | small | 5 | 2.805 | -0.64 |
 | `igcmv3` | 64 x 32 x 8 | 8688 | small | 5 | 2.681 | -0.63 |
 | `worjh2` | 36 x 36 x 16 | 12511 | medium | 5 | 3.061 | -1.12 |
-| `dan_72` | 72 x 72 x 16 | 49680 | medium | 10 | 13.787 | -0.99 |
+| `dan_72` | 72 x 72 x 16 | 49680 | medium | 10 | 13.781 | -0.98 |
 
 **Initialisation is not a cost.** Every intercept is smaller than one model
 year's worth of work and every one is NEGATIVE, which says the fixed cost is
@@ -395,22 +395,30 @@ Doubling the level count costs 1.674 (8 to 16) and 1.793 (16 to 32), both below
 the 2.0 that cell count alone would give, because the two-dimensional work --
 the surface fluxes, the barotropic solve, EMBM -- is shared across levels.
 
-Doubling both horizontal dimensions costs 4.504 at the same `nyear`, against a
+Doubling both horizontal dimensions costs 4.502 at the same `nyear`, against a
 wet-cell ratio of 3.971: 1.13 times per cell. Combined with section 3's result
 that the usable timestep falls as r^2, a doubling of the horizontal grid costs
 about 18 times per model year, against the r^4 = 16 that both scalings predict.
 
-**One caveat that makes r^4 a LOWER bound on wall clock.** Instructions per
-second, taken from the same `perf` runs, sit between 15.6 and 18.3 G/s for every
-36 x 36 class case and at 6.3 G/s for 72 x 72 x 16. If that threefold collapse
-in throughput is the model's static COMMON leaving cache -- and a grid that
-needs `-mcmodel=medium` is a grid whose state is around a gigabyte -- then wall
-clock grows faster than instructions do and the doubling costs nearer 50 times
-than 18. It could also be that the 72 x 72 runs happened to fall in the busiest
-part of the window. **This document does not separate those**, and doing so
-needs a quiet host, which is the one measurement here that is still owed.
+**The instructions do convert to seconds at a rate that does not change with the
+grid**, which is worth stating because a first pass suggested otherwise. Taken
+from the same `perf` runs, throughput is 11.4 to 18.3 G instructions per second
+across every physics case INCLUDING 72 x 72 x 16, which sits at 15.5 in the
+middle of that band. An earlier pass put the same case at 6.3, and that was the
+contended window rather than a property of the grid: a grid needing
+`-mcmodel=medium` looked like a candidate for its state leaving cache, and
+re-measuring at lower load says it is not. So r^4 in instructions is r^4 in
+seconds for the physics.
 
-## 4c. Storage is nothing, and the biogeochemistry is where the published costs come from
+## 4bb. The instrument, checked against the size of the effect
+
+The same seven cases were measured twice, hours apart, at one-minute load
+averages spanning 8 to 42. **The instruction counts agree to within 0.04 per
+cent**, against effects here of 1.67 to 4.50. That is three orders of magnitude
+below the smallest thing being claimed, and it is why the numbers above are
+quoted in instructions and the seconds are not.
+
+## 4c. Storage is nothing, and the biogeochemistry is where the published costs are
 
 A physics-only run writes 564 kB whatever its length, because these
 configurations suppress the periodic output; storage is a function of what is
@@ -423,18 +431,18 @@ physics case with fourteen GOLDSTEIN tracers, ATCHEM and BIOGEM on. It writes
 and that is the storage figure a spin-up should be planned against rather than
 the physics-only one.
 
-Priced the same way, that configuration costs **4.708 Ginstr per model year**
+Priced the same way, that configuration costs **4.764 Ginstr per model year**
 against the physics-only 1.776 at the same grid: the ocean biogeochemistry is
-**2.65 times the physics**, in instructions.
+**2.68 times the physics**, in instructions.
 
-In seconds it is nearer eight times, and the gap is the same throughput effect
-as in 4b. The BIOGEM case retires 6.0 Ginstr per second and the 72 x 72 physics
-case 6.3, while every small-state physics case sits between 15.6 and 18.3.
-Those two large-state configurations are different in kind -- one is many
-tracers on a small grid, the other two tracers on a large one -- and they were
-measured at different times, so a shared load is not a likely explanation and a
-shared working-set-versus-cache one is. It remains an inference: what would
-settle it is the same measurement on a quiet host, or a cache-miss count.
+In seconds it is nearer five and a half times, and that gap is real rather than
+an artifact of the host. BIOGEM retires 5.94 G instructions per second where
+every physics case is between 11.4 and 18.3, and the two independent
+measurements of it, hours apart at different loads, gave 5.96 and 5.94. So this
+is a property of the geochemistry -- long-latency arithmetic in the carbonate
+system, and a much larger working set for fourteen tracers -- and not of the
+machine. **The biogeochemistry costs 2.7 times the instructions and 5.4 times
+the seconds**, and a spin-up should be planned on the seconds.
 
 ## 4d. This reproduces the published EMIC costs, within a hardware generation
 
@@ -445,9 +453,9 @@ at 20 kyr in about a day on a PC.
 
 Taking the BIOGEM price above and scaling it to sixteen levels by the physics
 case's own level ratio -- an ASSUMPTION, since the biogeochemistry was not run
-at sixteen levels here -- gives about 7.9 Ginstr per model year, so 20,000 years
-is about 1.6e14 instructions, and at the 6 Ginstr per second those large-state
-configurations run at, about 7 hours on one core of this machine.
+at sixteen levels here -- gives about 8.0 Ginstr per model year, so 20,000 years
+is about 1.6e14 instructions, and at the 5.94 Ginstr per second the
+biogeochemistry runs at, about 7.5 hours on one core of this machine.
 
 That is a factor of three to seven faster than the published figure, on a part
 about twenty years newer than Edwards and Marsh's and several generations newer
@@ -465,7 +473,7 @@ one property: the ocean's cost must not climb the T21/T42/T85/T127/T170 ladder
 with the atmosphere. This is the measurement that decision rests on, so it owes
 two statements rather than one.
 
-## 5a. The ocean's grid is independent of the atmosphere's rung, and that is now measured rather than argued
+## 5a. The ocean's grid is independent of the atmosphere's rung, and now measured
 
 Nothing in section 4's table depends on an atmosphere resolution. EMBM runs on
 the OCEAN's grid, not the atmosphere's, and the chosen coupling hands the ocean
@@ -484,10 +492,9 @@ T85 is 128 latitudes by 256 longitudes (`lib/rungs.py`). Against 36 x 36 that is
 Section 3d's r^4 -- r^2 in cells and r^2 in timestep, in both components -- puts
 a T85-matched ocean at about 640 times the shipped grid's price per model year,
 so around 1900 Ginstr per model year against 2.973, and a 20,000-year physics
-spin-up at about 3.8e16 instructions. At the 6 to 18 Ginstr per second measured
-here that is between three and eleven weeks on one core, and the low end of that
-bracket is the one that will not apply, because a 256 x 128 x 16 ocean is
-firmly a large-state configuration.
+spin-up at about 3.8e16 instructions. At the 11 to 18 Ginstr per second the
+physics runs at, that is between three and six weeks on one core, and carrying
+biogeochemistry alongside multiplies it again by about five in seconds.
 
 **That figure is an extrapolation across a factor of five in resolution from a
 single measured doubling, and it should be read as an order of magnitude.** What
@@ -524,7 +531,8 @@ the modelled ocean read different atmospheres, and that OCN-10 has to name which
 terms EMBM owns. This measurement adds a harder reason to care. EMBM is not only
 a second atmosphere whose ownership is unstated; it is the component that sets
 the ocean's timestep and therefore prices every grid refinement. At both grids
-tested the ocean could carry a timestep about three times the one EMBM permits.
+tested the ocean could carry a timestep between two and a half and three times
+the one EMBM permits.
 
 That has a consequence specific to the offline architecture. In offline
 full-flux coupling the ocean is driven by an ExoPlaSim climatology, so what
@@ -640,11 +648,13 @@ planet is that audit's question and not this one's.
   and 4 stand exactly as they were: every number here is a number at Earth's
   hardcoded `rsc` and `const_rEarth`, on Earth topographies, and the whole sweep
   would have to be redone after those move.
-- **The host was not quiet.** Other work ran on this machine throughout. cGENIE
-  is one serial process on a 32-thread part so it never waited for a core, but
-  it did not have the cache or the memory bandwidth to itself. Every timing is
-  the minimum over repeats and every run records the load average it finished
-  under. The effects reported here are factors of two to ten; the scatter this
-  contention produces is well inside that, and the one comparison it could
-  plausibly distort is called out where it is made.
-- **Octave is still open**, as section 3d says.
+- **The host was not quiet, and no wall-clock number here is clean.** Other
+  agents ran throughout at one-minute loads of 8 to 42. cGENIE is one serial
+  process on a 32-thread part so it never waited for a core, but it did not have
+  the cache or the memory bandwidth to itself, and the per-repeat wall fits vary
+  by up to a factor of two. Every one is labelled with the load it was taken
+  under and marked contaminated in the artifact rather than deleted. The
+  instruction counts do not have this problem and every quantitative claim above
+  rests on those; where seconds appear they come from the `perf` runs' own CPU
+  time and are upper bounds. world-ap7w owns the quiet-host re-take.
+- **Octave is still open**, as section 3f says, and is world-crky.
