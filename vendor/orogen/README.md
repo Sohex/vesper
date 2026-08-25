@@ -198,7 +198,15 @@ node tools/export-maps.mjs --code <planet-code> --width 16384   # PNG maps, head
 node tools/export-maps.mjs --code <planet-code> --preserve-basins carve_list.txt \
     --name my-build                             # ...of a planet built from a carve verdict
 node --test tools/test-basins.mjs               # basin regression suite
+node --test tools/test-glacial.mjs              # ice placement regression suite
 ```
+
+Glacial erosion carves wherever `glacial-ice.js` puts the ice. `--ice-mask FILE`
+supplies that placement from outside -- one float32 per mesh region in region
+order, with a `FILE.json` sidecar naming the mesh it was built on -- so the ice
+can be a climatology's answer rather than a latitude threshold. Without the flag
+the placement is the built-in ramp, which is Earth-calibrated and consults no
+temperature; the module header says what that does and does not know.
 
 ### Sidebar & Loading
 
@@ -308,6 +316,8 @@ js/
   super-plates.js       Groups same-type plates into ~20 super plates for broad orogenic belts
   ocean-land.js         Ocean/land assignment with continent seeding
   elevation.js          Collisions, stress propagation, distance fields, elevation
+  glacial-ice.js        WHERE the ice that carves the terrain sits: a supplied mask from a
+                        climatology, or the Earth-calibrated latitude ramp when there is none
   terrain-post.js       Domain warping, bilateral smoothing, glacial/hydraulic/thermal erosion, ridge sharpening, soil creep
   climate-config.js     Climate simulation tunable parameters (mutable at runtime for the tuning suite)
   climate-util.js       Shared climate utilities — smoothing, ITCZ lookup, percentile selection
@@ -324,6 +334,7 @@ tools/
   export-planet.mjs     Headless generate + full data export CLI (see tools/README.md)
   export-maps.mjs       Headless equirectangular PNG map rendering (CPU, matches the GPU path)
   test-basins.mjs       Regression suite for endorheic basin preservation (node --test)
+  test-glacial.mjs      Regression suite for ice placement and the --ice-mask path (node --test)
   test-lithology.mjs    Regression suite for lithology + differential erosion (node --test)
   test-integration.mjs  Regression suite for planet params, Gaussian grids, hydrology, planet codes
   lib/netcdf-write.mjs  Minimal NetCDF classic (CDF-1/CDF-2) writer

@@ -91,6 +91,35 @@ thick crust -- is gravity-independent for the ocean's own reason. Separating the
 two needs a crustal-thickness field the model does not carry, so uniform 1/g on
 land slightly over-suppresses plateaus.
 
+## The glacial altitude gate is gravity-invariant, and that is correct
+
+The gate that decides which high ground glaciates is expressed in the model's
+dimensionless elevation parameter. The obvious reading is that this makes the
+snowline track MAXIMUM RELIEF, which goes as 1/g, rather than a freezing
+altitude set by a lapse rate and a surface temperature. Write out both sides and
+the reading does not survive:
+
+- physical height is `reliefScale * f(elev)` with `reliefScale = g_ref/g`,
+  because a crustal root fails at `sigma/(rho g)`. The ceiling goes as 1/g.
+- the height at which a surface temperature reaches freezing is
+  `(T_s - T_freeze)/Gamma`, and a dry adiabat is `Gamma = g/cp`. The freezing
+  height ALSO goes as 1/g, at fixed surface temperature and composition.
+
+The two carry one factor of `1/g` each, so their ratio is gravity-free and a
+DIMENSIONLESS gate is the invariant form. Re-anchoring the gate to a fixed
+number of kilometres would introduce an error rather than remove one. So the
+gravity half of `PHYS-13`'s finding is not a defect; `vendor/orogen/js/glacial-ice.js`
+carries the algebra and `tools/test-glacial.mjs` pins it, so a later gravity term
+on the gate has to argue with it rather than be added quietly.
+
+The cancellation is exact only for a dry adiabat at Earth's `cp` and Earth's
+surface temperature, and none of those three holds here. The residual is a
+fraction of the gate: this world's measured warm-season environmental lapse rate
+is shallower than `g/cp` implies, so the true freezing height sits somewhat
+above where the dimensionless gate puts it. The TEMPERATURE term the gate is
+missing entirely is the whole of the effect beside that, which is why the fix
+is an ice mask from a climatology rather than a gravity term. `PHYS-13`.
+
 ## The real gravity gap is glacial
 
 Glacial erosion runs at slider 0.8, eight iterations, as
@@ -118,6 +147,51 @@ The scale reinforces it. This world's glaciers run a few times Earth's mountain
 glaciation with no ice sheets at all, so the affected area is small as well as
 unresolved. `GRAV-6` is therefore a declared gap deferred to downscaling, which
 is Option B below rather than an outstanding task.
+
+### The exponent is not one number, and 2.23x is the wrong one for this term
+
+The `2.23x` above is `g^3` on ice VELOCITY at fixed thickness, and that is not
+the quantity `iceFlow` stands for. Both halves have to be settled before a
+factor can be written down, and neither is settled by Glen's law alone.
+
+**Which quantity is held fixed.** Depth-averaged deformation velocity is
+`u = 2A/(n+2) (rho_i g sin a)^n H^(n+1)` with `n = 3`, so `u ~ g^3` at fixed
+`H`. But the flux is `q = u H ~ g^n H^(n+2)`, and `q` at a point is set by
+upstream accumulation, which is a climate quantity and not a gravity one. Hold
+`q` fixed instead, let `H` find its own value, and `H ~ g^(-n/(n+2))` and
+`u ~ g^(n/(n+2)) = g^0.6`. `iceFlow` is an accumulation down the ice drainage
+graph -- a supply, seeded from the glaciation index and summed downstream -- so
+it is the FLUX reading that applies to it, not the fixed-thickness one. Orogen
+carries no thickness and no mass balance, so it cannot decide this from the
+inside.
+
+**Which erosion law.** Erosion is not velocity. Abrasion goes as `u_b^l` with
+`l` between 1 and 2 depending on whose law, and quarrying after Iverson (2012),
+as iSOSIA implements it, goes as `K_q p_e^3 u_b (slope + 0.55)^2` where the
+effective pressure `p_e ~ rho_i g H` carries its own gravity. Both are on the
+SLIDING velocity, which is a Weertman-type law Orogen does not have either.
+
+At `g = 1.30626` Earth the bracket that follows is:
+
+| reading | exponent | factor |
+| --- | --- | --- |
+| E ~ u, flux fixed (the one `iceFlow` is) | g^0.60 | 1.17 |
+| E ~ u^2, flux fixed | g^1.20 | 1.38 |
+| quarrying, p_e^3 u, flux fixed | g^1.80 | 1.62 |
+| E ~ u, thickness fixed (the `2.23x` quoted) | g^3.00 | 2.23 |
+| E ~ u^2 or quarrying, thickness fixed | g^6.00 | 4.97 |
+
+The bracket spans a factor of 4.2 and its width is dominated by a STRUCTURAL
+choice, not by a coefficient: whether thickness or flux is the conserved
+quantity. That is the finding. A `g^3` on `iceFlow^0.6` would be neither end of
+it, and it would not even be dimensionally the same object, since `0.6` is an
+exponent on an accumulated supply and `n` is an exponent on a stress.
+
+This does not reopen the row and it does not change the recommendation. It
+sharpens it: the reason not to bolt a gravity term onto `iceFlow` is not only
+that the quantity is heuristic, it is that the model does not carry the state --
+thickness, sliding, effective pressure -- that decides which exponent the term
+would take. The bracket is what to carry until it does.
 
 ## SWOT: make gravity physical, or roll with what we have
 
@@ -178,7 +252,9 @@ slider silently invalidates this conclusion, and nothing currently warns of it.
 **Option B, plus one line of code.** The fluvial case is settled and Option A
 cannot improve it. The glacial gap is real but cannot be closed by adding a
 gravity term to a heuristic; it needs the glacial model rebuilt, and that should
-be justified on its own merits rather than smuggled in as a gravity fix.
+be justified on its own merits rather than smuggled in as a gravity fix. The
+exponent bracket above is what makes that concrete: the model would have to grow
+a thickness and a sliding law before it could say which power of `g` to use.
 
 The one line is to record `n = 1` at the erosion call site, because the entire
 correctness argument rests on it and nothing says so.

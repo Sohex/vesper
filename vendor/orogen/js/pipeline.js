@@ -31,6 +31,7 @@ import {
 } from './basins.js';
 import { regionCellArea } from './geometry.js';
 import { makePlanet, planetSummary } from './planet-params.js';
+import { validateIceMask } from './glacial-ice.js';
 import {
     classifyLithology, buildLithoState, finalSurfaceRock, rockComposition, ROCK_CLASSES,
     computeScarpPotential, buildAlbedo, saltCrustMask,
@@ -79,7 +80,7 @@ export function computeOrogenicField(debugLayers) {
 }
 
 // Run terrain post-processing with per-step timing
-export function runPostProcessing(mesh, r_xyz, r_elevation, params, neighborDist, seed, r_hotspot, r_dampen, r_orogenic, basinOpts = null, lithoOpts = null, hydro = null) {
+export function runPostProcessing(mesh, r_xyz, r_elevation, params, neighborDist, seed, r_hotspot, r_dampen, r_orogenic, basinOpts = null, lithoOpts = null, hydro = null, glacialOpts = null) {
     const { smoothing, glacialErosion, hydraulicErosion, thermalErosion, ridgeSharpening, terrainWarp } = params;
     const timing = [];
 
@@ -192,6 +193,7 @@ export function runPostProcessing(mesh, r_xyz, r_elevation, params, neighborDist
         timing.push({ stage: 'Lithology classification', ms: performance.now() - t0 });
     }
 
+    let glacialSummary = null;
     if (glacialErosion > 0 || hydraulicErosion > 0 || thermalErosion > 0) {
         const gIters = Math.round(glacialErosion * 10);
         const hIters = Math.round(hydraulicErosion * 20);
@@ -200,14 +202,15 @@ export function runPostProcessing(mesh, r_xyz, r_elevation, params, neighborDist
         const talusSlope = 1.2 - thermalErosion * 0.4;
         const kThermal = thermalErosion * 0.15;
         const t0 = performance.now();
-        erodeComposite(mesh, r_elevation, r_xyz, r_isOcean,
+        glacialSummary = erodeComposite(mesh, r_elevation, r_xyz, r_isOcean,
             hIters, hK, 0.5, 1.0,
             tIters, talusSlope, kThermal,
             gIters, glacialErosion,
             neighborDist,
             protection,
             lithoState,
-            hydro);
+            hydro,
+            glacialOpts);
         timing.push({ stage: `Erosion composite (h=${hIters}, t=${tIters}, g=${gIters})`, ms: performance.now() - t0 });
     }
 
@@ -230,7 +233,7 @@ export function runPostProcessing(mesh, r_xyz, r_elevation, params, neighborDist
         dl_erosionDelta[r] = r_elevation[r] - preErosion[r];
     }
 
-    return { dl_erosionDelta, postTiming: timing, basinState, lithoState };
+    return { dl_erosionDelta, postTiming: timing, basinState, lithoState, glacialSummary };
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -330,6 +333,14 @@ export function runGeneratePipeline(params, onProgress = () => {}) {
         lithology = true,               // classify rock and let erosion respond to it
         lithologyStrength,              // 0 = uniform erodibility, 1 = full rock contrast
         planet: planetSpec = null,      // radius / gravity / rotation; Earth when absent
+        iceMask = null,                 // { values, numRegions, seed, provenance } — the
+                                        // climatology's answer to where ice sits. Consumed AT
+                                        // GENERATION like the carve list, because glacial,
+                                        // hydraulic and thermal erosion share one iteration
+                                        // loop and a mid-loop priority flood; a later pass
+                                        // would leave the depressions glaciation makes
+                                        // undrained. Absent, the placement falls back to the
+                                        // Earth-calibrated ramp in glacial-ice.js.
     } = params;
     const spread = 5;
     const timing = [];
@@ -347,6 +358,12 @@ export function runGeneratePipeline(params, onProgress = () => {}) {
     let t0 = performance.now();
     const { mesh, r_xyz } = buildSphere(N, jitter, rng);
     timing.push({ stage: 'Sphere mesh (Fibonacci + Delaunay + pole)', ms: performance.now() - t0 });
+
+    // Check the ice mask against the mesh the moment the mesh exists. The check
+    // repeats inside glacial-ice.js where the indexing actually happens, but at
+    // ten million regions erosion is most of an hour downstream of here, and a
+    // mask from the wrong mesh should not cost that before it is refused.
+    if (iceMask) validateIceMask(iceMask, mesh.numRegions, seed);
 
     t0 = performance.now();
     const neighborDist = computeNeighborDist(mesh, r_xyz);
@@ -468,7 +485,7 @@ export function runGeneratePipeline(params, onProgress = () => {}) {
 
     onProgress(60, 'Eroding terrain…');
     t0 = performance.now();
-    const { dl_erosionDelta, postTiming, basinState, lithoState } = runPostProcessing(mesh, r_xyz, r_elevation,
+    const { dl_erosionDelta, postTiming, basinState, lithoState, glacialSummary } = runPostProcessing(mesh, r_xyz, r_elevation,
         { smoothing, glacialErosion, hydraulicErosion, thermalErosion, ridgeSharpening, terrainWarp },
         neighborDist, seed, debugLayers.hotspot, r_dampen, r_orogenic,
         {
@@ -495,7 +512,8 @@ export function runGeneratePipeline(params, onProgress = () => {}) {
             strength: lithologyStrength,
             radiusKm: planet.radiusKm,
         },
-        { cellArea, radiusKm: planet.radiusKm });
+        { cellArea, radiusKm: planet.radiusKm },
+        { iceMask, seed, reliefScale: planet.reliefScale });
     timing.push({ stage: 'Terrain post-processing (total)', ms: performance.now() - t0 });
     debugLayers.erosionDelta = dl_erosionDelta;
 
@@ -792,7 +810,7 @@ export function runGeneratePipeline(params, onProgress = () => {}) {
         mountain_r, coastline_r, ocean_r, r_stress,
         debugLayers, tectonics, basins, lithology: lithologyResult, hydrology, cellArea,
         planet, planetSummary: planetSummary(planet),
-        r_dampen, r_orogenic,
+        r_dampen, r_orogenic, glacialSummary,
         windResult, oceanResult, precipResult, tempResult,
         noise, seed, nMag, P,
         // Every parameter that changes the terrain must appear here, because
@@ -806,7 +824,13 @@ export function runGeneratePipeline(params, onProgress = () => {}) {
                   thermalErosion, ridgeSharpening, glacialErosion, continentSizeVariety,
                   temperatureOffset, precipitationOffset, landCoverage, seed,
                   lithology: !!lithology,
-                  lithologyStrength: lithology ? (lithologyStrength ?? 1) : null },
+                  lithologyStrength: lithology ? (lithologyStrength ?? 1) : null,
+                  // WHERE the ice was, and where that answer came from. A build
+                  // carved by a climatology's ice and one carved by the
+                  // latitude ramp are different terrain, so a manifest that did
+                  // not distinguish them would be an incomplete account.
+                  iceMask: iceMask ? (iceMask.provenance ?? {}) : null,
+                  glacialPlacement: glacialSummary ? glacialSummary.glacIdxSource : null },
         skipClimate: !!skipClimate,
         _timing,
         _pipelineTiming: timing,

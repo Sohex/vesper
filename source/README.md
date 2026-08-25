@@ -235,6 +235,43 @@ point `source_build` at it.
 Add `--preserve-basins FILE` to apply a carve list; without it the build is
 pre-carve, which is what a first pass on new geography wants.
 
+### Ice is supplied, not inferred
+
+Glacial erosion carves where `vendor/orogen/js/glacial-ice.js` puts the ice, and
+its built-in placement is a latitude-and-elevation ramp that consults no
+temperature at all -- not the spectrum, not the obliquity, not the rotation. At
+the code's `glacialErosion` the ice line is put there by the erosion slider.
+
+`--ice-mask FILE` replaces that with a climatology's answer. The mask is one
+float32 per mesh region in region order plus a `FILE.json` sidecar, produced by
+
+```bash
+python analysis/ice_mask_freezing_height.py \
+    --climatology <the commissioned climatology> \
+    --grid-export source/<build>/exoplasim-<rung> \
+    --write-mask <path>/ice_mask.f32
+```
+
+`--build` names the export the MESH comes from and defaults to the configured
+one; only the T42 export keeps `raw/`, so a climatology at another truncation
+needs `--grid-export` to name the export whose GRID it was run on. The criterion
+is the warmest-bin surface temperature lapse-corrected to each region's own
+elevation, because the model forms no permanent land ice at any truncation this
+project will run -- `glac` is a fact about the grid, not about the planet.
+
+The mask is matched BY REGION INDEX. A mesh is a pure function of the seed and
+the region count, so the sidecar carries both and the generator refuses a
+mismatch before it builds anything. Never match this by coordinate.
+
+So a build on new geography takes two passes, and the first is deliberately
+without ice: generate with `--glacial 0`, an honest null rather than an
+Earth-calibrated guess, commission that build to a baseline, write the mask from
+its climatology, and regenerate with `--ice-mask`. It cannot be done in one pass
+and it cannot be bolted on afterwards -- glacial, hydraulic and thermal erosion
+share one iteration loop and a mid-loop priority flood cuts outlets through the
+depressions glaciation makes, so a later glacial pass would leave them undrained
+and move both the drainage network and the basin catalogue.
+
 The code decodes to seed 16236323, 2,500,001 regions, 100 plates, 10 continents
 and the erosion and shaping sliders. An explicit flag beats the decoded value,
 which is why `--regions` above overrides the count and the rest of the code still
@@ -280,6 +317,13 @@ at the model-unit-to-km conversion on export. So two builds differing only in
 gravity are **bit-identical in every hash** -- `finalElevation`, `basinCatalogue`
 and `params` alike -- and differ only in `manifest.planet.gravityMS2` and the
 `elevation_km` it scales.
+
+An ice mask does not change that. It is a climate input, not a gravity one, and
+the glacial altitude gate stays dimensionless on purpose: the relief ceiling
+goes as 1/g because a crustal root fails at sigma/(rho g), and a dry-adiabatic
+freezing height goes as 1/g because the adiabat is g/cp, so the two cancel and
+the dimensionless form is the gravity-invariant one. Two builds differing only in
+gravity stay bit-identical with or without a mask.
 
 - The terrain hash is not sufficient identity for us. `lib/orogen.py` reads
   `gravityMS2` separately and `scripts/check_consistency.py` checks it against

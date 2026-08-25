@@ -6,13 +6,12 @@
 import { SimplexNoise } from './simplex-noise.js';
 import { MinHeap } from './min-heap.js';
 import { updateExhumation } from './lithology.js';
+import { buildGlacIdx } from './glacial-ice.js';
 import {
     FLOOD_NOISE_AMP, FLOOD_CARVE_RADIUS_FRAC,
     WARP_FREQ, WARP_OCTAVES, WARP_MAX_AMP_MULT,
     WARP_BIAS_BASE, WARP_BIAS_STRENGTH_SCALE, WARP_HOTSPOT_DAMPEN,
     SMOOTH_EDGE_SENSITIVITY,
-    GLACIAL_LAT_DIVISOR, GLACIAL_ELEV_LOW, GLACIAL_ELEV_HIGH,
-    GLACIAL_ELEV_FACTOR_SCALE, GLACIAL_ELEV_FACTOR_LAT_BASE, GLACIAL_ELEV_FACTOR_LAT_SCALE,
     GLACIAL_CARVE_RATE, GLACIAL_CONVERGENCE_BONUS, GLACIAL_DEPOSIT_AMOUNT,
     GLACIAL_FJORD_CARVE, GLACIAL_FLOW_THRESHOLD, GLACIAL_FJORD_THRESHOLD,
     GLACIAL_WIDENING_FRAC, GLACIAL_TERMINUS_RATIO, GLACIAL_FJORD_ICE_MIN,
@@ -474,13 +473,14 @@ export function erodeComposite(mesh, r_elevation, r_xyz, r_isOcean,
     neighborDist,
     protection,
     litho,
-    hydro)
+    hydro,
+    glacial)
 {
     gIters = gIters || 0;
     glacialStrength = glacialStrength || 0;
 
     const totalIters = Math.max(hIters, tIters, gIters);
-    if (totalIters <= 0) return;
+    if (totalIters <= 0) return { glacIdxSource: null, glaciatedCells: 0 };
 
     const N = mesh.numRegions;
     const { adjOffset, adjList } = mesh;
@@ -519,7 +519,7 @@ export function erodeComposite(mesh, r_elevation, r_xyz, r_isOcean,
         if (!r_isOcean[r]) landCells.push(r);
     }
     const landCount = landCells.length;
-    if (landCount === 0) return;
+    if (landCount === 0) return { glacIdxSource: null, glaciatedCells: 0 };
 
     // Shared buffers
     const drainTarget = new Int32Array(N);
@@ -535,29 +535,20 @@ export function erodeComposite(mesh, r_elevation, r_xyz, r_isOcean,
 
     // ---- Glacial precomputation (once — index is position-based) ----
     let glacIdx = null;
+    let glacIdxSource = null;
     let iceTarget = null;
     let iceFlow = null;
     let numIceUpstream = null;
 
     if (gIters > 0 && glacialStrength > 0) {
-        function smoothstep(x, edge0, edge1) {
-            const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
-            return t * t * (3 - 2 * t);
-        }
-
-        glacIdx = new Float32Array(N);
-        // At strength=1 glaciation starts at ~50° latitude; at 0.5 it starts at ~70°
-        const thresholdLat = Math.PI / 2 - glacialStrength * Math.PI / GLACIAL_LAT_DIVISOR;
-
-        for (let r = 0; r < N; r++) {
-            if (r_isOcean[r]) continue;
-            const y = r_xyz[3 * r + 1];
-            const polarDist = Math.abs(Math.asin(Math.max(-1, Math.min(1, y))));
-            const latFactor = smoothstep(polarDist, thresholdLat, Math.PI / 2);
-            const elevFactor = smoothstep(r_elevation[r], GLACIAL_ELEV_LOW, GLACIAL_ELEV_HIGH);
-            const latScale = smoothstep(polarDist, Math.PI / 8, Math.PI / 3);
-            glacIdx[r] = Math.max(latFactor, elevFactor * GLACIAL_ELEV_FACTOR_SCALE * (GLACIAL_ELEV_FACTOR_LAT_BASE + GLACIAL_ELEV_FACTOR_LAT_SCALE * latScale)) * glacialStrength;
-        }
+        // WHERE the ice is lives in glacial-ice.js, which is also where the
+        // argument about what the placement does and does not know sits. With
+        // an ice mask supplied it is a climatology's answer; without one it is
+        // the Earth-calibrated latitude ramp, which no temperature enters.
+        const built = buildGlacIdx(mesh, r_xyz, r_elevation, r_isOcean, glacialStrength,
+            glacial || {});
+        glacIdx = built.idx;
+        glacIdxSource = built.source;
 
         iceTarget = new Int32Array(N);
         iceFlow = new Float32Array(N);
@@ -927,6 +918,12 @@ export function erodeComposite(mesh, r_elevation, r_xyz, r_isOcean,
             if (!r_isOcean[r] && glacIdx[r] > 0) r_elevation[r] = tmp[r];
         }
     }
+
+    // What placed the ice, so the export can record it rather than leaving a
+    // reader to infer it from the presence of a flag.
+    let glaciatedCells = 0;
+    if (glacIdx) for (let r = 0; r < N; r++) if (glacIdx[r] > 0) glaciatedCells++;
+    return { glacIdxSource, glaciatedCells };
 }
 
 /**

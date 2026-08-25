@@ -723,11 +723,31 @@ steps:
       sidecar's `intersection.single_climate` says so rather than letting a
       reader mistake it for two
 
+  # Where ice can persist, at the MESH's resolution rather than the model's. The
+  # model forms no permanent land ice at any truncation this project will run --
+  # a cell's temperature is evaluated at its mean elevation and the ground inside
+  # it is kilometres higher -- so `glac` is a fact about the grid and cannot be
+  # the instrument. The warmest-bin surface temperature is smooth and genuinely
+  # resolved; lapse-correcting it to each region's own elevation is what locates
+  # ice. Consumed AT GENERATION like the carve list, because glacial, hydraulic
+  # and thermal erosion share one iteration loop. PHYS-13.
+  - id: ice_mask
+    script: analysis/ice_mask_freezing_height.py
+    loop: A
+    cost: minutes
+    needs: [baseline_climatology]
+    writes: [analysis/ice_mask_freezing_height.json]
+    gate: >
+      --write-mask emits what Orogen reads and its sidecar; without the sidecar the
+      mask has no mesh identity and the generator refuses it. Only the T42 export
+      keeps raw/, so a climatology at another truncation needs --grid-export to name
+      the export whose GRID it was run on while --build names the mesh
+
   - id: orogen
     script: vendor/orogen
     loop: A
     cost: hours
-    needs: [carve_list]
+    needs: [carve_list, ice_mask]
     writes: ["source/{build}/"]
     gate: >
       the carve gate: nothing outstanding may still move an artifact the verdict
@@ -1213,10 +1233,11 @@ one_offs:
   # read builds; the third reads an Earth DEM this repository does not fetch,
   # and its output is the record of an external measurement two constants in
   # `vendor/orogen/js/terrain-config.js` rest on. world-uyfb, world-xgaj.
+  # `ice_mask_freezing_height.py` used to sit here on the same reasoning and no
+  # longer does: Orogen consumes its mask, so it is a step.
   - analysis/subgrid_slope_support.py
   - analysis/scarp_relief_transport.py
   - analysis/escarpment_relief_anchor.py
-  - analysis/ice_mask_freezing_height.py
   - hydrography/scripts/fetch_recharge.py
   - exoplasim/scripts/run_albedo_bracket.sh
   - exoplasim/scripts/finalize_existing_segment.py

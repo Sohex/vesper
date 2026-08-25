@@ -183,3 +183,52 @@ flow is not on the board. Note for CLIM-53 that `newsnow.x` and `buildice.x`
 hardcode `NLAT = 32` and `NLON = 64`, so they are T21-only and would silently
 misread any higher rung -- which matters more against a ladder than against one
 resolution.
+
+## Extension, 2026-08-25: what replacing the placement would change
+
+*Measured on `precarve-craton-10m`'s T42 export with the T21 bootstrap
+climatology `bootstrap_regular_climatology.nc`, warm-season environmental lapse
+rate 6.520 K/km read from `lib/lapse.py` at the time of measurement.*
+
+`vendor/orogen/js/glacial-ice.js` now takes the ice placement from outside the
+generator, and `analysis/ice_mask_freezing_height.py --write-mask` produces it.
+This is the size of the difference between the two placements, evaluated on the
+same ground.
+
+**Three reasons every number here is a LIMIT rather than a state.** The build is
+pre-carve, so the basins are still closed and the land area they occupy is the
+uncarved one. The climatology is a BOOTSTRAP, whose numbers are not the
+baseline. And the generator applies the latitude ramp to the pre-erosion
+surface, while this evaluates it on the exported one, so it locates where the
+two CRITERIA disagree rather than replaying either build.
+
+| land area glaciated | latitude ramp at `glacialErosion` 0.8 | freezing-height mask |
+| --- | ---: | ---: |
+| any ice at all | 33.727% | 0.967% |
+| index above 0.1 | 15.983% | 0.967% |
+| index above 0.4 | 7.125% | 0.967% |
+| index above 0.6 | 3.476% | 0.967% |
+
+Of the 33.727% the ramp glaciates, 32.789 percentage points carry no ice under
+the thermal criterion and 0.030 points are ice the ramp misses. The
+area-weighted mean index over land -- the quantity `iceFlow` accumulates
+downstream -- falls from 0.0678 to 0.0077, a factor of 8.8. Carving goes as
+`iceFlow^0.6`, so where ice survives at all the deepening falls by roughly
+`8.8^0.6`, about 3.6x, over between a sixteenth and a thirty-fifth of the area.
+
+**The ramp's error is altitude, not latitude.** The area-weighted mean
+`|latitude|` of glaciated land is 54.8 degrees under the ramp and 56.2 under the
+mask, which is the same ice line to within the width of the transition. The mean
+`elevation_km` of glaciated land is 0.84 km under the ramp and 2.28 km under the
+mask. The ramp is putting ice on low ground at high latitude that is nowhere
+near freezing in the warmest bin, and that low ground is most of the area.
+
+That is consistent with the gate itself being right and its calibration being
+Earth's: the dimensionless altitude gate is the gravity-invariant form, since
+the relief ceiling and a dry-adiabatic freezing height both go as 1/g and cancel
+(`notes/audits/orogen-gravity.md`). What the ramp cannot know is the surface
+temperature the freezing height is measured down from, and on this planet that
+is the whole of the difference above.
+
+**No terrain has been regenerated.** Generating is loop A and the numbers above
+are what a regeneration would face, not what one produced.
