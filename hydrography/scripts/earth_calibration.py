@@ -570,6 +570,13 @@ def stage_benchmark(tag: Path, region: str, confinement: str | None) -> dict:
     from sklearn.ensemble import HistGradientBoostingRegressor
     R = REGIONS[region]
     rd = region_dir(tag, region)
+    # The BASELINE solution by name, not `solution_name(drain, et_lambda)`, and
+    # deliberately: nothing here reads the model's head or depth. The physical
+    # model is EXCLUDED from this fit -- that is what makes the number a ceiling
+    # on what the resolvable fields support -- and the file is opened only for
+    # the land and conductive masks, which no drain or sink moves. A variant run
+    # therefore has nothing to forward here; it would fail loudly on a missing
+    # file rather than score the wrong solution.
     sol = np.load(rd / "earth_solution.npz")
     fld = np.load(rd / "earth_fields.npz")
     perm = np.load(rd / "earth_perm.npz")
@@ -703,7 +710,8 @@ def stage_calibrate(tag: Path, region: str, confinement: str | None,
     return out
 
 
-def stage_diagnostics(tag: Path, region: str, confinement: str | None) -> dict:
+def stage_diagnostics(tag: Path, region: str, confinement: str | None,
+                      river_km2: float | None = 1e4) -> dict:
     """Which term set the depth, and what out-predicts the model.
 
     Four tables the notes cite and nothing could reproduce. Each is cheap, and
@@ -763,7 +771,15 @@ def stage_diagnostics(tag: Path, region: str, confinement: str | None) -> dict:
     geom.volume_area_m2 = geom.voronoi_area_m2
     YR = 365.25 * 86400.0
     fh = np.full(n, np.nan)
-    wet = land & (dr["acc_km2"] >= 1e4)
+    # The river threshold comes from `--river-km2`, the same option `stage_solve`
+    # takes, rather than from a literal here. It stood at a literal 1e4 and the
+    # option therefore ran and changed nothing for this stage; the default is
+    # unchanged, so every table below reads as it did. `--et-lambda`, `--drain`
+    # and `--surface` are the flags this stage genuinely IGNORES, and it must:
+    # the sink sweep, the drain scan and the attribution table each set those
+    # for themselves across their own arms, and taking a command-line value
+    # would fix one arm of a sweep whose point is to vary it.
+    wet = land & (dr["acc_km2"] >= (river_km2 if river_km2 is not None else np.inf))
     fh[wet] = elev[wet]
     base = dict(k0_m_s=K, recharge_m_s=rech / 1000.0 / YR, surface_m=elev,
                 conductive=cond, sea_level_m=0.0, fixed_head_m=fh, verbose=False)
@@ -949,7 +965,8 @@ def main() -> None:
         elif st == "benchmark":
             result = stage_benchmark(tag, args.region, args.confinement)
         elif st == "diagnostics":
-            result = stage_diagnostics(tag, args.region, args.confinement)
+            result = stage_diagnostics(tag, args.region, args.confinement,
+                                       args.river_km2)
         elif st == "calibrate":
             result = stage_calibrate(tag, args.region, args.confinement,
                                      args.drain, args.et_lambda)
@@ -963,8 +980,13 @@ def main() -> None:
         if args.out.exists():
             payload = json.loads(args.out.read_text())
         payload.setdefault("provenance", provenance())
+        # EVERY OPTION THAT MOVES THE RESULT IS IN THE KEY. `--et-lambda`
+        # changes which solution is scored and was not, so two lambdas wrote
+        # over each other under one name. Appended rather than inserted, and
+        # only when it is set, so the keys already in the file keep their names.
         key = (f"{args.region}/{args.confinement or 'all'}/"
-               f"drain-{args.drain}/{args.surface}/{edge_km:.2f}km")
+               f"drain-{args.drain}/{args.surface}/{edge_km:.2f}km"
+               + ("" if args.et_lambda is None else f"/lam{args.et_lambda:g}"))
         payload.setdefault("runs", {})[key] = result
         args.out.write_text(json.dumps(payload, indent=2) + "\n")
         print(f"  wrote {args.out}")
