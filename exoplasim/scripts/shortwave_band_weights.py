@@ -49,10 +49,20 @@ the patch multiplies the 2.9 by.
 THE TEST THAT CAN FAIL
 ----------------------
 Reconstructing A_total(w) from Howard's bands and a solar spectrum has a right
-answer that this project did not choose: Lacis and Hansen Eq. 21, which they
-state fits Yamamoto within 1% over 0.01 < y < 10 cm. `--verify` reports the
-reconstruction against it. If the reconstruction misses, the weight is not
-trustworthy and the run says so rather than quoting a ratio of two wrong numbers.
+answer that this project did not choose. It is NOT Eq. 21's own stated accuracy:
+"fits Yamamoto's absorption curve within ~1% for 10^-2 ~< y ~< 10 cm" is a
+residual between two curves, and this reconstruction is a fourth construction of
+the quantity rather than a fifth fit to Eq. 21. The right answer is the ENVELOPE
+of the three published determinations Lacis and Hansen plot together in their
+Fig. 11 -- Yamamoto as their Eq. 21, Fowle as Eq. 22, Korb as Eq. 23 -- because
+of what they say about those curves on p. 127: "the uncertainty in their absolute
+value is as great as the differences among the three curves." A reconstruction
+inside that envelope agrees with every published construction of the quantity;
+one outside it disagrees with all three. The envelope is evaluated at each water
+amount rather than as one scalar, because the spread is 1.91 at y = 0.01 and 1.04
+near y = 5, and it is widened by the +/-3% Howard state for the band absorptions
+the reconstruction is built from. The run raises on a miss rather than quoting a
+ratio of two integrals no source supports.
 
 The solar reference is a BT-Settl 5772 K model built through the same blend as
 `build_stellar_spectrum.py` uses for the star, so grid, converter and any model
@@ -236,6 +246,77 @@ RADMOD_ZSOLAR1 = 0.517
 def lacis_hansen_h2o(y: np.ndarray | float) -> np.ndarray | float:
     """Lacis and Hansen (1974) Eq. 21, verbatim, as radmod.f90 codes it."""
     return 2.9 * y / ((1.0 + 141.5 * y) ** 0.635 + 5.925 * y)
+
+
+def fowle_h2o(y: np.ndarray | float) -> np.ndarray | float:
+    """Lacis and Hansen (1974) Eq. 22: Fowle (1915), the dotted curve of Fig. 11.
+
+    Fowle's determination with a roughly 10% modification by Manabe and Moller
+    (1961) for the 0.7 and 0.8 um bands. That 10% is a PHYSICAL adjustment for
+    two bands and is not a fit residual, so nothing here reads it as one.
+    """
+    return 0.0946 * y ** 0.303
+
+
+def korb_h2o(y: np.ndarray | float) -> np.ndarray | float:
+    """Lacis and Hansen (1974) Eq. 23: Korb et al. (1956), the dashed curve.
+
+    Curtis-Godson on Howard and Korb data, WITHOUT the weak near-infrared bands.
+    The paper writes the left-hand side as log10 of TWICE the absorptance and
+    the factor of 2 is inside the bracket, so the solved form carries the 0.5.
+    Dropping it puts Korb at exactly double and still looks plausible on a plot:
+    at y = 1 it would give 0.18 against the 0.09 the three curves converge on.
+    The exponents are powers OF the logarithm, not logarithms of powers.
+    """
+    lg = np.log10(y)
+    return 0.5 * 10.0 ** (-0.74 + 0.347 * lg - 0.056 * lg ** 2 - 0.006 * lg ** 3)
+
+
+# THE BOUND ON THE RECONSTRUCTION, and what it is made of.
+#
+# The reconstruction here is a fourth construction of the same physical
+# quantity: Howard's band absorptions, weighted by a solar spectrum and summed,
+# which is Yamamoto's own construction run again. Eq. 21's stated accuracy
+# CANNOT be the bar for it -- "fits Yamamoto's absorption curve within ~1% for
+# 10^-2 ~< y ~< 10 cm" is a curve-reading residual between two of the curves,
+# not a statement about the quantity. What Lacis and Hansen say about the
+# quantity is on their p. 127, of the three curves they plot together: "Although
+# the three curves in Fig. 11 are qualitatively similar, their differences are
+# significant, particularly for small water vapor amounts. Moreover, the
+# uncertainty in their absolute value is as great as the differences among the
+# three curves."
+#
+# So the envelope of Eqs. 21, 22 and 23 is the bar, at each water amount rather
+# than as one scalar over the decade: the spread is 1.91 at y = 0.01 and 1.04
+# near y = 5, and a single number would be the dry end and nothing else. A
+# reconstruction inside the envelope agrees with every published determination
+# of this quantity; one outside it disagrees with all three.
+#
+# IT IS DECLARED AS AN INTER-FORMULA SPREAD AND NEVER AS AN ERROR BAR, which is
+# the same sentence's other half: the authors put the absolute uncertainty at
+# AS GREAT AS the spread, so the envelope is a floor on the expected
+# disagreement and the bar here is conservative by construction. The three are
+# also not independent -- Eqs. 21 and 23 both trace to Howard, Burch and
+# Williams (1956) -- so the dry end of the spread is largely Fowle 1915 against
+# Howard 1956.
+#
+# The envelope alone would be tighter at y = 5 than the data the reconstruction
+# is built from, so it is widened by the accuracy Howard state for the band
+# absorptions themselves, p. 244: "The expressions for the other bands give
+# results which on the average agree with observed values of total absorption to
+# within +/-3%." That is an average and it excludes the 0.94 um band, which is
+# fitted on twelve runs and called approximate, so 3% is a floor here too.
+#
+# BOUNDING A HEATING RATE WOULD NEED A DIFFERENT BAND and this is not one. The
+# ordering of dA/dy is not the ordering of A and swaps twice across the decade,
+# and the derivative spread REOPENS to 1.51 at y = 10 where the absorptance
+# spread has closed to 1.08. What this file produces is a ratio of absorptances,
+# so the absorptance envelope is the right bar for it; anything derived from
+# this file that consumes a heating rate needs its own.
+HOWARD_BAND_ABSORPTION_ACCURACY = 0.03
+# The only interval Lacis and Hansen state for Eq. 21, and the plotted range of
+# all three curves. No range is printed for Eq. 22 or Eq. 23.
+LH74_FIT_RANGE_CM = (0.01, 10.0)
 
 
 def sha256(path: Path) -> str:
@@ -814,6 +895,8 @@ def weight_curve(star: Spectrum, sun: Spectrum, bands: dict, scale: dict, amount
                 "absorptance_star": a_star,
                 "weight": a_star / a_sun,
                 "lacis_hansen_eq21": float(lacis_hansen_h2o(w)),
+                "fowle_eq22": float(fowle_h2o(w)),
+                "korb_eq23": float(korb_h2o(w)),
             }
         )
     return rows
@@ -870,15 +953,49 @@ def main() -> None:
     amounts = [0.01, 0.03, 0.1, 0.3, 1.0, 2.0, 3.0, 5.0, 10.0]
     curve = weight_curve(star, sun, bands, scale, amounts)
 
-    # The reconstruction against Lacis and Hansen Eq. 21 over the interval they
-    # state their fit holds on.
-    inside = [row for row in curve if 0.01 <= row["w"] <= 10.0]
+    # THE CHECK THAT CAN FAIL. The reconstruction against the envelope of the
+    # three published absorptivity determinations Lacis and Hansen plot together
+    # in their Fig. 11, over the only interval they state for Eq. 21, widened by
+    # the accuracy Howard state for the band absorptions the reconstruction is
+    # built from. The constants and the argument are beside `korb_h2o` above.
+    lo_cm, hi_cm = LH74_FIT_RANGE_CM
+    inside = [row for row in curve if lo_cm <= row["w"] <= hi_cm]
     ratios = [row["absorptance_solar"] / row["lacis_hansen_eq21"] for row in inside]
-    checks["reconstruction_vs_lacis_hansen_eq21"] = {
-        "ratio_min": min(ratios),
-        "ratio_max": max(ratios),
-        "ratio_median": float(np.median(ratios)),
-        "source": "Lacis and Hansen (1974) Eq. 21, their fit to Yamamoto (1962)",
+    margin = HOWARD_BAND_ABSORPTION_ACCURACY
+    envelope = []
+    for row in inside:
+        published = [row["lacis_hansen_eq21"], row["fowle_eq22"], row["korb_eq23"]]
+        band_lo = min(published) * (1.0 - margin)
+        band_hi = max(published) * (1.0 + margin)
+        a = row["absorptance_solar"]
+        envelope.append({
+            "w": row["w"],
+            "reconstruction": a,
+            "yamamoto_eq21": row["lacis_hansen_eq21"],
+            "fowle_eq22": row["fowle_eq22"],
+            "korb_eq23": row["korb_eq23"],
+            "band": [band_lo, band_hi],
+            # How far outside the band it sits, as a factor. 1.0 is on the edge
+            # and below 1.0 is inside, so the worst row is the maximum.
+            "excess": max(a / band_hi, band_lo / a),
+            "inside": bool(band_lo <= a <= band_hi),
+        })
+    worst = max(envelope, key=lambda r: r["excess"])
+    checks["reconstruction_vs_published_absorptivity_envelope"] = {
+        "ratio_to_eq21_min": min(ratios),
+        "ratio_to_eq21_max": max(ratios),
+        "ratio_to_eq21_median": float(np.median(ratios)),
+        "range_cm": list(LH74_FIT_RANGE_CM),
+        "howard_margin": margin,
+        "per_amount": envelope,
+        "worst_w": worst["w"],
+        "worst_excess": worst["excess"],
+        "inside": all(r["inside"] for r in envelope),
+        "source": (
+            "Lacis and Hansen (1974) Eqs. 21, 22 and 23, the three curves of "
+            "their Fig. 11, widened by Howard, Burch and Williams (1956) "
+            "+/-3% on the band absorptions; declared as an inter-formula "
+            "spread and not as an error bar, per LH74 p. 127"),
     }
 
     water = args.water
@@ -1074,10 +1191,19 @@ def main() -> None:
     print(f"solar reference at {SOLAR_TEFF:.0f} K")
     print(f"  flux below 0.75 um  {solar_below_075:.4f} against radmod's {RADMOD_ZSOLAR1}")
     print(f"  flux above 0.90 um  {solar_above_09:.4f} against LH74's {LH74_SOLAR_ACTIVE_FRACTION}")
-    rec = checks["reconstruction_vs_lacis_hansen_eq21"]
+    rec = checks["reconstruction_vs_published_absorptivity_envelope"]
     print(
-        "reconstruction / LH74 Eq. 21 over 0.01-10 cm: "
-        f"{rec['ratio_min']:.3f} to {rec['ratio_max']:.3f}, median {rec['ratio_median']:.3f}"
+        f"reconstruction / LH74 Eq. 21 over {rec['range_cm'][0]}-"
+        f"{rec['range_cm'][1]} cm: "
+        f"{rec['ratio_to_eq21_min']:.3f} to {rec['ratio_to_eq21_max']:.3f}, "
+        f"median {rec['ratio_to_eq21_median']:.3f}"
+    )
+    print(
+        f"  CHECK, against the envelope of Eqs. 21, 22 and 23 widened by "
+        f"Howard's {rec['howard_margin']*100:.0f}%: "
+        f"{'inside at every water amount' if rec['inside'] else 'OUTSIDE'}"
+        f"; worst at w = {rec['worst_w']} cm, "
+        f"a factor of {rec['worst_excess']:.3f} past the band edge"
     )
     print(f"water path {water:.3f} cm, from {water_source}")
     print(f"H2O shortwave weight at that path: {h2o_weight:.4f}")
@@ -1199,6 +1325,18 @@ def main() -> None:
     # dropped: nothing in this file raised, so every weight it prints was quoted
     # under a bar that could not stop it. Raised AFTER the report is written, so
     # the numbers that failed are on disk to read. world-60x0.
+    if not rec["inside"]:
+        raise SystemExit(
+            f"the water vapour reconstruction falls outside the envelope of "
+            f"the three published absorptivity determinations Lacis and Hansen "
+            f"plot in their Fig. 11, widened by Howard's own +/-3%. Worst at "
+            f"w = {rec['worst_w']} cm, a factor of {rec['worst_excess']:.3f} "
+            f"past the band edge. Nothing here is tuned to that envelope, so a "
+            f"miss means this reconstruction disagrees with every published "
+            f"construction of the quantity it reproduces, and the weight it "
+            f"feeds is a ratio of two integrals no source supports. {out} "
+            "carries the per-amount numbers.")
+
     if not (ck["inside"] and ck["inside_dropping_the_2.7um_band"]):
         raise SystemExit(
             f"Earth's near-infrared CO2 shortwave absorption comes out at "
