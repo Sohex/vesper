@@ -530,6 +530,16 @@ steps:
     needs: [weathering_fluxes]
     writes: [pedology/analysis/thermostat_efficiency.json]
 
+  # What CHOOSING a weathering scheme costs the thermostat, as opposed to what a
+  # parameter inside one costs it. Needs the export and nothing else: the three
+  # schemes are all separable into a power law in runoff and an exponential in
+  # temperature, so the comparison is analytic and no climatology enters it.
+  - id: weathering_scheme_bracket
+    script: pedology/scripts/weathering_scheme_bracket.py
+    cost: seconds
+    needs: []
+    writes: [pedology/analysis/weathering_scheme_bracket.json]
+
   - id: brine_paths
     script: pedology/scripts/brine_paths.py
     cost: minutes

@@ -38,3 +38,6 @@ def climatology_path(name: str | None = None) -> Path:
         _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
     from paths import climatology_path as _resolve
     return _resolve(name, root=PROJECT_ROOT)
+
+
+WEATHERING_SCHEMES = COMPONENT_ROOT / "config" / "weathering_schemes.yaml"

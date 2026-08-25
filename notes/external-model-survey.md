@@ -1854,7 +1854,58 @@ have no counterpart in any of the three schemes.
 
 So the value is the BRACKET rather than the parameterisation: what does the
 choice among published schemes cost the thermostat number, once each is mapped
-onto the classes this world actually has. VOLC-9 owns that.
+onto the classes this world actually has.
+
+### 17d. The bracket, measured -- and it is on the TEMPERATURE axis
+
+*Measured 2026-08-24 by `pedology/scripts/weathering_scheme_bracket.py` on
+`precarve-craton-10m`. Section 31 confirmed the column reading and concluded
+that the bracket this row wanted was the runoff functional form. That is half of
+it, and it is the smaller half.*
+
+All three schemes separate multiplicatively into a power law in runoff and an
+exponential in temperature, so thermostat strength is
+`d ln W / dT = n * gamma + 1 / T_e` with `gamma = d ln(runoff) / dT`. Only `n`
+and `T_e` belong to the scheme; `gamma` belongs to the climate and is swept.
+
+| scheme | effective `n` | `T_e` | land unmapped |
+| --- | ---: | ---: | ---: |
+| this project, WHAK with Berner's exponent | 0.6500 | 13.700 K | 0 |
+| GKWM, Gibbs et al. (1999) | 0.6947 | 8.912 K | 0.0292 |
+| GEM_CO2, Amiotte-Suchet et al. (2003) | 1.0000 | 8.912 K | 0 |
+
+**Scheme choice is worth 1.54x on thermostat strength, and the number is flat**
+across the whole sweep, 1.537 at `gamma = 0.01` to 1.538 at `gamma = 0.06`. That
+makes it usable as one bracket number rather than a curve, which is what VOLC-9
+asked for.
+
+**Holding one axis at a time separates them, and the split is not what section
+31 expected.** The runoff exponent alone carries 1.04x to 1.19x across the
+sweep; the temperature e-folding alone carries 1.49x down to 1.35x. The runoff
+axis grows with `gamma` and the temperature axis shrinks, and they cross nowhere
+in the range: the temperature term dominates throughout.
+
+Two reasons the runoff axis is narrower here than section 31's 30 per cent
+suggested. First, that figure compared only the runoff-driven INCREMENT of the
+response and left the temperature term out, and the temperature term is the
+larger part of `d ln W / dT` at every `gamma` in the sweep. Second, GKWM's
+effective exponent on THIS world's lithology is 0.6947, close to the 0.65 already
+in use, because the mapping puts `playa_clastic` -- the largest single land class
+-- on shale, whose 0.68 is GKWM's lowest. On a world with a different lithology
+mix the same scheme would give a different effective exponent, which is why the
+mapping is declared rather than assumed.
+
+**The temperature axis was invisible because `pedogenesis.yaml` mis-stated its
+own equivalence.** It justified `temperature_e_folding_k: 13.7` as "an
+activation energy near 74 kJ/mol at 288 K". The linearised Arrhenius is
+`T_e = R * T0^2 / E_a`, so 13.7 K is 50.3 kJ/mol and 74 kJ/mol is 9.3 K -- and
+74.0 is exactly what rokgem's `par_E_a` ships. The comment made the two schemes
+look like they agreed on the temperature term when they differ by 1.47x on it.
+The value 13.7 is unchanged; the justification is corrected.
+
+`pedology/config/weathering_schemes.yaml` declares the schemes, the class
+mapping and the sweep. Adoption is still not on the table for the reason 17c
+gives.
 
 
 ## 18. muffingen's wind, and a second mechanism for OCN-17's multiplier

@@ -1,0 +1,163 @@
+# Published silicate-weathering schemes, and what CHOOSING one costs this
+# world's carbonate-silicate thermostat.
+#
+# This is a BRACKET file, not a menu. Nothing here is adopted and nothing here
+# replaces `pedogenesis.yaml`'s weathering block, which stays the scheme this
+# project computes with. What this file declares is the structural uncertainty
+# that block carries and never stated: three published schemes disagree about
+# the FORM of the weathering law, and the disagreement is a thermostat strength.
+#
+# VOLC-9. Evidence in notes/external-model-survey.md sections 17 and 31.
+# Read by pedology/scripts/weathering_scheme_bracket.py.
+version: 1
+
+# ---------------------------------------------------------------------------
+# The schemes
+# ---------------------------------------------------------------------------
+# All three are multiplicatively separable in runoff and temperature, which is
+# what makes them comparable at all: each is (runoff term) x (temperature term),
+# so the bracket splits into two independent axes rather than being a comparison
+# of whole models.
+#
+# The runoff term is a power law in every case, so the axis is one number, the
+# exponent. The temperature term is an exponential in every case, so that axis
+# is also one number, the e-folding in kelvin. THE TEMPERATURE AXIS IS THE
+# LARGER OF THE TWO and it was missed when this bracket was first framed as a
+# runoff-exponent question.
+schemes:
+
+  whak_geocarb:
+    # What this project computes with today.
+    name: Walker-Hays-Kasting form with Berner's runoff exponent
+    source: "Berner (1994), GEOCARB II, Am. J. Sci. 294(1), 56-91, doi 10.2475/ajs.294.1.56"
+    runoff_form: power_law
+    runoff_exponent: 0.65
+    # Uniform over lithology: this scheme has no rock class at all. That is a
+    # structural difference from the other two and not a parameter setting.
+    runoff_exponent_is_per_lithology: false
+    temperature_form: exponential
+    temperature_e_folding_k: 13.7
+    lithology_resolved: false
+    declared_in: pedology/config/pedogenesis.yaml
+
+  gkwm:
+    name: GKWM, Gibbs et al. (1999) as rokgem implements it
+    source: "vendor/cgenie/genie-rokgem, GKWM_consts.dat and GKWM_lithologies.txt; applied at rokgem_box.f90:1568 and 1601"
+    runoff_form: power_law
+    runoff_exponent_is_per_lithology: true
+    # Column 2 of GKWM_consts.dat, in the class order of GKWM_lithologies.txt.
+    runoff_exponent_by_class: {carb: 0.91, shale: 0.68, sand: 0.74, basalt: 0.69, granite: 0.75, ice: 0.0}
+    # Column 1, the base rate, and column 4, the silicate fraction of the CO2
+    # consumption. Both are needed to weight the exponents: the effective
+    # exponent of the SILICATE flux is the flux-weighted mean, not the area-
+    # weighted one. Base rates are not comparable ACROSS schemes -- conv_GKWM and
+    # conv_GEM_CO2 carry different unit systems -- but they are comparable within
+    # one, which is all the weighting needs.
+    base_rate_by_class: {carb: 32000.0, shale: 40000.0, sand: 4000.0, basalt: 16000.0, granite: 7900.0, ice: 0.0}
+    silicate_fraction_by_class: {carb: 0.07, shale: 0.61, sand: 0.52, basalt: 1.00, granite: 1.00, ice: 1.00}
+    temperature_form: exponential
+    # Shared with GEM_CO2: both schemes hand off to sub_2D_weath, which applies
+    # exp(k_T * dT) to the silicate flux with
+    # k_T = 1000 * par_E_a / (R * (par_ref_T0 + 273.15)^2),
+    # initialise_rokgem.f90:125. At the shipped defaults par_E_a = 74.0 kJ/mol
+    # and par_ref_T0 = 8.4777 C, so the e-folding is R*T0^2/E_a.
+    temperature_activation_energy_kj_mol: 74.0
+    temperature_reference_c: 8.4777
+    lithology_resolved: true
+
+  gem_co2:
+    name: GEM_CO2, Amiotte-Suchet et al. (2003) as rokgem implements it
+    source: "vendor/cgenie/genie-rokgem, GEM_CO2_consts.dat and GEM_CO2_lithologies.txt; applied at rokgem_box.f90:1716 and 1723"
+    runoff_form: power_law
+    runoff_exponent_is_per_lithology: false
+    # STRICTLY LINEAR. sub_GEM_CO2 never reads column 2; the exponent is compiled
+    # in as 1, and the file's uniform 1.0 in that column is consistent and unused.
+    runoff_exponent: 1.0
+    base_rate_by_class: {carb: 1.586, shale: 0.672, sand: 0.152, basalt: 0.479, shield: 0.095, acid: 0.222, ice: 0.0}
+    silicate_fraction_by_class: {carb: 0.07, shale: 0.61, sand: 0.52, basalt: 1.00, shield: 1.00, acid: 1.00, ice: 1.00}
+    temperature_form: exponential
+    temperature_activation_energy_kj_mol: 74.0
+    temperature_reference_c: 8.4777
+    lithology_resolved: true
+
+# ---------------------------------------------------------------------------
+# The class mapping, which is itself a declared assumption
+# ---------------------------------------------------------------------------
+# rokgem works in six or seven lithologies; this world's land carries seventeen.
+# The mapping is therefore part of the bracket rather than a detail under it, and
+# under GKWM it is INSEPARABLE from the exponent: reassigning a clastic class
+# between shale and sand moves the effective exponent between 0.68 and 0.74 with
+# no change of scheme at all.
+#
+# Reasoning follows ROCK_TO_MEYBECK in pedology/scripts/brine_paths.py wherever
+# the same question arises, so that two mappings of the same rock table cannot
+# quietly disagree.
+class_mapping:
+  gkwm:
+    morb: basalt
+    oib: basalt
+    flood_basalt: basalt
+    arc_basalt: basalt
+    # GKWM has no felsic-volcanic class. GEM_CO2 does, and puts andesite there.
+    arc_andesite: basalt
+    rift_bimodal: basalt
+    granite: granite
+    granodiorite: granite
+    # GKWM's granite row IS the crystalline shield row; there is no separate one.
+    gneiss: granite
+    schist: granite
+    # Chemically a quartz sand, and nearly inert. The same call brine_paths makes.
+    quartzite: sand
+    # The forearc province is greywacke, argillite and clastic basin fill by
+    # volume. brine_paths.py records why this is shale and not a crystalline row.
+    melange: shale
+    shelf_clastic: shale
+    foreland_clastic: shale
+    pelagic: shale
+    continental_clastic: sand
+    carbonate: carb
+    # Playa mud is detrital fill and not an evaporite. It is the host evaporites
+    # grow in, and mapping it to one would beg the question. This is the single
+    # largest entry in the table on this world, so the shale assignment carries
+    # most of the effective exponent.
+    playa_clastic: shale
+    # A halite crust is not a silicate weathering substrate and its dissolution
+    # consumes no CO2. No rokgem class represents it, and assigning it to one
+    # would put CO2 drawdown on a rock that does not draw any down.
+    evaporite: undeclared
+  gem_co2:
+    morb: basalt
+    oib: basalt
+    flood_basalt: basalt
+    arc_basalt: basalt
+    arc_andesite: acid
+    rift_bimodal: acid
+    granite: acid
+    granodiorite: acid
+    gneiss: shield
+    schist: shield
+    quartzite: sand
+    melange: shale
+    shelf_clastic: shale
+    foreland_clastic: shale
+    pelagic: shale
+    continental_clastic: sand
+    carbonate: carb
+    playa_clastic: shale
+    evaporite: undeclared
+
+# ---------------------------------------------------------------------------
+# What the bracket is reported against
+# ---------------------------------------------------------------------------
+# Thermostat strength is d ln W / dT = n * gamma + 1 / T_e, where gamma is
+# d ln(runoff) / dT. gamma is a property of the climate and not of the weathering
+# scheme, and this project does not yet have two climates to measure it between,
+# so it is swept rather than assumed and every reported number names its gamma.
+#
+# Ends chosen before any result was computed, to span the range a warming world's
+# runoff sensitivity is argued over anywhere: 0.01 to 0.06 per kelvin.
+runoff_sensitivity_per_k_sweep: [0.01, 0.02, 0.03, 0.04, 0.06]
+
+# The build whose lithology fractions weight the mapping. Area fractions move
+# with the carve list and with the region count, so a bracket computed on one
+# build is not a bracket for another; the script stamps which it used.
