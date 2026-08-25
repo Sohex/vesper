@@ -259,15 +259,22 @@ steps:
     gate: >
       GW-26. Terrain only: `ln(a / tan beta)` per region from the export's own
       upslope contributing area and a local slope, and per GRID CELL the share
-      of that cell's regions whose index exceeds the cell mean. That share is
+      of that cell's land AREA whose index exceeds the cell's area-weighted mean
+      index. AREA and not region count: `f_sat_max` multiplies into a fraction
+      of a CELL, this mesh's regions are not equal-area, and the mean is the
+      class boundary. `lib/gridding.py` owns the operators -- `cell_moments` for
+      the mean and the within-cell spread, `cell_fraction` for the categorical
+      area share -- and the report names which was used for which field beside
+      `transfer_ledger`'s account of what the reduction dropped. That share is
       the terrain half of TOPMODEL's saturated-fraction closure,
       `f_sat = min(f_sat_max exp(-f_grad z_wt), 1)`, and it is the answer GW-6
       leaves reachable: the valley-to-ridge gradient is below this mesh and
       stays below it, so the terrain control is carried STATISTICALLY and what
       comes back is a FRACTION rather than a depth.
       A SATURATED FRACTION IS A FRACTION OF A POPULATION, and the only
-      population here is the regions inside a climate-grid cell. So this
-      artifact is one per (build, grid) on the coupling matrices' precedent,
+      population here is the land AREA of the regions inside a climate-grid
+      cell. So this artifact is one per (build, grid) on the coupling matrices'
+      precedent,
       `f_sat_max` lives at the GRID and not at a region, and there is no
       per-region saturated fraction to take.
       NO CONSUMER MAY TAKE `f_sat` YET. The score is declared in
@@ -277,7 +284,13 @@ steps:
       depth for a fixed `f_sat_max`, so any discrimination it gains over the
       depth alone is attributable to the terrain half and to nothing else --
       which is what makes the score a test rather than a comparison. WET-2,
-      SURF-7 and LSHY-6 are the consumers waiting on it.
+      SURF-7 and LSHY-6 are the consumers waiting on it, and what each of them
+      gets is settled in `hydrography/notes/subgrid-water-table.md` section 5:
+      the grid-cell fraction, with a change of quantity, on the precedent
+      `groundwater_access` set under PLHY-5. LSHY-6 asked for a climate-grid
+      area already; SURF-7's discharge mask is a statement about the RESOLVED
+      water table and takes `at_surface` from `water_table.nc` rather than this;
+      WET-2 is the one row that changes quantity.
       `f_grad` is DECLARED AND BRACKETED, never fitted, and the bracket is a
       convention ambiguity: CLIMBER-X's `exp(-f_wtab z)` and ClimaLand's
       `exp(-f_over/2 z)` differ by exactly a factor of two. ABSOLUTE THRESHOLDS
@@ -306,7 +319,9 @@ steps:
       without the sink the table pins at the surface over most of the land, and
       without local baselevels the sea is the only boundary and the depth range
       collapses. `--no-groundwater-et` and `--no-baselevels` turn them off, for
-      the reduction identity and for reproducing pre-GW-15 runs. The baselevels
+      reproducing pre-GW-15 runs; `--reduction-test` sets both itself, because
+      the surface-only balance it reduces to carries neither and a reduction
+      keeping one is not an identity. The baselevels
       are why this step needs `surface_water`: that artifact is the only thing
       that knows where the rivers and lakes are.
       READ `hydrography/README.md` BEFORE CONSUMING THE DEPTH FIELD. The
@@ -1021,6 +1036,12 @@ one_offs:
   - exoplasim/scripts/convert_restart.py
   - exoplasim/scripts/build_restart_template.py
   - exoplasim/scripts/compare_equilibria.py
+  # Imported as a module by `build_groundwater.py`, and run directly for the
+  # checks that need no climate: the mesh operator against an analytic
+  # Legendre eigenvalue, `--dupuit-test` against the analytic parabola, and
+  # `--uniqueness-test`, the uniqueness identity with the controls it must
+  # reject. Outside the graph because each is a verdict and writes nothing.
+  - hydrography/scripts/groundwater.py
   - hydrography/scripts/validate_lake_solver.py
   - hydrography/scripts/build_earth_wtd_sites.py
   - hydrography/scripts/build_us_wtd_sites.py

@@ -1307,6 +1307,235 @@ def dupuit_test(n_cells=200, dx_m=500.0, k_m_s=1e-5, recharge_m_s=2.5e-10,
     return out
 
 
+# GW-15 and GW-17 are what made this necessary and what it must therefore
+# carry. `--uniqueness-check` in `build_groundwater.py` re-solves the PLANET
+# from the opposite initial active set, and that arm is the measurement; this is
+# the same identity on a case small enough to run without a climatology, a
+# build or a mesh, and it exists because the planet arm has never been shown
+# going red. A check whose only recorded value is a pass is not evidence that it
+# can fail. world-qq10.
+UNIQUENESS_CONTROLS = {
+    # THE DEFECT THIS ISSUE IS NAMED FOR, as a mutation of the SOLVER rather
+    # than of its arguments. `PINNED MEANS AT THE SURFACE` is an invariant of
+    # the forward trajectory: the head is seeded at the local sink balance, so
+    # every cell that starts below the surface must start FREE. Declaring them
+    # all pinned instead leaves the seepage accounting reading a head that is
+    # not where it says it is, and the two trajectories then both converge, both
+    # close, and land apart. That is the 2.8 m recorded in
+    # `hydrography/notes/water-table-convergence.md`.
+    "pinned_seed": (
+        "free = conductive.copy() if start_all_free else (conductive & (head < surface_m))",
+        "free = conductive.copy() if start_all_free else np.zeros(n, bool)",
+    ),
+    # A THIRD TRAJECTORY, and it must NOT be rejected. Half the conductive cells
+    # free at random, with the pinned half put back at the surface so the
+    # invariant above is kept. The solution of the complementarity problem does
+    # not know which cells the iteration started from, so this has to land where
+    # the other two did. It is the arm that says the identity is about
+    # trajectories and not about the two particular ones the check happens to
+    # run.
+    "third_start": (
+        "free = conductive.copy() if start_all_free else (conductive & (head < surface_m))",
+        "free = conductive & (np.random.default_rng(20260825).random(n) < 0.5)\n"
+        "    head = np.where(free, head, surface_m)\n"
+        "    head[is_ocean] = sea_level_m\n"
+        "    if fixed_head_m is not None:\n"
+        "        head[imposed] = fixed_head_m[imposed]",
+    ),
+}
+
+
+def _mutant_solve(name: str):
+    """`solve` with one named line replaced, compiled against this module.
+
+    The controls have to be mutations of the code under test rather than of a
+    copy of it, so the source is read from `solve` itself and the anchor line is
+    required to be present. If a refactor moves the anchor this raises instead
+    of quietly running an unmutated solver and reporting a control that passed,
+    which is the failure mode a hand-maintained copy has.
+    """
+    import inspect
+    import textwrap
+
+    old, new = UNIQUENESS_CONTROLS[name]
+    src = textwrap.dedent(inspect.getsource(solve))
+    if src.count(old) != 1:
+        raise SystemExit(
+            f"the uniqueness control {name!r} anchors on a line of `solve` that "
+            f"appears {src.count(old)} times; the control cannot be built and "
+            "must not be reported as passing")
+    ns: dict = {}
+    exec(compile(src.replace(old, new), f"<control {name}>", "exec"),
+         dict(globals()), ns)
+    return ns["solve"]
+
+
+def uniqueness_case(nx=48, ny=48, dx_m=2000.0, seed=0):
+    """A synthetic problem carrying every term the planet's solve carries.
+
+    The point of the case is coverage, not realism: an identity is a statement
+    about the solver, so what the case has to do is reach the code paths a
+    trajectory could differ on. It carries
+
+      - an ocean fixed-head boundary down one edge,
+      - GW-17's imposed local baselevels, as a river of fixed heads inland,
+      - GW-15's evapotranspiration sink, spatially varying, so the matrix is
+        head-dependent and the solve is a Newton iteration rather than one
+        factorisation,
+      - conductivity across three orders of magnitude, which is Gleeson's
+        within-class spread,
+      - a wet, tight patch where the box constraint binds and cells stay pinned
+        at the surface,
+      - a block enclosed by regions the lithology excludes, which is what the
+        static dry-set query exists for: whether a block LOOKS cut off was once
+        decided during the iteration, and that is the trajectory dependence the
+        identity caught at 12.76 m.
+    """
+    from types import SimpleNamespace
+
+    rng = np.random.default_rng(seed)
+    n = nx * ny
+    idx = np.arange(n).reshape(ny, nx)
+    x, y = np.meshgrid(np.arange(nx) * dx_m, np.arange(ny) * dx_m)
+
+    surface = (400.0 * (x / x.max())
+               + 60.0 * np.sin(2 * np.pi * y / (ny * dx_m) * 3)
+               * np.cos(2 * np.pi * x / (nx * dx_m) * 2)).ravel()
+    sclass = np.full(n, LAND, dtype=np.int64)
+    ocean = idx[:, 0].ravel()
+    sclass[ocean] = LAND + 1
+    surface[ocean] = -10.0
+
+    src = np.concatenate([idx[:, :-1].ravel(), idx[:-1, :].ravel()])
+    dst = np.concatenate([idx[:, 1:].ravel(), idx[1:, :].ravel()])
+    export = SimpleNamespace(n_regions=n, surface_class=sclass)
+    geom = SimpleNamespace(src=src, dst=dst,
+                           geom=np.full(src.size, 1.0),   # square cells: w/l = 1
+                           volume_area_m2=np.full(n, dx_m * dx_m))
+
+    land = sclass == LAND
+    k0 = np.where(land, 10.0 ** rng.uniform(-7.0, -4.0, n), 0.0)
+    recharge = np.where(land, 1.0e-9 * (0.2 + 1.6 * (y.ravel() / y.max())), 0.0)
+    et_max = np.where(land, 2.0e-8 * (0.5 + x.ravel() / x.max()), 0.0)
+
+    fixed = np.full(n, np.nan)
+    river = idx[:, nx // 2].ravel()
+    fixed[river] = surface[river] - 2.0
+
+    conductive = land.copy()
+    ring = np.zeros((ny, nx), bool)
+    ring[30:39, 30:39] = True
+    ring[31:38, 31:38] = False
+    conductive[idx[ring]] = False
+
+    k0[idx[2:14, 34:46]] = 1e-8
+    recharge[idx[2:14, 34:46]] = 6.0e-9
+
+    return export, geom, dict(
+        k0_m_s=k0, thickness_m=np.full(n, 100.0), recharge_m_s=recharge,
+        surface_m=surface, conductive=conductive, max_outer=200,
+        et_max_m_s=et_max, et_lambda_m=1.0, fixed_head_m=fixed)
+
+
+def _head_difference(a, b, conductive):
+    d = np.abs(a["head_m"] - b["head_m"])[conductive]
+    scale = max(float(np.abs(b["head_m"][conductive]).max()), 1.0)
+    return float(d.max()), float(d.max() / scale)
+
+
+def uniqueness_test(verbose=True) -> dict:
+    """The uniqueness identity, with controls that must be rejected.
+
+    THE BAR IS `SCHEME_HEAD_RELATIVE` AND THERE IS NO SECOND ONE. A control is
+    rejected when it fails the same criterion the identity is judged by, so
+    nothing here is a threshold chosen after a result was seen: the controls
+    either miss the bar the check already had or they do not.
+
+    Four arms.
+
+    IDENTITY. Two trajectories, one argument list, all terms on. The matrix is
+    fixed under the confined form, so the complementarity problem has exactly
+    one solution and the two heads must agree.
+
+    THIRD START. A third, arbitrary initial active set. It must ALSO pass, and
+    it is here because an identity that only ever compares two hand-chosen
+    starts can be satisfied by a solver that is merely deterministic.
+
+    DROPPED TERM. The second trajectory solved without GW-15's sink, and again
+    without GW-17's baselevels. This is world-qq10's defect exactly: the
+    re-solve was given neither for as long as both existed, so the arm was
+    comparing two MODELS. Both must be rejected, and the size of the miss is the
+    measurement of what the broken arm was reporting on.
+
+    MUTATED SOLVER. `pinned_seed`, a one-line change to `solve` that breaks the
+    invariant tying a pinned cell's head to its surface. It must be rejected.
+    This is the arm that says the identity has teeth against the code rather
+    than against its arguments.
+    """
+    export, geom, kwargs = uniqueness_case()
+    cond = kwargs["conductive"]
+    bar = SCHEME_HEAD_RELATIVE
+    out: dict = {"criterion_relative_head": bar, "arms": {}}
+
+    def record(name, a, b, must_pass, note=""):
+        gap_m, rel = _head_difference(a, b, cond)
+        converged = bool(a.get("converged")) and bool(b.get("converged"))
+        passed = converged and rel < bar
+        ok = passed if must_pass else not passed
+        out["arms"][name] = {"max_absolute_head_difference_m": gap_m,
+                             "relative_head_difference": rel,
+                             "both_converged": converged,
+                             "within_bar": passed,
+                             "must_pass": must_pass, "as_expected": ok}
+        if verbose:
+            want = "must pass" if must_pass else "must be REJECTED"
+            print(f"    {name:<22} {gap_m:10.3e} m   relative {rel:9.3e}   "
+                  f"{want:<16} {'OK' if ok else 'WRONG VERDICT'}"
+                  + (f"   {note}" if note else ""))
+        return ok
+
+    if verbose:
+        print("UNIQUENESS: the identity, and the controls that must fail it")
+        print(f"  criterion, unchanged: relative head difference < {bar:.0e}, "
+              "and both\n  trajectories converged. A control is rejected by "
+              "that same criterion;\n  there is no separate bar for one.")
+        print(f"  case: {export.n_regions:,} cells, sink on, imposed "
+              f"baselevels on, an enclosed\n  block and a pinned wet patch")
+
+    forward = solve(export, geom, **kwargs, verbose=False)
+    reverse = solve(export, geom, **kwargs, start_all_free=True, verbose=False)
+    ok = record("identity", reverse, forward, True)
+
+    third = _mutant_solve("third_start")(export, geom, **kwargs, verbose=False)
+    ok &= record("third_start", third, forward, True,
+                 "a third arbitrary active set")
+
+    no_sink = dict(kwargs, et_max_m_s=None, et_lambda_m=None)
+    ok &= record("dropped_sink", solve(export, geom, **no_sink,
+                                       start_all_free=True, verbose=False),
+                 forward, False, "GW-15 missing from the re-solve")
+
+    no_base = dict(kwargs, fixed_head_m=None)
+    ok &= record("dropped_baselevels", solve(export, geom, **no_base,
+                                             start_all_free=True, verbose=False),
+                 forward, False, "GW-17 missing from the re-solve")
+
+    mutant = _mutant_solve("pinned_seed")
+    ok &= record("mutated_solver", mutant(export, geom, **kwargs,
+                                          start_all_free=True, verbose=False),
+                 mutant(export, geom, **kwargs, verbose=False), False,
+                 "pinned cells seeded below their surface")
+
+    # STATED RATHER THAN LEFT TO BE FOUND. The explicit anchoring path, which
+    # pins one cell of a free block that reaches no fixed head, is not exercised
+    # here and no control is offered on it: a cell carrying GW-15's sink anchors
+    # itself, so with the sink on -- the default -- a block only reaches that
+    # code where `et_max` is zero. What a control on the anchor RELEASE would
+    # take is tracked separately.
+    out["passes"] = bool(ok)
+    return out
+
+
 def groundwater_receiver(n, src, dst, flux, land):
     """Per land region, the neighbour taking the largest outgoing flux.
 
@@ -1380,7 +1609,17 @@ def main() -> int:
                     help="GW-24: the unconfined solver against the analytic "
                          "Dupuit parabola, on a synthetic one-dimensional "
                          "aquifer. Needs no mesh and no climate.")
+    ap.add_argument("--uniqueness-test", action="store_true",
+                    help="world-qq10: the uniqueness identity on a synthetic "
+                         "case carrying GW-15's sink and GW-17's baselevels, "
+                         "with the controls it must reject. The planet arm is "
+                         "build_groundwater.py --uniqueness-check; this is the "
+                         "one that can be shown going red, and needs no mesh "
+                         "and no climate.")
     args = ap.parse_args()
+
+    if args.uniqueness_test:
+        return 0 if uniqueness_test()["passes"] else 1
 
     if args.dupuit_test:
         print("DUPUIT: the unconfined transmissivity against a case with an "

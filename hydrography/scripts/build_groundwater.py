@@ -394,6 +394,21 @@ def main() -> int:
         print("\nREDUCTION IDENTITY: zero permeability must reproduce the "
               "surface-only balance exactly")
         k0 = np.zeros_like(k0)
+        # THE TERMS THE SURFACE-ONLY BALANCE DOES NOT HAVE ARE PART OF THE
+        # CASE, not a configuration the caller may vary. `surface_water.nc` is
+        # solved with no groundwater sink and no imposed water-table heads, so a
+        # reduction carrying either is not reducing to it: with the sink on a
+        # cell returns its recharge less what the sink took, and with local
+        # baselevels on the river cells leave the network entirely. The identity
+        # went silent that way once already -- world-qq10 is the same class in
+        # the uniqueness arm -- so the case sets them here and says so rather
+        # than depending on the caller remembering two flags.
+        if not (args.no_groundwater_et and args.no_baselevels):
+            print("  GW-15's sink and GW-17's baselevels are OFF for this arm: "
+                  "the balance\n  being reduced to has neither, so an identity "
+                  "carrying one is not one")
+        args.no_groundwater_et = True
+        args.no_baselevels = True
     if args.divide_test:
         # IMPOSED, not solved. The declared test is what a terrain-following
         # table does, so the table is set to the terrain rather than solved for

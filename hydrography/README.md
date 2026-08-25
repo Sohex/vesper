@@ -9,6 +9,7 @@ python hydrography/scripts/build_hydrography.py   # ~13 s, climate-independent
 python hydrography/scripts/lake_balance.py        # solver smoke test and sweep
 python hydrography/scripts/surface_water.py       # ~3 s, needs a climatology
 python hydrography/scripts/groundwater.py         # the discretisation checks
+python hydrography/scripts/groundwater.py --uniqueness-test   # the identity, and the controls it rejects
 python hydrography/scripts/build_groundwater.py   # the water table, needs a climatology
 python hydrography/scripts/land_water_ledger.py   # the store and flux ownership contract
 python hydrography/scripts/build_groundwater_access.py   # that water table on the climate grid
@@ -72,7 +73,7 @@ already had.
 | `data/<build>/coupling_<grid>.nc` | sparse basin-by-grid-cell catchment areas |
 | `data/<build>/hydrography_report.json` | diagnostics, river mouths, marginal seas, provenance |
 | `data/<build>/surface_water.nc` | per region: lake, lake depth, river discharge; per basin: solved area, level, volume, overflow |
-| `data/<build>/topographic_index_<grid>.nc` | per region: the compound topographic index on both slope arms; per grid cell: its mean, its within-cell spread, and `f_sat_max` |
+| `data/<build>/topographic_index_<grid>.nc` | per region: the compound topographic index on both slope arms; per grid cell: its area-weighted mean, its within-cell spread, and `f_sat_max`, the share of the cell's land AREA above that mean |
 | `analysis/lake_balance_sweep.json` | solver sensitivity under placeholder forcing |
 | `analysis/surface_water_report.json` | the solved water balance and its forcing |
 | `analysis/topographic_index_report.json` | the index's distribution, the scale measurement, and the score declared before it |
@@ -453,7 +454,13 @@ away, and the numbers are in the report.
 
 `--reduction-test` drives permeability to zero, which must reproduce the
 surface-only balance exactly rather than closely: every cell returns its own
-recharge as seepage and every basin's `Qg` is zero. It passes bitwise.
+recharge as seepage and every basin's `Qg` is zero. The arm turns GW-15's sink
+and GW-17's baselevels off and says so, because the balance being reduced TO has
+neither: a reduction that keeps the sink returns each cell's recharge less what
+the sink took, and one that keeps the baselevels takes the river cells out of
+the network altogether. That is part of the case, not a flag the caller has to
+remember. The bar is bitwise and it has not been measured since either term
+landed.
 
 `--divide-test` does two things. It reports how far the groundwater catchments
 agree with the surface ones under a table following the FILLED surface, which is
@@ -474,11 +481,17 @@ receives most water from, which is to say following the water uphill.
 `--uniqueness-check` re-solves from the opposite initial active set. The matrix
 is symmetric positive definite, so the complementarity problem has exactly one
 solution and any two trajectories must reach it: an identity, not a comparison.
-**It passes at 0.000e+00** -- bit-identical head fields from either direction.
-Getting there required the dry set to become a static property of the graph
-rather than something discovered mid-iteration; before that it missed by 12.76 m
-because the two trajectories were marking different cells dry and so solving
-slightly different problems.
+Both calls take one argument list whole, so a term added to the equation cannot
+reach one trajectory and not the other; that is not a tidy-up but the repair of
+a defect, and `groundwater.py --uniqueness-test` is the arm that proves the
+identity can still fail. It runs the same identity on a synthetic case carrying
+GW-15's sink and GW-17's baselevels, and three controls it must REJECT: a
+re-solve missing the sink, a re-solve missing the baselevels, and a `solve`
+mutated to seed pinned cells below their surface. What each returned is in
+`hydrography/notes/water-table-convergence.md`, which also carries what it took
+to make the identity pass at all: the dry set had to become a static property of
+the graph rather than something discovered mid-iteration, because two
+trajectories that mark different cells dry are solving different problems.
 
 `--operator-noise` perturbs every face coefficient to ask what GW-8's own
 truncation error does to the answer. It is a sensitivity harness, not a model
@@ -504,8 +517,8 @@ belongs upstream in the exporter and is not decided here.
 
 `build_topographic_index.py` computes `ln(a / tan beta)` per mesh region from
 the export's own upslope contributing area and a local slope, and per GRID CELL
-the share of that cell's regions whose index exceeds the cell mean. It is
-terrain only: no climate, no water table, no solve. GW-26.
+the share of that cell's land AREA whose index exceeds the cell's area-weighted
+mean index. It is terrain only: no climate, no water table, no solve. GW-26.
 
 **It answers a different question from the water table, deliberately.**
 `notes/subgrid-water-table.md` states the constraint the depth field runs into
@@ -519,10 +532,25 @@ consume anyway. The form is
 (2005), implemented independently in PALADYN, ClimaLand and CLIMBER-X.
 
 **A fraction is a fraction of a population, and there is only one.** The
-population is the mesh regions inside a climate-grid cell, so `f_sat_max` lives
-at the grid and there is NO per-region saturated fraction here. A region has no
-sub-population and inventing one is exactly what the note refuses. The artifact
-is therefore one per (build, grid), on the coupling matrices' precedent.
+population is the land AREA of the mesh regions inside a climate-grid cell, so
+`f_sat_max` lives at the grid and there is NO per-region saturated fraction
+here. A region has no sub-population and inventing one is exactly what the note
+refuses. The artifact is therefore one per (build, grid), on the coupling
+matrices' precedent.
+
+**Area and region count are different quantities on this mesh**, which is why
+the reduction is named rather than assumed. `f_sat_max` multiplies into a
+fraction of a CELL, so it ranks over that cell's area; CLIMBER-X's CDF is over
+equal-area DEM pixels where the two coincide, and these regions are not
+equal-area. `lib/gridding.py` owns the operators and the artifact records which
+was used for which field: `cell_moments` for the area-weighted cell mean and the
+within-cell spread, `cell_fraction` for the categorical area share. The mean is
+the class boundary, so its weighting is part of the definition.
+
+**What the three rows waiting on this get is settled**, and it is the
+change-of-quantity route: `notes/subgrid-water-table.md` section 5 carries the
+decision and what each of WET-2, SURF-7 and LSHY-6 takes. Two of the three turn
+out to need nothing built.
 
 **`f_grad` is declared and bracketed, never fitted, and the bracket is a
 convention.** CLIMBER-X writes `exp(-f_wtab * w_table)`; ClimaLand writes
@@ -534,7 +562,7 @@ ones -- a CDF on integer bins 1 to 15, a critical cell mean of 5.5, a cut at 14 
 are calibrated against an index computed on Earth at about a kilometre. This
 index carries a length in `a`, so the whole distribution shifts with the mesh,
 measurably so between this project's own two builds, and it sits far above that
-range. `f_sat_max` is a share of a cell's population above that cell's own mean,
+range. `f_sat_max` is a share of a cell's own area above that cell's own mean,
 so it survives the offset; a threshold does not.
 
 **Nothing may consume `f_sat` until it is scored.** The bar is in

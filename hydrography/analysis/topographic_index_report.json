@@ -39,27 +39,41 @@
   "slope_arm": "plane_fit",
   "grid_cells_with_estimate": 1579,
   "min_regions_per_cell": 10,
+  "reduction": {
+    "cell_mean_index": "gridding.cell_moments, INTENSIVE, area-weighted",
+    "within_cell_index_sd": "gridding.cell_moments, two-pass about the cell mean",
+    "f_sat_max": "gridding.cell_fraction, CATEGORICAL, share of the cell's land AREA above the cell mean",
+    "population": "surface_class == LAND",
+    "ledger": {
+      "regions_offered": 4328736,
+      "cells": 2048,
+      "cells_with_no_population": 409,
+      "area_offered": 318136980.5317639,
+      "area_landed": 318136980.5317639,
+      "closure_residual_relative": 0.0
+    }
+  },
   "cell_mean_index": {
-    "5": 13.007149760481148,
-    "25": 14.28057679613355,
-    "50": 15.491400983055602,
-    "75": 17.092150851823185,
-    "95": 18.59423749704983
+    "5": 13.146221092529053,
+    "25": 14.451158061860143,
+    "50": 15.66421400306882,
+    "75": 17.325777794183026,
+    "95": 18.850166736046976
   },
   "within_cell_index_sd": {
-    "5": 1.5394896459712089,
-    "50": 2.2302406142997397,
-    "95": 2.673909133859149
+    "5": 1.467148331581987,
+    "50": 2.2228378310526486,
+    "95": 2.6752441403587186
   },
-  "between_cell_index_sd": 1.7819204199173668,
+  "between_cell_index_sd": 1.8178008682442857,
   "f_sat_max": {
-    "5": 0.3479873818247738,
-    "25": 0.40140392442784717,
-    "50": 0.43614336193841496,
-    "75": 0.47153806452985997,
-    "95": 0.5484944696820065
+    "5": 0.34954160305715604,
+    "25": 0.3987469431867196,
+    "50": 0.43371634509576246,
+    "75": 0.4698606542635168,
+    "95": 0.5503499878262794
   },
-  "cell_mean_above_climberx_cdf_top": 0.8074730842305257,
+  "cell_mean_above_climberx_cdf_top": 0.8334388853704876,
   "absolute_thresholds": "refused",
   "score": {
     "observation_sets": [
@@ -72,5 +86,5 @@
   },
   "scored": false,
   "consumers_licensed": false,
-  "created": "2026-08-25T00:51:52.456215+00:00"
+  "created": "2026-08-25T08:12:59.455852+00:00"
 }
