@@ -719,6 +719,10 @@ one_offs:
   - pedology/scripts/validate_against_earth.py
   - pedology/scripts/probe_runoff_response.py
   - biosphere/scripts/score_prediction.py
+  # Checks a climate product against the ecological forcing field
+  # contract. Generates nothing: it is a verdict on an artifact another
+  # step wrote, and carries fixtures so it can fail on itself.
+  - biosphere/scripts/check_forcing_contract.py
   - exoplasim/scripts/compare_flux_sweep.py
   - exoplasim/scripts/compare_albedo_bracket.py
   - exoplasim/scripts/close_term_energy.py

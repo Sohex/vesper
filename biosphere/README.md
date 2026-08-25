@@ -34,7 +34,9 @@ BVOC emissions, secondary organic aerosol and atmospheric coupling are audited
 in `notes/bvoc-soa-atmospheric-coupling-audit.md`, wetlands, peat and methane
 are audited in `notes/wetlands-peat-methane-audit.md`, and
 the ExoPlaSim-to-LPJ weather path is audited in
-`notes/ecological-climate-forcing-audit.md`; EFOR-1 through EFOR-8 replace the
+`notes/ecological-climate-forcing-audit.md` and the units, time base, sign,
+area basis and converting side of every field crossing that seam are settled in
+`notes/ecological-forcing-field-contract.md`; EFOR-1 through EFOR-8 replace the
 project's artificial 12-bin forcing scaffold with a chronological,
 interval-explicit contract and carry authoritative land state. Soil and
 land-surface hydraulic consistency across ExoPlaSim, pedology, hydrography,
@@ -327,27 +329,36 @@ forest succession needs.
 The cost is a doubled run, 23 minutes to about 46 on 16 ranks. Not a
 consideration.
 
-## The 30-hour day widens the diurnal range, and this model cannot see it
+## The 30-hour day widens the diurnal range, and neither side carries it yet
 
 A 30-hour rotation gives longer daytime heating and longer nighttime cooling than
-Earth's, so the real diurnal temperature range is wider, and on marginal ground a
-night could dip below a freezing threshold that the daily mean never approaches.
+Earth's, so the simulated diurnal temperature range is wider, and on marginal
+ground a night could dip below a freezing threshold that the daily mean never
+approaches.
 
-The forcing carries this correctly: `dtr` in the driver comes from ExoPlaSim's
-own `maxt` and `mint`, which are timestep extrema and so include the full 30-hour
-trough.
+**The forcing does not carry it.** `maxt` and `mint` are timestep extrema and do
+include the full 30-hour trough, but they are extrema of `dt(:,NLEP)`, the
+SURFACE temperature, and not of the near-surface air temperature. On the
+bootstrap climatology they bracket `ts` in every one of 24,576 cell-bins and fail
+to bracket `tas` in 15,561 of them, by as much as 28.3 K. The air-temperature
+extrema this climate model does compute are `atsama` and `atsami`, output codes
+201 and 202; they are written by the model and reach no product, being absent
+from pyburn's `ilibrary` and from `run_exoplasim.REGULAR_CODES`. EFOR-9 owns
+delivering them.
 
-**LPJ-GUESS has nowhere to put it.** `climate.dtr` is read in exactly one place,
-`bvoc.cpp:276`, for leaf temperature in the biogenic VOC scheme, which is off.
-There is no daily-minimum plant mortality anywhere in the model; every cold limit runs
-through `mtemp_min20`, a twenty-year mean of monthly means. So a wider diurnal
-range is physically real here and radiatively present in the climate, and the
-vegetation model is structurally blind to it.
+So the driver's fourth array is the surface-temperature range under its own
+name, `vesperinput.cpp` does not hand it to `climate.dtr`, and a run that asks
+for `ifbvoc 1` is refused rather than given a different variable under the right
+name.
 
-Recorded rather than worked around. Representing it would mean adding a frost
-plant-mortality mechanism that LPJ-GUESS does not have, which is a much larger change
-than this project needs, and the data is already in the driver if it is ever
-wanted.
+**LPJ-GUESS would have nowhere to put it either.** `climate.dtr` is read in
+exactly one place, `bvoc.cpp`'s `daytime_temp`, for leaf temperature in the
+biogenic VOC scheme, which is off. There is no daily-minimum plant mortality
+anywhere in the model; every cold limit runs through `mtemp_min20`, a twenty-year
+mean of monthly means. So a wider diurnal range is physically real here and
+radiatively present in the climate, and the vegetation model is structurally
+blind to it. Representing it would mean adding a frost plant-mortality mechanism
+LPJ-GUESS does not have, which is a much larger change than this project needs.
 
 ## Cost
 
@@ -446,3 +457,4 @@ reported year, but it does mean fire is off for the first tenth of it.
 ## One-off tools
 
 - `scripts/score_prediction.py` -- one-off: scores a productivity prediction against an LPJ-GUESS run, the machinery behind BIO-2's nitrogen bracket. Registered under `one_offs` in `config/pipeline.yaml`; it generates nothing the pipeline reads.
+- `scripts/check_forcing_contract.py` -- one-off: a verdict on a climate product against `notes/ecological-forcing-field-contract.md`. Runs the closure, sign and bracketing identities, and carries seven reduced fixtures, six of them wrong in a named way, so it can fail on itself. Registered under `one_offs`; it generates nothing.

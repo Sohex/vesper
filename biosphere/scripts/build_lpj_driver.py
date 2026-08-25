@@ -11,12 +11,18 @@ would flood. That is the whole point of the Orogen fork.
 
 **Insolation is supplied as net downward surface shortwave.** `driver.cpp`'s
 `NETSWRAD_TS` path then applies no albedo correction of its own, which is what we
-want: this project computes surface albedo from lithology and ExoPlaSim has
-already used it, so the number is better than driver.cpp's global 0.17 constant.
+want for the equilibrium evapotranspiration it also drives: this project computes
+surface albedo from lithology and ExoPlaSim has already used it, so the number is
+better than driver.cpp's global 0.17 constant. It is NOT the incident photon
+supply to a canopy, and PCAR-2 and BIO-25 own that end; see
+`biosphere/notes/ecological-forcing-field-contract.md`.
 
-**Bin order defines the calendar.** Bin 0 becomes day 0 of the simulation year,
-and `build_vesper_header.py` fits the declination phase on that assumption. The
-two must be regenerated together after any orbit change.
+**Bin order defines the calendar, and bin LENGTH does not.** Bin 0 starts at day
+0 of the simulation year and `build_vesper_header.py` fits the declination phase
+on that assumption, so the two must be regenerated together after any orbit
+change. But a pyburn bin and a model month are two different partitions of the
+same year, and the producer owns its own interval bounds. `interval_to_month`
+below remaps between them conservatively rather than assuming they agree.
 
 **One climatology or many.** Pass several to `--climatology` and each becomes one
 year of forcing, in the order given; `vesperinput` cycles through them, so the
@@ -50,11 +56,14 @@ from gridding import land_fraction_of_class
 from orogen import Export
 
 # V2 regolith depth, V3 bedrock water, V4 multiple years, V5 nitrogen deposition
-# read per Earth year rather than per orbit. V5 carries the same bytes as V4 and
-# differs only in what the ndep field MEANS, which is exactly the change a magic
-# has to catch: a V4 file read by a V5 binary would look perfectly valid and
-# deliver half the nitrogen. See biosphere/notes/time-base-unit-contract.md.
-MAGIC = b"VESPDRV5"
+# read per Earth year rather than per orbit, V6 the fourth climate array named
+# for the variable it is actually the range of. V5 carries the same bytes as V4
+# and V6 the same bytes as V5; each differs only in what a field MEANS, which is
+# exactly the change a magic has to catch, since such a file read by the wrong
+# binary looks perfectly valid. V5's change is argued in
+# biosphere/notes/time-base-unit-contract.md and V6's in
+# biosphere/notes/ecological-forcing-field-contract.md.
+MAGIC = b"VESPDRV6"
 
 # Coordinate precision shared with pedology/scripts/build_soil.py, so the soil
 # map keys match exactly. See where lon_signed is rounded.
@@ -107,6 +116,86 @@ def project_relative(path: Path) -> str:
     """
     path = Path(path).resolve()
     return rel(path)
+
+
+def month_lengths(year_length: int) -> np.ndarray:
+    """The model's own month lengths, from the generator that compiles them in.
+
+    Imported rather than recomputed. `VESPER_MONTH_LENGTHS` sizes the C++
+    `Date`, and `interp_monthly_means_conserve` spreads a bin over exactly these
+    days, so a second copy of the rule here would be a second thing to keep in
+    step.
+    """
+    from build_vesper_header import month_lengths as _lengths
+    return np.asarray(_lengths(year_length), dtype=float)
+
+
+def producer_interval_days(times: np.ndarray, year_length: int) -> np.ndarray:
+    """How many absolute days each of the producer's time bins actually spans.
+
+    Derived from the climatology's own time axis through `lib/climatology.py`,
+    which is the only place pyburn's binning arithmetic belongs. The bins do NOT
+    all hold the same number of raw records: in the clean I/O regime the counts
+    are [15]*5 + [16] + [15]*5 + [16], so two bins in twelve are longer than the
+    other ten and neither is where a calendar would put a long month.
+
+    The returned spans sum to `year_length`. That is a STRETCH, not an identity:
+    at the clean write interval the records cover 99.56% of the orbit and the
+    remainder is in no bin at all (`lib/climatology.py`). Distributing the
+    uncovered fraction in proportion is the only choice available from the
+    product alone, and the alternative -- letting the intervals fall short of the
+    year -- would leave a gap the consumer's calendar has no way to represent.
+    """
+    from climatology import bin_weights
+    weights = bin_weights(np.asarray(times, dtype=float))
+    return weights * float(year_length)
+
+
+def interval_to_month(values: np.ndarray, spans: np.ndarray,
+                      months: np.ndarray) -> np.ndarray:
+    """Remap per-interval values onto the model's months, conserving the total.
+
+    `values` is per-interval and INTENSIVE in time: a mean over the interval, or
+    a rate per absolute day. Its leading axis is the interval axis. Both
+    partitions tile the same year starting at day 0.
+
+    One operator serves means and rates alike, which is the point of expressing
+    precipitation as a rate before it gets here. For a mean the result is the
+    duration-weighted mean over the month; for a rate it is the mean rate over
+    the month, and multiplying it by the month length gives a total that
+    conserves exactly:
+
+        sum_k months[k] * out[k] = sum_b spans[b] * values[b]
+
+    That identity is asserted below, because a remap that silently loses mass is
+    worse than no remap: the annual total would still look plausible.
+    """
+    values = np.asarray(values, dtype=float)
+    spans = np.asarray(spans, dtype=float)
+    months = np.asarray(months, dtype=float)
+    if abs(spans.sum() - months.sum()) > 1e-6 * months.sum():
+        raise SystemExit(
+            f"the producer's intervals span {spans.sum():.6f} days and the "
+            f"model's year {months.sum():.6f}; they must tile the same year")
+
+    p_edges = np.concatenate([[0.0], np.cumsum(spans)])
+    m_edges = np.concatenate([[0.0], np.cumsum(months)])
+    # Overlap in days between month k and interval b.
+    overlap = np.clip(
+        np.minimum(m_edges[1:, None], p_edges[None, 1:])
+        - np.maximum(m_edges[:-1, None], p_edges[None, :-1]), 0.0, None)
+
+    out = np.tensordot(overlap, values, axes=(1, 0)) / months.reshape(
+        (-1,) + (1,) * (values.ndim - 1))
+
+    total_in = float(np.tensordot(spans, values, axes=(0, 0)).sum())
+    total_out = float(np.tensordot(months, out, axes=(0, 0)).sum())
+    scale = max(abs(total_in), 1.0)
+    if abs(total_out - total_in) > 1e-9 * scale:
+        raise SystemExit(
+            f"interval-to-month remap lost mass: {total_in!r} in, "
+            f"{total_out!r} out")
+    return out
 
 
 def area_weights(lat: np.ndarray, nlon: int) -> np.ndarray:
@@ -211,8 +300,14 @@ def main() -> None:
     year_length = orbit.model_year_days(config)
     co2_ppm = float(config["atmosphere"]["pCO2_bar"]) / 1.0 * 1e6
 
-    # Each climatology contributes one year, stacked as [year][bin][lat][lon].
-    tas_y, pr_y, rss_y, dtr_y = [], [], [], []
+    # The model's months, which are what interp_monthly_*_conserve spreads a
+    # value over. Every field below is remapped onto these from the producer's
+    # own intervals rather than being assumed to already be on them.
+    months = month_lengths(year_length)
+
+    # Each climatology contributes one year, stacked as [year][month][lat][lon].
+    tas_y, pr_y, rss_y, tsrange_y = [], [], [], []
+    spans_y = []
     lat = lon = lsm = None
     for path in climatologies:
         with nc.Dataset(path) as data:
@@ -225,16 +320,34 @@ def main() -> None:
                 raise SystemExit(
                     f"{path} is on a different grid from {climatologies[0]}; "
                     f"every year has to share one grid")
-            tas_y.append(np.asarray(data["tas"][:], dtype=float) - KELVIN)
-            pr_y.append(np.asarray(data["pr"][:], dtype=float) * 1000.0 * 86400.0)
-            rss_y.append(np.asarray(data["rss"][:], dtype=float))
-            dtr_y.append(np.maximum(
+            spans = producer_interval_days(
+                np.asarray(data["time"][:], dtype=float), year_length)
+            spans_y.append(spans.tolist())
+
+            def onto_months(values: np.ndarray) -> np.ndarray:
+                return interval_to_month(values, spans, months)
+
+            # Kelvin to C and m/s to mm per absolute day BEFORE the remap, so the
+            # operator sees one intensive quantity per field and the conserved
+            # total is the one that means something. 86400 is the absolute day of
+            # biosphere/notes/time-base-unit-contract.md, not Vesper's rotation.
+            tas_y.append(onto_months(
+                np.asarray(data["tas"][:], dtype=float) - KELVIN))
+            pr_y.append(onto_months(
+                np.asarray(data["pr"][:], dtype=float) * 1000.0 * 86400.0))
+            rss_y.append(onto_months(np.asarray(data["rss"][:], dtype=float)))
+            # The range of the SURFACE temperature. maxt and mint are extrema of
+            # dt(:,NLEP) and bracket ts, not tas; the near-surface AIR extrema are
+            # codes 201/202, which no product carries yet. See the field
+            # contract, and note that vesperinput does not hand this to
+            # climate.dtr, whose one reader means an air-temperature range.
+            tsrange_y.append(onto_months(np.maximum(
                 np.asarray(data["maxt"][:], dtype=float)
-                - np.asarray(data["mint"][:], dtype=float), 0.0))
-    tas = np.stack(tas_y)   # [year][bin][lat][lon]
+                - np.asarray(data["mint"][:], dtype=float), 0.0)))
+    tas = np.stack(tas_y)   # [year][month][lat][lon]
     pr = np.stack(pr_y)
     rss = np.stack(rss_y)
-    dtr = np.stack(dtr_y)
+    tsrange = np.stack(tsrange_y)
     nyears = tas.shape[0]
 
     nbins = tas.shape[1]
@@ -244,11 +357,9 @@ def main() -> None:
     land = lsm > 0.5
     codes, soil_summary = soil_codes(config, land)
 
-    # Bin length in days, from the same month lengths the patched Date uses, so
-    # a precipitation total is the total for exactly the days it is spread over.
-    base = year_length // 12
-    bin_days = np.array([base] * 12, dtype=float)
-    bin_days[-1] += year_length - base * 12
+    # After the remap the driver's bins ARE the model's months, so a
+    # precipitation total is the total for exactly the days it is spread over.
+    bin_days = months
 
     # ExoPlaSim's longitudes run 0..360; LPJ-GUESS expects -180..180.
     #
@@ -321,10 +432,16 @@ def main() -> None:
             handle.write(tas[:, :, j, i].astype("<f8").tobytes())
             handle.write((pr[:, :, j, i] * bin_days[None, :]).astype("<f8").tobytes())
             handle.write(rss[:, :, j, i].astype("<f8").tobytes())
-            handle.write(dtr[:, :, j, i].astype("<f8").tobytes())
+            handle.write(tsrange[:, :, j, i].astype("<f8").tobytes())
 
     weights = area_weights(lat, len(lon))
     lw = weights[land]
+
+    def month_mean(field: np.ndarray) -> np.ndarray:
+        """Mean over years and months, weighting each month by its own length."""
+        per_year = np.tensordot(months, field, axes=(0, 1)) / months.sum()
+        return per_year.mean(axis=0)
+
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "climatologies": [project_relative(p) for p in climatologies],
@@ -349,6 +466,17 @@ def main() -> None:
         "year_length_days": year_length,
         "bins_per_year": nbins,
         "bin_days": bin_days.tolist(),
+        # Both partitions, per climatology, so a later reader can see what was
+        # remapped from what rather than having to re-derive it. The producer's
+        # spans come from the climatology's own time axis; the driver's bins are
+        # the model's months. They are NOT the same partition, and assuming they
+        # were gave the last month 18 days of a rate measured over 16.09.
+        "producer_interval_days": spans_y,
+        "interval_remap": (
+            "conservative overlap remap from the producer's time bins onto the "
+            "model's months, biosphere/scripts/build_lpj_driver.py:"
+            "interval_to_month. Total conserved exactly; the seasonal "
+            "distribution is what moves."),
         "land_cells": int(len(rows)),
         "regolith_depth_source": (project_relative(soil_map)
                                   if soil_map else "none, full profile assumed"),
@@ -362,14 +490,21 @@ def main() -> None:
             "unit is per EARTH year; vesperinput divides by the Earth year to "
             "reach the per-absolute-day rate it hands the model."),
         "insolation": "NETSWRAD_TS, net downward surface shortwave (rss), W/m2",
+        "fourth_array": (
+            "maxt - mint, the range of the SURFACE temperature. NOT the "
+            "near-surface air diurnal range: maxt/mint are extrema of "
+            "dt(:,NLEP) and bracket ts, not tas. vesperinput does not assign it "
+            "to climate.dtr. biosphere/notes/ecological-forcing-field-contract.md"),
         "land_definition": "lsm from the climatology, itself built from surface_class",
+        # Month-weighted, because the months are NOT equal: a plain mean over the
+        # twelve would over-weight the eleven short ones.
         "land_mean_temperature_c": float(
-            np.average(tas.mean(axis=(0, 1))[land], weights=lw)),
+            np.average(month_mean(tas)[land], weights=lw)),
         "land_mean_precip_mm_per_earth_year": float(
-            np.average(pr.mean(axis=(0, 1))[land], weights=lw)
+            np.average(month_mean(pr)[land], weights=lw)
             * orbit.EARTH_CALENDAR_YEAR_DAYS),
         "land_mean_net_sw_w_m2": float(
-            np.average(rss.mean(axis=(0, 1))[land], weights=lw)),
+            np.average(month_mean(rss)[land], weights=lw)),
         "soil": soil_summary,
         "soil_code_mapping": SOIL_CODE_BY_ROCK,
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
@@ -385,7 +520,10 @@ def main() -> None:
     report_path.write_text(json.dumps(report, indent=2) + "\n")
 
     print(f"land cells     {len(rows)}")
-    print(f"year length    {year_length} days, bins {bin_days.astype(int).tolist()}")
+    print(f"year length    {year_length} days, months "
+          f"{bin_days.astype(int).tolist()}")
+    print("producer bins  " + ", ".join(f"{s:.2f}" for s in spans_y[0])
+          + " days, remapped conservatively onto the months above")
     print(f"climate years  {nyears} "
           f"({'cycled' if nyears > 1 else 'fixed climate, repeated'})")
     print(f"CO2            {co2_ppm:.0f} ppm     "
