@@ -720,6 +720,15 @@ LPJ-GUESS-CNP. SDEC-2/SDEC-4 retain the downstream sorption and occlusion
 topology.
 
 ## Known gaps
+- **None of the four mineral-reactivity proxies can be derived here, and the
+  reasons differ.** The vegetation model's mineral-aware arm for organic matter
+  protection and phosphorus sorption asks this component for an Fe-Al oxide
+  content, an allophane concentration, an aggregate capacity and a polyvalent
+  cation saturation. `notes/mineral-reactivity-supply.md` is the verdict on each
+  with its evidence: what the near miss actually needs, which quantities are
+  measured but indexed on a substrate age this project does not carry, and the
+  second gate on the consuming model's side that would still be shut with all
+  four in hand.
 - **The derived surface classes carry the three gaps argued above** -- the
   static lake proxy under diatomite, the unsourced loess threshold, and the
   exhaustible pavement supply the rule cannot see.
