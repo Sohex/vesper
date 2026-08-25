@@ -954,6 +954,24 @@ compilation -- Moosdorf's GLiM class set omits `ev` entirely -- so that endmembe
 rests on Frumkin's denudation rates, which are solutional rather than
 stream-power measurements.
 
+### How much relief a rock mass can hold up, and how that depends on gravity (WORLD-JH0U)
+
+Fetched 2026-08-25 to settle whether the scarp gate's relief thresholds carry
+Orogen's 1/g relief scaling. The Earth values are not adopted as Vesper
+parameters; what is used is the FORM of the relation, specifically its power of
+gravity.
+
+| file | citation | status |
+| --- | --- | --- |
+| `montgomery2001-slope-distributions-threshold-hillslopes.pdf` | Montgomery (2001). *Slope distributions, threshold hillslopes, and steady-state topography.* American Journal of Science 301(4-5), 432-454. `10.2475/ajs.301.4-5.432` | **read** -- carries Schmidt and Montgomery's Culmann-derived maximum stable hillslope height as eq. 7, `Hc = 4C sin(theta) cos(phi) / [rho g (1 - cos(theta - phi))]`, with rho g explicit, and states their argument from it to a "limit to topographic development (LTD) beyond which incision of valley bottoms will induce bedrock landsliding that lowers peak elevations". That is the landscape-scale form the scarp gate needs; a single-slope statement would not have settled it |
+
+Not held: **Schmidt, Montgomery (1995)**, *Limits to relief*, Science 270,
+617-620, `10.1126/science.270.5236.617`. Identity confirmed via Crossref; the
+publisher, every open-access route and every last-resort route return 403.
+Mitigated the way Selby (1980) is: Montgomery (2001) states the equation, the
+calibration and the LTD conclusion in the original author's own words, so the
+relation is grounded through it rather than cited from an abstract.
+
 ### Fresh regolith texture: what LITH-23 went looking for
 
 Fetched 2026-08-17 to ground the primary clay fractions in
