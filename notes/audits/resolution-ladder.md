@@ -200,6 +200,59 @@ are otherwise fine. The refusal is a property of the configuration rather than
 of the transient, so buying a coarser step by arriving at it gently is not
 available and the ladder pays T170's dt 15 in full.
 
+## A converted arm relaxes four times faster and lands somewhere else
+
+*Measured 2026-08-25 on the corrected damping. Both arms T42 at dt 30, same
+build, same staged surface, differing only in where they start.*
+
+| arm | start | converged at |
+| --- | --- | ---: |
+| A, `run_1d39fef9bfc2` | cold | 85 orbits asked, converged |
+| B, `run_42aaf441b10b` | converted from converged T21 | **19 orbits**, held at 22 |
+
+Arm B is inside a tenth of a kelvin of arm A's equilibrium after TEN orbits and
+meets every convergence criterion at nineteen. That is the ladder's whole
+promise and it is real: the relaxation from a converted state is a small
+multiple of the convergence window, not a fresh spin-up.
+
+**And the two arms are not at the same equilibrium.** `compare_equilibria.py`,
+whose criterion was fixed before either arm ran, against the runs' own
+ten-orbit scatter:
+
+| metric | A | B | B - A | bound | sigma |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| surface temperature, K | 294.549 | 294.655 | +0.106 | 0.042 | 5.1 |
+| air temperature 2 m, K | 294.078 | 294.166 | +0.088 | 0.041 | 4.3 |
+| precipitation, mm/day | 2.796 | 2.742 | -0.054 | 0.016 | 7.0 |
+| TOA shortwave up, W/m2 | 76.175 | 78.667 | **+2.492** | 0.158 | 31.5 |
+| TOA longwave up, W/m2 | 245.596 | 243.093 | **-2.503** | 0.191 | 26.2 |
+
+It does not close with time. Checked at 22, 35, 45 and 47 orbits the surface
+offset sits at +0.100, +0.111, +0.096 and +0.106 K, and the two TOA terms hold
+near +2.5 and -2.5 throughout. A run still relaxing narrows; this does not.
+
+**The two shortwave and longwave terms cancel.** Net TOA differs by about 0.01
+W/m2, so both arms are in energy balance -- they are balanced at DIFFERENT
+CLOUD STATES. Arm B reflects 2.5 W/m2 more and emits 2.5 W/m2 less, which is
+more cloud, and it is warmer underneath by a tenth of a kelvin and drier by
+five hundredths of a mm/day. The spatial correlation is 0.990 at 1.81 K RMS, so
+this is one climate with a systematic offset rather than two different worlds.
+
+What that means for the ladder is a judgement rather than a measurement. The
+offset is 0.03% of the surface temperature and is detectable only because the
+criterion is strict -- the bound is the runs' own scatter, about 0.04 K. Whether
+a tenth of a kelvin and a cloud partitioning of 2.5 W/m2 is acceptable for a
+rung's output depends on what that rung's output is for, and the honest
+statement is that a converted arm is NOT a substitute for a cold arm at the
+precision this criterion can see.
+
+Not established: the mechanism. The donor's cloud and humidity structure is
+remapped into the target and the model may simply keep it, which would make
+this an imprint rather than a second equilibrium; a third arm converted from a
+DIFFERENT donor would separate those. Nor is it known whether the offset shrinks
+as the jump shrinks, which matters because the ladder's later hops are T42 to
+T85 and T85 to T170 rather than T21 to T42.
+
 ## What is not yet measured
 
 Whether a wider window removes the flicker without moving the orbit at which a
