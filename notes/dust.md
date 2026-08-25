@@ -222,11 +222,18 @@ land-mean optical depth of 0.376 and on the refractive indices
 
 Every forcing table in this section is a row per SURFACE ALBEDO, and the
 albedos below are the ones `config/planet.yaml` carried when they were
-measured. The vegetated and playa entries have both moved down since, which
-moves the land rows and therefore the land half of every global mean;
-`world-zz6` regenerates the tables and re-reads the reopening verdict against
-them. The albedo dependence within each table is close to linear, so the rows
-bracket where the current values land.
+measured. The vegetated and playa entries have both moved DOWN since, and that
+is where these rows and the artifact part company: `dust_forcing.py` reads both
+albedos out of `config/planet.yaml` at run time, so the artifact follows them
+and prose cannot. Regenerating it is a STEP rather than a task --
+`carve_verdict` declares `dust_forcing` as a need, so `pipeline.py --plan
+carve_verdict` already puts it in the plan -- and what it waits on is a declared
+`baseline_climatology`, which the longwave term needs for the layer temperature.
+The albedo dependence within each table is close to linear, so the rows still
+bracket where the current values land, and the direction is one-signed: a darker
+land surface makes the shortwave term more negative, so the land half of every
+net and of every global mean falls. What that costs the warming claim below is
+said where the claim is.
 
 | surface | shortwave | longwave | net |
 | --- | ---: | ---: | ---: |
@@ -258,6 +265,21 @@ shortwave term moved +0.25 to +0.5 W/m2 and the global mean net from +0.34 to
 world does not simply cool. It cools over ocean, is near neutral over vegetated
 land and warms over the bright closed-basin fill -- which is exactly the surface
 that makes this world unusual, and exactly where the dust is.
+
+**Which half of the closed-basin fill carries that warming is what the albedo
+move above is worth.** The salt crust row is a rock-table albedo and has not
+moved; the playa fill row is `config/planet.yaml`'s
+`lithology_albedo_overrides` and has, downwards. The net over playa fill is a
+small residual of a large negative shortwave and a large positive longwave, so
+a one-signed fall in the shortwave takes that residual toward zero while the
+salt crust row stands. Read the warming as resting on the crust until the
+artifact is regenerated. `analysis/dust_optics.json` has already been
+regenerated against the current albedos and says the same thing from the
+shortwave side alone: at the absorbing OPAC end of the index bracket neither
+band's `warms_over` list contains playa fill any more, and both list the salt
+crust; at the measured indices the lists are empty in both bands, so the
+shortwave warms over nothing this world's surface table carries and the whole
+of the positive net is the longwave.
 
 The global mean lands at **-0.48 to -0.15 W/m2** across the size bracket, and at
 +0.55 to +0.67 at the absorbing end of the index bracket. Every one of those is
