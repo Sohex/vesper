@@ -57,12 +57,15 @@ void nh3_volatilization(Patch& patch, Soil& soil, double& n_budget_check){
 	// The simulated soil's pH, which the soil map supplies per gridcell.
 	//
 	// This used to fall back to Dawson (1977)'s regression of soil pH on annual
-	// precipitation, 3810 / (762 + climate.aprec_lastyear) + 3.5, and that
-	// fallback could not work: nothing in the model ever assigns
-	// aprec_lastyear, and climate.aprec, which would feed it, is reset at day 0
-	// and never accumulated. The regression therefore evaluated at zero
-	// precipitation and returned 8.5 on every gridcell for every day of every
-	// run. Two further things stood between it and a usable number even with a
+	// precipitation, 3810 / (762 + climate.aprec_lastyear) + 3.5. The port's
+	// own constant was wrong: table 5 eqn 5 of Xu-Ri and Prentice (2008) gives
+	// 3810 / (762 + Precipitation_annual) + 3.8, and since pH enters
+	// volatilisation as exp(2 * (pH - 10)), those 0.3 pH units are a factor of
+	// 1.8 on the NH3 flux. The fallback could not work either: nothing in the
+	// model ever assigns aprec_lastyear, and climate.aprec, which would feed
+	// it, is reset at day 0 and never accumulated. The regression therefore
+	// evaluated at zero precipitation and returned 8.5 on every gridcell for
+	// every day of every run, where the paper's constant would have given 8.8. Two further things stood between it and a usable number even with a
 	// live input: it is an Earth calibration, and its argument is an annual
 	// precipitation sum, which on this world's shorter year is a smaller number
 	// for the same precipitation rate and so reads as a drier, more alkaline
@@ -120,9 +123,29 @@ void substrate_partition(Soil& soil){
 	// change around 66% ending up at 100% around 75%.
 	// Meaning that there is no nitrification at that WFPS.
 	// Derived from Pilegaard 2013
+	//
+	// The argument is water-filled pore space, and it is what the split is
+	// declared in. Xu-Ri and Prentice (2008) table 7 names the aeration
+	// variable DyN allocates substrates on as "soil moisture as water-filled
+	// pore space (WFPS)", and its nitrification section as the WFPS of the top
+	// 50 cm, which is this layer. nitrification and denitrification below
+	// already read soil.wfps(0); this function used to read
+	// get_soil_water_upper(), a fraction of AVAILABLE capacity, which is a
+	// different quantity with a texture-dependent offset and scale. Feeding it
+	// here made the aerobic/anaerobic split a function of texture at fixed soil
+	// wetness: on the current Vesper soil map, a cell at 0.50 WFPS got an
+	// anaerobic share anywhere from 0.07 to 0.87 depending only on its sand and
+	// clay. The curve's own midpoint and shape are the port's and are not in
+	// Xu-Ri; they are registered as unsourced with their bracket in
+	// biosphere/config/ntransform.yaml.
+	//
+	// This does NOT give the curve its full domain. wcont is bounded above by
+	// field capacity, so soil.wfps(0) tops out at field capacity over
+	// saturation -- a median of 0.81 and as little as 0.57 on that map. Water
+	// above field capacity is the quantity the model does not carry.
 
-	double wcont = soil.get_soil_water_upper();
-	double wet = richards_curve(0.05,0.95,7.5,0.5,wcont);
+	double wfps = soil.wfps(0);
+	double wet = richards_curve(0.05,0.95,7.5,0.5,wfps);
 
 	soil.NH4_mass_w = soil.NH4_mass * wet;
 	soil.NO3_mass_w = soil.NO3_mass * wet;

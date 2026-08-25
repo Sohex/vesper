@@ -226,12 +226,17 @@ it is now compiled in.
 Because gaseous loss changes mineral N availability, this is not merely an
 emissions-reporting issue. SDEC-8 joins BIO-23's pressure/O2 handoff and
 SDEC-3/PLHY's saturation state to a registered N-transformation parameter and
-model-form bracket. The register, the bounds that hold without the two source
-papers this project could not obtain, and the variable mismatch in the
-aerobic/anaerobic split are in
+model-form bracket. Both source papers are now held and read, so every constant
+carries a verdict against its calibration and the Earth-calibrated response
+bracket is declared. Eight of the operator's twenty registered constants and
+forms agree with Xu-Ri and Prentice (2008) or Weier et al. (1993); five are
+outside the range their own source gives and seven are in neither paper. The
+aerobic/anaerobic split is settled on the variable -- Xu-Ri table 7 names it as
+water-filled pore space and the operator now reads it -- and unsettled on the
+form. The register, the brackets, the bounds and the residual are in
 `soil-nitrogen-transformation-parameterisation.md`, and
-`biosphere/scripts/ntransform_gate.py` enforces the declaration. Methane remains
-the separate, disabled BIO-28 scope.
+`biosphere/scripts/ntransform_gate.py` enforces the declaration and refuses on
+exactly that residual. Methane remains the separate, disabled BIO-28 scope.
 
 ### 9. Current artifacts cannot diagnose or close this system
 
