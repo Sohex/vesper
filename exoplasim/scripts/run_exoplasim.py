@@ -2238,6 +2238,9 @@ def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
             elif code in DUST_EMISSION_SURFACE_CODES:
                 builder, setting = ("build_dust_source_fields.py",
                                     "model.dust_emission")
+            elif code in ROUGHNESS_SURFACE_CODES:
+                builder, setting = ("build_surface_roughness.py",
+                                    "model.roughness_source")
             else:
                 builder, setting = ("build_surface_albedo.py",
                                     "model.land_albedo_source")
