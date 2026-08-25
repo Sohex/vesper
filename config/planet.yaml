@@ -574,8 +574,12 @@ model:
   # model takes a floating-point trap in the shortwave without it,
   # exoplasim/notes/physics-filter-stability.md) and its strength is therefore a
   # decision, not a detail. Scale-free in n/NTRU, so the same FRACTION of every
-  # rung's spectrum is damped; the half-power point is n/NTRU = 0.858 at kappa 8
-  # and gamma 16, and it moves with gamma.
+  # rung's spectrum is damped. The point where the filter takes HALF OF WHAT THE
+  # FLOW WOULD OTHERWISE PUT THERE is n/NTRU = (ln2/(2 kappa))^(1/gamma), which
+  # is 0.822 at kappa 8 and gamma 16 and moves with gamma. That is stated on
+  # f^2 rather than on f, because f^2 is what a spectrum equilibrates at: the
+  # single-transform half-power point, 0.858, is not a quantity anything
+  # measures.
   #
   # WHERE IT IS APPLIED, because that is what its effect follows from.
   # `legmod.f90` folds f(n) into every per-mode transform WEIGHT, both
@@ -607,11 +611,17 @@ model:
   # a factor of two in kappa moves the confinement criterion by less than that
   # criterion's own quantisation at every rung.
   filter_kappa: 8.0
-  # gamma is DERIVED, 2026-08-23, and was 8 until then. It was solved for from
+  # gamma was DERIVED on 2026-08-23, and was 8 until then. It was solved for from
   # 2*kappa*x^gamma/dt = x/tau_vorticity, requiring the crossover x >= 0.6 at
-  # the most demanding rung, which is T21 and needs gamma >= 14.78; 16 is taken
-  # for margin. scripts/check_consistency.py recomputes that crossover and fails
-  # below the floor.
+  # the most demanding rung, which is T21 and needs gamma >= 14.78; 16 was taken
+  # for margin.
+  #
+  # THAT DERIVATION NO LONGER REACHES 16. Under the law that survives the
+  # timestep test the confinement point is (ln2/(2 kappa))^(1/gamma), the same
+  # 0.6 floor needs only gamma >= 6.15 at kappa 8, and the point carries no rung
+  # -- so there is no most-demanding rung either. scripts/check_consistency.py
+  # gates the surviving quantity against the same unchanged floor; what holds 16
+  # is the measurement below, not the arithmetic above.
   #
   # THE DERIVATION'S RATE LAW IS REFUTED AND THE VALUE IS KEPT. Two timestep
   # pairs say the filter's spectral effect carries no 1/dt
