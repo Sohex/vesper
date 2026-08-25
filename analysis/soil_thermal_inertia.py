@@ -29,7 +29,11 @@ the difference is made of.
 ## The model, and why it is this one
 
 Johansen's interpolation as Farouki tabulates it, the same formulation
-`lawrence_2007` describes blending organic material into. Three relations:
+`lawrence_2007` describes blending organic material into. The monograph itself
+is not held -- `references/INDEX.md` records that DTIC does not resolve from
+this host -- so the relations here come from that secondary statement, which is
+enough for the form and not enough to check the coefficients against the
+original. Three relations:
 
     k_dry = (0.135*rho_b + 64.7) / (2700 - 0.947*rho_b)
     k_sat = k_solid^(1-phi) * k_water^phi

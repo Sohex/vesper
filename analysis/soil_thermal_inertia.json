@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-25T08:21:24+00:00",
+  "generated": "2026-08-25T08:26:28+00:00",
   "question": "is the modelled soil's thermal inertia controlled by moisture or by parent material",
   "model": "Johansen's interpolation as Farouki tabulates it; the mineralogy enters only through k_sat, so the dry conductivity is a function of bulk density alone",
   "column": {
