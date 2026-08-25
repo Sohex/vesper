@@ -141,6 +141,8 @@ ilibrary = { "50":["nu"   ,"true_anomaly"                    ,"deg"        ],
             "182":["evap" ,"lwe_of_water_evaporation"        ,"m s-1"      ],
             "183":["tso"  ,"climate_deep_soil_temperature"   ,"K"          ],
             "184":["alb2" ,"surface_albedo_SW2"              ,"1"          ],
+            "201":["tasmax","air_temperature_2m_maximum"     ,"K"          ],
+            "202":["tasmin","air_temperature_2m_minimum"     ,"K"          ],
             "203":["rsut" ,"toa_outgoing_shortwave_flux"     ,"W m-2"      ],
             "204":["ssru" ,"surface_solar_radiation_upward"  ,"W m-2"      ],
             "205":["stru" ,"surface_thermal_radiation_upward","W m-2"      ],
@@ -252,6 +254,18 @@ FIELD_NOTES = {
             "over ice below 273.16 K and over liquid water at or above it. "
             "Specific humidity `hus` is the linear quantity the model "
             "integrates and is what a consumer that needs a mean should use."),
+    "tasmax": ("Maximum over the output window of `tas`, the near-surface AIR "
+               "temperature. Extremal, not a mean: `outreset` clears it at "
+               "every regular write. This is the pair `maxt`/`mint` is NOT: "
+               "those are extrema of the surface temperature `ts`."),
+    "tasmin": ("Minimum over the output window of `tas`, the near-surface AIR "
+               "temperature. Extremal, not a mean. See `tasmax`."),
+    "maxt": ("Maximum over the output window of `ts`, the SURFACE "
+             "temperature, not of the near-surface air temperature. It "
+             "brackets `ts` and need not bracket `tas`. The air-temperature "
+             "extrema are `tasmax` and `tasmin`."),
+    "mint": ("Minimum over the output window of `ts`, the SURFACE "
+             "temperature. See `maxt`."),
     "spd": ("The speed of the INTERVAL-MEAN WIND VECTOR at each model level, "
             "sqrt(ua^2 + va^2), and not the mean wind speed. In the low-I/O "
             "regime `ua` and `va` are already interval means, so this is "

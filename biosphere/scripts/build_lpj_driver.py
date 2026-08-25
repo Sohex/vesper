@@ -337,10 +337,12 @@ def main() -> None:
                 np.asarray(data["pr"][:], dtype=float) * 1000.0 * 86400.0))
             rss_y.append(onto_months(np.asarray(data["rss"][:], dtype=float)))
             # The range of the SURFACE temperature. maxt and mint are extrema of
-            # dt(:,NLEP) and bracket ts, not tas; the near-surface AIR extrema are
-            # codes 201/202, which no product carries yet. See the field
-            # contract, and note that vesperinput does not hand this to
+            # dt(:,NLEP) and bracket ts, not tas. The near-surface AIR extrema
+            # are codes 201/202 and reach a product as tasmax/tasmin since
+            # world-j0az; carrying them needs a driver array VESPDRV does not
+            # have, which is why vesperinput still does not hand anything to
             # climate.dtr, whose one reader means an air-temperature range.
+            # See the field contract.
             tsrange_y.append(onto_months(np.maximum(
                 np.asarray(data["maxt"][:], dtype=float)
                 - np.asarray(data["mint"][:], dtype=float), 0.0)))
@@ -494,7 +496,9 @@ def main() -> None:
             "maxt - mint, the range of the SURFACE temperature. NOT the "
             "near-surface air diurnal range: maxt/mint are extrema of "
             "dt(:,NLEP) and bracket ts, not tas. vesperinput does not assign it "
-            "to climate.dtr. biosphere/notes/ecological-forcing-field-contract.md"),
+            "to climate.dtr. The air range is tasmax - tasmin, codes 201/202, "
+            "which this format has no array for. "
+            "biosphere/notes/ecological-forcing-field-contract.md"),
         "land_definition": "lsm from the climatology, itself built from surface_class",
         # Month-weighted, because the months are NOT equal: a plain mean over the
         # twelve would over-weight the eleven short ones.

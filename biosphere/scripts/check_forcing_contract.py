@@ -57,17 +57,22 @@ SIGNS = {
     "czen": "+",
 }
 
-# Fields the contract needs and this producer does not write. Reported, never
-# silently tolerated: a contract that names a field nothing produces has not
-# closed anything. Each entry says where the field would have to come from.
-NOT_PRODUCED = {
-    "tasmax": "code 201 (atsama). Written by outmod.f90, absent from "
-              "pyburn.ilibrary and from run_exoplasim.REGULAR_CODES.",
+# Fields the contract needs whose presence in a given product is not
+# guaranteed. Reported, never silently tolerated: a contract that names a field
+# a product does not carry has not closed anything. Each entry says WHY it can
+# be missing, and the two reasons are different -- one is a field nothing in the
+# model writes, the other a field a product predates.
+MAY_BE_ABSENT = {
+    "tasmax": "code 201 (atsama), written by outmod.f90 all along. In "
+              "pyburn.ilibrary and in run_exoplasim.REGULAR_CODES since "
+              "world-j0az, so a product postprocessed before that does not "
+              "carry it and one postprocessed after does.",
     "tasmin": "code 202 (atsami). Same.",
     "td2m": "code 168. In REGULAR_CODES and SNAPSHOT_CODES; outmod.f90 never "
             "writes it and pyburn does not derive it.",
     "uas": "code 165. Never written; there is no 10 m wind in this model's "
-           "output.",
+           "output. The mean near-surface wind SPEED is the ecological "
+           "stream's `ecowind`, code 614, and not a component pair.",
     "vas": "code 166. Never written.",
 }
 
@@ -145,27 +150,40 @@ def check_shortwave(data: dict) -> list[tuple[str, str, str]]:
     return out
 
 
+# Each extremum pair with the variable it is an extremum OF. maxt/mint are
+# extrema of the SURFACE temperature and tasmax/tasmin of the near-surface AIR
+# temperature; the contract names them apart for exactly this reason, and each
+# is held only against its own variable. Requiring either pair to bracket the
+# other temperature would fail on correct data: the two variables differ by the
+# dry-adiabatic reduction fluxmod applies, and on the bootstrap climatology tas
+# lies outside [mint, maxt] in 15,561 of 24,576 cell-bins by up to 28.3 K.
+EXTREMA_PAIRS = (("maxt", "mint", "ts"),
+                 ("tasmax", "tasmin", "tas"))
+
+
 def check_extrema(data: dict) -> list[tuple[str, str, str]]:
-    """Which variable are maxt and mint extrema OF?
+    """Is each extremum pair an extremum of the variable it is named for?
 
     An extremum over a window brackets the mean of the same variable over the
     same window, whatever the variable does inside it. So this identifies the
     variable rather than merely testing a plausible bound, and it is the check
     the wrong-variable defect was found by.
     """
-    if not {"maxt", "mint"} <= data.keys():
-        return []
-    lo = np.asarray(data["mint"], float)
-    hi = np.asarray(data["maxt"], float)
-    out = [("maxt >= mint", PASS if bool(np.all(hi >= lo - 1e-6)) else FAIL,
-            f"worst maxt - mint = {float(np.min(hi - lo)):.3f} K")]
-    for name in ("ts", "tas"):
-        if name not in data:
+    out = []
+    for himax, lomin, owns in EXTREMA_PAIRS:
+        if not {himax, lomin} <= data.keys():
             continue
-        v = np.asarray(data[name], float)
+        lo = np.asarray(data[lomin], float)
+        hi = np.asarray(data[himax], float)
+        out.append((f"{himax} >= {lomin}",
+                    PASS if bool(np.all(hi >= lo - 1e-6)) else FAIL,
+                    f"worst {himax} - {lomin} = {float(np.min(hi - lo)):.3f} K"))
+        if owns not in data:
+            continue
+        v = np.asarray(data[owns], float)
         outside = int(np.sum((v < lo - 1e-6) | (v > hi + 1e-6)))
         out.append((
-            f"maxt and mint bracket {name}",
+            f"{himax} and {lomin} bracket {owns}",
             PASS if outside == 0 else FAIL,
             "" if outside == 0 else
             f"{outside} of {v.size} outside, worst excursion "
@@ -207,7 +225,7 @@ def check_present(data: dict) -> list[tuple[str, str, str]]:
     out.append(("every field the contract requires is present",
                 PASS if not missing else FAIL,
                 "" if not missing else f"missing {missing}"))
-    for name, why in NOT_PRODUCED.items():
+    for name, why in MAY_BE_ABSENT.items():
         if name in data:
             out.append((f"{name} is available", PASS, ""))
         else:
@@ -225,7 +243,7 @@ def run_checks(data: dict, units: dict | None = None
 
 
 # ---------------------------------------------------------------------------
-# Fixtures. Six of the seven are built to be wrong in a named way.
+# Fixtures. Seven of the eight are built to be wrong in a named way.
 # ---------------------------------------------------------------------------
 
 def _clean() -> dict:
@@ -240,8 +258,15 @@ def _clean() -> dict:
     albedo = rng.uniform(0.05, 0.6, shape)
     ts = rng.uniform(240.0, 310.0, shape)
     swing = rng.uniform(0.5, 12.0, shape)
+    # The air temperature and its own extrema, built so the air pair brackets
+    # tas and does NOT bracket ts: that is what the two pairs being different
+    # variables means, and a fixture in which both pairs bracket both
+    # temperatures could not tell them apart.
+    tas = ts - 20.0 - swing * rng.uniform(0.0, 0.5, shape)
+    aswing = rng.uniform(0.5, 8.0, shape)
     return {
-        "tas": ts - swing * rng.uniform(0.0, 0.5, shape),
+        "tas": tas,
+        "tasmax": tas + aswing, "tasmin": tas - aswing,
         "ts": ts,
         "pr": total, "prl": prl, "prc": prc, "prsn": prsn,
         "rss": incident * (1.0 - albedo), "ssru": -incident * albedo,
@@ -289,8 +314,7 @@ def _fixtures() -> list[tuple[str, dict, dict, set]]:
     d = _clean()
     d["maxt"], d["mint"] = d["mint"], d["maxt"]
     out.append(("extrema swapped", d, {},
-                {"maxt >= mint", "maxt and mint bracket ts",
-                 "maxt and mint bracket tas"}))
+                {"maxt >= mint", "maxt and mint bracket ts"}))
 
     d = _clean()
     # Extrema of a DIFFERENT variable: the defect this checker was written for,
@@ -299,7 +323,16 @@ def _fixtures() -> list[tuple[str, dict, dict, set]]:
     d["maxt"] = other + 1.0
     d["mint"] = other - 1.0
     out.append(("extrema of a different variable", d, {},
-                {"maxt and mint bracket ts", "maxt and mint bracket tas"}))
+                {"maxt and mint bracket ts"}))
+
+    d = _clean()
+    # The AIR pair built from the SURFACE temperature: the same defect on the
+    # other pair, and the one that would silently restore the wrong diurnal
+    # range to climate.dtr now that a product carries both pairs.
+    d["tasmax"] = d["ts"] + 1.0
+    d["tasmin"] = d["ts"] - 1.0
+    out.append(("air extrema of the surface temperature", d, {},
+                {"tasmax and tasmin bracket tas"}))
 
     d = _clean()
     d["hur"] = d["czen"] * 100.0
@@ -360,7 +393,8 @@ def main() -> None:
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
-    print("FIXTURES  (six of seven are built to be wrong in a named way)")
+    print(f"FIXTURES  ({len(_fixtures()) - 1} of {len(_fixtures())} are built "
+          "to be wrong in a named way)")
     failures = run_fixtures(args.verbose)
 
     if args.climatology is not None:

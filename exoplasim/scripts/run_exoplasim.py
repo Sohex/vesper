@@ -53,11 +53,19 @@ SOLAR_EFFECTIVE_TEMPERATURE_K = 5772.0
 # world-j0az found the air extrema in; the cost of carrying it is one 2D field
 # per output bin, and the ledger's `drainage` crossing becomes readable the
 # moment a draining lower boundary is selected rather than one change later.
+#
+# 201 and 202 are the extrema of `dtsa`, the near-surface AIR temperature, and
+# outmod has written them unconditionally all along. They were the state the
+# comment above describes: a code the model writes and no product carries, and
+# the reason `climate.dtr` -- a diurnal AIR temperature range -- had no source.
+# 320 and 321 are extrema of `dt(:,NLEP)`, the SURFACE temperature; both pairs
+# travel, and pyburn names them apart as `tasmax`/`tasmin` and `maxt`/`mint`.
+# world-j0az; biosphere/notes/ecological-forcing-field-contract.md.
 REGULAR_CODES = [
     50, 51, 52, 53, 54, 110, 129, 130, 131, 132, 133, 134, 135, 139,
     140, 141, 142, 143, 144, 146, 147, 157, 160, 163, 164, 167,
     168, 170, 171, 172, 174, 175, 176, 177, 178, 179, 180,
-    181, 182, 184, 203, 204, 205, 207, 208, 209, 210, 211, 218, 221,
+    181, 182, 184, 201, 202, 203, 204, 205, 207, 208, 209, 210, 211, 218, 221,
     230, 231, 232, 238, 259, 260, 261, 262, 263, 264, 267, 318, 320, 321,
 ]
 
