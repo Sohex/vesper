@@ -381,6 +381,10 @@ POLICY.update(_acc([
     "aprl", "aprc", "aprs", "aevap", "ashfl", "alhfl", "aroff", "asmelt",
     "asndch", "acc", "assol", "asthr", "atsol", "atthr", "ataux", "atauy",
     "atsolu", "assolu", "asthru", "aqvi", "atsa", "ats0", "atsama", "atsami",
+    # WORLD-3QFZ: the surface downward solar flux by shortwave band. Written
+    # every time and read only behind accuvers >= 2.0, so a restart that
+    # predates them takes outreset rather than a diluted first window.
+    "afdsw1", "afdsw2",
     "azmuz", "asigrain", "tempmax", "tempmin",
     "agpi", "aventi", "alaav", "ampoti", "avrmpi", "acapen", "alnb", "achim",
     "aadq", "aammr", "aanrho", "aadmld", "aadt", "aadwatc", "aadsnow", "aadql",

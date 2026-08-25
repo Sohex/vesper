@@ -48,7 +48,7 @@ site was then read in context.
 
 **Root-only by caller, and correct as they stood.** `print_planet`, `initpm`,
 `initsi`, `readnl`, `setzt`, `noise`, `printseed`, `wrorb`, `wrspam`, `wrzs`,
-`dayseccheck`, `nlreplace`, `tpcore`, `ytp`, `aerocore`, and all of
+`dayseccheck`, `nlsetkey`, `tpcore`, `ytp`, `aerocore`, and all of
 `restartmod`'s record readers and `surfmod`'s `get_surf_array`,
 `check_surf_header` and `surface_ini`. These are reached only from inside a
 `if (mypid == NROOT)` block, so the guard is on the path rather than at the

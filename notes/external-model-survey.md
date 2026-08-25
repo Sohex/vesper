@@ -5444,14 +5444,16 @@ configuration choice made for other reasons. The eighth member of that array set
 
 ### 58e. Latent traps, one of which is one namelist key away
 
-- **`carbonmod` rewrites both namelist files with truncated groups.** Its private
-  copy of the radiation namelist carries 27 keys where the real one carries 60,
-  and it writes over the file at run end. Under `nco2evolve=1` that **deletes
-  every fork key** -- the stellar spectrum file, the two-band albedo switch, the
-  ozone and water-vapour weights, the trace-gas bands, the dust and cloud
-  settings -- and the next year runs on defaults. It does the same to the
-  atmosphere namelist, dropping the day count and the timestep. Not armed today.
-  It is one key away.
+- **`carbonmod` persists its two evolved keys by editing them in place.**
+  `co2update` and `psurfupdate` each rewrite the one line assigning the key they
+  own, through `nlsetkey`, and copy every other line of the namelist file
+  through unchanged. The earlier shape -- a private copy of the radiation group
+  declared in `carbonmod` and emitted with a namelist WRITE -- carried 27 keys
+  where the real group carries 60, so under `nco2evolve=1` it deleted every key
+  the copy did not name: the stellar spectrum file, the two-band albedo switch,
+  the ozone and water-vapour weights, the trace-gas bands, the dust and cloud
+  settings. It did the same to the atmosphere namelist, dropping the day count
+  and the timestep. cons-15.
 - **`carbonmod` also captures the surface pressure before the orography
   correction and writes the uncorrected value back**, so under the same switch
   surface pressure ratchets up every year on top of the intended drift.

@@ -719,6 +719,20 @@
       assol(:)=assol(:)/real(naccuout)
       call writegp(40,assol,176,0)
 
+!     ******************************************
+!     * surface solar radiation downward, band *
+!     ******************************************
+!
+!     WORLD-3QFZ. The two shortwave bands separately, at the surface, downward.
+!     Their sum is the INCIDENT surface shortwave, which 176 does not carry:
+!     176 is the net flux. The biosphere's PAR fraction is a surface quantity
+!     and has been anchored on a top-of-atmosphere band ratio for want of these.
+
+      afdsw1(:)=afdsw1(:)/real(naccuout)
+      afdsw2(:)=afdsw2(:)/real(naccuout)
+      call writegp(40,afdsw1,185,0)
+      call writegp(40,afdsw2,186,0)
+
 !     *****************************
 !     * surface thermal radiation *
 !     *****************************
@@ -1477,6 +1491,18 @@
 
       call writegp(140,dswfl(:,NLEP),176,0)
 
+!     ******************************************
+!     * surface solar radiation downward, band *
+!     ******************************************
+!
+!     WORLD-3QFZ. The two shortwave bands separately, at the surface, downward.
+!     Their sum is the INCIDENT surface shortwave, which 176 does not carry:
+!     176 is the net flux. The biosphere's PAR fraction is a surface quantity
+!     and has been anchored on a top-of-atmosphere band ratio for want of these.
+
+      call writegp(140,dfdsw1,185,0)
+      call writegp(140,dfdsw2,186,0)
+
 !     *****************************
 !     * surface thermal radiation *
 !     *****************************
@@ -1909,6 +1935,18 @@
 
       call writegp(kunit,dswfl(:,NLEP),176,0)
 
+!     ******************************************
+!     * surface solar radiation downward, band *
+!     ******************************************
+!
+!     WORLD-3QFZ. The two shortwave bands separately, at the surface, downward.
+!     Their sum is the INCIDENT surface shortwave, which 176 does not carry:
+!     176 is the net flux. The biosphere's PAR fraction is a surface quantity
+!     and has been anchored on a top-of-atmosphere band ratio for want of these.
+
+      call writegp(kunit,dfdsw1,185,0)
+      call writegp(kunit,dfdsw2,186,0)
+
 !     *****************************
 !     * surface thermal radiation *
 !     *****************************
@@ -2256,6 +2294,8 @@
       alhfl(:)=0.
       acc(:)=0.
       assol(:)=0.
+      afdsw1(:)=0.
+      afdsw2(:)=0.
       asthr(:)=0.
       atsol(:)=0.
       atthr(:)=0.
@@ -2399,6 +2439,8 @@
       alhfl(:)=alhfl(:)+dlhfl(:)
       acc(:)=acc(:)+dcc(:,NLEP)
       assol(:)=assol(:)+dswfl(:,NLEP)
+      afdsw1(:)=afdsw1(:)+dfdsw1(:)
+      afdsw2(:)=afdsw2(:)+dfdsw2(:)
       asthr(:)=asthr(:)+dlwfl(:,NLEP)
       atsol(:)=atsol(:)+dswfl(:,1)
       atthr(:)=atthr(:)+dlwfl(:,1)

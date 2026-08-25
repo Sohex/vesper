@@ -148,6 +148,7 @@
       call mpbcr(VEARTH)
       call mpbcr(WMAX)
       call mpbci(nsupply)
+      call mpbci(nco2evolve)
       call mpbcr(psurf0)
       
       end subroutine carbonini
@@ -374,8 +375,6 @@
       call mpbcr(co2)
       call mpbcr(psurf)
       
-      n_run_months = 0
-      call mpbci(n_run_months)
       if (nco2evolve > 0.5) then
         call co2update !Change CO2 for following year
         call psurfupdate !Change surface pressure for following year
@@ -390,118 +389,112 @@
       
       subroutine co2update
       use radmod
-      
-      namelist/radmod_nl/ndcycle,ncstsol,solclat,solcdec,no3,co2        &
-     &               ,iyrbp,nswr,nlwr,nfixed,fixedlon                   &
-     &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale             &
-     &               ,nsol,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
-     &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn
+
+!     Persist the evolved CO2 into <radmod_namelist>, editing only the key this
+!     routine owns. Declaring a private copy of radmod_nl here and WRITING it
+!     would emit exactly the keys the copy names and silently delete every other
+!     key the file carries -- the stellar spectrum, the band albedo switch, the
+!     ozone and water-vapour weights, the trace-gas bands. cons-15.
+
+      character (len=32) :: yval
+
       if (mypid == NROOT) then
-      open(23,file=trim(radmod_namelist)//'.new')
-      write(23,radmod_nl)
-      close(23)
-      call nlreplace(trim(radmod_namelist)//'.new',radmod_namelist)
+         write(yval,'(1pe24.16)') co2
+         call nlsetkey(radmod_namelist,'CO2',adjustl(yval))
       endif
       return
       end subroutine co2update
-      
+
 !
 !     ===============================
 !
-   
+
       subroutine psurfupdate
       use pumamod
-      
-      namelist /plasim_nl/ &
-     &               noutput,ngui,n_start_year,       &
-     &               n_days_per_year,n_run_years,n_run_months,n_run_days,   &
-!     nguidbg is gone from here too, world-9fk: this group WRITES a new
-!     plasim_namelist, and plasim_nl no longer declares that name, so a key
-!     left here would abort the next read.
-     &               kick,mpstep,naqua,ndiag,nqspec,  &  
-     &               nveg,nwpd,nprint,nsync,syncstr,psurf
+
+!     Persist the evolved surface pressure into <plasim_namelist>, editing only
+!     the key this routine owns. See co2update. cons-15.
+
+      character (len=32) :: yval
+
       if (mypid == NROOT) then
-      open(23,file=trim(plasim_namelist)//'.new',form='formatted')
-      write(23,plasim_nl)
-      close(23)
-      call nlreplace(trim(plasim_namelist)//'.new',plasim_namelist)
+         write(yval,'(1pe24.16)') psurf
+         call nlsetkey(plasim_namelist,'PSURF',adjustl(yval))
       endif
       return
       end subroutine psurfupdate
-                   
-
-      
 
 !
 !     ===============================
 !
 
-      subroutine nlreplace(cnew,cold)
+      subroutine nlsetkey(cfile,ckey,cvalue)
       use pumamod, only: nud
 
-!     Put the namelist group just written to <cnew> in place of the file
-!     <cold>, but only if every key <cold> carries also appears in <cnew>.
+!     Assign <cvalue> to <ckey> in the namelist file <cfile>, leaving every other
+!     line of the file byte for byte as it was. An existing assignment of <ckey>
+!     is replaced in place; if the file does not assign it, the assignment is
+!     inserted ahead of the group terminator. The file is rewritten only once the
+!     edit has succeeded, so a missing file, or one with neither the key nor a
+!     terminator, leaves the original standing and says so.
 !
-!     co2update and psurfupdate each declare a PRIVATE copy of a namelist
-!     group that belongs to another module, and a copy that has fallen behind
-!     the real group silently deletes every key it does not name. Counting keys
-!     does not catch that: a namelist file lists only the keys someone set,
-!     while a namelist WRITE emits every key in the group, so the truncated
-!     group can be larger than the file it destroys. Key containment is the
-!     invariant that holds.
+!     ROOT THREAD ONLY: <nud> is one Fortran unit for the whole thread team, and
+!     the working file name is shared. Both callers guard on mypid == NROOT.
 
       implicit none
-      character (len=*) :: cnew,cold
-      integer, parameter :: MAXKEY = 512
-      character (len=80)  :: yold(MAXKEY),ynew(MAXKEY),ykey
-      character (len=256) :: yline
-      integer :: iold,inew,ios,j,k,iunit,junit
-      logical :: lseen
+      character (len=*), intent(in) :: cfile,ckey,cvalue
+      character (len=256) :: yline,yadj,ytmp
+      character (len=80)  :: ykey,ywant
+      integer :: ios,iunit,junit
+      logical :: lset
 
-      iold = 0
-      open(newunit=iunit,file=cold,status='old',iostat=ios)
-      if (ios /= 0) return                 ! no file yet, nothing to protect
+      ytmp = trim(cfile)//'.new'
+      ywant = ckey
+      call nlupper(ywant)
+
+      open(newunit=iunit,file=cfile,status='old',iostat=ios)
+      if (ios /= 0) then
+         write(nud,*) '*** nlsetkey: no file ',trim(cfile),             &
+     &                ', ',trim(ckey),' not written'
+         return
+      endif
+      open(newunit=junit,file=ytmp,status='replace')
+
+      lset = .false.
       do
          read(iunit,'(a)',iostat=ios) yline
          if (ios /= 0) exit
          call nlkey(yline,ykey)
-         if (ykey == ' ' .or. iold >= MAXKEY) cycle
-         iold = iold + 1
-         yold(iold) = ykey
-      enddo
-      close(iunit)
-
-      inew = 0
-      open(newunit=iunit,file=cnew,status='old',iostat=ios)
-      if (ios /= 0) return
-      do
-         read(iunit,'(a)',iostat=ios) yline
-         if (ios /= 0) exit
-         call nlkey(yline,ykey)
-         if (ykey == ' ' .or. inew >= MAXKEY) cycle
-         inew = inew + 1
-         ynew(inew) = ykey
-      enddo
-      close(iunit)
-
-      do j = 1 , iold
-         lseen = .false.
-         do k = 1 , inew
-            if (ynew(k) == yold(j)) lseen = .true.
-         enddo
-         if (.not. lseen) then
-            write(nud,*) '*** nlreplace: ',trim(cold),' left unchanged'
-            write(nud,*) '*** the group written to ',trim(cnew),         &
-     &                   ' carries no key ',trim(yold(j))
-            return
+         if (ykey == ywant) then
+            if (.not. lset) then
+               write(junit,'(1x,a," = ",a)') trim(ckey),trim(cvalue)
+               lset = .true.
+            endif
+            cycle                            ! and drop any later duplicate
          endif
+         yadj = adjustl(yline)
+         if (.not. lset .and. yadj(1:1) == '/') then
+            write(junit,'(1x,a," = ",a)') trim(ckey),trim(cvalue)
+            lset = .true.
+         endif
+         write(junit,'(a)') trim(yline)
       enddo
+      close(iunit)
+      close(junit)
 
-!     every key survives: put the new group in place
+      if (.not. lset) then
+         open(newunit=iunit,file=ytmp,status='old',iostat=ios)
+         if (ios == 0) close(iunit,status='delete')
+         write(nud,*) '*** nlsetkey: ',trim(cfile),' carries neither ',  &
+     &                trim(ckey),' nor a group terminator; left unchanged'
+         return
+      endif
 
-      open(newunit=iunit,file=cnew,status='old',iostat=ios)
+!     the edit stands: put the working file in place
+
+      open(newunit=iunit,file=ytmp,status='old',iostat=ios)
       if (ios /= 0) return
-      open(newunit=junit,file=cold,status='replace')
+      open(newunit=junit,file=cfile,status='replace')
       do
          read(iunit,'(a)',iostat=ios) yline
          if (ios /= 0) exit
@@ -511,7 +504,7 @@
       close(iunit,status='delete')
 
       return
-      end subroutine nlreplace
+      end subroutine nlsetkey
 
 !
 !     ===============================
@@ -523,9 +516,9 @@
 !     stripped of any array subscript. Blank if the line assigns nothing.
 
       implicit none
-      character (len=*) :: cline
-      character (len=*) :: ckey
-      integer :: ieq,ipar,j,ic
+      character (len=*), intent(in)  :: cline
+      character (len=*), intent(out) :: ckey
+      integer :: ieq,ipar
 
       ckey = ' '
       ieq = index(cline,'=')
@@ -537,10 +530,27 @@
          ckey = ' '
          return
       endif
+      call nlupper(ckey)
+
+      return
+      end subroutine nlkey
+
+!
+!     ===============================
+!
+
+      subroutine nlupper(ckey)
+
+!     Upper case <ckey> in place, ASCII only. Namelist keys are matched on it.
+
+      implicit none
+      character (len=*), intent(inout) :: ckey
+      integer :: j,ic
+
       do j = 1 , len_trim(ckey)
          ic = ichar(ckey(j:j))
          if (ic >= 97 .and. ic <= 122) ckey(j:j) = char(ic-32)
       enddo
 
       return
-      end subroutine nlkey
+      end subroutine nlupper
