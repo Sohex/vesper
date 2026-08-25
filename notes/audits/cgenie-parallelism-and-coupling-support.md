@@ -107,30 +107,37 @@ under the cap, over 100 model years.
 
 ## 2b. The profile is a function of the model state, and a short run is a transient
 
-The same binary and the same input, profiled over the first 10 model years and
-over the first 100, do not give the same profile:
+The same binary and the same input at 36 x 36 x 16, profiled over the first 10
+model years, the first 100 and the first 1000:
 
-| routine | first 10 years | first 100 years |
-| --- | ---: | ---: |
-| `tstepo_flux` | 44.1% | 53.3% |
-| `co` | 6.3% | 3.3% |
-| `eos` | 2.9% | 1.4% |
-| `eosd` | 3.2% | 2.0% |
-| `ubarsolv` | 2.1% | 1.8% |
+| | 10 years | 100 years | 1000 years |
+| --- | ---: | ---: | ---: |
+| `tstepo_flux` | 44.14% | 53.28% | 52.14% |
+| `co` | 6.25% | 3.31% | 2.61% |
+| `eos` | 2.91% | 1.41% | 1.19% |
+| `ubarsolv` | 2.06% | 1.83% | 1.73% |
+| **parallel share** | 87.57% | **88.85%** | **89.06%** |
+| **serial share** | 2.06% | **1.84%** | **1.75%** |
 
-Every one of those moves in the direction a cold start predicts. The run begins
-from a uniform 10 degree ocean, so convective adjustment and the equation-of-state
-calls inside it are doing their heaviest work at the start and fall away as the
-model stratifies; and `tstepo_flux`'s isoneutral diffusion branch is entered only
-where `dzrho < -1e-12`, so it turns ON as stratification develops. A profile of
-the first ten years of a spin-up is therefore a profile of a transient, and a
-spin-up runs for thousands of years in the OTHER state.
+The moves between 10 and 100 years are what a cold start predicts. The run begins
+from a uniform 10 degree ocean, so convective adjustment and the
+equation-of-state calls inside it do their heaviest work at the start and fall
+away as the model stratifies, and `tstepo_flux`'s isoneutral diffusion branch is
+entered only where `dzrho < -1e-12`, so it turns ON as stratification develops. A
+profile of the first ten years of a spin-up is a profile of a transient.
 
-This matters to the verdict only in the direction that makes it safer: the serial
-share falls with integration length and the parallel share rises. It is recorded
-because the difference between the two run lengths at one grid is LARGER than the
-difference between the two grids, and a reader comparing grids across run lengths
-would be comparing states.
+**Between 100 and 1000 years the decomposition has settled**, which is the
+statement that matters: the parallel share moves by 0.2 points and the serial
+share by 0.09, against 1.3 and 0.2 between 10 and 100. The sixteen-thread bound
+with the heap traffic removed is 12.47 at 100 years and 12.51 at 1000. Individual
+routines are still drifting -- `co` is still falling -- so this is not a claim
+that the model has equilibrated, only that what the verdict rests on has stopped
+moving.
+
+It is recorded because the difference between the shortest run and the longest at
+one grid is LARGER than the difference between the two grids, so a reader
+comparing grids across run lengths would be comparing states. Every number in
+section 2c is at 100 model years for both grids.
 
 ## 2c. Where the instructions actually go
 

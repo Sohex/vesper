@@ -2286,6 +2286,1685 @@
           "32": 17.16
         }
       }
+    },
+    "worjh2_36x36x16_1000y": {
+      "build_ok": true,
+      "build_reused": true,
+      "exe_bytes": 9123872,
+      "code_model": "medium",
+      "samples": 153822,
+      "period": 20000000,
+      "instructions_sampled": 3076440000000,
+      "sample_rate_wanted_per_second": 750,
+      "sample_rate_cap_per_second": 3000,
+      "symbols": [
+        {
+          "percent": 52.14,
+          "samples": 80205,
+          "symbol": "tstepo_flux_",
+          "dso": "genie.exe",
+          "file": "genie-goldstein/src/fortran/tstepo_flux.F",
+          "component": "ocean",
+          "decomposition": "parallel",
+          "decomposition_reason": "k,j,i,l nest; fw/fs/fb carry a face flux forward, recoverable by recomputing one row per thread; limps and dmax are a count and a max"
+        },
+        {
+          "percent": 8.31,
+          "samples": 12775,
+          "symbol": "tstipa_",
+          "dso": "genie.exe",
+          "file": "genie-embm/src/fortran/tstipa.f",
+          "component": "atmosphere (EMBM)",
+          "decomposition": "parallel",
+          "decomposition_reason": "Jacobi iteration: tq2 holds the whole previous iterate, so each sweep is data-parallel over cells with a barrier between sweeps"
+        },
+        {
+          "percent": 6.11,
+          "samples": 9395,
+          "symbol": "velc_",
+          "dso": "genie.exe",
+          "file": "genie-goldstein/src/fortran/velc.f",
+          "component": "ocean",
+          "decomposition": "parallel",
+          "decomposition_reason": "vertical integration inside each (i,j)"
+        },
+        {
+          "percent": 3.93,
+          "samples": 6049,
+          "symbol": "eosd_",
+          "dso": "genie.exe",
+          "file": "genie-goldstein/src/fortran/eos.f",
+          "component": "ocean",
+          "decomposition": "parallel",
+          "decomposition_reason": "pure, called once per wet cell from tstepo_flux"
+        },
+        {
+          "percent": 3.64,
+          "samples": 5592,
+          "symbol": "goldstein_",
+          "dso": "genie.exe",
+          "file": "genie-goldstein/src/fortran/goldstein.F",
+          "component": "ocean",
+          "decomposition": "parallel",
+          "decomposition_reason": "the driver's own (i,j,k) loops: flux assembly, island superposition, boundary copies"
+        },
+        {
+          "percent": 3.14,
+          "samples": 4825,
+          "symbol": "surflux_",
+          "dso": "genie.exe",
+          "file": "genie-embm/src/fortran/surflux.F",
+          "component": "atmosphere (EMBM)",
+          "decomposition": "parallel",
+          "decomposition_reason": "one (i,j) loop carrying the sea-ice surface Newton iteration and the land column"
+        },
+        {
+          "percent": 2.61,
+          "samples": 4016,
+          "symbol": "co_",
+          "dso": "genie.exe",
+          "file": "genie-goldstein/src/fortran/co.F",
+          "component": "ocean",
+          "decomposition": "parallel",
+          "decomposition_reason": "convective adjustment, a vertical algorithm inside each (i,j)"
+        },
+        {
+          "percent": 1.84,
+          "samples": 2834,
+          "symbol": "pow",
+          "dso": "libm.so.6",
+          "component": "external (libm.so.6)",
+          "decomposition": "parallel",
+          "decomposition_reason": "pure libm leaf of a per-cell nest"
+        },
+        {
+          "percent": 1.73,
+          "samples": 2664,
+          "symbol": "ubarsolv_",
+          "dso": "genie.exe",
+          "file": "genie-goldstein/src/fortran/ubarsolv.f",
+          "component": "ocean",
+          "decomposition": "serial",
+          "decomposition_reason": "banded triangular solve; the forward elimination and back substitution both carry a dependence along the band and no recomputation removes it"
+        },
+        {
+          "percent": 1.72,
+          "samples": 2651,
+          "symbol": "0x00000000001b8044",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 1.53,
+          "samples": 2347,
+          "symbol": "malloc",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 1.52,
+          "samples": 2340,
+          "symbol": "embm_",
+          "dso": "genie.exe",
+          "file": "genie-embm/src/fortran/embm.F",
+          "component": "atmosphere (EMBM)",
+          "decomposition": "parallel",
+          "decomposition_reason": "the driver's own per-cell loops"
+        },
+        {
+          "percent": 1.5,
+          "samples": 2302,
+          "symbol": "cfree",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 1.41,
+          "samples": 2162,
+          "symbol": "jbar_",
+          "dso": "genie.exe",
+          "file": "genie-goldstein/src/fortran/jbar.f",
+          "component": "ocean",
+          "decomposition": "parallel",
+          "decomposition_reason": "pressure integral down each column"
+        },
+        {
+          "percent": 1.19,
+          "samples": 1826,
+          "symbol": "eos_",
+          "dso": "genie.exe",
+          "file": "genie-goldstein/src/fortran/eos.f",
+          "component": "ocean",
+          "decomposition": "parallel",
+          "decomposition_reason": "pure, no locals, called from the tracer and convection nests"
+        },
+        {
+          "percent": 1.13,
+          "samples": 1734,
+          "symbol": "log",
+          "dso": "libm.so.6",
+          "component": "external (libm.so.6)",
+          "decomposition": "parallel",
+          "decomposition_reason": "pure libm leaf of a per-cell nest"
+        },
+        {
+          "percent": 1.02,
+          "samples": 1564,
+          "symbol": "memcpy@plt",
+          "dso": "genie.exe",
+          "component": "unattributed",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.8,
+          "samples": 1235,
+          "symbol": "0x00000000001b804e",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.63,
+          "samples": 976,
+          "symbol": "0x00000000001b8054",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.57,
+          "samples": 873,
+          "symbol": "exp",
+          "dso": "libm.so.6",
+          "component": "external (libm.so.6)",
+          "decomposition": "parallel",
+          "decomposition_reason": "pure libm leaf of a per-cell nest"
+        },
+        {
+          "percent": 0.53,
+          "samples": 812,
+          "symbol": "tstepsic_",
+          "dso": "genie.exe",
+          "file": "genie-goldsteinseaice/src/fortran/tstepsic.f",
+          "component": "sea ice",
+          "decomposition": "parallel",
+          "decomposition_reason": "the same flux recycling on the ice fields"
+        },
+        {
+          "percent": 0.51,
+          "samples": 791,
+          "symbol": "tstepo_",
+          "dso": "genie.exe",
+          "file": "genie-goldstein/src/fortran/tstepo.F",
+          "component": "ocean",
+          "decomposition": "parallel",
+          "decomposition_reason": "copies and boundary loops over the grid; the six ts_t1/ts1_t1/rho_t1/... copies serve commented-out code"
+        },
+        {
+          "percent": 0.29,
+          "samples": 449,
+          "symbol": "0x00000000001b7fc0",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.21,
+          "samples": 324,
+          "symbol": "wind_",
+          "dso": "genie.exe",
+          "file": "genie-goldstein/src/fortran/wind.f",
+          "component": "ocean",
+          "decomposition": "parallel",
+          "decomposition_reason": "stress interpolation per cell"
+        },
+        {
+          "percent": 0.19,
+          "samples": 295,
+          "symbol": "0x00000000001b8823",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.18,
+          "samples": 278,
+          "symbol": "0x00000000001b804a",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.17,
+          "samples": 256,
+          "symbol": "gold_seaice_",
+          "dso": "genie.exe",
+          "file": "genie-goldsteinseaice/src/fortran/gold_seaice.F",
+          "component": "sea ice",
+          "decomposition": "parallel",
+          "decomposition_reason": "the driver's own per-cell loops"
+        },
+        {
+          "percent": 0.15,
+          "samples": 229,
+          "symbol": "malloc@plt",
+          "dso": "genie.exe",
+          "component": "unattributed",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.12,
+          "samples": 181,
+          "symbol": "0x00000000001b8013",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.11,
+          "samples": 171,
+          "symbol": "memset@plt",
+          "dso": "genie.exe",
+          "component": "unattributed",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.1,
+          "samples": 155,
+          "symbol": "0x00000000001b7fc7",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.1,
+          "samples": 150,
+          "symbol": "free@plt",
+          "dso": "genie.exe",
+          "component": "unattributed",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.09,
+          "samples": 146,
+          "symbol": "0x00000000001b8018",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.09,
+          "samples": 136,
+          "symbol": "0x00000000001b8829",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.07,
+          "samples": 107,
+          "symbol": "0x00000000001b884a",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.07,
+          "samples": 106,
+          "symbol": "0x00000000001b8806",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.06,
+          "samples": 99,
+          "symbol": "0x00000000001b8840",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.03,
+          "samples": 48,
+          "symbol": "0x00000000001b7fc4",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.03,
+          "samples": 46,
+          "symbol": "exp@plt",
+          "dso": "genie.exe",
+          "component": "unattributed",
+          "decomposition": "parallel",
+          "decomposition_reason": "pure libm leaf of a per-cell nest"
+        },
+        {
+          "percent": 0.03,
+          "samples": 45,
+          "symbol": "log@plt",
+          "dso": "genie.exe",
+          "component": "unattributed",
+          "decomposition": "parallel",
+          "decomposition_reason": "pure libm leaf of a per-cell nest"
+        },
+        {
+          "percent": 0.03,
+          "samples": 39,
+          "symbol": "0x00000000001b7fd3",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.02,
+          "samples": 37,
+          "symbol": "get_hosing_",
+          "dso": "genie.exe",
+          "file": "genie-goldstein/src/fortran/get_hosing.F",
+          "component": "ocean",
+          "decomposition": "parallel",
+          "decomposition_reason": "per-cell freshwater forcing"
+        },
+        {
+          "percent": 0.02,
+          "samples": 37,
+          "symbol": "island_",
+          "dso": "genie.exe",
+          "file": "genie-goldstein/src/fortran/island.f",
+          "component": "ocean",
+          "decomposition": "serial",
+          "decomposition_reason": "a path integral accumulated around each island boundary"
+        },
+        {
+          "percent": 0.02,
+          "samples": 30,
+          "symbol": "pow@plt",
+          "dso": "genie.exe",
+          "component": "unattributed",
+          "decomposition": "parallel",
+          "decomposition_reason": "pure libm leaf of a per-cell nest"
+        },
+        {
+          "percent": 0.02,
+          "samples": 28,
+          "symbol": "0xffffffffb7a015f0",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.01,
+          "samples": 21,
+          "symbol": "0x00000000001b7fe8",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 20,
+          "symbol": "0x00000000001b7fee",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 20,
+          "symbol": "0x00000000001b81f6",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 20,
+          "symbol": "0x00000000001b881e",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 18,
+          "symbol": "0x00000000001b7fcb",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 17,
+          "symbol": "0x00000000001b7ff6",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 14,
+          "symbol": "0x00000000001b8896",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 14,
+          "symbol": "0x00000000001b88b5",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 13,
+          "symbol": "0x00000000001b8851",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 13,
+          "symbol": "0x00000000001b88ae",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 12,
+          "symbol": "0x00000000001b88f6",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 11,
+          "symbol": "0x00000000001b813f",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 11,
+          "symbol": "0x00000000001b8904",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 10,
+          "symbol": "0x00000000001b8137",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 9,
+          "symbol": "0x00000000001b812f",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 9,
+          "symbol": "0x00000000001b81ef",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 9,
+          "symbol": "0x00000000001b81fd",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 8,
+          "symbol": "0x00000000001b8128",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 8,
+          "symbol": "0x00000000001b888f",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.01,
+          "samples": 8,
+          "symbol": "0x00000000001b88ef",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 7,
+          "symbol": "0x00000000001b821e",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 6,
+          "symbol": "0x00000000001b814f",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 6,
+          "symbol": "0x00000000001b8224",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 6,
+          "symbol": "0x00000000001b822a",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 6,
+          "symbol": "0x00000000001b88fd",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 6,
+          "symbol": "0xffffffffb7cb5f60",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 5,
+          "symbol": "0x00000000001b8147",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 4,
+          "symbol": "0x00000000001b8121",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 4,
+          "symbol": "0x00000000001b880c",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 4,
+          "symbol": "0x00000000001b8887",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 4,
+          "symbol": "0xffffffffb7a018d9",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 3,
+          "symbol": "0x00000000001b805b",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 3,
+          "symbol": "0x00000000001b80c7",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 3,
+          "symbol": "0x00000000001b80cd",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 3,
+          "symbol": "0x00000000001b811a",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 3,
+          "symbol": "0x00000000001b81db",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 3,
+          "symbol": "0x00000000001b8217",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 3,
+          "symbol": "0xffffffffb7cb0a26",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 3,
+          "symbol": "0xffffffffb7ce3d87",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 3,
+          "symbol": "0xffffffffb7ce3ef1",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 3,
+          "symbol": "0xffffffffb8fe3cb8",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "__genie_global_MOD_increment_genie_clock",
+          "dso": "genie.exe",
+          "component": "unattributed",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "0x00000000001b7fda",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "0x00000000001b801d",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "0x00000000001b80f4",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "0x00000000001b8104",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "0x00000000001b810c",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "0x00000000001b81e8",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "0x00000000001b8210",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "0x00000000001b8819",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "0x00000000001b8844",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "0x00000000001b885a",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "0xffffffffb7c0a2d0",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "0xffffffffb7caab48",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "0xffffffffb7cadf53",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "0xffffffffb7ce3d8c",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 2,
+          "symbol": "0xffffffffb7ce4aad",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "MAIN__",
+          "dso": "genie.exe",
+          "component": "unattributed",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x000000000000ca4b",
+          "dso": "ld-linux-x86-64.so.2",
+          "component": "external (ld-linux-x86-64.so.2)",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000000bc713",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000000bc71d",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000000bc746",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000000bc751",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000000bc7b4",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000000bc883",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000000bc97d",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000001b8040",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000001b8063",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000001b8069",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000001b80d4",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000001b80dd",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000001b80fc",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000001b8114",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000001b8177",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000001b81be",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000001b81c6",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000001b895e",
+          "dso": "libc.so.6",
+          "component": "external (libc.so.6)",
+          "decomposition": "heap",
+          "decomposition_reason": "heap and byte-moving traffic, mostly the array-section temporaries tstepo_flux creates for eosd"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0x00000000006db1b3",
+          "dso": "libgfortran.so.5.0.0",
+          "component": "external (libgfortran.so.5.0.0)",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7a018c6",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7a018d2",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7a01e10",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7c0a2ff",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7c14b95",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7c14bb5",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7caad8d",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cae089",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cae108",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cae152",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cae4ec",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cae56b",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7caecad",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7caece7",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7caede3",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7caf5b8",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7caf5d5",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cb0533",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cb06e2",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cb08f7",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cb09db",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cb0f74",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cb5d46",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cb5d4b",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cb5fe3",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cc7d16",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cc7d6d",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cc7eb2",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cc8013",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cc8043",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cc80fa",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7cc8102",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce345b",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce3536",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce3d9d",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce3db9",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce3ddd",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce3e9f",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce3ec4",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce3ee3",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce3f1a",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce3f94",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce3fb0",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce3ffa",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce4944",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce4a6c",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce4a8d",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7ce4e42",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7d1b7a2",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7d7cf4f",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb7e12562",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb8fe3d54",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb8ff6297",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb8ff629b",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb8ff6351",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        },
+        {
+          "percent": 0.0,
+          "samples": 1,
+          "symbol": "0xffffffffb8ff642e",
+          "dso": "[unknown]",
+          "component": "external ([unknown])",
+          "decomposition": "unclassified",
+          "decomposition_reason": "not in the table; counted against the parallel fraction"
+        }
+      ],
+      "years": 1000,
+      "load_average": 31.25,
+      "by_component": {
+        "ocean": 73.51999999999998,
+        "atmosphere (EMBM)": 12.97,
+        "external (libc.so.6)": 7.699999999999996,
+        "external (libm.so.6)": 3.5399999999999996,
+        "unattributed": 1.4600000000000002,
+        "sea ice": 0.7000000000000001,
+        "external ([unknown])": 0.02,
+        "external (ld-linux-x86-64.so.2)": 0.0,
+        "external (libgfortran.so.5.0.0)": 0.0
+      },
+      "decomposition": {
+        "shares_percent": {
+          "parallel": 89.06,
+          "serial": 1.75,
+          "heap": 9.08,
+          "unclassified": 0.02
+        },
+        "parallel_fraction": 0.8906,
+        "amdahl_bound": {
+          "2": 1.8,
+          "4": 3.01,
+          "8": 4.53,
+          "16": 6.06,
+          "32": 7.29
+        },
+        "parallel_fraction_if_heap_removed": 0.9814,
+        "amdahl_bound_if_heap_removed": {
+          "2": 1.96,
+          "4": 3.79,
+          "8": 7.08,
+          "16": 12.51,
+          "32": 20.3
+        }
+      },
+      "grid": "36x36x16"
     }
   }
 }
