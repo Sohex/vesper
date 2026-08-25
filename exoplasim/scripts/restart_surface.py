@@ -97,6 +97,9 @@ Three declared transforms sit on the expected side, not on the comparison:
   start and cannot be substituted from a restart. Verified as an absence, not
   skipped: if a record by that name appears, the field has become restart-borne
   and the class of this check changed under it.
+* Code 129's record is `groundsg` rather than the `doro` that `surfmod.f90`'s
+  `surfcode` table binds the code to. `SurfaceRestartField.binds` carries that
+  name so `check_code_bindings` still reads the model's own table for it.
 
 ## What is deliberately NOT compared, and why
 
@@ -104,12 +107,26 @@ A field the model is entitled to change is not a field the staged file is the
 right answer for, and comparing one would be a diagnostic wearing a test's
 clothes. Each exclusion is reported by name, never silently dropped.
 
-* Code 129 `doro`. The restart's orography is not the staged field: it is scaled
-  by `oroscale`, spectrally fitted and truncated to `noromax`, and with
-  `nglacier` on it is `groundoro + glacieroro` (`glaciermod.f90:358`). There is no
-  right answer available from the `.sra` alone, so this check does not claim one.
-  The remaining gap is real and tracked: nothing verifies that a restart's
-  topography still derives from the staged 129.
+* Code 129 `doro`, whose restart record is NOT the one the staged file is the
+  right answer for. `doro` is the orography the dynamics is built on and it is
+  `groundoro + glacieroro`, so it legitimately moves as ice accumulates. The
+  LITHOGRAPHIC half is a separate record, `groundsg`, and that one is the staged
+  field exactly: `glacierini` reads the `.sra` into `doro` on a cold start and
+  copies it to `groundoro` unchanged, and no arithmetic but a multiplication by
+  `oroscale` ever touches it (`glaciermod.f90:170,437`). Nothing spectral does:
+  the fit goes into the spectral array `so`, and the gridpoint round trip that
+  would overwrite `doro` with it is inside a `npro == 1` print block the threaded
+  build never enters.
+
+  So code 129 is compared against `groundsg`, exactly, and `doro` is held to the
+  identity `groundsg + dglacsg` instead of to a file. Together those say the
+  whole of the resumed orography: the lithographic half is the field that was
+  staged, and the rest is this run's own ice. This is the check CLIM-70 declared
+  it could not make, and it needed the second record rather than the spectral fit
+  reproduced. It is withdrawn, by name and with the reason, under either of the
+  two settings that take the right answer away -- `NGLACIER` other than 1, which
+  leaves `groundoro` at zero, and `OROSCALE` other than 1.0, which makes the
+  record the staged field times a power of it (world-6qee).
 * Codes 229 `dwmax` and 212 `dforest` under `NVEG = 2`. Coupled vegetation
   overwrites both prognostically every timestep (`simba.f90:484,487`), so under
   that setting the staged field stops being the right answer the moment the run
@@ -170,12 +187,18 @@ class SurfaceRestartField:
     and `expand` how a single-record `.sra` becomes that many months. `binarise`
     marks the land/sea mask, whose right answer is the thresholded file rather
     than the file.
+
+    `binds` is the name `surfmod.f90`'s own `surfcode` table gives the code, for
+    the codes whose restart record is named something else. It is empty when the
+    two agree, which is every code but 129: the `.sra` fills `doro` and the
+    lithographic half of it is written back as `groundsg`.
     """
 
     code: int
     record: str
     months: int = 1
     binarise: bool = False
+    binds: str = ""
 
 
 # Every code `intended_surface_codes` can return, with the restart record it
@@ -185,6 +208,7 @@ class SurfaceRestartField:
 SURFACE_RESTART_FIELDS = {
     f.code: f
     for f in (
+        SurfaceRestartField(129, "groundsg", binds="doro"),
         SurfaceRestartField(172, "dls", binarise=True),
         SurfaceRestartField(173, "dz0clim"),
         SurfaceRestartField(174, "dalbcl", months=14),
@@ -214,14 +238,30 @@ REREAD_EVERY_START = {
 # them.
 VEGETATION_OWNED = {212, 229}
 
-# Not comparable, with the reason reported rather than the code dropped. See the
-# module docstring.
-NOT_COMPARABLE = {
-    129: ("the restart's doro is scaled by oroscale, spectrally fitted and "
-          "truncated to noromax, and with nglacier on it carries the ice-sheet "
-          "orography as well (glaciermod.f90:358), so the staged file is not "
-          "the right answer for it"),
-}
+def not_comparable(nglacier: int, oroscale: float) -> dict[int, str]:
+    """Codes whose right answer this run's settings take away, with the reason.
+
+    Reported per code rather than dropped, so an exclusion is a verdict a reader
+    meets rather than an absence they have to notice. It depends on the RUN
+    because both entries below are settings: under this project's `nglacier = 1`
+    and `oroscale = 1.0` code 129 has a right answer and is compared, and under
+    anything else it does not.
+    """
+    out: dict[int, str] = {}
+    if nglacier != 1:
+        out[129] = (
+            f"NGLACIER = {nglacier}, so glaciermod's oroini leaves groundoro at "
+            "zero (glaciermod.f90:437 is inside the nglacier branch) and the "
+            "restart's groundsg is not the lithographic orography. The only "
+            "orography record is then doro, which carries the spectral fit")
+    elif oroscale != 1.0:
+        out[129] = (
+            f"OROSCALE = {oroscale}, and glacierini reads groundoro out of the "
+            "restart while oroini multiplies it by oroscale again on every "
+            "start (glaciermod.f90:164,437), so the restart's groundsg is the "
+            "staged field times oroscale once per model invocation and the "
+            "staged file is not its right answer. world-6qee")
+    return out
 
 
 def surfmod_bindings(source: Path | None = None) -> dict[str, int]:
@@ -247,9 +287,10 @@ def check_code_bindings(source: Path | None = None) -> None:
     bindings = surfmod_bindings(source)
     wrong = []
     for field in SURFACE_RESTART_FIELDS.values():
-        actual = bindings.get(field.record)
+        name = field.binds or field.record
+        actual = bindings.get(name)
         if actual != field.code:
-            wrong.append(f"{field.record} is code {actual} in surfmod.f90, "
+            wrong.append(f"{name} is code {actual} in surfmod.f90, "
                          f"not {field.code}")
     for code, name in REREAD_EVERY_START.items():
         actual = bindings.get(name)
@@ -275,6 +316,23 @@ def namelist_int(run_dir: Path, filename: str, key: str, default: int) -> int:
     match = re.search(rf"^\s*{key}\s*=\s*(-?\d+)", path.read_text(encoding="latin-1"),
                       re.IGNORECASE | re.MULTILINE)
     return int(match.group(1)) if match else default
+
+
+def namelist_float(run_dir: Path, filename: str, key: str, default: float) -> float:
+    """One real out of a staged namelist, or `default` if it is unset.
+
+    The default matters here in a way it does not for the integers: OROSCALE is
+    a `planet_nl` key nothing in this project writes, so an absent key is the
+    normal case and `p_earth.f90`'s compiled 1.0 is what the model will use.
+    Passing that value in is what makes reading the file mean something.
+    """
+    path = run_dir / filename
+    if not path.is_file():
+        return default
+    match = re.search(rf"^\s*{key}\s*=\s*(-?[\d.]+(?:[eEdD][-+]?\d+)?)",
+                      path.read_text(encoding="latin-1"),
+                      re.IGNORECASE | re.MULTILINE)
+    return float(match.group(1).replace("d", "e").replace("D", "E")) if match else default
 
 
 def expected_field(field: SurfaceRestartField, staged: np.ndarray) -> np.ndarray:
@@ -326,6 +384,13 @@ def verify_restart_surface_fields(run_dir: Path, restart: Path, codes: set[int],
     naqua = namelist_int(run_dir, "plasim_namelist", "NAQUA", 0)
     ndesert = namelist_int(run_dir, "plasim_namelist", "NDESERT", 0)
     newsurf = namelist_int(run_dir, "landmod_namelist", "NEWSURF", 0)
+    # THE TWO SETTINGS CODE 129'S RIGHT ANSWER DEPENDS ON, read from the run for
+    # the reason `namelist_int` gives. `nglacier` decides whether `groundsg`
+    # holds the lithographic orography at all, and `oroscale` decides whether it
+    # still equals the field that was staged.
+    nglacier = namelist_int(run_dir, "glacier_namelist", "NGLACIER", 0)
+    oroscale = namelist_float(run_dir, "planet_namelist", "OROSCALE", 1.0)
+    excluded = not_comparable(nglacier, oroscale)
 
     if newsurf == 2:
         raise RuntimeError(
@@ -366,9 +431,9 @@ def verify_restart_surface_fields(run_dir: Path, restart: Path, codes: set[int],
     superseded = []
     for code in sorted(codes):
         staged = staged_path(run_dir, code)
-        if code in NOT_COMPARABLE:
+        if code in excluded:
             verdicts.append({"code": code, "verdict": "not_comparable",
-                             "reason": NOT_COMPARABLE[code]})
+                             "reason": excluded[code]})
             continue
         if code in REREAD_EVERY_START:
             name = REREAD_EVERY_START[code]
@@ -485,10 +550,50 @@ def verify_restart_surface_fields(run_dir: Path, restart: Path, codes: set[int],
                     f"{got.max():.6g}].")
         verdicts.append(row)
 
+    # THE SECOND HALF OF CODE 129, and it is what makes checking `groundsg`
+    # stand for the topography rather than for one record. `doro` is the
+    # orography the dynamics is built on, and it is not the staged field: it is
+    # the lithographic half plus the ice sheet. The identity `oroini` writes it
+    # by is exact -- one addition in the same precision, `glaciermod.f90:453` --
+    # so `doro == groundsg + dglacsg` is a right answer with no tolerance, and
+    # holding it means the whole of `doro`'s departure from the staged file is
+    # the model's own ice and nothing else. Without it a substituted `doro`
+    # would pass on a `groundsg` that was never read.
+    glacier_identity = None
+    if 129 in codes and 129 not in excluded:
+        missing = [n for n in ("doro", "groundsg", "dglacsg") if n not in records]
+        if missing:
+            failures.append(
+                "the restart carries groundsg but not " + ", ".join(missing) +
+                ", so the orography it will resume on cannot be decomposed into "
+                "the staged field and the model's ice.")
+        else:
+            ncells = len(records["groundsg"]) // 8
+            oro = restart_field(records["doro"], 1, ncells)
+            ground = restart_field(records["groundsg"], 1, ncells)
+            ice = restart_field(records["dglacsg"], 1, ncells)
+            differing = int((oro != ground + ice).sum())
+            glacier_identity = {"record": "doro", "cells": ncells,
+                                "differing": differing,
+                                "verdict": "match" if not differing else "mismatch"}
+            if differing:
+                delta = np.abs(oro - (ground + ice))
+                glacier_identity["max_abs"] = float(delta.max())
+                failures.append(
+                    f"the restart's doro is not groundsg + dglacsg: "
+                    f"{differing} of {oro.size} values differ, worst by "
+                    f"{delta.max():.6g}. The orography the model will resume on "
+                    "is therefore neither the staged code 129 nor that field "
+                    "plus this run's ice, so nothing on disk says where it came "
+                    "from.")
+
     report = {
         "restart": restart.name,
         "nveg": nveg,
         "newsurf": newsurf,
+        "nglacier": nglacier,
+        "oroscale": oroscale,
+        "glacier_orography_identity": glacier_identity,
         "reference": "seed" if override else "staged",
         "superseded_surface_override": override,
         "superseded_surface_restated": bool(superseded) and allow_superseded,
@@ -594,6 +699,17 @@ def self_test() -> int:
       C  dalbcl flattened to the scalar albland, the same substitution on a
          14-month array, which is where dwcl's latent instance sits -> must
          FAIL, naming dalbcl
+      D  a donor surface whose adoption is not restated -> must FAIL
+      E  the same, restated -> must PASS against the seed
+      F  groundsg flattened to its own mean, a restart that re-derived its
+         topography instead of carrying the staged 129 -> must FAIL, naming
+         groundsg
+      G  doro moved off groundsg + dglacsg, an orography substituted where every
+         per-code comparison still passes -> must FAIL, naming doro
+
+    Each case names the surface code it needs and reports itself skipped when
+    the fixture does not stage it, rather than the fixture deciding whether the
+    function runs at all.
 
     Nothing is compiled and no orbit is integrated: this reads restarts and
     `.sra` files that are already on disk and writes its copies to a temporary
@@ -602,24 +718,41 @@ def self_test() -> int:
     import shutil
     import tempfile
 
-    fixtures = sorted(d.name for d in RUNS.glob("run_*")
-                      if staged_path(d, 229) is not None
-                      and latest_restart(d) is not None)
-    run_dir = RUNS / fixtures[0] if fixtures else None
-    if run_dir is None:
-        print("self-test: no run directory with a staged code 229 and a "
-              "restart, so there is nothing to build a fixture from")
+    # THE FIXTURE IS CHOSEN BY WHAT IT STAGES, not by one code. Requiring a
+    # staged 229 made the whole self-test return early on a tree whose only runs
+    # stage the seven codes this project currently generates, 229 not among
+    # them: every case below was skipped and the function reported a failure
+    # that was about the fixture rather than about the check. Each case now
+    # states the code it needs and says so when the fixture cannot supply it, so
+    # what runs is reported and what cannot is named.
+    def _staged_codes(d: Path) -> set[int]:
+        return {c for c in SURFACE_RESTART_FIELDS
+                if staged_path(d, c) is not None}
+
+    candidates = [d for d in sorted(RUNS.glob("run_*"))
+                  if d.is_dir() and latest_restart(d) is not None
+                  and _staged_codes(d)]
+    if not candidates:
+        print("self-test: no run directory with a restart and a staged surface "
+              "code, so there is nothing to build a fixture from")
         return 1
+    run_dir = max(candidates, key=lambda d: (len(_staged_codes(d)),
+                                             len(list(d.glob("MOST_REST.0*"))),
+                                             d.name))
     restart = latest_restart(run_dir)
-    codes = {172, 173, 174, 175, 176, 212, 229}
+    # 129 is left out here and owned by F/G below: its record is one of three
+    # that have to stay mutually consistent, so substituting it in the shared
+    # fixture would break the identity the other cases are not about.
+    codes = _staged_codes(run_dir) - {129}
 
     with tempfile.TemporaryDirectory(prefix="restart_surface_selftest_") as tmp:
         work = Path(tmp)
-        for name in ("plasim_namelist", "landmod_namelist"):
+        for name in ("plasim_namelist", "landmod_namelist",
+                     "glacier_namelist", "planet_namelist"):
             if (run_dir / name).is_file():
                 shutil.copyfile(run_dir / name, work / name)
         raw = restart.read_bytes()
-        cells, dwmax_field, dwmax_want = None, None, None
+        cells, seed_field, seed_want = None, None, None
         for code in sorted(codes):
             field = SURFACE_RESTART_FIELDS[code]
             staged = staged_path(run_dir, code)
@@ -627,8 +760,12 @@ def self_test() -> int:
             nlat, nlon = _grid_from(staged)
             cells = nlat * nlon
             want = expected_field(field, read_sra(staged, nlat, nlon))
-            if field.record == "dwmax":
-                dwmax_field, dwmax_want = field, want
+            # ANY COMPARED FIELD WILL DO for the donor case: what D and E need
+            # is one record where the seed and the staged file disagree, not a
+            # particular one. It was pinned to dwmax, so a fixture that does not
+            # stage code 229 skipped the whole donor branch.
+            if seed_field is None or field.record == "dwmax":
+                seed_field, seed_want = field, want
             raw = overwrite_record(raw, field.record,
                                    want.astype("<f8").tobytes())
         cold = work / "MOST_REST.00000"
@@ -651,30 +788,37 @@ def self_test() -> int:
         # crash the self-test instead of reporting a verdict.
         flat = np.full(cells, 0.5, dtype="<f8")
         b = work / "MOST_REST.00001"
-        b.write_bytes(overwrite_record(raw, "dwmax", flat.tobytes()))
-        try:
-            verify_restart_surface_fields(work, b, codes)
-            failures.append("B should have failed and did not: a dwmax "
-                            "flattened to a scalar was accepted")
-        except RuntimeError as exc:
-            if "dwmax" not in str(exc):
-                failures.append(f"B failed without naming dwmax: {exc}")
-            else:
-                print("  B dwmax flattened to wsmax: REFUSED, naming dwmax")
+        if 229 not in codes:
+            print("  B skipped: the fixture stages no code 229")
+        else:
+            b.write_bytes(overwrite_record(raw, "dwmax", flat.tobytes()))
+            try:
+                verify_restart_surface_fields(work, b, codes)
+                failures.append("B should have failed and did not: a dwmax "
+                                "flattened to a scalar was accepted")
+            except RuntimeError as exc:
+                if "dwmax" not in str(exc):
+                    failures.append(f"B failed without naming dwmax: {exc}")
+                else:
+                    print("  B dwmax flattened to wsmax: REFUSED, naming dwmax")
 
         c = work / "MOST_REST.00002"
-        c.write_bytes(overwrite_record(
-            raw, "dalbcl",
-            np.full(14 * cells, 0.22, dtype="<f8").tobytes()))
-        try:
-            verify_restart_surface_fields(work, c, codes)
-            failures.append("C should have failed and did not: a dalbcl "
-                            "flattened to a scalar was accepted")
-        except RuntimeError as exc:
-            if "dalbcl" not in str(exc):
-                failures.append(f"C failed without naming dalbcl: {exc}")
-            else:
-                print("  C dalbcl flattened to albland: REFUSED, naming dalbcl")
+        if 174 not in codes:
+            print("  C skipped: the fixture stages no code 174")
+        else:
+            c.write_bytes(overwrite_record(
+                raw, "dalbcl",
+                np.full(14 * cells, 0.22, dtype="<f8").tobytes()))
+            try:
+                verify_restart_surface_fields(work, c, codes)
+                failures.append("C should have failed and did not: a dalbcl "
+                                "flattened to a scalar was accepted")
+            except RuntimeError as exc:
+                if "dalbcl" not in str(exc):
+                    failures.append(f"C failed without naming dalbcl: {exc}")
+                else:
+                    print("  C dalbcl flattened to albland: REFUSED, naming "
+                          "dalbcl")
 
         # D AND E: THE DONOR-SURFACE BRANCH, which is the half of this function
         # the production call reaches through `manifest=` and
@@ -689,14 +833,14 @@ def self_test() -> int:
         # --superseded-surface-ok is in. D is that state UNRESTATED and must be
         # refused; E is the same state restated and must pass AGAINST THE SEED,
         # which is the assertion that says the branch ran at all.
-        if dwmax_field is None:
-            failures.append("D/E could not be built: the fixture stages no code "
-                            "landing in dwmax, so there is no record to make "
-                            "the seed differ in")
+        if seed_field is None:
+            failures.append("D/E could not be built: the fixture stages no "
+                            "comparable code, so there is no record to make the "
+                            "seed differ in")
         else:
             seed_raw = overwrite_record(
-                raw, dwmax_field.record,
-                (np.asarray(dwmax_want, dtype="<f8") + 0.25).tobytes())
+                raw, seed_field.record,
+                (np.asarray(seed_want, dtype="<f8") + 0.25).tobytes())
             (work / "MOST_REST.seed").write_bytes(seed_raw)
             d = work / "MOST_REST.00003"
             d.write_bytes(seed_raw)
@@ -726,6 +870,73 @@ def self_test() -> int:
                           "the seed")
             except RuntimeError as exc:
                 failures.append(f"E should have passed and did not: {exc}")
+
+        # F AND G: THE OROGRAPHY, the pair CLIM-72 added. They are built from the
+        # fixture run's own restart rather than from the synthetic one above,
+        # because the orography records are three and the identity between them
+        # has to survive intact for F to mean that groundsg alone was refused.
+        #
+        #   F  groundsg flattened to its own mean, which is a restart that
+        #      re-derived its topography instead of carrying the staged field
+        #      -> must FAIL, naming groundsg
+        #   G  doro moved off groundsg + dglacsg, which is a substituted
+        #      orography that leaves both other records untouched and would pass
+        #      every per-code comparison -> must FAIL, naming doro
+        oro_staged = staged_path(run_dir, 129)
+        oro_records = restart_format.payloads(restart)
+        if oro_staged is None or "groundsg" not in oro_records:
+            print("  F/G skipped: the fixture stages no code 129 or its restart "
+                  "carries no groundsg")
+        else:
+            shutil.copyfile(oro_staged, work / oro_staged.name)
+            nlat, nlon = _grid_from(oro_staged)
+            oro_cells = nlat * nlon
+            oro_codes = codes | {129}
+            base = restart.read_bytes()
+            for name in ("groundsg", "dglacsg", "doro"):
+                base = overwrite_record(base, name, oro_records[name])
+            ok = work / "MOST_REST.00004"
+            ok.write_bytes(base)
+            try:
+                rep = verify_restart_surface_fields(work, ok, {129})
+                if rep["glacier_orography_identity"] is None:
+                    failures.append(
+                        "F's baseline reported no orography identity, so the "
+                        "doro check did not run and G proves nothing")
+            except RuntimeError as exc:
+                failures.append(
+                    f"F's baseline should have passed and did not: {exc}")
+
+            ground = np.frombuffer(oro_records["groundsg"], dtype="<f8")
+            f = work / "MOST_REST.00005"
+            f.write_bytes(overwrite_record(
+                base, "groundsg",
+                np.full(oro_cells, float(ground.mean()), dtype="<f8").tobytes()))
+            try:
+                verify_restart_surface_fields(work, f, oro_codes)
+                failures.append("F should have failed and did not: a groundsg "
+                                "flattened to its mean was accepted")
+            except RuntimeError as exc:
+                if "groundsg" not in str(exc):
+                    failures.append(f"F failed without naming groundsg: {exc}")
+                else:
+                    print("  F groundsg flattened to its mean: REFUSED, naming "
+                          "groundsg")
+
+            oro = np.frombuffer(oro_records["doro"], dtype="<f8")
+            g = work / "MOST_REST.00006"
+            g.write_bytes(overwrite_record(
+                base, "doro", (oro + 1.0).tobytes()))
+            try:
+                verify_restart_surface_fields(work, g, oro_codes)
+                failures.append("G should have failed and did not: a doro that "
+                                "is not groundsg + dglacsg was accepted")
+            except RuntimeError as exc:
+                if "doro" not in str(exc):
+                    failures.append(f"G failed without naming doro: {exc}")
+                else:
+                    print("  G doro off the glacier identity: REFUSED, naming "
+                          "doro")
 
     if failures:
         for line in failures:
