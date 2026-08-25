@@ -143,9 +143,23 @@ Cotrufo et al. (2013) and Lehmann and Kleber (2015) both place microbial
 products, mineral association, aggregation and accessibility at the centre of
 stable SOM formation. Mineralogy can make soils with similar texture behave
 differently; Vesper's explicitly generated volcanic/andic contrast is exactly
-such a case. SDEC-4 links the pedology mineral state to both P sorption and an
-explicit mineral-protection bracket. This extends BIO-5/BIO-6 rather than
-creating a second soil-map interface.
+such a case.
+
+The contract is now one file. `mineral-reactivity-contract.md` registers the
+five texture-only equations against `somdynam.cpp` with their source, units and
+bounds, and declares the mineral-aware arm as REFUSING for the four proxies
+nothing in this pipeline produces: Fe-Al oxide content, an allophane
+concentration, aggregate capacity and polyvalent cation saturation. The pedology
+`andic` column is the near miss and is registered as a partial producer, because
+it is an areal fraction of andic material rather than a concentration. Both
+pedology columns now cross the interface into `Soiltype`, with `UNSET_SOIL_FRAC`
+where an input path has no andic state, and no equation reads either -- so the
+mineral-aware arm is a change to `somdynam.cpp` alone rather than a second
+soil-map interface. `biosphere/scripts/mineral_reactivity_gate.py` enforces all
+of it and carries the two texture-arm bounds worth knowing: the clay control on
+passive SOM formation is flat above a clay fraction of 1/3, which a quarter of
+this world's land exceeds, and the microbial partition's remainder can go
+negative on sandy soils, which is `world-t67j`.
 
 ### 5. Litter chemistry is fixed globally and only lignin:N controls its split
 

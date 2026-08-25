@@ -3616,6 +3616,18 @@ public:
 	/// LPJ soil code 0 to 9, -1 where the input path supplied none, or
 	/// UNSET_SOILCODE where no input path has written it
 	int soilcode;
+	/// Andic material as a fraction of the gridcell, from the pedology soil map's
+	/// `andic` column, or UNSET_SOIL_FRAC where the input path supplied none
+	/** Not read by any decomposition or sorption equation yet. The declared
+	 *  active arm for SOM protection and P sorption is texture-only; the
+	 *  mineral-aware arm refuses for want of the Fe-Al oxide, allophane,
+	 *  aggregate-capacity and polyvalent-cation proxies the pedology artifact
+	 *  does not produce. `biosphere/notes/mineral-reactivity-contract.md`.
+	 */
+	double andic_frac;
+	/// The share of released phosphorus andic material takes out of circulation,
+	/// over and above what any soil does, or UNSET_SOIL_FRAC
+	double p_fixation_frac;
 	/// volumetric fraction of organic material (m3 m-3) (Hillel, 1998)
 	double organic_frac;
 	// water held below wilting point, important for heat conductance
@@ -3683,6 +3695,9 @@ public:
 		// because UNSET_SOILCODE is not 8 and the per-layer branch it then takes
 		// refuses on UNSET_SOIL_FRAC.
 		soilcode = UNSET_SOILCODE;
+		// No mineral-reactivity state until an input path supplies it.
+		andic_frac = UNSET_SOIL_FRAC;
+		p_fixation_frac = UNSET_SOIL_FRAC;
 		
 		// Assume no mineral content on peatlands
 		sand_frac_peat = clay_frac_peat = silt_frac_peat = 0.0;

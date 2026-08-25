@@ -611,6 +611,26 @@ steps:
       boundary; `--strict` is the arm that refuses. `lpj_run` needs it so the
       boundary sits on the path rather than beside it.
 
+  - id: mineral_reactivity_gate
+    script: biosphere/scripts/mineral_reactivity_gate.py
+    loop: B
+    cost: seconds
+    needs: [soil]
+    writes: [biosphere/generated/mineral_reactivity_gate_report.json]
+    gate: >
+      one contract for how the simulated soil protects carbon and sorbs
+      phosphorus. It reads biosphere/config/mineral_reactivity.yaml and fails on
+      a coefficient whose literal is no longer in modules/somdynam.cpp, on a
+      declared equation that leaves its range over the texture simplex, on the
+      microbial partition's remainder moving off its registered minimum, on a
+      soil map missing a carried column or carrying one out of range, and on any
+      model file reading the carried andic state while the arm that would use it
+      refuses. Six reduced fixtures run on every invocation, five built to be
+      wrong in a named way. With every mineral-aware proxy still undeclared it
+      reports and exits 0, because a run on the declared texture-only arm is a
+      correct run of a declared model boundary; `--strict` is the arm that
+      refuses.
+
   - id: abiotic_nutrient_ledger
     script: biosphere/scripts/abiotic_nutrient_ledger.py
     loop: B
@@ -633,7 +653,7 @@ steps:
     script: biosphere/scripts/run_lpj_guess.py
     loop: B
     cost: hours
-    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate]
+    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, mineral_reactivity_gate]
     writes: [biosphere/runs/]
 
   - id: prospectivity

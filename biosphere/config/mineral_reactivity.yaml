@@ -1,0 +1,147 @@
+# One mineral-reactivity contract for soil organic matter protection and for
+# phosphorus sorption in the simulated soil.
+#
+# Worldbuilding. Vesper is an invented planet and this file describes how its
+# vegetation model decides what fraction of decomposing carbon becomes stable
+# soil organic matter, and what fraction of released phosphorus is sorbed.
+#
+# There are two arms. The TEXTURE-ONLY arm is what the model runs today: linear
+# functions of clay, or of clay plus silt, inherited from CENTURY. The
+# MINERAL-AWARE arm is the alternative the literature supports, and it refuses,
+# because the proxies it needs are not in any artifact this project produces.
+# Neither arm may be retuned to a desired soil carbon or productivity: a
+# coefficient here moves only when its source moves.
+#
+# `biosphere/scripts/mineral_reactivity_gate.py` reads this file.
+# `biosphere/notes/mineral-reactivity-contract.md` is the argument.
+
+active_arm: texture_only
+
+# The equations the model runs, each checked against the source it lives in.
+# `expression` is evaluated over the texture domain and held to `range`;
+# `literals` must all still appear in `source_file`.
+texture_only:
+  source_file: vendor/lpj-guess/modules/somdynam.cpp
+  citation: >
+    Parton et al. (1993), Observations and Modeling of Biomass and Soil Organic
+    Matter Dynamics for the Grassland Biome Worldwide, 10.1029/93GB02042. Read;
+    references/INDEX.md carries the row. Its calibration is Earth grasslands and
+    0-20 cm soil stocks, so these are Earth central tendencies over an Earth
+    range of textures and not a law that carries to another planet's mineralogy.
+  equations:
+    - name: soil_microbe_decay_texture_modifier
+      reads: "decayrates_century, Parton et al. (1993) eqn 5. Multiplies K_MAX for SOILMICRO"
+      expression: "1.0 - 0.75*(clay + silt)"
+      literals: [0.75]
+      unit: dimensionless
+      range: [0.0, 1.0]
+    - name: slow_to_passive_fraction
+      reads: "somfluxes, Parton et al. (1993) Fig 1. The SLOWSOM to PASSIVESOM transfer"
+      expression: "max(0.0, 0.003 - 0.009*clay)"
+      literals: [0.003, 0.009]
+      unit: fraction of the decayed slow pool
+      range: [0.0, 1.0]
+    - name: soil_microbe_respired_fraction
+      reads: "somfluxes, Parton et al. (1993) eqn 7"
+      expression: "max(0.0, 0.85 - 0.68*(clay + silt))"
+      literals: [0.85, 0.68]
+      unit: fraction of the decayed microbial pool
+      range: [0.0, 1.0]
+    - name: microbe_to_passive_fraction
+      reads: "somfluxes, Parton et al. (1993) eqn 9"
+      expression: "0.003 + 0.032*clay"
+      literals: [0.003, 0.032]
+      unit: fraction of the decayed microbial pool
+      range: [0.0, 1.0]
+    - name: organic_leaching_fraction
+      reads: "somfluxes, Parton et al. (1993) eqn 8 with OMLECH 1 to 3, at saturating percolation"
+      expression: "0.03 + 0.12*sand"
+      literals: [0.03, 0.12, 1.9]
+      unit: fraction of the decayed microbial pool
+      range: [0.0, 1.0]
+
+  # The one closure the four microbial-pool fractions have to satisfy. What
+  # leaves SOILMICRO is respiration plus leaching plus the passive share plus the
+  # slow share, and the slow share is what is left over:
+  #   csp = 1 - respfrac - orgleachfrac - cap
+  # so a negative csp is a transfer running backwards, and the model has no
+  # guard against it. The gate evaluates it over the texture simplex and over
+  # the soil map's own textures separately, because the two answers differ.
+  closure:
+    name: microbe_partition_remainder
+    expression: "1.0 - max(0.0, 0.85 - 0.68*(clay + silt)) - (0.03 + 0.12*sand) - (0.003 + 0.032*clay)"
+    unit: fraction of the decayed microbial pool
+    # Over the whole texture simplex this goes NEGATIVE, at pure sand, where the
+    # respired share is at its 0.85 maximum and organic leaching at its 0.15.
+    # A negative transfer fraction runs the SOILMICRO to SLOWSOM flux backwards
+    # and nothing in somdynam.cpp guards it. Registered rather than repaired:
+    # the repair is a decision about which of the four shares absorbs the excess.
+    # world-t67j owns it. The value is checked, so any coefficient change that
+    # moves it fails this gate.
+    simplex_minimum: -0.003
+    simplex_tolerance: 1.0e-9
+    # Over the textures the soil map actually carries it has to stay forwards.
+    soilmap_minimum: 0.0
+
+# The mineral-aware arm. Every proxy below carries the `undeclared` sentinel and
+# names what would have to produce it. There is no default for any of them, and
+# the gate refuses the arm while any is undeclared.
+mineral_aware:
+  citation: >
+    Cotrufo et al. (2013) 10.1111/gcb.12113 and Lehmann and Kleber (2015)
+    10.1038/nature16069, both read. Together they place microbial products,
+    mineral association, aggregation and accessibility at the centre of stable
+    SOM formation, and name phyllosilicates, metal oxides, polyvalent cations,
+    allophane and aggregates as the associating surfaces. Neither supplies a
+    parameterised transfer function, which is why this arm needs proxies rather
+    than a coefficient swap.
+  required_proxies:
+    fe_al_oxide_content:
+      declared: undeclared
+      unit: kg/kg of the fine earth fraction
+      produced_by: nothing
+      why: >
+        Oxalate- and dithionite-extractable Fe and Al are the standard measure of
+        the reactive oxide surface that sorbs phosphorus and stabilises carbon.
+        The pedology model derives lithology fractions and a weathering intensity
+        but no oxide content, so this cannot be computed from what exists.
+    allophane_content:
+      declared: undeclared
+      unit: kg/kg of the fine earth fraction
+      produced_by: partially, as build_soil.py andisol_properties `andic`
+      why: >
+        `andic` is the fraction of a gridcell whose volcanic glass has weathered
+        to allophane under sufficient leaching. It is an areal fraction of andic
+        material, not an allophane concentration, so it cannot be substituted for
+        one without a conversion nothing in this project supplies.
+    aggregate_capacity:
+      declared: undeclared
+      unit: dimensionless
+      produced_by: nothing
+      why: >
+        Occlusion inside aggregates is a physical protection mechanism separate
+        from mineral association. Nothing in the pipeline resolves soil structure.
+    polyvalent_cation_saturation:
+      declared: undeclared
+      unit: cmol(+)/kg
+      produced_by: nothing
+      why: >
+        Ca, Fe and Al bridging is the cation half of the association mechanism.
+        The soil map carries pH, from which base status can be argued but not
+        derived, and the non-N/P adequacy screen already refuses the trace set
+        for want of a release table.
+
+# What the pedology artifact DOES carry across the interface today, and what it
+# is allowed to be used for. Both are read into Soiltype::andic_frac and
+# Soiltype::p_fixation_frac and neither is read by any equation while the arm
+# above refuses. The gate checks the columns are present, in range, and that no
+# equation reads them.
+carried_state:
+  soil_map_columns: [andic, pfixation]
+  # Their range in the artifact, and the range they are declared to have.
+  # `andic` and `pfixation` are both fractions, so both are in [0,1].
+  range: [0.0, 1.0]
+  read_into: [Soiltype::andic_frac, Soiltype::p_fixation_frac]
+  # No line of the model may read these while `active_arm` is texture_only.
+  # The gate greps the model source and fails on one that does.
+  readers_permitted: []

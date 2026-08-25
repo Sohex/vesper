@@ -420,6 +420,36 @@ from the terrain at all, and whether pulse timing survives averaging -- and the
 non-N/P adequacy screen, whose bounds and directions are declared before any
 result is seen. The contract is `notes/abiotic-nutrient-ledger.md`.
 
+### One mineral-reactivity contract, and its second arm refuses
+
+Every mineral control on soil organic matter in the model is a linear function of
+clay, or of clay plus silt, from Parton et al. (1993). The pedology soil map
+already carries an andic areal fraction and an andic phosphate-fixation share,
+and until now nothing read them. Both now cross the interface into
+`Soiltype::andic_frac` and `Soiltype::p_fixation_frac`, with `UNSET_SOIL_FRAC`
+where an input path has no andic state, and no equation reads either -- which is
+what `mineral_reactivity_gate.py` checks, alongside every declared coefficient
+against `somdynam.cpp` and every declared range over the texture simplex and over
+the soil map's own textures.
+
+```bash
+python biosphere/scripts/mineral_reactivity_gate.py            # status, exit 0
+python biosphere/scripts/mineral_reactivity_gate.py --strict   # refuses the
+                                                               # mineral-aware arm
+```
+
+The mineral-aware arm needs four proxies and all four carry the `undeclared`
+sentinel: Fe-Al oxide content, allophane concentration, aggregate capacity and
+polyvalent cation saturation. The pedology `andic` column is the near miss and is
+registered as a partial producer, because it is an areal fraction of andic
+material rather than an allophane concentration. Neither arm may be retuned to a
+desired soil carbon or productivity. `notes/mineral-reactivity-contract.md` is the
+contract, and it carries the two things the texture arm does that are worth
+knowing: its clay control on passive SOM formation is flat above a clay fraction
+of 1/3, which a quarter of this world's land is above, and its microbial
+partition can leave a negative transfer fraction on sandy soils, which this
+world's soil map does not reach.
+
 ### The soil nitrogen transformation operator is declared, and bounded
 
 `ifntransform 1` is on in the baseline, and it is not an emissions diagnostic:

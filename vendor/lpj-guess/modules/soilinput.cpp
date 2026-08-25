@@ -177,6 +177,8 @@ void SoilInput::load_mineral_soils(const char* fname, const std::set<coord>& coo
 	int bd_i = -1;
 	int cn_i = -1; 
 	int soilc_i = -1;
+	int andic_i = -1;
+	int pfix_i = -1;
 
 	for (int i = 0; it != header.end(); ++it, ++i) {
 		if (*it == "sand") {
@@ -202,6 +204,17 @@ void SoilInput::load_mineral_soils(const char* fname, const std::set<coord>& coo
 		}
 		else if (*it == "soilc") {
 			soilc_i = i;
+		}
+		// The two mineral-reactivity columns pedology writes. Optional, because
+		// a soil map from anywhere else will not have them; absent, they come
+		// through as UNSET_SOIL_FRAC and the equations that would read them
+		// refuse. biosphere/notes/mineral-reactivity-contract.md is the
+		// contract, biosphere/scripts/mineral_reactivity_gate.py enforces it.
+		else if (*it == "andic") {
+			andic_i = i;
+		}
+		else if (*it == "pfixation") {
+			pfix_i = i;
 		}
 	}
 	if (soilc_i == -1 && iforganicsoilproperties) {
@@ -251,6 +264,9 @@ void SoilInput::load_mineral_soils(const char* fname, const std::set<coord>& coo
 			else {
 				soildata.soilC = 0.0;
 			}
+
+			soildata.andic = andic_i != -1 ? T[andic_i] : UNSET_SOIL_FRAC;
+			soildata.p_fixation = pfix_i != -1 ? T[pfix_i] : UNSET_SOIL_FRAC;
 				
 			// Not all data sets includes bulk density data, here it is set to a negative number if no column with that name. 
 			// TODO, set it to value: 1.6
@@ -301,6 +317,10 @@ SoilInput::SoilProperties SoilInput::get_lpj(coord c) {
 	soiltype.kplab = data[soilcode][12];
 	soiltype.spmax = data[soilcode][13];
 	soiltype.pwtr = data[soilcode][14];
+	// An LPJ soil code is a texture class and carries no mineral-reactivity
+	// state, so there is nothing to set here and nothing to invent.
+	soiltype.andic = UNSET_SOIL_FRAC;
+	soiltype.p_fixation = UNSET_SOIL_FRAC;
 	return soiltype;
 }
 
@@ -330,6 +350,8 @@ SoilInput::SoilProperties SoilInput::get_lpj_organic_soil() {
 	soiltype.kplab = 0.010;
 	soiltype.spmax = 0.145;
 	soiltype.pwtr = 0.000003;
+	soiltype.andic = UNSET_SOIL_FRAC;
+	soiltype.p_fixation = UNSET_SOIL_FRAC;
 	return soiltype;
 }
 
@@ -396,6 +418,15 @@ SoilInput::SoilProperties SoilInput::get_mineral(coord c) {
 	soiltype.spmax = 0.145;
 	soiltype.pwtr = 0.000003;
 
+	// The pedology soil map's mineral-reactivity columns, or the sentinel where
+	// the map has none. Read but not yet used by any equation: the texture-only
+	// SOM protection and P sorption forms are the declared active arm and the
+	// mineral-aware arm refuses for want of the oxide, allophane, aggregate and
+	// cation proxies pedology does not produce.
+	// biosphere/notes/mineral-reactivity-contract.md.
+	soiltype.andic = soil.andic;
+	soiltype.p_fixation = soil.p_fixation;
+
 	return soiltype;
 }
 
@@ -454,6 +485,8 @@ void SoilInput::get_soil_mineral(double lon, double lat, Gridcell& gridcell) {
 	soiltype.water_below_wp = soilprop.wilting_point;
 	soiltype.porosity = soilprop.porosity;
 	soiltype.mineral_frac = 1.0 - soiltype.organic_frac - soiltype.porosity;
+	soiltype.andic_frac = soilprop.andic;
+	soiltype.p_fixation_frac = soilprop.p_fixation;
 	// The soil map's pH. get_mineral reads it into the SoilProperties and
 	// get_lpj sets 6.5 there, but neither get_soil path carried it onto the
 	// Soiltype, so Soiltype::pH stayed at the constructor's -1.0 for every
@@ -716,6 +749,8 @@ void SoilInput::get_soil_organic(double lon, double lat, Gridcell& gridcell) {
 	soiltype.water_below_wp = soilpropmineral.wilting_point;
 	// The soil map's pH, on the same terms as get_soil_mineral above.
 	soiltype.pH = soilpropmineral.pH;
+	soiltype.andic_frac = soilpropmineral.andic;
+	soiltype.p_fixation_frac = soilpropmineral.p_fixation;
 	// These values are not used when we use the organic fraction to determine soil properties
 	// However, here we update them with the average values
 	soiltype.organic_frac = material_org_avg;
@@ -826,6 +861,12 @@ void soil_parameters(Soiltype& soiltype, int soilcode) {
 	soiltype.kplab = data[soilcode][12];
 	soiltype.spmax = data[soilcode][13];
 	soiltype.pwtr = data[soilcode][14];
+
+	// An LPJ soil code carries no mineral-reactivity state. The sentinel says so
+	// rather than a zero, which would read as "no andic material here" and is a
+	// different claim from "nothing supplied one".
+	soiltype.andic_frac = UNSET_SOIL_FRAC;
+	soiltype.p_fixation_frac = UNSET_SOIL_FRAC;
 
 	if (!ifcentury) {
 		// override the default SOM years with 70-80% of the spin-up period
