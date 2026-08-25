@@ -496,6 +496,15 @@ bool VesperInput::getclimate(Gridcell& gridcell) {
 			return false;
 		}
 
+		// The whole simulation year of air temperature is already interpolated,
+		// so the seasonal landmarks summergreen phenology keys on can be read off
+		// it now rather than at the end of the year. Without this the first orbit
+		// of every cell would run on the landmarks initdrivers starts from, which
+		// assume nothing and are therefore not this cell's; with it, the forcing
+		// decides them from day 0. Over a driver file carrying several years they
+		// follow the cycle, since each year is handed over as it is loaded.
+		climate.set_seasonal_cycle(dtemp);
+
 		if (tmute.getprogress() >= 1.0) {
 			double progress = (double)(current * (nyear_spinup + nyear) + date.year)
 			                / (double)(cells.size() * (nyear_spinup + nyear));

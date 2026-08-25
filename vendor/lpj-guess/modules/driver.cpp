@@ -627,21 +627,32 @@ void dailyaccounting_gridcell(Gridcell& gridcell) {
 		}
 	}
 	
-	if ( (climate.lat >= 0.0 && date.day == COLDEST_DAY_NHEMISPHERE) ||
-	     (climate.lat < 0.0 && date.day == COLDEST_DAY_SHEMISPHERE) ) {
+	// Today's air temperature into the running seasonal cycle the landmarks
+	// below are derived from. Before the GDD counters, so that a gridcell's own
+	// forcing decides where its midwinter and its midsummer fall.
+	climate.accumulate_seasonal_cycle();
+
+	if (date.day == climate.coldest_day) {
 		// In midwinter, reset GDD counter for summergreen phenology
 		climate.gdd5 = 0.0;
 		climate.ifsensechill = false;
 	}
-	else if ( (climate.lat >= 0.0 && date.day == WARMEST_DAY_NHEMISPHERE) ||
-	          (climate.lat < 0.0 && date.day == WARMEST_DAY_SHEMISPHERE) ) {
+	else if (date.day == climate.warmest_day) {
 		climate.ifsensechill = true;
 	}
 
 	// Update GDD counters and chill day count
 	climate.gdd5 += max(0.0, climate.temp - 5.0);
 	climate.agdd5 += max(0.0, climate.temp - 5.0);
-	if (climate.temp < 5.0 && climate.chilldays <= Date::MAX_YEAR_LENGTH)
+	// The count indexes Pft::gdd0, which holds one entry per day of the year plus
+	// one, so the last index it may reach is Date::MAX_YEAR_LENGTH. A gridcell
+	// whose monthly mean temperature never crosses the 5 degree base from above
+	// gets no seasonal reset of the count at all, on this world or on Earth, so
+	// the ceiling is reached rather than hypothetical. Holding the count there
+	// costs nothing: the budburst requirement gdd0[chilldays] is
+	// k_chilla + k_chillb * exp(-k_chillk * chilldays), which is already at its
+	// asymptote k_chilla to well below a degree-day by then.
+	if (climate.temp < 5.0 && climate.chilldays < Date::MAX_YEAR_LENGTH)
 		climate.chilldays++;
 
 	climate.gdd0 += max(0.0, climate.temp);
@@ -731,6 +742,11 @@ void dailyaccounting_gridcell(Gridcell& gridcell) {
 			climate.mtemp_min_20[19] = climate.mtemp_min;
 			climate.mtemp_max_20[19] = climate.mtemp_max;
 			climate.agdd0_20.add(climate.agdd0);
+
+			// One more seasonal cycle in the running record, and the landmarks
+			// re-read from it for the year about to start.
+			climate.seasonal_cycle_years++;
+			climate.find_seasonal_landmarks();
 		}
 
 		climate.hmtemp_20[date.month].add(climate.dtemp_31.periodicmean(date.ndaymonth[date.month]));

@@ -74,7 +74,7 @@ void calc_crop_dates_20y_mean(Climate& climate, Gridcellpft& gridcellpft) {
 
 	/////////////////////////////////////////////////////////////////////////////////
 	// Check if spring and frost conditions occurred during the past year.         //	
-	// If not, set this year's date to either sdate_default or climate.coldestday: //
+	// If not, set this year's date to either sdate_default or climate.coldest_day: //
 	/////////////////////////////////////////////////////////////////////////////////
 
 	// if no spring occured during last year
@@ -83,7 +83,7 @@ void calc_crop_dates_20y_mean(Climate& climate, Gridcellpft& gridcellpft) {
 		if (climate.temp <= pft.tempspring)
 			gridcellpft.last_springdate = date.day;
 		else
-			gridcellpft.last_springdate = climate.coldestday;
+			gridcellpft.last_springdate = climate.coldest_day;
 	}
 
 	// if no autumn occured during last year
@@ -95,7 +95,7 @@ void calc_crop_dates_20y_mean(Climate& climate, Gridcellpft& gridcellpft) {
 		}
 		else {										//too warm
 
-			gridcellpft.first_autumndate = climate.coldestday;
+			gridcellpft.first_autumndate = climate.coldest_day;
 
 			if (climate.lat >= 0.0 && gridcellpft.first_autumndate < 180)
 				gridcellpft.first_autumndate += date.year_length();
@@ -176,16 +176,16 @@ void set_sdatecalc_temp(Climate& climate, Gridcellpft& gridcellpft) {
 	if (pft.ifsdautumn  && pft.forceautumnsowing != SPRINGSOWING) {							// TeWW,TeRa:
 
 		// Use autumn sowing if first_autumndate20 is set (autumn conditions met during the past 20 years):
-		if (!((gridcellpft.first_autumndate20 == climate.testday_temp || gridcellpft.first_autumndate20 == climate.coldestday) &&
+		if (!((gridcellpft.first_autumndate20 == climate.testday_temp || gridcellpft.first_autumndate20 == climate.coldest_day) &&
 				gridcellpft.first_autumndate % date.year_length() == gridcellpft.first_autumndate20)) {
 
 			gridcellpft.sdatecalc_temp = gridcellpft.first_autumndate20;
 			gridcellpft.wintertype = true;
 		}
 		// if not, use spring sowing
-		else {	// if (gridcellpft.first_autumndate20==climate.coldestday)
+		else {	// if (gridcellpft.first_autumndate20==climate.coldest_day)
 
-			if (!((gridcellpft.last_springdate20 == climate.testday_temp || gridcellpft.last_springdate20 == climate.coldestday) &&
+			if (!((gridcellpft.last_springdate20 == climate.testday_temp || gridcellpft.last_springdate20 == climate.coldest_day) &&
 					gridcellpft.last_springdate == gridcellpft.last_springdate20)
 					&& pft.forceautumnsowing != AUTUMNSOWING) {
 
@@ -199,7 +199,7 @@ void set_sdatecalc_temp(Climate& climate, Gridcellpft& gridcellpft) {
 				}
 				else {									// Too warm; avoid warmest period.
 
-					gridcellpft.sdatecalc_temp = climate.coldestday;
+					gridcellpft.sdatecalc_temp = climate.coldest_day;
 					gridcellpft.wintertype = true;
 				}
 			}
@@ -324,19 +324,19 @@ void calc_sowing_windows(Gridcell& gridcell) {
 				swindow_temp[0] = stepfromdate(gridcellpft.sdatecalc_temp, -15);
 				swindow_temp[1] = stepfromdate(gridcellpft.sdatecalc_temp, 15);
 
-				if (!gridcellpft.wintertype && dayinperiod(swindow_temp[0], stepfromdate(climate.coldestday, -100), climate.coldestday)) {
+				if (!gridcellpft.wintertype && dayinperiod(swindow_temp[0], stepfromdate(climate.coldest_day, -100), climate.coldest_day)) {
 
-					swindow_temp[0] = climate.coldestday;
-					if (dayinperiod(swindow_temp[1], stepfromdate(climate.coldestday, -100), climate.coldestday)) {
-						swindow_temp[1] = climate.coldestday;
+					swindow_temp[0] = climate.coldest_day;
+					if (dayinperiod(swindow_temp[1], stepfromdate(climate.coldest_day, -100), climate.coldest_day)) {
+						swindow_temp[1] = climate.coldest_day;
 					}
 				}
 
-				if (gridcellpft.wintertype && dayinperiod(swindow_temp[1], climate.coldestday, stepfromdate(climate.coldestday, 100))) {
+				if (gridcellpft.wintertype && dayinperiod(swindow_temp[1], climate.coldest_day, stepfromdate(climate.coldest_day, 100))) {
 
-					swindow_temp[1] = climate.coldestday;
-					if (dayinperiod(swindow_temp[0], climate.coldestday, stepfromdate(climate.coldestday, 100))) {
-						swindow_temp[0] = climate.coldestday;
+					swindow_temp[1] = climate.coldest_day;
+					if (dayinperiod(swindow_temp[0], climate.coldest_day, stepfromdate(climate.coldest_day, 100))) {
+						swindow_temp[0] = climate.coldest_day;
 					}
 				}
 			}

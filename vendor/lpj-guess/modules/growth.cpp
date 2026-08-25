@@ -145,9 +145,9 @@ void leaf_phenology(Patch& patch, Climate& climate) {
 			// Update monthly leaf-on sum
 			ppft.mphen[date.month] += ppft.phen / date.ndaymonth[date.month];
 
-			// Update annual leaf-on sum
-			if ( (climate.lat >= 0.0 && date.day == COLDEST_DAY_NHEMISPHERE) ||
-				 (climate.lat < 0.0 && date.day == COLDEST_DAY_SHEMISPHERE) ) {
+			// Update annual leaf-on sum, reset at the seasonal minimum of this
+			// gridcell's own forcing
+			if (date.day == climate.coldest_day) {
 				ppft.aphen = 0.0;
 			}
 			ppft.aphen += ppft.phen;
