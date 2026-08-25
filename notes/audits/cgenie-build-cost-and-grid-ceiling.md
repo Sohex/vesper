@@ -17,12 +17,26 @@ configurations.
 make overrides, the code model and the host load are stamped in their
 provenance blocks rather than repeated here.
 
+**On the instrument.** This host runs several agents at once, and for most of
+the window in which the timings below were taken a sibling was integrating an
+atmosphere on sixteen threads at a load of 16 to 28 on 32 logical cores. Wall
+clock under that is a measurement of a machine state, so the durable price of an
+ocean-year is quoted in RETIRED INSTRUCTIONS, which are a property of the binary
+and its input and are the same on a busy host and an idle one. cGENIE is
+strictly serial, so there is not even a spin-wait to correct for. Seconds are
+quoted beside them for whoever has to wait, with the load they were taken under
+and marked contaminated where they were.
+
 **The headline.** It builds, it runs, and it reproduces the reference the tree
-ships for it. The shipped 36 x 36 x 16 grid is not near any limit: the model's
-own maximum Courant number there is far below one at the default timestep. What
-caps the grid is not the ocean at all. Two independent limits sit in two
-different components, they are controlled by two different namelist integers,
-and at every grid tested the one that binds first is the ATMOSPHERE's.
+ships for it to the last bit that matters. The shipped 36 x 36 x 16 grid is
+nowhere near the ocean's own limit. What caps the grid is not the ocean at all:
+two independent limits sit in two different components, controlled by two
+different namelist integers, and at every grid tested the one that binds first is
+the ATMOSPHERE's. Both are quadratic in resolution, so a refinement costs r^4 --
+which is the exponent the audit already estimated, for the wrong reason. A
+doubled 72 x 72 x 16 ocean runs and is affordable; matching a T85 atmosphere is
+not, and the constraint that survives is therefore the support mismatch rather
+than the price.
 
 ---
 
@@ -102,8 +116,12 @@ Setting `debug_loop` changes no physics: every use of it in `goldstein.F` guards
 a print, a diagnostic dump or the averaging call, never the state.
 
 With that set, the shipped `eb_go_gs` case runs and its output is compared field
-by field against `genie-knowngood/`. The result is in the artifact's
-`knowngood` block.
+by field against `genie-knowngood/`. All 28 floating-point variables present in
+both files agree, and the worst difference over all of them, relative to that
+field's own range, is 4.3e-21. Nothing is present in the reference and missing
+from the run. **The build here reproduces cGENIE's own reference output**, which
+is the strongest single statement this document can make about whether it works,
+and it is the acceptance criterion OCN-19 will need.
 
 ---
 
@@ -305,3 +323,306 @@ The island count itself is a compile-time bound, `GOLDSTEINMAXISLES`, and the
 sweeps here compile with it raised well past the shipped default, so it is a
 build parameter rather than a ceiling.
 
+
+---
+
+# 4. What an ocean-year costs
+
+Every case is a topography that ships COMPLETE at its stated grid: `.k1`,
+`.paths`, `.psiles`, the four wind-stress components, the two wind-speed fields
+and the restoring climatologies. The level count is a property of the topography
+rather than a free parameter, because a `.k1` entry is the index of the level a
+column's floor sits on, so the highest wet value in the file IS the grid's level
+count and land is coded above it. The vertical arm therefore changes topography
+with the levels.
+
+Each grid is built once and then priced twice, at 20 and at 100 model years, so
+that the fixed initialisation subtracts out of the difference. The price is
+retired instructions, for the reason in the opening: this host was busy and
+seconds measure that.
+
+| topography | grid | wet cells | code model | ndta | Ginstr per model year | initialisation, in model-years of work |
+| --- | --- | ---: | --- | ---: | ---: | ---: |
+| `worbe2` | 36 x 36 x 8 | 6210 | small | 5 | 1.776 | -0.66 |
+| `worjh2` | 36 x 36 x 16 | 12511 | small | 5 | 2.973 | -1.09 |
+| `worri4` | 36 x 36 x 32 | 25042 | small | 5 | 5.330 | -1.32 |
+| `g3660l` | 36 x 60 x 8 | 9108 | small | 5 | 2.805 | -0.64 |
+| `igcmv3` | 64 x 32 x 8 | 8688 | small | 5 | 2.681 | -0.63 |
+| `worjh2` | 36 x 36 x 16 | 12511 | medium | 5 | 3.061 | -1.12 |
+| `dan_72` | 72 x 72 x 16 | 49680 | medium | 10 | 13.787 | -0.99 |
+
+**Initialisation is not a cost.** Every intercept is smaller than one model
+year's worth of work and every one is NEGATIVE, which says the fixed cost is
+below the resolution of this fit and that the per-year cost rises very slightly
+with run length instead. The two-length design was there to separate the two and
+its answer is that there is nothing to separate: a pass pays for its years and
+almost nothing for starting.
+
+**The code model costs 3 per cent.** The same topography, grid and settings
+compiled `-mcmodel=medium` instead of the shipped `small` is 1.030 times the
+instructions. That is the whole of the 72 x 72 build flag's price, and it is why
+the doubled grid's number is not contaminated by it.
+
+## 4a. The barotropic solve is not what runs at these grids
+
+This arm was designed before it ran, and it is the one place where the answer
+could have gone either way. `ubarsolv.f` eliminates over `do i=1,n*m-1` with an
+inner width of at most `n+1`, where `n = imax`: work per call is about
+`imax^2 * jmax`, QUADRATIC in longitudes and only LINEAR in latitudes. Tracer
+work in `tstepo` is `imax*jmax*kmax*lmax`, symmetric in the two. Two shipped
+topographies have nearly the same cell count and very different barotropic work:
+
+    36 x 60 :  imax^2 * jmax =  77760
+    64 x 32 :  imax^2 * jmax = 131072    ratio 1.686
+
+The decision rule, fixed in the driver's docstring before the runs: above 1.30
+reads barotropic-dominated, below 1.10 reads tracer-dominated, and between them
+leaves the question open.
+
+**Measured, 2.681 / 2.805 = 0.956.** That is below 1.10, so the arm returns
+TRACER-DOMINATED, and it lands within 0.6 per cent of the 0.95 that hypothesis
+predicted. A 1.69-fold increase in barotropic work costs nothing measurable:
+at these grids `ubarsolv` is invisible.
+
+That settles the runtime half of
+`notes/audits/ocean-and-marine-biosphere.md` section 9h without a profiler, and
+it is why section 3d relocates the r^4 growth onto the timestep. It does NOT
+settle where the time goes WITHIN the tracer work, which is OCN-19's.
+
+## 4b. Levels are cheaper than cells, and the doubled grid is dearer
+
+Doubling the level count costs 1.674 (8 to 16) and 1.793 (16 to 32), both below
+the 2.0 that cell count alone would give, because the two-dimensional work --
+the surface fluxes, the barotropic solve, EMBM -- is shared across levels.
+
+Doubling both horizontal dimensions costs 4.504 at the same `nyear`, against a
+wet-cell ratio of 3.971: 1.13 times per cell. Combined with section 3's result
+that the usable timestep falls as r^2, a doubling of the horizontal grid costs
+about 18 times per model year, against the r^4 = 16 that both scalings predict.
+
+**One caveat that makes r^4 a LOWER bound on wall clock.** Instructions per
+second, taken from the same `perf` runs, sit between 15.6 and 18.3 G/s for every
+36 x 36 class case and at 6.3 G/s for 72 x 72 x 16. If that threefold collapse
+in throughput is the model's static COMMON leaving cache -- and a grid that
+needs `-mcmodel=medium` is a grid whose state is around a gigabyte -- then wall
+clock grows faster than instructions do and the doubling costs nearer 50 times
+than 18. It could also be that the 72 x 72 runs happened to fall in the busiest
+part of the window. **This document does not separate those**, and doing so
+needs a quiet host, which is the one measurement here that is still owed.
+
+## 4c. Storage is nothing, and the biogeochemistry is where the published costs come from
+
+A physics-only run writes 564 kB whatever its length, because these
+configurations suppress the periodic output; storage is a function of what is
+asked for, not of the integration.
+
+The shipped BIOGEM regression case, `configs/eb_go_gs_ac_bg_test.xml` run
+unaltered except for its length, is the same 36 x 36 x 8 grid as the cheapest
+physics case with fourteen GOLDSTEIN tracers, ATCHEM and BIOGEM on. It writes
+9.8 MB at ten model years and 23.8 MB at fifty, so about 350 kB per model year,
+and that is the storage figure a spin-up should be planned against rather than
+the physics-only one.
+
+Priced the same way, that configuration costs **4.708 Ginstr per model year**
+against the physics-only 1.776 at the same grid: the ocean biogeochemistry is
+**2.65 times the physics**, in instructions.
+
+In seconds it is nearer eight times, and the gap is the same throughput effect
+as in 4b. The BIOGEM case retires 6.0 Ginstr per second and the 72 x 72 physics
+case 6.3, while every small-state physics case sits between 15.6 and 18.3.
+Those two large-state configurations are different in kind -- one is many
+tracers on a small grid, the other two tracers on a large one -- and they were
+measured at different times, so a shared load is not a likely explanation and a
+shared working-set-versus-cache one is. It remains an inference: what would
+settle it is the same measurement on a quiet host, or a cache-miss count.
+
+## 4d. This reproduces the published EMIC costs, within a hardware generation
+
+`notes/audits/ocean-and-marine-biosphere.md` section 9a quotes Capirala and
+Olson (2026) at 24 to 48 hours on a single core for 36 x 36 x 16 to physical and
+biogeochemical steady state at 20,000 model years, and Edwards and Marsh (2005)
+at 20 kyr in about a day on a PC.
+
+Taking the BIOGEM price above and scaling it to sixteen levels by the physics
+case's own level ratio -- an ASSUMPTION, since the biogeochemistry was not run
+at sixteen levels here -- gives about 7.9 Ginstr per model year, so 20,000 years
+is about 1.6e14 instructions, and at the 6 Ginstr per second those large-state
+configurations run at, about 7 hours on one core of this machine.
+
+That is a factor of three to seven faster than the published figure, on a part
+about twenty years newer than Edwards and Marsh's and several generations newer
+than Capirala and Olson's. **The published costs are reproduced rather than
+merely quoted**, which is what OCN-3 asked for, and the physics-only figure that
+sits underneath them is smaller again: 2.973 Ginstr per model year at
+36 x 36 x 16, about 1.7 hours for the same 20,000 years.
+
+---
+
+# 5. What this means for a T85 atmosphere
+
+`notes/audits/ocean-and-marine-biosphere.md` section 6 chose offline coupling on
+one property: the ocean's cost must not climb the T21/T42/T85/T127/T170 ladder
+with the atmosphere. This is the measurement that decision rests on, so it owes
+two statements rather than one.
+
+## 5a. The ocean's grid is independent of the atmosphere's rung, and that is now measured rather than argued
+
+Nothing in section 4's table depends on an atmosphere resolution. EMBM runs on
+the OCEAN's grid, not the atmosphere's, and the chosen coupling hands the ocean
+a climatology rather than a synchronous partner. So the ocean's price is a
+function of its own grid and its own timestep, both fixed here, and moving the
+atmosphere from T21 to T170 does not touch a number in it.
+
+That is exactly why the published synchronous coupling was eliminated: it gets
+its affordability from matching the three horizontal grids, and matching at T170
+puts a serial ocean at 512 x 256.
+
+## 5b. Matching the atmosphere is not affordable, and this says by how much
+
+T85 is 128 latitudes by 256 longitudes (`lib/rungs.py`). Against 36 x 36 that is
+25.3 times the surface cells, an equivalent uniform refinement of about 5.0.
+Section 3d's r^4 -- r^2 in cells and r^2 in timestep, in both components -- puts
+a T85-matched ocean at about 640 times the shipped grid's price per model year,
+so around 1900 Ginstr per model year against 2.973, and a 20,000-year physics
+spin-up at about 3.8e16 instructions. At the 6 to 18 Ginstr per second measured
+here that is between three and eleven weeks on one core, and the low end of that
+bracket is the one that will not apply, because a 256 x 128 x 16 ocean is
+firmly a large-state configuration.
+
+**That figure is an extrapolation across a factor of five in resolution from a
+single measured doubling, and it should be read as an order of magnitude.** What
+it is enough to settle is the decision it was taken for: matching is not
+affordable, offline coupling on an ocean grid chosen for the ocean is, and the
+eliminated architecture's 512 x 256 at T170 is worse again by another factor of
+sixteen.
+
+## 5c. The constraint that survives is the support mismatch, not the cost
+
+Because the ocean does not have to match, its cost is not the binding
+constraint. What remains is that any adequacy claim about coupled behaviour is a
+claim about fields carried across a large jump in support.
+
+At T85 the atmosphere resolves 1.4 degrees of longitude. The shipped ocean grid
+resolves 10, and it is equal-area in the sine of latitude, so its rows are about
+3.2 degrees near the equator and much wider in latitude towards the poles. Every
+ocean field crossing to the atmosphere is therefore a 10-degree field being read
+on a 1.4-degree grid, a factor of about seven in longitude, and every atmosphere
+field crossing the other way is an average over about fifty atmosphere cells.
+
+The doubled grid halves that to a factor of about three and a half, and section
+3 prices the halving at roughly eighteen times per model year, or more once the
+throughput effect in 4b is settled. **So a finer ocean is affordable and a
+MATCHED one is not, and the honest form of an adequacy claim is a declared
+support mismatch rather than a resolution that was chosen and then not
+mentioned.** Section 8b's straits, sills and partial coasts ride entirely on
+this, and at 10 degrees they are not represented at all.
+
+## 5d. EMBM is a second atmosphere AND the thing that caps the ocean's grid
+
+Section 9f already records that adopting this host means the modelled land and
+the modelled ocean read different atmospheres, and that OCN-10 has to name which
+terms EMBM owns. This measurement adds a harder reason to care. EMBM is not only
+a second atmosphere whose ownership is unstated; it is the component that sets
+the ocean's timestep and therefore prices every grid refinement. At both grids
+tested the ocean could carry a timestep about three times the one EMBM permits.
+
+That has a consequence specific to the offline architecture. In offline
+full-flux coupling the ocean is driven by an ExoPlaSim climatology, so what
+EMBM's prognostic atmosphere is still FOR has to be answered rather than
+inherited -- and the answer changes the ceiling, because a configuration that
+does not integrate EMBM does not inherit its stability limit and gets the
+factor of three back. Nothing here establishes that such a configuration exists
+or is correct. Section 6 is the reading of what the recipe would have to do.
+
+---
+
+# 6. One viability finding this measurement walked into
+
+Configuring the runs meant reading how `genie.F` assembles a recipe, and one
+thing there bears directly on the coupling architecture rather than on cost.
+
+**There are exactly two surface-flux paths for GOLDSTEIN, and each is gated on
+an atmosphere module being in the recipe.**
+
+- `genie.F:279` calls `surflux_wrapper` under `flag_ebatmos .and.
+  flag_goldsteinocean`. That is EMBM's, and it computes the fluxes from EMBM's
+  own prognostic state.
+- `genie.F:402` calls `plasim_surflux_wrapper` under `flag_plasimatmos`, and it
+  sits INSIDE the `flag_goldsteinseaice` block at `:397`.
+
+There is no third path, and with neither atmosphere flag set GOLDSTEIN receives
+no surface forcing at all. Every one of the shipped configurations carries an
+atmosphere for this reason: of the ones in `genie-main/configs`, all include
+either `embm` or `plasim`, and all include `goldsteinseaice`.
+
+**The second path is nevertheless the shape offline full-flux coupling wants.**
+`genie_loop_wrappers.f90:154-175` shows `surflux_goldstein_seaice` taking
+surface temperature, humidity and pressure, insolation, downward longwave, net
+heat, wind speed and the latent and sensible transfer coefficients as INPUT, and
+returning the ocean's latent, sensible, net solar and net longwave fluxes. It
+does not need PlaSim integrated; it needs those fields to exist. So a driver
+supplying an ExoPlaSim climatology has an interface to aim at rather than a
+surface to invent.
+
+**Two things about that interface have to be settled before it is called a
+route, and they belong to OCN-10 and to section 7b rather than here.** It also
+returns `dhght_sic`, `dfrac_sic`, `temp_sic` and `albd_sic`: the path is the
+SEA-ICE one, and it computes an ice state, which is exactly the quantity section
+7b makes ExoPlaSim's `icemod` authoritative for. And it is reachable only with
+`flag_goldsteinseaice` set, so "run the host's sea ice diagnostically or not at
+all", which OCN-3's own notes ask about, is not a namelist choice on this path:
+the sea-ice module is what carries it.
+
+## 6a. The ocean's own ceiling moves with a declared bracket
+
+`scf` scales the wind stress, and it enters linearly: `goldstein.F:199-205` sets
+`dztau = scf * stressxu_ocn` and the three companions, and the same four lines
+appear in both surface-flux paths. GOLDSTEIN's flow is frictional-geostrophic
+and linear in the stress, so the diagnosed velocity, and with it the model's own
+`Cn`, is very nearly proportional to `scf`.
+
+OCN-17's verdict is that `scf` is a DECLARED BRACKET, conventional range 1 to 3,
+not derivable from a stress-product ratio. Its shipped default is 2.00 and every
+run here used it. So the ocean's own timestep limit in section 3c inherits that
+bracket: at the bottom of it the ocean would tolerate about twice the timestep
+reported, and at the top about two thirds of it. **The ceiling is a bracket for
+the same reason the forcing is**, and the published tuned values, all between
+1.18 and 1.67, are Earth fits that do not transfer.
+
+---
+
+# 7. What this did NOT establish
+
+- **Nothing here is an adoption.** `vendor/cgenie` still has no consumer, no
+  pipeline row and no step. OCN-3's other halves -- the Vesper-parameter
+  question, the forcing contract, whether `genie-goldsteinseaice` can be run
+  diagnostically under section 7b's sea-ice decision, and whether the host
+  exports an ocean surface velocity in a form world-pt8 can consume -- are
+  untouched by this document.
+- **The 72 x 72 probe's circulation means nothing.** `dan_72` ships a real
+  topography and real wind stress, but not the pair of advective wind-speed
+  fields EMBM reads unconditionally, so those were made by replicating the
+  36 x 36 fields into 2 x 2 blocks. Replication changes no arithmetic the
+  timestep performs, so the wall clock and the Courant numbers are the wall
+  clock and the Courant numbers of a 72 x 72 x 16 model. The ocean state it
+  produces is not read and is not evidence about anything.
+- **The scaling exponents are two-point estimates from ONE doubling**, between
+  two different topographies. They are enough to say the growth is quadratic
+  rather than linear in the timestep, and they are not enough to carry a
+  five-fold extrapolation without the bracket section 5b states.
+- **This is not a profile.** It says what a configuration costs, not which
+  routine spends it. OCN-19 owns that, and the barotropic-versus-tracer arm here
+  answers only the one question it was designed for.
+- **Whether the frictional-geostrophic closure survives this planet's radius and
+  gravity is untouched.** `notes/audits/ocean-tier-implicit-earth.md` findings 1
+  and 4 stand exactly as they were: every number here is a number at Earth's
+  hardcoded `rsc` and `const_rEarth`, on Earth topographies, and the whole sweep
+  would have to be redone after those move.
+- **The host was not quiet.** Other work ran on this machine throughout. cGENIE
+  is one serial process on a 32-thread part so it never waited for a core, but
+  it did not have the cache or the memory bandwidth to itself. Every timing is
+  the minimum over repeats and every run records the load average it finished
+  under. The effects reported here are factors of two to ten; the scatter this
+  contention produces is well inside that, and the one comparison it could
+  plausibly distort is called out where it is made.
+- **Octave is still open**, as section 3d says.
