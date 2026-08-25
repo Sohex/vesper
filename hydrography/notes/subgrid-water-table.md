@@ -264,7 +264,7 @@ at a depth-dependent transmissivity.
 
     python hydrography/scripts/build_groundwater.py --unconfined --uniqueness-check
     python hydrography/scripts/build_groundwater.py --unconfined --reduction-test
-    python hydrography/scripts/earth_calibration.py   # with the unconfined arm
+    python hydrography/scripts/earth_calibration.py --stage diagnostics --region us --confinement unconfined
 
 and the questions they answer, in order: does it converge at all on 10 million
 regions within the pass budget; does the reduction identity still hold bitwise
@@ -272,6 +272,22 @@ at zero permeability; do the two active-set trajectories land within 1e-6
 relative; and does the dependence structure that GW-21 showed is reachable by
 transmissivity MAGNITUDE alone become reachable in a way that also moves the
 agreement, which is the thing raising `D` uniformly never did.
+
+The third is the Earth harness's arm and it exists: `--stage diagnostics` runs
+the transmissivity sweep with a CONFINED and an UNCONFINED solve at each of the
+declared thicknesses, and `--stage solve --unconfined` writes the unconfined
+solution as its own artifact named per arm, never over the confined one. What
+would count as a pass is declared in `config/groundwater.yaml` under
+`aquifer.unconfined_criterion`, before the first unconfined run of that harness,
+and the harness reads it from there rather than restating it. At one thickness
+the unconfined arm must put its Spearman against elevation AND its Spearman
+against recharge closer to the observed values than the confined arm at that
+same thickness, AND raise the Pearson against observed depth. Two of three at
+one thickness and the third at another is a MISS, and it is the specific miss
+the criterion exists to refuse: raising `D` uniformly already moves the
+dependence structure without the agreement following. The share of conductive
+cells sitting on `min_saturated_thickness_m` is reported beside it, because a
+cell on that bound has a depth that is a lower bound rather than a value.
 
 ## 4. GW-18: a sourced thickness, and what it does to GW-17's range fix
 

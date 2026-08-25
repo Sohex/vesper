@@ -296,6 +296,42 @@ aquifer:
   # `hydrography/notes/subgrid-water-table.md` carries the arithmetic, and
   # nothing may switch this without the convergence run named there.
   transmissivity: confined       # confined | unconfined
+
+  # WHAT WOULD COUNT AS THE UNCONFINED FORM REACHING A DEPENDENCE STRUCTURE
+  # THAT RAISING D UNIFORMLY DID NOT. Declared here, BEFORE the first unconfined
+  # run of the Earth harness, because the harness reads it and the question is
+  # exactly the kind a criterion chosen afterwards would answer by construction.
+  #
+  # GW-21's finding is that the dependence structure IS reachable by
+  # transmissivity magnitude alone -- `earth_calibration.py --stage diagnostics`
+  # takes the model's Spearman against elevation from about zero to +0.47 by
+  # raising `D` -- and that the AGREEMENT with observed depth does not follow.
+  # So neither half is the test. The test is whether one `D` moves both.
+  #
+  # At a given thickness the unconfined arm PASSES when all three hold against
+  # the confined arm AT THAT SAME THICKNESS:
+  #   - its Spearman against elevation is closer to the observed Spearman
+  #     against elevation;
+  #   - its Spearman against recharge is closer to the observed one;
+  #   - its Pearson against observed depth is larger.
+  # and the sweep as a whole passes when at least one thickness satisfies all
+  # three together. Two of three at one thickness and the third at another is a
+  # MISS, and it is the specific miss this criterion exists to refuse: it is
+  # what raising `D` uniformly already does.
+  #
+  # Reported alongside and not part of the criterion, because they say whether
+  # the arm may be read at all rather than what it says: the share of conductive
+  # cells sitting on `min_saturated_thickness_m`, whose depth is a numerical
+  # bound rather than a value, and whether the solve converged within its pass
+  # budget at that thickness.
+  unconfined_criterion:
+    thicknesses_m: [100.0, 1000.0, 5000.0, 20000.0]
+    requires_at_one_thickness:
+      - rho_elevation_closer_to_observed_than_confined
+      - rho_recharge_closer_to_observed_than_confined
+      - pearson_against_observed_higher_than_confined
+    declared_on: 2026-08-25
+    declared_before: the first unconfined run of the Earth harness
   # The smallest saturated column a conductive cell may have, metres. Strictly
   # positive and structural: at zero a face stops conducting when the table
   # reaches the aquifer base, so which cells are connected to recharge or to the
