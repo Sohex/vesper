@@ -87,6 +87,13 @@ hydrography/data/*/regions.nc
 # tracked in hydrography/analysis/surface_water_report.json.
 hydrography/data/*/surface_water.nc
 
+# GW-26's compound topographic index, per region and so the same size as the
+# rasters above. Terrain only, rebuilt in seconds by
+# hydrography/scripts/build_topographic_index.py, and one file per grid. The
+# per-cell statistics, the scale measurement and the declared score are small
+# and ARE tracked, in hydrography/analysis/topographic_index_report.json.
+hydrography/data/*/topographic_index_*.nc
+
 # LPJ-GUESS output: one set of files per gridcell per year, tens of MB per run
 # and regenerable from the driver file. The manifest and the analysis products
 # that summarise a run are tracked under biosphere/analysis/.
