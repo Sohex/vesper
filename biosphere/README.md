@@ -81,7 +81,7 @@ a result.
 | productivity prediction | registered, unscored |
 | calendar and astronomy port | mechanical calendar and orbital geometry applied; natural phenology still has unreachable Earth dates under BIO-21 |
 | PFT time base | one contract with four classes, in `notes/time-base-unit-contract.md`; `build_vesper_pfts.py` executes it and names each parameter's class in the file it writes and in its provenance |
-| input module | `vesperinput`, runs end to end and splits across MPI ranks; its 12-bin `VESPDRV7` transport is integration scaffolding to be replaced under EFOR-1 through EFOR-8 |
+| input module | `vesperinput`, runs end to end and splits across MPI ranks. Its `VESPDRV8` transport is CHRONOLOGICAL: the file carries a table of forcing intervals with explicit bounds and duration in absolute seconds and the local solar phase of each, any count, and `integrate_year` takes each absolute day's duration-weighted mean over the intervals overlapping it. So the 24-hour hydrology and biogeochemistry boundary is the consumer's rather than the format's, twelve intervals a year and one per timestep are the same code path, and the smooth curve `interp_monthly_means_conserve` manufactured between bin centres is gone because the producer states an interval mean and says nothing about the shape inside it. `config/ecological_forcing_contract.yaml` is what it has to carry; EFOR-3 and EFOR-8 own the artifact that will replace the binary |
 | soil and water | pedology depth scales LPJ capacity and pedology AWC sets ExoPlaSim's scalar bucket at smoke scale, but the models independently derive hydraulic properties and run separate snow/soil water balances; LSHY-1 through LSHY-7 own the consistency work |
 | abiotic nutrients | the ledger is DEFINED and does not CLOSE: `abiotic_nutrient_ledger.py` carries thirteen control volumes and twenty-one terms, every one of them still holding the `undeclared` sentinel with its owning issue named. Rock P and dust mass have useful relative/source artifacts but no absolute flux; `phosphorus_budget.py` does not consume dust deposition, and ANUT-2 through ANUT-6 and ANUT-10 own the terms that would close it |
 | abiotic source screen | geomorphic renewal, arc tephra and marine aerosol are RETAINED against the ledger, volcanic sulfate deposition is registered and not implemented, and fire ash and lightning belong to FIRE-7 and ANUT-4. The exhumation and tephra rates come from Earth's stationary population and not from the terrain; no screen may be carried on an aerosol optical depth |
@@ -395,6 +395,13 @@ python biosphere/scripts/build_vesper_pfts.py     # degree-day limits rescaled
 python biosphere/scripts/build_lpj_driver.py      # climate + soil codes + gridlist
 cmake --build vendor/lpj-guess/build --parallel 16
 ```
+
+`build_lpj_driver.py --self-test` runs the interval arithmetic and header layout
+fixtures and exits: no climatology, no soil map, no model. It covers the
+operator `vesperinput.cpp:integrate_year` implements and the byte layout that
+module parses, which is what can be executed here -- LPJ-GUESS does not build on
+this tree, so the C++ itself is checked by `g++ -fsyntax-only` against a
+synthetic `vesper.h` and never run.
 
 All three land in `biosphere/generated/`, along with the gate and ledger
 reports. That directory is output and is not tracked: everything in it is

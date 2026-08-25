@@ -380,6 +380,20 @@ array, which is the change a magic exists to catch: it is the SURFACE
 temperature range, and `vesperinput.cpp` no longer assigns it to `climate.dtr`,
 whose only reader means an air-temperature range.
 
+**Closed by this contract.** The driver's cadence. `VESPDRV8` carries a table of
+forcing intervals with explicit start, end and duration in absolute seconds and
+the local solar phase of each, any count, and `vesperinput.cpp:integrate_year`
+takes each absolute day's duration-weighted mean over the intervals overlapping
+it. So the 24-hour hydrology and biogeochemistry boundary is the consumer's
+rather than something the format decided, and twelve intervals a year, one per
+absolute day and one per climate-model timestep are the same code path. The
+builder no longer remaps the producer's intervals onto the model's months,
+because the format no longer demands months. What that gives up is the smooth
+daily curve `interp_monthly_means_conserve` manufactured between bin centres,
+and it had no source: the producer states an interval mean and says nothing
+about the shape inside the interval. The integration is the identity when an
+interval is one absolute day.
+
 **Open, and at the driver seam.** The air-temperature extrema now reach the
 regular product as `tasmax`/`tasmin`, so the range `climate.dtr` means has a
 source. Carrying it needs a driver array the `VESPDRV` format does not have,

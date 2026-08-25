@@ -64,11 +64,16 @@ being hidden by a single-year value.  This is BIO-12.
 ## 3. The wet-days setting is not implemented by VesperInput
 
 `global.ins` declares `ifrainonwetdaysonly 1`, and the normal monthly INTERP
-paths call `prdaily` when that flag is true.  `VesperInput::interpolate` instead
-calls `interp_monthly_totals_conserve`, which turns each monthly total into a
-smooth sequence of positive mean-daily values, and never calls `prdaily`.
-Consequently the instruction file says wet days only while Vesper effectively
-rains a little almost every day.
+paths call `prdaily` when that flag is true.  `VesperInput` never calls
+`prdaily`.  As measured, `VesperInput::interpolate` called
+`interp_monthly_totals_conserve`, which turned each monthly total into a smooth
+sequence of positive mean-daily values; `VesperInput::integrate_year` now takes
+each absolute day's duration-weighted mean over the forcing intervals covering
+it, which stops manufacturing the smooth curve but does not produce wet days
+either, because an interval mean rate spread over its own days rains a little
+every day just as the smooth curve did.  Either way the instruction file says
+wet days only while Vesper rains a little almost every day, and the missing
+thing is a source with events in it rather than a better reconstruction.
 
 The correction must not import an Earth observational GWGEN field.  The climate
 archive or snapshot stream should provide a Vesper-native daily sequence or at

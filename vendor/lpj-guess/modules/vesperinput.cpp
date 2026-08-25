@@ -17,7 +17,13 @@
 ///     biosphere/notes/time-base-unit-contract.md.
 ///  3. The gridlist, soil codes and climate arrive in one generated binary file
 ///     rather than several curated text files.
-///  4. The file's year length is checked against the compiled-in one.
+///  4. The file's year length is checked against the compiled-in one, and its
+///     forcing intervals are read rather than assumed. There is no bin count
+///     here: the file carries a table of intervals with explicit bounds and
+///     this module integrates them onto its own absolute day, so the 24-hour
+///     hydrology and biogeochemistry boundary is the consumer's rather than
+///     something the format decided. See vesperinput.h and
+///     biosphere/config/ecological_forcing_contract.yaml.
 ///  5. The fourth climate array is the range of the SURFACE temperature, not
 ///     the near-surface air diurnal range, so it is NOT handed to climate.dtr
 ///     and ifbvoc is refused. The two are different variables and this world's
@@ -35,23 +41,31 @@
 #include "guess.h"
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 REGISTER_INPUT_MODULE("vesper", VesperInput)
 
 namespace {
 
 /// Little-endian, and both writer and reader are x86-64. Checked via the magic.
-const char DRIVER_MAGIC[8] = {'V','E','S','P','D','R','V','7'};
-
-/// Bins per year in the driver file. These are the MODEL's months, the same
-/// twelve VESPER_MONTH_LENGTHS sizes Date with, because interp_monthly_*
-/// spreads each one over exactly ndaymonth days. build_lpj_driver.py remaps the
-/// producer's own time bins onto them conservatively rather than assuming the
-/// two partitions agree; they do not, and the last one differed by two days.
-const int DRIVER_BINS = 12;
+const char DRIVER_MAGIC[8] = {'V','E','S','P','D','R','V','8'};
 
 /// Length of the provenance string the driver file carries
 const int PROVENANCE_BYTES = 64;
+
+/// Seconds in the absolute day of biosphere/notes/time-base-unit-contract.md.
+/// Not this world's rotation, which is 30 hours. The interval bounds are in
+/// absolute seconds and LPJ-GUESS's hydrology and biogeochemistry step is the
+/// absolute day, so this is the boundary the intervals are integrated onto.
+const double DAY_SECONDS = 86400.0;
+
+/// How far the interval table may miss tiling the year before it is refused, in
+/// seconds. Absolute rather than relative, and one millisecond: the bounds are
+/// doubles built from a cumulative sum of interval lengths over a year of a few
+/// hundred days, so the rounding available to an honest table is nanoseconds,
+/// and anything at the millisecond scale is a gap rather than arithmetic. Fixed
+/// before any driver file existed to test it against.
+const double TILE_TOLERANCE = 1.0e-3;
 
 template<typename T>
 void read_or_fail(FILE* in, T* target, size_t count, const char* what) {
@@ -64,7 +78,8 @@ void read_or_fail(FILE* in, T* target, size_t count, const char* what) {
 
 VesperInput::VesperInput()
 	: current(0), total_cells(0), nyear(1), co2(0.0), ndep(0.0),
-	  have_soilmap(false), years(1), loaded_year(-1) {
+	  have_soilmap(false), years(1), nintervals(0), nsubdaily(0),
+	  loaded_year(-1) {
 
 	declare_parameter("nyear", &nyear, 1, 10000,
 		"Number of simulation years to run after spinup");
@@ -79,6 +94,13 @@ VesperInput::~VesperInput() {
 }
 
 void VesperInput::read_driver() {
+
+	// The interval table is read as one block of doubles, which is the same
+	// thing as one block of Intervals only if the struct is exactly its four
+	// doubles. A compiler that padded it would read every field into the wrong
+	// slot and report a tiling failure that has nothing to do with the file.
+	static_assert(sizeof(Interval) == 4 * sizeof(double),
+	              "VesperInput::Interval must be exactly four packed doubles");
 
 	FILE* in = fopen(file_driver, "rb");
 	if (!in) {
@@ -99,11 +121,14 @@ void VesperInput::read_driver() {
 		     "build_lpj_driver.py.", (char*)file_driver, found, expected);
 	}
 
-	int ncells = 0, nbins = 0, year_length = 0, nyears = 0;
+	int ncells = 0, ninterval = 0, year_length = 0, nyears = 0;
+	int subdaily = 0, pad_header = 0;
 	read_or_fail(in, &ncells, 1, "cell count");
-	read_or_fail(in, &nbins, 1, "bin count");
+	read_or_fail(in, &ninterval, 1, "intervals per year");
 	read_or_fail(in, &year_length, 1, "year length");
 	read_or_fail(in, &nyears, 1, "years of climate");
+	read_or_fail(in, &subdaily, 1, "subdaily samples per interval");
+	read_or_fail(in, &pad_header, 1, "header padding");
 
 	// This world's year is a function of its stellar flux. A driver file and a
 	// binary built at different fluxes describe different planets, and the
@@ -115,10 +140,21 @@ void VesperInput::read_driver() {
 		     "build_vesper_header.py and rebuild, or rebuild the driver file.",
 		     year_length, (int)Date::MAX_YEAR_LENGTH);
 	}
-	if (nbins != DRIVER_BINS) {
+	// No expected interval count. The format states one and this module is
+	// indifferent to it, which is the whole of what VESPDRV8 changed: twelve a
+	// year, one a day and one a timestep are the same code path here.
+	if (ninterval < 1) {
 		fclose(in);
-		fail("vesperinput: driver file has %d bins per year, expected %d",
-		     nbins, DRIVER_BINS);
+		fail("vesperinput: driver file declares %d forcing intervals per year",
+		     ninterval);
+	}
+	if (subdaily != 0) {
+		fclose(in);
+		fail("vesperinput: driver file carries %d subdaily samples per interval "
+		     "and this module has no operator that reads them. The subdaily arm "
+		     "is delivered by EFOR-3 and consumed by PCAR-1 and FIRE-1; reading "
+		     "the samples without one would be integrating them away silently.",
+		     subdaily);
 	}
 	if (ncells < 1) {
 		fclose(in);
@@ -137,6 +173,64 @@ void VesperInput::read_driver() {
 	read_or_fail(in, provenance_buffer, PROVENANCE_BYTES, "provenance tag");
 	provenance_buffer[PROVENANCE_BYTES] = '\0';
 	provenance = provenance_buffer;
+
+	// THE INTERVAL TABLE, ONCE FOR THE WHOLE GRID. Every cell shares one time
+	// axis, so the bounds are read here rather than per cell: a per-cell copy
+	// would be the same fact written a hundred thousand times with nothing
+	// checking the copies against each other.
+	nintervals = ninterval;
+	nsubdaily = subdaily;
+	intervals.resize((size_t)nyears * (size_t)nintervals);
+	read_or_fail(in, &intervals[0].start, 4 * intervals.size(), "interval table");
+
+	// The table has to TILE each simulation year: start at zero, end at the
+	// year, and every interval begin exactly where the previous one ended.
+	//
+	// Refused rather than repaired, and all four ways separately, because they
+	// are four different upstream defects and a repair would hide which one
+	// happened. A gap is forcing that was never produced; an overlap is one
+	// interval's weather counted twice; a duration that disagrees with the
+	// bounds is a table built by two pieces of code that disagree; and a table
+	// that does not reach the year is a run that would silently repeat its last
+	// interval for the remainder.
+	const double year_seconds = (double)year_length * DAY_SECONDS;
+	for (int y = 0; y < nyears; y++) {
+		for (int k = 0; k < nintervals; k++) {
+			const Interval& iv = intervals[(size_t)y * nintervals + k];
+			if (!(iv.duration > 0.0)) {
+				fclose(in);
+				fail("vesperinput: year %d interval %d has duration %g s. An "
+				     "interval of no length carries a mean of nothing.",
+				     y, k, iv.duration);
+			}
+			if (fabs((iv.end - iv.start) - iv.duration) > TILE_TOLERANCE) {
+				fclose(in);
+				fail("vesperinput: year %d interval %d spans %g s by its bounds "
+				     "and declares a duration of %g s. The two are written by "
+				     "the same builder and disagreeing means they were not.",
+				     y, k, iv.end - iv.start, iv.duration);
+			}
+			const double expected = (k == 0)
+				? 0.0 : intervals[(size_t)y * nintervals + k - 1].end;
+			if (fabs(iv.start - expected) > TILE_TOLERANCE) {
+				fclose(in);
+				fail("vesperinput: year %d interval %d starts at %g s and the "
+				     "previous one ends at %g s, a %s of %g s. The intervals "
+				     "have to tile the year with neither.",
+				     y, k, iv.start, expected,
+				     (iv.start > expected) ? "gap" : "overlap",
+				     fabs(iv.start - expected));
+			}
+		}
+		const double reached = intervals[(size_t)y * nintervals + nintervals - 1].end;
+		if (fabs(reached - year_seconds) > TILE_TOLERANCE) {
+			fclose(in);
+			fail("vesperinput: year %d's intervals reach %g s and the simulation "
+			     "year is %g s. A table that does not reach the year leaves days "
+			     "with no forcing, which would run on whatever the arrays last "
+			     "held rather than failing.", y, reached, year_seconds);
+		}
+	}
 
 	cells.resize(ncells);
 	for (int i = 0; i < ncells; i++) {
@@ -160,13 +254,13 @@ void VesperInput::read_driver() {
 			fail("vesperinput: cell %d has invalid LPJ soil code %d",
 			     i, cell.soilcode);
 		}
-		const size_t span = (size_t)nbins * (size_t)nyears;
+		const size_t span = (size_t)nintervals * (size_t)nyears;
 		cell.temp.resize(span);
 		cell.prec.resize(span);
 		cell.insol.resize(span);
 		cell.tsrange.resize(span);
 		read_or_fail(in, &cell.temp[0], span, "temperature");
-		read_or_fail(in, &cell.prec[0], span, "precipitation");
+		read_or_fail(in, &cell.prec[0], span, "precipitation rate");
 		read_or_fail(in, &cell.insol[0], span, "insolation");
 		read_or_fail(in, &cell.tsrange[0], span, "surface temperature range");
 	}
@@ -213,14 +307,30 @@ void VesperInput::init() {
 
 	dprintf("Vesper driver: %s\n", (char*)file_driver);
 	if (GuessParallel::get_num_processes() > 1) {
-		dprintf("  %d of %d land cells on rank %d of %d, %d bins, %d-day year\n",
+		dprintf("  %d of %d land cells on rank %d of %d, %d intervals, %d-day year\n",
 		        (int)cells.size(), total_cells, GuessParallel::get_rank(),
-		        GuessParallel::get_num_processes(), DRIVER_BINS,
+		        GuessParallel::get_num_processes(), nintervals,
 		        (int)Date::MAX_YEAR_LENGTH);
 	}
 	else {
-		dprintf("  %d land cells, %d bins per year, %d-day year\n",
-		        (int)cells.size(), DRIVER_BINS, (int)Date::MAX_YEAR_LENGTH);
+		dprintf("  %d land cells, %d forcing intervals per year, %d-day year\n",
+		        (int)cells.size(), nintervals, (int)Date::MAX_YEAR_LENGTH);
+	}
+
+	// The interval length against this module's own step, printed because it is
+	// what decides whether the daily series is the forcing or a step
+	// reconstruction of it. At one absolute day the integration is the identity
+	// and nothing is reconstructed; well above it, every day inside an interval
+	// gets that interval's mean and no structure within it exists to be read.
+	// Reported rather than judged: which interval length this world's ecology
+	// needs is BIO-13's measurement and PCAR-1's rotation argument, not a bar
+	// this module may set.
+	{
+		const double mean_days =
+			(double)Date::MAX_YEAR_LENGTH / (double)nintervals;
+		dprintf("  mean interval %.3f absolute days; the daily series is the "
+		        "duration-weighted\n  integral of the intervals onto the day, "
+		        "and no shape inside an interval is invented\n", mean_days);
 	}
 	if (years > 1) {
 		dprintf("  %d years of climate, cycled; spin-up sees the whole cycle\n",
@@ -270,16 +380,81 @@ void VesperInput::init() {
 	current = 0;
 }
 
-void VesperInput::interpolate(const Cell& cell, int year_index) {
+void VesperInput::integrate_year(const Cell& cell, int year_index) {
 
-	// The framework's own conserving interpolators, so bin means stay means and
-	// bin totals stay totals. They read date.ndaymonth[], which the patched Date
-	// fills with Vesper's months, so no bin length is assumed here.
-	const size_t offset = (size_t)year_index * (size_t)DRIVER_BINS;
-	interp_monthly_means_conserve(&cell.temp[offset], dtemp);
-	interp_monthly_totals_conserve(&cell.prec[offset], dprec, 0.0);
-	interp_monthly_means_conserve(&cell.insol[offset], dinsol, 0.0);
-	interp_monthly_means_conserve(&cell.tsrange[offset], dtsrange, 0.0);
+	// INTEGRATION AND NOT INTERPOLATION. Each absolute day takes the
+	// duration-weighted mean of the intervals overlapping it, which is the
+	// operator every field here can share because every field here is
+	// intensive: a mean over its interval, or a mean rate per absolute day.
+	//
+	// Three properties, and the third is why the smooth interpolators are gone.
+	// It is the identity when an interval is one absolute day, so a
+	// chronological forcing passes through untouched. It conserves the
+	// duration-weighted total exactly for any interval structure, which is
+	// identity 7 of the forcing contract. And it invents no shape inside an
+	// interval: the producer states an interval mean and says nothing about
+	// what happened within it, so the smooth curve
+	// interp_monthly_means_conserve manufactured between bin centres was
+	// structure with no source. What that costs is visible rather than hidden:
+	// on intervals much longer than a day the daily series is a step function,
+	// and read_driver reports the interval length so a run says which it is on.
+	//
+	// biosphere/config/ecological_forcing_contract.yaml declares it.
+
+	const size_t offset = (size_t)year_index * (size_t)nintervals;
+	const Interval* table = &intervals[offset];
+
+	int k = 0;
+	for (int day = 0; day < (int)Date::MAX_YEAR_LENGTH; day++) {
+
+		const double day_start = (double)day * DAY_SECONDS;
+		const double day_end = day_start + DAY_SECONDS;
+
+		// The intervals tile the year in order, so the sweep never rewinds:
+		// each day starts from the first interval that reaches into it. That
+		// makes this linear in intervals plus days rather than their product,
+		// which matters once an interval is a climate-model timestep.
+		while (k + 1 < nintervals && table[k].end <= day_start) {
+			k++;
+		}
+
+		double temp = 0.0, prec = 0.0, insol = 0.0, tsrange = 0.0;
+		double weight = 0.0;
+		for (int j = k; j < nintervals && table[j].start < day_end; j++) {
+			const double lo = (table[j].start > day_start) ? table[j].start : day_start;
+			const double hi = (table[j].end < day_end) ? table[j].end : day_end;
+			const double overlap = hi - lo;
+			if (overlap <= 0.0) {
+				continue;
+			}
+			const size_t at = offset + (size_t)j;
+			temp += overlap * cell.temp[at];
+			prec += overlap * cell.prec[at];
+			insol += overlap * cell.insol[at];
+			tsrange += overlap * cell.tsrange[at];
+			weight += overlap;
+		}
+
+		// read_driver has already refused a table that leaves a day uncovered,
+		// so this cannot fire on a file that loaded. It is here because the
+		// alternative to failing is dividing by zero and filling the rest of
+		// the year with NaN, which propagates into the nitrogen substrate and
+		// zeroes the gridcell's vegetation while reporting a completed run.
+		if (!(weight > 0.0)) {
+			fail("vesperinput: day %d of year %d is covered by no forcing "
+			     "interval, and read_driver's tiling check should have refused "
+			     "the file before this point.", day, year_index);
+		}
+
+		dtemp[day] = temp / weight;
+		// mm per absolute day times exactly one absolute day, which is the
+		// depth climate.prec means. The multiplication is written as the
+		// identity it is rather than dropped, so the unit change is visible.
+		dprec[day] = (prec / weight) * 1.0;
+		dinsol[day] = insol / weight;
+		dtsrange[day] = tsrange / weight;
+	}
+
 	loaded_year = year_index;
 }
 
@@ -317,9 +492,9 @@ bool VesperInput::getgridcell(Gridcell& gridcell) {
 	}
 
 	// Year 0 of this cell, so day 0 has data before getclimate first runs.
-	// getclimate re-interpolates at the start of every year after that.
+	// getclimate re-integrates at the start of every year after that.
 	loaded_year = -1;
-	interpolate(cell, 0);
+	integrate_year(cell, 0);
 
 	clear_all_graphs();
 
@@ -447,7 +622,7 @@ bool VesperInput::getclimate(Gridcell& gridcell) {
 		// owns the seasonal landmarks and the progress report; this only owns the
 		// forcing arrays, and on day 0 the two conditions coincide exactly as
 		// they did when they were one test.
-		interpolate(cell, wanted);
+		integrate_year(cell, wanted);
 		if (date.day != 0) {
 			// Day 0 sets the landmarks below. A mid-year resume has to set them
 			// here or summergreen phenology spends the rest of the year on the

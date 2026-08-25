@@ -27,12 +27,16 @@ better than driver.cpp's global 0.17 constant. It is NOT the incident photon
 supply to a canopy, and PCAR-2 and BIO-25 own that end; see
 `biosphere/notes/ecological-forcing-field-contract.md`.
 
-**Bin order defines the calendar, and bin LENGTH does not.** Bin 0 starts at day
-0 of the simulation year and `build_vesper_header.py` fits the declination phase
-on that assumption, so the two must be regenerated together after any orbit
-change. But a pyburn bin and a model month are two different partitions of the
-same year, and the producer owns its own interval bounds. `interval_to_month`
-below remaps between them conservatively rather than assuming they agree.
+**The producer's intervals travel, and are not remapped onto a calendar.**
+Interval 0 starts at day 0 of the simulation year and `build_vesper_header.py`
+fits the declination phase on that assumption, so the two must be regenerated
+together after any orbit change. Everything else about the partition is carried:
+each interval's start, end and duration in absolute seconds and its local solar
+phase go in the file, taken from the climatology's own time axis, and the
+consumer integrates them onto its own 24-hour step. Up to V7 the file demanded
+twelve bins that were the model's months, so this script had to remap the
+producer's intervals onto them first, and the producer's own partition was gone
+before the consumer saw it.
 
 **One climatology or many.** Pass several to `--climatology` and each becomes one
 year of forcing, in the order given; `vesperinput` cycles through them, so the
@@ -77,7 +81,54 @@ from orogen import Export
 # argued in biosphere/notes/time-base-unit-contract.md, V6's in
 # biosphere/notes/ecological-forcing-field-contract.md and V7's in
 # pedology/notes/land-column-property-contract.md.
-MAGIC = b"VESPDRV7"
+#
+# V8 IS CHRONOLOGICAL AND CARRIES ITS OWN INTERVALS. Every version up to V7 had
+# a fixed twelve bins per year and the reader knew what a bin meant, so the
+# cadence lived in the reader and the interval length lived nowhere. This
+# builder had to remap the producer's own intervals onto the model's months to
+# fit that, which threw the producer's interval identity away before the
+# consumer ever saw it. V8 carries a table of intervals with explicit start,
+# end and duration in absolute seconds and the local solar phase of each, ANY
+# COUNT, and the fields per interval as intensive quantities. The 24-hour
+# hydrology and biogeochemistry boundary is then the CONSUMER's: vesperinput
+# integrates the intervals onto its own day rather than the format assuming
+# that boundary on its behalf. Twelve intervals a year drop in, and so do one
+# per day and one per timestep, with no format change and no reader change.
+#
+# What V8 gives up is the smooth daily curve interp_monthly_means_conserve
+# manufactured between bin centres. That curve had no source: the producer
+# states an interval mean and says nothing about the shape inside the interval,
+# so the smooth reconstruction was invented structure. V8's consumer-side
+# integration invents nothing and is the identity when an interval is one
+# absolute day. EFOR-1's contract and EFOR-4 argue it;
+# biosphere/config/ecological_forcing_contract.yaml is the declaration.
+MAGIC = b"VESPDRV8"
+
+# Samples inside each interval. Zero today: the subdaily arm is EFOR-3's to
+# deliver and PCAR-1's and FIRE-1's to consume, and vesperinput refuses a
+# non-zero count by name rather than reading a field it has no operator for.
+# Carried in the header so that adding them later is a value change and not a
+# format change.
+SUBDAILY_SAMPLES = 0
+
+# Seconds in the absolute day of biosphere/notes/time-base-unit-contract.md.
+# Not this world's rotation, which is 30 hours; the interval bounds below are
+# absolute seconds and the consumer's step is the absolute day.
+DAY_SECONDS = 86400.0
+
+# The file header after the magic, as one struct format shared by the writer and
+# by --self-test, so the round-trip check cannot pass against a layout the
+# writer does not use. Six int32s and two doubles: cells, intervals per year,
+# year length in days, years of climate, subdaily samples per interval, a pad
+# that keeps the doubles eight-byte aligned, then CO2 and nitrogen deposition.
+# vesperinput.cpp reads them in this order.
+HEADER_FORMAT = "<iiiiiidd"
+
+# One interval record: start, end and duration in absolute seconds from the
+# start of the simulation year, and the local solar phase at the start as a
+# fraction of a rotation. Four packed doubles, which vesperinput reads as one
+# block and static_asserts the struct size of.
+INTERVAL_FORMAT = "<dddd"
 
 # Coordinate precision shared with pedology/scripts/build_soil.py, so the soil
 # map keys match exactly. See where lon_signed is rounded.
@@ -136,9 +187,11 @@ def month_lengths(year_length: int) -> np.ndarray:
     """The model's own month lengths, from the generator that compiles them in.
 
     Imported rather than recomputed. `VESPER_MONTH_LENGTHS` sizes the C++
-    `Date`, and `interp_monthly_means_conserve` spreads a bin over exactly these
-    days, so a second copy of the rule here would be a second thing to keep in
-    step.
+    `Date` and is what the model's monthly output tables are binned on, so a
+    second copy of the rule here would be a second thing to keep in step.
+    Nothing is DELIVERED on these any more: the driver carries the producer's
+    own intervals and the consumer integrates them onto the absolute day. They
+    survive here for the month-weighted summary in the provenance report.
     """
     from build_vesper_header import month_lengths as _lengths
     return np.asarray(_lengths(year_length), dtype=float)
@@ -165,49 +218,74 @@ def producer_interval_days(times: np.ndarray, year_length: int) -> np.ndarray:
     return weights * float(year_length)
 
 
-def interval_to_month(values: np.ndarray, spans: np.ndarray,
-                      months: np.ndarray) -> np.ndarray:
-    """Remap per-interval values onto the model's months, conserving the total.
+def interval_table(spans: np.ndarray, rotation_hours: float) -> np.ndarray:
+    """The interval record for one year: start, end, duration, solar phase.
 
-    `values` is per-interval and INTENSIVE in time: a mean over the interval, or
-    a rate per absolute day. Its leading axis is the interval axis. Both
-    partitions tile the same year starting at day 0.
+    `spans` is each interval's length in absolute days and they tile the year.
+    Bounds are absolute seconds from the start of the year, exact and never
+    inferred from a record index: a consumer that infers an interval from a
+    record number cannot tell a missing interval from a short one, and that
+    distinction is what the acceptance check is.
 
-    One operator serves means and rates alike, which is the point of expressing
-    precipitation as a rate before it gets here. For a mean the result is the
-    duration-weighted mean over the month; for a rate it is the mean rate over
-    the month, and multiplying it by the month length gives a total that
-    conserves exactly:
+    The phase is the local solar phase at the interval's START, as a fraction of
+    a rotation. Rotation is uniform, so it is exact; the ecological forcing
+    contract declares it derived for that reason rather than carried from the
+    model. It advances every interval because the absolute day and this world's
+    rotation are not the same length, and a consumer that assumes a fixed phase
+    is assuming a 24-hour rotator.
+    """
+    spans = np.asarray(spans, dtype=float)
+    if spans.ndim != 1 or spans.size < 1:
+        raise SystemExit("an interval table needs at least one interval")
+    if not np.all(spans > 0.0):
+        raise SystemExit(f"every interval must have positive length, got {spans}")
+    edges = np.concatenate([[0.0], np.cumsum(spans)]) * DAY_SECONDS
+    rotation_seconds = float(rotation_hours) * 3600.0
+    return np.stack([
+        edges[:-1],
+        edges[1:],
+        np.diff(edges),
+        np.mod(edges[:-1] / rotation_seconds, 1.0),
+    ], axis=1)
 
-        sum_k months[k] * out[k] = sum_b spans[b] * values[b]
 
-    That identity is asserted below, because a remap that silently loses mass is
-    worse than no remap: the annual total would still look plausible.
+def integrate_onto_days(values: np.ndarray, spans: np.ndarray,
+                        year_length: int) -> np.ndarray:
+    """What the consumer will compute, computed here so it can be checked.
+
+    This is vesperinput's own reconstruction: each absolute day takes the
+    duration-weighted mean of the intervals overlapping it. It is the identity
+    when an interval is one absolute day, it invents no structure inside an
+    interval, and for an intensive quantity it conserves the duration-weighted
+    total exactly, which is identity 7 of the forcing contract.
+
+    Reproduced rather than trusted. The consumer is C++ in another tree and
+    cannot be executed here, so the arithmetic it will run is written out and
+    the conservation identity asserted against the artifact this script emits.
     """
     values = np.asarray(values, dtype=float)
     spans = np.asarray(spans, dtype=float)
-    months = np.asarray(months, dtype=float)
-    if abs(spans.sum() - months.sum()) > 1e-6 * months.sum():
+    days = np.full(int(year_length), 1.0)
+    if abs(spans.sum() - days.sum()) > 1e-6 * days.sum():
         raise SystemExit(
             f"the producer's intervals span {spans.sum():.6f} days and the "
-            f"model's year {months.sum():.6f}; they must tile the same year")
+            f"model's year {days.sum():.6f}; they must tile the same year")
 
     p_edges = np.concatenate([[0.0], np.cumsum(spans)])
-    m_edges = np.concatenate([[0.0], np.cumsum(months)])
-    # Overlap in days between month k and interval b.
+    d_edges = np.concatenate([[0.0], np.cumsum(days)])
     overlap = np.clip(
-        np.minimum(m_edges[1:, None], p_edges[None, 1:])
-        - np.maximum(m_edges[:-1, None], p_edges[None, :-1]), 0.0, None)
+        np.minimum(d_edges[1:, None], p_edges[None, 1:])
+        - np.maximum(d_edges[:-1, None], p_edges[None, :-1]), 0.0, None)
 
-    out = np.tensordot(overlap, values, axes=(1, 0)) / months.reshape(
+    out = np.tensordot(overlap, values, axes=(1, 0)) / days.reshape(
         (-1,) + (1,) * (values.ndim - 1))
 
     total_in = float(np.tensordot(spans, values, axes=(0, 0)).sum())
-    total_out = float(np.tensordot(months, out, axes=(0, 0)).sum())
+    total_out = float(np.tensordot(days, out, axes=(0, 0)).sum())
     scale = max(abs(total_in), 1.0)
     if abs(total_out - total_in) > 1e-9 * scale:
         raise SystemExit(
-            f"interval-to-month remap lost mass: {total_in!r} in, "
+            f"the consumer's day integration would lose mass: {total_in!r} in, "
             f"{total_out!r} out")
     return out
 
@@ -276,6 +354,124 @@ def soil_codes(config: dict, land: np.ndarray) -> tuple[np.ndarray, dict]:
     return dominant, summary
 
 
+def self_test() -> int:
+    """The interval arithmetic and the header layout, on fixtures.
+
+    WHAT THIS COVERS AND WHAT IT DOES NOT. `integrate_onto_days` is the
+    arithmetic `vesperinput.cpp:integrate_year` runs, written out here so it can
+    be executed: LPJ-GUESS does not build on this tree, so the C++ is checked by
+    `g++ -fsyntax-only` against a synthetic header and never run. What is
+    executed here is therefore the OPERATOR and the FORMAT, not the reader. A
+    fixture that does not get the verdict it was built for is a defect in this
+    checker rather than in the builder.
+
+        python biosphere/scripts/build_lpj_driver.py --self-test
+
+    No climatology, no soil map, no model.
+    """
+    failures = 0
+
+    def check(label: str, ok: bool, detail: str = "") -> None:
+        nonlocal failures
+        failures += 0 if ok else 1
+        print(f"[{'  ok  ' if ok else ' FAIL '}] {label}"
+              + (f"\n           {detail}" if detail and not ok else ""))
+
+    def refuses(label: str, fn) -> None:
+        try:
+            fn()
+        except SystemExit as error:
+            check(label, True, str(error))
+            return
+        check(label, False, "it was accepted")
+
+    year = 12
+    rotation = 30.0
+
+    # The identity case, and it is the one the whole format change is for: one
+    # interval per absolute day passes through untouched, so a chronological
+    # forcing is not reconstructed at all.
+    spans = np.ones(year)
+    values = np.arange(float(year))
+    days = integrate_onto_days(values, spans, year)
+    check("one interval per absolute day integrates to itself",
+          bool(np.allclose(days, values)), f"{days} against {values}")
+
+    # Uneven intervals, which is what the producer actually emits. The
+    # duration-weighted total is what has to survive; the daily shape is a step
+    # function and is not claimed to be anything else.
+    # Fractional edges deliberately, because that is what the producer emits:
+    # its bins are 15.08 days and change and no edge lands on a day boundary.
+    spans = np.array([2.5, 5.0, 0.5, 4.0])
+    values = np.array([10.0, -3.0, 7.0, 0.5])
+    days = integrate_onto_days(values, spans, year)
+    check("uneven intervals conserve the duration-weighted total",
+          abs(float(days.sum()) - float((spans * values).sum())) < 1e-9,
+          f"{days.sum()} against {(spans * values).sum()}")
+    check("a day wholly inside one interval takes that interval's value",
+          abs(days[3] - values[1]) < 1e-12, f"{days[3]} against {values[1]}")
+    # Day 2 spans 2.0 to 3.0 and the first edge is at 2.5, so it is half in
+    # interval 0 and half in interval 1. Half of 10 plus half of -3 is 3.5, and
+    # a reader that snapped the edge to a day boundary would return 10 or -3.
+    check("a day straddling two intervals takes their weighted mean",
+          abs(days[2] - 3.5) < 1e-12, f"day 2 {days[2]}, expected 3.5")
+    # Day 7 spans 7.0 to 8.0, and 7.5 is where interval 2 begins, so it is half
+    # of -3 and half of 7.
+    check("a day straddling the shortest interval takes its share too",
+          abs(days[7] - 2.0) < 1e-12, f"day 7 {days[7]}, expected 2.0")
+
+    # A field with a grid axis, which is the shape the builder actually passes.
+    field = np.stack([values, values * 2.0], axis=-1)[:, None, :]
+    days = integrate_onto_days(field, spans, year)
+    check("the operator carries the grid axes through",
+          days.shape == (year, 1, 2)
+          and abs(float(days[:, 0, 1].sum()) - float((spans * values * 2.0).sum())) < 1e-9,
+          f"shape {days.shape}")
+
+    refuses("intervals that do not tile the year are refused",
+            lambda: integrate_onto_days(np.array([1.0, 2.0]),
+                                        np.array([1.0, 2.0]), year))
+
+    table = interval_table(np.array([2.0, 5.0, 1.0, 4.0]), rotation)
+    check("the interval table starts at zero and reaches the year",
+          abs(table[0, 0]) < 1e-9
+          and abs(table[-1, 1] - year * DAY_SECONDS) < 1e-6,
+          f"{table[0, 0]} to {table[-1, 1]}")
+    check("every interval begins where the previous one ends",
+          bool(np.allclose(table[1:, 0], table[:-1, 1])))
+    check("the declared duration is the bounds' own difference",
+          bool(np.allclose(table[:, 2], table[:, 1] - table[:, 0])))
+    check("the solar phase is in [0, 1) and wraps rather than accumulating",
+          bool(np.all(table[:, 3] >= 0.0) and np.all(table[:, 3] < 1.0)),
+          f"{table[:, 3]}")
+    # 2 absolute days is 48 hours, which is 1.6 rotations of 30 hours, so the
+    # phase at the second interval's start is 0.6 and not 1.6. A phase that
+    # accumulated would pass every other check here.
+    check("the phase after two absolute days is 1.6 rotations, wrapped to 0.6",
+          abs(table[1, 3] - 0.6) < 1e-9, f"{table[1, 3]}")
+
+    refuses("an interval of no length is refused",
+            lambda: interval_table(np.array([2.0, 0.0, 1.0]), rotation))
+    refuses("a negative interval is refused",
+            lambda: interval_table(np.array([2.0, -1.0, 1.0]), rotation))
+
+    packed = struct.pack(HEADER_FORMAT, 7, 12, 183, 3, 0, 0, 285.0, 0.5)
+    check("the header packs to the size vesperinput reads",
+          struct.calcsize(HEADER_FORMAT) == 6 * 4 + 2 * 8,
+          f"{struct.calcsize(HEADER_FORMAT)} bytes")
+    check("the header round-trips through its own format",
+          struct.unpack(HEADER_FORMAT, packed) == (7, 12, 183, 3, 0, 0, 285.0, 0.5))
+    check("an interval record is four packed doubles",
+          struct.calcsize(INTERVAL_FORMAT) == 4 * 8,
+          f"{struct.calcsize(INTERVAL_FORMAT)} bytes")
+    check("the interval table's own bytes round-trip",
+          struct.unpack(INTERVAL_FORMAT, table[1].astype("<f8").tobytes())
+          == tuple(float(v) for v in table[1]))
+
+    print(f"\n{failures} failed" if failures else "\nno failures")
+    return failures
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--climatology", type=Path, nargs="+", default=None,
@@ -296,7 +492,13 @@ def main() -> None:
                              "and no industry. Default is a low "
                              "pre-industrial-like value; report the "
                              "sensitivity, do not tune it.")
+    parser.add_argument("--self-test", action="store_true",
+                        help="run the interval arithmetic and header layout "
+                             "fixtures and exit. No climatology, no model.")
     args = parser.parse_args()
+
+    if args.self_test:
+        raise SystemExit(1 if self_test() else 0)
 
     config = yaml.safe_load(CONFIG.read_text())
     climatologies = list(args.climatology) if args.climatology else [climatology_path()]
@@ -315,14 +517,21 @@ def main() -> None:
     year_length = orbit.model_year_days(config)
     co2_ppm = float(config["atmosphere"]["pCO2_bar"]) / 1.0 * 1e6
 
-    # The model's months, which are what interp_monthly_*_conserve spreads a
-    # value over. Every field below is remapped onto these from the producer's
-    # own intervals rather than being assumed to already be on them.
+    # The model's months. Nothing is remapped onto them any more -- the driver
+    # carries the producer's own intervals -- and they survive here for the
+    # month-weighted summary in the report, which is a human-readable digest and
+    # not a partition anything is delivered on.
     months = month_lengths(year_length)
 
-    # Each climatology contributes one year, stacked as [year][month][lat][lon].
+    # This world's rotation, for the local solar phase of each interval. The
+    # phase is not a property of the interval bounds alone: it needs the
+    # rotation, and the rotation is not the absolute day.
+    rotation_hours = float(config["orbit"]["rotation_hours"])
+
+    # Each climatology contributes one year, stacked as [year][interval][lat][lon].
     tas_y, pr_y, rss_y, tsrange_y = [], [], [], []
     spans_y = []
+    tables = []
     lat = lon = lsm = None
     for path in climatologies:
         with nc.Dataset(path) as data:
@@ -339,18 +548,20 @@ def main() -> None:
                 np.asarray(data["time"][:], dtype=float), year_length)
             spans_y.append(spans.tolist())
 
-            def onto_months(values: np.ndarray) -> np.ndarray:
-                return interval_to_month(values, spans, months)
+            tables.append(interval_table(spans, rotation_hours))
 
-            # Kelvin to C and m/s to mm per absolute day BEFORE the remap, so the
-            # operator sees one intensive quantity per field and the conserved
-            # total is the one that means something. 86400 is the absolute day of
-            # biosphere/notes/time-base-unit-contract.md, not Vesper's rotation.
-            tas_y.append(onto_months(
-                np.asarray(data["tas"][:], dtype=float) - KELVIN))
-            pr_y.append(onto_months(
-                np.asarray(data["pr"][:], dtype=float) * 1000.0 * 86400.0))
-            rss_y.append(onto_months(np.asarray(data["rss"][:], dtype=float)))
+            # EVERY FIELD IS INTENSIVE, and the conversions happen here because
+            # the producer converts into the contract unit and the consumer out
+            # of it. Kelvin to C, and m/s to mm per absolute day, which is a
+            # RATE and not a per-interval total: a total would need an interval
+            # length to be chosen to form it over, and that choice is what put
+            # 18 days of a rate measured over 16.09 into the last bin of V7.
+            # 86400 is the absolute day of
+            # biosphere/notes/time-base-unit-contract.md, not this world's
+            # rotation.
+            tas_y.append(np.asarray(data["tas"][:], dtype=float) - KELVIN)
+            pr_y.append(np.asarray(data["pr"][:], dtype=float) * 1000.0 * 86400.0)
+            rss_y.append(np.asarray(data["rss"][:], dtype=float))
             # The range of the SURFACE temperature. maxt and mint are extrema of
             # dt(:,NLEP) and bracket ts, not tas. The near-surface AIR extrema
             # are codes 201/202 and reach a product as tasmax/tasmin since
@@ -358,25 +569,36 @@ def main() -> None:
             # have, which is why vesperinput still does not hand anything to
             # climate.dtr, whose one reader means an air-temperature range.
             # See the field contract.
-            tsrange_y.append(onto_months(np.maximum(
+            tsrange_y.append(np.maximum(
                 np.asarray(data["maxt"][:], dtype=float)
-                - np.asarray(data["mint"][:], dtype=float), 0.0)))
-    tas = np.stack(tas_y)   # [year][month][lat][lon]
+                - np.asarray(data["mint"][:], dtype=float), 0.0))
+    tas = np.stack(tas_y)   # [year][interval][lat][lon]
     pr = np.stack(pr_y)
     rss = np.stack(rss_y)
     tsrange = np.stack(tsrange_y)
     nyears = tas.shape[0]
 
-    nbins = tas.shape[1]
-    if nbins != 12:
-        raise SystemExit(f"driver format expects 12 bins per year, got {nbins}")
+    nintervals = tas.shape[1]
+    if any(table.shape[0] != nintervals for table in tables):
+        raise SystemExit(
+            "the climatologies do not agree on how many intervals a year has: "
+            f"{[int(table.shape[0]) for table in tables]}. One driver file "
+            "carries one interval count, because a consumer indexes the years "
+            "of a cycle through one array.")
+    intervals = np.stack(tables)   # [year][interval][start, end, duration, phase]
+
+    # WHAT THE CONSUMER WILL DO, DONE HERE SO IT CAN FAIL HERE. vesperinput
+    # integrates the intervals onto its own absolute day; the same arithmetic
+    # runs over every field below and raises if it would not conserve the
+    # duration-weighted total. Identity 7 of the forcing contract, checked
+    # against the artifact this script is about to write rather than asserted
+    # about it.
+    for year in range(nyears):
+        for field in (tas[year], pr[year], rss[year], tsrange[year]):
+            integrate_onto_days(field, np.asarray(spans_y[year]), year_length)
 
     land = lsm > 0.5
     codes, soil_summary = soil_codes(config, land)
-
-    # After the remap the driver's bins ARE the model's months, so a
-    # precipitation total is the total for exactly the days it is spread over.
-    bin_days = months
 
     # ExoPlaSim's longitudes run 0..360; LPJ-GUESS expects -180..180.
     #
@@ -456,9 +678,19 @@ def main() -> None:
     missing_states = 0
     with output.open("wb") as handle:
         handle.write(MAGIC)
-        handle.write(struct.pack("<iiii", len(rows), nbins, year_length, nyears))
-        handle.write(struct.pack("<dd", co2_ppm, args.ndep))
+        # Six int32s and not four: the interval count replaces the bin count and
+        # says nothing about what an interval is, the subdaily count is carried
+        # so that adding samples later is a value change and not a format
+        # change, and the pad keeps the doubles that follow eight-byte aligned.
+        handle.write(struct.pack(HEADER_FORMAT, len(rows), nintervals,
+                                 year_length, nyears, SUBDAILY_SAMPLES, 0,
+                                 co2_ppm, args.ndep))
         handle.write(provenance)
+        # THE INTERVAL TABLE, ONCE PER YEAR AND BEFORE ANY CELL. Every cell
+        # shares one time axis, so carrying it per cell would be the same fact
+        # written a hundred thousand times with nothing checking the copies
+        # against each other.
+        handle.write(intervals.astype("<f8").tobytes())
         for j, i in rows:
             handle.write(struct.pack("<dd", float(lon_signed[i]), float(lat[j])))
             handle.write(struct.pack("<ii", int(codes[j, i]), 0))
@@ -473,19 +705,30 @@ def main() -> None:
                 states = (0.0, 0.0, 0.0, 0.0) + (1.0,) * n_layers
                 missing_states += 1
             handle.write(struct.pack(f"<{4 + n_layers}d", *states))
-            # Flattened [year][bin], matching what vesperinput indexes.
+            # Flattened [year][interval], matching what vesperinput indexes.
+            # Precipitation goes in as the mean RATE in mm per absolute day, not
+            # as a per-interval total: the contract carries no extensive field,
+            # and the depth is the rate times a duration the interval table
+            # already states.
             handle.write(tas[:, :, j, i].astype("<f8").tobytes())
-            handle.write((pr[:, :, j, i] * bin_days[None, :]).astype("<f8").tobytes())
+            handle.write(pr[:, :, j, i].astype("<f8").tobytes())
             handle.write(rss[:, :, j, i].astype("<f8").tobytes())
             handle.write(tsrange[:, :, j, i].astype("<f8").tobytes())
 
     weights = area_weights(lat, len(lon))
     lw = weights[land]
 
-    def month_mean(field: np.ndarray) -> np.ndarray:
-        """Mean over years and months, weighting each month by its own length."""
-        per_year = np.tensordot(months, field, axes=(0, 1)) / months.sum()
-        return per_year.mean(axis=0)
+    def interval_mean(field: np.ndarray) -> np.ndarray:
+        """Mean over years and intervals, weighting each interval by its length.
+
+        Duration-weighted and not a plain mean over the interval axis: the
+        producer's intervals are not equal, and averaging them flat over-weights
+        the short ones. It is the one operator for every field here because
+        every field here is intensive.
+        """
+        spans = np.asarray(spans_y, dtype=float)   # [year][interval]
+        weighted = np.einsum("yi,yi...->...", spans, field)
+        return weighted / spans.sum()
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -509,19 +752,29 @@ def main() -> None:
         "flux_earth": float(config["orbit"]["baseline_flux_earth"]),
         "orbital_year_earth_days": orbit.orbital_year_days(config),
         "year_length_days": year_length,
-        "bins_per_year": nbins,
-        "bin_days": bin_days.tolist(),
-        # Both partitions, per climatology, so a later reader can see what was
-        # remapped from what rather than having to re-derive it. The producer's
-        # spans come from the climatology's own time axis; the driver's bins are
-        # the model's months. They are NOT the same partition, and assuming they
-        # were gave the last month 18 days of a rate measured over 16.09.
+        "driver_format": MAGIC.decode(),
+        "intervals_per_year": nintervals,
+        "subdaily_samples_per_interval": SUBDAILY_SAMPLES,
+        # The producer's OWN partition, per climatology, from the climatology's
+        # own time axis. It is what the driver carries: no remap happens any
+        # more, and there is no second partition for it to disagree with.
         "producer_interval_days": spans_y,
-        "interval_remap": (
-            "conservative overlap remap from the producer's time bins onto the "
-            "model's months, biosphere/scripts/build_lpj_driver.py:"
-            "interval_to_month. Total conserved exactly; the seasonal "
-            "distribution is what moves."),
+        "model_month_days": months.astype(int).tolist(),
+        "model_months_note": (
+            "The model's months are still the calendar Date sizes with, and "
+            "they are no longer a partition anything is delivered on. Up to V7 "
+            "the driver remapped the producer's intervals onto them because the "
+            "format demanded twelve bins; V8 carries the producer's intervals "
+            "with explicit bounds and vesperinput integrates them onto its own "
+            "absolute day."),
+        "consumer_reconstruction": (
+            "duration-weighted integration onto the absolute day, in "
+            "vesperinput. Exact when an interval is one absolute day, conserves "
+            "the duration-weighted total for any interval structure, and "
+            "invents no shape inside an interval. The smooth curve "
+            "interp_monthly_means_conserve manufactured between bin centres is "
+            "gone, and it had no source: the producer states an interval mean "
+            "and says nothing about the shape inside the interval."),
         "land_cells": int(len(rows)),
         "land_column_states_source": (project_relative(Path(states_path))
                                       if states_path
@@ -557,12 +810,12 @@ def main() -> None:
         # Month-weighted, because the months are NOT equal: a plain mean over the
         # twelve would over-weight the eleven short ones.
         "land_mean_temperature_c": float(
-            np.average(month_mean(tas)[land], weights=lw)),
+            np.average(interval_mean(tas)[land], weights=lw)),
         "land_mean_precip_mm_per_earth_year": float(
-            np.average(month_mean(pr)[land], weights=lw)
+            np.average(interval_mean(pr)[land], weights=lw)
             * orbit.EARTH_CALENDAR_YEAR_DAYS),
         "land_mean_net_sw_w_m2": float(
-            np.average(month_mean(rss)[land], weights=lw)),
+            np.average(interval_mean(rss)[land], weights=lw)),
         "soil": soil_summary,
         "soil_code_mapping": SOIL_CODE_BY_ROCK,
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
@@ -578,10 +831,12 @@ def main() -> None:
     report_path.write_text(json.dumps(report, indent=2) + "\n")
 
     print(f"land cells     {len(rows)}")
-    print(f"year length    {year_length} days, months "
-          f"{bin_days.astype(int).tolist()}")
-    print("producer bins  " + ", ".join(f"{s:.2f}" for s in spans_y[0])
-          + " days, remapped conservatively onto the months above")
+    print(f"year length    {year_length} absolute days")
+    print(f"intervals      {nintervals} per year, carried with explicit bounds: "
+          + ", ".join(f"{s:.2f}" for s in spans_y[0]) + " days")
+    print(f"               solar phase at each start "
+          + ", ".join(f"{v:.3f}" for v in intervals[0, :, 3]))
+    print(f"subdaily       {SUBDAILY_SAMPLES} samples per interval")
     print(f"climate years  {nyears} "
           f"({'cycled' if nyears > 1 else 'fixed climate, repeated'})")
     print(f"CO2            {co2_ppm:.0f} ppm     "

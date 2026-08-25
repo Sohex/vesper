@@ -637,17 +637,23 @@ processes:
 # contract; each is a transport that was chosen before the contract existed, and
 # EFOR-1's whole point is that the order was wrong.
 legacy:
-  - what: the VESPDRV fixed-width driver binary
+  - what: the VESPDRV packed-struct driver binary
     where: vendor/lpj-guess/modules/vesperinput.cpp, biosphere/scripts/build_lpj_driver.py
     disposable: true
     why: >
-      A fixed-width record cannot carry a per-interval duration, so its cadence
-      lives in the reader and its meaning lives in a magic number. That is how
-      the fourth array changed variable under an unchanged byte layout: only the
-      magic bump caught it, and only because someone thought to bump it. It is
-      superseded by EFOR-3's self-describing artifact and EFOR-4's reader, and
-      no vesper_driver.bin has ever been written, so the cost of replacing the
-      format is zero until one is.
+      Up to V7 the cadence lived in the reader: twelve bins a year, and an
+      interval's length stated nowhere. V8 took that out -- it carries the
+      interval table with explicit bounds, any count, and the consumer
+      integrates onto its own day -- so the format no longer decides a
+      cadence. What it still cannot do is carry a field it has no array for,
+      which is why the air-temperature extrema still do not reach climate.dtr
+      and ifbvoc is still refused, and its meaning still lives in a magic
+      number rather than in the file. That is how the fourth array changed
+      variable under an unchanged byte layout: only the magic bump caught it,
+      and only because someone thought to bump it. EFOR-3's self-describing
+      artifact supersedes it, and no vesper_driver.bin has ever been written,
+      so the cost of replacing the format has been zero at every version so
+      far.
   - what: the twelve climatological bins
     where: pyburn's np.linspace(0, ntimes, 13) reduction and the driver's months
     disposable: true
@@ -662,8 +668,16 @@ legacy:
   - what: monthly interpolation in the consumer
     where: vendor/lpj-guess/modules/vesperinput.cpp
     disposable: true
+    removed: true
     why: >
-      Interpolating between monthly totals manufactures a smooth series whose
-      wet-day structure is invented by the interpolator. EFOR-4 replaces it with
-      exact chronological intervals, and BIO-13 owns what LPJ hydrology does
-      with them.
+      Interpolating between monthly totals manufactured a smooth series whose
+      shape inside a bin was the interpolator's own, and the producer states an
+      interval mean and says nothing about that shape.
+      VesperInput::integrate_year replaced it under EFOR-4 with duration-
+      weighted integration onto the absolute day, which invents nothing and is
+      the identity when an interval is one absolute day. Named here rather than
+      deleted because the daily series is now a step function on intervals
+      longer than a day, which is a visible cost and not a hidden one, and
+      because BIO-13 still owns what LPJ hydrology does with a chronological
+      source: an interval mean rate rains a little every day just as the smooth
+      curve did, and what is missing is a source with events in it.
