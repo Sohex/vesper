@@ -126,6 +126,12 @@ CASES = {
     "worri4_36x36x32": dict(world="worri4", nlons=36, nlats=36, nlevs=32, prefix=""),
     "g3660l_36x60x8": dict(world="g3660l", nlons=36, nlats=60, nlevs=8, prefix="g3660l_"),
     "igcmv3_64x32x8": dict(world="igcmv3", nlons=64, nlats=32, nlevs=8, prefix="igcmv3_"),
+    # The control for the code model. Same topography, same grid and same run
+    # lengths as worjh2_36x36x16, compiled and linked -mcmodel=medium instead of
+    # the shipped small. The 72 x 72 probe below has to be built that way, so
+    # without this pair the flag's own cost would sit inside the grid's.
+    "worjh2_36x36x16_medium": dict(world="worjh2", nlons=36, nlats=36, nlevs=16,
+                                   prefix="", mcmodel="medium"),
 }
 
 # A doubling of the shipped horizontal grid. It is separate from CASES because
@@ -134,6 +140,7 @@ CASES = {
 PROBE72 = {
     "dan_72_72x72x16_probe": dict(
         world="dan_72", nlons=72, nlats=72, nlevs=16, prefix="", synthetic_forcing=True,
+        mcmodel="medium",
         files=dict(
             xu="dan_72_NCEP-DOE_Reanalysis_2_average_taux_u.dat",
             yu="dan_72_NCEP-DOE_Reanalysis_2_average_tauy_u.dat",
@@ -205,6 +212,7 @@ CONFIG_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 \t\t<model name="embm">
 \t\t\t<param name="world">{world}</param>
 \t\t\t<param name="nyear">{nyear}</param>
+\t\t\t<param name="ndta">{ndta}</param>
 \t\t\t<param name="npstp">{big}</param>
 \t\t\t<param name="ianav">{big}</param>
 \t\t\t<param name="itstp">{big}</param>
@@ -322,7 +330,8 @@ def cfl(nlons: int, nlats: int, nlevs: int, nyear: int) -> dict:
 
 
 def write_config(path: Path, case: dict, years: int, nyear: int, maxisles: int,
-                 npstp: int | None = None, debug_loop: bool = False) -> None:
+                 npstp: int | None = None, debug_loop: bool = False,
+                 ndta: int = 5) -> None:
     kloop = 5
     koverall = years * kloop * nyear
     pre = case["prefix"]
@@ -351,6 +360,7 @@ def write_config(path: Path, case: dict, years: int, nyear: int, maxisles: int,
             koverall=koverall,
             big=koverall + 1,
             genie_timestep=f"{86400.0 * 365.25 / (kloop * nyear):.4f}",
+            ndta=ndta,
             npstp=npstp if npstp is not None else koverall + 1,
             debug_loop=".true." if debug_loop else ".false.",
             diff_h=DIFF_H_M2S,
@@ -360,11 +370,23 @@ def write_config(path: Path, case: dict, years: int, nyear: int, maxisles: int,
     )
 
 
+# This host runs other work. cGENIE is one serial process on a 32-thread part,
+# so a run is not competing for a core, but it does compete for last-level cache
+# and memory bandwidth, and that is a real effect on a model whose state is one
+# large block of static COMMON. Two things follow, and both are in the numbers
+# below rather than in a caveat: every timed quantity is the MINIMUM over
+# repeats, which is the least-contended sample rather than an average of a
+# contaminated population, and the load average is recorded beside each run so a
+# reader can see what the machine was doing.
 def run(cmd: list[str], log: Path, cwd: Path = GENIE_MAIN) -> tuple[int, float]:
     start = time.perf_counter()
     with log.open("w") as fh:
         rc = subprocess.call(cmd, cwd=cwd, stdout=fh, stderr=subprocess.STDOUT)
     return rc, time.perf_counter() - start
+
+
+def loadavg() -> float:
+    return round(os.getloadavg()[0], 2)
 
 
 def run_ok(log: Path) -> tuple[bool, str]:
@@ -426,6 +448,14 @@ def provenance() -> dict:
         "netcdf_fortran": sh("nf-config", "--version"),
         "netcdf_flibs": sh("nf-config", "--flibs"),
         "host": platform.node(),
+        "cores": os.cpu_count(),
+        "load_average_at_start": loadavg(),
+        "timing_estimator": (
+            "minimum over --repeats, of the model's own `time real` rather than the"
+            " wrapper's, on a host that runs other work. cGENIE is one serial process"
+            " and cores were free throughout; cache and memory bandwidth were not"
+            " exclusively its own. Each run records the load average it finished under."
+        ),
         "cpu": cpu,
         "kernel": platform.release(),
         "build_type": "SHIP (user.mak default), gfortran, serial",
@@ -723,15 +753,24 @@ def stability_verdict(diag: dict) -> tuple[str, str]:
 
 
 def stability_sweep(name: str, case: dict, nyears: list[int], years: int,
-                    maxisles: int, logdir: Path) -> dict:
+                    maxisles: int, logdir: Path, mcmodel: str = "",
+                    ndtas: list[int] | None = None) -> dict:
     """One grid, one executable, several timesteps.
 
     `nyear` is the only control on the tracer timestep, dt = sodaylen * yearlen
     / nyear, and it is a namelist value, so the whole sweep runs on one build.
     That is the point: it separates what the GRID costs from what the timestep
-    the grid needs costs, and those are different halves of a ceiling."""
+    the grid needs costs, and those are different halves of a ceiling.
+
+    `ndta` is the second knob and it is not the same knob. EMBM's own step is
+    `dtatm = dt_ocean / ndta` (`initialise_embm.F:578`), namelist-reachable in
+    `ini_embm_nml`, so the atmosphere can be sub-stepped without shortening the
+    ocean's tracer step. Which of the two a grid actually needs decides whether
+    a refinement costs the whole model or only EMBM."""
+    global MCMODEL  # noqa: PLW0603
+    MCMODEL = mcmodel or case.get("mcmodel", "")
     out = {"case": name, "nlons": case["nlons"], "nlats": case["nlats"],
-           "nlevs": case["nlevs"], "years": years,
+           "nlevs": case["nlevs"], "years": years, "code_model": MCMODEL or "small",
            "synthetic_forcing": case.get("synthetic_forcing", False), "points": []}
     cfg = CONFIG_DIR / f"stab_{name}.xml"
     cfg_rel = f"configs/{cfg.name}"
@@ -747,22 +786,27 @@ def stability_sweep(name: str, case: dict, nyears: list[int], years: int,
         if rc != 0:
             out["error"] = f"build failed, see {logdir / ('stab_' + name + '.build.log')}"
             return out
-        for nyear in nyears:
+        for nyear, ndta in [(n, d) for n in nyears for d in (ndtas or [5])]:
             # print once per simulated year, whatever the timestep
             write_config(cfg, case, years, nyear, maxisles, npstp=nyear,
-                         debug_loop=True)
-            log = logdir / f"stab_{name}.nyear{nyear}.log"
+                         debug_loop=True, ndta=ndta)
+            log = logdir / f"stab_{name}.nyear{nyear}.ndta{ndta}.log"
             rc, secs = run(job(cfg_rel, ["-z"]), log)
             ok, why = run_ok(log)
             diag = read_diag(log)
             state, reason = stability_verdict(diag)
-            if not ok:
+            if not ok and state != "unstable":
+                # only when the log says nothing about WHY; a named instability
+                # is a better answer than the absence of a shutdown banner
                 state, reason = "did-not-complete", why or f"exit {rc}"
             point = {
                 "nyear": nyear,
+                "ndta": ndta,
+                "atmosphere_dt_s": 86400.0 * 365.25 / (nyear * ndta),
                 "predicted": cfl(case["nlons"], case["nlats"], case["nlevs"], nyear),
                 "completed": ok,
                 "model_seconds": model_seconds(log),
+                "load_average_after": loadavg(),
                 "sea_ice_solve_failed_at": diag["sic_fail"],
                 "cn_peak": max(diag["cn"]) if diag["cn"] else None,
                 "cn_final": diag["cn"][-1] if diag["cn"] else None,
@@ -803,6 +847,8 @@ def main() -> int:
                     help="sweep nyear on one build and read the model's own Cn, instead of timing")
     ap.add_argument("--nyear-sweep", type=int, nargs="+", default=[50, 100, 200, 400])
     ap.add_argument("--stability-years", type=int, default=10)
+    ap.add_argument("--ndta-sweep", type=int, nargs="+", default=[5],
+                    help="EMBM sub-steps per ocean step; the atmosphere's own timestep knob")
     args = ap.parse_args()
 
     global MCMODEL  # noqa: PLW0603
@@ -817,7 +863,9 @@ def main() -> int:
 
     if args.stability:
         sweeps = [stability_sweep(n, CASES[n], args.nyear_sweep, args.stability_years,
-                                  args.maxisles, args.logdir) for n in cases]
+                                  args.maxisles, args.logdir, args.mcmodel,
+                                  args.ndta_sweep)
+                  for n in cases]
         payload = {"provenance": provenance(), "criterion": {
             "instrument": "the model's own cnmax, printed as Cn by genie-goldstein/src/fortran/diag.f",
             "cn_max": STABILITY_CN_MAX,
@@ -830,6 +878,7 @@ def main() -> int:
 
     for name in cases:
         case = CASES[name]
+        MCMODEL = args.mcmodel or case.get("mcmodel", "")
         isles = island_count(case["world"])
         record = {
             "case": name,
@@ -841,6 +890,7 @@ def main() -> int:
             "surface_cells": case["nlons"] * case["nlats"],
             "ubarsolv_work": case["nlons"] ** 2 * case["nlats"],
             "synthetic_forcing": case.get("synthetic_forcing", False),
+            "code_model": MCMODEL or "small (the compiler default user.mak leaves in place)",
             "islands_in_psiles": isles,
             "maxisles_compiled": args.maxisles,
             "nyear": args.nyear,
@@ -891,6 +941,7 @@ def main() -> int:
                            if f.is_file() and f.name != "genie.exe")
                 record["runs"].append({
                     "years": years,
+                    "load_average_after": loadavg(),
                     "model_seconds": best_model,
                     "wall_seconds": round(best, 3),
                     "repeats": args.repeats,
