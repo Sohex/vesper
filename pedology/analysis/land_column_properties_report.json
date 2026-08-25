@@ -1,7 +1,7 @@
 {
-  "generated": "2026-08-25T11:07:07+00:00",
+  "generated": "2026-08-25T11:17:00+00:00",
   "declaration": "pedology/config/land_column_properties.yaml",
-  "declaration_sha256": "a6a4fe382b4025032d5aaebdd63df300f8b8034eb749643b2fb1bf19ed235e83",
+  "declaration_sha256": "6126b44021baf47a6e18e2d5f353391bf21acb365a2f57a90fcd46fe93d600b0",
   "version": 2,
   "soil_map": "pedology/data/precarve-craton-10m/soilmap_T21.txt",
   "soil_map_sha256": "92f74f2878f2ad9ad3b6536c352fc53476f1ae88d144d9355c41a48a68b3d97f",
@@ -410,9 +410,14 @@
       "owner": "sdec-10"
     },
     {
+      "property": "materials.andic",
+      "field": "hydraulic_effect",
+      "owner": "world-nupa"
+    },
+    {
       "property": "uncertainty.sources.cosby_within_class_variance",
       "field": "value",
-      "owner": "lshy-1"
+      "owner": "world-rhtx"
     }
   ]
 }

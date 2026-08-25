@@ -307,7 +307,7 @@ meaning and nothing more.
 
 ## What is still undeclared, and who owns it
 
-Eight properties carry the sentinel in the declaration, and the table below adds what adopting one closure left undeclared. Each names its issue, and `--strict` is the
+Nine properties carry the sentinel. Each names its issue, and `--strict` is the
 arm that refuses.
 
 | what is missing | owner |
@@ -319,8 +319,8 @@ arm that refuses.
 | the frozen-pore impedance EXPONENT; the form is declared and is used by nothing, because the scheme that would need it has no conductivity to reduce | LSHY-5 |
 | composition-dependent thermal properties, so that one material property is not split into an organic profile for water and a constant for heat. The PHASE half is now declared: freeze and thaw exchange the latent heat of fusion with the soil temperature layer that contains the water layer's midpoint, and the sensible heat capacity is still a constant | LSHY-5 |
 | the organic fraction and one vertical rule for it | SDEC-10 |
-| Cosby's within-texture-class variance, which is the uncertainty of the ADOPTED central case and the dominant term. Until it exists the adopted states carry no bracket at all | LSHY-1 |
-| the andic hydraulic effect. The adopted closure has no allophane term, so the material is declared, its fraction is read, and nothing in the retention curve responds to it | LSHY-1 |
+| Cosby's within-texture-class variance, which is the uncertainty of the ADOPTED central case and the dominant term. Until it exists the adopted states carry no bracket at all | WORLD-RHTX |
+| the andic hydraulic effect. The adopted closure has no allophane term, so the material is declared, its fraction is read, and nothing in the retention curve responds to it | WORLD-NUPA |
 
 ## What this contract does not own
 

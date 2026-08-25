@@ -220,12 +220,15 @@ materials:
   andic:
     fraction_from: pedology soilmap andic
     vertical_rule: uniform
-    hydraulic_effect: pedology only
+    hydraulic_effect: undeclared
+    owner: world-nupa
     note: >
-      Allophane holds water in a way texture does not predict, and pedology
-      adds a volumetric capacity term for it. LPJ-GUESS has no andic term at
-      all, so the two derivations diverge most exactly where the soil is most
-      volcanic.
+      Allophane holds water in a way texture does not predict. The adopted
+      closure is a texture regression and has no andic term, so the fraction is
+      emitted, read onto the simulated soil and responded to by no equation in
+      the retention curve. That is a DECLARED ABSENCE rather than a
+      disagreement between consumers: it used to be a term pedology carried and
+      LPJ-GUESS did not.
   weathered_bedrock:
     fraction_from: pedology soilmap bedrockfrac
     vertical_rule: below the regolith contact at `depth`
@@ -317,6 +320,11 @@ flow:
       dimensionless exponent in a drainage rule and not a conductivity, so it
       cannot be converted into one, and any gradient-driven column needs a
       conductivity declared here rather than recovered from it.
+
+      That is why `perc_base` stayed in `soilinput.cpp` when the retention
+      states left it. The contract supplies the closure's exponent `b`, which
+      the fit reads; the fit itself is a property of that model's drainage rule
+      and belongs to it. Its value has not moved.
   unsaturated_conductivity:
     form: K(theta) = K_sat * (theta / theta_s) ** (2 * b + 3)
     value: undeclared
@@ -431,7 +439,7 @@ uncertainty:
   sources:
     cosby_within_class_variance:
       value: undeclared
-      owner: lshy-1
+      owner: world-rhtx
       note: >
         THE UNCERTAINTY OF THE ADOPTED CENTRAL CASE, and there is no artifact
         for it. The states come from Cosby's texture regressions, and Cosby et
@@ -442,7 +450,7 @@ uncertainty:
     volumetric_capacity_endmembers:
       from: pedology/config/pedogenesis.yaml water.volumetric_capacity_by_texture_bracket
       brackets: pedology's endmember mixture, NOT the adopted closure
-      owner: lshy-1
+      owner: world-rhtx
       note: >
         Declared endmembers with a bracket spanning the conventional range for
         each class, checked against Saxton and Rawls (2006) for ordering and
