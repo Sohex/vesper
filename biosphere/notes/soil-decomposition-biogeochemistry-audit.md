@@ -228,12 +228,18 @@ emissions-reporting issue. SDEC-8 joins BIO-23's pressure/O2 handoff and
 SDEC-3/PLHY's saturation state to a registered N-transformation parameter and
 model-form bracket. Both source papers are now held and read, so every constant
 carries a verdict against its calibration and the Earth-calibrated response
-bracket is declared. Eight of the operator's twenty registered constants and
-forms agree with Xu-Ri and Prentice (2008) or Weier et al. (1993); five are
-outside the range their own source gives and seven are in neither paper. The
-aerobic/anaerobic split is settled on the variable -- Xu-Ri table 7 names it as
-water-filled pore space and the operator now reads it -- and unsettled on the
-form. The register, the brackets, the bounds and the residual are in
+bracket is declared. Twelve of the operator's twenty registered constants and
+forms agree with Xu-Ri and Prentice (2008) or Weier et al. (1993); one is
+outside the range its own source gives and seven are in neither paper. The five
+that were outside are settled: the nitrification gas share is table 11's RNON
+plus RN2ON, the denitrification gas partition is table 9 eqns 5 to 7, the
+denitrification temperature response has lost the min the paper does not carry,
+the ammonia multiplier has lost the second pH dependence, and the two gas
+constants are read in the processes their names give them. What remains outside
+is the N2 share of denitrification gas, where Xu-Ri table 11 and Weier tables 4
+and 5 disagree and the operator runs at the Xu-Ri end. The aerobic/anaerobic
+split is settled on the variable -- Xu-Ri table 7 names it as water-filled pore
+space and the operator now reads it -- and unsettled on the form. The register, the brackets, the bounds and the residual are in
 `soil-nitrogen-transformation-parameterisation.md`, and
 `biosphere/scripts/ntransform_gate.py` enforces the declaration and refuses on
 exactly that residual. Methane remains the separate, disabled BIO-28 scope.

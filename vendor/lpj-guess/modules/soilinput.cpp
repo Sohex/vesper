@@ -378,9 +378,22 @@ SoilInput::SoilProperties SoilInput::get_mineral(coord c) {
 	// Theta_s in Cosby expressed as %
 	double Theta_s = 0.01 * (50.5 - 14.2 * soil.sand - 3.7 * soil.clay);
 
+	// Psi here is the reciprocal of the matric head's magnitude, so a LARGER
+	// Psi is a wetter soil and Psi_s, the air-entry value, is the wettest the
+	// inversion is defined for. Cosby eqn 1 holds only below air entry: at and
+	// above it the pore space is full and Theta is Theta_s. Without the clamp
+	// the inversion returns Theta_whc above Theta_s wherever Psi_whc exceeds
+	// Psi_s, which is the low-sand, low-clay corner of the texture triangle --
+	// sand at or below about 0.10 with clay at or below about 0.26, reaching
+	// Theta_whc/Theta_s of 1.135 at pure silt. Soil::wfps(0) then exceeds 1 at
+	// field capacity, outside the domain biosphere/config/ntransform.yaml
+	// declares for it and outside the domain of every water-filled-pore-space
+	// response in modules/ntransform.cpp. No cell of either current Vesper soil
+	// map is in that corner, so what kept it right was the map and not the
+	// code; this is the code.
 	double Psi_s = pow(10.0, -logPsi_s);
-	double Psi_wilt = pow(10.0, -4.2);
-	double Psi_whc = pow(10.0, -2.0);
+	double Psi_wilt = min(pow(10.0, -4.2), Psi_s);
+	double Psi_whc = min(pow(10.0, -2.0), Psi_s);
 
 	double Theta_whc = Theta_s * pow((Psi_whc / Psi_s), 1.0 / b);
 	double Theta_wilt = Theta_s * pow((Psi_wilt / Psi_s),1.0 / b);

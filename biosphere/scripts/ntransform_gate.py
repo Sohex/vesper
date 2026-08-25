@@ -24,7 +24,9 @@ This module is the enforcement, and it can fail:
                sampled over the whole declared domain. A pool multiplier
                outside [0,1] creates or destroys nitrogen
   product      a chain of factors multiplying one pool mass whose product can
-               exceed 1, which takes more nitrogen out of a pool than is in it
+               exceed 1, which takes more nitrogen out of a pool than is in it,
+               or a chain declared to be held inside its pool by an explicit
+               min() in the operator that the operator no longer contains
   bound        a declared constant outside the bound plib parses it against
   calibration  an entry in the calibration block whose declared verdict is not
                what the arithmetic says: an `agrees` whose value is not the
@@ -32,8 +34,8 @@ This module is the enforcement, and it can fail:
                has moved inside it, or an entry naming a constant or a response
                function that does not exist
 
-Seven reduced fixtures run on every invocation, six of them built to be wrong in
-a named way. A fixture that does not get the verdict it was built for is a
+A dozen reduced fixtures run on every invocation, all but one built to be wrong
+in a named way. A fixture that does not get the verdict it was built for is a
 defect in this checker rather than in the declaration.
 
     python biosphere/scripts/ntransform_gate.py            # status, exit 0
@@ -364,7 +366,13 @@ def check(declaration: dict, source_text: str, instruction_text: str
                 break
         if missing:
             continue
-        if worst > product["max"] + 1e-12:
+        clamp = product.get("clamped_by")
+        if clamp is not None and clamp not in source_text:
+            findings.append({
+                "kind": "product", "what": product["name"],
+                "detail": (f"declares that {clamp!r} holds it inside the pool, and "
+                           "modules/ntransform.cpp does not contain that clamp")})
+        elif worst > product["max"] + 1e-12 and clamp is None:
             findings.append({
                 "kind": "product", "what": product["name"],
                 "detail": (f"the product of its factors reaches {worst:.6g}, "
@@ -404,6 +412,15 @@ def _fixtures(declaration: dict, source_text: str, instruction_text: str
             d["products"][0]["factors"] = ["instruction:" + name]
         return apply
 
+    def drop_clamp(name):
+        def apply(d):
+            for product in d["products"]:
+                if product["name"] == name:
+                    product["clamped_by"] = "min(no_such_pool,"
+                    return
+            raise KeyError(name)
+        return apply
+
     def _entry(d, what):
         for entry in d["calibration"]["entries"]:
             if entry["what"] == what:
@@ -430,8 +447,10 @@ def _fixtures(declaration: dict, source_text: str, instruction_text: str
          mutate(widen_domain("soil_ph", [3.8, 20.0])), "range"),
         ("a product chain that takes more than the pool holds",
          mutate(bad_factor("nonexistent_constant")), "product"),
-        ("a constant declared to agree with a paper that brackets it out",
-         mutate(calibration_claim("instruction:f_denitri_gas_max", "verdict", "agrees")),
+        ("a chain declared clamped by a min() the operator does not contain",
+         mutate(drop_clamp("denitrification_no3_to_no2")), "product"),
+        ("a constant declared to agree with a bracket that excludes it",
+         mutate(calibration_claim("instruction:f_nitri_gas_max", "bracket", [0.5, 0.9])),
          "calibration"),
         ("a disagreement declared where the paper's range in fact contains the value",
          mutate(calibration_claim("instruction:k_N", "verdict", "outside")),

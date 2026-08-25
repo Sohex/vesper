@@ -11,4 +11,11 @@ k_C 			0.017
 f_denitri_max 		0.33	! Maximum amount of NO3 conv. to NO2
 f_denitri_gas_max 	0.33	! Maximum gaseus losses in denitrification
 f_nitri_max 		0.1	! Maximum amount of NH4 nitrified
-f_nitri_gas_max 	0.25	! Maximum gaseus losses in nitrification
+f_nitri_gas_max 	0.022	! Maximum gaseus losses in nitrification
+! RNON + RN2ON, table 11 of Xu-Ri and Prentice (2008), applied by table 8
+! eqns 3 and 4. RNON, the rate of NO production from nitrification, is
+! 0.1-4 per cent with a stated mean of 2 per cent; RN2ON, the rate of N2O
+! production from nitrification, is under 0.1-0.2 per cent with no mean
+! stated, so the top of the bound is taken. The sum brackets at 0.2-4.2
+! per cent. The port ran at 0.33, which is 7.9 times the top of that
+! bracket and 15 times its mean.

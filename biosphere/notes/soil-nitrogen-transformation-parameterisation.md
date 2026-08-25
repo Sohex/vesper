@@ -48,22 +48,22 @@ whether they agree.
 | `f_nitri_max` | `global_soiln.ins`, then `nitrification` | 0.1 /day | Xu-Ri table 11, Nmax, from Khalil et al. (2004), stated AT 20 C | agrees in value; the paper applies it at the peak of a curve normalised to 38 C |
 | `k_N` | `global_soiln.ins`, then `denitrification` | 0.083 kgN/m3 | Xu-Ri table 11, Kn, from Li et al. (1992) | agrees, identical |
 | `k_C` | `global_soiln.ins`, then `denitrification` | 0.017 kgC/m3 | Xu-Ri table 11, Kc, from Li et al. (1992) | agrees, identical |
-| `f_denitri_gas_max` | `global_soiln.ins`, then `nitrification` | 0.33 | Xu-Ri table 11, RNON 0.1-4% and RN2ON under 0.1-0.2%, so 0.2-4.2% together | OUTSIDE, by 7.9x on the top of the range |
+| `f_nitri_gas_max` | `global_soiln.ins`, then `nitrification` | 0.022 | Xu-Ri table 11, RNON 0.1-4% mean 2% and RN2ON under 0.1-0.2%, applied by table 8 eqns 3 and 4 | agrees, inside the 0.2 to 4.2% their sum brackets |
 | `f_denitri_max` | `global_soiln.ins`, then `denitrification` | 0.33 | Xu-Ri table 9 eqn 3 has no maximum-rate constant, and table 11 lists none | unsourced |
-| `f_nitri_gas_max` | `global_soiln.ins`, then `denitrification` | 0.25 | Xu-Ri table 9 eqn 4, the same | unsourced |
+| `f_denitri_gas_max` | `global_soiln.ins`, then `denitrification` | 0.33 | Xu-Ri table 9 eqn 4, the same | unsourced |
 | the volatilisation temperature response | `nh3_volatilization` | -- | Xu-Ri table 5 eqn 7 | agrees, identical including the min |
+| the ammonia multiplier | `nh3_volatilization` | -- | Xu-Ri table 5 eqns 2, 3, 4 and 6 | agrees; the port's extra `nh3_max` is gone |
 | the gas emission multiplier | `n_gas_emission` | -- | Xu-Ri table 10 eqns 1 and 2 | agrees, identical |
 | the nitrification temperature response | `nitrification` | -- | Xu-Ri table 8 eqn 2 | agrees; the port's min is a no-op, the function peaks at exactly 1 at 38 C |
-| the denitrification temperature response | `denitrification` | -- | Xu-Ri table 9 eqn 1, which carries NO min | OUTSIDE: the port clamps it at its 22 C value |
-| `nh3_max` | a literal in `nh3_volatilization` | 0.001 above pH 6, 0.00001 at or below | Xu-Ri table 5 has no such factor; eqn 6's fpH already carries the ratio | OUTSIDE: the pH dependence is applied twice |
-| the aerobic/anaerobic split | `substrate_partition` | midpoint 0.5, shape 7.5 | Xu-Ri table 7 settles the VARIABLE, water-filled pore space, and gives no form | unsourced form, bracket 0.50 to 0.66 on the midpoint |
+| the denitrification temperature response | `denitrification` | -- | Xu-Ri table 9 eqn 1, which carries NO min | agrees; the port's min is gone |
+| the aerobic/anaerobic split, midpoint | `substrate_partition` | 0.5 | Xu-Ri table 7 settles the VARIABLE, water-filled pore space, and gives no form | unsourced, bracket 0.50 to 0.66 |
+| the aerobic/anaerobic split, shape | `substrate_partition` | 7.5 | the same, and there is no bracket for it either | unsourced |
 | the nitrification water response | `nitrification` | -- | Xu-Ri table 8 eqn 1 has no moisture term | unsourced, and a second moisture control |
 | the NO share of nitrification gas | `nitrification` | -- | Xu-Ri table 11 RNON against RN2ON brackets it at 0.33 to 0.98 | agrees, 0.50 to 0.69 over the reachable WFPS |
 | the denitrification moisture response | `denitrification` | exponent 13.036 | Weier table 2, at 60, 75 and 90% WFPS | agrees, inside the 8.09 to 14.06 that table brackets |
-| the N2 share above 0.7 WFPS | `denitrification` | -- | Weier tables 4 and 5 | OUTSIDE below about 0.85 WFPS |
-| the N2 branch point at 0.7 WFPS | `denitrification` | -- | Weier tables 4 and 5 report N2 at 60 and 75% WFPS | OUTSIDE: the operator produces none there |
-| the N2O:NO ratio | `denitrification` | -- | attributed to Weier, which never measured NO | unsourced |
-| the N2:N2O temperature sigmoid | `denitrification` | midpoint 5 C, width 10 C | in neither paper; Weier incubated at one temperature | unsourced; its sign agrees with Xu-Ri table 9 eqns 5 and 6 |
+| the NO and N2O shares of denitrification gas | `denitrification` | 0.002 and 0.02 | Xu-Ri table 9 eqns 5, 6 and 7 with table 11's RNODN and RN2ODN | agrees, inside the 0.2 to 4.9% their sum brackets |
+| the N2 share of denitrification gas | `denitrification` | -- | Weier tables 4 and 5 against Xu-Ri table 11 | OUTSIDE Weier at the high end: 0.978 against medians 0.565 to 0.796 |
+| the denitrification moisture threshold | `denitrification` | 0.4 WFPS | neither paper states one | unsourced |
 | the Michaelis-Menten divisor | `denitrification` | available-water depth | Xu-Ri table 11 gives kg m-3 of an unstated volume | unsourced |
 | `pH_soil` | nowhere | 3.5 to 8.5 declared | -- | a declared instruction parameter that no line of the model reads |
 
@@ -74,11 +74,19 @@ has drifted from the source is a failure of the declaration.
 
 ## The Earth-calibrated response bracket
 
-Twelve of the twenty declared entries are what remain undeclared, and
-`--strict` refuses on exactly those and on the five Vesper preconditions. Six
-entries carry a bracket, three of them among the twelve; the rest carry none
-because neither paper states the quantity, and no central value is fitted here
-to stand in for one.
+Eight of the twenty declared entries are what remain undeclared, and `--strict`
+refuses on exactly those and on the five Vesper preconditions. Six carry a
+machine-checked bracket, one of them among the eight; a seventh, the N2 share
+of denitrification gas, carries its bracket in prose because the quantity is a
+disagreement between two papers rather than a constant in the model. The rest
+carry none, because neither paper states the quantity and no central value is
+fitted here to stand in for one.
+
+Where a paper states a range and one number has to go into the model, the rule
+is the same everywhere in the operator: the paper's stated mean where it states
+one, and the top of the stated bound where it does not. That rule sets the
+nitrification gas share and both denitrification gas fractions, and it is
+stated once here rather than argued at each of them.
 
 **The nitrification rate constant.** Xu-Ri table 11 gives Nmax as 0.1 per day
 from Khalil et al. (2004) and states it at 20 C, while table 8 eqn 2's
@@ -90,12 +98,16 @@ value that would honour the measurement it cites. The inconsistency is Xu-Ri's,
 carried faithfully into the port.
 
 **The gas fraction of gross nitrification.** Xu-Ri table 11 gives RNON as 0.1
-to 4 per cent with a mean of 2, and RN2ON as under 0.1 to 0.2 per cent. The
-bracket on their sum is 0.2 to 4.2 per cent. The operator's 0.33 is outside it
-by a factor of 7.9 on the top and 15 on the mean: of every kilogram of nitrogen
-nitrified the model routes 330 grams to NO and N2O where the paper routes 2 to
-42 grams. It lands on `NET_NITRIF`, `NO_SOIL` and `N2O_SOIL` directly, and it is
-the largest single constant disagreement in the operator.
+to 4 per cent with a mean of 2, and RN2ON as under 0.1 to 0.2 per cent, and
+table 8 eqns 3 and 4 apply them to the gross nitrification flux, so the bracket
+on their sum is 0.2 to 4.2 per cent. The operator runs at 0.022, RNON's stated
+mean plus the top of RN2ON's bound; RN2ON can move that total by at most 0.2
+percentage points, so the constant is RNON's mean to within a tenth of itself.
+It ran at 0.33, outside the bracket by a factor of 7.9 on the top and 15 on the
+mean, and it was read under the name of the denitrification gas constant. Of
+every kilogram of nitrogen nitrified the operator now returns 978 grams to
+`NO3_mass_d` where it returned 670, and routes 22 grams to `NO_SOIL` and
+`N2O_SOIL` where it routed 330.
 
 **The NO share of that gas.** RNON against RN2ON brackets the NO share at 0.33
 to 0.98. The operator's curve gives 0.50 to 0.69 over the water-filled pore
@@ -112,30 +124,87 @@ extremes bracket it at 8.09 to 14.06 per unit WFPS, and 13.036 is inside. The
 offset puts the function at 1 at 0.8915 WFPS, normalising it to Weier's wettest
 treatment.
 
-**The N2 share of denitrification gas.** Weier tables 4 and 5 give the N2/N2O
-ratio for all four soils, nine treatments and five days at 25 C. Converted to an
-N2 share by the paper's own footnote, `1 - 1/(1 + N2/N2O)`:
+**The N2 share of denitrification gas, where two Earth papers disagree.** Weier
+tables 4 and 5 give the N2/N2O ratio for all four soils, nine treatments and
+five days at 25 C. Converted to an N2 share by the paper's own footnote,
+`1 - 1/(1 + N2/N2O)`:
 
-| WFPS | observations | N2 share, median | interquartile | Xu-Ri | the operator at 25 C |
-| --- | --- | --- | --- | --- | --- |
-| 60% | 109 | 0.565 | 0.333 to 0.778 | 0.978 | 0.000 |
-| 75% | 129 | 0.744 | 0.545 to 0.870 | 0.978 | 0.120 |
-| 90% | 163 | 0.796 | 0.630 to 0.938 | 0.978 | 0.846 |
+| WFPS | observations | N2 share, median | interquartile | Xu-Ri table 9 eqns 5 to 7 |
+| --- | --- | --- | --- | --- |
+| 60% | 109 | 0.565 | 0.333 to 0.778 | 0.978 |
+| 75% | 129 | 0.744 | 0.545 to 0.870 | 0.978 |
+| 90% | 163 | 0.796 | 0.630 to 0.938 | 0.978 |
 
-The bracket is the union of those interquartile ranges, 0.333 to 0.938. Xu-Ri's
-own tables 9 and 11 sit outside it at the high end, because eqns 5 to 7 make NO
-and N2O small fixed fractions of the reduction flux and leave everything else as
-N2. The operator sits outside it at the low end everywhere but the wet end: it
-reproduces Weier at 0.90 WFPS and inverts the trend below it, reaching a hard
-zero below 0.70 where Weier's medians are 1.3 and 2.9 and where N2 is the
-majority product in 61 and 80 per cent of the observations.
+The union of those interquartile ranges is 0.333 to 0.938, and Xu-Ri's own
+tables 9 and 11 sit above all of it, because eqns 5 and 6 make NO and N2O small
+fixed fractions of the reduction flux and eqn 7 leaves everything else as N2.
+The operator runs at the Xu-Ri end and therefore outside Weier's bracket at the
+high end. That is a declared disagreement between two Earth calibrations, and
+the reason the operator sits at that end is that it IS DyN: every other equation
+in it is Xu-Ri's, and this was the one place the port substituted its own. What
+the port had was worse than either -- a branch at 0.7 WFPS built from three
+functions neither paper states, producing no N2 at all below the branch where
+Weier's medians are 1.3 and 2.9 and where N2 is the majority product in 61 and
+80 per cent of the observations. Nothing here settles which Earth number this
+world's soil should carry.
 
 **The aerobic and anaerobic split.** Xu-Ri settles the variable and gives no
-form, pointing instead at PnET-DNDC's anaerobic balloon, so the bracket is on
-the curve's midpoint and it is the spread between the two numbers the
-operator's own comment asserts at once: Pilegaard's crossover at 0.60 WFPS and
-the comment's own "steepest change around 66%". That is 0.50 to 0.66, with the
-declared 0.5 at the bottom edge. The shape parameter has no source at all.
+form, pointing instead at PnET-DNDC's anaerobic balloon, so the split's midpoint
+and its shape are unsourced in two different degrees and are registered
+separately. The midpoint has a bracket: it is the spread between the two numbers
+the operator's own comment asserts at once, Pilegaard's crossover at 0.60 WFPS
+and the comment's own "steepest change around 66%", so 0.50 to 0.66 with the
+declared 0.5 at the bottom edge. The shape parameter has no source and no
+bracket at all, which is why it is its own entry rather than a clause in the
+midpoint's.
+
+## What the five corrections are worth, by hand
+
+Every number below is arithmetic on the declared forms, and none of it is
+execution-verified: LPJ-GUESS does not build on this tree, so nothing here has
+been run. Each is the change to a coefficient, before the Michaelis-Menten terms
+and the `min()` against the pool that stand between a coefficient and a flux.
+
+**The gas share of gross nitrification, 0.33 to 0.022.** Of every kilogram of
+nitrogen nitrified, 978 grams now return to `NO3_mass_d` where 670 did, and 22
+grams leave as NO and N2O where 330 did. So the mineral nitrogen a gridcell gets
+from a given gross nitrification rises by a factor of 1.46, and `NET_NITRIF`,
+`NO_SOIL` and `N2O_SOIL` fall by 15 in their nitrification part. This is the
+largest of the five for what the simulated plants can reach.
+
+**The two crossed reads.** The ceiling on the NO2-to-gas step moves from 0.25 to
+0.33, so that coefficient of the anaerobic NO2 pool rises by 1.32. The
+NO3-to-NO2 step is untouched: its constant was always read where its name says.
+
+**The doubled pH dependence.** The daily volatilised fraction of NH4 rises by
+1e3 on the gridcells above pH 6 and 1e5 on the rest. At pH 6.5 its ceiling is
+2.3e-4 per day where it was 2.3e-7; at pH 8.5, 1.2e-2 where it was 1.2e-5. On an
+alkaline gridcell that is a percent of the ammonium pool a day, which is a real
+loss term where the port's was arithmetically absent.
+
+**The denitrification temperature clamp.** Both denitrification steps scale
+linearly in the response the clamp held at 1, so a 25 C soil denitrifies at 1.21
+times the clamped rate, a 30 C soil at 1.61, a 35 C soil at 2.07 and a 45 C soil
+at 3.15. Warm wet gridcells lose nitrogen faster than they did, and the effect
+is monotone in soil temperature, so it is not uniform across the map.
+
+**The gas partition.** Total denitrification does not move; only the split among
+the three gases does, and all three leave the soil, so this one does not change
+what the simulated plants can reach at all. It changes what is reported. At
+25 C the reduced nitrogen now leaves as 97.3 per cent N2, 2.42 per cent N2O and
+0.24 per cent NO at every water-filled pore space. Below 0.7 WFPS it used to
+leave as 0 per cent N2 and the whole flux as NO and N2O, about 59 per cent NO
+and 41 per cent N2O at 0.50 WFPS; at 0.90 WFPS it left as 84.6 per cent N2 and
+15.4 per cent N2O with no NO. So `NET_DENITRIF` falls by about 37 on the drier
+half of the branch and by about 5.8 at the wet end, and `N2_SOIL` gains what
+they lose.
+
+The five do not point the same way on mineral nitrogen. The gas share raises it
+by 1.46 for a given gross nitrification; the crossed read, the pH correction and
+the temperature clamp all lower it, by amounts that depend on the gridcell's
+water, pH and temperature. Which dominates is not answerable by hand, and no
+absolute nitrogen number from this operator is available until the model builds
+and a baseline climatology exists to drive it.
 
 ## The split is applied to water-filled pore space, and the paper says so
 
@@ -175,10 +244,11 @@ bracketed above.
 available capacity, so `wfps(0)` is bounded below by wilting point over
 saturation and above by field capacity over saturation. On the current soil map
 that is 0.171 to 0.665 at the dry end and 0.573 to 0.948 at the wet end, a
-median wet limit of 0.813. The consequences are structural, not marginal: 164 of
-4105 gridcells can never reach 0.70 WFPS, so the operator's N2 branch is dead
-on them and every denitrified atom leaves as NO or N2O; and 2032 of them are
-above 0.40 WFPS even at wilting point, so denitrification never switches off.
+median wet limit of 0.813. The consequence is structural, not marginal: 2032 of
+4105 gridcells are above 0.40 WFPS even at wilting point, so on half the map the
+0.4 threshold below which the operator denitrifies nothing never closes, and on
+the rest it decides whether denitrification happens at all. Neither paper states
+that threshold.
 The quantity the model does not carry is **soil water above field capacity in
 the upper 50 cm**. Xu-Ri's WFPS is an aeration proxy that means something at
 saturation; this model's upper layer stops at field capacity and drains the rest
@@ -203,19 +273,27 @@ what the gate re-derives.
 
 **Volatilisation is bounded by pedology's pH range.** The ammonia multiplier
 carries `exp(2 * (pH - 10))`, which grows without bound in pH, and above about
-pH 14.15 it would exceed 1 and be held back only by the `min(NH4_mass, ...)`
+pH 10.7 it would exceed 1 and be held back only by the `min(NH4_mass, ...)`
 clamp beside it. It does not get there: `pedology/config/pedogenesis.yaml` clips
-its pH field, and over that range the whole multiplier reaches at most 9.2e-5,
-four orders of magnitude below 1. The bound is therefore a joint property of the
+its pH field, and over that range the whole multiplier reaches at most 9.2e-2,
+one order of magnitude below 1. The bound is therefore a joint property of the
 operator and of the soil map that feeds it, which is why the gate declares the pH
-domain as pedology's and not as chemistry's.
+domain as pedology's and not as chemistry's. It used to be four orders below 1,
+because the port multiplied a further `nh3_max` on top of `fpH` and so applied
+the same pH dependence twice; that factor is gone and the margin with it, which
+is what makes the pH clip load-bearing rather than decorative.
 
-**Warm-soil denitrification is bounded by a clamp the paper does not have.**
+**Warm-soil denitrification is bounded by the pool, not by its coefficient.**
 Xu-Ri table 9 eqn 1 is an exponential equal to 1 at 22 C and rising past it:
-1.21 at 25 C, 2.07 at 35 C, 3.15 at 45 C. Table 5 eqn 7 and table 10 eqn 1 both
-state a `min{1, ...}`; table 9 eqn 1 does not. The port clamps it anyway, and
-the conservation identity needs something to, because the coefficient multiplies
-a pool mass. The bound is real and its source is the port.
+1.21 at 25 C, 2.07 at 35 C, 3.15 at 45 C, and 8.07 at the top of the declared
+temperature domain. Table 5 eqn 7 and table 10 eqn 1 both state a `min{1, ...}`;
+table 9 eqn 1 does not, and the port added one anyway, which held warm-soil
+denitrification at its 22 C rate. It did not need to. Both transformations the
+coefficient multiplies are already written as `min(pool, pool * coefficient)`,
+so neither can take more nitrogen out of a pool than the pool holds however far
+the coefficient rises. That is what `clamped_by` declares on the two
+denitrification products, and the gate checks the `min()` is still in the source
+rather than checking a product that no longer has to stay below 1.
 
 **These bounds are per unit pool mass, so they survive the stoichiometry
 repair.** The fine-root and sapwood C:N windows were re-anchored on the tissue
@@ -245,9 +323,8 @@ factor of 1.8 on the flux. Nothing in the model assigns `aprec_lastyear`;
 `climate.aprec`, which would feed it, is reset at day 0 in `driver.cpp` and never
 accumulated. The regression therefore evaluated at zero precipitation and
 returned 8.5 for every gridcell on every day, where the paper's constant would
-have given 8.8. That put every soil on the `nh3_max = 0.001` branch and fixed the
-pH term at `exp(-3)`. Two further things stood between that fallback and a usable
-number even with a live input: it is an Earth calibration, and its argument is
+have given 8.8, and so fixed the pH term at `exp(-3)` on every soil. Two further
+things stood between that fallback and a usable number even with a live input: it is an Earth calibration, and its argument is
 an annual precipitation sum, which on this world's shorter year is a smaller
 number for the same precipitation rate and so reads as a drier, more alkaline
 soil. Both are now repaired: the soil map's pH is carried onto the `Soiltype`,

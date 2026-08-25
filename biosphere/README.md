@@ -478,9 +478,11 @@ nitrogen the simulated plants can reach. `ntransform_gate.py` is the declaration
 of that operator checked against the source the model reads. It fails on a
 constant that has drifted from `global_soiln.ins`, on a literal no longer in
 `modules/ntransform.cpp`, on a response function that leaves the range its role
-allows anywhere in its declared domain, and on a chain of factors whose product
-would take more nitrogen out of a pool than the pool holds. Seven reduced
-fixtures run on every invocation, six of them built to be wrong in a named way.
+allows anywhere in its declared domain, on a chain of factors whose product
+would take more nitrogen out of a pool than the pool holds, and on a chain
+declared to be held inside its pool by an explicit `min()` that the operator no
+longer contains. A dozen reduced fixtures run on every invocation, all but one
+built to be wrong in a named way.
 
 ```bash
 python biosphere/scripts/ntransform_gate.py            # status, exit 0

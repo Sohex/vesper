@@ -44,13 +44,26 @@
 #include <assert.h>
 #include <numeric>
 
+/// The NO and N2O fractions of the reduced NO2 flux, table 11 of Xu-Ri and
+/// Prentice (2008), applied by table 9 eqns 5 and 6.
+///
+/// RNODN, the rate of NO production from denitrification, is given as under
+/// 0.2 per cent with no mean stated, so the top of the stated bound is what is
+/// taken. RN2ODN, the rate of N2O production from denitrification, is given as
+/// 0.2 to 4.7 per cent with a stated mean of 2 per cent, which is what is
+/// taken. The same rule settles the nitrification gas share in
+/// global_soiln.ins: the paper's stated mean where it states one, the top of
+/// the stated bound where it does not.
+static const double R_NO_DENITRI  = 0.002;
+static const double R_N2O_DENITRI = 0.02;
+
 /// Soil NH3 volatilization
 /** Daily calculation of NH3 volatilization from soil
  *
  */
 void nh3_volatilization(Patch& patch, Soil& soil, double& n_budget_check){
 
-	double nh3_max = 0.0, f_nit_T = 0.0, nh3_inc = 0.0;
+	double f_nit_T = 0.0, nh3_inc = 0.0;
 	double soil_T = soil.get_soil_temp_25();
 	double wcont = soil.get_soil_water_upper();
 
@@ -80,12 +93,17 @@ void nh3_volatilization(Patch& patch, Soil& soil, double& n_budget_check){
 		     "carries it; a soil-code-only soil has none.");
 	}
 
-	if (soil.pH > 6.0) { 
-		nh3_max = 0.001; // Maximum conversion ratio from NH4_mass to NH3 gas
-	}
-	else {
-		nh3_max = 0.00001;
-	}
+	// There is no nh3_max here any more. The port multiplied the whole
+	// expression below by 0.001 above pH 6 and 0.00001 at or below it, and
+	// table 5 of Xu-Ri and Prentice (2008) has no such factor. The paper's own
+	// text says why it needs none: the NH3/NH4+ ratio "is virtually zero (about
+	// 0.001) in solutions with pH below 6, but approaches unity (about 0.90) in
+	// solutions with pH above 10", which is what eqn 6's fpH = exp(2 * (pH -
+	// 10)) alone delivers, 3.4e-4 at pH 6 and 1.0 at pH 10. nh3_max applied
+	// that ratio a second time and added a factor-100 step at pH 6 on top of a
+	// smooth exponential. Over the pH range the simulated soil map carries, it
+	// held NH3_SOIL three orders of magnitude below the paper's formulation on
+	// the gridcells above pH 6 and five orders below it on the rest.
 
 	// N budget check
 	// Total budget before N transformations
@@ -100,7 +118,7 @@ void nh3_volatilization(Patch& patch, Soil& soil, double& n_budget_check){
 	}
 
 	// NH3 increment (table 5, eqn 2, 3, 4, 6, Xu-Ri 2008)
-	nh3_inc = min(soil.NH4_mass, nh3_max * (min(1.0, wcont) * (1.0 - min(1.0, wcont))) * f_nit_T * f_nit_T * exp(2.0 * (soil.pH - 10.0)) * soil.NH4_mass);
+	nh3_inc = min(soil.NH4_mass, (min(1.0, wcont) * (1.0 - min(1.0, wcont))) * f_nit_T * f_nit_T * exp(2.0 * (soil.pH - 10.0)) * soil.NH4_mass);
 
 	soil.NH4_mass -= nh3_inc;
 
@@ -191,7 +209,21 @@ void nitrification(Patch& patch, Soil& soil) {
 	gross_nitrif     = no3_inc;
 	soil.NH4_mass_d -= no3_inc;
 
-	double ngas_inc = f_denitri_gas_max * no3_inc;
+	// The share of gross nitrification emitted as NO plus N2O. Table 8 eqns 3
+	// and 4 of Xu-Ri and Prentice (2008) are NOinc = RNON * NO3inc and N2Oinc =
+	// RN2ON * NO3inc, so the two together take RNON + RN2ON of the flux, and
+	// f_no below splits what leaves.
+	//
+	// This read f_denitri_gas_max, which global_soiln.ins, parameters.h,
+	// parameters.cpp and the declareitem help string all describe as the
+	// maximum gaseous loss in DENITRIFICATION, while denitrification below read
+	// f_nitri_gas_max, which those same four describe as the maximum gaseous
+	// loss in NITRIFICATION. Four declarations agreed with the names and only
+	// the two reads disagreed, and the instruction file's values corroborate
+	// them: 0.33 for both steps of the reduction sequence against 0.1 and the
+	// nitrification gas share. So the names were right, the reads were crossed,
+	// and it is the reads that moved.
+	double ngas_inc = f_nitri_gas_max * no3_inc;
 
 	double wfps = soil.wfps(0);
 
@@ -232,8 +264,18 @@ void denitrification(Patch& patch,Soil& soil) {
 	double f_den_T, d_N_max, no2_inc, no_inc, n2o_inc, ngas_inc, gross_denitrif, n2_inc;
 	if (water_cont_m3 > 0.0 && wfps_upper>0.4) {
 		// temperature limiting factor for denitrification, 22 deg C == 1 (table 9, eqn 1, Xu-Ri 2008)
+		//
+		// Table 9 eqn 1 carries no min{1, .}, unlike table 5 eqn 7 and table 10
+		// eqn 1 which both state one, and the paper's function rises past 1
+		// above 22 C: 1.21 at 25 C, 1.61 at 30 C, 2.07 at 35 C, 3.15 at 45 C.
+		// The port clamped it, which held denitrification in warm soil at its
+		// 22 C rate. What keeps the operator conservative is not that clamp but
+		// the min() against the pool on each of the two transformation lines
+		// below: no2_inc cannot exceed NO3_mass_w and ngas_inc cannot exceed
+		// NO2_mass_w whatever the coefficient reaches. The guard at -40 C stays
+		// because the exponent diverges at -46.02 C; the function is 5e-21 there.
 		if (soil_T >= -40.0) {
-			f_den_T = min(1.0, exp(308.56 * (1.0 / 68.02 - 1.0 / (soil_T + 46.02))));
+			f_den_T = exp(308.56 * (1.0 / 68.02 - 1.0 / (soil_T + 46.02)));
 		}
 		else {
 			f_den_T = 0.0;
@@ -253,27 +295,36 @@ void denitrification(Patch& patch,Soil& soil) {
 		// Denitrification rate dependence on moisture, Weier et al. 1993
 		double f_den_w = min(1.0, exp(13.0360 * wfps_upper - 11.6219));
 
-		ngas_inc = min(soil.NO2_mass_w, soil.NO2_mass_w * f_nitri_gas_max * d_N_max * f_den_w * f_den_T * soil.NO2_mass_w / (k_N * water_cont_m3 + soil.NO2_mass_w));
+		ngas_inc = min(soil.NO2_mass_w, soil.NO2_mass_w * f_denitri_gas_max * d_N_max * f_den_w * f_den_T * soil.NO2_mass_w / (k_N * water_cont_m3 + soil.NO2_mass_w));
 
 		soil.NO2_mass_w -= ngas_inc;
 
-		double f_n2o_no_w = max(0.0, min(1.0, 3.2092 * wfps_upper - 0.9210));
-
-		double f_n2_n2o_T = 1.0 / (1.0 + exp(-(soil_T - 5.0) / 10.0));
-
-		double f_n2o_n2_w = richards_curve(1.0, 0.0, 62.0, 0.875, wfps_upper); // Decimals added to be consistent with other richards_curve calls
-
-		// Above 0.7 WFPS, no NO is produced and below the same threshold no N2 production. Pilegaard 2013
-		if (wfps_upper < 0.7){
-			n2_inc = 0.0;
-			no_inc = ngas_inc / (1 + f_n2o_no_w);
-			n2o_inc = ngas_inc - no_inc;
-		} 
-		else {
-			no_inc = 0.0;
-			n2o_inc = ngas_inc * f_n2o_n2_w * f_n2_n2o_T;
-			n2_inc = ngas_inc - n2o_inc;
-		}
+		// NO, N2O and N2 out of the reduced NO2: table 9 eqns 5, 6 and 7 of
+		// Xu-Ri and Prentice (2008). NOinc = RNODN * ftemp * N2inc, N2Oinc =
+		// RN2ODN * ftemp * N2inc, and N2 is what is left, with ftemp the same
+		// table 9 eqn 1 response used above.
+		//
+		// This replaces a branch at 0.7 WFPS that produced no N2 below it and
+		// no NO above it, built from three functions neither paper states: an
+		// N2O:NO regression attributed to Weier et al. (1993), which measured
+		// N2 and N2O by acetylene block and never measured NO; an N2O:N2 curve;
+		// and a logistic in soil temperature, from a study incubated at one
+		// temperature. The hard zero below 0.7 WFPS also contradicts the paper
+		// the moisture response beside it is taken from: Weier tables 4 and 5
+		// measured N2/N2O at 60 and 75 per cent WFPS across four soils and nine
+		// carbon-by-nitrate treatments and found N2 the majority product in
+		// most of those observations.
+		//
+		// What this does NOT settle is the size of the N2 share. At 22 C these
+		// equations leave 97.8 per cent of the reduced nitrogen as N2, where
+		// Weier's medians are 0.565, 0.744 and 0.796 at 60, 75 and 90 per cent
+		// WFPS. The two Earth calibrations disagree, the operator runs at the
+		// DyN end because every other equation in it is DyN's, and the
+		// disagreement is declared as a bracket in
+		// biosphere/config/ntransform.yaml.
+		no_inc  = R_NO_DENITRI * f_den_T * ngas_inc;
+		n2o_inc = R_N2O_DENITRI * f_den_T * ngas_inc;
+		n2_inc  = ngas_inc - no_inc - n2o_inc;
 
 		soil.NO_mass_w += no_inc;
 		soil.N2O_mass_w	+= n2o_inc;
