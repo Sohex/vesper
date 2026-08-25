@@ -273,7 +273,9 @@ convention), `orbit.py` (orbital period), `stellar.py` (spectrum, band split,
 Rayleigh coefficient), `sensitivity.py` (the one flux-to-kelvin conversion),
 `climatology.py` (time-bin weights), `lapse.py` (lapse rates, and the
 height of the lowest model level),
-`surface_classes.py` (derived surface classes BY NAME), `provenance.py` (build
+`surface_classes.py` (derived surface classes BY NAME),
+`sea_water.py` (the four numbers salinity reaches the model through, read
+from `icemod.f90` and the run's namelist rather than copied), `provenance.py` (build
 stamping and config drift). Rule 5 cites `builds.py` and `provenance.py` from this list.
 
 Git does not track `exoplasim/runs/` (model output; but `runs/INDEX.json` IS

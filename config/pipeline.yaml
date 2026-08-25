@@ -735,6 +735,11 @@ one_offs:
   - exoplasim/scripts/stability_probe.py
   - exoplasim/scripts/spectral_tail.py
   - exoplasim/scripts/predict_ocean_terms.py
+  # Stages a known field into a run directory and answers each criterion
+  # against the stream that run wrote. Outside the graph: both products
+  # live in the run directory being verified, and neither is an input to
+  # anything. OCN-2.
+  - exoplasim/scripts/verify_ocean_flux_channel.py
   - exoplasim/scripts/score_rank_bench.py
   - exoplasim/scripts/reproducibility_matrix.py
   - exoplasim/scripts/diff_restarts.py

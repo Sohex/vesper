@@ -53,7 +53,9 @@ from netCDF4 import Dataset
 import numpy as np
 from numpy.polynomial.legendre import leggauss
 
-from _paths import ANALYSIS
+from _paths import ANALYSIS  # noqa: F401  (also puts lib/ on sys.path)
+
+import sea_water  # noqa: E402  from lib/, via _paths
 
 # PlaSim's own constants, from plasim/src. They are properties of the compiled
 # model, not of this planet, so they are read from the source of truth that
@@ -64,8 +66,16 @@ ACPV = 1870.0        # plasimmod.f90: specific heat of water vapour, J/kg/K
 ALV = 2.5008e6       # plasimmod.f90: latent heat of vaporisation, J/kg
 ALS = 2.8345e6       # plasimmod.f90: latent heat of sublimation, J/kg
 ALF = ALS - ALV      # fusion
-CRHOS = 1030.0       # oceanmod.f90: density of sea water, kg/m3
-CPS = 4180.0         # oceanmod.f90: specific heat of sea water, J/kg/K
+# SEA WATER IS READ, NOT WRITTEN DOWN. Density and specific heat are icemod_nl
+# keys that icemod passes to oceanini, so oceanmod does not own them and a run
+# can set them. The literals that stood here said 1030 and 4180, and 4180 is
+# fresh water at about 25 C, which the model left behind for sea water's value
+# at S = 34.7 and its freezing point. Every mixed-layer heat content built from
+# the pair was too large by their ratio, and assess_convergence.py imports these
+# two names to build the slab capacity its convergence verdict rests on.
+_SEA_WATER = sea_water.constants()
+CRHOS = _SEA_WATER["CRHOS"]   # icemod.f90/icemod_nl: density of sea water, kg/m3
+CPS = _SEA_WATER["CPS"]       # icemod.f90/icemod_nl: specific heat, J/kg/K
 CRHOI = 920.0        # oceanmod.f90: density of sea ice, kg/m3
 TMELT = 273.16       # icemod.f90: freezing point
 SOILCAP = 2.4e6      # landmod.f90: soil heat capacity, J/m3/K

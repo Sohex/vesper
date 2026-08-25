@@ -24,9 +24,12 @@ atmospheric diagnostics. The codes used here:
                   710/711 ice compactness and thickness, 741 snow, 772 land mask
     ocean_output  901 yheata   flux as the slab got it     (== 706 by construction)
                   902 yifluxa  flux diverted into sea ice
-                  903/904/905/906 flux correction, vertical and horizontal
-                              diffusion, deep ocean -- all identically zero in
-                              this configuration, and checked to be
+                  903 yfssta   the PRESCRIBED flux correction, `nfluko = 1`'s
+                              ocean heat transport, zero unless a code 903
+                              surface field was staged
+                  904/905/906 vertical and horizontal diffusion and the deep
+                              ocean -- all identically zero in this
+                              configuration, and checked to be
                   939 ysst     the slab temperature itself, INSTANTANEOUS
                   972 yls      land mask
 
@@ -57,9 +60,17 @@ taken from twelve binned output records.
     D3  xheat - xcflux = xsmelt                   the only term withheld is the
                                                   fusion of snow falling into
                                                   open water
-    D4  CRHOS*CPS*mld*d(SST)/dt = yheat           the slab integration itself
+    D4  CRHOS*CPS*mld*d(SST)/dt = yheat + yfsst   the slab integration itself
     D5  hfns - (rss+rls+hfss+hfls) = -ALF*rho*snm pyburn's own definition of hfns
-    D6  hfns = CRHOS*CPS*mld*d(SST)/dt            the surface residual, end to end
+    D6  hfns + yfsst = CRHOS*CPS*mld*d(SST)/dt    the surface residual, end to end
+
+`yfsst` is the prescribed ocean heat transport and is IDENTICALLY ZERO on a run
+that staged no code 903 field, so D4 and D6 are unchanged on every run made
+before that channel was verified. It appears in both because `addfc` adds it to
+the slab in the same place `mksst` adds the atmospheric flux: leaving it out
+makes the slab look as though it stored energy nothing delivered.
+`exoplasim/scripts/verify_ocean_flux_channel.py` is the end-to-end verification
+of the channel it comes through.
 
 D2, D3, D4 and D5 need only one stream each and are independent of how the two
 are aligned in time. D1 and D6 are cross-stream and need the alignment below.
@@ -104,6 +115,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import struct
 from collections.abc import Sequence
 from pathlib import Path
@@ -115,11 +127,20 @@ from numpy.polynomial.legendre import leggauss
 from _paths import ANALYSIS  # noqa: F401  (also puts lib/ on sys.path)
 
 import climatology  # noqa: E402  from lib/, via _paths
+import sea_water  # noqa: E402  from lib/, via _paths
 
 # PlaSim's own constants, from plasim/src. Properties of the compiled model, not
 # of this planet, so they come from the model rather than from planet.yaml.
-CRHOS = 1030.0        # oceanmod.f90: density of sea water, kg/m3
-CPS = 4180.0          # oceanmod.f90: specific heat of sea water, J/kg/K
+#
+# THE SEA WATER PAIR IS NOT WRITTEN HERE, and that is the correction. This file
+# carried `CRHOS = 1030.0` and `CPS = 4180.0` as literals attributed to
+# oceanmod.f90. oceanmod does not own them: `icemod.f90` declares both as
+# `icemod_nl` keys and passes them to `oceanini`, and its CPS is sea water's at
+# S = 34.7 and its freezing point from the UNESCO (1983) polynomial, not fresh
+# water's 4180 at about 25 C. The copy here stayed at 4180 after the model
+# moved, which made every slab-storage term in D4 and D6 too large by the ratio
+# of the two. `sea_water_constants` reads the model source and then the run's
+# own namelist, so the number cannot drift again.
 ALV = 2.5008e6        # plasimmod.f90: latent heat of vaporisation, J/kg
 ALS = 2.8345e6        # plasimmod.f90: latent heat of sublimation, J/kg
 ALF = ALS - ALV       # fusion
@@ -132,9 +153,12 @@ ICE_CODES = {701: "xheat", 702: "xoflux", 703: "xtsflux", 704: "xsmelt",
              705: "ximelt", 706: "xcflux", 708: "xqmelt", 709: "xflxice",
              710: "xicec", 711: "xiced", 712: "xscflx", 713: "xcfluxr",
              714: "xcfluxn", 739: "xts", 741: "xsnow", 769: "xsst", 772: "xls"}
-# Zero in this configuration, and the run is not the one described if they are not.
-MUST_BE_ZERO = {"yfsst": "flux correction, nfluko = 0",
-                "ydsst": "ocean vertical diffusion, NLEV_OCE = 1",
+# Zero in this configuration, and the run is not the one described if they are
+# not. `yfsst` is NOT among them: it is the prescribed ocean heat transport, it
+# is zero only while no code 903 field is staged, and refusing a run that
+# carries one would make this closure unusable exactly on the configuration the
+# ocean work exists to produce. It enters D4 and D6 instead.
+MUST_BE_ZERO = {"ydsst": "ocean vertical diffusion, NLEV_OCE = 1",
                 "yqhd": "ocean horizontal diffusion, nhdiff = 0",
                 "yfldo": "deep-ocean flux, NLSG = 0"}
 
@@ -523,7 +547,8 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
     nrec_total = ocean["ysst"].shape[0]
     last_record = min(max(last_record, 0), nrec_total - 1)
     end_of_first_bin = min(max(end_of_first_bin, 0), nrec_total - 1)
-    storage = (CRHOS * CPS * mld
+    water = sea_water.constants(run_dir)
+    storage = (water["CRHOS"] * water["CPS"] * mld
                * (ocean["ysst"][last_record] - ocean["ysst"][end_of_first_bin])
                / (nspan * record_seconds))
 
@@ -544,6 +569,7 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
         xheat = ice["xheat"][span].mean(0)
         xcflux = ice["xcflux"][span].mean(0)
         yheat = ocean["yheat"][span].mean(0)
+        yfsst = ocean["yfsst"][span].mean(0)
         xsmelt = ice["xsmelt"][span].mean(0)
         result[name] = {
             "area_fraction": float((mask * weights).sum()),
@@ -555,15 +581,16 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
                 "ice_stream_xsmelt": _mean(xsmelt, weights, mask),
                 "ice_stream_xcflux": _mean(xcflux, weights, mask),
                 "ocean_stream_yheat": _mean(yheat, weights, mask),
+                "ocean_stream_yfsst": _mean(yfsst, weights, mask),
                 "slab_storage": _mean(storage, weights, mask),
             },
             "identities_w_m2": {
                 "D1_handoff": _mean(xheat - atm_m, weights, mask),
                 "D2_ice_to_ocean": _mean(yheat - xcflux, weights, mask),
                 "D3_snow_into_water": _mean((xheat - xcflux) - xsmelt, weights, mask),
-                "D4_slab_integration": _mean(storage - yheat, weights, mask),
+                "D4_slab_integration": _mean(storage - yheat - yfsst, weights, mask),
                 "D5_hfns_definition": _mean((atm_m - hfns_m) - snm_m, weights, mask),
-                "D6_surface_residual": _mean(hfns_m - storage, weights, mask),
+                "D6_surface_residual": _mean(hfns_m + yfsst - storage, weights, mask),
             },
             "seasonal_swing_w_m2": {
                 "min": float(min(_mean(binned["hfns"][k], weights, mask)
@@ -623,6 +650,7 @@ def close_ocean(run_dir: Path, first_orbit=None, last_orbit=None) -> dict:
                    "orbits": len(orbits), "stream_records": nrec,
                    "record_seconds": record_seconds, "bin_seconds": bin_seconds,
                    "mixed_layer_depth_m": mld,
+                   "sea_water": water,
                    # Which layout this was read from, so a single-orbit result
                    # can never be quoted as a block. CLIM-12.
                    "stream_layout": "per_call" if ocean_orbits else "final_orbit_only",

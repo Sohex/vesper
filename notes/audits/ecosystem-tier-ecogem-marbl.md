@@ -550,18 +550,247 @@ coupling arithmetic and MARBL derives seven of its ten ratios from three.
 - **Neither model was compiled or run.** Every claim above is from source and
   from the shipped configuration files. Nothing here has been observed to
   execute.
-- **The Si cycle was not read.** `references/INDEX.md:516` records
-  Naidoo-Bagwell et al. (2024), the EcoGEnIE 1.1 diatom extension, as `held`
-  rather than read. `squota` and the silicifier path were traced structurally
-  and their Earth calibration was not examined. Any comparison of silicon
-  requirements between the tiers needs that paper first.
+- **The Si cycle is section 13**, added after this list was written. It reads
+  both tiers' silicon paths at source and reads Naidoo-Bagwell et al. (2024),
+  which was `held` when this section was first written.
 - **The magnitude of the trait-space re-derivation is not bracketed.** That 36
   coefficient pairs are Earth fits is established; what any of them would be on
   Vesper is not, and nothing here estimates it.
 - **MARBL's diagnostics inventory was not read.** `defaults/diagnostics_latest.yaml`
   is 2843 lines and only its existence is used above.
-- **BIOGEM's remineralisation profile was not read at line level**, so section 9's
-  conclusion that the gravity question routes there is a redirection and not an
-  answer.
+- **BIOGEM's remineralisation profile was read at line level only on the OPAL
+  path**, in section 13c. Section 9's redirection of the gravity question to
+  BIOGEM is answered there for opal and remains a redirection for the organic
+  carbon and carbonate paths.
 - **The `beta_graz_c` units question is open**, as stated, and is bracketed
   rather than resolved.
+
+## 13. The silicon axis, closed
+
+Section 12 recorded this as the one axis the reading had not covered, and the
+row asks for the required C-N-P-S-Fe-Si inputs of each tier. Read at source
+2026-08-24, with `references/naidoobagwell2024-ecogenie-diatom-extension.pdf`
+read for the parts the source cannot settle.
+
+### 13a. ECOGEM: silicon is namelist-reachable and gated three ways
+
+Silicon is compiled in unconditionally; there is no preprocessor guard anywhere
+in `vendor/cgenie/genie-ecogem/src/fortran/`. It is gated at runtime by two
+namelist logicals and one per-population real: `squota`, the dynamic silicon
+quota (`ecogem_lib.f90:45`, namelist at `:47`, default false); `useSiO2`,
+silicate as a resource (`:38-39`, default false); and `silicify(npmax)`,
+allocated at `initialise_ecogem.f90:229`.
+
+**The silicifier is selected by a word.** `ecogem_data.f90:364` sets
+`silicify(jp) = 1.0` only where the functional type name is `diatom`, matched
+case-insensitively; the other eleven recognised names set zero.
+
+**The `.eco` files carry no silicon column at all.** Every shipped file has three
+columns: functional type, cell diameter in micrometres, replicate count. The
+silicon traits come entirely from the name in column one and the diameter in
+column two, through five allometric `_a`/`_b` pairs declared at
+`ecogem_lib.f90:94-101` and applied at `ecogem_data.f90:522-528`, all of them in
+`ini_ecogem_nml`.
+
+**One of the nine shipped plankton files carries a silicifier row**,
+`3Diat4ZP_PiEu.eco:6-8`, at 2, 20 and 200 micrometres, and one base config in the
+whole tree combines ECOGEM with the silicon tracers. Section 2's correction to
+the row stands and sharpens: the diatom and no-diatom pair is a guild ADDED, and
+the shipped pair of user configs differs by exactly one line, the plankton file
+name, so in the no-diatom arm silicon is a fully enabled and completely inert
+tracer.
+
+Four things the source settles that a structural trace did not:
+
+- **There is no silicon half-saturation parameter; it is derived.** The uptake
+  law at `ecogem_box.f90:165-166` has Michaelis-Menten equivalent
+  `k = vmax/affinity`, and the model prints exactly that at
+  `ecogem_data.f90:112`.
+- **The Si:C quota is size-INDEPENDENT while the kinetics are not.**
+  `qminSi_b` and `qmaxSi_b` default to zero and no user config in the tree sets
+  either, while the uptake rate and affinity exponents are both nonzero. A 2 and
+  a 200 micrometre diatom have the same Si:C and different kinetics.
+- **Silicon limitation is linear, not Droop** (`ecogem_box.f90:113`), and enters
+  the von Liebig minimum only for silicifiers (`:122`). Zooplankton assimilate no
+  silicon (`ecogem.f90:402-404`).
+- **`kexcSi` is dead code**, computed at `ecogem_data.f90:528` and read by
+  nothing, the same class as `biosink` in section 9. Its default is zero so this
+  is latent, but a Vesper retune that set a silicon excretion rate would silently
+  get nothing. `par_diatom_vmax_mod` is a second dead knob, namelisted at
+  `ecogem_lib.f90:236-237` and never read, and it is the obvious one a diatom
+  retune would reach for.
+
+### 13b. ECOGEM: one conservation requirement is enforced and one is not
+
+`ecogem_box.f90:553-566` hard-stops if `ocn_select(io_SiO2)` is off. **Nothing
+checks `sed_select(is_opal)`.** ECOGEM writes the opal flux unconditionally on
+`squota` at `ecogem.f90:770`, and BIOGEM copies only SELECTED sediment tracers
+(`biogem.f90:2388-2402`). With opal unselected, silicon uptake is a permanent
+removal with no return path and nothing in the tree catches it.
+
+**Dissolved organic silicon does not exist.** There is no `io_DOM_Si` tracer.
+ECOGEM computes the size-dependent dissolved and particulate partition for the
+silicon index anyway, its own comment at `ecogem.f90:542` saying so, and then
+recombines both halves into opal at `:770`. So section 10's open units question
+about the partition coefficients has no effect on the silicon path at all.
+
+Two latent numerical defects, neither checked by `check_egbg_compatible`:
+`squota` true with `useSiO2` false indexes `vmax(0,:)` at
+`ecogem_data.f90:526`, and `useSiO2` true with `squota` false indexes `qreg(0,:)`
+at `ecogem_box.f90:180`. Both are out of bounds. And the "Population inviable!"
+guard at `ecogem_data.f90:525` is
+`maxval(qmin(iSili,:)/qmax(iSili,:)) > 1.0`, which is zero over zero for every
+non-silicifier and therefore for eight of the eleven populations in the shipped
+configuration. Under the optimised build that is a NaN and the comparison is
+false, so **the guard has no failing state**, which is the class this project's
+own conventions forbid.
+
+### 13c. Where the silicon gravity question routes, and it answers section 9
+
+Section 9 redirected the gravity question from ECOGEM to BIOGEM and called that a
+redirection rather than an answer. **On the opal path BIOGEM answers it.** Under
+the kinetic dissolution branch the layer residence time is
+`dz / sinkingrate_reaction` (`biogem_box.f90:3425`) and dissolution is
+`1 - exp(-dt_reaction * par_bio_remin_opal_K * f(T,u))` (`:3482-3489`). **The
+sinking SPEED and the dissolution RATE are two separate namelist-reachable
+numbers and only the speed is a gravity question**, which is the seam the
+survey's rate-time-base finding says must exist.
+
+MARBL's 650 m has no such seam. It is the ratio of the two, collapsed, and there
+is no defensible way to rescale it from inside the model.
+
+The live speed in the published configuration is
+`par_bio_remin_sinkingrate_reaction` at 49.689 m/d, not the 125.0 the
+configuration also carries: `par_bio_remin_sinkingrate` is read only by a
+backwards-compatibility branch (`biogem_data.f90:608-612`) that the config
+disables. **Bracketed** on the same terms as
+`notes/audits/ocean-tier-implicit-earth.md` finding 14: a Stokes scaling gives
+about 64.9 m/d at 1.306 gravity, the aggregate regime gives less, the model
+carries one scalar speed for all particles under its default remineralisation
+function, and the settling regime is not determined here.
+
+### 13d. MARBL: silicon is one tracer, and opal is not a tracer at all
+
+`SiO3` is unconditional. A per-autotroph silicon tracer is created only where
+`silicifier` is true
+(`references/marbl/src/marbl_interface_private_types.F90:1551-1554`), and every
+downstream test is on that index, so turning the flag off removes the whole opal
+pathway with no other signal. **Opal itself is a
+`column_sinking_particle_type`** (`:244`, constructed at `:919`), diagnosed
+within a single column call, so it has no prognostic inventory and is implicitly
+assumed to reach the seafloor inside one host timestep.
+
+Three per-autotroph silicon fields exist and all are settings-reachable, with the
+uptake half-saturation and the optimal silicate carrying the `1e34` poison
+default under `user-specified` so that leaving them unset aborts. **`silicifier`
+does not**: it defaults to false
+(`references/marbl/src/marbl_pft_mod.F90:247`), so a user-specified plankton set
+that forgets it gets zero silicifiers, no opal cycle, and no poison value to trip
+on. That is the one place MARBL's engineering advantage does not hold.
+
+**There is no independent silicon photosynthesis rate.** Opal production is the
+carbon fixation rate times the silicon quota
+(`marbl_interior_tendency_mod.F90:1824-1826`), so it inherits every constant on
+the carbon fixation path and the diatom's light curve propagates into the opal
+flux one for one. The transfer to opal uses a grazing remineralisation fraction,
+`f_graze_si_remin = 0.22`, a bare Fortran `parameter` at
+`marbl_settings_mod.F90:141` with no registration and no YAML entry, and the
+comment three lines above the code that uses it says sixty per cent.
+
+Burial is a step function at `marbl_interior_tendency_mod.F90:3492-3505`, 0.2 of
+the flux above a threshold and 0.04 below, attributed in a comment to Ragueneau
+et al. (2000); all three numbers are unnamed inline literals. The hard ballast
+subclass decays on an unnamed `4.0e6` cm at `:3044`. Dust-derived silicate is
+computed inside MARBL from two inline literals at
+`marbl_surface_flux_mod.F90:434-435`, neither of them tunable.
+
+**MARBL closes the column silicon budget and not the global one.**
+`marbl_diagnostics_mod.F90:4480-4533` sums every silicon tendency plus the
+sediment loss and aborts above a threshold, which is a real conservation check
+and it is loud. The global closure is the bury-coefficient Newton step, every
+input to which is a global average MARBL cannot compute. **Without a host
+performing that reduction, MARBL's silicon cycle has no closure at all.**
+
+And the standalone driver cannot supply one. Confirmed at source: twelve test
+cases dispatched from one `select case`, no timestep and no step count in its
+namelist, the compute routines called once per column, and the tracer array read
+once and never written back. For silicon that means it can emit production,
+remineralisation, formation and burial as instantaneous rates at one prescribed
+state, and cannot produce an inventory, an annual opal production, a
+steady-state dissolution profile, or any evidence that the cycle converges.
+
+### 13e. What the paper settles that the source cannot
+
+`references/INDEX.md` recorded Naidoo-Bagwell et al. (2024) as `held`. It is now
+read, and five things in it are not readable from the tree.
+
+- **The published EcoGEnIE 1.1 silicon cycle has no source and no sink, by
+  declaration.** Section 2.2 states that the paper does not calculate opal
+  preservation and imposes a benthic closure instead, and the base config has
+  both the sediment and weathering components off. **The whole inventory is one
+  configuration line.** Adopting that configuration adopts a closed silicon
+  inventory.
+- **The dissolution law's provenance.** The seven literals at
+  `biogem_box.f90:3482-3489` carry no citation in the source; the paper names
+  Ridgwell et al. (2002) and a sediment-trap evaluation.
+- **The tuned parameters' ranges and their selection**, in its Table 2, which
+  exist nowhere in the tree: a 550-member Latin hypercube scored against Earth
+  ocean fields, and the accepted values reconcile exactly with the shipped user
+  config.
+- **The acceptance gate is an Earth inventory**: a global opal export compared
+  against a published Earth range, used as a selection criterion.
+- **Which parameter controls the silicifier guild's size structure**: the
+  silicon uptake rate exponent, its section 5.2, which no reading of the source
+  would surface.
+
+**And one thing it does not settle, which matters here.** Its Table 2 attaches
+two of the four live silicon parameter families to references that do not appear
+in its own reference list, checked two ways. **So the literature basis for half
+of ECOGEM's live silicon parameters cannot be followed from the paper**, and by
+this project's own rule an undocumented value is a test case rather than an
+anchor. Those tested ranges are not calibration targets.
+
+### 13f. The comparison, and what would have to be true
+
+| | ECOGEM | MARBL |
+| --- | --- | --- |
+| dissolved Si tracer | BIOGEM's, enforced | its own, always present |
+| particulate Si | BIOGEM's opal and its refractory fraction; **not enforced** | none; diagnostic within a column |
+| silicifier identity | a word in a text file | a per-autotroph logical defaulting to false |
+| Si trait parameters | four live allometric pairs, all namelist | two per-autotroph plus three global, all settings-reachable |
+| vertical transfer | a sinking SPEED times a dissolution RATE, separately reachable | one fixed e-folding LENGTH |
+| Si source | weathering component, or nothing | host-supplied flux, or nothing |
+| Si sink | sediment diagenesis, or nothing | its own burial step function plus a host global reduction |
+| global reduction required | no | **yes** |
+| what it answers without a host | nothing; it cannot leave cGENIE | one instantaneous tendency |
+
+**On silicon the reachability comparison goes the same way as the photon axis,
+and for the same reason.** Every live silicon parameter in ECOGEM is
+namelist-reachable and its buried Earth content is one layer down in BIOGEM;
+MARBL's grazing remineralisation fraction, burial step function, hard ballast
+length and dust silicate pair have no settings entry at all. The one structural
+advantage MARBL keeps is that its silicon budget check is real and loud, where
+ECOGEM's missing sediment-tracer guard leaks silently.
+
+Five preconditions before the silicon axis could be called settled:
+
+1. **A silicon inventory would have to be DECLARED for Vesper.** In the ECOGEM
+   tier it is literally one number and with weathering and burial off it is
+   conserved exactly. Nothing in either model derives it, and it is the largest
+   single piece of Earth on the axis.
+2. **The half-saturations would have to be re-derived against that inventory
+   rather than carried.** MARBL's optimal-silicate threshold sits at the edge of
+   Earth's surface regime: raise the inventory and the entire variable Si:C
+   mechanism switches off silently, lower it and the quota clamps to its minimum
+   globally. The same argument applies to the uptake half-saturation, which
+   decides whether diatoms are silicon-limited at all.
+3. **The sinking speed would have to be settled**, and only cGENIE's tier has
+   the seam to apply it at. Section 13c.
+4. **The diatom light curve would have to move with the spectrum**, because opal
+   production is the carbon fixation rate times a stoichiometric ratio in both
+   models and neither has a silicon-independent light path. Section 6's factor
+   applies unchanged, and ECOGEM makes it worse by confining all uptake to a
+   single surface box chosen for a solar photic zone.
+5. **Whether Vesper's ocean has a silicon source and sink at all is a design
+   decision, not a model setting**, and the published configuration answers it
+   with "neither".
