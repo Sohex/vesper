@@ -393,15 +393,27 @@ be divided. Each of these is a reading of the source, not a measurement.
 
 ## 3d. The working set is cache-resident at every grid considered
 
-`CLAUDE.md`'s thread-team target is 32 MB on one die. The arrays a GOLDSTEIN
-timestep actually touches are `ts`, `ts1`, `u` and `rho`: at 36 x 36 x 16 in
-double precision that is roughly 2 MB, at 72 x 72 x 16 roughly 8 MB, and at
-144 x 144 x 16 roughly 32 MB. So a thread team on this part would be dividing an
-arithmetic-bound problem rather than a bandwidth-bound one, up to about the grid
-where the horizontal doubling stops being affordable anyway. The gigabyte of
-static COMMON that forces `-mcmodel=medium` at 72 x 72 is not this: it is
-`embm.cmn`'s seasonal arrays and `ocean.cmn`'s `maxnyr`-dimensioned storage,
-which the timestep does not read.
+`CLAUDE.md`'s thread-team target is 32 MB on one die, and the two figures that
+bear on it are three orders of magnitude apart.
+
+The executables themselves are enormous: `size -A` gives 1.39 GB of static
+storage at 36 x 36 x 16 and 4.42 GB at 72 x 72 x 16, of which 4.38 GB at the
+doubled grid is `.lbss` -- the large-data section `-mcmodel=medium` exists to
+address. Every field cGENIE holds is in a named COMMON sized from the grid macros
+and `-fno-automatic` makes the locals static too, so all of it is allocated
+whether or not it is touched.
+
+The arrays a GOLDSTEIN timestep actually touches are a different quantity
+entirely: `ts`, `ts1`, `u` and `rho` come to roughly 2 MB at 36 x 36 x 16 in
+double precision, roughly 8 MB at 72 x 72 x 16, and roughly 32 MB at
+144 x 144 x 16. That is arithmetic from the declared shapes rather than a
+measurement of a cache miss rate, and it says a thread team on the tracer
+transport would be dividing an arithmetic-bound problem rather than a
+bandwidth-bound one, up to about the grid at which the horizontal refinement
+stops being affordable anyway.
+
+The gap between the two is `embm.cmn`'s seasonal arrays and `ocean.cmn`'s
+`maxnyr`-dimensioned storage, which the timestep does not read.
 
 ---
 
