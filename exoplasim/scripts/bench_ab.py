@@ -18,6 +18,43 @@ Reports the paired per-round gain, which is the number to quote, alongside the
 medians. Also reports each arm's restart sha: if the two differ that is a
 numerics change and must be stated separately from the timing, never folded
 into it.
+
+**Two arms is the minimum, not the shape.** `--arm LABEL=PATH`, repeated, runs
+any number of arms in one interleaved schedule, and the reason is that a
+two-arm run measures one effect with every other held at whatever value the
+person building the arms happened to pick. When two changes are believed to
+COMPOUND, the arbitrary setting is the answer: measuring change X against a
+baseline that already has change Y is a different number from measuring it
+against one that does not, and neither on its own says whether X and Y add,
+multiply, or interfere.
+
+    python exoplasim/scripts/bench_ab.py --bed <bed> --rounds 8 --factorial \
+        --arm "fp64 masked=<x>" --arm "fp64 vector=<x>" \
+        --arm "fp32 masked=<x>" --arm "fp32 vector=<x>"
+
+`--factorial` declares that the four arms are, in that order, the base, the
+first factor alone, the second factor alone, and both. It then reports each
+factor's gain WITHIN each level of the other, and the excess of the joint gain
+over what multiplying the two single-factor gains predicts. That excess is the
+whole answer to "do they compound", and it is computed per round and reported
+with its spread, because a median excess of two points means nothing beside a
+round-to-round spread of ten.
+
+The rotation is by round: with n arms, round r starts at arm r mod n, so over
+any n consecutive rounds each arm occupies each position once and the drift
+that position carries is shared equally. Two arms recover the original A/B/B/A
+flip exactly.
+
+**When the host cannot be made quiet, change the instrument.** `--counter
+instructions:u` runs the same schedule under `perf stat` and compares retired
+instructions instead of seconds. A counter is a property of the code and the
+input and does not move with what else the machine is doing; a clock is a
+property of the machine as well, and a contended clock is worse than no number
+because it looks like a measurement. The counter cannot say what a change
+COSTS -- a vector call is more instruction-efficient than eight scalar ones and
+need not be eight times faster -- so it answers where the work went, and a clock
+arm on a quiet host answers what that was worth. Report both or say which one
+is missing.
 """
 from __future__ import annotations
 
@@ -29,6 +66,11 @@ import statistics as st
 import subprocess
 import time
 from pathlib import Path
+
+
+# Set from --counter. Module level because it changes what run_once MEASURES,
+# not how one arm is launched, and every arm must be measured the same way.
+COUNTER: str | None = None
 
 
 def launcher(spec: str, threads: int) -> tuple[list[str], dict]:
@@ -76,7 +118,27 @@ def launcher(spec: str, threads: int) -> tuple[list[str], dict]:
     # process stack, which is ulimit -s. The model's large locals become
     # stack-allocated under -frecursive, and at T127 the master overruns a
     # 16 MB limit and segfaults.
-    return ["bash", "-c", "ulimit -s unlimited; exec ./probe_ab.x"], env
+    cmd = ["bash", "-c", "ulimit -s unlimited; exec ./probe_ab.x"]
+    if COUNTER:
+        # A HARDWARE COUNTER, NOT A CLOCK. A retired-instruction count is a
+        # property of the code and the input: it does not move with what else
+        # the machine is doing, and on this project it reproduces to about one
+        # part in 10^8 across repeats, where a wall clock on a shared desktop
+        # does not. `exoplasim/notes/radiation-scheme-price.md` argues that
+        # choice; `scripts/machine.py` states the same thing from the other
+        # side. WHAT IT CANNOT SAY is cycles: a vector call is more
+        # instruction-efficient than eight scalar ones and need not be eight
+        # times faster, because the limit may be elsewhere. So a counter arm
+        # settles WHERE THE WORK WENT and a clock arm settles what it cost, and
+        # neither substitutes for the other.
+        #
+        # OMP_WAIT_POLICY=passive unless the caller set one: with the default
+        # active policy an idle thread SPINS, and the instructions it retires
+        # spinning are a measurement of the host's scheduler rather than of the
+        # model.
+        env.setdefault("OMP_WAIT_POLICY", "passive")
+        cmd = ["perf", "stat", "-x,", "-e", COUNTER, "--"] + cmd
+    return cmd, env
 
 
 def set_namelist(bed: Path, settings: list[str]) -> None:
@@ -114,6 +176,21 @@ def run_once(bed: Path, exe: Path, threads: int, spec: str = "omp",
     t0 = time.perf_counter()
     r = subprocess.run(cmd, cwd=bed, capture_output=True, text=True, env=env)
     dt = time.perf_counter() - t0
+    if COUNTER:
+        # perf -x, writes "<value>,<unit>,<event>,..." on stderr, and a counter
+        # that could not be read writes "<not counted>" in the value field. That
+        # is a failed measurement and never a zero.
+        got = None
+        for line in (r.stderr or "").splitlines():
+            f = line.split(",")
+            if len(f) > 2 and f[2].startswith(COUNTER.split(":")[0]):
+                if not f[0].replace(".", "").isdigit():
+                    raise SystemExit(f"perf could not count {COUNTER}: {line}")
+                got = float(f[0])
+                break
+        if got is None:
+            raise SystemExit(f"perf printed no {COUNTER} row:\n{r.stderr[-400:]}")
+        dt = got
     local.unlink(missing_ok=True)
     if r.returncode != 0 or (bed / "Abort_Message").exists():
         tail = "\n".join(l for l in (r.stderr or r.stdout).splitlines()
@@ -129,10 +206,21 @@ def run_once(bed: Path, exe: Path, threads: int, spec: str = "omp",
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--bed", type=Path, required=True)
-    ap.add_argument("--a", type=Path, required=True)
-    ap.add_argument("--b", type=Path, required=True)
+    ap.add_argument("--a", type=Path)
+    ap.add_argument("--b", type=Path)
     ap.add_argument("--label-a", default="A")
     ap.add_argument("--label-b", default="B")
+    ap.add_argument("--arm", action="append", default=[], metavar="LABEL=PATH",
+                    help="one arm, repeatable; replaces --a/--b. Every --arm "
+                         "shares --launch and --nl, so the arms differ by the "
+                         "executable and by nothing else.")
+    ap.add_argument("--launch", default="omp",
+                    help="launcher for every --arm; see --a-launch")
+    ap.add_argument("--nl", action="append", default=[], metavar="KEY=VALUE",
+                    help="namelist setting forced for every --arm; repeatable")
+    ap.add_argument("--factorial", action="store_true",
+                    help="the four --arm entries are base, factor A, factor B, "
+                         "both, in that order; report whether the two compound")
     ap.add_argument("--threads", type=int, default=16,
                     help="the thread count the binaries were compiled for; "
                          "only an omp@ core list is checked against it")
@@ -145,84 +233,227 @@ def main() -> None:
     ap.add_argument("--b-nl", action="append", default=[], metavar="KEY=VALUE",
                     help="namelist setting forced for arm B; repeatable")
     ap.add_argument("--rounds", type=int, default=6)
+    ap.add_argument("--counter", metavar="EVENT", default=None,
+                    help="measure a perf hardware counter instead of the wall "
+                         "clock, e.g. instructions:u. The whole paired and "
+                         "interleaved schedule is unchanged; only what is "
+                         "compared changes. Use this when the host cannot be "
+                         "made quiet: a counter is a property of the code and "
+                         "the input, a clock is a property of the machine too.")
+    ap.add_argument("--outlier-factor", type=float, default=3.0,
+                    help="a round in which any arm exceeds this multiple of "
+                         "that arm's own median is a MACHINE EVENT, not a "
+                         "measurement, and is dropped whole -- every arm of it "
+                         "together, so the pairing survives. The dropped rounds "
+                         "and their times are always reported. 0 disables it.")
     ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args()
 
-    bed, a, b = args.bed.resolve(), args.a.resolve(), args.b.resolve()
-    print(f"bed {bed.name}: {args.label_a} vs {args.label_b}, "
+    global COUNTER
+    COUNTER = args.counter
+    unit = "" if COUNTER else " s"
+    fmt = "12.4g" if COUNTER else "7.2f"
+    bed = args.bed.resolve()
+    if args.arm:
+        if args.a or args.b:
+            raise SystemExit("--arm replaces --a/--b; do not mix the two forms")
+        arms = []
+        for spec in args.arm:
+            label, sep, path = spec.partition("=")
+            if not sep:
+                raise SystemExit(f"--arm {spec!r} is not LABEL=PATH")
+            arms.append((label.strip(), Path(path).resolve(),
+                         args.launch, list(args.nl)))
+    else:
+        if not (args.a and args.b):
+            raise SystemExit("give --a and --b, or two or more --arm LABEL=PATH")
+        arms = [(args.label_a, args.a.resolve(), args.a_launch, args.a_nl),
+                (args.label_b, args.b.resolve(), args.b_launch, args.b_nl)]
+    if args.factorial and len(arms) != 4:
+        raise SystemExit("--factorial takes exactly four arms: base, factor A, "
+                         f"factor B, both. Got {len(arms)}.")
+    n = len(arms)
+    print(f"bed {bed.name}: {', '.join(l for l, *_ in arms)}, "
           f"{args.rounds} interleaved rounds, {args.threads} threads")
 
-    # TWO warm-ups, one per arm. One was not enough: with a single warm-up the
-    # first timed round came in 30-40% slow in EVERY arm at T21 and moved the
-    # medians, because the machine was still climbing to its boost clock and the
-    # bed's inputs were not yet in page cache. This is the same effect
+    # ONE WARM-UP PER ARM. One was not enough: with a single warm-up the first
+    # timed round came in 30-40% slow in EVERY arm at T21 and moved the medians,
+    # because the machine was still climbing to its boost clock and the bed's
+    # inputs were not yet in page cache. This is the same effect
     # `notes/audits/aocl-and-model-build-flags.md` found between blocked
     # sessions, one level down.
-    print("warm-up (both arms) ...", flush=True)
-    run_once(bed, a, args.threads, args.a_launch, args.a_nl)
-    run_once(bed, b, args.threads, args.b_launch, args.b_nl)
+    print("warm-up (every arm) ...", flush=True)
+    for _label, exe, spec, settings in arms:
+        run_once(bed, exe, args.threads, spec, settings)
 
-    ta: list[float] = []
-    tb: list[float] = []
-    sa: set[str] = set()
-    sb: set[str] = set()
-    # An arm carries its own launcher and namelist rather than being looked up
-    # by executable, because the two arms may BE the same executable -- which is
-    # the point when what differs is a namelist switch.
-    arm_a = (a, args.a_launch, args.a_nl, ta, sa)
-    arm_b = (b, args.b_launch, args.b_nl, tb, sb)
+    times: list[list[float]] = [[] for _ in arms]
+    shas: list[set[str]] = [set() for _ in arms]
     for rnd in range(1, args.rounds + 1):
-        # Flip the order each round so neither arm is always first.
-        first_is_a = rnd % 2 == 1
-        pair = [arm_a, arm_b] if first_is_a else [arm_b, arm_a]
-        for exe, spec, settings, times, shas in pair:
+        # Rotate the starting arm each round so no arm is always first and the
+        # drift each position carries is shared equally over any n rounds.
+        order = [(rnd - 1 + i) % n for i in range(n)]
+        for i in order:
+            _label, exe, spec, settings = arms[i]
             dt, sha = run_once(bed, exe, args.threads, spec, settings)
-            times.append(dt)
-            shas.add(sha)
-        print(f"  round {rnd:2d}: {args.label_a}={ta[-1]:7.2f}  "
-              f"{args.label_b}={tb[-1]:7.2f}  "
-              f"({'A first' if first_is_a else 'B first'})", flush=True)
+            times[i].append(dt)
+            shas[i].add(sha)
+        print(f"  round {rnd:2d}: "
+              + "  ".join(f"{arms[i][0]}={times[i][-1]:{fmt}}" for i in range(n))
+              + f"   (started {arms[order[0]][0]})", flush=True)
 
-    gains = [100.0 * (x - y) / x for x, y in zip(ta, tb)]
-    med_gain = st.median(gains)
-    # Reported alongside, never instead: a reader can see whether the answer
-    # depends on dropping the first round.
-    tail = gains[1:] or gains
-    med_tail = st.median(tail)
+    # A ROUND IS DROPPED WHOLE OR NOT AT ALL. Another job landing on the host
+    # for one round does not slow the arm that happened to be running by ten per
+    # cent, it slows it by a factor; and it lands on ONE arm, so the pairing
+    # that defeats drift cannot share it. Dropping the whole round keeps every
+    # remaining comparison paired, and dropping on a FACTOR rather than on a
+    # rank means the rule is about a different phenomenon rather than about the
+    # tail of this one. The rule is stated as a multiple so it can be fixed
+    # before the run; what it removed is printed either way, because a rule that
+    # silently discards data is a rule that can be tuned after the fact.
+    dropped: list[int] = []
+    raw = [list(t) for t in times]
+    if args.outlier_factor > 0:
+        med0 = [st.median(t) for t in times]
+        dropped = [r for r in range(args.rounds)
+                   if any(times[i][r] > args.outlier_factor * med0[i]
+                          for i in range(n))]
+        if dropped:
+            print(f"\n  DROPPED {len(dropped)} round(s) as machine events, each "
+                  f"holding an arm above {args.outlier_factor:g}x its own median:")
+            for r in dropped:
+                print("    round {:2d}: ".format(r + 1)
+                      + "  ".join(f"{arms[i][0]}={times[i][r]:.2f}"
+                                  for i in range(n)))
+            keep = [r for r in range(args.rounds) if r not in dropped]
+            if len(keep) < 2:
+                raise SystemExit("fewer than two rounds survive the outlier "
+                                 "rule; the host was not quiet enough to "
+                                 "measure on. Nothing is reported.")
+            times = [[t[r] for r in keep] for t in times]
+
+    def scatter(t: list[float]) -> float:
+        return 100.0 * (max(t) - min(t)) / st.median(t)
+
+    ref = 0
+    gains = [[100.0 * (r - x) / r for r, x in zip(times[ref], times[i])]
+             for i in range(n)]
     result = {
         "bed": bed.name, "threads": args.threads, "rounds": args.rounds,
-        "a_launch": args.a_launch, "b_launch": args.b_launch,
-        "label_a": args.label_a, "label_b": args.label_b,
-        "a_median_s": st.median(ta), "b_median_s": st.median(tb),
-        "a_times": ta, "b_times": tb,
-        "a_sha": sorted(sa), "b_sha": sorted(sb),
-        "paired_gain_pct_median": med_gain,
-        "paired_gain_pct_min": min(gains), "paired_gain_pct_max": max(gains),
-        "b_faster_in_rounds": sum(g > 0 for g in gains),
-        "paired_gain_pct_median_excl_round1": med_tail,
-        "numerics": "unchanged" if sa == sb else "CHANGED",
+        "measured": COUNTER or "wall_clock_seconds",
+        "outlier_factor": args.outlier_factor,
+        "rounds_dropped": [r + 1 for r in dropped],
+        "rounds_kept": args.rounds - len(dropped),
+        "reference_arm": arms[ref][0],
+        "arms": [
+            {"label": arms[i][0], "exe": str(arms[i][1]),
+             "launch": arms[i][2], "namelist": arms[i][3],
+             "times_s": times[i], "times_all_rounds_s": raw[i],
+             "median_s": st.median(times[i]),
+             "self_scatter_pct": scatter(times[i]), "sha": sorted(shas[i]),
+             "paired_gain_pct_median": st.median(gains[i]),
+             "paired_gain_pct_min": min(gains[i]),
+             "paired_gain_pct_max": max(gains[i]),
+             "faster_in_rounds": sum(g > 0 for g in gains[i]),
+             "numerics": ("reference" if i == ref else
+                          "unchanged" if shas[i] == shas[ref] else "CHANGED")}
+            for i in range(n)],
     }
+    if len(arms) == 2:
+        # The keys the two-arm callers and the audit notes already read.
+        result.update({
+            "label_a": arms[0][0], "label_b": arms[1][0],
+            "a_launch": arms[0][2], "b_launch": arms[1][2],
+            "a_median_s": st.median(times[0]), "b_median_s": st.median(times[1]),
+            "a_times": times[0], "b_times": times[1],
+            "a_sha": sorted(shas[0]), "b_sha": sorted(shas[1]),
+            "paired_gain_pct_median": st.median(gains[1]),
+            "paired_gain_pct_min": min(gains[1]),
+            "paired_gain_pct_max": max(gains[1]),
+            "b_faster_in_rounds": sum(g > 0 for g in gains[1]),
+            "paired_gain_pct_median_excl_round1":
+                st.median(gains[1][1:] or gains[1]),
+            "numerics": "unchanged" if shas[0] == shas[1] else "CHANGED",
+        })
 
-    print(f"\n  {args.label_a:12} median {st.median(ta):7.2f} s  "
-          f"spread {100 * (max(ta) - min(ta)) / st.median(ta):.1f}%  sha {sorted(sa)[0]}")
-    print(f"  {args.label_b:12} median {st.median(tb):7.2f} s  "
-          f"spread {100 * (max(tb) - min(tb)) / st.median(tb):.1f}%  sha {sorted(sb)[0]}")
-    print(f"  PAIRED GAIN {med_gain:+.2f}%  [{min(gains):+.2f}, {max(gains):+.2f}]  "
-          f"faster in {result['b_faster_in_rounds']}/{len(gains)} rounds")
-    print(f"  excluding round 1: {med_tail:+.2f}%")
-    print(f"  numerics: {result['numerics']}")
+    print()
+    for i in range(n):
+        print(f"  {arms[i][0]:16} median {st.median(times[i]):{fmt}}{unit}  "
+              f"self-scatter {scatter(times[i]):5.2f}%  sha {sorted(shas[i])[0]}")
+    print(f"\n  paired gain against {arms[ref][0]}:")
+    for i in range(n):
+        if i == ref:
+            continue
+        g = gains[i]
+        print(f"    {arms[i][0]:16} {st.median(g):+7.2f}%  "
+              f"[{min(g):+.2f}, {max(g):+.2f}]  "
+              f"faster in {sum(x > 0 for x in g)}/{len(g)} rounds  "
+              f"numerics {result['arms'][i]['numerics']}")
+
+    if args.factorial:
+        # base = 0, factor A alone = 1, factor B alone = 2, both = 3.
+        # Each factor's gain WITHIN each level of the other, per round, so the
+        # question "is X worth more once Y is in place" is answered by two
+        # paired numbers rather than by differencing two medians.
+        def paired(i: int, j: int) -> list[float]:
+            return [100.0 * (x - y) / x for x, y in zip(times[i], times[j])]
+        a_in_base, a_in_b = paired(0, 1), paired(2, 3)
+        b_in_base, b_in_a = paired(0, 2), paired(1, 3)
+        joint = gains[3]
+        # What multiplying the two single-factor gains predicts for the joint
+        # arm, per round. Excess above zero is compounding beyond multiplicative;
+        # below zero is interference.
+        pred = [100.0 * (1.0 - (1.0 - x / 100.0) * (1.0 - y / 100.0))
+                for x, y in zip(a_in_base, b_in_base)]
+        excess = [j - p for j, p in zip(joint, pred)]
+        result["factorial"] = {
+            "factor_a_label": arms[1][0], "factor_b_label": arms[2][0],
+            "a_in_base_pct": st.median(a_in_base), "a_in_b_pct": st.median(a_in_b),
+            "b_in_base_pct": st.median(b_in_base), "b_in_a_pct": st.median(b_in_a),
+            "joint_pct": st.median(joint),
+            "multiplicative_prediction_pct": st.median(pred),
+            "excess_over_multiplicative_pct": st.median(excess),
+            "excess_min": min(excess), "excess_max": max(excess),
+            "a_in_base_rounds": a_in_base, "a_in_b_rounds": a_in_b,
+            "b_in_base_rounds": b_in_base, "b_in_a_rounds": b_in_a,
+            "excess_rounds": excess,
+        }
+        print(f"\n  factorial, {arms[1][0]} x {arms[2][0]}:")
+        print(f"    {arms[1][0]:16} alone           {st.median(a_in_base):+7.2f}%  "
+              f"[{min(a_in_base):+.2f}, {max(a_in_base):+.2f}]")
+        print(f"    {arms[1][0]:16} with {arms[2][0]:10} {st.median(a_in_b):+7.2f}%  "
+              f"[{min(a_in_b):+.2f}, {max(a_in_b):+.2f}]")
+        print(f"    {arms[2][0]:16} alone           {st.median(b_in_base):+7.2f}%  "
+              f"[{min(b_in_base):+.2f}, {max(b_in_base):+.2f}]")
+        print(f"    {arms[2][0]:16} with {arms[1][0]:10} {st.median(b_in_a):+7.2f}%  "
+              f"[{min(b_in_a):+.2f}, {max(b_in_a):+.2f}]")
+        print(f"    both together                    {st.median(joint):+7.2f}%  "
+              f"[{min(joint):+.2f}, {max(joint):+.2f}]")
+        print(f"    multiplying the two alone predicts {st.median(pred):+.2f}%")
+        print(f"    EXCESS over that prediction      {st.median(excess):+7.2f}%  "
+              f"[{min(excess):+.2f}, {max(excess):+.2f}]")
+
     # The guard fires on the GAIN being unreadable against the noise, not on the
     # noise alone. A 19% gain measured on a bed with 7% self-scatter is still a
     # 19% gain; a 1% gain on the same bed is not a result. Firing on scatter
     # alone cried wolf on exactly the arm that mattered most.
-    worst = max(100 * (max(t) - min(t)) / st.median(t) for t in (ta, tb))
-    if worst > 5.0 and abs(med_gain) < worst:
-        print(f"  ** self-scatter {worst:.1f}% exceeds the 5% floor this project "
-              f"declares as 'no difference', and the gain ({med_gain:+.2f}%) does "
-              f"not clear it. NOT a result; quiet the machine or lengthen the bed.")
+    worst = max(scatter(t) for t in times)
+    smallest = min(abs(st.median(gains[i])) for i in range(n) if i != ref)
+    if worst > 5.0 and smallest < worst:
+        print(f"\n  ** self-scatter {worst:.1f}% exceeds the 5% floor this project "
+              f"declares as 'no difference', and the smallest gain "
+              f"({smallest:.2f}%) does not clear it. NOT a result for that arm; "
+              f"quiet the machine or lengthen the bed.")
     elif worst > 5.0:
-        print(f"  (self-scatter {worst:.1f}% is above the 5% floor, but the gain "
-              f"{med_gain:+.2f}% is larger than the noise and is readable.)")
+        print(f"\n  (self-scatter {worst:.1f}% is above the 5% floor, but every "
+              f"gain is larger than the noise and is readable.)")
+    if args.factorial:
+        exc = result["factorial"]
+        span = exc["excess_max"] - exc["excess_min"]
+        if abs(exc["excess_over_multiplicative_pct"]) < span:
+            print(f"  ** the excess ({exc['excess_over_multiplicative_pct']:+.2f}%) is "
+                  f"smaller than its own round-to-round spread ({span:.2f}%). "
+                  f"The two factors are consistent with multiplying; a departure "
+                  f"from that is NOT resolved by this bed.")
 
     if args.out:
         args.out.write_text(json.dumps(result, indent=2) + "\n")

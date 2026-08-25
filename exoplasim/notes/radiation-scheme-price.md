@@ -81,11 +81,18 @@ of `where` does not recover the vectorisation either: measured at 107
 instructions per element, indistinguishable from the masked form, because both
 branches are then evaluated and GCC still declines the vector call.
 
-**Removing the mask is worth 7.6x on `pow` and 8.9x on `exp`.** That is a much
-larger return than anything the row listed, and it is a separate decision rather
-than a free win: the vector library's ULP bound is looser than the scalar one,
-so it changes results, and the masks are not decoration -- they select between
-two absorptance formulas by path amount. It is tracked separately.
+**Removing the mask is worth 7.6x on `pow` and 8.9x on `exp` IN INSTRUCTIONS,
+and 4.25% of the model's wall clock.** WORLD-43RK took the arm and measured it in
+place at T21: unmasking `lwr`'s four absorptance selections removes 23.79% of the
+whole model's retired instructions and 4.25% of its run, and IPC falls from 1.601
+to 1.292. The masked scalar `pow` calls are independent per element with no
+carried dependence, and an out-of-order window was absorbing most of their
+latency; the vector `pow` that replaces eight of them has neither the latency nor
+the throughput to be eight times faster. **So a per-element instruction ratio in
+this table is an upper bound on a cost ratio and over-states it by about 5.6
+here.** `masked-radiation-and-four-bytes.md` carries that measurement, and the
+change remains a separate decision rather than a free win: the vector library's
+ULP bound is looser than the scalar one, so it changes results.
 
 ## The two schemes side by side, transcendental work only
 
@@ -166,14 +173,22 @@ structurally:
 
 ## The verdict on ordering, which is what CLIM-84 asked for
 
-**Do not optimise the present scheme's transcendentals.** The swap is not refused
-on cost -- the measurement above says the candidate's transcendental work is at
-worst comparable and probably several times smaller -- so the optimisation would
-be work thrown away, which is the exact outcome CLIM-84 exists to prevent. The
-6.69% `pow` share remains the ceiling on what that work could return, and the two
-routes inside it are now priced: 17% from the exp/log identity, and 7.6x on the
-kernel from removing the `where` masks, which is not bit-identical and is its own
-decision.
+**Do not optimise the present scheme's transcendentals.** The optimisation would
+be work thrown away if the scheme is swapped, which is the exact outcome CLIM-84
+exists to prevent, and the two routes inside the 6.69% `pow` share are now
+priced. The exp/log identity is worth 17% of a `pow`. Removing the `where` masks
+is worth 23.79% of the model's retired instructions and 4.25% of its wall clock
+at T21, measured under WORLD-43RK, falling as the rung rises, and it is not
+bit-identical.
+
+**And the two-scheme comparison above is not a cost comparison.** It is a
+comparison of instruction counts, and WORLD-43RK measured what an instruction
+count of this kind is worth in place: the mask removal's 23.79% of instructions
+bought 4.25% of the clock. The same correction applies to the candidate's
+vectorisable `exp`, so the brackets in that table do not order the two schemes by
+cost in either direction. What this note establishes is that the candidate is
+not an ORDER OF MAGNITUDE dearer, which is what CLIM-61 assumed; which is faster
+is still unmeasured for both.
 
 **The swap is not compelled by accuracy either.** The 40-percent figure that
 motivated it is gone and the re-weighted broadband scheme reproduces

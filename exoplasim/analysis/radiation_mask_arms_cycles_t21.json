@@ -1,0 +1,201 @@
+{
+  "bed": "bed_t21",
+  "threads": 16,
+  "rounds": 6,
+  "measured": "cycles:u",
+  "outlier_factor": 3.0,
+  "rounds_dropped": [],
+  "rounds_kept": 6,
+  "reference_arm": "fp64 masked",
+  "arms": [
+    {
+      "label": "fp64 masked",
+      "exe": "/home/cfutro/docs/world/exoplasim/bench/43rk/ref/fp64_masked.x",
+      "launch": "omp",
+      "namelist": [
+        "N_RUN_STEPS=4000"
+      ],
+      "times_s": [
+        390093409668.0,
+        393504705560.0,
+        386318609293.0,
+        388571175041.0,
+        388272642144.0,
+        386680176085.0
+      ],
+      "times_all_rounds_s": [
+        390093409668.0,
+        393504705560.0,
+        386318609293.0,
+        388571175041.0,
+        388272642144.0,
+        386680176085.0
+      ],
+      "median_s": 388421908592.5,
+      "self_scatter_pct": 1.8500749077310814,
+      "sha": [
+        "a8de1d8d55927d38"
+      ],
+      "paired_gain_pct_median": 0.0,
+      "paired_gain_pct_min": 0.0,
+      "paired_gain_pct_max": 0.0,
+      "faster_in_rounds": 0,
+      "numerics": "reference"
+    },
+    {
+      "label": "fp64 vector",
+      "exe": "/home/cfutro/docs/world/exoplasim/bench/43rk/ref/fp64_vector.x",
+      "launch": "omp",
+      "namelist": [
+        "N_RUN_STEPS=4000"
+      ],
+      "times_s": [
+        366063856475.0,
+        368621147917.0,
+        366484746327.0,
+        365429919986.0,
+        367131586317.0,
+        368924537929.0
+      ],
+      "times_all_rounds_s": [
+        366063856475.0,
+        368621147917.0,
+        366484746327.0,
+        365429919986.0,
+        367131586317.0,
+        368924537929.0
+      ],
+      "median_s": 366808166322.0,
+      "self_scatter_pct": 0.9527099622782863,
+      "sha": [
+        "e60e1ea557abd9ab"
+      ],
+      "paired_gain_pct_median": 5.7001868054239875,
+      "paired_gain_pct_min": 4.591814955648763,
+      "paired_gain_pct_max": 6.323573083475074,
+      "faster_in_rounds": 6,
+      "numerics": "CHANGED"
+    },
+    {
+      "label": "fp32 masked",
+      "exe": "/home/cfutro/docs/world/exoplasim/bench/43rk/ref/fp32_masked.x",
+      "launch": "omp",
+      "namelist": [
+        "N_RUN_STEPS=4000"
+      ],
+      "times_s": [
+        283137973400.0,
+        281904046562.0,
+        293502119246.0,
+        285904699380.0,
+        283422136358.0,
+        282855972682.0
+      ],
+      "times_all_rounds_s": [
+        283137973400.0,
+        281904046562.0,
+        293502119246.0,
+        285904699380.0,
+        283422136358.0,
+        282855972682.0
+      ],
+      "median_s": 283280054879.0,
+      "self_scatter_pct": 4.094207299188074,
+      "sha": [
+        "0d16ec5de9a1a058"
+      ],
+      "paired_gain_pct_median": 26.927249824228518,
+      "paired_gain_pct_min": 24.02589153467472,
+      "paired_gain_pct_max": 28.360692368133215,
+      "faster_in_rounds": 6,
+      "numerics": "CHANGED"
+    },
+    {
+      "label": "fp32 vector",
+      "exe": "/home/cfutro/docs/world/exoplasim/bench/43rk/ref/fp32_vector.x",
+      "launch": "omp",
+      "namelist": [
+        "N_RUN_STEPS=4000"
+      ],
+      "times_s": [
+        274341907431.0,
+        272130122960.0,
+        273665199099.0,
+        273127576866.0,
+        271445005960.0,
+        271520410782.0
+      ],
+      "times_all_rounds_s": [
+        274341907431.0,
+        272130122960.0,
+        273665199099.0,
+        273127576866.0,
+        271445005960.0,
+        271520410782.0
+      ],
+      "median_s": 272628849913.0,
+      "self_scatter_pct": 1.0625806740278754,
+      "sha": [
+        "8367102b09943854"
+      ],
+      "paired_gain_pct_median": 29.745713161077532,
+      "paired_gain_pct_min": 29.160751639732425,
+      "paired_gain_pct_max": 30.844506021159457,
+      "faster_in_rounds": 6,
+      "numerics": "CHANGED"
+    }
+  ],
+  "factorial": {
+    "factor_a_label": "fp64 vector",
+    "factor_b_label": "fp32 masked",
+    "a_in_base_pct": 5.7001868054239875,
+    "a_in_b_pct": 4.116718232552465,
+    "b_in_base_pct": 26.927249824228518,
+    "b_in_a_pct": 25.69514033966336,
+    "joint_pct": 29.745713161077532,
+    "multiplicative_prediction_pct": 30.891186722152078,
+    "excess_over_multiplicative_pct": -0.9917660929932879,
+    "excess_min": -2.2161582847723267,
+    "excess_max": 1.2342971499803426,
+    "a_in_base_rounds": [
+      6.15994851424202,
+      6.323573083475074,
+      5.134068742455319,
+      5.955473936675374,
+      5.4448996741726,
+      4.591814955648763
+    ],
+    "a_in_b_rounds": [
+      3.1066359144181117,
+      3.467110075644264,
+      6.758697415187521,
+      4.469014514874323,
+      4.22589800214874,
+      4.007538462956189
+    ],
+    "b_in_base_rounds": [
+      27.41790392178823,
+      28.360692368133215,
+      24.02589153467472,
+      26.421536710788484,
+      27.004350656030443,
+      26.850148992426593
+    ],
+    "b_in_a_rounds": [
+      25.056270216686652,
+      26.176204350252377,
+      25.326987864641097,
+      25.258562058502545,
+      26.06329281468562,
+      26.402181783241957
+    ],
+    "excess_rounds": [
+      -2.2161582847723267,
+      -2.04635032157039,
+      1.2342971499803426,
+      -1.0937139999789167,
+      -0.889818186007659,
+      -0.42739738387689385
+    ]
+  }
+}
