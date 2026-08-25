@@ -221,7 +221,7 @@ def solve_periodic(
     runoff_km_per_year: np.ndarray,
     lake_evaporation_km_per_year: np.ndarray,
     lake_precip_km_per_year: np.ndarray,
-    bin_lengths_earth_years: np.ndarray,
+    bin_lengths_years: np.ndarray,
     *,
     area_resolution_km2: float,
     initial_volume_km3: np.ndarray | None = None,
@@ -238,14 +238,20 @@ def solve_periodic(
     the storage to stop moving. **The convergence criterion is the new thing
     here, not the solver.**
 
-    The three forcings are `(nbin, n_basins)` in km per Earth-year, the same
-    units and the same convention as `solve()`: runoff is generated over the dry
-    catchment and the other two act on open water.
-    `bin_lengths_earth_years` is `(nbin,)` and ABSOLUTE, summing to one orbit in
-    Earth-years. It is absolute rather than normalised because this module does
-    not know the orbit and must not guess it -- the forcings are per Earth-year
-    and the bins span one Vesper year, so a normalised weight would silently
-    integrate an Earth year's worth of water over a Vesper year's worth of time.
+    The three forcings are `(nbin, n_basins)` in km per year, the same units and
+    the same convention as `solve()`: runoff is generated over the dry catchment
+    and the other two act on open water.
+
+    `bin_lengths_years` is `(nbin,)` and ABSOLUTE, IN THE SAME YEAR THE FLUXES
+    ARE PER, and must sum to one cycle of the forcing. It is absolute rather
+    than normalised because a storage integration is the one calculation here
+    that has a time in it: `solve()` finds a fixed point, which does not care
+    how long a year is, but how far a lake gets through its cycle does.
+    `surface_water.py` supplies fluxes per VESPER year against a climatology
+    binned over one Vesper year, so its bin lengths are the normalised weights
+    `lib/climatology.py` recovers. A caller mixing two year units gets an
+    amplitude wrong by their ratio and a closure that still passes, which is why
+    `_selftest` checks that the cycle length reaches the answer at all.
 
     `area_resolution_km2` is the mean mesh cell area the hypsometric curves were
     built from. It sets the publication threshold and nothing else.
@@ -268,12 +274,12 @@ def solve_periodic(
     r = np.atleast_2d(np.asarray(runoff_km_per_year, dtype=float))
     e = np.atleast_2d(np.asarray(lake_evaporation_km_per_year, dtype=float))
     pcp = np.atleast_2d(np.asarray(lake_precip_km_per_year, dtype=float))
-    dt_bin = np.asarray(bin_lengths_earth_years, dtype=float)
+    dt_bin = np.asarray(bin_lengths_years, dtype=float)
     nbin, n = r.shape
     if e.shape != r.shape or pcp.shape != r.shape:
         raise ValueError(f"forcing shapes disagree: {r.shape}, {e.shape}, {pcp.shape}")
     if dt_bin.shape != (nbin,):
-        raise ValueError(f"bin_lengths_earth_years is {dt_bin.shape}, expected ({nbin},)")
+        raise ValueError(f"bin_lengths_years is {dt_bin.shape}, expected ({nbin},)")
     if n != basins.n:
         raise ValueError(f"forcing carries {n} basins against the set's {basins.n}")
     if not np.all(dt_bin > 0):
@@ -595,6 +601,22 @@ def _selftest() -> int:
         amps.append(float(np.median(per["seasonal_amplitude"])))
     check("a bigger seasonal forcing gives a bigger seasonal lake",
           amps[0] < amps[1] < amps[2], f"amplitudes {amps}")
+
+    # The cycle LENGTH has to reach the answer, and it is the one input a
+    # closure test cannot check: a fixed point does not care how long a year is,
+    # so a caller passing bin lengths in the wrong year unit would get a wrong
+    # amplitude and a clean closure. Stretching the cycle gives a lake longer to
+    # follow its forcing, so the swing must grow.
+    b = _synthetic()
+    e = 900e-6 * (1.0 + 0.5 * phase) * np.ones((1, b.n))
+    stretched = []
+    for cycle in (0.5, 1.0, 2.0):
+        per = solve_periodic(b, np.full((nbin, b.n), 60e-6), e,
+                             np.full((nbin, b.n), 60e-6),
+                             np.full(nbin, cycle / nbin), area_resolution_km2=1.0)
+        stretched.append(float(np.median(per["seasonal_amplitude"])))
+    check("a longer cycle gives the lake more of its forcing to follow",
+          stretched[0] < stretched[1] < stretched[2], f"amplitudes {stretched}")
 
     # Residence time is what sets the amplitude, which is the whole reason the
     # product is per basin. The synthetic set spans a factor of 100 in capacity
