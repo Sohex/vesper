@@ -158,22 +158,25 @@ def other_currencies(currency: str) -> list[str]:
     return [c for c in DEPTH_KEY_BY_CURRENCY if c != currency]
 
 
-def add_reference_gravity_depth(catalogue: list[dict], relief_scale: float) -> bool:
-    """Ensure every catalogue entry carries `selectionDepthKm`.
+def add_reference_gravity_depth(catalogue: list[dict], relief_scale: float) -> None:
+    """Give every catalogue entry the depth the floor is compared against.
 
-    Exports made by the current generator publish it. Older ones do not, and the
-    counterfactual below needs it for them too, so it is reconstructed from the
-    published physical heights: `scaledHeightKm` multiplies POSITIVE heights by
-    reliefScale and leaves negative ones alone, matching `elevation_km`, so
-    undoing it is that same rule inverted. Doing it from the published km fields
-    rather than from the model-unit ones keeps the height curve itself in one
-    place -- the generator's -- instead of transcribing a quartic into Python
-    where it could drift.
+    `selectionDepthKm` is the depression's depth on the reference-gravity height
+    curve. The generator keeps it out of the manifest deliberately -- a field
+    added to the catalogue moves `hashes.basinCatalogue`, which is the signal
+    that a carve verdict computed against an earlier export still refers to the
+    same basins -- so it is reconstructed here from the published physical
+    heights: `scaledHeightKm` multiplies POSITIVE heights by reliefScale and
+    leaves negative ones alone, matching `elevation_km`, so undoing it is that
+    same rule inverted.
 
-    Returns whether the field came from the artifact rather than this function.
+    Doing it from the published km fields rather than from the model-unit ones
+    keeps the height curve itself in one place -- the generator's -- instead of
+    transcribing a quartic into Python where it could drift. What guards the
+    inversion is the REPRODUCTION control: on a build selected in this currency
+    it reproduces the published preserved set only if this agrees with what
+    `selectBasins` compared, id for id.
     """
-    if all("selectionDepthKm" in c for c in catalogue):
-        return True
     if not relief_scale > 0:
         raise SystemExit("manifest carries no usable planet.reliefScale, so the "
                          "reference-gravity depth cannot be reconstructed")
@@ -181,7 +184,6 @@ def add_reference_gravity_depth(catalogue: list[dict], relief_scale: float) -> b
     for c in catalogue:
         c.setdefault("selectionDepthKm",
                      unscale(c["spillElevationKm"]) - unscale(c["sinkElevationKm"]))
-    return False
 
 
 def select(catalogue: list[dict], min_depth: float, min_area: float,
@@ -335,8 +337,7 @@ def floors(catalogue: list[dict], chosen: set[int], area: np.ndarray,
 
 def depth_floor_units(catalogue: list[dict], chosen: set[int],
                       min_depth: float, min_area: float, min_cells: int,
-                      currency: str, depth_key: str, declared: bool,
-                      published_ref_depth: bool) -> dict:
+                      currency: str, depth_key: str, declared: bool) -> dict:
     """Which currency the depth floor was compared in, and what the others cost.
 
     `minDepthKm` is declared, named and published as a length, and
@@ -379,10 +380,10 @@ def depth_floor_units(catalogue: list[dict], chosen: set[int],
         "units_source": ("basins.resolution.minDepthComparedIn" if declared
                          else "absent from this manifest; the export predates "
                               "the field and was selected in model units"),
-        "reference_gravity_depth_source": (
-            "basins.catalogue[].selectionDepthKm" if published_ref_depth
-            else "reconstructed from the published spill and sink heights and "
-                 "planet.reliefScale; this export predates the field"),
+        "reference_gravity_depth_source":
+            "reconstructed from the published spill and sink heights and "
+            "planet.reliefScale, which the generator keeps out of the catalogue "
+            "so that adding a field does not move hashes.basinCatalogue",
         "physical_depth_at_the_threshold_km": {
             "samples": int(at_threshold.sum()),
             "min": float(depth_km[at_threshold].min()) if at_threshold.any() else None,
@@ -497,7 +498,7 @@ def measure(label: str, root: Path) -> dict:
     min_cells = int(resolution["minCells"])
     area = np.array([c["areaKm2"] for c in catalogue])
     currency, depth_key, declared = depth_currency(resolution)
-    published_ref_depth = add_reference_gravity_depth(
+    add_reference_gravity_depth(
         catalogue, float(manifest.get("planet", {}).get("reliefScale", 0.0)))
 
     checks = controls(catalogue, preserved_ids, min_depth, min_area, min_cells,
@@ -541,8 +542,7 @@ def measure(label: str, root: Path) -> dict:
                          min_cells, depth_key),
         "depth_floor_units": depth_floor_units(catalogue, chosen, min_depth,
                                                min_area, min_cells, currency,
-                                               depth_key, declared,
-                                               published_ref_depth),
+                                               depth_key, declared),
         "below_sea_level_residue": residue,
         "manifest_sha256": _sha256(root / "manifest.json"),
     }

@@ -50,7 +50,9 @@ const EPS = 1e-7;
  * levels from one and its surface from the other then compares two different
  * kilometres. Positive heights scale and negative ones do not, matching
  * `elevation_km` exactly; the two conversions must stay identical, so if one
- * changes, change both.
+ * changes, change both -- and `hydrography/scripts/catalogue_floor.py` inverts
+ * this same rule to recover a selection depth from a published one, so it is a
+ * third place to change.
  */
 const heightKm = (modelElev, reliefScale = 1) =>
     scaledHeightKm(modelElev, reliefScale, true);
@@ -358,11 +360,16 @@ function measureDepression(mesh, r_elevation, group, component, cellArea, compon
         // Internal, deliberately not in the manifest whitelist: a sort key, not
         // a measurement. Equals volumeKm3 at Earth gravity.
         orderingVolumeKm3,
-        // A selection criterion rather than a measurement, but published,
-        // because `hydrography/scripts/catalogue_floor.py` reconstructs the
-        // selection from the manifest and can only do that if the artifact
-        // carries what the floor was compared against. Equals depthKm at Earth
-        // gravity.
+        // Internal for the same reason, and kept out of the whitelist for one
+        // more: `hashes.basinCatalogue` is hashed over the published catalogue
+        // and is the signal that a carve verdict computed against an earlier
+        // export still refers to the same basins, so a field added to it costs
+        // that continuity on every build afterwards. It is exactly
+        // reconstructible from what IS published -- undo `scaledHeightKm` on
+        // `spillElevationKm` and `sinkElevationKm` with `planet.reliefScale` --
+        // and `hydrography/scripts/catalogue_floor.py` does that, under a
+        // control that fails if the reconstruction stops matching the published
+        // selection. Equals depthKm at Earth gravity.
         selectionDepthKm,
         volumeModelUnits: volume,
         cellCount: members.length,
@@ -583,10 +590,10 @@ export function attachHypsometry(selected, r_elevation, cellArea, levels = BASIN
  *                BASIN_MIN_CELLS is terrain the mesh resolves whatever currency
  *                its depth is read in. `basinResolutionContext` publishes
  *                `minDepthComparedIn` so a consumer of the manifest never has
- *                to infer the currency, `strip` in data-export.js publishes
- *                `selectionDepthKm` so the criterion can be reapplied to the
- *                artifact, and `hydrography/scripts/catalogue_floor.py`
- *                measures what the floor costs on a given build.
+ *                to infer the currency, and `hydrography/scripts/
+ *                catalogue_floor.py` reconstructs `selectionDepthKm` from the
+ *                published heights to measure what the floor costs on a given
+ *                build.
  *
  * Explicit IDs bypass every floor: naming a basin means you want it.
  */

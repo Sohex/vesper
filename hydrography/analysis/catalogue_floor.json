@@ -1,9 +1,9 @@
 {
   "note": "Modelled terrain of an invented planet. A pre-carve build is a LIMIT, not a state: every basin number here is what sits in source/ before any carve verdict has been applied.",
-  "generated": "2026-08-25T16:59:44.871393+00:00",
+  "generated": "2026-08-25T17:07:53.977323+00:00",
   "provenance": {
     "script": "hydrography/scripts/catalogue_floor.py",
-    "git_commit": "084d2e14e510329986add1cdecb098ec5cce385f",
+    "git_commit": "216a6a7c53b14421263a806f1df24486c5cd324d",
     "python": "3.14.7",
     "numpy": "2.5.2"
   },
@@ -87,7 +87,7 @@
         "units_actually_compared": "model elevation (dimensionless)",
         "units_declared_by_the_manifest": false,
         "units_source": "absent from this manifest; the export predates the field and was selected in model units",
-        "reference_gravity_depth_source": "reconstructed from the published spill and sink heights and planet.reliefScale; this export predates the field",
+        "reference_gravity_depth_source": "reconstructed from the published spill and sink heights and planet.reliefScale, which the generator keeps out of the catalogue so that adding a field does not move hashes.basinCatalogue",
         "physical_depth_at_the_threshold_km": {
           "samples": 614,
           "min": 0.0,
@@ -236,7 +236,7 @@
         "units_actually_compared": "model elevation (dimensionless)",
         "units_declared_by_the_manifest": false,
         "units_source": "absent from this manifest; the export predates the field and was selected in model units",
-        "reference_gravity_depth_source": "reconstructed from the published spill and sink heights and planet.reliefScale; this export predates the field",
+        "reference_gravity_depth_source": "reconstructed from the published spill and sink heights and planet.reliefScale, which the generator keeps out of the catalogue so that adding a field does not move hashes.basinCatalogue",
         "physical_depth_at_the_threshold_km": {
           "samples": 1789,
           "min": 0.0,
