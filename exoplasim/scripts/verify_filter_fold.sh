@@ -1,7 +1,7 @@
 #!/bin/bash
 # Prove the filter fold is exact, against something that can fail.
 #
-#   exoplasim/scripts/verify_filter_fold.sh <bed> <unpatched.x> <patched.x> <ranks>
+#   exoplasim/scripts/verify_filter_fold.sh <bed> <unpatched.x> <patched.x> <threads>
 #
 # Worldbuilding frame: a correctness check on the Vesper climate model's
 # spectral transform. Nothing here is about the simulated planet.
@@ -23,10 +23,10 @@
 # change is a reassociation, which this script does not attempt to prove.
 set -euo pipefail
 
-bed="$(cd "${1:?usage: verify_filter_fold.sh <bed> <unpatched.x> <patched.x> [ranks] [steps]}" && pwd)"
+bed="$(cd "${1:?usage: verify_filter_fold.sh <bed> <unpatched.x> <patched.x> [threads] [steps]}" && pwd)"
 unpatched="$(readlink -f "${2:?}")"
 patched="$(readlink -f "${3:?}")"
-ranks="${4:-16}"
+threads="${4:-16}"
 steps="${5:-20}"
 
 work="$bed/../_foldcheck"
@@ -51,7 +51,14 @@ run_one() {
     local exe="$1" tag="$2"
     rm -f plasim_status Abort_Message
     cp -f "$exe" ./probe.x
-    if ! mpiexec -np "$ranks" ./probe.x >run.log 2>&1; then
+    # ONE PROCESS AND $threads THREADS. The thread count is compiled into the
+    # executable, so a launcher that starts N copies of it would put N models
+    # in this directory over one set of restart files. The three exports are
+    # what every other launch in this directory uses and what
+    # `exoplasim/__init__.py` starts production under.
+    if ! env OMP_NUM_THREADS="$threads" OMP_PROC_BIND=close OMP_PLACES=cores \
+             OMP_STACKSIZE="${OMP_STACKSIZE:-512M}" \
+             bash -c 'ulimit -s unlimited; exec ./probe.x' >run.log 2>&1; then
         echo "$tag: the MODEL failed, not the comparison. Last lines:" >&2
         grep -v "Fortran runtime warning\|^At line" run.log | tail -6 >&2
         echo "  (if this is a floating point exception with the filters off, the" >&2

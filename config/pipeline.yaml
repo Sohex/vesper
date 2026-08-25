@@ -1040,7 +1040,6 @@ one_offs:
   # and exoplasim/notes/legendre-filter-fold.md carry what they measured.
   - exoplasim/scripts/make_profile_bed.py
   - exoplasim/scripts/profile_transforms.sh
-  - exoplasim/scripts/perf_rank.sh
   - exoplasim/scripts/score_transform_profile.py
   - exoplasim/scripts/split_legendre.py
   - exoplasim/scripts/sweep_compiler_flags.py
@@ -1077,6 +1076,5 @@ one_offs:
   - exoplasim/scripts/verify_omp_collectives.sh
   - exoplasim/scripts/verify_shared_determinism.sh
   - exoplasim/scripts/_bed_guard.sh
-  - exoplasim/scripts/bench_rank_layout.py
   - exoplasim/scripts/thread_count_sweep.sh
   - exoplasim/scripts/attribute_barrier_wait.sh

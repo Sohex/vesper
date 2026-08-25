@@ -51,6 +51,6 @@ for n in $COUNTS; do
     .venv/bin/python exoplasim/scripts/bench_ab.py \
         --bed "$d" --a "$d/t16.x" --b "$d/t$n.x" \
         --label-a "16thr" --label-b "${n}thr" \
-        --a-launch omp --b-launch omp --ranks "$n" \
+        --a-launch omp --b-launch omp --threads "$n" \
         --rounds 4 --out "$SCRATCH/ts_${RES}_$n.json" 2>&1 | tail -5
 done

@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -125,9 +126,21 @@ def set_keys(bed: Path, keys: dict[str, str]) -> None:
     path.write_text(text, encoding="latin-1")
 
 
-def time_run(bed: Path, exe: str, ranks: int) -> tuple[float, bool, str]:
+def time_run(bed: Path, exe: str, threads: int) -> tuple[float, bool, str]:
+    """ONE PROCESS AND `threads` THREADS, launched directly.
+
+    There is no `mpiexec` here and there must not be: the thread count is
+    compiled into the executable, so `mpiexec -np N ./most_plasim_..._pN.x`
+    would start N copies of an N-thread binary in one directory over one set of
+    restart files. The three exports are what `exoplasim/__init__.py` launches
+    production under; unbound, libgomp lands threads on SMT siblings and across
+    both dies, and this probe reports a per-step cost.
+    """
+    env = dict(os.environ, OMP_NUM_THREADS=str(threads),
+               OMP_PLACES="cores", OMP_PROC_BIND="close",
+               OMP_STACKSIZE=os.environ.get("OMP_STACKSIZE", "512M"))
     started = time.monotonic()
-    proc = subprocess.run(["mpiexec", "-np", str(ranks), f"./{exe}"], cwd=bed,
+    proc = subprocess.run([f"./{exe}"], cwd=bed, env=env,
                           capture_output=True, text=True, timeout=3600)
     elapsed = time.monotonic() - started
     text = (proc.stdout or "") + (proc.stderr or "")
@@ -135,7 +148,7 @@ def time_run(bed: Path, exe: str, ranks: int) -> tuple[float, bool, str]:
 
 
 def probe(rung: str, dt: float, kappa: float | None, steps: int,
-          ranks: int, template: Path, gamma: int,
+          threads: int, template: Path, gamma: int,
           tau_scale: float | None = None) -> dict:
     tag = ("off" if kappa is None else f"k{kappa:g}") + f"_dt{dt:g}"
     bed, exe = build_bed(rung, template, tag)
@@ -194,8 +207,8 @@ def probe(rung: str, dt: float, kappa: float | None, steps: int,
                  "TDISSQ": f"{nlev}*{hd['humidity'] / tau_scale}",
                  "NDEL": f"{nlev}*{int(cfg_all['model']['hyperdiffusion']['order_alpha'])}"}
     set_keys(bed, keys | {"N_RUN_STEPS": str(short_steps)})
-    t_short, trapped, text = time_run(bed, exe, ranks)
-    result = {"rung": rung, "dt_minutes": dt, "kappa": kappa, "ranks": ranks,
+    t_short, trapped, text = time_run(bed, exe, threads)
+    result = {"rung": rung, "dt_minutes": dt, "kappa": kappa, "threads": threads,
               "steps_short": short_steps, "steps_long": steps,
               "wall_short_s": round(t_short, 2),
               "outcome": "refused" if trapped else "no_refusal_in_steps"}
@@ -207,7 +220,7 @@ def probe(rung: str, dt: float, kappa: float | None, steps: int,
         return result
 
     set_keys(bed, keys | {"N_RUN_STEPS": str(steps)})
-    t_long, trapped_long, _ = time_run(bed, exe, ranks)
+    t_long, trapped_long, _ = time_run(bed, exe, threads)
     result["wall_long_s"] = round(t_long, 2)
     if trapped_long:
         # Ran short and refused long: that is a LATE failure inside the probe's
@@ -243,7 +256,8 @@ def main() -> None:
                          "value; larger is stronger damping.")
     ap.add_argument("--gamma", type=int, default=None,
                     help="filter power; default is config/planet.yaml's")
-    ap.add_argument("--ranks", type=int, default=16)
+    ap.add_argument("--threads", type=int, default=16,
+                    help="the thread count the binary was compiled for")
     ap.add_argument("--out", type=Path, default=OUT)
     args = ap.parse_args()
 
@@ -262,7 +276,7 @@ def main() -> None:
     results = []
     for dt in dts:
         for kappa in kappas:
-            r = probe(args.rung, dt, kappa, args.steps, args.ranks, template,
+            r = probe(args.rung, dt, kappa, args.steps, args.threads, template,
                       args.gamma, args.tau_scale)
             r["tau_scale"] = args.tau_scale
             results.append(r)
