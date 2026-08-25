@@ -41,3 +41,4 @@ def climatology_path(name: str | None = None) -> Path:
 
 
 WEATHERING_SCHEMES = COMPONENT_ROOT / "config" / "weathering_schemes.yaml"
+OUTGASSING = COMPONENT_ROOT / "config" / "outgassing.yaml"

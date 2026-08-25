@@ -569,6 +569,32 @@ not an earlier point on the same curve. For the same reason there is no useful
 `hydrography` comparison across builds carved under different rules, and the
 three-build reading that preceded this one is withdrawn.
 
+### Whether the prescribed CO2 is backed by an outgassing rate
+
+`weathering_fluxes.py` computes the outgassing this world's silicate weathering
+implies and compares it against what the planet could supply. That comparison had
+a requirement, a supply and a margin, and no machinery: no threshold, no branch,
+no exit code, and a verdict that was a constant string rather than a conclusion.
+`outgassing_gate.py` is the conclusion, on the shape `bvoc_gate.py` established:
+
+```bash
+python pedology/scripts/outgassing_gate.py          # report what is undeclared
+python pedology/scripts/outgassing_gate.py --strict  # refuse on any of it
+```
+
+`config/outgassing.yaml` is the declaration. The requirement half carries no
+sentinels because it is computed; the supply half is sentinels throughout, and
+that is the finding. The supply currently rests on the planet's mass in Earth
+masses, an exponent of exactly 1 asserted in prose with no reference, and the
+gate refuses while the exponent is undeclared rather than deriving a margin from
+it. The acceptance floor is fixed in the declaration before any number is seen,
+and a floor at or below 1 is itself refused, because that is not a margin.
+
+Eleven fixtures ship with it: ten declarations built wrong in one named way each
+that must be refused by a named code, and one with every precondition met that
+must be granted. A gate nothing can satisfy refuses for a reason nobody wrote
+down.
+
 ### What CHOOSING a weathering scheme costs the same number
 
 The efficiency above is a geography measurement and carries no structural
