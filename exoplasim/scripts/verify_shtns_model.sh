@@ -84,7 +84,12 @@ REPO="$(cd "$HERE/../.." && pwd)"
 PKG="$REPO/vendor/exoplasim/exoplasim"
 BUILD="$REPO/.venv/bin/python $REPO/exoplasim/scripts/build_model.py"
 SRC="$PKG/plasim/src"
-WORK="$REPO/exoplasim/bench/_shtnsmodel"
+# exoplasim/bench/_shtnsmodel, or wherever SHTNSMODEL_WORK points. A git worktree
+# reaches exoplasim/bench through a symlink into the MAIN checkout, which
+# every worktree shares, so a worktree that runs this without setting the
+# variable deletes and rewrites work another one is using -- this script
+# opens with `rm -rf "$WORK"`.
+WORK="${SHTNSMODEL_WORK:-$REPO/exoplasim/bench/_shtnsmodel}"
 TOL=1e-10
 STEPS="1 2 5 10 20 40"
 BIRTH=1e-11      # the norm at ONE step; above this the change is wrong at birth

@@ -194,3 +194,43 @@ both.
   differing at last-bit scale and there is one build. `verify_shtns_model.sh`
   carries the same curve on NSHTNS=0 against NSHTNS=1, which is still a live
   pair.
+
+## The gate as a whole, run end to end
+
+*Run 2026-08-24 at 743c67a9, T21 on sixteen threads, on a cold T21 bed carrying
+`config/planet.yaml`'s declared `cold_start_seed` and `ocean.cold_start`
+profile.*
+
+`verify_threaded_numerics.sh` wraps the driver above as its independent side and
+keeps the shared-band control against the model itself. The driver half had been
+proven across the ladder; the gate as a whole had never been executed, because
+it builds the model and needs a bed. world-knr.
+
+**Its model half could not run at all, and the reason was a collision between
+two later changes.** `build_arm` asked `build_model.py` to publish under the
+registry's naming and then looked for the executable in the model run directory.
+The `wrongband` control writes a `! CONTROL:` marker into `plasimmod.f90`, and
+`build_model.py` refuses to put a patched source under the registry's tag, so
+that arm exited `build failed or stale` every time it was asked. The threaded
+arm, when it did build, overwrote the shipped binary with an arm, which is the
+other half of what that refusal exists to prevent. Both arms now build with
+`--no-publish --print-path`, which is what `verify_shtns_model.sh` already did.
+No bound, tolerance or control changed.
+
+With that fixed the gate passes end to end:
+
+| part | verdict |
+| --- | --- |
+| the independent side, all three cases | ARM A1, A2, B and C pass; the three controls are rejected |
+| the threaded arm at one step | a restart, from `9497fd35d121903e` |
+| the shared-band control | built as `96cb4e2f53030c15` and rejected by refusing to run |
+
+The control being rejected by a crash rather than on the numbers is the expected
+outcome and the script's header says why: the offset slides the whole band, so
+every value in it is misaligned against the latitude arrays and that state does
+not survive the shortwave with `-ffpe-trap` on. The alternatives are excluded --
+the patch applied, the build succeeded, and the same binary configuration ran to
+completion unpatched in the arm above.
+
+One rung. The bed is T21, so the gate has not been run where the band tiling
+divides differently.

@@ -151,6 +151,23 @@ correct: rounding scale against the eight-matrix build at 1 and 20 steps, worst
 4.8e-13 and 1.06e-11 against a 1e-10 bar declared first, with a control that
 corrupts one factor and is rejected.
 
+**Which of the two gates measured that, and what the other one was worth.** The
+sentence above is `verify_weight_factorisation_model.sh`, which runs the model.
+The separability half was said to rest on `verify_weight_factorisation.py`, and
+until 2026-08-24 that script transcribed legini's recurrence into Python, built
+the eight matrices from the transcription and rebuilt each from the same
+transcription -- the identical product reassociated, so it measured float
+reassociation and a transcription error in it cancelled exactly. world-g5va.
+That gate now compiles `legini` verbatim out of `legmod.f90` and checks the
+eight weights against the same products formed from scipy's
+`sph_legendre_p_all` and the filter's declared formula, with which table pairs
+with which factor read back out of the transform routines and five negative
+controls that must each be caught. Run 2026-08-24 at every rung on the ladder,
+it passes at all eight: the worst weight is 1.6e-14 at T21 and 3.4e-13 at T170,
+against a declared bound of 8*NTRU^2*eps that the bottom rung clears by 50 times
+and the top by 153. So the separability claim now has evidence behind it, and
+the correctness verdict above never depended on the script that did not.
+
 **And it is 1.56% SLOWER**, threaded build against threaded build, paired and
 interleaved: 80.57 s against 81.66 s, spreads 1.3% and 2.3%, the two-matrix form
 faster in 0 of 4 rounds, [-2.17, -0.74].

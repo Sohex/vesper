@@ -934,3 +934,51 @@ five times inside the bound.
 WHAT IS NOT IMPLICATED is the transform. At one step on the failing bed every
 spectral record is bit identical between the two arms and the largest
 difference anywhere outside `dcc` is 1.5e-13.
+
+## The eleven rerouted diagnostic transforms, run against a binary
+
+*Measured 2026-08-24 at 743c67a9, T21 on sixteen threads, on a cold T21 bed
+carrying `config/planet.yaml`'s declared `cold_start_seed` and
+`ocean.cold_start` profile, with `NENERGY = 1`, `NENERGYFIX = 1`,
+`NLOWIO = 1`. The `production` profile, gfortran 16.2.1 20260810.*
+
+world-3ya routed eleven per-timestep `legmod` transforms in `spectrala` and
+`spectrald` through `sh_sp2gp` and `sh_dv2uv`, moving their destinations to
+full-globe arrays with threadprivate band pointers. It was written and reviewed
+statically and never compiled. `verify_shtns_model.sh` is the gate that can see
+it, because those eleven sites are exactly what `NSHTNS` now branches on: before
+world-3ya both arms computed the diagnostics the same way.
+
+It PASSES.
+
+| | |
+| --- | --- |
+| norm at one step | 1.332e-13, against a birth bound of 1e-11 |
+| growth to 40 steps | 3.67 decades, no adjacent ratio near the 1e4 jump bound |
+| equality at 1 and 20 steps | every record at or below rounding scale, worst `aadcc` 1.710e-11 against a 1e-10 tolerance |
+| four runs at 20 steps | one hash, `179ddb6f70546f43` |
+| the control, filter dropped from the wrappers | rejected |
+
+No deadlock and no hang, which was the first thing that could have gone wrong:
+these sites carry new barriers, and a barrier the team does not all arrive at
+would have shown here rather than in a climate run.
+
+**The energy fixer's own term is identical between the arms.** The three
+diagnostics that drive it -- `denergy24`, `denergy26` and `denergy27` -- are the
+ones to read, because the fixer writes `stt` and so a difference there is a
+difference in what the model INTEGRATES rather than in what it reports. Their
+area-weighted combination `zfix(1)/zfix(3)` is printed every step for the first
+forty out of a restart, and across all 43 printed steps the two arms agree to
+every digit printed, a relative difference of 0. `ENERGY FIXER DIVERGED` did not
+appear in either arm.
+
+The print carries seven significant figures, so this bounds the difference at
+1e-7 relative rather than at the last bit. That is far finer than the effect it
+is asked about: a transform landing somewhere the arithmetic below it does not
+expect is an order-unity error in these terms, not a last-bit one.
+
+**What this does not cover.** One rung. The gate's tolerance and its jump bound
+are not derived per rung -- world-2ic -- and the eleven sites' band pointers are
+indexed by the thread's own latitudes, so a rung whose latitude count divides
+differently is a different tiling. Running it again at T42 and above is what
+would close that, and it needs the rungs staged.

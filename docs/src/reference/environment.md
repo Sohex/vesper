@@ -83,6 +83,13 @@ pass `--model-binaries` when the worktree does not touch the model. Regenerable
 output is not linked either, for the narrower reason that the worktree's build
 would land in the main checkout.
 
+`exoplasim/bench` IS linked, as a wholly-ignored directory, and the transform
+gates work inside it. Each one opens by deleting its own subdirectory there, so
+two worktrees running the same gate delete each other's work. Every gate that
+does this takes an environment variable naming somewhere else instead --
+`BANDED_WORK`, `SHTNSMODEL_WORK`, `TNUMERICS_WORK`, `WFCHECK_WORK`,
+`GAUSSWEIGHTS_WORK` -- and a worktree sets the one it needs.
+
 `.venv` IS linked, and ExoPlaSim is installed editable from the main checkout's
 `vendor/exoplasim`. So `import exoplasim` in a worktree reads the main
 checkout's model source whichever tree the interpreter was invoked from. That is
@@ -159,12 +166,16 @@ to every routine, arrays included, and it cost 26.03% of T170 [+22.76, +27.29].
 The model does not need it: the restart is bit identical without it, and
 identical again under `-finit-real=snan` with the trap masked, so nothing
 uninitialised reached a stored value at the length the bench runs. The poisoned
-initialisation now lives in the `checked` profile as `-finit-real=snan`, which
-is run with `NSHTNS=0`: every build is threaded, and on the SHTns path the model
-faults inside the library at the first timestep before it can say anything about
-itself. `exoplasim/notes/the-zeroing-is-an-init-flag.md` has the three gates and
-the one thing they exposed, which is in SHTns rather than in the model; what
-that flag is worth in a profile compiled at `-O3` is `world-5rs`. The model is compute-bound
+initialisation lives in the `poisoned` profile as `-finit-real=snan` alongside
+`-Og`, and not in `checked`: at the optimisation levels this project ships
+gfortran folds the signalling NaN to a quiet one at compile time, so a
+deliberate uninitialised read in the model exits 0 rather than trapping.
+`notes/audits/uninitialised-reads-and-implicit-save.md` finding 1 has that
+control. Both profiles are run with `NSHTNS=0`: every build is threaded, and on
+the SHTns path the model faults inside the library at the first timestep before
+it can say anything about itself.
+`exoplasim/notes/the-zeroing-is-an-init-flag.md` has the three gates and
+the one thing they exposed, which is in SHTns rather than in the model. The model is compute-bound
 inside its own Fortran, and 2 to 3% is what the whole distance from scalar code
 to AVX-512 is worth here, which is also the bound on what any further codegen
 work can return.

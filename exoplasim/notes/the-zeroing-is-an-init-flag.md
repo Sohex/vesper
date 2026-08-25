@@ -146,8 +146,7 @@ under it is not a NaN.
 
 ## Adopted, and what the adoption verified
 
-`config/planet.yaml` no longer declares `-finit-real=zero`, and `checked`
-carries `-finit-real=snan`. The threaded build compiles byte for byte to
+`config/planet.yaml` no longer declares `-finit-real=zero`. The threaded build compiles byte for byte to
 `c8b9c41046fd93ca`, which IS the arm the 26.03% was measured on, so the
 declaration delivers the measured thing rather than something believed
 equivalent to it.
@@ -158,23 +157,33 @@ model failing to reproduce and having been paid for once. It survives:
 scale, the control rejected, and the four-run bit-identity arm giving one hash,
 `fcf46ebbb1302d3a`.
 
-`checked` was usable when this was written because `rebuild_binaries.py` then
-built MPI binaries, which cannot run SHTns and therefore never met the trap
-above. That is no longer the reason it is usable, because `world-38b` removed
-the MPI and serial build paths: every build is threaded and `nshtns` defaults
-to 1. **The profile is run with `NSHTNS=0`**, which is legmod, the reference arm
-`verify_shtns_model.sh` already compares against and the arm the 60-step results
-above were taken on. CLIM-82 decided the trap stays unmasked and recorded the
-exposure as a limitation of this profile on the threaded build, which is what
-choosing the transform at the namelist answers.
+**Where the poison went, and what it is worth there.** It went to `checked`,
+and `world-5rs` then ran the positive control that asks whether it arms: a
+deliberate uninitialised read at the head of `gridpointd`, built from the
+`checked` flag line at three optimisation levels and run on a T21 bed with
+`NSHTNS=0`. It faults at `-Og` and exits 0 at `-O2` and at `-O3`, and the
+`-O2` and `-O3` binaries carry the folded quiet NaN in `.rodata` beside the
+signalling one the initialisation stores. So the flag did not survive the move
+as a trap at the levels this project ships;
+`notes/audits/uninitialised-reads-and-implicit-save.md` finding 1 has the
+measurement. `config/planet.yaml` now declares `-finit-real=snan` in a
+`poisoned` profile that also carries `-Og`, where the control does fault, and
+`checked` is `-fcheck=all`.
 
-What that does NOT answer is whether the trapping gate arms at all at `-O3`.
-`notes/audits/uninitialised-reads-and-implicit-save.md` finding 1 measured
-gfortran folding a signalling NaN to a quiet one before the arithmetic at `-O1`
-and above, in the case it measured, so the clean 60-step legmod result above is
-weaker evidence than it reads as -- it cannot separate "no uninitialised read"
-from "the trap was never armed". `world-5rs` carries the positive control that
-separates them.
+**Read the 60-step clean results above accordingly.** They were taken at `-O3`,
+so they cannot separate "no uninitialised read" from "the trap was never
+armed", and they are not evidence that the model has none. Both profiles are
+run with `NSHTNS=0` for the reason CLIM-82 recorded: every build is threaded
+and `nshtns` defaults to 1, and on the SHTns path the model faults inside the
+library at the first timestep before it can say anything about itself. `NSHTNS=0`
+selects legmod, which is the reference arm `verify_shtns_model.sh` already
+compares against.
+
+**What still holds the 26.03% trade is one point measurement, and nothing runs
+it.** The restart under `-finit-real=snan` with `FE_INVALID` MASKED was bit
+identical to production's on the same bed. That gate propagates rather than
+traps, so the fold does not defeat it and it works at `-O3`; it is not declared
+in `config/pipeline.yaml` and has not been run since wave 1 changed the model.
 
 ## What this retires
 

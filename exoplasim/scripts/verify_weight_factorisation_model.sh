@@ -9,9 +9,12 @@
 # WHAT IS BEING CHECKED. legini used to build eight NCSP x NLPP matrices, each P
 # or Q times a per-mode factor and a per-latitude factor. It now builds P and Q
 # and applies the factors where they are cheap. `verify_weight_factorisation.py`
-# already proves the eight ARE separable that way, exactly, with a negative
-# control. This is the other half: that the separated form, applied inside the
-# transforms, still runs the same model.
+# is the other half: it compiles legini out of legmod.f90 and checks the eight
+# weights against the same products formed from scipy, so the tables and the six
+# per-mode factors are pinned to a reference rather than to each other. This one
+# runs the MODEL, which is the part no table comparison reaches: that the
+# separated form, applied inside the transforms, still integrates the same
+# climate.
 #
 # WHY THIS CANNOT BE BIT IDENTICAL. a*(b*c) is not (a*b)*c in floating point, and
 # the whole change is moving where the multiplication happens. So the bar is a
@@ -39,7 +42,12 @@ BUILD="$REPO/.venv/bin/python $REPO/exoplasim/scripts/build_model.py"
 SRC="$PKG/plasim/src"
 low="$(echo "$res" | tr 'A-Z' 'a-z')"
 name="most_plasim_${low}_l10_p${ranks}.x"
-WORK="$REPO/exoplasim/bench/_wfcheck"
+# exoplasim/bench/_wfcheck, or wherever WFCHECK_WORK points. A git worktree
+# reaches exoplasim/bench through a symlink into the MAIN checkout, which
+# every worktree shares, so a worktree that runs this without setting the
+# variable deletes and rewrites work another one is using -- this script
+# opens with `rm -rf "$WORK"`.
+WORK="${WFCHECK_WORK:-$REPO/exoplasim/bench/_wfcheck}"
 TOL=1e-10
 
 require_settled_bed "$bed"
