@@ -681,8 +681,8 @@ test suite against it.
 
 The ocean's wet mask comes from the Orogen mesh through OCN-11, and the
 atmosphere's comes from the same mesh at a different resolution. They will not
-agree at the coast, and they cannot: a cell that is 40 per cent land at 1.4
-degrees is inside a 5.6-degree ocean cell that is either wet or dry.
+agree at the coast, and they cannot: a cell that is 40 per cent land at 1.41
+degrees sits inside a 5-degree ocean cell that is either wet or dry.
 
 So there are atmosphere cells carrying an ocean flux that lie over ocean-grid
 land, and ocean cells with no atmosphere-ocean area over them at all. Every joule
