@@ -269,10 +269,16 @@ references/pyrcel/pyrcel/data
 # cGENIE build products. Its own .gitignore carries only .DS_Store, so unlike the
 # other three subtrees it excludes nothing it generates. Run output is NOT here:
 # `genie-main/user.mak` sets OUT_DIR to $(HOME)/cgenie_output, outside this
-# repository, so what a build leaves behind in the tree is objects and one
-# executable.
+# repository, so what a build leaves behind in the tree is objects, archives,
+# one executable -- and a `.dep` beside every source file, which the makefile
+# generates before it compiles anything. That last one is here because a real
+# build produced 81 of them and this comment used to say a build left only
+# objects and an executable; it was written from the ignore rules rather than
+# from a build, because until `netcdf-fortran` was installed no build got far
+# enough to disprove it.
 vendor/cgenie/**/*.o
 vendor/cgenie/**/*.a
+vendor/cgenie/**/*.dep
 vendor/cgenie/genie-main/genie.exe
 
 # SHTns is a build dependency used UNMODIFIED, so it is neither a subtree nor a
