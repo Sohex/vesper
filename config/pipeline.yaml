@@ -930,6 +930,13 @@ steps:
       the calendar never reaches, and prognostic peat hydrology absent from the
       serializer. A declaration claiming a defect is closed while the probe
       still finds it is reported as a contradiction rather than believed.
+      It also holds every retained acceptance table against the emitter that
+      would have to write it: run_lpj_guess.py derives an instruction row from
+      each retained filename's stem, so a table with no declared parameter in
+      modules/commonoutput.cpp would abort the run while plib parsed the
+      instruction file, naming one unknown parameter and nothing about why.
+      Both halves are checked, so neither a table that lost its emitter nor one
+      that quietly gained one can sit in the declaration unnoticed.
       A fixture set runs on every invocation: mutations of the declaration built
       to be wrong in a named way, the live declaration which must be refused,
       three mutations of the EVIDENCE so that the contradiction branch stays

@@ -433,8 +433,8 @@ exit with every unmet one named.
 
 ### The wetlands, their peat and their methane are off, and off is a decision
 
-`wetland_gate.py` is that decision made explicit, and it refuses on two grounds
-rather than one. `run_peatland 1` plus `ifmethane 1` reads like two switches and
+`wetland_gate.py` is that decision made explicit, and it refuses on three
+grounds rather than one. `run_peatland 1` plus `ifmethane 1` reads like two switches and
 is four models -- where the simulated wetlands are, how water reaches and leaves
 them, how peat carbon and redox make and consume CH4, and what an atmosphere
 does with the flux. `biosphere/config/wetlands.yaml` is where each precondition
@@ -454,6 +454,19 @@ mutations of the EVIDENCE so that the contradiction branch stays checkable after
 the repair that made the source agree, and a met declaration against a repaired
 source which must be granted, because a gate nothing can satisfy is a wall
 refusing for a reason nobody wrote down.
+
+The third ground is what the fork can EMIT. An accepted run has to retain
+fifteen tables together, and four of them have a quantity behind them: the
+monthly water table, and the diffusion, plant-transport and ebullition fluxes.
+The other eleven wait on a model rather than on an output routine, and
+`acceptance.retained_output_status` records which model each waits on.
+`run_lpj_guess.py` derives one instruction row from each retained filename's
+stem, so a table with no declared parameter in `modules/commonoutput.cpp` does
+not produce an empty file -- it aborts the run while plib parses the instruction
+file, naming one unknown parameter and nothing about why it is unknown. The gate
+refuses ahead of that, naming every missing table and its owning issue, and it
+checks the reverse direction as well, because a table that has become available
+and is still recorded as waiting is one nobody will think to ask for.
 
 ```bash
 python biosphere/scripts/wetland_gate.py                       # what is undeclared
