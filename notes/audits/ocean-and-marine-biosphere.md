@@ -65,10 +65,10 @@ it to the timestep and `addfc` applies it, under its own header comment:
 residual into the ice model.
 
 **The other end is written too.** `exoplasim/scripts/close_ocean_energy.py`
-already postprocesses the `ocean_output` stream and lists code 903 among the
-terms it reads, recording that it is "identically zero in this configuration,
-and checked to be". So the input channel and the instrument that verifies it
-both exist, and both are currently null.
+postprocesses the `ocean_output` stream and reads code 903 among its terms. Both
+ends existed and both were null: no code 903 field had ever been written, and
+the closure carried the term in the list of things it required to be identically
+zero. Section 11 is the end-to-end verification and what it changed.
 
 What this means for cost. An ocean heat transport reaches the model as ONE new
 pipeline step writing one `.sra`, plus one namelist key on the
@@ -888,6 +888,169 @@ Recorded so the next reader knows the edges.
   produce.
 - Nothing here re-examines `nhdiff`, which is the cheapest bound on the missing
   transport and was settled separately.
+
+---
+
+## 11. The prescribed heat-transport channel, verified end to end
+
+Finding 2 established that the channel exists at both ends. This section is the
+verification that it carries a field correctly, run BEFORE anything computes a
+real one, because a first real field arriving through an unverified channel
+cannot be separated from a wrong channel carrying a right field. Section 7 makes
+this the channel the adopted offline architecture depends on, so it is the one
+piece of ocean work that had to come first.
+
+The instrument is `exoplasim/scripts/verify_ocean_flux_channel.py`, registered
+under `one_offs`. It stages a field and its prediction into a run directory and
+then answers each criterion against the stream that run wrote. Every criterion
+and every tolerance is a module constant declared in that file's source, and
+they were written before any run existed.
+
+### 11a. The field, and why its answer is known in advance
+
+    f(phi, lambda) = A * (P2(mu) + 0.3 mu) * (1 + 0.4 cos(lambda + pi/3))
+
+with `mu = sin(phi)` and `A` 20 W/m2. Four properties, each of which is a
+prediction the channel could have failed:
+
+- **Constant in time.** One month is written to the `.sra` and
+  `surfmod.f90:get_surf_array` expands a single record to all fourteen by copy.
+  `getflxco`'s month weights sum to one whatever the calendar says, so `yfsst2`
+  equals the prescribed field at every ocean step and the accumulation `yfssta`
+  equals it exactly. This deliberately verifies the CHANNEL and not the monthly
+  interpolation: the calendar cannot influence the answer, so a failure cannot
+  be attributed to it.
+- **Orthogonal to the constant.** `P2 + 0.3 mu` is degree two in `mu` and the
+  grid's latitudes and weights are Gauss-Legendre, which integrates degree two
+  exactly, and the zonal factor has longitudinal mean one. So the area-weighted
+  global integral is zero analytically. A prescribed advection that does not
+  integrate to zero is a heat source.
+- **Asymmetric in both coordinates.** The `0.3 mu` term breaks the equatorial
+  symmetry `P2` alone would have and the phase breaks the zonal one, so a
+  north-south flip, a longitudinal roll, a sign error and a transpose are all
+  DIFFERENT fields. The comparison names the failure instead of reporting a
+  difference.
+- **Nonzero over land.** `getflxco` interpolates over the whole grid and only
+  `addfc` restricts to `yls < 1`, so the diagnostic must carry the field over
+  land as well.
+
+### 11b. What was run
+
+Measured 2026-08-24. A diagnostic segment at T42 on the current model source,
+built at eight threads with `build_model.py --no-publish`, in a scratch
+directory outside the run registry: cold start, `nfluko = 1`, 512 model steps at
+a 45-minute step, `nout` at its default of 32, giving 16 ocean-stream records of
+86,400 s each. `nhdiff` 0, `nlsg` 0, `NLEV_OCE` 1, so codes 904, 905 and 906
+were required to be identically zero and were. The companion sea surface
+temperature climatology at code 169, which `oceanini` refuses `nfluko` without,
+was uniform at 290 K so that the ocean is ice-free everywhere and the delivery
+identity is testable across the whole of it.
+
+The segment is not in `exoplasim/runs/INDEX.json` and its output is not a
+climatology input. It is instrumentation.
+
+### 11c. What the criteria returned
+
+| criterion | result | bar |
+| --- | --- | --- |
+| reported field equals written field, every record, every cell | 1.90e-6 W/m2 | 1.0e-4 |
+| area-weighted global integral, written field | 1.98e-8 W/m2 | 1.0e-6 |
+| area-weighted global integral, worst record | 2.05e-8 W/m2 | 1.0e-4 |
+| reported field over land equals written field | 1.90e-6 W/m2, on 4116 land cells | 1.0e-4 |
+| delivery: scatter about one fitted proportionality | 6.49e-5 of the largest change | 1.0e-3 |
+| delivery: fitted record interval against the declared one | 3.17e-7 | 1.0e-3 |
+
+The reproduction figure is the float32 resolution of the service stream on a
+20 W/m2 field and nothing else. The field's integral before it is written is
+-2.75e-14 W/m2, which is the quadrature; 1.98e-8 is what the `.sra`'s
+five-decimal write leaves of it, and the bar for that is derived from the
+quantisation rather than chosen.
+
+**The orientation check discriminates by five to seven orders of magnitude.**
+The nearest wrong field differs from the reported one by 0.51 W/m2 (a
+one-cell eastward roll), then 14.68 (a quarter turn), 16.79 (a north-south
+flip), 20.76 (a half turn) and 72.67 (a sign reversal), against 1.90e-6 for the
+field as written.
+
+**The delivery test is the sharper half.** On an ice-free ocean cell `mksst` and
+`addfc` between them give
+`CRHOS * CPS * mld * (SST_k - SST_{k-1}) = (yheata_k + yfssta_k) * dt_record`,
+so across every such cell and every record the temperature change must be ONE
+constant times the total flux. Fitting that constant over 4076 cells and 15
+record pairs, 61,140 samples, leaves a maximum residual of 3.05e-5 K against a
+largest change of 0.469 K, and returns a record interval of 86,400.027 s against
+a declared 86,400. That recovers the model's own output interval to 0.03 s in a
+day from the sea surface temperature response alone, which is the strongest
+statement available that the field is not merely reported but delivered.
+
+### 11d. What the verification caught
+
+**The fitted record interval missed by 4.75 per cent on the first pass, and the
+model was right.** `close_ocean_energy.py` and `close_state_energy.py` both
+carried `CRHOS = 1030.0` and `CPS = 4180.0` as literals attributed to
+`oceanmod.f90`. `oceanmod` does not own them: `icemod.f90` declares both as
+`icemod_nl` keys and passes them to `oceanini` so the two modules cannot hold
+different sea water, and its `CPS` is sea water's specific heat at S = 34.7 and
+its freezing point, 3990.34 J/kg/K, not fresh water's 4180 at about 25 C. Every
+slab heat capacity built from the copied pair was too large by their ratio.
+
+Nothing failed, because there was nothing for it to fail against.
+`assess_convergence.py` imports those two names to build `SLAB_HEAT_CAPACITY`,
+which sets the expected relaxation time, which sets the remaining offset its
+convergence verdict is judged on. It had already replaced an uncited 3990 with
+the copied 4180 on the argument that the model's own value is the right one, so
+the correction moved the number AWAY from the model. That is the whole failure
+mode: a residual quietly rescaled, in a quantity that decides a pass.
+
+`lib/sea_water.py` now reads all four of the salinity quartet from
+`icemod.f90`'s declaration and then from the run's own `icemod_namelist`, and
+the three scripts read it from there.
+
+**Two operational facts, recorded because a hand-run segment is how this
+verification is repeated.** The model needs a large stack: at T42 on eight
+threads it terminates without a Fortran backtrace under the default limit, and
+runs under `OMP_STACKSIZE` and an unlimited stack rlimit, which is what
+`run_exoplasim.py` sets and a direct invocation does not. And a run directory
+from an earlier segment is not a namelist source: `NGUIDBG` in `plasim_nl` and
+`ZETA` in `carbonmod_nl` no longer exist in the model, and each is a hard
+runtime error on read. Neither is written by anything current.
+
+### 11e. What this changes, and what it does not
+
+`close_ocean_energy.py`'s D4 and D6 now carry the flux correction:
+D4 is `CRHOS*CPS*mld*d(SST)/dt = yheat + yfsst` and D6 is
+`hfns + yfsst = CRHOS*CPS*mld*d(SST)/dt`. On every run made so far `yfsst` is
+identically zero, so both evaluate to what they did; the term was removed from
+the list of things the closure requires to be zero, because refusing a run that
+carries a flux correction would make the closure unusable on exactly the
+configuration this work exists to produce.
+
+**A globally zero-integral field does not have a zero integral over the ocean,
+and the ocean is what `addfc` applies it to.** On this build's land mask the
+field above integrates to -0.919 W/m2 over ocean cells while integrating to zero
+over the globe. So the forcing contract OCN-10 owns has to state which support
+the zero-integral condition holds on, and the answer is the ocean: a field
+constructed to have zero global integral and then applied only to water is a net
+heat source or sink of the ocean-area-weighted mean of its land part. This is a
+property of the geography and it changes with every build and every carve.
+
+**What this section does NOT establish.**
+
+- The monthly interpolation is deliberately not exercised. The field is constant
+  in time so that the calendar cannot affect the answer. A time-varying field is
+  a separate verification and the identity available for it is weaker: whatever
+  the calendar, `getflxco` returns a convex combination of two months, so the
+  interpolated value must lie inside the monthly envelope.
+- The ice branches of `addfc` are not exercised. The segment is ice-free by
+  construction, so branches (b) and (c) and the residual path into `mkiflx` are
+  untested, and the delivery identity was evaluated only on cells with no ice in
+  any record.
+- Nothing here says a heat transport field is right. It says the channel carries
+  the field it is given, without loss, without a mask, without an orientation
+  error, and delivers it to the slab at the declared heat capacity and interval.
+  The field itself is finding 6's problem and OCN-5's loop.
+- The segment is at one rung. The instrument takes `--rung` and the argument is
+  rung-independent, but only T42 has been run.
 
 ---
 
