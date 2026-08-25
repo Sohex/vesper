@@ -89,12 +89,12 @@ not in kilometres, while the constant, the manifest key
 name a physical depth. A consumer of either build therefore reasons about a
 50 m floor that was never enforced, and the numbers below are what that cost.
 
-`selectBasins` now compares the floor against `b.depthKm`, and
-`basinResolutionContext` publishes `minDepthComparedIn` so the currency is
-read from the manifest rather than inferred. Neither build inherits that: the
-comparison is a selection criterion, so it reaches the catalogue only through
-a generation. The counterfactual table below is what the next one carries,
-measured on this terrain.
+`selectBasins` now compares the floor against `b.selectionDepthKm`, a length in
+kilometres, and `basinResolutionContext` publishes `minDepthComparedIn` so the
+currency is read from the manifest rather than inferred. Neither build inherits
+that: the comparison is a selection criterion, so it reaches the catalogue only
+through a generation. The counterfactual table below is what the next one
+carries, measured on this terrain.
 
 The model-unit-to-km curve is quartic above sea level, linear below it, and
 SATURATES at model elevation 1. One threshold is therefore many physical depths.
@@ -139,18 +139,60 @@ carve list, so this is the conditioning and not a verdict.
 MEASURED 2026-08-25 from `basins.preserved[].finalPreserved` in both manifests
 and `capacity_km3` in `hydrography/data/<build>/basins.nc`.
 
-Applying the same declared number to `depthKm` instead does not reach either
+Applying the same declared number to a length instead does not reach either
 build, because it changes the preserved set and therefore the terrain. This is
 what the next generation carries, measured on this one:
 
-| build | as built | with the floor in km | drops | admits |
+| build | as built | floor in reference-gravity km | drops | admits |
 | --- | --- | --- | --- | --- |
-| precarve-craton | 3,621 | 2,879 | 773 | 31 |
-| precarve-craton-10m | 9,419 | 7,471 | 2,077 | 129 |
+| precarve-craton | 3,621 | 3,065 | 611 | 55 |
+| precarve-craton-10m | 9,419 | 8,024 | 1,610 | 215 |
 
 Both directions are populated, so this is not a floor that is merely too loose.
 It is loose near sea level and tight on high ground, and the sign of the error
 is set by where the depression sits rather than by how deep it is.
+
+## Which kilometre, and why the selection may not know the planet's gravity
+
+A depth floor in kilometres has a second question in it, and the two answers are
+186 basins apart at 2.5M and 553 at 10M. Vesper's relief scaling is 0.766, so a
+depression's depth on Vesper is 0.766 of its depth on the same model terrain at
+reference gravity, and a floor of 0.05 km means either 50 m of Vesper or 50 m of
+reference relief.
+
+It is reference relief, and that is settled rather than chosen:
+
+- The selection is not an export product. `js/pipeline.js` runs `selectBasins`
+  during generation, `inciseOutlets` notches the rims of the set it returns and
+  `buildBasinProtection` constrains erosion over them, so the preserved set
+  reaches `r_elevation`. The generator's invariant is that gravity leaves the
+  model terrain alone and enters at export -- erosion constants are calibrated
+  in model units, and pushing a scaled parameter through the nonlinear height
+  curve damps the effect instead of delivering it. A floor read as a depth on
+  Vesper made the terrain hash gravity-dependent, which
+  `tools/test-integration.mjs` caught.
+- Nothing is given up by reading it at reference gravity, because the factor is
+  on both sides of the inequality. Orogen multiplies the WHOLE land relief
+  distribution by `reliefScale`, so a floor stated against that distribution
+  carries the same factor as the depths it judges and the two cancel. This is
+  the argument `computeScarpPotential` in `js/lithology.js` already makes for
+  the escarpment relief gate, from the same `sigma/(rho g)` ceiling on
+  strength-supported relief, and the argument `notes/audits/orogen-gravity.md`
+  makes for the glacial altitude gate from a second factor of 1/g in the
+  adiabat.
+- The floor is calibrated against the model's own noise, which is in reference
+  kilometres. The L1 detail-noise pass is unipolar and digs no pits; the L2 pass
+  digs them to its own amplitude, declared in km and inverted through the
+  UNSCALED height curve, so a noise pit is 50 m of reference relief at any
+  gravity. `BASIN_MIN_DEPTH_KM` is that number. Read on Vesper it would demand
+  1.31 noise amplitudes instead of one, and the margin would move again on the
+  next planet.
+
+The cost is stated rather than waived. Of the 8,024 basins the reference-gravity
+floor preserves at 10M, 553 are shallower than 50 m as depths on Vesper, the
+shallowest being 38 m -- which is 0.766 of the floor, and is what the floor
+means. None has zero capacity by depth: the minimum preserved `depthKm` is
+0.0383 km against 0.0007 km under the model-unit selection the builds carry.
 
 Relaxing the depth floor entirely at 10M adds 2,521 basins against the area
 floor's 1,105 and the cell floor's 8. So at the region count this project has
@@ -191,10 +233,10 @@ below the declared area floor.
 - Physics-limited: TRUE at 10M in area, where a fixed km2 floor governs.
 - Neither, in depth: the depth floor is compared in model units on both builds
   and governs the catalogue at 10M. `selectBasins` now compares it in
-  kilometres, which makes it physical, but a selection criterion reaches a
-  catalogue only through a generation -- so on everything currently in
-  `source/` the verdict above still stands, and the change lands with the
-  generation `world-q5ig` carries.
+  reference-gravity kilometres, which makes it a length and keeps the selection
+  gravity-invariant, but a selection criterion reaches a catalogue only through
+  a generation -- so on everything currently in `source/` the verdict above
+  still stands, and the change lands with the generation `world-q5ig` carries.
 
 # Preserved is not the same as still closed
 

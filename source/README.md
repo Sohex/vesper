@@ -330,17 +330,27 @@ gravity stay bit-identical with or without a mask.
   the config, because a build from another gravity would otherwise pass the
   allowlist while every vertical quantity was off by the ratio.
 - **Basin ids and carve verdicts survive a gravity change.** The catalogue is
-  bit-identical, so an existing verdict replays. Whether it *should* is a
-  separate question -- the climate driving the water balance moves -- but nothing
-  forces the loop to restart from zero.
+  bit-identical, and so is the PRESERVED set and the order it is enumerated in,
+  which is what `basin_index` depends on. The two keys that decide those --
+  `selectionDepthKm` for the depth floor and the sort volume -- are measured at
+  reference gravity for exactly this reason: `selectBasins` runs during
+  generation, and what it returns is notched and protected into the terrain. So
+  an existing verdict replays. Whether it *should* is a separate question -- the
+  climate driving the water balance moves -- but nothing forces the loop to
+  restart from zero.
 - Erosion also ran in model units, so a higher-gravity planet does not get
   steeper-slope collapse. The landscape's shape is identical; only the vertical
   scale changes.
-- The catalogue's own `depthKm`, `volumeKm3` and hypsometry do **not** carry the
-  scaling, while `elevation_km` does. Anything mixing the two is comparing
-  verticals that differ by `reliefScale`. Our hypsometry is rebuilt from
-  `elevation_km` so the carve criterion is safe; the one exception is a reported
-  diagnostic, which says so.
+- The catalogue's own `depthKm`, `volumeKm3`, spill and sink heights and
+  hypsometry carry the scaling, exactly as `elevation_km` does, so a water
+  balance may take its levels from one and its surface from the other. The one
+  depth that does not is the generator's internal `selectionDepthKm`, which is
+  the criterion the depth floor is compared against rather than a measurement,
+  and which is kept out of the catalogue so that adding a field does not move
+  `hashes.basinCatalogue`. `basins.resolution.minDepthComparedIn` names the
+  currency, and undoing the scaling on the published spill and sink heights
+  recovers the number, which is what
+  `hydrography/scripts/catalogue_floor.py` does.
 - `orog_mean/std/min/max` are declared `units: 'km'` and are neither scaled nor
   converted through the hypsometric curve -- they are raw model units. We do not
   consume them. Anything that starts to must convert them first.

@@ -20,6 +20,7 @@ import Delaunator from 'delaunator';
 import { setDelaunator, buildSphere, generateTriangleCenters, computeNeighborDist } from '../js/sphere-mesh.js';
 import { makeRng } from '../js/rng.js';
 import { EARTH } from '../js/planet-params.js';
+import { BASIN_MIN_DEPTH_KM } from '../js/terrain-config.js';
 import {
     detectBasins, selectBasins, buildBasinProtection, basinId, attachHypsometry,
     parseBasinList, inciseOutlets,
@@ -168,6 +169,22 @@ test('the depth floor is compared in kilometres, not in model units', () => {
     ];
     assert.deepEqual(selectBasins(basins, {}).selected.map(b => b.id), ['km-deep'],
         'the physical depth decides, so a zero-capacity depression is out and a 400 m one is in');
+});
+
+test('the depth floor is compared at REFERENCE gravity, not at the planet\'s', () => {
+    // `depthKm` carries the 1/g relief scaling and `selectionDepthKm` does not.
+    // The floor is compared against the second, because selectBasins runs during
+    // generation and what it returns is notched and protected into r_elevation:
+    // a selection that moved with gravity would move the model terrain with it.
+    // The two fields disagree in both directions here -- a heavy planet, where
+    // the scaled depth is the smaller, and a light one, where it is the larger --
+    // so each half fails on its own if the comparison reads `depthKm`.
+    const basins = [
+        { id: 'heavy-planet', index: 0, parentIndex: -1, nestDepth: 0, depth: 1.0, depthKm: 0.01, selectionDepthKm: 0.4, areaKm2: 50000, cellCount: 500, volumeKm3: 100, sink: 1 },
+        { id: 'light-planet', index: 1, parentIndex: -1, nestDepth: 0, depth: 1.0, depthKm: 0.4, selectionDepthKm: 0.01, areaKm2: 50000, cellCount: 500, volumeKm3: 50, sink: 2 },
+    ];
+    assert.deepEqual(selectBasins(basins, {}).selected.map(b => b.id), ['heavy-planet'],
+        'the reference-gravity depth decides, whichever way the scaling runs');
 });
 
 test('nested basins are not auto-selected, and an unknown id warns', () => {
@@ -797,40 +814,50 @@ test('basin ...Km fields carry the 1/g relief scaling, and reliefScale 1 is the 
     assert.ok(scaledPairs > 0, 'no above-sea-level basin to check the scaling against');
 });
 
-test('basin enumeration order does not move when gravity does', () => {
-    // basin_index and the preserved list are assigned by a "largest first" sort.
-    // Sorting on the g-scaled volume let a gravity change reorder two basins of
-    // near-equal size, moving basin_index on a planet whose basins are identical
-    // — invisible to anything joining on ids, visible to anything joining on the
-    // index. The sort key is measured at unit relief for exactly this reason.
+test('THE INVARIANT: gravity moves no part of the preserved set', () => {
+    // selectBasins runs during generation, inciseOutlets notches the rims of what
+    // it returns and buildBasinProtection constrains erosion over them, so the
+    // preserved set reaches r_elevation. The generator's stated invariant is that
+    // gravity leaves the model terrain alone and enters at export -- erosion
+    // constants are calibrated in model units, and pushing a scaled parameter
+    // through the nonlinear height curve damps the effect instead of delivering
+    // it. So neither WHICH basins are preserved nor the ORDER they are
+    // enumerated in may move with g. The order is what basin_index depends on;
+    // the membership is what the carve list is drawn from and what the terrain
+    // is conditioned around. tools/test-integration.mjs holds the same invariant
+    // at the level of the elevation hash; this one says which mechanism it is.
     //
-    // This needs a real planet: it takes two basins of near-equal volume that
-    // straddle sea level differently, and the synthetic crater world has only
-    // one basin worth ordering. Reverting the sort key flips 13 basins here.
-    //
-    // WHICH basins are preserved is a separate question and gravity does move
-    // it, because the depth floor is a physical depth and relief scales as 1/g:
-    // the same model terrain is a physically shallower landform on a heavier
-    // planet, so fewer depressions clear a 50 m floor. That is a property of the
-    // floor and not a leak — the area and cell floors are horizontal and stay
-    // gravity-invariant, and the direction is one-way, so it is asserted as
-    // such below rather than waived. The ORDER of what survives is what
-    // basin_index depends on, and that is what must not move.
-    const base = ctx().basins.selected.map(b => b.id);       // Earth g, reliefScale 1
+    // Both keys are measured at reference gravity for exactly this reason:
+    // orderingVolumeKm3 for the sort, selectionDepthKm for the depth floor. The
+    // area and cell floors are horizontal and never had the problem.
+    const base = ctx().basins.selected;
     assert.ok(base.length > 1, 'need at least two basins for an ordering to exist');
+    const baseIds = base.map(b => b.id);
 
+    for (const gravityMS2 of [0.5, 2, 4].map(f => f * EARTH.gravityMS2)) {
+        const run = quiet(() => runGeneratePipeline({
+            ...PARAMS, preserveBasins: true, planet: { gravityMS2 },
+        })).basins.selected;
+        assert.deepEqual(run.map(b => b.id), baseIds,
+            `the preserved set and its order must not move at g=${gravityMS2}`);
+    }
+
+    // A CONTROL, so the equality above cannot pass vacuously. Comparing the floor
+    // against the scaled `depthKm` -- the physically-tempting reading, and the one
+    // this test exists to forbid -- would drop every basin whose depth on a
+    // 2 g planet falls under the 50 m floor. There must be some, or this fixture
+    // never exercises the difference and the assertions above are about nothing.
     const heavy = quiet(() => runGeneratePipeline({
         ...PARAMS, preserveBasins: true, planet: { gravityMS2: 2 * EARTH.gravityMS2 },
-    })).basins.selected.map(b => b.id);
-
-    const inBase = new Set(base);
-    assert.deepEqual(heavy.filter(id => !inBase.has(id)), [],
-        'higher gravity shrinks relief, so it may only DROP basins, never add one');
-    assert.ok(heavy.length < base.length,
-        'this fixture must actually exercise the shrinkage, or the assertion above is vacuous');
-    const inHeavy = new Set(heavy);
-    assert.deepEqual(heavy, base.filter(id => inHeavy.has(id)),
-        'gravity must not change the ORDER the survivors are enumerated in');
+    })).basins.selected;
+    const shallowOnHeavy = heavy.filter(b => b.depthKm < BASIN_MIN_DEPTH_KM);
+    assert.ok(shallowOnHeavy.length > 0,
+        'no preserved basin is physically shallower than the floor at 2 g, so this '
+        + 'fixture cannot tell the two currencies apart');
+    for (const b of shallowOnHeavy) {
+        assert.ok(b.selectionDepthKm >= BASIN_MIN_DEPTH_KM,
+            'every preserved basin must clear the floor in the currency it is compared in');
+    }
 });
 
 test('sha256 matches known vectors', () => {
