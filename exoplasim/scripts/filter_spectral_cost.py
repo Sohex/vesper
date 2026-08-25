@@ -85,6 +85,20 @@ RESOLVE_SIGMA = 3.0     # an effect must clear this many window sigmas
 MIN_WINDOWS = 4         # fewer than this and the scatter is not measured
 WINDOW_ORBITS = 2       # the window the gamma trade was taken on
 EXCESS_FACTOR = 2.0     # spectral_tail.py's bite criterion, restated for the model
+# WHERE THE DEPTH IS READ, and why not at the truncation. The first version of
+# this script read the depth at `m = NTRU`, which is where kappa acts most
+# directly -- and at every rung on disk that wavenumber sits AT floating-point
+# roundoff, so the number it returned was the roundoff floor and not the filter.
+# Two things put it there and neither is the filter's amplitude: a triangular
+# truncation gives `m = NTRU` exactly one meridional mode against `NTRU` at
+# `m = 1`, and the last few wavenumbers of every rung on disk are dead. So the
+# depth is read at a fraction of the truncation that is still resolved, and the
+# reading is REFUSED unless the spectrum there stands clear of the measured
+# roundoff floor by FLOOR_MARGIN. The fraction is 0.8 because the confinement
+# floor is 0.6 and the fit band ends at a third: 0.8 is inside the damped band
+# at every rung and outside the mode-count collapse at all of them.
+DEPTH_FRACTION = 0.8
+FLOOR_MARGIN = 100.0    # the spectrum must stand this far above roundoff to be read
 
 
 def namelist_keys(run_dir: Path) -> dict[str, str]:
@@ -116,9 +130,16 @@ def cascade_time_s(rung: str) -> float:
     return float(hd[rung]["vorticity"]) * 86400.0
 
 
-def measure(spec: np.ndarray, n: int) -> dict:
-    """The reported quantities, on one spectrum, in spectral_tail's convention."""
-    spec = spec[:n + 1]
+def measure(full: np.ndarray, n: int) -> dict:
+    """The reported quantities, on one spectrum, in spectral_tail's convention.
+
+    `full` runs out to the FFT's Nyquist, which the model represents nothing of
+    above `n`. That dead band is not waste here: it MEASURES the roundoff floor,
+    which is what tells the depth reading whether it is looking at the filter or
+    at nothing.
+    """
+    floor = float(np.median(full[n + 1:])) if len(full) > n + 1 else 0.0
+    spec = full[:n + 1]
     m = np.arange(len(spec))
     lo, hi = max(2, n // 8), max(3, n // 3)
     band = (m >= lo) & (m <= hi) & (spec > 0)
@@ -129,9 +150,14 @@ def measure(spec: np.ndarray, n: int) -> dict:
     upper = (m > hi) & (m <= n)
     bitten = [int(k) for k in m[upper] if ratio[k] < 1.0 / EXCESS_FACTOR]
     bite = bitten[0] if bitten else n
-    # AT the truncation, in dex below the run's own inertial range. This is what
-    # kappa sets directly: f(NTRU) = exp(-kappa), independent of gamma.
-    depth = float(np.log10(ratio[n])) if ratio[n] > 0 else float("nan")
+    # The depth below the run's own inertial range, read where the spectrum is
+    # still above roundoff. At the truncation itself it is not: reported too, as
+    # a diagnostic, with the flag that says so.
+    probe = int(round(DEPTH_FRACTION * n))
+    live = [int(k) for k in m[1:] if spec[k] > FLOOR_MARGIN * floor]
+    readable = bool(floor > 0 and spec[probe] > FLOOR_MARGIN * floor)
+    depth = float(np.log10(ratio[probe])) if readable and ratio[probe] > 0 else float("nan")
+    at_trunc = float(np.log10(ratio[n])) if ratio[n] > 0 else float("nan")
     # The energy the filter has taken out of the resolved spectrum, as a
     # fraction of what the inertial range would have carried over the same
     # wavenumbers. Only the deficit counts: a pile-up is a different failure and
@@ -144,7 +170,12 @@ def measure(spec: np.ndarray, n: int) -> dict:
     removed_of_total = deficit / float(spec[m >= 1].sum() + deficit)
     return {"inertial_slope": float(fit[0]),
             "bite_wavenumber": int(bite), "bite_fraction": bite / n,
-            "truncation_depth_dex": depth,
+            "depth_dex": depth, "depth_wavenumber": probe,
+            "depth_readable": readable,
+            "roundoff_floor": floor,
+            "last_live_wavenumber": max(live) if live else 0,
+            "last_live_fraction": (max(live) if live else 0) / n,
+            "depth_at_truncation_dex": at_trunc,
             "ke_removed_fraction_of_law": float(removed),
             "ke_removed_fraction_of_total": float(removed_of_total)}
 
@@ -176,19 +207,23 @@ def sensitivity(kappa: float, gamma: int, dt_s: float, tau_s: float,
         return (dt_s / (2.0 * k * tau_s)) ** (1.0 / (gamma - 1))
 
     def depth_dex(k: float) -> float:
-        return -math.log10(1.0 + 2.0 * k * tau_s / dt_s)
+        # At DEPTH_FRACTION of the truncation, which is where the measurement is
+        # read; at the truncation itself the measurement is roundoff.
+        return -math.log10(1.0 + (2.0 * k * tau_s / dt_s)
+                           * DEPTH_FRACTION ** (gamma - 1))
 
     weaker, stronger = kappa / factor, kappa * factor
     return {"kappa": kappa, "gamma": gamma, "dt_seconds": dt_s,
             "tau_vorticity_seconds": tau_s,
             "R_at_truncation": 2.0 * kappa * tau_s / dt_s,
             "predicted_bite_fraction": bite(kappa),
-            "predicted_truncation_depth_dex": depth_dex(kappa),
+            "depth_fraction": DEPTH_FRACTION,
+            "predicted_depth_dex": depth_dex(kappa),
             "factor": factor,
             "d_bite_fraction": abs(bite(weaker) - bite(kappa)),
             "d_bite_fraction_stronger": abs(bite(stronger) - bite(kappa)),
-            "d_truncation_depth_dex": abs(depth_dex(weaker) - depth_dex(kappa)),
-            "d_truncation_depth_dex_stronger": abs(depth_dex(stronger) - depth_dex(kappa)),
+            "d_depth_dex": abs(depth_dex(weaker) - depth_dex(kappa)),
+            "d_depth_dex_stronger": abs(depth_dex(stronger) - depth_dex(kappa)),
             "bite_quantisation": 1.0 / n}
 
 
@@ -197,10 +232,10 @@ def verdict(sens: dict, sd: dict, n_windows: int) -> dict:
         return {"resolvable_bite": None, "resolvable_depth": None,
                 "reason": f"only {n_windows} windows; {MIN_WINDOWS} needed"}
     bar_bite = RESOLVE_SIGMA * sd["bite_fraction"]
-    bar_depth = RESOLVE_SIGMA * sd["truncation_depth_dex"]
+    bar_depth = RESOLVE_SIGMA * sd["depth_dex"]
     ok_bite = (sens["d_bite_fraction"] >= bar_bite
                and sens["d_bite_fraction"] >= sens["bite_quantisation"])
-    ok_depth = sens["d_truncation_depth_dex"] >= bar_depth
+    ok_depth = sens["d_depth_dex"] >= bar_depth
     return {"resolvable_bite": bool(ok_bite), "resolvable_depth": bool(ok_depth),
             "bar_bite_fraction": bar_bite, "bar_depth_dex": bar_depth}
 
@@ -231,13 +266,17 @@ def report(run_dir: Path, first: int, last: int, length: int,
     print(f"  bite fraction             {mean['bite_fraction']:.3f} "
           f"+/- {sd['bite_fraction']:.3f}   (predicted {sens['predicted_bite_fraction']:.3f}, "
           f"quantisation {1.0/n:.3f})")
-    print(f"  depth at truncation, dex  {mean['truncation_depth_dex']:+.3f} "
-          f"+/- {sd['truncation_depth_dex']:.3f}   "
-          f"(predicted {sens['predicted_truncation_depth_dex']:+.3f})")
+    print(f"  last live wavenumber      m={mean['last_live_wavenumber']:.1f} = "
+          f"{mean['last_live_fraction']:.3f} of the truncation "
+          f"(above roundoff by {FLOOR_MARGIN:g}x)")
+    print(f"  depth at {DEPTH_FRACTION:g}N, dex        {mean['depth_dex']:+.3f} "
+          f"+/- {sd['depth_dex']:.3f}   "
+          f"(predicted {sens['predicted_depth_dex']:+.3f}; "
+          f"at the truncation {mean['depth_at_truncation_dex']:+.2f}, which is roundoff)")
     print(f"  eddy KE removed           {mean['ke_removed_fraction_of_total']*100:.3f}% "
           f"+/- {sd['ke_removed_fraction_of_total']*100:.3f}% of the run's own eddy KE")
     print(f"  a factor {factor:g} in kappa is worth: "
-          f"bite {sens['d_bite_fraction']:.4f}, depth {sens['d_truncation_depth_dex']:.3f} dex")
+          f"bite {sens['d_bite_fraction']:.4f}, depth {sens['d_depth_dex']:.3f} dex")
     if ver.get("reason"):
         print(f"  verdict: no scatter -- {ver['reason']}")
     else:
@@ -245,7 +284,7 @@ def report(run_dir: Path, first: int, last: int, length: int,
               f"depth {ver['bar_depth_dex']:.3f} dex")
         print(f"  verdict: confinement resolves a factor {factor:g} in kappa: "
               f"{'YES' if ver['resolvable_bite'] else 'NO'};  "
-              f"truncation depth resolves it: "
+              f"depth at {DEPTH_FRACTION:g}N resolves it: "
               f"{'YES' if ver['resolvable_depth'] else 'NO'}")
     return row
 
@@ -286,7 +325,8 @@ def main() -> None:
             for j in range(i + 1, len(rows)):
                 a, b = rows[i], rows[j]
                 for key, unit in (("bite_fraction", ""),
-                                  ("truncation_depth_dex", " dex"),
+                                  ("depth_dex", " dex"),
+                                  ("last_live_fraction", ""),
                                   ("ke_removed_fraction_of_total", "")):
                     d = b["mean"][key] - a["mean"][key]
                     pooled = math.hypot(a["sd"][key], b["sd"][key])
