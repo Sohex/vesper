@@ -105,15 +105,16 @@ they are extrema of, so this identifies the variable without ambiguity.
 
 Codes 201 and 202 are written by the model unconditionally and are absent from
 `pyburn.ilibrary` and from `run_exoplasim.REGULAR_CODES`, so the correct field
-exists in the model and does not reach any product. WORLD-EFOR-9 owns adding it.
+exists in the model and does not reach any product. `world-j0az` owns delivering it.
 
 ### Fields the contract may not name, because nothing produces them
 
-- **`td2m`, code 168.** Present in both `REGULAR_CODES` and `SNAPSHOT_CODES`.
+- **`td2m`, code 168** (`world-dy7a`). Present in both `REGULAR_CODES` and
+  `SNAPSHOT_CODES`.
   `outmod.f90` never writes it, pyburn does not derive it, and it is silently
   absent from the product rather than raising. Confirmed absent from the
   bootstrap climatology.
-- **`uas`/`vas`, codes 165/166.** Never written. There is no 10 m wind in this
+- **`uas`/`vas`, codes 165/166** (`world-1qxu`). Never written. There is no 10 m wind in this
   model's output. A near-surface wind can only come from the lowest model level,
   from the surface stress `tauu`/`tauv` with a drag coefficient, or from a new
   diagnostic.
@@ -125,13 +126,14 @@ vorticity records, which in the low-I/O regime are already interval means. So
 `spd` is |mean vector| and not mean speed, the two differ whenever the wind turns
 within an interval, and the field carries a level axis rather than a
 near-surface value. A wind consumer takes the lowest level and inherits both
-properties.
+properties, and `world-1qxu` owns closing it.
 
 ### `hur` is a percentage declared as a fraction, on liquid saturation only
 
 pyburn computes `rh = qq/zqsat * 100.0` and clips to `[0, 100]`, while
 `ilibrary` declares the units `1`. Confirmed on the bootstrap climatology, where
-`hur` reaches 100.0. It also uses fixed liquid-water saturation coefficients,
+`hur` reaches 100.0 (`world-hf12`). It also uses fixed liquid-water saturation
+coefficients,
 while the model's own saturation switches to the ice coefficients below `tmelt`
 through `plasimmod.f90`'s `ra2s`/`ra4s`, so the postprocessed relative humidity
 and the model's own saturation disagree below freezing.
@@ -356,10 +358,12 @@ canopy end and EFOR-3 owns delivering the terms.
 `soilwater.cpp` deciding phase from the daily mean air temperature at 0 C is
 BIO-13's.
 
-**Open, upstream.** The air-temperature extrema, the near-surface wind, `td2m`
-and `hur`'s units and saturation branch are all producer-side and are tracked
+**Open, upstream.** The air-temperature extrema (`world-j0az`), the
+near-surface wind (`world-1qxu`), `td2m` (`world-dy7a`) and `hur`'s units and
+saturation branch (`world-hf12`) are all producer-side and are tracked
 separately, because they are changes to `run_exoplasim.py`, `pyburn.py` and the
-model's own diagnostics rather than to this seam.
+model's own diagnostics rather than to this seam. `world-ua4a` moves the BVOC
+refusal from the run into the gate that is supposed to report it.
 
 ## What this document does not settle
 

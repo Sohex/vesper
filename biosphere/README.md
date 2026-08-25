@@ -343,7 +343,7 @@ bootstrap climatology they bracket `ts` in every one of 24,576 cell-bins and fai
 to bracket `tas` in 15,561 of them, by as much as 28.3 K. The air-temperature
 extrema this climate model does compute are `atsama` and `atsami`, output codes
 201 and 202; they are written by the model and reach no product, being absent
-from pyburn's `ilibrary` and from `run_exoplasim.REGULAR_CODES`. EFOR-9 owns
+from pyburn's `ilibrary` and from `run_exoplasim.REGULAR_CODES`. `world-j0az` owns
 delivering them.
 
 So the driver's fourth array is the surface-temperature range under its own
