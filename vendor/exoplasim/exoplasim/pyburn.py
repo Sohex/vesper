@@ -902,7 +902,7 @@ def _transformvar(lon,lat,variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
                 outvar = variable
                 dims = ("time",levd)
                 meta.append(dims)
-            elif len(vairable.shape)==1: #scalar
+            elif len(variable.shape)==1: #scalar
                 outvar = variable
                 dims = ("time",)
                 meta.append(dims)
@@ -1029,9 +1029,9 @@ def _transformvar(lon,lat,variable,meta,nlat,nlon,nlev,ntru,ntime,mode='grid',
 
         if "lat" in dims:
             rottlgridvar = np.zeros(tlgridvar.shape)
-            for jlon in range(nlats):
-                rottlgridvar[...,jlon,:nlats] = tlgridvar[...,jlon]
-                rottlgridvar[...,jlon,nlats:] = tlgridvar[...,jlon+nlats]    
+            for jlon in range(nlat):
+                rottlgridvar[...,jlon,:nlat] = tlgridvar[...,jlon]
+                rottlgridvar[...,jlon,nlat:] = tlgridvar[...,jlon+nlat]    
             
             #Compute fourier coefficients along our new "longitudes"
             if len(rottlgridvar.shape)==4: #include lev
@@ -1154,11 +1154,11 @@ def _transformvectorvar(lon,uvar,vvar,umeta,vmeta,lats,nlon,nlev,ntru,ntime,mode
                 ntimes = uvar.shape[0]
                 spuvar = np.asfortranarray(
                             np.transpose(np.reshape(uvar,
-                                                    (ntimes,variable.shape[1])))
+                                                    (ntimes,uvar.shape[1])))
                            )
                 spvvar = np.asfortranarray(
                             np.transpose(np.reshape(vvar,
-                                                    (ntimes,variable.shape[1])))
+                                                    (ntimes,vvar.shape[1])))
                            )
                 gridshape = (ntimes,nlat,nlon)
                 dims = ["time","lat","lon"]
@@ -1267,7 +1267,7 @@ def _transformvectorvar(lon,uvar,vvar,umeta,vmeta,lats,nlon,nlev,ntru,ntime,mode
                                                     (ntimes,nlat,nlon)))
                            )
                 dims = ("time","modes","complex")
-            spuvar,spvvar = pyfft.gpvsp(gpvuar,gpvvar,costhetadr,ntru,int(physfilter))
+            spuvar,spvvar = pyfft.gpvsp(gpuvar,gpvvar,costhetadr,ntru,int(physfilter))
             specuvar = np.transpose(spuvar)
             specvvar = np.transpose(spvvar)
         shape = list(specuvar.shape)
@@ -1400,9 +1400,11 @@ def _transformvectorvar(lon,uvar,vvar,umeta,vmeta,lats,nlon,nlev,ntru,ntime,mode
 
         rottlgriduvar = np.zeros(tlgriduvar.shape)
         rottlgridvvar = np.zeros(tlgridvvar.shape)
-        for jlon in range(nlats):
-            rottlgriduvar[...,jlon,:nlats] = tlgriduvar[...,jlon]
-            rottlgridvvar[...,jlon,nlats:] = tlgridvvar[...,jlon+nlats]    
+        for jlon in range(nlat):
+            rottlgriduvar[...,jlon,:nlat] = tlgriduvar[...,jlon]
+            rottlgriduvar[...,jlon,nlat:] = tlgriduvar[...,jlon+nlat]
+            rottlgridvvar[...,jlon,:nlat] = tlgridvvar[...,jlon]
+            rottlgridvvar[...,jlon,nlat:] = tlgridvvar[...,jlon+nlat]    
         
         #Compute fourier coefficients along our new "longitudes"
         if len(rottlgriduvar.shape)==4: #include lev
@@ -1419,7 +1421,7 @@ def _transformvectorvar(lon,uvar,vvar,umeta,vmeta,lats,nlon,nlev,ntru,ntime,mode
             fcshape = (ntimes,nlevs,nlat,nlon//2,2)
             dims = ["time",levd,"lat","fourier","complex"]
         else:
-            ntimes = rottlgridvar.shape[0]
+            ntimes = rottlgriduvar.shape[0]
             gpuvar = np.asfortranarray(
                         np.transpose(np.reshape(rottlgriduvar/1.4142135623730951,
                                                 (ntimes,nlat,nlon)))

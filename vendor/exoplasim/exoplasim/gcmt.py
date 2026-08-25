@@ -295,6 +295,7 @@ class _csvData(dict):
             Variable data
         '''
         if key in self.filetree:
+            fname = self.filetree[key]
             if self.tarball:
                 import tarfile
                 with tarfile.open(self.archive,"r") as tarball:
@@ -321,7 +322,7 @@ class _csvData(dict):
                     os.system("rm -rf %s"%var)
                 
         else:
-            fname = lf.filestem+"_"+key+extension
+            fname = self.filestem+"_"+key+self.extension
             self.variables.append(key)
             self.filetree[key] = fname
             print("Writing %8s to %s"%(key,fname))
@@ -1003,11 +1004,14 @@ def wrap2d(var):
     return newvar
 
     
-def streamfxn(file,time=None):
+def streamfxn(dataset,time=None):
     '''Deprecated. Passes args to eqstream().'''
-    return eqstream(file,time=time)
+    if time is not None:
+        raise TypeError("eqstream() integrates the whole dataset; there is no "
+                        "`time` for it to select")
+    return eqstream(dataset)
     
-def eqstream(file,radius=6.371e6,gravity=9.80665):
+def eqstream(dataset,radius=6.371e6,gravity=9.80665):
     '''Compute the tidally-locked streamfunction
     
     Parameters
@@ -1566,7 +1570,7 @@ def orthographic(lon,lat,imap,central_longitude=0,central_latitude=0,ny=200,nx=2
             l0 -= 360.0
     
         if lon.max()>180.0:
-            zlon[zlon>180]-=360.0
+            lon[lon>180]-=360.0
         
         dl0 = l0 #lon-dl0 and l0-dl0 will rotate things so l0=0.
         l0 -= dl0
