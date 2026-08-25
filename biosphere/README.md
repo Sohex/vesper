@@ -608,6 +608,45 @@ carries three defects the operator had: the soil map's pH never reached it, its
 no-pH fallback ran on a variable nothing assigns, and its only conservation check
 was an `assert` that Release compiles out.
 
+### The phosphorus path's divergences from the CNP fork are registered
+
+`somdynam_gate.py` is the same enforcement as `ntransform_gate.py` on a
+different reference point. The soil nitrogen transformation operator is stock
+LPJ-GUESS 4.1.1, which the tree can name by Zenodo record and SVN revision.
+LPJ-GUESS 4.1.1 has no phosphorus at all: `pmass_labile`, `setptoc`, the
+sorption isotherm and both saturation thresholds arrived with the CNP fork, so a
+divergence on this path can be measured against nothing but the commit that
+subtree was imported at, and `biosphere/config/somdynam.yaml` names it.
+
+The declaration carries the three divergences, the two saturation constants, the
+five C:P ramps and the two lines the phosphorus argument rests on. The gate
+fails on a constant whose line `modules/somdynam.cpp` no longer runs or whose
+value is not what that line's own initialiser evaluates to; on a ramp whose
+`setptoc` call the source no longer contains, or contains a different number of
+times, the call being BUILT from the declaration so neither side can move alone;
+on a ramp leaving the P:C range its two endpoints allow; on an invariant the
+model no longer runs, which is how the phosphorus-limitation-off pin being split
+off the ramp threshold is caught even though no constant moved; and on any of
+the three halves of a divergence, so it can become neither a silent fork nor a
+silent revert.
+
+Each entry also says which configuration it is live in. Two of the three are
+inert under the `ifplim 0` this project runs, and that is recorded as waiting
+rather than as harmless: the comparison arm that would bound what they are worth
+needs two runs, and the `ifplim 1` one needs `parameters.cpp`'s refusal lifted
+first.
+
+```bash
+python biosphere/scripts/somdynam_gate.py            # status, exit 0
+python biosphere/scripts/somdynam_gate.py --strict   # refuses while a saturation
+                                                     # constant has no source
+```
+
+`--strict` refuses on `PCONC_SAT`, which carries `NCONC_SAT`'s value and has no
+phosphorus source anywhere in the tree. That is the refusal `parameters.cpp`
+already makes on `ifplim 1`, restated where the constant is declared instead of
+living only in a C++ error string.
+
 ### Respiration acclimates to a growth temperature, or not at all
 
 `respiration_acclimated()` replaces each simulated plant functional type's
