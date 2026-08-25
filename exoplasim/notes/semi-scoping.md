@@ -308,7 +308,7 @@ edit the external code and wants provenance as a commit here. External source
 this project reads and will not edit lives under `references/` instead.
 `vendor/cgenie` is the boundary case and it is instructive: it is a subtree
 because two open rows are fork-shaped by construction, and it is still labelled a
-CANDIDATE that nothing reads and that does not build where it stands.
+CANDIDATE that nothing reads.
 
 SEMI does not meet that bar, and the reason is that almost nothing of the
 surrounding tree transfers.

@@ -1,0 +1,904 @@
+{
+  "provenance": {
+    "repo_head": "19576a43d277e8b8a8e76e92202023ab3a18483e",
+    "repo_dirty": false,
+    "fortran": "GNU Fortran (GCC) 16.2.1 20260810",
+    "netcdf_c": "netCDF 4.9.3",
+    "netcdf_fortran": "4.6.2",
+    "netcdf_flibs": "-L/usr/lib -lnetcdff -lnetcdf",
+    "host": "yggdrasil",
+    "cores": 32,
+    "load_average_at_start": 5.5,
+    "timing_estimator": "minimum over --repeats, of the model's own `time real` rather than the wrapper's, on a host that runs other work. cGENIE is one serial process and cores were free throughout; cache and memory bandwidth were not exclusively its own. Each run records the load average it finished under.",
+    "cpu": "AMD Ryzen 9 7950X3D 16-Core Processor",
+    "kernel": "7.1.8-1-cachyos",
+    "build_type": "SHIP (user.mak default), gfortran, serial",
+    "parallelism": "None available. -fopenmp is commented out in makefile.arc, and every $omp string in goldstein, embm, biogem and genie-main is commented out in column one, so it is not a sentinel: enabling the flag would parallelise nothing. Three live `use omp_lib` statements have no call against them. MPI exists only in genie-plasim, which this project does not use. Cost is one core against simulated years; parallelism is across experiments, not within a run.",
+    "code_model": "medium",
+    "make_overrides": "GENIE_ROOT=/home/cfutro/docs/world/.claude/worktrees/fanout-P0D/vendor/cgenie RUNTIME_ROOT=/home/cfutro/docs/world/.claude/worktrees/fanout-P0D/vendor/cgenie NETCDF_DIR=/usr OUT_DIR=/home/cfutro/cgenie_output -j 1 GENIE_FFLAGS=-mcmodel=medium GENIE_LDFLAGS=-mcmodel=medium",
+    "build_command": "cd vendor/cgenie/genie-main && ./genie.job -x -f <config> -o <outdir> -c <cgenie root> -g <cgenie root> -h . -m 'genie.exe GENIE_ROOT=<cgenie root> RUNTIME_ROOT=<cgenie root> NETCDF_DIR=/usr OUT_DIR=<outdir> -j 1'",
+    "notes": [
+      "The make target genie.exe is passed through -m because the default target also builds nccompare, whose src/c/compare.cpp needs the legacy netCDF C++ header netcdf.hh, absent on this host.",
+      "-j 1 is required: the dependency generator genie-main/finc.py is Python 2 and fails under this host's python3, so no .d files are produced and a parallel make races on .mod files."
+    ]
+  },
+  "criterion": {
+    "advective_courant_max": 1.0,
+    "diffusive_number_max": 0.5,
+    "u_nominal_ms": 0.5,
+    "stated": "before any run in this file's docstring"
+  },
+  "cases": [
+    {
+      "case": "worbe2_36x36x8",
+      "world": "worbe2",
+      "nlons": 36,
+      "nlats": 36,
+      "nlevs": 8,
+      "ocean_cells": 10368,
+      "surface_cells": 1296,
+      "ubarsolv_work": 46656,
+      "synthetic_forcing": false,
+      "islands_in_psiles": 2,
+      "maxisles_compiled": 20,
+      "nyear": 100,
+      "ndta": 5,
+      "stability": {
+        "dt_s": 315576.0,
+        "dx_min_m": 260221.67829655638,
+        "dz_m": 625.0,
+        "courant_advective": 0.606359935240215,
+        "diffusive_horizontal": 0.00932066750486774,
+        "diffusive_vertical": 8.0787456e-05,
+        "diffusive_meridional": 0.002042491953227193
+      },
+      "runs": [
+        {
+          "years": 20,
+          "model_seconds": 2.989,
+          "repeats": 2,
+          "load_average_after": [
+            22.66,
+            41.52
+          ],
+          "output_bytes": 564547
+        },
+        {
+          "years": 100,
+          "model_seconds": 10.773,
+          "repeats": 2,
+          "load_average_after": [
+            21.69,
+            35.9
+          ],
+          "output_bytes": 564547
+        }
+      ],
+      "code_model": "small (the compiler default user.mak leaves in place)",
+      "build_ok": true,
+      "build_reused": true,
+      "exe_bytes": 8878768,
+      "seconds_per_model_year": 0.0973,
+      "fixed_seconds": 1.043,
+      "from_repeat": 1,
+      "from_a_quiet_host": false,
+      "load_average_of_that_fit": 41.52,
+      "per_repeat_fits": [
+        {
+          "repeat": 0,
+          "seconds_per_model_year": 0.1889,
+          "fixed_seconds": 0.625,
+          "model_seconds": {
+            "20": 4.404,
+            "100": 19.518
+          },
+          "load_average": 22.66,
+          "contaminated": true
+        },
+        {
+          "repeat": 1,
+          "seconds_per_model_year": 0.0973,
+          "fixed_seconds": 1.043,
+          "model_seconds": {
+            "20": 2.989,
+            "100": 10.773
+          },
+          "load_average": 41.52,
+          "contaminated": true
+        }
+      ],
+      "perf": {
+        "runs": [
+          {
+            "instructions": 34351629985.0,
+            "task-clock": 2000.59,
+            "years": 20,
+            "load_average": 25.21
+          },
+          {
+            "instructions": 176404492477.0,
+            "task-clock": 9760.12,
+            "years": 100,
+            "load_average": 18.72
+          }
+        ],
+        "instructions_per_model_year": 1775660781.15,
+        "fixed_instructions": -1161585638.0,
+        "note": "retired instructions are a property of the binary and its input, not of what else the host was doing"
+      }
+    },
+    {
+      "case": "worjh2_36x36x16",
+      "world": "worjh2",
+      "nlons": 36,
+      "nlats": 36,
+      "nlevs": 16,
+      "ocean_cells": 20736,
+      "surface_cells": 1296,
+      "ubarsolv_work": 46656,
+      "synthetic_forcing": false,
+      "islands_in_psiles": 2,
+      "maxisles_compiled": 20,
+      "nyear": 100,
+      "ndta": 5,
+      "stability": {
+        "dt_s": 315576.0,
+        "dx_min_m": 260221.67829655638,
+        "dz_m": 312.5,
+        "courant_advective": 0.606359935240215,
+        "diffusive_horizontal": 0.00932066750486774,
+        "diffusive_vertical": 0.000323149824,
+        "diffusive_meridional": 0.002042491953227193
+      },
+      "runs": [
+        {
+          "years": 20,
+          "model_seconds": 3.902,
+          "repeats": 2,
+          "load_average_after": [
+            21.47,
+            35.82
+          ],
+          "output_bytes": 564549
+        },
+        {
+          "years": 100,
+          "model_seconds": 22.981,
+          "repeats": 2,
+          "load_average_after": [
+            20.15,
+            35.73
+          ],
+          "output_bytes": 564549
+        }
+      ],
+      "code_model": "small (the compiler default user.mak leaves in place)",
+      "build_ok": true,
+      "build_reused": true,
+      "exe_bytes": 8956592,
+      "seconds_per_model_year": 0.2385,
+      "fixed_seconds": -0.868,
+      "from_repeat": 1,
+      "from_a_quiet_host": false,
+      "load_average_of_that_fit": 35.82,
+      "per_repeat_fits": [
+        {
+          "repeat": 0,
+          "seconds_per_model_year": 0.4024,
+          "fixed_seconds": -0.735,
+          "model_seconds": {
+            "20": 7.312,
+            "100": 39.5
+          },
+          "load_average": 21.47,
+          "contaminated": true
+        },
+        {
+          "repeat": 1,
+          "seconds_per_model_year": 0.2385,
+          "fixed_seconds": -0.868,
+          "model_seconds": {
+            "20": 3.902,
+            "100": 22.981
+          },
+          "load_average": 35.82,
+          "contaminated": true
+        }
+      ],
+      "perf": {
+        "runs": [
+          {
+            "instructions": 56226775619.0,
+            "task-clock": 3287.2,
+            "years": 20,
+            "load_average": 17.38
+          },
+          {
+            "instructions": 294041904390.0,
+            "task-clock": 18500.77,
+            "years": 100,
+            "load_average": 13.91
+          }
+        ],
+        "instructions_per_model_year": 2972689109.6375,
+        "fixed_instructions": -3227006573.75,
+        "note": "retired instructions are a property of the binary and its input, not of what else the host was doing"
+      }
+    },
+    {
+      "case": "worri4_36x36x32",
+      "world": "worri4",
+      "nlons": 36,
+      "nlats": 36,
+      "nlevs": 32,
+      "ocean_cells": 41472,
+      "surface_cells": 1296,
+      "ubarsolv_work": 46656,
+      "synthetic_forcing": false,
+      "islands_in_psiles": 3,
+      "maxisles_compiled": 20,
+      "nyear": 100,
+      "ndta": 5,
+      "stability": {
+        "dt_s": 315576.0,
+        "dx_min_m": 260221.67829655638,
+        "dz_m": 156.25,
+        "courant_advective": 0.606359935240215,
+        "diffusive_horizontal": 0.00932066750486774,
+        "diffusive_vertical": 0.001292599296,
+        "diffusive_meridional": 0.002042491953227193
+      },
+      "runs": [
+        {
+          "years": 20,
+          "model_seconds": 7.825,
+          "repeats": 2,
+          "load_average_after": [
+            19.81,
+            35.69
+          ],
+          "output_bytes": 564549
+        },
+        {
+          "years": 100,
+          "model_seconds": 40.218,
+          "repeats": 2,
+          "load_average_after": [
+            21.46,
+            36.73
+          ],
+          "output_bytes": 564549
+        }
+      ],
+      "code_model": "small (the compiler default user.mak leaves in place)",
+      "build_ok": true,
+      "build_reused": true,
+      "exe_bytes": 8972976,
+      "seconds_per_model_year": 0.4049,
+      "fixed_seconds": -0.273,
+      "from_repeat": 1,
+      "from_a_quiet_host": false,
+      "load_average_of_that_fit": 36.73,
+      "per_repeat_fits": [
+        {
+          "repeat": 0,
+          "seconds_per_model_year": 0.7593,
+          "fixed_seconds": 0.664,
+          "model_seconds": {
+            "20": 15.849,
+            "100": 76.59
+          },
+          "load_average": 21.46,
+          "contaminated": true
+        },
+        {
+          "repeat": 1,
+          "seconds_per_model_year": 0.4049,
+          "fixed_seconds": -0.273,
+          "model_seconds": {
+            "20": 7.825,
+            "100": 40.218
+          },
+          "load_average": 36.73,
+          "contaminated": true
+        }
+      ],
+      "perf": {
+        "runs": [
+          {
+            "instructions": 99554449918.0,
+            "task-clock": 7004.84,
+            "years": 20,
+            "load_average": 14.37
+          },
+          {
+            "instructions": 525900006158.0,
+            "task-clock": 31520.62,
+            "years": 100,
+            "load_average": 10.34
+          }
+        ],
+        "instructions_per_model_year": 5329319453.0,
+        "fixed_instructions": -7031939142.0,
+        "note": "retired instructions are a property of the binary and its input, not of what else the host was doing"
+      }
+    },
+    {
+      "case": "g3660l_36x60x8",
+      "world": "g3660l",
+      "nlons": 36,
+      "nlats": 60,
+      "nlevs": 8,
+      "ocean_cells": 17280,
+      "surface_cells": 2160,
+      "ubarsolv_work": 77760,
+      "synthetic_forcing": false,
+      "islands_in_psiles": 3,
+      "maxisles_compiled": 20,
+      "nyear": 100,
+      "ndta": 5,
+      "stability": {
+        "dt_s": 315576.0,
+        "dx_min_m": 202133.84173832933,
+        "dz_m": 625.0,
+        "courant_advective": 0.780611493073303,
+        "diffusive_horizontal": 0.015447418133651013,
+        "diffusive_vertical": 8.0787456e-05,
+        "diffusive_meridional": 0.005673588758964424
+      },
+      "runs": [
+        {
+          "years": 20,
+          "model_seconds": 3.556,
+          "repeats": 2,
+          "load_average_after": [
+            21.26,
+            36.75
+          ],
+          "output_bytes": 564687
+        },
+        {
+          "years": 100,
+          "model_seconds": 18.227,
+          "repeats": 2,
+          "load_average_after": [
+            20.32,
+            31.4
+          ],
+          "output_bytes": 564687
+        }
+      ],
+      "code_model": "small (the compiler default user.mak leaves in place)",
+      "build_ok": true,
+      "build_reused": true,
+      "exe_bytes": 8882864,
+      "seconds_per_model_year": 0.1834,
+      "fixed_seconds": -0.112,
+      "from_repeat": 1,
+      "from_a_quiet_host": false,
+      "load_average_of_that_fit": 36.75,
+      "per_repeat_fits": [
+        {
+          "repeat": 0,
+          "seconds_per_model_year": 0.3688,
+          "fixed_seconds": 0.423,
+          "model_seconds": {
+            "20": 7.799,
+            "100": 37.305
+          },
+          "load_average": 21.26,
+          "contaminated": true
+        },
+        {
+          "repeat": 1,
+          "seconds_per_model_year": 0.1834,
+          "fixed_seconds": -0.112,
+          "model_seconds": {
+            "20": 3.556,
+            "100": 18.227
+          },
+          "load_average": 36.75,
+          "contaminated": true
+        }
+      ],
+      "perf": {
+        "runs": [
+          {
+            "instructions": 54307688123.0,
+            "task-clock": 3271.77,
+            "years": 20,
+            "load_average": 9.76
+          },
+          {
+            "instructions": 278725404089.0,
+            "task-clock": 20848.92,
+            "years": 100,
+            "load_average": 25.9
+          }
+        ],
+        "instructions_per_model_year": 2805221449.575,
+        "fixed_instructions": -1796740868.5,
+        "note": "retired instructions are a property of the binary and its input, not of what else the host was doing"
+      }
+    },
+    {
+      "case": "igcmv3_64x32x8",
+      "world": "igcmv3",
+      "nlons": 64,
+      "nlats": 32,
+      "nlevs": 8,
+      "ocean_cells": 16384,
+      "surface_cells": 2048,
+      "ubarsolv_work": 131072,
+      "synthetic_forcing": false,
+      "islands_in_psiles": 2,
+      "maxisles_compiled": 20,
+      "nyear": 100,
+      "ndta": 5,
+      "stability": {
+        "dt_s": 315576.0,
+        "dx_min_m": 155117.08083621372,
+        "dz_m": 625.0,
+        "courant_advective": 1.0172187301964926,
+        "diffusive_horizontal": 0.026230992092239325,
+        "diffusive_vertical": 8.0787456e-05,
+        "diffusive_meridional": 0.0016138208025498807
+      },
+      "runs": [
+        {
+          "years": 20,
+          "model_seconds": 3.263,
+          "repeats": 2,
+          "load_average_after": [
+            20.37,
+            29.04
+          ],
+          "output_bytes": 564687
+        },
+        {
+          "years": 100,
+          "model_seconds": 17.998,
+          "repeats": 2,
+          "load_average_after": [
+            31.44,
+            23.65
+          ],
+          "output_bytes": 564687
+        }
+      ],
+      "code_model": "small (the compiler default user.mak leaves in place)",
+      "build_ok": true,
+      "build_reused": true,
+      "exe_bytes": 8891056,
+      "seconds_per_model_year": 0.1842,
+      "fixed_seconds": -0.421,
+      "from_repeat": 1,
+      "from_a_quiet_host": false,
+      "load_average_of_that_fit": 29.04,
+      "per_repeat_fits": [
+        {
+          "repeat": 0,
+          "seconds_per_model_year": 0.3164,
+          "fixed_seconds": 0.867,
+          "model_seconds": {
+            "20": 7.196,
+            "100": 32.511
+          },
+          "load_average": 31.44,
+          "contaminated": true
+        },
+        {
+          "repeat": 1,
+          "seconds_per_model_year": 0.1842,
+          "fixed_seconds": -0.421,
+          "model_seconds": {
+            "20": 3.263,
+            "100": 17.998
+          },
+          "load_average": 29.04,
+          "contaminated": true
+        }
+      ],
+      "perf": {
+        "runs": [
+          {
+            "instructions": 51946574258.0,
+            "task-clock": 4614.36,
+            "years": 20,
+            "load_average": 32.63
+          },
+          {
+            "instructions": 266452636416.0,
+            "task-clock": 23427.92,
+            "years": 100,
+            "load_average": 44.73
+          }
+        ],
+        "instructions_per_model_year": 2681325776.975,
+        "fixed_instructions": -1679941281.5,
+        "note": "retired instructions are a property of the binary and its input, not of what else the host was doing"
+      }
+    },
+    {
+      "case": "worjh2_36x36x16_medium",
+      "world": "worjh2",
+      "nlons": 36,
+      "nlats": 36,
+      "nlevs": 16,
+      "ocean_cells": 20736,
+      "surface_cells": 1296,
+      "ubarsolv_work": 46656,
+      "synthetic_forcing": false,
+      "islands_in_psiles": 2,
+      "maxisles_compiled": 20,
+      "nyear": 100,
+      "ndta": 5,
+      "stability": {
+        "dt_s": 315576.0,
+        "dx_min_m": 260221.67829655638,
+        "dz_m": 312.5,
+        "courant_advective": 0.606359935240215,
+        "diffusive_horizontal": 0.00932066750486774,
+        "diffusive_vertical": 0.000323149824,
+        "diffusive_meridional": 0.002042491953227193
+      },
+      "runs": [
+        {
+          "years": 20,
+          "model_seconds": 3.726,
+          "repeats": 2,
+          "load_average_after": [
+            33.17,
+            23.65
+          ],
+          "output_bytes": 564556
+        },
+        {
+          "years": 100,
+          "model_seconds": 17.799,
+          "repeats": 2,
+          "load_average_after": [
+            43.76,
+            17.59
+          ],
+          "output_bytes": 564556
+        }
+      ],
+      "code_model": "medium",
+      "build_ok": true,
+      "build_reused": true,
+      "exe_bytes": 9123872,
+      "seconds_per_model_year": 0.1759,
+      "fixed_seconds": 0.208,
+      "from_repeat": 1,
+      "from_a_quiet_host": false,
+      "load_average_of_that_fit": 23.65,
+      "per_repeat_fits": [
+        {
+          "repeat": 0,
+          "seconds_per_model_year": 0.3869,
+          "fixed_seconds": -1.464,
+          "model_seconds": {
+            "20": 6.274,
+            "100": 37.226
+          },
+          "load_average": 43.76,
+          "contaminated": true
+        },
+        {
+          "repeat": 1,
+          "seconds_per_model_year": 0.1759,
+          "fixed_seconds": 0.208,
+          "model_seconds": {
+            "20": 3.726,
+            "100": 17.799
+          },
+          "load_average": 23.65,
+          "contaminated": true
+        }
+      ],
+      "perf": {
+        "runs": [
+          {
+            "instructions": 57792270063.0,
+            "task-clock": 5157.45,
+            "years": 20,
+            "load_average": 45.31
+          },
+          {
+            "instructions": 302680140179.0,
+            "task-clock": 19032.37,
+            "years": 100,
+            "load_average": 31.4
+          }
+        ],
+        "instructions_per_model_year": 3061098376.45,
+        "fixed_instructions": -3429697466.0,
+        "note": "retired instructions are a property of the binary and its input, not of what else the host was doing"
+      }
+    },
+    {
+      "case": "dan_72_72x72x16_probe",
+      "world": "dan_72",
+      "nlons": 72,
+      "nlats": 72,
+      "nlevs": 16,
+      "ocean_cells": 82944,
+      "surface_cells": 5184,
+      "ubarsolv_work": 373248,
+      "synthetic_forcing": true,
+      "islands_in_psiles": 2,
+      "maxisles_compiled": 20,
+      "nyear": 100,
+      "ndta": 10,
+      "stability": {
+        "dt_s": 315576.0,
+        "dx_min_m": 92325.63993770027,
+        "dz_m": 312.5,
+        "courant_advective": 1.7090377072552392,
+        "diffusive_horizontal": 0.07404390409461416,
+        "diffusive_vertical": 0.000323149824,
+        "diffusive_meridional": 0.008169967812908772
+      },
+      "runs": [
+        {
+          "years": 20,
+          "model_seconds": 20.606,
+          "repeats": 2,
+          "load_average_after": [
+            50.99,
+            23.27
+          ],
+          "output_bytes": 564531
+        },
+        {
+          "years": 100,
+          "model_seconds": 114.22,
+          "repeats": 2,
+          "load_average_after": [
+            44.78,
+            27.32
+          ],
+          "output_bytes": 564559
+        }
+      ],
+      "code_model": "medium",
+      "build_ok": true,
+      "build_reused": true,
+      "exe_bytes": 9119232,
+      "seconds_per_model_year": 1.1702,
+      "fixed_seconds": -2.797,
+      "from_repeat": 1,
+      "from_a_quiet_host": false,
+      "load_average_of_that_fit": 27.32,
+      "per_repeat_fits": [
+        {
+          "repeat": 0,
+          "seconds_per_model_year": 2.0584,
+          "fixed_seconds": -3.255,
+          "model_seconds": {
+            "20": 37.913,
+            "100": 202.583
+          },
+          "load_average": 50.99,
+          "contaminated": true
+        },
+        {
+          "repeat": 1,
+          "seconds_per_model_year": 1.1702,
+          "fixed_seconds": -2.797,
+          "model_seconds": {
+            "20": 20.606,
+            "100": 114.22
+          },
+          "load_average": 27.32,
+          "contaminated": true
+        }
+      ],
+      "perf": {
+        "runs": [
+          {
+            "instructions": 262129467386.0,
+            "task-clock": 17609.55,
+            "years": 20,
+            "load_average": 20.51
+          },
+          {
+            "instructions": 1364619004549.0,
+            "task-clock": 88714.24,
+            "years": 100,
+            "load_average": 5.5
+          }
+        ],
+        "instructions_per_model_year": 13781119214.5375,
+        "fixed_instructions": -13492916904.75,
+        "note": "retired instructions are a property of the binary and its input, not of what else the host was doing"
+      }
+    }
+  ],
+  "knowngood": {
+    "reference": "genie-knowngood/genie_eb_go_gs_knowngood/goldstein/gold_spn_av_0000000020_00.nc",
+    "build_ok": true,
+    "run_ok": true,
+    "run_seconds": 2.23,
+    "produced": true,
+    "variables_only_in_reference": [],
+    "fields": {
+      "bathymetry": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "density": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "depth": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "depth_1": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "evap": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "latent": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "latitude": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "latitude_1": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "latitude_2": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "longitude": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "longitude_1": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "longitude_2": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "netlong": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "netsolar": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "opsi": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "opsi_a": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "opsi_p": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "pptn": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "runoff": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "salinity": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "sensible": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "sic_fw": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "sic_heat": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "temp": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "time": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "uvel": {
+        "max_abs_diff": 6.855227519661518e-22,
+        "max_rel_to_field_range": 4.255063117532399e-21
+      },
+      "vvel": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      },
+      "wvel": {
+        "max_abs_diff": 0.0,
+        "max_rel_to_field_range": 0.0
+      }
+    },
+    "worst_relative": 4.255063117532399e-21
+  },
+  "biogem": {
+    "from": "configs/eb_go_gs_ac_bg_test.xml",
+    "nlons": 36,
+    "nlats": 36,
+    "nlevs": 8,
+    "tracers": 14,
+    "runs": [
+      {
+        "years": 10,
+        "model_seconds": 4.856,
+        "output_bytes": 9820973,
+        "perf": {
+          "instructions": 47553335201.0,
+          "task-clock": 5578.06
+        }
+      },
+      {
+        "years": 50,
+        "model_seconds": 25.874,
+        "output_bytes": 23805424,
+        "perf": {
+          "instructions": 238102339716.0,
+          "task-clock": 37642.53
+        }
+      }
+    ],
+    "build_seconds": 93.57,
+    "build_ok": true,
+    "seconds_per_model_year": 0.5254,
+    "fixed_seconds": -0.399,
+    "from_repeat": 0,
+    "from_a_quiet_host": false,
+    "load_average_of_that_fit": null,
+    "per_repeat_fits": [
+      {
+        "repeat": 0,
+        "seconds_per_model_year": 0.5254,
+        "fixed_seconds": -0.399,
+        "model_seconds": {
+          "10": 4.856,
+          "50": 25.874
+        },
+        "load_average": null,
+        "contaminated": null
+      },
+      {
+        "repeat": 1,
+        "seconds_per_model_year": 0.5829,
+        "fixed_seconds": -0.712,
+        "model_seconds": {
+          "10": 5.117,
+          "50": 28.434
+        },
+        "load_average": null,
+        "contaminated": null
+      }
+    ],
+    "perf": {
+      "instructions_per_model_year": 4763725112.875,
+      "fixed_instructions": -83915927.75
+    }
+  }
+}

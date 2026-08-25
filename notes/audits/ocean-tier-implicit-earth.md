@@ -8,8 +8,8 @@ here is Earth science.
 
 Audited 2026-08-24. This is OCN-12: the implicit-Earth audit applied to the
 CANDIDATE ocean tiers before either can be chosen, and it is scoping rather than
-adoption. `vendor/cgenie` is a candidate under OCN-3, nothing reads it, and it
-does not build where it stands; `references/marbl` is reference source. Nothing
+adoption. `vendor/cgenie` is a candidate under OCN-3 and nothing reads it;
+`references/marbl` is reference source. Nothing
 below proposes to adopt, wire or fix anything.
 
 **Method and vocabulary are `notes/audits/model-earth-centrism.md`'s and
@@ -532,8 +532,10 @@ a blocker, and this inventory was taken without it.
 
 ## What this audit did NOT cover
 
-- **Nothing was compiled and nothing was run.** Every claim is from source and
-  from shipped configuration. `vendor/cgenie` does not build where it stands.
+- **Nothing was compiled and nothing was run FOR THIS AUDIT.** Every claim here
+  is from source and from shipped configuration.
+  `notes/audits/cgenie-build-cost-and-grid-ceiling.md` is the separate document
+  that builds and runs it.
 - **Vesper's geothermal heat flux is bracketed, not derived.** The upper end is
   a mass-over-area scaling and the specific radiogenic content and thermal age
   are undetermined in this project.

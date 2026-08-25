@@ -274,7 +274,8 @@ references/pyrcel/pyrcel/data
 # a `.dep` beside every source file from the Python 2 dependency generator,
 # `current_config.dat` recording which base config the objects belong to, the
 # `tmp<pid>` files `genie.job` hands to xsltproc, and the configs
-# `analysis/cgenie_cost.py` generates per grid. This list was written from an
+# `analysis/cgenie_cost.py` generates per grid, per stability sweep and per
+# verification against genie-knowngood. This list was written from an
 # actual build; it previously said objects and one executable, which was read
 # off the ignore rules rather than observed, because until `netcdf-fortran`
 # was installed no build got far enough to disprove it.
@@ -285,6 +286,8 @@ vendor/cgenie/genie-main/genie.exe
 vendor/cgenie/genie-main/current_config.dat
 vendor/cgenie/genie-main/tmp*
 vendor/cgenie/genie-main/configs/bench_*.xml
+vendor/cgenie/genie-main/configs/stab_*.xml
+vendor/cgenie/genie-main/configs/verify_*.xml
 
 # SHTns is a build dependency used UNMODIFIED, so it is neither a subtree nor a
 # system install: exoplasim/scripts/build_shtns.sh builds a pinned revision into

@@ -265,8 +265,8 @@ vendor/exoplasim/      ExoPlaSim fork, git subtree. THE model source: edited her
 vendor/lpj-guess/      LPJ-GUESS CNP fork, git subtree. The Vesper input and
                        calendar port compile directly from this tree.
 vendor/cgenie/         cGENIE.muffin, git subtree. The CANDIDATE offline ocean under
-                       OCN-3, not an adopted component: nothing reads it yet, and it
-                       does not build where it stands. See vendored-upstreams.md.
+                       OCN-3, not an adopted component: it builds and runs here, and
+                       nothing reads it. See vendored-upstreams.md.
 vendor/lpjml/          LPJmL, git subtree. NOT the biosphere and NOT a replacement for
                        lpj-guess: a different model in the same family, vendored because
                        the intended work is fork-shaped. Nothing reads it yet.
