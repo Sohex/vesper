@@ -83,6 +83,13 @@ pass `--model-binaries` when the worktree does not touch the model. Regenerable
 output is not linked either, for the narrower reason that the worktree's build
 would land in the main checkout.
 
+`exoplasim/bench` IS linked, as a wholly-ignored directory, and the transform
+gates work inside it. Each one opens by deleting its own subdirectory there, so
+two worktrees running the same gate delete each other's work. Every gate that
+does this takes an environment variable naming somewhere else instead --
+`BANDED_WORK`, `SHTNSMODEL_WORK`, `TNUMERICS_WORK`, `WFCHECK_WORK`,
+`GAUSSWEIGHTS_WORK` -- and a worktree sets the one it needs.
+
 `.venv` IS linked, and ExoPlaSim is installed editable from the main checkout's
 `vendor/exoplasim`. So `import exoplasim` in a worktree reads the main
 checkout's model source whichever tree the interpreter was invoked from. That is

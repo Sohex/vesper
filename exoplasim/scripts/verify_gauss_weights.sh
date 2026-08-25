@@ -43,7 +43,12 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
 SRC="$REPO/vendor/exoplasim/exoplasim/plasim/src"
-WORK="$REPO/exoplasim/bench/_gaussweights"
+# exoplasim/bench/_gaussweights, or wherever GAUSSWEIGHTS_WORK points. A git worktree
+# reaches exoplasim/bench through a symlink into the MAIN checkout, which
+# every worktree shares, so a worktree that runs this without setting the
+# variable deletes and rewrites work another one is using -- this script
+# opens with `rm -rf "$WORK"`.
+WORK="${GAUSSWEIGHTS_WORK:-$REPO/exoplasim/bench/_gaussweights}"
 TOL=1e-12       # weights, relative
 NODETOL=1e-15   # nodes, ABSOLUTE: they pass through zero
 SUMTOL=1e-15

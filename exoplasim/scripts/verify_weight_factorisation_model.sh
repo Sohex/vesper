@@ -42,7 +42,12 @@ BUILD="$REPO/.venv/bin/python $REPO/exoplasim/scripts/build_model.py"
 SRC="$PKG/plasim/src"
 low="$(echo "$res" | tr 'A-Z' 'a-z')"
 name="most_plasim_${low}_l10_p${ranks}.x"
-WORK="$REPO/exoplasim/bench/_wfcheck"
+# exoplasim/bench/_wfcheck, or wherever WFCHECK_WORK points. A git worktree
+# reaches exoplasim/bench through a symlink into the MAIN checkout, which
+# every worktree shares, so a worktree that runs this without setting the
+# variable deletes and rewrites work another one is using -- this script
+# opens with `rm -rf "$WORK"`.
+WORK="${WFCHECK_WORK:-$REPO/exoplasim/bench/_wfcheck}"
 TOL=1e-10
 
 require_settled_bed "$bed"

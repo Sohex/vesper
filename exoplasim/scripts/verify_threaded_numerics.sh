@@ -97,7 +97,12 @@ REPO="$(cd "$HERE/../.." && pwd)"
 PKG="$REPO/vendor/exoplasim/exoplasim"
 BUILD="$REPO/.venv/bin/python $REPO/exoplasim/scripts/build_model.py"
 SRC="$PKG/plasim/src"
-WORK="$REPO/exoplasim/bench/_tnumerics"
+# exoplasim/bench/_tnumerics, or wherever TNUMERICS_WORK points. A git worktree
+# reaches exoplasim/bench through a symlink into the MAIN checkout, which
+# every worktree shares, so a worktree that runs this without setting the
+# variable deletes and rewrites work another one is using -- this script
+# opens with `rm -rf "$WORK"`.
+WORK="${TNUMERICS_WORK:-$REPO/exoplasim/bench/_tnumerics}"
 
 require_settled_bed "$bed"
 require_bed_grid "$bed" "$res"
