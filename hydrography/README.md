@@ -169,6 +169,8 @@ season's supply twice. `config/land_water_ledger.yaml` declares that omission as
 `seasonal_phase_of_catchment_delivery`.
 
 **The cycle crosses to regions the same way the annual solve does.**
+`surface_water.py --selftest` runs the crossing's checks against synthetic
+basins and needs no build and no climatology.
 `paint_lake_cycle` runs `paint_lakes`'s fill once per bin against that bin's own
 lake area, so the crossing is one operation and not a second implementation of
 it -- the selftest holds it to reproducing the annual paint region for region

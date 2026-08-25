@@ -270,6 +270,14 @@ steps:
     cost: minutes
     needs: [hydrography, bootstrap_climatology, land_water_ledger]
     writes: ["hydrography/data/{build}/surface_water.nc", hydrography/analysis/surface_water_report.json]
+    gate: >
+      solves the lake balance twice, as an annual equilibrium and as a periodic
+      steady state through the climatology's own time bins, and paints both onto
+      regions. `basin_cycle_closed` and `lake_cycle_decided` are read BEFORE the
+      per-bin fields they qualify: a refused basin is not painted, so a zero is
+      otherwise ambiguous between dry all year and never solved. `--selftest`
+      runs the crossing's identity checks against the annual paint and needs no
+      build and no climatology
 
   - id: topographic_index
     reads_export: true
