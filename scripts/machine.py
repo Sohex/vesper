@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+"""Who has the machine, and is it quiet enough to time something on.
+
+Wall clock, throughput and per-step cost are measurements of a MACHINE STATE as
+much as of a model. This project runs many agents at once on one host, so a
+timing taken while someone else is integrating is not a slow number, it is a
+number of a different experiment. Three separate measurements were contaminated
+that way in one session before this file existed.
+
+    python scripts/machine.py --check                 # may I start heavy work?
+    python scripts/machine.py --claim "spat-11 wall arms" --minutes 30
+    python scripts/machine.py --release
+
+A CLAIM IS ADVISORY AND THAT IS DELIBERATE. Nothing here can stop a process, and
+a hard lock would strand the machine whenever an agent died holding it. What it
+does is make the state VISIBLE and give a claim an expiry, so the failure mode is
+a stale claim someone can see and override rather than an invisible collision.
+
+Claim before a timing measurement. Check before anything heavy. A claim says
+"my numbers are worthless if you start now"; it does not say "do not use the
+machine" -- work that is not timing-sensitive may contend freely and should say
+so when it starts.
+"""
+import argparse, json, os, time
+from pathlib import Path
+
+# OUTSIDE THE REPOSITORY, DELIBERATELY. Every fan-out agent works in its own git
+# worktree, so a claim file under the project root would be a DIFFERENT file for
+# each of them and would coordinate nothing -- which is the one failure mode this
+# exists to prevent. One host, one path, shared by every worktree and every
+# session.
+CLAIM = Path("/tmp/vesper-machine-claim.json")
+# Above this, a timing measurement is not worth taking: the host has 32 logical
+# cores and the model runs 16 threads, so one integration is load ~16 on its own.
+QUIET_LOAD = 4.0
+
+
+def _read():
+    if not CLAIM.is_file():
+        return None
+    try:
+        c = json.loads(CLAIM.read_text())
+    except Exception:
+        return None
+    if time.time() > c.get("expires_at", 0):
+        return None                      # expired claims are not claims
+    return c
+
+
+def check(verbose=True):
+    load1 = os.getloadavg()[0]
+    c = _read()
+    if verbose:
+        print(f"load {load1:.2f} over {os.cpu_count()} logical cores")
+        if c:
+            left = (c["expires_at"] - time.time()) / 60.0
+            print(f"CLAIMED by {c['who']} for {c['purpose']!r}, {left:.0f} min left")
+            print("  A timing measurement is in progress. Starting heavy work now")
+            print("  invalidates it. Wait, or say in your report that you contended.")
+        else:
+            print("unclaimed")
+        if load1 > QUIET_LOAD:
+            print(f"  NOT QUIET: load {load1:.2f} is above {QUIET_LOAD}. Do not take a")
+            print("  wall-clock number here. Retired instructions under")
+            print("  OMP_WAIT_POLICY=passive survive this; wall clock does not.")
+        else:
+            print("  quiet enough to time")
+    return 1 if (c or load1 > QUIET_LOAD) else 0
+
+
+def claim(who, purpose, minutes):
+    c = _read()
+    if c:
+        print(f"REFUSED: already claimed by {c['who']} for {c['purpose']!r}")
+        return 1
+    CLAIM.write_text(json.dumps({
+        "who": who, "purpose": purpose,
+        "claimed_at": time.time(), "expires_at": time.time() + minutes * 60,
+        "load_at_claim": os.getloadavg()[0],
+    }, indent=1))
+    print(f"claimed for {minutes} min at load {os.getloadavg()[0]:.2f}: {purpose}")
+    print("RECORD THE LOAD WITH YOUR NUMBERS. A timing without the machine state")
+    print("it was taken under cannot be compared against a later one.")
+    return 0
+
+
+def release():
+    if CLAIM.is_file():
+        CLAIM.unlink()
+        print("released")
+    return 0
+
+
+if __name__ == "__main__":
+    p = argparse.ArgumentParser(description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--check", action="store_true")
+    p.add_argument("--claim", metavar="PURPOSE")
+    p.add_argument("--who", default=os.environ.get("CLAUDE_AGENT", "unnamed"))
+    p.add_argument("--minutes", type=int, default=30)
+    p.add_argument("--release", action="store_true")
+    a = p.parse_args()
+    if a.claim:
+        raise SystemExit(claim(a.who, a.claim, a.minutes))
+    if a.release:
+        raise SystemExit(release())
+    raise SystemExit(check())

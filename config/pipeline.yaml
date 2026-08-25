@@ -1216,6 +1216,11 @@ one_offs:
   # naming one artifact would give `--purge` two answers. `--plan` names it
   # after every step the map is reachable from.
   - maps/snapshot.py
+  # Reports the host's load and who has claimed it, and writes only a claim file
+  # OUTSIDE the repository. It is not a step because it produces nothing the
+  # pipeline reads and nothing `--purge` should ever delete; it is here so the
+  # generator gate can see that its absence from the graph is deliberate.
+  - scripts/machine.py
   - exoplasim/scripts/corrk_cross_check.py
   - exoplasim/scripts/shtns_variant_sweep.py
   - exoplasim/scripts/build_pyfft.py

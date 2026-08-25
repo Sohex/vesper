@@ -122,6 +122,19 @@ The arguments and the incidents behind these are in
   column alignment. They get copied out.
 - Every run and analysis product records its provenance (config hash, input
   hashes, software versions) in JSON. Keep that up when adding steps.
+- **One host, many agents: claim it before timing anything.**
+  `python scripts/machine.py --check` before starting heavy work,
+  `--claim "<purpose>" --minutes N` before taking a wall-clock, throughput or
+  per-step cost number, `--release` after. A timing is a measurement of a
+  MACHINE STATE as much as of a model, and this project runs many agents on one
+  host, so a number taken while someone else is integrating is not a slow
+  number, it is a number of a different experiment. Record the load beside any
+  timing you keep; one without the machine state it was taken under cannot be
+  compared against a later one. The claim file is deliberately outside the
+  repository, because each fan-out agent works in its own worktree and an
+  in-tree file would coordinate nothing. Where you can, price work in something
+  the scheduler cannot move -- retired instructions under
+  `OMP_WAIT_POLICY=passive` survive contention that wall clock does not.
 - **A thread team's working set on one die targets 32 MB**, counting one copy
   per thread for anything threadprivate. Above it is a regression even when
   this machine gets faster: 32 MB is CCD1 here and is what a part without
