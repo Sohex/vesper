@@ -789,9 +789,12 @@ catena:
   # doubles when the region count quadruples while the terrain converges
   # (WORLD-UYFB, `analysis/subgrid_slope_support.py`). Thirty kilometres is
   # above Orogen's measured ~20 km terrain-information floor, below which the
-  # generator designs no terrain and a shorter run reports mesh texture, and it
-  # is the same baseline `vendor/orogen/js/terrain-config.js` fixes for scarp
-  # relief, so the project quotes terrain gradients over one length.
+  # generator designs no terrain and a shorter run would report mesh texture.
+  # It is a unit for the spread and not a sampling length: what has to transport
+  # here is the within-cell spread, and that is measured converged to 1.069x
+  # between this project's two builds. A statistic that SAMPLES the 15 to 30 km
+  # band does not converge, which is why the scarp relief term next door
+  # declares 90 km instead.
   gradient_baseline_km: 30.0
   # Fines are shed preferentially, so what survives on a slope is coarser. This
   # is the fraction of the clay excess over the sand that migrates per unit
