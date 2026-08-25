@@ -189,9 +189,19 @@ void nitrification(Patch& patch, Soil& soil) {
 
 	double wfps = soil.wfps(0);
 
-	// nit_act, the water response multiplying the table 8 eqn 1 rate. It is the
-	// smaller of a rising exponential and the falling line 4 - 5w, so it peaks
-	// at exactly 1.0 at 0.6 and is exactly zero at and above 0.8.
+	// nit_act, the water response multiplying the table 8 eqn 1 rate: a rising
+	// exponential in water-filled pore space, held at 1.0 from 0.6 upwards.
+	//
+	// DECLARED DIVERGENCE FROM MAINLINE, owner world-i2ch. Stock LPJ-GUESS
+	// 4.1.1 reads
+	//     double act_wet = max(0.0,4.0-5.0*wcont);
+	//     double nit_act = min(act_dry,act_wet);
+	// so mainline multiplies the rising limb by a falling line, peaking at
+	// exactly 1.0 at 0.6 and holding exactly zero at and above 0.8: the
+	// simulated operator stops nitrifying entirely on any gridcell wetter than
+	// that. The falling limb is what is gone; the rising limb is unchanged and
+	// the min(1.0, .) is what keeps the factor inside [0,1] now that nothing
+	// crosses it there.
 	//
 	// The argument is water-filled pore space. Xu-Ri and Prentice (2008) table
 	// 8 eqn 1 has no moisture term at all, so it settles nothing here; the
@@ -208,26 +218,37 @@ void nitrification(Patch& patch, Soil& soil) {
 	// substrate_partition carried before world-b2i2. Every moisture response in
 	// this operator now reads Soil::wfps(0).
 	//
-	// The SHAPE is a separate question and that paper does not settle it. Fig.
-	// 1's nitrification trace is Greaves and Carter (1920) replotted, not Linn
-	// and Doran's own measurement -- they measured CO2 and N2O and state they
-	// "did not determine if N2O production resulted from microbial
-	// nitrification ... or denitrification" (p.1271). Against that trace the
-	// rising limb here runs about 40 per cent low over 0.1 to 0.5 WFPS, and the
-	// falling limb reaches zero at 0.8 where the trace is still near 0.1 and
-	// where no datum lies beyond. The 0.8 that appears in that paper is
-	// Nommik's threshold for significant DENITRIFICATION loss, not a point at
-	// which nitrification stops. Whether the curve should be here at all is a
-	// structural question about this operator rather than about the curve:
-	// fig. 1 attributes the decline above 0.6 to aeration, which
-	// substrate_partition already applies by handing this function only
-	// NH4_mass_d. All of that is registered in biosphere/config/ntransform.yaml
-	// and refused by biosphere/scripts/ntransform_gate.py --strict.
+	// WHY THE FALLING LIMB IS GONE. Fig. 1's nitrification trace is not Linn
+	// and Doran's own measurement -- they measured CO2, O2 and N2O and state
+	// they "did not determine if N2O production resulted from microbial
+	// nitrification ... or denitrification" (p.1271) -- it is Greaves and
+	// Carter (1920) fig. 2 replotted, and that primary source refuses the
+	// falling limb on its own terms. Greaves and Carter incubated 22 soils at
+	// 10 to 100 per cent of water-holding capacity and report the mean nitric
+	// nitrogen formed, normalised to the 60 per cent treatment, as 10.9, 16.9,
+	// 30.6, 61.9, 86.0, 100.0, 39.5 and 9.6 at 10 to 80 per cent WHC. It is
+	// 9.6 per cent of the peak where mainline's falling limb is exactly zero,
+	// and their only zero is at 100 per cent WHC, saturation, which this
+	// model's upper layer cannot reach because wcont is bounded by field
+	// capacity. Their optimum is 50 or 60 per cent WHC on 20 of the 22 soils.
+	// So no single linear map from their axis to WFPS gives the mainline curve
+	// both its peak at 0.6 and its zero at 0.8: the peak needs 100 per cent WHC
+	// to be 1.0 WFPS and the zero needs it to be 0.8.
+	//
+	// The rising limb is a different half and it stays. Fig. 1 labels it WATER
+	// LIMITING and the falling limb AERATION LIMITING, and aeration is the
+	// control substrate_partition already applies by handing this function only
+	// NH4_mass_d -- so the falling limb applied it twice, while nothing else in
+	// this operator limits nitrification as the soil dries, the partition's
+	// aerobic share GROWING as it does. The magnitude of the wet-end decline is
+	// now the partition's alone, and world-nga8 owns its shape. What remains
+	// unsettled here is the rising limb's own constants, which world-xmiq owns:
+	// registered in biosphere/config/ntransform.yaml and refused by
+	// biosphere/scripts/ntransform_gate.py --strict.
 	double b = log(3.0) * 5.0;
 	double a = exp(-b*6.0/10.0);
 	double act_dry = a*exp(wfps*b);
-	double act_wet = max(0.0,4.0-5.0*wfps);
-	double nit_act = min(act_dry,act_wet);
+	double nit_act = min(1.0,act_dry);
 
 	double f_nit_T, no3_inc, no_inc, n2o_inc, gross_nitrif;
 	double soil_T = soil.get_soil_temp_25();
