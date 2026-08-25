@@ -248,17 +248,38 @@ prediction of measured speedup: Amdahl's law is an upper bound and says nothing
 about memory bandwidth, synchronisation or load imbalance across a land-sea mask.
 
 **The bound at 36 x 36 is not the bound at 144 x 144, and the trend is measured
-rather than assumed.** The serial share rose from 1.84 to 2.60 per cent for a
-doubling, a factor of 1.41. In absolute terms `ubarsolv` went from 5.53e5 to
-3.51e6 instructions per ocean timestep, a factor of 6.34 where the loop bounds
-predict 7.79 -- the shipped grid pays more per band element because its inner
-loops are shorter. Continuing the measured 1.41 per doubling puts the serial
-share near 3.7 per cent at 144 x 144 and 5.2 per cent at 288 x 288, so with the
-heap traffic removed a sixteen-thread bound falls from 12.5 to about 10.3 and
-then about 8.3. **The serial fraction grows, and it does not become the binding
-constraint anywhere below muffingen's declared 72 ceiling or at twice it.** What
-binds first is the r^4 in the timestep, which threads do not touch, and that is
-OCN-20's territory rather than OCN-19's.
+rather than assumed.** Two corrections have to be made before the two grids can
+be compared, and both are stated rather than folded in.
+
+The two profiles ran at different `ndta`, 5 and 10, because that is what EMBM's
+stability demanded at each grid, and `tstipa` and the `embm` driver run once per
+EMBM step where everything else runs once per ocean step. So EMBM is
+double-weighted at 72 x 72 and every ocean share there is diluted. Rescaling the
+doubled grid to `ndta = 5` puts `ubarsolv` at 2.81 per cent rather than 2.57,
+and the share therefore grows by **1.53 per doubling** rather than the 1.41 the
+raw numbers give.
+
+In absolute terms `ubarsolv` went from 5.53e5 to 3.51e6 instructions per ocean
+timestep, a factor of 6.34 where its loop bounds predict 7.79. Everything else
+scaled as cell count predicts -- the rescaled total ratio is 4.13 against 4.00 --
+so the whole of the deviation is in `ubarsolv` itself, and it is what a short
+inner loop costs: the shipped grid's band is 37 wide against 73, so it amortises
+its per-element overhead over half as much work. That overhead does not grow, so
+the asymptotic behaviour is the r^3 the loop bounds give, and the share ratio
+approaches 2.0 rather than staying at 1.53.
+
+Both readings, applied to the 2.81 per cent the doubled grid corrects to:
+
+| grid | serial share, at the measured 1.53 | at the asymptotic 2.0 | sixteen-thread bound, heap removed |
+| --- | ---: | ---: | --- |
+| 72 x 72 x 16 | 2.8% | 2.8% | 11.3 |
+| 144 x 144 x 16 | 4.3% | 5.6% | 8.7 to 9.7 |
+| 288 x 288 x 16 | 6.6% | 11.2% | 6.0 to 8.0 |
+
+**The serial fraction grows, and it does not become the binding constraint
+anywhere below muffingen's declared 72 ceiling or at twice it.** What binds first
+is the r^4 in the timestep, which threads do not touch, and that is OCN-20's
+territory rather than OCN-19's.
 
 ---
 
