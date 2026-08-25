@@ -177,6 +177,42 @@
       end subroutine get_restart_array
 
 
+!     ============================
+!     SUBROUTINE HAS_RESTART_ARRAY
+!     ============================
+
+!     DOES THE FILE CARRY THIS RECORD? world-onw8.
+!
+!     The `get_restart_*` readers above leave their argument ALONE when the
+!     name is absent and nexcheck is 0, which reads like a caller can pre-set a
+!     sentinel and test it afterwards. For a scalar on NROOT that holds. For a
+!     gridpoint field it does not: `mpgetgp` reads into a buffer of its own and
+!     scatters that buffer into the caller's array whatever happened, so a
+!     sentinel written into the caller's array is destroyed by the very call
+!     that was supposed to leave it alone. The caller has to be TOLD, and this
+!     is what tells it. `mpgetgp_found` is the collective wrapper.
+!
+!     Scans the same `yresnam(1:nresnum)` the readers scan and reads nothing,
+!     so it is safe under any nexcheck. Both are threadprivate and only NROOT
+!     has opened the restart, so call this on NROOT and broadcast the answer.
+
+      subroutine has_restart_array(yn,kfound)
+      use restartmod
+
+      character (len=*) :: yn
+      integer :: kfound
+
+      kfound = 0
+      do j = 1 , nresnum
+         if (trim(yn) == trim(yresnam(j))) then
+            kfound = 1
+            return
+         endif
+      enddo
+      return
+      end subroutine has_restart_array
+
+
 !     ===========================
 !     SUBROUTINE GET_RESTART_SEED
 !     ===========================
