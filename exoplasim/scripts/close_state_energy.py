@@ -66,16 +66,22 @@ ACPV = 1870.0        # plasimmod.f90: specific heat of water vapour, J/kg/K
 ALV = 2.5008e6       # plasimmod.f90: latent heat of vaporisation, J/kg
 ALS = 2.8345e6       # plasimmod.f90: latent heat of sublimation, J/kg
 ALF = ALS - ALV      # fusion
-# SEA WATER IS READ, NOT WRITTEN DOWN. Density and specific heat are icemod_nl
-# keys that icemod passes to oceanini, so oceanmod does not own them and a run
-# can set them. The literals that stood here said 1030 and 4180, and 4180 is
-# fresh water at about 25 C, which the model left behind for sea water's value
-# at S = 34.7 and its freezing point. Every mixed-layer heat content built from
-# the pair was too large by their ratio, and assess_convergence.py imports these
-# two names to build the slab capacity its convergence verdict rests on.
-_SEA_WATER = sea_water.constants()
-CRHOS = _SEA_WATER["CRHOS"]   # icemod.f90/icemod_nl: density of sea water, kg/m3
-CPS = _SEA_WATER["CPS"]       # icemod.f90/icemod_nl: specific heat, J/kg/K
+# SEA WATER IS READ PER RUN, NOT WRITTEN DOWN AND NOT READ ONCE. Density and
+# specific heat are icemod_nl keys that icemod passes to oceanini, so oceanmod
+# does not own them and A RUN CAN SET THEM -- every run this project makes does,
+# and the values it writes are not the compiled defaults. The literals that
+# stood here said 1030 and 4180, and 4180 is fresh water at about 25 C, which
+# the model left behind for sea water's value at S = 34.7 and its freezing
+# point.
+#
+# READING THEM AT IMPORT IS THE SAME DEFECT POINTING BACKWARDS. `constants()`
+# with no run directory returns what `icemod.f90` declares TODAY, so a run
+# integrated before the model moved CPS gets its heat content rebuilt at a
+# capacity the run never used. The model's CPS moved by 4.54 per cent on one
+# commit, and every artifact made from a run older than it would carry that as
+# a silent rescale of the storage term the convergence criterion passes on.
+# `sea_water.constants(run_dir)` reads the run's own `icemod_namelist` first,
+# so the capacity is the one that run integrated with.
 CRHOI = 920.0        # oceanmod.f90: density of sea ice, kg/m3
 TMELT = 273.16       # icemod.f90: freezing point
 SOILCAP = 2.4e6      # landmod.f90: soil heat capacity, J/m3/K
@@ -113,7 +119,8 @@ def global_mean(field: np.ndarray, weights: np.ndarray) -> np.ndarray:
     return np.sum(field * weights[..., None], axis=(-2, -1)) / (2.0 * field.shape[-1])
 
 
-def heat_content(nc: Dataset, gravity: float, acpd: float) -> dict[str, np.ndarray]:
+def heat_content(nc: Dataset, gravity: float, acpd: float,
+                 crhos: float, cps: float) -> dict[str, np.ndarray]:
     """Planetary heat content per unit area, J/m2, per output bin.
 
     Reference level is arbitrary and cancels in the time derivative; what has to
@@ -148,7 +155,7 @@ def heat_content(nc: Dataset, gravity: float, acpd: float) -> dict[str, np.ndarr
     # layer, which sits at freezing. Sea ice is a small fraction here but the
     # ice-surface temperature is not a small perturbation on it.
     sea_ice = read("sic")
-    mixed_layer = (CRHOS * CPS * read("mld")
+    mixed_layer = (crhos * cps * read("mld")
                    * ((1.0 - sea_ice) * ts + sea_ice * TMELT) * ocean)
     ice = -ALF * CRHOI * read("sit") * sea_ice * ocean
     snow = -ALF * RHO_WATER * read("snd")
@@ -183,6 +190,12 @@ def state_energy(run_dir: Path, first: int, last: int) -> dict:
                          "GSOL0 and ECCEN; this run cannot be closed against itself")
     acpd = gascon / AKAP_DEFAULT
 
+    # THIS RUN's sea water, not the compiled model's. Every run written by
+    # `run_exoplasim.py` sets CRHOS, CPS, TFREEZE and CLFI in its own
+    # `icemod_namelist`, and a run older than a change to `icemod.f90` must be
+    # closed at the capacity it integrated with, not at today's.
+    water = sea_water.constants(run_dir)
+
     manifest_path = run_dir / "run_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
     _days = manifest.get("derived_parameters", {}).get("orbital_year_earth_days")
@@ -199,7 +212,8 @@ def state_energy(run_dir: Path, first: int, last: int) -> dict:
         with Dataset(path) as nc:
             weights = leggauss(len(nc.dimensions["lat"]))[1][::-1]
             record = {"orbit": index}
-            content = heat_content(nc, gravity, acpd)
+            content = heat_content(nc, gravity, acpd,
+                                   water["CRHOS"], water["CPS"])
             for name in reservoirs:
                 record[name] = float(global_mean(content[name], weights).mean())
             for name in fluxes:
@@ -241,6 +255,12 @@ def state_energy(run_dir: Path, first: int, last: int) -> dict:
         "orbit_seconds": orbit_seconds,
         "planet_namelist": {"GA": gravity, "GASCON": gascon,
                             "GSOL0": solar_constant, "ECCEN": eccentricity},
+        # The mixed layer's heat capacity is CRHOS * CPS * mld, and the storage
+        # term the convergence criterion passes on is linear in it. Recorded so
+        # an artifact can be checked against the run without re-deriving it:
+        # every energy artifact made before this key existed had to be dated
+        # against the model's own history to find out what it used.
+        "sea_water": water,
         "storage_w_m2_least_squares": storage_fit,
         "storage_w_m2_endpoint": storage_endpoint,
         "mean_toa_w_m2": mean_toa,
@@ -300,6 +320,12 @@ def main() -> None:
                    "orbits": len(per_orbit), "orbit_seconds": orbit_seconds},
         "planet_namelist": {"GA": gravity, "GASCON": gascon,
                             "GSOL0": solar_constant, "ECCEN": eccentricity},
+        # The mixed layer's heat capacity is CRHOS * CPS * mld, and the storage
+        # term the convergence criterion passes on is linear in it. Recorded so
+        # an artifact can be checked against the run without re-deriving it:
+        # every energy artifact made before this key existed had to be dated
+        # against the model's own history to find out what it used.
+        "sea_water": c["sea_water"],
         "state_energy_closure": {
             "identity": "d(planetary heat content)/dt = mean net TOA radiation",
             "storage_w_m2_least_squares": storage_fit,
@@ -320,9 +346,10 @@ def main() -> None:
             # planet, so the divisor is the global-mean mixed-layer depth.
             "mixed_layer_drift_k_per_orbit": float(
                 np.polyfit(orbits, series["mixed_layer"], 1)[0]
-                / (CRHOS * CPS * series["mld"].mean())),
+                / (c["sea_water"]["CRHOS"] * c["sea_water"]["CPS"] * series["mld"].mean())),
             "mixed_layer_drift_implied_by_toa_k_per_orbit": float(
-                mean_toa * orbit_seconds / (CRHOS * CPS * series["mld"].mean())),
+                mean_toa * orbit_seconds
+                / (c["sea_water"]["CRHOS"] * c["sea_water"]["CPS"] * series["mld"].mean())),
         },
         "insolation_closure": {
             "identity": "<rst - rsut> = GSOL0 / (4 sqrt(1 - e^2))",

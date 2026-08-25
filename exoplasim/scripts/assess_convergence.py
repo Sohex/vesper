@@ -31,6 +31,8 @@ from numpy.polynomial.legendre import leggauss
 
 from _paths import ANALYSIS
 import close_state_energy
+# lib/sea_water.py owns the four numbers salinity reaches the model through.
+import sea_water
 # CLAUDE.md names lib/autocorrelation.py as the one place a standard error is
 # taken over a series with memory. Consecutive orbits of this model are not
 # independent samples, and every uncertainty here that was scaled as though
@@ -121,14 +123,32 @@ def orbits_for_slope_standard_error(scatter: float, tau: float,
 # on, so neither may be a number typed in beside the code that uses it.
 #
 # THE SLAB IS MODELLING THE MODEL'S OWN MIXED LAYER, so it takes the model's own
-# sea water. `close_state_energy.py` reads CRHOS and CPS off `oceanmod.f90` and
-# is imported here already; the 1025 and 3990 that stood here were 0.5% and 4.6%
-# off them, uncited, and in the same direction.
+# sea water -- and it takes it FROM THE RUN BEING ASSESSED. The 1025 and 3990
+# that stood here were uncited and 0.5% and 4.6% off the model.
+#
+# It cannot be a module constant. `sea_water.constants()` with no run directory
+# returns what `icemod.f90` declares today, and the model's CPS has already
+# moved once, by 4.54 per cent. Assessing a run older than that change against
+# today's declaration rescales `tau_expected`, which sets the fallback remaining
+# offset, which is what `OFFSET_TOLERANCE_K` fails a run on -- so a constant
+# read at import turns a model change into a silent re-verdict on every run that
+# predates it. Every run this project writes declares all four keys in its own
+# `icemod_namelist`, so the run's own value is always available.
 import yaml as _yaml
 _MLD = float(_yaml.safe_load(
     (Path(__file__).resolve().parents[2] / "config" / "planet.yaml")
     .read_text(encoding="utf-8"))["surface"]["mixed_layer_depth_m"])
-SLAB_HEAT_CAPACITY = _MLD * close_state_energy.CRHOS * close_state_energy.CPS
+
+
+def slab_heat_capacity(run_dir: Path) -> tuple[float, dict]:
+    """The mixed layer's heat capacity per square metre, and the sea water it used.
+
+    `_MLD` is the configured design depth of the ocean mixed layer, which is
+    what an equilibration time is a property of; `CRHOS` and `CPS` come from the
+    run. Returns both so the assessment can record what it was built from.
+    """
+    water = sea_water.constants(run_dir)
+    return _MLD * water["CRHOS"] * water["CPS"], water
 
 
 # THE WINDOW, DERIVED RATHER THAN PICKED.
@@ -219,7 +239,8 @@ CONVERGENCE_LENGTHS = {
 }
 
 
-def relaxation_orbits(orbital_year_days: float, feedback_w_m2_k: float) -> float:
+def relaxation_orbits(orbital_year_days: float, feedback_w_m2_k: float,
+                      slab_heat_capacity_j_m2_k: float) -> float:
     """Orbits for an e-folding of the slab's approach to equilibrium.
 
     `feedback_w_m2_k` is the radiative damping, and it comes from
@@ -229,7 +250,8 @@ def relaxation_orbits(orbital_year_days: float, feedback_w_m2_k: float) -> float
     W/m2/K commented "measured, not assumed" with nothing saying where, 11%
     above what the module's own slope implies.
     """
-    return (SLAB_HEAT_CAPACITY / feedback_w_m2_k) / (orbital_year_days * 86400.0)
+    return ((slab_heat_capacity_j_m2_k / feedback_w_m2_k)
+            / (orbital_year_days * 86400.0))
 
 
 def approach_to_equilibrium(orbits: np.ndarray, series: np.ndarray,
@@ -428,7 +450,8 @@ def main() -> None:
     window_alpha = planetary_albedo_from_fluxes(
         float(arrays["rst"][-w:].mean()), float(arrays["rsut"][-w:].mean()))
     feedback_w_m2_k = radiative_damping_w_m2_per_k(window_alpha)
-    tau_expected = relaxation_orbits(year_days, feedback_w_m2_k)
+    slab_capacity, slab_water = slab_heat_capacity(run_dir)
+    tau_expected = relaxation_orbits(year_days, feedback_w_m2_k, slab_capacity)
     orbits_axis = np.arange(len(arrays["ts"]), dtype=float)
     asymptote, half_width, tau_fit = approach_to_equilibrium(orbits_axis, arrays["ts"])
     offset = asymptote - metrics["temperature_mean_k"]
@@ -471,7 +494,12 @@ def main() -> None:
         # audited without re-deriving it. lib/sensitivity.py owns the damping.
         "planetary_albedo_in_window": window_alpha,
         "radiative_damping_w_m2_per_k": feedback_w_m2_k,
-        "slab_heat_capacity_j_m2_k": SLAB_HEAT_CAPACITY,
+        "slab_heat_capacity_j_m2_k": slab_capacity,
+        # Which sea water, and whether it came from the run or the
+        # compiled model. An artifact that does not say cannot be
+        # checked against the run it describes.
+        "slab_sea_water": slab_water,
+        "slab_mixed_layer_depth_m": _MLD,
         "remaining_offset_implied_by_drift_k":
             metrics["temperature_slope_k_per_orbit"] * tau_expected,
         # The slope errors, with the residual memory in them. Reported for

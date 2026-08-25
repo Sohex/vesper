@@ -1070,6 +1070,82 @@ property of the geography and it changes with every build and every carve.
 - The segment is at one rung. The instrument takes `--rung` and the argument is
   rung-independent, but only T42 has been run.
 
+### 11f. Which artifacts on disk carried the copied pair, and what it moved
+
+*Checked 2026-08-25 against the artifacts themselves rather than against the
+history above. The answer is not the one 11d implies.*
+
+**No artifact on disk was computed with the 4.75 per cent oversized capacity.**
+The defect was real in the code and it is worth the fix it got, but the window
+in which it could reach an artifact was narrow and nothing fell in it. The two
+artifact families fail the charge for different reasons and each is checkable
+from the file.
+
+**The five `exoplasim/analysis/convergence/*.json` never imported the pair at
+all.** Each records `relaxation_orbits_expected` = 9.8833, identical across all
+five, and that number is `50 * 1025 * 3990 / (1.31 * 182.8 * 86400)`: the
+uncited pair that stood in `assess_convergence.py` before it read anything from
+`lib`, with the private 1.31 W/m2/K beside it. The copied pair would give
+10.4045 and the model's own gives 9.9324. All five also lack
+`slab_heat_capacity_j_m2_k`, `radiative_damping_w_m2_per_k` and
+`planetary_albedo_in_window`, which are keys the import added, so they predate
+it on their own evidence. The capacity they used is 0.49 per cent BELOW the
+model's, not 4.75 per cent above.
+
+**No convergence verdict moves under the correction.** Two of the five took
+their offset from the fitted asymptote, which does not use `tau_expected` at
+all. The other three took the drift fallback, where the criterion quantity is
+`2 * |slope| * tau_expected` and is linear in the capacity:
+
+| run | criterion quantity as stored | corrected | tolerance |
+| --- | ---: | ---: | ---: |
+| run_2b20e3324bb0 | 0.10645 | 0.10698 | 0.15 |
+| run_78c22fb1a1bd | 0.00747 | 0.00751 | 0.15 |
+| run_aaa95662e21a | 0.10740 | 0.10794 | 0.15 |
+
+The margins are about 0.043 K and the correction moves them by about 0.0005 K,
+two orders of magnitude apart. Nor does the damping change reach them: those
+two nearest the tolerance would need `tau_expected` above 13.9 and 13.8 orbits
+to fail, which at the model's own capacity needs a radiative damping below 0.94
+W/m2/K and so a planetary albedo above 0.44. The runs report about 0.25.
+
+**The three energy artifacts used CPS = 4180 on runs the model integrated at
+CPS = 4180.** Their `generator_sha256` pins each to an exact revision of its
+generator, and those revisions carry the copied pair; but `icemod.f90` did not
+move CPS to sea water's value until 2026-08-24, and all three artifacts were
+generated on 2026-08-19. The capacity matched the run, which is the condition
+that matters, and the artifacts prove it themselves: `close_ocean_energy.py`'s
+D4 is the model's own slab integration, `CRHOS*CPS*mld*d(SST)/dt = yheat`, and
+a capacity 4.75 per cent off the model's would leave a residual of about
+`0.0475 * yheat`. On the strict ocean mask D4 closes to 3.0e-06 and 3.9e-06
+W/m2 against a `yheat` of 0.0072 and 0.0482, some three orders of magnitude
+tighter than the mismatch would allow.
+
+So the list in world-9rqh of what the defect made worthless is empty, and
+rebuilding those artifacts against today's `icemod.f90` would have INTRODUCED
+the error rather than removed it.
+
+**The correction had a live defect of its own, pointing backwards.**
+`close_state_energy.py` read `sea_water.constants()` at module import with no
+run directory, so it returned what `icemod.f90` declares now, and
+`assess_convergence.py` built `SLAB_HEAT_CAPACITY` from it at import too. Every
+run this project writes declares all four keys in its own `icemod_namelist`,
+and `run_ade7373b4c90` declares CRHOS and CPS that are neither the compiled
+defaults nor equal to them. A run older than a change to the model was
+therefore closed and assessed at a capacity it never integrated with, silently,
+in the quantity a convergence verdict rests on. Both now take the pair from the
+run: `state_energy` calls `sea_water.constants(run_dir)`, and
+`assess_convergence.slab_heat_capacity(run_dir)` returns the capacity and the
+water it was built from.
+
+**Both artifact families now record what they used**, so this question is
+answerable from the file instead of from the model's git history: the state
+energy report carries a `sea_water` block and the convergence report carries
+`slab_sea_water` and `slab_mixed_layer_depth_m` beside
+`slab_heat_capacity_j_m2_k`. Dating an artifact against the source that made it
+is what this section had to do, and it only worked because D4 happened to be an
+identity that could be checked.
+
 ## 12. The diagnose half of the q-flux recipe is also built, and what blocks it is the target
 
 CLIM-65 asks for the no-q-flux structural term to be converted from declared to
