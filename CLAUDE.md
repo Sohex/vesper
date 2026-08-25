@@ -269,7 +269,9 @@ rung transforms on, the check that config's `resolution`, `latitudes` and
 elsewhere in the tree agrees with it),
 `paths.py` (repo-relative paths, the climatology resolver, and its clean-I/O
 and configured-grid guards), `gridding.py` (mesh-to-grid, the one grid
-convention), `orbit.py` (orbital period), `stellar.py` (spectrum, band split,
+convention, and the reduction operators by field semantics: extensive,
+intensive, categorical, moments, expectation, and the ledger of what a
+reduction dropped), `orbit.py` (orbital period), `stellar.py` (spectrum, band split,
 Rayleigh coefficient), `sensitivity.py` (the one flux-to-kelvin conversion),
 `climatology.py` (time-bin weights), `lapse.py` (lapse rates, and the
 height of the lowest model level),

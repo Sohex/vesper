@@ -252,6 +252,12 @@ def climatology_cells(export: Export, grid_dir: Path, clim_lat):
 # this block and have consumers, are now expressed in terms of it rather than
 # kept as a second implementation.
 #
+# DURATION is not here. A mean over time is `lib/climatology.py`'s time-bin
+# weights, and a field that is both -- an area mean of a time mean -- takes them
+# in that order and from that module. Two places, because a spatial support and
+# a temporal one are different facts about an artifact and collapsing them into
+# one operator would hide which of the two a caller got wrong.
+#
 # EVERY ONE OF THEM TAKES THE POPULATION EXPLICITLY. There is no default, and
 # `CLAUDE.md` rule 1 is why: land comes from `surface_class` and never from
 # `land_mask`, so a reduction that helpfully assumes a land population is a
