@@ -265,7 +265,7 @@ dust-independent.** `notes/dust.md` has the numbers and
 `aeolian/scripts/dust_runoff_sensitivity.py` (a registered one-off) the
 conversion from a precipitation change into basins.
 
-**B. The soil and biosphere loop, at T42.** For a given climate:
+**B. The soil and biosphere loop, at the operating support.** For a given climate:
 
 1. `pedology/scripts/build_soil.py`, with no biosphere on the first pass.
 2. `biosphere/scripts/build_lpj_driver.py`, then `run_lpj_guess.py`.
@@ -355,22 +355,49 @@ was built.
 changes the climate, which changes evaporation over catchments, which can
 change the verdict. Re-run it; if basins flip, back to loop A.
 
-**D. Progressive spatial-support convergence.** T42 is an operating convention,
-not a ceiling. Candidate climate supports are T21/T42/T85/T127/T170, and the
-production rung is the first one on which the pre-registered coupled quantities
-converge closely enough for the decisions being made.
+**D. The declared escalation to T85.** T85 is the OPERATING SUPPORT. It is a
+decision, not a rung to be discovered: the ladder below is the route to it, and
+the question a comparison between rungs answers is how much the coarser ones
+were wrong by, not which one to stop at.
 
-1. Convert the accepted restart to the next candidate support with CLIM-52's
-   schema-aware converter, using support-matched target static fields. The
-   result is an initial condition, not a continued equilibrium.
-2. Settle loop A at that support, because changed orography, coastline,
-   precipitation and evaporation can change the carve verdict.
-3. Rebuild hydrography coupling, groundwater, soil and ecological forcing for
-   that support; settle loop B and the vegetation/climate feedback loop C.
-4. Compare the accepted candidate with the previous rung after conservative
-   remapping to one common support. Stop when SPAT-8's declared water, climate,
-   soil, vegetation, feedback and carve quantities pass. If they have not passed
-   by T170, carry the resolution spread as structural uncertainty.
+The route escalates resolution and timestep ALTERNATELY, never together:
+
+1. **T21 at dt 45.** Converge.
+2. **Reconverge T21 at dt 30** if the conversion needs it.
+3. **Convert to T42, at dt 30.** Converge.
+4. **Reconverge T42 at dt 22.5** if the conversion needs it.
+5. **Convert to T85, at dt 22.5.** Converge.
+6. **Continue at NLOWIO = 0** with high-cadence orbits for dust.
+
+**Why the reconvergence steps exist, and why they are not optional bookkeeping.**
+A conversion changes the support and a timestep change moves the attractor, and
+a state that changes both at once cannot say which one moved it. Reconverging at
+the TARGET rung's timestep before converting means every conversion happens at
+constant dt, so exactly one variable moves per step and a surprise after a
+conversion is attributable to the support alone.
+
+**A reconvergence is ten orbits, then three-orbit increments until the
+convergence criteria are met.** Ten first because a shorter block cannot
+separate a trend from the startup transient; three after, because that is the
+smallest increment the criteria can judge and a longer one overshoots the exit
+by more than it costs to test again.
+
+**The timestep at each rung is the highest that rung can carry, not a safety
+margin.** 45, 30 and 22.5 are the intended values and they are PROVISIONAL:
+they rest on `exoplasim/notes/physics-filter-stability.md`, whose grid is
+contaminated four independent ways (WORLD-37TN), so they are the declared
+intent pending its re-measurement and not a measured ceiling. A step that
+merely does not blow up is a stability floor and not a licence.
+
+Conversion uses CLIM-52's schema-aware converter with support-matched target
+static fields; the result is an initial condition, not a continued equilibrium.
+At each rung, settle loop A before trusting anything downstream, because changed
+orography, coastline, precipitation and evaporation can change the carve
+verdict; then rebuild hydrography coupling, groundwater, soil and ecological
+forcing for that support and settle loops B and C. SPAT-8's declared quantities
+are compared between rungs after conservative remapping to one common support,
+and what they report is the size of the coarse-rung error, which is carried as
+structural uncertainty rather than used to stop early.
 
 LPJ-GUESS gridcells are independent columns, so its direct cost grows roughly
 with land-cell count, but the biosphere can still determine whether a climate

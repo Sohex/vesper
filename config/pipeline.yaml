@@ -32,11 +32,24 @@ loops:
     name: the vegetation-climate loop
     exit: re-take the verdict on modelled vegetation; if basins flip, re-enter A
   D:
-    name: progressive spatial-support convergence
+    name: the declared escalation to T85
     exit: >
-      Advance only after the current support has settled, then replay A, B and
-      C on the candidate support; exit at the first T21/T42/T85/T127/T170 rung
-      that passes SPAT-8, or retain a resolution bracket if T170 does not.
+      T85 is the OPERATING SUPPORT and is declared, not discovered. The route
+      alternates resolution and timestep and never moves both at once: T21 at
+      dt 45, converge; reconverge T21 at dt 30 if the conversion needs it;
+      convert to T42 at dt 30, converge; reconverge T42 at dt 22.5 if needed;
+      convert to T85 at dt 22.5, converge; then continue at NLOWIO = 0 with
+      high-cadence orbits for dust. Every conversion therefore happens at
+      constant dt, so exactly one variable moves per step and a surprise after
+      a conversion is attributable to the support alone. A reconvergence is TEN
+      orbits, then THREE-orbit increments until the convergence criteria are
+      met. Advance only after the current support has settled, replaying A, B
+      and C on it. SPAT-8's quantities are still compared between rungs, but
+      what they report is the size of the coarse-rung error carried as
+      structural uncertainty -- they do not decide where to stop. The three
+      timesteps are the highest each rung can carry and are PROVISIONAL on
+      WORLD-37TN re-measuring the stability grid; they are declared intent,
+      not a measured ceiling. `docs/src/pipeline/sequencing.md` section D.
 
 # writes: the COMPLETE set of artifacts a step produces, not a marker for them.
 #       `--purge` deletes exactly this, so a row that names only its report
