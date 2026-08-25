@@ -13,6 +13,15 @@ reading `planet.nc`:
 the planet, all of it dry basin floor below sea level, which is the terrain the
 fork exists to preserve. `land_mask` would put it under water.
 
+**The threshold is a rounding and its cost is reported, not hidden in a net.**
+`coastline_ledger` states the two one-signed halves separately: the land a
+sub-threshold cell drops into the slab ocean, and the ocean and inland water a
+supra-threshold cell promotes to dry land. `surface_class` has three classes,
+not two, and the threshold is applied to the LAND share alone, so a cell that
+holds no ocean at all still goes to the slab ocean when its lakes take more than
+half of it. See `coastline_ledger`'s own docstring for which reduction operator
+produced which field.
+
 **Both fields are integrated from the native mesh, not sampled from the gridded
 export.** The export resamples categorical fields, `surface_class` among them, by
 taking the value of the region containing the cell centre. Against the 10M
@@ -42,12 +51,127 @@ import yaml
 from _paths import CONFIG, INPUTS
 from sra import write_sra
 from builds import resolution_of, grid_export, mesh_export
-from gridding import land_weighted
+from gridding import cell_fraction, cell_sum, land_weighted, region_cells, transfer_ledger
 from provenance import config_stamp
-from orogen import Export, LAND
+from orogen import Export, INLAND_WATER, LAND, OCEAN
 
 LAND_MASK_CODE = 172
 TOPOGRAPHY_CODE = 129
+
+
+def coastline_ledger(mesh: Export, grid_dir: Path, mask: np.ndarray,
+                     elev_m: np.ndarray) -> dict:
+    """What thresholding a fractional coastline into a binary mask costs.
+
+    The model's mask is binary and cannot be otherwise: `oceanmod.f90:256`
+    hard-binarises `yls` at 0.5, so there is no tiling and no partial-water
+    cell whatever this builder writes. What the threshold does is therefore not
+    a choice about the model, it is a rounding, and this is its size.
+
+    THE ROUNDING IS TWO ONE-SIGNED ERRORS THAT PARTLY CANCEL. Land in a cell
+    below the threshold is dropped into the slab ocean; ocean and inland water
+    in a cell above it are promoted to dry land. The report already carried the
+    NET of the two, as `land_fraction_gauss_weighted` against
+    `mesh_land_fraction`, and a net says nothing about either half: they can be
+    several times the difference between them.
+
+    THE THIRD CLASS IS WHY THIS IS NOT SYMMETRIC. `surface_class` partitions
+    the mesh into ocean, subaerial land and inland water, and the threshold is
+    applied to the LAND share alone. So inland water competes with land for its
+    own cell's classification, and a cell that is entirely terrestrial -- no
+    ocean in it at all -- goes to the slab ocean whenever its lakes take more
+    than half of it.
+
+    Which operator produced which field, by `lib/gridding.py`'s semantics:
+    the three class shares are CATEGORICAL, `cell_fraction` over an area
+    population, and they partition the cell so they sum to one wherever the
+    mesh covers it; the areas and the land volume are EXTENSIVE, `cell_sum`;
+    the elevation the builder writes is INTENSIVE, `cell_mean` over the land
+    population, which is what `land_weighted` calls. A fractional cover is an
+    AREA share and is never a share of the region COUNT.
+
+    The land volume is the extensive closure: area times elevation about the
+    datum, summed over the mesh's land, against the same sum over what the
+    model receives. It is the quantity a mask change moves that an area alone
+    does not, because the terrain the fork exists to preserve sits below the
+    datum and enters it with the opposite sign.
+    """
+    cell, nlat, nlon = region_cells(mesh, grid_dir)
+    ncell = nlat * nlon
+    area = mesh.cell_area.astype(np.float64)
+    sc = mesh.surface_class
+    flat = mask.reshape(-1) > 0
+
+    shares = {}
+    for name, code in (("ocean", OCEAN), ("land", LAND),
+                       ("inland_water", INLAND_WATER)):
+        shares[name], covered = cell_fraction(cell, ncell, area, sc == code)
+    total = cell_sum(cell, ncell, area)
+    partition = shares["ocean"] + shares["land"] + shares["inland_water"]
+
+    def area_of(selector, cells) -> float:
+        return float(cell_sum(cell, ncell, area, selector)[cells].sum())
+
+    is_land = sc == LAND
+    mesh_land = float(area[is_land].sum())
+    model_land = float(total[flat].sum())
+    dropped = area_of(is_land, ~flat)
+    promoted_ocean = area_of(sc == OCEAN, flat)
+    promoted_inland = area_of(sc == INLAND_WATER, flat)
+
+    # The land the threshold drops, in the terrain the fork exists to preserve.
+    below = is_land & (elev_m < 0.0)
+    dropped_below = area_of(below, ~flat)
+    mesh_below = float(area[below].sum())
+
+    # Extensive closure. `elev_m` is metres and `area` is the mesh's own unit,
+    # so the product is a volume in that unit times a metre; only the ratio of
+    # the two routes is reported, which is what closure means here.
+    mesh_volume = float((area[is_land] * elev_m[is_land]).sum())
+    per_cell_elev = np.zeros(ncell)
+    land_area_cell = cell_sum(cell, ncell, area, is_land)
+    np.divide(cell_sum(cell, ncell, area * elev_m, is_land), land_area_cell,
+              out=per_cell_elev, where=land_area_cell > 0)
+    model_volume = float((total[flat] * per_cell_elev[flat]).sum())
+
+    partial = covered & (shares["land"] > 0.0) & (shares["land"] < 1.0)
+    return {
+        "why": ("the model's mask is binary at oceanmod.f90:256 whatever this "
+                "builder writes; this is the size of the rounding, in both "
+                "signs, not a proposal to change it"),
+        "operators": {
+            "class_shares": "gridding.cell_fraction, CATEGORICAL, area share",
+            "areas_and_volume": "gridding.cell_sum, EXTENSIVE",
+            "elevation": "gridding.cell_mean over the land population, "
+                         "INTENSIVE, via gridding.land_weighted",
+        },
+        "class_partition_max_residual": float(
+            np.abs(partition[covered] - 1.0).max()) if covered.any() else 0.0,
+        "partial_land_cells": int(partial.sum()),
+        "partial_land_cell_area_fraction": float(
+            total[partial].sum() / total[covered].sum()) if covered.any() else 0.0,
+        "mesh_land_area": mesh_land,
+        "model_land_area": model_land,
+        "net_land_area_relative": (model_land - mesh_land) / mesh_land,
+        "land_dropped_to_ocean": {
+            "area": dropped,
+            "of_mesh_land": dropped / mesh_land,
+            "below_datum_area": dropped_below,
+            "of_mesh_land_below_datum": (dropped_below / mesh_below
+                                         if mesh_below > 0 else 0.0),
+        },
+        "water_promoted_to_land": {
+            "ocean_area": promoted_ocean,
+            "inland_water_area": promoted_inland,
+            "of_model_land": (promoted_ocean + promoted_inland) / model_land,
+        },
+        "wholly_terrestrial_cells_sent_to_ocean": int(
+            (~flat & covered & (shares["ocean"] <= 0.0)
+             & (shares["land"] > 0.0)).sum()),
+        "land_volume_closure_relative": ((model_volume - mesh_volume)
+                                         / abs(mesh_volume)),
+        "transfer": transfer_ledger(cell, ncell, area),
+    }
 
 
 def build(mesh: Export, grid_dir: Path, threshold: float, gravity: float):
@@ -66,6 +190,7 @@ def build(mesh: Export, grid_dir: Path, threshold: float, gravity: float):
         "land_fraction": fraction,
         "geopotential": mean_elev * gravity,
         "elevation_m": mean_elev,
+        "coastline_ledger": coastline_ledger(mesh, grid_dir, mask, elev_m),
     }
 
 
@@ -146,6 +271,8 @@ def main() -> None:
             ex.cell_area[ex.surface_class == LAND].sum() / ex.cell_area.sum()),
         "land_cells": int(land_cells.sum()),
         "cells_below_mesh_resolution": out["cells_below_mesh_resolution"],
+        # What the binary threshold costs, in both signs. SPAT-5.
+        "coastline_ledger": out["coastline_ledger"],
         "elevation_m": {
             "min": float(e[land_cells].min()),
             "max": float(e[land_cells].max()),
