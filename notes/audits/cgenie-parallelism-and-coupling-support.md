@@ -601,7 +601,7 @@ intensive, categorical, moments, expectation -- and its `cell_moments` and
 Which of them a field takes is a property of the field and belongs in the
 contract, not in the call.
 
-## 5c. Four rules the upscaling contract has to state
+## 5c. Five rules the upscaling contract has to state
 
 Read off `references/esmf/` (survey section 55), which is the only conservative
 regridder in this project's reading with a stated conservation identity and a
@@ -627,6 +627,19 @@ test suite against it.
    and the precedent holds itself to about 1e-9 relative on analytic fields.
    `lib/gridding.py:transfer_ledger` already emits the shape of this; what it has
    never been checked against is a field whose integral is known.
+5. **The source cell edges are the ones the model's own quadrature implies, not
+   midpoints between centres.** The ocean side is unambiguous: `igrid = 0` puts
+   the row boundaries at exact equally spaced values of the sine of latitude and
+   `asurf(j) = rsc*rsc*ds(j)*dphi` is the area the model integrates over. A
+   Gaussian grid has no cell boundaries at all -- it has nodes and quadrature
+   weights -- so the edges have to be CONSTRUCTED, and the only construction that
+   makes the remap conservative against the atmosphere's own budget is the one
+   whose cell areas reproduce the Gaussian weights. Taking midpoints between
+   Gaussian latitudes instead gives areas that differ from the weights, so the
+   crossing would then conserve against a grid the model does not use, and it
+   would do it quietly. This is where `CLAUDE.md` rule 3 bites in its area form:
+   the two sides must share one coordinate source, and the areas are part of the
+   coordinate.
 
 ## 5d. The mask disagreement is the part that does not have a clean answer
 
