@@ -438,19 +438,42 @@ uncertainty:
   applied: coherently across all layers and all properties in one case
   sources:
     cosby_within_class_variance:
-      value: undeclared
-      owner: world-rhtx
+      brackets: the adopted closure, which is what every consumer installs
+      from: cosby1984 Table 4, the S.D. rows
+      reference: references/cosby_1984_a-statistical-exploration-of-the-relationships-of-soil-moisture-charac.pdf
+      # Standard deviation of each parameter WITHIN a texture class, regressed
+      # on texture in the same table and the same fit whose mean rows are the
+      # central case. Coefficients per PERCENT, as Cosby writes them; the
+      # evaluator converts to fractions once, at `cosby_parameter_spread`.
+      sd_b: 0.92 + 0.0492 %clay + 0.0144 %silt
+      sd_log_psi_s: 0.72 - 0.0026 %silt + 0.0012 %clay
+      sd_theta_s_percent: 8.23 - 0.0805 %clay - 0.0070 %sand
+      case_deviate: 1.0
+      evaluated_by: pedology/scripts/land_column_properties.py cosby_parameter_spread
       note: >
-        THE UNCERTAINTY OF THE ADOPTED CENTRAL CASE, and there is no artifact
-        for it. The states come from Cosby's texture regressions, and Cosby et
-        al. report the residual variance WITHIN texture classes as large --
-        larger than everything else here put together. Until an artifact
-        carries it, the adopted states have no declared bracket at all and the
-        cases below bracket a derivation no consumer reads.
+        THE UNCERTAINTY OF THE ADOPTED CENTRAL CASE. Texture explains the mean
+        structure of the retention parameters over Cosby's 1,448 samples, and
+        the spread that survives inside a texture class is large: the
+        exponent's within-class standard deviation is about a third of its
+        mean. It is larger than everything else in this block put together and
+        larger than the gravity shift the field capacity declares as an upper
+        bound, which the report measures rather than asserts.
+
+        AN ENVELOPE, NOT A DISTRIBUTION. The low and high cases are the
+        per-cell extremes over the corners of the one-sigma box in the three
+        parameters. Cosby reports the three residual spreads separately and no
+        correlation between them, so no corner can be excluded and none can be
+        weighted; a published correlation could only narrow this. The saturated
+        conductivity's S.D. row is in the same table and is deliberately not
+        read here, because this contract declares no conductivity for it to be
+        the spread of.
+
+        The states every consumer installs are the CENTRAL case. Emitting a
+        case instead is one argument to `contract_states`, and nothing
+        downstream of the states file knows which case it read.
     volumetric_capacity_endmembers:
       from: pedology/config/pedogenesis.yaml water.volumetric_capacity_by_texture_bracket
       brackets: pedology's endmember mixture, NOT the adopted closure
-      owner: world-rhtx
       note: >
         Declared endmembers with a bracket spanning the conventional range for
         each class, checked against Saxton and Rawls (2006) for ordering and

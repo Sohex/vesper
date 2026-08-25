@@ -118,8 +118,18 @@ Quartz is tracked separately and never converts. That single distinction is why
 granite and basalt diverge under identical climate: both start sandy, but only
 one has sand that can weather.
 
-**Regolith depth**, from Heimsath's exponential soil production function balanced
-against erosion built from Orogen erodibility, local relief and runoff.
+**Regolith depth**, from a saturating balance of weathering production against
+erosion built from Orogen erodibility, local relief and runoff. Heimsath's
+exponential soil production function is what that form replaced, and
+`build_soil.py`'s `regolith_depth` carries the argument. The law is applied to
+EACH ROCK a cell holds and the depths are then averaged, through
+`lib/gridding.py`'s `cell_expectation`: the law is convex in the erodibility and
+erodibility spans a factor of fourteen across the export's lithology table, so
+mixing a cell's rocks into one erodibility first is a different and always
+thinner answer. `notes/audits/nonlinear-spatial-reductions.md` section 1 sizes
+the two orders against `regolith.minimum_depth_m`, and the soil report's
+`regolith_aggregation` block carries the difference on whatever map it just
+built.
 
 **pH**, from parent material leached down by drainage, and pushed back up where
 drainage is closed and salts concentrate instead of leaving.
@@ -232,6 +242,16 @@ correlation; it measures the region where the closure would return a field
 capacity above saturation -- an analytic line in the texture simplex, not a
 search -- and reports the map's margin from it rather than a count.
 
+**The adopted states carry their own bracket, from the same table as their
+mean.** Cosby et al. regressed the within-texture-class standard deviation of
+each retention parameter on texture alongside the mean, and that spread is what
+texture does not determine. The report evaluates the corners of the one-sigma
+box in the exponent, the air-entry head and the porosity, coherently across
+every layer and every state, and reports the resulting capacity envelope
+against the gravity shift in the same units. It is an envelope rather than a
+distribution because Cosby publishes no correlation between the three
+residuals. Every consumer installs the central case.
+
 Gravity is where the contract earns its keep, and the correction is APPLIED.
 Saturation is pore geometry and does not move; the wilting point is a plant
 pressure and does not move; field capacity is a drainage equilibrium over a
@@ -250,8 +270,9 @@ checks the two consistent frames against each other and against the mixed one.
 Three arms are falsifiable: the declaration check is run against ten contracts
 broken in named ways and is required to catch every one; the frame check
 requires two frames to agree and a third not to; and the mutation harness fails
-if a mutation goes uncaught. Eight properties still carry the `undeclared`
-sentinel and `--strict` is the arm that refuses.
+if a mutation goes uncaught. The properties still carrying the `undeclared`
+sentinel are listed by the report with the issue that owns each, and `--strict`
+is the arm that refuses while any remain.
 
 ## One hydraulic description; the two columns still evolve separately
 
@@ -682,14 +703,34 @@ therefore the one thermostat number available before a baseline run exists.
 
 ## The phosphorus leg
 
-`phosphorus_budget.py` is presently a relative geography diagnostic, not a
-closed phosphorus budget. It multiplies lithological P content by a relative
-release factor, groups that rank by drainage fate, and tests whether dry basin
-floors geometrically concentrate delivered material. It reads the lake solution
-only to exclude wet dust sources. Despite the pipeline dependency, it does
-**not** read the dust-deposition field, and neither weathering nor aeolian
-delivery has absolute kgP/area/time units. Nothing in the biosphere currently
-consumes its output.
+`phosphorus_budget.py` carries two arms and the units are what separate them.
+
+**The absolute arm** is a mass flux and the law is Hartmann et al. (2014)'s own:
+phosphorus release is a fixed percentage, per lithological class, of the fluvial
+export of Ca, Mg, Na, K and SiO2. The only piece this project lacked was an
+absolute major-element flux, and Meybeck (1987) Table 2C supplies the
+per-lithology concentrations that runoff carries, which is the same table and the
+same model form the silica and CO2 fluxes already use. Beside it sits the
+root-zone stock in kgP/m2: parent content times bulk density times the regolith
+depth cut at the land column property contract's rootable base, which is a TOTAL
+and an upper bound rather than a labile pool. The script declares two criteria
+before it runs and reports both: the land yield against Hartmann and Moosdorf
+(2011)'s Japanese maximum, and the major-element rock content the two configured
+phosphorus rows imply, which is the check that the content row and the release
+row are still the two different quantities they claim to be.
+
+**The rank arm** is the older diagnostic and is kept as a rank. It groups the
+lithological release score by drainage fate and tests whether dry basin floors
+geometrically concentrate what a catchment delivered. It carries no mass and no
+time; converting it into a flux is the thing the absolute arm exists to make
+unnecessary. It reads the lake solution only to exclude wet dust sources, and it
+does **not** read the dust-deposition field, so the aeolian return leg is still a
+source-composition hypothesis rather than a delivery.
+
+The artifact's `not_carried` block registers what stands between a release and a
+root: a regolith production RATE, which needs a time axis this project does not
+have; a soil-shielding function, which Hartmann applies and no source here
+supplies; and sorption and retention beyond the andic fixation share.
 
 `biosphere/notes/abiotic-nutrient-delivery-audit.md` records the source trace.
 ANUT-1 through ANUT-3 define the missing mass ledger, absolute weathering and
@@ -699,6 +740,15 @@ LPJ-GUESS-CNP. SDEC-2/SDEC-4 retain the downstream sorption and occlusion
 topology.
 
 ## Known gaps
+- **None of the four mineral-reactivity proxies can be derived here, and the
+  reasons differ.** The vegetation model's mineral-aware arm for organic matter
+  protection and phosphorus sorption asks this component for an Fe-Al oxide
+  content, an allophane concentration, an aggregate capacity and a polyvalent
+  cation saturation. `notes/mineral-reactivity-supply.md` is the verdict on each
+  with its evidence: what the near miss actually needs, which quantities are
+  measured but indexed on a substrate age this project does not carry, and the
+  second gate on the consuming model's side that would still be shut with all
+  four in hand.
 - **The derived surface classes carry the three gaps argued above** -- the
   static lake proxy under diatomite, the unsourced loess threshold, and the
   exhaustible pavement supply the rule cannot see.

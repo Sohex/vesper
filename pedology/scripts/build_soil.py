@@ -319,6 +319,84 @@ def regolith_depth(intensity: np.ndarray, relief_m: np.ndarray,
     return np.clip(depth, params["minimum_depth_m"], params["maximum_depth_m"])
 
 
+def regolith_depth_expectation(mesh: Export, grid_dir: Path,
+                               intensity: np.ndarray, relief_m: np.ndarray,
+                               runoff_mm_yr: np.ndarray, params: dict,
+                               weathering_ref: float):
+    """The depth law evaluated on EACH ROCK, then area-averaged over the cell.
+
+    The law is convex in the erodibility, which spans a factor of fourteen
+    across the export's lithology table, so mixing a cell's rocks into one
+    erodibility and then applying the law is not the same operation as applying
+    the law to each rock and averaging the depths. It is smaller, always:
+    `notes/audits/nonlinear-spatial-reductions.md` section 1 sizes the
+    difference at 0.19 to 0.28 m of regolith at the land mean against the 0.02 m
+    `regolith.minimum_depth_m` bar, one-signed over the whole sweep of the law's
+    one free ratio and at every rung of the ladder, and refinement shrinks it
+    without removing it.
+
+    The reduction is `gridding.cell_expectation` and is CALLED rather than
+    written again here. That operator takes the LAW as a callable, so a caller
+    who has already reduced a field cannot hand the reduced field in by
+    accident; the order is a property of the call site and not of whoever last
+    edited it.
+
+    Erodibility is the only one of the law's inputs the mesh resolves. The
+    others are cell fields -- weathering intensity and runoff come from the
+    climatology's own grid and relief is a difference between neighbouring cell
+    centres -- so each region sees its own rock under its cell's climate, which
+    is `hydrography/notes/subgrid-water-table.md` section 2: sub-grid
+    information reaches a cell-scale parameter as a statistic of the cell's own
+    distribution and never as a resolved position.
+
+    Returns `(depth, depth_at_the_mixed_erodibility, erodibility, ledger)`,
+    all four on the grid except the ledger. The second is what the mixed order
+    would have given and is kept so the report can carry the gap rather than
+    leave a later reader to re-derive it.
+    """
+    from gridding import cell_expectation, region_cells, transfer_ledger
+
+    cell, nlat, nlon = region_cells(mesh, grid_dir)
+    ncell = nlat * nlon
+    if intensity.shape != (nlat, nlon):
+        raise SystemExit(
+            f"the climatology is {intensity.shape} and the grid export is "
+            f"{(nlat, nlon)}. Both must be the configured rung; see lib/rungs.py.")
+    area = mesh.cell_area.astype(np.float64)
+    is_land = mesh.surface_class == LAND
+
+    entries = mesh.manifest["lithology"]["rockClasses"]
+    erod_of_class = np.ones(max(int(e["id"]) for e in entries) + 1)
+    for entry in entries:
+        erod_of_class[int(entry["id"])] = float(entry["erodibility"])
+    erod_region = erod_of_class[mesh.substrate_class.astype(int)]
+
+    def at_region(field: np.ndarray) -> np.ndarray:
+        """A cell field, as every region inside that cell sees it."""
+        return np.asarray(field, dtype=np.float64).reshape(-1)[cell]
+
+    region_intensity = at_region(intensity)
+    region_relief = at_region(relief_m)
+    region_runoff = at_region(runoff_mm_yr)
+
+    def law(erodibility: np.ndarray) -> np.ndarray:
+        return regolith_depth(region_intensity, region_relief, region_runoff,
+                              erodibility, params, weathering_ref)
+
+    depth, mixed, covered = cell_expectation(cell, ncell, area, law,
+                                             erod_region, is_land)
+    # A cell holding no land region of the mesh has no rocks to average over.
+    # It keeps the erodibility of 1.0 this file has always given it, and the
+    # law at that erodibility is then its depth, so the substitution is visible
+    # as a value rather than as a zero from an empty bin.
+    mixed = np.where(covered, mixed, 1.0).reshape(nlat, nlon)
+    at_mixed = regolith_depth(intensity, relief_m, runoff_mm_yr, mixed,
+                              params, weathering_ref)
+    depth = np.where(covered.reshape(nlat, nlon), depth.reshape(nlat, nlon),
+                     at_mixed)
+    return depth, at_mixed, mixed, transfer_ledger(cell, ncell, area, is_land)
+
+
 def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
             endorheic: np.ndarray, params: dict, reference_runoff: float
             ) -> np.ndarray:
@@ -508,18 +586,6 @@ def main() -> None:
     # cycling shatters rock; ground frozen solid all bin does not.
     frost_fraction = np.mean((bin_min < 0.0) & (bin_max > 0.0), axis=0)
 
-    erodibility = np.zeros_like(elevation)
-    total_share = np.zeros_like(elevation)
-    for entry in mesh.manifest["lithology"]["rockClasses"]:
-        share = fractions.get(entry["code"])
-        if share is None:
-            continue
-        erodibility += share * float(entry["erodibility"])
-        total_share += share
-    covered = total_share > 1e-9
-    erodibility[covered] /= total_share[covered]
-    erodibility[~covered] = 1.0
-
     endorheic = land_fraction_of_class(mesh, grid_dir, mesh.is_endorheic.astype(bool))
 
     # Both moisture drivers, so the bracket is visible whichever one is selected.
@@ -540,19 +606,47 @@ def main() -> None:
             f"weathering.moisture_variable is {selector!r}; expected "
             f"'runoff' or 'precipitation'")
     texture = weather_texture(fractions, intensity, pedo["texture"])
-    depth = regolith_depth(intensity, relief, runoff, erodibility,
-                           pedo["regolith"],
-                           pedo["weathering"]["reference_runoff_mm_per_earth_year"])
+    # Erodibility is NOT mixed before the law is applied; see
+    # `regolith_depth_expectation` for the operator and for what the two orders
+    # are worth on this map.
+    depth, depth_at_mixed, erodibility, regolith_ledger = \
+        regolith_depth_expectation(
+            mesh, grid_dir, intensity, relief, runoff, pedo["regolith"],
+            pedo["weathering"]["reference_runoff_mm_per_earth_year"])
 
     # Catena. Frost shattering adds production; slope takes it away again. The
     # chemical side is untouched: clay fraction still comes from the weathering
     # intensity, and this only decides how much material there is and how much of
     # the fine fraction stayed put.
     catena = pedo["catena"]
-    depth = depth * (1.0 + catena["frost_production_bonus"] * frost_fraction)
-    depth = depth / (1.0 + catena["slope_transport"] * tan_beta)
+    # What the mixed order would have cost, in the law's own units, before the
+    # catena factors: they are cell-scale statistics and multiply both orders by
+    # the same number, so the whole of the difference is the operator's.
+    regolith_gap = depth - depth_at_mixed
+    # A PRE-REGISTERED INVARIANT, not a comparison. The depth law is a single
+    # saturating function of the erodibility and its curvature does not change
+    # sign, so the expectation cannot come out below the law at the mean: the
+    # mixed order can only ever make the profile thinner. A negative gap past
+    # round-off therefore says the law, the population or the binning moved,
+    # and it is a failure with a right answer rather than a difference to note.
+    if float(regolith_gap.min()) < -1e-9:
+        raise SystemExit(
+            f"the regolith expectation came out {float(regolith_gap.min()):.6g} m "
+            "BELOW the law at the mixed erodibility. The depth law is convex in "
+            "the erodibility, so that cannot happen while the two arms share a "
+            "law, a population and a binning; one of the three has moved.")
+    catena_factor = ((1.0 + catena["frost_production_bonus"] * frost_fraction)
+                     / (1.0 + catena["slope_transport"] * tan_beta))
+    depth = depth * catena_factor
+    depth_at_mixed = depth_at_mixed * catena_factor
+    # The one place after the law where the two orders could part again, since
+    # a clip is not linear. Counted rather than argued about.
+    catena_clipped = ((depth < pedo["regolith"]["minimum_depth_m"])
+                      | (depth > pedo["regolith"]["maximum_depth_m"]))
     depth = np.clip(depth, pedo["regolith"]["minimum_depth_m"],
                     pedo["regolith"]["maximum_depth_m"])
+    depth_at_mixed = np.clip(depth_at_mixed, pedo["regolith"]["minimum_depth_m"],
+                             pedo["regolith"]["maximum_depth_m"])
 
     # Fines are shed preferentially downhill, so a slope keeps the coarse
     # fraction. Moves clay to sand, conserving the total.
@@ -743,6 +837,43 @@ def main() -> None:
             "by_precipitation": mean(intensity_by_precip),
             "runoff_ratio": mean(runoff) / max(mean(precip), 1e-9),
             "earth_land_runoff_ratio_for_reference": 0.35,
+        },
+        "regolith_aggregation": {
+            "operator": ("gridding.cell_expectation, NONLINEAR, over the land "
+                         "population of the mesh: the depth law is evaluated on "
+                         "each region's own rock and the depths are then "
+                         "area-averaged. lib/gridding.py owns the reduction "
+                         "operators and this file calls one rather than "
+                         "reimplementing it."),
+            "law": ("depth = maximum_depth * P / (P + erosion_weight * E), with "
+                    "E proportional to the region's erodibility"),
+            "population": "surface_class == LAND",
+            "subgrid_input": "erodibility, from the export's substrate class",
+            "bar_m": pedo["regolith"]["minimum_depth_m"],
+            "land_mean_erodibility": mean(erodibility),
+            "land_mean_depth_at_mixed_erodibility_m": mean(depth_at_mixed),
+            # `expectation - law(mean)` in metres of regolith, per cell, before
+            # the catena factors. One-signed by the curvature of a single
+            # saturating function: mixing first can only make the profile
+            # thinner. A gap that read zero everywhere would say the correction
+            # is inert on this map, which is a finding and not a reason to drop
+            # the operator.
+            "jensen_gap_m": {
+                "land_mean": mean(regolith_gap),
+                "min": float(regolith_gap[land].min()),
+                "max": float(regolith_gap[land].max()),
+                "percentiles": {str(p): float(np.percentile(regolith_gap[land], p))
+                                for p in (50, 75, 95, 99)},
+                "land_area_fraction_above_bar": float(np.average(
+                    (np.abs(regolith_gap) > pedo["regolith"]["minimum_depth_m"]
+                     )[land].astype(float), weights=lw)),
+            },
+            # The catena factors are cell-scale statistics and scale both orders
+            # by the same number, so the clip that follows them is the only step
+            # after the law where the two orders can part again.
+            "post_catena_clipped_land_cells": int(np.count_nonzero(land
+                                                                   & catena_clipped)),
+            "transfer": regolith_ledger,
         },
         "land_means": {
             "weathering_intensity": mean(intensity),

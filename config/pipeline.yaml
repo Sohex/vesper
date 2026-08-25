@@ -868,8 +868,22 @@ steps:
   - id: phosphorus_budget
     script: pedology/scripts/phosphorus_budget.py
     cost: minutes
-    needs: [soil, dust, surface_water]
+    needs: [soil, dust, surface_water, baseline_climatology]
     writes: [pedology/analysis/phosphorus_budget.json]
+    gate: >
+      two arms in one artifact and they are not interchangeable. The ABSOLUTE
+      arm is Hartmann et al. (2014)'s law, P release as a fixed percentage of
+      the Ca+Mg+Na+K+SiO2 export, with that export as Meybeck (1987) Table 2C
+      concentrations times this world's runoff, plus the root-zone total-P stock
+      cut at the land column property contract's rootable base. It needs the
+      climatology directly, for runoff and temperature, and the soil map, for
+      depth and bulk density. The RANK arm carries no mass and no time and must
+      not be converted into a flux. Two criteria are declared in the script
+      before it runs: the land yield stays below Hartmann and Moosdorf (2011)'s
+      Japanese maximum, and the two configured phosphorus rows must imply a
+      major-element rock content inside a declared range, which is the check
+      that the pair confused twice in this file's history is still the pair it
+      claims to be.
 
   - id: vesper_header
     script: biosphere/scripts/build_vesper_header.py
