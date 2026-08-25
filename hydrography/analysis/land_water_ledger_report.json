@@ -1,7 +1,7 @@
 {
-  "generated": "2026-08-25T11:10:05+00:00",
+  "generated": "2026-08-25T15:22:02+00:00",
   "declaration": "hydrography/config/land_water_ledger.yaml",
-  "declaration_sha256": "4e9158704b8c57aa4f86e4f7d92724734015118309573d68e53abc39d6fe198b",
+  "declaration_sha256": "8f88a728106c18e8a7c46642ea749783f7ac6cd9158f73e4d9201a1d705b9d9e",
   "version": 1,
   "units": {
     "mass": "kg_h2o",
@@ -200,7 +200,6 @@
     }
   ],
   "interval_refusals": [
-    "term lake_precipitation: delivers to open_water, which changes inside the reporting interval, and its producer (hydrography surface_water.py per-basin lake precipitation) supplies it only as an annual mean. A total is not a partition",
     "term capillary_rise: delivers to soil_liquid, which changes inside the reporting interval, and its producer (undeclared) supplies it only as an annual mean. A total is not a partition",
     "term baseflow: delivers to open_water, which changes inside the reporting interval, and its producer (hydrography groundwater.py seepage) supplies it only as an annual mean. A total is not a partition"
   ],
@@ -301,6 +300,11 @@
       "absence": "soil_ice_in_the_climate_column",
       "owner": "lshy-5",
       "what": "ExoPlaSim's five soil temperature layers carry no water and no phase."
+    },
+    {
+      "absence": "seasonal_phase_of_catchment_delivery",
+      "owner": "lshy-6",
+      "what": "The hydrography path computes catchment runoff as the ANNUAL mean of P - E over the catchment and cannot phase it through the year. Over one cycle at steady state a land cell's storage returns to where it started, so the annual mean is exactly the runoff that cell generated; clamping the negative bins away instead would count the wet season's supply twice, once as runoff and once as the water that refilled the soil the dry season emptied. `carve_verdict.seasonal_rectification` measures what that double count would add."
     },
     {
       "absence": "open_water_evaporation_from_routed_water",
