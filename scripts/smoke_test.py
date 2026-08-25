@@ -1640,6 +1640,111 @@ def check_restart_schema_covers_the_model() -> list[str]:
             + restart_schema.check_first_window_matches_the_rest(src))
 
 
+def _fortran_call_args(text: str) -> list[str]:
+    """Split one Fortran argument list on top-level commas."""
+    parts, depth, current = [], 0, []
+    for char in text:
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        if char == "," and depth == 0:
+            parts.append("".join(current).strip())
+            current = []
+        else:
+            current.append(char)
+    parts.append("".join(current).strip())
+    return parts
+
+
+def _codes_written_to_unit(src: Path, unit: str) -> set[int]:
+    """Every service-format code the model writes to one output unit.
+
+    Parsed from the writers themselves. `writegp(unit, field, code, level)` and
+    `writesp(unit, field, code, level, scale, offset)` put the code third;
+    `writescalar(unit, value, code)` puts it last. A call whose unit is a
+    variable rather than a literal belongs to whichever stream the caller passes
+    and is not counted for either.
+    """
+    codes: set[int] = set()
+    for path in sorted(src.glob("*.f90")):
+        for match in re.finditer(r"call\s+write(gp|sp|scalar)\s*\((.*)\)\s*$",
+                                 path.read_text(), flags=re.M):
+            args = _fortran_call_args(match.group(2))
+            if len(args) < 3 or args[0] != unit:
+                continue
+            raw = args[2] if match.group(1) in ("gp", "sp") else args[-1]
+            if re.fullmatch(r"\d+", raw):
+                codes.add(int(raw))
+    return codes
+
+
+def _codes_pyburn_derives(pyburn_source: str) -> set[int]:
+    """Every code pyburn has a derivation branch for.
+
+    The branches test `key==str(<name>code)` against module-level integers, so
+    the two together give the set. A code in neither the model's writers nor
+    here is one pyburn's dispatch marks derived, matches no branch, and drops
+    without a word.
+    """
+    numbers = dict(re.findall(r"^(\w+code)\s*=\s*(\d+)", pyburn_source,
+                              flags=re.M))
+    return {int(numbers[name])
+            for name in re.findall(r"key==str\((\w+code)\)", pyburn_source)
+            if name in numbers}
+
+
+def check_requested_codes_are_produced() -> list[str]:
+    """Every postprocessor code asked for is one something can answer.
+
+    A code in `REGULAR_CODES` or `SNAPSHOT_CODES` is satisfied two ways: the
+    model writes it to that stream's unit, or `pyburn` derives it from codes
+    that are written. A code that is neither is a request that LOOKS satisfied.
+    `pyburn.dataset` finds it absent from the raw data, sets `derived=True`,
+    falls past every branch and drops it silently, so the run finishes clean and
+    the product is missing a field a consumer read off the list and expected.
+
+    This is `world-dy7a`, and 168 was not alone: 163, 171 and 238 were in both
+    lists on the same terms, and none of the four appears in any climatology.
+    The list is a contract with whoever writes against it, which is why the
+    failure has to be at the point the list is edited rather than at the point
+    someone looks for the field.
+
+    Both directions are NOT checked. A code the model writes that no list
+    requests is an ordinary and deliberate state -- the model writes far more
+    than any product carries -- and `world-j0az` weighs those one at a time.
+    """
+    src = ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "src"
+    pyburn = ROOT / "vendor" / "exoplasim" / "exoplasim" / "pyburn.py"
+    if not src.is_dir():
+        return [f"{src} is missing; the vendored model source moved"]
+    if not pyburn.is_file():
+        return [f"{pyburn} is missing; the postprocessor moved"]
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    try:
+        import run_exoplasim
+    except ImportError as exc:
+        return [f"exoplasim/scripts/run_exoplasim.py does not import: {exc}"]
+
+    derived = _codes_pyburn_derives(pyburn.read_text())
+    problems = []
+    for name, unit, requested in (
+            ("REGULAR_CODES", "40", run_exoplasim.REGULAR_CODES),
+            ("SNAPSHOT_CODES", "140", run_exoplasim.SNAPSHOT_CODES)):
+        written = _codes_written_to_unit(src, unit)
+        if not written:
+            problems.append(f"no code was parsed as written to unit {unit}; "
+                            f"the writers moved or changed shape")
+            continue
+        for code in requested:
+            if code not in written and code not in derived:
+                problems.append(
+                    f"{name} asks for code {code} and nothing writes it to "
+                    f"unit {unit} or derives it in pyburn, so the product "
+                    f"drops it without a word")
+    return problems
+
+
 def check_no_shadowed_imports(files: list[Path]) -> list[str]:
     """A name bound by `import X` is never rebound to something else.
 
@@ -1968,6 +2073,8 @@ def main() -> None:
                check_tail_fit_stops_above_roundoff()),
               ("the restart schema covers every record the model writes",
                check_restart_schema_covers_the_model()),
+              ("every postprocessor code requested is one something produces",
+               check_requested_codes_are_produced()),
               ("the transform gates run the configured spectral filter",
                check_gate_filter_matches_config()),
               ("a continuation redeclares what a prepare declared",

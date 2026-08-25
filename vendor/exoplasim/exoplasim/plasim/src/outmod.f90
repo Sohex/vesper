@@ -1711,17 +1711,23 @@
       endwhere
       call writegp(140,sigrain,319,0)
 
-!     ***********************
-!     * Minimum Temperature *
-!     ***********************
-         
-      call writegp(140,tempmin,320,0)
-
-!     ***********************
-!     * Maximum Temperature *
-!     ***********************
-         
-      call writegp(140,tempmax,321,0)
+!     NO TEMPERATURE EXTREMA HERE, AND THAT IS THE DECISION. `tempmin` and
+!     `tempmax` are running extrema that `outaccu` extends every timestep and
+!     only `outreset` clears, and `outreset` runs after `outgp` on the REGULAR
+!     cadence. Written here they would cover (nstep mod nafter) timesteps: a
+!     window that changes from record to record and is empty on the record after
+!     a regular write. Every other field in this stream is an instantaneous
+!     sample, which is what the stream is for, and a partial accumulation in that
+!     shape is read as a sample and turned into a variance or a distribution over
+!     a sawtooth of window lengths.
+!     The extrema that mean something are the REGULAR stream's, over the whole
+!     output window: codes 320 and 321 for the surface temperature and 201 and
+!     202 for the near-surface air temperature. The instantaneous surface
+!     temperature this stream does carry is `ts`, code 139. 201 and 202 were kept
+!     out of the snapshot code list for this same reason under world-j0az, and
+!     world-adxx took 320 and 321 out to match. Giving this stream its own
+!     extrema instead would be a second pair of accumulators, a second reset and
+!     a second pair of restart records, for a consumer that has not asked.
       
       ! Hurricane quantities
       !Convective Available Potential Energy at the surface

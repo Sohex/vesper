@@ -90,8 +90,6 @@ MAY_BE_ABSENT = {
               "world-j0az, so a product postprocessed before that does not "
               "carry it and one postprocessed after does.",
     "tasmin": "code 202 (atsami). Same.",
-    "td2m": "code 168. In REGULAR_CODES and SNAPSHOT_CODES; outmod.f90 never "
-            "writes it and pyburn does not derive it.",
     "uas": "code 165. Never written; there is no 10 m wind in this model's "
            "output. The mean near-surface wind SPEED is the ecological "
            "stream's `ecowind`, code 614, and not a component pair.",

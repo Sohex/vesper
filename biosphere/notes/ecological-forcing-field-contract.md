@@ -122,11 +122,13 @@ were a diurnal air range is the driver seam, below.
 
 ### Fields the contract may not name, because nothing produces them
 
-- **`td2m`, code 168** (`world-dy7a`). Present in both `REGULAR_CODES` and
-  `SNAPSHOT_CODES`.
-  `outmod.f90` never writes it, pyburn does not derive it, and it is silently
-  absent from the product rather than raising. Confirmed absent from the
-  bootstrap climatology.
+- **`td2m`, code 168** (`world-dy7a`). `outmod.f90` never writes it and pyburn
+  has no derivation branch for it, so the request was dropped without a word and
+  the field is absent from the bootstrap climatology. It is out of both code
+  lists, along with `tcc`, `dsw` and `tsn`, which were unproduced on the same
+  terms. The contract takes near-surface humidity as specific humidity, the
+  linear quantity the model integrates, so a dew point would be a new field with
+  a saturation branch to declare rather than a restoration.
 - **`uas`/`vas`, codes 165/166** (`world-1qxu`). Never written. There is no 10 m wind in this
   model's output, and no wind COMPONENT pair at all near the surface. What a
   wind consumer needs is a speed rather than a vector, and the ecological
@@ -412,9 +414,10 @@ BIO-13's.
 **Closed upstream.** The air-temperature extrema (`world-j0az`), the mean
 near-surface wind speed (`world-1qxu`) and `hur`'s units and saturation branch
 (`world-hf12`) were producer-side and are done: the first two reach a product
-and the third is fixed in place. `td2m` (`world-dy7a`) is still declared and
-never written. `world-ua4a` moves the BVOC refusal from the run into the gate
-that is supposed to report it.
+and the third is fixed in place. `td2m` (`world-dy7a`) is out of the code lists,
+and `smoke_test.py` now refuses a requested code that nothing writes or derives.
+`world-ua4a` moves the BVOC refusal from the run into the gate that is supposed
+to report it.
 
 ## Cadence follows processes, not a universal bin count
 
