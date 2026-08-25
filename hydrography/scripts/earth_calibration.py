@@ -495,7 +495,8 @@ def stage_solve(tag: Path, quiet: bool, river_km2: float | None, region: str,
 
 def stage_score(tag: Path, edge_km: float, quiet: bool, region: str,
                 confinement: str | None, drain: str = "none",
-                surface: str = "cell-mean", et_lambda: float | None = None) -> dict:
+                surface: str = "cell-mean", et_lambda: float | None = None,
+                unconfined: bool = False) -> dict:
     """Skill, not just residual moments. The bar and the ceiling are the note's."""
     import pandas as pd
     R = REGIONS[region]
@@ -1492,7 +1493,7 @@ def main() -> None:
         elif st == "score":
             result = stage_score(tag, edge_km, args.quiet, args.region,
                                  args.confinement, args.drain, args.surface,
-                                 args.et_lambda)
+                                 args.et_lambda, args.unconfined)
         elif st == "cti":
             stage_cti(tag, args.region, args.quiet)
         elif st == "fsat":
