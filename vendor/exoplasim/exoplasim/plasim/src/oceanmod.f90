@@ -17,7 +17,6 @@
       parameter(NLPP = NLAT / NPRO)     ! Latitudes per process
       parameter(NHOR = NLON * NLPP)     ! Horizontal part
       parameter(NROOT = 0)              ! Master node
-      parameter(CRHOI=920.)             ! Density of sea ice (kg/m**3)
       parameter(PI = 3.14159265359D0)   ! PI
 !
 !     THE PLANET RADIUS IS NOT A PARAMETER HERE. `hdiffo` works on an angular
@@ -77,6 +76,17 @@
       real :: CRHOS    = 1030.          ! Density of sea water (kg/m**3)
       real :: CPS      = 3990.34        ! Specific heat of sea water (J/(kg*K))
       real :: CLFI     = 3.28E5         ! Heat of fusion of sea ice (J/kg)
+!
+!     THE SEA ICE DENSITY IS ICEMOD'S TOO, and travels the same way for the
+!     same reason. It was `parameter(CRHOI=920.)` here and a second, equally
+!     compile-time `parameter(CRHOI = 920.)` in icemod, and both were live on
+!     the same modelled ice: addfc builds branch (c)'s melt flux
+!     yiced*CRHOI*CLFI/dtmix from this one and icemod's thermodynamics and its
+!     snow-ice flooding threshold CRHOS-CRHOI from the other. A source edit
+!     that moved one would have left the two halves weighing the same ice
+!     differently, with nothing comparing them.
+!
+      real :: CRHOI    = 920.           ! Density of sea ice (kg/m**3)
       
       real :: dlam                      ! delta longitude
       real :: dphi(NLAT)                ! delta latitude
@@ -146,7 +156,7 @@
 
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
-!$omp threadprivate(clfi,cphi,cphih,cps,crhos,dlam,dlayer,dmue,dphi,dtmix,gw,hdiffk,mldepth,&
+!$omp threadprivate(clfi,cphi,cphih,cps,crhoi,crhos,dlam,dlayer,dmue,dphi,dtmix,gw,hdiffk,mldepth,&
 !$omp&  mpinfo,mypid,myworld,&
 !$omp&  naccuout,naomod,ndatim,ndiag,newsurf,nfluko,ngui,nhdiff,nlsg,nocean,nout,noutput,&
 !$omp&  nperpetual_ocean,nprhor,nprint,nproc,nrestart,nstep,ntspd,nud,solar_day,taunc,tfreeze,&
@@ -164,7 +174,7 @@
       subroutine oceanini(kstep,krestart,koutput,kdpy,kgui,psst,pmld    &
      &                   ,piflux,ktspd,psolday,oceanmod_namelist        &
      &                   ,ocean_output, ifreezet, prhos, pcps, pclfi      &
-     &                   ,pcoldsst)
+     &                   ,pcrhoi, pcoldsst)
       use oceanmod
 !     Only the radius; pumamod's NLON, NLAT and NHOR are not oceanmod's.
       use pumamod, only: plarad
@@ -173,6 +183,7 @@
       real :: prhos                 ! density of sea water, from icemod_nl
       real :: pcps                  ! specific heat of sea water, from icemod_nl
       real :: pclfi                 ! heat of fusion of sea ice, from icemod_nl
+      real :: pcrhoi                ! density of sea ice, icemod's declaration
       real :: pcoldsst(NHOR)        ! declared cold-start SST profile, icemod_nl
       real :: psst(NHOR),pmld(NHOR),piflux(NHOR)
       real (kind=8) :: zsi(NLAT)
@@ -243,6 +254,7 @@
       CRHOS   = prhos
       CPS     = pcps
       CLFI    = pclfi
+      CRHOI   = pcrhoi
 !
 !     read and print namelist and distribute it
 !
@@ -281,6 +293,7 @@
       call mpbcr(CRHOS)
       call mpbcr(CPS)
       call mpbcr(CLFI)
+      call mpbcr(CRHOI)
 !
 !
 !     Horizontal diffusion runs on the planet radius planet_nl declared. Say so

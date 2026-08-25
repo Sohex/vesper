@@ -1075,7 +1075,102 @@ property of the geography and it changes with every build and every carve.
 - The segment is at one rung. The instrument takes `--rung` and the argument is
   rung-independent, but only T42 has been run.
 
-## 12. The diagnose half of the q-flux recipe is also built, and what blocks it is the target
+### 11f. The two paths 11e left, instrumented
+
+Built 2026-08-25. Section 11e recorded that the monthly interpolation and
+`addfc`'s ice branches were deliberately not exercised, and the reason was
+ISOLATION rather than an argument that they should stay untested: a field
+constant in time makes the calendar unable to influence the answer, and an
+ice-free ocean keeps `addfc` in branch (a). With the channel verified, each can
+now be turned on alone, and `verify_ocean_flux_channel.py` carries four arms
+instead of one.
+
+**`monthly` is a SEPARABLE field**, the same spatial pattern times a declared
+per-month scalar, written as twelve records so `surfmod.f90:get_surf_array`
+performs its own cyclic expansion to fourteen. That makes the answer known in a
+way the envelope alone does not: whatever weights `momint` supplies, both terms
+of the convex combination are the same pattern, so each reported record must be
+that pattern times ONE scalar at every cell. A per-cell mixing error, a
+month-space transposition and a partially updated field all break separability
+and none of them breaks the envelope. Four criteria, and the fourth is the one
+that stops the arm passing vacuously: the recovered scalar series has to span at
+least half the declared one, because a model that ignored the month index and
+used one record forever satisfies the other three. The stronger piecewise-linear
+statement needs the calendar and is REPORTED rather than judged; it is a check on
+the calendar port and not on this channel.
+
+**The ice arms close the delivery identity with the term the first arm required
+to be zero.** `mksst` withholds the atmospheric flux from an iced slab,
+`mkiflux` charges the freezing clamp, `addfc` applies part of the correction and
+hands the rest to `yifluxr`, and `mkiflx` folds `yifluxr` into `yiflux`. Every
+one of those is a flux either applied to the slab or charged to `yiflux`, and
+`yiflux` carries the NEGATIVE of what was withheld, so on every ocean cell iced
+or not
+
+    CRHOS * CPS * mld * (SST_k - SST_{k-1}) = (yheata_k + yfssta_k + yifluxa_k) * dt_record
+
+That is "what `addfc` withholds from the slab equals what `mkiflx` adds to
+`yiflux`" written in quantities the ocean stream carries; `yifluxr` is not one of
+them and no new diagnostic was added to make it one. The three signs are declared
+in the instrument's source before any run of these arms exists, and the residual
+under each sign assignment is reported on a failure so the failure names itself.
+`ice` stages a cold declared profile alone and reaches branch (c); `ice_clim`
+stages a sea-ice thickness climatology at code 211 beside it so `ycliced > 0` and
+`addfc` takes branch (b) instead. Both guard against a vacuous pass twice: the
+modelled ice has to appear on a declared fraction of the ocean, overlapping the
+climatological ice for `ice_clim`, and `yiflux` has to be materially nonzero.
+
+**The instrument is checked before the model is run.** Every criterion is a
+statement about a stream, so a stream satisfying all of them exactly is
+synthesised for each arm and each criterion is then perturbed in one named way.
+All four arms pass: the clean stream satisfies every criterion and every
+criterion fails its own break.
+
+### 11g. What that self-check caught, in the criterion 11c already reported
+
+**`TOL_DELIVERY_RELATIVE` had no floor, and a bar with no floor is not a bar.**
+It is a fraction of the LARGEST temperature change in the window and `ysst` is
+stored float32, so the bar in kelvin scales with the window while the noise it
+has to sit above does not. On the segment 11b ran the largest change was 0.469 K
+and the bar was 4.7e-4 K, thirty times the float32 resolution near 290 K; on a
+window whose changes are hundredths of a kelvin the same bar sits BELOW the
+resolution and the criterion reports the storage format rather than the model.
+That is `docs/src/practice/failure-modes.md` class 34 in the instrument rather
+than in a result, and it was invisible until a synthetic stream with small
+changes was put through it.
+
+`MIN_DELIVERY_CHANGE_K` is now a declared floor on every arm including
+`channel`, set where the bar sits three times above the quantisation. **The
+segment 11b ran clears it by a factor of five**, so nothing 11c reported changes
+and the pass it recorded stands.
+
+### 11h. What is instrumented and what is still not verified
+
+The three new arms have been STAGED and their criteria declared and self-checked.
+**None of them has been run**, and until one is, nothing below section 11e's
+"what this section does NOT establish" has moved: the monthly interpolation and
+the two ice branches remain untested against the model. The commands are
+
+    python exoplasim/scripts/verify_ocean_flux_channel.py stage RUNDIR --rung T42 --arm monthly
+    python exoplasim/scripts/verify_ocean_flux_channel.py selftest RUNDIR
+    ...run the model in RUNDIR, cold, over a full orbit, with the staged namelist...
+    python exoplasim/scripts/verify_ocean_flux_channel.py check RUNDIR --record-seconds ... --mixed-layer-m ...
+
+and the same for `--arm ice` and `--arm ice_clim`. The monthly arm needs a full
+orbit or its fourth criterion cannot be met by construction; the ice arms need a
+COLD start, because a restart carries an ocean that is already warm and the
+declared profile never runs.
+
+---
+
+## 12. The diagnose half of the q-flux recipe is also built, and CLIM-65 is closed
+
+*CLIM-65 was closed on 2026-08-25: the ocean-transport loop computes the term a
+q-flux approximates, so the recipe below is recorded because the machinery is
+real and verified, not because a q-flux is wanted. OCN-5 had already named this
+section's central trap one level up -- an ocean model restored toward the
+climatology a zero-transport slab produced returns a transport of zero by
+construction.*
 
 CLIM-65 asks for the no-q-flux structural term to be converted from declared to
 measured, on the procedure CLIMBER-X demonstrates: run with prescribed sea
@@ -1195,6 +1290,106 @@ at the default to compare a new arm against.
 
 `predict_ocean_terms.py` needs no change: it builds its operator on this planet's
 radius, so its defaults have always been true-unit arms.
+## 13. A spatially varying two-band ocean albedo, priced as an interface
+
+Derived 2026-08-25, from the source and the grid alone. This is OCN-7's
+remaining half. Its spectral half was answered negatively -- water is dark and
+nearly flat across the 0.75 um split and a K-star reweighting of the ocean
+albedo is worth about 0.002 -- so what is left is the SPATIAL variation and the
+interface it would need. Nothing here was benchmarked and no wall-clock number
+is offered; the price is what the change would ADD, structurally.
+
+### 12a. The band index already does nothing over open water
+
+`radmod.f90`'s upward loop overwrites the open-water part of both bands, and it
+writes the SAME expression into each. Under `necham = 1`, the default, both
+`dsalb(1,:)` and `dsalb(2,:)` receive `AMIN1(0.05/(zmu0+0.15),0.15)`; under
+`necham6 = 1` both receive the Briegleb polynomial. Only at `necham = 0` and
+`necham6 = 0` does either band keep what `seamod` wrote. So over open water the
+model's albedo is ALREADY spatially varying and zenith-driven, and it is
+already spectrally flat by construction rather than by a choice about water.
+
+Two consequences the row has to be read against. The spatial variation OCN-7
+asks to cost is partly present, in the coordinate the sun moves in rather than
+the one the ocean varies in. And a two-band ocean albedo installed in `seamod`
+is discarded before the shortwave reads it: it would reach the radiation only in
+a configuration with both zenith branches off, which trades a zenith dependence
+the model has for a spatial one it does not. **The term has to land inside
+`radmod`'s own expression, not in `seamod`'s assignment**, and that is the
+interface cost's headline.
+
+### 12b. The staging half costs nothing, because the channel already exists
+
+The two-band per-cell surface albedo channel is built and complete, and the
+ocean is the only surface that reduces it to a scalar.
+
+| stage | land | ocean |
+| --- | --- | --- |
+| surface codes | 175 `dalbcl1`, 176 `dalbcl2`, `surfmod.f90:surfcode` | none |
+| writer | `build_surface_albedo.py`, over the whole grid | none |
+| reader | `mpsurfgp('dalbcl1',...,NHOR,14)` in `landini` | none |
+| restart | `mpgetgp`/`mpputgp` on both | not a record |
+| month interpolation | `dalbclim1(:)=zgw1*dalbcl1(:,jm1)+zgw2*dalbcl1(:,jm2)` | none |
+| use | `dsalb(1,jhor)=dalbclim1(jhor)` and the snow blend above it | `doceanalb(1)`, a scalar |
+
+So a spatially varying ocean albedo needs **no new surface code and no new
+`.sra` column** if it reuses 175 and 176, which are already written over ocean
+cells and simply not read there. What it needs instead is a decision about what
+those two codes MEAN: today they are the background LAND albedo and
+`build_surface_albedo.py` owns them, and writing an ocean value into the ocean
+cells of the same file makes one artifact answer to two generators.
+
+### 12c. What a separate field would cost, and why the reuse question is not cosmetic
+
+The alternative -- declaring an ocean pair of its own -- is priced by the grid
+and the convention that a thread team's working set on one die targets 32 MB.
+A month-resolved two-band field is `2 * 14 * NHOR` reals, and the model compiles
+at `-fdefault-real-8`, so the team total is `2 * 14 * nlat * nlon * 8` bytes:
+
+| rung | cells | new 14-month two-band pair | of the 32 MB target |
+| --- | --- | --- | --- |
+| T42 | 8192 | 1.75 MiB | 5.5 per cent |
+| T85 | 32768 | 7.00 MiB | 21.9 per cent |
+| T170 | 131072 | 28.00 MiB | 87.5 per cent |
+
+At the top of the ladder a single new month-resolved surface pair is most of the
+die budget on its own. A single-month pair is a fourteenth of that and is the
+cheaper shape if the ocean albedo does not need a seasonal cycle -- which is a
+question about whether the field varies with anything seasonal, and OCN-14 owns
+that because the water-leaving part of it is pigment and particles.
+
+### 12d. What the arithmetic costs, which is the part that is genuinely small
+
+Per ocean cell per `radstep` per band, replacing the zenith expression with a
+field reference adds two streaming loads of eight bytes and removes one divide,
+one add and one `AMIN1`. The albedo block already streams `dls`, `dicec`,
+`zmu0`, `dsalb(1,:)`, `dsalb(2,:)` and `dalb`, so it is a third more arrays in
+that block and a small fraction of `radstep`, which carries `NLEV`-deep arrays
+through the two-stream solve.
+
+**It vectorises unchanged.** Every term in the block is an elementwise `(:)`
+expression at unit stride; a scalar broadcast becoming an array reference keeps
+unit stride, adds no gather, no branch and no loop-carried dependency. The
+change is memory traffic and not control flow, which is why the interface
+question and not the arithmetic is where this row's cost lives.
+
+### 12e. What this pricing did NOT establish
+
+- **No optical bound is sourced here.** The row asks for one and the spectral
+  half already answered the K-star reweighting at about 0.002; what a SPATIAL
+  span of open-water albedo is worth on this world needs a modelled water-
+  leaving reflectance, which is OCN-14's, and a Fresnel term, which the zenith
+  branches already carry in a form neither of them derives from this star.
+- **Nothing was benchmarked**, deliberately. The host was contended and a
+  wall-clock number taken there looks like a measurement.
+- **The band-1 normalisation defect is not folded in.** The same `zdenom1` and
+  `zdenom2` that mis-normalise the ice surfaces normalise the ocean and ground
+  ones, so `doceanalb` carries the same band-1 error. That is larger than the
+  spectral question this row closes and it is a different kind of thing;
+  world-a0y owns it.
+- **The two-band collapse is a different row.** `doceanalb(1:2)` holds one value
+  in both elements like every other surface declaration in the model, and
+  OCN-22 owns that.
 
 ---
 

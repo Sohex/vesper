@@ -1,0 +1,273 @@
+{
+  "generated": "2026-08-25T16:21:44+00:00",
+  "declaration": "exoplasim/config/ocean_tier.yaml",
+  "tier": "ExoPlaSim slab; vendor/cgenie is a candidate nothing reads",
+  "sources": {
+    "ice": "vendor/exoplasim/exoplasim/plasim/src/icemod.f90",
+    "ocean": "vendor/exoplasim/exoplasim/plasim/src/oceanmod.f90",
+    "sea": "vendor/exoplasim/exoplasim/plasim/src/seamod.f90"
+  },
+  "findings": [],
+  "constants_by_reach": {
+    "namelist": 18,
+    "compile_time": 6,
+    "handed": 3
+  },
+  "handoffs": [
+    "melting_point",
+    "sea_ice_density",
+    "sea_water",
+    "snow_density"
+  ],
+  "refusals": [
+    "ocean_diffusion_needs_a_radius",
+    "ocean_flux_correction_needs_a_climatology",
+    "prescribed_ocean_needs_a_climatology",
+    "ocean_flux_correction_needs_its_field",
+    "ice_flux_correction_needs_a_climatology",
+    "ice_thickness_relaxation_needs_a_climatology",
+    "prescribed_ice_needs_a_climatology",
+    "prescribed_skin_temperature_needs_a_climatology",
+    "ice_flux_correction_needs_its_field",
+    "cold_start_must_be_declared"
+  ],
+  "unsourced_earth_constants": [
+    {
+      "name": "CRHOI",
+      "source": "ice",
+      "reach": "compile_time",
+      "bites": "the mass of a metre of modelled ice, everywhere; and with CRHOS the snow-ice flooding threshold.\n"
+    },
+    {
+      "name": "CPI",
+      "source": "ice",
+      "reach": "compile_time",
+      "bites": "the heat capacity of the modelled ice slab in the skin-temperature step."
+    },
+    {
+      "name": "CPSN",
+      "source": "ice",
+      "reach": "compile_time",
+      "bites": "the heat capacity of modelled snow on sea ice."
+    },
+    {
+      "name": "CKAPI",
+      "source": "ice",
+      "reach": "compile_time",
+      "bites": "the conductive flux through the modelled ice, which is what sets the equilibrium thickness at a given surface energy balance.\n"
+    },
+    {
+      "name": "CKAPSN",
+      "source": "ice",
+      "reach": "compile_time",
+      "bites": "the insulating effect of modelled snow on sea ice."
+    },
+    {
+      "name": "CLFSN",
+      "source": "ice",
+      "reach": "compile_time",
+      "bites": "what melting a snowfall into the modelled sea costs."
+    },
+    {
+      "name": "xmind",
+      "source": "ice",
+      "reach": "namelist",
+      "bites": "the thinnest ice the model carries, and through zrcpl = xmind*CRHOI*CPI the heat capacity of the skin-temperature layer.\n"
+    },
+    {
+      "name": "thicec",
+      "source": "ice",
+      "reach": "namelist",
+      "bites": "whether a cell is MASKED as iced, at icestep and mkicec."
+    },
+    {
+      "name": "cicemin",
+      "source": "ice",
+      "reach": "namelist",
+      "bites": "whether falling snow lands on the modelled ice or melts into the water, at subsnow's two sites. A SECOND threshold on the same field as thicec and not a restatement of it; it was unreachable until world-xdmj, so a bracket that moved thicec left this one at its compiled value.\n"
+    },
+    {
+      "name": "albice",
+      "source": "sea",
+      "reach": "namelist",
+      "bites": "the cold end of the broadband sea-ice albedo ramp."
+    },
+    {
+      "name": "albicemn",
+      "source": "sea",
+      "reach": "namelist",
+      "bites": "the warm end of the broadband sea-ice albedo ramp, at the melting point."
+    },
+    {
+      "name": "charnock",
+      "source": "sea",
+      "reach": "namelist",
+      "bites": "the roughness length over open water, through charnock*|tau|*gascon*T/(ga*p). Upstream's trailing comment called it an albedo, copied from the line above it; it is not one.\n"
+    },
+    {
+      "name": "dz0sea",
+      "source": "sea",
+      "reach": "namelist",
+      "bites": "the floor under the Charnock roughness, and the cold-start value."
+    },
+    {
+      "name": "dz0ice",
+      "source": "sea",
+      "reach": "namelist",
+      "bites": "the roughness length of the modelled sea ice."
+    }
+  ],
+  "execution_verified": false,
+  "fixtures": [
+    {
+      "fixture": "the declaration as it stands",
+      "expected": "clean",
+      "found": [],
+      "pass": true
+    },
+    {
+      "fixture": "a handoff whose receiver no longer takes the value",
+      "expected": "duplicate",
+      "found": [
+        "duplicate"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a handoff whose owner no longer states the quantity",
+      "expected": "duplicate",
+      "found": [
+        "duplicate"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a second compile-time copy back beside a live handoff",
+      "expected": "duplicate",
+      "found": [
+        "duplicate"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a handoff naming no forbidden form",
+      "expected": "duplicate",
+      "found": [
+        "duplicate"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a constant whose declaration line the source does not run",
+      "expected": "drift",
+      "found": [
+        "drift"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a constant whose value is not what its own line evaluates to",
+      "expected": "drift",
+      "found": [
+        "drift"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a constant saying nothing about what it changes",
+      "expected": "drift",
+      "found": [
+        "drift"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a constant declared reachable through a namelist that does not carry it",
+      "expected": "reach",
+      "found": [
+        "reach"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a namelist key declared compile-time",
+      "expected": "reach",
+      "found": [
+        "reach"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a constant declared reachable and naming no namelist",
+      "expected": "reach",
+      "found": [
+        "reach"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "the superseded absolute-slope ramp declared as the one that runs",
+      "expected": "range",
+      "found": [
+        "range"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a ramp whose expression the source does not contain",
+      "expected": "drift",
+      "found": [
+        "drift"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a ramp called from fewer places than declared",
+      "expected": "drift",
+      "found": [
+        "drift"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a ramp whose forbidden form is in fact what the source runs",
+      "expected": "drift",
+      "found": [
+        "drift"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "an invariant the source no longer runs",
+      "expected": "invariant",
+      "found": [
+        "invariant"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "an invariant saying nothing about what rests on it",
+      "expected": "invariant",
+      "found": [
+        "invariant"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a fail-closed guard the source no longer makes",
+      "expected": "refusal",
+      "found": [
+        "refusal"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a guard saying nothing about what it refuses to run on",
+      "expected": "refusal",
+      "found": [
+        "refusal"
+      ],
+      "pass": true
+    }
+  ]
+}
