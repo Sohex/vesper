@@ -247,18 +247,15 @@ const double PFRAC_MINTOMAX_CROPGREEN = 7.77;
  *  BRACKETED 1.02 to 1.35, from the point estimates the test could not
  *  separate: live-root N:P of 16.0 against leaf N:P of 13.8 and 18.2.
  *
- *  The derivation is a CONTRAST and the model does not currently deliver it.
- *  Both this constant and its nitrogen counterpart are applied to a window
- *  endpoint while fine-root demand is computed from a ratio of window means, so
- *  the contrast that reaches the simulated plant is
- *  (1 + PFRAC_MINTOMAX) / (1 + 2.78) = 1.238, the two leaf windows having
- *  different widths since PFRAC_MINTOMAX was separated from nitrogen's 2.78.
- *  Yuan's point estimates support 0.879 to 1.164, so 1.238 is outside them.
- *  Anchoring the tight root and sapwood windows on their mean returns the
- *  contrast to exactly 1.0 for any pair of leaf window widths and keeps 1.16;
- *  keeping the endpoint anchor needs 1.16 * 3.78 / 4.68 = 0.937 instead. That
- *  choice cannot be made on the phosphorus side alone, because the nitrogen
- *  side is the same construction. It is world-xms4, and the arithmetic is in
+ *  The derivation is a CONTRAST, and the model delivers it. Pft::init_ctop_limits
+ *  and Pft::init_cton_limits anchor the tight fine-root and sapwood windows on
+ *  the tissue MEAN, which is what canexch.cpp reads, so the applied contrast is
+ *  this constant divided by its nitrogen counterpart, exactly 1.0, whatever
+ *  widths PFRAC_MINTOMAX and its nitrogen counterpart carry. This constant is
+ *  therefore independent of both leaf window widths. The earlier max-anchored
+ *  form made the applied contrast (1 + PFRAC_MINTOMAX) / (1 + 2.78) = 1.238,
+ *  outside the 0.879 to 1.164 Yuan's point estimates support, and would have
+ *  needed 0.937 here to be redone whenever either leaf window moved. world-xms4;
  *  biosphere/notes/plant-physiology-carbon-allocation-audit.md finding 11.
  */
 const double PFRAC_LEAFTOROOT = 1.16;
@@ -286,28 +283,39 @@ const double PFRAC_LEAFTOROOT = 1.16;
  *  decline in wood P. It is recorded and NOT adopted: it rests on one tropical
  *  gradient and on a form the same measurement rejects.
  *
- *  The quantity. This constant is applied to a window ENDPOINT, while both
- *  papers measure a tissue mean. canexch.cpp computes sapwood P demand against
- *  ctop_leaf_opt * ctop_sap_avr / ctop_leaf_avr, and because avg_ctop() is a
- *  harmonic mean over windows of width PFRAC_MINTOMAX and 1/PFRAC_MAXTOMIN that
- *  multiplier is 0.94737 * 6.9 * (1 + 3.68) / 2 = 15.30, not 6.9. The nitrogen
- *  side is the same construction on its 2.78 window and applies 12.36 against
- *  Friend's own 6.897, so this one is not a phosphorus defect and cannot be
- *  fixed here alone. It is world-xms4.
+ *  The level. Pft::init_ctop_limits anchors the sapwood window on the tissue
+ *  mean, so canexch.cpp applies exactly this 6.9 to sapwood P demand. A forced
+ *  scalar taken from the one paired leaf-and-wood phosphorus dataset would be
+ *  BRACKETED 10.1 to 15.5, so the nitrogen value the constant carries sits
+ *  below that bracket rather than inside it. The max-anchored form the model
+ *  used to carry applied 15.30 and landed at the top of the bracket by
+ *  cancellation, a nitrogen constant too low for phosphorus multiplied by a
+ *  window factor of 2.22 that should not have been there; neither half was a
+ *  derivation and their product was not one either.
  *
- *  Choosing among a refuted scalar, a nonlinear wood-leaf P relation, and moving
- *  the constant to the tissue mean is a modelling decision, and it is BIO-34's
- *  remaining open item. P limitation is refused meanwhile, see parameters.cpp.
- *  The arithmetic is in biosphere/notes/phosphorus-cycle-parameterisation.md.
+ *  Choosing between a refuted scalar and a nonlinear wood-leaf P relation, and
+ *  what anchors the level if a scalar is kept, is a modelling decision, and it
+ *  is BIO-34's remaining open item. P limitation is refused meanwhile, see
+ *  parameters.cpp. The arithmetic is in
+ *  biosphere/notes/phosphorus-cycle-parameterisation.md.
  */
 const double PFRAC_LEAFTOSAP = 6.9;
 
-/// Tightening of the root and sapwood C:P range against the leaf range
+/// Ratio of minimum to maximum root and sapwood C:P, so the width of that window
 /** Keeps its nitrogen counterpart's 0.9, and there is nothing to derive: the
  *  nitrogen original is declared arbitrary where it is set in
  *  Pft::init_cton_limits(), so this is a copy of a number that was never
  *  measured for either element. That is a whole-model gap and not a phosphorus
  *  one, and it is not what the ifplim refusal is about.
+ *
+ *  It sets the WIDTH of the fine-root and sapwood window and nothing else.
+ *  PFRAC_LEAFTOROOT and PFRAC_LEAFTOSAP set where that window's mean sits, and
+ *  the mean is what canexch.cpp reads, so an arbitrary width no longer moves
+ *  the proportion applied to fine-root and sapwood P demand. What it still
+ *  decides is ctop_root_max and ctop_sap_max, which are the C:P
+ *  Individual::ctop_root() and ::ctop_sap() report for a simulated plant with
+ *  no phosphorus mass at all and the P-poorest fine root cropallocation.cpp
+ *  will fill.
  */
 const double PFRAC_MAXTOMIN = 0.9;
 
@@ -2385,19 +2393,22 @@ public:
 		// C:N of foliage, fine roots and sapwood plus bark fixed. There is no
 		// window in that formulation.
 		//
-		// They are applied here to a window ENDPOINT, and the window they end is
-		// anchored on cton_leaf_max while frac_maxtomin sets its width
-		// independently. What canexch.cpp gives the simulated plant is a ratio
-		// of window MEANS, cton_leaf_opt * cton_<tissue>_avr / cton_leaf_avr, so
-		// the applied proportion is [2m/(1+m)] * frac * (1 + frac_mintomax) / 2:
-		// 2.077 for fine roots and 12.355 for sapwood, against the 1.163 and
-		// 6.897 Friend measured. Fixing that divides every fine-root and sapwood
-		// C:N by 1.79, which moves every number the established C-N
-		// configuration has produced, so the values here are unchanged until
-		// that re-commissioning is chosen. world-xms4 owns it, together with the
-		// identical construction on the phosphorus side; the arithmetic and the
-		// repair are in
-		// biosphere/notes/plant-physiology-carbon-allocation-audit.md finding 11.
+		// So they are applied below to the tissue MEAN, which is the quantity
+		// they measure and the quantity canexch.cpp gives the simulated plant:
+		// fine-root and sapwood demand come from a ratio of window means,
+		// cton_leaf_opt * cton_<tissue>_avr / cton_leaf_avr. The window is then
+		// built outward from that mean, so the applied proportion is exactly
+		// frac for any frac_mintomax and any frac_maxtomin, and neither leaf
+		// window's width can move it.
+		//
+		// The check that has to pass, and the one the earlier max-anchored form
+		// failed: after init_cton_limits(), cton_<tissue>_avr / cton_leaf_avr
+		// must equal the constant the source measured. Anchoring the tight
+		// window on cton_leaf_max instead put a factor of
+		// [2m/(1+m)] * (1 + frac_mintomax) / 2 = 1.79 between them, so the
+		// model applied 2.077 and 12.355 where Friend measured 1.163 and 6.897.
+		// world-xms4; biosphere/notes/plant-physiology-carbon-allocation-audit.md
+		// finding 11 carries the arithmetic and what the repair costs.
 
 		// Fraction between leaf and root C:N ratio
 		double frac_leaftoroot = 1.16; // Friend et al. 1997
@@ -2412,25 +2423,28 @@ public:
 		cton_leaf_avr = avg_cton(cton_leaf_min, cton_leaf_max);
 
 		// Tighter C:N ratio range for roots and sapwood: picked out thin air.
-		// Anchoring that tighter range on cton_leaf_max, rather than on the
-		// tissue mean the two proportions above are measurements of, is what
-		// puts the 1.79 factor between them and what the model applies.
+		// It sets the WIDTH of that range only; the two proportions above set
+		// where its mean sits. The inversion (1 + m) / (2 * m) below is the one
+		// that makes avg_cton() return that mean again, the same inversion
+		// init_ctop_min() performs on the leaf window and for the same reason.
 		double frac_maxtomin = .9;
 
-		// Maximum fine root C:N ratio
-		cton_root_max = cton_leaf_max * frac_leaftoroot;
+		// Average fine root C:N ratio, and the window built outward from it
+		double cton_root_target = cton_leaf_avr * frac_leaftoroot;
+
+		cton_root_max = cton_root_target * (1.0 + frac_maxtomin) / (2.0 * frac_maxtomin);
 
 		double cton_root_min = cton_root_max * frac_maxtomin;
 
-		// Average fine root C:N ratio
 		cton_root_avr = avg_cton(cton_root_min, cton_root_max);
 
-		// Maximum sap C:N ratio
-		cton_sap_max  = cton_leaf_max * frac_leaftosap;
+		// Average sap C:N ratio, and the window built outward from it
+		double cton_sap_target = cton_leaf_avr * frac_leaftosap;
+
+		cton_sap_max  = cton_sap_target * (1.0 + frac_maxtomin) / (2.0 * frac_maxtomin);
 
 		double cton_sap_min = cton_sap_max * frac_maxtomin;
 
-		// Average sap C:N ratio
 		cton_sap_avr  = avg_cton(cton_sap_min, cton_sap_max);
 
 		if (lifeform == GRASS || lifeform == MOSS) {
@@ -2461,23 +2475,34 @@ public:
 		// Average leaf C:P ratio
 		ctop_leaf_avr = avg_ctop(ctop_leaf_min, ctop_leaf_max);
 
-		// Tighter C:P ratio range for roots and sapwood
+		// Tighter C:P ratio range for roots and sapwood. As on the nitrogen
+		// side, it sets the WIDTH only: the two proportions above set where the
+		// tissue mean sits, and (1 + m) / (2 * m) is the inversion that makes
+		// avg_ctop() return that mean again. So ctop_<tissue>_avr /
+		// ctop_leaf_avr, which is what canexch.cpp applies to fine-root and
+		// sapwood P demand, equals the declared constant for any
+		// PFRAC_MINTOMAX. That decouples PFRAC_LEAFTOROOT from PFRAC_MINTOMAX
+		// permanently, so its Yuan et al. (2011) contrast against the nitrogen
+		// proportion is delivered as the derived 1.0 rather than as the 1.238
+		// the max-anchored form produced once the leaf C:P window was widened.
 		double frac_maxtomin = PFRAC_MAXTOMIN;
 
-		// Maximum fine root C:P ratio
-		ctop_root_max = ctop_leaf_max * frac_leaftoroot;
+		// Average fine root C:P ratio, and the window built outward from it
+		double ctop_root_target = ctop_leaf_avr * frac_leaftoroot;
+
+		ctop_root_max = ctop_root_target * (1.0 + frac_maxtomin) / (2.0 * frac_maxtomin);
 
 		double ctop_root_min = ctop_root_max * frac_maxtomin;
 
-		// Average fine root C:P ratio
 		ctop_root_avr = avg_ctop(ctop_root_min, ctop_root_max);
 
-		// Maximum sap C:P ratio
-		ctop_sap_max = ctop_leaf_max * frac_leaftosap;
+		// Average sap C:P ratio, and the window built outward from it
+		double ctop_sap_target = ctop_leaf_avr * frac_leaftosap;
+
+		ctop_sap_max = ctop_sap_target * (1.0 + frac_maxtomin) / (2.0 * frac_maxtomin);
 
 		double ctop_sap_min = ctop_sap_max * frac_maxtomin;
 
-		// Average sap C:P ratio
 		ctop_sap_avr = avg_ctop(ctop_sap_min, ctop_sap_max);
 
 		/*if (lifeform == GRASS || lifeform == MOSS) {

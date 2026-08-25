@@ -270,46 +270,64 @@ carbon debt or NSC, reproductive allocation and source--sink limitation. Require
 daily and orbit C--N--P closure, and make the accepted equilibrium window retain
 both seasonal phase and allocation-event diagnostics.
 
-### 11. Tissue C:N and C:P proportions are applied to a max-anchored window, so the model uses a different proportion from the one it declares
+### 11. Fine-root and sapwood C:N and C:P windows are anchored on the tissue mean, so the applied proportion is the sourced one
 
-`Pft::init_cton_limits()` and `Pft::init_ctop_limits()` build the fine-root and
-sapwood windows by anchoring the window MAXIMUM on the leaf maximum,
-`cton_sap_max = cton_leaf_max * frac_leaftosap`, and then setting the minimum at
-`frac_maxtomin` of that maximum, a width the source comment beside it calls
-"picked out thin air". The leaf window has its own, much wider width
-`frac_mintomax`. The four proportion constants are therefore ratios of window
-ENDPOINTS.
+`Pft::init_cton_limits()` and `Pft::init_ctop_limits()` set the fine-root and
+sapwood window MEAN from the leaf window mean and build the window outward from
+it:
 
-What reaches the simulated plant is a ratio of window MEANS. `canexch.cpp:1402`
+    <tissue>_avr = <leaf>_avr * frac
+    <tissue>_max = <tissue>_avr * (1 + m) / (2 * m)
+    <tissue>_min = m * <tissue>_max
+
+with `m` the window's min-to-max ratio, `frac_maxtomin` on the nitrogen side
+and `PFRAC_MAXTOMIN` on the phosphorus side, both 0.9. That is the same inversion
+`Pft::init_ctop_min()` performs on the leaf window and for the same reason:
+`avg_cton()` and `avg_ctop()` are harmonic means, so a mean has to be inverted
+through them to come back out. `m` therefore sets the WIDTH of the tight window
+and nothing else, and the four proportion constants set where its mean sits.
+
+What reaches the simulated plant is a ratio of window means. `canexch.cpp:1402`
 and `:1406` compute fine-root and sapwood nitrogen demand against
-`cton_leaf_opt * <tissue>_avr / cton_leaf_avr`, `:1574` and `:1578` do the same
-for phosphorus, and `avg_cton()` / `avg_ctop()` are harmonic means. Anchoring the
-tight window on the leaf maximum while the leaf mean sits well below it puts a
-fixed factor between the declared constant and the applied proportion:
+`cton_leaf_opt * <tissue>_avr / cton_leaf_avr`, and `:1574` and `:1578` do the
+same for phosphorus. The applied proportion is therefore exactly the declared
+constant, for any leaf window width `f` and any `m`.
+
+| element | tissue | phenology | constant | declared | applied | applied / declared | max-anchored applied | source quantity | source value |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| N | sapwood | non-crop | `frac_leaftosap`, `guess.h:2417` | 6.9 | 6.900 | 1.000 | 12.355 | Friend 1/X_C:N(f/p) | 6.897 |
+| N | fine root | non-crop | `frac_leaftoroot`, `guess.h:2414` | 1.16 | 1.160 | 1.000 | 2.077 | Friend 1/X_C:N(f/r) | 1.163 |
+| P | sapwood | non-crop | `PFRAC_LEAFTOSAP`, `guess.h:302` | 6.9 | 6.900 | 1.000 | 15.296 | none; the constant is nitrogen's | -- |
+| P | fine root | non-crop | `PFRAC_LEAFTOROOT`, `guess.h:261` | 1.16 | 1.160 | 1.000 | 2.571 | Yuan contrast against the applied N root proportion | 1.0 |
+| N | sapwood | CROPGREEN | `frac_leaftosap` at f = 5.0 | 6.9 | 6.900 | 1.000 | 19.611 | Friend 1/X_C:N(f/p) | 6.897 |
+| N | fine root | CROPGREEN | `frac_leaftoroot` at f = 5.0 | 1.16 | 1.160 | 1.000 | 3.297 | Friend 1/X_C:N(f/r) | 1.163 |
+| P | sapwood | CROPGREEN | `PFRAC_LEAFTOSAP` at f = 7.77 | 6.9 | 6.900 | 1.000 | 28.664 | none | -- |
+| P | fine root | CROPGREEN | `PFRAC_LEAFTOROOT` at f = 7.77 | 1.16 | 1.160 | 1.000 | 4.819 | Yuan contrast | 1.0 |
+
+That is the complete extent of the construction. The crop stem pair is the only
+other tissue in the same demand construction and it never needed the repair:
+`cton_stem_avr` and `ctop_stem_avr` are set directly as means at
+`guess.h:2457-2458` and `:2515-2516` rather than derived from a `_max`, and
+`guess.cpp:2034` and `:2045` then use them in exactly the form the four
+constants are read in. That is also the internal corroboration of which quantity
+this construction wants. The leaf window widths are not part of it: `cton_leaf_min`
+is a genuine endpoint from Reich et al. (1992) and `ctop_leaf_min` is already
+inverted so that `ctop_leaf_avr` reproduces its regression's average.
+
+**What the max-anchored form did.** It set `<tissue>_max = <leaf>_max * frac` and
+`<tissue>_min = m * <tissue>_max`, so the constants were ratios of window
+ENDPOINTS while the model applied a ratio of window MEANS. The leaf mean sits
+well below the leaf maximum, which put a fixed factor between the declared
+constant and the applied proportion:
 
     applied / declared = [2m / (1 + m)] * (1 + f) / 2
 
-with `m` = `frac_maxtomin` (0.9 on both elements) and `f` = `frac_mintomax`.
-
-| element | tissue | phenology | constant | declared | window factor | applied | source quantity | source value | applied / source |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| N | sapwood | non-crop | `frac_leaftosap`, `guess.h:2406` | 6.9 | 1.7905 | 12.355 | Friend 1/X_C:N(f/p) | 6.897 | 1.791 |
-| N | fine root | non-crop | `frac_leaftoroot`, `guess.h:2403` | 1.16 | 1.7905 | 2.077 | Friend 1/X_C:N(f/r) | 1.163 | 1.786 |
-| P | sapwood | non-crop | `PFRAC_LEAFTOSAP`, `guess.h:303` | 6.9 | 2.2168 | 15.296 | none; the constant is nitrogen's | -- | -- |
-| P | fine root | non-crop | `PFRAC_LEAFTOROOT`, `guess.h:264` | 1.16 | 2.2168 | 2.571 | Yuan contrast against the applied N root proportion | 1.0 | 1.238 |
-| N | sapwood | CROPGREEN | `frac_leaftosap` at f = 5.0 | 6.9 | 2.8421 | 19.611 | Friend 1/X_C:N(f/p) | 6.897 | 2.843 |
-| N | fine root | CROPGREEN | `frac_leaftoroot` at f = 5.0 | 1.16 | 2.8421 | 3.297 | Friend 1/X_C:N(f/r) | 1.163 | 2.835 |
-| P | sapwood | CROPGREEN | `PFRAC_LEAFTOSAP` at f = 7.77 | 6.9 | 4.1542 | 28.664 | none | -- | -- |
-| P | fine root | CROPGREEN | `PFRAC_LEAFTOROOT` at f = 7.77 | 1.16 | 4.1542 | 4.819 | Yuan contrast | 1.0 | 1.238 |
-
-That is the complete extent. The crop stem pair is the only other tissue in the
-same demand construction and it is not affected: `cton_stem_avr` and
-`ctop_stem_avr` are set directly as means at `guess.h:2443-2444` and
-`:2490-2491` rather than derived from a `_max`, and `guess.cpp:2034` and `:2045`
-then use them in exactly the form the four constants are read in. The leaf window
-widths themselves are not part of this: `cton_leaf_min` is a genuine endpoint
-from Reich et al. (1992) and `ctop_leaf_min` is already inverted so that
-`ctop_leaf_avr` reproduces its regression's average.
+That is 1.7905 on the non-crop nitrogen window, 2.2168 on the non-crop
+phosphorus window, and 2.8421 and 4.1542 on the CROPGREEN arm, and it is what
+produced the max-anchored column above. The check it failed is the acceptance
+test for this finding: after `init_cton_limits()` and `init_ctop_limits()`,
+`<tissue>_avr / <leaf>_avr` must equal the constant the source measured, for
+every pair in both phenology arms.
 
 **The applied number is the one that has to equal the source, and the endpoints
 are the free parameters.** Friend, Stevens, Knox and Cannell (1997) allocate
@@ -324,38 +342,41 @@ applied to a simulated individual's own current leaf ratio, so
 `cton_sap_avr / cton_leaf_avr` is precisely the quantity `1/X_C:N(f/p)` names.
 Heineman, Turner and Dalling (2016) regress log species-mean wood on log
 species-mean leaf concentration, so its proportion is likewise between tissue
-means. The stem pair above shows the same convention inside this model. Friend's
-own sensitivity analysis, Table 8 p. 280, ranks `X_C:N(f/r)` ninth of 76
-parameters at index 0.665 and `X_C:N(f/p)` twenty-sixth at 0.337, so a factor of
-1.79 on them is not a detail.
+means. Friend's own sensitivity analysis, Table 8 p. 280, ranks `X_C:N(f/r)`
+ninth of 76 parameters at index 0.665 and `X_C:N(f/p)` twenty-sixth at 0.337, so
+a factor of 1.79 on them is not a detail.
 
-**What moves, and by how much.** All arithmetic below is closed form on the model
-source and the two papers. Nothing here is execution-verified: LPJ-GUESS does not
-build on this tree and no run was made.
+**What it moved, and by how much.** All arithmetic below is closed form on the
+model source and the two papers. Nothing here is execution-verified: LPJ-GUESS
+does not build on this tree and no run was made.
 
-Redefining the constants so the applied proportion equals the sourced one divides
-every fine-root and sapwood C:N by 1.7905, on both tissues by the same factor,
-and leaves the leaf window untouched. Tissue nitrogen demand per unit tissue
-carbon therefore rises by 1.7905 in both. Whole-plant structural nitrogen
-requirement rises less, because leaf demand does not move: at leaf C:N 30 and
-carbon 0.3 leaf, 0.3 fine root, the requirement rises by a factor of 1.256 with
-no sapwood, 1.370 at 1.5 kgC/m2 sapwood, 1.445 at 3.0 and 1.535 at 6.0. Those
-carbon masses are stated as an illustration of composition dependence, not as a
-prediction of this world's.
+The repair divides every fine-root and sapwood C:N by 1.7905, on both tissues by
+the same factor, and leaves the leaf window untouched. Tissue nitrogen demand per
+unit tissue carbon therefore rises by 1.7905 in both. Whole-plant structural
+nitrogen requirement rises less, because leaf demand does not move: at leaf C:N 30
+and carbon 0.3 leaf, 0.3 fine root, the requirement rises by a factor of 1.257
+with no sapwood, 1.371 at 1.5 kgC/m2 sapwood, 1.446 at 3.0 and 1.536 at 6.0.
+Those carbon masses are stated as an illustration of composition dependence, not
+as a prediction of this world's. On the phosphorus side the same factor is
+2.2168, and it moves nothing that limits simulated growth: `ifplim 0`, and
+`parameters.cpp` refuses `ifplim 1` on separate grounds.
 
 Maintenance respiration depends on which respiration path is configured, and the
 two differ completely. `respiration()` takes `respcoeff`, and
-`guess.h:2436-2441` divides `respcoeff` by
-`cton_root/(cton_root_avr + cton_root_min) + cton_sap/(cton_sap_avr + cton_sap_min)`,
-a sum which is 1.95 times each tissue's own mean under both the present anchor
-and the repair below. Scaling both windows by the same factor therefore scales
-that sum inversely and leaves `respcoeff / cton` unchanged, so on that path
-sapwood and fine-root maintenance respiration is invariant by construction. The
-configured path is not that one. `global.ins` sets `acclimated_respiration 1`,
-and `respiration_acclimated()` substitutes a temperature function for
-`respcoeff` and never reads it (finding 3), so on the configured path there is no
-compensation and maintenance respiration scales as `1/cton_sap` and
-`1/cton_root` directly.
+`guess.h:2450-2456` divides `respcoeff` by
+`cton_root/(cton_root_avr + cton_root_min) + cton_sap/(cton_sap_avr + cton_sap_min)`.
+Under the mean anchor `<tissue>_min` is `(1 + m) / 2` of `<tissue>_avr`, so that
+sum is 1.95 times each tissue's own mean, exactly as it was under the max anchor.
+Scaling both windows by the same factor therefore scales that sum inversely and
+leaves `respcoeff / cton` unchanged, so on that path sapwood and fine-root
+maintenance respiration is invariant by construction. The configured path is not
+that one. `build_vesper_pfts.py` defaults its source instruction file to
+`global.ins`, which sets `acclimated_respiration 1`, and
+`respiration_acclimated()` substitutes a temperature function for `respcoeff` and
+never reads it (finding 3), so on the configured path there is no compensation
+and maintenance respiration scales as `1/cton_sap` and `1/cton_root` directly.
+`global_p.ins` sets the switch to 0, so moving the run to the C-N-P instruction
+file would restore the `respcoeff` compensation and remove this effect entirely.
 
 The size of that on the configured path is bounded rather than known.
 `Individual::cton_sap()` returns
@@ -364,59 +385,49 @@ the floor moves by the same 1.7905, so a simulated individual whose nitrogen
 demand is met sees the full factor while one that is nitrogen-starved sees less.
 In the nitrogen-replete limit, with `resp_growth` a fixed quarter of what is left
 after maintenance, NPP is `0.75 * (A - Rm)` and multiplying `Rm` by 1.7905 leaves
-NPP at 0.80, 0.66 and 0.47 of its present value for `Rm/A` of 0.20, 0.30 and
-0.40. That ratio is BRACKETED 0.20 to 0.40 rather than measured; this project has
-no accepted respiration diagnostic, which is finding 10.
+NPP at 0.80, 0.66 and 0.47 of its former value for `Rm/A` of 0.20, 0.30 and 0.40.
+That ratio is BRACKETED 0.20 to 0.40 rather than measured; this project has no
+accepted respiration diagnostic, which is finding 10.
 
-So the established C-N configuration moves by a first-order amount in a known
-direction on every quantity the biosphere returns, and only a run settles the
-magnitude. The phosphorus side moves nothing that limits simulated growth:
-`ifplim 0` and `parameters.cpp` refuses `ifplim 1` on separate grounds.
+So the C-N configuration moves by a first-order amount in a known direction on
+every quantity the biosphere returns, and only a run settles the magnitude. Every
+number produced under the max anchor is worthless in rule 7's sense rather than
+stale, and the biosphere's re-commissioning is what replaces them. The canonical
+climatology lineage does not exist yet, so a defect in the model was never weighed
+against the cost of the output it invalidates.
 
-**The cross-effect on `PFRAC_LEAFTOROOT`.** That constant's derivation is a
-CONTRAST and not a level: a C:P proportion divided by its C:N counterpart is the
-fine-root-to-leaf N:P ratio, and Yuan, Chen and Reich (2011) cannot separate
-live-root N:P from leaf N:P, so the contrast is 1.0 and the constant keeps
-nitrogen's 1.16. Under the endpoint anchor the applied contrast is
-`(1 + PFRAC_MINTOMAX) / (1 + 2.78)` = 4.68 / 3.78 = 1.238, because BIO-34 widened
-the leaf C:P window to 3.68 while the leaf C:N window stayed at 2.78. The point
-estimates Yuan's test could not separate give a contrast of 0.879 to 1.164, the
-1.02 to 1.35 bracket on the constant divided by 1.16. **1.238 lies outside that,
-so the derivation does not currently reach the simulated plant.** It is not
-wrong as a derivation; it is not being delivered.
+**`PFRAC_LEAFTOROOT` is now delivered, and is decoupled from `PFRAC_MINTOMAX`.**
+That constant's derivation is a CONTRAST and not a level: a C:P proportion
+divided by its C:N counterpart is the fine-root-to-leaf N:P ratio, and Yuan, Chen
+and Reich (2011) cannot separate live-root N:P from leaf N:P, so the contrast is
+1.0 and the constant keeps nitrogen's 1.16. Under the mean anchor the applied
+contrast is that ratio of constants, exactly 1.0, whatever widths the two leaf
+windows carry. Under the max anchor it was `(1 + PFRAC_MINTOMAX) / (1 + 2.78)` =
+4.68 / 3.78 = 1.238, because BIO-34 widened the leaf C:P window to 3.68 while the
+leaf C:N window stayed at 2.78, and the point estimates Yuan's test could not
+separate give a contrast of 0.879 to 1.164, so the derivation was not reaching
+the simulated plant. The coupling BIO-34 introduced is removed rather than
+re-tuned around: the alternative that keeps the max anchor needs
+1.16 * 3.78 / 4.68 = 0.937 here and needs redoing whenever either leaf window
+moves.
 
-**The repair that makes the declared constant and the applied constant the same
-thing.** Anchor the tight root and sapwood window on its MEAN rather than on its
-maximum:
-
-    <tissue>_avr = <leaf>_avr * frac
-    <tissue>_max = <tissue>_avr * (1 + m) / (2 * m)
-    <tissue>_min = m * <tissue>_max
-
-The applied proportion is then exactly `frac` for any `f` and any `m`; the
-constants keep their sourced values and stop being free parameters; the tighter
-window that `m` encodes is preserved unchanged; the `respcoeff` normalising sum
-stays 1.95 times the mean, so that path's compensation keeps working; and
-`PFRAC_LEAFTOROOT`'s contrast becomes exactly 1.0 independent of both leaf window
-widths, which removes the coupling BIO-34 introduced rather than re-tuning around
-it. It is the same inversion `Pft::init_ctop_min()` already performs on the leaf
-window, for the same reason.
-
-The alternative is to keep the endpoint anchor, in which case all four constants
-are free parameters attributable to no measurement, and `PFRAC_LEAFTOROOT` still
-has to become 1.16 * 3.78 / 4.68 = 0.937 to deliver its own contrast of 1.0.
-That leaves the model calibrated against numbers with no derivation, so the
-question the repair leaves open is not whether but when: it invalidates every
-established C-N number and the re-commissioning that follows is the decision.
-Tracked as world-xms4.
+**What the repair does not settle.** `PFRAC_LEAFTOSAP` remains refused on its own
+grounds. Its 6.9 is a NITROGEN ratio for foliage against bark plus sapwood over
+nine temperate species, and Heineman et al. (2016) rejects the proportional FORM
+for phosphorus while failing to reject it for nitrogen. The quantity question is
+answered and the element and form questions are not: the model now applies
+exactly 6.9 where a forced scalar from that one paired dataset would be BRACKETED
+10.1 to 15.5, so the applied value sits below the bracket instead of at the top
+of it by cancellation. `ifplim 1` keeps refusing and keeps naming it. BIO-34.
 
 ## Recommended order
 
 1. Correct the mixed rotation/physiology time base and respiration-acclimation
    state before measuring any response.
-2. Settle the tissue-proportion convention in finding 11. It decides what
-   fine-root and sapwood nutrient demand and, on the configured acclimated path,
-   maintenance respiration are, so no C-N result is interpretable ahead of it.
+2. Re-commission the biosphere on the mean-anchored tissue windows of finding 11.
+   They decide what fine-root and sapwood nutrient demand and, on the configured
+   acclimated path, maintenance respiration are, so no C-N number produced under
+   the max anchor survives them.
 3. Finish BIO-23, BIO-25 and the live-plant trait registry so pressure, photons
    and coherent Earth-derived priors are explicit.
 4. Close the P-photosynthesis domain before BIO-10, and connect allocation to the
