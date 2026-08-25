@@ -3586,7 +3586,15 @@ bool Soil::soil_temp_multilayer(const double &dailyairtemp) {
 	// Set fractions of soil parameters for each soil layer & litter
 	// ------------------------------------------
 
-	if (firstTempCalc && patch.stand.first_year == date.year) {
+	// Also on the restart path, as every other first-call block in this routine
+	// is. alwhc_init is written NOWHERE else and is read every day by
+	// update_layer_water_content, so without this a resumed column derives its
+	// liquid-water fraction from zeros. It costs no state-file bytes and moves
+	// no number today, because alwhc has no reader anywhere in the model and
+	// aw_max, which does, is serialized and recomputes to the same value from
+	// the same constants. biosphere/notes/soil-restart-state.md.
+	if (firstTempCalc && (patch.stand.first_year == date.year || restart ||
+	                      patch.stand.clone_year == date.year)) {
 		init_hydrology_variables(); // Initialise whc[], alwhc[], and alwhc_init[] for this patch
 	}
 
@@ -3890,7 +3898,24 @@ void Soil::nmass_multiplic_inc(double inc, int pref) {
 	}
 }
 
-// serialize new soil variables, when finalised
+// What this carries, and what it deliberately does not.
+//
+// Every member of the Soil class falls in exactly one of four classes, and
+// biosphere/config/soil_restart_state.yaml holds the classification with its
+// evidence, biosphere/scripts/soil_restart_state_gate.py checks this block
+// against it, and biosphere/notes/soil-restart-state.md argues it:
+//
+//   serialized   restart state, streamed below.
+//   recomputed   written from serialized state, or from a compile-time
+//                constant, before its first read on any simulated day. Adding
+//                one of these here would be bytes that change no result.
+//   diagnostic   written and read within one day for reporting, or never read
+//                at all.
+//   lost         read before it is written on the first resumed day. There are
+//                none left; the ones there were are named in the block below.
+//
+// A member added to the class and left out of the classification file fails the
+// gate, so the sweep does not have to be argued again from scratch.
 void Soil::serialize(ArchiveStream& arch) {
 	arch & wcont
 		& wcont_evap
@@ -3958,6 +3983,31 @@ void Soil::serialize(ArchiveStream& arch) {
 		& mwtp
 		& Frac_ice
 		& rootfrac
+		// The three peatland quantities canopy_exchange reads BEFORE the day
+		// that writes them. simulate_day runs canopy_exchange ahead of
+		// soilwater, so moss and graminoid photosynthesis on any day use the
+		// water-table limits and the acrotelm CO2 that hydrology_peat left
+		// yesterday. A restart resumes them at their constructed values -- no
+		// dessication limit, no inundation limit, and the pore-water CO2 -- so
+		// the resumed run's first day is a day the run it continues never had.
+		// acro_co2 only became a live difference when WORLD-C4J8 unpinned awtp
+		// from zero. biosphere/notes/soil-restart-state.md.
+		& acro_co2
+		& dmoss_wtp_limit
+		& dgraminoid_wtp_limit
+		// The annual accumulators. A restart at day 0 rebuilds all four before
+		// anything reads them, which is why they could be absent while the year
+		// boundary was the only save point this model had. WORLD-FUJ4 made an
+		// arbitrary-day save point expressible, and at any day but the first
+		// dec_snowdepth is read at year end still holding zero (barring every
+		// PFT with min_snow > 0 from establishing), dthaw carries zero for
+		// every elapsed day (biasing GLOBFIRM's fire season short), and mthaw
+		// and maxthawdepththisyear report the remainder of the year as though
+		// it were the whole of it.
+		& dec_snowdepth
+		& dthaw
+		& mthaw
+		& maxthawdepththisyear
 		& ch4_store
 		& co2_store
 		& CO2_soil_yesterday
