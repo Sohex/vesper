@@ -204,6 +204,15 @@ times a step at 36 x 36 x 16, of order 11.5 million times over ten model years -
 and it accounts for **9.26 per cent of the instructions at the shipped grid and
 7.87 per cent at the doubled one**.
 
+The attribution is checked two ways rather than asserted. Other routines carry
+allocator call sites too -- `goldstein_` has 43, `embm_` 22, `surflux_` and
+`gold_seaice_` 19 each -- but those sit in the diagnostic and output branches,
+which these configurations reach never or once a year, where `tstepo_flux_`'s
+five run per wet cell per level per timestep. And the arithmetic closes: 115
+million `eosd` calls over the 100-year run at two allocations and two frees each,
+at the 250 to 300 instructions a glibc fast-path pair costs, comes to 29 to 35 G
+instructions against the 28 G the measured 9.26 per cent of 302 G represents.
+
 It is not a decomposition question. It is work that should not exist, it is
 removable by giving `eosd` two scalars or copying into a two-element local, and
 the change is correctness-preserving, so `genie-knowngood/` and `nccompare`'s
