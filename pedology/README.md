@@ -118,8 +118,18 @@ Quartz is tracked separately and never converts. That single distinction is why
 granite and basalt diverge under identical climate: both start sandy, but only
 one has sand that can weather.
 
-**Regolith depth**, from Heimsath's exponential soil production function balanced
-against erosion built from Orogen erodibility, local relief and runoff.
+**Regolith depth**, from a saturating balance of weathering production against
+erosion built from Orogen erodibility, local relief and runoff. Heimsath's
+exponential soil production function is what that form replaced, and
+`build_soil.py`'s `regolith_depth` carries the argument. The law is applied to
+EACH ROCK a cell holds and the depths are then averaged, through
+`lib/gridding.py`'s `cell_expectation`: the law is convex in the erodibility and
+erodibility spans a factor of fourteen across the export's lithology table, so
+mixing a cell's rocks into one erodibility first is a different and always
+thinner answer. `notes/audits/nonlinear-spatial-reductions.md` section 1 sizes
+the two orders against `regolith.minimum_depth_m`, and the soil report's
+`regolith_aggregation` block carries the difference on whatever map it just
+built.
 
 **pH**, from parent material leached down by drainage, and pushed back up where
 drainage is closed and salts concentrate instead of leaving.

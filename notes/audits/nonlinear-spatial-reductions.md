@@ -50,13 +50,17 @@ from the mesh.
 
 ## 1. Erodibility mixed before the regolith depth law. The large one
 
-`pedology/scripts/build_soil.py` area-mixes every rock class's erodibility
-inside a cell and then applies
+The law is
 
     depth = maximum_depth * P / (P + erosion_weight * E),   E proportional to erodibility
 
 which is convex in the erodibility, so the mean of the depths lies above the
-depth at the mean. Erodibility is a property of the rock a region is made of and
+depth at the mean. `pedology/scripts/build_soil.py` area-mixed every rock class's
+erodibility inside a cell and applied the law once to the mixture; this
+measurement is what moved it onto `lib/gridding.py`'s `cell_expectation`, which
+evaluates the law on each region's own rock and averages the depths, and the
+soil report's `regolith_aggregation` block now carries the difference on the map
+it built. Erodibility is a property of the rock a region is made of and
 spans 0.25 for quartzite to 3.5 for evaporite in the export's own lithology
 table, a factor of fourteen, and the area-weighted land mean is 1.70. Both
 orders of the reduction are therefore well defined and the difference between
