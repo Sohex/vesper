@@ -1540,6 +1540,43 @@ def declare_dealias_conversion(model, config: dict) -> bool:
     return True
 
 
+def declare_timestep(config: dict) -> float:
+    """The step this run integrates at, resolved through the ladder registry.
+
+    THE DEFECT THIS CLOSES. `model.timestep_minutes` was a bare scalar with no
+    dependence on `model.resolution`, so changing the rung left the step where
+    it was: the first T42 arm ran at T21's 45 minutes and took a SIGFPE in its
+    forty-seventh orbit. WORLD-TD3, WORLD-J37.
+
+    THE VALUE STILL COMES FROM THE CONFIG, and that is deliberate rather than a
+    half-measure. The step selects nothing the registry owns -- it is an
+    operational choice, and the arms that establish what a rung can take are
+    exactly the ones that move it: `stability_probe.py` sweeps six steps per
+    rung and `filter_timestep_matrix.py` runs T42 at dt 90 on purpose, to find
+    a trap boundary. What moved into `lib/rungs.py` is the AUTHORITY: the
+    coarsest step each rung is measured to start clean at, and the step the
+    escalation route runs it at.
+
+    SO THIS REPORTS AND DOES NOT REFUSE. The place a step is refused is where
+    the DECLARED configuration is judged -- `scripts/check_consistency.py` and
+    `scripts/smoke_test.py`, both of which read `config/planet.yaml` itself. A
+    refusal here would refuse the measurements the registry is made of.
+    """
+    timestep, rung = rungs.configured_timestep(config)
+    problems = rungs.timestep_problems(rung, timestep)
+    if not problems:
+        print(f"timestep: {rung} at {timestep} min, on the escalation route "
+              f"and at or below the measured ceiling "
+              f"{rungs.stability_ceiling(rung)}")
+    else:
+        print(f"timestep: {rung} at {timestep} min, OFF THE DECLARED LADDER. "
+              "A diagnostic arm is what this is for; a commissioning run at "
+              "this step is not the escalation the project declared.")
+        for problem in problems:
+            print(f"  - {problem}")
+    return timestep
+
+
 def declare_conversion_time_level(model, config: dict) -> bool:
     """Put the reference conversion's two halves on one time level. world-0ov.
 
@@ -2892,6 +2929,7 @@ def main() -> None:
         outputtype=model_cfg["output_type"],
     )
     print(f"threads: {int(model_cfg['ncpus'])}, SHTns transform")
+    timestep_minutes = declare_timestep(config)
     model.configure(
         restartfile=None if restart_seed is None else str(restart_seed),
         flux=derived["stellar_flux_w_m2"],
@@ -2934,7 +2972,7 @@ def main() -> None:
         # and verified below like every other config-set key. world-a05.
         vtype=int(model_cfg["vertical_grid"]),
         modeltop=float(model_cfg["model_top_hpa"]),
-        timestep=float(model_cfg["timestep_minutes"]),
+        timestep=timestep_minutes,
         physicsfilter=model_cfg["physics_filter"],
         filterkappa=float(model_cfg["filter_kappa"]),
         filterpower=int(model_cfg["filter_power"]),
