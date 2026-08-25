@@ -115,6 +115,16 @@ because it is what makes the change free: on every lane the mask keeps, each of
 these is stored before it is read, in the same block, on the same pass. The
 preset is visible only on lanes whose stores are discarded.
 
+## What a source sweep cannot settle
+
+The pass is a text parse and the guards are argued from the source, so what is
+established here is that the sites this pass can see are floored -- not that the
+class is gone. It cannot see a division by a bare name, an intrinsic reached
+through a call from inside a `where`, or a mask whose complement is out of
+domain for a reason the physics knows and the text does not. Only a run at the
+optimisation level whose transforms fire says whether anything is left, and that
+is the world-bhs probe at -O3 under `-ffpe-trap`, which is world-v9j9.
+
 ## What is not settled
 
 The division class is reported and not resolved. 133 sites have a parenthesised
