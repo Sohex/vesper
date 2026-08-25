@@ -1236,6 +1236,14 @@ REDECLARED_ON_CONTINUE = (
     "declare_dealias_conversion",
 )
 
+# The same rule for declarations the CALLER parameterises rather than reading
+# from the config, so their call sites cannot be matched on `(model, config)`.
+# They are on exactly the same footing -- configure() overwrites the namelist
+# either way -- and only the shape of the check differs.
+REDECLARED_ON_CONTINUE_ANY_ARGS = (
+    "set_low_io", "declare_ecological_stream",
+)
+
 
 def check_continuation_redeclares_everything() -> list[str]:
     """Whatever a prepare declares, a continuation declares again.
@@ -1261,6 +1269,14 @@ def check_continuation_redeclares_everything() -> list[str]:
             bad.append(f"{name} is asserted here and run_exoplasim.py no "
                        "longer defines it")
         elif f"{name}(model, config)" not in cont:
+            bad.append(f"run_exoplasim declares {name} and "
+                       "continue_exoplasim.py never reapplies it, so a "
+                       "continued segment reverts to the compiled default")
+    for name in REDECLARED_ON_CONTINUE_ANY_ARGS:
+        if f"def {name}(" not in prep:
+            bad.append(f"{name} is asserted here and run_exoplasim.py no "
+                       "longer defines it")
+        elif f"{name}(" not in cont.replace(f"def {name}(", ""):
             bad.append(f"run_exoplasim declares {name} and "
                        "continue_exoplasim.py never reapplies it, so a "
                        "continued segment reverts to the compiled default")
