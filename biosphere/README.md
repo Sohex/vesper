@@ -44,7 +44,10 @@ define one property contract, fast-state owner and water/energy ledger rather
 than two independent land columns. Abiotic nutrient sources and their delivery
 from rock, dust and lightning through that water ledger are audited in
 `notes/abiotic-nutrient-delivery-audit.md`; ANUT-1 through ANUT-10 distinguish
-total material from root-zone-available N and P and close their destinations.
+total material from root-zone-available N and P and close their destinations,
+and the ledger they book into, with its control volumes, its balance identity
+and the fixtures that fail when it does not hold, is
+`notes/abiotic-nutrient-ledger.md`.
 Finally,
 `notes/productivity-prediction.md` registers what the answer should be before the
 model can contradict it.
@@ -76,7 +79,9 @@ a result.
 | PFT time base | one contract with four classes, in `notes/time-base-unit-contract.md`; `build_vesper_pfts.py` executes it and names each parameter's class in the file it writes and in its provenance |
 | input module | `vesperinput`, runs end to end and splits across MPI ranks; its 12-bin `VESPDRV5` transport is integration scaffolding to be replaced under EFOR-1 through EFOR-8 |
 | soil and water | pedology depth scales LPJ capacity and pedology AWC sets ExoPlaSim's scalar bucket at smoke scale, but the models independently derive hydraulic properties and run separate snow/soil water balances; LSHY-1 through LSHY-7 own the consistency work |
-| abiotic nutrients | rock P and dust mass have useful relative/source artifacts, but no absolute source-to-root-zone ledger exists; `phosphorus_budget.py` does not consume dust deposition, and ANUT-1 through ANUT-10 own weathering, initial stocks, atmospheric N/P, transport, other-nutrient screening and closure |
+| abiotic nutrients | the ledger is DEFINED and does not CLOSE: `abiotic_nutrient_ledger.py` carries thirteen control volumes and twenty-one terms, every one of them still holding the `undeclared` sentinel with its owning issue named. Rock P and dust mass have useful relative/source artifacts but no absolute flux; `phosphorus_budget.py` does not consume dust deposition, and ANUT-2 through ANUT-6 and ANUT-10 own the terms that would close it |
+| abiotic source screen | geomorphic renewal, arc tephra and marine aerosol are RETAINED against the ledger, volcanic sulfate deposition is registered and not implemented, and fire ash and lightning belong to FIRE-7 and ANUT-4. The exhumation and tephra rates come from Earth's stationary population and not from the terrain; no screen may be carried on an aerosol optical depth |
+| non-N/P adequacy | screened as a critical runoff per element and per lithology, bounds and directions declared before the result. Potassium binds; iron and the trace set REFUSE for want of a release table. The declared model boundary is that any LPJ-GUESS result here is a C-N-P result and not a nutrient-limitation result |
 | phosphorus parameters | every constant registered with its source or its bracket in `notes/phosphorus-cycle-parameterisation.md`; the uptake profile, the leaf C:P window, the root proportion and the labile-P saturation threshold are derived, the sapwood proportion and the litter-P saturation threshold are not, the labile-P threshold reads a pool its source did not define, and `ifplim 1` fails closed naming each |
 | phosphorus sinks | leaching, fire and harvest only. Terminal occlusion is a DECLARED ABSENCE, argued in the same note, so a simulated soil that must be old carries its phosphorus depletion in its initial stocks rather than developing it |
 | run harness | written; records inputs, binary and model identity in its manifest |
@@ -390,6 +395,29 @@ from the answer, rather than inheriting the imported PFT file's zero: an
 inherited zero cannot be told apart from nobody having decided. Requesting
 activation in the declaration while a precondition is undeclared makes the run
 exit with every unmet one named.
+
+### One abiotic nutrient ledger, and it does not close yet
+
+`abiotic_nutrient_ledger.py` is the graph every abiotic nutrient source books
+into: thirteen control volumes from the lithosphere to a terminal coastal
+export, twenty-one directed terms, and one identity, that mass held plus mass
+at terminal nodes equals mass held at the start plus mass across the boundary.
+It reads `config/abiotic_nutrients.yaml`, and it can FAIL: seven reduced
+fixtures run on every invocation, six built to be wrong in a named way, and a
+fixture that does not get the verdict it was built for is a defect in the
+checker rather than in the declaration.
+
+```bash
+python biosphere/scripts/abiotic_nutrient_ledger.py            # status, exit 0
+python biosphere/scripts/abiotic_nutrient_ledger.py --strict   # refuses while a term is undeclared
+```
+
+Every term carries the `undeclared` sentinel today, so the ledger is DEFINED
+and does not CLOSE, and the report names the issue that owns each one. The same
+run carries the source screen -- what may book in, whether its rate can come
+from the terrain at all, and whether pulse timing survives averaging -- and the
+non-N/P adequacy screen, whose bounds and directions are declared before any
+result is seen. The contract is `notes/abiotic-nutrient-ledger.md`.
 
 ### Fire is GLOBFIRM, with flux and occurrence diagnostics
 

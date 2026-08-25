@@ -1,0 +1,716 @@
+# THE ABIOTIC NUTRIENT LEDGER. Read by biosphere/scripts/abiotic_nutrient_ledger.py.
+#
+# One ledger, from source material to the terrestrial root zone and on to a
+# named terminal boundary. The contract is biosphere/notes/abiotic-nutrient-ledger.md;
+# the finding it rests on is biosphere/notes/abiotic-nutrient-delivery-audit.md.
+#
+# A ledger's whole value is that it balances. Every term below moves a stated
+# mass of ONE element from ONE declared node to ONE declared node, and the
+# checker fails when the graph does not close, when a transfer changes element,
+# when a phase reaches a pool it cannot reach without a dissolution term, or
+# when a stock is drawn below zero.
+#
+# THE SENTINEL IS `undeclared`, AND IT REFUSES, on the same terms as
+# biosphere/config/bvoc.yaml. A term carrying it is registered in the graph and
+# supplies no mass; the report names it and the bd issue that owns it. There is
+# no default value for any flux here: a default is how an Earth number becomes
+# this world's number without anyone deciding it should.
+
+version: 1
+
+# ---------------------------------------------------------------------------
+# UNITS. The canonical internal unit is absolute mass of ELEMENT.
+# ---------------------------------------------------------------------------
+units:
+  # Every term is reduced to kg of element crossing a node boundary in one
+  # interval BEFORE anything is summed. Per-area rates are presentation only.
+  # This is what makes an area-basis error fail instead of silently rescaling:
+  # a dust flux quoted per m2 of receiving land, an erosion flux quoted per m2
+  # of source hillslope and a basin-floor enrichment quoted per m2 of floor
+  # have three different denominators, and `pedology/scripts/phosphorus_budget.py`
+  # currently concentrates a relative score geometrically over basin floors,
+  # which is exactly that change of denominator with no mass carried.
+  mass: kg_element
+  # Never kg of compound. A sulfate mass and a sulfur mass differ by 2.996 and
+  # nothing in a column name says which one is meant.
+  species_basis: element
+  # ABSOLUTE time, on the contract in biosphere/notes/time-base-unit-contract.md.
+  # Never orbital phase: a term stated per orbit changes meaning when the flux
+  # moves, and BIO-24 already owns that correction on the LPJ boundary.
+  time: earth_day
+  interval_earth_days: 365.2422
+
+# ---------------------------------------------------------------------------
+# NODES. The control volumes. Every term names one source and one destination
+# from this set, and nothing leaves the set.
+# ---------------------------------------------------------------------------
+#
+# kind:
+#   `reservoir`  an ordinary control volume: mass in, mass out, a stock.
+#   `boundary`   mass may ENTER the domain here. Its stock is not tracked and
+#                the closure check counts what crosses it as an external input.
+#   `terminal`   mass stops here for THIS ledger. No term may take it as a
+#                source. A terminal node is a boundary condition, not a claim
+#                about what happens beyond it.
+#   `interface`  owned by another component. The ledger books the crossing and
+#                not the pools behind it.
+#
+# area_basis: the denominator a per-area rate at this node is stated on.
+nodes:
+  atmosphere_import:
+    kind: boundary
+    reentrant: true
+    area_basis: cell_land_area
+    what: >
+      Material advected into the air column over a land cell from outside it:
+      mineral dust, marine aerosol, volcanic ash and volcanic sulfate. An
+      import, because the transporting model is offline and the cell is not
+      where the material was mobilised.
+  atmosphere_fixation:
+    kind: boundary
+    area_basis: cell_land_area
+    what: >
+      Nitrogen fixed from N2 by lightning discharge. A boundary rather than a
+      transformation inside the air column, because N2 is not a tracked stock
+      and the ledger would otherwise carry the whole atmosphere to book a
+      microgram. ANUT-4 owns the flux.
+  lithosphere:
+    kind: boundary
+    area_basis: cell_land_area
+    what: >
+      Rock below the domain this ledger cuts. Mass enters at this boundary by
+      exhumation, which is the ONLY thing that puts a rock-derived element back
+      into parent_material. Without it parent_material is a stock that can only
+      fall, and the graph check says so: a reservoir with no inflow cannot be
+      filled.
+  atmosphere_column:
+    kind: reservoir
+    area_basis: cell_land_area
+    what: the air column over one land cell; where deposition is partitioned wet against dry.
+  parent_material:
+    kind: reservoir
+    area_basis: cell_land_area
+    what: >
+      Unweathered rock beneath the weathering front within the cell, and the
+      only finite source of rock-derived elements. A FINITE STOCK: drawing on
+      it decrements it, which is what makes depletion representable and is the
+      whole of Porder et al.'s residence-time argument.
+  regolith_mineral:
+    kind: reservoir
+    area_basis: cell_land_area
+    what: >
+      Weathered mineral solids in the soil column: primary grains not yet
+      dissolved, secondary phases, sorbed and strongly sorbed material. NOT
+      root-available. A particulate term reaching the root zone passes through
+      here and leaves it only by a declared dissolution or desorption term.
+  soil_solution:
+    kind: reservoir
+    area_basis: cell_land_area
+    what: >
+      Water held in the soil column to the declared root-zone depth, and the
+      only node a root can take from. This is the node LPJ-GUESS's mineral
+      pools sit against.
+  plant_and_litter:
+    kind: interface
+    area_basis: cell_land_area
+    what: >
+      The simulated vegetation and its litter, owned by LPJ-GUESS. The ledger
+      books uptake and return across the interface and carries none of the
+      pools behind it; SDEC and the CNP fork own those.
+  surface_water:
+    kind: reservoir
+    area_basis: cell_land_area
+    what: channels, floodplains and lakes. Routed by hydrography, and ANUT-6 owns the transport.
+  groundwater:
+    kind: reservoir
+    area_basis: cell_land_area
+    what: the saturated store below the root zone. PLHY-4 owns the water exchange; nutrient return is a separate transported mass.
+  endorheic_store:
+    kind: reservoir
+    area_basis: basin_floor_area
+    what: >
+      Closed-basin floors, their brines and their sediments. NOT terminal:
+      material here can re-enter soil_solution, be deflated back to
+      atmosphere_import as dust, or be buried. Endorheic retention by itself
+      does not put an element in a root zone, and treating this node as an
+      accumulator with no outflow is the error finding 1 of the audit names.
+  coastal_export:
+    kind: terminal
+    area_basis: coastline_segment
+    what: >
+      Everything that crosses the coastline, booked by element and phase and
+      stopped. "Reached the ocean" is a boundary condition and not marine
+      nutrition; OCN-13 begins here and this ledger asserts nothing about
+      bioavailability beyond it.
+  occluded_and_buried:
+    kind: terminal
+    area_basis: cell_land_area
+    what: >
+      Terminally occluded phosphorus, material buried beneath the weathering
+      front, and evaporite locked in a basin floor below any accessible depth.
+      Terminal for this ledger on a stated timescale, which the contract names.
+
+# The control-volume boundary the soil nodes are cut at. This is a DECLARATION,
+# not a measurement: a control volume has to be cut somewhere and the ledger
+# says where. Changing it changes every stock below it.
+root_zone_depth_m: 1.0
+
+# ---------------------------------------------------------------------------
+# TERMS. Each is one directed mass transfer. `flux` carries the artifact that
+# supplies it, or `undeclared`, which refuses and names its issue.
+# ---------------------------------------------------------------------------
+#
+# transform: what the term does to phase. `none` moves material without
+#   changing it; anything else names the change. The element NEVER changes:
+#   a term whose source and destination elements differ is an error, which is
+#   why the ledger books element mass and not compound mass.
+terms:
+  exhumation:
+    elements: [P, K, Ca, Mg, S, Fe]
+    from: lithosphere
+    to: parent_material
+    phase_from: particulate_refractory
+    phase_to: particulate_refractory
+    transform: none
+    flux: undeclared
+    owner: anut-7
+    note: >
+      Uplift and denudation together move the domain downward through the rock,
+      so fresh parent material enters the weathering zone. This term is what
+      makes depletion a RESULT rather than an inevitability: with it at zero,
+      every rock-derived element runs out, and Porder et al.'s finding that both
+      fast and slow renewal lower root-zone phosphorus needs both ends of it.
+      Screened as `geomorphic_renewal`, and its rate is not in the geography.
+  weathering_dissolved:
+    elements: [P, K, Ca, Mg, S, Fe]
+    from: parent_material
+    to: soil_solution
+    phase_from: particulate_refractory
+    phase_to: dissolved_inorganic
+    transform: dissolution
+    flux: undeclared
+    owner: anut-2
+    note: >
+      Congruent and incongruent release from rock into soil water. Pedology's
+      `weathering_intensity` is explicitly normalised and dimensionless and
+      cannot supply this; ANUT-2 owns the absolute artifact and the material
+      boundary that says how much rock reacts per area and time.
+  regolith_production:
+    elements: [P, K, Ca, Mg, S, Fe]
+    from: parent_material
+    to: regolith_mineral
+    phase_from: particulate_refractory
+    phase_to: particulate_refractory
+    transform: none
+    flux: undeclared
+    owner: anut-7
+    note: >
+      Lowering of the weathering front into fresh rock, which is what keeps
+      parent_material accessible within the root zone. Screened as
+      `geomorphic_renewal` below. Its rate is not in the geography.
+  regolith_dissolution:
+    elements: [P, K, Ca, Mg, S, Fe]
+    from: regolith_mineral
+    to: soil_solution
+    phase_from: particulate_reactive
+    phase_to: dissolved_inorganic
+    transform: dissolution
+    flux: undeclared
+    owner: anut-2
+    note: >
+      The ONLY route by which deposited particulate material becomes
+      root-available. Fresh volcanic glass enters here with its own rate, which
+      is why tephra is a different material from crystalline rock of the same
+      nominal lithology.
+  sorption:
+    elements: [P]
+    from: soil_solution
+    to: regolith_mineral
+    phase_from: dissolved_inorganic
+    phase_to: particulate_reactive
+    transform: sorption
+    flux: undeclared
+    owner: anut-10
+    note: labile against sorbed and strongly sorbed. The CNP fork initialises all of these to zero, which ANUT-10 owns.
+  occlusion:
+    elements: [P]
+    from: regolith_mineral
+    to: occluded_and_buried
+    phase_from: particulate_reactive
+    phase_to: particulate_refractory
+    transform: occlusion
+    flux: undeclared
+    owner: anut-10
+    note: >
+      Terminal occlusion is a DECLARED ABSENCE inside the CNP fork, argued in
+      biosphere/notes/phosphorus-cycle-parameterisation.md. It is a term in this
+      ledger regardless, because a ledger that cannot name a sink cannot close.
+  atmospheric_particulate_deposition:
+    elements: [P, K, Ca, Mg, S, Fe]
+    from: atmosphere_import
+    to: atmosphere_column
+    phase_from: particulate_refractory
+    phase_to: particulate_refractory
+    transform: none
+    flux: undeclared
+    owner: anut-3
+    note: >
+      Mineral dust, ash and sea-salt mass entering the column. The aeolian
+      component emits total mineral mass with no composition, size retention,
+      phase or solubility, so no element mass can be read off it yet.
+  particulate_settling:
+    elements: [P, K, Ca, Mg, S, Fe]
+    from: atmosphere_column
+    to: regolith_mineral
+    phase_from: particulate_refractory
+    phase_to: particulate_refractory
+    transform: none
+    flux: undeclared
+    owner: anut-3
+    note: >
+      Wet and dry removal to the surface. It lands in regolith_mineral and NOT
+      in soil_solution: LPJ's `snow_pinput` stores deposited P in snow and
+      `pmass_add` then places it straight into the labile-sorbed system, which
+      would make every deposited apatite grain immediately available. The
+      repository's own Bodele measurement is 2 to 4 percent water-soluble P.
+  soluble_deposition:
+    elements: [K, Ca, Mg, S]
+    from: atmosphere_column
+    to: soil_solution
+    phase_from: dissolved_inorganic
+    phase_to: dissolved_inorganic
+    transform: none
+    flux: undeclared
+    owner: anut-3
+    note: >
+      The already-soluble fraction, which is what marine aerosol mostly is.
+      Separate from `particulate_settling` because the two reach different
+      nodes and only this one is available in the interval it arrives.
+  lightning_nitrogen_deposition:
+    elements: [N]
+    from: atmosphere_fixation
+    to: soil_solution
+    phase_from: dissolved_inorganic
+    phase_to: dissolved_inorganic
+    transform: none
+    flux: undeclared
+    owner: anut-4
+    note: >
+      Total-discharge NOx production, oxidation to NOy, transport and wet or dry
+      removal. Distinct from the cloud-to-ground ignition field FIRE-1 produces:
+      ignition needs ground flashes and an ignition efficiency, fixation needs
+      total discharge energy and a composition-dependent yield.
+  plant_uptake:
+    elements: [N, P, K, Ca, Mg, S, Fe]
+    from: soil_solution
+    to: plant_and_litter
+    phase_from: dissolved_inorganic
+    phase_to: dissolved_inorganic
+    transform: none
+    flux: undeclared
+    owner: anut-9
+    note: LPJ-GUESS's own uptake, read back across the interface. Only N and P exist inside the model; the rest are the ANUT-8 screen's subject.
+  litter_return:
+    elements: [N, P, K, Ca, Mg, S, Fe]
+    from: plant_and_litter
+    to: soil_solution
+    phase_from: dissolved_inorganic
+    phase_to: dissolved_inorganic
+    transform: none
+    flux: undeclared
+    owner: anut-9
+    note: >
+      Mineralised return. In steady state this is most of what meets gross
+      uptake, which is why the ANUT-8 screen compares abiotic supply against a
+      standing pool and not against gross demand.
+  leaching:
+    elements: [N, P, K, Ca, Mg, S, Fe]
+    from: soil_solution
+    to: groundwater
+    phase_from: dissolved_inorganic
+    phase_to: dissolved_inorganic
+    transform: none
+    flux: undeclared
+    owner: anut-6
+    note: >
+      LPJ reports mineral NO3 and labile P leaching as an external loss at each
+      independent grid cell and routes none of it. This term is where that mass
+      has to arrive instead.
+  baseflow_return:
+    elements: [N, P, K, Ca, Mg, S, Fe]
+    from: groundwater
+    to: surface_water
+    phase_from: dissolved_inorganic
+    phase_to: dissolved_inorganic
+    transform: none
+    flux: undeclared
+    owner: anut-6
+  runoff_export:
+    elements: [N, P, K, Ca, Mg, S, Fe]
+    from: soil_solution
+    to: surface_water
+    phase_from: dissolved_inorganic
+    phase_to: dissolved_inorganic
+    transform: none
+    flux: undeclared
+    owner: anut-6
+  erosion_export:
+    elements: [P, K, Ca, Mg, S, Fe]
+    from: regolith_mineral
+    to: surface_water
+    phase_from: particulate_refractory
+    phase_to: particulate_refractory
+    transform: none
+    flux: undeclared
+    owner: anut-6
+  endorheic_delivery:
+    elements: [N, P, K, Ca, Mg, S, Fe]
+    from: surface_water
+    to: endorheic_store
+    phase_from: dissolved_inorganic
+    phase_to: dissolved_inorganic
+    transform: none
+    flux: undeclared
+    owner: anut-6
+  endorheic_deflation:
+    elements: [P, K, Ca, Mg, S, Fe]
+    from: endorheic_store
+    to: atmosphere_import
+    phase_from: particulate_refractory
+    phase_to: particulate_refractory
+    transform: none
+    flux: undeclared
+    owner: anut-7
+    note: >
+      The outflow that makes endorheic_store a reservoir rather than an
+      accumulator. A dry basin floor is a dust source; the aeolian component
+      already rejects currently wet basins for exactly this reason.
+  endorheic_burial:
+    elements: [P, K, Ca, Mg, S, Fe]
+    from: endorheic_store
+    to: occluded_and_buried
+    phase_from: particulate_refractory
+    phase_to: particulate_refractory
+    transform: none
+    flux: undeclared
+    owner: anut-6
+  coastal_delivery:
+    elements: [N, P, K, Ca, Mg, S, Fe]
+    from: surface_water
+    to: coastal_export
+    phase_from: dissolved_inorganic
+    phase_to: dissolved_inorganic
+    transform: none
+    flux: undeclared
+    owner: anut-6
+    note: >
+      The terminal boundary. Species and phase are carried across it and
+      nothing else is claimed; OCN-13 owns everything after arrival.
+  coastal_particulate_delivery:
+    elements: [P, K, Ca, Mg, S, Fe]
+    from: surface_water
+    to: coastal_export
+    phase_from: particulate_refractory
+    phase_to: particulate_refractory
+    transform: none
+    flux: undeclared
+    owner: anut-6
+
+# ---------------------------------------------------------------------------
+# ANUT-7. The register of geomorphic renewal and episodic inputs, screened
+# against the terms above.
+# ---------------------------------------------------------------------------
+#
+# THE MATERIALITY TEST IS FIXED HERE, BEFORE ANY MAGNITUDE IS SEEN. A candidate
+# is RETAINED if either rule fires:
+#
+#   rule 1  its plausible upper-bound delivery of some element reaches
+#           `materiality_fraction` of the incumbent term for that element at
+#           the same node; or
+#   rule 2  it is the ONLY term supplying that element at that node.
+#
+# Rule 2 exists because "smaller than the incumbent" is not a reason to drop a
+# source when the incumbent is zero.
+screen:
+  # 0.10, because the incumbent terms are themselves bracketed by more than a
+  # factor of two -- the lightning NOx source by about five, the soluble
+  # fraction of deposited dust P between 2 and 4 percent, foliar C:P by a
+  # coefficient of variation of 79 percent -- and a term at a tenth of an
+  # incumbent that uncertain cannot move the incumbent's bracket. A candidate
+  # below it is REGISTERED and not implemented, which is a different verdict
+  # from being absent.
+  materiality_fraction: 0.10
+
+  # A screen may never be carried on an optical quantity. An aerosol optical
+  # depth or an extinction is a mass-and-optics product: it folds in refractive
+  # index, size distribution and water uptake, and no elemental mass can be
+  # recovered from it. The checker REFUSES any candidate whose carrier names
+  # one, by name, whatever its verdict.
+  forbidden_carriers:
+    - aeolian/analysis/volcanic_sulfate.nc
+    - aeolian/analysis/sea_salt_optics.json
+    - analysis/dust_optics.json
+    - aod
+    - optical_depth
+    - extinction
+
+  candidates:
+    geomorphic_renewal:
+      mechanism: >
+        Uplift, denudation and exhumation lower the weathering front into fresh
+        rock, so parent_material within the root zone is replaced rather than
+        exhausted. Porder et al. (2007) make both ends of this matter: rapid
+        advection exports mineral before it dissolves, and very slow renewal
+        permits depletion and occlusion, and both lower root-zone available P.
+      books_into: [exhumation, regolith_production]
+      rate_source: not_from_geography
+      rate_provenance: >
+        Orogen has no time axis, so no export field carries an uplift rate, a
+        denudation rate or a surface age, and `params.hydraulicErosion`,
+        `thermalErosion` and `glacialErosion` are dimensionless intensity
+        sliders that can ORDER cells and cannot SCALE them. The rate comes
+        instead from the expected-value move in docs/src/reference/no-time-axis.md:
+        Earth's cosmogenic denudation compilation is one randomly chosen moment
+        of a stationary population and this terrain is another. Portenga and
+        Bierman (2011) give igneous outcrops 8.7 +/- 1.0 m/Myr and sedimentary
+        20 +/- 2.0 m/Myr. Heimsath et al. (1997) supply the DEPTH dependence,
+        -(de/dt) = (77 +/- 9) exp(-(0.023 +/- 0.003) h) um/yr with h the soil
+        thickness in cm, so the rate is a function of the soil depth pedology
+        already carries with its absolute scale set by the Earth bracket.
+      verdict: retain
+      verdict_rule: 2
+      verdict_reason: >
+        It is the only term that returns mass to parent_material within the root
+        zone, so rule 2 retains it whatever its magnitude. It also clears rule 1.
+      pulse_timing: not_material
+      pulse_reason: >
+        A denudation rate of order 1e-5 m/yr against a root zone of order 1 m is
+        continuous at every interval this ledger uses. Nothing is lost by
+        time-averaging it.
+    volcanic_tephra:
+      mechanism: >
+        Fresh ejecta is glass, and glass is a different material from the
+        crystalline rock of the same composition. Gislason and Oelkers (2003)
+        find glass is the first phase altered, from a faster intrinsic rate,
+        higher solubility, greater surface area and better access to
+        undersaturated water. Wolff-Boenisch et al. (2004) put a 1 mm basaltic
+        glass grain at a 500 year lifetime against 4500 for rhyolitic, with
+        field rates on andesitic ash about 20 times the laboratory ones. A
+        tephra fall is therefore a step change in regolith_mineral with its own
+        dissolution rate, not more of the underlying lithology.
+      books_into: regolith_dissolution
+      rate_source: not_from_geography
+      rate_provenance: >
+        Orogen carries volcanic provinces as static classes with no eruption
+        age. `pedology/config/pedogenesis.yaml` already applies the stationary-
+        population argument to exactly this question and its verdict carries:
+        a flood basalt emplaces most of its volume in about a million years and
+        then persists for hundreds, so a randomly chosen moment finds a given
+        province erupting with probability of order one percent, and
+        `flood_basalt` and `oib` are excluded. The arc is the exception because
+        it is a boundary process active for as long as the plate is subducting,
+        which is the whole time the terrain exists.
+      restricted_to: [arc]
+      verdict: retain
+      verdict_rule: 1
+      verdict_reason: >
+        Live on arc provinces only, and zero on flood basalt and OIB by the
+        expected-value argument above rather than by a measurement.
+      pulse_timing: material
+      pulse_reason: >
+        A fall is a step change in the stock followed by decades to centuries of
+        elevated release, and Dahlgren et al. (2004) record that P availability
+        is HIGH in young volcanic material and FALLS with development as
+        allophane and Al-humus fix it. A time-averaged ash flux therefore gets
+        the sign of the phosphorus effect wrong at both ends of the sequence,
+        which is the case the ledger's interval must be able to resolve.
+      carrier: undeclared
+      carrier_note: >
+        NOT the volcanic sulfate optical depth. That product is built from a
+        degassing inventory and describes stratospheric aerosol; tephra is
+        fragmentation and falls proximally. Two materials, two source processes,
+        two geographies.
+    marine_aerosol:
+      mechanism: >
+        Sea-salt deposition over land supplies Na, Cl, Mg, SO4, Ca and K in a
+        form that is already dissolved or immediately soluble, so it reaches
+        soil_solution directly rather than through regolith_mineral.
+      books_into: soluble_deposition
+      rate_source: modelled
+      rate_provenance: >
+        The aeolian component already runs a sea-salt source function, so this
+        is the one candidate whose rate does not need an expected-value
+        argument. What it needs is the DEPOSITION MASS field: the component's
+        soil-facing product today is optics.
+      magnitude_anchor: >
+        Chadwick et al. (1999) measured atmospheric input at a Hawaiian site
+        directly and report 600 +/- 400 mg Ca/m2/yr, mostly marine aerosol, and
+        find the atmosphere becomes the dominant source of Ca, Mg and K on
+        substrates older than about 1e5 yr. Potassium crosses over sooner still,
+        being more mobile than the alkaline earths.
+      verdict: retain
+      verdict_rule: 1
+      verdict_reason: >
+        Clears rule 1 for Ca, Mg, K and S against weathering release, and is the
+        term that closes the ANUT-8 screen over the arid land where runoff falls
+        below the critical value.
+      excluded_elements: [P]
+      excluded_reason: >
+        Chadwick et al. state the seawater contribution of phosphorus to marine
+        aerosol is vanishingly small, because marine uptake holds surface-water
+        phosphorus down. Booking a P flux here would invent one.
+      pulse_timing: not_material
+      pulse_reason: storm-modulated, and the ledger interval is longer than a storm.
+      carrier: undeclared
+      carrier_note: NOT sea-salt optical depth or extinction.
+    volcanic_sulfate_deposition:
+      mechanism: >
+        Volcanic sulfur degassed as SO2, oxidised to sulfate and deposited over
+        land, is a genuine abiotic sulfur input to soil_solution, distinct from
+        tephra.
+      books_into: soluble_deposition
+      rate_source: modelled
+      rate_provenance: >
+        Andres and Kasgnoc (1998) put time-averaged non-eruptive subaerial
+        emission near 12 Tg SO2/yr, about 6 TgS/yr, which spread over the whole
+        planetary surface is of order 10 mg S/m2/yr before any land/ocean split.
+        Meybeck (1987) Table 5 gives global riverine SO4 release at 280e12 g/yr,
+        about 93 TgS/yr over exorheic land, two orders larger per unit area.
+      verdict: register_only
+      verdict_rule: 1
+      verdict_reason: >
+        About one percent of the weathering sulfur term, so it cannot move a
+        bracketed sulfur total and rule 1 does not fire. Registered rather than
+        absent: rule 2 would retain it on any surface where the weathering
+        sulfur term is zero, and the ANUT-8 screen is what identifies those.
+      pulse_timing: material_for_eruptive_only
+      carrier: undeclared
+      carrier_note: NOT the volcanic sulfate optical depth, for the same reason as tephra.
+    fire_ash:
+      mechanism: combustion returns nutrients from plant_and_litter to the surface.
+      verdict: out_of_scope
+      verdict_reason: >
+        Recycling inside the domain, not an abiotic input: it moves mass between
+        declared nodes and adds none. FIRE-7 owns it.
+    lightning_fixation:
+      mechanism: N2 to NOx by discharge.
+      verdict: out_of_scope
+      verdict_reason: an abiotic input, but a continuous atmospheric one rather than a geomorphic or episodic one. ANUT-4 owns it and it is already a ledger term.
+
+# ---------------------------------------------------------------------------
+# ANUT-8. The conservative non-N/P adequacy screen.
+# ---------------------------------------------------------------------------
+#
+# THE BOUND AND ITS DIRECTION ARE FIXED HERE, BEFORE ANY RESULT IS SEEN.
+#
+# The test asks whether the abiotic supply can build the ecosystem's entire
+# standing circulating pool of an element, from nothing, within one soil
+# residence time. It does NOT compare supply against gross uptake: in steady
+# state most of gross uptake is met by `litter_return`, so a supply-versus-gross
+# test fails for every element including the ones Earth ecosystems plainly have
+# enough of, and a threshold nothing can pass is not a screen.
+#
+#     T_acc(X) = Q_high(X) / F_low(X)         Earth years
+#     ADEQUATE      if  T_acc <= residence_time_earth_years
+#     NOT SETTLED   otherwise -- a BRACKET, never a verdict of inadequate
+#     NOT ADEQUATE  only if the OPTIMISTIC supply is below the PESSIMISTIC pool
+#
+# Both bounds run against the conclusion. Q_high is an upper bound on the pool,
+# F_low a lower bound on supply, and every source other than rock weathering is
+# set to ZERO in F_low, so a pass is safe and a failure is a bracket rather than
+# a claim.
+#
+# Because F_low(X) = c_min(X) * runoff, the screen's durable output is a
+# critical runoff per element and per lithology,
+#
+#     R_crit(X) = Q_high(X) / (c_min(X) * residence_time)
+#
+# which is a threshold a cell either clears or does not, fixed before any
+# climatology is read.
+adequacy:
+  # Soil residence time: root_zone_depth divided by the ordinary-rock denudation
+  # rate. Portenga and Bierman (2011) give igneous 8.7 +/- 1.0 and sedimentary
+  # 20 +/- 2.0 m/Myr, so 1 m of soil turns over in 5.0e4 to 1.15e5 Earth years.
+  # The screen runs on the SHORT end, because a shorter residence time is a
+  # stricter test. Chadwick et al. (1999) independently find the atmosphere
+  # taking over as the dominant Ca, Mg and K source below 1e5 years, which is
+  # the same order and is not what set this number.
+  residence_time_earth_years: 5.0e4
+  residence_time_bracket_earth_years: [5.0e4, 1.15e5]
+
+  # Where the lower-bound release concentration comes from. Read at run time
+  # rather than copied: two representations of one table is the duplication the
+  # extraction exists to prevent.
+  release_table: pedology/data/reference/meybeck1987_tables.json
+
+  # UPPER bound on the standing circulating pool, above ground, per element.
+  # Vitousek and Sanford (1986) Table 2, the maximum over their moist tropical
+  # forest sites, in kg/ha; the ledger works in g/m2 and the script converts.
+  # Direction: up. Taking the maximum over the compilation rather than a mean
+  # makes T_acc longer and the test harder to pass.
+  standing_pool_aboveground_kg_ha:
+    K: 3020      # Panama
+    Ca: 3900     # Panama
+    Mg: 530      # Ivory Coast, Banco
+  # Sulfur is not in that table. Its pool is built from the maximum above-ground
+  # biomass in the same table, 510 T/ha at Ivory Coast Banco, at CENTURY's
+  # minimum C:S ratio for new plant material, 190 by mass (Parton, Stewart and
+  # Cole 1988, p. 155, where the ratio floats from 190 to 230). The minimum
+  # ratio is the maximum sulfur content, so the direction is up. CAUTION: that
+  # range was selected for wheat and the paper says so.
+  sulfur_from_biomass:
+    max_biomass_t_ha: 510
+    carbon_fraction_of_dry_mass: 0.5
+    min_c_to_s_mass: 190
+
+  # Multiplier taking the above-ground pool to the whole circulating pool:
+  # roots, and the exchangeable pool held on soil colloids. A BRACKET, because
+  # no artifact in this repository carries an exchangeable-cation or
+  # cation-exchange-capacity field -- `pedology/scripts/build_soil.py` emits
+  # sand, clay, silt, organic carbon, pH, bulk density and C:N and no CEC.
+  # The upper end is set by Chadwick et al. (1999) Fig. 2a, whose soil exchange
+  # cations reach about 6 meq/100 g integrated over the top metre; at a
+  # 1200 kg/m2 soil column that is of order 1.4 kg Ca/m2, near four times the
+  # largest above-ground calcium pool in the compilation. The screen runs on the
+  # upper end. Direction: up.
+  belowground_and_exchangeable_multiplier: 5.0
+  belowground_and_exchangeable_bracket: [1.0, 5.0]
+
+  # Elements the screen can reach, and the ones it refuses on and why. A refusal
+  # is a result: it says the element cannot be screened with what exists, which
+  # is different from saying it is adequate.
+  elements:
+    K:  {screened: true}
+    Ca: {screened: true}
+    Mg: {screened: true}
+    S:  {screened: true, from: sulfate}
+    Fe:
+      screened: false
+      refusal: >
+        Iron is not in Meybeck's major-ion set, because dissolved iron in stream
+        water is low and its supply is particulate and reductive rather than
+        congruent. No artifact here carries an iron phase, so there is no lower
+        bound on supply to compare anything against. The screen refuses rather
+        than assuming.
+    trace:
+      screened: false
+      elements: [Mn, Zn, Cu, B, Mo, Ni, Co, Cl]
+      refusal: >
+        Gaillardet, Viers and Dupre (2014) is where a per-lithology
+        trace-element release table would live if one existed, and its own
+        conclusion is that trace-element concentrations have been measured in a
+        restricted number of environments which may not be typical. There is no
+        table to be conservative WITH. Chloride is the exception in principle,
+        being in Meybeck's set, but its supply over land is marine aerosol
+        rather than rock and the marine aerosol deposition mass is undeclared.
+
+  # What the screen writes when it cannot pass. Fail-closed: an element in this
+  # register may not be treated as sufficient, and any LPJ-GUESS result on this
+  # world is a C-N-P result rather than a nutrient-limitation result until the
+  # register is empty.
+  model_boundary_declaration: >
+    The vendored CNP fork can limit the simulated plants by nitrogen and
+    phosphorus only. Every other element in this section is outside the model,
+    and a run that is not N- or P-limited has not thereby been shown to be
+    unlimited. Promoting any element here to an active limiter is a separately
+    justified implementation task and not a consequence of this screen.
