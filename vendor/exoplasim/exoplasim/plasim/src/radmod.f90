@@ -2342,6 +2342,26 @@
 !
 !     prescribed
 !
+!     THE CLOUD OPTICS ARE PRESET TO THE CLEAR-SKY VALUES, above the branch and
+!     not inside it, because at NCLOUDS = 0 nothing below writes them at all and
+!     every read of them further down is guarded by a multiplication rather than
+!     by a branch: `zrcl1*dcc*nclouds` in the range-1 reflectivity, `zrcl2` and
+!     `zrcl2s` in the range-2 pair, `(1.-ztcl2)*dcc*nclouds` in the
+!     transmissivity. Zero times a stale non-finite word is not zero, it is the
+!     invalid the declared flag line traps on. Reflectivity 0 and transmissivity
+!     1 are what no cloud means, so the preset is also the right answer and not
+!     merely a defined one. Bit-identical at NCLOUDS = 1: the NSWRCL = 0 arm
+!     writes every element of all six, and the NSWRCL = 1 arm made this same
+!     preset itself before its masked writes. world-35en, and the same class as
+!     world-5a0 and world-bhs below.
+!
+      zrcl1(:,:)=0.0
+      zrcl2(:,:)=0.0
+      ztcl2(:,:)=1.0
+      zrcl1s(:,:)=0.0
+      zrcl2s(:,:)=0.0
+      ztcl2s(:,:)=1.0
+!
       if (nclouds==1) then
       if (nswrcl == 0) then
        do jlev=1,NLEV
@@ -2376,12 +2396,6 @@
         zcs(:)=zcs(:)*(1.-dcc(:,jlev))
        enddo
       else
-       zrcl1(:,:)=0.0
-       zrcl2(:,:)=0.0
-       ztcl2(:,:)=1.0
-       zrcl1s(:,:)=0.0
-       zrcl2s(:,:)=0.0
-       ztcl2s(:,:)=1.0
 !
 !     THE CHAIN'S SCRATCH IS PRESET, for the reason the magnification factor
 !     further down is set unconditionally. Every one of these is written inside

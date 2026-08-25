@@ -36,6 +36,7 @@ import carve_verdict as cv  # noqa: E402
 import lake_balance as lb  # noqa: E402
 from orogen import LAND, Export  # noqa: E402
 from paths import rel  # noqa: E402
+from provenance import staged_surface_field  # noqa: E402
 
 import builds  # noqa: E402
 import gridding  # noqa: E402
@@ -101,10 +102,13 @@ def climate_fields(config):
 
     runoff = np.clip(pr - evap, 0.0, None)
 
-    resolution = str(config["model"]["resolution"]).upper()
-    land_albedo = cv.read_sra_field(
-        PROJECT_ROOT / "exoplasim" / "inputs" / resolution.lower()
-        / f"orogen_{resolution}_surf_0174.sra", *p_air.shape)
+    # Through the one door. The path this used to build is keyed by the RUNG
+    # alone while `surface_albedo` rewrites it per BUILD, so it could not say
+    # which build's field it was reading. No cross-build read here: surface
+    # water is computed on the build the config names. world-z7bu, rule 5.
+    staged_albedo = staged_surface_field(174, config)
+    land_albedo = cv.read_sra_field(PROJECT_ROOT / staged_albedo["path"],
+                                    *p_air.shape)
     evaporation = cv.penman_open_water(
         t_air, q_air, wind, p_air, rss, rls, land_albedo,
         float(config["planet"]["gravity_m_s2"]), diurnal_range=diurnal)
@@ -114,7 +118,7 @@ def climate_fields(config):
     # failure of the estimate. Flooring it made every lake in a wet catchment
     # evaporate at the land rate.
     return (lat, lon, runoff, np.clip(pr, 0.0, None), evaporation,
-            np.clip(mrro, 0.0, None), lsm)
+            np.clip(mrro, 0.0, None), lsm, staged_albedo)
 
 
 def per_basin_forcing(n_basins, lat, lon, runoff, precip, evaporation, sinks,
@@ -335,7 +339,8 @@ def main():
 
     config = yaml.safe_load((PROJECT_ROOT / "config/planet.yaml").read_text())
     print("reading the climatology")
-    lat, lon, runoff, precip, evaporation, model_runoff, lsm = climate_fields(config)
+    (lat, lon, runoff, precip, evaporation, model_runoff, lsm,
+     staged_albedo) = climate_fields(config)
     sinks = np.array([b.sink for b in export.basins])
     catchment_runoff, lake_precip, lake_evap = per_basin_forcing(
         basins.n, lat, lon, runoff, precip, evaporation, sinks, export, lsm,
@@ -471,6 +476,7 @@ def main():
             "land_runoff_m3_s": float(
                 runoff_per_region[export.surface_class == LAND].sum()),
         },
+        "staged_background_albedo": staged_albedo,
         "git_commit": subprocess.run(
             ["git", "-C", str(PROJECT_ROOT), "rev-parse", "HEAD"],
             capture_output=True, text=True).stdout.strip(),

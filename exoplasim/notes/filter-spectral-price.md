@@ -216,14 +216,18 @@ cost model underneath it.
 
 **And it bounds what a spectral diagnostic can be read at.** This instrument
 reads its depth at 0.8 of the truncation and REFUSES unless the spectrum there
-stands 100x clear of the measured roundoff floor. `spectral_tail.py` cannot make
-that check at all: it cuts the spectrum at `m = NTRU` before doing anything, so
-the band above the model's truncation -- the only place the floor is visible --
-is gone by the time it fits. Its two criteria are safe, because the bite point
-is the FIRST departure below the inertial range and the pile-up test looks for
-excess above it. Its reported tail slope is not: that is fitted over
-`m = NTRU/3 .. NTRU` and the top of that band is roundoff, which is where a tail
-slope of -39 comes from. world-qzcb.
+stands 100x clear of the measured roundoff floor. `spectral_tail.py` now keeps
+the band above the model's truncation for the same reason -- it is the only
+place the floor is visible -- and ends its tail fit at the last wavenumber
+standing that same margin clear of it, reporting the band it fitted over beside
+the slope. The two criteria never needed it and are unchanged: the bite point is
+the FIRST departure below the inertial range and the pile-up test looks for
+excess above it, so roundoff at the top cannot move either. The tail slope did,
+and a tail slope fitted to `m = NTRU` is a measurement of the distance from the
+run's inertial range down to the floating-point floor rather than of the
+damping. Both scripts take the 100x margin from one definition, in
+`spectral_tail.py`; `smoke_test.py` holds the fit to a synthetic tail of known
+slope, which the old band cannot return.
 
 ## Every arm here is attributable, which is what makes it usable
 

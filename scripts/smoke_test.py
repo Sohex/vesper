@@ -83,6 +83,18 @@ purge-never-reaches-the-terrain property, run from `main()` with the rest):
 12g. **The model source compiles**, front end only, under the declared flags.
    Every other check of the Fortran here is a grep or a parse, so a tree that no
    binary could be built from passed all of them. `--skip-compile` opts out.
+12h. **No name is loaded that nothing binds**, in this project's Python AND in
+   the Python the model ships. Asked of CPython's own symbol table, so it is
+   the language's resolver that answers rather than a pattern. `world-ro6` swept
+   the model Fortran for unreferenced procedures and applied the same sweep to
+   `pyburn.py`, where a Fortran call graph cannot see a Python caller; the run
+   after it integrated ten orbits and died in the postprocessor. Narrower than
+   check 1b on purpose -- see the check.
+12i. **The spectral tail slope is fitted above the roundoff floor.** A
+   synthetic spectrum with a tail of known slope sitting on a floating-point
+   floor. `spectral_tail.py` used to cut the spectrum at `m = NTRU` and fit
+   through the dead top, so its reported tail slope was a property of the floor;
+   the check's right answer is the slope put in.
 13. **The tools `environment.md` names are actually on this host.** That
    document sends a reader to `ncdump`, NCO, `h5diff` and `yq` rather than a
    Python session, and nothing else checks the claim is true. Both
@@ -93,11 +105,13 @@ from __future__ import annotations
 
 import argparse
 import ast
+import builtins
 import importlib.util
 from pathlib import Path
 import re
 import shutil
 import subprocess
+import symtable
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1681,6 +1695,219 @@ def check_no_shadowed_imports(files: list[Path]) -> list[str]:
                             f"module; import it under an alias")
     return problems
 
+# The Python the model itself ships, which this project imports and runs. The
+# name check below reads it; the other lints do not, because they are about how
+# THIS project keeps its artifacts and the vendored package does not keep any.
+VENDOR_PY_DIRS = [ROOT / "vendor" / "exoplasim" / "exoplasim"]
+
+# Bound by the interpreter in every module namespace, so they are never
+# "unbound" however the source reads.
+MODULE_DUNDERS = frozenset({"__file__", "__name__", "__doc__", "__package__",
+                            "__spec__", "__loader__", "__builtins__",
+                            "__debug__", "__path__", "__all__", "__dict__"})
+
+# symtable makes a scope for a deferred annotation (PEP 649) and for the type
+# parameters of a generic. Neither has an ast node to report against and both
+# resolve lazily, so the sweep does not descend into them.
+_UNREPORTED_SCOPES = frozenset({"annotation", "type alias", "type parameters",
+                                "type parameter", "TypeVar bound"})
+
+
+def _module_level_bindings(top: symtable.SymbolTable) -> set[str]:
+    """Names bound at module scope, asked of the resolver rather than the text.
+
+    A `def` inside a module-level `for` binds a module global just as a `def` in
+    column zero does, and reading `tree.body` alone misses it -- which this check
+    reported as an unbound name on its own first run.
+    """
+    return {s.get_name() for s in top.get_symbols()
+            if s.is_assigned() or s.is_imported()}
+
+
+def _implicit_bindings(path: Path, tree: ast.AST) -> tuple[set[str], list[str]]:
+    """Module-scope names bound by something a scope walk cannot see.
+
+    Two of them, both decidable:
+
+    * `from X import *` binds whatever X exports. The check resolves X against
+      the file's own package directory and reads that module's module-level
+      bindings. A star import it cannot resolve is REPORTED rather than waved
+      through, because silently widening the allowed set is how a check of this
+      kind stops being able to fail.
+    * `import pkg.sub` inside `pkg/__init__.py` binds `sub` as well as `pkg`.
+      Importing a submodule sets it as an attribute of the parent package, and
+      inside the package's own `__init__` the parent's attributes ARE the module
+      globals. `exoplasim/__init__.py` reaches `gcmt` and `pyburn` that way.
+    """
+    names, problems = set(), []
+    package = path.parent.name if path.name == "__init__.py" else None
+    for node in tree.body:
+        if isinstance(node, ast.Import) and package is not None:
+            for a in node.names:
+                parts = a.name.split(".")
+                if a.asname is None and len(parts) > 1 and parts[0] == package:
+                    names.add(parts[1])
+        elif isinstance(node, ast.ImportFrom):
+            if not any(a.name == "*" for a in node.names):
+                continue
+            target = (node.module or "").split(".")[-1]
+            source = path.parent / f"{target}.py"
+            if not source.is_file():
+                problems.append(
+                    f"{path.relative_to(ROOT)}:{node.lineno} `from {node.module} "
+                    f"import *` cannot be resolved, so the names it binds are "
+                    f"unknown and this file cannot be checked")
+                continue
+            try:
+                names |= _module_level_bindings(symtable.symtable(
+                    source.read_text(encoding="utf-8"), str(source), "exec"))
+            except SyntaxError as exc:
+                problems.append(f"{source.relative_to(ROOT)}: {exc}")
+    return names, problems
+
+
+def _scope_nodes(tree: ast.AST) -> dict[tuple[str, int], ast.AST]:
+    """(symtable scope name, line) -> the ast node that made the scope."""
+    out: dict[tuple[str, int], ast.AST] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            out[(node.name, node.lineno)] = node
+        elif isinstance(node, ast.Lambda):
+            out[("lambda", node.lineno)] = node
+        elif isinstance(node, (ast.GeneratorExp, ast.ListComp,
+                               ast.SetComp, ast.DictComp)):
+            for kind in ("genexpr", "listcomp", "setcomp", "dictcomp"):
+                out.setdefault((kind, node.lineno), node)
+    return out
+
+
+def check_no_unbound_names(files: list[Path]) -> list[str]:
+    """No name is loaded that nothing in an enclosing scope binds.
+
+    A dead-code sweep has to be run with the language's own resolver. `world-ro6`
+    swept the model Fortran for unreferenced procedures and then applied the same
+    sweep to `pyburn.py`, where a Fortran call graph cannot see a Python caller:
+    it removed `readallvariables`, which `readfile` calls, and the next run
+    integrated ten orbits and died in the postprocessor with NameError. Four of
+    the five names it removed really were dead, which is why it looked right.
+
+    So this check asks CPython's own symbol table, not a pattern: for every
+    scope, a name that is referenced and resolves to a module global that nothing
+    binds is a name that can only ever raise NameError. That is decidable and it
+    is what a sweep must not be able to create. It found five in `pyburn.py`
+    besides the `readallvariables` break, three of them misspellings
+    (`vairable`, `gpvuar`, `rottlgridvar`) of names in the same scope -- which
+    means those branches had never executed here or upstream.
+
+    It is deliberately NARROWER than pyflakes F821, which also reports a name
+    read before its binding in the same scope. That is a real smell but it is
+    not always a bug: `pyburn.dataset()` carries `theta` from one iteration of
+    its variable loop into the next, and it works. This check has one answer and
+    can only fail when the name is unreachable, so it can be pointed at vendored
+    source that this project does not otherwise hold to its own style.
+    """
+    problems: list[str] = []
+    for path in files:
+        try:
+            src = path.read_text(encoding="utf-8")
+            tree = ast.parse(src, str(path))
+            top = symtable.symtable(src, str(path), "exec")
+        except SyntaxError as exc:
+            problems.append(f"{path.relative_to(ROOT)}: {exc}")
+            continue
+        bound = _module_level_bindings(top) | MODULE_DUNDERS
+        implicit, unresolved = _implicit_bindings(path, tree)
+        problems.extend(unresolved)
+        if unresolved:
+            continue
+        bound |= implicit
+        # `global x` in any scope, with an assignment there, binds x at module
+        # scope even though no module-level statement does.
+        stack = [top]
+        while stack:
+            scope = stack.pop()
+            stack.extend(scope.get_children())
+            bound |= {s.get_name() for s in scope.get_symbols()
+                      if s.is_declared_global()}
+        nodes = _scope_nodes(tree)
+        found: set[tuple[int, str, str]] = set()
+        stack = [top]
+        while stack:
+            scope = stack.pop()
+            if scope.get_type() in _UNREPORTED_SCOPES:
+                continue
+            stack.extend(scope.get_children())
+            unbound = set()
+            for sym in scope.get_symbols():
+                name = sym.get_name()
+                if not sym.is_referenced() or hasattr(builtins, name):
+                    continue
+                if name in bound:
+                    continue
+                if scope.get_type() == "module":
+                    if not (sym.is_assigned() or sym.is_imported()):
+                        unbound.add(name)
+                elif sym.is_global():
+                    unbound.add(name)
+            if not unbound:
+                continue
+            node = tree if scope.get_type() == "module" else \
+                nodes.get((scope.get_name(), scope.get_lineno()))
+            if node is None:
+                found.add((scope.get_lineno(), ", ".join(sorted(unbound)),
+                           scope.get_name()))
+                continue
+            for sub in ast.walk(node):
+                if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Load) \
+                        and sub.id in unbound:
+                    found.add((sub.lineno, sub.id, scope.get_name()))
+        for lineno, name, scope_name in sorted(found):
+            problems.append(f"{path.relative_to(ROOT)}:{lineno} loads `{name}`, "
+                            f"which nothing binds; in {scope_name}()")
+    return problems
+def check_tail_fit_stops_above_roundoff() -> list[str]:
+    """`spectral_tail.py`'s tail slope is the slope it was given, not the floor's.
+
+    A synthetic T42 spectrum: an inertial range, a tail of KNOWN slope below the
+    fit band, and every wavenumber sitting on a floating-point roundoff floor
+    with the dead band above the truncation carrying only that floor. The right
+    answer is the slope put in, which is what makes this a test rather than a
+    comparison -- and it is one the script's earlier shape cannot pass, because
+    it cut the spectrum at `m = NTRU` and fitted straight through the floor.
+
+    The tolerance is 0.1 in the slope against an effect of up to 17: fitting to
+    the truncation returns about -23 whatever it is given below that, since the
+    floor anchors the bottom of the fit and the true tail cannot be seen through
+    it. So the check has margin of two orders over its own resolution, and a
+    reimplementation that quietly extends the band again fails it by a wide one.
+    """
+    import numpy as np
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    try:
+        from spectral_tail import FLOOR_MARGIN, slope
+    except ImportError as exc:
+        return [f"exoplasim/scripts/spectral_tail.py does not import: {exc}"]
+    n, nlon, floor_value, tol = 42, 128, 2.6e-15, 0.1
+    m = np.arange(nlon // 2 + 1)
+    hi = max(3, n // 3)
+    rng = np.random.default_rng(0)
+    bad = []
+    for true_tail in (-25.0, -30.0, -35.0, -40.0):
+        mm = np.maximum(m, 1).astype(float)
+        inertial = 1e-1 * mm ** -2.04
+        tail_law = inertial[hi] * (mm / hi) ** true_tail
+        full = np.maximum(np.where(m <= hi, inertial, tail_law),
+                          floor_value * rng.uniform(0.4, 1.6, len(m)))
+        full[0] = 0.0
+        spec = full[:n + 1]
+        floor = float(np.median(full[n + 1:]))
+        live = [int(k) for k in np.arange(len(spec))[1:]
+                if spec[k] > FLOOR_MARGIN * floor]
+        got = slope(spec, hi, min(n, max(live)))
+        if not abs(got - true_tail) <= tol:
+            bad.append(f"a tail of {true_tail:+g} fitted above the roundoff "
+                       f"floor came back as {got:+.2f}")
+    return bad
 
 def main() -> None:
     ap = argparse.ArgumentParser()
@@ -1696,6 +1923,8 @@ def main() -> None:
     # and `d.glob("*.py")` made every shell offender invisible to both of them.
     shell_files = sorted({f for d in SCRIPT_DIRS if d.is_dir()
                           for f in d.glob("*.sh")})
+    vendor_files = sorted({f for d in VENDOR_PY_DIRS if d.is_dir()
+                           for f in d.glob("*.py")})
     print(f"{len(files)} modules under {len(SCRIPT_DIRS)} directories\n")
 
     checks = [("imports", check_imports(files)),
@@ -1733,6 +1962,10 @@ def main() -> None:
                check_no_dropped_continuation()),
               ("no imported module name is rebound",
                check_no_shadowed_imports(files)),
+              ("no name is loaded that nothing binds, model Python included",
+               check_no_unbound_names(files + vendor_files)),
+              ("the spectral tail slope is fitted above the roundoff floor",
+               check_tail_fit_stops_above_roundoff()),
               ("the restart schema covers every record the model writes",
                check_restart_schema_covers_the_model()),
               ("the transform gates run the configured spectral filter",

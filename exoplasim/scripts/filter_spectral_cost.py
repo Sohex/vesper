@@ -92,7 +92,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _paths  # noqa: F401
 from paths import rel  # noqa: E402  from lib/, put on sys.path by _paths
 import rungs  # noqa: E402  from lib/, the one rung-to-dimension mapping
-from spectral_tail import ke_spectrum, truncation  # noqa: E402  one reader, one convention
+from spectral_tail import FLOOR_MARGIN, ke_spectrum, truncation  # noqa: E402  one reader, one convention
 
 ROOT = Path(__file__).resolve().parents[2]
 ANALYSIS = ROOT / "exoplasim" / "analysis"
@@ -116,7 +116,10 @@ EXCESS_FACTOR = 2.0     # spectral_tail.py's bite criterion, restated for the mo
 # floor is 0.6 and the fit band ends at a third: 0.8 is inside the damped band
 # at every rung and outside the mode-count collapse at all of them.
 DEPTH_FRACTION = 0.8
-FLOOR_MARGIN = 100.0    # the spectrum must stand this far above roundoff to be read
+# FLOOR_MARGIN -- how far above the measured roundoff floor a wavenumber must
+# stand to be read -- is imported from `spectral_tail.py` rather than restated.
+# It bounds the depth reading here and the tail fit there, and a second copy of
+# it is a number that can drift away from the one the note cites.
 
 
 def namelist_keys(run_dir: Path) -> dict[str, str]:

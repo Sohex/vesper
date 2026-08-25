@@ -54,6 +54,39 @@ The executable's name follows: `most_plasim_<res>_l<levels>_p<ranks>.x` carries
 no parallel-mode suffix, because there is one parallel mode and an axis with one
 value separates no two builds.
 
+### Names upstream's Python loads and never binds
+
+Worth reporting to `Sohex/ExoPlaSim` and to `alphaparrot/ExoPlaSim` under it,
+because none of it is fork-introduced: every one of these is present in the
+subtree-import commit and so has never executed upstream either. They are
+repaired here.
+
+`pyburn.py`, five names in the two transform helpers. `_transformvar` reads
+`vairable` for its own `variable` argument, and `nlats` for `nlat`;
+`_transformvectorvar` reads `variable` for `uvar`/`vvar`, `gpvuar` for `gpuvar`,
+`rottlgridvar` for `rottlgriduvar`, and `nlats` again. Four of the six sites
+sit under `mode` values of `spectral`, `synchronous` or `syncfourier`; the
+`variable` pair is under `mode='grid'`, in the arm that takes a spectral vector
+pair with no level axis. Three of the names are MISSPELLINGS of names bound in
+the same scope, which is the evidence that those branches have never run
+anywhere.
+
+`_transformvectorvar` also gave each of `rottlgriduvar` and `rottlgridvvar` one
+half of the joined meridian instead of both, where the scalar loop in
+`_transformvar` writes both halves of its one array. Repairing the names alone
+would have left a branch that returns zeros for half of each component instead
+of raising, which is worse.
+
+`gcmt.py`, four more. `_csvData.__setitem__` names the file it writes in
+neither branch (`fname`, and `lf.filestem` for `self.filestem`); `eqstream`
+takes `file` and its body reads `dataset`; `orthographic` reads `zlon` for its
+`lon` argument. `streamfxn`, the deprecated shim over `eqstream`, forwards a
+`time` argument `eqstream` does not accept, and now refuses it rather than
+raising `TypeError` from the callee.
+
+`scripts/smoke_test.py` holds the vendored package to this from now on: see the
+check named there. It is the instrument the `world-ro6` sweep should have used.
+
 ### Before the fork
 
 The climate model is a personal fork vendored at `vendor/exoplasim/`, a git

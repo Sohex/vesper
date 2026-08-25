@@ -86,16 +86,23 @@ deliberate case, and it must be declared wherever it is recorded, because every
 other pairing of a climatology with a basin set on this project has been a
 defect.
 
-**The background land albedo is not build-namespaced.** `carve_verdict.py`,
-`export_carve_list.py`, `surface_water.py`, `pedology/scripts/build_surface_classes.py`
-and `aeolian/scripts/dust_forcing.py` all read
-`exoplasim/inputs/<rung>/orogen_<RUNG>_surf_0174.sra`, and `config/pipeline.yaml`
-shows that path is keyed by rung alone while `surface_albedo` regenerates it per
-build. So it holds exactly one build's albedo at a time, nothing checks which,
-and no verdict records which it used. For the overshoot measurement the staged
-file is the right one, because the carved build is what has just been
-commissioned; for anything re-run afterwards on the pre-carve build it is the
-wrong one, silently.
+**The background land albedo goes through one door, and the cross-build read is
+declared.** `exoplasim/inputs/<rung>/orogen_<RUNG>_surf_0174.sra` is keyed by
+rung alone while `surface_albedo` regenerates it per build, so it holds exactly
+one build's albedo at a time and the path cannot say which. Every consumer --
+`carve_verdict.py`, `export_carve_list.py`, `surface_water.py`,
+`pedology/scripts/build_surface_classes.py` and
+`exoplasim/scripts/dust_forcing.py` -- now resolves it through
+`lib/provenance.py:staged_surface_field`, which refuses a field from another
+build at the read and returns the record each of them stamps into its own
+product. So a verdict says which build's albedo it used.
+
+For the overshoot measurement the staged file is the right one, because the
+carved build is what has just been commissioned; for anything re-run afterwards
+on the pre-carve build it is the wrong one. That read is DELIBERATE and the two
+carve scripts declare it with `--for-build`, which NAMES the build and so admits
+that one and refuses every other. A flag that merely turned the check off would
+have let the same silence back in.
 
 **Both arms, or neither.** If the applied verdict was an intersection, the
 re-evaluation has to be an intersection too, taken against the carved build's

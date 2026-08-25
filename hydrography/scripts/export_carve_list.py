@@ -108,6 +108,7 @@ import climatology  # noqa: E402  from lib/, put on sys.path by _paths
 from builds import component_data
 from orbit import orbital_year_days
 from paths import climatology_path, rel
+from provenance import staged_surface_field
 from orogen import Export, LAND
 from lake_balance import BasinSet
 
@@ -365,7 +366,7 @@ def sill_erodibility(basins_path: Path, terrain_hash: str) -> np.ndarray:
 # applies it and `main` records it in the sidecar, and those must be one number.
 TOLERANCE = 0.25
 
-def climate_terms(clim_path, args, config, basins, resolution):
+def climate_terms(clim_path, args, config, basins):
     """Everything the carve criterion reads from ONE climate.
 
     Factored out of `main` because `docs/src/pipeline/loops.md` evaluates this same
@@ -390,9 +391,14 @@ def climate_terms(clim_path, args, config, basins, resolution):
         lsm = am(ds, "lsm")
     t_air, q_air, wind, p_air = cv.reference_level_air(args.climatology)
 
-    land_albedo = cv.read_sra_field(
-        PROJECT_ROOT / "exoplasim" / "inputs" / resolution.lower()
-        / f"orogen_{resolution}_surf_0174.sra", *p_air.shape)
+    # Through the one door, not by rebuilding the path from `model.resolution`:
+    # that path is keyed by the RUNG alone and `surface_albedo` rewrites it per
+    # BUILD. `--for-build` declares the deliberate cross-build read this export
+    # makes once the carved build is staged, by NAMING the build it means.
+    # world-z7bu, CLAUDE.md rule 5.
+    staged_albedo = staged_surface_field(174, config, for_build=args.for_build)
+    land_albedo = cv.read_sra_field(PROJECT_ROOT / staged_albedo["path"],
+                                    *p_air.shape)
     penman_raw = cv.penman_open_water(
         t_air, q_air, wind, p_air, rss, rls, land_albedo,
         float(config["planet"]["gravity_m_s2"]), diurnal_range=diurnal)
@@ -493,7 +499,8 @@ def climate_terms(clim_path, args, config, basins, resolution):
     with np.errstate(divide="ignore", invalid="ignore"):
         margin = np.where(e_pen > 0, (e_pen - e_balance) / np.where(e_pen > 0, e_pen, 1.0), 1.0)
     retain_margin = np.where(carved, 0.0, np.clip(margin / TOLERANCE, 0.0, 1.0))
-    return {"mrro": mrro, "means": means, "year_s": year_s, "crit": crit, "runoff": runoff, "precip": precip, "idx_pen": idx_pen, "idx_wet": idx_wet, "q_pen": q_pen, "q_wet": q_wet, "carved": carved, "overflows_wet": overflows_wet, "disputed": disputed, "e_pen": e_pen, "e_wet": e_wet, "margin": margin, "retain_margin": retain_margin, "ocean_validation": ocean_validation, "penman_error_pct": penman_error_pct}
+    return {"staged_background_albedo": staged_albedo,
+            "mrro": mrro, "means": means, "year_s": year_s, "crit": crit, "runoff": runoff, "precip": precip, "idx_pen": idx_pen, "idx_wet": idx_wet, "q_pen": q_pen, "q_wet": q_wet, "carved": carved, "overflows_wet": overflows_wet, "disputed": disputed, "e_pen": e_pen, "e_wet": e_wet, "margin": margin, "retain_margin": retain_margin, "ocean_validation": ocean_validation, "penman_error_pct": penman_error_pct}
 def main() -> None:
     ap = argparse.ArgumentParser()
     # Every per-build path below defaults to None and is resolved AFTER
@@ -562,6 +569,11 @@ def main() -> None:
     ap.add_argument("--config", type=Path, default=CONFIG)
     ap.add_argument("--out-list", type=Path, default=None)
     ap.add_argument("--out-json", type=Path, default=None)
+    ap.add_argument("--for-build", default=None,
+                    help="declare a DELIBERATE cross-build read of the staged "
+                         "background albedo by naming the build it was staged "
+                         "from. A name from lib/orogen.py's registry; any other "
+                         "build is refused.")
     args = ap.parse_args()
 
     _bd = component_data("hydrography", strict=True)
@@ -583,7 +595,7 @@ def main() -> None:
     resolution = str(config["model"]["resolution"]).upper()
 
     # The primary arm: the warm, vegetated end of section 4's bracket.
-    primary = climate_terms(args.climatology, args, config, basins, resolution)
+    primary = climate_terms(args.climatology, args, config, basins)
     (year_s, crit, runoff, precip, idx_pen, idx_wet, q_pen, carved, overflows_wet, disputed, e_pen, e_wet, margin, retain_margin, ocean_validation, penman_error_pct) = (
         primary["year_s"], primary["crit"], primary["runoff"], primary["precip"], primary["idx_pen"], primary["idx_wet"], primary["q_pen"], primary["carved"], primary["overflows_wet"], primary["disputed"], primary["e_pen"], primary["e_wet"], primary["margin"], primary["retain_margin"], primary["ocean_validation"], primary["penman_error_pct"])
 
@@ -643,7 +655,7 @@ def main() -> None:
     retain_endmember = None
     if args.endmember_climatology is not None:
         endmember = climate_terms(args.endmember_climatology, args, config,
-                                  basins, resolution)
+                                  basins)
         retain_endmember = np.maximum(
             incision_retain(endmember["q_pen"], year_s,
                             basins.depth_at_spill_m, sill_ero, coefficient,
@@ -771,6 +783,7 @@ def main() -> None:
         "pass_number": pass_number,
         "terrain_hash": basins.terrain_hash,
         "climatology": str(args.climatology),
+        "staged_background_albedo": primary["staged_background_albedo"],
         "climate": {
             "resolution": resolution,
             "flux_earth": flux_earth,
