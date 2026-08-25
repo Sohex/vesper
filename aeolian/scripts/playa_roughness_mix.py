@@ -144,8 +144,34 @@ BAND_SHARES = {
 }
 CONFIGURED_BUILD = "precarve-craton-10m"
 
+# --- the within-class spread, from the same table -----------------------------
+#
+# `dust.yaml` also carries a geometric spread of z0 WITHIN one arid surface
+# class, derived from the three groups of repeat in-situ values Prigent et al.
+# (2005) Table 1 reproduces from this same Greeley table. It is derived HERE
+# rather than beside it because it rests on the same rows and therefore on the
+# same transcription: taking it from Prigent carries the factor-9 error on
+# Golden Canyon NE 1989 into the Death Valley group, which is the group with
+# nine of the eleven degrees of freedom.
+#
+# The estimator is the one `dust.yaml` states: pool the within-group variance of
+# ln z0 over all three groups for the central value, and take the smallest and
+# largest single-group estimates as the bracket.
+REPEAT_GROUPS = {
+    "death_valley": ["Stovepipe Wells Main (S), April 1994", "Stovepipe Wells N1",
+                     "Stovepipe Wells S1", "Stovepipe Wells S2",
+                     "Stovepipe Wells Main, March-April 1991",
+                     "Kit Fox Fan T2", "Kit Fox Fan T1",
+                     "Golden Canyon NE, April 1994", "Golden Canyon SE, April 1989",
+                     "Golden Canyon NE, April 1989"],
+    "namib_gobabeb": ["Gobabeb NB, gravel lag", "Gobabeb NA, thin sand sheet"],
+    "central_nevada_lunar_lake": ["Lunar Lake LL-1, near centre, Aug 1994",
+                                  "Lunar Lake LL-2, near SW edge, Jul-Aug 1990"],
+}
+
 # What is being replaced, so the report can say what moved and by how much.
-DECLARED_BEFORE = dict(z0=3.0e-5, bracket=[1.0e-5, 1.0e-4])
+DECLARED_BEFORE = dict(z0=3.0e-5, bracket=[1.0e-5, 1.0e-4],
+                       sigma_g=2.736, sigma_g_bracket=[1.297, 5.095])
 
 # The prediction fixed before any measured value was read, in
 # `notes/audits/dust-intensity-levers.md`: the mix-derived HIGH end comes out
@@ -181,10 +207,35 @@ def endmembers() -> list[dict]:
 
 
 def mix(shares, values) -> float:
-    """Share-weighted GEOMETRIC mean, the operation dust.yaml uses on z0."""
-    if abs(sum(shares) - 1.0) > 1.0e-6:
-        raise SystemExit(f"band shares sum to {sum(shares)}, not 1")
-    return exp(sum(f * log(v) for f, v in zip(shares, values)))
+    """Share-weighted GEOMETRIC mean, the operation dust.yaml uses on z0.
+
+    The shares are transcribed from a table that prints them to four decimal
+    places, so they sum to 1 only to that precision and are renormalised here.
+    A sum further from 1 than the printing can explain is a transcription
+    error rather than rounding, and stops the run.
+    """
+    total = sum(shares)
+    if abs(total - 1.0) > 1.0e-3:
+        raise SystemExit(f"band shares sum to {total}, which rounding at four "
+                         "decimal places cannot explain")
+    return exp(sum(f * log(v) for f, v in zip(shares, values)) / total)
+
+
+def within_class_sigma_g() -> dict:
+    """Geometric spread of z0 within one arid area, pooled over repeat groups."""
+    by_site = {r["site"]: r["z0_m"] for r in GREELEY_1997_TABLE_2}
+    groups, ss, df = {}, 0.0, 0
+    for name, sites in REPEAT_GROUPS.items():
+        ln = [log(by_site[s]) for s in sites]
+        mu = sum(ln) / len(ln)
+        s2 = sum((x - mu) ** 2 for x in ln) / (len(ln) - 1)
+        groups[name] = {"n": len(ln), "sigma_g": exp(s2 ** 0.5)}
+        ss += s2 * (len(ln) - 1)
+        df += len(ln) - 1
+    pooled = exp((ss / df) ** 0.5)
+    singles = [g["sigma_g"] for g in groups.values()]
+    return {"by_group": groups, "degrees_of_freedom": df,
+            "sigma_g": pooled, "sigma_g_bracket": [min(singles), max(singles)]}
 
 
 def main() -> None:
@@ -230,6 +281,7 @@ def main() -> None:
             "criteria": "notes/audits/dust-intensity-levers.md section 4",
         },
         "endmembers": members,
+        "within_class_z0": within_class_sigma_g(),
         "by_build": per_build,
         "configured_build": CONFIGURED_BUILD,
         "result": {
@@ -240,6 +292,8 @@ def main() -> None:
         "what_it_replaces": {
             "z0_m": DECLARED_BEFORE["z0"],
             "bracket_m": DECLARED_BEFORE["bracket"],
+            "sigma_g": DECLARED_BEFORE["sigma_g"],
+            "sigma_g_bracket": DECLARED_BEFORE["sigma_g_bracket"],
             "central_moves_by_factor": central / DECLARED_BEFORE["z0"],
         },
         "declared_prediction": {
@@ -277,6 +331,18 @@ def main() -> None:
           f"end exceeds {PREDICTED_HIGH_END_EXCEEDS_M:.1e} m")
     print(f"  high end {hi:.3e} m -- "
           f"{'HELD' if prediction_held else 'FAILED'}")
+    wc = report["within_class_z0"]
+    print(f"\nwithin-class geometric spread, pooled over the three repeat "
+          f"groups on {wc['degrees_of_freedom']} degrees of freedom:")
+    for name, g in wc["by_group"].items():
+        print(f"  {name:26s} n={g['n']:2d}  sigma_g {g['sigma_g']:.3f}")
+    print(f"  pooled sigma_g {wc['sigma_g']:.3f}, bracket "
+          f"{wc['sigma_g_bracket'][0]:.3f} to {wc['sigma_g_bracket'][1]:.3f}")
+    print(f"  replaces {DECLARED_BEFORE['sigma_g']}, bracket "
+          f"{DECLARED_BEFORE['sigma_g_bracket'][0]} to "
+          f"{DECLARED_BEFORE['sigma_g_bracket'][1]}, which was pooled over "
+          f"Prigent's reproduction and carried its factor-9 error")
+
     print(f"\nwrote {out}")
 
 
