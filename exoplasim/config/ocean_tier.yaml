@@ -396,7 +396,7 @@ constants:
 
     - name: charnock
       source: sea
-      declaration: "      real    :: charnock = 0.018 ! albedo for free ocean"
+      declaration: "      real    :: charnock = 0.018 ! Charnock coefficient, open-water z0"
       value: 0.018
       reach: namelist
       namelist: seamod_nl
@@ -404,8 +404,8 @@ constants:
       sourced: false
       bites: >
         the roughness length over open water, through
-        charnock*|tau|*gascon*T/(ga*p). The trailing comment is upstream's and
-        is wrong: this is not an albedo.
+        charnock*|tau|*gascon*T/(ga*p). Upstream's trailing comment called it an
+        albedo, copied from the line above it; it is not one.
 
     - name: dz0sea
       source: sea

@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-25T15:56:46+00:00",
+  "generated": "2026-08-25T16:21:44+00:00",
   "declaration": "exoplasim/config/ocean_tier.yaml",
   "tier": "ExoPlaSim slab; vendor/cgenie is a candidate nothing reads",
   "sources": {
@@ -102,7 +102,7 @@
       "name": "charnock",
       "source": "sea",
       "reach": "namelist",
-      "bites": "the roughness length over open water, through charnock*|tau|*gascon*T/(ga*p). The trailing comment is upstream's and is wrong: this is not an albedo.\n"
+      "bites": "the roughness length over open water, through charnock*|tau|*gascon*T/(ga*p). Upstream's trailing comment called it an albedo, copied from the line above it; it is not one.\n"
     },
     {
       "name": "dz0sea",

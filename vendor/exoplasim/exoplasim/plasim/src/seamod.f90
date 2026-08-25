@@ -16,7 +16,7 @@
       real    :: dz0ice   = 0.001 !  "          "    ice
       real    :: drhssea  = 1.    ! wetness factor sea
       real    :: drhsice  = 1.    !  "         "   ice
-      real    :: charnock = 0.018 ! albedo for free ocean
+      real    :: charnock = 0.018 ! Charnock coefficient, open-water z0
 
 !     Sea-ice albedo ramp.
 !
