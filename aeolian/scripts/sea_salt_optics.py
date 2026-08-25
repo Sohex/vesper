@@ -172,7 +172,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--u10", type=float, default=None,
                     help="wind the emitted size distribution is shaped at; "
-                         "defaults to the Earth check's ocean mean")
+                         "defaults to optics.emitted_shape_u10_m_s")
     ap.add_argument("--output", type=Path, default=OUT)
     args = ap.parse_args()
 
@@ -180,7 +180,12 @@ def main() -> None:
     size = read_size_table()
     index = read_index_table()
     edges = cfg["size"]["bin_edges_um"]
-    u10 = args.u10 or cfg["earth_check"]["ocean_mean_u10_m_s"]
+    # The WITHIN-BIN shaping wind, and it is its own declared constant rather
+    # than the Earth check's ocean mean. It used to be the latter, which made an
+    # Earth constant shape a Vesper optics product: sourcing
+    # `earth_check.ocean_mean_u10_m_s` then moved this artifact as a side
+    # effect. `aeolian/config/sea_salt.yaml` carries the argument.
+    u10 = args.u10 or cfg["optics"]["emitted_shape_u10_m_s"]
     rho_dry = cfg["emission"]["dry_density_kg_m3"] / 1000.0   # g/cm3
 
     # --- check 1: OPAC's two routes to the salt volume fraction ------------

@@ -131,14 +131,42 @@ emission:
 # emitted; what removes them is settling, which is a physical answer rather than
 # a truncation.
 earth_check:
-  # DECLARED AND UNSOURCED, and it is what the absolute arm currently fails on.
-  # Grythe state NO ocean-mean 10 m wind speed anywhere. What they give is the
-  # MODE, section 5.2, "the most frequent wind speeds are 5-7 m s-1 with a
-  # long-tailed distribution towards higher wind speeds", and a mode read as a
-  # mean on a long-tailed distribution is low by construction, which is the sign
-  # of the miss. Emission goes as U10^3.41 here, so entering the band needs
-  # 7.38 m/s and reproducing Grythe's own M86 needs 8.09 m/s. world-3e2d.
-  ocean_mean_u10_m_s: 7.0
+  # EARTH's global ocean-area-weighted annual mean 10 m SCALAR wind speed.
+  # MEASURED, from NOAA NCEI Blended Global Sea Surface Winds (NBS) v2.0, the
+  # 1991-2020 monthly climatology
+  # `NBS_v02_wind_climmonthly_s1991_e2020_c20221206.nc`, 0.25 degree, zlev 10 m,
+  # documented by Saha and Zhang (2022), Front. Mar. Sci. 9:935549,
+  # `10.3389/fmars.2022.935549`. The file's own `windspeed` field, its own ocean
+  # mask (`mask == 1`, so lakes and rivers are out), cos(latitude) weighting,
+  # 694,835 ocean cells covering 71.42 per cent of the sphere, every cell finite
+  # in every month. Month-weighted and day-weighted annual means agree to four
+  # decimals; the seasonal cycle is 0.24 m/s peak to peak and a latitude cap
+  # anywhere from 60 to 90 degrees moves the answer by under 0.06 m/s.
+  #
+  # THE SCALAR-VERSUS-VECTOR DISTINCTION IS THE WHOLE OF THIS NUMBER, and it was
+  # verified rather than assumed: in January the same file's area-mean
+  # `windspeed` is 7.540 m/s against 4.133 for the area-mean of
+  # sqrt(u_wind^2 + v_wind^2), a factor of 1.8. Emission goes as U10^3.41, so a
+  # vector mean read as a scalar one would be wrong by two orders of magnitude.
+  # Any replacement for this number must be a mean of the instantaneous speed.
+  #
+  # EQUIVALENT-NEUTRAL, AND THAT IS THE RIGHT KIND. NBS speeds are microwave
+  # radiometer and scatterometer retrievals, which are 10 m equivalent-neutral
+  # winds rather than true ones. `u10_from_level` reaches U10 by a Charnock
+  # roughness and a NEUTRAL log profile with no stability function, so this
+  # world's U10 is equivalent-neutral by construction and the satellite product
+  # is the like-for-like comparison rather than a biased one.
+  #
+  # WHAT IT REPLACED. 7.0 m/s, declared and unsourced, attributed in this file to
+  # Grythe's Fig. 3. Grythe state no ocean-mean 10 m wind speed anywhere; what
+  # they give is the MODE, section 5.2, "the most frequent wind speeds are
+  # 5-7 m s-1 with a long-tailed distribution towards higher wind speeds", and a
+  # mode read as a mean on a long-tailed distribution is low by construction,
+  # which was the sign of the miss. At 7.0 the absolute arm failed at 2.75 Pg/yr
+  # against a band bottom of 3.3; at the measured value all three arms pass.
+  # Nothing was fitted to reach it: the bars were fixed in world-fgak before the
+  # first run and the wind was sourced without reference to them. world-3e2d.
+  ocean_mean_u10_m_s: 7.566
   ocean_area_m2: 3.61e+14
   sst_mean_c: 18.0
   # Grythe et al. (2014) Table 2. `dp_um` is that row's own validity range and
@@ -327,3 +355,28 @@ size:
 optics:
   source: analysis/sea_salt_optics.json
   indices: OPAC ssam and sscm, at ambient relative humidity
+  # The wind the emitted size distribution is shaped at, for the WITHIN-BIN
+  # weighting only: each bin is band-averaged on its own, so this sets how the
+  # population is distributed inside a bin and never the burden, which comes
+  # from `build_sea_salt.py` and this world's own winds.
+  #
+  # DECLARED HERE RATHER THAN BORROWED, and that is the point of the entry.
+  # `sea_salt_optics.py` used to default to `earth_check.ocean_mean_u10_m_s`,
+  # so an EARTH constant shaped a VESPER optics product and a change to the
+  # Earth check moved an artifact nothing had asked it to move.
+  #
+  # It is nearly wind-independent by construction, and that was MEASURED rather
+  # than argued: two of Grythe's three modes carry `wind_exponent` 3.5 and only
+  # the 30 um spume mode carries 3.0, so the wind divides out of the normalised
+  # within-bin shape everywhere the spume tail does not reach. Re-running the
+  # whole table at 7.0 and at 7.566 m/s, an 8 per cent change in the wind, moves
+  # the worst mass extinction efficiency by 1.2e-3 relative, the worst asymmetry
+  # parameter by 1.3e-4, the worst critical surface albedo by 1.0e-4 and the
+  # worst single-scattering albedo by 1.1e-5. So the coupling was harmless and
+  # the defect was that it existed at all.
+  #
+  # The value is unchanged from the borrowed default so that exposing the
+  # coupling does not also move the artifact, and there is no reason to prefer
+  # this world's own ocean-mean wind here: `sea_salt_optics` runs before any
+  # climatology is read, and at that sensitivity it would not matter if it did.
+  emitted_shape_u10_m_s: 7.0
