@@ -70,6 +70,7 @@ from gridding import (coupling_cells, coupling_ocean_fraction, coupling_path,
 from orbit import orbital_year_days
 from orogen import Export
 from paths import climatology_path, rel, require_clean_io
+from provenance import staged_surface_field
 from lake_balance import BasinSet, carve_verdict, solve
 from lapse import reference_height_m
 
@@ -447,6 +448,13 @@ def main() -> None:
     # counts happened to differ.
     ap.add_argument("--basins", type=Path, default=None)
     ap.add_argument("--output", type=Path, default=ANALYSIS / "carve_verdict.json")
+    ap.add_argument("--for-build", default=None,
+                    help="declare a DELIBERATE cross-build read of the staged "
+                         "background albedo by naming the build it was staged "
+                         "from. The overshoot measurement needs this once the "
+                         "carved build is staged and the verdict is being "
+                         "re-taken against the pre-carve one. A name from "
+                         "lib/orogen.py's registry; any other build is refused.")
     # DUST-10. Dust changes the SURFACE energy balance at a lake, which is what
     # Penman reads, and the sign is not the top-of-atmosphere one: the layer
     # absorbs, so the ground loses even where the TOA gains over bright fill.
@@ -535,13 +543,18 @@ def main() -> None:
               f"rls {drls.mean():+.3f} W/m2 in the unweighted mean")
 
     # Background albedo as supplied to the run, for backing shortwave out of rss.
-    # Read directly rather than importing from the ExoPlaSim component: both
-    # components have a private `_paths`, so a cross-component import resolves
-    # to the wrong one.
-    resolution = str(config["model"]["resolution"]).upper()
-    land_albedo = read_sra_field(
-        PROJECT_ROOT / "exoplasim" / "inputs" / resolution.lower()
-        / f"orogen_{resolution}_surf_0174.sra", *p_air.shape)
+    # Resolved through the one door rather than by rebuilding the path from
+    # `model.resolution`: that path is keyed by the RUNG alone while
+    # `surface_albedo` rewrites it per BUILD, so it cannot say which build's
+    # field is in it. `--for-build` is how the OVERSHOOT measurement declares
+    # the cross-build read it makes on purpose -- the staged albedo is the right
+    # one while the carved build is staged and the wrong one for anything re-run
+    # on the pre-carve build afterwards -- and it declares it by NAMING the
+    # build, which admits that one and refuses every other. world-z7bu, world-xgtj,
+    # CLAUDE.md rule 5.
+    staged_albedo = staged_surface_field(174, config, for_build=args.for_build)
+    land_albedo = read_sra_field(PROJECT_ROOT / staged_albedo["path"],
+                                 *p_air.shape)
     gravity = float(config["planet"]["gravity_m_s2"])
     penman = penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
                                gravity, diurnal_range=diurnal, cfg=config)
@@ -766,6 +779,7 @@ def main() -> None:
     payload = {
         "climatology": str(args.climatology),
         "coupling": str(args.coupling),
+        "staged_background_albedo": staged_albedo,
         "groundwater": groundwater_info,
         "basins": n,
         "note": ("'penman' is the primary estimate: the Penman combination "

@@ -79,6 +79,7 @@ if str(ROOT / "lib") not in sys.path:
 from lapse import environmental_lapse_k_per_km  # noqa: E402
 import climatology  # noqa: E402  from lib/, via _paths
 from paths import climatology_path, rel  # noqa: E402
+from provenance import staged_surface_field  # noqa: E402
 from stellar import band1_fraction  # noqa: E402
 
 OUT = ROOT / "analysis" / "dust_forcing.json"
@@ -482,9 +483,13 @@ def main() -> None:
     if args.dust_field.is_file():
         model = config["model"]
         nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
-        resolution = str(model["resolution"]).upper()
-        albedo_path = (ROOT / "exoplasim" / "inputs" / resolution.lower()
-                       / f"orogen_{resolution}_surf_0174.sra")
+        # Through the one door. That path is keyed by the RUNG alone while
+        # `surface_albedo` rewrites it per BUILD, so it could not say which
+        # build's field it held, and the per-cell forcing this writes is what
+        # carve_verdict.py divides by (1 - albedo). No cross-build read: the
+        # forcing is formed on the build the config names. world-z7bu, rule 5.
+        staged_albedo = staged_surface_field(174, config)
+        albedo_path = ROOT / staged_albedo["path"]
         albedo = read_sra(albedo_path, nlat, nlon)
         end_name = SIZE_END_KEYS[args.size_end]
         drss, drls, col = write_per_cell(
@@ -495,7 +500,9 @@ def main() -> None:
                   "indices_end": args.indices,
                   "size_distribution": end_name,
                   "dust_field": rel(args.dust_field),
-                  "background_albedo": rel(albedo_path),
+                  "background_albedo": staged_albedo["path"],
+                  "background_albedo_build": staged_albedo["build"],
+                  "background_albedo_sha256": staged_albedo["sha256"],
                   "generated": datetime.now(timezone.utc).isoformat()})
         from netCDF4 import Dataset as _DS
         with _DS(args.dust_field) as _ds:
@@ -504,7 +511,7 @@ def main() -> None:
         surface_field = {
             "output": rel(args.output_nc),
             "size_distribution": end_name,
-            "background_albedo_field": rel(albedo_path),
+            "background_albedo_field": staged_albedo,
             "area_weighted_drss_w_m2": round(float(np.average(drss, weights=wt)), 4),
             "area_weighted_drls_w_m2": round(float(np.average(drls, weights=wt)), 4),
             "min_drss_w_m2": round(float(drss.min()), 3),
