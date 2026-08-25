@@ -44,6 +44,17 @@ The rotation is by round: with n arms, round r starts at arm r mod n, so over
 any n consecutive rounds each arm occupies each position once and the drift
 that position carries is shared equally. Two arms recover the original A/B/B/A
 flip exactly.
+
+**When the host cannot be made quiet, change the instrument.** `--counter
+instructions:u` runs the same schedule under `perf stat` and compares retired
+instructions instead of seconds. A counter is a property of the code and the
+input and does not move with what else the machine is doing; a clock is a
+property of the machine as well, and a contended clock is worse than no number
+because it looks like a measurement. The counter cannot say what a change
+COSTS -- a vector call is more instruction-efficient than eight scalar ones and
+need not be eight times faster -- so it answers where the work went, and a clock
+arm on a quiet host answers what that was worth. Report both or say which one
+is missing.
 """
 from __future__ import annotations
 
@@ -55,6 +66,11 @@ import statistics as st
 import subprocess
 import time
 from pathlib import Path
+
+
+# Set from --counter. Module level because it changes what run_once MEASURES,
+# not how one arm is launched, and every arm must be measured the same way.
+COUNTER: str | None = None
 
 
 def launcher(spec: str, threads: int) -> tuple[list[str], dict]:
@@ -102,7 +118,27 @@ def launcher(spec: str, threads: int) -> tuple[list[str], dict]:
     # process stack, which is ulimit -s. The model's large locals become
     # stack-allocated under -frecursive, and at T127 the master overruns a
     # 16 MB limit and segfaults.
-    return ["bash", "-c", "ulimit -s unlimited; exec ./probe_ab.x"], env
+    cmd = ["bash", "-c", "ulimit -s unlimited; exec ./probe_ab.x"]
+    if COUNTER:
+        # A HARDWARE COUNTER, NOT A CLOCK. A retired-instruction count is a
+        # property of the code and the input: it does not move with what else
+        # the machine is doing, and on this project it reproduces to about one
+        # part in 10^8 across repeats, where a wall clock on a shared desktop
+        # does not. `exoplasim/notes/radiation-scheme-price.md` argues that
+        # choice; `scripts/machine.py` states the same thing from the other
+        # side. WHAT IT CANNOT SAY is cycles: a vector call is more
+        # instruction-efficient than eight scalar ones and need not be eight
+        # times faster, because the limit may be elsewhere. So a counter arm
+        # settles WHERE THE WORK WENT and a clock arm settles what it cost, and
+        # neither substitutes for the other.
+        #
+        # OMP_WAIT_POLICY=passive unless the caller set one: with the default
+        # active policy an idle thread SPINS, and the instructions it retires
+        # spinning are a measurement of the host's scheduler rather than of the
+        # model.
+        env.setdefault("OMP_WAIT_POLICY", "passive")
+        cmd = ["perf", "stat", "-x,", "-e", COUNTER, "--"] + cmd
+    return cmd, env
 
 
 def set_namelist(bed: Path, settings: list[str]) -> None:
@@ -140,6 +176,21 @@ def run_once(bed: Path, exe: Path, threads: int, spec: str = "omp",
     t0 = time.perf_counter()
     r = subprocess.run(cmd, cwd=bed, capture_output=True, text=True, env=env)
     dt = time.perf_counter() - t0
+    if COUNTER:
+        # perf -x, writes "<value>,<unit>,<event>,..." on stderr, and a counter
+        # that could not be read writes "<not counted>" in the value field. That
+        # is a failed measurement and never a zero.
+        got = None
+        for line in (r.stderr or "").splitlines():
+            f = line.split(",")
+            if len(f) > 2 and f[2].startswith(COUNTER.split(":")[0]):
+                if not f[0].replace(".", "").isdigit():
+                    raise SystemExit(f"perf could not count {COUNTER}: {line}")
+                got = float(f[0])
+                break
+        if got is None:
+            raise SystemExit(f"perf printed no {COUNTER} row:\n{r.stderr[-400:]}")
+        dt = got
     local.unlink(missing_ok=True)
     if r.returncode != 0 or (bed / "Abort_Message").exists():
         tail = "\n".join(l for l in (r.stderr or r.stdout).splitlines()
@@ -182,9 +233,26 @@ def main() -> None:
     ap.add_argument("--b-nl", action="append", default=[], metavar="KEY=VALUE",
                     help="namelist setting forced for arm B; repeatable")
     ap.add_argument("--rounds", type=int, default=6)
+    ap.add_argument("--counter", metavar="EVENT", default=None,
+                    help="measure a perf hardware counter instead of the wall "
+                         "clock, e.g. instructions:u. The whole paired and "
+                         "interleaved schedule is unchanged; only what is "
+                         "compared changes. Use this when the host cannot be "
+                         "made quiet: a counter is a property of the code and "
+                         "the input, a clock is a property of the machine too.")
+    ap.add_argument("--outlier-factor", type=float, default=3.0,
+                    help="a round in which any arm exceeds this multiple of "
+                         "that arm's own median is a MACHINE EVENT, not a "
+                         "measurement, and is dropped whole -- every arm of it "
+                         "together, so the pairing survives. The dropped rounds "
+                         "and their times are always reported. 0 disables it.")
     ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args()
 
+    global COUNTER
+    COUNTER = args.counter
+    unit = "" if COUNTER else " s"
+    fmt = "12.4g" if COUNTER else "7.2f"
     bed = args.bed.resolve()
     if args.arm:
         if args.a or args.b:
@@ -230,8 +298,38 @@ def main() -> None:
             times[i].append(dt)
             shas[i].add(sha)
         print(f"  round {rnd:2d}: "
-              + "  ".join(f"{arms[i][0]}={times[i][-1]:7.2f}" for i in range(n))
+              + "  ".join(f"{arms[i][0]}={times[i][-1]:{fmt}}" for i in range(n))
               + f"   (started {arms[order[0]][0]})", flush=True)
+
+    # A ROUND IS DROPPED WHOLE OR NOT AT ALL. Another job landing on the host
+    # for one round does not slow the arm that happened to be running by ten per
+    # cent, it slows it by a factor; and it lands on ONE arm, so the pairing
+    # that defeats drift cannot share it. Dropping the whole round keeps every
+    # remaining comparison paired, and dropping on a FACTOR rather than on a
+    # rank means the rule is about a different phenomenon rather than about the
+    # tail of this one. The rule is stated as a multiple so it can be fixed
+    # before the run; what it removed is printed either way, because a rule that
+    # silently discards data is a rule that can be tuned after the fact.
+    dropped: list[int] = []
+    raw = [list(t) for t in times]
+    if args.outlier_factor > 0:
+        med0 = [st.median(t) for t in times]
+        dropped = [r for r in range(args.rounds)
+                   if any(times[i][r] > args.outlier_factor * med0[i]
+                          for i in range(n))]
+        if dropped:
+            print(f"\n  DROPPED {len(dropped)} round(s) as machine events, each "
+                  f"holding an arm above {args.outlier_factor:g}x its own median:")
+            for r in dropped:
+                print("    round {:2d}: ".format(r + 1)
+                      + "  ".join(f"{arms[i][0]}={times[i][r]:.2f}"
+                                  for i in range(n)))
+            keep = [r for r in range(args.rounds) if r not in dropped]
+            if len(keep) < 2:
+                raise SystemExit("fewer than two rounds survive the outlier "
+                                 "rule; the host was not quiet enough to "
+                                 "measure on. Nothing is reported.")
+            times = [[t[r] for r in keep] for t in times]
 
     def scatter(t: list[float]) -> float:
         return 100.0 * (max(t) - min(t)) / st.median(t)
@@ -241,11 +339,16 @@ def main() -> None:
              for i in range(n)]
     result = {
         "bed": bed.name, "threads": args.threads, "rounds": args.rounds,
+        "measured": COUNTER or "wall_clock_seconds",
+        "outlier_factor": args.outlier_factor,
+        "rounds_dropped": [r + 1 for r in dropped],
+        "rounds_kept": args.rounds - len(dropped),
         "reference_arm": arms[ref][0],
         "arms": [
             {"label": arms[i][0], "exe": str(arms[i][1]),
              "launch": arms[i][2], "namelist": arms[i][3],
-             "times_s": times[i], "median_s": st.median(times[i]),
+             "times_s": times[i], "times_all_rounds_s": raw[i],
+             "median_s": st.median(times[i]),
              "self_scatter_pct": scatter(times[i]), "sha": sorted(shas[i]),
              "paired_gain_pct_median": st.median(gains[i]),
              "paired_gain_pct_min": min(gains[i]),
@@ -274,8 +377,8 @@ def main() -> None:
 
     print()
     for i in range(n):
-        print(f"  {arms[i][0]:16} median {st.median(times[i]):7.2f} s  "
-              f"self-scatter {scatter(times[i]):5.1f}%  sha {sorted(shas[i])[0]}")
+        print(f"  {arms[i][0]:16} median {st.median(times[i]):{fmt}}{unit}  "
+              f"self-scatter {scatter(times[i]):5.2f}%  sha {sorted(shas[i])[0]}")
     print(f"\n  paired gain against {arms[ref][0]}:")
     for i in range(n):
         if i == ref:

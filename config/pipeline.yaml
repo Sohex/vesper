@@ -1377,6 +1377,14 @@ one_offs:
   - exoplasim/scripts/split_legendre.py
   - exoplasim/scripts/sweep_compiler_flags.py
   - exoplasim/scripts/bench_ab.py
+  # WORLD-43RK's arm. It writes `radmod.f90` -- it switches the model source
+  # between the masked and the unmasked form of `lwr`'s absorptances -- and
+  # is here rather than a step because the artifact it writes is the model
+  # SOURCE, which no step generates and `--purge` must never delete. The
+  # measurement it exists for is in
+  # exoplasim/notes/masked-radiation-and-four-bytes.md.
+  - exoplasim/scripts/patch_unmasked_absorptance.py
+  - exoplasim/scripts/probe_unmasked_absorptance.f90
   - exoplasim/scripts/stack_floor.py
   - exoplasim/scripts/verify_filter_fold.sh
   - exoplasim/scripts/build_model.py

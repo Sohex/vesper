@@ -1,0 +1,175 @@
+{
+  "bed": "bed_t21",
+  "threads": 16,
+  "rounds": 4,
+  "measured": "instructions:u",
+  "outlier_factor": 3.0,
+  "rounds_dropped": [],
+  "rounds_kept": 4,
+  "reference_arm": "fp64 masked",
+  "arms": [
+    {
+      "label": "fp64 masked",
+      "exe": "/home/cfutro/docs/world/exoplasim/bench/43rk/ref/fp64_masked.x",
+      "launch": "omp",
+      "namelist": [
+        "N_RUN_STEPS=4000"
+      ],
+      "times_s": [
+        621938476595.0,
+        621941495594.0,
+        621939280707.0,
+        621934191040.0
+      ],
+      "times_all_rounds_s": [
+        621938476595.0,
+        621941495594.0,
+        621939280707.0,
+        621934191040.0
+      ],
+      "median_s": 621938878651.0,
+      "self_scatter_pct": 0.0011744810062113739,
+      "sha": [
+        "a8de1d8d55927d38"
+      ],
+      "paired_gain_pct_median": 0.0,
+      "paired_gain_pct_min": 0.0,
+      "paired_gain_pct_max": 0.0,
+      "faster_in_rounds": 0,
+      "numerics": "reference"
+    },
+    {
+      "label": "fp64 vector",
+      "exe": "/home/cfutro/docs/world/exoplasim/bench/43rk/ref/fp64_vector.x",
+      "launch": "omp",
+      "namelist": [
+        "N_RUN_STEPS=4000"
+      ],
+      "times_s": [
+        473976617311.0,
+        473979281686.0,
+        473978007114.0,
+        473973341405.0
+      ],
+      "times_all_rounds_s": [
+        473976617311.0,
+        473979281686.0,
+        473978007114.0,
+        473973341405.0
+      ],
+      "median_s": 473977312212.5,
+      "self_scatter_pct": 0.0012532838275045477,
+      "sha": [
+        "e60e1ea557abd9ab"
+      ],
+      "paired_gain_pct_median": 23.79040420371996,
+      "paired_gain_pct_min": 23.790308504843516,
+      "paired_gain_pct_max": 23.790435027792807,
+      "faster_in_rounds": 4,
+      "numerics": "CHANGED"
+    },
+    {
+      "label": "fp32 masked",
+      "exe": "/home/cfutro/docs/world/exoplasim/bench/43rk/ref/fp32_masked.x",
+      "launch": "omp",
+      "namelist": [
+        "N_RUN_STEPS=4000"
+      ],
+      "times_s": [
+        501531712209.0,
+        501538927485.0,
+        501533499982.0,
+        501531992185.0
+      ],
+      "times_all_rounds_s": [
+        501531712209.0,
+        501538927485.0,
+        501533499982.0,
+        501531992185.0
+      ],
+      "median_s": 501532746083.5,
+      "self_scatter_pct": 0.0014386450448838153,
+      "sha": [
+        "0d16ec5de9a1a058"
+      ],
+      "paired_gain_pct_median": 19.359523700683532,
+      "paired_gain_pct_min": 19.359146955455458,
+      "paired_gain_pct_max": 19.359915637508895,
+      "faster_in_rounds": 4,
+      "numerics": "CHANGED"
+    },
+    {
+      "label": "fp32 vector",
+      "exe": "/home/cfutro/docs/world/exoplasim/bench/43rk/ref/fp32_vector.x",
+      "launch": "omp",
+      "namelist": [
+        "N_RUN_STEPS=4000"
+      ],
+      "times_s": [
+        403365102105.0,
+        403370497520.0,
+        403363767513.0,
+        403369978757.0
+      ],
+      "times_all_rounds_s": [
+        403365102105.0,
+        403370497520.0,
+        403363767513.0,
+        403369978757.0
+      ],
+      "median_s": 403367540431.0,
+      "self_scatter_pct": 0.0016684552735227425,
+      "sha": [
+        "8367102b09943854"
+      ],
+      "paired_gain_pct_median": 35.143613720466064,
+      "paired_gain_pct_min": 35.14265905167817,
+      "paired_gain_pct_max": 35.14418850430714,
+      "faster_in_rounds": 4,
+      "numerics": "CHANGED"
+    }
+  ],
+  "factorial": {
+    "factor_a_label": "fp64 vector",
+    "factor_b_label": "fp32 masked",
+    "a_in_base_pct": 23.79040420371996,
+    "a_in_b_pct": 19.573401144107137,
+    "b_in_base_pct": 19.359523700683532,
+    "b_in_a_pct": 14.89734907818096,
+    "joint_pct": 35.143613720466064,
+    "multiplicative_prediction_pct": 38.544192806552665,
+    "excess_over_multiplicative_pct": -3.400611032244946,
+    "excess_min": -3.4014256847645825,
+    "excess_max": -3.400112372355437,
+    "a_in_base_rounds": [
+      23.79043343548453,
+      23.790374971955387,
+      23.790308504843516,
+      23.790435027792807
+    ],
+    "a_in_b_rounds": [
+      19.573360510270522,
+      19.57344177794375,
+      19.573913302406183,
+      19.57243305663161
+    ],
+    "b_in_base_rounds": [
+      19.359915637508895,
+      19.359146955455458,
+      19.359732446570458,
+      19.359314954796602
+    ],
+    "b_in_a_rounds": [
+      14.89767904724891,
+      14.89701910911301,
+      14.898210157674265,
+      14.896061968107812
+    ],
+    "excess_rounds": [
+      -3.4006511645203403,
+      -3.4005708999695514,
+      -3.400112372355437,
+      -3.4014256847645825
+    ]
+  }
+}
