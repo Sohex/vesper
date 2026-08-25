@@ -835,3 +835,78 @@ on a firmer largest component than it did when it was written.
 It also confirms, separately from any temperature, that the key REACHES the
 radiation: `H2OSWL` was absent from every namelist before CLIM-31's neighbour
 fix and is present in this run's, and the run responded.
+
+## world-u9hq: the `h2o_sw_level` bracket, `h2oswl` arms
+
+Registered here rather than as a separate pair, because `h2oswl`, `h2osww` and
+the declared spectrum all land in the same rebuild and no single run's absolute
+temperature can be attributed among them. What CAN be attributed is a difference
+between two runs that differ in one key, which is what these arms are.
+
+`config/planet.yaml` carries `h2o_sw_level: 1.163` with
+`h2o_sw_level_bracket: [1.129, 1.206]`. The width is the water vapour continuum
+in the near-infrared windows, whose size is not known there better than a factor
+of a few: `exoplasim/notes/corrk-cross-check.md` derives the central value and
+both ends from `shine2012`'s CAVIAR-minus-MT_CKD increment and `mlawer2012`'s
+per-window laboratory factors, and states why neither end can be tightened from
+anything this project holds. It is a bracket and not an error bar for the reason
+that note's BAR 2 gives: the half-width reaches the size at which every consumer
+has to run both ends.
+
+**THE ARMS ARE THE TWO ENDS AGAINST EACH OTHER, not each against the central,
+and that is a decision about the instrument rather than about the physics.**
+Each end is 0.034 and 0.043 from 1.163, worth about -0.34 K and +0.43 K on the
+static conversion below. The convergence criteria tolerate a 0.15 K extrapolated
+offset, so a single end against the central sits about two to three times the
+instrument's own declared slack. End against end is 0.077 of the key, about
+0.77 K, on the same two runs. Both are branched off ONE restart so the pair is a
+perturbation of a single state, which is A3's condition and is what PHYS-9 did.
+
+**Predicted magnitude, and two estimates that do not quite agree.**
+
+| estimate | per 0.01 of `h2oswl` | end to end, 0.077 |
+| --- | ---: | ---: |
+| static, `corrk-cross-check.md` | 0.10 K, bracket 0.07 to 0.15 | 0.77 K, bracket 0.54 to 1.16 K |
+| PHYS-9 measured, window means | 0.074 K | 0.57 K |
+| PHYS-9 measured, fitted asymptote | 0.094 K | 0.72 K |
+
+The static estimate comes from `shortwave-water-vapour.md`'s 43.2 W/m2 of water
+vapour shortwave absorption, its 0.193 top-of-atmosphere share and its 0.861 K
+per W/m2. The measured pair comes from PHYS-9's own arms, a step from 1.0 to
+1.127 worth +0.94 K on the window means and +1.20 K on the fitted asymptote. The
+measured window slope is the low end because that run was not converged and
++0.94 K was a lower bound; the asymptote is the better of the two and it sits
+just below the static estimate. **The prediction carried into the arms is
+0.72 K end to end, the measured asymptote slope, with the static bracket 0.54 to
+1.16 K around it.** The static number is not used as the centre because it is an
+offline conversion through two ratios and the asymptote is this model's answer to
+the same question.
+
+**What would mean wrong, in the A/B:**
+
+- Sign. More absorption at the level the key scales must warm the simulated
+  mean. A cooler high arm is wrong outright, not a small result.
+- Monotonicity against the central run, where one exists on the same lineage:
+  1.129 below it, 1.206 above it. An inversion says the difference is scatter.
+- Magnitude. Below 0.54 K or above 1.16 K end to end is outside the static
+  bracket and points at the implementation or at the pairing, not at the
+  continuum.
+- The instrument. Each arm must meet all six convergence criteria on its
+  window, and the end-to-end difference must exceed the pooled inter-orbit
+  scatter of the two windows. If it does not, the result is "the bracket is
+  below what this configuration can resolve" and NOT a number.
+- An arm staged at 1.163 must be bit-identical to the baseline it branched from,
+  which is the same control PHYS-11's scale-1.0 arm carries.
+
+**What closing the bracket instead would take, and why it is not on this path.**
+A correlated-k bundle carrying an MT_CKD or CAVIAR water vapour continuum. The
+LMD Generic PCM bundle this project used has `continuum/far_wing_data` for
+CO2-CO2, CO2-H2O and CO2-N2 and none for water with itself or with N2, which is
+the whole reason the base ratio was one-signed and the bracket exists.
+
+**BLOCKED on a run.** `config/planet.yaml` declares `baseline_climatology: null`
+and no run exists to branch a pair from, so the arms are registered and not
+measured. `h2oswl` reaches the model as `H2OSWL@radmod_namelist` through
+`run_exoplasim.py`'s `SHORTWAVE_GAS_KEYS`, which writes it only when it differs
+from the model default, and `verify_staged_namelists` is what makes the arm's
+own namelist the record of what it integrated.
