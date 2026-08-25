@@ -293,10 +293,10 @@ with `m` = `frac_maxtomin` (0.9 on both elements) and `f` = `frac_mintomax`.
 
 | element | tissue | phenology | constant | declared | window factor | applied | source quantity | source value | applied / source |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| N | sapwood | non-crop | `frac_leaftosap`, `guess.h:2371` | 6.9 | 1.7905 | 12.355 | Friend 1/X_C:N(f/p) | 6.897 | 1.791 |
-| N | fine root | non-crop | `frac_leaftoroot`, `guess.h:2368` | 1.16 | 1.7905 | 2.077 | Friend 1/X_C:N(f/r) | 1.163 | 1.786 |
-| P | sapwood | non-crop | `PFRAC_LEAFTOSAP`, `guess.h:289` | 6.9 | 2.2168 | 15.296 | none; the constant is nitrogen's | -- | -- |
-| P | fine root | non-crop | `PFRAC_LEAFTOROOT`, `guess.h:250` | 1.16 | 2.2168 | 2.571 | Yuan contrast against the applied N root proportion | 1.0 | 1.238 |
+| N | sapwood | non-crop | `frac_leaftosap`, `guess.h:2406` | 6.9 | 1.7905 | 12.355 | Friend 1/X_C:N(f/p) | 6.897 | 1.791 |
+| N | fine root | non-crop | `frac_leaftoroot`, `guess.h:2403` | 1.16 | 1.7905 | 2.077 | Friend 1/X_C:N(f/r) | 1.163 | 1.786 |
+| P | sapwood | non-crop | `PFRAC_LEAFTOSAP`, `guess.h:303` | 6.9 | 2.2168 | 15.296 | none; the constant is nitrogen's | -- | -- |
+| P | fine root | non-crop | `PFRAC_LEAFTOROOT`, `guess.h:264` | 1.16 | 2.2168 | 2.571 | Yuan contrast against the applied N root proportion | 1.0 | 1.238 |
 | N | sapwood | CROPGREEN | `frac_leaftosap` at f = 5.0 | 6.9 | 2.8421 | 19.611 | Friend 1/X_C:N(f/p) | 6.897 | 2.843 |
 | N | fine root | CROPGREEN | `frac_leaftoroot` at f = 5.0 | 1.16 | 2.8421 | 3.297 | Friend 1/X_C:N(f/r) | 1.163 | 2.835 |
 | P | sapwood | CROPGREEN | `PFRAC_LEAFTOSAP` at f = 7.77 | 6.9 | 4.1542 | 28.664 | none | -- | -- |
@@ -304,8 +304,8 @@ with `m` = `frac_maxtomin` (0.9 on both elements) and `f` = `frac_mintomax`.
 
 That is the complete extent. The crop stem pair is the only other tissue in the
 same demand construction and it is not affected: `cton_stem_avr` and
-`ctop_stem_avr` are set directly as means at `guess.h:2405-2406` and
-`:2452-2453` rather than derived from a `_max`, and `guess.cpp:2034` and `:2045`
+`ctop_stem_avr` are set directly as means at `guess.h:2443-2444` and
+`:2490-2491` rather than derived from a `_max`, and `guess.cpp:2034` and `:2045`
 then use them in exactly the form the four constants are read in. The leaf window
 widths themselves are not part of this: `cton_leaf_min` is a genuine endpoint
 from Reich et al. (1992) and `ctop_leaf_min` is already inverted so that
@@ -345,7 +345,7 @@ prediction of this world's.
 
 Maintenance respiration depends on which respiration path is configured, and the
 two differ completely. `respiration()` takes `respcoeff`, and
-`guess.h:2399-2403` divides `respcoeff` by
+`guess.h:2436-2441` divides `respcoeff` by
 `cton_root/(cton_root_avr + cton_root_min) + cton_sap/(cton_sap_avr + cton_sap_min)`,
 a sum which is 1.95 times each tissue's own mean under both the present anchor
 and the repair below. Scaling both windows by the same factor therefore scales
