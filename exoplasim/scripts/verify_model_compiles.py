@@ -43,6 +43,14 @@ includes `shtns.f03` from the SHTns prefix, so the prefix must be present; a
 missing one is reported rather than skipped, for the same reason CMake refuses
 it.
 
+THE GATE OWNS ITS WORKING DIRECTORY, and that is a correctness property rather
+than tidiness. gfortran searches the CURRENT DIRECTORY for module files ahead of
+both `-I` and `-J`, so a single `.mod` left lying where the caller happened to be
+standing replaces one of the modules this chain just wrote -- and `*.mod` is
+gitignored, so nothing shows it is there. The report is not "stale module": it is
+a shape mismatch in some third file at a line that is entirely correct, which
+reads as a defect in the model. `run_front_end` has the case that cost a day.
+
 `PLASIM_FFT` selects between two sources that both declare `module fftmod`, so
 they cannot share a module directory. The configured rung's module goes in the
 chain and the other variant is checked standalone afterwards, because a defect
@@ -139,7 +147,23 @@ def compile_order(paths: list[Path]) -> list[Path]:
         d, u = scan(p)
         defines[p], uses[p] = d, u
         for name in d:
-            owner.setdefault(name, p)
+            if name in owner:
+                # TWO FILES, ONE MODULE NAME. The second `.mod` written
+                # overwrites the first, so which one a later unit binds depends
+                # on compile order rather than on anything the build declares --
+                # and the diagnostic that comes out is a shape or type mismatch
+                # in a THIRD file, which reads as a defect in the model. The
+                # `fftmod` pair is the known case and `sources()` splits it out
+                # before the chain is built; anything else reaching here is a
+                # question about the build file, not something to pick a winner
+                # for.
+                raise SystemExit(
+                    f"{owner[name].name} and {p.name} both declare `module "
+                    f"{name}`, and both are in the compiled set. One of them "
+                    f"would overwrite the other's module file, so there is no "
+                    f"chain to check. Split them the way PLASIM_FFT's pair is "
+                    f"split in `sources()`.")
+            owner[name] = p
     pending, done, out = list(paths), set(), []
     while pending:
         for p in pending:
@@ -172,12 +196,36 @@ def sources(rung: str) -> tuple[list[str], list[str]]:
 
 
 def run_front_end(path: Path, flags: list[str], moddir: Path,
-                  includes: list[Path], verbose: bool) -> str:
+                  search: list[Path], cwd: Path, verbose: bool) -> str:
+    """One translation unit. `search` is the module path IN ORDER, `cwd` is owned.
+
+    `flags` is the flag LINE, a flat list of strings -- not the `(flags,
+    profile)` pair `declared_flags` returns. Checked rather than concatenated,
+    because the pair is what a caller reaches for and the failure it produces
+    otherwise is a TypeError from inside `subprocess`.
+
+    THE WORKING DIRECTORY IS THE GATE'S OWN, and that is the whole point of the
+    argument. gfortran searches the CURRENT DIRECTORY for module files BEFORE
+    both `-I` and `-J`, so one stale `.mod` lying in whatever directory the
+    caller happened to be in silently replaces one of the modules this chain
+    just wrote. What comes out is not "stale module": it is a shape mismatch in
+    a file that uses it, at a line that is perfectly correct, and it reads
+    exactly like a defect in the model. A T42 `glaciermod.mod` in the caller's
+    directory made this gate report `outmod.f90:979` as a 512-against-128
+    assignment on a tree that compiles clean. A gate that inherits the cwd
+    invents defects, so this one does not inherit it.
+    """
+    bad = [f for f in flags if not isinstance(f, str)]
+    if bad:
+        raise TypeError(
+            f"run_front_end wants the flag line, a list of strings, and got "
+            f"{bad[0]!r} in it. `declared_flags` returns (flags, profile): "
+            f"pass the first element.")
     cmd = (["gfortran", "-fsyntax-only", "-J", str(moddir)]
-           + [f"-I{d}" for d in includes] + flags + [str(path)])
+           + [f"-I{d}" for d in search] + list(flags) + [str(path)])
     if verbose:
         print("  " + " ".join(cmd))
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    r = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
     return "" if r.returncode == 0 else (r.stderr.strip() or "(no diagnostic)")
 
 
@@ -198,31 +246,36 @@ def verify(profile: str | None, verbose: bool) -> list[str]:
         tmp = Path(tmp)
         moddir = tmp / "modules"
         moddir.mkdir()
+        # Empty, and it stays empty: it is what every invocation runs in, so
+        # that no `.mod` outside this directory tree can be reached at all.
+        work = tmp / "cwd"
+        work.mkdir()
         resmod = write_resmod(tmp, nlat, nlev, npro)
         paths = compile_order([resmod] + [SRC / f for f in chain])
-        includes = [SHTNS_PREFIX / "include", tmp]
+        # The chain's own modules FIRST. The SHTNs prefix is here for
+        # `shtnsmod.f90`'s `include 'shtns.f03'` and holds no module files.
+        includes = [moddir, SHTNS_PREFIX / "include", tmp]
         print(f"{len(paths) + len(variants)} translation units, "
               f"{rung} l{nlev} p{npro} profile {profile}")
         print(f"gfortran -fsyntax-only {' '.join(flags)}")
         for path in paths:
-            err = run_front_end(path, flags, moddir, includes, verbose)
+            err = run_front_end(path, flags, moddir, includes, work, verbose)
             if err:
                 problems.append(f"{path.name} does not compile:\n{err}")
                 # The rest of the chain would fail for want of this one's
                 # module file, and those are not findings.
                 break
         # A variant redeclares a module the chain already wrote, so it gets a
-        # module directory of its own -- named FIRST, because gfortran searches
-        # the -I list ahead of the -J directory it writes into and would
-        # otherwise resolve `use fftmod` to the chain's copy. That is not a
-        # hypothetical: fftmod.f90's `fftmod` has no `ifax`, so fft991mod.f90's
-        # own subroutines were checked against the other variant's module and
+        # module directory of its own, named FIRST so its own copy wins over the
+        # chain's. That ordering is not cosmetic: fftmod.f90's `fftmod` has no
+        # `ifax`, so with the chain's directory ahead of it fft991mod.f90's own
+        # subroutines were checked against the other variant's module and
         # reported three rank mismatches that no build has.
         for name in variants:
             vdir = tmp / f"modules-{name}"
             vdir.mkdir()
             err = run_front_end(SRC / name, flags, vdir,
-                                [vdir] + includes + [moddir], verbose)
+                                [vdir] + includes, work, verbose)
             if err:
                 problems.append(f"{name} does not compile:\n{err}")
     return problems
