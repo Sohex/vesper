@@ -33,6 +33,10 @@ for a later attempt to subtract it from runoff; it does not control whether the
 water is added. Even with the switch on, an unmet remainder can remain as an
 external source rather than routed runon. This path must not be activated.
 
+What has to be declared and repaired before any of those switches move is in
+`biosphere/notes/wetland-activation-contract.md`, and
+`biosphere/scripts/wetland_gate.py` holds the refusal.
+
 The practical route is to derive a seasonally resolved sub-grid wetness
 classification from Vesper's hydrography, native-mesh groundwater state and
 topographic distribution; make one mass-conserving groundwater/surface-water
@@ -91,7 +95,7 @@ hydraulic properties or the acrotelm/catotelm boundary.
 Methane production takes daily bulk heterotrophic respiration, distributes it
 over the fixed root profile and multiplies it by anoxia and a fixed CH4:CO2
 ratio. The detailed ratio is 0.085. The simplified ratio is 0.027 and its source
-comment says it was changed “to match global emissions.” Carbon emitted as CH4
+comment says it was changed "to match global emissions." Carbon emitted as CH4
 is subtracted from the soil CO2 flux, and the detailed routine contains useful
 carbon checks; those conservation features should be preserved.
 
@@ -104,14 +108,22 @@ table would place bubbles below an unsaturated layer. Snow at or above the
 threshold stops diffusion, and live leaf biomass/phenology removes plant
 transport too early to represent dead tiller venting and winter/thaw pulses.
 
-Restart state is incomplete. The serializer retains water-table history and
-several yesterday gas stores, but not `Wtot`, `wtd`, standing water, monthly
-water-table accumulators or the root fractions that are initialized only on
-day zero. An arbitrary-day restart therefore needs an exact-continuity fixture
-before either peat hydrology or methane output can be accepted. The annual
-water-table update itself tests `date.day == Date::MAX_YEAR_LENGTH`, an
-unreachable ordinal in the zero-based calendar, so `awtp` is never updated by
-that block on either the original or Vesper calendar.
+Restart state is incomplete. `Soil::serialize` retains `wtp`, `awtp` and
+several yesterday gas stores, and does not retain `Wtot`, `wtd`, `stand_water`,
+`mwtp`, `Frac_ice` or `rootfrac`. `Frac_ice` is the current ice fraction and is
+distinct from the `Frac_ice_yesterday` that is retained; `rootfrac` is
+initialized on day zero only. An arbitrary-day restart therefore needs an
+exact-continuity fixture before either peat hydrology or methane output can be
+accepted. The annual water-table update itself tests
+`date.day == Date::MAX_YEAR_LENGTH`. `Date::next()` resets `day` to 0 on the
+last day of the last month, so `day` never exceeds `MAX_YEAR_LENGTH - 1` and
+that block is unreachable on the original and the Vesper calendar alike. `awtp`
+therefore holds the 0.0 it is initialized to for the whole run, and across
+restarts because it is serialized. The consequence reaches the carbon:
+`update_acrotelm_co2` interpolates the acrotelm CO2 concentration linearly in
+`awtp` between the atmospheric value at -300 mm and the pore-water value at 0,
+so `awtp == 0` pins the simulated acrotelm to the pore-water concentration
+everywhere and always.
 
 ### Vesper interfaces
 
@@ -174,10 +186,13 @@ but no latitude threshold or coarse-cell mean depth may select the physics.
 
 In `initial_infiltration()`, a low-latitude `PEATLAND` stand computes every
 layer's saturation deficit and adds that full deficit. It does so even when
-`rain_melt` is smaller. `ifsaturatewetlands` only records the created amount.
-Later, `hydrology()` tries to subtract the record from runoff; if runoff is too
-small, the remainder survives as `awetland_water_added`. With the switch off,
-the same water is added but not recorded at all.
+`rain_melt` is smaller: `rain_melt` is clamped to zero and the whole deficit is
+added regardless. `ifsaturatewetlands` only records the amount, and it records
+the whole `total_potential` rather than the created part, so the record
+over-states even where the rain could have supplied the water. Later,
+`hydrology()` tries to subtract the record from runoff; if runoff is too small,
+the remainder survives as `awetland_water_added`. With the switch off, the same
+water is added but not recorded at all.
 
 The detailed peat path is not closed either: its own source comment notes that
 its evapotranspiration treatment makes the hydrologic cycle impossible to

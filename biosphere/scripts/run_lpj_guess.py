@@ -115,6 +115,19 @@ ifbvoc {settings['ifbvoc']}
 ! rescaling factor. Turning the acclimated path on is PCAR-11: it needs a
 ! declared acclim_resp_tau and a one-factor sensitivity over its bracket.
 acclimated_respiration 0
+! The simulated wetlands, their peat and their methane. Four switches, written
+! rather than inherited for the same reason: an inherited zero cannot be told
+! apart from nobody having decided. What requests them is
+! biosphere/config/wetlands.yaml and what grants them is
+! biosphere/scripts/wetland_gate.py, which refuses on two grounds -- a
+! precondition still undeclared, and a hydrology defect still present in the
+! vendored source, where the low-latitude wetland path adds water the simulated
+! world never received. plib takes the later declaration, so these override the
+! imported files whichever way they read.
+run_peatland {settings['run_peatland']}
+ifmethane {settings['ifmethane']}
+ifsaturatewetlands {settings['ifsaturatewetlands']}
+wetland_runon {settings['wetland_runon']}
 
 title "{settings['title']}"
 nyear {settings['nyear']}
@@ -246,11 +259,25 @@ def main() -> None:
     bvoc_active = bvoc_gate.require(planet=config)
     outputs = OUTPUTS + (bvoc_gate.ACTIVATED_OUTPUTS if bvoc_active else ())
 
+    # The wetlands, asked on the same terms. `require` exits with every unmet
+    # precondition named if biosphere/config/wetlands.yaml requests activation;
+    # with no request it grants nothing and the run is a correct run with peat
+    # and methane off. Retaining the area, water-table, pathway and residual
+    # tables is part of activation and not a separate decision: a run that emits
+    # methane and discards the pathway partition is exactly the aggregate the
+    # contract exists to stop being accepted.
+    import wetland_gate
+    wetland_active = wetland_gate.require(planet=config)
+    if wetland_active:
+        outputs = outputs + tuple(
+            wetland_gate.read_declaration()["acceptance"]["retained_outputs"])
+
     settings = {
         "title": run_id, "nyear": args.nyear, "npatch": args.npatch,
         "nfix_a": args.nfix_a, "nfix_b": args.nfix_b,
         "ifbvoc": 1 if bvoc_active else 0,
         "outputs": outputs,
+        **wetland_gate.switches(wetland_active),
     }
 
     if args.dry_run:
@@ -302,6 +329,8 @@ def main() -> None:
             "nfix_b": args.nfix_b,
             "label": args.label,
             "ifbvoc": settings["ifbvoc"],
+            "run_peatland": settings["run_peatland"],
+            "ifmethane": settings["ifmethane"],
         },
         "wall_seconds": round(elapsed, 1),
         "ranks": args.ranks,
