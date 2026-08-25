@@ -308,6 +308,7 @@ unless told they exist.
 | `finalize_existing_segment.py` | record a completed segment after post-run bookkeeping failed; takes the same `--purpose` |
 | `run_stellar_cycle.py` | run or resume a superposed-sinusoid stellar-flux experiment |
 | `rebuild_binaries.py` | rebuild every executable and record which patches each contains |
+| `verify_model_compiles.py` | does the model SOURCE compile: `gfortran -fsyntax-only` over every translation unit `plasim/CMakeLists.txt` names, sorted into `use` order and run under the flag line `config/planet.yaml` declares, `-fdefault-real-8` included. It builds no binary and answers nothing about whether one is current, which is rule 4's separate question. Run it after a Fortran edit, before paying for a build; `scripts/smoke_test.py` runs it too, and `--skip-compile` opts out |
 | `make_profile_bed.py` | short, output-free copy of a run directory to measure the model on |
 | `profile_transforms.sh` | sample every rank with `perf` over a bed; `perf_rank.sh` is its per-rank wrapper |
 | `score_transform_profile.py` | fold per-rank `perf` samples into the transform's share of compute |

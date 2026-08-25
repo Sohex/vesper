@@ -75,6 +75,14 @@ purge-never-reaches-the-terrain property, run from `main()` with the rest):
    construction -- and those are what the surviving SPAT-2 copies were. Both
    rung lints read shell scripts as well as Python, which `d.glob("*.py")`
    made impossible.
+12f. **No continuation marker has been dropped from the model Fortran.** A
+   text check for the class that cost the most: `landmod.f90`'s namelist gained
+   a line and the line above it kept its terminator, so the statement ended
+   early and `,snowcovz` began a new one. See the check for why a grep is the
+   right shape for this and a compile is not a substitute.
+12g. **The model source compiles**, front end only, under the declared flags.
+   Every other check of the Fortran here is a grep or a parse, so a tree that no
+   binary could be built from passed all of them. `--skip-compile` opts out.
 13. **The tools `environment.md` names are actually on this host.** That
    document sends a reader to `ncdump`, NCO, `h5diff` and `yq` rather than a
    Python session, and nothing else checks the claim is true. Both
@@ -811,6 +819,126 @@ def check_omp_directive_length() -> list[str]:
             if stripped.startswith("!$omp") and len(line) > 132:
                 problems.append(f"{path.name}:{n} OpenMP directive is "
                                 f"{len(line)} characters, over the 132 limit")
+def _fortran_sources() -> list[Path]:
+    """Every Fortran source this project holds: the model, and the gates' probes.
+
+    The probe and gate sources under `exoplasim/scripts/` are compiled too, by
+    the `verify_*.sh` arms, and a dropped continuation is the same defect there.
+    """
+    dirs = [ROOT / "vendor/exoplasim/exoplasim/plasim/src",
+            ROOT / "exoplasim" / "scripts"]
+    return sorted(f for d in dirs if d.is_dir() for f in d.glob("*.f90"))
+
+
+def _without_trailing_comment(text: str) -> str:
+    """`text` up to the first `!` that is not inside a character literal."""
+    quote = ""
+    for i, c in enumerate(text):
+        if quote:
+            if c == quote:
+                quote = ""
+        elif c in "'\"":
+            quote = c
+        elif c == "!":
+            return text[:i]
+    return text
+
+
+def check_no_dropped_continuation() -> list[str]:
+    """A line that continues a statement follows a line that says it continues.
+
+    THE INSTANCE. `landmod.f90`'s `namelist/landmod_nl/` gained `,snowcovz` on a
+    new line, and the line above it -- until then the statement's last -- kept no
+    `&`. The statement therefore ended one name early and the added line began a
+    NEW statement with `&`, which gfortran rejects as an invalid character in a
+    name. `landmod.o` was the only object that failed, that stopped the link, and
+    no binary could be built from the tip at all. It survived a merge and five
+    parallel batches with every check green. world-adts.
+
+    WHY A TEXT CHECK WHEN THERE IS ALSO A COMPILE GATE. Because the two fail
+    differently and only one of them is free. This runs over every Fortran source
+    the project holds, including the ones no current build compiles, and it names
+    the line rather than the symbol the parser choked on. The compile gate is the
+    authority on whether the source is legal; this is the one that catches the
+    class in the commit that makes it, and it needs no compiler, no module
+    directory and no SHTns.
+
+    WHAT IT ASSERTS. These are `.f90` files and gfortran compiles them as FREE
+    form, where a continued statement is marked by a trailing `&` and the
+    continuation may repeat one at its start. So a source line whose first
+    non-blank character is `&` or `,` must follow a source line that ends in `&`,
+    and a chain that ends at the last line of a file is unterminated. Comment and
+    blank lines between continuation lines are legal and are skipped rather than
+    breaking the chain. `!$omp` directives carry their own chain and are tracked
+    separately: a dropped `&` in a `threadprivate` list drops names off it
+    silently, which is the failure `check_omp_directive_length` exists for
+    reached by the other route.
+    """
+    problems = []
+    for path in _fortran_sources():
+        # One chain for statements, one for `!$omp` directives.
+        continued = {False: False, True: False}
+        opened_at = {False: 0, True: 0}
+        for n, raw in enumerate(path.read_text(errors="replace").splitlines(), 1):
+            stripped = raw.strip()
+            if not stripped:
+                continue
+            directive = stripped[:5].lower() == "!$omp"
+            if stripped.startswith("!") and not directive:
+                continue
+            body = stripped[5:] if directive else _without_trailing_comment(stripped)
+            body = body.strip()
+            if not body:
+                continue
+            if body[0] in "&," and not continued[directive]:
+                what = "!$omp directive" if directive else "statement"
+                problems.append(
+                    f"{path.name}:{n} continues a {what} and the line above it "
+                    f"has no '&', so this begins a new one: {stripped[:60]!r}")
+            continued[directive] = body.endswith("&")
+            opened_at[directive] = n
+        for directive, still_open in continued.items():
+            if still_open:
+                what = "!$omp directive" if directive else "statement"
+                problems.append(
+                    f"{path.name}:{opened_at[directive]} ends the file with a "
+                    f"{what} continued onto nothing")
+    return problems
+
+
+def check_model_source_compiles() -> list[str]:
+    """The model source passes gfortran's front end, under the declared flags.
+
+    THE GAP THIS CLOSES. Every other check of the Fortran in this file is a grep
+    or a text parse, so the property that makes the source usable at all was
+    checked by nothing until somebody ran `rebuild_binaries.py` by hand -- and
+    rule 4 means that is the most expensive moment to find out. A tree no binary
+    could be built from reported 24 of 24 green here. world-adts.
+
+    WHAT IT COSTS, in the units that survive a contended host: 36 translation
+    units, one `gfortran -fsyntax-only` each, against a full build's same set
+    compiled AND optimised at `-O2 -march=znver4 -funroll-loops` and then linked
+    against SHTns and FFTW. The front end reads the source, resolves the `use`
+    graph and writes module files; there is no code generation and no link. That
+    is the same shape of cost as the `--help` pass this file already runs over
+    every script, and `--skip-compile` opts out of it the same way.
+
+    IT DOES NOT BUILD A BINARY, deliberately. Whether an executable is CURRENT is
+    rule 4's question and `check_consistency.py` answers it; whether the source
+    compiles is this one. `exoplasim/scripts/verify_model_compiles.py` holds the
+    gate itself, including why the flag line has to be the declared one.
+    """
+    script = ROOT / "exoplasim" / "scripts" / "verify_model_compiles.py"
+    if not script.is_file():
+        return [f"{script.relative_to(ROOT)} is gone, and it is what checks "
+                "that the model source compiles"]
+    r = subprocess.run([sys.executable, str(script)],
+                       capture_output=True, text=True, cwd=ROOT)
+    if r.returncode == 0:
+        return []
+    return [(r.stderr.strip() or r.stdout.strip() or "(no output)")]
+
+
 # Command-line tools `docs/src/reference/environment.md` sends a reader to, mapped
 # to the Arch package shipping each. The package belongs in the failure message
 # because the tool name is usually not the package name: looking for a binary
@@ -1293,6 +1421,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-help", action="store_true",
                     help="skip the subprocess --help pass, which dominates runtime")
+    ap.add_argument("--skip-compile", action="store_true",
+                    help="skip the gfortran -fsyntax-only pass over the model source")
     args = ap.parse_args()
 
     files = sorted({f for d in SCRIPT_DIRS if d.is_dir()
@@ -1330,6 +1460,8 @@ def main() -> None:
                check_compiled_extensions()),
               ("no OpenMP directive line is truncated",
                check_omp_directive_length()),
+              ("no continuation marker is dropped in the model Fortran",
+               check_no_dropped_continuation()),
               ("no imported module name is rebound",
                check_no_shadowed_imports(files)),
               ("the restart schema covers every record the model writes",
@@ -1352,6 +1484,9 @@ def main() -> None:
                check_documented_tools())]
     if not args.skip_help:
         checks.insert(1, ("entry points answer --help", check_help(files)))
+    if not args.skip_compile:
+        checks.append(("the model source compiles under the declared flags",
+                       check_model_source_compiles()))
 
     failed = 0
     for name, problems in checks:
