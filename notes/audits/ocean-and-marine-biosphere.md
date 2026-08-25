@@ -113,8 +113,7 @@ section is the list of what a revisit would have to re-derive rather than
 re-discover.
 
 The candidate this project actually carries for the resolved tier is
-`vendor/cgenie`, under OCN-3. It is not an adopted component: nothing reads it
-and it does not build where it stands.
+`vendor/cgenie`, under OCN-3. It is not an adopted component: nothing reads it.
 
 ## 4. The exorheic fraction is a pre-carve LIMIT, and the drainage geometry gives no ceiling at all
 
