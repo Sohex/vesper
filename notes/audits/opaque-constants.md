@@ -240,6 +240,32 @@ not cover this. It names the namelist multipliers `tswr1/2/3`, `acllwr`, `rcl1`,
 the cloud is given has never been looked at, and the Stephens (1978) fit that
 consumes it is equally uncited.
 
+**Both literals are closed. `clwhsc` by world-ofn, which derives it; `clwref` by
+world-8h6, which reads the source and brackets it.** Both are `rainmod_nl` keys
+and both are used at what is now `rainmod.f90:2031` and `:2034`. The two CCM3
+sources are in `references/` and read: Kiehl et al. (1998) Eq. 3 and NCAR/TN-420
+Eq. 4.a.11 both give the reference in-cloud liquid density as a single number
+with no range, no uncertainty and no sensitivity, and the technical note (p. 49)
+says the profile it anchors was analytically prescribed for CCM2 rather than
+measured. There is no bracket to inherit, so the bracket that gets run as arms
+is sourced from in-cloud liquid water observations instead and is labelled as a
+different kind of quantity from the value.
+`exoplasim/notes/cloud-water-reference.md` carries the reading, the bracket and
+the arms; the value does not move in the baseline configuration.
+
+**The Stephens fit is now traced, and it is not CCM3's.** `radmod`'s `swr`
+declares its own cloud transmissivities as Stephens (1978) + Stephens et al.
+(1984), while CCM3 puts the layer cloud water path into Slingo (1989)
+delta-Eddington, in which optical depth is LINEAR in the path and carries a
+droplet effective radius this model does not have. The longwave side does match
+CCM3 exactly, and so does the vertical distribution. **The description of the
+response as sublinear, here and in world-8h6, holds only for the thick low-cloud
+layers**: the elasticity `d ln ztau / d ln CWP` of the Stephens fit is 1.28 at
+0.4 g/m2, peaks near 1.8 around 2 g/m2, passes 1.0 near 45 g/m2 and falls to
+0.84 at 94, so the fit is super-linear in thin cloud. Whether it is valid over
+the water paths this model produces is untested and neither Stephens paper is in
+`references/`; that is world-jimc.
+
 Beside it, the stratiform trigger `rcrit(:)=MAX(0.85,MAX(sigma(:),1.-sigma(:)))`
 (`rainmod.f90:92`) is a bare floor and a bare profile function. At the eight
 interior levels `1/(1-rcrit)^2` = 44, so a 0.01 move in `rcrit` moves cloud

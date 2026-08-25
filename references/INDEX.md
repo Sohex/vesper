@@ -476,6 +476,26 @@ data carry no spectrum at all, which is what makes the re-weighting possible.
 | `howard1956b-synthetic-atmospheres-iii-water-vapor.pdf` | Howard, Burch, Williams (1956). *Infrared Transmission of Synthetic Atmospheres. III. Absorption by Water Vapor.* J. Opt. Soc. Am. 46(4), 242-245. `10.1364/JOSA.46.000242` | **read** -- Table II, the weak and strong band fits for the seven near-infrared H2O bands. A band absorption in cm-1 is a molecular property and carries no incident spectrum, which is why the solar weighting can be undone and redone |
 | `howard1956a-synthetic-atmospheres-ii-carbon-dioxide.pdf` | Howard, Burch, Williams (1956). *Infrared Transmission of Synthetic Atmospheres. II. Absorption by Carbon Dioxide.* J. Opt. Soc. Am. 46(4), 237-241. `10.1364/JOSA.46.000237` | **read** -- Table II for CO2, and their Eq. 11, which states the reconstruction method used here in one line: "if the spectral distribution of the radiation from a given source is known, the fraction of the total radiation absorbed by CO2 in a given atmospheric path can be computed" |
 
+## Cloud water: the reference density, and what consumes it (world-8h6)
+
+`rainmod`'s `mkclouds` is CCM3's diagnostic cloud water scheme, and both of its
+constants reached this fork secondhand through a code comment. These are the
+sources they came from, read for `exoplasim/notes/cloud-water-reference.md`. The
+two CCM3 entries settle the value and its provenance and explicitly do NOT
+settle a bracket; the two in-situ entries are where the bracket's width comes
+from instead, and they are a different kind of quantity from the value.
+
+| file | citation | status |
+| --- | --- | --- |
+| `kiehl1998-ccm3-description.pdf` | Kiehl, Hack, Bonan, Boville, Williamson, Rasch (1998). *The National Center for Atmospheric Research Community Climate Model: CCM3.* J. Climate 11(6), 1131-1149. `10.1175/1520-0442(1998)011<1131:TNCFAR>2.0.CO;2` | **read** 2026-08-24 -- read to bracket `clwref`, and it settles the value while refusing the bracket. Eq. 3 gives the reference in-cloud liquid water density as one number with no range, no uncertainty and no sensitivity; Eq. 4 gives the scale height with a = 700 m and b = 1 m2 kg-1 "empirically determined"; Eqs. 12-13 give the longwave cloud emissivity this fork's `radmod` reproduces exactly, D = 1.66. It also names the shortwave optics as Slingo (1989) with a droplet effective radius, which is NOT what this fork consumes the cloud water with. Table 1's global mean cloud water path is a comparison, not a bracket, and is not used to set the value |
+| `kiehl1996-ccm3-technical-note.pdf` | Kiehl, Hack, Bonan, Boville, Briegleb, Williamson, Rasch (1996). *Description of the NCAR Community Climate Model (CCM3).* NCAR Technical Note NCAR/TN-420+STR. `10.5065/D6FF3Q99` | **read** 2026-08-24 -- the provenance the journal paper omits. Eqs. 4.a.11 and 4.a.12 are the same profile and scale height; Eq. 4.a.14 is the analytic layer integral this fork replaces with a mid-layer evaluation. Page 49 says the profile is a CCM2 inheritance that was "analytically determined", so the reference value was never a measurement and has no observational spread to inherit. Eq. 4.b.3 is the Slingo optical depth, linear in cloud water path and inverse in effective radius |
+| `lloyd2018-cold-air-outbreak-stratocumulus.pdf` | Lloyd, Choularton, Bower, Gallagher, Crosier, O'Shea, Abel, Fox, Cotton, Boutle (2018). *In situ measurements of cloud microphysical and aerosol properties during the break-up of stratocumulus cloud layers in cold air outbreaks over the North Atlantic.* Atmos. Chem. Phys. 18, 17191-17206. `10.5194/acp-18-17191-2018` | **read in part** 2026-08-24 -- the aircraft in-cloud liquid water content profiles, p. 17194 onward, used only for the width of the `clwref` bracket. Peak in-cloud values across profiles in the same deck run from around 0.2 to 1 g m-3, which is why a globally uniform reference density cannot be pinned tighter than a factor of two by observation. These are in-profile peaks near cloud top, not profile means |
+| `covert2022-subgrid-cloud-water-variation.pdf` | Covert, Mechem, Zhang (2022). *Subgrid-scale horizontal and vertical variation of cloud water in stratocumulus clouds: a case study based on LES and comparisons with in situ observations.* Atmos. Chem. Phys. 22, 1159-1174. `10.5194/acp-22-1159-2022` | **read in part** 2026-08-24 -- p. 1165 for the same bracket argument: simulated liquid water path within one stratocumulus domain spans below 25 to over 300 g m-2. A large-eddy simulation constrained by in-situ measurement, so it is evidence about variability rather than an observation of a mean |
+
+Stephens (1978) and Stephens et al. (1984), which `radmod`'s `swr` names as the
+source of the cloud transmissivities that actually consume this cloud water, are
+NOT here and have never been read. That is an open exposure and it is world-jimc.
+
 ### Soil water capacity and the catena constants (LITH-24)
 
 Fetched 2026-08-18 to ground the two blocks in `pedology/config/pedogenesis.yaml`

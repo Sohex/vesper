@@ -439,6 +439,41 @@ on this build; the A/B measures it.
 - Arms are 25 m and 100 m, a bracket around the declared 50 m rather than a
   search for a better value. Physics is not a knob.
 
+## world-8h6: the cloud water reference, `clwref` arms
+
+An ARM, not a bundle member. `clwref`, the CCM3 reference in-cloud liquid water
+density that `mkclouds` gives the modelled cloud water profile, stays at CCM3's
+own value in the baseline configuration and nothing here is enabled.
+
+The bracket is a factor of two either side of that value, and the whole
+argument is in `exoplasim/notes/cloud-water-reference.md`: what the two CCM3
+sources do and do not settle, where the bracket's own source comes from and why
+it is not the value's, and where this fork's shortwave cloud optics parts
+company with the scheme the value was fixed inside. Three points, run the way
+PHYS-11 is run, and the control-valued arm must be bit-identical to the
+control.
+
+**The sign IS assignable, which is what separates this term from PHYS-11.** The
+modelled longwave cloud emissivity of the low layers is already saturated in
+all three arms, so low cloud responds to `clwref` in the shortwave only and its
+response is one-signed; the opposing longwave gain is confined to the mid and
+high layers, where the modelled water path is one to two orders of magnitude
+smaller. The larger arm cools the simulated global mean and the smaller one
+warms it.
+
+**Predicted magnitude: both arms beyond 2 K, plausibly 5 to 10 K**, from a
+modelled low-cloud band-1 reflectance moving about 0.09 absolute against
+PHYS-11's measured 3.2 W/m2 per 2.6 K. The bound is wide on purpose: the
+offline estimate that priced PHYS-11 was falsified by a factor of five, in the
+direction of the model responding more than the estimate allowed. If a term
+this size is confirmed it is the largest lever in this model's radiation, ahead
+of every entry in the bundle table below.
+
+**What would mean wrong, and the falsifying conditions, are in the note.** So
+is the decision procedure if an arm fails to equilibrate or crosses the sea-ice
+transition. The arms cannot be run until `clwref` has a route from
+configuration into the model, which is `world-n1nu`.
+
 ## The bundle, summed
 
 A3's rule: check the bundle's total against the sum of the per-term
@@ -458,6 +493,7 @@ predictions were soft.
 | CLIM-32 | ozone arms, `O3SCALE` 0.794 -> 0.500 | +0.2 to +0.9 K, warming | this note; arms only, `ozone_scale` unchanged in the baseline config |
 | CLIM-33 | mixed layer arms, 25 m and 100 m | 0.000 K annual mean by construction | this note; arms only, `mixed_layer_depth_m` unchanged in the baseline config |
 | world-ofn | `clwhsc` derived from `gascon` and `ga` | sign not assigned; see below | `notes/audits/model-earth-centrism.md` finding 5 |
+| world-8h6 | cloud water reference arms, bracket a factor of two either side | beyond 2 K each arm, plausibly 5 to 10 K; larger arm cools | `exoplasim/notes/cloud-water-reference.md`; arms only, `clwref` unchanged in the baseline config |
 
 **world-ofn is the one term in this table whose sign is not assigned, and the
 reason is that it moves two things in opposite directions.** `mkclouds` carried

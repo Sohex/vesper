@@ -529,7 +529,10 @@ against are already built that way. `elwland` and `elwsea` in `radmod_nl` are
 the surface longwave emissivities `lwr` carried as one literal; they are
 declared in `config/planet.yaml` at the values that literal had. `dql` is not
 diagnostic: it sets shortwave cloud optical depth and longwave cloud
-emissivity, so `clwhsc` moves both.
+emissivity, so `clwhsc` moves both. `exoplasim/notes/cloud-water-reference.md`
+is what the two CCM3 sources say about `clwref`, the bracket that gets run as
+arms around it, and where this fork's shortwave cloud optics parts company with
+the scheme those sources describe.
 
 The model source is `vendor/exoplasim`, a git subtree from the `master` branch
 of the personal fork, installed editable so the source you read is the source
