@@ -105,11 +105,24 @@ either.** A step qualified for a two-orbit diagnostic is not thereby qualified
 for a commissioning run of eighty-five, and the only instrument that settles it
 is a run of the length actually intended.
 
-The ladder therefore runs T42 at dt 22.5, which that note measures as clean at
-kappa 8 and which is also the step T170 needs. The rungs are then compared at
-one step rather than each at its own margin -- which matters, because the same
-note measures the spectral core's energy residual falling from 0.31 to 0.12
-W/m2 when the step is halved. A ladder whose rungs each ran at their own
+**That argument is superseded and the reason it fell is worth keeping.** It ran:
+the ladder therefore runs T42 at dt 22.5, which that note measures as clean at
+kappa 8 and which is also the step T170 needs, so the rungs are compared at one
+step rather than each at its own margin -- which matters, because the same note
+measures the spectral core's energy residual falling from 0.31 to 0.12 W/m2 when
+the step is halved. Every clause of that is still true. What went is its
+CONSUMER: comparing rungs at one step serves a between-rung convergence
+comparison, and SPAT-8, which was that comparison, closed when T85 was declared
+the operating support rather than a rung to be discovered. Nothing now needs the
+rungs to share a step, so nothing pays for running T42 at 22.5.
+
+The ladder runs the ESCALATION ROUTE instead -- T21 at 45, T42 at 30, T85 at
+22.5, in `docs/src/pipeline/sequencing.md` section D -- where the step changes
+so that resolution and timestep never move together and every conversion happens
+at constant dt. The residual measurement above still bears on it: a coarser step
+carries a larger energy residual, so T21 at 45 carries the largest of the three,
+and that is a cost of the route to be reported rather than a reason to change
+it. WORLD-F997. A ladder whose rungs each ran at their own
 largest stable step would be comparing equilibria that differ by their
 truncation error as well as by their resolution.
 

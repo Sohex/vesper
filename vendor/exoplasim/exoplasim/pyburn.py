@@ -610,6 +610,72 @@ def refactorvariable(variable,header,ntimes=None,nlev=10):
             
     return newvar
 
+# RESTORED. `world-ro6` removed this on 2026-08-24 as an unreferenced procedure.
+# It is referenced: `readfile` below calls it, and `readfile` is how every
+# postprocess of a raw model file begins. The sweep that removed it collected
+# FORTRAN subroutine headers out of plasim/src and could not see a Python
+# caller, so applying it to this file asked a question it had no way to answer.
+# Nothing caught it because no gate postprocesses a raw file: the first run
+# after the removal died in pyburn with NameError, having integrated fine.
+def readallvariables(fbuffer):
+    '''Extract all variables and their headers from a file byte buffer.
+    
+    Doing this and then only keeping the codes you want may be faster than extracting variables one by one,
+    because it only needs to seek through the file one time.
+    
+    Parameters
+    ----------
+    fbuffer : bytes
+        Binary bytes read from a file opened with ``mode='rb'`` and read with ``file.read()``.
+    
+    Returns
+    -------
+    dict, dict
+        A dictionary containing all variable headers (by variable code), and a dictionary containing all
+        variables, again by variable code.
+    '''
+    
+    en = _getEndian(fbuffer)
+    ml,mf = _getwordlength(fbuffer,0,en)
+    
+    n=0
+    mainheader,zsig,n = readrecord(fbuffer,n,en,ml,mf)
+    
+    headers= {'main':mainheader}
+    variables = {'main':zsig}
+    nlev=mainheader[6]
+    variables["sigmah"] = zsig[:nlev]
+    variables["time"] = []
+    
+    # Records are collected per code and joined ONCE. This replaced
+    # `np.append(accumulated, field)` per record, which reallocates and copies
+    # the whole accumulated array every call and makes reading QUADRATIC in
+    # record count. On a T42 orbit of ~81k records it dominated postprocessing:
+    # joining once took the same job from 304 s to 29 s. np.append flattens,
+    # so a 1-D concatenate gives the identical result.
+    _chunks = {}
+    nbuffer = len(fbuffer)
+    while n<nbuffer:
+        header,field,n = _decoderecord(fbuffer,n,en,ml,mf)
+        kcode = str(header[0])
+        if header[0]==139:
+            variables["time"].append(header[6]) #nstep-nstep1 (timesteps since start of run)
+        if kcode not in _chunks:
+            _chunks[kcode] = [field]
+            headers[kcode] = header
+        else:
+            _chunks[kcode].append(field)
+    
+    # The records are views on fbuffer in the file's own word length; the copy
+    # and the promotion to float64 happen once per code, here, rather than once
+    # per record.
+    for _kcode,_parts in _chunks.items():
+        variables[_kcode] = (_parts[0].astype(np.float64) if len(_parts)==1
+                             else np.concatenate(_parts,dtype=np.float64))
+    
+    return headers, variables
+
+
 def readfile(filename):
     '''Extract all variables from a raw plasim output file and refactor them into the right shapes
     

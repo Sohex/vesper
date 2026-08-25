@@ -723,6 +723,21 @@ model:
       T85: {divergence: 0.1101, vorticity: 0.5506, temperature: 1.3946, humidity: 0.1833}
       T127: {divergence: 0.0737, vorticity: 0.3685, temperature: 0.9334, humidity: 0.1227}
       T170: {divergence: 0.0551, vorticity: 0.2753, temperature: 0.6973, humidity: 0.0917}
+  # THE PER-RUNG STABILITY CEILING, not the step the ladder runs. Three
+  # different quantities have carried the name "the timestep at rung X" and
+  # they must stay apart (WORLD-F997):
+  #   THIS TABLE is the coarsest step each rung was MEASURED to carry.
+  #   `docs/src/pipeline/sequencing.md` section D is the ESCALATION ROUTE the
+  #     project actually runs -- T21 at 45, T42 at 30, T85 at 22.5 -- chosen so
+  #     resolution and timestep alternate and every conversion happens at
+  #     constant dt. That is what a cost or a run is priced against.
+  #   `notes/audits/resolution-ladder.md` carried a third, all rungs at one
+  #     step, to serve a between-rung comparison. SPAT-8 closed when T85 was
+  #     declared the operating support, so that rationale has no consumer.
+  # A step that merely does not blow up is a stability floor and not a licence,
+  # so this table bounds the route rather than setting it. PROVISIONAL: every
+  # cell comes from `exoplasim/notes/physics-filter-stability.md`, whose grid
+  # WORLD-37TN establishes is contaminated four independent ways.
   resolution_timestep_minutes:
     T21: 45.0
     T42: 45.0
