@@ -665,16 +665,66 @@
       end subroutine mpputsp
 
 
+!     ==================================================================
+!     mpgetgp reads a record that MUST be there; mpgetgp_found reads one
+!     that may not be. world-onw8.
+!
+!     The buffer z is local to this routine and is scattered into the
+!     caller's array UNCONDITIONALLY, so nothing the caller writes into
+!     that array before the call survives it. A sentinel is therefore not
+!     a way to learn that a record was missing, and mpgetgp is only safe
+!     while nexcheck is 1 and get_restart_array stops on an absent name.
+!     z is zeroed because the alternative is arbitrary stack: under the
+!     default compile profile nothing would catch that, and determinism
+!     is worth more here than a signalling-NaN tripwire that exists only
+!     under the `poisoned` profile. What keeps mpgetgp from being misused
+!     is the pair, not the fill: a record that may be absent goes through
+!     mpgetgp_found, which asks first and skips the scatter when the
+!     answer is no.
+!     ==================================================================
+
       subroutine mpgetgp(yn,p,kdim,klev)
       use pumamod
       character (len=*) :: yn
       integer :: kdim, klev
       real :: p(kdim,klev)
       real :: z(NUGP,klev)
+      z(:,:) = 0.0
       if (mypid == NROOT) call get_restart_array(yn,z,NUGP,NUGP,klev)
       call mpscgp(z,p,klev)
       return
       end subroutine mpgetgp
+
+
+!     Reads yn if the restart carries it, and reports which happened in
+!     kfound (1 found, 0 absent). When the record is absent the caller's
+!     array is LEFT ALONE, so a value pre-set before the call survives,
+!     and kfound is the thing to branch on rather than the array's
+!     contents. Built like mpsurfgp: the presence answer is read on NROOT,
+!     where yresnam and nresnum live, and broadcast with mpbci so every
+!     thread takes the same branch -- mpscgp carries omp barriers, so the
+!     team has to agree on whether it is entered. Deliberately NOT an
+!     optional argument: these are external subroutines with no explicit
+!     interface, where OPTIONAL is not conforming.
+
+      subroutine mpgetgp_found(yn,p,kdim,klev,kfound)
+      use pumamod
+      character (len=*) :: yn
+      integer :: kdim, klev, kfound
+      real :: p(kdim,klev)
+      real :: z(NUGP,klev)
+      integer :: iread(1)
+      iread(1) = 0
+      z(:,:) = 0.0
+      if (mypid == NROOT) then
+         call has_restart_array(yn,iread(1))
+         if (iread(1) == 1) call get_restart_array(yn,z,NUGP,NUGP,klev)
+      endif
+      call mpbci(iread)
+      if (iread(1) == 1) call mpscgp(z,p,klev)
+      kfound = iread(1)
+      return
+      end subroutine mpgetgp_found
 
 
       subroutine mpputgp(yn,p,kdim,klev)

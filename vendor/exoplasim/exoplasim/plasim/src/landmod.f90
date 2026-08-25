@@ -405,7 +405,8 @@
       use landmod
       use radmod
       use snowmaskmod
-      use restartmod, only: nexcheck
+
+      integer :: ifound(4)
 !
 !     initialize land surface
 !
@@ -850,27 +851,39 @@
        call mpgetgp('dalbcl1' ,dalbcl1 ,NHOR,    14)
        call mpgetgp('dalbcl2' ,dalbcl2 ,NHOR,    14)
 
-!      The layered store and the drainage, under a LOWERED nexcheck: a restart
-!      written before LSHY-3 existed carries neither record, and a run that
+!      The layered store and the drainage, RECORDS THAT MAY BE ABSENT: a
+!      restart written before LSHY-3 existed carries neither, and a run that
 !      resumes on the default scheme must not stop for a field the default
 !      scheme never reads. What it gets instead is the block below, which
 !      rebuilds the layers from the scalar store the atmospheric restart has
 !      already restored -- the same construction soilini uses on a cold start,
 !      so the two paths agree.
-       nexcheck = 0
-       dwatcl(:,:) = -1.0
+!
+!      Each read goes through mpgetgp_found and each answer is taken from its
+!      kfound, not from the array. A lowered nexcheck would not do here and did
+!      not: plain mpgetgp scatters its own buffer into the caller's array
+!      whatever the restart holds, so the -1.0 sentinel this block used to
+!      write into dwatcl was destroyed by the call meant to leave it, and the
+!      rebuild below was decided on whatever the stack held. world-onw8.
+!      Every value pre-set here now survives an absent record, and adrain is
+!      the reason it has to: it accumulates over the output window, so a
+!      restart written before it existed loses a partial window and nothing
+!      else, and it starts the window the target run is going to finish.
+       dwatcl(:,:) = 0.
        dsoili(:,:) = 0.
+       ddrain(:) = 0.
        adrain(:) = 0.
-       call mpgetgp('dwatcl'  ,dwatcl  ,NHOR,NLSOILWX)
-       call mpgetgp('dsoili'  ,dsoili  ,NHOR,NLSOILWX)
-       call mpgetgp('ddrain'  ,ddrain  ,NHOR,     1)
-!      `adrain` needs no rebuild if the record is absent. It is an
-!      accumulator over the output window, so a restart written before it
-!      existed loses a partial window and nothing else; zeroed above, it
-!      starts the window the target run is going to finish anyway.
-       call mpgetgp('adrain'  ,adrain  ,NHOR,     1)
-       nexcheck = 1
-       if (ALL(dwatcl(:,:) < 0.0)) then
+       call mpgetgp_found('dwatcl',dwatcl,NHOR,NLSOILWX,ifound(1))
+       call mpgetgp_found('dsoili',dsoili,NHOR,NLSOILWX,ifound(2))
+       call mpgetgp_found('ddrain',ddrain,NHOR,     1  ,ifound(3))
+       call mpgetgp_found('adrain',adrain,NHOR,     1  ,ifound(4))
+       if (mypid == NROOT .and. ifound(1) == 1 .and.                    &
+     &     (ifound(2) == 0 .or. ifound(3) == 0 .or. ifound(4) == 0)) then
+        write(nud,*)' *** LSHY-3: this restart carries dwatcl but not all'
+        write(nud,*)' *** of dsoili, ddrain, adrain; the absent ones start'
+        write(nud,*)' *** at zero.'
+       endif
+       if (ifound(1) == 0) then
         dwatcl(:,:) = 0.
         dsoili(:,:) = 0.
         do jlay=1,nlsoilw
