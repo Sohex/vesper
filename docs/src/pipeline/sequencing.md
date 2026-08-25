@@ -36,7 +36,8 @@ python hydrography/scripts/surface_water.py           # lakes, now a climate exi
 python exoplasim/scripts/build_surface_albedo.py --lakes <surface_water.nc>
 python pedology/scripts/build_soil.py                 # soil, with no biosphere yet
                                                       # soil_water_source: pedology
-python exoplasim/scripts/build_surface_soil_water.py  # 229, from that soil
+python pedology/scripts/land_column_properties.py     # the contract's states, from that soil
+python exoplasim/scripts/build_surface_soil_water.py  # 229, from those states
 python aeolian/scripts/build_dust.py                  # needs the climatology AND the lakes
 python exoplasim/scripts/dust_optics.py               # only if the spectrum moved
 python exoplasim/scripts/dust_aerofile.py             # the model's aerofile

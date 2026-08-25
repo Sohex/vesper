@@ -45,7 +45,8 @@ lib/gridding.py            integrate mesh fields onto any model grid
    |                        v
    |                  exoplasim/scripts/build_boundary_conditions.py -> land mask, topography
    |                  exoplasim/scripts/build_surface_albedo.py      -> albedo, forest fraction
-   |                  exoplasim/scripts/build_surface_soil_water.py  -> dwmax  (off for the bootstrap)
+   |                  exoplasim/scripts/build_surface_soil_water.py  -> dwmax  (off for the bootstrap;
+   |                                                                    from the land column states)
    |                        |
    |                        v
    |                  ExoPlaSim spin-up
@@ -62,6 +63,9 @@ hydrography/            pedology/scripts/build_soil.py        hydrography/script
   catchments,             under the climate         <-- integrates climate over
   hypsometry,               |                           catchments
   coupling matrix           v
+   |                  pedology/scripts/land_column_properties.py -> the soil's
+   |                        |    hydraulic states, derived here and nowhere else
+   |                        v
    |                  biosphere/scripts/build_lpj_driver.py -> one binary, N years
    |                        |
    |                        v

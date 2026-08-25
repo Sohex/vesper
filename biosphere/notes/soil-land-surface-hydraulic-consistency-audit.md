@@ -73,6 +73,11 @@ not measurements of Vesper.
 
 ### 1. One pedology artifact becomes two incompatible vadose-zone soils
 
+**Resolved 2026-08-25 by WORLD-OF6N and WORLD-7702.** Both derivations below are
+gone. `pedology/scripts/land_column_properties.py` derives the states once and
+emits them; ExoPlaSim and LPJ-GUESS read them. What follows is the finding as
+audited, with the evidence it rested on.
+
 Pedology writes texture, organic carbon, bulk density, regolith depth, an
 available-water capacity, weathered-bedrock fraction, andic fraction and
 phosphate fixation. ExoPlaSim's project-added surface builder reads only

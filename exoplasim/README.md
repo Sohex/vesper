@@ -482,7 +482,7 @@ unless told they exist.
 | `build_boundary_conditions.py` | land mask and topography, integrated from the Orogen mesh |
 | `build_surface_albedo.py` | background land albedo from lithology, optionally composited with solved lakes |
 | `build_surface_roughness.py` | aerodynamic roughness length per cell, surface code 0173 |
-| `build_surface_soil_water.py` | feeds pedology's soil water capacity back as `dwmax` |
+| `build_surface_soil_water.py` | installs the land column property contract's soil water capacity as `dwmax` |
 | `build_stellar_spectrum.py` | this star's spectrum from BT-Settl, checked against the blend at source resolution |
 | `sra.py` | writes ExoPlaSim's `.sra` surface format; imported by the builders above |
 | `run_exoplasim.py` | prepare, validate and run an experiment |

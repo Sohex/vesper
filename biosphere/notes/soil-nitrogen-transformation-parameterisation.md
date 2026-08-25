@@ -546,9 +546,11 @@ reference, the moist soil falls to 0.51 at -0.5 MPa and 0.21 at -2.7 MPa, and th
 slurries to 0.79 and 0.22.
 
 The conversion this project refused to invent for Greaves and Carter is one the
-model already performs. `SoilInput::get_mineral` builds the soil by inverting
-Cosby et al. (1984) eqn 1 at two matric heads: `10^4.2` cm for the wilting point
-and `10^2.0` cm for field capacity, which are -1.554 and -0.0098 MPa. And
+model already performs. The land column property contract builds the simulated
+soil by inverting Cosby et al. (1984) eqn 1 at two declared pressures: the plant
+limiting pressure of -1.5468 MPa, which is Cosby's `10^4.2` cm of water under
+Earth gravity, and the drainage equilibrium `rho_w * g * L` over the declared
+drainage length. And
 `Soil::wfps` is `(wcont*gawc + gwp)/gwsats`, which is the volumetric water
 content over the saturation capacity exactly. So Cosby eqn 1 makes potential a
 power law in water-filled pore space, per gridcell, out of the sand and clay the
@@ -590,13 +592,17 @@ agrees. Nothing is fitted here to stand in for a source. A curve fitted to a
 relabelled to reach WFPS, would be an unsourced curve wearing a citation, and a
 slope fitted to one silt loam would be the same thing with a better axis.
 
-**One thing the bridge assumes.** Cosby's air-entry and wilting heads are heads
-in centimetres of water, and a head is a pressure only through the local gravity.
-`get_mineral` inverts them as if this world's gravity were Earth's, so the
-simulated soil's wilting point is the water content at a head rather than at the
--1.5 MPa suction plants actually work against. That is a property of the soil
-model rather than of this operator, and it moves both sides of the comparison
-above together, but it is what the comparison rests on. `world-slpa` owns it.
+**The frame the bridge rests on, and it is now settled.** Cosby's air-entry and
+wilting heads are heads in centimetres of water, and a head is a pressure only
+through the local gravity. Air entry is a capillary pressure and the wilting
+point is a plant pressure, so both are invariant and both of their heads scale
+together when gravity changes; the closure reads them only through their ratio,
+so the simulated soil's wilting point is the water content at -1.5468 MPa on
+this world exactly as on Earth. Field capacity is a drainage equilibrium and is
+the one state that moves, which the contract now applies. So the axis this
+comparison is placed on is a pressure axis and not a column height, which is
+what `world-slpa` asked and what `world-of6n` settled by adopting the contract
+read literally.
 
 ## What holds without any paper: the operator cannot create nitrogen
 
@@ -740,8 +746,9 @@ not a result for this world's atmosphere.
 - Cosby, Hornberger, Clapp and Ginn (1984), *A statistical exploration of the
   relationships of soil moisture characteristics to the physical properties of
   soils*, Water Resources Research 20(6), 682-690, `10.1029/WR020i006p00682`.
-  Not a nitrogen source: eqn 1 and table 4, which `SoilInput::get_mineral`
-  builds the simulated soil from and which are therefore the bridge between a
-  water potential axis and this operator's water-filled pore space one.
+  Not a nitrogen source: eqn 1 and table 4, which the land column property
+  contract builds the simulated soil from and which are therefore the bridge
+  between a water potential axis and this operator's water-filled pore space
+  one.
 - Pilegaard (2013), *Processes regulating nitric oxide emissions from soils*,
   Phil. Trans. R. Soc. B 368(1621), 20130126, `10.1098/rstb.2013.0126`.

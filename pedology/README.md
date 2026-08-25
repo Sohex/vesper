@@ -211,40 +211,55 @@ the single vertically explicit description of the simulated land column's
 hydraulic and thermal properties: two geometries, four materials with their
 vertical rules, four retention states with their ordering checked, one NAMED
 retention closure with its family stated, correlated uncertainty cases, and the
-aquifer boundary the contract deliberately does not own. It runs no model and
-writes `analysis/land_column_properties_report.json`.
+aquifer boundary the contract deliberately does not own. It runs no model.
 
-It exists to be compared against, before either consumer-side pedotransfer path
-is removed. On the checked-in soil map it reports pedology's `awc`, ExoPlaSim's
-`dwmax` and LPJ-GUESS's own Cosby derivation with the Vesper regolith and
-bedrock scaling, on the same cells and in the same units, with their ratio,
-their absolute difference and their correlation. It measures the region where
-the Cosby inversion returns a field capacity above saturation -- an analytic
-line in the texture simplex, not a search -- and reports the map's margin from
-it rather than a count. And it derives what this planet's gravity does to field
-capacity, which it reports and does not apply.
+**It is also the only place those states are derived.** It writes
+`analysis/land_column_properties_report.json` and
+`data/<build>/land_column_states_<res>.txt`, one row per land cell carrying
+saturation, field capacity, the wilting point, the closure's exponent, the
+plant-available capacity of the whole declared column, and the
+weathered-bedrock usable share per physical layer. ExoPlaSim's
+`build_surface_soil_water.py` installs the capacity column as `dwmax`;
+LPJ-GUESS takes the states and the shares through its driver file. Neither
+derives a retention curve of its own any more: `soilinput.cpp`'s Cosby
+inversion and `vesperinput.cpp`'s regolith rescaling are gone.
 
-Gravity is where the contract earns its keep. Saturation is pore geometry and
-does not move; the wilting point is a plant pressure and does not move; field
-capacity is a drainage equilibrium over a stated length and its matric pressure
-is `rho_w * g * L`, so it does. The declared drainage length reproduces Cosby's
-own field-capacity suction exactly under Earth gravity, and the check fails if
-it stops doing so. `notes/land-column-property-contract.md` is the argument.
+The report still computes what each of those produced, because the cost of a
+removal is only legible against the number it removed. It reports pedology's
+own endmember `awc` and the shipped Cosby derivation on the same cells and in
+the same units, with their ratio, their absolute difference and their
+correlation; it measures the region where the closure would return a field
+capacity above saturation -- an analytic line in the texture simplex, not a
+search -- and reports the map's margin from it rather than a count.
 
-Both arms are falsifiable: the declaration check is run against ten contracts
-broken in named ways and is required to catch every one. Eight properties still
-carry the `undeclared` sentinel and `--strict` is the arm that refuses.
+Gravity is where the contract earns its keep, and the correction is APPLIED.
+Saturation is pore geometry and does not move; the wilting point is a plant
+pressure and does not move; field capacity is a drainage equilibrium over a
+stated length and its matric pressure is `rho_w * g * L`, so it does. The
+declared drainage length reproduces Cosby's own field-capacity suction exactly
+under Earth gravity, and the check fails if it stops doing so.
 
-## Both property-feedback paths are wired; the hydraulic loop is not closed
+The trap that makes this worth a contract: Cosby's parameters are recorded as
+heads on Earth, and air entry is a capillary pressure while the wilting point is
+a plant pressure, so BOTH are invariant and both of their heads scale together.
+Convert one and not the other and the wilting point moves for a bookkeeping
+reason. The script works in pressure so a mixed frame cannot be written, and
+checks the two consistent frames against each other and against the mixed one.
+`notes/land-column-property-contract.md` is the argument.
 
-The integrations below show that pedology affects both the biosphere and the
-next climate iteration. They do not yet establish one shared soil hydraulic
-state. ExoPlaSim consumes the generated scalar `awc` as `dwmax`, while
-LPJ-GUESS independently derives retention and available water from texture and
-organic carbon before applying the generated regolith/bedrock scaling. The two
-models then evolve separate snow, soil water, ice, evaporation and runoff
-histories. The source audit and the work required to replace this integration
-scaffolding are in
+Three arms are falsifiable: the declaration check is run against ten contracts
+broken in named ways and is required to catch every one; the frame check
+requires two frames to agree and a third not to; and the mutation harness fails
+if a mutation goes uncaught. Eight properties still carry the `undeclared`
+sentinel and `--strict` is the arm that refuses.
+
+## One hydraulic description; the two columns still evolve separately
+
+Both consumers now read the same states, so they agree on how much water the
+soil holds and on how deep the column goes. They still evolve separate snow,
+soil water, ice, evaporation and runoff histories from it: one shared hydraulic
+STATE is a further step, and `dwmax` is a scalar bucket with no vertical liquid
+structure to share. The source audit and the work required are in
 `../biosphere/notes/soil-land-surface-hydraulic-consistency-audit.md` and
 LSHY-1 through LSHY-7.
 
@@ -255,9 +270,11 @@ regenerated during the no-execution audit; the next authorized `soil` step
 will refresh it.
 
 **To the biosphere.** `soilmap.txt` carries a `depth` column, LPJ-GUESS's own
-`SoilInput` ignores it, and `vesperinput` scales each soil layer's water capacity
-by how much of that layer is really regolith rather than rock. Verified on one
-cell at four thicknesses, everything else held fixed:
+`SoilInput` ignores it, and the contract turns it into a usable share per soil
+layer that `vesperinput` multiplies each layer's water capacity by. The
+arithmetic is unchanged from when `vesperinput` derived that share itself, which
+is what the sweep below measured; what moved is where the rule lives. Verified
+on one cell at four thicknesses, everything else held fixed:
 
 | profile | AET mm | LAI | NPP |
 | --- | --- | --- | --- |
@@ -331,8 +348,8 @@ declared, literature-anchored and varying per cell; the controlled sweep above
 is the measurement.
 
 **To the climate.** `exoplasim/scripts/build_surface_soil_water.py` writes
-surface code 0229, `dwmax`, from the `awc` column. Land-mean capacity is 0.133 m
-against ExoPlaSim's uniform 0.5 m default, and since
+surface code 0229, `dwmax`, from the land column property contract's `awc_mm`
+column. It is smaller than ExoPlaSim's uniform 0.5 m default, and since
 `drunoff = max(0, dwatc - dwmax)/deltsec`, a smaller bucket overflows sooner and
 produces more runoff, which is the direction needed to fix the 2.8% ratio.
 
@@ -503,11 +520,12 @@ the moisture variable from runoff to precipitation multiplies land-mean depth by
 2.74 and water capacity by 2.83.
 
 So the texture work, which is where most of the physics went, contributes little
-to the field that actually reaches the other models: `awc = volumetric x depth`,
-and depth varies 229-fold across the planet while the texture-derived volumetric
-capacity varies 4.5-fold. **Depth sets the water capacity almost entirely.**
-Texture matters to LPJ-GUESS's own soil physics, and to anyone reading a soil
-map, but not to the number that feeds the bucket.
+to pedology's own capacity column: it is `volumetric x column depth`, and the
+depth varies far more across the planet than the texture-derived volumetric
+capacity does. **Depth sets that capacity almost entirely.** The capacity the
+models install is the contract's, where texture enters through the retention
+closure rather than through an endmember mixture, and where the depth term is
+cut at the declared column base.
 
 ### The runoff-versus-precipitation spread
 
