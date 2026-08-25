@@ -227,7 +227,7 @@ void nitrification(Patch& patch, Soil& soil) {
 	// 10 to 100 per cent of water-holding capacity and report the mean nitric
 	// nitrogen formed, normalised to the 60 per cent treatment, as 10.9, 16.9,
 	// 30.6, 61.9, 86.0, 100.0, 39.5 and 9.6 at 10 to 80 per cent WHC. It is
-	// 9.6 per cent of the peak where the falling limb here is exactly zero,
+	// 9.6 per cent of the peak where mainline's falling limb is exactly zero,
 	// and their only zero is at 100 per cent WHC, saturation, which this
 	// model's upper layer cannot reach because wcont is bounded by field
 	// capacity. Their optimum is 50 or 60 per cent WHC on 20 of the 22 soils.
