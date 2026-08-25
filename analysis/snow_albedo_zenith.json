@@ -1,0 +1,249 @@
+{
+  "obliquity_degrees": 32.0,
+  "top_of_atmosphere_w_m2": 1286.145,
+  "band1_flux_fraction_k25v": 0.3823719935950933,
+  "band1_flux_fraction_sun5772": 0.5169999999733781,
+  "model_finalized": {
+    "dsnowalbmx": {
+      "band1_diffuse": 0.9827840116420333,
+      "band2_diffuse": 0.5852946078131978,
+      "broadband_diffuse": 0.7372834235881547,
+      "band1_mu1": 0.9779198216619389,
+      "band1_mu0": 0.9925850956397828,
+      "band2_mu1": 0.5022386154319094,
+      "band2_mu0": 0.7948832893986497,
+      "broadband_mu1": 0.6841257865738044,
+      "broadband_mu0": 0.8704789231884226,
+      "broadband_span": 0.18635313661461816
+    },
+    "dsnowalb": {
+      "band1_diffuse": 0.763826401212029,
+      "band2_diffuse": 0.4061151556514809,
+      "broadband_diffuse": 0.5428939177478516,
+      "band1_mu1": 0.7072363430322999,
+      "band1_mu0": 0.8909531273829491,
+      "band2_mu1": 0.3139313458724363,
+      "band2_mu0": 0.6796388984393557,
+      "broadband_mu1": 0.46432016172736584,
+      "broadband_mu0": 0.7604395414355274,
+      "broadband_span": 0.29611937970816155
+    },
+    "dsnowalbmn": {
+      "band1_diffuse": 0.5078248428974733,
+      "band2_diffuse": 0.2726118070302472,
+      "broadband_diffuse": 0.36255068447435257,
+      "band1_mu1": 0.41843905461318665,
+      "band1_mu0": 0.74795833137747,
+      "band2_mu1": 0.18804929418124644,
+      "band2_mu0": 0.572915496251901,
+      "broadband_mu1": 0.2761438861815033,
+      "broadband_mu0": 0.639846974083402,
+      "broadband_span": 0.36370308790189865
+    }
+  },
+  "exocam_snow_k25v": {
+    "band1": 0.9800307957596303,
+    "band2": 0.5137382115103292,
+    "broadband": 0.6920354365483424,
+    "band1_flux_fraction": 0.3823719935950933,
+    "recombination_residual": 3.159475958158797e-05,
+    "flux_outside_measured": 0.05265882490570315,
+    "band1_diffuse": 0.9800307957596303,
+    "band2_diffuse": 0.5137382115103292,
+    "broadband_diffuse": 0.6920354365483424,
+    "band1_mu1": 0.9743989033948437,
+    "band1_mu0": 0.9913924233351031,
+    "band2_mu1": 0.4247141098021067,
+    "band2_mu0": 0.7516786753670865,
+    "broadband_mu1": 0.6348981801770689,
+    "broadband_mu0": 0.8433384990697688,
+    "broadband_span": 0.20844031889269987
+  },
+  "exocam_snow_sun5772": {
+    "band1": 0.9829739480591749,
+    "band2": 0.5789731499688907,
+    "broadband": 0.7878415625708124,
+    "band1_flux_fraction": 0.5169999999733781,
+    "recombination_residual": 2.3174828184036045e-05,
+    "flux_outside_measured": 0.03610347256997927,
+    "band1_diffuse": 0.9829739480591749,
+    "band2_diffuse": 0.5789731499688907,
+    "broadband_diffuse": 0.7878415625708124,
+    "band1_mu1": 0.9781628236726022,
+    "band1_mu0": 0.9926673042192953,
+    "band2_mu1": 0.4952751574618181,
+    "band2_mu0": 0.7911925360725568,
+    "broadband_mu1": 0.744928080879938,
+    "broadband_mu0": 0.895354991199057,
+    "broadband_span": 0.15042691031911903
+  },
+  "cold_snow_diffuse_broadband": 0.7372834235881547,
+  "daily": [
+    {
+      "lat": 0,
+      "season": "equinox",
+      "alpha_flux_weighted": 0.7193173857482429,
+      "delta_vs_model": -0.017966037839911797,
+      "daily_insolation_w_m2": 409.3926651987317,
+      "absorbed_change_w_m2": 7.355164114342755
+    },
+    {
+      "lat": 0,
+      "season": "summer",
+      "alpha_flux_weighted": 0.7388038587491085,
+      "delta_vs_model": 0.0015204351609537925,
+      "daily_insolation_w_m2": 347.18467030218955,
+      "absorbed_change_w_m2": -0.527871780071599
+    },
+    {
+      "lat": 0,
+      "season": "winter",
+      "alpha_flux_weighted": 0.7388038587491085,
+      "delta_vs_model": 0.0015204351609537925,
+      "daily_insolation_w_m2": 347.18467030218955,
+      "absorbed_change_w_m2": -0.527871780071599
+    },
+    {
+      "lat": 15,
+      "season": "equinox",
+      "alpha_flux_weighted": 0.7235920954321744,
+      "delta_vs_model": -0.013691328155980287,
+      "daily_insolation_w_m2": 395.4429484087688,
+      "absorbed_change_w_m2": 5.414139173632837
+    },
+    {
+      "lat": 15,
+      "season": "summer",
+      "alpha_flux_weighted": 0.7253837857450122,
+      "delta_vs_model": -0.011899637843142519,
+      "daily_insolation_w_m2": 428.2658159704728,
+      "absorbed_change_w_m2": 5.096208110646547
+    },
+    {
+      "lat": 15,
+      "season": "winter",
+      "alpha_flux_weighted": 0.7610024526356238,
+      "delta_vs_model": 0.023719029047469142,
+      "daily_insolation_w_m2": 251.86691619272472,
+      "absorbed_change_w_m2": -5.974038701271714
+    },
+    {
+      "lat": 30,
+      "season": "equinox",
+      "alpha_flux_weighted": 0.7364406983171708,
+      "delta_vs_model": -0.0008427252709838351,
+      "daily_insolation_w_m2": 354.5444481851192,
+      "absorbed_change_w_m2": 0.29878356617261886
+    },
+    {
+      "lat": 30,
+      "season": "summer",
+      "alpha_flux_weighted": 0.7207814293033874,
+      "delta_vs_model": -0.016501994284767285,
+      "daily_insolation_w_m2": 490.8467637234132,
+      "absorbed_change_w_m2": 8.099950489660284
+    },
+    {
+      "lat": 30,
+      "season": "winter",
+      "alpha_flux_weighted": 0.791849774930424,
+      "delta_vs_model": 0.05456635134226928,
+      "daily_insolation_w_m2": 150.0702576748056,
+      "absorbed_change_w_m2": -8.188786406308324
+    },
+    {
+      "lat": 45,
+      "season": "equinox",
+      "alpha_flux_weighted": 0.7578892888483668,
+      "delta_vs_model": 0.02060586526021213,
+      "daily_insolation_w_m2": 289.4843297300571,
+      "absorbed_change_w_m2": -5.965075093360377
+    },
+    {
+      "lat": 45,
+      "season": "summer",
+      "alpha_flux_weighted": 0.7252368315065431,
+      "delta_vs_model": -0.012046592081611629,
+      "daily_insolation_w_m2": 536.173553853116,
+      "absorbed_change_w_m2": 6.459064088216514
+    },
+    {
+      "lat": 45,
+      "season": "winter",
+      "alpha_flux_weighted": 0.8308679452492249,
+      "delta_vs_model": 0.09358452166107023,
+      "daily_insolation_w_m2": 54.2427972610581,
+      "absorbed_change_w_m2": -5.076286235234533
+    },
+    {
+      "lat": 60,
+      "season": "equinox",
+      "alpha_flux_weighted": 0.7878223331307377,
+      "delta_vs_model": 0.050538909542583,
+      "daily_insolation_w_m2": 204.69633259936592,
+      "absorbed_change_w_m2": -10.345129436937837
+    },
+    {
+      "lat": 60,
+      "season": "summer",
+      "alpha_flux_weighted": 0.7413705845889901,
+      "delta_vs_model": 0.004087161000835393,
+      "daily_insolation_w_m2": 590.2422225019914,
+      "absorbed_change_w_m2": -2.4124149928565455
+    },
+    {
+      "lat": 60,
+      "season": "winter",
+      "polar_night": true
+    },
+    {
+      "lat": 75,
+      "season": "equinox",
+      "alpha_flux_weighted": 0.8257457303289577,
+      "delta_vs_model": 0.08846230674080302,
+      "daily_insolation_w_m2": 105.95861867871173,
+      "absorbed_change_w_m2": -9.373343827387977
+    },
+    {
+      "lat": 75,
+      "season": "summer",
+      "alpha_flux_weighted": 0.7571047942743806,
+      "delta_vs_model": 0.019821370686225914,
+      "daily_insolation_w_m2": 658.3296563698062,
+      "absorbed_change_w_m2": -13.048996152641656
+    },
+    {
+      "lat": 75,
+      "season": "winter",
+      "polar_night": true
+    }
+  ],
+  "cap_price_w_m2_per_unit_snow_area": {
+    "poleward_of_45": -6.301079222121882,
+    "poleward_of_60": -7.974409591515691,
+    "poleward_of_70": -8.999368743261012
+  },
+  "kelvin_bracket": {
+    "albedo_0.25": {
+      "snow_fraction_0.02": -0.12624683712847765,
+      "snow_fraction_0.05": -0.31561709282119416,
+      "snow_fraction_0.1": -0.6312341856423883,
+      "snow_fraction_0.2": -1.2624683712847766
+    },
+    "albedo_0.3": {
+      "snow_fraction_0.02": -0.13526446835194036,
+      "snow_fraction_0.05": -0.3381611708798509,
+      "snow_fraction_0.1": -0.6763223417597019,
+      "snow_fraction_0.2": -1.3526446835194037
+    },
+    "albedo_0.35": {
+      "snow_fraction_0.02": -0.14566942745593575,
+      "snow_fraction_0.05": -0.36417356863983946,
+      "snow_fraction_0.1": -0.7283471372796789,
+      "snow_fraction_0.2": -1.4566942745593578
+    }
+  },
+  "form": "alpha(mu0) = alpha_diffuse ** K(mu0), K = (3/7)(1 + 2 mu0); K is normalised so 2*int K(mu) mu dmu = 1, which puts K(2/3) = 1, so a scheme with no zenith angle is quoting the mu0 = 2/3 value",
+  "alpha_diffuse_source": "the model's own star-weighted dsnowalb* constants, verified by analysis/ice_albedo.py",
+  "note": "notes/audits/snow-albedo-zenith.md"
+}

@@ -574,6 +574,19 @@ steps:
     needs: [stellar_spectrum]
     writes: [analysis/ice_albedo.json]
 
+  - id: snow_albedo_zenith
+    script: analysis/snow_albedo_zenith.py
+    cost: seconds
+    needs: [stellar_spectrum, ice_albedo]
+    writes: [analysis/snow_albedo_zenith.json]
+    gate: >
+      What a solar zenith term is worth to the snow albedo, which `landmod` has
+      no predictor for while `radmod` applies one to ice-free ocean by default.
+      EXPLORATION: nothing consumes it and no model term rests on it. It reads
+      the model's own star-weighted `dsnowalb*` rather than deriving a second
+      set, so it moves when the spectrum does. `notes/audits/snow-albedo-zenith.md`
+      is the finding and world-spd the row.
+
   - id: rock_emissivity
     script: analysis/rock_emissivity.py
     cost: seconds

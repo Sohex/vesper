@@ -110,15 +110,111 @@ cells sent to the ocean are both exactly zero. Both are in the ledger so that
 the first build carrying inland water reports it rather than absorbing it into
 the ocean share.
 
+## What each candidate rule would cost instead
+
+**Measured:** 2026-08-25, same build, same mesh, same ladder.
+`build_boundary_conditions.py:coastline_ledger` now prices every candidate in
+`candidate_rules` as part of each boundary build, so these are reproduced in
+`boundary_conditions_report.json` rather than kept only here.
+
+A threshold is a decision, and a decision taken against one rule's cost is not
+a comparison. Three rules were proposed. They answer different questions and
+only one of them has the fork's own rule behind it.
+
+Below-datum land dropped as a share of the mesh's own; net land area against
+the mesh's; water promoted as a share of the land the model receives; volume is
+the extensive closure.
+
+| rung | rule | threshold | below-datum dropped | net land | water promoted | volume closure |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| T21 | as configured | 0.5 | 6.44% | -1.14% | 10.56% | +2.23% |
+| T21 | area-conserving | 0.491 | 6.05% | -0.01% | 11.01% | +3.19% |
+| T21 | exempt any below-datum | 0.5 | 0.00% | +46.78% | 32.27% | +40.66% |
+| T21 | exempt at 10% of the cell | 0.5 | 6.02% | -0.90% | 10.68% | +2.24% |
+| T42 | as configured | 0.5 | 3.18% | -0.99% | 6.82% | +2.49% |
+| T42 | area-conserving | 0.479 | 2.95% | -0.02% | 7.24% | +3.31% |
+| T42 | exempt any below-datum | 0.5 | 0.00% | +21.48% | 19.09% | +14.49% |
+| T85 | as configured | 0.5 | 1.32% | -1.00% | 4.43% | +1.20% |
+| T85 | area-conserving | 0.474 | 1.13% | +0.01% | 4.90% | +1.75% |
+| T85 | exempt any below-datum | 0.5 | 0.00% | +6.38% | 8.91% | +3.29% |
+| T127 | as configured | 0.5 | 0.82% | -0.96% | 3.44% | +0.43% |
+| T127 | area-conserving | 0.466 | 0.65% | +0.00% | 3.90% | +0.81% |
+| T127 | exempt any below-datum | 0.5 | 0.00% | +2.46% | 5.53% | +1.21% |
+| T170 | as configured | 0.5 | 0.47% | -0.76% | 2.93% | +0.31% |
+| T170 | area-conserving | 0.465 | 0.39% | -0.00% | 3.30% | +0.59% |
+| T170 | exempt any below-datum | 0.5 | 0.00% | +0.89% | 3.97% | +0.65% |
+
+### The outright exemption trades a 6% error for a 32% one
+
+Exempting any cell that holds below-datum land is the only rule that recovers
+ALL of the terrain `source/README.md`'s first rule is about, and at T21 it does
+so by inflating the land the model receives by 46.8%, promoting a THIRD of that
+land out of open ocean, and taking the volume closure to +40.7%. That is the
+same class of error -- a cell given the wrong surface -- at five times the
+magnitude, and it reaches the volume the exemption exists to protect.
+
+It is not absurd in itself: its cost falls by a factor 52 across the ladder and
+at T170 it costs +0.89% of land area to recover the last 0.47% of below-datum
+land, which is close to a fair trade. It is absurd at the rungs this world is
+actually run at. **A rule cannot be adopted on the behaviour it would have at a
+resolution the project does not use.**
+
+### A share-based exemption is inert at any safe strength
+
+Requiring the below-datum land to reach a share of the cell before the
+exemption applies is the obvious way to blunt it. It does not work: at 25% of
+the cell no cell qualifies at any rung, so the result is identical to 0.5
+everywhere, and at 10% it recovers four tenths of a percentage point at T21.
+
+The reason is the finding: **the below-datum land the threshold floods sits in
+cells that are mostly OCEAN.** A sub-threshold cell is by definition less than
+half land, and the below-datum part of that land is a fraction of a fraction.
+So no share-based exemption strong enough to be safe is strong enough to
+matter, and the only exemption that recovers the terrain is the one with no
+share at all.
+
+### Conserving area costs the closure that carries the sign
+
+The area-conserving threshold is 0.491 at T21 falling to 0.465 at T170. It
+conserves land area to within 0.02% at every rung, and it makes both of the
+other numbers worse: it recovers almost none of the below-datum land, and it
+takes the land volume closure from +2.23% to +3.19% at T21. It buys the
+quantity that does not carry the sign of the preserved terrain by spending the
+one that does.
+
+### 0.5 is the only value that makes the rounding single
+
+The other three rules are alternatives to a number. This is a reason for the
+number itself. `oceanmod.f90:326-329` hard-binarises `yls` at 0.5 whatever this
+builder writes. At a builder threshold of 0.5 the two agree and the cell is
+rounded once; at any other value the mask written and the rounding the model
+would apply to a fractional field disagree, and the cell is rounded twice by
+two rules that do not know about each other. The area-conserving thresholds
+above are all below 0.5, so every one of them is a second rounding as well as
+a first.
+
+### The verdict
+
+**0.5 stays**, and what the measurement changes is the reason rather than the
+value: the cost is sized, every alternative is priced beside it, and none of
+them is better on the rule the fork exists for.
+
+The route out of the residue is the RUNG. Below-datum land dropped falls by a
+factor 14 from T21 to T170 while the coastline area rounding falls by 3.2 and
+the net by 1.5. It is the only term in the ledger that support actually fixes,
+and the constraint on going further is the mesh: past T85 the 10M reference
+stops covering every Gaussian cell.
+
 ## What follows
 
 - The two halves are now in every boundary-condition report. The net stays
   beside them; it is the right number for a mass budget and the wrong one for a
   convergence claim.
 - Whether 0.5 is the right threshold is a separate question from whether the
-  boundary should be fractional at all, because a threshold that conserved land
-  area would still not conserve which land. The below-datum row is what makes
-  it a question rather than a preference.
+  boundary should be fractional at all, and the section above answers the
+  first: 0.5 stays, because every alternative is worse on the rule the fork
+  exists for and only 0.5 rounds the cell once. The second is still open and is
+  SPAT-5's, but the model as it stands cannot take a fraction at all.
 - The flux half of SPAT-5's first clause is not derivable at this step. A cell
   flipped to slab ocean evaporates at the open-water rate and one flipped to
   land at the bucket rate, and the difference between those rates is a

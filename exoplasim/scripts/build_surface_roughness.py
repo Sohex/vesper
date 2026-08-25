@@ -113,7 +113,8 @@ from builds import resolution_of, grid_export, mesh_export
 # is failure class 17. The same idiom continue_exoplasim.py uses on
 # run_exoplasim.py, and for the same reason.
 from build_surface_albedo import MODE_FOREST_FRACTION
-from gridding import cell_moments, region_cells
+from gridding import (cell_expectation, cell_moments, region_cells,
+                      transfer_ledger)
 from provenance import config_stamp
 from orogen import Export, LAND
 # ONE derivation of the height a bulk transfer coefficient is taken over.
@@ -269,18 +270,34 @@ def main() -> None:
     z_ref_anchor = reference_height_m(0.5 * (CE_BRACKET_K[0] + CE_BRACKET_K[1]),
                                       config)
 
-    def effective_z0(k_oro: float, z_ref: float) -> np.ndarray:
-        """Cell roughness whose `ce` is the area mean of the regions' own."""
-        z0_region = np.sqrt(z0_surface[sel] ** 2
-                            + (k_oro * sigma_m.reshape(-1)[cells[sel]]) ** 2)
-        ce_region = KARMAN ** 2 / np.log(z_ref / np.maximum(z0_region, 1e-6)) ** 2
-        ce_bar = np.bincount(cells[sel], weights=area[sel] * ce_region,
-                             minlength=n)
-        np.divide(ce_bar, w, out=ce_bar, where=land_flat)
+    def ce_of(z0v, z_ref: float):
+        """Neutral bulk exchange coefficient at the lowest model level."""
+        return KARMAN ** 2 / np.log(z_ref / np.maximum(z0v, 1e-6)) ** 2
+
+    def region_z0(k_oro: float) -> np.ndarray:
+        """Total roughness PER MESH REGION, the two terms in quadrature."""
+        return np.sqrt(z0_surface ** 2
+                       + (k_oro * sigma_m.reshape(-1)[cells]) ** 2)
+
+    def reduce_ce(k_oro: float, z_ref: float):
+        """`(cell z0, ce expectation, ce of the mean length, covered)`.
+
+        The operator is `gridding.cell_expectation`, the NONLINEAR one, and it
+        is called rather than reimplemented: it takes the LAW as a callable, so
+        a caller cannot hand it a field that has already been reduced. The
+        three bincounts that used to be here were the same reduction written a
+        second time, which is what `lib/gridding.py` exists to stop.
+        """
+        ce_bar, z0_bar, covered = cell_expectation(
+            cells, n, area, lambda v: ce_of(v, z_ref), region_z0(k_oro), sel)
         out = np.zeros(n)
         np.multiply(z_ref, np.exp(-KARMAN / np.sqrt(np.maximum(ce_bar, 1e-30))),
-                    out=out, where=land_flat)
-        return out.reshape(nlat, nlon)
+                    out=out, where=covered)
+        return out.reshape(nlat, nlon), ce_bar, ce_of(z0_bar, z_ref), covered
+
+    def effective_z0(k_oro: float, z_ref: float) -> np.ndarray:
+        """Cell roughness whose `ce` is the area mean of the regions' own."""
+        return reduce_ce(k_oro, z_ref)[0]
 
     # Solve the orographic coefficient so the land mean lands on the target.
     # 60 bisections resolve the coefficient to 1e-18 on [0, 1]; the 200 this
@@ -298,8 +315,20 @@ def main() -> None:
             else:
                 hi = mid
         k_oro = 0.5 * (lo + hi)
-    z0 = effective_z0(k_oro, z_ref_anchor)
+    z0, ce_expectation, ce_of_mean, covered = reduce_ce(k_oro, z_ref_anchor)
     field = np.where(land_cells, z0, OCEAN_Z0_M)
+
+    # THE JENSEN GAP IS THE FIELD'S OWN EVIDENCE THAT THE ORDER MATTERS.
+    # `expectation - law(mean)` in `ce`, relative to the expectation, per cell.
+    # It is what separates this reduction from the one this file used to do,
+    # and reporting it means a later reader does not have to re-derive SPAT-7's
+    # measurement to see whether the two orders part on THIS build and THIS
+    # grid. A gap that reads zero everywhere would say the correction is inert
+    # here, which is a finding and not a reason to drop the operator.
+    gap = np.zeros(n)
+    np.divide(ce_expectation - ce_of_mean, ce_expectation, out=gap,
+              where=covered & (ce_expectation > 0.0))
+    gap_land = gap[covered]
 
     # What the unknown reference height is worth in the field itself, reported
     # as a bracket because it cannot be verified before a climatology exists.
@@ -348,11 +377,32 @@ def main() -> None:
             "coefficient_was_solved": args.orographic_coefficient is None,
         },
         "surface_aggregation": {
-            "operator": "area mean of ce over the cell's land, inverted to a "
-                        "length; lib/gridding.py owns the reduction operators",
+            "operator": "gridding.cell_expectation, NONLINEAR, over the cell's "
+                        "land population: ce evaluated per mesh region and then "
+                        "area-averaged, inverted to the length that reproduces "
+                        "that mean. lib/gridding.py owns the reduction "
+                        "operators and this file calls one rather than "
+                        "reimplementing it.",
+            "law": "ce = karman^2 / ln(z_ref / z0)^2",
+            "population": "surface_class == land",
             "reference_height_anchor_m": round(z_ref_anchor, 2),
             "land_mean_m_over_reference_air_bracket": [round(v, 5)
                                                        for v in z0_bracket],
+            # What taking `ce` of the mean length instead would have cost,
+            # per cell, at the anchor height. The sign is the law's curvature:
+            # `d2ce/dz0^2` carries the factor `3 - ln(z_ref/z0)`, so `ce` is
+            # CONCAVE in `z0` wherever the cell is more than about twenty
+            # reference heights rougher than smooth, which is nearly all land
+            # here, and the expectation therefore sits BELOW `ce` of the mean.
+            # A cell that is mostly playa with a canopy minority is the extreme
+            # of it, and that is the case this field exists for.
+            "jensen_gap_in_ce_relative": {
+                "min": float(gap_land.min()),
+                "median": float(np.median(gap_land)),
+                "max": float(gap_land.max()),
+                "land_area_weighted_mean": land_mean(gap.reshape(nlat, nlon)),
+            },
+            "transfer": transfer_ledger(cells, n, area, sel),
         },
         "land_mean_m": round(land_mean(z0), 5),
         "land_min_m": round(float(z0[land_cells].min()), 6),

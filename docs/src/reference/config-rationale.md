@@ -1027,11 +1027,29 @@ this value, and they read the same key so that the land mask and the albedo
 field cannot disagree about which cells are land.
 
 0.5 is majority-rule and is a threshold rather than a measurement, which is why
-it is a decision and lives here. What it costs is a coastline effect: it is
-applied to a T42 grid whose cells are several hundred kilometres across, so it
-rounds partial coasts either into the sea or onto the land, and the two
-scripts sharing one key is what keeps that rounding consistent rather than
-correct.
+it is a decision and lives here. What it costs is a coastline effect: cells are
+hundreds of kilometres across, so it rounds partial coasts either into the sea
+or onto the land, and the two scripts sharing one key is what keeps that
+rounding consistent rather than correct.
+
+It is also the one value that makes the rounding SINGLE. `oceanmod.f90`
+hard-binarises `yls` at 0.5 whatever this builder writes, so a builder
+threshold anywhere else means the mask written and the rounding the model would
+apply to a fractional field disagree, and the cell is rounded twice by two
+rules. That is not a preference between values; it is the difference between
+one rounding and two.
+
+The size of the effect and the price of every alternative are in
+`notes/audits/coastline-threshold-cost.md`, and
+`build_boundary_conditions.py:coastline_ledger` reproduces both in every
+boundary-condition report rather than leaving them in prose. Three rules were
+weighed and the note carries the arithmetic: moving the threshold so land AREA
+is conserved, exempting cells that hold below-datum land from the threshold,
+and leaving it here. The exemption is the only form that keeps
+`source/README.md`'s first rule intact, and it is refused because at the rungs
+this world is run at it misassigns several times more surface than it rescues.
+The route out of the residue is the RUNG, which is the only term in the ledger
+that falls fast with support.
 
 This is separate from the land mask rule that matters most in this project.
 Land for ANALYSIS comes from `surface_class` in the export and never from

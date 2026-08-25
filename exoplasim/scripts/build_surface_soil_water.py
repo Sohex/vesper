@@ -279,7 +279,15 @@ def main() -> None:
     # config/planet.yaml, which cannot separate an edited comment from an edited
     # parameter, and which nothing was checking. `config_stamp` keeps the parsed
     # config beside it so `config_drift` has something to compare.
-    report.update(config_stamp(config, "exoplasim/scripts/build_surface_soil_water.py"))
+    # `inputs` covers what `source_config` cannot: the derived files this
+    # generator read. The bespoke `*_sha256` keys above recorded some of the
+    # same hashes and nothing compared them; `check_consistency.py` compares
+    # these. lib/provenance.py:input_stamp carries the argument.
+    inputs = [args.states] + [p for p in (args.climatology, args.lakes)
+                              if p is not None]
+    report.update(config_stamp(config,
+                               "exoplasim/scripts/build_surface_soil_water.py",
+                               inputs=inputs))
 
     report_path = output.with_name(output.stem + "_provenance.json")
     report_path.write_text(json.dumps(report, indent=2) + "\n")

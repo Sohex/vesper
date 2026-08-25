@@ -60,7 +60,7 @@ TOPOGRAPHY_CODE = 129
 
 
 def coastline_ledger(mesh: Export, grid_dir: Path, mask: np.ndarray,
-                     elev_m: np.ndarray) -> dict:
+                     elev_m: np.ndarray, threshold_value: float) -> dict:
     """What thresholding a fractional coastline into a binary mask costs.
 
     The model's mask is binary and cannot be otherwise: `oceanmod.f90:256`
@@ -95,6 +95,14 @@ def coastline_ledger(mesh: Export, grid_dir: Path, mask: np.ndarray,
     model receives. It is the quantity a mask change moves that an area alone
     does not, because the terrain the fork exists to preserve sits below the
     datum and enters it with the opposite sign.
+
+    `candidate_rules` prices the ALTERNATIVES on the same grid and in the same
+    terms. A threshold is a decision, and a decision taken against one rule's
+    cost is not a comparison; the three that were proposed answer different
+    questions -- conserve land AREA, exempt below-datum land from the threshold
+    outright, or leave 0.5 -- and each is reported whether or not it is
+    adopted. Nothing in that block changes what this builder writes.
+    `notes/audits/coastline-threshold-cost.md` reads them.
     """
     cell, nlat, nlon = region_cells(mesh, grid_dir)
     ncell = nlat * nlon
@@ -135,7 +143,73 @@ def coastline_ledger(mesh: Export, grid_dir: Path, mask: np.ndarray,
     model_volume = float((total[flat] * per_cell_elev[flat]).sum())
 
     partial = covered & (shares["land"] > 0.0) & (shares["land"] < 1.0)
+
+    # -- what each CANDIDATE rule would cost, on this grid ------------------
+    #
+    # The threshold is a decision, and a decision cannot be taken against one
+    # rule's cost alone. Three rules were proposed and they answer different
+    # questions: move the threshold so land AREA is conserved; exempt cells
+    # holding below-datum land from the threshold, which is the only form that
+    # keeps `source/README.md`'s first rule; or leave 0.5. Each is priced here,
+    # in the same terms, so the comparison is read off the artifact.
+    #
+    # `land_share` is the quantity the threshold is applied to and `below_share`
+    # is the below-datum land as a share of the cell's WHOLE area, not of its
+    # land, because what an exemption has to be keyed on is how much of the cell
+    # the preserved terrain actually is.
+    land_share = np.zeros(ncell)
+    np.divide(land_area_cell, total, out=land_share, where=covered)
+    below_area_cell = cell_sum(cell, ncell, area, below)
+    below_share = np.zeros(ncell)
+    np.divide(below_area_cell, total, out=below_share, where=covered)
+
+    def cost(m) -> dict:
+        m = np.asarray(m, dtype=bool)
+        model = float(total[m].sum())
+        return {
+            "land_cells": int(m.sum()),
+            "model_land_area_relative": model / mesh_land - 1.0,
+            "below_datum_land_dropped": (float(below_area_cell[~m].sum()) / mesh_below
+                                         if mesh_below > 0 else 0.0),
+            "land_dropped_of_mesh_land": float(
+                cell_sum(cell, ncell, area, is_land)[~m].sum()) / mesh_land,
+            "water_promoted_of_model_land": float(
+                (cell_sum(cell, ncell, area, sc == OCEAN)[m]
+                 + cell_sum(cell, ncell, area, sc == INLAND_WATER)[m]).sum()) / model,
+            "land_volume_closure_relative": (
+                float((total[m] * per_cell_elev[m]).sum()) - mesh_volume)
+                / abs(mesh_volume),
+        }
+
+    # The threshold that conserves land AREA. Bisected rather than solved: the
+    # mask is a step function of the threshold, so there is no derivative.
+    lo, hi = 0.0, 1.0
+    for _ in range(60):
+        mid = 0.5 * (lo + hi)
+        if float(total[land_share >= mid].sum()) > mesh_land:
+            lo = mid
+        else:
+            hi = mid
+    area_conserving = 0.5 * (lo + hi)
+
+    candidates = {
+        "why": ("a threshold is a DECISION and cannot be taken against one "
+                "rule's cost alone; these are the alternatives priced in the "
+                "same terms. Nothing here changes what this builder writes."),
+        "as_configured": cost(mask.reshape(-1) > 0),
+        "area_conserving": {"threshold": area_conserving,
+                            **cost(land_share >= area_conserving)},
+    }
+    # The exemption family: a sub-threshold cell is kept as land when the
+    # below-datum land in it reaches this share of the cell. `any` is the
+    # outright exemption, which is the form that recovers ALL of the preserved
+    # terrain and is priced here so what it costs to do so is visible.
+    for share, name in ((1.0e-12, "any"), (0.10, "0.10"), (0.25, "0.25")):
+        candidates[f"exempt_below_datum_share_{name}"] = cost(
+            (land_share >= threshold_value) | (below_share >= share))
+
     return {
+        "candidate_rules": candidates,
         "why": ("the model's mask is binary at oceanmod.f90:256 whatever this "
                 "builder writes; this is the size of the rounding, in both "
                 "signs, not a proposal to change it"),
@@ -190,7 +264,8 @@ def build(mesh: Export, grid_dir: Path, threshold: float, gravity: float):
         "land_fraction": fraction,
         "geopotential": mean_elev * gravity,
         "elevation_m": mean_elev,
-        "coastline_ledger": coastline_ledger(mesh, grid_dir, mask, elev_m),
+        "coastline_ledger": coastline_ledger(mesh, grid_dir, mask, elev_m,
+                                            threshold),
     }
 
 

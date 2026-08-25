@@ -573,6 +573,166 @@ def check_spectrum_guard() -> list[str]:
     return bad
 
 
+def check_input_stamp_guard() -> list[str]:
+    """A re-derived input file is detected under an unchanged name.
+
+    world-nvs2, and the same shape as `check_spectrum_guard` above: the config
+    stamp compares parsed configuration values and is blind to a DERIVED FILE a
+    generator read, because that file's name does not move when its own
+    generator re-runs. Every negative here is paired with the positive proving
+    the record was otherwise acceptable, or the refusal would prove nothing.
+    """
+    import json
+    import tempfile
+    from provenance import artifact_input_drift, input_drift, input_stamp
+
+    bad = []
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        read = root / "derived.json"
+        read.write_text('{"shape": 1}\n', encoding="utf-8")
+        absent = root / "never_written.json"
+
+        # The stamp keys a path relative to the PROJECT root, so a path outside
+        # it -- which this temporary directory is -- is keyed absolute. Read the
+        # keys back rather than assume either shape; `input_drift` joins them
+        # onto its `root` and an absolute key survives that join unchanged.
+        stamp = input_stamp([read, absent])["source_inputs"]
+        if stamp.get(str(read)) is None:
+            bad.append("a file that exists was stamped as absent")
+        if str(absent) not in stamp:
+            bad.append("an absent input was dropped from the stamp rather "
+                       "than recorded as absent")
+
+        if input_drift(stamp, root):
+            bad.append("an unchanged input was reported as moved")
+
+        read.write_text('{"shape": 2}\n', encoding="utf-8")
+        if not input_drift(stamp, root):
+            bad.append("a rewritten input was not reported")
+
+        absent.write_text("{}\n", encoding="utf-8")
+        if len(input_drift(stamp, root)) != 2:
+            bad.append("an input that appeared after the build was not reported")
+
+        read.unlink()
+        if not any("missing" in line for line in input_drift(stamp, root)):
+            bad.append("a deleted input was not reported as missing")
+
+        # And the artifact-facing wrapper's three-valued answer: None for a
+        # record with no stamp at all, which is UNOBSERVABLE and not "current".
+        unstamped = root / "unstamped_report.json"
+        unstamped.write_text(json.dumps({"generator": "x"}) + "\n",
+                             encoding="utf-8")
+        if artifact_input_drift(unstamped, root) is not None:
+            bad.append("an artifact with no input stamp was reported as checked")
+        stamped = root / "stamped_report.json"
+        stamped.write_text(json.dumps({"source_inputs": stamp}) + "\n",
+                           encoding="utf-8")
+        if not artifact_input_drift(stamped, root):
+            bad.append("artifact_input_drift did not see the drift its own "
+                       "input_drift reports")
+    return bad
+
+
+def check_staged_surface_build_guard() -> list[str]:
+    """A staged surface field from another build is refused at the read.
+
+    world-xgtj. `exoplasim/inputs/<rung>/orogen_<RUNG>_surf_<code>.sra` is keyed
+    by the RUNG alone while `surface_albedo` rewrites it per BUILD, so the path
+    cannot say which build's field is in it. Every negative below is paired with
+    the positive proving the fixture was otherwise acceptable, and the fixture
+    is built from the REGISTRY's own hashes so it cannot pass by describing a
+    build that does not exist.
+    """
+    import hashlib
+    import json
+    import tempfile
+    import yaml
+    from orogen import _KNOWN_TERRAIN_HASHES
+    from provenance import staged_surface_field
+
+    config = yaml.safe_load(
+        (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    rung = str(config["model"]["resolution"]).upper()
+    import builds as _builds
+    active = _builds.terrain_hash(config)
+    other = next((h for h in _KNOWN_TERRAIN_HASHES if h != active), None)
+    if other is None:
+        return ["the registry holds only one terrain hash, so a cross-build "
+                "read cannot be constructed and nothing below tests anything"]
+
+    bad = []
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        rung_dir = root / "exoplasim" / "inputs" / rung.lower()
+        rung_dir.mkdir(parents=True)
+        sra = rung_dir / f"orogen_{rung}_surf_0174.sra"
+        sra.write_text("self-test background albedo\n", encoding="ascii")
+        report = rung_dir / "albedo_report.json"
+
+        def stamp(terrain, codes=(174, 175, 176, 212)):
+            report.write_text(json.dumps(
+                {"terrain_hash": terrain, "codes": list(codes)}) + "\n",
+                encoding="utf-8")
+
+        stamp(active)
+        try:
+            rec = staged_surface_field(174, config, root=root)
+            if rec["terrain_hash"] != active:
+                bad.append("the record does not carry the build it read")
+            if rec["sha256"] != hashlib.sha256(sra.read_bytes()).hexdigest():
+                bad.append("the record's sha256 is not the file's")
+        except SystemExit as exc:
+            bad.append(f"a field staged from the active build was refused: {exc}")
+
+        stamp(other)
+        try:
+            staged_surface_field(174, config, root=root)
+            bad.append("a field staged from another build was read without a "
+                       "declaration")
+        except SystemExit:
+            pass
+
+        # A declaration NAMES the build, so it admits exactly that one.
+        other_name = _KNOWN_TERRAIN_HASHES[other]["name"]
+        try:
+            rec = staged_surface_field(174, config, root=root,
+                                       for_build=other_name)
+            if rec["declared_cross_build"] != other_name:
+                bad.append("a declared cross-build read did not record the "
+                           "declaration")
+        except SystemExit as exc:
+            bad.append(f"a correctly declared cross-build read was refused: {exc}")
+        stamp(active)
+        try:
+            staged_surface_field(174, config, root=root, for_build=other_name)
+            bad.append("a declaration for one build admitted another build's field")
+        except SystemExit:
+            pass
+        try:
+            staged_surface_field(174, config, root=root, for_build="no-such-build")
+            bad.append("an unregistered build name was accepted as a declaration")
+        except SystemExit:
+            pass
+
+        # An unstamped field is UNOBSERVABLE, not current.
+        report.unlink()
+        try:
+            staged_surface_field(174, config, root=root)
+            bad.append("a staged field with no provenance beside it was read")
+        except SystemExit:
+            pass
+        # And a code no record names is unstamped even when the directory has one.
+        stamp(active, codes=(173,))
+        try:
+            staged_surface_field(174, config, root=root)
+            bad.append("a code no record names was read off another code's stamp")
+        except SystemExit:
+            pass
+    return bad
+
+
 def check_slope_fit() -> list[str]:
     """`lib/orogen.py:local_slope_deg` reproduces a gradient it can get wrong.
 
@@ -1475,6 +1635,10 @@ def main() -> None:
                check_purge_never_reaches_the_terrain()),
               ("local_slope_deg reproduces an analytic gradient",
                check_slope_fit()),
+              ("a re-derived input file is caught under an unchanged name",
+               check_input_stamp_guard()),
+              ("a staged surface field from another build is refused",
+               check_staged_surface_build_guard()),
               ("the convergence window follows the declared purposes",
                check_production_window()),
               ("no control patch is left in the model source",

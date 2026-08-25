@@ -62,6 +62,7 @@ import yaml
 from _paths import CONFIG, INPUTS, PROJECT_ROOT  # noqa: E402  (puts lib/ on sys.path)
 import climatology  # noqa: E402  from lib/, put on sys.path by _paths
 from paths import climatology_path, rel, require_configured_grid  # noqa: E402
+from provenance import input_stamp
 from sra import write_sra
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -366,6 +367,15 @@ def main() -> None:
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True,
             cwd=PROJECT_ROOT).stdout.strip() or None,
     }
+    # The derived files this generator read, hashed on the one footing
+    # `check_consistency.py` compares. The bespoke `*_sha256` keys above are the
+    # same facts in a shape nothing could check; this step is absent from
+    # `INERT_CONFIG_KEYS` -- its config trace has not been done -- and the input
+    # check does not depend on that set, so it is covered either way.
+    provenance.update(input_stamp([
+        args.dust, args.dust_report, args.optics, args.aerofile,
+        args.dust_config, args.climatology]))
+
     report_path = output.with_name(output.stem + "_provenance.json")
     report_path.write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
 
