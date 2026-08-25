@@ -366,10 +366,11 @@ number.
 
 **`oreopoulos2012` says the whole family is one-signed against a reference that
 DOES carry the continuum.** CIRC Phase I scores 13 shortwave codes against
-LBLRTM/CHARTS with MT_CKD_2.0, and manuscript p. 11 reports that "only models 2
-and 5 achieve absorption errors within +/-2.5% for all the pristine cases"; the
-conclusions on manuscript p. 18 say "previously found underestimates of SW
-absorption by less spectrally detailed models seem to be confirmed here". Every
+LBLRTM/CHARTS with MT_CKD_2.0, and p. 6 reports that "Only Models 2 and 5 (an
+LBL code) achieve absorption errors within 2.5% for all the pristine cases"; the
+conclusions on p. 15 say "Previously found underestimates of SW absorption by
+less spectrally detailed models [Ackerman et al., 2003] were confirmed again
+here". Every
 code's mean column-absorption error in its Figure 4 is negative. So a 12 to 16%
 under-absorption for a two-band 1974 scheme is at the outer edge of the
 documented behaviour of this family and not outside it.
