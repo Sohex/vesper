@@ -118,7 +118,9 @@ def subgrid_slope(mesh: Export, grid_dir: Path, baseline_km: float) -> np.ndarra
     That is the compound topographic index's mechanism, not the self-affine one
     the scarp gradient has and not a population bias; over a declared run the
     same quantiles agree to 1.069x, inside the 1.15x bar
-    `notes/audits/orogen-resolution.md` fixed for this class.
+    `notes/audits/orogen-resolution.md` fixed for this class. The baseline is a
+    unit for the spread and not a length this statistic samples at, so it does
+    not have to be the 90 km the scarp relief term declares.
 
     WHAT THE MAGNITUDE IS. A spread over a declared length, and not the
     terrain's hillslope gradient: a T42 cell is hundreds of kilometres across

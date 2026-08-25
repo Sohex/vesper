@@ -259,8 +259,10 @@ because the numerator is a within-cell statistic of a fixed cell and the terrain
 has converged.
 
 So `catena.gradient_baseline_km` declares the run, at 30 km, above Orogen's
-measured ~20 km terrain-information floor and the same baseline the scarp relief
-term uses. The magnitude is not the terrain's hillslope gradient and never was:
+measured ~20 km terrain-information floor. It is a unit for the spread rather
+than a length the statistic samples at, which is why it can sit below the 90 km
+the scarp relief term needs: what has to converge here is the within-cell
+spread, and it does. The magnitude is not the terrain's hillslope gradient and never was:
 a T42 cell is hundreds of kilometres across, real catenas run at 100 m, and
 `slope_transport` is declared against real hillslope gradients rather than
 fitted to this distribution. What the field carries is the pattern.
