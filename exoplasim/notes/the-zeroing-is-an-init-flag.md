@@ -179,11 +179,28 @@ library at the first timestep before it can say anything about itself. `NSHTNS=0
 selects legmod, which is the reference arm `verify_shtns_model.sh` already
 compares against.
 
-**What still holds the 26.03% trade is one point measurement, and nothing runs
-it.** The restart under `-finit-real=snan` with `FE_INVALID` MASKED was bit
-identical to production's on the same bed. That gate propagates rather than
-traps, so the fold does not defeat it and it works at `-O3`; it is not declared
-in `config/pipeline.yaml` and has not been run since wave 1 changed the model.
+**What holds the 26.03% trade is the PROPAGATING gate, and it is declared.**
+The restart under `-finit-real=snan` with `FE_INVALID` MASKED was bit identical
+to production's on the same bed. That gate propagates rather than traps, so the
+fold does not defeat it and it works at the levels this project ships.
+`exoplasim/scripts/verify_uninitialised_reads.sh` is that gate, a `checks` row
+in `config/pipeline.yaml`, and it runs both switch settings so a difference
+SHTns's own scratch over-read causes is separated from one the model causes.
+
+Re-measured 2026-08-24 at 97c05751, after wave 1 and after `world-qml` changed
+`surfmod.f90`, at T21, sixteen threads, 60 steps, on a cold bed from
+`run_2b20e3324bb0`:
+
+| arm | `plasim_status` |
+| --- | --- |
+| NSHTNS=1, shipped and poisoned | `cc08fad407e25b0eb80d6dba` |
+| NSHTNS=0, shipped and poisoned | `0cdd0d186409fb5f8352c607` |
+
+Bit identical on both. The control -- an external subroutine with one
+never-written local, folded into the temperature tendency through a factor that
+is zero at run time -- gives `09640d2ae6160a8b463a6723` under the poison while
+its shipped arm stays at `0cdd0d186409fb5f8352c607`, so the comparison sees an
+uninitialised read that reaches a stored field and sees nothing else.
 
 ## What this retires
 
