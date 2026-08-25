@@ -501,17 +501,38 @@ export function attachHypsometry(selected, r_elevation, cellArea, levels = BASIN
  *
  * This is explicitly NOT a judgement about endorheism — see the module header.
  * It answers one question: is this depression a landform the mesh actually
- * resolves, or is it noise? Two floors, and a depression must clear both:
+ * resolves, or is it noise? Three floors, and a depression must clear all of
+ * them. They are NOT in the same currency, and that decides which one governs a
+ * given build:
  *
- *   absolute   — a real landform is at least BASIN_MIN_DEPTH_KM deep and
- *                BASIN_MIN_AREA_KM2 across. Fixed physical numbers, so the
- *                same planet preserves the same basins at 2K regions and at
- *                2.5M. This is what makes the feature scale-invariant.
- *   resolution — and at least BASIN_MIN_CELLS cells, because a depression
+ *   area       — BASIN_MIN_AREA_KM2 across, in real km². A fixed physical size,
+ *                so the same planet preserves the same basins at any region
+ *                count once the mesh can hold them. This is the floor that
+ *                makes the feature scale-invariant.
+ *   cells      — and at least BASIN_MIN_CELLS cells, because a depression
  *                spanning three cells is a mesh artifact whatever its area
- *                works out to. Only ever binds at coarse resolutions.
+ *                works out to. Binds only while the mesh is coarse enough that
+ *                BASIN_MIN_CELLS cells cover more ground than
+ *                BASIN_MIN_AREA_KM2.
+ *   depth      — and BASIN_MIN_DEPTH_KM below its spill, compared against the
+ *                depression's depth in the model's DIMENSIONLESS elevation
+ *                parameter. That is the currency the terrain noise this floor
+ *                exists to reject lives in, which is why the threshold is
+ *                calibrated there, and it is NOT a physical depth: the
+ *                model-unit-to-km curve is quartic above sea level, linear
+ *                below it, and saturates at model elevation 1, so one threshold
+ *                is many different physical depths depending on where the
+ *                depression sits. It admits depressions a few metres deep near
+ *                sea level, demands hundreds of metres on high ground, and
+ *                admits depressions lying wholly above the saturation whose
+ *                published physical depth is exactly zero. The `Km` in the
+ *                constant's name is the units it was reasoned in, not the units
+ *                it is compared in; `basinResolutionContext` publishes that
+ *                distinction so a consumer of the manifest does not have to
+ *                infer it, and `hydrography/scripts/catalogue_floor.py`
+ *                measures what it costs on a given build.
  *
- * Explicit IDs bypass both floors: naming a basin means you want it.
+ * Explicit IDs bypass every floor: naming a basin means you want it.
  */
 /**
  * Parse a drainage-hypothesis file.
@@ -579,7 +600,12 @@ export function selectBasins(basins, opts = {}) {
     // Threshold-qualifying basins, outermost first, so the nesting filter below
     // can ask "is an ancestor already in?".
     const qualifies = (b) => enabled
-        && b.depth >= minDepthKm     // model units: the threshold is calibrated there
+        // `b.depth`, not `b.depthKm`: the threshold is calibrated in model units
+        // and the physical depth it enforces therefore varies over the curve.
+        // The docstring above says what that costs. Changing it to `b.depthKm`
+        // changes the preserved set and therefore the terrain, so it is a
+        // regeneration decision rather than a correction to make in passing.
+        && b.depth >= minDepthKm
         && b.areaKm2 >= minAreaKm2
         && b.cellCount >= minCells;
 
@@ -1251,10 +1277,29 @@ export function basinResolutionContext(numRegions, radiusKm, opts = {}) {
         minDepthKm,
         minAreaKm2,
         minCells,
-        // Which floor actually binds: the absolute area, or the cell count once
-        // converted to area at this resolution and planet size.
+        // The depth floor is compared against the depression's depth in the
+        // model's dimensionless elevation parameter, not in km, so `minDepthKm`
+        // above is a model-unit number wearing a physical name. Published
+        // because a consumer reading a criteria block otherwise reasons about a
+        // 50 m floor that was never enforced: the same threshold admits
+        // depressions a few metres deep near sea level and demands hundreds of
+        // metres on high ground. `selectBasins` has the argument.
+        minDepthComparedIn: 'model elevation (dimensionless)',
+        minDepthIsPhysical: false,
+        // Which floor binds, ON THE AVERAGE CELL. `cell` is the mean dual area
+        // over the whole sphere, so this is a statement about the typical
+        // depression and not a guarantee about any particular one: local cell
+        // area varies with the mesh jitter, and where cells run large the cell
+        // floor can still reject a depression above effectiveMinAreaKm2. Ask
+        // `hydrography/scripts/catalogue_floor.py` what it did on a given
+        // catalogue rather than inferring it from this field.
         effectiveMinAreaKm2: Math.max(minAreaKm2, minCells * cell),
         bindingFloor: minCells * cell > minAreaKm2 ? 'minCells' : 'minAreaKm2',
+        bindingFloorBasis: 'mean cell area over the sphere',
+        // And neither: the two floors above compare area against area, while
+        // the depth floor is in another currency entirely, so `bindingFloor`
+        // never names it however much of the catalogue it decides.
+        bindingFloorExcludes: 'minDepthKm',
     };
 }
 

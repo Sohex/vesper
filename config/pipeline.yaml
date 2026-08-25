@@ -1190,6 +1190,13 @@ one_offs:
   - hydrography/scripts/build_us_wtd_sites.py
   - hydrography/scripts/earth_calibration.py
   - hydrography/scripts/lake_balance.py
+  # Which of `selectBasins`'s three floors decides a build's preserved set, and
+  # how much dry closed-basin floor sits below sea level outside every preserved
+  # basin. Outside the graph because it is a verdict on exports that already
+  # exist and nothing consumes its JSON. It reads named builds rather than the
+  # active one, so a change of `source_build` does not invalidate it.
+  # notes/audits/basin-catalogue-floor.md.
+  - hydrography/scripts/catalogue_floor.py
   - pedology/scripts/validate_against_earth.py
   - pedology/scripts/probe_runoff_response.py
   - biosphere/scripts/score_prediction.py

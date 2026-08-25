@@ -1,0 +1,270 @@
+{
+  "note": "Modelled terrain of an invented planet. A pre-carve build is a LIMIT, not a state: every basin number here is what sits in source/ before any carve verdict has been applied.",
+  "generated": "2026-08-25T12:08:02.734929+00:00",
+  "provenance": {
+    "script": "hydrography/scripts/catalogue_floor.py",
+    "git_commit": "d24751cf7d43b285feb9edab184a567d9f381529",
+    "python": "3.14.7",
+    "numpy": "2.5.2"
+  },
+  "builds": [
+    {
+      "label": "precarve-craton",
+      "export": "source/precarve-craton/exoplasim-T42",
+      "terrain_hash": "e931b0d9947a232210a3cc11ba82003b5da15765d86e87956bc44c220932760e",
+      "catalogue_hash": "7b56935b498da4e8ee0db6861092c21caa524503c3aefaa0fbff3782451612dd",
+      "pre_carve": true,
+      "resolution": {
+        "numRegions": 2500001,
+        "radiusKm": 7645.2,
+        "avgEdgeKm": 15.190379803857212,
+        "avgCellAreaKm2": 293.7970183012307,
+        "minDepthKm": 0.05,
+        "minAreaKm2": 1000,
+        "minCells": 12,
+        "effectiveMinAreaKm2": 3525.5642196147683,
+        "bindingFloor": "minCells"
+      },
+      "controls": {
+        "reproduces_published_selection": true,
+        "reproduced_count": 3621,
+        "published_count": 3621,
+        "only_in_reproduction": 0,
+        "only_in_published": 0,
+        "looser_admits_more": true,
+        "tighter_admits_fewer": true,
+        "sensitive_to_criteria": true,
+        "floor_moves_the_answer_when_relaxed_alone": {
+          "min_cells_minus_one": true,
+          "min_area_halved": false,
+          "min_depth_halved": true
+        },
+        "note": "The reproduction is the instrument. It passing means the floor accounting below is about the selection Orogen performed. sensitive_to_criteria is what makes that pass evidence: a reproduction blind to the criteria would return the same set under both perturbations. A floor that moves nothing when relaxed alone is inert on this build in the relaxing direction, which is a finding and not a fault."
+      },
+      "ladder": {
+        "detected": 81871,
+        "preserved": 3621,
+        "preserved_area_km2": 84918502.59733391,
+        "largest_preserved_km2": 3059665.245370865,
+        "smallest_preserved_km2": 2645.9789962768555,
+        "median_preserved_km2": 7525.570690155029
+      },
+      "floors": {
+        "rejections_before_nesting": {
+          "fails_cells_alone": 7158,
+          "fails_area_alone": 0,
+          "fails_depth_alone": 1799,
+          "passes_all_three": 5659
+        },
+        "relax_min_cells": {
+          "preserved": 8084,
+          "added_vs_as_built": 4463,
+          "added_fraction_of_as_built": 1.2325324495995582,
+          "preserved_area_km2": 93292087.15067744,
+          "added_area_km2": 8373584.5533435345
+        },
+        "relax_min_area": {
+          "preserved": 3621,
+          "added_vs_as_built": 0,
+          "added_fraction_of_as_built": 0.0,
+          "preserved_area_km2": 84918502.59733391,
+          "added_area_km2": 0.0
+        },
+        "relax_min_depth": {
+          "preserved": 4316,
+          "added_vs_as_built": 695,
+          "added_fraction_of_as_built": 0.191935929301298,
+          "preserved_area_km2": 90320793.30059719,
+          "added_area_km2": 5402290.703263283
+        },
+        "note": "relax_min_cells is the mesh's remaining bite on this build: the basins the region count alone is keeping out. It is the quantity the resolution-limited claim is about."
+      },
+      "depth_floor_units": {
+        "declared_value": 0.05,
+        "declared_units_in_manifest": "km",
+        "units_actually_compared": "dimensionless model elevation",
+        "physical_depth_at_the_threshold_km": {
+          "samples": 614,
+          "min": 0.0,
+          "median": 0.061707816990916195,
+          "max": 0.4851339919394171
+        },
+        "preserved_depth_km": {
+          "min": 0.0,
+          "p5": 0.019645275456457736,
+          "median": 0.1404082640822433
+        },
+        "preserved_shallower_than_declared": 773,
+        "preserved_shallower_than_declared_fraction": 0.21347694007180337,
+        "counterfactual_floor_in_km": {
+          "preserved": 2879,
+          "net_vs_as_built": -742,
+          "admitted_that_are_not_preserved_now": 31,
+          "dropped_that_are_preserved_now": 773
+        },
+        "note": "A counterfactual, not a proposal. Changing the comparison changes the preserved set and therefore the terrain, which is a loop A decision and costs a generation."
+      },
+      "below_sea_level_residue": {
+        "land_area_km2": 317310432.0,
+        "below_sea_level_dry_land": {
+          "regions": 48119,
+          "area_km2": 14043556.0,
+          "area_fraction_of_land": 0.04425809904932976
+        },
+        "inside_a_preserved_basin": {
+          "regions": 43559,
+          "area_km2": 12758025.0
+        },
+        "outside_any_preserved_basin": {
+          "regions": 4560,
+          "area_km2": 1285530.5,
+          "area_fraction_of_land": 0.004051333758980036,
+          "area_share_of_the_disagreement": 0.09153881669044495,
+          "count_share_of_the_disagreement": 0.09476506161807187,
+          "deepest_km": -0.4532672166824341
+        },
+        "endorheic_footprint": {
+          "area_km2": 84918496.0,
+          "area_fraction_of_land": 0.26761960983276367,
+          "note": "The depression FOOTPRINT, which is not the endorheic CATCHMENT. The catchment share is manifest.basins.drainageConsistency.fractionOfLand and is the larger number by roughly a factor of three."
+        },
+        "control_against_manifest": {
+          "regions_agree": true,
+          "inside_agree": true,
+          "published_regions": 48119,
+          "published_inside": 43559
+        }
+      },
+      "manifest_sha256": "1ee67778ffef7dc20d593c88725ee6fe1e01cc4178cb831788a62f45b3c6ff94"
+    },
+    {
+      "label": "precarve-craton-10m",
+      "export": "source/precarve-craton-10m/exoplasim-T42",
+      "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
+      "catalogue_hash": "e84e619dfc4dca6fab7a301144fdc964c1dcb7e73592f591c3b07dd6a6e73c5e",
+      "pre_carve": true,
+      "resolution": {
+        "numRegions": 10000005,
+        "radiusKm": 7645.2,
+        "avgEdgeKm": 7.595189522169292,
+        "avgCellAreaKm2": 73.4492472303859,
+        "minDepthKm": 0.05,
+        "minAreaKm2": 1000,
+        "minCells": 12,
+        "effectiveMinAreaKm2": 1000,
+        "bindingFloor": "minAreaKm2"
+      },
+      "controls": {
+        "reproduces_published_selection": true,
+        "reproduced_count": 9419,
+        "published_count": 9419,
+        "only_in_reproduction": 0,
+        "only_in_published": 0,
+        "looser_admits_more": true,
+        "tighter_admits_fewer": true,
+        "sensitive_to_criteria": true,
+        "floor_moves_the_answer_when_relaxed_alone": {
+          "min_cells_minus_one": true,
+          "min_area_halved": true,
+          "min_depth_halved": true
+        },
+        "note": "The reproduction is the instrument. It passing means the floor accounting below is about the selection Orogen performed. sensitive_to_criteria is what makes that pass evidence: a reproduction blind to the criteria would return the same set under both perturbations. A floor that moves nothing when relaxed alone is inert on this build in the relaxing direction, which is a finding and not a fault."
+      },
+      "ladder": {
+        "detected": 286534,
+        "preserved": 9419,
+        "preserved_area_km2": 98455071.84221452,
+        "largest_preserved_km2": 5499601.202706456,
+        "smallest_preserved_km2": 1000.1905364990234,
+        "median_preserved_km2": 2649.575393676758
+      },
+      "floors": {
+        "rejections_before_nesting": {
+          "fails_cells_alone": 18,
+          "fails_area_alone": 1978,
+          "fails_depth_alone": 6670,
+          "passes_all_three": 15911
+        },
+        "relax_min_cells": {
+          "preserved": 9427,
+          "added_vs_as_built": 8,
+          "added_fraction_of_as_built": 0.0008493470644442085,
+          "preserved_area_km2": 98463291.00649256,
+          "added_area_km2": 8219.164278030396
+        },
+        "relax_min_area": {
+          "preserved": 10524,
+          "added_vs_as_built": 1105,
+          "added_fraction_of_as_built": 0.1173160632763563,
+          "preserved_area_km2": 99446880.85395414,
+          "added_area_km2": 991809.0117396116
+        },
+        "relax_min_depth": {
+          "preserved": 11940,
+          "added_vs_as_built": 2521,
+          "added_fraction_of_as_built": 0.2676504936829812,
+          "preserved_area_km2": 105045186.6158995,
+          "added_area_km2": 6590114.7736849785
+        },
+        "note": "relax_min_cells is the mesh's remaining bite on this build: the basins the region count alone is keeping out. It is the quantity the resolution-limited claim is about."
+      },
+      "depth_floor_units": {
+        "declared_value": 0.05,
+        "declared_units_in_manifest": "km",
+        "units_actually_compared": "dimensionless model elevation",
+        "physical_depth_at_the_threshold_km": {
+          "samples": 1789,
+          "min": 0.0,
+          "median": 0.08533096235843096,
+          "max": 0.4921783787867504
+        },
+        "preserved_depth_km": {
+          "min": 0.0006778961503969188,
+          "p5": 0.018453235035251595,
+          "median": 0.13979308959544196
+        },
+        "preserved_shallower_than_declared": 2077,
+        "preserved_shallower_than_declared_fraction": 0.22051173160632764,
+        "counterfactual_floor_in_km": {
+          "preserved": 7471,
+          "net_vs_as_built": -1948,
+          "admitted_that_are_not_preserved_now": 129,
+          "dropped_that_are_preserved_now": 2077
+        },
+        "note": "A counterfactual, not a proposal. Changing the comparison changes the preserved set and therefore the terrain, which is a loop A decision and costs a generation."
+      },
+      "below_sea_level_residue": {
+        "land_area_km2": 318136992.0,
+        "below_sea_level_dry_land": {
+          "regions": 332768,
+          "area_km2": 24359486.0,
+          "area_fraction_of_land": 0.07656916975975037
+        },
+        "inside_a_preserved_basin": {
+          "regions": 316362,
+          "area_km2": 23202392.0
+        },
+        "outside_any_preserved_basin": {
+          "regions": 16406,
+          "area_km2": 1157092.75,
+          "area_fraction_of_land": 0.003637089626863599,
+          "area_share_of_the_disagreement": 0.04750070348381996,
+          "count_share_of_the_disagreement": 0.04930161553995577,
+          "deepest_km": -0.5129599571228027
+        },
+        "endorheic_footprint": {
+          "area_km2": 98455072.0,
+          "area_fraction_of_land": 0.30947381258010864,
+          "note": "The depression FOOTPRINT, which is not the endorheic CATCHMENT. The catchment share is manifest.basins.drainageConsistency.fractionOfLand and is the larger number by roughly a factor of three."
+        },
+        "control_against_manifest": {
+          "regions_agree": true,
+          "inside_agree": true,
+          "published_regions": 332768,
+          "published_inside": 316362
+        }
+      },
+      "manifest_sha256": "6192c3c9d3113914218ac0cbe27fbf23daced930b5d17bd56f7555ee1c8fe09e"
+    }
+  ]
+}
