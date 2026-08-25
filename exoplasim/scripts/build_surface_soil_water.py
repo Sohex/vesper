@@ -22,7 +22,7 @@ biosphere. That is the third loop in this pipeline.
 `pedology/data/<build>/land_column_states_<res>.txt`, written by
 `pedology/scripts/land_column_properties.py`, whose `awc_mm` column is the
 plant-available capacity of the declared physical column: the contract's
-retention states at this world's gravity, integrated over its fifteen layers
+retention states at this world's gravity, integrated over the declared column
 with the weathered-bedrock rule applied. The same file gives LPJ-GUESS its
 per-layer states, so the two land columns agree on how much water there is by
 construction. It used to be `soilmap.txt`'s `awc` column, which is pedology's

@@ -224,7 +224,7 @@ steps:
   - id: land_water_ledger
     script: hydrography/scripts/land_water_ledger.py
     cost: seconds
-    needs: []
+    needs: [land_column_properties]
     writes: [hydrography/analysis/land_water_ledger_report.json]
     gate: >
       the one ledger every terrestrial water store and flux books into, from
@@ -427,10 +427,14 @@ steps:
     script: pedology/scripts/land_column_properties.py
     cost: seconds
     needs: [soil]
-    writes: [pedology/analysis/land_column_properties_report.json]
+    writes: [pedology/analysis/land_column_properties_report.json, "pedology/data/{build}/land_column_states_{res}.txt"]
     gate: >
       the one vertically explicit hydraulic and thermal description of the land
-      column, and the comparison of every consumer against it. It reads
+      column, and the only place its retention states are derived. It emits
+      them per cell -- saturation, field capacity, the wilting point, the
+      closure's exponent, the plant-available capacity of the declared column
+      and the weathered-bedrock usable share per physical layer -- and
+      surface_soil_water and lpj_driver READ that file. It reads
       pedology/config/land_column_properties.yaml and fails on a contract that
       does not hang together -- layers that do not reach the declared base, a
       root below the column, a state silent on whether it depends on gravity, a
@@ -438,18 +442,17 @@ steps:
       measured at, a retention closure with no family named, uncertainty
       declared per layer rather than correlated, or an aquifer property shared
       with the vadose zone -- and exercises that check against ten contracts
-      built wrong. It runs no model: the capacity comparison, the margin from
-      the Cosby inversion's air-entry clamp, the gravity correction to field
-      capacity and the cost of making one derivation central are all read off
-      the checked-in soil map. With properties still undeclared it
-      reports and exits 0; `--strict` is the arm that refuses. surface_soil_water
-      needs it so the description sits upstream of the field it feeds.
+      built wrong. It also fails when the states differ between two consistent
+      unit frames, which they cannot: the closure reads its two invariant
+      pressures only through their ratio, and a frame change cancels. It runs no
+      model. With properties still undeclared it reports and exits 0;
+      `--strict` is the arm that refuses.
 
   - id: surface_soil_water
     script: exoplasim/scripts/build_surface_soil_water.py
     loop: A
     cost: minutes
-    needs: [soil, land_column_properties]
+    needs: [land_column_properties]
     writes: ["exoplasim/inputs/{res_lower}/orogen_{res}_surf_0229_provenance.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0229.sra"]
 
   - id: dust
@@ -804,7 +807,7 @@ steps:
     script: biosphere/scripts/build_lpj_driver.py
     loop: B
     cost: minutes
-    needs: [baseline_climatology, soil, vesper_pfts]
+    needs: [baseline_climatology, land_column_properties, vesper_pfts]
     writes: [biosphere/generated/vesper_driver_provenance.json, biosphere/generated/vesper_driver.bin]
 
   - id: bvoc_gate

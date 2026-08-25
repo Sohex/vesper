@@ -47,7 +47,7 @@ from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT, climatology_path  # noq
 import climatology as climatology_lib  # noqa: E402  from lib/, via _paths.
 # Aliased because `climatology` is a local Path in main().
 from paths import rel  # noqa: E402
-from builds import component_data, soilmap
+from builds import component_data, land_column_states
 
 import orbit
 
@@ -110,12 +110,15 @@ def run_bucket(precip_daily: np.ndarray, potential_daily: np.ndarray,
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--climatology", type=Path, default=None)
-    # Per-build: the soil map is a property of a terrain plus a climatology,
-    # and pedology/data/ is namespaced by build AND rung. There is no flat
-    # soilmap.txt
-    # any more, so this default pointed at a file that does not exist.
-    parser.add_argument("--soil-map", type=Path,
-                        default=soilmap())
+    # Per-build: the states are a property of a terrain plus a climatology, and
+    # pedology/data/ is namespaced by build AND rung.
+    #
+    # THE CAPACITY IS THE CONTRACT'S, not the soil map's `awc`. This probe asks
+    # what the model's bucket does at the capacity the model is given, and
+    # WORLD-OF6N settled that as the land column property contract's. Asking it
+    # of pedology's endmember mixture would answer about a soil no run has.
+    parser.add_argument("--states", type=Path,
+                        default=land_column_states())
     parser.add_argument("--years", type=int, default=40)
     args = parser.parse_args()
 
@@ -193,40 +196,41 @@ def main() -> None:
     print(f"  -> {'PASS' if valid else 'FAIL'}")
     print()
 
-    # --- the question: what happens at the pedology capacity
+    # --- the question: what happens at the contract capacity
     capacity_mm: dict[tuple[float, float], float] = {}
-    if args.soil_map.is_file():
-        lines = args.soil_map.read_text().splitlines()
+    if args.states.is_file():
+        lines = args.states.read_text().splitlines()
         header = lines[0].split()
-        column = header.index("awc")
+        column = header.index("awc_mm")
         for line in lines[1:]:
             parts = line.split()
             capacity_mm[(round(float(parts[0]), COORD_DECIMALS),
                          round(float(parts[1]), COORD_DECIMALS))] = float(parts[column])
     else:
-        raise SystemExit(f"{args.soil_map} not found; run build_soil.py")
+        raise SystemExit(f"{args.states} not found; run "
+                         "pedology/scripts/land_column_properties.py")
 
     lon_signed = np.round(np.where(lon > 180.0, lon - 360.0, lon), COORD_DECIMALS)
     lat_rounded = np.round(lat, COORD_DECIMALS)
-    pedology_capacity = np.full(land.shape, EXOPLASIM_DEFAULT_DWMAX_M)
+    column_capacity = np.full(land.shape, EXOPLASIM_DEFAULT_DWMAX_M)
     for j in range(len(lat)):
         for i in range(len(lon)):
             if land[j, i]:
                 value = capacity_mm.get((float(lon_signed[i]), float(lat_rounded[j])))
                 if value is not None:
-                    pedology_capacity[j, i] = value / 1000.0
+                    column_capacity[j, i] = value / 1000.0
 
-    pedology_runoff, pedology_water = run_bucket(
-        liquid_daily, potential_daily, pedology_capacity, args.years)
-    pedology_runoff_mm = land_mean(pedology_runoff) * 1000.0 * orbits_per_earth_year
+    column_runoff, column_water = run_bucket(
+        liquid_daily, potential_daily, column_capacity, args.years)
+    column_runoff_mm = land_mean(column_runoff) * 1000.0 * orbits_per_earth_year
 
-    print("PREDICTION, offline bucket at the pedology capacity")
-    print(f"  capacity            {land_mean(pedology_capacity):8.4f} m "
+    print("PREDICTION, offline bucket at the land column capacity")
+    print(f"  capacity            {land_mean(column_capacity):8.4f} m "
           f"against 0.5000")
-    print(f"  runoff              {pedology_runoff_mm:8.2f} mm per Earth year")
-    print(f"  runoff ratio        {pedology_runoff_mm / precip_mm:8.4f} "
+    print(f"  runoff              {column_runoff_mm:8.2f} mm per Earth year")
+    print(f"  runoff ratio        {column_runoff_mm / precip_mm:8.4f} "
           f"against Earth land's ~0.35")
-    print(f"  change              {pedology_runoff_mm / max(offline_runoff_mm, 1e-9):8.2f}x "
+    print(f"  change              {column_runoff_mm / max(offline_runoff_mm, 1e-9):8.2f}x "
           f"the offline 0.5 m case")
     print()
 
@@ -234,7 +238,7 @@ def main() -> None:
     # current land-mean W is read from the soil report rather than written here,
     # because it moves whenever the soil or the climatology does.
     exponent = 0.65   # Berner (1994) GEOCARB II, from Dunne (1978) + Peters (1984)
-    weathering_shift = (pedology_runoff_mm / max(model_runoff_mm, 1e-9)) ** exponent
+    weathering_shift = (column_runoff_mm / max(model_runoff_mm, 1e-9)) ** exponent
     report_path = ANALYSIS / "soil_report.json"
     current_w = None
     if report_path.is_file():
@@ -250,15 +254,15 @@ def main() -> None:
         print("  VALIDATION FAILED, so the absolute numbers above are not usable.")
         print("  What may still survive is the RELATIVE response, since both cases")
         print("  share the same bias: shrinking the bucket from 0.500 to "
-              f"{land_mean(pedology_capacity):.3f} m changes")
-        print(f"  offline runoff by only {pedology_runoff_mm / max(offline_runoff_mm, 1e-9):.2f}x. "
+              f"{land_mean(column_capacity):.3f} m changes")
+        print(f"  offline runoff by only {column_runoff_mm / max(offline_runoff_mm, 1e-9):.2f}x. "
               "If that weak sensitivity is real, the")
         print("  soil-water feedback will not on its own fix the low runoff ratio.")
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "purpose": ("offline estimate of ExoPlaSim's runoff response to a "
-                    "pedology-supplied soil water capacity, to decide whether the "
+                    "contract-supplied soil water capacity, to decide whether the "
                     "loop is worth spinning up"),
         "climatology": rel(climatology),
         "config_sha256": hashlib.sha256(CONFIG.read_bytes()).hexdigest(),
@@ -292,10 +296,10 @@ def main() -> None:
                     "offline validation failed; only a real ExoPlaSim run can "
                     "answer this"),
         "prediction": {
-            "pedology_capacity_m": land_mean(pedology_capacity),
-            "runoff_mm_per_earth_year": pedology_runoff_mm,
-            "runoff_ratio": pedology_runoff_mm / precip_mm,
-            "change_vs_offline_default": pedology_runoff_mm / max(offline_runoff_mm, 1e-9),
+            "land_column_capacity_m": land_mean(column_capacity),
+            "runoff_mm_per_earth_year": column_runoff_mm,
+            "runoff_ratio": column_runoff_mm / precip_mm,
+            "change_vs_offline_default": column_runoff_mm / max(offline_runoff_mm, 1e-9),
             "implied_weathering_multiplier": weathering_shift,
             "current_land_mean_weathering_intensity": current_w,
         },

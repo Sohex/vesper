@@ -922,10 +922,14 @@ def bucket_floor_bound() -> dict:
     latitudes = np.rad2deg(np.arcsin(leggauss(nlat)[0][::-1]))
     area_by_latitude = weights * 2.0 * np.pi * radius_m * radius_m / nlon
 
-    soilmap = builds.soilmap(config)
-    lines = soilmap.read_text(encoding="utf-8").splitlines()
+    # The capacity the MODEL installs, which is the land column property
+    # contract's, not the soil map's `awc`. Those are two numbers for one soil
+    # and WORLD-OF6N settled which one the world has; a stock computed from the
+    # other would not be the stock the bucket floor is being weighed against.
+    states = builds.land_column_states(config)
+    lines = states.read_text(encoding="utf-8").splitlines()
     header = lines[0].split()
-    lat_column, awc_column = header.index("Lat"), header.index("awc")
+    lat_column, awc_column = header.index("Lat"), header.index("awc_mm")
     rows = [line.split() for line in lines[1:] if line.strip()]
     cell_lat = np.array([float(row[lat_column]) for row in rows])
     awc_mm = np.array([float(row[awc_column]) for row in rows])
@@ -983,7 +987,7 @@ def bucket_floor_bound() -> dict:
         "orbit_ceiling_over_stock": ceiling_kg / stock_kg if stock_kg else None,
         "land_cells": len(rows),
         "steps_per_orbit": steps_per_orbit,
-        "soil_map": str(soilmap.relative_to(PROJECT_ROOT)),
+        "land_column_states": str(states.relative_to(PROJECT_ROOT)),
         "falsification_arms": arms,
         "checker_defects": defects,
     }

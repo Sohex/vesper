@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-25T06:38:00+00:00",
+  "generated": "2026-08-25T11:10:05+00:00",
   "declaration": "hydrography/config/land_water_ledger.yaml",
   "declaration_sha256": "4e9158704b8c57aa4f86e4f7d92724734015118309573d68e53abc39d6fe198b",
   "version": 1,
@@ -362,11 +362,11 @@
     },
     "orbit_ceiling_kg": 63753.595257604255,
     "orbit_ceiling_basis": "every land cell of the configured build, at every timestep of one orbit, at the worst crossing the sweep found. Nothing can reach it: the floor is touched at all only where the cap binds",
-    "land_soil_water_stock_kg": 5.2157294408686696e+16,
-    "orbit_ceiling_over_stock": 1.2223332513771309e-12,
+    "land_soil_water_stock_kg": 5.357486623574394e+16,
+    "orbit_ceiling_over_stock": 1.1899907500855186e-12,
     "land_cells": 1019,
     "steps_per_orbit": 7312,
-    "soil_map": "pedology/data/precarve-craton-10m/soilmap_T21.txt",
+    "land_column_states": "pedology/data/precarve-craton-10m/land_column_states_T21.txt",
     "falsification_arms": [
       {
         "arm": "evaporation_limit_removed",
