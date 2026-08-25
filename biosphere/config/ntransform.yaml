@@ -42,7 +42,18 @@ instruction_parameters:
 #   water_upper   Soil::get_soil_water_upper, a fraction of available capacity.
 #                 Sampled past 1.0 because three call sites clamp it with
 #                 min(1.0, wcont), which is only meaningful if it can exceed 1.
-#   wfps          Soil::wfps(0), water-filled pore space as a fraction.
+#   wfps          Soil::wfps(0), water-filled pore space as a fraction. Declared
+#                 over [0,1] because that is what the quantity means, but the
+#                 model cannot reach all of it: wfps(0) is
+#                 (wcont * gawc + gwp) / gwsats and wcont is a fraction of
+#                 AVAILABLE capacity, refused outside [0,1] by
+#                 Soil::get_soil_water. So each gridcell sees only the window
+#                 from its wilting point over saturation to its field capacity
+#                 over saturation. On the current Vesper soil map that window
+#                 runs from 0.171-0.665 at the dry end to 0.573-0.948 at the
+#                 wet end, and 164 of 4105 gridcells can never reach 0.70,
+#                 where the operator's N2 branch begins. The missing quantity
+#                 is water above field capacity.
 #   soil_ph       the range pedology's build_soil.py clips its pH field to,
 #                 `pedology/config/pedogenesis.yaml` ph.minimum and ph.maximum.
 #                 Nothing else supplies a pH: the operator refuses without one.
@@ -87,8 +98,8 @@ response_functions:
 
   - name: wet_fraction
     reads: "substrate_partition, an S-curve on denitrifier activity from Pilegaard (2013)"
-    form: "richards(0.05, 0.95, 7.5, 0.5, w)"
-    variables: {w: water_upper}
+    form: "richards(0.05, 0.95, 7.5, 0.5, x)"
+    variables: {x: wfps}
     literals: [0.05, 0.95, 7.5, 0.5]
     role: partition_fraction
     range: [0.0, 1.0]
@@ -193,6 +204,12 @@ products:
 # operator run on Vesper's water and pH. Each carries the `undeclared` sentinel
 # and the issue that owns it; `--strict` refuses while any of them is undeclared.
 # There is no default value for any field here.
+#
+# The two papers behind the calibration block settle none of these. Both are
+# Earth work at Earth's surface pressure and oxygen partial pressure, and
+# neither carries a water table: Xu-Ri and Prentice (2008) treats soil water in
+# two sublayers of 0.5 and 1.0 m, and Weier et al. (1993) incubated 60 g of
+# repacked soil in a sealed jar.
 vesper_preconditions:
   surface_pressure_response:
     declared: undeclared
@@ -209,9 +226,9 @@ vesper_preconditions:
       Nitrification is obligately aerobic and denitrification is what happens in
       its absence, so the aerobic and anaerobic split is a function of oxygen
       supply. The operator substitutes water-filled pore space for it through
-      substrate_partition, which is an Earth calibration at Earth's oxygen
-      partial pressure. config/planet.yaml declares this world's pO2 and nothing
-      in this operator reads it.
+      substrate_partition, which is what Xu-Ri and Prentice (2008) table 7 does
+      too, at Earth's oxygen partial pressure. config/planet.yaml declares this
+      world's pO2 and nothing in this operator reads it.
   soil_gas_diffusivity:
     declared: undeclared
     owner: sdec-8
@@ -232,3 +249,302 @@ vesper_preconditions:
     why: >
       The NO, N2O and N2 the operator emits leave the model at the soil surface
       and reach no atmospheric boundary. BIO-23 owns the handoff.
+
+# Every constant and every response function above, against the calibration it
+# came from. This is the Earth-calibrated response bracket the operator is held
+# to. Where the source states a value, `paper_value` is that value; where it
+# states a range, `bracket` is that range and nothing narrower is invented.
+#
+# `verdict` is what the arithmetic says, and the gate re-derives it:
+#   agrees        the model's value is the paper's, or inside the paper's range
+#   outside       the model's value is outside the range its own source gives
+#   unsourced     neither paper states it. There is no bracket to be inside of,
+#                 and no central value is fitted here to stand in for one
+#
+# A `verdict: agrees` entry whose value is not inside its bracket is a failure
+# of this declaration, and so is an `outside` entry that has moved inside it.
+# `--strict` refuses while any entry is `outside` or `unsourced`.
+calibration:
+  sources:
+    xuri2008: >
+      Xu-Ri and Prentice (2008), Terrestrial nitrogen cycle simulated with a
+      dynamic global vegetation model, Global Change Biology 14(8) 1745-1764,
+      10.1111/j.1365-2486.2008.01625.x.
+      references/xuri2008-terrestrial-nitrogen-cycle-dgvm.pdf
+    weier1993: >
+      Weier, Doran, Power and Walters (1993), Denitrification and the
+      dinitrogen/nitrous oxide ratio as affected by soil water, available carbon,
+      and nitrate, Soil Science Society of America Journal 57(1) 66-72,
+      10.2136/sssaj1993.03615995005700010013x.
+      references/weier1993-denitrification-n2-n2o-ratio.pdf
+    pilegaard2013: >
+      Pilegaard (2013), Processes regulating nitric oxide emissions from soils,
+      Phil. Trans. R. Soc. B 368(1621) 20130126, 10.1098/rstb.2013.0126.
+      references/pilegaard_2013_processes-regulating-nitric-oxide-emissions-from-soils.pdf
+
+  entries:
+    - what: instruction:f_nitri_max
+      source: "xuri2008 table 11, Nmax, and the nitrification section on p.1752"
+      paper_value: 0.1
+      bracket: [0.1, 0.403]
+      verdict: agrees
+      why: >
+        The paper gives Nmax = 0.1 per day from Khalil et al. (2004) and states
+        it AT 20 C, while table 8 eqn 2's temperature response is normalised to
+        1 at 38 C, where the model applies Nmax. That response is 0.248 at 20 C,
+        so the operator rates 20 C nitrification at 0.0248 per day against the
+        0.1 per day Khalil reports for 20 C. The bracket runs from the value as
+        the paper writes it to the 0.403 per day peak that would honour Khalil
+        at 20 C. The inconsistency is Xu-Ri's, carried faithfully into the port.
+
+    - what: instruction:k_N
+      source: "xuri2008 table 11, Kn, Michaelis-Menten constant for N oxides, from Li et al. (1992)"
+      paper_value: 0.083
+      verdict: agrees
+      why: "0.083 kgN m-3, identical."
+
+    - what: instruction:k_C
+      source: "xuri2008 table 11, Kc, Michaelis-Menten constant for labile carbon, from Li et al. (1992)"
+      paper_value: 0.017
+      verdict: agrees
+      why: "0.017 kgC m-3, identical."
+
+    - what: instruction:f_denitri_gas_max
+      source: "xuri2008 table 11, RNON and RN2ON, the gas fractions of gross nitrification"
+      bracket: [0.002, 0.042]
+      verdict: outside
+      owner: world-nga3
+      why: >
+        The operator reads this constant in `nitrification`, where it is the
+        share of gross nitrification that leaves as NO plus N2O. Table 11 gives
+        RNON as 0.1 to 4 per cent with a mean of 2 per cent, and RN2ON as under
+        0.1 to 0.2 per cent, so the sum is 0.2 to 4.2 per cent and about 2.2 per
+        cent at the means. The declared 0.33 is 7.9 times the top of that range
+        and 15 times its mean: of every kilogram of nitrogen nitrified the model
+        routes 330 grams to NO and N2O where the paper routes 2 to 42 grams.
+        This is the largest single disagreement in the operator, and it lands on
+        NET_NITRIF, NO_SOIL and N2O_SOIL directly.
+
+    - what: instruction:f_denitri_max
+      source: "xuri2008 table 9 eqn 3"
+      verdict: unsourced
+      owner: world-nga4
+      why: >
+        Table 9 eqn 3 is DNmax * ftemp * NO3/(NO3 + Kn) with no maximum-rate
+        constant beside it, and table 11 lists none. The port multiplies that
+        expression by 0.33, a ceiling of a third of the anaerobic NO3 pool per
+        day, which neither paper states.
+
+    - what: instruction:f_nitri_gas_max
+      source: "xuri2008 table 9 eqn 4"
+      verdict: unsourced
+      owner: world-nga4
+      why: >
+        The same. Table 9 eqn 4 is DNmax * ftemp * NO2/(NO2 + Kn) with no
+        maximum-rate constant, and the port multiplies it by 0.25. Note also
+        that the two ceilings are read in the opposite processes to the ones
+        their names and the instruction file's comments give them:
+        f_denitri_gas_max is read in `nitrification` and f_nitri_gas_max in
+        `denitrification`.
+
+    - what: form:michaelis_menten_divisor
+      reads: "denitrification, water_cont_m3 = wcont * gawc[0] / 1000"
+      source: "xuri2008 table 11 gives Kc and Kn in kg m-3, of an unstated volume"
+      verdict: unsourced
+      owner: world-nga5
+      why: >
+        Kc and Kn are half-saturation constants per cubic metre, and the paper
+        does not say per cubic metre of what. The operator divides by the depth
+        of AVAILABLE WATER in the upper layer, which makes the constants
+        concentrations in the soil solution; per cubic metre of SOIL the divisor
+        would be the 0.5 m layer depth instead. The two differ by a factor of
+        6.7 to 30 over the reachable water contents of the LPJ soil codes, and a
+        smaller divisor saturates the Michaelis-Menten terms sooner, so the
+        soil-solution reading is the one that maximises denitrification. Li et
+        al. (1992) is where the constants come from and is not held here.
+
+    - what: function:f_volat_temperature
+      source: "xuri2008 table 5 eqn 7"
+      compared: form
+      verdict: agrees
+      why: >
+        min{1, exp[308.56 * (1/71.02 - 1/(Tsoil + 46.02))]}, identical to the
+        paper including the min, and equal to 1 at 25 C. The operator's extra
+        guard at Tsoil below -40 C is a numerical necessity, since the argument
+        diverges at -46.02 C; the function is already 4e-21 there.
+
+    - what: function:gas_emission_multiplier
+      source: "xuri2008 table 10 eqns 1 and 2"
+      compared: form
+      verdict: agrees
+      why: >
+        Gas released = pool * ftemp * (1 - Wcont), with table 10's ftemp the
+        same function as table 5 eqn 7. Identical. The min(1, wcont) the code
+        adds is a no-op, since Soil::get_soil_water refuses a wcont above 1.
+
+    - what: function:f_nitri_temperature
+      source: "xuri2008 table 8 eqn 2"
+      compared: form
+      verdict: agrees
+      why: >
+        pow((70 - T)/(70 - 38), 12) * exp(12 * (T - 38)/(70 - 38)), identical.
+        The min{1, .} the port adds is a no-op: the function's maximum over all
+        T is exactly 1, at 38 C.
+
+    - what: function:f_denitri_temperature
+      source: "xuri2008 table 9 eqn 1"
+      compared: form
+      verdict: outside
+      owner: world-nga6
+      why: >
+        The exponential is identical, exp[308.56 * (1/68.02 - 1/(T + 46.02))],
+        equal to 1 at 22 C, with an implied Q10 of 2.04 over 15 to 25 C against
+        the "about 2" the paper's text claims. But table 9 eqn 1 carries NO
+        min{1, .}, unlike table 5 eqn 7 and table 10 eqn 1 which both state one,
+        and the paper's function exceeds 1 above 22 C: 1.21 at 25 C, 1.61 at
+        30 C, 2.07 at 35 C, 3.15 at 45 C. The port's clamp holds warm soil
+        denitrification at its 22 C value. Something has to bound it, because
+        the operator's conservation identity needs every coefficient of a pool
+        mass to stay at or below 1, and the paper does not say what.
+
+    - what: function:nh3_multiplier
+      source: "xuri2008 table 5 eqns 2, 3, 4 and 6"
+      compared: form
+      verdict: outside
+      owner: world-nga7
+      why: >
+        Composing the paper's eqns 2, 3 and 4 gives NH3gas = NH4 * ftemp^2 *
+        Wcont * (1 - Wcont) * fpH with fpH = exp(2 * (pH - 10)), which is the
+        operator's expression EXCEPT for the nh3_max step it multiplies on top:
+        0.001 above pH 6 and 0.00001 at or below. Table 5 has no such factor,
+        and the paper's own text says why it needs none: "the NH3/NH4+ ratio ...
+        is virtually zero (about 0.001) in solutions with pH below 6, but
+        approaches unity (about 0.90) in solutions with pH above 10", which is
+        what fpH alone delivers, 3.4e-4 at pH 6 and 1.0 at pH 10. nh3_max
+        applies that ratio a second time. At the pH range the soil map carries,
+        the paper's maximum daily volatilised fraction of NH4 runs to 9.2e-2 and
+        the operator's to 9.2e-5, so NH3_SOIL is three orders of magnitude below
+        the paper's formulation on the 96 per cent of gridcells above pH 6 and
+        five orders below it on the rest.
+
+    - what: function:wet_fraction
+      source: "xuri2008 table 7 and the nitrification section on p.1752, for the VARIABLE only"
+      compared: value
+      model_value: 0.5
+      bracket: [0.50, 0.66]
+      verdict: unsourced
+      owner: world-nga8
+      why: >
+        The paper settles what this function's argument is and nothing else.
+        Table 7 gives DyN's aeration variable as "soil moisture as water-filled
+        pore space (WFPS)" and the nitrification section as the WFPS of the top
+        50 cm, which is the layer Soil::wfps(0) covers, so the operator now
+        reads it. The functional form is the port's: Xu-Ri gives none, pointing
+        instead at PnET-DNDC's anaerobic balloon. The bracket is on the curve's
+        MIDPOINT, and it is the spread between the two numbers the operator's
+        own comment asserts at once -- Pilegaard's crossover from nitrification-
+        to denitrification-dominated emission at 0.60 WFPS, and the comment's
+        own "steepest change around 66%". The declared 0.5 sits at the bottom
+        edge. The shape parameter 7.5 has no source at all: the comment says the
+        curve is complete by 0.75 WFPS and it reaches 0.83 there.
+
+    - what: function:nitrification_activity
+      source: "xuri2008 table 8 eqn 1"
+      verdict: unsourced
+      owner: world-nga9
+      why: >
+        Table 8 eqn 1 is NO3inc = Nmax * ftemp * NH4_aerobic, with no moisture
+        term at all, because the WFPS partition upstream is where the paper puts
+        the moisture control. The port multiplies it by a further water response
+        that peaks at 1.0 at a water content of 0.6 and is exactly zero above
+        0.8, so nitrification stops on any wet gridcell. Neither paper states
+        it, and its argument is a fraction of available capacity rather than
+        WFPS, so its peak moves with texture the way the partition's used to.
+
+    - what: function:f_no_nitrification
+      source: "xuri2008 table 11 RNON against RN2ON, and pilegaard2013"
+      compared: derived
+      bracket: [0.33, 0.98]
+      verdict: agrees
+      why: >
+        The NO share of the gas leaving nitrification. Table 11's RNON of 0.1 to
+        4 per cent against RN2ON of under 0.1 to 0.2 per cent brackets the share
+        at 0.33 to 0.98, and this curve gives 0.50 to 0.69 over the WFPS the
+        model can reach, inside it. At 0.60 WFPS it gives 0.506, which is
+        Pilegaard's NO:N2O ratio near 1 at that crossover. What the constant
+        multiplying it is worth is a separate entry: see
+        instruction:f_denitri_gas_max.
+
+    - what: function:f_denitri_water
+      source: "weier1993 table 2, denitrification rate at 60, 75 and 90 per cent WFPS"
+      compared: value
+      model_value: 13.0360
+      bracket: [8.09, 14.06]
+      verdict: agrees
+      why: >
+        min{1, exp(13.0360 * WFPS - 11.6219)} is log-linear in WFPS, so it
+        asserts one constant factor per 15 WFPS points: exp(13.036 * 0.15) =
+        7.07. Weier's table 2 covers four soils and nine carbon-by-nitrate
+        treatments at each of 60, 75 and 90 per cent WFPS; its geometric means
+        step by 6.35 and 8.23, its arithmetic means by 6.63 and 3.36. The
+        bracket is those extremes expressed as the exponent, ln(3.36)/0.15 to
+        ln(8.23)/0.15, and the declared 13.036 is inside it. The offset puts the
+        function at 1 at 0.8915 WFPS, which normalises it to Weier's wettest
+        treatment. The BRACKET IS ON THE EXPONENT, not on the function value.
+
+    - what: function:f_n2o_n2_water
+      source: "weier1993 tables 4 and 5, N2/N2O ratios"
+      compared: derived
+      bracket: [0.333, 0.938]
+      verdict: outside
+      owner: world-nga2
+      why: >
+        This curve and f_n2_n2o_temperature together set the N2O share of the
+        gas leaving denitrification, and 1 minus that is the N2 share the
+        bracket is on. Weier's tables 4 and 5 give N2/N2O for four soils, nine
+        treatments and five days at 25 C: at 60 per cent WFPS the N2 share has a
+        median of 0.565 over 109 observations, interquartile 0.333 to 0.778; at
+        75 per cent, 0.744 over 129, interquartile 0.545 to 0.870; at 90 per
+        cent, 0.796 over 163, interquartile 0.630 to 0.938. The operator at 25 C
+        gives 0.000 below 0.70 WFPS, 0.119 at 0.70, 0.120 at 0.75 and 0.846 at
+        0.90. It reproduces Weier only at the wet end and inverts the trend
+        below it. Xu-Ri's own table 9 eqns 5 to 7 are outside the bracket the
+        other way, at an N2 share of 0.951 to 0.998.
+
+    - what: form:n2_branch_point
+      reads: "denitrification, `if (wfps_upper < 0.7) { n2_inc = 0.0; ... }`"
+      source: "weier1993 tables 4 and 5; cited in the operator to pilegaard2013"
+      verdict: outside
+      owner: world-nga2
+      why: >
+        Below 0.7 WFPS the operator produces no N2 at all and routes the whole
+        reduced NO2 pool to NO and N2O. Weier measured N2/N2O at 60 and 75 per
+        cent WFPS across all four soils and reports medians of 1.3 and 2.9, so
+        N2 is the majority product in 61 per cent of the 60 per cent WFPS
+        observations and 80 per cent of the 75 per cent ones. A hard zero
+        contradicts the paper the moisture response beside it is taken from.
+
+    - what: function:f_n2o_no_water
+      source: "cited in the operator to weier1993, which did not measure NO"
+      verdict: unsourced
+      owner: world-nga2
+      why: >
+        Weier's title quantity is the dinitrogen to nitrous oxide ratio and its
+        method is an acetylene block with N2O measured by gas chromatography;
+        nitric oxide appears nowhere in it. So this regression's two constants
+        are not Weier's. Over the WFPS the branch is live on, 0.4 to 0.7, it
+        gives an N2O:NO ratio from 0.36 to 1, reaching 1 at 0.5987 WFPS, which
+        is where Pilegaard puts the ratio near unity. That is a consistency, not
+        a calibration.
+
+    - what: function:f_n2_n2o_temperature
+      source: "neither paper. weier1993 incubated at a single temperature, 25 C"
+      verdict: unsourced
+      owner: world-nga2
+      why: >
+        A logistic in soil temperature with a midpoint at 5 C and a width of
+        10 C, multiplying the N2O share, so warming moves the products from N2
+        towards N2O: 0.50 at 5 C, 0.73 at 15 C, 0.88 at 25 C. The SIGN agrees
+        with Xu-Ri table 9 eqns 5 and 6, where ftemp multiplies NO and N2O
+        production from denitrification and therefore raises their share with
+        warming. The midpoint and the width have no source in either paper.

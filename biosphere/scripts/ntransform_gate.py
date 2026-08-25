@@ -26,20 +26,32 @@ This module is the enforcement, and it can fail:
   product      a chain of factors multiplying one pool mass whose product can
                exceed 1, which takes more nitrogen out of a pool than is in it
   bound        a declared constant outside the bound plib parses it against
+  calibration  an entry in the calibration block whose declared verdict is not
+               what the arithmetic says: an `agrees` whose value is not the
+               paper's value or is outside the paper's range, an `outside` that
+               has moved inside it, or an entry naming a constant or a response
+               function that does not exist
 
 Seven reduced fixtures run on every invocation, six of them built to be wrong in
 a named way. A fixture that does not get the verdict it was built for is a
 defect in this checker rather than in the declaration.
 
     python biosphere/scripts/ntransform_gate.py            # status, exit 0
-    python biosphere/scripts/ntransform_gate.py --strict   # refuses while a
-                                                           # Vesper precondition
-                                                           # is undeclared
+    python biosphere/scripts/ntransform_gate.py --strict   # refuses on the
+                                                           # named residual
+
+`--strict` names exactly what is still undeclared and refuses on that and
+nothing else: the Vesper preconditions that carry the sentinel, plus every
+calibration entry whose verdict is `outside` or `unsourced`. An entry the two
+papers settle is no longer part of the refusal.
 
 It is fail-closed in one direction only, on the same terms as `bvoc_gate.py`. A
 run on the Earth-calibrated operator, declared as such, is a correct run of a
 declared model boundary, so the default arm reports and exits 0. `--strict` is
 the arm that refuses.
+
+Nothing here is verified by execution. LPJ-GUESS does not build on this tree,
+so every statement this module makes is against the source and the declaration.
 """
 
 from __future__ import annotations
@@ -145,6 +157,127 @@ def _literal_tokens(text: str) -> set[str]:
     return tokens
 
 
+# The verdicts the calibration block may carry. `agrees` and `outside` are
+# claims about a number and are re-derived here; `unsourced` is a claim that
+# neither paper states the quantity, which no arithmetic can check.
+VERDICTS = ("agrees", "outside", "unsourced")
+
+# What `--strict` refuses on, beyond the undeclared preconditions.
+REFUSING_VERDICTS = ("outside", "unsourced")
+
+# How an entry is held to its source. `value` is a constant checked against a
+# stated value or range; `form` is an equation compared with the paper's, with
+# no number to check; `derived` is a bracket on a quantity computed from the
+# model rather than on any one of its constants.
+COMPARISONS = ("value", "form", "derived")
+
+
+def _check_calibration(declaration: dict, declared_values: dict,
+                       functions: dict) -> list[dict]:
+    """Every calibration entry, against the source and the number it names.
+
+    An entry addresses one of three things. `instruction:<key>` is a constant
+    the model reads from the instruction file, and its number is the one the
+    drift check has already tied to that file, so a `paper_value` or a `bracket`
+    on it is checked directly. `function:<name>` is a declared response
+    function; a bracket on one is a bracket on a single constant inside it,
+    which the entry names as `model_value` and which has to be among that
+    function's declared literals, so neither the model nor this file can move
+    without the other. `form:<name>` is an expression in the operator that is
+    not a declared function, argued in prose and carrying no number.
+    """
+    findings: list[dict] = []
+    calibration = declaration.get("calibration")
+    if not calibration:
+        return findings
+    sources = calibration.get("sources", {})
+
+    def bad(what: str, detail: str) -> None:
+        findings.append({"kind": "calibration", "what": what, "detail": detail})
+
+    for entry in calibration.get("entries", []):
+        what = entry.get("what", "?")
+        verdict = entry.get("verdict")
+        if verdict not in VERDICTS:
+            bad(what, f"unknown verdict {verdict!r}")
+            continue
+        if not entry.get("source"):
+            bad(what, "carries no source line")
+        elif verdict != "unsourced" and not any(k in entry["source"] for k in sources):
+            bad(what, "its source line names no declared source key")
+        if not entry.get("why"):
+            bad(what, "carries no argument")
+
+        kind, _, name = what.partition(":")
+        value = None
+        if kind == "instruction":
+            if name not in declared_values:
+                bad(what, f"{name} is not a declared constant")
+                continue
+            value = declared_values[name]
+        elif kind == "function":
+            if name not in functions:
+                bad(what, f"{name} is not a declared response function")
+                continue
+            if "model_value" in entry:
+                value = float(entry["model_value"])
+                literals = [float(x) for x in functions[name].get("literals", [])]
+                if not any(abs(value - x) <= 1e-12 for x in literals):
+                    bad(what, (f"model_value {value:g} is not among {name}'s declared "
+                               "literals, so it is not a constant of that function"))
+                    continue
+        elif kind == "form":
+            if not entry.get("reads"):
+                bad(what, "a form entry has to say what it reads")
+            continue
+        else:
+            bad(what, f"unknown target kind {kind!r}")
+            continue
+
+        paper_value = entry.get("paper_value")
+        bracket = entry.get("bracket")
+        compared = entry.get("compared", "value")
+        if compared not in COMPARISONS:
+            bad(what, f"unknown comparison {compared!r}")
+            continue
+        if verdict == "unsourced":
+            if paper_value is not None:
+                bad(what, "declared unsourced but carries a paper value")
+            continue
+        if compared == "form":
+            # The paper states an equation and the model's is the same one, or
+            # is not. There is no number in the declaration to re-derive that
+            # from, so the argument in `why` is the whole of it.
+            if paper_value is not None or bracket is not None:
+                bad(what, "compared as a form but carries a number")
+            continue
+        if paper_value is None and bracket is None:
+            bad(what, f"verdict {verdict!r} with neither a paper value nor a bracket")
+            continue
+        if compared == "derived":
+            # The bracket is on a quantity computed from the model rather than
+            # on any one constant in it, so `why` carries the derivation.
+            if value is not None and "model_value" in entry:
+                bad(what, "compared as derived but names a model constant")
+            continue
+        if value is None:
+            bad(what, "compared as a value but names no number to compare")
+            continue
+        inside = True
+        if paper_value is not None:
+            inside = abs(value - float(paper_value)) <= 1e-12
+        if bracket is not None:
+            lo, hi = float(bracket[0]), float(bracket[1])
+            inside = inside and (lo - 1e-12 <= value <= hi + 1e-12)
+        if verdict == "agrees" and not inside:
+            bad(what, (f"declared to agree, but the model's {value:g} is neither the "
+                       "paper's value nor inside its range"))
+        if verdict == "outside" and inside:
+            bad(what, (f"declared to be outside its source's range, but the model's "
+                       f"{value:g} is inside it"))
+    return findings
+
+
 def check(declaration: dict, source_text: str, instruction_text: str
           ) -> list[dict]:
     """Every check, as a list of findings. An empty list is a clean gate."""
@@ -179,6 +312,7 @@ def check(declaration: dict, source_text: str, instruction_text: str
 
     tokens = _literal_tokens(source_text)
     extrema: dict[str, tuple[float, float]] = {}
+    functions = {spec["name"]: spec for spec in declaration["response_functions"]}
 
     for spec in declaration["response_functions"]:
         name = spec["name"]
@@ -206,6 +340,8 @@ def check(declaration: dict, source_text: str, instruction_text: str
                 "kind": "range", "what": name,
                 "detail": (f"reaches [{lo:.6g}, {hi:.6g}] over its domain, "
                            f"outside the [{allowed_lo}, {allowed_hi}] its role allows")})
+
+    findings.extend(_check_calibration(declaration, declared_values, functions))
 
     for product in declaration.get("products", []):
         worst = 1.0
@@ -268,6 +404,18 @@ def _fixtures(declaration: dict, source_text: str, instruction_text: str
             d["products"][0]["factors"] = ["instruction:" + name]
         return apply
 
+    def _entry(d, what):
+        for entry in d["calibration"]["entries"]:
+            if entry["what"] == what:
+                return entry
+        raise KeyError(what)
+
+    def calibration_claim(what, field, value):
+        return lambda d: _entry(d, what).__setitem__(field, value)
+
+    def calibration_target(what, target):
+        return lambda d: _entry(d, what).__setitem__("what", target)
+
     cases = [
         ("the declaration as it stands", declaration, None),
         ("a constant that drifted from the instruction file",
@@ -282,6 +430,18 @@ def _fixtures(declaration: dict, source_text: str, instruction_text: str
          mutate(widen_domain("soil_ph", [3.8, 20.0])), "range"),
         ("a product chain that takes more than the pool holds",
          mutate(bad_factor("nonexistent_constant")), "product"),
+        ("a constant declared to agree with a paper that brackets it out",
+         mutate(calibration_claim("instruction:f_denitri_gas_max", "verdict", "agrees")),
+         "calibration"),
+        ("a disagreement declared where the paper's range in fact contains the value",
+         mutate(calibration_claim("instruction:k_N", "verdict", "outside")),
+         "calibration"),
+        ("a bracket held to a number that is not a constant of the function it names",
+         mutate(calibration_claim("function:f_denitri_water", "model_value", 9.0)),
+         "calibration"),
+        ("a calibration entry naming a response function that does not exist",
+         mutate(calibration_target("function:f_denitri_water", "function:no_such_function")),
+         "calibration"),
     ]
 
     results = []
@@ -316,6 +476,17 @@ def main() -> int:
         name for name, spec in declaration["vesper_preconditions"].items()
         if spec.get("declared", UNDECLARED) == UNDECLARED
     ]
+    unsettled = [
+        {"what": entry["what"], "verdict": entry["verdict"],
+         "owner": entry.get("owner", "?")}
+        for entry in declaration.get("calibration", {}).get("entries", [])
+        if entry.get("verdict") in REFUSING_VERDICTS
+    ]
+    settled = [
+        entry["what"]
+        for entry in declaration.get("calibration", {}).get("entries", [])
+        if entry.get("verdict") == "agrees"
+    ]
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -324,6 +495,8 @@ def main() -> int:
         "instruction_file": rel(instruction_path),
         "findings": findings,
         "undeclared_preconditions": undeclared,
+        "calibration_unsettled": unsettled,
+        "calibration_settled": settled,
         "fixtures": fixtures,
     }
     REPORT.parent.mkdir(parents=True, exist_ok=True)
@@ -343,6 +516,12 @@ def main() -> int:
                 print(f"    [{finding['kind']}] {finding['what']}: {finding['detail']}")
         else:
             print("  the declaration matches the source and every bound holds")
+        total = len(declaration.get("calibration", {}).get("entries", []))
+        print(f"\n  calibration: {len(settled)} of {total} entries agree with the source they name")
+        if unsettled:
+            print("  the rest are what remains undeclared, and are what --strict refuses on:")
+            for item in unsettled:
+                print(f"    [{item['verdict']}] {item['what']}  [{item['owner']}]")
         if undeclared:
             print(f"\n  {len(undeclared)} Vesper precondition(s) undeclared, so this is an")
             print("  Earth-calibrated operator run on this world's water and pH:")
@@ -358,10 +537,17 @@ def main() -> int:
         return 2
     if findings:
         return 1
-    if args.strict and undeclared:
-        print("\n--strict: refused. Every precondition above has to be declared before",
+    if args.strict and (undeclared or unsettled):
+        print("\n--strict: refused, on exactly what is still undeclared and nothing else.",
               file=sys.stderr)
-        print("this operator's output is a Vesper result.", file=sys.stderr)
+        if undeclared:
+            print(f"  {len(undeclared)} Vesper precondition(s): "
+                  + ", ".join(undeclared), file=sys.stderr)
+        if unsettled:
+            print(f"  {len(unsettled)} calibration entr(y/ies) outside or unsourced: "
+                  + ", ".join(item["what"] for item in unsettled), file=sys.stderr)
+        print("Each has to be declared before this operator's output is a Vesper result.",
+              file=sys.stderr)
         return 1
     return 0
 
