@@ -90,6 +90,11 @@ purge-never-reaches-the-terrain property, run from `main()` with the rest):
    `pyburn.py`, where a Fortran call graph cannot see a Python caller; the run
    after it integrated ten orbits and died in the postprocessor. Narrower than
    check 1b on purpose -- see the check.
+12i. **The spectral tail slope is fitted above the roundoff floor.** A
+   synthetic spectrum with a tail of known slope sitting on a floating-point
+   floor. `spectral_tail.py` used to cut the spectrum at `m = NTRU` and fit
+   through the dead top, so its reported tail slope was a property of the floor;
+   the check's right answer is the slope put in.
 13. **The tools `environment.md` names are actually on this host.** That
    document sends a reader to `ncdump`, NCO, `h5diff` and `yq` rather than a
    Python session, and nothing else checks the claim is true. Both
@@ -1780,6 +1785,49 @@ def check_no_unbound_names(files: list[Path]) -> list[str]:
             problems.append(f"{path.relative_to(ROOT)}:{lineno} loads `{name}`, "
                             f"which nothing binds; in {scope_name}()")
     return problems
+def check_tail_fit_stops_above_roundoff() -> list[str]:
+    """`spectral_tail.py`'s tail slope is the slope it was given, not the floor's.
+
+    A synthetic T42 spectrum: an inertial range, a tail of KNOWN slope below the
+    fit band, and every wavenumber sitting on a floating-point roundoff floor
+    with the dead band above the truncation carrying only that floor. The right
+    answer is the slope put in, which is what makes this a test rather than a
+    comparison -- and it is one the script's earlier shape cannot pass, because
+    it cut the spectrum at `m = NTRU` and fitted straight through the floor.
+
+    The tolerance is 0.1 in the slope against an effect of up to 17: fitting to
+    the truncation returns about -23 whatever it is given below that, since the
+    floor anchors the bottom of the fit and the true tail cannot be seen through
+    it. So the check has margin of two orders over its own resolution, and a
+    reimplementation that quietly extends the band again fails it by a wide one.
+    """
+    import numpy as np
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    try:
+        from spectral_tail import FLOOR_MARGIN, slope
+    except ImportError as exc:
+        return [f"exoplasim/scripts/spectral_tail.py does not import: {exc}"]
+    n, nlon, floor_value, tol = 42, 128, 2.6e-15, 0.1
+    m = np.arange(nlon // 2 + 1)
+    hi = max(3, n // 3)
+    rng = np.random.default_rng(0)
+    bad = []
+    for true_tail in (-25.0, -30.0, -35.0, -40.0):
+        mm = np.maximum(m, 1).astype(float)
+        inertial = 1e-1 * mm ** -2.04
+        tail_law = inertial[hi] * (mm / hi) ** true_tail
+        full = np.maximum(np.where(m <= hi, inertial, tail_law),
+                          floor_value * rng.uniform(0.4, 1.6, len(m)))
+        full[0] = 0.0
+        spec = full[:n + 1]
+        floor = float(np.median(full[n + 1:]))
+        live = [int(k) for k in np.arange(len(spec))[1:]
+                if spec[k] > FLOOR_MARGIN * floor]
+        got = slope(spec, hi, min(n, max(live)))
+        if not abs(got - true_tail) <= tol:
+            bad.append(f"a tail of {true_tail:+g} fitted above the roundoff "
+                       f"floor came back as {got:+.2f}")
+    return bad
 
 def main() -> None:
     ap = argparse.ArgumentParser()
@@ -1836,6 +1884,8 @@ def main() -> None:
                check_no_shadowed_imports(files)),
               ("no name is loaded that nothing binds, model Python included",
                check_no_unbound_names(files + vendor_files)),
+              ("the spectral tail slope is fitted above the roundoff floor",
+               check_tail_fit_stops_above_roundoff()),
               ("the restart schema covers every record the model writes",
                check_restart_schema_covers_the_model()),
               ("the transform gates run the configured spectral filter",

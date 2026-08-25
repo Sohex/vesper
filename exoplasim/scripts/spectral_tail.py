@@ -31,10 +31,18 @@ directly comparable to a quoted `n^-3`.
 **THE TRUNCATION IS THE MODEL'S, NOT THE FFT'S**, and getting this wrong is how
 the first run of this diagnostic produced three wrong conclusions. A T42 run on
 128 longitudes gives an FFT out to m=64, but the model represents nothing above
-m=42: the spectrum there sits at 1e-15, which is roundoff and not physics.
-Normalising by 64 made a bite at m=28 read as 0.44 of the truncation when it is
-0.67, and turned a filter that was inside its confinement requirement into one
-that appeared to be damping away a third of the resolved spectrum.
+m=42: the spectrum there sits at roundoff and not physics. Normalising by 64
+made a bite at m=28 read as 0.44 of the truncation when it is 0.67, and turned a
+filter that was inside its confinement requirement into one that appeared to be
+damping away a third of the resolved spectrum.
+
+**BUT THE BAND ABOVE THE TRUNCATION IS KEPT, because it is the instrument's own
+noise floor.** Everything above `m = NTRU` is what this arithmetic does to zero,
+so its median MEASURES the roundoff the whole spectrum sits on. Nothing is fitted
+there and no criterion is read there; it is what says whether a wavenumber inside
+the truncation is carrying a number or carrying nothing. Cutting the spectrum at
+`m = NTRU` first, which this script used to do, throws away the only calibration
+available and leaves no way to tell a steep tail from a fit through the floor.
 
 THE CRITERIA, AND WHY THEY ARE THESE. The question is not the tail's slope in
 isolation -- a steep tail is what damping is supposed to produce -- but WHERE the
@@ -52,10 +60,14 @@ wavenumber at which the measured spectrum leaves it. Call that the bite point.
      arm's result.
 
 An earlier version of this script tested the tail slope against a floor and the
-middle slope against the tail. That pair was ill-posed: a heavily over-damped
-run has a tail slope of -39 against a middle of -3.75, and no comparison of the
-two in that direction can fire. The replacement asks where the damping starts
-rather than how hard it finishes.
+middle slope against the tail. That pair was ill-posed in two ways at once. The
+comparison could not fire in the direction it was written, and the tail slope it
+compared was not a property of the damping: fitted to `m = NTRU` on a spectrum
+whose top sits at roundoff, it measures how far the run's inertial range is above
+the floating-point floor. The replacement asks where the damping starts rather
+than how hard it finishes, and the tail slope is now REPORTED rather than tested,
+fitted only over wavenumbers that stand clear of the measured floor and labelled
+with the band it was fitted over.
 """
 from __future__ import annotations
 
@@ -77,6 +89,14 @@ ANALYSIS = ROOT / "exoplasim" / "analysis"
 
 EXCESS_FACTOR = 2.0        # above its own power law, this is a pile-up
 MIN_BITE_FRACTION = 0.6    # the damping may not start below this fraction of N
+# A wavenumber is READABLE when it stands this far above the measured roundoff
+# floor. It bounds the tail fit here and the depth reading in
+# `filter_spectral_cost.py`, which imports it: one bar, defined once, because a
+# second copy of it is a number that can drift away from the note both scripts
+# cite. It bounds NEITHER criterion above -- the bite point is the first
+# departure BELOW the inertial range and the pile-up test looks for excess
+# above it, so roundoff at the top cannot move either one.
+FLOOR_MARGIN = 100.0
 
 
 def ke_spectrum(run_dir: Path, first: int, last: int, level: int | None):
@@ -146,9 +166,12 @@ def main() -> None:
     ap.add_argument("--out", type=Path, default=ANALYSIS / "spectral_tail.json")
     args = ap.parse_args()
 
-    spec = ke_spectrum(args.run_dir, args.first, args.last, args.level)
+    full = ke_spectrum(args.run_dir, args.first, args.last, args.level)
     n = truncation(args.run_dir, args.truncation)
-    spec = spec[:n + 1]
+    # The dead band above the model's truncation, kept and used before the
+    # spectrum is cut down to what the model represents.
+    floor = float(np.median(full[n + 1:])) if len(full) > n + 1 else float("nan")
+    spec = full[:n + 1]
     m = np.arange(len(spec))
     # The fit band ends at a THIRD of the truncation, not a half, so the search
     # above it can resolve a bite point well below 0.6N. With the band ending at
@@ -174,12 +197,36 @@ def main() -> None:
     too_broad = bite_fraction < MIN_BITE_FRACTION
     verdict = ("pile-up above the inertial range" if pile_up else
                "damping starts too far down" if too_broad else "clean")
-    tail = slope(spec, hi, n)
+
+    # The tail slope, over the wavenumbers that carry a number. Fitting to the
+    # truncation measures the distance from the inertial range to the roundoff
+    # floor and reports it as damping.
+    if floor > 0:
+        live = [int(k) for k in m[1:] if spec[k] > FLOOR_MARGIN * floor]
+        last_live = max(live) if live else 0
+        tail_hi = min(n, last_live)
+        tail = slope(spec, hi, tail_hi)
+        refusal = ("" if tail == tail else
+                   f"fewer than three wavenumbers between m={hi} and the last "
+                   f"one standing {FLOOR_MARGIN:g}x clear of roundoff")
+    else:
+        # No band above the truncation, so the floor is unmeasured and a tail
+        # slope cannot be told from a fit through it.
+        last_live, tail_hi, tail = 0, 0, float("nan")
+        refusal = (f"the FFT reaches only m={len(full) - 1} and the model "
+                   f"truncates at m={n}, so there is no dead band to measure "
+                   f"the roundoff floor in")
 
     print(f"{args.run_dir.name}, orbits {args.first}-{args.last}, "
           f"{n} zonal wavenumbers")
     print(f"  inertial-range slope, m {lo}-{hi} : {middle:+.2f}")
-    print(f"  tail slope, m {hi}-{n}            : {tail:+.2f}")
+    if refusal:
+        print(f"  tail slope                      : refused, {refusal}")
+    else:
+        print(f"  tail slope, m {hi}-{tail_hi}             : {tail:+.2f}"
+              + (f"   ({n - tail_hi} wavenumber(s) at roundoff dropped)"
+                 if tail_hi < n else ""))
+    print(f"  roundoff floor, median above m={n}: {floor:.3g}")
     print(f"  peak excess over the power law  : {excess:.2f}x  "
           f"(pile-up above {EXCESS_FACTOR:g}x)")
     print(f"  bite point                      : m={bite} = {bite_fraction:.2f} "
@@ -191,11 +238,18 @@ def main() -> None:
                "generated": datetime.now(timezone.utc).isoformat(),
                "run": args.run_dir.name, "first": args.first, "last": args.last,
                "level": args.level, "wavenumbers": n,
-               "tail_slope": tail, "inertial_slope": middle,
+               "tail_slope": tail if tail == tail else None,
+               "tail_band": None if refusal else [int(hi), int(tail_hi)],
+               "tail_refused": refusal or None,
+               "roundoff_floor": floor if floor == floor else None,
+               "last_live_wavenumber": last_live,
+               "last_live_fraction": last_live / n,
+               "inertial_slope": middle,
                "peak_excess": excess, "bite_wavenumber": bite,
                "bite_fraction": bite_fraction,
                "criteria": {"excess_factor": EXCESS_FACTOR,
-                            "min_bite_fraction": MIN_BITE_FRACTION},
+                            "min_bite_fraction": MIN_BITE_FRACTION,
+                            "floor_margin": FLOOR_MARGIN},
                "verdict": verdict,
                "spectrum": [float(x) for x in spec]}
     args.out.parent.mkdir(parents=True, exist_ok=True)
