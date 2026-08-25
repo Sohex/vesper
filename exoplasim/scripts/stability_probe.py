@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -95,10 +96,19 @@ def build_bed(rung: str, template: Path, tag: str) -> tuple[Path, str]:
         shutil.rmtree(bed)
     bed.mkdir(parents=True)
     binary = sorted(template.glob(f"most_plasim_t{rung[1:]}_l*_p*.x"))
-    # The MPI binary, not the threaded one: the matrix measured on MPI and a
-    # cost compared across parallel modes is not a cost comparison.
-    binary = [b for b in binary if not b.name.endswith("_omp.x")] or binary
-    exe = binary[0]
+    # THE THREADED BINARY, because it is the only one built and the only one
+    # production runs. This preferred the MPI binary and fell through to the
+    # threaded one when no MPI binary existed -- which is every rung now, since
+    # rebuild_binaries' MATRIX is five omp rows -- and then launched it under
+    # `mpiexec -np 16`. That does not run one model on sixteen threads; it runs
+    # SIXTEEN INDEPENDENT MODELS in one directory, over each other's output.
+    # Every cell of the grid measured that way.
+    threaded = [b for b in binary if b.name.endswith("_omp.x")]
+    if not threaded:
+        raise SystemExit(
+            f"no threaded {rung} binary under {template}. This probe measures "
+            "the configuration production runs, and that is the omp build.")
+    exe = threaded[0]
     for pattern in ("*_namelist", "*.nl", f"N{NLAT[rung]:03d}_surf_*.sra",
                     "k25v*.dat", "GUI.cfg"):
         for f in template.glob(pattern):
@@ -125,9 +135,25 @@ def set_keys(bed: Path, keys: dict[str, str]) -> None:
 
 
 def time_run(bed: Path, exe: str, ranks: int) -> tuple[float, bool, str]:
+    """One threaded model on `ranks` threads, with a stack big enough for it.
+
+    Not `mpiexec`. And `ulimit -s unlimited` through a shell, because the
+    master thread runs on the PROCESS stack and no OMP variable moves it: the
+    threaded build is compiled `-frecursive`, so the model's large locals are
+    stack-allocated, and above T42 the master overruns a 16 MB limit and takes
+    SIGSEGV before writing a record. A probe reads that as a refusal and
+    reports the rung as impossible at every timestep, which is the shape the
+    grid had for T85 and above.
+    """
+    env = dict(os.environ)
+    env["OMP_NUM_THREADS"] = str(ranks)
+    env["OMP_PROC_BIND"] = "close"
+    env["OMP_PLACES"] = "cores"
+    env.setdefault("OMP_STACKSIZE", "512M")
     started = time.monotonic()
-    proc = subprocess.run(["mpiexec", "-np", str(ranks), f"./{exe}"], cwd=bed,
-                          capture_output=True, text=True, timeout=3600)
+    proc = subprocess.run(["bash", "-c", f"ulimit -s unlimited; exec ./{exe}"],
+                          cwd=bed, capture_output=True, text=True,
+                          timeout=3600, env=env)
     elapsed = time.monotonic() - started
     text = (proc.stdout or "") + (proc.stderr or "")
     return elapsed, bool(TRAP.search(text)) or proc.returncode != 0, text
@@ -260,16 +286,25 @@ def main() -> None:
             r["tau_scale"] = args.tau_scale
             results.append(r)
             k = "off" if kappa is None else f"{kappa:g}"
-            if r["outcome"] != "refused":
-                print(f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}  no refusal in "
-                      f"{r['steps_long']} steps, "
+            head = f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}"
+            if r["outcome"] == "refused":
+                print(f"{head}  REFUSED after {r['failed_after_s']:.1f} s",
+                      flush=True)
+            elif r["outcome"] == "refused_only_at_length":
+                # The cell this grid exists to find: it starts, and dies inside
+                # the probe's own range. Reported as its own verdict because a
+                # step that refuses and a step that fails late are different
+                # facts about a rung, and collapsing them is what let T42 at dt
+                # 45 be read as usable when it dies in its forty-seventh orbit.
+                print(f"{head}  RAN {r['steps_short']} steps, REFUSED at "
+                      f"{r['steps_long']} ({r['wall_long_s']:.1f} s)",
+                      flush=True)
+            else:
+                print(f"{head}  no refusal in {r['steps_long']} steps, "
                       f"{r['seconds_per_step']:.4f} s/step -> "
                       f"{r['implied_seconds_per_orbit']/60:.1f} min/orbit  "
                       f"(startup {r['startup_s']:.0f} s; naive single run would "
                       f"say {r['naive_single_run_seconds_per_orbit']/60:.1f})", flush=True)
-            else:
-                print(f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}  REFUSED "
-                      f"after {r['failed_after_s']:.1f} s", flush=True)
             prior = json.loads(args.out.read_text()) if args.out.is_file() else {"probes": []}
             prior.setdefault("probes", [])
             prior["probes"] = [p for p in prior["probes"]
