@@ -1,0 +1,153 @@
+{
+  "generated": "2026-08-25T05:33:29.607497+00:00",
+  "generator": "pedology/scripts/outgassing_gate.py",
+  "declaration": "pedology/config/outgassing.yaml",
+  "declaration_sha256": "891c17782de7bef0903cf618ad0fd822140eb3fd2ed204bdac0c1c184a85b144",
+  "config_sha256": "ce1854d6cad365b923badb29127d34c51ff1d08afb52093324462745a5dbf5bc",
+  "requested": false,
+  "requirement_artifact": "pedology/analysis/weathering_fluxes.json",
+  "requirement_artifact_present": false,
+  "granted": false,
+  "verdict": "NOT SHOWN. The prescribed CO2 is not backed by a demonstrated outgassing rate, for 8 named reasons: OUTGASSING-UNDECLARED-SUPPLY-MASS-SCALING-EXPONENT; OUTGASSING-UNDECLARED-SUPPLY-MASS-SCALING-SOURCE; OUTGASSING-UNDECLARED-SUPPLY-PER-KM-SEGMENT-BRACKET; OUTGASSING-UNDECLARED-SUPPLY-PER-KM-SEGMENT-SOURCE; OUTGASSING-UNDECLARED-SUPPLY-SOURCE-PARTITION; OUTGASSING-UNDECLARED-SUPPLY-DEGASSING-EFFICIENCY; OUTGASSING-UNDECLARED-SUPPLY-ATMOSPHERE-VERSUS-OCEAN-SPLIT; OUTGASSING-REQUIREMENT-ARTIFACT-MISSING. It remains an assumption.",
+  "refusals": [
+    {
+      "code": "OUTGASSING-UNDECLARED-SUPPLY-MASS-SCALING-EXPONENT",
+      "detail": "the power of planet mass the outgassing supply estimate claims is undeclared",
+      "issue": "volc-8"
+    },
+    {
+      "code": "OUTGASSING-UNDECLARED-SUPPLY-MASS-SCALING-SOURCE",
+      "detail": "where that exponent comes from is undeclared",
+      "issue": "volc-8"
+    },
+    {
+      "code": "OUTGASSING-UNDECLARED-SUPPLY-PER-KM-SEGMENT-BRACKET",
+      "detail": "the per-kilometre boundary CO2 flux bracket, spanning the observed range is undeclared",
+      "issue": "volc-8"
+    },
+    {
+      "code": "OUTGASSING-UNDECLARED-SUPPLY-PER-KM-SEGMENT-SOURCE",
+      "detail": "where that bracket comes from is undeclared",
+      "issue": "volc-8"
+    },
+    {
+      "code": "OUTGASSING-UNDECLARED-SUPPLY-SOURCE-PARTITION",
+      "detail": "how the global requirement splits across ridge, arc, plume/rift and metamorphic is undeclared",
+      "issue": "volc-8"
+    },
+    {
+      "code": "OUTGASSING-UNDECLARED-SUPPLY-DEGASSING-EFFICIENCY",
+      "detail": "the mantle/slab carbon and degassing efficiencies behind that partition is undeclared",
+      "issue": "volc-8"
+    },
+    {
+      "code": "OUTGASSING-UNDECLARED-SUPPLY-ATMOSPHERE-VERSUS-OCEAN-SPLIT",
+      "detail": "which fraction reaches the atmosphere and which the ocean is undeclared",
+      "issue": "ocn-13"
+    },
+    {
+      "code": "OUTGASSING-REQUIREMENT-ARTIFACT-MISSING",
+      "detail": "pedology/analysis/weathering_fluxes.json does not exist, so the required outgassing has no artifact behind it. config/planet.yaml already records that the check backing the prescribed CO2 is unbacked; this is that statement made refusable",
+      "issue": "volc-8"
+    }
+  ],
+  "required_over_earth": null,
+  "supply_over_earth": null,
+  "margin": null,
+  "fixtures": [
+    {
+      "fixture": "the declaration as it stands",
+      "expected": "refused for some reason",
+      "refusals": [
+        "OUTGASSING-REQUIREMENT-ARTIFACT-MISSING",
+        "OUTGASSING-UNDECLARED-SUPPLY-ATMOSPHERE-VERSUS-OCEAN-SPLIT",
+        "OUTGASSING-UNDECLARED-SUPPLY-DEGASSING-EFFICIENCY",
+        "OUTGASSING-UNDECLARED-SUPPLY-MASS-SCALING-EXPONENT",
+        "OUTGASSING-UNDECLARED-SUPPLY-MASS-SCALING-SOURCE",
+        "OUTGASSING-UNDECLARED-SUPPLY-PER-KM-SEGMENT-BRACKET",
+        "OUTGASSING-UNDECLARED-SUPPLY-PER-KM-SEGMENT-SOURCE",
+        "OUTGASSING-UNDECLARED-SUPPLY-SOURCE-PARTITION"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a supply side that will not say what power of mass it claims",
+      "expected": "OUTGASSING-UNDECLARED-SUPPLY-MASS-SCALING-EXPONENT",
+      "refusals": [
+        "OUTGASSING-UNDECLARED-SUPPLY-MASS-SCALING-EXPONENT"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a supply side with no per-kilometre segment bracket",
+      "expected": "OUTGASSING-UNDECLARED-SUPPLY-PER-KM-SEGMENT-BRACKET",
+      "refusals": [
+        "OUTGASSING-UNDECLARED-SUPPLY-PER-KM-SEGMENT-BRACKET"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "an acceptance floor that is not a margin",
+      "expected": "OUTGASSING-MARGIN-FLOOR-NOT-A-MARGIN",
+      "refusals": [
+        "OUTGASSING-MARGIN-FLOOR-NOT-A-MARGIN"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "an acceptance floor that is not a number",
+      "expected": "OUTGASSING-MARGIN-FLOOR-MISSING",
+      "refusals": [
+        "OUTGASSING-MARGIN-FLOOR-MISSING"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a claim with no requirement artifact behind it",
+      "expected": "OUTGASSING-REQUIREMENT-ARTIFACT-MISSING",
+      "refusals": [
+        "OUTGASSING-REQUIREMENT-ARTIFACT-MISSING"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a requirement computed on a different terrain",
+      "expected": "OUTGASSING-REQUIREMENT-WRONG-BUILD",
+      "refusals": [
+        "OUTGASSING-REQUIREMENT-WRONG-BUILD"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a requirement whose margin is below the declared floor",
+      "expected": "OUTGASSING-MARGIN-BELOW-FLOOR",
+      "refusals": [
+        "OUTGASSING-MARGIN-BELOW-FLOOR"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "an artifact that carries no requirement at all",
+      "expected": "OUTGASSING-REQUIREMENT-NOT-IN-ARTIFACT",
+      "refusals": [
+        "OUTGASSING-REQUIREMENT-NOT-IN-ARTIFACT"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "a supply side claiming an absolute outgassing rate the terrain cannot give",
+      "expected": "OUTGASSING-ABSOLUTE-RATE-CLAIMED",
+      "refusals": [
+        "OUTGASSING-ABSOLUTE-RATE-CLAIMED"
+      ],
+      "pass": true
+    },
+    {
+      "fixture": "every precondition met, against a backing artifact",
+      "expected": "GRANTED",
+      "refusals": [],
+      "pass": true
+    }
+  ],
+  "git_commit": "6045918f7a64dea2c9cbccca8911c32bfbc558ac"
+}
