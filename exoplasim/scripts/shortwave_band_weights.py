@@ -1325,8 +1325,12 @@ def main() -> None:
     # dropped: nothing in this file raised, so every weight it prints was quoted
     # under a bar that could not stop it. Raised AFTER the report is written, so
     # the numbers that failed are on disk to read. world-60x0.
+    # BOTH CHECKS THAT CAN FAIL ARE COLLECTED AND RAISED TOGETHER, so that a
+    # miss on one does not hide the other's verdict. Raised AFTER the report is
+    # written, so the numbers that failed are on disk to read.
+    failures = []
     if not rec["inside"]:
-        raise SystemExit(
+        failures.append(
             f"the water vapour reconstruction falls outside the envelope of "
             f"the three published absorptivity determinations Lacis and Hansen "
             f"plot in their Fig. 11, widened by Howard's own +/-3%. Worst at "
@@ -1338,7 +1342,7 @@ def main() -> None:
             "carries the per-amount numbers.")
 
     if not (ck["inside"] and ck["inside_dropping_the_2.7um_band"]):
-        raise SystemExit(
+        failures.append(
             f"Earth's near-infrared CO2 shortwave absorption comes out at "
             f"{ck['computed']:.2f} W/m2 with the 2.7 um band and "
             f"{ck['computed_dropping_the_2.7um_band']:.2f} without it, against "
@@ -1346,6 +1350,9 @@ def main() -> None:
             "so a miss means the band set, the path or the overlap treatment is "
             f"wrong, and every weight above is computed the same way. {out} "
             "carries the numbers.")
+
+    if failures:
+        raise SystemExit("\n\n".join(failures))
 
 
 if __name__ == "__main__":
