@@ -1,8 +1,8 @@
 {
-  "generated": "2026-08-25T10:54:58+00:00",
+  "generated": "2026-08-25T11:07:07+00:00",
   "declaration": "pedology/config/land_column_properties.yaml",
-  "declaration_sha256": "c0c5f104176a9b3cac76ea7a2dd21cba4373adfecad70587d217afd1c22c3d84",
-  "version": 1,
+  "declaration_sha256": "a6a4fe382b4025032d5aaebdd63df300f8b8034eb749643b2fb1bf19ed235e83",
+  "version": 2,
   "soil_map": "pedology/data/precarve-craton-10m/soilmap_T21.txt",
   "soil_map_sha256": "92f74f2878f2ad9ad3b6536c352fc53476f1ae88d144d9355c41a48a68b3d97f",
   "units": {
@@ -24,17 +24,17 @@
     "consumers": {
       "exoplasim": {
         "geometry": "none",
-        "what_it_reads": "awc, as a scalar bucket depth `dwmax` in metres of water",
+        "what_it_reads": "awc_mm from the emitted states, as a scalar bucket depth `dwmax` in metres of water",
         "note": "`dwmax` is a capacity, not a thickness. The land column has no vertical liquid structure at all, so no layer geometry can be given to it until LSHY-3 provides one. Its five SOIL TEMPERATURE layers are a separate geometry, 0.4/0.8/1.6/3.2/6.4 m, which reaches 12.4 m and shares no boundary with either water column.\n"
       },
       "lpj_guess": {
         "geometry": "15 physical layers of 100 mm, grouped 5 upper and 10 lower",
-        "what_it_reads": "sand, clay, silt, pH; NOT awc, NOT bulk density, NOT andic",
-        "note": "`vesperinput.cpp` scales each layer's awc, wp and wsats by the share of that layer above the regolith/bedrock contact plus the bedrock fraction below it, and rescales the two aggregate figures to match. It moves no layer boundary and no root, so a shallow-regolith cell has the same rooting depth as a deep one with less water in it.\n"
+        "what_it_reads": "the emitted states and the per-layer usable shares, through its driver file; and sand, clay, silt, pH, organic carbon and the mineral-reactivity columns from the soil map",
+        "note": "`vesperinput.cpp` multiplies each layer's awc, wp and wsats by the usable share emitted here, and rescales the two aggregate figures to match. It moves no layer boundary and no root, so a shallow-regolith cell has the same rooting depth as a deep one with less water in it. The share is READ: the weathered-bedrock vertical rule is evaluated once, by the enforcing script, and was implemented in both places until WORLD-OF6N.\n"
       },
       "pedology": {
-        "geometry": "one bulk column of `depth` metres",
-        "what_it_writes": "awc, as depth times a texture-weighted volumetric capacity"
+        "geometry": "one bulk column cut at `column_base_m`",
+        "what_it_writes": "the soil map's texture, regolith depth, weathered-bedrock fraction, organic and andic columns, which this contract's states are derived FROM. Its `awc` column is pedology's own declared endmember mixture, cut at the column base under WORLD-7702, and no consumer reads it: it is the alternative the report costs the adopted closure against.\n"
       }
     }
   },
@@ -160,7 +160,8 @@
     "any_field_capacity_above_saturation": false,
     "any_wilting_point_above_field_capacity": false,
     "clamp_changes_any_cell": false,
-    "verdict": "the CODE keeps this right, and the map has never needed to. WORLD-NGA10 clamped both heads at Psi_s in `get_mineral`, so the inversion cannot return a field capacity above saturation for any texture. No cell of this map is inside the region, so the clamp changes no current soil property; the margin is what says how far that is from being true by accident.",
+    "verdict": "the CODE keeps this right, and the map has never needed to. WORLD-NGA10 clamped both heads at the air-entry value in get_mineral; WORLD-OF6N moved the derivation into contract_states and the clamp with it, so the closure cannot return a field capacity above saturation for any texture. No cell of this map is inside the region, so the clamp changes no current soil property; the margin is what says how far that is from being true by accident.",
+    "bound_is_conservative": "the line is derived at Cosby's own field-capacity suction. The adopted suction is larger, so the region where the clamp binds is strictly smaller than this",
     "owner": "world-nga10"
   },
   "gravity_field_capacity_shift": {

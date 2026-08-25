@@ -9,20 +9,25 @@
 # and the ownership graph it feeds is
 # hydrography/config/land_water_ledger.yaml.
 #
-# WHAT THIS IS FOR. Pedology writes one plant-available water capacity and
-# ExoPlaSim installs it as a bucket depth. LPJ-GUESS ignores it and derives
-# saturation, matric potential, wilting point and field capacity for itself
-# from the Cosby texture regressions, then scales the result by regolith depth
-# and weathered-bedrock fraction. Two derivations, one soil, and they disagree
-# by construction rather than by tuning. This file is the single description
-# both are compared against BEFORE either consumer-side path is removed.
+# WHAT THIS IS FOR. This is the ONE description of the simulated land column's
+# hydraulics, and every consumer reads it. `land_column_properties.py`
+# evaluates the closure declared here and emits per-cell states; ExoPlaSim
+# installs the capacity column as its bucket depth `dwmax` and LPJ-GUESS takes
+# the states and the per-layer shares through its driver file.
+#
+# Two consumer-side derivations stood before this one. Pedology's endmember
+# volumetric mixture set the capacity ExoPlaSim installed, and LPJ-GUESS
+# inverted the Cosby texture regressions for itself and then rescaled the
+# result by regolith depth. They were different numbers for the same soil, by
+# construction rather than by tuning. WORLD-OF6N removed both; what each
+# produced is costed in the report so the removal is attributable.
 #
 # THE SENTINEL IS `undeclared`, AND IT REFUSES, on the same terms as
 # hydrography/config/land_water_ledger.yaml. A property carrying it is
 # registered and supplies no number; the report names it and the issue that
 # owns it.
 
-version: 1
+version: 2
 
 # ---------------------------------------------------------------------------
 # UNITS. One unit per quantity class, stated once, and never a unit that
@@ -69,9 +74,19 @@ units:
 #
 # So on this world, the same soil drains to a drier state than it would on
 # Earth, the wilting point does not move, and plant-available water falls. The
-# effect is one-directional and derivable, and neither current consumer applies
-# it: pedology's declared endmember capacities are Earth field observations
-# and LPJ-GUESS's Cosby inversion evaluates at the Earth pressure.
+# effect is one-directional and derivable, and it IS APPLIED: the emitted states
+# evaluate field capacity at this planet's gravity and every consumer installs
+# them.
+#
+# THE TRAP THIS BLOCK EXISTS TO CLOSE. Cosby's parameters are recorded as heads
+# in centimetres of water. Air entry is a CAPILLARY pressure and the wilting
+# point is a PLANT pressure, so BOTH are invariant and both of their heads scale
+# by the same factor when gravity changes. The closure reads them only through
+# their ratio, so done consistently the wilting point does not move at all.
+# Converting one and not the other mixes two frames and produces a wilting point
+# that moves for a bookkeeping reason. `land_column_properties.py` evaluates the
+# closure in PRESSURE for that reason, and checks the two consistent frames
+# against each other and against the mixed one.
 # ---------------------------------------------------------------------------
 potential_convention:
   # Read at run time from config/planet.yaml, which is the single source of
@@ -150,7 +165,7 @@ geometry:
   consumers:
     exoplasim:
       geometry: none
-      what_it_reads: awc, as a scalar bucket depth `dwmax` in metres of water
+      what_it_reads: awc_mm from the emitted states, as a scalar bucket depth `dwmax` in metres of water
       note: >
         `dwmax` is a capacity, not a thickness. The land column has no vertical
         liquid structure at all, so no layer geometry can be given to it until
@@ -159,16 +174,23 @@ geometry:
         boundary with either water column.
     lpj_guess:
       geometry: 15 physical layers of 100 mm, grouped 5 upper and 10 lower
-      what_it_reads: sand, clay, silt, pH; NOT awc, NOT bulk density, NOT andic
+      what_it_reads: the emitted states and the per-layer usable shares, through its driver file; and sand, clay, silt, pH, organic carbon and the mineral-reactivity columns from the soil map
       note: >
-        `vesperinput.cpp` scales each layer's awc, wp and wsats by the share of
-        that layer above the regolith/bedrock contact plus the bedrock fraction
-        below it, and rescales the two aggregate figures to match. It moves no
-        layer boundary and no root, so a shallow-regolith cell has the same
-        rooting depth as a deep one with less water in it.
+        `vesperinput.cpp` multiplies each layer's awc, wp and wsats by the
+        usable share emitted here, and rescales the two aggregate figures to
+        match. It moves no layer boundary and no root, so a shallow-regolith
+        cell has the same rooting depth as a deep one with less water in it.
+        The share is READ: the weathered-bedrock vertical rule is evaluated
+        once, by the enforcing script, and was implemented in both places until
+        WORLD-OF6N.
     pedology:
-      geometry: one bulk column of `depth` metres
-      what_it_writes: awc, as depth times a texture-weighted volumetric capacity
+      geometry: one bulk column cut at `column_base_m`
+      what_it_writes: >
+        the soil map's texture, regolith depth, weathered-bedrock fraction,
+        organic and andic columns, which this contract's states are derived
+        FROM. Its `awc` column is pedology's own declared endmember mixture,
+        cut at the column base under WORLD-7702, and no consumer reads it: it
+        is the alternative the report costs the adopted closure against.
 
 # ---------------------------------------------------------------------------
 # MATERIAL FRACTIONS. What the column is made of, per physical layer. The
@@ -208,6 +230,12 @@ materials:
     fraction_from: pedology soilmap bedrockfrac
     vertical_rule: below the regolith contact at `depth`
     capacity_ceiling: 1.0
+    emitted_as: >
+      one usable share per physical layer, in the states file. The share of the
+      layer above the contact plus `bedrockfrac` capped at `capacity_ceiling`
+      below it, and ONE number per layer rather than three because the same
+      share scales that layer's available water, its wilting point and its
+      saturation.
     note: >
       Capped at 1, so sub-bedrock material can at most match the soil above it.
       Deeply weathered saprolite really does hold two to four times what its
@@ -233,6 +261,15 @@ states:
       `field_capacity_drainage_length_m`
     gravity_dependent: true
     evaluated_at: psi = -water_density * gravity * drainage_length
+    limitation: >
+      The adopted value holds the Clapp-Hornberger exponent fixed while gravity
+      moves, so it is an UPPER BOUND on how far a gravity-invariant retention
+      curve can drain: the whole of the shift is carried by the pressure and
+      none by the curve's shape. Adopted as an upper bound rather than left at
+      Earth's suction because the shift moves every cell the same way, so
+      unlike a scatter it does not average out over the map, and because
+      leaving it out is not a neutral choice -- it is a claim that this world's
+      columns drain to Earth's equilibrium.
   wilting_point:
     definition: water held at the plant limiting pressure
     gravity_dependent: false
@@ -257,7 +294,7 @@ states:
       contract's own check caught the omission: `available` was declared silent
       on gravity while the two states it is built from were not.
     note: >
-      This is the ONLY state ExoPlaSim receives, as `awc`. It is a difference
+      This is the ONLY state ExoPlaSim receives, as `awc_mm`. It is a difference
       of two states and carries neither, so nothing downstream of `dwmax` can
       recover saturation, and water between field capacity and saturation has
       nowhere to sit. LPJ-GUESS carries the same limitation from the other
@@ -392,21 +429,32 @@ uncertainty:
   cases: [low, central, high]
   applied: coherently across all layers and all properties in one case
   sources:
+    cosby_within_class_variance:
+      value: undeclared
+      owner: lshy-1
+      note: >
+        THE UNCERTAINTY OF THE ADOPTED CENTRAL CASE, and there is no artifact
+        for it. The states come from Cosby's texture regressions, and Cosby et
+        al. report the residual variance WITHIN texture classes as large --
+        larger than everything else here put together. Until an artifact
+        carries it, the adopted states have no declared bracket at all and the
+        cases below bracket a derivation no consumer reads.
     volumetric_capacity_endmembers:
       from: pedology/config/pedogenesis.yaml water.volumetric_capacity_by_texture_bracket
+      brackets: pedology's endmember mixture, NOT the adopted closure
+      owner: lshy-1
       note: >
         Declared endmembers with a bracket spanning the conventional range for
         each class, checked against Saxton and Rawls (2006) for ordering and
         magnitude rather than taken from it: that regression parameterises a
         continuous mixture and excluded samples above 60 percent clay, so a
         pure endmember is outside the data it was fitted on.
+
+        THIS NO LONGER BRACKETS THE CENTRAL CASE. WORLD-OF6N adopted the Cosby
+        retention closure, and these endmembers parameterise the mixture that
+        was not adopted. The soil map still carries the bracketed capacity as
+        pedology's own field, so the bracket is still what THAT number is worth;
+        it says nothing about the states any consumer installs.
     volumetric_capacity_organic:
       from: pedology/config/pedogenesis.yaml water.volumetric_capacity_organic_bracket
-    cosby_within_class_variance:
-      value: undeclared
-      owner: lshy-1
-      note: >
-        Cosby et al. report the residual variance within texture classes and it
-        is large. It is the dominant term in this contract's uncertainty and no
-        artifact here carries it, so the reported spread is a LOWER BOUND on
-        the real one and is labelled as such rather than quoted as the range.
+      brackets: pedology's endmember mixture, NOT the adopted closure

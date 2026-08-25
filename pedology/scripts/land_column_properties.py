@@ -70,15 +70,19 @@ REPORT = ANALYSIS / "land_column_properties_report.json"
 UNDECLARED = "undeclared"
 
 # ---------------------------------------------------------------------------
-# LPJ-GUESS's own derivation, transcribed from the vendored source so the
-# comparison runs against what the model computes rather than what a note says
-# it computes. Every coefficient below is at `vendor/lpj-guess/modules/
-# soilinput.cpp:360` in `SoilInput::get_mineral`, from Cosby et al. (1984)
-# Table 4 and Equation 1.
+# THE SUPERSEDED LPJ-GUESS DERIVATION, kept as a baseline and not as a model.
 #
-# THIS IS A TRANSCRIPTION AND NOT A REIMPLEMENTATION. It exists to be compared
-# against pedology's derivation on the same cells; it is not a second copy of
-# the model's hydrology and nothing consumes it.
+# `SoilInput::get_mineral` inverted Cosby et al. (1984) Table 4 and Equation 1
+# for itself, at Cosby's own field-capacity and wilting suctions, and
+# `VesperInput::apply_regolith_depth` then rescaled the profile. WORLD-OF6N
+# removed both: the model reads `contract_states` and `layer_usable_fraction`
+# above. What survives here is what those two computed, because the cost of the
+# replacement is only legible against the number it replaced.
+#
+# Cosby's Table 4 regressions themselves are NOT superseded -- they are the
+# contract's declared `parameter_source`, and `cosby_parameters` is the one
+# place they are written. What is superseded is the SUCTION they were evaluated
+# at, which was Earth's.
 # ---------------------------------------------------------------------------
 
 # `soilinput.cpp` works in RECIPROCAL suction: it sets Psi_s = 10^(-logPsi_s)
@@ -106,7 +110,13 @@ def load(path: Path = DECLARATION) -> dict:
 
 
 def cosby_parameters(sand, clay):
-    """Cosby et al. (1984) Table 4 regressions, exactly as `get_mineral` uses them."""
+    """Cosby et al. (1984) Table 4 regressions. The contract's parameter source.
+
+    `psi_s` is returned in `get_mineral`'s old reciprocal convention -- a stored
+    10^-x is a suction of 10^x cm of water -- because the two derivations below
+    are both written against it. `air_entry_pressure_pa` is what turns it into
+    the pressure the adopted closure works in.
+    """
     silt = 1.0 - sand - clay
     b = 3.10 + 15.7 * clay - 0.3 * sand
     log_psi_s = 1.54 - 0.95 * sand + 0.63 * silt
@@ -117,14 +127,19 @@ def cosby_parameters(sand, clay):
 
 def cosby_states(sand, clay, psi_field_capacity=COSBY_PSI_FIELD_CAPACITY,
                  clamp=True):
-    """Saturation, field capacity and wilting point, volumetric.
+    """Saturation, field capacity and wilting point at COSBY'S OWN suction.
 
-    CLAMPED AT AIR ENTRY, because the model is. Cosby's equation 1 holds only
-    below the air-entry value; at and above it the pore space is full and
-    theta is theta_s. `get_mineral` takes both heads through `min(..., Psi_s)`
-    for that reason, so this transcription does too -- WORLD-NGA10 put the
-    clamp in the code, and a transcription that kept the unclamped form would
-    be comparing against a model that no longer exists.
+    THE SUPERSEDED DERIVATION, kept as the baseline the adopted case is costed
+    against. `contract_states` is what the world's soil is described by; this
+    evaluates the same closure at 10^2 cm of water, which is a pressure only at
+    Earth's gravity, and is what `soilinput.cpp` computed for itself before it
+    read the contract.
+
+    CLAMPED AT AIR ENTRY. Cosby's equation 1 holds only below the air-entry
+    value; at and above it the pore space is full and theta is theta_s. This is
+    the shipped LPJ-GUESS derivation as it stood when WORLD-OF6N replaced it,
+    kept so the report can say what the replacement moved, and the clamp is
+    part of what it was.
 
     `clamp=False` is what `air_entry_clamp_region` uses to measure how far the
     soil map sits from the texture corner where the clamp starts binding. That
@@ -140,13 +155,13 @@ def cosby_states(sand, clay, psi_field_capacity=COSBY_PSI_FIELD_CAPACITY,
 
 
 def lpj_capacity_mm(sand, clay, regolith_depth_m, bedrock_fraction):
-    """LPJ-GUESS's plant-available capacity over its whole profile, mm.
+    """The SHIPPED LPJ-GUESS capacity over its whole profile, mm.
 
-    Cosby field capacity minus wilting point, applied to the fifteen physical
-    layers, then scaled layer by layer by the share above the regolith contact
-    plus the bedrock fraction below it -- which is `vesperinput.cpp`'s
-    `apply_regolith_scaling`, transcribed. The bedrock fraction is capped at 1
-    there and is capped here.
+    Cosby field capacity minus wilting point at Cosby's own suction, applied to
+    the fifteen physical layers, then scaled layer by layer by the share above
+    the regolith contact plus the bedrock fraction below it. Both halves were
+    consumer-side derivations and both are gone; this is what they produced,
+    kept so the adopted case has a baseline.
     """
     _, theta_fc, theta_wp = cosby_states(sand, clay)
     available = theta_fc - theta_wp
@@ -674,13 +689,20 @@ def air_entry_clamp_region(soil: dict[str, np.ndarray]) -> dict:
 
     which is a straight line in the texture simplex and needs no search.
 
-    `get_mineral` now clamps both heads at `Psi_s`, so a cell inside that
-    region no longer returns a field capacity above saturation; it returns
-    saturation, which is the physically right answer and is a DIFFERENT number
-    from the one the retention curve would give. The map is still measured
-    against the line as a MARGIN, because a count of zero says nothing about
-    how close the nearest cell is, and because a map that moved inside would
-    have its field capacity set by the clamp rather than by its texture.
+    `contract_states` clamps both defining pressures at the air-entry pressure,
+    so a cell inside that region does not return a field capacity above
+    saturation; it returns saturation, which is the physically right answer and
+    is a DIFFERENT number from the one the retention curve would give. The map
+    is still measured against the line as a MARGIN, because a count of zero
+    says nothing about how close the nearest cell is, and because a map that
+    moved inside would have its field capacity set by the clamp rather than by
+    its texture.
+
+    The line is derived at Cosby's own field-capacity suction, which is the
+    boundary the regression coefficients give in closed form. This world's
+    field-capacity pressure is LARGER, so the region where the clamp binds is
+    strictly smaller than this line and the margin reported here is the
+    conservative one.
     """
     sand, clay = soil["sand"], soil["clay"]
     theta_s, theta_fc, theta_wp = cosby_states(sand, clay)
@@ -701,12 +723,17 @@ def air_entry_clamp_region(soil: dict[str, np.ndarray]) -> dict:
         "clamp_changes_any_cell": bool(
             np.any(theta_fc_raw != theta_fc) or np.any(theta_wp_raw != theta_wp)),
         "verdict": "the CODE keeps this right, and the map has never needed to. "
-                   "WORLD-NGA10 clamped both heads at Psi_s in `get_mineral`, "
-                   "so the inversion cannot return a field capacity above "
-                   "saturation for any texture. No cell of this map is inside "
-                   "the region, so the clamp changes no current soil property; "
-                   "the margin is what says how far that is from being true by "
-                   "accident.",
+                   "WORLD-NGA10 clamped both heads at the air-entry value in "
+                   "get_mineral; WORLD-OF6N moved the derivation into "
+                   "contract_states and the clamp with it, so the closure "
+                   "cannot return a field capacity above saturation for any "
+                   "texture. No cell of this map is inside the region, so the "
+                   "clamp changes no current soil property; the margin is what "
+                   "says how far that is from being true by accident.",
+        "bound_is_conservative": "the line is derived at Cosby's own "
+                                 "field-capacity suction. The adopted suction "
+                                 "is larger, so the region where the clamp "
+                                 "binds is strictly smaller than this",
         "owner": "world-nga10",
     }
 
