@@ -703,14 +703,34 @@ therefore the one thermostat number available before a baseline run exists.
 
 ## The phosphorus leg
 
-`phosphorus_budget.py` is presently a relative geography diagnostic, not a
-closed phosphorus budget. It multiplies lithological P content by a relative
-release factor, groups that rank by drainage fate, and tests whether dry basin
-floors geometrically concentrate delivered material. It reads the lake solution
-only to exclude wet dust sources. Despite the pipeline dependency, it does
-**not** read the dust-deposition field, and neither weathering nor aeolian
-delivery has absolute kgP/area/time units. Nothing in the biosphere currently
-consumes its output.
+`phosphorus_budget.py` carries two arms and the units are what separate them.
+
+**The absolute arm** is a mass flux and the law is Hartmann et al. (2014)'s own:
+phosphorus release is a fixed percentage, per lithological class, of the fluvial
+export of Ca, Mg, Na, K and SiO2. The only piece this project lacked was an
+absolute major-element flux, and Meybeck (1987) Table 2C supplies the
+per-lithology concentrations that runoff carries, which is the same table and the
+same model form the silica and CO2 fluxes already use. Beside it sits the
+root-zone stock in kgP/m2: parent content times bulk density times the regolith
+depth cut at the land column property contract's rootable base, which is a TOTAL
+and an upper bound rather than a labile pool. The script declares two criteria
+before it runs and reports both: the land yield against Hartmann and Moosdorf
+(2011)'s Japanese maximum, and the major-element rock content the two configured
+phosphorus rows imply, which is the check that the content row and the release
+row are still the two different quantities they claim to be.
+
+**The rank arm** is the older diagnostic and is kept as a rank. It groups the
+lithological release score by drainage fate and tests whether dry basin floors
+geometrically concentrate what a catchment delivered. It carries no mass and no
+time; converting it into a flux is the thing the absolute arm exists to make
+unnecessary. It reads the lake solution only to exclude wet dust sources, and it
+does **not** read the dust-deposition field, so the aeolian return leg is still a
+source-composition hypothesis rather than a delivery.
+
+The artifact's `not_carried` block registers what stands between a release and a
+root: a regolith production RATE, which needs a time axis this project does not
+have; a soil-shielding function, which Hartmann applies and no source here
+supplies; and sorption and retention beyond the andic fixation share.
 
 `biosphere/notes/abiotic-nutrient-delivery-audit.md` records the source trace.
 ANUT-1 through ANUT-3 define the missing mass ledger, absolute weathering and
