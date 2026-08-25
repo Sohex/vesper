@@ -75,11 +75,18 @@ sys.path.insert(0, str(PROJECT_ROOT / "exoplasim" / "scripts"))
 # copied, so mineral dust and sea salt are priced through one formula.
 from dust_forcing import backscatter_fraction, shortwave_forcing  # noqa: E402
 from sea_salt_source import mass_flux, moment_ratio
+from aerosol_deposition import write_deposition
 
 SEA_SALT_CONFIG = PROJECT_ROOT / "aeolian" / "config" / "sea_salt.yaml"
 OPTICS = PROJECT_ROOT / "analysis" / "sea_salt_optics.json"
 OUT_JSON = ANALYSIS / "sea_salt_baseline.json"
 OUT_NC = ANALYSIS / "sea_salt_baseline.nc"
+# The nutrient carrier, and it is a SEPARATE FILE on purpose. See
+# aerosol_deposition.py: the abiotic nutrient ledger's screen refuses a carrier
+# whose path names an optics product, and `sea_salt_baseline.nc` holds optical
+# depth. A file that is half optics cannot be the mass carrier.
+OUT_DEP_JSON = ANALYSIS / "sea_salt_deposition.json"
+OUT_DEP_NC = ANALYSIS / "sea_salt_deposition.nc"
 
 R_DRY = 287.05
 EARTH_YEAR_S = 365.25 * 86400.0
@@ -157,10 +164,18 @@ def main() -> None:
                     help="run every declared bracket end and report the spread")
     ap.add_argument("--output", type=Path, default=OUT_JSON)
     ap.add_argument("--output-nc", type=Path, default=OUT_NC)
+    ap.add_argument("--output-deposition", type=Path, default=OUT_DEP_JSON)
+    ap.add_argument("--output-deposition-nc", type=Path, default=OUT_DEP_NC)
     args = ap.parse_args()
 
     config = yaml.safe_load(args.config.read_text())
     cfg = yaml.safe_load(args.sea_salt_config.read_text())
+    # `advect_to_steady_state` is shared with build_dust.py and reads the
+    # planet radius off the config dict it is handed, because the CFL step and
+    # the polar cos(lat) floor are both lengths on this world's sphere. It is
+    # injected the same way build_dust.py injects it. Without it the transport
+    # raises KeyError before producing anything, which is what it did.
+    cfg["_planet_radius_earth"] = config["planet"]["radius_earth"]
     gravity = float(config["planet"]["gravity_m_s2"])
     clim_path = args.climatology or climatology_path()
     if not args.optics.is_file():
@@ -318,6 +333,11 @@ def main() -> None:
             aod2 = np.zeros_like(u10)
             emitted = removed = 0.0
             report = []
+            # The two removal terms, kept apart and per bin, because that is the
+            # carrier the abiotic nutrient ledger needs and it is a PARTITION of
+            # a rate the solver has already balanced against emission rather
+            # than a second calculation beside it. ANUT-7.
+            dry_dep, wet_dep = [], []
             for i, (lo, hi) in enumerate(zip(edges[:-1], edges[1:])):
                 tab = optics[(lo, hi)]
                 gf = np.interp(rh_cell, tab["rh"], tab["gf"])
@@ -333,6 +353,8 @@ def main() -> None:
                 if not converged:
                     print(f"  WARNING bin {lo}-{hi} um did not converge in "
                           f"{steps} steps")
+                dry_dep.append(v_s / height * m)
+                wet_dep.append(lam_wet * m)
                 burden = burden + m
                 # Weighted by the metric the SOLVER uses, not by the true one.
                 # `advect_to_steady_state` floors cos(lat) near the poles to keep
@@ -365,7 +387,23 @@ def main() -> None:
                     "transport_steps": steps, "converged": bool(converged),
                 })
             residual = abs(emitted - removed) / max(emitted, 1e-30)
-            return burden, aod1, aod2, report, residual
+            # IDENTITY, and it can fail. The deposition fields are a PARTITION
+            # of the same `loss * m` the mass balance above already summed, so
+            # summing them back over the same metric has to reproduce `removed`
+            # to rounding. A sign error, a dropped bin or a scale height applied
+            # to the wrong half all break it, and none of them would show in the
+            # mass residual, which is a diagnostic of the steering field rather
+            # than of this split.
+            dry_a, wet_a = np.array(dry_dep), np.array(wet_dep)
+            split_sum = float(((dry_a + wet_a).sum(axis=0)
+                               * coslat_solver).sum())
+            if abs(split_sum / max(removed, 1e-30) - 1.0) > 1e-10:
+                raise SystemExit(
+                    f"the wet/dry deposition split sums to {split_sum:.6e} "
+                    f"against a removal of {removed:.6e}. It is meant to be the "
+                    f"same quantity partitioned, so this is an implementation "
+                    f"error and not a physical residual.")
+            return (burden, aod1, aod2, report, residual, dry_a, wet_a)
 
 
         # TWO VARIANTS, AND THE SECOND IS THE ONE ANY EARTH NUMBER IS COMPARABLE
@@ -376,11 +414,13 @@ def main() -> None:
         # is what reproduces Grythe's own stated production. Neither is a
         # correction to the other and both are reported.
         variants = {}
+        deposition = {}
         for label, modes in (("all_modes", None), ("no_spume", (0, 1))):
             _, per_bin_v, _ = mass_flux(u10, sst_c, cfg, weibull_k=k,
                                         bin_edges_um=edges, modes=modes)
             per_bin_v = per_bin_v * gate
-            burden_v, aod1_v, aod2_v, report_v, residual_v = run(per_bin_v)
+            (burden_v, aod1_v, aod2_v, report_v, residual_v,
+             dry_v, wet_v) = run(per_bin_v)
             if residual_v >= 0.10:
                 raise SystemExit(
                     f"{label}: mass residual {residual_v*100:.2f}% is far beyond "
@@ -415,6 +455,7 @@ def main() -> None:
                 "conservation_residual": round(residual_v, 6),
                 "bins": report_v,
             }
+            deposition[label] = (dry_v, wet_v)
             if label == "all_modes":
                 burden, aod = burden_v, aod_v
                 emission_field = per_bin_v.sum(axis=0)
@@ -422,12 +463,14 @@ def main() -> None:
         return {"variants": variants, "u10": u10, "z0": z0_sea,
                 "rh": rh_cell, "clamped": clamped, "burden": burden,
                 "aod": aod, "emission_field": emission_field,
+                "deposition": deposition,
                 "k": k, "k_fit": k_fit, "n_samples": n_samples}
 
     r = solve(cfg)
     variants = r["variants"]
     u10, z0_sea, rh_cell, clamped = r["u10"], r["z0"], r["rh"], r["clamped"]
     burden, aod, emission_field = r["burden"], r["aod"], r["emission_field"]
+    deposition = r["deposition"]
     k, k_fit, n_samples = r["k"], r["k_fit"], r["n_samples"]
 
     # THE BRACKET, re-solved rather than scaled. Each end is a full solve
@@ -558,6 +601,61 @@ def main() -> None:
         out.generated = payload["generated"]
         out.climatology = payload["climatology"]
     print(f"\nwrote {rel(args.output)} and {rel(args.output_nc)}")
+
+    # -- the nutrient carrier, a SEPARATE file holding mass and only mass -----
+    #
+    # ANUT-7 retains marine aerosol as a base-cation and sulfur source to the
+    # abiotic nutrient ledger and had no carrier, because what this component
+    # produced for it was optics. `biosphere/config/abiotic_nutrients.yaml`
+    # refuses an optical quantity as a carrier by name and the refusal is
+    # enforced, so the mass cannot ride in `sea_salt_baseline.nc` beside the
+    # optical depth: it needs a file whose whole content is mass.
+    #
+    # ALL MODES, not `no_spume`. `no_spume` exists so that a total can be
+    # compared with Grythe's own reported production, which cuts the same mode;
+    # what lands on the ground is what is emitted, and the spume mode's fate is
+    # settling rather than truncation. The JSON reports the land mean under both
+    # so the difference is visible rather than assumed, and over land it is
+    # small because a 30 um drop does not reach the coast.
+    dry_all, wet_all = deposition["all_modes"]
+    dry_ns, wet_ns = deposition["no_spume"]
+    land_w = coslat * (~ocean)
+    comp = cfg["composition"]
+    dep = write_deposition(
+        args.output_deposition_nc, args.output_deposition,
+        lat=lat, lon=lon,
+        bins_um=list(zip(cfg["size"]["bin_edges_um"][:-1],
+                         cfg["size"]["bin_edges_um"][1:])),
+        dry_per_bin=dry_all, wet_per_bin=wet_all, comp=comp,
+        land_weight=land_w, ocean_weight=area_w,
+        payload={
+            "note": "Sea-salt wet and dry DEPOSITION MASS, the abiotic nutrient "
+                    "ledger's carrier for the marine_aerosol candidate. "
+                    "Generated by aeolian/scripts/build_sea_salt.py; do not edit.",
+            "generated": payload["generated"],
+            "git_commit": payload["git_commit"],
+            "climatology": payload["climatology"],
+            "source_function": "Grythe et al. (2014) equation 7, all three "
+                               "modes, transported and deposited by the same "
+                               "steady state that produces the burden",
+            "variant": "all_modes",
+            "no_spume_land_mean_total_mg_m2_earth_year": round(float(
+                ((dry_ns.sum(axis=0) + wet_ns.sum(axis=0)) * land_w).sum()
+                / land_w.sum() * EARTH_YEAR_S * 1e6), 4),
+            "inputs": payload["inputs"],
+        })
+    anchor = cfg["composition"].get("magnitude_anchor", {})
+    ca = dep["land_mean_deposition_mg_m2_earth_year"].get("Ca", {}).get("total")
+    print(f"land-mean deposition, mg per m2 per Earth year:")
+    for element, v in dep["land_mean_deposition_mg_m2_earth_year"].items():
+        print(f"   {element:3s} {v['total']:10.3f}   (dry {v['dry']:.3f} "
+              f"wet {v['wet']:.3f})")
+    if anchor and ca is not None:
+        lo, hi = anchor["calcium_mg_m2_earth_year"]
+        print(f"   Ca against {anchor['source']}: {lo}-{hi} mg/m2/yr   "
+              f"{'inside' if lo <= ca <= hi else 'OUTSIDE'}")
+    print(f"wrote {rel(args.output_deposition)} and "
+          f"{rel(args.output_deposition_nc)}")
 
 
 if __name__ == "__main__":

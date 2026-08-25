@@ -310,3 +310,83 @@ What must not happen quietly is the two arriving into one slot because four was
 the number when the array was written. Section 9 applies to both -- a prescribed
 species needs four ratios per band and no absolute cross-section -- so the cost
 of the fifth species is the slot, not the derivation.
+
+### 10.1 The separation is measured, not asserted (CLIM-85, 2026-08-25)
+
+The paragraph above says the two carbonaceous species differ in the optics. That
+is the claim a slot is being asked for, so it is worth a number rather than a
+citation chain, and the citation chain it rested on was two documents deep.
+
+**The bars, fixed before the optical properties were fetched.** The instrument is
+`radmod`'s per-species optical set: `ssa1`, `ssa2`, `bscat1`, `bscat2`, the
+band-2 to band-1 extinction ratio, and `dustqlw`. One blended slot represents two
+species exactly only where their optical-depth ratio equals the global blend
+ratio, so the error a blend makes is set by how far apart the two optical sets
+are. The scheme's DEMONSTRATED resolving power is the pair the species array was
+built for, mineral dust and sea salt, so:
+
+- **Bar 1.** Two species need separate slots if their band-1 single-scattering
+  albedos are at least as far apart as dust and sea salt are at the DECLARED
+  measured indices, which is the smallest separation the array already exists to
+  resolve.
+- **Bar 2.** And, independently, if the critical surface albedos their optical
+  sets imply fall on opposite sides of a surface albedo this world carries, so
+  that a blend gets the SIGN of the shortwave forcing wrong somewhere rather than
+  only its size.
+
+Either firing means two slots. Neither firing means one blended slot is inside
+what the scheme can tell apart, and CLIM-85 costs nothing.
+
+**Both fire, and not narrowly.** The dust-to-sea-salt band-1 separation is 0.034
+at the measured indices, from `analysis/dust_optics.json` and
+`analysis/sea_salt_optics.json`. For the carbonaceous pair, Bond and Bergstrom
+(2006) section 9.1 recommend 0.20 to 0.30 for FRESH light-absorbing carbon with a
+central 0.25, and Dubovik et al. (2002) Table 1 retrieve 0.88 for African savanna
+smoke and 0.94 for boreal smoke at 440 nm, the aged end. Shrivastava et al.
+(2017), through this repository's own reading of it in
+`biosphere/notes/bvoc-soa-atmospheric-coupling-audit.md` finding 8, put modelled
+SOA at nearly white. Taking the most generous possible pairing -- the most
+SCATTERING smoke ever measured against an SOA that is only nearly white -- leaves
+about 0.06, which is already 1.8 times bar 1; the fresh end leaves 0.75, twenty
+times it. For one slot to suffice, SOA would have to be about as absorbing as
+boreal smoke, at which point the audit's correction was wrong.
+
+Bar 2 is the harder one and it is not close. Running the two-stream critical
+surface albedo `exoplasim/scripts/dust_optics.py:critical_surface_albedo` over
+each optical set puts fresh carbonaceous just below the albedo of open water, so
+it warms over every surface this world has, including the ocean, and puts a
+conservative scatterer at essentially 1, so it cools over every surface including
+snow. The two are on opposite sides of the whole surface table rather than of one
+entry in it. Even the aged, most-scattering smoke end still straddles the bright
+closed-basin fill and the sea ice, which are exactly the surfaces this world is
+unusual for. A blended slot does not get those cells wrong by a fraction; it gets
+them the wrong way round.
+
+**So the fifth slot is warranted, and it is a hand-off rather than a change made
+here.** `vendor/exoplasim/exoplasim/plasim/src/radmod.f90` belongs to the
+radiation, not to this component. The change is one line, `parameter(NAERSP = 4)`
+to 5, at the `NAERSP` declaration, plus the source comment above it that
+enumerates the four.
+
+**What it costs, corrected.** The paragraph above says memory in `aodsp` and
+nothing else. `aodsp` is not the only array dimensioned by `NAERSP` that scales
+with the grid -- `ddustod(NHOR,NLEV,NAERSP)` and `ddustcol(NHOR,NAERSP)` do too --
+and all three are on `radmod`'s `threadprivate` list, so the cost is one copy per
+thread and the project's working-set rule counts the whole team. Per extra
+species the team holds `NHOR*(2*NLEV+1)` reals per thread, at eight bytes under
+`-fdefault-real-8`. On sixteen threads at ten layers that is a third of a
+megabyte for the team at T21 and about twenty at T170, against the 32 MB per-die
+target in CLAUDE.md. So it is free at the rung this world runs at and it is NOT
+free at the top of the ladder, where the four species already there cost four
+times as much again. Anyone raising `NAERSP` should say which rungs they have
+priced it at rather than repeating that it is free.
+
+**What it does not touch.** `readdat(aerofile,naerosp,8,aeroqs)` takes the column
+count from `naerosp` and not from `NAERSP`, and its dummy `kdata(nitems,ndim)`
+shares the leading dimension 8 with `aeroqs(8,NAERSP)`, so the aerofile format is
+unchanged and an existing file stays valid. `radini` already refuses
+`naerosp > NAERSP` with a message naming the parameter. Every species loop is
+bounded by `naerosp`. The namelist arrays `dustsc`, `dusthsc` and `dustqlw` grow
+with the parameter and are broadcast with an explicit `NAERSP` extent, so they
+follow it without edits; whoever makes the change should confirm that the driver
+writing those namelist keys does not hardcode four entries.
