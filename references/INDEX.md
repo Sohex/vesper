@@ -485,6 +485,20 @@ data carry no spectrum at all, which is what makes the re-weighting possible.
 | `howard1956b-synthetic-atmospheres-iii-water-vapor.pdf` | Howard, Burch, Williams (1956). *Infrared Transmission of Synthetic Atmospheres. III. Absorption by Water Vapor.* J. Opt. Soc. Am. 46(4), 242-245. `10.1364/JOSA.46.000242` | **read** -- Table II, the weak and strong band fits for the seven near-infrared H2O bands. A band absorption in cm-1 is a molecular property and carries no incident spectrum, which is why the solar weighting can be undone and redone |
 | `howard1956a-synthetic-atmospheres-ii-carbon-dioxide.pdf` | Howard, Burch, Williams (1956). *Infrared Transmission of Synthetic Atmospheres. II. Absorption by Carbon Dioxide.* J. Opt. Soc. Am. 46(4), 237-241. `10.1364/JOSA.46.000237` | **read** -- Table II for CO2, and their Eq. 11, which states the reconstruction method used here in one line: "if the spectral distribution of the radiation from a given source is known, the fraction of the total radiation absorbed by CO2 in a given atmospheric path can be computed" |
 
+## Radiation: what the error of Lacis-Hansen Eq. 21 is measured against
+
+The correlated-k cross-check in `exoplasim/notes/shortwave-water-vapour.md` puts
+Eq. 21 10 to 15 per cent low, and that figure is one-signed and a lower bound
+because the correlated-k side carries no water vapour continuum. These are the
+published sources that would close it: line-by-line reference cases for the same
+quantity, and the spread across the codes that were scored on them.
+
+| file | citation | status |
+| --- | --- | --- |
+| `oreopoulos2012-continual-intercomparison-radiation-codes-phase-i.pdf` | Oreopoulos, Mlawer, Delamere, Shippert, Cole, Fomin, Iacono, Jin, Li, Manners, Raisanen, Rose, Zhang, Wilson, Rossow (2012). *The Continual Intercomparison of Radiation Codes: Results from Phase I.* J. Geophys. Res. 117, D06118. `10.1029/2011JD016821` | held -- the CIRC Phase I cases: line-by-line references validated against measured fluxes, plus the spread across the participating GCM codes, which is a published envelope for this quantity with a right answer rather than a mutual comparison. The copy on disk is the NASA NTRS accepted manuscript, 32 pages with a popular summary as page 1, so its page and figure numbers are not the published article's |
+| `ramaswamy1992-broadband-solar-water-vapor-drops.pdf` | Ramaswamy, Freidenreich (1992). *A Study of Broadband Parameterizations of the Solar Radiative Interactions with Water Vapor and Water Drops.* J. Geophys. Res. 97(D11), 11487-11512. `10.1029/92JD00699` | held -- near-infrared reference solutions against which broadband water vapour absorption parameterizations of the Lacis-Hansen kind are scored, clear sky and overcast |
+| `freidenreich1999-multiple-band-solar-parameterization.pdf` | Freidenreich, Ramaswamy (1999). *A new multiple-band solar radiative parameterization for general circulation models.* J. Geophys. Res. 104(D24), 31389-31409. `10.1029/1999JD900456` | held -- the successor multiple-band scheme, calibrated and verified against line-by-line plus doubling-adding computations, and it reports the error of the older broadband parameterizations it replaces |
+
 ## Cloud water: the reference density, and what consumes it (world-8h6)
 
 `rainmod`'s `mkclouds` is CCM3's diagnostic cloud water scheme, and both of its
