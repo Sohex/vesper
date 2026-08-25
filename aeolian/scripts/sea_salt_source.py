@@ -255,7 +255,13 @@ def _earth_check(cfg: dict) -> bool:
     has one temperature. `aeolian/config/sea_salt.yaml` argues it.
     """
     e = cfg["earth_check"]
-    k = cfg["subgrid_wind"]["weibull_shape"]
+    # EARTH's pooled ocean wind-speed shape, not this world's.
+    # `subgrid_wind.weibull_shape` is Vesper's and is refitted at build time
+    # from a high-cadence extract, so reading it here made an Earth verdict move
+    # for a Vesper reason. The check is sensitive to it: at the sourced wind the
+    # gated arms pass at 1.6 and 2.0 and fail at 2.6.
+    # `aeolian/config/sea_salt.yaml` carries the source.
+    k = e["weibull_shape"]
     u = e["ocean_mean_u10_m_s"]
     table = e["grythe_table2"]
 

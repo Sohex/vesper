@@ -125,3 +125,33 @@ growth:
   mode: suso
   rh_min_percent: 50.0
   rh_max_percent: 99.0
+
+# --- composition, for the nutrient carrier -----------------------------------
+#
+# ANUT-7 registers volcanic sulfate deposition as a SULFUR source to
+# `soil_solution` in `biosphere/config/abiotic_nutrients.yaml`, and a ledger
+# needs a mass. This block turns the aerosol mass the transport carries into an
+# element mass, once, so that no consumer does the molar arithmetic a second
+# time and differently.
+#
+# THE PARTICLE THE TRANSPORT CARRIES IS NOT DRY. `source.acid_mass_fraction` is
+# the fraction of it that is sulphuric acid, which is what OPAC's `suso`
+# component is denominated in and therefore what the optics and the settling
+# were both computed against. So the two solutes of the carried mass are the
+# acid and its water, they sum to one exactly, and the sulfur per unit carried
+# mass is `acid_mass_fraction * M_S / M_H2SO4`. Both molar masses are the ones
+# `source` already declares, restated here as ratios so the identity check has
+# something to close on.
+composition:
+  source: >
+    The 75 per cent sulphuric acid solution `source.acid_mass_fraction`
+    declares, which is OPAC's `suso` component. The molar masses are
+    `source.h2so4_molar_mass` and `source.sulfur_molar_mass`.
+  solutes:
+    sulphuric_acid:
+      mass_fraction: 0.75
+      # 32.06 / 98.079
+      elements: {S: 0.326879}
+    water:
+      mass_fraction: 0.25
+      elements: {}

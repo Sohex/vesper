@@ -295,6 +295,52 @@ and its lower tail dominates the emitted mass below the 10 um cut, so the
 product carries an `all_modes` and a `no_spume` variant and any comparison with
 an Earth number is against the second. Neither is a correction to the other.
 
+## Deposition mass, and why it is its own artifact
+
+`aeolian/scripts/aerosol_deposition.py` is the elemental split and the writer
+shared by sea salt and volcanic sulfate, and
+`--self-test` is its identities: that each composition table closes on one and
+that a mistranscribed one is rejected, that the element split conserves mass and
+that a monatomic ion carries its own solute mass exactly, and that the writer's
+land mean reproduces the analytic mean of a uniform field.
+
+```bash
+python aeolian/scripts/aerosol_deposition.py --self-test
+```
+
+`build_sea_salt.py` writes `aeolian/analysis/sea_salt_deposition.{nc,json}` and
+`build_volcanic_sulfate.py` writes
+`aeolian/analysis/volcanic_sulfate_deposition.{nc,json}`, both declared against
+their own steps in `config/pipeline.yaml`. Wet and dry removal per size bin, in
+kg per m2 per second, plus a field per element; the JSON reads the same fields as
+land and ocean means in mg per m2 per Earth year, because the magnitude anchor is
+an Earth measurement.
+
+**They are separate files rather than variables in the baseline artifacts, and
+that is not tidiness.** `biosphere/config/abiotic_nutrients.yaml` lists
+`aeolian/analysis/volcanic_sulfate.nc` and
+`aeolian/analysis/sea_salt_optics.json` in `screen.forbidden_carriers` and
+`abiotic_nutrient_ledger.py:check_screen` rejects any candidate whose declared
+carrier contains one of those strings. The refusal is by path and it is right:
+those files hold optical depth, an optical depth folds in refractive index, size
+distribution and water uptake, and no elemental mass comes back out of it. A
+carrier file therefore has to hold mass and nothing else.
+
+**The deposition is a PARTITION, not a second calculation.** At steady state each
+size bin loses `loss * m` per unit area per unit time and `loss` is already the
+sum of a settling frequency and a wet scavenging rate, so the two fields are that
+one rate split in two. `build_sea_salt.py` asserts that they sum back to the
+removal its own mass balance computed, to within rounding, which catches a sign
+error or a dropped bin that the mass residual cannot see.
+
+**The composition is Earth's Reference Composition, declared rather than
+derived.** `aeolian/config/sea_salt.yaml` carries Table D.3 of the TEOS-10 Manual
+in full with its argument; nothing in this project models ocean chemistry, so the
+proportions are an assumption, and it is the same assumption the source function
+already makes by carrying no salinity weight. Phosphorus is deliberately absent:
+Chadwick et al. state the seawater contribution of P to marine aerosol is
+vanishingly small, and booking one would invent it.
+
 ## Volcanic sulfate
 
 The third aerosol, added 2026-08-19 for CLIM-28.

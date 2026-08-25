@@ -131,14 +131,69 @@ emission:
 # emitted; what removes them is settling, which is a physical answer rather than
 # a truncation.
 earth_check:
-  # DECLARED AND UNSOURCED, and it is what the absolute arm currently fails on.
-  # Grythe state NO ocean-mean 10 m wind speed anywhere. What they give is the
-  # MODE, section 5.2, "the most frequent wind speeds are 5-7 m s-1 with a
-  # long-tailed distribution towards higher wind speeds", and a mode read as a
-  # mean on a long-tailed distribution is low by construction, which is the sign
-  # of the miss. Emission goes as U10^3.41 here, so entering the band needs
-  # 7.38 m/s and reproducing Grythe's own M86 needs 8.09 m/s. world-3e2d.
-  ocean_mean_u10_m_s: 7.0
+  # EARTH's global ocean-area-weighted annual mean 10 m SCALAR wind speed.
+  # MEASURED, from NOAA NCEI Blended Global Sea Surface Winds (NBS) v2.0, the
+  # 1991-2020 monthly climatology
+  # `NBS_v02_wind_climmonthly_s1991_e2020_c20221206.nc`, 0.25 degree, zlev 10 m,
+  # documented by Saha and Zhang (2022), Front. Mar. Sci. 9:935549,
+  # `10.3389/fmars.2022.935549`. The file's own `windspeed` field, its own ocean
+  # mask (`mask == 1`, so lakes and rivers are out), cos(latitude) weighting,
+  # 694,835 ocean cells covering 71.42 per cent of the sphere, every cell finite
+  # in every month. Month-weighted and day-weighted annual means agree to four
+  # decimals; the seasonal cycle is 0.24 m/s peak to peak and a latitude cap
+  # anywhere from 60 to 90 degrees moves the answer by under 0.06 m/s.
+  #
+  # THE SCALAR-VERSUS-VECTOR DISTINCTION IS THE WHOLE OF THIS NUMBER, and it was
+  # verified rather than assumed: in January the same file's area-mean
+  # `windspeed` is 7.540 m/s against 4.133 for the area-mean of
+  # sqrt(u_wind^2 + v_wind^2), a factor of 1.8. Emission goes as U10^3.41, so a
+  # vector mean read as a scalar one would be wrong by two orders of magnitude.
+  # Any replacement for this number must be a mean of the instantaneous speed.
+  #
+  # EQUIVALENT-NEUTRAL, AND THAT IS THE RIGHT KIND. NBS speeds are microwave
+  # radiometer and scatterometer retrievals, which are 10 m equivalent-neutral
+  # winds rather than true ones. `u10_from_level` reaches U10 by a Charnock
+  # roughness and a NEUTRAL log profile with no stability function, so this
+  # world's U10 is equivalent-neutral by construction and the satellite product
+  # is the like-for-like comparison rather than a biased one.
+  #
+  # WHAT IT REPLACED. 7.0 m/s, declared and unsourced, attributed in this file to
+  # Grythe's Fig. 3. Grythe state no ocean-mean 10 m wind speed anywhere; what
+  # they give is the MODE, section 5.2, "the most frequent wind speeds are
+  # 5-7 m s-1 with a long-tailed distribution towards higher wind speeds", and a
+  # mode read as a mean on a long-tailed distribution is low by construction,
+  # which was the sign of the miss. At 7.0 the absolute arm failed at 2.75 Pg/yr
+  # against a band bottom of 3.3; at the measured value all three arms pass.
+  # Nothing was fitted to reach it: the bars were fixed in world-fgak before the
+  # first run and the wind was sourced without reference to them. world-3e2d.
+  ocean_mean_u10_m_s: 7.566
+  # EARTH's ocean wind-speed Weibull shape, and it is the Earth check's own
+  # rather than `subgrid_wind.weibull_shape`. It used to be the latter, which is
+  # THIS WORLD's shape and is fitted at build time from a Vesper high-cadence
+  # extract, so a refit here would have moved an Earth verdict for a reason
+  # having nothing to do with Earth. The check is sensitive enough for that to
+  # matter: holding the wind at the value above, the gated arms pass at shape
+  # 1.6 and 2.0 and FAIL at 2.6, the top of this world's declared bracket.
+  #
+  # SOURCED, and to the right object. Monahan (2006) Part I, section 5, asks
+  # exactly this question of QuikSCAT and answers it: "The observed PDF of w is
+  # somewhat narrower than the Rayleigh PDF ... Despite these small differences,
+  # the Rayleigh PDF is a reasonable approximation to the global PDF of w."
+  # Rayleigh is Weibull with shape 2. That is the POOLED global distribution,
+  # which is the object this check needs, because the check applies one moment
+  # ratio to one global mean production. The same paper's Fig. 3 is why the
+  # pooled distribution and not a typical local one: the LOCAL shape runs 2 to 3
+  # in the northern midlatitudes and the warm pool, 3 to 4 over the Southern
+  # Ocean and above 4 on the flanks of the subtropical highs, and it is the
+  # variation of the local mean between those regions that broadens the pool
+  # back to Rayleigh. Part II adds that all four datasets it compares share that
+  # pattern.
+  #
+  # Monahan's winds are 10 m equivalent-neutral scatterometer winds, the same
+  # kind as `ocean_mean_u10_m_s` above and the same kind `u10_from_level`
+  # produces, so the mean and the shape are consistent in kind as well as in
+  # source.
+  weibull_shape: 2.0
   ocean_area_m2: 3.61e+14
   sst_mean_c: 18.0
   # Grythe et al. (2014) Table 2. `dp_um` is that row's own validity range and
@@ -327,3 +382,108 @@ size:
 optics:
   source: analysis/sea_salt_optics.json
   indices: OPAC ssam and sscm, at ambient relative humidity
+  # The wind the emitted size distribution is shaped at, for the WITHIN-BIN
+  # weighting only: each bin is band-averaged on its own, so this sets how the
+  # population is distributed inside a bin and never the burden, which comes
+  # from `build_sea_salt.py` and this world's own winds.
+  #
+  # DECLARED HERE RATHER THAN BORROWED, and that is the point of the entry.
+  # `sea_salt_optics.py` used to default to `earth_check.ocean_mean_u10_m_s`,
+  # so an EARTH constant shaped a VESPER optics product and a change to the
+  # Earth check moved an artifact nothing had asked it to move.
+  #
+  # It is nearly wind-independent by construction, and that was MEASURED rather
+  # than argued: two of Grythe's three modes carry `wind_exponent` 3.5 and only
+  # the 30 um spume mode carries 3.0, so the wind divides out of the normalised
+  # within-bin shape everywhere the spume tail does not reach. Re-running the
+  # whole table at 7.0 and at 7.566 m/s, an 8 per cent change in the wind, moves
+  # the worst mass extinction efficiency by 1.2e-3 relative, the worst asymmetry
+  # parameter by 1.3e-4, the worst critical surface albedo by 1.0e-4 and the
+  # worst single-scattering albedo by 1.1e-5. So the coupling was harmless and
+  # the defect was that it existed at all.
+  #
+  # The value is unchanged from the borrowed default so that exposing the
+  # coupling does not also move the artifact, and there is no reason to prefer
+  # this world's own ocean-mean wind here: `sea_salt_optics` runs before any
+  # climatology is read, and at that sensitivity it would not matter if it did.
+  emitted_shape_u10_m_s: 7.0
+
+# --- composition, for the nutrient carrier -----------------------------------
+#
+# ANUT-7 retains marine aerosol as a base-cation and sulfur source to
+# `soil_solution` in `biosphere/config/abiotic_nutrients.yaml`, and a ledger
+# needs an element mass. This block turns the dry sea-salt mass the transport
+# deposits into element masses, once, so that no consumer does the molar
+# arithmetic a second time and differently.
+#
+# THE SOURCE IS THE REFERENCE COMPOSITION, Table D.3 p. 144 of IOC, SCOR and
+# IAPSO (2010), the TEOS-10 Manual, Manuals and Guides No. 56, UNESCO, which
+# reproduces Table 4 of Millero et al. (2008) and is the definition of record.
+# `Wj` is the printed mass fraction column and the caption states its
+# denominator exactly: "the mass of a particular solute as a fraction of the
+# total mass of solute", so it is per kg of SEA SALT and not per kg of solution,
+# which is the mass the transport carries.
+#
+# IT CLOSES BY CONSTRUCTION AND NOT APPROXIMATELY. The mole fractions ARE the
+# definition, integers over 1e7 summing to exactly 10,000,000 with charge
+# summing to exactly zero, and the mass fractions follow as Wj = Xj Mj / MS with
+# MS = 31.4038218 g/mol. The printed digits sum to 1.0 with no renormalisation,
+# which is why `aerosol_deposition.check_composition` is an identity with a
+# right answer rather than a comparison with a tolerance.
+#
+# WHAT IT LEAVES OUT IS NOT A RESIDUAL. Appendix A.3 p. 74 lists the omissions
+# as omissions from REAL seawater rather than as a gap inside the table: Li+ and
+# Rb+ at about 0.18 and 0.12 mg/kg, dissolved N2 and O2 as not affecting density
+# or conductivity, nutrients as negligible, organic matter excluded entirely.
+# Departures of real seawater are carried as an Absolute Salinity Anomaly. A
+# ledger that read the omissions as a closure gap would be misreading the table.
+#
+# THIS WORLD'S OCEAN IS DECLARED TO CARRY THAT COMPOSITION, and that is an
+# assumption rather than a result. Nothing in this project models ocean
+# chemistry; `config/planet.yaml` declares a salinity and no proportions. The
+# assumption is the same one the source function already makes by carrying no
+# salinity weight at all, so adopting it here adds no new commitment. What it
+# does mean is that every element mass below inherits it, and a future ocean
+# chemistry would move all of them together rather than one at a time.
+#
+# ELEMENT MASS PER UNIT SOLUTE MASS. Unity for the monatomic ions. For sulfate,
+# M_S / M_SO4 from the manual's own numbers rather than an external table:
+# Table D.6 p. 146 gives M(O2) = 31.9988 so M(O) = 15.9994, and Table D.3's
+# M(SO4) = 96.0626 gives M(S) = 96.0626 - 4 M(O) = 32.0650, hence 0.3337928.
+# The carbonate, borate and hydroxide solutes are listed so the sum closes and
+# carry no element, because the ledger asks for none of C, B or O and deriving
+# them would add molar masses this file has no use for.
+composition:
+  source: >
+    Reference Composition of seawater, Table D.3 p. 144 of IOC, SCOR and IAPSO
+    (2010), The international thermodynamic equation of seawater 2010,
+    Manuals and Guides No. 56, UNESCO, reproducing Table 4 of Millero et al.
+    (2008). Mass fractions are per unit mass of SEA SALT.
+  solutes:
+    sodium:      {mass_fraction: 0.3065958, elements: {Na: 1.0}}
+    magnesium:   {mass_fraction: 0.0365055, elements: {Mg: 1.0}}
+    calcium:     {mass_fraction: 0.0117186, elements: {Ca: 1.0}}
+    potassium:   {mass_fraction: 0.0113495, elements: {K: 1.0}}
+    strontium:   {mass_fraction: 0.0002260, elements: {Sr: 1.0}}
+    chloride:    {mass_fraction: 0.5503396, elements: {Cl: 1.0}}
+    sulfate:     {mass_fraction: 0.0771319, elements: {S: 0.3337928}}
+    bicarbonate: {mass_fraction: 0.0029805, elements: {}}
+    bromide:     {mass_fraction: 0.0019134, elements: {Br: 1.0}}
+    carbonate:   {mass_fraction: 0.0004078, elements: {}}
+    borate:      {mass_fraction: 0.0002259, elements: {}}
+    fluoride:    {mass_fraction: 0.0000369, elements: {F: 1.0}}
+    hydroxide:   {mass_fraction: 0.0000038, elements: {}}
+    boric_acid:  {mass_fraction: 0.0005527, elements: {}}
+    carbon_dioxide: {mass_fraction: 0.0000121, elements: {}}
+  # The magnitude the calcium arm is read against, and it is an EARTH
+  # measurement at one site rather than a global mean. Chadwick, Derry, Vitousek,
+  # Huebert and Hedin (1999) measured atmospheric input directly on the Hawaiian
+  # substrate-age sequence and report 600 +/- 400 mg Ca per m2 per Earth year,
+  # mostly marine aerosol. `biosphere/notes/abiotic-nutrient-ledger.md` carries
+  # it as the ANUT-7 anchor. A single maritime tropical site is an upper end for
+  # a land mean: it is small, wet and surrounded by ocean, so this world's
+  # land mean landing below the band is expected and only a land mean ABOVE it
+  # would be a defect.
+  magnitude_anchor:
+    source: Chadwick et al. (1999), a Hawaiian site
+    calcium_mg_m2_earth_year: [200, 1000]

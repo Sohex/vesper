@@ -570,14 +570,14 @@ steps:
     loop: A
     cost: minutes
     needs: [bootstrap_climatology, sea_salt_optics]
-    writes: [aeolian/analysis/sea_salt_baseline.nc, aeolian/analysis/sea_salt_baseline.json]
+    writes: [aeolian/analysis/sea_salt_baseline.nc, aeolian/analysis/sea_salt_baseline.json, aeolian/analysis/sea_salt_deposition.nc, aeolian/analysis/sea_salt_deposition.json]
 
   - id: volcanic_sulfate
     script: aeolian/scripts/build_volcanic_sulfate.py
     loop: A
     cost: minutes
     needs: [bootstrap_climatology, sea_salt_optics, weathering_fluxes]
-    writes: [aeolian/analysis/volcanic_sulfate.nc, aeolian/analysis/volcanic_sulfate.json]
+    writes: [aeolian/analysis/volcanic_sulfate.nc, aeolian/analysis/volcanic_sulfate.json, aeolian/analysis/volcanic_sulfate_deposition.nc, aeolian/analysis/volcanic_sulfate_deposition.json]
 
   - id: vegetation_albedo
     script: analysis/vegetation_albedo.py

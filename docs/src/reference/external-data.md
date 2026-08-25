@@ -43,6 +43,28 @@ make a re-run resume rather than restart;
 downloads. It refuses `HEAD` outright and returns 403 without a browser
 `User-Agent`, so a naive probe reports the data as unavailable when it is not.
 
+**NOAA NCEI Blended Global Sea Surface Winds (NBS)**,
+`www.ncei.noaa.gov/data/blended-global-sea-surface-wind-products/access/`.
+Anonymous HTTPS, no key and no quota. The route to an Earth ocean wind number,
+and the 1991-2020 monthly climatology under `climatology/` is 248 MB for the
+whole globe at 0.25 degrees, which is small enough to fetch outright. Documented
+by Saha and Zhang (2022), `10.3389/fmars.2022.935549`.
+
+**Take `windspeed`, never `u_wind` and `v_wind`.** The file carries both, and
+they are different quantities: `windspeed` is the time mean of the instantaneous
+scalar speed and the components are vector means, which over the global ocean
+differ by a factor of about 1.8. Any emission law that goes as a high power of
+the wind turns that into orders of magnitude. The file also ships its own mask
+with lake and river codes distinct from ocean, so an ocean mean should test
+`mask == 1` rather than `mask != 0`.
+
+The speeds are microwave radiometer and scatterometer retrievals, so they are 10
+m EQUIVALENT-NEUTRAL winds. That is the right kind for a comparison against
+anything this project computes through a neutral log profile, and the wrong kind
+for a comparison against a true 10 m wind; say which is meant.
+`aeolian/config/sea_salt.yaml` carries the one number taken from it and the
+argument for both points.
+
 **Copernicus DEM**, `s3://copernicus-dem-90m` and `copernicus-dem-30m`, no
 credentials. One-degree COG tiles, 4.2 MB each at 90 m, named
 `Copernicus_DSM_COG_30_N37_00_E095_00_DEM`. Read a tile straight out of S3 with
