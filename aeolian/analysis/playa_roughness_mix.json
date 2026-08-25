@@ -1,0 +1,194 @@
+{
+  "generated": "2026-08-25T08:07:36+00:00",
+  "what_this_is": "the aerodynamic roughness of the derived lithology class playa_clastic, as a geometric mixture of measured arid surfaces weighted by the landform bands the class is made of",
+  "source": {
+    "measurements": "Greeley et al. (1997) Table 2, aerodynamic z0 from wind profiles, doi 10.1029/97JE00518; read from that table and not from Prigent et al. (2005) Table 1, which reproduces it with a factor-9 transcription error on Golden Canyon NE 1989",
+    "band_shares": "notes/audits/orogen-lithology.md, steepest descent on elevation_km, area-weighted over playa_clastic, both builds",
+    "criteria": "notes/audits/dust-intensity-levers.md section 4"
+  },
+  "endmembers": [
+    {
+      "band": "playa_and_mud_flat",
+      "gradient": "below 1e-3",
+      "surface_types": [
+        "playa"
+      ],
+      "sites": [
+        {
+          "site": "Lunar Lake LL-1, near centre, Aug 1994",
+          "surface": "playa",
+          "z0_m": 0.000182
+        },
+        {
+          "site": "Lunar Lake LL-2, near SW edge, Jul-Aug 1990",
+          "surface": "playa",
+          "z0_m": 0.000126
+        }
+      ],
+      "n": 2,
+      "z0_geometric_mean_m": 0.00015143315356948753,
+      "z0_min_m": 0.000126,
+      "z0_max_m": 0.000182
+    },
+    {
+      "band": "sand_flat_and_distal_fan",
+      "gradient": "1e-3 to 1e-2",
+      "surface_types": [
+        "distal alluvial fan",
+        "alluvial fan",
+        "interdune flats"
+      ],
+      "sites": [
+        {
+          "site": "Stovepipe Wells Main (S), April 1994",
+          "surface": "distal alluvial fan",
+          "z0_m": 0.00347
+        },
+        {
+          "site": "Stovepipe Wells N1",
+          "surface": "distal alluvial fan",
+          "z0_m": 0.00208
+        },
+        {
+          "site": "Stovepipe Wells S1",
+          "surface": "distal alluvial fan",
+          "z0_m": 0.00288
+        },
+        {
+          "site": "Stovepipe Wells S2",
+          "surface": "distal alluvial fan",
+          "z0_m": 0.0031
+        },
+        {
+          "site": "Stovepipe Wells Main, March-April 1991",
+          "surface": "distal alluvial fan",
+          "z0_m": 0.00076
+        },
+        {
+          "site": "Kit Fox Fan T2",
+          "surface": "alluvial fan",
+          "z0_m": 0.00085
+        },
+        {
+          "site": "Kit Fox Fan T1",
+          "surface": "alluvial fan",
+          "z0_m": 0.000696
+        },
+        {
+          "site": "Gobabeb NB, gravel lag",
+          "surface": "interdune flats",
+          "z0_m": 0.00042
+        },
+        {
+          "site": "Gobabeb NA, thin sand sheet",
+          "surface": "interdune flats",
+          "z0_m": 4e-05
+        }
+      ],
+      "n": 9,
+      "z0_geometric_mean_m": 0.0009231139982781388,
+      "z0_min_m": 4e-05,
+      "z0_max_m": 0.00347
+    },
+    {
+      "band": "alluvial_fan_and_bajada",
+      "gradient": "above 1e-2",
+      "surface_types": [
+        "proximal alluvial fan"
+      ],
+      "sites": [
+        {
+          "site": "Golden Canyon NE, April 1994",
+          "surface": "proximal alluvial fan",
+          "z0_m": 0.0106
+        },
+        {
+          "site": "Golden Canyon SE, April 1989",
+          "surface": "proximal alluvial fan",
+          "z0_m": 0.00245
+        },
+        {
+          "site": "Golden Canyon NE, April 1989",
+          "surface": "proximal alluvial fan",
+          "z0_m": 0.0011
+        }
+      ],
+      "n": 3,
+      "z0_geometric_mean_m": 0.003056949128634474,
+      "z0_min_m": 0.0011,
+      "z0_max_m": 0.0106
+    }
+  ],
+  "within_class_z0": {
+    "by_group": {
+      "death_valley": {
+        "n": 10,
+        "sigma_g": 2.3527246940708317
+      },
+      "namib_gobabeb": {
+        "n": 2,
+        "sigma_g": 5.273389841532624
+      },
+      "central_nevada_lunar_lake": {
+        "n": 2,
+        "sigma_g": 1.2969569147681643
+      }
+    },
+    "degrees_of_freedom": 11,
+    "sigma_g": 2.5228945799809335,
+    "sigma_g_bracket": [
+      1.2969569147681643,
+      5.273389841532624
+    ]
+  },
+  "by_build": {
+    "precarve-craton": {
+      "band_shares": [
+        0.6379,
+        0.3058,
+        0.0563
+      ],
+      "central_m": 0.0003117164796023387,
+      "endmembers_at_their_minimum_m": 0.00010022284441530098,
+      "endmembers_at_their_maximum_m": 0.0005635818677448489
+    },
+    "precarve-craton-10m": {
+      "band_shares": [
+        0.5328,
+        0.3731,
+        0.094
+      ],
+      "central_m": 0.0003943076223817776,
+      "endmembers_at_their_minimum_m": 0.00010066933768059927,
+      "endmembers_at_their_maximum_m": 0.0008011836669259583
+    }
+  },
+  "configured_build": "precarve-craton-10m",
+  "result": {
+    "z0_m": 0.0003943076223817776,
+    "bracket_m": [
+      0.00010066933768059927,
+      0.0008011836669259583
+    ],
+    "bracket_factor": 7.9585669816158955
+  },
+  "what_it_replaces": {
+    "z0_m": 3e-05,
+    "bracket_m": [
+      1e-05,
+      0.0001
+    ],
+    "sigma_g": 2.736,
+    "sigma_g_bracket": [
+      1.297,
+      5.095
+    ],
+    "central_moves_by_factor": 13.14358741272592
+  },
+  "declared_prediction": {
+    "statement": "the mix-derived high end exceeds 1.0e-4 m, because a third to a half of the class lies on sand-flat and fan gradients and a gravel apron is rougher than a sand sheet rather than smoother",
+    "threshold_m": 0.0001,
+    "high_end_m": 0.0008011836669259583,
+    "held": true
+  }
+}

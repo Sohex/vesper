@@ -195,8 +195,19 @@ drag_partition:
   # while "paleolakes, fed by superficial gypseous water, became EMBOSSED
   # TOPOGRAPHY, sensitive to weathering", and the present features of sebkhas
   # "vary, depending on their salt content and on the experienced periods of
-  # drying and moistening". A clastic playa and an evaporite pan are a smooth
-  # surface and a rough one, and the second is the more variable.
+  # drying and moistening". That distinction is between a CLAY PLAIN and a salt
+  # pan, and it is why the two classes carry different roughnesses rather than
+  # one scalar.
+  #
+  # IT DOES NOT ORDER THESE TWO CLASSES, and reading it as if it did is what put
+  # `playa_clastic` an order of magnitude too smooth. Where the two surfaces
+  # have both been measured aerodynamically they agree: MacKinnon's salt-crust
+  # playa at 1.4e-4 m and Greeley's silty-clay Lunar Lake playa at 1.26e-4 and
+  # 1.82e-4 m. What separates the classes here is not clay against salt but
+  # extent: `evaporite` is the lowest quarter of a basin's relief and is a floor,
+  # while `playa_clastic` is everything above it and is mostly basin margin. The
+  # margin is the rougher surface, so this class comes out rougher than the salt
+  # crust, which is the reverse of what the smooth-clay reading predicts.
   #
   # The values are aerodynamic roughness lengths of the ERODIBLE PATCH, which is
   # what `drag_efficiency` takes -- not the grid-cell roughness. Cells combine
@@ -204,19 +215,43 @@ drag_partition:
   # 1/ln(z/z0) and it is ln(z0) that averages.
   aeolian_z0_by_class_m:
     playa_clastic:
-      z0: 3.0e-5
-      bracket: [1.0e-5, 1.0e-4]
-      # Prigent et al. (2005): the Bodele and Chott Djerid enclosed depressions,
-      # which are the Sahara's strongest dust sources, "could have been lakes
-      # during former wet climate periods, allowing accumulation of sediments.
-      # For those regions it can be expected that the surface is relatively
-      # smooth, with low roughness parameters." Their Table 1's smoothest
-      # entries are 2.3e-3 cm and 4.0e-3 cm, and they record that "a low surface
+      z0: 3.9e-4
+      bracket: [1.0e-4, 8.0e-4]
+      # THE CLASS IS NOT A CLAY PLAIN AND THIS VALUE IS A MIXTURE, which is the
+      # whole of why it is five times the salt crust below rather than a fifth
+      # of it. `playa_clastic` is the residual of two geometric conditions in
+      # Orogen -- inside a preserved closed basin, and not in its lowest quarter
+      # of relief -- and Orogen's own name for it is "Playa mud / alluvial fan
+      # fill". Measured on the mesh, half of it sits above 83 per cent of its
+      # basin's relief and a third to a half lies on gradients a mud flat does
+      # not have. So the surface property it needs is a mixture of a playa's and
+      # a fan's, not a playa's.
+      #
+      # Greeley et al. (1997) Table 2 supplies both endmembers as aerodynamic
+      # wind-profile determinations, the same quantity `evaporite` takes from
+      # MacKinnon: Lunar Lake playa, silty-clay, 1.26e-4 and 1.82e-4 m; the
+      # Death Valley alluvial fans, 6.96e-4 to 1.06e-2 m; the Gobabeb interdune
+      # sand sheet and gravel lag, 4.0e-5 and 4.2e-4 m. Mixed geometrically over
+      # the class's own landform bands this gives the central value, and the
+      # bracket is the same mix with every endmember at its measurement set's
+      # extremes, which is the convention `evaporite` already carries.
+      #
+      # WHAT IT REPLACED, and why the replacement is worth a factor of 13 on the
+      # central value: a modelling convention at the smooth end, "a low surface
       # roughness on the order of 0.001 cm is used to describe active dust
-      # sources", which is the 1e-5 m low end. The 1e-4 m high end is where they
-      # put the sand-desert boundary, "z0 below ~0.02 cm", stepped down one
-      # order because a clay plain is smoother than a sand sheet.
-      source: prigent2005 table 1 and section 4.1; marticorena1997 section 3.2.2
+      # sources", and Prigent's sand-desert boundary "z0 below ~0.02 cm" stepped
+      # down one order at the rough end on the argument that a clay plain is
+      # smoother than a sand sheet. A third to a half of this class is a gravel
+      # apron, which is rougher than a sand sheet, so that step ran the wrong
+      # way. The smoothest measured playa in the sources held, 1.26e-4 m, sits
+      # ABOVE the whole of the bracket that argument produced.
+      #
+      # The derivation is `aeolian/scripts/playa_roughness_mix.py` and
+      # `aeolian/analysis/playa_roughness_mix.json`; the criteria it was fixed
+      # under are in `notes/audits/dust-intensity-levers.md` section 4. Read
+      # from Greeley's own Table 2 and not from Prigent et al. (2005) Table 1,
+      # which reproduces it and prints Golden Canyon NE 1989 a factor of 9 high.
+      source: greeley1997 table 2, mixed over the landform bands in notes/audits/orogen-lithology.md
     evaporite:
       z0: 1.4e-4
       bracket: [5.3e-5, 3.9e-4]
@@ -229,11 +264,15 @@ drag_partition:
       # 0.014 cm with a range of 0.0053 to 0.039 cm over the measurement set,
       # which is this central value and this bracket unchanged.
       #
-      # It is five times the clastic value and its bracket is wider, which is
-      # the embossed-topography half of the Marticorena distinction above.
-      # Prigent et al. (2005) corroborate the roughness indirectly: the salt
-      # desert of Dasht-e Kevir "does not appear as a smooth surface on the ERS
-      # map, maybe because of specific properties of salty soils."
+      # It agrees with the only other aerodynamically measured playa in the
+      # sources held, Greeley's silty-clay Lunar Lake at 1.26e-4 and 1.82e-4 m,
+      # which is what licenses using one paper for this class and another for
+      # the class above. It comes out SMOOTHER than `playa_clastic` because that
+      # class is basin margin and this one is basin floor, not because a salt
+      # crust is smooth: Prigent et al. (2005) record the opposite for the
+      # surface itself, the salt desert of Dasht-e Kevir "does not appear as a
+      # smooth surface on the ERS map, maybe because of specific properties of
+      # salty soils."
       source: mackinnon2004 tables 1 and 2, site 208
   # THE SPREAD OF z0 WITHIN ONE CLASS, which the values above collapse to a
   # point. A playa has a smooth interior and rougher margins, and tabulating one
@@ -244,13 +283,20 @@ drag_partition:
   # realistic than those provided by ERS from satellite data."
   #
   # MEASURED, from the one source in this repository that gives several in-situ
-  # z0 values for the SAME area. Prigent et al. (2005) Table 1 carries three
-  # such groups, all from Greeley et al. (1997): ten values over the Death
-  # Valley box spanning 0.0696 to 1.06 cm, two over the Namib box, and two over
-  # the central Nevada box. Pooling the within-box variance of ln z0 over all
-  # three gives the central value; the smallest and largest single-box estimates
-  # give the bracket, and both of those rest on two points, which is why the
-  # pooled figure with eleven degrees of freedom is the one to quote.
+  # z0 values for the SAME area. Greeley et al. (1997) Table 2 carries three
+  # such groups: ten values over Death Valley, two at Gobabeb in the Namib, and
+  # two on Lunar Lake playa in central Nevada. Pooling the within-group variance
+  # of ln z0 over all three gives the central value; the smallest and largest
+  # single-group estimates give the bracket, and both of those rest on two
+  # points, which is why the pooled figure with eleven degrees of freedom is the
+  # one to quote.
+  #
+  # TAKEN FROM GREELEY AND NOT FROM PRIGENT ET AL. (2005) TABLE 1, which
+  # reproduces those rows and prints Golden Canyon NE 1989 as 1.00e-0 cm against
+  # Greeley's 0.001100 m, a factor of about 9. That row sits in the Death Valley
+  # group, which carries nine of the eleven degrees of freedom, and pooling over
+  # the reproduction inflated the spread. `playa_roughness_mix.py` derives this
+  # from the same corrected table the class roughnesses above come from.
   #
   # IT IS AN UPPER BOUND ON THE WITHIN-LITHOLOGY SPREAD, deliberately. A Death
   # Valley box holds playa, alluvial fan, dune and lava, so its spread is across
@@ -267,9 +313,9 @@ drag_partition:
   # the bracket as a level uncertainty and
   # `aeolian/scripts/dust_intensity_levers.py` prices what the collapse costs.
   within_class_z0:
-    sigma_g: 2.736
-    sigma_g_bracket: [1.297, 5.095]
-    source: prigent2005 table 1, the three Greeley et al. (1997) repeat groups
+    sigma_g: 2.523
+    sigma_g_bracket: [1.297, 5.273]
+    source: greeley1997 table 2, the three repeat groups; aeolian/scripts/playa_roughness_mix.py
 # --- the subgrid wind distribution -------------------------------------------
 #
 # NOT OPTIONAL, and the reason is arithmetic rather than taste. Emission goes as

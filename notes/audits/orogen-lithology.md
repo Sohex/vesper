@@ -898,6 +898,12 @@ What the mesh CAN say, and what is measured above, is which sub-landform the
 class is made of, which is what selects WHICH measured value applies. Those are
 two different questions and only the second is answerable here.
 
-`world-ugkw` is the live instance: `playa_clastic` alone carries 10.4 of the
-10.5 factor the roughness bracket puts on dust emission, and both ends of that
-bracket were chosen for a clay plain. The table above says the class is not one.
+`world-ugkw` was the live instance, and this table settled it. Both ends of the
+roughness bracket `aeolian/config/dust.yaml` gave `playa_clastic` had been chosen
+for a clay plain, and the table above says the class is not one. Re-sourced as a
+geometric mixture of the measured surfaces its bands stand for, the class's
+aerodynamic roughness came out a factor of 13 higher than the declared value and
+above the whole of the declared bracket, and the class is now rougher than
+`evaporite` rather than five times smoother, because it is basin margin and
+`evaporite` is basin floor. `notes/audits/dust-intensity-levers.md` section 4
+carries the derivation and what it cost the dust intensity.
