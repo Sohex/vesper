@@ -613,10 +613,26 @@ steps:
       records where the work is filed. An issue can name an upstream step and move
       nothing, being deferred, a bound, or blocked on something after the carve.
 
+  # Whether the prescribed pCO2 is backed by a plausible outgassing rate. The
+  # comparison lives in weathering_fluxes.py; the CONCLUSION lives here, because
+  # a verdict that is a constant string is not a check. Needs nothing: with the
+  # requirement artifact absent it refuses for exactly that reason, which is the
+  # state config/planet.yaml already records in prose.
+  - id: outgassing_gate
+    script: pedology/scripts/outgassing_gate.py
+    cost: seconds
+    needs: []
+    writes: [pedology/analysis/outgassing_gate_report.json]
+    gate: |
+      With `requested: false` in pedology/config/outgassing.yaml it reports what
+      is undeclared and exits 0. With `requested: true` -- which is what claiming
+      anywhere that the prescribed CO2 is SUPPORTED by outgassing means -- it
+      refuses by name for every unmet precondition.
+
   - id: weathering_fluxes
     script: pedology/scripts/weathering_fluxes.py
     cost: minutes
-    needs: [soil, hydrography]
+    needs: [soil, hydrography, outgassing_gate]
     writes: [pedology/analysis/weathering_fluxes.json]
 
   - id: thermostat_efficiency
@@ -624,6 +640,16 @@ steps:
     cost: minutes
     needs: [weathering_fluxes]
     writes: [pedology/analysis/thermostat_efficiency.json]
+
+  # What CHOOSING a weathering scheme costs the thermostat, as opposed to what a
+  # parameter inside one costs it. Needs the export and nothing else: the three
+  # schemes are all separable into a power law in runoff and an exponential in
+  # temperature, so the comparison is analytic and no climatology enters it.
+  - id: weathering_scheme_bracket
+    script: pedology/scripts/weathering_scheme_bracket.py
+    cost: seconds
+    needs: []
+    writes: [pedology/analysis/weathering_scheme_bracket.json]
 
   - id: brine_paths
     script: pedology/scripts/brine_paths.py

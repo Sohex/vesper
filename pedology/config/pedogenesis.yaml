@@ -115,9 +115,21 @@ weathering:
   # the Graham et al. anchor describes rather than the fresh-rock one.
   runoff_source: p_minus_e        # p_minus_e | mrro
   runoff_exponent: 0.65
-  # Temperature e-folding. Berner's exponential fit to silicate weathering,
-  # equivalent to an activation energy near 74 kJ/mol at 288 K. Values from 10 to
-  # 25 K appear in the literature; 13.7 is the common central choice.
+  # Temperature e-folding. Berner's exponential fit to silicate weathering.
+  # Values from 10 to 25 K appear in the literature; 13.7 is the common central
+  # choice and stays.
+  #
+  # THE ACTIVATION ENERGY THIS IS EQUIVALENT TO IS 50 kJ/mol, NOT 74. The
+  # linearised Arrhenius is T_e = R * T0^2 / E_a, so at T0 = 288 K an e-folding
+  # of 13.7 K is E_a = 50.3 kJ/mol, and the 74 kJ/mol this line used to claim
+  # would give 9.3 K instead. The two are not interchangeable: they differ by
+  # 1.47x in d ln W / dT, which is the temperature half of the thermostat.
+  #
+  # It matters because 74 kJ/mol is what the other schemes on disk actually use.
+  # rokgem's par_E_a is 74.0 at par_ref_T0 = 8.4777 C, giving an e-folding of
+  # 8.91 K, so choosing between this scheme and those is a 1.4 to 1.5x choice
+  # about thermostat strength before any runoff exponent is argued about.
+  # VOLC-9 brackets it; pedology/config/weathering_schemes.yaml declares it.
   temperature_e_folding_k: 13.7
   # Reference conditions, Earth global land means. W = 1 here by construction.
   # Earth's land mean for whichever moisture variable drives the law. These have

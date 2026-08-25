@@ -1,0 +1,111 @@
+# What backs the prescribed pCO2, declared rather than asserted.
+#
+# `weathering_fluxes.py` computes the outgassing this world's silicate weathering
+# implies, compares it against a mass-scaling estimate of what the planet could
+# supply, and reports a margin. That comparison had every input a gate needs and
+# none of the machinery: no threshold, no branch, no refusal, and a verdict that
+# was a constant string rather than a conclusion. If the margin had come back at
+# 0.3 the same sentence would have been printed.
+#
+# This file is what the check is held to. With `requested: false` the gate
+# reports what is undeclared and exits 0. With `requested: true` -- which is what
+# claiming anywhere that the prescribed CO2 is SUPPORTED by outgassing means --
+# it refuses, by name, for every unmet precondition.
+#
+# VOLC-8. Read by pedology/scripts/outgassing_gate.py.
+version: 1
+
+# Set true only when this project intends to state that its prescribed pCO2 is
+# backed by a plausible outgassing rate. Until then the claim is not made and the
+# gate grants nothing.
+requested: false
+
+# ---------------------------------------------------------------------------
+# The requirement side: how much outgassing the prescribed CO2 asks for
+# ---------------------------------------------------------------------------
+# This half is computed and its provenance is real, which is why it carries no
+# sentinels. What it carries instead is the artifact it must be read from, so a
+# number quoted from prose cannot stand in for one.
+requirement:
+  artifact: pedology/analysis/weathering_fluxes.json
+  # At steady state each planet's outgassing equals its own silicate weathering,
+  # so the RATIO of this world's silicate CO2 consumption to Earth's is the ratio
+  # of required outgassing. That sidesteps absolute outgassing estimates, which
+  # span a factor of several depending on whether metamorphic and diagenetic
+  # sources are counted.
+  earth_silicate_co2_consumption_mol_per_year: 1.17e13
+  earth_reference_source: "Gaillardet et al. (1999), Chem. Geol. 159, 3-30"
+  # The prescribed CO2 the requirement is a requirement FOR. Read from config
+  # rather than restated, so a change there cannot leave this behind.
+  pco2_from: config/planet.yaml atmosphere.pCO2_bar
+
+# ---------------------------------------------------------------------------
+# The supply side: what this planet could actually produce
+# ---------------------------------------------------------------------------
+# Every field here is a sentinel, and that is the finding rather than an
+# omission. The comparison currently in weathering_fluxes.py puts the supply at
+# the planet's mass in Earth masses -- an exponent of exactly 1 on mass, asserted
+# in prose with no reference -- and stops there.
+supply:
+  # required_supply_over_earth = (M / M_earth) ** mass_scaling_exponent.
+  # The present code uses 1.0 implicitly. Radiogenic heat production scales with
+  # mass at fixed bulk composition, but outgassing tracks melt production, which
+  # tracks heat FLUX through a surface, and the two do not carry the same power
+  # of mass. Declaring the exponent means declaring which of those chains is
+  # being claimed.
+  mass_scaling_exponent: undeclared
+  mass_scaling_source: undeclared
+
+  # VOLC-8's segment bracket. Per-kilometre CO2 flux along a plate boundary spans
+  # more than a hundredfold in the observed record, so a uniform fault-length
+  # verdict is not a bracket. Declared as [low, high] in mol CO2 per km per year.
+  per_km_segment_bracket: undeclared
+  per_km_segment_source: undeclared
+
+  # How the global requirement partitions across sources. Declared as fractions
+  # summing to 1 over ridge, arc_recycled, plume_rift and metamorphic, each with
+  # its own carbon content, melt production and degassing efficiency exposed.
+  source_partition: undeclared
+  degassing_efficiency: undeclared
+
+  # Which fraction reaches the atmosphere and which is delivered to the ocean.
+  # OCN-13's hydrothermal and chemical boundary consumes this, and a source
+  # bracket can be handed to it without opening the carbon feedback.
+  atmosphere_versus_ocean_split: undeclared
+
+# ---------------------------------------------------------------------------
+# Acceptance, fixed before any result is seen
+# ---------------------------------------------------------------------------
+acceptance:
+  # Supply over requirement. A margin at or below 1 is not a margin, and the gate
+  # refuses a floor that is not above 1 rather than quietly accepting it.
+  #
+  # 1.5 is chosen for a stated reason and not from a result: the supply estimate
+  # is a first-order scaling whose own caveats in weathering_fluxes.py name three
+  # unquantified corrections of unknown sign -- spreading rate, melting-column
+  # compression under higher gravity, and a smaller ocean basin than Earth's. A
+  # factor of 1.5 is the smallest margin that survives one such correction being
+  # large. It is a floor on the margin, not an estimate of it.
+  minimum_margin: 1.5
+
+  # The requirement moves with the climatology it was computed on. An artifact
+  # whose recorded build or climatology does not match the configured one backs
+  # nothing, however good its margin.
+  requirement_must_match_configured_build: true
+
+# ---------------------------------------------------------------------------
+# What Orogen cannot supply, stated so nothing tries
+# ---------------------------------------------------------------------------
+# These are premises rather than preconditions: no declaration makes them
+# available, and the gate refuses any absolute-rate claim that would need them.
+premises_the_terrain_cannot_supply:
+  absolute_plate_rate:
+    "Orogen's plate velocities are in arbitrary units, not rad/Myr or cm/yr, and
+     the model has no time axis. Boundary geometry and RELATIVE throughput are
+     available; an absolute spreading rate is not, and neither is anything
+     derived from one."
+  thermal_history:
+    "Outgassing integrated over a planet's history needs a mantle cooling curve.
+     Nothing in this project supplies one, so every capacity statement is a
+     present-day rate at best."
+  claims_an_absolute_rate: false

@@ -80,6 +80,9 @@ from gridding import land_fraction_of_class
 from paths import rel
 
 from build_soil import EARTH_YEAR_DAYS, KELVIN, lithology_fractions
+# The plausibility check's CONCLUSION lives there, not here: this script computes
+# the requirement and the gate decides what it shows. VOLC-8.
+import outgassing_gate
 
 # Bicarbonate from carbonate dissolution is half rock-derived, so only half of it
 # represents atmospheric CO2 drawdown. Silicate weathering is fully atmospheric.
@@ -163,6 +166,10 @@ def main() -> None:
             * scale, 0.0)
 
     mass_earth = float(config["planet"]["mass_earth"])
+    # The prescribed CO2 the requirement is a requirement FOR. Read, never
+    # restated: this was the string "450 ppm" in five places, so changing
+    # config/planet.yaml left every one of them behind.
+    pco2_ppm = float(config["atmosphere"]["pCO2_bar"]) * 1e6
     fractions, mesh, grid_dir = lithology_fractions(config)
     silica_c, bicarb_c = concentrations()
 
@@ -245,6 +252,16 @@ def main() -> None:
     land_area = float(area[land].sum())
     # SiO2 molar mass 60.08 g/mol -> t/km2/yr, the unit Durr reports.
     silica_yield = silica_total * 60.08 / 1e6 / land_area
+
+    # The requirement, handed to the gate in the shape it reads, so the verdict
+    # this report carries is the same verdict the gate reaches from the artifact.
+    outgassing_declaration = outgassing_gate.read_declaration()
+    outgassing_verdict = outgassing_gate.verdict(
+        outgassing_declaration, config,
+        {"source_build": config.get("source_build"),
+         "carbon_balance": {"plausibility_check": {
+             "required_outgassing_over_earth": (silicate_total / 11.7e12)}}},
+        PROJECT_ROOT / "pedology" / "analysis" / "weathering_fluxes.json")
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -331,11 +348,11 @@ def main() -> None:
             "silicate_consumption_over_earth": (silicate_total / 11.7e12),
             "implied_outgassing_over_earth": (silicate_total / 11.7e12),
             "reading": (
-                "config/planet.yaml fixes CO2 at 450 ppm. That is an "
+                f"config/planet.yaml fixes CO2 at {pco2_ppm:.0f} ppm. That is an "
                 "ASSUMPTION, not a result: nothing in this project solves the "
                 "carbonate-silicate balance, and the word 'outgassing' appears "
                 "nowhere else in it. This says what the assumption costs. "
-                "Sustaining 450 ppm at this climate needs an outgassing rate "
+                f"Sustaining {pco2_ppm:.0f} ppm at this climate needs an outgassing rate "
                 "of roughly this multiple of Earth's. If the real rate were "
                 "Earth-like, CO2 would draw down until weathering fell to meet "
                 "it, and the world would settle colder and thinner-aired than "
@@ -366,7 +383,7 @@ def main() -> None:
                 "size of the assumption, not its resolution."),
             "plausibility_check": {
                 "note": (
-                    "Whether the outgassing 450 ppm requires is a rate this "
+                    f"Whether the outgassing {pco2_ppm:.0f} ppm requires is a rate this "
                     "planet could actually supply. This is a CHECK on a "
                     "prescribed number, not a closure of the loop -- closing it "
                     "would replace a prescribed CO2 with a prescribed "
@@ -379,20 +396,24 @@ def main() -> None:
                     "which span a factor of several depending on whether "
                     "metamorphic and diagenetic sources are counted."),
                 "required_outgassing_over_earth": (silicate_total / 11.7e12),
-                "radiogenic_supply_over_earth": mass_earth,
-                "margin": (mass_earth / (silicate_total / 11.7e12))
-                          if silicate_total else None,
+                "radiogenic_supply_over_earth": outgassing_verdict["supply_over_earth"],
+                "margin": outgassing_verdict["margin"],
                 "supply_basis": (
                     f"Radiogenic heat production scales with mass at fixed bulk "
                     f"composition, and this planet is {mass_earth:.3f} Earth "
                     f"masses. Outgassing tracks mantle melt production, which "
-                    f"tracks heat flux, so ~{mass_earth:.1f}x is the first-order "
-                    f"expectation."),
-                "verdict": (
-                    "450 ppm is attainable with margin: it asks for less "
-                    "outgassing than mass scaling suggests this planet "
-                    "supplies. It is a prescribed number that has now been "
-                    "shown reachable, rather than merely assumed."),
+                    f"tracks heat flux, and the POWER of mass that implies is a "
+                    f"declared quantity rather than an assumed 1: see "
+                    f"pedology/config/outgassing.yaml supply.mass_scaling_exponent, "
+                    f"which the gate refuses while it is undeclared."),
+                # DERIVED, never stated. This used to be a constant string
+                # asserting the check had passed, printed whatever the margin
+                # came back as. outgassing_gate.py owns the conclusion now, and
+                # it refuses by name; VOLC-8.
+                "verdict": outgassing_verdict["verdict"],
+                "granted": outgassing_verdict["granted"],
+                "refusals": outgassing_verdict["refusals"],
+                "declared_in": "pedology/config/outgassing.yaml",
                 "caveats": [
                     "A plausibility bound, not a derivation. Melt production "
                     "depends on spreading rate and mantle temperature, higher "
@@ -473,9 +494,16 @@ def main() -> None:
     print(f"  land yield         {silica_yield:10.2f} t SiO2/km2/yr "
           f"(Earth exorheic mean 3.3)")
     required = silicate_total / 11.7e12
-    print(f"\noutgassing required  {required:10.2f} x Earth (450 ppm at this climate)")
-    print(f"  mass scaling says  {mass_earth:10.2f} x Earth could be supplied")
-    print(f"  margin             {mass_earth/required:10.2f} x")
+    print(f"\noutgassing required  {required:10.2f} x Earth "
+          f"({pco2_ppm:.0f} ppm at this climate)")
+    supply = outgassing_verdict["supply_over_earth"]
+    if supply is None:
+        print("  supply             UNDECLARED -- outgassing.yaml does not say "
+              "what power of mass the supply estimate claims")
+    else:
+        print(f"  mass scaling says  {supply:10.2f} x Earth could be supplied")
+        print(f"  margin             {outgassing_verdict['margin']:10.2f} x")
+    print(f"  verdict            {outgassing_verdict['verdict']}")
     print(f"\nwrote {rel(out)}")
 
 

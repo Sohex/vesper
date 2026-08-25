@@ -149,7 +149,7 @@ sits at the design ceiling and nothing above it was calibrated.
 | `dist_*` export fields | BFS hops, declared `units='cells'` in the manifest | convertible, honestly labelled |
 | erosion pass counts | fixed per slider, no region term | fixed erosion duration, which is what convergence wants |
 | glacial ice accumulation | `iceFlow[target] += iceFlow[r]`, seeded from a per-cell index | DOES NOT SCALE, see below |
-| scarp gradient thresholds | absolute rise over run, 0.002 to 0.010 | measurement depends on cell spacing |
+| scarp gradient thresholds | absolute gradient, 0.002 to 0.010, measured over ONE mesh edge | measurement depends on cell spacing; the thresholds are inherited, not anchored |
 
 Two entries need their own argument.
 
@@ -164,14 +164,84 @@ thresholds are crossed far more readily. The two accumulators disagree about
 what a resolution-independent quantity is.
 
 **Scarp gradient thresholds are absolute but the gradient a mesh can measure is
-not.** The rise over run is computed physically, from neighbour distance times
-radius, so the code is right. What moves is the measurement: 15.19 km cells
-average away drops that finer cells resolve, so the same escarpment reports a
-steeper gradient at a higher region count and crosses the 0.002 to 0.010
-smoothstep sooner. Scarps therefore appear to strengthen with region count for
-reasons partly real, the landform is better captured, and partly calibration,
-the thresholds were set at some other spacing. The two cannot be separated
-without recalibrating the thresholds against a known escarpment.
+not.** Measured 2026-08-24 on the raw mesh of both builds, area-weighted over
+`surface_class == 1`.
+
+**This is NOT the compound topographic index's failure mode, and the difference
+decides the remedy.** CTI shifts by exactly `ln 2` between these two builds
+because its argument `a / tan(beta)` carries a LENGTH, so halving the cell edge
+halves it deterministically and the shift can be subtracted. A gradient is a
+length over a length and carries no length at all, so there is no dimensional
+shift to remove. It fails to transport for a different reason: the surface is
+self-affine, so the gradient measured over the sampling interval is itself a
+function of that interval, and the shift is empirical rather than derivable. It
+is also not one number. Land gradient on `elevation_km`, steepest descent to a
+lower land neighbour:
+
+| area quantile | p50 | p75 | p90 | p95 | p99 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 2.5M, 15.19 km | 0.00132 | 0.00779 | 0.02878 | 0.04824 | 0.09768 |
+| 10M, 7.60 km | 0.00186 | 0.01101 | 0.04424 | 0.07764 | 0.16557 |
+| ratio | 1.408 | 1.412 | 1.537 | 1.610 | 1.695 |
+
+The steep tail steepens faster than the median, so no single factor and no
+single exponent removes the shift. The exported field moves with it: cells with
+`scarp_potential` above zero go 0.2822 to 0.3410 of land, above 0.25 they go
+0.0506 to 0.0949, and the mean where non-zero goes 0.1247 to 0.1924.
+
+**A second defect was measured in the same pass and is unrelated to
+resolution.** The relief term differenced `r_elevation`, the generator's
+shaping parameter, against a denominator in kilometres. That is not a rise over
+a run: `dh/de = 120 e^3 (1 - e)` is zero at sea level, peaks near 12.7 km per
+unit at `e = 0.75`, and returns to zero at the ceiling, so one coded gradient
+meant anything from flat to precipitous depending where on the hypsometric curve
+the cell sat, and it was blind to this planet's 1/g relief scaling. The coded and
+physical gradient distributions differ by a factor of seven at p99. The numerator
+now converts through `scaledHeightKm`, the same converter `elevation_km` is built
+with, and `reliefScale` is passed in.
+
+**The neighbour filter was an elevation-sign test inside a function whose own
+land test is `surface_class`.** `r_elevation[nb] <= 0` discarded every downhill
+neighbour on a dry closed-basin floor below sea level, so a plateau margin
+standing inside one could not be measured at all: 0.0528 of land at 2.5M and
+0.0857 at 10M, of which 82 and 88 per cent respectively is endorheic. The
+comment defended it as excluding bathymetry, which `isLand` does correctly and
+without discarding the fork's own terrain. Fixed, and the three assertions in
+`tools/test-lithology.mjs` that made the same substitution are fixed with it.
+
+### What transports, measured against a bar fixed first
+
+Bar declared before the runs: every land quantile from p50 to p99 must agree
+between the two builds within 1.15x. Baseline length declared before the runs at
+30 km, which is above Orogen's ~20 km terrain-information floor, one fifth of
+`SCARP_EDGE_KM`, and a near-integer hop count on both meshes.
+
+| relief estimator | p50 | p75 | p90 | p95 | p99 | verdict |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| drop to a lower neighbour over one mesh edge | 1.408 | 1.412 | 1.537 | 1.610 | 1.695 | fails |
+| drop to the MINIMUM land elevation within 30 km, over 30 km | 1.285 | 1.053 | 1.110 | 1.206 | 1.247 | fails |
+| drop below the MEAN land elevation within 30 km, over 30 km | n/a | 0.909 | 0.932 | 1.046 | 1.134 | passes where defined |
+
+The minimum-over-a-ball form fails for a reason worth keeping: a minimum is an
+extreme-value statistic and is biased by how many cells the ball holds, and the
+fine mesh holds three times as many over the same ground. A mean is normalised
+and carries no such bias. Its p50 is not a failure but a structural property: the
+measure is one-sided, so half of land sits at or below its own 30 km mean and the
+median is exactly zero, which leaves the bar undefined rather than missed.
+
+**So a normalised form transports and a rank form is not needed.** A rank form
+would also pin the areal extent, but it makes the field non-local, and this
+measurement shows a local estimator is enough.
+
+**What is NOT settled is the pair of numbers.** Adopting the 30 km form changes
+the distribution the smoothstep reads by an order of magnitude, so 0.002 and
+0.010 cannot be carried across, and choosing new ones by matching the areal
+extent the present gate happens to produce would be calibrating against the
+defect. What settles them is a measured escarpment: relief over 30 km at the foot
+of a Great Escarpment-type plateau margin, which is an external number this
+project does not hold. Until it does, the thresholds stay at their inherited
+values and are labelled as inherited in the module, a scarp fraction is not
+comparable between region counts, and `world-xgaj` carries the change.
 
 ## The realisation noise floor, and the two claims it killed
 

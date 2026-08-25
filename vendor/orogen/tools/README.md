@@ -296,20 +296,34 @@ drops at the margin as playa mud and alluvial fans, while the dissolved load
 travels to the lowest ground and precipitates as it evaporates. So basin fill is
 two classes — `evaporite` (salt crust) within
 `LITHO_SALT_CRUST_DEPTH_FRAC` of the basin's own relief above its sink, and
-`playa_clastic` over the rest. On Vesper that is ~10% salt to ~90% clastic by area.
+`playa_clastic` over the rest. The salt share of the fill is a property of the
+build, not of the planet: read it from `world_state.json` rather than from here.
 
 This matters far beyond the rock label. `evaporite` carries albedo 0.50, near the
 brightest natural land surface there is, and it used to be applied to the whole
-basin under the name "Evaporite / playa fill". On a planet with a fifth of its
-land in closed basins that single constant was worth **~2.8 W/m² per 0.10 of
-error** in the downstream energy balance — larger than most terms anyone was
-modelling deliberately. Zoning replaces it with two albedos over a measured area
-split: effective 0.32 rather than 0.50.
+basin under the name "Evaporite / playa fill". The worth of that error is
+**about 1.4 W/m² per 0.10 of albedo error per 0.10 of land covered**, which is the
+product of the land fraction and a quarter of the instellation and so does not
+move with the carve list. On this planet the closed-basin share of land is large
+enough that the constant was worth several W/m² in the downstream energy balance,
+larger than most terms anyone was modelling deliberately. Zoning replaces it with
+two albedos over a measured area split, and with `playa_clastic` at its measured
+0.19 the effective fill albedo is near 0.22 rather than 0.50: the zoning is worth
+roughly 0.28 of albedo over the fill, not the 0.18 an earlier reading of this
+paragraph claimed.
 
-The zoning knob is a fraction of each basin's own relief, so it means the same
-thing at any region count and on any planet, and it is a geometric proxy for
-flooding frequency — *not* a water balance. How often a basin actually floods is
-climate. Where the low ground is, is terrain.
+**Every closed-basin share quoted anywhere is a pre-carve LIMIT rather than a
+state.** The cover rule fires on `endorheic`, so opening a basin removes the flag
+and its floor reverts to parent material. The share therefore falls with each
+carve iteration, and the `evaporite`/`playa_clastic` fractions fall with it.
+
+The zoning knob is a fraction of each basin's own relief, so the RULE means the
+same thing at any region count and on any planet, and it is a geometric proxy for
+flooding frequency and *not* a water balance. How often a basin actually floods is
+climate. Where the low ground is, is terrain. What the rule is applied to is not
+scale-free, though: the preserved-basin catalogue gains small basins as the region
+count rises, so the salt share of fill still moves by about a tenth of itself
+between a 2.5M and a 10M mesh.
 
 **A closed basin inside an orogen keeps its fill.** Cover thins toward zero as
 fold-belt intensity rises, because an active orogen is being exhumed rather than
