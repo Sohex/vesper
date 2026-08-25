@@ -921,7 +921,26 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         # against 1.3 s to refactorise, 27x, on any pass where the matrix repeats
         # -- which needs the ET iteration restructured to hold the diagonal fixed
         # across inner steps, not a faster library.
-        x = spsolve(A.tocsc(), rhs, use_umfpack=False)
+        # ORDERING, NOT LIBRARY. scipy's default for spsolve is COLAMD, which
+        # orders for an unsymmetric pattern. This operator's pattern IS
+        # symmetric -- it is a graph Laplacian with Dirichlet rows -- so
+        # minimum degree on A + A^T is the right ordering and COLAMD pays for
+        # generality the matrix does not need. MEASURED on a planar-graph
+        # Laplacian of this problem's shape, nnz(L+U) and factor time:
+        #
+        #        n        COLAMD              MMD_AT_PLUS_A
+        #      399,424     50.3 M   1.5 s      27.5 M   1.1 s
+        #    1,000,000    145.1 M   6.2 s      78.5 M   3.6 s
+        #    1,999,396    335.6 M  23.4 s     168.0 M   8.0 s
+        #
+        # Fill halves and the factor is about 3x faster at the top of that
+        # range, and the gap widens with n: the fitted fill exponents are 1.178
+        # against 1.123. That is what decides whether the REVERSE uniqueness
+        # trajectory fits, since it starts with every land cell free -- 834 M
+        # entries against 400 M at this build's 4,328,736 land cells, about
+        # 10 GB against 4.8 GB before SuperLU's working set. WORLD-V3UR.
+        x = spsolve(A.tocsc(), rhs, use_umfpack=False,
+                    permc_spec="MMD_AT_PLUS_A")
         if not np.all(np.isfinite(x)):
             raise SystemExit(
                 f"the direct solve returned {int((~np.isfinite(x)).sum()):,} "
