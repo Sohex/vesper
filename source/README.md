@@ -344,8 +344,13 @@ gravity stay bit-identical with or without a mask.
 - The catalogue's own `depthKm`, `volumeKm3`, spill and sink heights and
   hypsometry carry the scaling, exactly as `elevation_km` does, so a water
   balance may take its levels from one and its surface from the other. The one
-  km field that does not is `selectionDepthKm`, which is a selection criterion
-  rather than a measurement and says so where it is published.
+  depth that does not is the generator's internal `selectionDepthKm`, which is
+  the criterion the depth floor is compared against rather than a measurement,
+  and which is kept out of the catalogue so that adding a field does not move
+  `hashes.basinCatalogue`. `basins.resolution.minDepthComparedIn` names the
+  currency, and undoing the scaling on the published spill and sink heights
+  recovers the number, which is what
+  `hydrography/scripts/catalogue_floor.py` does.
 - `orog_mean/std/min/max` are declared `units: 'km'` and are neither scaled nor
   converted through the hypsometric curve -- they are raw model units. We do not
   consume them. Anything that starts to must convert them first.
