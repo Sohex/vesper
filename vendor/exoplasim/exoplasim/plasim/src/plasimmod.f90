@@ -1192,6 +1192,43 @@
       if (pt < tmelt) ra4s = ra4i
       end function ra4s
 
+!     =============
+!     FUNCTION RA4D
+!     =============
+
+!     The Magnus-Teten DENOMINATOR, pt - pole, with the pole floored out of it.
+!
+!     The formula is singular at pt = pole and the two poles are not the same
+!     temperature: ra4 is 35.86 K and ra4i is 7.65 K, so which one a site can
+!     reach depends on the phase it selected. A site that takes its pole from
+!     ra4s is safe on the liquid side by construction -- ra4s returns ra4 only
+!     for pt >= tmelt, where pt - ra4 is at least 237.3 K -- and can reach its
+!     pole only on the ice side, at 7.65 K. A site that names its pole directly,
+!     as fluxmod and seamod do because their phase follows the arm rather than
+!     the temperature, can reach either.
+!
+!     WHAT THE FLOOR CANNOT CHANGE. It binds only where pt - pole < 1, so on the
+!     ice side below 8.65 K and on the liquid side below 36.86 K, and the
+!     saturation mixing ratio at those temperatures is zero to every digit the
+!     model keeps: with the denominator at 1 the Magnus-Teten exponent is
+!     ra2*(pt - tmelt), about -4700, and exp of that underflows. What the floor
+!     REMOVES is the pole. kuo iterates a PARCEL temperature by Newton steps on
+!     this same formula, with no bound of its own and no convergence test, so a
+!     column that is not converging can carry pt through the pole; the divisor
+!     then reaches zero or a denormal and the production profile's
+!     -ffpe-trap=zero,overflow turns that into SIGFPE. world-6tp, world-bhs.
+!
+!     THE POLE IS AN ARGUMENT rather than taken from pt here, so every call site
+!     states which phase it is saturating over. That is the property world-ako
+!     established as load-bearing -- the saturation coefficients must agree with
+!     the latent heat beside them -- and hiding the selection inside this
+!     function would let a site disagree with its own latent heat silently.
+
+      elemental real function ra4d(pt,ppole)
+      real, intent(in) :: pt,ppole
+      ra4d = max(pt - ppole, 1.0)
+      end function ra4d
+
 !     ==========================
 !     SUBROUTINE ASSOC_SPECTRAL
 !     ==========================

@@ -703,7 +703,7 @@
        do jhor=1,NHOR
         if(dls(jhor) > 0.0) then
          dtsm(jhor)=dts(jhor)
-         dqs(jhor)=rdbrv*ra1s(dts(jhor))*EXP(ra2s(dts(jhor))*(dts(jhor)-tmelt)/(dts(jhor)-ra4s(dts(jhor)))) &
+         dqs(jhor)=rdbrv*ra1s(dts(jhor))*EXP(ra2s(dts(jhor))*(dts(jhor)-tmelt)/ra4d(dts(jhor),ra4s(dts(jhor)))) &
      &            /psurf
          dqs(jhor)=dqs(jhor)/(1.-(1./rdbrv-1.)*dqs(jhor))
          dsnow(jhor)=dsnowz(jhor)
@@ -919,7 +919,7 @@
       do jhor=1,NHOR
        if(dls(jhor) > 0.0) then
         dtsm(jhor)=dts(jhor)
-        dqs(jhor)=rdbrv*ra1s(dts(jhor))*EXP(ra2s(dts(jhor))*(dts(jhor)-tmelt)/(dts(jhor)-ra4s(dts(jhor))))  &
+        dqs(jhor)=rdbrv*ra1s(dts(jhor))*EXP(ra2s(dts(jhor))*(dts(jhor)-tmelt)/ra4d(dts(jhor),ra4s(dts(jhor))))  &
      &           /dp(jhor)
         dqs(jhor)=dqs(jhor)/(1.-(1./rdbrv-1.)*dqs(jhor))
         dsnow(jhor)=dsnowz(jhor)
