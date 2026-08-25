@@ -59,6 +59,7 @@ units:
 nodes:
   atmosphere_import:
     kind: boundary
+    reentrant: true
     area_basis: cell_land_area
     what: >
       Material advected into the air column over a land cell from outside it:

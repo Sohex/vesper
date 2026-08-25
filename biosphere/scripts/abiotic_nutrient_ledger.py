@@ -118,8 +118,10 @@ def check_graph(decl: dict) -> list[str]:
         if nodes[src]["kind"] == "terminal":
             bad.append(f"term {name}: draws on {src}, which is terminal. "
                        "A terminal node is where this ledger stops")
-        if nodes[dst]["kind"] == "boundary" and name != "endorheic_deflation":
-            bad.append(f"term {name}: delivers to {dst}, which is a boundary")
+        if nodes[dst]["kind"] == "boundary" and not nodes[dst].get("reentrant"):
+            bad.append(f"term {name}: delivers to {dst}, which is a boundary and "
+                       "is not declared reentrant. Mass leaving the domain has a "
+                       "terminal node to go to")
 
         elements = term.get("elements") or []
         if not elements:
@@ -157,8 +159,9 @@ def check_graph(decl: dict) -> list[str]:
                            "and endorheic retention is exactly the error that shape hides")
             if inflow[name] == 0:
                 bad.append(f"node {name}: a reservoir with no inflow cannot be filled")
-        if node["kind"] == "boundary" and inflow[name] and name != "atmosphere_import":
-            bad.append(f"node {name}: a boundary receives nothing from inside the domain")
+        if node["kind"] == "boundary" and inflow[name] and not node.get("reentrant"):
+            bad.append(f"node {name}: a boundary that is not declared reentrant "
+                       "receives nothing from inside the domain")
         if node.get("area_basis") is None:
             bad.append(f"node {name}: no area_basis. A per-area rate has no meaning without one")
     return bad
