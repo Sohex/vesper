@@ -475,14 +475,26 @@ void SoilInput::get_soil_organic(double lon, double lat, Gridcell& gridcell) {
 		
 		// There is no need to update the soil properties below if this already classified as an organic soil type.
 		if (soilcode==8) {
-			for (int ii = IDX_STD; ii<NLAYERS; ii++) {
-				// Save these values for later before updating the thermal properties
-				soiltype.org_frac_gridcell[ii - IDX_STD] = 1.0 - organic_porosity;
-				soiltype.min_frac_gridcell[ii - IDX_STD] = 0.0;
-				soiltype.porosity_gridcell[ii - IDX_STD] = organic_porosity;
-			}
+			// This branch wrote the three per-layer arrays and returned, which
+			// left every scalar on the Soiltype unwritten: texture, percolation,
+			// the two Gerten capacities, the thermal diffusivities, wtot, the
+			// awc, wp and wsats profiles, the P sorption constants and soilcode
+			// itself. get_soil is the only populator of a Soiltype, so there was
+			// no earlier call to have set them and they were read as whatever
+			// the constructor left.
+			//
+			// The soil code IS the declaration of this soil's properties, so
+			// soil_parameters is a reconstruction rather than a default: it is
+			// the function every other soilcode-driven path uses, and for code 8
+			// its per-layer fill reproduces this loop exactly. data[8] gives
+			// organic_frac 0.20 and porosity 0.800, hence mineral_frac 0.0,
+			// which is 1 - organic_porosity / 0 / organic_porosity for the
+			// organic_porosity of 0.8 that soil.h declares consistent with soil
+			// code 8. So nothing is lost by deferring to it, and soilcode is
+			// then set, which Soil::update_layer_fractions reads.
+			soil_parameters(soiltype, soilcode);
 
-			return; 
+			return;
 		}
 	}
 
@@ -675,7 +687,15 @@ void SoilInput::get_soil_organic(double lon, double lat, Gridcell& gridcell) {
 
 	// Store the soilcode and new soil properties
 	soiltype.runon = wetland_runon;
-	soiltype.soilcode = soilcode -1;								// -1 if soil_code is false
+	// The soil code as read, or -1 where there is none. This was `soilcode - 1`,
+	// which is what its own comment says only for the no-soil-code case, and
+	// which shifted every code by one everywhere else: a gridcell whose LPJ soil
+	// code is 9, Vertisols, was stored as 8, and Soil::update_layer_fractions
+	// reads 8 as "this is the organic soil, use the whole-profile scalars" and so
+	// discarded the per-layer profile computed just above. The other two writers
+	// of this field, get_soil_mineral and soil_parameters, both store the code as
+	// read.
+	soiltype.soilcode = soil_code ? soilcode : -1;
 	soiltype.water_below_wp = soilpropmineral.wilting_point;
 	// These values are not used when we use the organic fraction to determine soil properties
 	// However, here we update them with the average values
