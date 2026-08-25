@@ -10,6 +10,7 @@ python hydrography/scripts/lake_balance.py        # solver smoke test and sweep
 python hydrography/scripts/surface_water.py       # ~3 s, needs a climatology
 python hydrography/scripts/groundwater.py         # the discretisation checks
 python hydrography/scripts/groundwater.py --uniqueness-test   # the identity, and the controls it rejects
+python hydrography/scripts/groundwater.py --instrument        # what the operator's error is an error IN
 python hydrography/scripts/build_groundwater.py   # the water table, needs a climatology
 python hydrography/scripts/land_water_ledger.py   # the store and flux ownership contract
 python hydrography/scripts/build_groundwater_access.py   # that water table on the climate grid
@@ -451,9 +452,19 @@ wrong face width cannot survive: closure holds for any symmetric weights at all,
 and the first face-width estimate was 178x off while passing everything else.
 The criterion was declared at 10% relative RMS; `l = 1` passes and `l = 2` to
 `4` MISS at about 12%. The error is distributed truncation rather than a few bad
-faces, so it is the first-order scheme's own error on an irregular mesh and it
-is the water table's mesh-scale noise floor. It is reported rather than tuned
-away, and the numbers are in the report.
+faces, so it is the first-order scheme's own error on an irregular mesh. It is
+reported rather than tuned away, and the numbers are in the report.
+
+`--instrument` says what that error is an error IN, which is a different
+question and the one a consumer of the water table needs answered. It refines
+Orogen's own generator at the active build's own jitter and measures the
+truncation error and the SOLVED field's error side by side, then scores the
+operator on a transmissivity RESPONSE against an analytic answer. The
+truncation error does not converge; the solved head's error converges at second
+order and is orders below it; and the response error is a fixed fraction of the
+response rather than of the field, so a small effect is not lost in it.
+`notes/mesh-geometry.md` carries the tables and the criteria, which were
+committed before the first run.
 
 `--reduction-test` drives permeability to zero, which must reproduce the
 surface-only balance exactly rather than closely: every cell returns its own

@@ -206,6 +206,24 @@ def basin_exchange(terminal, seepage_m3_s, supply_m3_s, n_basins,
     return gain - give + evap, gain, give
 
 
+def artifact_path(args, data: Path) -> Path:
+    """Where the water table goes. A VARIANT NEVER TAKES THE PRODUCT'S NAME.
+
+    `water_table.nc` is what `builds.component_data` resolves for every
+    downstream consumer, so a GW-18 or GW-24 arm writing it would be read as
+    the product rather than as the experiment it is. `--output` still wins,
+    for a caller naming an artifact deliberately.
+    """
+    if args.output is not None:
+        return args.output
+    tag = ""
+    if args.aquifer_thickness_source not in (None, "constant"):
+        tag += f"_{args.aquifer_thickness_source}"
+    if args.unconfined:
+        tag += "_unconfined"
+    return data / f"water_table{tag}.nc"
+
+
 def report_path(args, out: Path) -> Path:
     """Where this run's report goes. One artifact, one report, no collisions.
 
@@ -233,7 +251,16 @@ def report_path(args, out: Path) -> Path:
         return ANALYSIS / f"groundwater_report_sigma{args.sigma:+g}.json"
     if args.et_lambda is not None:
         return ANALYSIS / f"groundwater_report_et{args.et_lambda:g}.json"
-    return ANALYSIS / "groundwater_report.json"
+    # GW-18 and GW-24 are variants by the same argument as the four above: each
+    # changes the transmissivity and so the field, and neither was in this list
+    # when it arrived, so a sourced-thickness or unconfined run without
+    # `--output` wrote over the record of the run every note cites.
+    tag = ""
+    if args.aquifer_thickness_source not in (None, "constant"):
+        tag += f"_{args.aquifer_thickness_source}"
+    if args.unconfined:
+        tag += "_unconfined"
+    return ANALYSIS / f"groundwater_report{tag}.json"
 
 
 def main() -> int:
@@ -741,7 +768,7 @@ def main() -> int:
         # field written to `data/` would be read downstream as a result, and
         # nothing about the file would say it was not one.
         ANALYSIS.mkdir(parents=True, exist_ok=True)
-        rp = report_path(args, args.output or (data / "water_table.nc"))
+        rp = report_path(args, artifact_path(args, data))
         rp.write_text(json.dumps(report, indent=2) + "\n")
         print(f"\nwrote {rp}")
         print("NOT writing water_table.nc: the solve did not converge, and an "
@@ -767,7 +794,7 @@ def main() -> int:
               f"above 0.9 on {np.nansum(sink_fraction[lp] > 0.9) / lp.sum():.1%} of land")
         print("  (near 1 the depth is a recharge map; GW-22 measured that regime)")
 
-    out = args.output or (data / "water_table.nc")
+    out = artifact_path(args, data)
     if out.exists():
         raise SystemExit(
             f"{out} exists. This step writes a new artifact and never "

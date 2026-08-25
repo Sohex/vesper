@@ -156,6 +156,24 @@ to the spread -- but there the confined mound is already 104 m over 15 km, far
 above the median relief the terrain offers over that distance, so the table pins
 and the evapotranspiration sink rather than the flow solve sets the depth.
 
+**And the MESH is not the instrument either.** GW-8 records the discrete
+operator at about 12% relative RMS against its analytic eigenvalue, and that has
+been read as a noise floor on any field solved with it, which would put this
+whole table out of reach before it was measured. It is not one. That 12% is a
+TRUNCATION error and does not converge at all: `notes/mesh-geometry.md` fits an
+order of 0.004 in the cell size over a sixty-four-fold refinement of Orogen's
+own generator. The solved head's error is a different quantity, converges at
+second order, and is 2.8e-06 relative on `precarve-craton`. Every entry in the
+table above is orders above that, so the discretisation is not what decides
+this.
+
+**Nor does the ledger refuse it.** `config/land_water_ledger.yaml` declares
+`transient_saturated_storage` unrepresentable and owned by PLHY-4, and that
+absence is seasonal head, aquifer storage and a transient capillary or baseflow
+response. `T = K (h - z_bottom)` evaluated at the steady head is still an
+equilibrium and carries no storage term, so the groundwater store's declared
+limit is untouched. The same holds for GW-18, whose thickness is a static field.
+
 **So the term is large only in the configuration the model is already known to
 be wrong in, and negligible in the one that reproduces the observed range.**
 That is the finding, and it is why the default does not move.
@@ -290,6 +308,16 @@ against this world's sub-grid relief the unconfined form's cell mean is good to
 0.02% on median ground and to tens of percent on the roughest quartile. A
 thinner floor puts the parameterisation into the range where it has no cell mean
 at all, which is the same disqualification Fan's `f` earned.
+
+**And the operator carries a thickness field at the same relative accuracy it
+carries anything else.** A spatially varying `D` is a multiplier on the
+transmissivity spanning a factor of thirty across this world's land, which is an
+order-one perturbation to the operator and not a small one.
+`notes/mesh-geometry.md` scores the operator on a transmissivity perturbation
+against an analytic answer and finds the perturbation carried with a relative
+error of 0.12 OF THE PERTURBATION, the same at an amplitude of 0.01 as at 0.2,
+because the confined assembly is linear in `T`. So the discretisation does not stand between
+GW-18 and a measurable answer. A run does.
 
 **It costs nothing structurally.** A spatially varying `D` under the confined
 form leaves `T` independent of the head, so the matrix stays fixed, the problem

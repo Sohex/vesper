@@ -345,7 +345,7 @@ of their water.
 They appear only at the wet arm because that is where the exchange is large
 enough, in fraction of a basin's own recharge, to take that much away.
 
-## What GW-8's noise floor does to that answer
+## What GW-8's truncation error does to that answer
 
 The mesh operator sits about 12% above its analytic eigenvalue past `l = 1`,
 which is first-order truncation on an irregular mesh and is characterised in

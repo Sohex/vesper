@@ -61,6 +61,73 @@ from orogen import LAND, Export  # noqa: E402
 # has to be is right to leading order. 10% relative RMS is the bar.
 LAPLACE_TOLERANCE = 0.10
 LAPLACE_DEGREES = (1, 2, 3, 4)
+# GW-8. WHAT THE OPERATOR'S ERROR IS AN ERROR IN, and the criteria that decide
+# it. DECLARED BEFORE `--instrument` WAS FIRST RUN.
+#
+# `LAPLACE_TOLERANCE` above bounds a TRUNCATION error: the assembled operator
+# applied to a field that is already known. GW-8 records that error at about
+# 12% relative RMS above l = 1 and calls it "the mesh-scale noise floor of any
+# field solved with this operator". Read that way it puts every effect smaller
+# than 12% out of reach, and GW-18 and GW-24 both propose effects of a few per
+# cent, so the reading decides whether either is worth building. A number doing
+# that much work is measured rather than inherited.
+#
+# Nothing downstream reads a truncation error. What the water table hands its
+# consumers is the SOLUTION of `L h = f`, and the two errors are different
+# quantities joined by `L^-1`. An elliptic inverse damps the grid-scale part of
+# a residual by the square of the scale ratio, so a truncation error that is
+# grid-scale noise -- which is what GW-8 already measured it to be, distributed
+# rather than carried by a few faces -- need not appear in the solution at
+# anything like its own size. Two claims follow, each able to fail.
+#
+# CLAIM 1, THE TWO ERRORS BEHAVE DIFFERENTLY UNDER REFINEMENT. A two-point flux
+# scheme on a mesh whose faces are perpendicular but whose face centres are not
+# the midpoints of the generator segments has a leading truncation term set by
+# mesh irregularity rather than by cell size, so it does not converge; the
+# solution error does, at the scheme's own order. Measured as fitted orders in
+# the cell size over a resolution sweep of meshes from Orogen's own generator,
+# at the jitter the active build was generated with: the truncation order must
+# come out BELOW `TRUNCATION_ORDER_MAX` and the solution order ABOVE
+# `SOLUTION_ORDER_MIN`. If the two orders come out the same, the claim is
+# refuted and the 12% stands exactly as GW-8 wrote it.
+TRUNCATION_ORDER_MAX = 0.5
+SOLUTION_ORDER_MIN = 1.0
+# CLAIM 2, THE ERROR IS RELATIVE TO WHATEVER IS BEING MEASURED. The truncation
+# figure is a RELATIVE RMS. If the same operator is asked for the RESPONSE to a
+# transmissivity perturbation of relative size `a` -- which is exactly what
+# GW-18 proposes -- and returns that response with an error that is again a
+# fraction of the response rather than a fraction of the field, then an effect
+# of size `a` is resolved to a fraction of `a` and small effects are not
+# drowned. The response is tested against an analytic answer, on a manufactured
+# case with `T = 1 + a P_m(z)` where `div(T grad P_l)` is exact in closed form.
+#
+# Two arms. The size arm: the response's own relative error must be below
+# `RESPONSE_ERROR_MAX`, of the same order as the truncation error rather than
+# orders above it. The amplitude arm: the confined assembly is LINEAR in the
+# transmissivity, so the response per unit amplitude cannot depend on the
+# amplitude, and two amplitudes two orders apart must agree within
+# `RESPONSE_AMPLITUDE_INVARIANCE`. That second arm is what GW-24's unconfined
+# form does not get, because there `T` depends on the head and the assembly is
+# not linear in it.
+RESPONSE_ERROR_MAX = 0.30
+RESPONSE_AMPLITUDE_INVARIANCE = 1.2
+# THE DECISION BAR, and the reason it is this number. The smallest effect this
+# component currently argues about is GW-24's unconfined correction at the 2 km
+# configuration, which its own sizing puts just under half a per cent. If the
+# solved head's mesh error on the mesh actually in use is below that, then the
+# mesh is not what stops either GW-18 or GW-24 being measured, and the question
+# moves off the discretisation. Above it, the mesh does stop them and the
+# instrument statement stands.
+HEAD_MESH_FLOOR = 0.005
+# The linear solve has to be finished far below the discretisation error it is
+# being used to measure, or the measurement is of the solver. The same direct
+# factorisation `solve` uses, and this is the relative residual it must reach.
+POISSON_SOLVER_RELATIVE = 1e-10
+# The resolution sweep, declared with the bars. Four meshes, each a factor of
+# four in region count and so a factor of two in cell size, spanning three
+# refinement steps. Orogen's own generator at the active build's own jitter, so
+# what is being refined is this mesh family and not a tidier one.
+INSTRUMENT_SIZES = (20_000, 80_000, 320_000, 1_280_000)
 # CLOSURE_TOLERANCE: recharge in equals discharge out. A conservation law over
 # float64 sums of a few million terms, so this is a numerical bar, not a
 # physical one.
@@ -328,6 +395,275 @@ def laplace_beltrami_error(geom: Geometry, degrees=LAPLACE_DEGREES) -> dict:
         scale = np.sqrt(np.mean(want**2))
         out[l] = float(np.sqrt(np.mean((got - want) ** 2)) / scale)
     return out
+
+
+# ---------------------------------------------------------------------------
+# GW-8: what the operator's error is an error IN
+# ---------------------------------------------------------------------------
+
+def orogen_mesh(n_regions: int, *, jitter: float, radius_km: float,
+                seed: int = 0):
+    """A mesh from Orogen's own generator, at a resolution of your choosing.
+
+    `Geometry` needs only generator positions, a radius and a region count, so
+    a resolution sweep of THIS mesh family costs no build and no export. The
+    construction is `vendor/orogen/js/sphere-mesh.js:generateFibonacciSphere`
+    line for line: a Fibonacci spiral, then a per-point jitter in latitude and
+    longitude scaled by the local spacing, which is what gives the Voronoi
+    cells their irregularity and so is the whole of what is being refined here.
+
+    JITTER IS NOT A DEFAULT. It is a generation parameter of the build, read
+    from the build's own manifest by the caller, because a sweep at a tidier
+    jitter than the mesh in use would answer a question about a different mesh.
+
+    THE COORDINATE MAP IS THE EXPORT'S, not the generator's. Orogen builds
+    `r_xyz` as `(cos lat cos lon, cos lat sin lon, sin lat)` and the export
+    declares `lat = asin(y)`, `lon = atan2(x, z)`, so the exported axes are a
+    permutation of the generator's: the spiral axis is the export's `y`. The
+    Legendre checks are taken about the export's `z`, an equatorial axis, so
+    the permutation has to be carried or the sweep tests a different direction
+    through the mesh than the planet arm does.
+
+    `cell_area` is set uniform and is UNUSED by everything here: these checks
+    take their areas from the Voronoi dual, which is the area the faces bound.
+
+    THE RADIUS IS REQUIRED AND HAS NO DEFAULT. Every error this file reports is
+    relative, so the radius cancels out of all of them, which is exactly why a
+    literal here would never be caught by a result. It comes from the build's
+    own export, and `config/planet.yaml` is the source of that.
+    """
+    from types import SimpleNamespace
+
+    n = int(n_regions)
+    rng = np.random.default_rng(seed)
+    s = 3.6 / np.sqrt(n)
+    dlong = np.pi * (3.0 - np.sqrt(5.0))
+    dz = 2.0 / n
+    k = np.arange(n, dtype=np.float64)
+    z = 1.0 - dz / 2.0 - k * dz
+    lng = k * dlong
+
+    r = np.sqrt(np.maximum(1.0 - z * z, 0.0))
+    lat_deg = np.degrees(np.arcsin(z))
+    lon_deg = np.degrees(lng)
+    if jitter > 0:
+        j_lat = rng.random(n) - rng.random(n)
+        j_lon = rng.random(n) - rng.random(n)
+        next_z = np.maximum(-1.0, z - dz * 2.0 * np.pi * r / s)
+        lat_deg = lat_deg + jitter * j_lat * (lat_deg - np.degrees(np.arcsin(next_z)))
+        lon_deg = lon_deg + jitter * j_lon * (s / r * 180.0 / np.pi)
+    lat, lon = np.radians(lat_deg), np.radians(lon_deg)
+    # Float32 because the export carries float32 coordinates and the face
+    # widths this mesh is being used to test are differences of them.
+    gx = (np.cos(lat) * np.cos(lon)).astype(np.float32)
+    gy = (np.cos(lat) * np.sin(lon)).astype(np.float32)
+    gz = np.sin(lat).astype(np.float32)
+
+    return SimpleNamespace(
+        n_regions=n, radius_km=float(radius_km),
+        x=gy, y=gz, z=gx,
+        cell_area=np.full(n, 4.0 * np.pi * radius_km ** 2 / n),
+        surface_class=np.full(n, LAND, dtype=np.int64))
+
+
+def _laplacian_operator(geom: Geometry):
+    """`-L` as a matvec, with its diagonal. Positive semidefinite, null space
+    the constants, and never formed: the sweep runs to a few million cells and
+    the operator is already stored as face weights."""
+    n = geom.export.n_regions
+    src, dst, g = geom.src, geom.dst, geom.geom
+    diag = (np.bincount(src, weights=g, minlength=n)
+            + np.bincount(dst, weights=g, minlength=n))
+
+    def matvec(u):
+        u = np.asarray(u, dtype=np.float64).ravel()
+        return diag * u - _gather(n, src, dst, g, u)
+
+    return matvec, diag
+
+
+def _gather(n, src, dst, g, u):
+    """`sum_j g_ij u_j` per cell. `np.bincount` and not `np.add.at`: this runs
+    once per conjugate-gradient iteration on a few million faces, and the
+    unbuffered form is what makes the sweep unaffordable rather than slow."""
+    return (np.bincount(src, weights=g * u[dst], minlength=n)
+            + np.bincount(dst, weights=g * u[src], minlength=n))
+
+
+def poisson_solution_error(geom: Geometry, degrees=LAPLACE_DEGREES) -> dict:
+    """The error in the field the operator SOLVES for, against the same
+    analytic answer `laplace_beltrami_error` scores the operator on.
+
+    `laplace_beltrami_error` applies `L` to a known `P_l` and scores the
+    residual. This does the opposite, and it is the one a consumer of the water
+    table receives: it hands the operator the analytic right-hand side
+    `-l(l+1)/R^2 P_l` and asks for the field, then scores that field against
+    `P_l`. Nothing about this world enters it either.
+
+    THE NULL SPACE COSTS ONE EQUATION AND NOTHING ELSE. On a closed sphere `L`
+    annihilates the constants, so the system is singular and, because the
+    right-hand side is made mean-zero, consistent. Deleting one equation and
+    fixing that cell's head at zero is then EXACT rather than an
+    approximation: `1^T L = 0`, so the deleted equation is the sum of the
+    others and holds automatically. What comes back is the true solution up to
+    the constant, and both sides are compared with their means removed.
+
+    A DIRECT FACTORISATION, for the reason `solve` gives at length: this is a
+    planar-graph Laplacian, minimum degree on `A + A^T` is the right ordering
+    for a symmetric pattern, and diagonally preconditioned conjugate gradients
+    on it did not converge in a usable number of passes when it was tried here.
+    The residual is measured and returned rather than assumed.
+
+    AND THE ORDERING IS NOT ENOUGH ON ITS OWN. SuperLU still pivots for
+    stability by default, which reorders rows during the factorisation and
+    throws away the fill the symmetric ordering just bought. This matrix is
+    symmetric positive definite, so it needs no pivoting at all, and
+    `diag_pivot_thresh=0` with `SymmetricMode` says so. Measured on the 80,000
+    region mesh of the sweep, whose face weights span five orders of magnitude:
+    6.8 million nonzeros in the factor with symmetric mode against a 2.5 GB
+    working set and no answer in minutes without it. The setting is not an
+    optimisation here, it is what makes the arm runnable at all.
+    """
+    from scipy.special import eval_legendre
+
+    n = geom.export.n_regions
+    z = geom.export.z.astype(np.float64)
+    area = geom.flux_area_m2
+    src, dst, g = geom.src, geom.dst, geom.geom
+    diag = (np.bincount(src, weights=g, minlength=n)
+            + np.bincount(dst, weights=g, minlength=n))
+    rows = np.concatenate([np.arange(n), src, dst])
+    cols = np.concatenate([np.arange(n), dst, src])
+    vals = np.concatenate([diag, -g, -g])
+    keep = (rows > 0) & (cols > 0)
+    a = sp.coo_matrix((vals[keep], (rows[keep] - 1, cols[keep] - 1)),
+                      shape=(n - 1, n - 1)).tocsc()
+
+    from scipy.sparse.linalg import splu
+    lu = splu(a, permc_spec="MMD_AT_PLUS_A", diag_pivot_thresh=0.0,
+              options=dict(SymmetricMode=True))
+
+    matvec, _ = _laplacian_operator(geom)
+    out = {}
+    for l in degrees:
+        u = eval_legendre(l, z)
+        rhs = area * (l * (l + 1) / geom.radius_m ** 2) * u
+        rhs = rhs - rhs.mean()
+        h = np.zeros(n)
+        h[1:] = lu.solve(rhs[1:])
+        resid = float(np.linalg.norm(matvec(h) - rhs) / np.linalg.norm(rhs))
+        want = u - u.mean()
+        got = h - h.mean()
+        out[l] = {
+            "relative_rms": float(np.sqrt(np.mean((got - want) ** 2))
+                                  / np.sqrt(np.mean(want ** 2))),
+            "solver_relative_residual": resid,
+            "solver_converged": bool(np.all(np.isfinite(h))
+                                     and resid < POISSON_SOLVER_RELATIVE),
+        }
+    return out
+
+
+def _legendre_poly(l: int):
+    from numpy.polynomial import legendre as _leg, polynomial as _poly
+    c = np.zeros(l + 1)
+    c[l] = 1.0
+    return _poly.Polynomial(_leg.leg2poly(c))
+
+
+def response_error(geom: Geometry, l: int = 2, m: int = 3,
+                   amplitudes=(0.01, 0.2)) -> dict:
+    """The operator's error on a RESPONSE to a transmissivity perturbation.
+
+    GW-18 hands the solver a spatially varying multiplier on `T`. What that is
+    worth depends on how well this operator resolves a CHANGE rather than a
+    field, and that has an analytic answer of its own. For zonal fields on a
+    sphere,
+
+        div(T grad u)  =  (1/R^2) d/dz [ T(z) (1 - z^2) du/dz ]
+
+    so with `T = 1 + a P_m(z)` and `u = P_l(z)` the response per unit amplitude
+    is `(1/R^2) d/dz [ P_m (1 - z^2) P_l' ]`, a polynomial in `z` evaluated
+    exactly. The discrete side assembles face transmissivities through
+    `face_transmissivity`, the same arithmetic mean the planet arm uses, and
+    subtracts the unperturbed operator applied to the same field.
+
+    Two numbers come back per amplitude and they are the point of the check:
+    the error as a fraction of the RESPONSE, and the same error as a fraction
+    of the unperturbed FIELD. If the first is of order the truncation error and
+    the second is smaller by the amplitude, then the operator's error scales
+    with what is being measured and a small effect is not lost in it.
+    """
+    n = geom.export.n_regions
+    z = geom.export.z.astype(np.float64)
+    src, dst, gfac = geom.src, geom.dst, geom.geom
+    area = geom.flux_area_m2
+    no_ocean = np.zeros(n, bool)
+
+    p_l, p_m = _legendre_poly(l), _legendre_poly(m)
+    u = p_l(z)
+    # q_l = (1 - z^2) P_l', so the response per unit amplitude is
+    # (1/R^2) d/dz [P_m q_l], taken exactly in the polynomial basis.
+    q_l = np.polynomial.polynomial.Polynomial([1.0, 0.0, -1.0]) * p_l.deriv()
+    exact_unit = (p_m.deriv()(z) * q_l(z) + p_m(z) * q_l.deriv()(z)) \
+        / geom.radius_m ** 2
+
+    def apply(t_cell):
+        t_face = face_transmissivity(t_cell, gfac, src, dst, no_ocean)
+        return geom_divergence(n, src, dst, t_face * (u[dst] - u[src])) / area
+
+    base = apply(np.ones(n))
+    base_scale = np.sqrt(np.mean(base ** 2))
+    exact_scale = np.sqrt(np.mean(exact_unit ** 2))
+
+    out = {}
+    for a in amplitudes:
+        got = (apply(1.0 + a * p_m(z)) - base) / a
+        err = np.sqrt(np.mean((got - exact_unit) ** 2))
+        out[float(a)] = {
+            "relative_to_response": float(err / exact_scale),
+            "relative_to_field": float(a * err / base_scale),
+        }
+    ratios = [v["relative_to_response"] for v in out.values()]
+    out["amplitude_ratio"] = float(max(ratios) / min(ratios))
+    return out
+
+
+def _fitted_order(cell_sizes, errors) -> float:
+    """Slope of log(error) against log(cell size). The convergence order."""
+    x = np.log(np.asarray(cell_sizes, dtype=np.float64))
+    y = np.log(np.asarray(errors, dtype=np.float64))
+    return float(np.polyfit(x, y, 1)[0])
+
+
+def instrument_sweep(sizes=INSTRUMENT_SIZES, *, jitter: float,
+                     radius_km: float, degrees=(2, 3, 4), seed: int = 0,
+                     verbose: bool = True) -> dict:
+    """Truncation and solution error against resolution, on Orogen's generator."""
+    rows = []
+    for n in sizes:
+        export = orogen_mesh(n, jitter=jitter, seed=seed, radius_km=radius_km)
+        geom = Geometry(export)
+        trunc = laplace_beltrami_error(geom, tuple(degrees))
+        soln = poisson_solution_error(geom, tuple(degrees))
+        row = {"n_regions": int(n),
+               "cell_size_m": float(np.sqrt(4.0 * np.pi / n) * geom.radius_m),
+               "closes_on_sphere": geom.closes_on_sphere(),
+               "truncation": {int(k): float(v) for k, v in trunc.items()},
+               "solution": {int(k): v for k, v in soln.items()}}
+        rows.append(row)
+        if verbose:
+            for l in degrees:
+                print(f"    {n:>9,}  l = {l}   truncation "
+                      f"{trunc[l]:8.5f}   solution {soln[l]['relative_rms']:10.3e}"
+                      f"   {'' if soln[l]['solver_converged'] else 'SOLVER DID NOT CONVERGE'}")
+        del geom, export
+    h = [r["cell_size_m"] for r in rows]
+    orders = {int(l): {"truncation": _fitted_order(h, [r["truncation"][l] for r in rows]),
+                       "solution": _fitted_order(
+                           h, [r["solution"][l]["relative_rms"] for r in rows])}
+              for l in degrees}
+    return {"rows": rows, "orders": orders}
 
 
 
@@ -1555,6 +1891,114 @@ def uniqueness_test(verbose=True) -> dict:
     return out
 
 
+def instrument_report(mesh_arm: str = "auto") -> int:
+    """GW-8, printed. Every criterion is stated before the number that meets it.
+
+    The verdict this returns is on the two claims, not on the 12% itself: the
+    truncation figure is not in dispute and is reprinted here unchanged. What
+    is under test is whether it is the noise floor of a SOLVED field, which is
+    the reading that would put GW-18 and GW-24 out of reach before either is
+    built.
+    """
+    import json
+
+    import builds
+
+    export_dir = builds.mesh_export()
+    jitter = float(json.loads((export_dir / "manifest.json")
+                              .read_text(encoding="utf-8"))["params"]["jitter"])
+    radius_km = Export(export_dir).radius_km
+
+    print("INSTRUMENT: what the operator's error is an error in. GW-8.")
+    print("  criteria, declared before the run:")
+    print(f"    truncation order in the cell size  < {TRUNCATION_ORDER_MAX}")
+    print(f"    solution   order in the cell size  > {SOLUTION_ORDER_MIN}")
+    print(f"    response error, relative to the response  < {RESPONSE_ERROR_MAX}")
+    print(f"    response error, at two amplitudes, within a factor of "
+          f"{RESPONSE_AMPLITUDE_INVARIANCE}")
+    print(f"    solved head's mesh error on the mesh in use  < {HEAD_MESH_FLOOR}")
+    print(f"    linear solve finished to a relative residual of "
+          f"{POISSON_SOLVER_RELATIVE:.0e}")
+
+    print(f"\n  the sweep, on Orogen's generator at the active build's own "
+          f"jitter of {jitter}\n  and its own radius:")
+    sweep = instrument_sweep(jitter=jitter, radius_km=radius_km)
+    ok = True
+    print("\n  fitted orders in the cell size:")
+    for l, o in sorted(sweep["orders"].items()):
+        good = (o["truncation"] < TRUNCATION_ORDER_MAX
+                and o["solution"] > SOLUTION_ORDER_MIN)
+        ok &= good
+        print(f"    l = {l}   truncation {o['truncation']:6.3f}   "
+              f"solution {o['solution']:6.3f}   "
+              f"{'as claimed' if good else 'CLAIM 1 REFUTED'}")
+
+    print("\n  the response to a transmissivity perturbation, against its "
+          "analytic answer,\n  on the largest mesh of the sweep:")
+    geom = Geometry(orogen_mesh(INSTRUMENT_SIZES[-1], jitter=jitter,
+                                radius_km=radius_km))
+    resp = response_error(geom)
+    for a in sorted(k for k in resp if k != "amplitude_ratio"):
+        r = resp[a]
+        print(f"    amplitude {a:6.3f}   error relative to the response "
+              f"{r['relative_to_response']:8.5f}   to the field "
+              f"{r['relative_to_field']:9.2e}")
+    size_ok = all(resp[a]["relative_to_response"] < RESPONSE_ERROR_MAX
+                  for a in resp if a != "amplitude_ratio")
+    amp_ok = resp["amplitude_ratio"] < RESPONSE_AMPLITUDE_INVARIANCE
+    ok &= size_ok and amp_ok
+    print(f"    amplitude ratio {resp['amplitude_ratio']:.6f}   "
+          f"{'size and linearity as claimed' if (size_ok and amp_ok) else 'CLAIM 2 REFUTED'}")
+    del geom
+
+    if mesh_arm == "skip":
+        print("\n  the real-mesh arm was skipped, so the sweep's own "
+              "extrapolation is all there is\n  and the decision bar is not "
+              "answered on the mesh in use.")
+        return 0 if ok else 1
+
+    root = export_dir if mesh_arm == "auto" else Path(mesh_arm)
+    if not (root / "manifest.json").is_file():
+        root = builds.mesh_export_of(root)
+    print(f"\n  a real export, {root.parent.name}/{root.name}. THE ARM'S COST IS "
+          f"A DIRECT\n  FACTORISATION OF THE WHOLE MESH, not of a free set: "
+          f"name a smaller build\n  than the active one where the fill will "
+          f"not fit.")
+    export = Export(root)
+    geom = Geometry(export)
+    print(f"    {export.n_regions:,} regions, Voronoi area closes on the "
+          f"sphere to {geom.closes_on_sphere():.8f}")
+    trunc = laplace_beltrami_error(geom, (2, 3, 4))
+    soln = poisson_solution_error(geom, (2, 3, 4))
+    for l in (2, 3, 4):
+        r = soln[l]
+        good = r["solver_converged"] and r["relative_rms"] < HEAD_MESH_FLOOR
+        ok &= good
+        note = ("below the decision bar" if good
+                else "ABOVE THE DECISION BAR"
+                if r["relative_rms"] >= HEAD_MESH_FLOOR
+                else "below the bar, but the solve MISSES its declared residual")
+        print(f"    l = {l}   truncation {trunc[l]:8.5f}   solved head "
+              f"{r['relative_rms']:10.3e}   residual "
+              f"{r['solver_relative_residual']:8.2e}   {note}")
+
+    # The bar is about the mesh the world is solved on. Where the arm ran on a
+    # smaller build than the configured one, the sweep's own fitted order
+    # carries the number across, and the extrapolation is labelled as one.
+    configured = Export(export_dir).n_regions
+    if configured != export.n_regions:
+        ratio = np.sqrt(export.n_regions / configured)
+        print(f"    the configured build carries {configured:,} regions, so its "
+              f"cells are {ratio:.2f}x the size\n    of this arm's. Carried "
+              f"across at the sweep's own fitted order, the solved head\n    "
+              f"there is")
+        for l in (2, 3, 4):
+            o = sweep["orders"][l]["solution"]
+            print(f"      l = {l}   {soln[l]['relative_rms'] * ratio ** o:10.3e}"
+                  f"   (extrapolated, order {o:.2f})")
+    return 0 if ok else 1
+
+
 def groundwater_receiver(n, src, dst, flux, land):
     """Per land region, the neighbour taking the largest outgoing flux.
 
@@ -1628,6 +2072,15 @@ def main() -> int:
                     help="GW-24: the unconfined solver against the analytic "
                          "Dupuit parabola, on a synthetic one-dimensional "
                          "aquifer. Needs no mesh and no climate.")
+    ap.add_argument("--instrument", action="store_true",
+                    help="GW-8: what the operator's truncation error is an "
+                         "error IN. A resolution sweep on meshes from Orogen's "
+                         "own generator, separating truncation from solution "
+                         "error, and the operator's error on a transmissivity "
+                         "RESPONSE against an analytic answer.")
+    ap.add_argument("--instrument-mesh", default="auto",
+                    help="the real-mesh arm of --instrument: 'auto' for the "
+                         "configured build, 'skip', or an export directory")
     ap.add_argument("--uniqueness-test", action="store_true",
                     help="world-qq10: the uniqueness identity on a synthetic "
                          "case carrying GW-15's sink and GW-17's baselevels, "
@@ -1639,6 +2092,10 @@ def main() -> int:
 
     if args.uniqueness_test:
         return 0 if uniqueness_test()["passes"] else 1
+
+    if args.instrument:
+        return instrument_report(args.instrument_mesh)
+
 
     if args.dupuit_test:
         print("DUPUIT: the unconfined transmissivity against a case with an "
