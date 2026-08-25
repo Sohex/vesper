@@ -94,7 +94,17 @@ derivation of each threshold are in `assess_convergence.py`, and runs that
 miss are labelled, not rounded. The test window is the last `--window`
 PRODUCTION orbits: segments declare what they were for, and orbits run to
 measure the model rather than the planet are dropped from the tail and refused
-inside the window. A separate five-orbit window with 32 snapshots per orbit,
+inside the window.
+
+**A window that cannot resolve a threshold is not testing it.** The model has
+variability at the window's own timescale, so consecutive orbits are not
+independent samples and a criterion whose statistic has a standard error
+comparable to its own threshold flips rather than discriminates. Every
+assessment reports what its window can resolve and the window each criterion
+would need at that run's own scatter and autocorrelation, so the number is
+produced rather than swept for; `exoplasim/notes/convergence-lengths.md`
+carries the arithmetic, the bracket it lands in, and the operational lengths of
+the approach itself. A separate five-orbit window with 32 snapshots per orbit,
 run after the pass/fail decision, forms the climatology.
 
 ### 3.4 Hydrography
