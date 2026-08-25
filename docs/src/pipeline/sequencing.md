@@ -390,12 +390,24 @@ The route escalates resolution and timestep ALTERNATELY, never together:
 5. **Convert to T85, at dt 22.5.** Converge.
 6. **Continue at NLOWIO = 0** with high-cadence orbits for dust.
 
+This chapter DECIDES the route. `lib/rungs.py` carries it in machine-readable
+form as `ESCALATION_ROUTE` and checks itself against the list above, so a
+script asks the registry and the argument stays here.
+
 **Why the reconvergence steps exist, and why they are not optional bookkeeping.**
 A conversion changes the support and a timestep change moves the attractor, and
 a state that changes both at once cannot say which one moved it. Reconverging at
 the TARGET rung's timestep before converting means every conversion happens at
 constant dt, so exactly one variable moves per step and a surprise after a
 conversion is attributable to the support alone.
+
+That is a hard requirement of the converter and not only good practice.
+`convert_restart.py` copies `nstep`, and elapsed time is `nstep` times the step,
+so a conversion across a change of step moves the planet in its orbit; the two
+stored leapfrog levels are also a derivative over the donor's step, read by the
+target as spanning its own. The converter refuses the combination rather than
+taking it, and its self-test walks this route to check that every conversion the
+route asks for is one it accepts. WORLD-FL9C.
 
 **A reconvergence is ten orbits, then three-orbit increments until the
 convergence criteria are met.** Ten first because a shorter block cannot

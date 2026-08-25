@@ -91,9 +91,9 @@ fitted to one dataset.
 
 ## The T42 rung does not run at the T21 timestep
 
-`timestep_minutes` is one scalar in `config/planet.yaml` and does not move with
-the rung, so the first T42 arm ran at T21's 45 minutes. It integrated 46 orbits
-of ordinary climate and took a SIGFPE inside the 47th, on a gridpoint at -12.81
+`timestep_minutes` was one scalar in `config/planet.yaml` with no dependence on
+`model.resolution`, so the first T42 arm ran at T21's 45 minutes. It integrated
+46 orbits of ordinary climate and took a SIGFPE inside the 47th, on a gridpoint at -12.81
 K at the second level from the top. Nothing was building towards it: level 2's
 coldest cell held 190 K with no trend for the whole run. That is world-td3, and
 `exoplasim/notes/physics-filter-stability.md` carries the evidence.
@@ -117,9 +117,18 @@ the operating support rather than a rung to be discovered. Nothing now needs the
 rungs to share a step, so nothing pays for running T42 at 22.5.
 
 The ladder runs the ESCALATION ROUTE instead -- T21 at 45, T42 at 30, T85 at
-22.5, in `docs/src/pipeline/sequencing.md` section D -- where the step changes
-so that resolution and timestep never move together and every conversion happens
-at constant dt. The residual measurement above still bears on it: a coarser step
+22.5, decided in `docs/src/pipeline/sequencing.md` section D and carried in
+machine-readable form by `lib/rungs.py` -- where the step changes so that
+resolution and timestep never move together and every conversion happens
+at constant dt.
+
+**Three quantities, not three answers.** What each rung CAN take, what the route
+RUNS it at, and what a commissioning-length run has SHOWN about a pair are
+different facts, and each is now declared once in `lib/rungs.py`:
+`STABILITY_CEILING_MINUTES`, `ESCALATION_ROUTE` and `COMMISSIONING_EVIDENCE`.
+The ceiling is checked against the probe grid it is read out of and the route
+against the chapter that decides it. The one-step-for-the-whole-ladder quantity
+is deliberately not among them, for the reason above: it has no consumer. The residual measurement above still bears on it: a coarser step
 carries a larger energy residual, so T21 at 45 carries the largest of the three,
 and that is a cost of the route to be reported rather than a reason to change
 it. WORLD-F997. A ladder whose rungs each ran at their own

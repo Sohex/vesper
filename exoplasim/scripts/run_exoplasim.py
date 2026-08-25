@@ -1592,7 +1592,7 @@ def declare_conversion_time_level(model, config: dict) -> bool:
     INTEGRATES, and it takes that half out of the semi-implicit treatment in the
     temperature equation while the divergence solve still treats the temperature
     implicitly, so the timestep it is stable at is its own question and is NOT
-    the one `model.resolution_timestep_minutes` answers.
+    the one `lib/rungs.py`'s measured stability ceilings answer.
 
     Absent means off, so a config predating this reads exactly as it did.
     """

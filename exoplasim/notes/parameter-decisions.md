@@ -644,33 +644,43 @@ spectrum, and a stronger filter takes more of it for a benefit nothing has
 measured. Nothing above kappa 8 was tested, and the row to reopen this is a
 measurement that shows what a stronger filter buys.
 
-**THE STEP IS THE PER-RUNG PART.** `config/planet.yaml` carries the table under
-`model.resolution_timestep_minutes` and `check_consistency.py` refuses a
-`timestep_minutes` that disagrees with it. Adopted against measured ceiling:
+**THE STEP IS THE PER-RUNG PART, AND IT IS THREE QUANTITIES.** "The timestep at
+rung X" named three different things in this tree and they are not a
+disagreement to be averaged; `lib/rungs.py` declares each once and this note
+carries only the argument:
 
-| rung | adopted | measured ceiling at kappa 8 |
-| --- | ---: | --- |
-| T21 | 45 | 90 or coarser, untested above |
-| T42 | 45 | 60 |
-| T85 | 45 | 45, untested above |
-| T127 | 30 | 30; dt 45 refuses outright |
-| T170 | 22.5 | 22.5; dt 30 starts and blows up after 3.8 minutes |
+- `STABILITY_CEILING_MINUTES`, the coarsest step a rung is MEASURED to start
+  clean at, read out of `exoplasim/analysis/stability_probe.json` at kappa 8 on
+  the corrected damping, and checked against it rather than copied.
+- `ESCALATION_ROUTE`, the ordered (rung, step) sequence the project runs,
+  decided in `docs/src/pipeline/sequencing.md` section D.
+- `COMMISSIONING_EVIDENCE`, what a run of commissioning length has shown about
+  one pair. The probe cannot say it.
 
-**The adopted step is not the ceiling where a gap exists, and the gap is
+`config/planet.yaml` carries only `model.timestep_minutes`, the step ONE run is
+configured at, and `check_consistency.py` judges it against the first two.
+
+**The route's step is not the ceiling where a gap exists, and the gap is
 deliberate.** A step that does not blow up is a STABILITY FLOOR, not a licence:
 the ceiling is where the model refuses or breaks, not where it stops being
-right. T42 at 60 minutes would be a third off every T42 run and it is not
-adopted, because the roadmap's own timestep experiment -- cold-start stability
-with traps armed, warm-start energy and water closure, climatological
-differences after settling, wall time per orbit rather than per step -- has not
-been run. That experiment is SPAT-11's, and this table is what it starts from
-rather than what it concludes.
+right. Running T42 at its measured ceiling would be a third off every T42 run
+and the route does not, because the roadmap's own timestep experiment --
+cold-start stability with traps armed, warm-start energy and water closure,
+climatological differences after settling, wall time per orbit rather than per
+step -- has not been run. That experiment is SPAT-11's, and the ceiling table is
+what it starts from rather than what it concludes.
 
-Two cells carry more risk than the others and should be read that way. T85 at 45
-and T127 at 30 are each at their tested ceiling on a single orbit, and T170 at
-22.5 sits one step below a cell that blows up LATE -- after 3.8 minutes of
-integration, not at the first call -- which is the failure mode a short check
-cannot see.
+**The grid has three verdicts and reading it as two is what went wrong.** A cell
+is `refused`, `no_refusal_in_steps`, or `refused_only_at_length` -- it started
+and then died inside the probe's own range. T170 at dt 22.5 is that third kind,
+and for as long as the grid was read as refuses-or-runs it was carried as
+T170's adopted step. WORLD-6QRR; the ceiling is now the coarsest cell that is
+clean, which puts T170 a full step below where the 1/N fit predicts.
+
+And the instrument bounds all of it. A clean cell has survived 900 steps, about
+a seventh of an orbit, so every ceiling is a floor on refusal and says nothing
+about endurance: T42 at dt 45 is clean in every probe column and blew up after
+scores of orbits. That is what `COMMISSIONING_EVIDENCE` is for.
 
 ### Two traps found in the process
 

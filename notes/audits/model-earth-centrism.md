@@ -468,10 +468,9 @@ is T21, where the branch never fired, so 0.01 is unchanged.
 
 **What it costs.** The first half lands on P minus E over land, which is the
 numerator of the carve criterion. The second means this term's strength varies
-by a factor of two across `resolution_timestep_minutes`, which runs 45.0 at T21,
-T42 and T85 and then 30.0 and 22.5 at T127 and T170 -- so a comparison across
-the top of the resolution ladder in loop D is comparing two different
-re-evaporation strengths.
+by a factor of two across the escalation route `lib/rungs.py` declares, which
+runs 45.0 at T21 and 22.5 at T85 -- so a comparison across the resolution ladder
+in loop D is comparing two different re-evaporation strengths.
 
 ## 10. Salinity reached the model through four compiled constants, not one
 

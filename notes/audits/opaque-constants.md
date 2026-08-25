@@ -420,8 +420,9 @@ re-evaporates before reaching the ground, which is P-E over land directly. The
 two branches differ by 43%.
 
 This is not a one-off. The resolution has flipped between T21 and T42 five times
-and `resolution_timestep_minutes` gives both rungs the same 45-minute step, so
-nothing compensated. A precipitation-physics constant has been oscillating under a
+and the step did not move with it, so nothing compensated: `lib/rungs.py` now
+declares the escalation route as T21 at 45 then 30, T42 at 30 then 22.5, so the
+two rungs no longer share a step. A precipitation-physics constant has been oscillating under a
 key that nothing connects to precipitation. Neither branch has a derivation
 upstream either.
 

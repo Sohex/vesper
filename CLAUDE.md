@@ -281,8 +281,10 @@ because "reuse them, do not reimplement" is unusable if it names half:
 `orogen.py` (the export, and the build registry), `builds.py` (build to path),
 `rungs.py` (the resolution ladder: rung to grid dimensions, which FFT module a
 rung transforms on, the check that config's `resolution`, `latitudes` and
-`longitudes` are one fact, and the check that every restatement of the ladder
-elsewhere in the tree agrees with it),
+`longitudes` are one fact, the check that every restatement of the ladder
+elsewhere in the tree agrees with it, and the THREE timestep quantities kept
+apart -- each rung's measured stability ceiling, the escalation route's step per
+rung, and what a commissioning-length run has shown about a pair),
 `paths.py` (repo-relative paths, the climatology resolver, and its clean-I/O
 and configured-grid guards), `gridding.py` (mesh-to-grid, the one grid
 convention, and the reduction operators by field semantics: extensive,
