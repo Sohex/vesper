@@ -22,7 +22,9 @@ branch, once for the diffuse stream through `zb5` and once for the direct beam,
 so the weight this script produces reaches the model through `tswr3` alone.
 `clim-68` settled that as `tswr3`-only: the harness no longer scales `acl2`, and
 it stages `NSWRCL` at 1 so a run's namelist records which cloud scheme its
-shortwave used. Nothing here changed, because the weight is a property of the
+shortwave used. `NCLOUDS`, the switch above it that decides whether the
+shortwave takes a cloud branch at all, is staged beside it for the same reason
+(world-35en). Nothing here changed, because the weight is a property of the
 star and the droplets and not of which key carries it.
 
 The 2026-08-20 arm bundle measured what that omission is worth: +/-2.6 K over

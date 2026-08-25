@@ -359,6 +359,14 @@ def configure_otherargs(derived: dict) -> dict:
         # continuation that flipped it would have replaced the two-stream
         # optics with a three-level lookup silently. clim-68.
         "NSWRCL@radmod_namelist": "1",
+        # NCLOUDS, likewise at radmod's compiled default. It sits ABOVE NSWRCL:
+        # at 0 the shortwave takes no cloud branch at all and NSWRCL selects
+        # between two schemes neither of which runs, so a namelist that records
+        # NSWRCL and not NCLOUDS does not say what the shortwave did. Nothing
+        # in this project sets it -- `columnmode='clear'` is the only route and
+        # no config here names one -- which is exactly why the run should say
+        # so rather than leaving it to be inferred. world-35en.
+        "NCLOUDS@radmod_namelist": "1",
         # world-nfh, landmod_nl. Snow seen through a canopy is a mixture of the
         # band's exposed snow with the band's canopy albedo, so the canopy
         # albedo has to arrive per band. landmod's compiled default is the
@@ -2353,6 +2361,9 @@ def expected_namelist_keys(config: dict) -> dict:
     # would carry a scaled TSWR3 no code reads, and `acl2`, which that branch
     # does read, is left at radmod's Earth tuning deliberately.
     want["radmod_namelist"]["NSWRCL"] = 1.0
+    # world-35en. NCLOUDS gates the branch NSWRCL selects within, so checking
+    # NSWRCL alone leaves the shortwave's cloud treatment half-stated.
+    want["radmod_namelist"]["NCLOUDS"] = 1.0
     # CLIM-16, oceanmod_nl, and unconditional for the same reason. NLEV_OCE is
     # 1 so HDIFFK is a one-element array, which is why one element is what this
     # asks for.
