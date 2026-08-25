@@ -230,11 +230,18 @@ previous session. `notes/audits/model-build-driver.md` has the measurements.
 | `--profile` | a flag set from `config/planet.yaml`; `production` by default, `checked` adds `-fcheck=all`, and `poisoned` adds `-finit-real=snan` at `-Og`, which is the one level the poison survives to the arithmetic at | no change to the name |
 | `--frame-pointers` | a PROFILING build. DWARF cannot unwind the -O3 code -- 94% of model samples get no caller -- and this costs -1.17% with an identical restart sha, so the profile measures the same model | `..._fp.x` |
 | `--extra-flag=`, `--drop-flag=` | for a verification arm that varies a flag ON PURPOSE. Both are part of the build directory's identity, and a `--drop-flag` naming a flag the declaration does not carry is an error rather than a no-op | no change to the name |
+| `--precision <4\|8>` | a PRECISION ARM, and it is the only lever on precision short of editing the declaration. Departing from `model.precision_bytes` requires `--no-publish` and is refused otherwise | refused: an arm at another precision cannot be published |
 
-Precision is not an option: `config/planet.yaml` declares it. It is the worst of
-these to get wrong, because `-fdefault-real-8` changes the width of `real` in
-every declaration and a real*4 object linked against real*8 ones does not fail
-to link -- it computes.
+Precision is DECLARED by `config/planet.yaml` and the arm above cannot ship. It
+is the worst of these to get wrong, because `-fdefault-real-8` changes the width
+of `real` in every declaration and a real*4 object linked against real*8 ones
+does not fail to link -- it computes; and the registry's executable name carries
+no precision, so a published arm would be indistinguishable from the shipped
+binary. Archive CLIM-22 is twelve single-precision executables shipped under a
+declaration of eight. `-fdefault-real-8` reaches the compiler from the
+declaration rather than from the flag line, so `--drop-flag` cannot reach it and
+an FP32 arm would otherwise mean editing the declared precision of the world to
+run one experiment.
 
 The paired latitude decomposition is retired. It existed to let legmod fold a
 mirror pair together, SHTns replaces legmod and cannot use the permuted layout
