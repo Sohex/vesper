@@ -132,6 +132,43 @@ FLIP_TOLERANCE = 0.0
 # model -- it is a check that two assemblies of the same operator agree, and it
 # is held to round-off rather than to discretisation error.
 SCHEME_HEAD_RELATIVE = 1e-9
+# GW-24, DECLARED BEFORE THE FIRST UNCONFINED RUN. With `T = K (h - z_bottom)`
+# the matrix depends on the head, so the complementarity problem is no longer
+# LINEAR and the argument that licensed `--uniqueness-check` as an identity --
+# one symmetric positive definite matrix, therefore exactly one solution --
+# lapses. Two trajectories can then differ by whatever head the outer residual
+# bar leaves unresolved, so the check becomes a MEASUREMENT against a declared
+# relative bar rather than a bit-comparison. 1e-6 is three orders looser than
+# the confined identity and still four orders below a millimetre of head, so it
+# cannot be met by a solve that has not converged and cannot fail for a reason
+# any consumer of the depth field could see.
+UNCONFINED_HEAD_RELATIVE = 1e-6
+# THE RESIDUAL BAR HAS A ROUND-OFF FLOOR, and under the unconfined form it can
+# sit ABOVE `RESIDUAL_TOLERANCE`. The confined model never met it: there the
+# matrix is fixed, the direct solve makes the balance zero to the linear
+# solver's own accuracy, and the residual reads 3e-13 whatever the
+# transmissivity. Under the unconfined form the balance is re-evaluated with the
+# conductance the NEW head implies, so it is a difference of face fluxes formed
+# from heads whose magnitude is the aquifer thickness while their DIFFERENCE is
+# a fraction of a metre. That cancellation puts a floor on the balance of about
+#
+#     eps * sum_faces Trans (|h_src| + |h_dst|) / total recharge
+#
+# which is arithmetic about float64 and not a property of any result. The bar
+# below is that bound with an ordinary safety factor; on the one-dimensional
+# Dupuit case the observed plateau sat at 0.3 and 0.7 of the un-inflated bound
+# at 400 m and 2 km of saturated thickness, so the bound is the right shape.
+# A configuration whose floor exceeds `CLOSURE_TOLERANCE` cannot be certified at
+# all, and `solve` says so rather than reporting a convergence it cannot have.
+RESIDUAL_FLOOR_SAFETY = 4.0
+# The Dupuit identity, declared before `--dupuit-test` was first run. Part one
+# is exact: over a FLAT aquifer base the discrete unconfined face flux equals
+# the Kirchhoff-linear flux `g K (u_j - u_i)` by algebra, so any difference is
+# round-off. Part two is a discretisation error against the analytic Dupuit
+# parabola and is not exact; the bar is what a first-order finite-volume scheme
+# on a uniform one-dimensional mesh should comfortably beat.
+DUPUIT_IDENTITY_RELATIVE = 1e-12
+DUPUIT_ANALYTIC_RELATIVE = 1e-3
 
 SECONDS_PER_DAY = 86400.0
 
@@ -309,8 +346,11 @@ def conductivity(k_m2, density_kg_m3: float, gravity_m_s2: float,
     return k_m2 * density_kg_m3 * gravity_m_s2 / viscosity_pa_s
 
 
-def transmissivity(k0_m_s, thickness_m: float):
-    """`T = K D`, m2/s. Conductivity over a constant saturated thickness.
+def transmissivity(k0_m_s, thickness_m):
+    """`T = K D`, m2/s. Conductivity over a saturated thickness, CONFINED.
+
+    `thickness_m` is a scalar or a per-region array; the arithmetic is the same
+    either way and the choice belongs to the config, not here. GW-18.
 
     THE WHOLE DEPTH MODEL, and its flatness is deliberate. `K` and `D` come from
     one source at one scale: Gleeson et al. (2011) put their permeabilities at
@@ -331,8 +371,76 @@ def transmissivity(k0_m_s, thickness_m: float):
     The cost is real and is not hidden: no slope dependence of aquifer depth,
     and no thinning of transmissivity as the water table falls. This is the
     coarser model, taken because it is the one the sources support here.
+    `unconfined_transmissivity` below removes the second half of that cost and
+    states what it costs in exchange.
     """
-    return k0_m_s * float(thickness_m)
+    return k0_m_s * np.asarray(thickness_m, dtype=np.float64)
+
+
+def saturated_thickness(head, aquifer_base_m, min_saturated_m: float):
+    """`b = max(h - z_bottom, b_min)`, m. The unconfined saturated column.
+
+    THE FLOOR IS STRUCTURAL, NOT COSMETIC. With `b` free to reach zero a face
+    stops conducting when the water table falls to the aquifer base, so which
+    cells are connected to a recharge source or to the sea would depend on the
+    head -- and the static dry set that `solve` computes once before the
+    iteration, which is what made the uniqueness identity pass bit-identically,
+    would stop being static. A strictly positive `b_min` keeps every face of the
+    conductive network conducting at every head, so that connectivity argument
+    survives the change unaltered. The cells sitting on it are reported, and
+    their depths are a lower bound rather than a value.
+    """
+    return np.maximum(head - aquifer_base_m, float(min_saturated_m))
+
+
+def unconfined_transmissivity(k0_m_s, head, aquifer_base_m,
+                              min_saturated_m: float):
+    """`T = K (h - z_bottom)`, m2/s. The textbook Dupuit-Forchheimer case.
+
+    WHAT THIS IS FOR. `T = K D` is the CONFINED approximation: transmissivity
+    does not fall as the water table drops, so deep dry ground conducts as
+    freely as a full aquifer. This form is depth-selective in the direction a
+    real unconfined aquifer is -- a shallow table has a thick saturated column
+    and drains easily, a deep one has a thin column and drains badly -- which is
+    the coupling that lets terrain rather than recharge organise the head.
+
+    AND IT IS NOT FAN'S EXPONENTIAL, which is excluded twice over and must not
+    be reached for again. `exp(h/f)` is convex, so a cell mean carries
+    `exp(sigma^2/2f^2)` -- `exp(5000)` at 100 m of sub-grid relief against the
+    0.95 m `f` Fan's curve reaches on steep bedrock -- and Picard on it
+    limit-cycles because `T` moves by a factor of e per e-folding length. This
+    form is LINEAR in the head, so a cell mean of `T` is `T` of the cell mean
+    exactly and there is no Jensen term at any resolution, and its Picard map
+    changes `T` by `|dh| / b` per pass rather than by `exp(|dh| / f)`.
+
+    THE PRICE, stated rather than discovered. `T` now depends on the head, so
+    the matrix is no longer fixed, the problem is no longer a LINEAR
+    complementarity problem, and the uniqueness argument that licensed
+    `--uniqueness-check` as an IDENTITY -- one symmetric positive definite
+    matrix, therefore exactly one solution -- no longer applies. Under this form
+    that check is a measurement against a declared bar, `UNCONFINED_HEAD_RELATIVE`.
+    """
+    return k0_m_s * saturated_thickness(head, aquifer_base_m, min_saturated_m)
+
+
+def kirchhoff_potential(head, aquifer_base_m, min_saturated_m: float):
+    """`u = b^2 / 2` for `b` the saturated thickness. Used only by the tests.
+
+    WHY IT IS AN IDENTITY AND NOT A SOLVER. With the aquifer base at the SAME
+    elevation on both ends of a face and the face thickness taken as the
+    arithmetic mean, the discrete unconfined flux is exactly linear in `u`:
+
+        b_face (h_j - h_i) = (b_i + b_j)(b_j - b_i) / 2 = u_j - u_i
+
+    so the discrete problem in `u` is the same fixed linear system the confined
+    model solves, and the Dupuit parabola comes back exactly. That is what
+    `--dupuit-test` checks. It is NOT how `solve` runs, because a real aquifer
+    base follows the terrain and is not equal across a face, and with a sloping
+    base no Kirchhoff transform exists. The identity is the instrument; the
+    solver iterates.
+    """
+    b = saturated_thickness(head, aquifer_base_m, min_saturated_m)
+    return 0.5 * b * b
 
 
 def face_transmissivity(t_cell, gfac, src, dst, is_ocean):
@@ -400,8 +508,17 @@ def et_balance_depth(et_max_m_s, et_lambda_m, supply_m3_s, area_m2, conductive):
 def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
           surface_m, conductive, sea_level_m=0.0, max_outer=200,
           start_all_free=False, verbose=True,
-          et_max_m_s=None, et_lambda_m=None, fixed_head_m=None):
+          et_max_m_s=None, et_lambda_m=None, fixed_head_m=None,
+          aquifer_base_m=None, min_saturated_m=1.0):
     """Steady-state head, seepage and face fluxes.
+
+    `aquifer_base_m` selects the UNCONFINED form, GW-24. Left None the model is
+    the confined `T = K D` this component has always run and every array below
+    is assembled once; given a per-region aquifer base elevation the
+    transmissivity becomes `K (h - z_bottom)` and is reassembled from the head
+    on every pass. `thickness_m` is then unused for flow and only names the
+    geometry the base came from. The two forms share every other line here on
+    purpose: a second solver is what this component already has two dead ones of.
 
     With `T = K D` the transmissivity does not depend on the head, so the matrix
     is FIXED and the only thing left to iterate is the active set:
@@ -466,12 +583,45 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     live = in_domain[src] & in_domain[dst]
     src, dst, gfac = src[live], dst[live], gfac[live]
 
-    t_cell = np.where(conductive, transmissivity(k0_m_s, thickness_m), 0.0)
-    trans = face_transmissivity(t_cell, gfac, src, dst, is_boundary)
+    # GW-24. Under the unconfined form the face thickness is the ARITHMETIC mean
+    # of the two cells' saturated columns and the face conductivity keeps the
+    # existing rule, land-side at a boundary. That pairing is not a free choice:
+    # over a flat aquifer base the arithmetic mean is what makes the discrete
+    # flux exactly `g K (u_j - u_i)` in the Kirchhoff potential `u = b^2/2`, so
+    # the scheme reduces to the linear one it replaces rather than to something
+    # near it, and `--dupuit-test` checks that reduction as an identity.
+    #
+    # A cell with no aquifer base -- ocean, and anything else the base field
+    # leaves non-finite -- contributes no thickness, so such a face takes the
+    # other side's column, exactly as it takes the other side's conductivity.
+    unconfined = aquifer_base_m is not None
+    has_base = np.isfinite(aquifer_base_m) if unconfined else None
 
-    rowsum = np.zeros(n)
-    np.add.at(rowsum, src, trans)
-    np.add.at(rowsum, dst, trans)
+    def assemble(head_now):
+        """Per-cell and per-face transmissivity at the head handed in."""
+        if not unconfined:
+            t = np.where(conductive, transmissivity(k0_m_s, thickness_m), 0.0)
+            return t, face_transmissivity(t, gfac, src, dst, is_boundary)
+        b = np.where(has_base,
+                     saturated_thickness(head_now,
+                                         np.where(has_base, aquifer_base_m, 0.0),
+                                         min_saturated_m), 0.0)
+        t = np.where(conductive, k0_m_s * b, 0.0)
+        k_face = face_transmissivity(np.where(conductive, k0_m_s, 0.0),
+                                     gfac, src, dst, is_boundary)
+        b_face = np.where(has_base[src] & has_base[dst],
+                          0.5 * (b[src] + b[dst]),
+                          np.where(has_base[src], b[src], b[dst]))
+        return t, k_face * b_face
+
+    def row_sums(trans_now):
+        rs = np.zeros(n)
+        np.add.at(rs, src, trans_now)
+        np.add.at(rs, dst, trans_now)
+        return rs
+
+    t_cell, trans = assemble(surface_m)
+    rowsum = row_sums(trans)
 
     supply = recharge_m_s * area_m2               # m3/s per cell
 
@@ -510,11 +660,8 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     dry = conductive & ~fed[comp]
     if dry.any():
         conductive = conductive & ~dry
-        t_cell = np.where(conductive, transmissivity(k0_m_s, thickness_m), 0.0)
-        trans = face_transmissivity(t_cell, gfac, src, dst, is_boundary)
-        rowsum = np.zeros(n)
-        np.add.at(rowsum, src, trans)
-        np.add.at(rowsum, dst, trans)
+        t_cell, trans = assemble(surface_m)
+        rowsum = row_sums(trans)
         if verbose:
             print(f"  {int(dry.sum()):,} conductive regions reach neither "
                   f"recharge nor the sea; dry before the solve starts")
@@ -568,6 +715,7 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
     residual = float("inf")
     leak = leak_frac = float("inf")
     infeasible = -1
+    bar = RESIDUAL_TOLERANCE
 
     for outer in range(max_outer):
         # A cell with no conducting face has no LATERAL equation: nothing can
@@ -592,6 +740,19 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
             drop = et_balance_depth(et_max_m_s, et_lambda_m, supply,
                                     area_m2, conductive)[stranded]
             head[stranded] = surface_m[stranded] - drop
+
+        # GW-24. Under the unconfined form the conductance belongs to the head
+        # it was computed at, so it is refreshed wherever the head has moved --
+        # here, after the stranded cells were placed, and again below after the
+        # linear solve. That is a Picard step on the saturated thickness and it
+        # is the whole of the nonlinear iteration: it changes `T` by `|dh| / b`
+        # per pass, where the exponential form GW-9 abandoned changed it by
+        # `exp(|dh| / f)`, which is why that one limit-cycled and this one is
+        # a contraction wherever the head step is smaller than the saturated
+        # column. A confined run reassembles nothing and is bit-identical.
+        if unconfined:
+            t_cell, trans = assemble(head)
+            rowsum = row_sums(trans)
 
         # RELEASE before solving. A pinned cell whose neighbours already draw
         # more water out of it than its recharge supplies cannot stand at the
@@ -767,11 +928,23 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                 f"non-finite heads at pass {outer}; do not use this result")
         head[unknown] = x
 
-        # No relaxation and no step limit: the operator does not depend on the
-        # answer, so a full step invalidates nothing.
+        # No relaxation and no step limit: under the confined form the operator
+        # does not depend on the answer, so a full step invalidates nothing.
         over = unknown & (head > surface_m)
         head[over] = surface_m[over]
         free[over] = False
+
+        # THE RESIDUAL IS MEASURED AGAINST THE CONDUCTANCE THE NEW HEAD IMPLIES.
+        # Under the unconfined form the linear system just solved used the
+        # PREVIOUS head's saturated thickness, so a balance evaluated with that
+        # same `trans` would close to round-off on every pass and report a
+        # converged solve the moment the linear solver worked. Reassembling here
+        # makes the residual the true nonlinear one: it is small only when the
+        # head has stopped moving the thickness that produced it. A confined run
+        # reassembles nothing and the residual keeps its old meaning exactly.
+        if unconfined:
+            t_cell, trans = assemble(head)
+            rowsum = row_sums(trans)
 
         flux = trans * (head[dst] - head[src])
         et_m3_s = (et_rate(et_max_m_s, et_lambda_m, surface_m, head, conductive)
@@ -794,6 +967,17 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         leak = float(-bal[pinned_now & (bal < 0)].sum())
         leak_frac = leak / max(total_supply, 1e-30)
 
+        # The round-off floor of the balance, computed rather than assumed. Zero
+        # for the confined form, whose fixed matrix makes the balance exact.
+        bar = RESIDUAL_TOLERANCE
+        if unconfined:
+            floor = (np.finfo(float).eps
+                     * float((trans * (np.abs(head[src]) + np.abs(head[dst]))).sum())
+                     / max(total_supply, 1e-30))
+            bar = max(RESIDUAL_TOLERANCE, RESIDUAL_FLOOR_SAFETY * floor)
+            result["residual_floor"] = float(floor)
+            result["residual_bar"] = float(bar)
+
         flips = int(over.sum()) + int(release.sum())
         trace.append([outer, m, flips, residual, infeasible, leak_frac])
         if verbose:
@@ -801,8 +985,8 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                   f"{int(release.sum()):>7,}  pinned {int(over.sum()):>7,}"
                   f"  residual {residual:10.3e}  leak {leak_frac:10.3e}"
                   f"  ({infeasible:,} cells)")
-        if (residual < RESIDUAL_TOLERANCE and flips <= FLIP_TOLERANCE * m
-                and leak_frac < RESIDUAL_TOLERANCE):
+        if (residual < bar and flips <= FLIP_TOLERANCE * m
+                and leak_frac < bar):
             result.update(outer_iterations=outer + 1, converged=True,
                           final_residual=residual, seepage_leak_m3_s=leak,
                           seepage_leak_fraction=leak_frac,
@@ -816,7 +1000,7 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         if verbose:
             print(f"  DID NOT CONVERGE in {max_outer} passes: residual "
                   f"{residual:.3e}, leak {leak_frac:.3e}, both against "
-                  f"{RESIDUAL_TOLERANCE:.0e}; {infeasible:,} pinned cells "
+                  f"{bar:.3e}; {infeasible:,} pinned cells "
                   f"infeasible")
             bad = np.flatnonzero(pinned_now & (bal < 0))
             for i in bad[:8]:
@@ -830,6 +1014,18 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
                       f"failed_anchor {bool(anchor_failed[i])}  "
                       f"rowsum {rowsum[i]:.3e}  depth {surface_m[i]-head[i]:.2f} m")
     result["residual_trace"] = trace
+    # CHECKED AT THE END AND NOT PER PASS. An early pass can hold a head far
+    # from the answer, so a floor computed there says nothing about the solve;
+    # what matters is whether the CONVERGED configuration can be certified.
+    if unconfined and result.get("residual_bar", 0.0) >= CLOSURE_TOLERANCE:
+        raise SystemExit(
+            f"the balance's round-off floor is "
+            f"{result['residual_bar']:.3e}, at or above the closure bar "
+            f"{CLOSURE_TOLERANCE:.0e}: this aquifer is thick enough that the "
+            "head differences carrying the flow are lost inside the heads "
+            "themselves, so no convergence this solve reports could be "
+            "certified. Reduce the aquifer thickness, or measure the head "
+            "against a local datum rather than sea level.")
 
     depth = np.clip(surface_m - head, 0.0, None)
     flux = trans * (head[dst] - head[src])
@@ -859,7 +1055,15 @@ def solve(export: Export, geom: Geometry, *, k0_m_s, thickness_m, recharge_m_s,
         "face_flux_m3_s": flux, "src": src, "dst": dst,
         "pinned": pinned, "excluded": excluded,
         "transmissivity_m2_s": t_cell,
-        "at_transmissivity_floor": np.zeros(n, bool),
+        "unconfined": unconfined,
+        # GW-24. A cell whose saturated column has reached `min_saturated_m` is
+        # sitting on a numerical bound rather than on a solved thickness, so its
+        # depth is a LOWER bound and not a value. Empty under the confined form,
+        # where no such bound exists.
+        "at_transmissivity_floor": (
+            conductive & has_base
+            & (head - np.where(has_base, aquifer_base_m, 0.0) <= min_saturated_m)
+            if unconfined else np.zeros(n, bool)),
         # What the ocean GAINS. `geom_divergence` returns net inflow, so this is
         # a plus; it was a minus, which made closure subtract the coastal
         # discharge instead of adding it.
@@ -947,6 +1151,150 @@ def terrain_following(export: Export, geom: Geometry, *, k0_m_s,
     }
 
 
+def confined_test(n_cells=200, dx_m=500.0, k_m_s=1e-5, recharge_m_s=2.5e-10,
+                  thickness_m=100.0):
+    """The CONFINED solver against its own analytic answer. A regression guard.
+
+    Steady one-dimensional drainage at constant transmissivity has
+    `h(x) = R (x_out^2 - x^2) / 2 K D`, which the three-point scheme reproduces
+    exactly at cell centres. It exists so that the unconfined path's arrival
+    cannot quietly change the confined one: the two now share every line of
+    `solve` except the reassembly, and a shared line is a shared failure.
+    """
+    from types import SimpleNamespace
+
+    n = n_cells
+    x = (np.arange(n) + 0.5) * dx_m
+    src, dst = np.arange(n - 1), np.arange(1, n)
+    export = SimpleNamespace(n_regions=n,
+                             surface_class=np.full(n, LAND, dtype=np.int64))
+    geom = SimpleNamespace(src=src, dst=dst, geom=np.full(n - 1, 1.0 / dx_m),
+                           volume_area_m2=np.full(n, dx_m))
+    fixed = np.full(n, np.nan)
+    fixed[n - 1] = 0.0
+    recharge = np.full(n, recharge_m_s)
+    recharge[n - 1] = 0.0
+    res = solve(export, geom, k0_m_s=np.full(n, k_m_s), thickness_m=thickness_m,
+                recharge_m_s=recharge, surface_m=np.full(n, 1e7),
+                conductive=np.ones(n, bool), max_outer=20,
+                start_all_free=True, verbose=False, fixed_head_m=fixed)
+    ana = recharge_m_s * (x[-1] ** 2 - x ** 2) / (2.0 * k_m_s * thickness_m)
+    err = float(np.abs(res["head_m"][:n - 1] - ana[:n - 1]).max()
+                / max(float(ana.max()), 1e-300))
+    return {"converged": bool(res.get("converged", False)),
+            "passes": int(res.get("outer_iterations", -1)),
+            "analytic_relative_error": err}
+
+
+def dupuit_test(n_cells=200, dx_m=500.0, k_m_s=1e-5, recharge_m_s=2.5e-10,
+                b_out_m=20.0, base_slope=0.0, min_saturated_m=1.0,
+                max_outer=200, verbose=True):
+    """The unconfined solver against the analytic Dupuit parabola. GW-24.
+
+    A test that can FAIL, on a case with a right answer, which is what
+    `CLAUDE.md` requires of a check. Nothing about this world enters it: one
+    dimension, uniform conductivity, uniform recharge, no-flow at one end and a
+    fixed head at the other, which is the textbook steady unconfined problem.
+
+        q(x) = R x,   q = -K b db/dx   =>   b(x)^2 = b_out^2 + R (x_out^2 - x^2)/K
+
+    TWO THINGS ARE CHECKED AND THEY ARE DIFFERENT CLAIMS.
+
+    The IDENTITY. Over a FLAT aquifer base the arithmetic-mean face thickness
+    makes the discrete flux exactly `g K (u_j - u_i)` for `u = b^2/2`, so the
+    nonlinear scheme and the linear one in `u` are the same matrix. Any
+    difference is round-off, and the bar is `DUPUIT_IDENTITY_RELATIVE`.
+
+    The DISCRETISATION. The solved head against the analytic parabola above,
+    against `DUPUIT_ANALYTIC_RELATIVE`. This one is not exact in general and the
+    bar is set for a first-order scheme.
+
+    `base_slope` tilts the aquifer base, which is what a real one does and is
+    the case the Kirchhoff identity does NOT cover: with the base at different
+    elevations on the two ends of a face, `b_face (h_j - h_i)` is no longer a
+    difference of any per-cell potential. Run with a slope the identity residual
+    is REPORTED rather than judged, because it is measuring the size of a term
+    the transform drops rather than an error in the code.
+    """
+    from types import SimpleNamespace
+
+    n = n_cells
+    x = (np.arange(n) + 0.5) * dx_m
+    base = base_slope * (x[-1] - x)                      # 0 at the outlet
+    k0 = np.full(n, k_m_s)
+    area = np.full(n, dx_m)                              # unit face width
+    src = np.arange(n - 1)
+    dst = src + 1
+    gfac = np.full(n - 1, 1.0 / dx_m)                    # width / separation
+
+    # The analytic solution, and a surface set well clear of it so the box
+    # constraint never binds: this is a test of the flow term, not of the
+    # active set, which every other check here already exercises.
+    b_ana = np.sqrt(b_out_m ** 2 + recharge_m_s * (x[-1] ** 2 - x ** 2) / k_m_s)
+    surface = base + 3.0 * float(b_ana.max())
+
+    export = SimpleNamespace(n_regions=n,
+                             surface_class=np.full(n, LAND, dtype=np.int64))
+    geom = SimpleNamespace(src=src, dst=dst, geom=gfac, volume_area_m2=area)
+
+    fixed = np.full(n, np.nan)
+    fixed[n - 1] = base[n - 1] + b_out_m
+    recharge = np.full(n, recharge_m_s)
+    recharge[n - 1] = 0.0
+
+    res = solve(export, geom, k0_m_s=k0, thickness_m=1.0,
+                recharge_m_s=recharge, surface_m=surface,
+                conductive=np.ones(n, bool), max_outer=max_outer,
+                start_all_free=True, verbose=False,
+                fixed_head_m=fixed, aquifer_base_m=base,
+                min_saturated_m=min_saturated_m)
+    head = res["head_m"]
+
+    b = saturated_thickness(head, base, min_saturated_m)
+    u = kirchhoff_potential(head, base, min_saturated_m)
+    b_face = 0.5 * (b[src] + b[dst])
+    lhs = gfac * k_m_s * b_face * (head[dst] - head[src])
+    rhs = gfac * k_m_s * (u[dst] - u[src])
+    scale = max(float(np.abs(rhs).max()), 1e-300)
+    identity = float(np.abs(lhs - rhs).max() / scale)
+
+    free = np.arange(n - 1)
+    err = float(np.abs(head[free] - (base[free] + b_ana[free])).max()
+                / max(float(b_ana.max()), 1e-300))
+
+    out = {
+        "converged": bool(res.get("converged", False)),
+        "passes": int(res.get("outer_iterations", -1)),
+        "residual": float(res.get("final_residual", float("inf"))),
+        "kirchhoff_identity_relative": identity,
+        "analytic_relative_error": err,
+        "base_slope": float(base_slope),
+        "at_floor": int(res["at_transmissivity_floor"].sum()),
+    }
+    if verbose:
+        flat = base_slope == 0.0
+        print(f"  cells {n}, dx {dx_m:g} m, base slope {base_slope:g}")
+        print(f"    converged {out['converged']} in {out['passes']} passes, "
+              f"residual {out['residual']:.3e}")
+        print(f"    Kirchhoff identity {identity:.3e}"
+              + (f"   bar {DUPUIT_IDENTITY_RELATIVE:.0e}   "
+                 f"{'pass' if identity < DUPUIT_IDENTITY_RELATIVE else 'MISS'}"
+                 if flat else "   REPORTED, not judged: a sloping base is the "
+                              "case the transform does not cover"))
+        if flat:
+            print(f"    against the analytic parabola {err:.3e}   bar "
+                  f"{DUPUIT_ANALYTIC_RELATIVE:.0e}   "
+                  f"{'pass' if err < DUPUIT_ANALYTIC_RELATIVE else 'MISS'}")
+        else:
+            # NOT an error. The flat-base parabola is not this case's solution,
+            # so this measures how far a sloping base moves the answer -- which
+            # is the quantity worth knowing, since a real aquifer base follows
+            # the terrain and this is the term the Kirchhoff transform drops.
+            print(f"    departure from the FLAT-base parabola {err:.3e}, "
+                  f"which is the size of the term, not an error")
+    return out
+
+
 def groundwater_receiver(n, src, dst, flux, land):
     """Per land region, the neighbour taking the largest outgoing flux.
 
@@ -1016,7 +1364,76 @@ def main() -> int:
                     "against an analytic eigenvalue and needs no climate.")
     ap.add_argument("--degrees", type=int, nargs="+", default=list(LAPLACE_DEGREES),
                     help="Legendre degrees to test the operator at")
+    ap.add_argument("--dupuit-test", action="store_true",
+                    help="GW-24: the unconfined solver against the analytic "
+                         "Dupuit parabola, on a synthetic one-dimensional "
+                         "aquifer. Needs no mesh and no climate.")
     args = ap.parse_args()
+
+    if args.dupuit_test:
+        print("DUPUIT: the unconfined transmissivity against a case with an "
+              "analytic answer")
+        print(f"  criteria, declared before the run: Kirchhoff identity < "
+              f"{DUPUIT_IDENTITY_RELATIVE:.0e} on a flat base, head against "
+              f"the analytic parabola < {DUPUIT_ANALYTIC_RELATIVE:.0e}")
+        ok = True
+        print("  the CONFINED path first, against its own analytic answer, so "
+              "that the unconfined\n  arrival cannot quietly change it:")
+        for D in (100.0, 2000.0, 20000.0):
+            c = confined_test(n_cells=100, dx_m=1000.0, thickness_m=D)
+            good = c["converged"] and c["analytic_relative_error"] < DUPUIT_ANALYTIC_RELATIVE
+            ok &= good
+            print(f"    D {D:8.0f} m   {c['passes']} pass, error "
+                  f"{c['analytic_relative_error']:.2e}   "
+                  f"{'pass' if good else 'MISS'}")
+        print()
+        for cells in (100, 200):
+            r = dupuit_test(n_cells=cells, dx_m=100000.0 / cells)
+            ok &= (r["converged"]
+                   and r["kirchhoff_identity_relative"] < DUPUIT_IDENTITY_RELATIVE
+                   and r["analytic_relative_error"] < DUPUIT_ANALYTIC_RELATIVE)
+
+        # WHAT THE PICARD ITERATION COSTS, as a function of the one number that
+        # governs it. The saturated thickness contrast across the domain sets
+        # both how strongly the transmissivity varies -- which is the whole
+        # point of the unconfined form -- and how fast the iteration converges.
+        # They are the same number, so this table is the price list.
+        print("\n  passes against the saturated-thickness contrast, which is "
+              "the same number\n  that sets how much the unconfined form "
+              "changes the answer at all:")
+        print(f"    {'b at outlet':>12} {'b_max/b_out':>12} {'passes':>7} "
+              f"{'converged':>10} {'head error':>11}")
+        for b_out in (20.0, 100.0, 400.0, 1000.0, 2000.0):
+            b_max = np.sqrt(b_out ** 2 + 2.5e-10 * (99500.0 ** 2 - 500.0 ** 2) / 1e-5)
+            try:
+                r = dupuit_test(n_cells=100, dx_m=1000.0, b_out_m=b_out,
+                                max_outer=60, verbose=False)
+            except SystemExit:
+                print(f"    {b_out:12.0f} {b_max / b_out:12.2f} "
+                      f"{'--':>7} {'refused':>10} "
+                      f"{'round-off floor':>15}")
+                continue
+            print(f"    {b_out:12.0f} {b_max / b_out:12.2f} {r['passes']:7d} "
+                  f"{str(r['converged']):>10} {r['analytic_relative_error']:11.2e}")
+
+        print("\n  and the case the transform does NOT cover, for size:")
+        dupuit_test(n_cells=200, dx_m=500.0, base_slope=1e-3)
+
+        # THE FLOOR GUARD IS ITSELF A CHECK THAT CAN FAIL. This strip carries a
+        # few tens of microlitres a second under half a kilometre of head, so
+        # its balance is lost in its own heads and the solve must refuse rather
+        # than report a convergence. A real mesh is nowhere near it -- there the
+        # denominator is a planet's recharge -- and that is the point of showing
+        # where the boundary is.
+        print("\n  the round-off guard, on a case built to trip it:")
+        try:
+            dupuit_test(n_cells=400, dx_m=250.0, verbose=False)
+            print("    NOT TRIPPED, and it should have been: the balance's "
+                  "round-off floor no longer stops an uncertifiable solve")
+            ok = False
+        except SystemExit as exc:
+            print(f"    refused, correctly: {str(exc).splitlines()[0][:96]}...")
+        return 0 if ok else 1
 
     export = Export(builds.mesh_export())
     print(f"mesh {export.n_regions:,} regions, R = {export.radius_km:,.1f} km")

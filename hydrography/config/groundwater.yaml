@@ -228,6 +228,81 @@ aquifer:
   # field is a uniform scaling of the conductance, not a change of pattern.
   thickness_m: 100.0
 
+  # -------------------------------------------------------------------------
+  # GW-18: where the thickness comes from
+  # -------------------------------------------------------------------------
+  # `constant` uses `thickness_m` above everywhere and is what this component
+  # has always run. `cover_thickness` takes it from the export's own
+  # `cover_thickness`, the surviving thickness of the sedimentary and volcanic
+  # cover over basement, floored at `thickness_floor_m`.
+  #
+  # WHY THAT FIELD AND NOT A DURATION. `docs/src/reference/no-time-axis.md`
+  # forbids asking this terrain for an age, a rate or a residence time, and an
+  # aquifer built by accumulation over time is exactly the shape of question it
+  # forbids. `cover_thickness` is not that question: it is a STATE the generator
+  # carries, the thickness that is there now, and it is read as a thickness and
+  # nothing else.
+  #
+  # WHAT THE FLOOR IS FOR, and it is not a fudge. A large share of this world's
+  # land carries no cover at all, and a zero thickness would be a claim that
+  # exposed basement transmits nothing -- which would take that land out of the
+  # conductive network on a technicality. Crystalline basement has both a
+  # permeability in Gleeson's table and a weathered and fractured zone at the
+  # top of it, and the depth Gleeson's own maps describe, "on the order of
+  # 100 m", is the shallow subsurface everywhere and not only where there is
+  # cover. So the floor is `thickness_m` by construction: one source sets the
+  # thickness that exists everywhere, and the export's cover adds the basin fill
+  # on top of it. Nothing here is invented and nothing is fitted.
+  #
+  # WHAT IT COSTS, recorded before it is run. GW-17 reached the observed depth
+  # RANGE with a uniform 2 km. This world's cover is thinner than that over most
+  # of its land and thicker only in the deepest basins, so a sourced thickness
+  # should REDUCE the depth range and push cratonic cells from lateral-flow
+  # control back towards the local evapotranspiration balance, which
+  # `sink_fraction` reports per cell. That is a prediction, and it is written
+  # here so that the run can contradict it.
+  thickness_source: constant     # constant | cover_thickness
+  thickness_floor_m: 100.0
+
+  # -------------------------------------------------------------------------
+  # GW-24: confined or unconfined
+  # -------------------------------------------------------------------------
+  # `confined` is `T = K D`: the transmissivity does not fall as the water table
+  # drops, the matrix is fixed, and the problem is a LINEAR complementarity
+  # problem whose solution is unique because the matrix is symmetric positive
+  # definite. Every identity this component is certified by rests on that.
+  #
+  # `unconfined` is `T = K (h - z_bottom)` with the aquifer base at
+  # `surface - D`: the textbook Dupuit-Forchheimer case, depth-selective in the
+  # direction a real unconfined water table is. It is LINEAR in the head, so it
+  # has an exact cell mean at any resolution -- which is what disqualified Fan's
+  # exponential decay, rather than its depth dependence as such.
+  #
+  # IT IS OFF, AND THE REASON IS SIZE RATHER THAN DOUBT. The governor's strength
+  # is the fractional variation of the saturated column, which is the water
+  # table depth over the aquifer thickness. At the 2 km thickness GW-17 needed
+  # to reproduce the observed depth range, depths of tens of metres are a few
+  # percent of the column, so the term moves the head by a few percent of a
+  # mound that is itself tens of metres -- against a model spread of 1.91 m in
+  # Australia and 20.72 m in the United States, and observed spreads of 18.36
+  # and 28.94 m. At the 100 m thickness where the term WOULD be large, the model
+  # is already known wrong for a different reason.
+  #
+  # And the cost is not small. `groundwater.py --dupuit-test` measures the
+  # Picard iteration at 8 passes when the saturated column varies by 12% across
+  # the domain, 18 at a factor of 5, and no convergence in 60 at a factor of 25.
+  # One number governs both the size of the effect and the cost of computing it.
+  #
+  # `hydrography/notes/subgrid-water-table.md` carries the arithmetic, and
+  # nothing may switch this without the convergence run named there.
+  transmissivity: confined       # confined | unconfined
+  # The smallest saturated column a conductive cell may have, metres. Strictly
+  # positive and structural: at zero a face stops conducting when the table
+  # reaches the aquifer base, so which cells are connected to recharge or to the
+  # sea would depend on the head, and the static dry set that makes the
+  # uniqueness identity pass bit-identically would stop being static.
+  min_saturated_thickness_m: 1.0
+
 # ---------------------------------------------------------------------------
 # Anisotropy: deliberately absent
 # ---------------------------------------------------------------------------
