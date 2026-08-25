@@ -26,9 +26,13 @@ It is fail-closed in one direction only. A biosphere run with peat and methane
 OFF is a correct run, so with `requested: false` the gate reports and exits 0.
 Only a request to activate can be refused.
 
-Fourteen fixtures run on every invocation, thirteen of them mutations built to
-be wrong in one named way each. A fixture that does not get the verdict it was
-built for is a defect in this checker, and the gate exits non-zero on it.
+Fifteen fixtures run on every invocation. Thirteen are mutations built to be
+wrong in one named way each; one is the declaration as it stands, which must be
+refused for some reason; and the last is a met declaration against a repaired
+source, which must be granted, because a gate nothing can satisfy is a wall
+refusing for a reason that is never written down. A fixture that does not get
+the verdict it was built for is a defect in this checker, and the gate exits
+non-zero on it.
 
     python biosphere/scripts/wetland_gate.py           # status, exit 0
     python biosphere/scripts/wetland_gate.py --check-run biosphere/runs/<run_id>
@@ -281,7 +285,11 @@ def probes() -> dict:
             r"soiltype\.runon\s*=\s*wetland_runon\s*;", soil))
         found["annual_water_table_guard"] = bool(re.search(
             r"date\.day\s*==\s*Date::MAX_YEAR_LENGTH", soil))
-        found["serialized_soil_members"] = len(_serialized_members(soil))
+        # The whole set, not a count: `_source_refusals` reads it from here so
+        # that every refusal is a function of the declaration and this evidence
+        # and of nothing else, which is what makes the gate testable against a
+        # repaired source without a repaired source to hand.
+        found["serialized_soil_members"] = sorted(_serialized_members(soil))
 
     guessh = _read(GUESS_SOURCE / "framework" / "guess.h")
     if guessh:
@@ -392,9 +400,8 @@ def _source_refusals(declaration: dict, evidence: dict) -> list[Refusal]:
     # resumes a different simulated state than the run it continues.
     required = (declaration.get("hydrology") or {}).get(
         "required_restart_members") or []
-    soil = _read(GUESS_SOURCE / "modules" / "soil.cpp")
-    if soil and required:
-        carried = _serialized_members(soil)
+    carried = evidence.get("serialized_soil_members")
+    if carried is not None and required:
         missing = [name for name in required if name not in carried]
         if missing:
             refusals.append(Refusal(
@@ -790,9 +797,12 @@ def _fixtures(declaration: dict, planet: dict, evidence: dict) -> list[dict]:
     def drop(section, field, item):
         return lambda d: d[section][field].remove(item)
 
+    # `None` means "must be refused for at least one reason", which is the only
+    # durable expectation for the live declaration: the specific code it earns
+    # moves as fields are declared and repairs land, and a fixture that fails
+    # because someone made progress is a fixture nobody will keep.
     cases = [
-        ("the declaration as it stands", declaration,
-         "WET-UNDECLARED-HYDROLOGY-FREE-WATER-REPAIR"),
+        ("the declaration as it stands", declaration, None),
         ("a saturated fraction taken on the native mesh",
          mutate(put("extent", "saturated_fraction_support", "native_mesh")),
          "WET-EXTENT-SUPPORT-NOT-GRID"),
@@ -843,9 +853,57 @@ def _fixtures(declaration: dict, planet: dict, evidence: dict) -> list[dict]:
     results = []
     for label, candidate, expect in cases:
         codes = {r.code for r in evaluate(candidate, planet, evidence)}
-        results.append({"fixture": label, "expected": expect,
-                        "found": expect in codes, "pass": expect in codes})
+        ok = bool(codes) if expect is None else expect in codes
+        results.append({"fixture": label,
+                        "expected": expect or "refused for some reason",
+                        "refusals": len(codes), "pass": ok})
+
+    # The last fixture is the other direction, and it is the one that says this
+    # is a gate rather than a wall: a declaration with every precondition met,
+    # evaluated against evidence of a repaired source, must come back with NO
+    # refusals. A gate nothing can satisfy refuses for a reason that is never
+    # written down.
+    codes = {r.code for r in
+             evaluate(_satisfied(declaration), planet, _repaired(evidence))}
+    results.append({
+        "fixture": "a met declaration against a repaired source is granted",
+        "expected": "no refusal", "refusals": len(codes),
+        "pass": not codes, "codes": sorted(codes)})
     return results
+
+
+def _satisfied(declaration: dict) -> dict:
+    """The declaration with every precondition met, for the fixture above.
+
+    Placeholders, not proposals: nothing here is a value anyone should copy into
+    biosphere/config/wetlands.yaml. It exists so the gate can be shown to be
+    satisfiable in principle.
+    """
+    candidate = copy.deepcopy(declaration)
+    for section, field, _what, _issue in PRECONDITIONS:
+        candidate.setdefault(section, {})[field] = "declared, for the fixture"
+    candidate["extent"]["saturated_fraction_support"] = "climate_grid"
+    candidate["extent"]["regime_selector"] = "saturation and its persistence"
+    candidate["peat"]["age_bracket"] = [1, 2]
+    candidate["peat"]["depth_bracket"] = [0.1, 10.0]
+    candidate["atmosphere"]["trace_gas_state_closed"] = True
+    floors = candidate["acceptance"]["minimum_bracket_factor"]
+    candidate["acceptance"]["declared_bracket_factor"] = dict(floors)
+    return candidate
+
+
+def _repaired(evidence: dict) -> dict:
+    """The evidence a repaired vendored source would produce."""
+    repaired = copy.deepcopy(evidence)
+    repaired["free_water_in_the_wetland_infiltration_path"] = {
+        "defect_present": False}
+    repaired["constant_wetland_runon"] = False
+    repaired["annual_water_table_guard"] = False
+    repaired["latitude_selects_the_wetland_regime"] = False
+    repaired["serialized_soil_members"] = sorted(
+        set(evidence.get("serialized_soil_members") or [])
+        | {"Wtot", "wtd", "stand_water", "mwtp", "Frac_ice", "rootfrac"})
+    return repaired
 
 
 def main() -> None:

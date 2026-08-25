@@ -436,8 +436,10 @@ no catchment, while the annual water-table average is still guarded on an
 ordinal `Date::next()` never produces, and while the prognostic peat hydrology
 is still absent from `Soil::serialize`. A declaration claiming one of those is
 closed while the probe still finds it is reported as a contradiction rather than
-believed. Fourteen fixtures run every time, thirteen built to be wrong in a
-named way.
+believed. Fifteen fixtures run every time: thirteen built to be wrong in a
+named way, the live declaration which must be refused, and a met declaration
+against a repaired source which must be granted, because a gate nothing can
+satisfy is a wall refusing for a reason nobody wrote down.
 
 ```bash
 python biosphere/scripts/wetland_gate.py                       # what is undeclared

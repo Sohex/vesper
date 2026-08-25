@@ -95,7 +95,7 @@ hydraulic properties or the acrotelm/catotelm boundary.
 Methane production takes daily bulk heterotrophic respiration, distributes it
 over the fixed root profile and multiplies it by anoxia and a fixed CH4:CO2
 ratio. The detailed ratio is 0.085. The simplified ratio is 0.027 and its source
-comment says it was changed “to match global emissions.” Carbon emitted as CH4
+comment says it was changed "to match global emissions." Carbon emitted as CH4
 is subtracted from the soil CO2 flux, and the detailed routine contains useful
 carbon checks; those conservation features should be preserved.
 
