@@ -536,10 +536,11 @@ or is correct. Section 6 is the reading of what the recipe would have to do.
 
 ---
 
-# 6. One viability finding this measurement walked into
+# 6. Three viability findings this measurement walked into
 
-Configuring the runs meant reading how `genie.F` assembles a recipe, and one
-thing there bears directly on the coupling architecture rather than on cost.
+Configuring the runs meant reading how `genie.F` assembles a recipe and what
+GOLDSTEIN hands back. Three things there bear on the coupling architecture
+rather than on cost, and each answers a question OCN-3 already asks.
 
 **There are exactly two surface-flux paths for GOLDSTEIN, and each is gated on
 an atmosphere module being in the recipe.**
@@ -589,16 +590,37 @@ reported, and at the top about two thirds of it. **The ceiling is a bracket for
 the same reason the forcing is**, and the published tuned values, all between
 1.18 and 1.67, are Earth fits that do not transfer.
 
+## 6b. The ocean surface velocity IS exported, and world-pt8's premise holds
+
+OCN-3 asks whether the host exports an ocean surface velocity in a form
+world-pt8 can consume, and notes that the published in-tree coupling never
+needed it because it hands ice the other way. It does export one, as a
+first-class coupling field rather than a diagnostic.
+
+`genie_loop_wrappers.f90:322-323` documents `ustar_ocn` and `vstar_ocn` as
+OUTPUTS of `goldstein_wrapper`, `genie_global.f90:278-279` dimensions them
+`(ilon1_ocn, ilat1_ocn)`, and `goldstein.F:780-781` fills them every ocean step
+as `u(1,i,j,kmax)` and `u(2,i,j,kmax)`, the top-level zonal and meridional
+velocity. `gold_seaice_wrapper` already consumes them at `:297`, so the field is
+not merely present, it is a field the model already couples on.
+
+**Two things a consumer has to know.** The field is NON-DIMENSIONAL: `u` is
+scaled by `usc`, which `initialise_goldstein.F:376` sets to 0.05 m/s and `:2104`
+exports as `go_usc`, so the scale travels with the field but the multiplication
+is the consumer's. And `usc` is one more hardcoded scale of the kind
+`notes/audits/ocean-tier-implicit-earth.md` catalogues, so what it means on this
+planet is that audit's question and not this one's.
+
 ---
 
 # 7. What this did NOT establish
 
 - **Nothing here is an adoption.** `vendor/cgenie` still has no consumer, no
-  pipeline row and no step. OCN-3's other halves -- the Vesper-parameter
-  question, the forcing contract, whether `genie-goldsteinseaice` can be run
-  diagnostically under section 7b's sea-ice decision, and whether the host
-  exports an ocean surface velocity in a form world-pt8 can consume -- are
-  untouched by this document.
+  pipeline row and no step. OCN-3's remaining halves -- the Vesper-parameter
+  port, and the forcing contract OCN-10 owns -- are untouched. Section 6
+  answers the sea-ice-configuration and surface-velocity questions by reading
+  the recipe, which is a reading and not a demonstration: no configuration
+  without EMBM has been built or run here.
 - **The 72 x 72 probe's circulation means nothing.** `dan_72` ships a real
   topography and real wind stress, but not the pair of advective wind-speed
   fields EMBM reads unconditionally, so those were made by replicating the

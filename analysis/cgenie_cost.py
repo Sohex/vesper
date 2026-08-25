@@ -550,7 +550,8 @@ def build_probe72_inputs() -> Path:
     return PROBE_DIR
 
 
-def biogem_cost(logdir: Path, years: list[int], repeats: int, reuse: bool = False) -> dict:
+def biogem_cost(logdir: Path, years: list[int], repeats: int, reuse: bool = False,
+                perf: bool = False) -> dict:
     """What the biogeochemistry costs, from the shipped BIOGEM regression case.
 
     The physics-only sweep above is EMBM plus GOLDSTEIN plus sea ice with two
@@ -574,6 +575,7 @@ def biogem_cost(logdir: Path, years: list[int], repeats: int, reuse: bool = Fals
         cfg.write_text(t)
 
     per_rep: dict[int, dict[int, float]] = {}
+    counts: dict[int, float] = {}
     if reuse:
         for n in years:
             best = None
@@ -617,9 +619,18 @@ def biogem_cost(logdir: Path, years: list[int], repeats: int, reuse: bool = Fals
             outdir = OUT_ROOT / cfg.stem
             size = sum(f.stat().st_size for f in outdir.rglob("*")
                        if f.is_file() and f.name != "genie.exe")
-            out["runs"].append({"years": n, "model_seconds": best, "output_bytes": size})
+            row = {"years": n, "model_seconds": best, "output_bytes": size}
+            if perf:
+                row["perf"] = perf_run(outdir, logdir / f"biogem.perf{n}.log")
+                counts[n] = row["perf"].get("instructions")
+            out["runs"].append(row)
             shutil.rmtree(outdir, ignore_errors=True)
         out.update(slope_and_intercept(per_rep, years))
+        if len(counts) >= 2:
+            y0, y1 = years[0], years[1]
+            slope = (counts[y1] - counts[y0]) / (y1 - y0)
+            out["perf"] = {"instructions_per_model_year": slope,
+                           "fixed_instructions": counts[y0] - slope * y0}
     finally:
         cfg.unlink(missing_ok=True)
     return out
@@ -1242,7 +1253,8 @@ def main() -> int:
         "stated": "before any run in this file's docstring",
     }, "cases": results,
         "knowngood": verify_knowngood(args.logdir) if args.verify else None,
-        "biogem": biogem_cost(args.logdir, args.biogem_years, args.repeats, args.reuse_runs)
+        "biogem": biogem_cost(args.logdir, args.biogem_years, args.repeats,
+                              args.reuse_runs, args.perf)
         if args.biogem else None}
     args.out.write_text(json.dumps(payload, indent=2) + "\n")
     print(f"wrote {args.out}")
