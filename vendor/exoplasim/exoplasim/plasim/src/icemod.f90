@@ -19,12 +19,19 @@
       parameter(TMELT=273.16)           ! melting temp. for snow (0 deg C)
                                         ! ALL DENSITIES IN (kg/m**3)
       parameter(CRHOI = 920.)           ! DENSITY OF ICE
-      parameter(CRHOSN = 330.)          ! DENSITY OF SNOW
       parameter(CPI = 2070.)            ! SPECIFIC HEAT OF ICE (J/(kg*K))
       parameter(CPSN = 2090.)           ! SPECIFIC HEAT OF SNOW (J/(kg*K))
       parameter(CKAPI = 2.03)           ! HEAT CONDUCTIVITY IN ICE (W/(m*K))
       parameter(CKAPSN = 0.31)          ! HEAT CONDUCTIVITY IN SNOW (W/(m*K))
       parameter(CLFSN = 3.337E5)        ! HEAT OF FUSION OF SNOW (J/kg)
+!
+!     THE SNOW DENSITY IS LANDMOD'S, NOT A SECOND COPY. GRAV-8. 330 was declared
+!     twice, here as a hardcoded parameter and in landmod as the namelist key
+!     rhosnow, and both were used the same way: water equivalent times 1000 over
+!     the density, to reach a physical thickness. The parameter here could not
+!     be bracketed where it stood. `iceini` now takes landmod's value, so the
+!     declared 330 below is only what a run with no sea points never reads.
+      real :: crhosn = 330.             ! DENSITY OF SNOW (kg/m**3)
 !
 !     namelist parameters
 !
@@ -230,7 +237,7 @@
 
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
-!$omp threadprivate(cheat,cicemin,clfi,cpme,cps,crhos,croff,csnow,ctaux,ctauy,cust3,deglat,&
+!$omp threadprivate(cheat,cicemin,clfi,cpme,cps,crhos,crhosn,croff,csnow,ctaux,ctauy,cust3,deglat,&
 !$omp&  mpinfo,mypid,myworld,&
 !$omp&  naccuo,naccuout,naout,ncpl_ice_ocean,newsurf,nfluko,ngui,nice,nicec2d,nout,noutput,&
 !$omp&  nperpetual_ice,nprhor,nprint,nproc,nrestart,nseaice,nsnow,nstep,ntskin,ntspd,nud,solar_day,&
@@ -340,6 +347,7 @@
 
       subroutine iceini(kstep,krestart,koutput,kdpy,kgui,pts,psst,pmld  &
      &                 ,picec,piced,psnow,ktspd,psolday,pdeglat         &
+     &                 ,prhosnow                                        &
                        ,icemod_namelist,oceanmod_namelist,ice_output    &
                        ,ocean_output)
       use icemod
@@ -355,6 +363,7 @@
       real :: piced(NHOR)
       real :: psnow(NHOR)
       real :: pdeglat(NLPP)
+      real :: prhosnow
       real (kind=8) :: zsi(NLAT)
       real (kind=8) :: zgw(NLAT)
       real :: zgw2(NLON,NLAT)
@@ -375,6 +384,8 @@
       ntspd     = ktspd
       solar_day = psolday
       deglat(:) = pdeglat(:)
+!     landmod's rhosnow, the one declaration of the snow density. GRAV-8.
+      crhosn    = prhosnow
 
 !     compute grids properties
 !
@@ -792,7 +803,7 @@
       if(ntskin==1) then
        call skintemp
       else
-       where(xiced(:)+1.E3/CRHOSN*xsnow(:) >= 0.1)
+       where(xiced(:)+1.E3/crhosn*xsnow(:) >= 0.1)
         xts(:)=xclsst2(:)
        elsewhere
         xts(:)=xsst(:)
@@ -1485,7 +1496,7 @@
         write(nud,*)'in subsnow:'
         write(nud,*)'snow melt, and flx used for melting: ',zprf1(nprhor)    &
      &        ,zprf3(nprhor)
-        write(nud,*)'new snow (m_snow): ',zprf2(nprhor)*1.E3/CRHOSN
+        write(nud,*)'new snow (m_snow): ',zprf2(nprhor)*1.E3/crhosn
         write(nud,*)'new conductive heat flux: ',zprf4(nprhor)
        endif
        deallocate(zprf1)
@@ -1538,7 +1549,7 @@
      &              ,zprf2(nprhor),zzfls
         write(nud,*)'ice change by snow -> ice conv. (m/s,W): '         &
      &              ,zprf1(nprhor),zzfli
-        write(nud,*)'new snow (m_snow): ',zprf3(nprhor)*1.E3/CRHOSN
+        write(nud,*)'new snow (m_snow): ',zprf3(nprhor)*1.E3/crhosn
         write(nud,*)'flux to build ice (total, residual): '             &
      &              ,zprf4(nprhor),zdfl
        endif
@@ -1580,7 +1591,7 @@
        xcfluxf(:)=0.
       end where
       where(xiced(:) >= xmind)
-       zhsnow(:)=1.E3/CRHOSN*xsnow(:)
+       zhsnow(:)=1.E3/crhosn*xsnow(:)
        zckap(:)=(zhsnow(:)+xiced(:))                                    &
      &         /(zhsnow(:)/CKAPSN+xiced(:)/CKAPI)
       endwhere
@@ -1642,7 +1653,7 @@
 !
       real,allocatable :: zprf1(:),zprf2(:)
 !
-      where (xls(:) < 0.5) zsnow(:) = 1000./CRHOSN *xsnow(:)
+      where (xls(:) < 0.5) zsnow(:) = 1000./crhosn *xsnow(:)
 !
       call ntomin(nstep,nmin,nhour,nday,nmonth,nyear)
 !
@@ -1924,7 +1935,7 @@
 !     start calculations
 !
       do jhor=1,NHOR
-       zhsnow(jhor)=1.E3/CRHOSN*xsnow(jhor)
+       zhsnow(jhor)=1.E3/crhosn*xsnow(jhor)
        if(xiced(jhor) >= xmind) then
         zcpdt=zrcpl/xdt
         zckap_mean(jhor)=(zhsnow(jhor)+xiced(jhor))                     &

@@ -260,6 +260,9 @@
 !     glaciermod does the same for ice thickness in the orography. Both are set
 !     by overburden compaction, which scales with gravity, so both are low for a
 !     planet with stronger surface gravity than the one they were measured on.
+!     ONE DECLARATION, NOT TWO: `icemod` held the same 330 as the hardcoded
+!     parameter CRHOSN, beyond namelist reach, and now takes this value through
+!     `iceini`. GRAV-8.
 !
       real :: rhosnow  = 330.    ! snow density (kg/m**3)
       real :: soildiff = 1.8     ! heat diffusivity of the soil (W/m/K)
@@ -267,6 +270,21 @@
       real :: snowdiff = 0.31    ! heat diffusivity of snow     (W/m/K)
       real :: soilcap  = 2.4E6   ! heat capacity of the soil  (J/m**3/K)
       real :: sicecap  = 2.07E6  ! heat capacity of ice       (J/m**3/K)
+!     snowcap is NOT independent of rhosnow: a snow layer's heat capacity per
+!     unit volume is its density times the specific heat of ice, and its
+!     thickness is the water equivalent divided by that same density, so the
+!     thermal mass of a given snowfall does not depend on the density at all.
+!     Held fixed while rhosnow moved, a bracket on the density moved the pack's
+!     thermal mass with it, which is not a thing the density does. landini
+!     derives it below and it is no longer a namelist key; at the declared
+!     rhosnow it is 330 * 2090 and the value is unchanged. GRAV-8.
+!
+!     snowdiff is density-dependent in the same way and is NOT coupled here:
+!     the conductivity of snow rises steeply with density and choosing which
+!     measured relation to use is a decision with a source, not arithmetic. So
+!     a bracket on rhosnow moves thickness and thermal mass correctly and
+!     leaves conductivity where it stands. WORLD-A9S5.
+      real, parameter :: CPSNOW = 2090. ! specific heat of snow (J/kg/K)
       real :: snowcap  = 0.6897E6! heat capacity of snow      (J/m**3/K)
 !
 !     global arrays
@@ -400,7 +418,7 @@
      &                ,rnbiocats,nwetsoil,soilcap                       &
      &                ,albforest,forcovmx,forcovmn                      &
      &                ,forhgt,forpai,forext,forint                       &
-     &                ,soildiff,sicediff,snowdiff,sicecap,snowcap       &
+     &                ,soildiff,sicediff,snowdiff,sicecap                &
      &                ,rhosnow,roffvel,roffexp,roffpit                  &
      &                ,newsurf,rinifor,nwatcini,dwatcini,dgroundalb     &
      &                ,snowcovz
@@ -602,8 +620,10 @@
       call mpbcr(snowdiff)
       call mpbcr(soilcap)
       call mpbcr(sicecap)
-      call mpbcr(snowcap)
       call mpbcr(rhosnow)
+!     Every thread derives its own snow heat capacity from the density it has
+!     just been given, so the two cannot drift apart. GRAV-8.
+      snowcap = rhosnow * CPSNOW
       call mpbcr(roffvel)
       call mpbcr(roffexp)
       call mpbcr(roffpit)
