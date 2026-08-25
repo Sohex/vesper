@@ -34,12 +34,16 @@ therefore `-fcheck=all`, which is what it certainly delivers, and `poisoned` is
 Both are run with `NSHTNS=0`: every build is threaded since world-38b, and on
 the SHTns path the model faults inside the library at the first timestep.
 
-**Nothing in the tree now sees an uninitialised read in a production-numerics
-build**, and the flag traded for that, `-finit-real=zero`, was worth 26.03% of
-T170. The one check that does work at production's optimisation level is the
-PROPAGATING one -- `-finit-real=snan` with `FE_INVALID` masked, restart compared
-bit for bit against production on the same bed -- and it is not declared in
-`config/pipeline.yaml` and has not been run since wave 1.
+**The check that works at production's optimisation level is the PROPAGATING
+one** -- `-finit-real=snan` with `FE_INVALID` masked, restart compared bit for
+bit against production on the same bed -- because it needs no trap to arm and a
+quiet NaN in a stored record is as visible as a signalling one. It is
+`exoplasim/scripts/verify_uninitialised_reads.sh`, a `checks` row in
+`config/pipeline.yaml`, and its positive control is a deliberate uninitialised
+read reaching the temperature tendency. The flag traded for that gate,
+`-finit-real=zero`, was worth 26.03% of T170.
+`exoplasim/notes/the-zeroing-is-an-init-flag.md` carries the measurements on
+both sides of the trade.
 `notes/audits/model-build-flags.md` is the re-run of the whole line on the
 threaded build and is what a reader wanting today's flags should read.
 
