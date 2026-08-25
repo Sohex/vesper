@@ -199,12 +199,17 @@ call mpbcr(forgrow)
 ! NSTARTEMP = 1 SIMBA's albedo reaches the radiation nowhere while its
 ! roughness and its bucket reach it everywhere. Refused rather than run.
 
+! Root prints, every thread stops: nveg and nstartemp are broadcast above, so
+! every thread takes this branch and nud is one Fortran unit for the whole
+! team. world-0ihs.
 if (nveg == 2 .and. nstartemp == 1) then
-   write(nud,*)' *** error: NVEG = 2 with NSTARTEMP = 1.'
-   write(nud,*)' *** SIMBA sets dalb; the two-band shortwave reads dsalb.'
-   write(nud,*)' *** Its vegetation albedo would have no radiative effect'
-   write(nud,*)' *** while its roughness and soil water bucket would.'
-   write(nud,*)' *** Set NVEG = 1 for a diagnostic run, or NSTARTEMP = 0.'
+   if (mypid == NROOT) then
+      write(nud,*)' *** error: NVEG = 2 with NSTARTEMP = 1.'
+      write(nud,*)' *** SIMBA sets dalb; the two-band shortwave reads dsalb.'
+      write(nud,*)' *** Its vegetation albedo would have no radiative effect'
+      write(nud,*)' *** while its roughness and soil water bucket would.'
+      write(nud,*)' *** Set NVEG = 1 for a diagnostic run, or NSTARTEMP = 0.'
+   endif
    stop 1
 endif
 

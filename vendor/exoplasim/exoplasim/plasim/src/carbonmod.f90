@@ -279,8 +279,15 @@
       if (ntime > 0) then
          call mksecond(zsec,zsec)
          time4co2 = time4co2 + zsec
-         write(nud,*)
-         write(nud,*)'Carbon cycle routines: ',zsec,'s'
+!        THE ACCUMULATION IS PER THREAD, THE REPORT IS ROOT'S. fluxstop,
+!        rainstop, radstop and miscstop all print their time4* under
+!        `mypid == NROOT .and. ntime == 1`; this block was the one that
+!        printed from every thread, and nud is one Fortran unit for the
+!        whole team. world-0ihs.
+         if (mypid == NROOT) then
+            write(nud,*)
+            write(nud,*)'Carbon cycle routines (ROOT thread only): ',zsec,'s'
+         endif
       endif
       
       return

@@ -838,7 +838,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
             !turned on by accident--this has the potential to not only create huge
             !amounts of output if misused, but also to actually damage computing infrastructure.
            if ((nhcstp .ge. hcstartstep) .and. (nhcstp<hcendstep)) then
-             write(nud,*) "HC OUTPUT step",nhcstp
+             if (mypid == NROOT) write(nud,*) "HC OUTPUT step",nhcstp
              if (mod(nhcstp-hcstartstep,hcinterval)==0) then
 !               ONCE, NOT TWICE. Upstream calls this twice in a row -- it is in
 !               the first squashed import of the subtree, so it has been there as
@@ -866,7 +866,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
            endif
          endif
          if (nwritehurricane>0 .and. mod(nhcstp,hcinterval)==0) then
-            write(nud,*) "HC STORM CAPTURE step",nhcstp
+            if (mypid == NROOT) write(nud,*) "HC STORM CAPTURE step",nhcstp
             call hcadencesp(142)
             call hcadencegp(142)
          endif
@@ -4339,8 +4339,15 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
       if (nsela > 0 .and. nkits == 0 .and. nqspec == 0) then	  
        if (nqspec == 0) then
-        write(nud,*) 'Semi-Lagrangian q running'
-        flush(nud)
+!       ROOT ONLY, and the flush with it. nud is one Fortran unit shared by
+!       the whole thread team, so an unguarded line here is NPRO copies per
+!       timestep in whatever order the threads reach it, and NPRO concurrent
+!       flushes of one unit. The message reports a global switch, so root's
+!       copy is the whole of it. world-0ihs.
+        if (mypid == NROOT) then
+         write(nud,*) 'Semi-Lagrangian q running'
+         flush(nud)
+        endif
         dqt(:,:) = dq(:,:) ! Save old value of q
         call mpgagp(zgq,dq,NLEV)
         if (mypid == NROOT) then
@@ -5118,7 +5125,9 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if (ndivdamp > 0) then
          zdd = 1.0 / (1.0 + ndivdamp * 0.02)
          sdp(:,:) = sdp(:,:) * zdd
-         write(nud,*) '### Damping with ',zdd
+!        zdd is the same number on every thread, so root's line is the record
+!        and the other NPRO-1 copies were only interleaving. world-0ihs.
+         if (mypid == NROOT) write(nud,*) '### Damping with ',zdd
          ndivdamp = ndivdamp - 1        
       endif
 

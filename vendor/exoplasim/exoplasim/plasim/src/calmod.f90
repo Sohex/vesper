@@ -87,7 +87,14 @@
 !     and rotation period, so nothing structurally keeps it off 365, and there
 !     was no guard and no message. A world that lands there gets an abort and
 !     the reason, not a different planet's calendar.
+!     SERIALISED RATHER THAN ROOT-GUARDED. nud is unit 6, one Fortran unit for
+!     the whole thread team, and calini is reached by every thread from prolog.
+!     calmod is a leaf module with no pumamod dependency and so has no thread
+!     identity to test; a critical section keeps the seven lines from
+!     interleaving without giving the calendar a dependency on the parallel
+!     layer. world-0ihs.
       if (n_days_per_year == 365) then
+!$omp critical (nudwrite)
          write(nud,*) '*** calini: n_days_per_year is 365 ***'
          write(nud,*) 'That value switches this model to Earth''s Gregorian'
          write(nud,*) 'calendar: the 400/100/4 leap rule, twelve named months'
@@ -95,6 +102,7 @@
          write(nud,*) 'for THIS world and the coincidence is meaningless.'
          write(nud,*) 'Change the rotation period or the orbit rather than'
          write(nud,*) 'running on a calendar that is not this planet''s.'
+!$omp end critical (nudwrite)
          stop
       endif
 

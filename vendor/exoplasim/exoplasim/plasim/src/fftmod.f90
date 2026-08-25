@@ -112,13 +112,20 @@
          if (n == nallowed(j)) labort = .false.
       enddo
 
+!     SERIALISED. Unit 6 is opened to plasim_diag by opendiag, so `*` lands
+!     there too, and fftini is reached by every thread: `trigs` and `lastn`
+!     are threadprivate, so each thread initialises its own tables and each
+!     would print this table. This module has no pumamod dependency and so no
+!     thread identity to test. world-0ihs.
       if (labort) then
+!$omp critical (nudwrite)
          write (*,*) '*** FFT does not support n = ',n,' ***'
          write (*,*) 'Following resolutions may be used:'
          write (*,*) '----------------------------------'
          do j = 1 , NRES
             write (*,1000) nallowed(j), nallowed(j)/2, nallowed(j)/3
          enddo
+!$omp end critical (nudwrite)
          stop
       endif
  1000 format(' NLON=',I5,'  NLAT=',I5,'  NTRU=',I5)

@@ -705,8 +705,16 @@
 
 
 !     ==================================================================
-!     Abort. Written by whichever thread reaches it; the file open is
-!     serialised by libgfortran and the process stops either way.
+!     Abort. Written by whichever thread reaches it, and serialised here
+!     rather than left to the runtime. libgfortran locks a unit for the
+!     duration of one data transfer statement, which is enough to keep a
+!     single write from tearing and is NOT enough for this block: unit 44
+!     is opened, written three times and closed, so without the critical
+!     one thread's CLOSE can land between another's OPEN and its writes
+!     and disconnect the unit under it. The nud lines join the same
+!     critical because nud is unit 6 and unit 6 is one unit for the whole
+!     team. The thread id is in the record because more than one thread
+!     can reach here. world-0ihs.
 !     ==================================================================
 
       subroutine mpabort(ym)
@@ -727,6 +735,7 @@
       ymess(1:2) = '* '
       ymess(3:min(64,2+len_trim(ym))) = trim(ym)
 
+!$omp critical (nudwrite)
       open (44,file='Abort_Message')
       write(44,'(A)') trim(ystar)
       write(44,'(A)') trim(ymess)
@@ -734,7 +743,9 @@
       close(44)
       write(nud,'(/,A)') trim(ystar)
       write(nud,'(A)')   trim(ymess)
+      write(nud,'(A,I4)') '* aborting thread: ',mypid
       write(nud,'(A,/)') trim(ystar)
+!$omp end critical (nudwrite)
 
       stop
       end subroutine mpabort
