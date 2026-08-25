@@ -27,6 +27,16 @@ should still differ at round-off and grow. Bit-reproducibility at a FIXED width
 is the part that is genuinely re-opened, because the defect class that could
 break it is one MPI did not have.
 
+**THE PROPERTY MEASURED HERE IS PER-CALL, AND IT IS NOT SEGMENT CONTINUITY.**
+Every cell below repeats ONE model call from one restart and asks whether it
+gives the same bytes twice. Whether N steps taken as one call equal N steps taken
+as two is a different question with a different failure mode, and the model
+answered yes to this one and no to that one for as long as both have existed:
+`notes/audits/ecological-stream-restart-continuity.md` has the case and
+`exoplasim/scripts/verify_restart_continuity.py` is the instrument. Reading a
+pass here as a licence to segment a run is what made a standing defect look like
+a regression.
+
 ## What is true
 
 **At a fixed rank count the model is bit-reproducible.** Eight configurations --
