@@ -382,6 +382,54 @@ surface:
     # is unchanged and is now independent of how a run is cut. world-qpe.
     persistence_orbits: 1.0
 
+  # THE LAND LIQUID WATER COLUMN, DECLARED, and the declaration is the compiled
+  # default: the scalar bucket this model has always run. `landmod_nl` carries a
+  # SELECTION here -- LSHY-3's registered hypotheses for how land holds and
+  # sheds liquid water, and LSHY-5's soil phase -- and until these keys had a
+  # route from this file the only reachable point was the compiled one, so the
+  # bracket was still a code fork. Declaring the default changes no result; what
+  # it changes is that every run's namelist now records which scheme the run
+  # integrated, and that the other points can be run at all. world-py6p.
+  #
+  # `scheme: bucket` is one store, one capacity, and runoff is the store
+  # overflowing. `scheme: layered` is the same arithmetic over `layers` layers
+  # shaped by `layer_capacity_fraction`, and at one layer with an impermeable
+  # base it IS the bucket, operation for operation:
+  # `exoplasim/scripts/verify_land_column_reduction.sh` requires that bitwise.
+  # The third registered hypothesis, gradient-driven flow, is deliberately
+  # absent -- it needs an unsaturated conductivity and a matric potential, and
+  # `pedology/config/land_column_properties.yaml` carries both as undeclared.
+  #
+  # `lower_boundary: free_drainage` puts a drainage flux out of the base, which
+  # output code 231 carries and which is identically zero while the base is
+  # impermeable. `soil_phase` freezes and thaws each layer's liquid against the
+  # soil temperature at its depth and needs `scheme: layered`, because phase is
+  # a property of a layer; the ice comes off the layer's capacity, and that is
+  # the whole of the infiltration impedance.
+  #
+  # `layer_thickness_m` is inert while `soil_phase` is false, and is the depth
+  # phase is decided at when it is not. The model's soil TEMPERATURE layers
+  # share no boundary with these, so a water layer takes the temperature of
+  # whichever temperature layer contains its midpoint; this value is the column
+  # base `pedology/notes/land-column-property-contract.md` declares.
+  #
+  # `evaporation_limiter` is the two free axes of
+  # beta = min(1, max((theta - theta_low)/(drhsfull - theta_low), 0))**exponent,
+  # and these are this model's active form exactly. The other implementation
+  # this project has read, cGENIE's ENTS, sits on the same axes at exponent four
+  # with the knee at a full store; neither is right, which is what a bracket is
+  # for. `drhsfull` is the third axis and stays landmod's own.
+  land_water_column:
+    scheme: bucket
+    layers: 1
+    lower_boundary: impermeable
+    layer_capacity_fraction: [1.0]
+    layer_thickness_m: [1.5]
+    soil_phase: false
+    evaporation_limiter:
+      theta_low: 0.0
+      exponent: 1
+
 # DETERMINED for the current configuration, and TRANSITIVE rather than a fact
 # about the world: resolution, layers, ranks and timestep are operational
 # choices that change with what is being run. Together they select which
@@ -768,6 +816,28 @@ model:
   # Worth about +2.0 K on the arms' own measured slope, which is why the flux
   # re-derivation must follow it and not precede it.
   cloud_absorption_scale: 1.192
+  # DECLARED at CCM3's own value, and EXPOSED rather than changed. `clwref` in
+  # `rainmod_nl` is rho_l0, the reference in-cloud liquid water density that
+  # `mkclouds` anchors its exponential cloud water profile on. What that profile
+  # feeds is not diagnostic: it sets the shortwave cloud optical depth and the
+  # longwave cloud emissivity, so this number moves the modelled cloud radiative
+  # effect in both bands.
+  #
+  # It is a condensate concentration set by microphysics and carries no gravity
+  # dependence, so unlike `clwhsc` beside it in `rainmod` there is nothing here
+  # to rescale for this planet. NEITHER CCM3 SOURCE GIVES A RANGE: Kiehl et al.
+  # (1998) and the CCM3 technical note both state it as one number with no
+  # uncertainty, and the note says the profile it anchors was analytically
+  # prescribed rather than measured, so there is no bracket to inherit. The
+  # bracket that gets run as arms is sourced from in-cloud liquid water
+  # observations instead, which is a different kind of quantity from the value;
+  # it is in `exoplasim/notes/cloud-water-reference.md` and it does not move
+  # this key.
+  #
+  # This value is `rainmod.f90`'s compiled default, so declaring it changes no
+  # result; what it changes is that the arms can be run and that the run's
+  # namelist records which point it integrated. world-n1nu.
+  cloud_water_reference_kg_m3: 0.00021
   # SURFACE LONGWAVE EMISSIVITY, DECLARED AND NOT DERIVED. `radmod.f90`'s `lwr`
   # wrote these as one literal, `zeps = dls + 0.98*(1-dls)`, so the modelled
   # land emitted as a perfect blackbody by construction and everything the mask

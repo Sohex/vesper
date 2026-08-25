@@ -272,6 +272,12 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.resolution_timestep_minutes",
         "model.filter_kappa",
         "model.filter_power", "model.cloud_absorption_scale",
+        # world-n1nu. The CCM3 cloud water reference, a rainmod_nl key
+        # the run scripts write; these builders make a staged surface
+        # field out of the export and no cloud scheme runs in them.
+        # Traced the same way, `grep -c cloud_water_reference_kg_m3`
+        # returning 0 in each of the four.
+        "model.cloud_water_reference_kg_m3",
         "model.land_longwave_emissivity", "model.sea_longwave_emissivity",
         "model.ozone_height_m", "model.ozone_spread_m",
         "model.energy_fixer",
@@ -314,6 +320,12 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.resolution_timestep_minutes",
         "model.filter_kappa",
         "model.filter_power", "model.cloud_absorption_scale",
+        # world-n1nu. The CCM3 cloud water reference, a rainmod_nl key
+        # the run scripts write; these builders make a staged surface
+        # field out of the export and no cloud scheme runs in them.
+        # Traced the same way, `grep -c cloud_water_reference_kg_m3`
+        # returning 0 in each of the four.
+        "model.cloud_water_reference_kg_m3",
         "model.land_longwave_emissivity", "model.sea_longwave_emissivity",
         "model.ozone_height_m", "model.ozone_spread_m",
         "model.energy_fixer",
@@ -357,6 +369,12 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.resolution_timestep_minutes",
         "model.filter_kappa",
         "model.filter_power", "model.cloud_absorption_scale",
+        # world-n1nu. The CCM3 cloud water reference, a rainmod_nl key
+        # the run scripts write; these builders make a staged surface
+        # field out of the export and no cloud scheme runs in them.
+        # Traced the same way, `grep -c cloud_water_reference_kg_m3`
+        # returning 0 in each of the four.
+        "model.cloud_water_reference_kg_m3",
         "model.land_longwave_emissivity", "model.sea_longwave_emissivity",
         "model.ozone_height_m", "model.ozone_spread_m",
         "model.energy_fixer",
@@ -395,6 +413,12 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.resolution_timestep_minutes",
         "model.filter_kappa",
         "model.filter_power", "model.cloud_absorption_scale",
+        # world-n1nu. The CCM3 cloud water reference, a rainmod_nl key
+        # the run scripts write; these builders make a staged surface
+        # field out of the export and no cloud scheme runs in them.
+        # Traced the same way, `grep -c cloud_water_reference_kg_m3`
+        # returning 0 in each of the four.
+        "model.cloud_water_reference_kg_m3",
         "model.land_longwave_emissivity", "model.sea_longwave_emissivity",
         "model.ozone_height_m", "model.ozone_spread_m",
         "model.energy_fixer",
