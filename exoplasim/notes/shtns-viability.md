@@ -938,8 +938,9 @@ difference anywhere outside `dcc` is 1.5e-13.
 ## The eleven rerouted diagnostic transforms, run against a binary
 
 *Measured 2026-08-24 at 743c67a9, T21 on sixteen threads, on a cold T21 bed
-with `SEED` fixed, `NENERGY = 1`, `NENERGYFIX = 1`, `NLOWIO = 1`. The
-`production` profile, gfortran 16.2.1 20260810.*
+carrying `config/planet.yaml`'s declared `cold_start_seed` and
+`ocean.cold_start` profile, with `NENERGY = 1`, `NENERGYFIX = 1`,
+`NLOWIO = 1`. The `production` profile, gfortran 16.2.1 20260810.*
 
 world-3ya routed eleven per-timestep `legmod` transforms in `spectrala` and
 `spectrald` through `sh_sp2gp` and `sh_dv2uv`, moving their destinations to

@@ -197,8 +197,9 @@ both.
 
 ## The gate as a whole, run end to end
 
-*Run 2026-08-24 at 743c67a9, T21 on sixteen threads, on a cold T21 bed with
-`SEED` fixed and a declared cold-start sea surface temperature profile.*
+*Run 2026-08-24 at 743c67a9, T21 on sixteen threads, on a cold T21 bed carrying
+`config/planet.yaml`'s declared `cold_start_seed` and `ocean.cold_start`
+profile.*
 
 `verify_threaded_numerics.sh` wraps the driver above as its independent side and
 keeps the shared-band control against the model itself. The driver half had been
