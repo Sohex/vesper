@@ -432,6 +432,7 @@ fluxes would contain are `tstepo`, `tstepo_flux`, `co`, `krausturner`, `velc`,
 `jbar`, `wind`, `eos`, `ediff`, `get_hosing`, `tstepa`, `tstipa`, `surflux`,
 `radfor`, `ocean_alb`, `tstepsic` and `tstipsic`. Counting the distinct names on
 their type-declaration lines gives **390 declared names, 81 of them arrays**.
+`tstepa` is in the list for completeness and this build does not compile it.
 
 That is an UPPER bound and is meant to size the work rather than to be the list.
 It does not separate dummy arguments, which need no private clause, from genuine
@@ -466,7 +467,7 @@ read off a measurement rather than assumed:
 architecture does not run it.** The exchange OCN-10 selects has ExoPlaSim
 computing the fluxes, so EMBM's prognostic temperature and humidity step,
 `tstipa` plus the `embm` driver's own loops, has nothing to do.
-`surflux`'s 2.8 per cent stays, because something equivalent -- the
+`surflux`'s 2.5 to 2.8 per cent stays, because something equivalent -- the
 `surflux_goldstein_seaice` path the cost note's section 6 identifies -- still has
 to turn a supplied climatology into ocean fluxes.
 
@@ -513,11 +514,14 @@ settled by construction.
   demonstrated that the MODEL runs there.
 - 5.0 degrees of longitude is a factor of two better than the shipped grid on the
   only axis that is still constraining.
-- `igrid = 0` rather than 1 or 2 for a reason the model states itself:
-  `tstipa.f:37-46` raises EMBM's implicit iteration count from 4 to 16 on the
-  constant-latitude grid, and `initialise_goldstein.F:496` makes the equal-area
-  grid's cell area exactly constant, which is what section 5b's factorised
-  conservative remap wants.
+- `igrid = 0` rather than 1 or 2 because `initialise_goldstein.F:496` sets
+  `asurf(j) = rsc*rsc*ds(j)*dphi` with `ds` equally spaced in the sine of
+  latitude, so every ocean cell has exactly the same area -- which is what
+  section 5b's factorised conservative remap and section 5c's fifth rule both
+  want. A second reason applies only while EMBM is still in the recipe:
+  `tstipa.f:37-46` raises its implicit iteration count from 4 to 16 on the
+  constant-latitude grid, so `igrid = 1` would multiply the component section 4a
+  is trying to remove.
 - The ocean's grid does not depend on the atmosphere's rung, so this choice
   survives the ladder moving.
 
