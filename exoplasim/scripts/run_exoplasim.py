@@ -1512,6 +1512,89 @@ def enable_energy_diagnostics(model, config: dict) -> bool:
     return True
 
 
+# The ecological stream's own codes, `outmod.f90:ecogp`. 600 to 602 are the
+# interval bounds and 610 to 628 the fields; `compare_eco_streams.FIELD_NAMES`
+# is the one table of what each field IS. They are listed here only so a
+# postprocessor code list can be refused for carrying one, and the refusal is
+# below.
+ECO_STREAM_CODES = frozenset(range(600, 603)) | frozenset(range(610, 629))
+
+
+def refuse_eco_codes(codes: list[int], which: str) -> None:
+    """The ecological stream does not go through pyburn, and this says so.
+
+    NOT AN OVERSIGHT AND NOT A GAP TO FILL LATER. `pyburn.readallvariables`
+    builds its time axis by counting records of code 139 and has no other
+    notion of time, so a stream is postprocessable only if a consumer is
+    willing to infer each record's interval from its position in the file. The
+    ecological stream exists in part to refuse exactly that inference: it
+    writes the interval start, end and duration with every block, in absolute
+    seconds from the model's own step counter, because a consumer that infers
+    an interval from a record number cannot tell a missing block from a short
+    one. Routing it through pyburn would drop the bounds and restore the
+    inference.
+
+    So the stream is read directly. `exoplasim/scripts/compare_eco_streams.py`
+    reads it today and EFOR-3 reads it next, both from the raw records.
+
+    What this stops is the failure mode that would follow from asking anyway: a
+    code pyburn's `ilibrary` does not carry makes it stop with "Going to stop
+    here just in case", naming neither the code nor the reason, at the end of an
+    otherwise good run.
+    """
+    bad = sorted(set(codes) & ECO_STREAM_CODES)
+    if bad:
+        raise ValueError(
+            f"{which} carries ecological stream codes {bad}. That stream is "
+            f"not postprocessed: it is written to its own unit with its own "
+            f"interval bounds and is read directly, by "
+            f"exoplasim/scripts/compare_eco_streams.py today and by EFOR-3 "
+            f"next. See refuse_eco_codes.")
+
+
+def declare_ecological_stream(model, enabled: bool, interval_steps: int | None) -> dict:
+    """Set NECO and NECOSTEP in plasim_nl, which the Python API does not expose.
+
+    THE STREAM. A second output stream written for the biosphere rather than
+    for a climate diagnostic: nineteen surface fields plus its own interval
+    bounds, reduced at the producer with the operator each field's meaning
+    calls for. `exoplasim/README.md` has what it is for and
+    `biosphere/notes/ecological-forcing-field-contract.md` what it carries.
+
+    ON THE COMMAND LINE AND NOT IN `config/planet.yaml`, for the reason the
+    benchmark overrides are: it cannot change a result. The restarts written
+    with `NECO = 1` and `NECO = 0` are byte-identical, because the stream reads
+    state that already exists and writes to a unit of its own. A config edit
+    would move `config_sha256` and make every existing run unresumable, for a
+    switch that changes only what is WRITTEN.
+
+    THE INTERVAL IS DERIVED AND NOT TYPED. `NECOSTEP = 0` is the sentinel
+    `plasim.f90` reads as `mtspd`, the number of timesteps in one absolute
+    24-hour day EXACTLY: prolog derives `mtspd` from `day_24hr` and then
+    recomputes `mpstep` so that `mtspd * mpstep * 60 = day_24hr`, so the
+    interval is 86400 s with no rounding and no drift and the bounds `ecogp`
+    writes are exact. Computing the same number here in Python would duplicate
+    arithmetic that depends on the timestep and therefore on the resolution
+    rung, and a duplicate that disagrees produces intervals whose declared
+    bounds are right and whose contents are not.
+
+    24 h is the ecological step LPJ-GUESS integrates on, not a claim about this
+    world's rotation. `biosphere/notes/time-base-unit-contract.md` settles it.
+
+    WRITTEN IN BOTH DIRECTIONS, never left to the compiled default, so the
+    namelist on disk records which regime ran -- and reapplied on every
+    continuation, because `configure()` rewrites the namelist each time.
+    """
+    if interval_steps is not None and interval_steps < 1:
+        raise ValueError("--eco-interval-steps must be positive")
+    step = 0 if interval_steps is None else int(interval_steps)
+    model._edit_namelist("plasim_namelist", "NECO", "1" if enabled else "0")
+    model._edit_namelist("plasim_namelist", "NECOSTEP", str(step))
+    return {"enabled": bool(enabled), "necostep": step,
+            "interval": ("mtspd, one absolute 24-hour day, derived by the model"
+                         if step == 0 else f"{step} timesteps, declared")}
+
+
 def enable_prescribed_dust(model, run_dir: Path, config: dict) -> dict | None:
     """Switch on the prescribed dust the patched radiation reads. DUST-11.
 
@@ -2239,6 +2322,21 @@ def main() -> None:
              "NAFTER is not a namelist key -- setting that one aborts the run "
              "with `Cannot match namelist object name nafter`. Raising it "
              "samples more diurnal phases")
+    # EFOR-2. On the command line for the same reason as the overrides above,
+    # and it is a stronger reason here: the stream cannot change a result at
+    # all. `declare_ecological_stream` has the argument.
+    parser.add_argument(
+        "--ecological-stream", action="store_true",
+        help="NECO = 1, writing the biosphere's own output stream to "
+             "plasim_eco alongside the climate one. Off by default. It reads "
+             "state that already exists and writes to a unit of its own, so "
+             "the restart is byte-identical either way")
+    parser.add_argument(
+        "--eco-interval-steps", type=int, default=None,
+        help="NECOSTEP, timesteps per ecological interval. Left unset the "
+             "model uses mtspd, one absolute 24-hour day exactly, which is "
+             "the step LPJ-GUESS integrates on. Set it only for a run whose "
+             "consumer integrates on something else")
     parser.add_argument(
         "--clean-io", dest="low_io", action="store_false", default=True,
         help="run this block at NLOWIO = 0, writing instantaneous samples "
@@ -2555,6 +2653,8 @@ def main() -> None:
         regular_codes = regular_codes + ENERGY_DIAGNOSTIC_CODES
         if config["model"].get("energy_diagnostics_3d", False):
             regular_codes = regular_codes + ENERGY_3D_CODES
+    refuse_eco_codes(regular_codes, "REGULAR_CODES")
+    refuse_eco_codes(SNAPSHOT_CODES, "SNAPSHOT_CODES")
     model._add_postcodes("example.nl", regular_codes)
     model._add_postcodes("snapshot.nl", SNAPSHOT_CODES)
     model.cfgpostprocessor(
@@ -2636,6 +2736,13 @@ def main() -> None:
     conversion_time_level = declare_conversion_time_level(model, config)
     dealias_conversion = declare_dealias_conversion(model, config)
     set_low_io(model, args.low_io)
+    eco_stream = declare_ecological_stream(
+        model, args.ecological_stream, args.eco_interval_steps)
+    if eco_stream["enabled"]:
+        print(f"ecological stream ON: NECO = 1, NECOSTEP = "
+              f"{eco_stream['necostep']} ({eco_stream['interval']}). Written "
+              f"to plasim_eco and moved aside per orbit as MOST_ECO.NNNNN; "
+              f"read directly, not through pyburn")
     energy_fixer = declare_energy_fixer(model, config)
     if enable_energy_diagnostics(model, config):
         n = register_energy_diagnostic_codes()
@@ -2859,6 +2966,7 @@ def main() -> None:
                 "end_year_index": args.run_years - 1,
                 "seasonal_output": True,
                 "low_io": bool(args.low_io),
+                "ecological_stream": eco_stream,
                 "high_cadence": False,
                 "purpose": "spinup",
                 # WHY A FIRST RECORD IS REFUSABLE, and it is no longer CLIM-31.

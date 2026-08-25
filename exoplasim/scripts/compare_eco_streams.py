@@ -5,6 +5,11 @@ ecological output stream. Nothing here is about the simulated planet.
 
     python exoplasim/scripts/compare_eco_streams.py WHOLE SEG1 SEG2 [SEG3 ...]
 
+Each argument is one stream file. The model writes `plasim_eco` in place, and a
+run driven through `run_exoplasim.py` or `continue_exoplasim.py` has it moved
+aside per orbit as `MOST_ECO.NNNNN`; a bed that invokes the executable directly
+leaves it under its own name.
+
 WHAT IT IS FOR. The ecological stream (EFOR-2, `outmod.f90:ecogp`) reduces the
 model's own timestep state to the intervals the biosphere integrates over. A
 stream that is not restart-exact silently makes a continuation a different

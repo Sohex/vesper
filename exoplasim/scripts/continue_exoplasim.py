@@ -31,6 +31,8 @@ from run_exoplasim import (  # noqa: E402
     declare_robert_filter,
     declare_conversion_time_level,
     declare_dealias_conversion,
+    declare_ecological_stream,
+    refuse_eco_codes,
     SHORTWAVE_GAS_KEYS,
     trace_gas_ppmv,
     verify_staged_namelists,
@@ -257,6 +259,19 @@ def main() -> None:
         "--clean-io", dest="low_io", action="store_false", default=None,
         help="force it OFF, writing instantaneous samples. Needed by anything "
              "reading variance, extremes or single records")
+    # EFOR-2, and it is per SEGMENT for the same reason the I/O regime is:
+    # `configure()` rewrites the namelist on every continuation, so a segment
+    # that does not restate it does not write the stream. The stream cannot
+    # change a result either way.
+    parser.add_argument(
+        "--ecological-stream", action="store_true",
+        help="NECO = 1 for this segment, writing the biosphere's own output "
+             "stream into MOST_ECO.NNNNN. Off by default; the restart is "
+             "byte-identical either way")
+    parser.add_argument(
+        "--eco-interval-steps", type=int, default=None,
+        help="NECOSTEP for this segment. Left unset the model uses mtspd, one "
+             "absolute 24-hour day exactly")
     parser.add_argument(
         "--high-cadence", action="store_true",
         help="write near-surface wind every fourth timestep for this segment, "
@@ -517,6 +532,12 @@ def main() -> None:
     # Every continuation re-runs configure(), which rewrites the namelist, so
     # this has to be reapplied here and not only at prepare time. It is also
     # independent of the energy diagnostics, which it used to be nested inside.
+    eco_stream = declare_ecological_stream(
+        model, args.ecological_stream, args.eco_interval_steps)
+    if eco_stream["enabled"]:
+        print(f"  ecological stream ON for this segment: NECO = 1, NECOSTEP = "
+              f"{eco_stream['necostep']} ({eco_stream['interval']}). Read "
+              f"directly, not through pyburn.")
     set_low_io(model, args.low_io)
     if args.low_io:
         print("  NLOWIO = 1 for this segment: cheaper, and every orbit carries "
@@ -579,6 +600,8 @@ def main() -> None:
     staged_namelists = verify_staged_namelists(run_dir, config)
     print(f"  namelists verified: {len(staged_namelists)} config-set keys "
           f"present with the declared values")
+    refuse_eco_codes(regular_codes, "REGULAR_CODES")
+    refuse_eco_codes(SNAPSHOT_CODES, "SNAPSHOT_CODES")
     model._add_postcodes("example.nl", regular_codes)
     model.cfgpostprocessor(
         ftype="regular",
@@ -699,6 +722,7 @@ def main() -> None:
             "thread_stack": thread_stack,
             "seasonal_output": args.seasonal_output,
             "low_io": bool(args.low_io),
+            "ecological_stream": eco_stream,
             "high_cadence": bool(args.high_cadence),
             "purpose": args.purpose,
             # What star these particular orbits were integrated against. The
