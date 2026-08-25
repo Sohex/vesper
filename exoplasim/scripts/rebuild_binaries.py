@@ -301,6 +301,58 @@ def expected(res: str, lev: int, ranks: int) -> str:
     return f"most_plasim_{res.lower()}_l{lev}_p{ranks}.x"
 
 
+def verify(profile: str = DEFAULT_PROFILE) -> dict:
+    """What `--verify` reports, as data, so a caller can act on it.
+
+    Builds nothing and links nothing: a manifest read and a sha per source.
+    `scripts/check_consistency.py` calls this rather than restating it, because
+    a second implementation of "is this executable current" is a second thing to
+    keep in step and the two had already drifted -- that one globbed `RUN`
+    alone, so an executable in `BIN` kept a provenance nothing looked at, and it
+    could not see a MATRIX row with no binary at all or a toolchain that had
+    moved under an unchanged source.
+
+    Four separate findings, kept apart because they are acted on differently:
+
+      absent   on disk and not in the manifest, or in it under another sha:
+               unknown provenance
+      stale    in the manifest, built from a source file that has since moved
+      missing  named by MATRIX and not built at all -- rule 4's other half, and
+               invisible to anything that globs the directory
+      drift    the compiler, the flag line or the declared precision is not what
+               the manifest records, so the binaries are no longer what this
+               tree would build even where every sha still matches
+    """
+    prior = (json.loads(MANIFEST.read_text(encoding="utf-8"))
+             if MANIFEST.is_file() else {"binaries": {}})
+    sources = model_sources()
+    drift = describe_toolchain_drift(prior.get("toolchain") or {}, toolchain(profile))
+    # BOTH DIRECTORIES, because the rebuild clears both. Globbing RUN alone let
+    # an executable in BIN keep a provenance nothing looked at, which is rule
+    # 4's failure mode one directory over: the verify must cover exactly the set
+    # the build replaces. world-60x0.
+    built = sorted(list(RUN.glob("most_plasim_*.x"))
+                   + list(BIN.glob("most_plasim_*.x")))
+    absent, stale = [], []
+    for exe in built:
+        rec = prior.get("binaries", {}).get(exe.name)
+        if rec is None or rec.get("sha256") != sha256(exe):
+            absent.append(exe.name)
+        elif rec.get("sources") != sources:
+            stale.append(exe.name)
+    # A binary on disk built from moved source is one failure; a MATRIX entry
+    # with NO binary at all is the mirror of it, and globbing the directory
+    # cannot see that one. It is the same class 11 shape: silent until something
+    # asks for the configuration. The ladder in `MATRIX` is the declaration of
+    # what must exist, so check against it.
+    missing = [expected(r, l, k) for r, l, k in MATRIX
+               if not (RUN / expected(r, l, k)).is_file()]
+    return {"manifest_present": MANIFEST.is_file(),
+            "built": [e.name for e in built],
+            "absent": absent, "stale": stale,
+            "missing": missing, "drift": drift}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--profile", default=DEFAULT_PROFILE, choices=sorted(PROFILES),
@@ -338,29 +390,10 @@ def main() -> None:
     tools = toolchain(args.profile)
 
     if args.verify:
-        stale, absent = [], []
-        prior = (json.loads(MANIFEST.read_text(encoding="utf-8"))
-                 if MANIFEST.is_file() else {"binaries": {}})
-        drift = describe_toolchain_drift(prior.get("toolchain") or {}, tools)
-        # BOTH DIRECTORIES, because the rebuild below clears both. Globbing
-        # RUN alone let an executable in BIN keep a provenance nothing looked
-        # at, which is rule 4's failure mode one directory over: the verify
-        # must cover exactly the set the build replaces. world-60x0.
-        built = sorted(list(RUN.glob("most_plasim_*.x"))
-                       + list(BIN.glob("most_plasim_*.x")))
-        for exe in built:
-            rec = prior["binaries"].get(exe.name)
-            if rec is None or rec.get("sha256") != sha256(exe):
-                absent.append(exe.name)
-            elif rec.get("sources") != sources:
-                stale.append(exe.name)
-        # A binary on disk built from moved source is one failure; a MATRIX
-        # entry with NO binary at all is the mirror of it, and globbing the
-        # directory cannot see that one. It is the same class 11 shape: silent
-        # until something asks for the configuration. The ladder in `MATRIX` is
-        # the declaration of what must exist, so check against it.
-        missing = [expected(r, l, k) for r, l, k in MATRIX
-                   if not (RUN / expected(r, l, k)).is_file()]
+        report = verify(args.profile)
+        built = report["built"]
+        absent, stale = report["absent"], report["stale"]
+        missing, drift = report["missing"], report["drift"]
         if missing:
             print("IN THE MATRIX AND NOT BUILT:", ", ".join(missing))
         if absent:

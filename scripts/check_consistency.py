@@ -1478,40 +1478,53 @@ def main() -> int:
     # three times in one day. Vendoring the model as a subtree does not fix it:
     # a stale binary is still a stale binary, so this check outlived the patch
     # stack it was originally written to police.
+    # ASKED OF `rebuild_binaries.py:verify`, which is the operation rule 4 names,
+    # rather than restated here. This block used to carry its own copy of the
+    # comparison and the copy had already fallen behind the original in three
+    # ways: it globbed `plasim/run` alone, so an executable in `plasim/bin` kept
+    # a provenance nothing looked at; it could not see a MATRIX row with NO
+    # binary, which is rule 4's other half and is invisible to anything that
+    # globs the directory; and it never compared the toolchain, so a compiler or
+    # a flag line that had moved under unchanged sources passed. `verify` builds
+    # nothing and links nothing -- a manifest read and a sha per source. world-wkci.
     try:
-        manifest = ROOT / "exoplasim" / "binary_manifest.json"
-        run_dir = ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "run"
-        on_disk = sorted(run_dir.glob("most_plasim_*.x")) if run_dir.is_dir() else []
-        if not manifest.is_file():
+        scripts = str(ROOT / "exoplasim" / "scripts")
+        if scripts not in sys.path:
+            sys.path.append(scripts)
+        import rebuild_binaries as rb           # noqa: E402
+        report = rb.verify()
+    except Exception as exc:                                       # noqa: BLE001
+        rep.add(WARN, "binaries", f"not checked: {exc}")
+    else:
+        if not report["manifest_present"]:
             rep.add(FAIL, "binary manifest",
                     "absent; run exoplasim/scripts/rebuild_binaries.py")
-        elif not on_disk:
+        elif not report["built"]:
+            # A tree with no executables is UNBUILT, not inconsistent. That is
+            # the resting state of a fresh worktree, where the build directories
+            # are deliberately not linked in, and calling it a failure would
+            # make this gate red everywhere before any work had gone wrong.
             rep.add(WARN, "binaries", "none built")
         else:
-            mf = json.loads(manifest.read_text(encoding="utf-8"))
-            known = mf.get("binaries", {})
-            # Source keys are relative to the package root, not by basename,
-            # because two files of the same name can live under
-            # different directories.
-            src = ROOT / "vendor" / "exoplasim" / "exoplasim"
             bad = []
-            for exe in on_disk:
-                rec = known.get(exe.name)
-                if rec is None:
-                    bad.append(f"{exe.name}: not in manifest")
-                    continue
-                if rec["sha256"] != sha256_of(exe):
-                    bad.append(f"{exe.name}: sha differs from manifest")
-                    continue
-                for name, want in (rec.get("sources") or {}).items():
-                    got = sha256_of(src / name) if (src / name).is_file() else None
-                    if got != want:
-                        bad.append(f"{exe.name}: built from an older {name}")
+            if report["absent"]:
+                bad.append("provenance unknown (not in the manifest, or in it "
+                           f"under another sha): {', '.join(report['absent'])}")
+            if report["stale"]:
+                bad.append("built from source that has since moved: "
+                           f"{', '.join(report['stale'])}")
+            if report["missing"]:
+                # Only once SOMETHING is built. A partial set is exactly rule 4's
+                # shape -- a rebuild that refreshed the configuration in use and
+                # left the rest -- and it is the case the old block could not see.
+                bad.append("in the matrix and not built: "
+                           f"{', '.join(report['missing'])}")
+            if report["drift"]:
+                bad.append("toolchain has moved since the build: "
+                           + "; ".join(report["drift"]))
             rep.add(FAIL if bad else OK, "binaries carry current patches",
                     "; ".join(bad) if bad else
-                    f"{len(on_disk)} executables match the manifest")
-    except Exception as exc:
-        rep.add(WARN, "binaries", f"not checked: {exc}")
+                    f"{len(report['built'])} executables match the manifest")
 
     # -- the cycle executable can parse the cycle the config asks for ---------
     #
