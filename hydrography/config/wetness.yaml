@@ -66,11 +66,17 @@ classes:
   # reader deciding whether to wait or to build something.
   saturated_mineral:
     support: climate_grid
-    source: topographic_index_exoplasim-{res}.nc:f_sat_max, water_table.nc:depth_m
-    rule: TOPMODEL's saturated area share, taken out of `dry_mineral` and never
-      added beside it. GW-26.
-    unavailable_reason: the closure is unlicensed until its declared score
-      passes, and the score needs a water table this build does not have.
+    source: none. It would have been TOPMODEL's saturated area share, taken out
+      of `dry_mineral` and never added beside it, from
+      topographic_index_exoplasim-{res}.nc:f_sat_max and water_table.nc:depth_m.
+    unavailable_reason: the saturated-area closure it would come from is
+      WITHDRAWN in `hydrography/config/topographic_index.yaml`. The score
+      declared there before any fraction was computed was the only thing that
+      could license it; it was run on both Earth sets and missed, and the gain
+      the terrain half carries over the cell-mean depth alone is smaller than
+      the scatter its own support puts on it, so no narrower criterion can
+      license it either. This class is absent permanently rather than pending,
+      and reviving it is a new closure with a new criterion. GW-26.
   seasonal_inundation:
     support: region
     unavailable_reason: nothing in this component carries a season. The lake
@@ -133,6 +139,9 @@ refusals:
   # is the mesh regions inside a climate-grid cell. A per-region one would have
   # to be manufactured from a sub-region hypsometry, which GW-6 says is not
   # there. `biosphere/scripts/wetland_gate.py` refuses anything else by name.
+  # This stays declared with the closure withdrawn, because it is the support
+  # any REVIVED closure would have to live at and the refusal it states does not
+  # depend on the closure existing.
   saturated_fraction_support: climate_grid
   # The index carries a length in `a`, so its whole distribution shifts with the
   # mesh and only its rank statistics transport.
@@ -147,8 +156,10 @@ refusals:
 # been counted twice.
 closure:
   #     open_water + playa + dry_mineral == 1, over a cell's land area
-  # and, once the saturated share is licensed,
+  # and, if a saturated share is ever revived and licensed,
   #     saturated_mineral + dry_mineral_remaining == dry_mineral
+  # which is the rule that keeps it OUT of the resolved classes rather than
+  # beside them; the withdrawn closure never reached it.
   # and, once BIO-11 exists,
   #     rootable == 1 - open_water - barren, with barren from pedology's
   #     surface classes, and this artifact's `playa` inside that barren.

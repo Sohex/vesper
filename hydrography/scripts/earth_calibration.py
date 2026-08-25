@@ -919,6 +919,60 @@ def _auc(score, label) -> float:
     return float((r[label].sum() - n1 * (n1 + 1) / 2.0) / (n1 * n0))
 
 
+def _paired_gain_spread(cells, scores_a, scores_b, label, seed: int = 20260825,
+                        draws: int = 1000) -> dict:
+    """What spread the support itself puts on a paired AUC difference.
+
+    THE INSTRUMENT, NOT A CRITERION. `CLAUDE.md` requires an effect to be
+    weighed against the scatter of the instrument that reports it before the
+    number is believed, and the instrument here is the SUPPORT rather than the
+    bore count. A cell-scale predictor carries one value per cell, so every bore
+    inside a cell shares its score exactly and the independent units are the
+    CELLS. Scoring 73,451 bores through 37 cells reports an AUC to four decimals
+    that 37 units cannot resolve to four decimals, and a gain read off those
+    decimals would be a number about the reporting rather than about the
+    terrain.
+
+    So the resample is over cells, with replacement, carrying each drawn cell's
+    whole bore population; both predictors are re-scored on the SAME resample,
+    which is what makes the difference paired and keeps the two AUCs' shared
+    variation out of it. Reported and never compared against: it cannot move a
+    verdict, and it is what lets one be read.
+    """
+    rng = np.random.default_rng(seed)
+    cells = np.asarray(cells)
+    a = np.asarray(scores_a, dtype=np.float64)
+    b = np.asarray(scores_b, dtype=np.float64)
+    lab = np.asarray(label, dtype=bool)
+    uniq = np.unique(cells)
+    members = [np.flatnonzero(cells == c) for c in uniq]
+    obs = _auc(a, lab) - _auc(b, lab)
+    diffs = []
+    for _ in range(draws):
+        pick = rng.integers(0, uniq.size, uniq.size)
+        take = np.concatenate([members[i] for i in pick])
+        if lab[take].all() or not lab[take].any():
+            continue
+        diffs.append(_auc(a[take], lab[take]) - _auc(b[take], lab[take]))
+    d = np.asarray(diffs, dtype=np.float64)
+    return {
+        "independent_units": "cells",
+        "cells": int(uniq.size),
+        "bores": int(lab.size),
+        "resample_draws": int(d.size),
+        "observed_gain": float(obs),
+        "gain_stdev_over_cell_resamples": float(d.std(ddof=1)) if d.size > 1 else float("nan"),
+        "gain_p2.5": float(np.percentile(d, 2.5)) if d.size else float("nan"),
+        "gain_p97.5": float(np.percentile(d, 97.5)) if d.size else float("nan"),
+        "gain_share_of_resamples_positive": float((d > 0).mean()) if d.size else float("nan"),
+        "gain_exceeds_its_own_spread": bool(
+            d.size > 1 and abs(obs) > d.std(ddof=1)),
+        "note": "The scatter the SUPPORT puts on the difference. Reported so "
+                "the gain can be read against it; it is not a second criterion "
+                "and cannot move the verdict.",
+    }
+
+
 def stage_cti(tag: Path, region: str, quiet: bool) -> None:
     """The index per mesh region, both slope arms, cached beside the solve.
 
@@ -1206,9 +1260,11 @@ def stage_fsat(tag: Path, edge_km: float, region: str, confinement: str | None,
             gap = abs(auc_ident - auc_cell_depth)
             auc = _auc(f_sat, lab)
             capped = float((f_max * np.exp(-fg * z) >= 1.0).mean())
+            spread = _paired_gain_spread(bore_cell[keep], f_sat, -z, lab)
             arm_out["f_grad"][f"{fg:g}"] = {
                 "auc_f_sat": auc,
                 "gain_over_cell_mean_depth": auc - auc_cell_depth,
+                "gain_against_the_support": spread,
                 "beats_declared_bar": bool(auc > bar),
                 "beats_same_support_depth": bool(auc > auc_cell_depth),
                 "attribution_identity_gap": gap,
@@ -1219,6 +1275,10 @@ def stage_fsat(tag: Path, edge_km: float, region: str, confinement: str | None,
             print(f"      f_grad {fg:g}/m: AUC {auc:.4f}  "
                   f"({auc - auc_cell_depth:+.4f} on the same-support depth)  "
                   f"identity gap {gap:.2e}  cap binds {capped:.1%}")
+            print(f"        the gain against the support that reports it: "
+                  f"{spread['observed_gain']:+.4f} on {spread['cells']} cells, "
+                  f"resampled spread {spread['gain_stdev_over_cell_resamples']:.4f}, "
+                  f"95% [{spread['gain_p2.5']:+.4f}, {spread['gain_p97.5']:+.4f}]")
         out["arms"][arm] = arm_out
 
     out["passes"] = bool(verdicts) and all(verdicts)

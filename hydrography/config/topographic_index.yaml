@@ -60,12 +60,40 @@ index:
   min_tan_slope: 1.0e-4
 
 # ---------------------------------------------------------------------------
-# The saturated-area closure
+# The saturated-area closure, WITHDRAWN
 # ---------------------------------------------------------------------------
 #     f_sat = min( f_sat_max * exp(-f_grad * z_wt), 1 )
 #
 # for `z_wt` the cell-mean water table depth, positive downward.
+#
+# THE CLOSURE IS WITHDRAWN AND NO CONSUMER GETS A SATURATED FRACTION FROM THIS
+# COMPONENT. The score below is the only thing that could license it, the score
+# was run, and it missed; the disposition of a miss was declared here before any
+# fraction was computed and it is withdrawal rather than a caveat. What the
+# score also settled is that no NARROWER score can license it either, which is
+# what closes the question rather than deferring it: the gain the terrain half
+# carries over the depth alone is smaller than the scatter the SUPPORT puts on
+# it on every arm of both sets, and restricting the criterion to the regime the
+# depth works in makes that support smaller and the scatter larger.
+# `hydrography/notes/subgrid-water-table.md` section 7 carries the measurement.
+#
+# WHAT SURVIVES, and it is most of the artifact: the compound topographic index
+# per region on both slope arms, and `f_sat_max`, the cell's own rank statistic.
+# Those are terrain statistics that stand on their own and the index's variance
+# is mostly WITHIN cells, which is the case for computing it. What is withdrawn
+# is the step that multiplies them into a failed depth field.
+#
+# WHAT WOULD BRING IT BACK, stated positively so this is a route and not a
+# closed door: a score whose support can resolve a gain of a few thousandths of
+# an AUC, which means enough grid cells carrying bores to make that difference
+# larger than the cells' own scatter. Two continents give 34 and 37. A new score
+# needs its criterion declared before the observations it will be run on exist,
+# and it needs a depth field with a regime, which is MIN-6's and GW-24's
+# question and not this one's.
 closure:
+  status: withdrawn
+  withdrawn_on: 2026-08-25
+  withdrawn_because: the_declared_score_missed_and_no_narrower_support_can_resolve_the_gain
   # `f_sat_max` is the share of the cell's land AREA whose index exceeds the
   # cell's area-weighted mean index -- CLIMBER-X's `1 - cti_cdf(cti_mean)` at
   # `surface_hydro.f90:551-560`, computed here from the region population
@@ -131,7 +159,17 @@ closure:
 # regime it works in. Both arms of `f_grad_bracket_per_m`, reported separately.
 #
 # A MISS MEANS the index adds nothing to the depth it is multiplied into, and
-# the fraction should be withdrawn rather than shipped with a caveat.
+# the fraction should be withdrawn rather than shipped with a caveat. IT MISSED
+# and the closure above is withdrawn accordingly. The score block stays because
+# it is the criterion the verdict rests on and the harness that would re-run it.
+#
+# WHAT THE SUPPORT CAN RESOLVE, which is reported beside every gain and is not a
+# second criterion. A cell-scale predictor carries ONE value per cell, so the
+# independent units are the cells and not the bores: 53,410 and 73,451 bores
+# reach the score through 34 and 37 cells. `earth_calibration.py` resamples
+# those cells and reports the spread they put on the paired gain, because
+# `CLAUDE.md` requires an effect to be weighed against its instrument's scatter
+# before the number is believed.
 # WHAT SUPPORT THE SCORE IS TAKEN AT, and it has to be declared because the
 # quantity being scored does not live where the number in `bar_auc` was
 # measured. 0.573 is the model DEPTH's discrimination per bore against the

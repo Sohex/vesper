@@ -299,23 +299,31 @@ steps:
       precedent,
       `f_sat_max` lives at the GRID and not at a region, and there is no
       per-region saturated fraction to take.
-      NO CONSUMER MAY TAKE `f_sat` YET. The score is declared in
+      NO CONSUMER GETS `f_sat` FROM THIS STEP: the closure is WITHDRAWN and
+      this artifact carries no saturated fraction. The score was declared in
       `hydrography/config/topographic_index.yaml` before any fraction was
-      computed, it has not been run, and the report says so in
-      `consumers_licensed`. The closure is strictly monotone in the water table
-      depth for a fixed `f_sat_max`, so any discrimination it gains over the
-      depth alone is attributable to the terrain half and to nothing else --
-      which is what makes the score a test rather than a comparison. WET-2,
-      SURF-7 and LSHY-6 are the consumers waiting on it, and what each of them
-      gets is settled in `hydrography/notes/subgrid-water-table.md` section 5:
-      the grid-cell fraction, with a change of quantity, on the precedent
-      `groundwater_access` set under PLHY-5. LSHY-6 asked for a climate-grid
-      area already; SURF-7's discharge mask is a statement about the RESOLVED
-      water table and takes `at_surface` from `water_table.nc` rather than this;
-      WET-2 is the one row that changes quantity.
-      `f_grad` is DECLARED AND BRACKETED, never fitted, and the bracket is a
+      computed, together with the disposition of a miss, which is withdrawal
+      rather than a caveat. It was run on both Earth sets and missed. The
+      closure is strictly monotone in the water table depth for a fixed
+      `f_sat_max`, so any discrimination it gains over the depth alone is
+      attributable to the terrain half and to nothing else -- which is what
+      makes the score a test rather than a comparison, and the gain it measured
+      is at or below the scatter its own support puts on it on every arm, so a
+      criterion restricted to the regime the depth works in would run on fewer
+      cells and resolve it less. `hydrography/notes/subgrid-water-table.md`
+      section 7 is the measurement.
+      WHAT THE STEP STILL WRITES is the terrain half on its own, which stands
+      without the closure: most of the index's variance is WITHIN a cell rather
+      than between cells, and that is the case for computing it. WET-2, SURF-7
+      and LSHY-6 were the rows waiting on the fraction and section 5 settled
+      what each takes instead: LSHY-6 asked for a climate-grid area already;
+      SURF-7's discharge mask is a statement about the RESOLVED water table and
+      takes `at_surface` from `water_table.nc`; WET-2 wanted the fraction and
+      loses that class rather than gaining a second support.
+      `f_grad` was DECLARED AND BRACKETED, never fitted, and the bracket is a
       convention ambiguity: CLIMBER-X's `exp(-f_wtab z)` and ClimaLand's
-      `exp(-f_over/2 z)` differ by exactly a factor of two. ABSOLUTE THRESHOLDS
+      `exp(-f_over/2 z)` differ by exactly a factor of two; it is kept as what a
+      revived closure would have to bracket. ABSOLUTE THRESHOLDS
       ARE REFUSED and no product keys on one: this index carries a length in
       `a`, so it shifts with the mesh -- measured at about 0.8 between this
       project's own two builds -- and it sits far above the range published
@@ -354,10 +362,14 @@ steps:
       THREE OF THE AUDIT'S FIVE CLASSES HAVE NO SOURCE HERE and are declared
       absent with the reason rather than estimated. The saturated non-inundated
       mineral class is unresolved on this mesh -- `hydrography/notes/subgrid-
-      water-table.md` section 5 -- and can only arrive as a climate-grid area
-      share taken OUT of the mineral class, which makes exclusivity a constraint
-      at two supports and is the cost that decision left to WET-2; it also needs
-      `f_sat`, which `topographic_index` has scored and NOT licensed. Seasonal
+      water-table.md` section 5 -- and would have arrived as a climate-grid area
+      share taken OUT of the mineral class, making exclusivity a constraint at
+      two supports; the closure it needed is WITHDRAWN, section 7, so that class
+      is absent permanently rather than pending and the resolved classes
+      partition the cell on one support. This step refuses to run if that
+      status ever says otherwise, because a class formed by the first plausible
+      reading of a revived bracketed closure is worse than an absent one.
+      Seasonal
       inundation and peat need a season, and nothing in this component carries
       one: the lake solve is an annual equilibrium, the groundwater solve is a
       steady state, and every term reaching those stores in

@@ -389,14 +389,14 @@ Per row, and two of the three turn out not to need anything built:
   for it. SURF-7 takes the per-region discharge fields it already has, and its
   dependence on this row is deleted.
 - **WET-2 is the only row that genuinely wanted a below-mesh fraction**, and it
-  is the one that changes quantity. Its resolved classes -- open lake, river and
-  playa water, and dry mineral soil -- stay per region, from `surface_water.nc`
-  and the depth field. Its saturated non-inundated mineral class is unresolved
-  and crosses as a climate-grid AREA share. Mutual exclusivity, which that row
-  requires, is then a constraint stated at two supports rather than one: the
-  resolved classes partition a cell's land area between them, and the saturated
-  share is taken out of what they leave. That is a real cost of the decision and
-  it belongs to WET-2 to carry.
+  is the one that would have changed quantity. Its resolved classes -- open
+  lake, river and playa water, and dry mineral soil -- stay per region, from
+  `surface_water.nc` and the depth field, and they partition a cell's land area
+  between them on their own. Its saturated non-inundated mineral class would
+  have crossed as a climate-grid AREA share taken OUT of what they leave, which
+  is what makes mutual exclusivity a constraint at two supports rather than one.
+  Section 7 withdraws the closure that share would have come from, so WET-2 has
+  one support and three classes and does not carry that cost.
 
 **The absolute scale does not transport, and the rank statistic does.**
 CLIMBER-X keys three wetland schemes on absolute index values: a CDF tabulated
@@ -425,7 +425,8 @@ The cell size is. What the two arms DO differ on is how much land they push onto
 the slope floor, 9.0% against 16.6%, and the receiver drop is higher because a
 depression-filled surface is exactly flat inside a filled pit.
 
-**Nothing may consume `f_sat` until it is scored.** The bar is declared in
+**Nothing may consume `f_sat` until it is scored, and section 7 is the score
+and its verdict.** The bar is declared in
 `hydrography/config/topographic_index.yaml`, before any fraction was computed:
 the area under the ROC curve for an observed water table within a metre of the
 surface must exceed 0.573, which is what the model's cell-mean depth reaches
@@ -507,10 +508,77 @@ carried in `a`, not something about this world's terrain, and the refusal of
 absolute thresholds now rests on a measurement on real ground rather than on an
 inference from one world.
 
-**What would license the fraction, and it is not this row's to take.** The
-United States arm passes; Australia's does not, because the depth it multiplies
-has no skill in the sink-dominated regime. Restricting the criterion to the
-cells where the sink did not set the depth is what MIN-6 and SURF-7 are already
-asking of the depth field itself. Such a criterion has to be declared before it
-is run rather than chosen now that these numbers are in hand, which is why it is
-filed rather than done here.
+**What would license the fraction is a criterion narrower than this one, and
+section 7 measures whether one could exist.** The United States arm passes;
+Australia's does not, because the depth it multiplies has no skill in the
+sink-dominated regime. Restricting the criterion to the cells where the sink did
+not set the depth is what MIN-6 and SURF-7 are already asking of the depth field
+itself.
+
+## 7. GW-26: what the support can resolve, and the withdrawal
+
+Section 6 read a gain of a few thousandths of an area under the curve off a
+score reported over 53,410 and 73,451 bores. `CLAUDE.md` requires an effect to
+be weighed against the scatter of the instrument that reports it before the
+number is believed, and the instrument here is the SUPPORT rather than the bore
+count. That measurement is what settles this row, and it settles it against a
+restricted criterion rather than in favour of one.
+
+Measured 2026-08-25 by `earth_calibration.py --stage fsat` on the cached
+15.19 km Earth mesh, unchanged in what it scores.
+
+**The independent units are cells, not bores.** A cell-scale predictor carries
+ONE value per cell, so every bore inside a cell shares its score exactly. The
+two sets reach the score through 34 and 37 cells. `_paired_gain_spread`
+resamples those cells with replacement, carrying each drawn cell's whole bore
+population, and re-scores BOTH predictors on the same resample, so the
+difference stays paired and the two areas' shared variation stays out of it.
+
+| set | arm | gain over the cell-mean depth | resampled spread | 95% interval |
+| --- | --- | ---: | ---: | --- |
+| United States, unconfined | plane fit, 1.25/m | +0.0068 | 0.0129 | -0.0094 to +0.0445 |
+| United States, unconfined | plane fit, 2.5/m | +0.0058 | 0.0102 | +0.0000 to +0.0351 |
+| United States, unconfined | receiver drop, 1.25/m | +0.0064 | 0.0129 | -0.0099 to +0.0445 |
+| United States, unconfined | receiver drop, 2.5/m | +0.0034 | 0.0111 | -0.0104 to +0.0346 |
+| Australia, depth-consistent | plane fit, 1.25/m | -0.0009 | 0.0059 | -0.0193 to +0.0007 |
+| Australia, depth-consistent | plane fit, 2.5/m | -0.0002 | 0.0012 | -0.0031 to +0.0000 |
+| Australia, depth-consistent | receiver drop, 1.25/m | +0.0191 | 0.0213 | -0.0001 to +0.0725 |
+| Australia, depth-consistent | receiver drop, 2.5/m | +0.0000 | 0.0000 | +0.0000 to +0.0000 |
+
+**On every one of the eight arms the gain is at or below the spread the support
+puts on it.** The largest gain anywhere, +0.0191, has the largest spread beside
+it, 0.0213, and its interval reaches zero. The United States arms that pass the
+declared conditions gain half of their own scatter. And the last row is the
+degenerate one section 6 already named: at 2.5 per metre on the receiver-drop
+arm the closure IS the depth, gain and spread both exactly zero.
+
+**So the restricted criterion cannot exist, and that is why this is a
+withdrawal rather than a deferral.** A criterion restricted to the cells where
+the sink did not set the depth is a criterion on FEWER cells than 34 and 37. The
+support that already cannot resolve a gain of a few thousandths resolves it
+less, and the scatter above grows as the cell count falls. There is no cut of
+`sink_fraction` that turns this instrument into one that can license the
+quantity, so declaring a cut and running it would be running an instrument
+already known to be blind to the effect.
+
+**The withdrawal, and what it does and does not remove.**
+`hydrography/config/topographic_index.yaml` carries `closure.status:
+withdrawn`, which is the disposition that config declared for a miss before any
+fraction was computed. `build_topographic_index.py` implements no closure and
+its artifact carries no saturated fraction; `build_wetness.py` forms no
+saturated mineral class and refuses if the config's status ever says anything
+but withdrawn. What survives is the whole terrain half: the index per region on
+both slope arms, and `f_sat_max`, the cell's own rank statistic. Section 5's
+measurement is why those are worth keeping -- the index's spread WITHIN a cell
+has a median of 2.22 against 1.82 between cells, so most of its variance is
+below the grid, which is the case for computing it at all.
+
+**What would bring a saturated fraction back**, stated as a route rather than a
+closed door. A score whose support can resolve a gain of a few thousandths,
+which means enough grid cells carrying observed water table depths to put that
+difference above the cells' own scatter; two continents give 34 and 37. It also
+needs a depth field with a regime, which is GW-24's and MIN-6's question. A
+revived closure needs its criterion declared before the observations it will be
+run on are in hand, and it needs to say what a downstream ledger does with a
+BRACKETED class before any share is written, because `f_grad` is a convention
+bracket and a consumer takes both arms or neither.

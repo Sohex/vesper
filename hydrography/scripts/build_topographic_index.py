@@ -36,11 +36,18 @@ WHAT IS COMPUTED, and at which scale each thing lives:
   data/<build>/topographic_index_<grid>.nc
   analysis/topographic_index_report.json
 
-WHAT IS NOT COMPUTED. `f_sat` itself, because it needs a cell-mean water table
-depth and because no consumer may take it before the score declared in
-`config/topographic_index.yaml` has been run. `saturated_fraction` below is the
-closure, for the scorer and for whichever consumer is licensed first; it is a
-function and not an artifact on purpose.
+WHAT IS NOT COMPUTED, AND WILL NOT BE. `f_sat` itself. The saturated-area
+closure is WITHDRAWN in `config/topographic_index.yaml`: the score that was the
+only thing able to license it was declared before any fraction was computed,
+was run on both continents, and missed, and the disposition of a miss was
+declared with it as withdrawal rather than a caveat. No consumer gets a
+saturated fraction from this component and there is no closure here to call.
+
+WHAT THIS STILL WRITES is the terrain half on its own -- the index per region on
+both slope arms, and `f_sat_max`, the cell's rank statistic -- which stand
+without the closure and are where the sub-grid information this component can
+honestly carry lives. `hydrography/notes/subgrid-water-table.md` sections 5 to 7
+carry the argument, the score and the withdrawal.
 """
 
 from __future__ import annotations
@@ -63,48 +70,37 @@ CFG_PATH = Path(__file__).resolve().parents[1] / "config" / "topographic_index.y
 SCORE_PATH = ANALYSIS / "topographic_index_score.json"
 
 
-def license_state() -> dict:
-    """Whether a consumer may take `f_sat`, read from the score and never set here.
+def closure_state(cfg: dict) -> dict:
+    """The closure's standing, read from the config and from the score.
 
-    The score is run by the Earth harness the config names, on a real planet
-    with real bores, and it is the only thing that can license this closure. So
-    the state is READ rather than declared: a build of this artifact cannot
-    license itself, and one run before any score has been taken says so with the
-    same words a failed score does.
+    The withdrawal is the CONFIG's, because it is a decision about what this
+    component publishes and a build of an artifact cannot decide that about
+    itself. The score is read beside it as the evidence the decision rests on,
+    so a reader of the report has the verdict and its provenance in one place
+    without having to know which run key it was filed under.
     """
+    status = str(cfg["closure"].get("status", "active"))
+    out = {
+        "closure_status": status,
+        "withdrawn": status == "withdrawn",
+        "withdrawn_on": cfg["closure"].get("withdrawn_on"),
+        "withdrawn_because": cfg["closure"].get("withdrawn_because"),
+        "consumers_get_a_saturated_fraction": status != "withdrawn",
+    }
     if not SCORE_PATH.exists():
-        return {"scored": False, "consumers_licensed": False,
-                "reason": f"no score at {SCORE_PATH.name}; the harness in "
-                          "config/topographic_index.yaml has not been run"}
+        out["score"] = {"scored": False,
+                        "reason": f"no score at {SCORE_PATH.name}"}
+        return out
     sc = json.loads(SCORE_PATH.read_text())
     runs = sc.get("runs", {})
-    return {
+    out["score"] = {
         "scored": bool(runs),
-        "consumers_licensed": bool(sc.get("consumers_licensed", False)),
         "observation_sets_required": sc.get("observation_sets_required"),
         "scored_sets": sc.get("scored_sets"),
         "per_set": {k: {"passes": v.get("passes"), "verdict": v.get("verdict")}
                     for k, v in runs.items()},
     }
-
-
-def saturated_fraction(f_sat_max, water_table_depth_m, f_grad_per_m: float):
-    """`f_sat = min(f_sat_max * exp(-f_grad * z_wt), 1)`. SIMTOP, Niu et al. (2005).
-
-    THE CAP IS EXPLICIT because the product is not otherwise bounded: ClimaLand
-    writes `min(..., 1)` and so does this. `water_table_depth_m` is positive
-    downward, so a table at the surface returns `f_sat_max` and a deep one
-    returns nothing.
-
-    THE CONVENTION IS A TRAP, and it is why `f_grad_per_m` has no default here.
-    CLIMBER-X writes `exp(-f_wtab * w_table)` and ships `f_wtab = 2.5` per metre;
-    ClimaLand writes `exp(-f_over/2 * z_wt)`, so the same numeral means half as
-    much per metre there. This function takes the decay in the FIRST convention,
-    per metre of depth, and the config brackets exactly that factor of two.
-    """
-    f = np.asarray(f_sat_max, dtype=np.float64)
-    z = np.asarray(water_table_depth_m, dtype=np.float64)
-    return np.minimum(f * np.exp(-float(f_grad_per_m) * z), 1.0)
+    return out
 
 
 def receiver_slope(export: Export):
@@ -296,9 +292,10 @@ def main() -> int:
           f"RANK statistic f_sat_max survives that offset;\n  an absolute "
           f"threshold does not, and none is written.")
 
-    lic = license_state()
-    print(f"\n  consumers_licensed: {lic['consumers_licensed']}"
-          + ("" if lic["scored"] else f"   ({lic['reason']})"))
+    lic = closure_state(cfg)
+    print(f"\n  saturated-area closure: {lic['closure_status']}"
+          + ("" if not lic["withdrawn"] else
+             f" on {lic['withdrawn_on']}, {lic['withdrawn_because']}"))
 
     data_dir = (builds.component_data("hydrography", config)
                 if args.build is None
@@ -307,7 +304,7 @@ def main() -> int:
     out = args.output or (data_dir / f"topographic_index_{grid_name}.nc")
 
     with Dataset(out, "w", format="NETCDF4") as ds:
-        ds.title = "Compound topographic index and saturated-fraction closure"
+        ds.title = "Compound topographic index and its cell rank statistic"
         ds.summary = (
             "GW-26. Per region the index ln(a / tan beta); per grid cell the "
             "share of that cell's regions whose index exceeds the cell mean, "
@@ -317,23 +314,30 @@ def main() -> int:
             "is no per-region fraction and GW-6 says why there cannot be. "
             "world-d9u4 records what the three rows that wanted a native-mesh "
             "one get instead.")
-        ds.consumers_licensed = "yes" if lic["consumers_licensed"] else "no"
-        ds.uncertified = (
-            "NO CONSUMER MAY TAKE f_sat FROM THIS UNLESS consumers_licensed "
-            "SAYS YES. The license is the score declared in "
-            "hydrography/config/topographic_index.yaml, run by the Earth "
-            "harness and recorded in hydrography/analysis/"
-            "topographic_index_score.json; this file reports it and cannot "
-            "grant it. The depth field this closure multiplies failed its own "
-            "bar; a fraction derived from it is not licensed by the "
-            "derivation.")
+        ds.saturated_area_closure = lic["closure_status"]
+        ds.withdrawn = (
+            "THE SATURATED-AREA CLOSURE f_sat = min(f_sat_max * exp(-f_grad * "
+            "z_wt), 1) IS WITHDRAWN AND THIS FILE CARRIES NO SATURATED "
+            "FRACTION. The score declared in hydrography/config/topographic_"
+            "index.yaml before any fraction was computed is the only thing "
+            "that could have licensed it; it was run on both continents and "
+            "missed, and the disposition of a miss was declared with it. The "
+            "gain the terrain half carries over the cell-mean depth alone is "
+            "also smaller than the scatter the score's own support puts on it, "
+            "on every arm of both sets, so a narrower criterion cannot license "
+            "it either. hydrography/analysis/topographic_index_score.json is "
+            "the record and hydrography/notes/subgrid-water-table.md section 7 "
+            "is the measurement. f_sat_max and the index below are terrain "
+            "statistics that stand without the closure.")
         ds.f_grad_bracket_per_m = np.asarray(
             cfg["closure"]["f_grad_bracket_per_m"], dtype=np.float64)
         ds.f_grad_convention = (
-            "f_sat = min(f_sat_max * exp(-f_grad * z_wt), 1), z_wt positive "
-            "downward, f_grad per metre in CLIMBER-X's convention. ClimaLand "
-            "writes exp(-f_over/2 * z_wt), where the same numeral is half this "
-            "one; the bracket IS that factor of two.")
+            "Kept as the record of what the withdrawn closure would have "
+            "taken, and as what a re-score would have to bracket. f_sat = "
+            "min(f_sat_max * exp(-f_grad * z_wt), 1), z_wt positive downward, "
+            "f_grad per metre in CLIMBER-X's convention. ClimaLand writes "
+            "exp(-f_over/2 * z_wt), where the same numeral is half this one; "
+            "the bracket IS that factor of two.")
         ds.absolute_thresholds = (
             "REFUSED. This index is not on the scale published absolute "
             "thresholds are calibrated against, and no rescaling supplies one.")
@@ -420,9 +424,8 @@ def main() -> int:
         "cell_mean_above_climberx_cdf_top": over,
         "absolute_thresholds": "refused",
         "score": cfg["score"],
-        "license": lic,
-        "scored": lic["scored"],
-        "consumers_licensed": lic["consumers_licensed"],
+        "closure": lic,
+        "consumers_get_a_saturated_fraction": lic["consumers_get_a_saturated_fraction"],
         "created": datetime.now(timezone.utc).isoformat(),
     }
     ANALYSIS.mkdir(parents=True, exist_ok=True)
