@@ -113,7 +113,7 @@ ilibrary = { "50":["nu"   ,"true_anomaly"                    ,"deg"        ],
             "152":["pl"   ,"log_surface_pressure"            ,"1"          ],
             "155":["d"    ,"divergence_of_wind"              ,"s-1"        ],
             "156":["zg"   ,"geopotential_height"             ,"m"          ],
-            "157":["hur"  ,"relative_humidity"               ,"1"          ],
+            "157":["hur"  ,"relative_humidity"               ,"%"          ],
             "158":["tps"  ,"tendency_of_surface_air_pressure","Pa s-1"     ],
             "159":["u3"   ,"ustar"                           ,"m3 s-3"     ],
             "160":["mrro" ,"surface_runoff"                  ,"m s-1"      ],
@@ -141,6 +141,8 @@ ilibrary = { "50":["nu"   ,"true_anomaly"                    ,"deg"        ],
             "182":["evap" ,"lwe_of_water_evaporation"        ,"m s-1"      ],
             "183":["tso"  ,"climate_deep_soil_temperature"   ,"K"          ],
             "184":["alb2" ,"surface_albedo_SW2"              ,"1"          ],
+            "201":["tasmax","air_temperature_2m_maximum"     ,"K"          ],
+            "202":["tasmin","air_temperature_2m_minimum"     ,"K"          ],
             "203":["rsut" ,"toa_outgoing_shortwave_flux"     ,"W m-2"      ],
             "204":["ssru" ,"surface_solar_radiation_upward"  ,"W m-2"      ],
             "205":["stru" ,"surface_thermal_radiation_upward","W m-2"      ],
@@ -213,7 +215,92 @@ for key in ilibrary:
     longn = ilibrary[key][1]
     units = ilibrary[key][2]
     slibrary[name] = [kcode,longn,units]
-                    
+
+
+# THE MODEL'S OWN SATURATION, BOTH BRANCHES. WORLD-HF12.
+#
+# `plasimmod.f90` carries two Magnus-Teten triples and reaches them through the
+# elemental functions `ra1s`, `ra2s` and `ra4s`, each of which returns the ice
+# coefficient below `tmelt` and the liquid one at or above it. `rainmod.f90`
+# calls those functions at 34 sites, so every saturation the model integrates is
+# on the branch the local temperature selects. Postprocessing relative humidity
+# from the liquid triple alone therefore disagrees with the model wherever the
+# air is below freezing, which on this world is a large fraction of the land in
+# winter: saturation over ice is about 25 per cent below the liquid value at
+# 250 K, so a liquid-only `hur` reads correspondingly LOW there.
+#
+# The values are `p_earth.f90`'s and are the ones the model compiles in. They
+# are not namelist keys, so they cannot drift between a run and its
+# postprocessing without a rebuild.
+_RV      = 461.51
+_TMELT   = 273.16        # plasimmod.f90's tmelt
+_RA1     = 610.78        # p_earth.f90, over liquid water
+_RA2     =  17.2693882
+_RA4     =  35.86
+_RA1I    = 610.66        # p_earth.f90, over ice
+_RA2I    =  21.875
+_RA4I    =   7.65
+
+
+# WHAT A FIELD IS, where its name and units cannot say it. Written onto the
+# variable as a `comment` attribute, because a consumer reading a product it did
+# not generate has the attributes and nothing else. Each entry names the defect
+# it exists to stop someone walking into.
+FIELD_NOTES = {
+    "hur": ("Relative humidity in PERCENT. Formed from the interval-mean "
+            "temperature and the interval-mean specific humidity, which is a "
+            "nonlinear function of both, so this is NOT the interval mean of "
+            "relative humidity. Saturation follows the model's own branch: "
+            "over ice below 273.16 K and over liquid water at or above it. "
+            "Specific humidity `hus` is the linear quantity the model "
+            "integrates and is what a consumer that needs a mean should use."),
+    "tasmax": ("Maximum over the output window of `tas`, the near-surface AIR "
+               "temperature. Extremal, not a mean: `outreset` clears it at "
+               "every regular write. This is the pair `maxt`/`mint` is NOT: "
+               "those are extrema of the surface temperature `ts`."),
+    "tasmin": ("Minimum over the output window of `tas`, the near-surface AIR "
+               "temperature. Extremal, not a mean. See `tasmax`."),
+    "maxt": ("Maximum over the output window of `ts`, the SURFACE "
+             "temperature, not of the near-surface air temperature. It "
+             "brackets `ts` and need not bracket `tas`. The air-temperature "
+             "extrema are `tasmax` and `tasmin`."),
+    "mint": ("Minimum over the output window of `ts`, the SURFACE "
+             "temperature. See `maxt`."),
+    "spd": ("The speed of the INTERVAL-MEAN WIND VECTOR at each model level, "
+            "sqrt(ua^2 + va^2), and not the mean wind speed. In the low-I/O "
+            "regime `ua` and `va` are already interval means, so this is "
+            "|mean vector|, which is at or below the mean speed whenever the "
+            "wind turns within an interval and cannot be corrected after the "
+            "fact. It also carries a level axis rather than a near-surface "
+            "value. A consumer that needs the mean SPEED takes it from the "
+            "ecological stream, whose `ecowind` (code 614) accumulates "
+            "sqrt(u^2 + v^2) at the lowest model level every timestep."),
+}
+
+
+def saturation_specific_humidity(temp,pa,gascon):
+    """Saturation specific humidity on the model's own branch, per gridpoint.
+
+    `temp` in K, `pa` the pressure at the same points in Pa, `gascon` the dry
+    gas constant the run was integrated with. Returns kg/kg.
+
+    The exponent is clamped to the same +/-80 the model clamps it to at every
+    one of its own saturation sites, so the two agree in the tails as well as
+    in the branch. Without the clamp the liquid formula's pole at `temp = ra4`
+    is a divide that overflows rather than a value the model would have used.
+    """
+    ra1 = np.where(temp < _TMELT,_RA1I,_RA1)
+    ra2 = np.where(temp < _TMELT,_RA2I,_RA2)
+    ra4 = np.where(temp < _TMELT,_RA4I,_RA4)
+    rdbrv = gascon / _RV
+    zarg = np.clip(ra2 * (temp-_TMELT)/(temp-ra4),-80.0,80.0)
+    #The saturation vapour pressure over the local pressure gives a saturation
+    #mixing ratio; the second line converts that to a specific humidity.
+    zqsat = rdbrv * ra1 * np.exp(zarg) / pa
+    zqsat *= 1.0 / (1.0 - (1.0/rdbrv-1.0)*zqsat)
+    return zqsat
+
+
 geopotcode  = 129 #done
 tempcode    = 130 #done
 ucode       = 131 #done
@@ -1961,13 +2048,6 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                 
             elif key==str(rhumcode): #relative humidity (hur)
                 
-                rv     = 461.51
-                TMELT  = 273.16
-                ra1    = 610.78
-                ra2    =  17.2693882
-                ra4    =  35.86
-                rdbrv  = gascon / rv
-                
                 if "ta" in rdataset:
                     temp,tmeta = _transformvar(lon[:],lat[:],rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
                                               nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
@@ -1988,12 +2068,15 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                                              substellarlon=substellarlon,
                                              physfilter=physfilter,zonal=False)
                 
-                #This is the saturation vapor pressure divided by the local pressure to give saturation
-                #specific humidity, but it seems like it must account for the pressure contribution of
-                #water.
-                zqsat  = rdbrv * ra1 * np.exp(ra2 * (temp-TMELT)/(temp-ra4)) / pa #saturation spec hum
-                zqsat *= 1.0 / (1.0 - (1.0/rdbrv-1.0)*zqsat)
+                #ON THE MODEL'S OWN SATURATION BRANCH, ice below tmelt and liquid
+                #at or above it, rather than on the liquid triple everywhere.
+                #WORLD-HF12; the branch and its coefficients are in
+                #`saturation_specific_humidity` above.
+                zqsat  = saturation_specific_humidity(temp,pa,gascon)
                 
+                #A PERCENTAGE, and `ilibrary` says so. This is what the field
+                #has always carried and what every consumer of it reads; what
+                #was wrong is the units attribute, which declared `1`.
                 rh     = qq/zqsat * 100.0
                 
                 rh[rh<0.0  ] =   0.0
@@ -2801,13 +2884,6 @@ def advancedDataset(filename, variablecodes, mode='grid', substellarlon=180.0,
                 
             elif key==str(rhumcode): #relative humidity (hur)
                 
-                rv     = 461.51
-                TMELT  = 273.16
-                ra1    = 610.78
-                ra2    =  17.2693882
-                ra4    =  35.86
-                rdbrv  = gascon / rv
-                
                 if "ta" in rdataset:
                     temp,tmeta = _transformvar(lon[:],lat[:],rdataset["ta"][0][:],ilibrary[str(tempcode)][:],nlat,nlon,
                                               nlev,ntru,ntime,mode="grid",substellarlon=substellarlon,
@@ -2828,12 +2904,15 @@ def advancedDataset(filename, variablecodes, mode='grid', substellarlon=180.0,
                                              substellarlon=substellarlon,
                                              physfilter=physfilter,zonal=False)
                 
-                #This is the saturation vapor pressure divided by the local pressure to give saturation
-                #specific humidity, but it seems like it must account for the pressure contribution of
-                #water.
-                zqsat  = rdbrv * ra1 * np.exp(ra2 * (temp-TMELT)/(temp-ra4)) / pa #saturation spec hum
-                zqsat *= 1.0 / (1.0 - (1.0/rdbrv-1.0)*zqsat)
+                #ON THE MODEL'S OWN SATURATION BRANCH, ice below tmelt and liquid
+                #at or above it, rather than on the liquid triple everywhere.
+                #WORLD-HF12; the branch and its coefficients are in
+                #`saturation_specific_humidity` above.
+                zqsat  = saturation_specific_humidity(temp,pa,gascon)
                 
+                #A PERCENTAGE, and `ilibrary` says so. This is what the field
+                #has always carried and what every consumer of it reads; what
+                #was wrong is the units attribute, which declared `1`.
                 rh     = qq/zqsat * 100.0
                 
                 rh[rh<0.0  ] =   0.0
@@ -3151,6 +3230,8 @@ def netcdf(rdataset,filename="most_output.nc",append=False,logfile=None):
             variable.long_name = meta[1]
             variable.units = meta[2]
             variable.code = meta[3]
+            if key in FIELD_NOTES:
+                variable.comment = FIELD_NOTES[key]
         if "fourier" not in dims and "modes" not in dims:
             variable.grid_type = "gaussian"
         _log(logfile,"Packing %8s in %s\t....... %d timestamps"%(key,filename,ntimes))

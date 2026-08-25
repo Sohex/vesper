@@ -538,6 +538,12 @@ class Model(object):
             # output already is, or a multi-call run keeps only its last orbit.
             oceanname="MOST_OCEAN.%05d"%self.currentyear
             icename  ="MOST_ICE.%05d"%self.currentyear
+            # The ecological stream is on exactly the same footing:
+            # `outmod.f90:ecoini` opens unit 143 without position='append', so
+            # the next model call truncates it and a multi-call run keeps only
+            # its last orbit. Moved aside unconditionally -- the file simply
+            # does not exist when NECO = 0, and the guard above says so. EFOR-2.
+            econame  ="MOST_ECO.%05d"%self.currentyear
             
             runerror = True
             failed_postprocess = False
@@ -580,6 +586,8 @@ class Model(object):
                 print("[ -e ocean_output ] && mv ocean_output "+oceanname)
                 os.system("[ -e ice_output ] && mv ice_output "+icename)
                 print("[ -e ice_output ] && mv ice_output "+icename)
+                os.system("[ -e plasim_eco ] && mv plasim_eco "+econame)
+                print("[ -e plasim_eco ] && mv plasim_eco "+econame)
                 os.system("[ -e hurricane_indicators ] && mv hurricane_indicators "+stormname)
                 print("[ -e hurricane_indicators ] && mv hurricane_indicators "+stormname)
                 
@@ -852,6 +860,12 @@ class Model(object):
             # output already is, or a multi-call run keeps only its last orbit.
             oceanname="MOST_OCEAN.%05d"%self.currentyear
             icename  ="MOST_ICE.%05d"%self.currentyear
+            # The ecological stream is on exactly the same footing:
+            # `outmod.f90:ecoini` opens unit 143 without position='append', so
+            # the next model call truncates it and a multi-call run keeps only
+            # its last orbit. Moved aside unconditionally -- the file simply
+            # does not exist when NECO = 0, and the guard above says so. EFOR-2.
+            econame  ="MOST_ECO.%05d"%self.currentyear
             
             failed_postprocess = False
             
@@ -881,6 +895,7 @@ class Model(object):
                 os.system("[ -e restart_snow ] && mv restart_snow "+snowname)
                 os.system("[ -e ocean_output ] && mv ocean_output "+oceanname)
                 os.system("[ -e ice_output ] && mv ice_output "+icename)
+                os.system("[ -e plasim_eco ] && mv plasim_eco "+econame)
                 os.system("[ -e hurricane_indicators ] && mv hurricane_indicators "+stormname)
                 
                 #Do any additional work

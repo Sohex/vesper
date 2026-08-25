@@ -103,9 +103,12 @@ maxt` holds in all 24,576 cell-bins, and `tas` falls OUTSIDE `[mint, maxt]` in
 15,561 of them, by as much as 28.3 K. Extrema bracket the mean of the variable
 they are extrema of, so this identifies the variable without ambiguity.
 
-Codes 201 and 202 are written by the model unconditionally and are absent from
-`pyburn.ilibrary` and from `run_exoplasim.REGULAR_CODES`, so the correct field
-exists in the model and does not reach any product. `world-j0az` owns delivering it.
+Codes 201 and 202 are written by the model unconditionally, and are now in
+`pyburn.ilibrary` as `tasmax`/`tasmin` and in `run_exoplasim.REGULAR_CODES`, so
+a product postprocessed since `world-j0az` carries both pairs under names that
+say which variable each is an extremum of. A product postprocessed before it
+carries only the surface pair. What still reads the surface pair as though it
+were a diurnal air range is the driver seam, below.
 
 ### Fields the contract may not name, because nothing produces them
 
@@ -115,9 +118,9 @@ exists in the model and does not reach any product. `world-j0az` owns delivering
   absent from the product rather than raising. Confirmed absent from the
   bootstrap climatology.
 - **`uas`/`vas`, codes 165/166** (`world-1qxu`). Never written. There is no 10 m wind in this
-  model's output. A near-surface wind can only come from the lowest model level,
-  from the surface stress `tauu`/`tauv` with a drag coefficient, or from a new
-  diagnostic.
+  model's output, and no wind COMPONENT pair at all near the surface. What a
+  wind consumer needs is a speed rather than a vector, and the ecological
+  stream carries it: see the wind row below.
 
 ### `spd` is the speed of the mean vector, at every model level
 
@@ -125,18 +128,34 @@ pyburn derives code 259 as `sqrt(ua**2 + va**2)` from the divergence and
 vorticity records, which in the low-I/O regime are already interval means. So
 `spd` is |mean vector| and not mean speed, the two differ whenever the wind turns
 within an interval, and the field carries a level axis rather than a
-near-surface value. A wind consumer takes the lowest level and inherits both
-properties, and `world-1qxu` owns closing it.
+near-surface value. A wind consumer that takes the lowest level inherits both
+properties. The gap is one-sided -- |mean vector| <= mean speed always -- so
+anything driven by wind speed rather than by momentum transport reads LOW, and
+no postprocessing of a mean vector recovers the difference. pyburn stamps this
+onto the field as a `comment` attribute rather than leaving it to be
+rediscovered.
 
-### `hur` is a percentage declared as a fraction, on liquid saturation only
+The mean SPEED is a producer-side quantity and the ecological stream carries
+it: `outmod.f90:ecoaccu` accumulates `sqrt(du(:,NLEV)**2 + dv(:,NLEV)**2)` at
+every timestep into `aecowind` and `ecogp` divides it by the interval's own
+step count, so what the stream writes as code 614 is the interval mean of the
+speed and not the speed of the interval mean.
 
-pyburn computes `rh = qq/zqsat * 100.0` and clips to `[0, 100]`, while
-`ilibrary` declares the units `1`. Confirmed on the bootstrap climatology, where
-`hur` reaches 100.0 (`world-hf12`). It also uses fixed liquid-water saturation
-coefficients,
-while the model's own saturation switches to the ice coefficients below `tmelt`
-through `plasimmod.f90`'s `ra2s`/`ra4s`, so the postprocessed relative humidity
-and the model's own saturation disagree below freezing.
+### `hur` is a percentage, and is not the interval mean of relative humidity
+
+pyburn computes `rh = qq/zqsat * 100.0` and clips to `[0, 100]`. The values are
+a percentage and `ilibrary` declares `%`; it declared `1`, which is what
+`world-hf12` was. `zqsat` is formed on the model's own saturation branch, over
+ice below `tmelt` and over liquid water at or above it, through the same
+coefficients `plasimmod.f90`'s `ra1s`/`ra2s`/`ra4s` select and `rainmod.f90`
+calls at every one of its saturation sites.
+
+What remains true of the field, and is written onto it as a `comment`
+attribute: it is a nonlinear function of the INTERVAL MEAN temperature and the
+interval mean specific humidity, so it is not the interval mean of relative
+humidity. A climatology postprocessed before the units fix carries percentage
+values under a `1` attribute, so a reader checks the range rather than the
+attribute.
 
 ### The bins are not the calendar
 
@@ -260,7 +279,7 @@ declared phase.
 | --- | --- | --- | --- | --- | --- | --- |
 | surface air pressure | Pa | mean over the declared interval | accumulated then divided | n/a | n/a | producer; pyburn's `ps` is hPa and is multiplied by 100 |
 | near-surface specific humidity | kg/kg | mean over the declared interval | accumulated then divided | n/a | n/a | producer, from `hus` at the lowest model level |
-| near-surface wind speed | m/s | mean over the declared interval | see below | n/a | n/a | producer |
+| near-surface wind speed | m/s | mean over the declared interval | accumulated then divided, at the lowest model level | n/a | n/a | producer, from `ecowind` (code 614) |
 
 Specific humidity rather than relative humidity, deliberately. Specific humidity
 is what the model carries and is linear, so its interval mean is a mean of the
@@ -270,13 +289,15 @@ is additionally in percent and on the wrong saturation branch below freezing.
 BIO-23 owns turning humidity into a vapour pressure deficit and does so from the
 specific humidity, the pressure and the temperature it is given.
 
-The wind row is the one field in this contract that CANNOT be closed from the
-existing product. `spd` is the speed of the interval-mean vector, the mean speed
-is not derivable from it, and there is no near-surface wind diagnostic at all.
-The contract therefore names it as a producer-side accumulation of `sqrt(u^2 +
-v^2)` at the lowest model level, formed at every timestep before any averaging,
-which is a quantity only the model can form. Until that exists, a wind row in a
-forcing artifact is a placeholder and must be labelled one.
+The wind row cannot be closed from the REGULAR product and is not a placeholder
+any more. `spd` is the speed of the interval-mean vector, the mean speed is not
+derivable from it, and there is no near-surface wind diagnostic in the regular
+stream at all. The mean speed is a producer-side accumulation of
+`sqrt(u^2 + v^2)` at the lowest model level, formed at every timestep before any
+averaging, which is a quantity only the model can form; the ecological stream
+forms it in `ecoaccu` and writes it as code 614. A forcing artifact takes the
+wind row from there, and a wind row taken from `spd` instead is the placeholder
+and must be labelled one.
 
 ### Coordinates and identity, carried once per interval
 
@@ -305,9 +326,11 @@ checked. Each of these has a right answer and can therefore be a test:
 3. `solid <= total` and every precipitation component is non-negative.
 4. `incident - upward = net` shortwave, and `incident >= 0`, `upward >= 0`.
 5. Each extremum brackets the interval mean of the variable it is an extremum
-   OF: `tasmin <= tas <= tasmax` and `tsmin <= ts <= tsmax`. This is the check
-   that catches an extremum of the wrong variable, which is the defect it was
-   written for.
+   OF, and only that one: `tasmin <= tas <= tasmax` for the air pair and
+   `mint <= ts <= maxt` for the surface pair. This is the check that catches an
+   extremum of the wrong variable, which is the defect it was written for.
+   Neither pair is required to bracket the OTHER temperature, and requiring it
+   would fail on correct data.
 6. The declared intervals tile the declared block: no gap, no overlap, and the
    sum of the durations equal to the block's span.
 7. The consumer's per-day series reproduces the producer's per-interval values.
@@ -345,8 +368,12 @@ axis through `lib/climatology.py` rather than assuming them.
 `VESPDRV6` carries the same bytes as V5 and changes only the meaning of that
 array, which is the change a magic exists to catch: it is the SURFACE
 temperature range, and `vesperinput.cpp` no longer assigns it to `climate.dtr`,
-whose only reader means an air-temperature range. The air-temperature extrema
-this world's climate model does compute are not in any product yet.
+whose only reader means an air-temperature range.
+
+**Open, and at the driver seam.** The air-temperature extrema now reach the
+regular product as `tasmax`/`tasmin`, so the range `climate.dtr` means has a
+source. Carrying it needs a driver array the `VESPDRV` format does not have,
+and `vesperinput.cpp` refuses `ifbvoc 1` until it does.
 
 **Open, and owned elsewhere.** The single insolation field. The driver supplies
 net surface shortwave and LPJ uses it for equilibrium evapotranspiration, where
@@ -358,12 +385,12 @@ canopy end and EFOR-3 owns delivering the terms.
 `soilwater.cpp` deciding phase from the daily mean air temperature at 0 C is
 BIO-13's.
 
-**Open, upstream.** The air-temperature extrema (`world-j0az`), the
-near-surface wind (`world-1qxu`), `td2m` (`world-dy7a`) and `hur`'s units and
-saturation branch (`world-hf12`) are all producer-side and are tracked
-separately, because they are changes to `run_exoplasim.py`, `pyburn.py` and the
-model's own diagnostics rather than to this seam. `world-ua4a` moves the BVOC
-refusal from the run into the gate that is supposed to report it.
+**Closed upstream.** The air-temperature extrema (`world-j0az`), the mean
+near-surface wind speed (`world-1qxu`) and `hur`'s units and saturation branch
+(`world-hf12`) were producer-side and are done: the first two reach a product
+and the third is fixed in place. `td2m` (`world-dy7a`) is still declared and
+never written. `world-ua4a` moves the BVOC refusal from the run into the gate
+that is supposed to report it.
 
 ## What this document does not settle
 

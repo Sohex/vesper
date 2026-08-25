@@ -254,7 +254,20 @@ for a climate diagnostic. `NECO = 1` in `plasim_nl` turns it on and `NECOSTEP`
 sets its interval in timesteps; left at zero, `NECOSTEP` becomes `mtspd`, which
 is the number of timesteps in one absolute 24-hour day exactly, since prolog
 recomputes `mpstep` so that `mtspd * mpstep * 60 = day_24hr`. It writes
-`plasim_eco` on unit 143.
+`plasim_eco` on unit 143, which the run loop moves aside per orbit as
+`MOST_ECO.NNNNN` -- `ecoini` opens the unit without `position='append'`, so a
+multi-orbit call would otherwise keep only its last orbit.
+
+    python exoplasim/scripts/run_exoplasim.py --ecological-stream
+    python exoplasim/scripts/continue_exoplasim.py --purpose ... --ecological-stream
+
+Both scripts take `--eco-interval-steps` to declare an interval other than the
+model's derived one. The switch is on the COMMAND LINE and not in
+`config/planet.yaml`, on the same footing as the benchmark overrides and for a
+stronger reason: the stream cannot change a result, so a config edit would move
+`config_sha256` and make every existing run unresumable for a change to what is
+written. `continue_exoplasim.py` restates it per segment because `configure()`
+rewrites the namelist on every continuation.
 
 WHY IT EXISTS. The two alternatives for driving a nonlinear ecological model
 are both bad: accepting the twelve-bin seasonal reduction as weather, or writing
@@ -282,8 +295,18 @@ Three properties worth knowing:
   `notes/audits/ecological-stream-restart-continuity.md`.
 
 The codes are 600 to 602 for the interval and 610 to 628 for the fields;
-`compare_eco_streams.py` carries the name of each. Nothing teaches them to
-pyburn yet, because EFOR-3 reads the stream directly rather than through it.
+`compare_eco_streams.py` carries the name of each and is the one table.
+
+**The stream is read directly and does not go through pyburn.** That is a
+decision, not a gap. `pyburn.readallvariables` builds its time axis by counting
+records of code 139 and has no other notion of time, so postprocessing a stream
+means inferring each record's interval from its position in the file -- which is
+the inference this stream exists to refuse, since a consumer that makes it
+cannot tell a missing block from a short one. `run_exoplasim.refuse_eco_codes`
+holds the decision against the postprocessor code lists, so a 600-range code
+added to `REGULAR_CODES` or `SNAPSHOT_CODES` is refused with the reason rather
+than reaching pyburn, which would stop at the end of an otherwise good run
+naming neither the code nor why.
 
 ## If you add or remove a restart record
 
