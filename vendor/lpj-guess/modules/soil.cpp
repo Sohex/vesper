@@ -2923,12 +2923,63 @@ void Soil::update_snow_properties(const int& daynum, const double& dailyairtemp,
 	Csnow = (0.185 + 0.689 * (K2degC + dailyairtemp) * 0.01) * J_PER_KJ; // J kg-1 K-1
 	Csnow *= ice_density; // conversion to volumetric heat capacity (J m-3 K-1) - should be 1,900,000 J m-3 K-1 approx.
 
-	double snowdens_scaled = snowdens / rho_H2O;
-	// From Sturm et al. 1997, and in Ling and Zhang, 2006
-	if (snowdens > 156.0)
-		Ksnow = 0.138 - 1.01 * snowdens_scaled + 3.233 * snowdens_scaled * snowdens_scaled;
-	else
-		Ksnow = 0.023 + 0.234 * snowdens_scaled;
+	// THE SNOW CONDUCTIVITY RELATION IS DECLARED IN lib/snow.py AND THIS IS A
+	// CHECKED RESTATEMENT OF IT. The climate model's landmod carries the same
+	// row as a Fortran literal, for the same reason: neither model can import
+	// that module at runtime. lib/snow.py's check_restatements() holds both
+	// literals to the one table, and scripts/smoke_test.py and
+	// biosphere/scripts/snow_thermal_gate.py both run it, so the two columns
+	// cannot come to model different snow again without a gate saying so.
+	//
+	// Fourteau, Domine, Hagenmuller (2021), The Cryosphere 15, 2739-2755,
+	// 10.5194/tc-15-2739-2021, Eq. (18), the 263 K row: the vertical effective
+	// thermal conductivity computed on tomographic microstructures WITH the
+	// latent heat carried by water vapour diffusing through the pore space,
+	// under the fast kinetics hypothesis, as a quadratic in the ice volume
+	// fraction.
+	//
+	// THIS IS THE UPPER ENDPOINT OF A BRACKET, NOT A POINT INSIDE ONE. Fourteau
+	// treats both limits of the vapour deposition kinetics and its Sect. 4.1
+	// says which one snow is in is unresolved. The slow limit is Calonne et al.
+	// (2011) Eq. (12), conduction through ice and interstitial air only, and it
+	// lies below this line at every density this model's snow reaches. So the
+	// open question about the modelled snow is one-signed: it may conduct LESS
+	// than this line says and it cannot conduct more.
+	//
+	// DECLARED DIVERGENCE FROM MAINLINE: snow_conductivity_relation, owner
+	// WORLD-GJOV, registered in biosphere/config/snow_thermal.yaml. Mainline
+	// LPJ-GUESS 4.1.1 and the vendored CNP fork both run Sturm et al. (1997):
+	//     double snowdens_scaled = snowdens / rho_H2O;
+	//     // From Sturm et al. 1997, and in Ling and Zhang, 2006
+	//     if (snowdens > 156.0)
+	//         Ksnow = 0.138 - 1.01 * snowdens_scaled + 3.233 * snowdens_scaled * snowdens_scaled;
+	//     else
+	//         Ksnow = 0.023 + 0.234 * snowdens_scaled;
+	// Three things decide against keeping it, and none of them is that it
+	// disagreed with the climate column:
+	//   - It is a needle-probe regression. Riche and Schneebeli (2013) ran a
+	//     long-heating needle probe, a guarded heat flux plate and a direct
+	//     numerical simulation on IDENTICAL samples and concluded the simulation
+	//     is the most reliable of the three, with a horizontally inserted needle
+	//     probe wrong by up to a quarter either way through the anisotropy of
+	//     the pack.
+	//   - It sits BELOW BOTH ARMS of the published kinetics bracket at every
+	//     density this model's snow reaches, so it is not a point inside the
+	//     honest uncertainty. analysis/ice_properties.py evaluates all three.
+	//   - Its own stated uncertainty is 0.1 W/m/K at 95 per cent confidence,
+	//     which over the lower half of this model's density range is comparable
+	//     to the value being predicted.
+	// notes/audits/cryosphere-material-properties.md argues it in full.
+	//
+	// RHOICE_F2021 is part of Fourteau's FIT and not a property of this model's
+	// ice: the polynomial is in rho/rhoice and 917 is the density its
+	// coefficients were regressed against. It is deliberately not the
+	// ice_density above and not soil.h's, and the three must not be
+	// deduplicated into one another -- changing it would misread the fit rather
+	// than describe denser ice.
+	static const double RHOICE_F2021 = 917.0; // kg m-3
+	double snowdens_vf = snowdens / RHOICE_F2021;
+	Ksnow = 1.985 * snowdens_vf * snowdens_vf + 0.073 * snowdens_vf + 0.0336;
 	 
 	Dsnow = Ksnow / Csnow * SECS_PER_DAY * MM2_PER_M2; // mm2 day-1
 

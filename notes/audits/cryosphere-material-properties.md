@@ -29,6 +29,7 @@ at a time.
 | `CPSN`, specific heat of the modelled snow | compile-time | **deleted.** Declared and read nowhere in the vendored tree |
 | `CKAPSN`, conductivity of the modelled snow | compile-time | **changed, HANDED.** A second statement of `landmod`'s `snowdiff`, which now follows the snow density |
 | `snowdiff`, conductivity of the modelled snow on soil | `landmod_nl` key | **changed, DERIVED from `rhosnow`.** A namelist density beside a fixed conductivity is a broken relation |
+| `Ksnow`, conductivity of the modelled snow in the vegetation model | Sturm et al. (1997), compiled | **changed, DERIVED from the same relation.** Below both arms of the bracket at every density the two components span; the relation is declared once in `lib/snow.py` and restated in both models under a check |
 
 ## The line between what is derivable here and what is not
 
@@ -243,24 +244,58 @@ at the declared density by a few per cent, against the arm-to-arm gap above.
 one-signed change to the conductive resistance of every snow layer, on land and
 on sea ice, and the run that would price it is named below.
 
-## A cross-component finding: the two columns run different snow
+## A cross-component finding: the two columns ran different snow
 
 The bracket above is between two published limits of one quantity. The gap
-inside this project is larger, and it was found while pricing the bracket:
-`vendor/lpj-guess/modules/soil.cpp` computes its snow conductivity from Sturm et
-al. (1997) -- the relation this row declined -- while `landmod` now computes it
-from Fourteau. Sturm's sits BELOW the slow arm at every density in the range,
-and at the declared density it is close to half the value the climate column
-uses.
+inside this project was larger, and it was found while pricing the bracket:
+`vendor/lpj-guess/modules/soil.cpp` computed its snow conductivity from Sturm et
+al. (1997) -- the relation this row declined -- while `landmod` computed it from
+Fourteau. Sturm's sits BELOW the slow arm at every density in the range, and at
+the declared density it is close to half the value the climate column uses.
 
-So the same snowfall, at the same density, insulates the ecology column's soil
+So the same snowfall, at the same density, insulated the ecology column's soil
 about twice as well as the climate column's. That is not a bracket arm and it is
 not a difference of opinion about snow: it is one material property with two
 values inside one project, which is the class
 `notes/audits/ocean-tier-implicit-earth.md` finding A1 was written about and the
-class `CKAPSN` was below. It is `lshy-5`'s territory rather than this row's, and
-it is recorded rather than resolved here because changing which relation the
-biosphere runs is a change to `vendor/lpj-guess`, not to a constant.
+class `CKAPSN` was below.
+
+**It is one relation now, and one declaration rather than two agreeing copies.**
+`lib/snow.py` states Fourteau's Eq. (18) once, and both compiled models restate
+the adopted row as a literal because neither can import a Python module at
+runtime. `snow.check_restatements()` holds each literal to that table, and
+`scripts/smoke_test.py` and `biosphere/scripts/snow_thermal_gate.py` both run
+it. `analysis/ice_properties.py` imports the relation rather than carrying a
+third copy of it. WORLD-GJOV.
+
+**Matching the numbers would not have been an answer.** The vegetation model's
+snow density is prognostic, ramped from `snowdens_start` to `snowdens_end` by
+its compaction scheme, where `landmod`'s `rhosnow` is a single namelist key
+sitting inside that span. Equal conductivities at one density would have been a
+coincidence at one point of two curves that diverge everywhere else, which is
+what makes this separable from the density bracket GRAV-8 owns.
+
+**What the ecology column's snow is worth after the change**, at the same water
+equivalent, across the density range that model reaches: its conductivity rises
+by a factor of 1.50 at the settled end of the compaction ramp and 2.30 at the
+fresh end, so the insulating resistance of a modelled pack -- its thickness over
+its conductivity -- falls to between 44 and 67 per cent of what it was, and the
+temperature drop across the pack per unit ground heat flux falls with it. The
+snow's thermal diffusivity rises by the same factor, so a modelled pack also
+tracks the simulated air temperature faster. Which way the simulated soil
+temperature moves is NOT settled by that, because it depends on the sign of the
+gradient across the pack: the change couples the modelled soil more tightly to
+the air above it in both directions. Decomposition reads the soil temperature,
+and `biosphere/config/snow_thermal.yaml` names the run that would price it,
+which cannot be made here because LPJ-GUESS does not build until a baseline
+climatology exists.
+
+The divergence is declared. `update_snow_properties` arrived byte-identical to
+`guess_4.1/modules/soil.cpp`'s apart from a stripped licence header and is on by
+default, so this is a change to default-on behaviour in a widely used community
+model rather than a fork quirk; mainline's own lines stand verbatim beside the
+changed one in the source, and the gate checks that the record is there, that it
+is not what the model runs, and that the changed line still is.
 
 
 ## What `CKAPSN` was, which the earlier audit had missed

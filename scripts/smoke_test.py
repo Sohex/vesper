@@ -1426,6 +1426,29 @@ def check_ladder_restatements() -> list[str]:
     return rungs.check_restatements(ROOT)
 
 
+def check_snow_conductivity_restatements() -> list[str]:
+    """Every restatement of the snow conductivity relation, against `lib/snow.py`.
+
+    The climate column and the ecology column modelled the same snow with two
+    different relations -- Fourteau et al. (2021) Eq. (18) in `landmod` and
+    Sturm et al. (1997) in `soil.cpp` -- and at the declared snow density they
+    differed by close to a factor of two, so one snowfall insulated one model's
+    soil about twice as well as the other's. WORLD-GJOV made it one relation.
+
+    They cannot be held together by matching NUMBERS: the vegetation model's
+    snow density is prognostic across a compaction range and the climate
+    model's is a single namelist key, so equal values at one density is a
+    coincidence at one point of two curves. It is the RELATION that is shared,
+    `lib/snow.py` is the one declaration of it, and the two restatements are
+    literals only because a Fortran model and a C++ model cannot import a
+    Python module at runtime. This is what makes a restatement honest;
+    `biosphere/scripts/snow_thermal_gate.py` runs it too, on the register side.
+    """
+    sys.path.insert(0, str(ROOT / "lib"))
+    import snow
+    return snow.check_restatements(ROOT)
+
+
 def check_ladder_timestep_declarations() -> list[str]:
     """The three timestep quantities, each against what it restates.
 
@@ -2418,6 +2441,8 @@ def main() -> None:
                lambda: check_ladder_restatements()),
               ("the ceiling and the route agree with what they restate",
                lambda: check_ladder_timestep_declarations()),
+              ("both columns model snow from lib/snow.py's one relation",
+               lambda: check_snow_conductivity_restatements()),
               ("the configured timestep is one the route runs this rung at",
                lambda: check_configured_timestep()),
               ("a resume refuses a rewritten spectrum file",

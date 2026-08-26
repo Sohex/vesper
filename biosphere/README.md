@@ -667,6 +667,57 @@ phosphorus source anywhere in the tree. That is the refusal `parameters.cpp`
 already makes on `ifplim 1`, restated where the constant is declared instead of
 living only in a C++ error string.
 
+### The simulated snowpack conducts what the climate model's snowpack conducts
+
+`snow_thermal_gate.py` enforces one relation across two models. The simulated
+snowpack's thermal conductivity used to be computed here from Sturm et al.
+(1997) and in the climate model from Fourteau et al. (2021) Eq. (18), and at the
+density the climate model declares the two differ by close to a factor of two,
+so one snowfall insulated this model's soil about twice as well as that one's.
+The two could never have been reconciled by matching VALUES: this model's snow
+density is prognostic across the compaction ramp `modules/soil.h` declares,
+where the climate model's is a single namelist key, so equal conductivities at
+one density would be a coincidence at one point of two curves that diverge
+everywhere else.
+
+**The relation is declared in `lib/snow.py` and nowhere else.** Neither compiled
+model can import a Python module at runtime, so each carries the adopted row as
+a literal and `lib/snow.py`'s `check_restatements()` holds both to the one
+table. This gate runs that check and so does `scripts/smoke_test.py`, which is
+what stops the register certifying a divergence into a relation the climate
+column has since moved off. A generated header was the alternative and covers
+only one of the two, because the climate model's Fortran is committed source
+that is read and edited by hand.
+
+The adopted row is the FAST kinetics arm, which is the bracket's UPPER endpoint
+rather than a point inside it, so the residual is one-signed: the modelled snow
+may conduct LESS than the model says and cannot conduct more. `--strict` does
+not refuse on it, because Fourteau's own Sect. 4.1 says which limit snow is in
+is unresolved and a question the literature holds open is reported rather than
+gated. `notes/audits/cryosphere-material-properties.md` argues the choice and
+`analysis/ice_properties.py` evaluates all three relations across the density
+range the two components span.
+
+`biosphere/config/snow_thermal.yaml` registers the divergence. Its reference
+point is a RELEASE and not a subtree commit, which is what separates it from
+`somdynam_gate.py`: `update_snow_properties` arrived byte-identical to
+`guess_4.1/modules/soil.cpp`'s apart from the stripped licence header, and it is
+on by default, since `data/ins/global.ins` sets `iftwolayersoil 0` and `Ksnow`
+becomes the conductivity of every active snow layer in the multilayer scheme's
+numerical solve. The gate fails on a restatement that has drifted from
+`lib/snow.py` or normalises the ice volume fraction by something other than the
+density the fit was made against, on any of the three halves of the divergence,
+on a compaction ramp whose ends `modules/soil.h` does not declare, and on a
+coefficient of the superseded relation live anywhere in the vendored model with
+comments stripped, so a second snow conductivity growing outside that one
+function fails here too.
+
+```bash
+python biosphere/scripts/snow_thermal_gate.py            # status, exit 0
+python biosphere/scripts/snow_thermal_gate.py --strict   # refuses on a divergence
+                                                         # whose verdict is `gate`
+```
+
 ### Respiration acclimates to a growth temperature, or not at all
 
 `respiration_acclimated()` replaces each simulated plant functional type's

@@ -74,6 +74,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from lib.paths import PROJECT_ROOT, rel  # noqa: E402
+from lib import snow  # noqa: E402
 
 ROOT = PROJECT_ROOT
 PLANET = ROOT / "config" / "planet.yaml"
@@ -199,22 +200,13 @@ effect against before believing it.
 CALONNE_2011_RESIDUAL_SD = 0.025
 CALONNE_2011_FIT_TEMPERATURE_K = 271.0
 
-FOURTEAU_2021_SNOW = {
-    223.0: (2.564, -0.059, 0.0205),
-    248.0: (2.172, 0.015, 0.0252),
-    263.0: (1.985, 0.073, 0.0336),
-    268.0: (1.883, 0.107, 0.0386),
-    273.0: (1.776, 0.147, 0.0455),
-}
-"""Eq. (18), `k = a vf**2 + b vf + c` in the ice volume fraction, per temperature."""
-
-RHOICE_F2021 = 917.0
-"""The normalising ice density Fourteau's volume fraction is taken against.
-
-The same constant `landmod.f90` declares as `RHOICE_F2021`, and it belongs to
-the RELATION rather than to this world's ice: changing it would not describe
-denser ice, it would misread the fit.
-"""
+# `lib/snow.py` IS THE ONE DECLARATION OF THE FAST ARM and this file imports it
+# rather than restating it. That module is what `landmod.f90` and
+# `vendor/lpj-guess/modules/soil.cpp` are both held to, so the bracket reported
+# here is a bracket around the relation the two models actually run rather than
+# around a third copy of it. WORLD-GJOV.
+FOURTEAU_2021_SNOW = snow.FOURTEAU_2021_VERTICAL
+RHOICE_F2021 = snow.RHOICE_F2021
 
 
 H_LIQUID_AT_TRIPLE_POINT = 0.611783e-3 * 1.0e3
@@ -332,13 +324,16 @@ def lpj_constant(name: str) -> float:
 
 
 def sturm_1997_snow(density_kg_m3: float) -> float:
-    """Sturm et al. (1997)'s needle-probe regression, W/m/K, as LPJ-GUESS runs it.
+    """Sturm et al. (1997)'s needle-probe regression, W/m/K. NOT ADOPTED.
 
-    Carried NOT as a candidate -- `notes/audits/cryosphere-material-properties.md`
-    argues against adopting it -- but because `vendor/lpj-guess`'s `soil.cpp`
-    computes its snow conductivity from exactly this, so the ecology column and
-    the climate column stand on two different relations for one material
-    property and the gap between them is a number rather than a suspicion.
+    `notes/audits/cryosphere-material-properties.md` argues against it and
+    `vendor/lpj-guess`'s `soil.cpp` no longer runs it: WORLD-GJOV made both
+    columns model snow from the one relation `lib/snow.py` declares. It stays
+    here because it is what the SUPERSEDED ecology column ran and because it is
+    the evidence for the choice: it sits below BOTH arms of the bracket at
+    every density the two components span, so it is outside the honest
+    uncertainty rather than a point inside it, and that is a number in the
+    output rather than an assertion in a note.
     """
     x = density_kg_m3 / 1000.0
     if density_kg_m3 > 156.0:
@@ -367,12 +362,11 @@ def pure_ice_conductivity(temperature_k: float, arm: str) -> float:
 def snow_conductivity_fast(density_kg_m3: float, temperature_k: float = 263.0) -> float:
     """Fourteau (2021) Eq. (18): the fast-kinetics arm, W/m/K.
 
-    This is the relation `landmod`'s `landini` evaluates to set `snowdiff`, and
-    it is reproduced here rather than restated so that the two cannot drift.
+    `lib/snow.py`'s, which is the relation `landmod`'s `landini` and
+    `soil.cpp`'s `update_snow_properties` both restate under a check. Delegated
+    rather than reproduced: a third copy would be free to agree with neither.
     """
-    a, b, c = FOURTEAU_2021_SNOW[temperature_k]
-    vf = density_kg_m3 / RHOICE_F2021
-    return float(a * vf * vf + b * vf + c)
+    return snow.conductivity(density_kg_m3, temperature_k)
 
 
 def snow_conductivity_slow(density_kg_m3: float) -> float:
@@ -511,8 +505,10 @@ def main() -> None:
                                "kinetics and temperature-gradient metamorphism "
                                "looking like fast. That is why this is a "
                                "bracket and not a correction.",
-        "adopted": "the FAST arm. `landmod`'s landini evaluates Eq. (18) at 263 "
-                   "K, so the adopted relation is the bracket's upper endpoint "
+        "adopted": "the FAST arm, at 263 K, by BOTH columns: lib/snow.py "
+                   "declares it, landmod's landini and soil.cpp's "
+                   "update_snow_properties each restate it under a check. So "
+                   "the adopted relation is the bracket's upper endpoint "
                    "rather than a point inside it, and the slow arm below is "
                    "how far under it the other limit sits.",
         "declared_density_kg_m3": rhosnow,
@@ -524,13 +520,19 @@ def main() -> None:
                                     "every density carried, so it is a real "
                                     "disagreement and not the noise of one "
                                     "regression.",
-        "cross_component": "vendor/lpj-guess/modules/soil.cpp computes its snow "
-                           "conductivity from Sturm et al. (1997), which is "
-                           "BELOW the slow arm at every density here. So the "
-                           "ecology column and the climate column insulate "
-                           "their soil differently from the same snowfall at "
-                           "the same density, and the difference is larger "
-                           "than the bracket between the two published limits.",
+        "cross_component": "SETTLED. vendor/lpj-guess/modules/soil.cpp computed "
+                           "its snow conductivity from Sturm et al. (1997), "
+                           "which is BELOW the slow arm at every density here, "
+                           "so the ecology column and the climate column "
+                           "insulated their soil differently from the same "
+                           "snowfall at the same density by more than the "
+                           "bracket between the two published limits. Both now "
+                           "restate lib/snow.py's one relation, held there by "
+                           "snow.check_restatements, which scripts/"
+                           "smoke_test.py and biosphere/scripts/"
+                           "snow_thermal_gate.py both run. The Sturm column "
+                           "below is what the superseded ecology column ran "
+                           "and is the evidence for the choice.",
     }
 
     report = {

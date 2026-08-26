@@ -1133,6 +1133,33 @@ steps:
       boundary; `--strict` is the arm that refuses. `lpj_run` needs it so the
       boundary sits on the path rather than beside it.
 
+  - id: snow_thermal_gate
+    script: biosphere/scripts/snow_thermal_gate.py
+    loop: B
+    cost: seconds
+    needs: []
+    writes: [biosphere/generated/snow_thermal_gate_report.json]
+    gate: >
+      the relation that turns the simulated snowpack's density into a thermal
+      conductivity, checked against the source both models read. THE RELATION
+      IS DECLARED IN lib/snow.py AND NOWHERE ELSE: the climate model's landmod
+      and the vegetation model's soil.cpp each restate the adopted row as a
+      literal, because neither can import a Python module at runtime, and
+      lib/snow.py's check_restatements holds both to the one table.
+      scripts/smoke_test.py runs that half too. This gate reads
+      biosphere/config/snow_thermal.yaml and fails on a restatement that has
+      drifted from the declaration or normalises the ice volume fraction by
+      something other than the density the fit was made against, on any of the
+      three halves of the declared divergence from LPJ-GUESS 4.1.1, on a
+      compaction ramp whose ends modules/soil.h does not declare, and on a
+      coefficient of the superseded relation live anywhere in the vendored
+      vegetation model. Eleven fixtures run on every invocation, ten built to
+      be wrong in a named way. It reports and exits 0: the residual is the
+      kinetics bracket, which is one-signed and which the literature holds
+      open, so `--strict` refuses only on a divergence whose verdict is `gate`
+      and there is none. `lpj_run` needs it so the declaration sits on the path
+      rather than beside it.
+
   - id: somdynam_gate
     script: biosphere/scripts/somdynam_gate.py
     loop: B
@@ -1245,7 +1272,7 @@ steps:
     script: biosphere/scripts/run_lpj_guess.py
     loop: B
     cost: hours
-    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, somdynam_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate, soil_restart_state_gate]
+    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, somdynam_gate, snow_thermal_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate, soil_restart_state_gate]
     writes: [biosphere/runs/]
 
   - id: prospectivity
