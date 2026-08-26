@@ -130,19 +130,50 @@ SLOPE_EXPONENT = 1.0
 SLOPE_EXPONENT_BRACKET = (0.5, 2.0)
 KM3_PER_YEAR_TO_M3_PER_S = 1e9
 
-# The Earth calibration, which fixes the coefficient. Measured 2026-08-17 from
-# HydroLAKES v1.0 joined to HydroBASINS level 5: natural lakes deeper than 5 m,
-# above 1,000 km2, whose pour point sits in a basin with `ENDO == 0`, within 35
-# degrees of the equator. Fifteen of them, over 78.9 Mkm2 of Earth land in that
-# band. The size floor is what this mesh can resolve and it decides the answer:
-# counting from 10 km2 instead gives a density 33 times higher and reads as
-# "carve almost nothing". The latitude cut keeps out sills that were under an
-# ice sheet 20,000 years ago and have had no time to be cut at all.
-# `hydrography/notes/retain-fraction.md` carries the derivation.
-EARTH_STANDING_BASINS = 15
+# The Earth calibration, which fixes the coefficient. Measured from HydroLAKES
+# v1.0 joined to HydroBASINS level 5: natural lakes (`Lake_type == 1`) deeper
+# than 5 m whose pour point sits in a basin with `ENDO == 0`, within 35 degrees
+# of the equator, over 78.9 Mkm2 of Earth land in that band. `ENDO == 0` selects
+# a sill a river actually crosses; the latitude cut keeps out sills that were
+# under an ice sheet 20,000 years ago and have had no time to be cut at all.
+#
+# THE SIZE FLOOR ON THAT SAMPLE IS A DECLARED PARAMETER AND IT IS SWEPT. It used
+# to be a single number defended in this comment as "what the mesh resolves",
+# and it decides more of the answer than the calibration's own error does: over
+# the span the build itself derives, the solved coefficient moves by a factor of
+# eight where the Poisson error on the Earth count moves it by 1.8.
+# `sweep_size_floor` re-solves at every rung of the ladder below and reports the
+# result in the sidecar beside the verdict; `hydrography/notes/retain-fraction.md`
+# carries the sweep and the criterion it was read against.
+#
+# `--measure-earth-floors` regenerates the table from the two bulk sources under
+# `hydrography/data/reference/`. The floor in force is the only entry the
+# calibration reads; the rest exist so the choice is reported rather than
+# asserted.
+EARTH_SIZE_FLOOR_KM2 = 1000.0
+EARTH_STANDING_BY_FLOOR = {          # measured 2026-08-26, see measure_earth_floors
+    10.0: 501,
+    20.0: 311,
+    50.0: 164,
+    100.0: 102,
+    200.0: 57,
+    500.0: 21,
+    1000.0: 15,
+    2000.0: 12,
+    5000.0: 5,
+    10000.0: 2,
+}
+EARTH_STANDING_BASINS = EARTH_STANDING_BY_FLOOR[EARTH_SIZE_FLOOR_KM2]
 EARTH_BAND_LAND_MKM2 = 78.9
 CALIBRATION_LATITUDE = 35.0
 COEFFICIENT_SEARCH = (1.0, 1.0e5)   # m per (m3/s)^0.5, the bisection bracket
+# The statistics guard on a rung of that ladder, fixed before the sweep ran. A
+# rung is USABLE while the Earth sample keeps at least this many lakes: below
+# ten the Poisson fractional error 1/sqrt(N) exceeds 0.32, worse than the 0.258
+# the floor in force already carries, and a density stops being a measurement.
+# Thin rungs are reported with their counts and marked, never dropped -- a
+# reader has to see where the sample runs out.
+EARTH_SAMPLE_MINIMUM = 10
 
 
 def incision_retain(q_km3_per_year, year_s: float, depth_m, erodibility,
@@ -316,28 +347,15 @@ def outlet_gradient(basins_path: Path, regions_path: Path, export: Export,
             int(measured.sum()))
 
 
-def calibrate_coefficient(q_km3_per_year, year_s: float, depth_m, erodibility,
-                          slope, basin_latitude, land_band_mkm2: float,
-                          slope_exponent: float = SLOPE_EXPONENT):
-    """The incision coefficient, from Earth's standing-basin density.
+def _standing_solver(q_km3_per_year, year_s: float, depth_m, erodibility,
+                     slope, basin_latitude, slope_exponent: float = SLOPE_EXPONENT):
+    """`(standing, solve)` over one basin population, so the sweep cannot drift.
 
-    **Calibrated here rather than declared, because the target moves.** The
-    coefficient is whatever leaves as many overflowing-but-still-standing basins
-    per unit land as Earth has, and how many basins overflow is a property of
-    the climate. So a literal goes stale the moment the verdict does, silently,
-    and it did: the published 161 was fitted against a verdict taken before
-    HYD-13, and against the verdict that replaced it that same 161 leaves 55
-    standing basins in the band where the Earth density asks for 34.
-
-    Orogen has no time axis, so the relaxation window this coefficient absorbs
-    is UNDEFINED rather than unmeasured, and an expected-value argument over a
-    stationary population is this project's standing answer to that. Earth is
-    one randomly chosen moment in such a population and so is this terrain;
-    `docs/src/reference/no-time-axis.md` carries the argument.
-
-    Returns (coefficient, bracket, target, achieved). The bracket is the Poisson
-    error on Earth's fifteen, which is the dominant uncertainty and is reported
-    rather than hidden.
+    Both the calibration and the size-floor sweep answer the same question at a
+    different target, and a second copy of the bisection is how the two would
+    come to disagree about what "standing" means. `standing` counts overflowing
+    basins inside the calibration band that keep some rim at a given
+    coefficient; `solve` inverts it.
     """
     band = np.abs(np.asarray(basin_latitude, dtype=float)) < CALIBRATION_LATITUDE
     overflowing = np.asarray(q_km3_per_year, dtype=float) > 0.0
@@ -358,6 +376,37 @@ def calibrate_coefficient(q_km3_per_year, year_s: float, depth_m, erodibility,
                 hi = mid
         return float(np.sqrt(lo * hi))
 
+    return standing, solve
+
+
+def calibrate_coefficient(q_km3_per_year, year_s: float, depth_m, erodibility,
+                          slope, basin_latitude, land_band_mkm2: float,
+                          slope_exponent: float = SLOPE_EXPONENT):
+    """The incision coefficient, from Earth's standing-basin density.
+
+    **Calibrated here rather than declared, because the target moves.** The
+    coefficient is whatever leaves as many overflowing-but-still-standing basins
+    per unit land as Earth has, and how many basins overflow is a property of
+    the climate. So a literal goes stale the moment the verdict does, silently,
+    and it did: the published 161 was fitted against a verdict taken before
+    HYD-13, and against the verdict that replaced it that same 161 leaves 55
+    standing basins in the band where the Earth density asks for 34.
+
+    Orogen has no time axis, so the relaxation window this coefficient absorbs
+    is UNDEFINED rather than unmeasured, and an expected-value argument over a
+    stationary population is this project's standing answer to that. Earth is
+    one randomly chosen moment in such a population and so is this terrain;
+    `docs/src/reference/no-time-axis.md` carries the argument.
+
+    Returns (coefficient, bracket, target, achieved). The bracket is the Poisson
+    error on the Earth count at the floor in force, which is the dominant
+    uncertainty WITHIN a floor and is reported rather than hidden. It is not the
+    dominant uncertainty overall: `sweep_size_floor` measures the floor's own
+    lever, which is larger, and both go into the sidecar.
+    """
+    standing, solve = _standing_solver(q_km3_per_year, year_s, depth_m,
+                                       erodibility, slope, basin_latitude,
+                                       slope_exponent)
     per_mkm2 = land_band_mkm2 / EARTH_BAND_LAND_MKM2
     target = EARTH_STANDING_BASINS * per_mkm2
     spread = np.sqrt(EARTH_STANDING_BASINS)
@@ -365,6 +414,207 @@ def calibrate_coefficient(q_km3_per_year, year_s: float, depth_m, erodibility,
                            for s in (-spread, spread)))
     coefficient = solve(target)
     return coefficient, bracket, target, standing(coefficient)
+
+
+def sweep_size_floor(q_km3_per_year, year_s: float, depth_m, erodibility,
+                     slope, basin_latitude, land_band_mkm2: float,
+                     land_cell_area_km2, area_at_spill_km2,
+                     slope_exponent: float = SLOPE_EXPONENT,
+                     table: dict | None = None) -> dict:
+    """What the size floor on the Earth sample is worth, against what it is not.
+
+    **The floor decides more of the coefficient than the calibration's own error
+    does, and it used to be defended in a comment rather than reported.** The
+    calibration matches a DENSITY of standing through-flowing impounded basins,
+    and a density is a count over an area at a size class. Move the size class
+    and the count moves by two orders of magnitude while the area does not, so
+    the target moves with it and the coefficient follows. Nothing downstream can
+    see that from a single solved number, which is what this puts in the sidecar.
+
+    **The span is derived from the build rather than chosen**, which is the whole
+    difference between a sweep and a defence. Both bounds are measured in the
+    same run as the verdict, so they move when the mesh or the terrain does:
+
+    - the LOWER bound is the median area of a land mesh cell. Below it an Earth
+      lake counted has no representable counterpart at all, because a depression
+      smaller than one cell does not exist in the generator's output.
+    - the UPPER bound is the median area at spill of the overflowing basins.
+      Above it more than half of the population the coefficient is being solved
+      for sits outside the class the Earth sample stands for, so the Earth
+      density has stopped being a density of the same object.
+
+    The ladder is 1-2-5 per decade over the range HydroLAKES supports, and rungs
+    outside the span are reported with their counts rather than dropped: the
+    reader has to be able to see the whole lever, including the part the span
+    excludes and why.
+
+    **The criterion is fixed before the sweep runs, and it compares the lever
+    with the noise.** `L` is the ratio of solved coefficients over the rungs that
+    are both inside the span and above `EARTH_SAMPLE_MINIMUM`; `P` is the ratio
+    of the Poisson bracket on the Earth count at the floor in force, solved on
+    this same population. `L > P` is DECISIVE -- the floor moves the answer by
+    more than the count's own error, so it has to be declared and swept. `L <= P`
+    is SUBORDINATE -- it sits inside an uncertainty already reported and adds
+    nothing quantitative. Two classes, no gap and no overlap. The same call is
+    made a second time on the marginal-basin count, which is the landform class
+    the coefficient decides the size of. `failure-modes.md` class 34 is what the
+    comparison exists for: a lever smaller than the instrument's own scatter is
+    not a finding.
+
+    The counts reported per rung are on the FINISHED-depression basis, before
+    `to_natural_relief_basis`. That is deliberate and it is the basis the
+    coefficient is solved on, so the sweep is internally consistent; the verdict
+    the list carries is the rebased one and the sidecar's own counts are that.
+    """
+    standing, solve = _standing_solver(q_km3_per_year, year_s, depth_m,
+                                       erodibility, slope, basin_latitude,
+                                       slope_exponent)
+    per_mkm2 = land_band_mkm2 / EARTH_BAND_LAND_MKM2
+    overflowing = np.asarray(q_km3_per_year, dtype=float) > 0.0
+    lower = float(np.median(np.asarray(land_cell_area_km2, dtype=float)))
+    spill = np.asarray(area_at_spill_km2, dtype=float)[overflowing]
+    upper = float(np.median(spill)) if spill.size else float("inf")
+
+    def classes(coefficient: float) -> tuple[int, int, int]:
+        retain = incision_retain(q_km3_per_year, year_s, depth_m, erodibility,
+                                 coefficient, slope=slope,
+                                 slope_exponent=slope_exponent)
+        return (int((retain <= 0.0).sum()),
+                int(((retain > 0.0) & (retain < 1.0)).sum()),
+                int((retain >= 1.0).sum()))
+
+    table = EARTH_STANDING_BY_FLOOR if table is None else table
+    rungs = []
+    exact = {}          # unrounded, because a solved value sits ON a step
+    for floor in sorted(table):
+        n = table[floor]
+        target = n * per_mkm2
+        coefficient = solve(target)
+        spread = np.sqrt(n)
+        lo, hi = sorted(solve(max(n + s, 0.0) * per_mkm2) for s in (-spread, spread))
+        exact[floor] = (coefficient, lo, hi)
+        carve, marginal, preserve = classes(coefficient)
+        rungs.append({
+            "floor_km2": floor,
+            "earth_lakes": n,
+            "target_standing_basins": round(target, 2),
+            "coefficient": round(coefficient, 3),
+            "coefficient_poisson_bracket": [round(lo, 3), round(hi, 3)],
+            "standing": standing(coefficient),
+            "carve": carve,
+            "marginal": marginal,
+            "preserve": preserve,
+            "inside_span": bool(lower <= floor <= upper),
+            "usable": bool(n >= EARTH_SAMPLE_MINIMUM),
+        })
+
+    used = [r for r in rungs if r["inside_span"] and r["usable"]]
+    # Unrounded throughout: `solve` returns a value sitting exactly on a step of
+    # the standing count, so rounding it before counting classes moves a basin
+    # across the boundary and the reported noise is then off by one.
+    _, poisson_lo, poisson_hi = exact[EARTH_SIZE_FLOOR_KM2]
+    ratio = (poisson_hi / poisson_lo) if poisson_lo > 0 else float("inf")
+    marginal_poisson = sorted(classes(b)[1] for b in (poisson_lo, poisson_hi))
+    verdict = {}
+    if used:
+        cs = [exact[r["floor_km2"]][0] for r in used]
+        ms = [r["marginal"] for r in used]
+        lever = max(cs) / min(cs)
+        lever_marginal = (max(ms) / min(ms)) if min(ms) > 0 else float("inf")
+        ratio_marginal = ((marginal_poisson[1] / marginal_poisson[0])
+                          if marginal_poisson[0] > 0 else float("inf"))
+        verdict = {
+            "coefficient_over_span": [round(min(cs), 3), round(max(cs), 3)],
+            "coefficient_lever": round(lever, 3),
+            "coefficient_poisson_ratio": round(ratio, 3),
+            "coefficient_call": "DECISIVE" if lever > ratio else "SUBORDINATE",
+            "marginal_over_span": [min(ms), max(ms)],
+            "marginal_lever": round(lever_marginal, 3),
+            "marginal_poisson": marginal_poisson,
+            "marginal_poisson_ratio": round(ratio_marginal, 3),
+            "marginal_call": ("DECISIVE" if lever_marginal > ratio_marginal
+                              else "SUBORDINATE"),
+        }
+    return {
+        "floor_in_force_km2": EARTH_SIZE_FLOOR_KM2,
+        "span_km2": [round(lower, 2), round(upper, 2)],
+        "span_derivation": "lower = median land mesh cell area, below which a "
+            "counted Earth lake has no representable counterpart; upper = "
+            "median area at spill of the overflowing basins, above which most "
+            "of the population being solved for is outside the class the Earth "
+            "sample stands for. Both measured from this build in this run.",
+        "sample_minimum_lakes": EARTH_SAMPLE_MINIMUM,
+        "criterion": "L = ratio of solved coefficients over the rungs that are "
+            "both inside the span and at or above sample_minimum_lakes; P = "
+            "ratio of the Poisson bracket on the Earth count at the floor in "
+            "force, solved on this population. L > P is DECISIVE, L <= P is "
+            "SUBORDINATE. Fixed before the sweep was run.",
+        "basis": "finished-depression retain, the basis the coefficient is "
+            "solved on. The verdict counts elsewhere in this sidecar are the "
+            "rebased ones and are not comparable rung for rung.",
+        "verdict": verdict,
+        "rungs": rungs,
+    }
+
+
+def measure_earth_floors(reference: Path, floors=None) -> dict:
+    """Regenerate `EARTH_STANDING_BY_FLOOR` from the two bulk sources.
+
+    The code that measured a constant belongs beside the constant, or the
+    constant is unreproducible the first time anyone doubts it. This is the
+    query `EARTH_STANDING_BY_FLOOR` was measured with, and running it is how a
+    reader checks the table rather than trusting a date in a comment.
+
+    Selection, declared and unchanged from the original measurement: HydroLAKES
+    v1.0 natural lakes (`Lake_type == 1`) with `Depth_avg` above 5 m and
+    `|Pour_lat|` under `CALIBRATION_LATITUDE`, whose pour point falls inside a
+    HydroBASINS level 5 polygon with `ENDO == 0`. Counted at each floor on
+    `Lake_area`, strictly above.
+
+    geopandas is imported here rather than at module scope. It is in
+    `requirements.txt` for HYD-4, but the calibration itself reads only the
+    table, so the verdict must not acquire a dependency on the bulk sources
+    being present -- a worktree without them still has to be able to run.
+    """
+    import geopandas as gpd     # noqa: PLC0415  see docstring
+    import pandas as pd         # noqa: PLC0415
+    import pyogrio              # noqa: PLC0415
+
+    floors = sorted(EARTH_STANDING_BY_FLOOR) if floors is None else sorted(floors)
+    lakes_path = (reference / "HydroLAKES_polys_v10_shp"
+                  / "HydroLAKES_polys_v10.shp")
+    basin_paths = sorted(reference.glob("hybas_*_lev05_v1c.shp"))
+    if not lakes_path.exists() or not basin_paths:
+        raise SystemExit(
+            f"{lakes_path} or the HydroBASINS level 5 shapefiles are missing "
+            f"from {reference}. This mode reads the BULK sources; the "
+            "calibration itself does not, and reads EARTH_STANDING_BY_FLOOR.")
+
+    lakes = pyogrio.read_dataframe(
+        lakes_path, read_geometry=False,
+        columns=["Hylak_id", "Lake_name", "Lake_type", "Lake_area",
+                 "Depth_avg", "Pour_long", "Pour_lat"])
+    sel = lakes[(lakes.Lake_type == 1) & (lakes.Depth_avg > 5.0)
+                & (lakes.Pour_lat.abs() < CALIBRATION_LATITUDE)
+                & (lakes.Lake_area > min(floors) / 10.0)].copy()
+    points = gpd.GeoDataFrame(
+        sel, crs="EPSG:4326",
+        geometry=gpd.points_from_xy(sel.Pour_long, sel.Pour_lat))
+    basins = gpd.GeoDataFrame(
+        pd.concat([pyogrio.read_dataframe(p, columns=["ENDO"])
+                   for p in basin_paths], ignore_index=True),
+        geometry="geometry", crs="EPSG:4326")
+    joined = gpd.sjoin(points, basins[["ENDO", "geometry"]], how="left",
+                       predicate="within").drop_duplicates(subset="Hylak_id")
+    area = joined[joined.ENDO == 0].Lake_area.values
+    return {
+        "selection": "HydroLAKES v1.0 Lake_type == 1, Depth_avg > 5 m, "
+            f"|Pour_lat| < {CALIBRATION_LATITUDE:g} deg, pour point inside a "
+            "HydroBASINS level 5 polygon with ENDO == 0. Counted strictly above "
+            "each floor on Lake_area.",
+        "unmatched_pour_points": int(joined.ENDO.isna().sum()),
+        "counts": {float(f): int((area > f).sum()) for f in floors},
+    }
 
 
 def sill_erodibility(basins_path: Path, terrain_hash: str) -> np.ndarray:
@@ -644,6 +894,67 @@ def _selftest() -> int:
     check("an intended cut deeper than the natural relief saturates to carve",
           float(out[0]) == 0.0, f"got {float(out[0])}")
 
+    # THE EARTH SAMPLE AND ITS SIZE FLOOR. The floor is a declared parameter
+    # now, so the table it indexes has to hold the properties a count over a
+    # size class has, and the sweep that reports it has to be able to say
+    # "no lever" when there is none.
+    check("the count in force is the table entry at the floor in force",
+          EARTH_STANDING_BASINS == EARTH_STANDING_BY_FLOOR[EARTH_SIZE_FLOOR_KM2],
+          f"{EARTH_STANDING_BASINS} against "
+          f"{EARTH_STANDING_BY_FLOOR.get(EARTH_SIZE_FLOOR_KM2)}")
+    floors = sorted(EARTH_STANDING_BY_FLOOR)
+    counts = [EARTH_STANDING_BY_FLOOR[f] for f in floors]
+    check("the Earth count never rises with the floor",
+          all(a >= b for a, b in zip(counts, counts[1:])),
+          f"counts {counts} are not non-increasing")
+
+    # A synthetic basin population, in the units the real one is in: overflow in
+    # km3 per year, depth in metres, erodibility and normalised gradient about 1.
+    n_syn = 3000
+    q_syn = np.abs(rng.lognormal(0.0, 2.0, n_syn))
+    q_syn[: n_syn // 3] = 0.0                       # basins that do not overflow
+    depth_syn = rng.lognormal(4.8, 1.2, n_syn)
+    ero_syn = rng.lognormal(0.0, 0.3, n_syn)
+    slope_syn = rng.lognormal(0.0, 0.8, n_syn)
+    lat_syn = rng.uniform(-70.0, 70.0, n_syn)
+    year_syn = 3.0e7
+
+    # THE SOLVER LANDS ON THE CROSSING. `standing` is a non-increasing STEP
+    # function of the coefficient, so no coefficient reproduces an arbitrary
+    # count exactly and asking for one would fail on the step rather than on a
+    # defect. The identity that does hold is that the solved value sits at the
+    # step: nudge it up and the count is at or below the target, nudge it down
+    # and it is at or above. Without this the sweep reports differences between
+    # rungs that are bisection artefacts, and the count reported beside each
+    # solved coefficient would not be the count that coefficient produces.
+    standing_syn, solve_syn = _standing_solver(
+        q_syn, year_syn, depth_syn, ero_syn, slope_syn, lat_syn)
+    straddle = []
+    for c in (50.0, 200.0, 800.0):
+        target = standing_syn(c)
+        solved = solve_syn(target)
+        straddle.append((c, target, standing_syn(solved * (1.0 + 1e-6)),
+                         standing_syn(solved * (1.0 - 1e-6))))
+    check("the solved coefficient sits on the step it was solved for",
+          all(above <= t <= below for _, t, above, below in straddle),
+          "; ".join(f"C={c:g} target {t}: above {a}, below {b}"
+                    for c, t, a, b in straddle))
+
+    # THE SWEEP CAN SAY "NO LEVER". Fed a table whose count does not move with
+    # the floor, it must report a lever of exactly 1 and call it SUBORDINATE. A
+    # criterion that cannot return its negative class is not a criterion.
+    flat = dict.fromkeys(EARTH_STANDING_BY_FLOOR, EARTH_STANDING_BASINS)
+    cells_syn = np.full(400, 50.0)
+    spill_syn = np.full(n_syn, 4000.0)
+    flat_verdict = sweep_size_floor(
+        q_syn, year_syn, depth_syn, ero_syn, slope_syn, lat_syn,
+        EARTH_BAND_LAND_MKM2, cells_syn, spill_syn, table=flat)["verdict"]
+    check("a floor that moves no count is called SUBORDINATE",
+          bool(flat_verdict)
+          and abs(flat_verdict["coefficient_lever"] - 1.0) < 1e-9
+          and flat_verdict["coefficient_call"] == "SUBORDINATE",
+          f"got {flat_verdict}")
+
     print(f"\n{n_checks} checks, {len(problems)} failed")
     return 1 if problems else 0
 
@@ -724,10 +1035,28 @@ def main() -> None:
     ap.add_argument("--selftest", action="store_true",
                     help="run the basis conversion's identity checks; needs "
                          "no build and no climatology")
+    ap.add_argument("--measure-earth-floors", action="store_true",
+                    help="re-measure EARTH_STANDING_BY_FLOOR from HydroLAKES "
+                         "and HydroBASINS under hydrography/data/reference/ "
+                         "and print the table. Needs the BULK sources and "
+                         "neither a build nor a climatology; the verdict itself "
+                         "reads only the table")
     args = ap.parse_args()
 
     if args.selftest:
         raise SystemExit(_selftest())
+
+    if args.measure_earth_floors:
+        measured = measure_earth_floors(DATA / "reference")
+        print(measured["selection"])
+        print(f"unmatched pour points: {measured['unmatched_pour_points']}")
+        print("EARTH_STANDING_BY_FLOOR = {")
+        for floor, count in measured["counts"].items():
+            drift = EARTH_STANDING_BY_FLOOR.get(floor)
+            note = "" if drift is None or drift == count else f"   # was {drift}"
+            print(f"    {floor}: {count},{note}")
+        print("}")
+        raise SystemExit(0)
 
     _bd = component_data("hydrography", strict=True)
     # LOADED BEFORE THE DEFAULTS: `coupling_path` reads `model.resolution`,
@@ -788,6 +1117,15 @@ def main() -> None:
     coefficient, coefficient_bracket, standing_target, standing_here = (
         calibrate_coefficient(q_pen, year_s, basins.depth_at_spill_m, sill_ero,
                               slope, basin_latitude, band_land_mkm2))
+    # What the size floor on the Earth sample is worth, reported BESIDE the
+    # verdict rather than left in a comment. The floor is the largest single
+    # lever on the coefficient and it is not the one the Poisson bracket above
+    # measures; both go into the sidecar so a reader can tell them apart.
+    floor_sweep = sweep_size_floor(
+        q_pen, year_s, basins.depth_at_spill_m, sill_ero, slope, basin_latitude,
+        band_land_mkm2,
+        export.cell_area[export.surface_class == LAND],
+        basins.area_at_spill_km2)
     retain_incision_finished = incision_retain(
         q_pen, year_s, basins.depth_at_spill_m, sill_ero, coefficient,
         slope=slope)
@@ -801,6 +1139,21 @@ def main() -> None:
           f"{coefficient_bracket[0]:.1f}-{coefficient_bracket[1]:.1f}; "
           f"{standing_here} standing within {CALIBRATION_LATITUDE:g} deg "
           f"against Earth's {standing_target:.1f}")
+    _span = floor_sweep["span_km2"]
+    print(f"size floor        {EARTH_SIZE_FLOOR_KM2:g} km2 on the Earth sample, "
+          f"swept over {_span[0]:.0f}-{_span[1]:.0f} km2 "
+          f"(mesh cell to median area at spill)")
+    if floor_sweep["verdict"]:
+        _v = floor_sweep["verdict"]
+        print(f"                  coefficient {_v['coefficient_over_span'][0]:.1f}"
+              f"-{_v['coefficient_over_span'][1]:.1f} across it, a factor of "
+              f"{_v['coefficient_lever']:.2f} against {_v['coefficient_poisson_ratio']:.2f} "
+              f"for the Poisson error on Earth's {EARTH_STANDING_BASINS}: "
+              f"{_v['coefficient_call']}")
+        print(f"                  marginal {_v['marginal_over_span'][0]}"
+              f"-{_v['marginal_over_span'][1]} across it, a factor of "
+              f"{_v['marginal_lever']:.2f} against {_v['marginal_poisson_ratio']:.2f}: "
+              f"{_v['marginal_call']}")
 
     # Either is a reason to leave a rim standing: that the basin may not overflow
     # at all, or that its overflow cannot cut. Taking the larger keeps both.
@@ -1137,11 +1490,20 @@ def main() -> None:
             },
             "calibration": {
                 "earth_standing_basins": EARTH_STANDING_BASINS,
+                "earth_size_floor_km2": EARTH_SIZE_FLOOR_KM2,
                 "earth_band_land_mkm2": EARTH_BAND_LAND_MKM2,
                 "band_latitude_deg": CALIBRATION_LATITUDE,
                 "vesper_band_land_mkm2": round(band_land_mkm2, 2),
                 "target_standing_basins": round(standing_target, 2),
                 "achieved_standing_basins": standing_here,
+                "size_floor_sensitivity": floor_sweep,
+                "size_floor_note": "the Earth count is a count at a SIZE CLASS, "
+                    "and the floor that sets it is the largest single lever on "
+                    "the coefficient -- larger than the Poisson error on the "
+                    "count itself, which is what the bracket beside the "
+                    "coefficient measures. size_floor_sensitivity re-solves at "
+                    "every rung over a span the build derives, and calls the "
+                    "lever against that noise on a criterion fixed beforehand.",
             },
             "retain_incision_rationale":
                 "stream power goes as K Q^m S^n, so what the overflow achieves is "

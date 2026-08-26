@@ -50,7 +50,9 @@ with units of metres per (m3/s)^0.5 at land-mean rock and at the population's ow
 outlet gradient. **It is calibrated against Earth rather than declared**, and the
 reason is that the relaxation window is undefined rather than unmeasured: Orogen
 has no time axis, and `docs/src/reference/no-time-axis.md` carries the fact and the standing
-way round it.
+way round it. What the calibration is solved against is a DENSITY, and a density
+is a count over an area at a size class; the size class is a declared parameter
+and is swept, under "The size floor is the largest lever" below.
 
 **It is solved on every run rather than written down.** The calibration matches a
 number of standing basins per unit land, and how many basins overflow at all is a
@@ -373,3 +375,103 @@ about what is in the model: there is no subsidence term, so a basin whose floor
 keeps dropping is not representable. The density is matched; the identity of the
 survivors is not, and should not be quoted as though it were.
 
+
+## The size floor is the largest lever, and it is now swept
+
+Measured 2026-08-26 on `precarve-craton-10m` under the bootstrap climatology of
+`run_2b20e3324bb0`, 9,419 basins, 5,565 of them overflowing, 177.52 Mkm2 of land
+within 35 degrees. The bootstrap is the only climatology this build has, so what
+follows is a statement about the SENSITIVITY and not a verdict; the ratios below
+are what transfers, and the absolute coefficients move with the climate the way
+the section above says they must.
+
+**The floor on the Earth sample decides more of `C` than the calibration's own
+error does.** The target is a density of standing through-flowing impounded
+basins, and a density is a count over an area at a size class. Move the size
+class and the count moves by two orders of magnitude while the area does not.
+That was a single number defended in a comment as what the mesh resolves; it is
+now `EARTH_SIZE_FLOOR_KM2` with `EARTH_STANDING_BY_FLOOR` beside it, and
+`export_carve_list.py:sweep_size_floor` re-solves at every rung and writes the
+result to the carve list's sidecar under
+`method.calibration.size_floor_sensitivity`, beside the verdict.
+
+### The span is derived from the build, not chosen
+
+Both bounds are measured in the same run as the verdict, so they move when the
+mesh or the terrain does, and neither can be picked to make the answer look
+stable:
+
+| | | on this build |
+| --- | --- | ---: |
+| lower | median land mesh cell area. Below it a counted Earth lake has no representable counterpart, because a depression smaller than one cell does not exist in the generator's output | 71.4 km2 |
+| upper | median area at spill of the overflowing basins. Above it more than half the population being solved for sits outside the class the Earth sample stands for, so the Earth density is no longer a density of the same object | 2,687 km2 |
+
+The floor in force, 1,000 km2, sits inside that span, which is the whole reason
+the choice needed reporting rather than defending: it is a defensible value
+among several defensible values, and nothing said what the others gave.
+
+A rung is USABLE while the Earth sample keeps at least ten lakes. Below ten the
+Poisson fractional error `1/sqrt(N)` exceeds 0.32, worse than the 0.258 the floor
+in force already carries, and a density stops being a measurement. Thin rungs are
+reported with their counts rather than dropped, because a reader has to see where
+the sample runs out; a floor that leaves three lakes is a different failure from
+one that leaves a hundred.
+
+### The ladder
+
+Earth counts re-measured from HydroLAKES v1.0 joined to HydroBASINS level 5, by
+`export_carve_list.py --measure-earth-floors`, which is the query itself rather
+than a record of it: natural lakes with mean depth above 5 m, pour point inside a
+level-5 basin with `ENDO == 0`, within 35 degrees, counted strictly above each
+floor on lake area. It reproduces the fifteen of 2026-08-17 exactly at 1,000 km2,
+and gives 501 at 10 km2 against the 495 recorded then, a difference of six lakes
+that moves nothing here. Eight pour points of 3,188 fall in no level-5 polygon
+and are dropped.
+
+Counts on the finished-depression basis, which is the basis `C` is solved on:
+
+| floor km2 | Earth lakes | `C` | carve | marginal | preserve | |
+| ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 10 | 501 | 19.0 | 3354 | 2211 | 3854 | below the span |
+| 20 | 311 | 34.9 | 4252 | 1313 | 3854 | below the span |
+| 50 | 164 | 77.7 | 4897 | 668 | 3854 | below the span |
+| 100 | 102 | 131.9 | 5143 | 422 | 3854 | |
+| 200 | 57 | 230.9 | 5324 | 241 | 3854 | |
+| 500 | 21 | 547.9 | 5477 | 88 | 3854 | |
+| **1000** | **15** | **862.4** | **5504** | **61** | **3854** | **in force** |
+| 2000 | 12 | 1076.9 | 5519 | 46 | 3854 | |
+| 5000 | 5 | 1790.5 | 5543 | 22 | 3854 | too few lakes |
+| 10000 | 2 | 4386.0 | 5556 | 9 | 3854 | too few lakes |
+
+The preserved count never moves. That is the check that the sweep is measuring
+what it claims to: preservation is set by the overflow test and `C` cannot reach
+it, so a floor that moved it would mean the sweep was moving something else.
+
+### The lever against the noise
+
+The criterion was fixed before the sweep ran. `L` is the ratio of solved
+coefficients over the rungs that are both inside the span and above the
+ten-lake minimum; `P` is the ratio of the Poisson bracket on the Earth count at
+the floor in force, solved on this same population. `L > P` is DECISIVE, the
+floor moves the answer by more than the count's own error and has to be declared
+and swept; `L <= P` is SUBORDINATE, it sits inside an uncertainty already
+reported. Two classes, no gap and no overlap, and the same call is made a second
+time on the marginal class.
+
+| | across the span | Poisson at the floor in force | | |
+| --- | ---: | ---: | ---: | --- |
+| `C` | 131.9 to 1076.9, a factor of **8.17** | 610.8 to 1083.3, a factor of **1.77** | 4.6x | DECISIVE |
+| marginal basins | 422 to 46, a factor of **9.17** | 81 to 45, a factor of **1.80** | 5.1x | DECISIVE |
+
+**The floor is the larger lever by about five to one**, and the marginal class is
+where that is felt: a landform class the project decides rather than inherits
+runs from 422 basins to 46 across floors every one of which is defensible on the
+resolution argument the single value was defended with. The Poisson factor of
+1.80 on this build is the same instrument the earlier 1.9 measured on
+`precarve-craton`, which is the point of quoting it: the two agree, so the
+comparison is between a lever and a scatter that is known independently of it.
+
+Neither call is close. `failure-modes.md` class 34 is the failure this comparison
+exists to avoid, and it would have been a real risk had the ratio come out near
+one: a sweep whose range never reaches the effect returns ordinary-looking
+numbers.
