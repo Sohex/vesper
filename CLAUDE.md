@@ -308,7 +308,9 @@ rung, and what a commissioning-length run has shown about a pair),
 `paths.py` (repo-relative paths, the climatology resolver, and its clean-I/O
 and configured-grid guards), `gridding.py` (mesh-to-grid, the one grid
 convention, the reduction operators by field semantics: extensive,
-intensive, categorical, moments, expectation, the ledger of what a
+intensive, categorical, moments, expectation, and the DISTRIBUTION -- the
+area-weighted quantile table a sub-grid hypsometry is, with the share
+above a threshold read back out of it -- the ledger of what a
 reduction dropped, and grids as CELL BOUNDARIES: the Gaussian and GOLDSTEIN
 constructors a crossing takes its coordinates from),
 `remap.py` (grid-to-grid: the separable overlap weights between two grids

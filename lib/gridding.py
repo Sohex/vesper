@@ -298,8 +298,14 @@ def climatology_cells(export: Export, grid_dir: Path, clim_lat):
 #               evaluate per region, then reduce. `cell_moments` is the cheaper
 #               half of the same correction where the law is smooth and only the
 #               variance is wanted.
+#   DISTRIBUTION a field whose consumers ask what SHARE of a cell lies past a
+#               threshold rather than what its average is. No moment answers
+#               that on a skewed cell, so what survives is the area-weighted
+#               QUANTILE TABLE -- `cell_quantiles`, with `area_fraction_above`
+#               reading a share back out of it. This is the hypsometry GRID-2
+#               found three implementations of and no artifact carrying.
 #
-# The four operators below take a binning rather than an export, so they can be
+# The operators below take a binning rather than an export, so they can be
 # checked against invariants on synthetic input -- `python lib/gridding.py
 # --selftest` -- with no build on disk. The export-facing wrappers underneath
 # are thin, and `land_weighted` and `land_fraction_of_class`, which predate
@@ -442,6 +448,139 @@ def cell_expectation(cell, ncell: int, area, law, values, population=None):
                                                                dtype=np.float64),
                                   population)
     return expectation, mean, covered
+
+
+
+def cell_quantiles(cell, ncell: int, area, values, probs, population=None):
+    """DISTRIBUTION reduction: the area-weighted quantiles of `values` per cell.
+
+    Returns `(quantiles, covered)` with `quantiles` shaped `(ncell, len(probs))`
+    and zero where the cell holds none of the population -- which a caller masks
+    on `covered` rather than reads, for the reason `cell_mean` gives.
+
+    This is the operator a mesh-under-cell hypsometry IS, and it is here rather
+    than in a consumer because the same criterion was computed three separate
+    ways off a field no artifact carried (GRID-2). A moment is not a substitute
+    for it: a cell's land is not normal about its mean, and what a consumer asks
+    is what SHARE of the cell lies above a height, which only the distribution
+    answers.
+
+    THE DEFINITION, which a caller has to know because quantile conventions
+    differ and the difference is not small on a skewed cell. Order the
+    population in a cell by value and let `F_k` be the cumulative AREA share up
+    to and including region `k`. Then `Q(p)` is the value of the first region
+    with `F_k >= p`. It is a sample quantile of an area-weighted distribution,
+    with NO INTERPOLATION BETWEEN REGIONS: an interpolated one would report an
+    elevation no ground in the cell has, which is the below-mesh terrain GW-6
+    reserves. `Q(0)` is the minimum and `Q(1)` the maximum, exactly, and that is
+    the identity `--selftest` asserts.
+
+    `probs` is the caller's and is declared beside the result rather than
+    defaulted here: a quantile vector states which part of the distribution a
+    consumer needs resolved, and on this world the tails are where the ice and
+    the abyssal floor are.
+    """
+    probs = np.asarray(probs, dtype=np.float64)
+    if probs.ndim != 1 or probs.size == 0:
+        raise ValueError("probs must be a non-empty one-dimensional array")
+    if not np.all(np.diff(probs) > 0) or probs[0] < 0.0 or probs[-1] > 1.0:
+        raise ValueError(
+            "probs must strictly increase inside [0, 1]; an unordered vector "
+            "returns an unordered quantile table and nothing says so")
+    cell = np.asarray(cell)
+    area = np.asarray(area, dtype=np.float64)
+    values = np.asarray(values, dtype=np.float64)
+    sel = (np.ones(cell.shape, dtype=bool) if population is None
+           else np.asarray(population, dtype=bool))
+    total = np.bincount(cell[sel], weights=area[sel], minlength=ncell)
+    covered = total > 0
+    out = np.zeros((ncell, probs.size), dtype=np.float64)
+    if not covered.any():
+        return out, covered
+
+    # Cell major, value minor. `lexsort` takes its keys least-significant first.
+    order = np.lexsort((values[sel], cell[sel]))
+    cs = cell[sel][order]
+    vs = values[sel][order]
+    csum = np.cumsum(area[sel][order])
+
+    # The cumulative area share WITHIN each cell, in (0, 1]. `starts` is where a
+    # cell's block begins in the sorted array, so the running total before the
+    # block is what comes off.
+    counts = np.bincount(cs, minlength=ncell)
+    ends = np.cumsum(counts)
+    base = np.concatenate([[0.0], csum])[ends - counts]
+    frac = (csum - base[cs]) / total[cs]
+    # The last region of a cell is its maximum by construction, so its share is
+    # exactly one rather than whatever `csum / total` rounded to. Without this
+    # the `Q(1) == max` identity fails by a rounding at a handful of cells.
+    frac[ends[counts > 0] - 1] = 1.0
+
+    # ONE strictly increasing key over the whole sorted array: the cell index
+    # plus the within-cell share. A query for (cell j, probability p) is then a
+    # single search for `j + p`, which is what makes this one `searchsorted`
+    # over `covered * len(probs)` queries rather than a loop over cells. The key
+    # is strictly increasing because every region carries a positive area, so a
+    # cell's last key is exactly `j + 1` and the next cell's first is above it.
+    key = cs.astype(np.float64) + frac
+    live = np.flatnonzero(covered)
+    query = (live[:, None].astype(np.float64) + probs[None, :]).ravel()
+    hit = np.searchsorted(key, query, side="left").reshape(live.size, probs.size)
+    # CLAMP INTO THE CELL'S OWN BLOCK, which is the invariant and not a guard: a
+    # cell's quantile is a value that cell holds. It also repairs the one
+    # boundary the composite key cannot separate -- a cell's last key is exactly
+    # `j + 1`, which is the same number as the NEXT cell's `p = 0` query, so
+    # without it `Q(0)` returns the previous cell's maximum on every cell that
+    # follows a populated one.
+    starts = ends - counts
+    np.clip(hit, starts[live][:, None], (ends[live] - 1)[:, None], out=hit)
+    out[live] = vs[hit]
+    return out, covered
+
+
+def area_fraction_above(quantiles, probs, threshold):
+    """Share of a cell's population above `threshold`, read off its quantiles.
+
+    The inverse of `cell_quantiles`, and it lives beside it so that reading an
+    answer out of a hypsometry table is one expression in one place rather than
+    the fourth implementation of the criterion GRID-2 found three of.
+
+    `quantiles` is `(ncell, nq)`, `probs` the vector it was taken at, and
+    `threshold` a scalar or one value per cell. Per cell is the case that
+    matters: a freezing height is a property of the cell's own climate.
+
+    The cumulative curve is interpolated LINEARLY IN PROBABILITY between
+    tabulated quantiles. That interpolates the CURVE and not the terrain -- the
+    result is a share and never an elevation -- so nothing here manufactures
+    ground the mesh does not have. A threshold at or below the cell's minimum
+    returns 1 and one above its maximum returns `1 - probs[-1]`, which is 0 for
+    a vector that reaches one.
+    """
+    q = np.asarray(quantiles, dtype=np.float64)
+    p = np.asarray(probs, dtype=np.float64)
+    if q.ndim != 2 or q.shape[1] != p.size:
+        raise ValueError(
+            f"quantiles is {q.shape} and probs has {p.size} entries; they are "
+            "not the same table")
+    z = np.asarray(threshold, dtype=np.float64)
+    z = np.full(q.shape[0], float(z)) if z.ndim == 0 else z.reshape(-1)
+    if z.size != q.shape[0]:
+        raise ValueError(
+            f"{z.size} thresholds for {q.shape[0]} cells; pass one per cell or "
+            "a scalar")
+
+    n = p.size
+    rows = np.arange(q.shape[0])
+    k = (q < z[:, None]).sum(axis=1)             # first tabulated point >= z
+    j = np.clip(k, 1, n - 1)
+    lo_q, hi_q = q[rows, j - 1], q[rows, j]
+    lo_p, hi_p = p[j - 1], p[j]
+    width = hi_q - lo_q
+    step = np.where(width > 0, (z - lo_q) / np.where(width > 0, width, 1.0), 1.0)
+    f = lo_p + np.clip(step, 0.0, 1.0) * (hi_p - lo_p)
+    f = np.where(k == 0, 0.0, f)                 # at or below the minimum
+    f = np.where(k >= n, p[-1], f)               # above the maximum
+    return np.clip(1.0 - f, 0.0, 1.0)
 
 
 def transfer_ledger(cell, ncell: int, area, population=None) -> dict:
@@ -856,7 +995,7 @@ def goldstein_grid(nlon: int, nlat: int, igrid: int = GOLDSTEIN_EQUAL_AREA,
 # where the answer is unknown is not a check.
 
 
-_CHECKS = 15
+_CHECKS = 21
 
 
 def _selftest() -> int:
@@ -944,6 +1083,70 @@ def _selftest() -> int:
     check("convex control: the expectation exceeds the law of the mean",
           bool(spread.any()) and bool((gap > 0).all()),
           f"{int((gap <= 0).sum())} of {gap.size} cells did not")
+
+    # DISTRIBUTION. The ends of a quantile table are the true extremes, exactly,
+    # at any area weighting -- that is the identity a convention that
+    # interpolates between regions fails, and interpolating is how ground the
+    # mesh does not have gets manufactured.
+    probs = np.array([0.0, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 1.0])
+    q, covered = cell_quantiles(cell, ncell, area, values, probs, population)
+    lo = np.full(ncell, np.inf)
+    hi = np.full(ncell, -np.inf)
+    np.minimum.at(lo, cell[population], values[population])
+    np.maximum.at(hi, cell[population], values[population])
+    check("a quantile table's ends are the cell's true extremes",
+          bool(np.array_equal(q[covered, 0], lo[covered])
+               and np.array_equal(q[covered, -1], hi[covered])),
+          f"{int((q[covered, 0] != lo[covered]).sum())} minima and "
+          f"{int((q[covered, -1] != hi[covered]).sum())} maxima differ")
+    check("a quantile table is non-decreasing in probability",
+          bool((np.diff(q[covered], axis=1) >= 0).all()),
+          f"{int((np.diff(q[covered], axis=1) < 0).sum())} inversions")
+
+    # Every tabulated value is a value some region in that cell actually has.
+    k = int(np.flatnonzero(covered & (np.bincount(cell[population], minlength=ncell) > 50))[0])
+    have = set(values[population & (cell == k)].tolist())
+    check("every tabulated quantile is a value the cell holds",
+          all(v in have for v in q[k].tolist()),
+          f"{sum(v not in have for v in q[k].tolist())} of {probs.size} are not")
+
+    # The median of an EQUALLY weighted cell is the ordinary sample median under
+    # this convention, which is what says the area weighting is the only thing
+    # separating the two.
+    flat = np.ones(n)
+    qf, cf = cell_quantiles(cell, ncell, flat, values, np.array([0.0, 0.5, 1.0]),
+                            population)
+    sel = population & (cell == k)
+    v = np.sort(values[sel])
+    want = v[int(np.ceil(0.5 * v.size)) - 1]
+    check("with equal weights the median is the ordinary sample median",
+          qf[k, 1] == want, f"{qf[k, 1]} against {want}")
+
+    # THE INVERSE, and it is exact where it has to be: a threshold at the cell
+    # minimum leaves all of the population above it and one at the maximum
+    # leaves none.
+    at_min = area_fraction_above(q[covered], probs, lo[covered])
+    at_max = area_fraction_above(q[covered], probs, hi[covered])
+    check("the inverse returns all above the minimum and none above the maximum",
+          bool(np.allclose(at_min, 1.0, atol=0) and np.allclose(at_max, 0.0, atol=0)),
+          f"min {at_min.min():.3g}..{at_min.max():.3g}, "
+          f"max {at_max.min():.3g}..{at_max.max():.3g}")
+
+    # THE NEGATIVE CONTROL for the pair. Read the share above the cell's own
+    # TABULATED 0.75 quantile back out of the table: it has to come out at 0.25.
+    # A table read with the wrong convention, or an inverse that interpolated in
+    # the wrong variable, returns an ordinary-looking number here and not this
+    # one.
+    # Restricted to cells whose table has no repeated value, because a repeated
+    # one is genuinely ambiguous about which probability it stands at and that
+    # is a property of the definition rather than a defect in the inverse.
+    strict = np.zeros(ncell, dtype=bool)
+    strict[covered] = (np.diff(q[covered], axis=1) > 0).all(axis=1)
+    got = area_fraction_above(q[strict], probs, q[strict, probs.searchsorted(0.75)])
+    worst = float(np.abs(got - 0.25).max()) if strict.any() else float("nan")
+    check("the inverse recovers the probability a tabulated quantile stands at",
+          bool(strict.any()) and worst <= 1e-12,
+          f"{int(strict.sum())} tie-free cells, worst {worst:.3g}")
 
     # THE LEDGER closes: every region offered lands in exactly one cell.
     ledger = transfer_ledger(cell, ncell, area, population)
