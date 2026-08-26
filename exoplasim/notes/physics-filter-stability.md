@@ -408,86 +408,55 @@ What would reopen it: a configuration where the identity stops closing at the
 adopted kappa, or a rung whose KE conversion is large enough that six tenths of
 a percent is worth chasing.
 
-## What it would take to re-take this grid
+## What it takes to probe a rung, and what T127 and T170 still need
 
-The grid above is the ladder's authority for which rung runs at which step, and
-it is a boundary for a model this project no longer runs. Three things separate
-it from the one that is wanted, and all three are now fixed in the writers
-rather than in the reader:
+T21, T42 and T85 are measured on the current source and the declared damping.
+T127 and T170 are not, and the obstacle is staging rather than the probe.
 
-1. **It declared no hyperdiffusion.** `stability_probe.py` wrote the `TDISS*`
-   and `NDEL` keys only when `--tau-scale` was given and the grid was taken
-   without it, so every cell ran `plasimmod`'s compiled defaults -- `ndel = 2`,
-   `tdissz = 1.10 d` -- rather than the values `config/planet.yaml` derives.
-   `--tau-scale` now defaults to 1.0 and `--inherited-damping` is the explicit
-   arm for the old behaviour.
-2. **The damping reached one model level.** A Fortran namelist scalar assigns
-   element one of an `(NLEV)` array. Both writers now replicate over `NLEV`.
-3. **It was taken at gamma 8.** The model runs `filter_power` 16, and T42 at dt
-   90 is measured to refuse at the first and run at the second, so at least one
-   ceiling in the table is wrong in the loose direction.
-4. **And the probe cells cannot be attributed to a build.** The 22 entries in
-   `analysis/stability_probe.json` name no executable, no sha256 and no
-   template; the file carries one `generated` field that is rewritten on every
-   write, so there are no per-entry timestamps; `find_template` selected its
-   binary by modification time; and run directories are untracked, so git
-   brackets when an entry was committed rather than what produced it. They are
-   measurements of an unnamed model. The probe now checks its executable
-   against `binary_manifest.json` and refuses on a mismatch, and every new entry
-   records the name, sha256 and build profile -- so this is fixed forward and
-   unfixable backward. world-qnue.
+**A bed at the rung, and it is the binding constraint.** The probe copies
+staging and does not build it: it needs a namelist and the rung's surface `.sra`
+family, and both come from a run directory. Getting one is the surface chain --
+`boundary_conditions`, `surface_roughness`, `surface_albedo --mode vegetated` --
+run with `model.resolution` at that rung, and then one prepared run to stage
+from. At T85 that whole chain took under three minutes, so it is not expensive;
+it simply had never been done above T42, which is why the rung the route's most
+expensive block runs at had never been probed at all.
 
-That fourth one is why the grid is re-taken from scratch rather than patched:
-there is no cell in it that a new cell could be compared against.
+The three builders and `run_exoplasim.py` all take `--config`, so the rung can
+be moved without touching `config/planet.yaml`. The parsed configuration travels
+into each artifact's `source_config` and reads `T85` there, which is what makes
+the products attributable.
 
-And one thing about the instrument rather than the inputs: **a probe qualifies a
-step against REFUSAL and against nothing else.** T42 at dt 45 passes a two-orbit
-arm and dies in its forty-seventh, so refusal and endurance are two verdicts and
-a re-taken grid has to carry both, with each endurance cell saying how many
-orbits it actually survived.
+**The order, and the reason for it.** Refusal first with `--refusal-only`: it
+carries no cost field at all, so it can be taken on a contended host, and it is
+the half the route's necessary condition needs. The cost half differences two
+wall times on one bed, which cancels startup but not contention, so it wants the
+machine.
 
-### The command
+    python exoplasim/scripts/stability_probe.py --rung T127 \
+        --sweep 60,45,30,22.5,15,10 --kappa 8,off --refusal-only \
+        --steps 600 --template <a run directory at that rung>
 
-Refusal first, because it is the half that does not need a quiet machine:
+`--tau-scale`, `--gamma` and `NHDIFF` all default to `config/planet.yaml`, and
+every cell records what it was measured on: the executable's name, sha256 and
+build profile, the sha256 of the namelist and of each surface `.sra` in the bed,
+and a `declared` block carrying gamma, `nhdiff`, `ndel` and the four timescales.
 
-    python exoplasim/scripts/stability_probe.py --rung T170 \
-        --sweep 45,30,22.5,15,10 --kappa 8,off --refusal-only --steps 600
+**Sweep only steps that divide the solar day.** `1800 / dt` must be a whole
+number of model steps or the refusal being measured is partly the calendar's.
 
-once per rung in T21, T42, T85, T127, T170, then the cost half with the same
-sweep and without `--refusal-only`. `--tau-scale` and `--gamma` default to
-`config/planet.yaml`, which is the point: a cell now records what it was
-measured on in its own `declared` block, the executable's name and sha beside
-it, and the sha256 of the namelist and of every surface `.sra` in its bed. Pass
-`--template` so the grid names the staging it was taken on rather than whichever
-run directory was modified last.
+**And the sweep has to reach a refusing cell.** A column of `runs` all the way
+down is not a boundary, it is a range that never got there --
+`docs/src/practice/failure-modes.md` class 34. The first pass of this grid swept
+90 down to 10 at T21 and found nothing refusing at all; the boundary is between
+120 and 150.
 
-### What has to be true before it is worth running
+**Rule 7 sets when, not whether.** The grid rests on the model source, so a
+change under `vendor/exoplasim` makes every cell worthless on arrival rather
+than stale. Take it after the source settles, and re-take it after the next
+change that reaches the dynamical core.
 
-**A run directory to stage a bed from, and it is the binding constraint.** The
-probe copies staging; it does not build it. It needs a namelist and the rung's
-surface `.sra` family, and both come from a run directory that already exists.
-With no run directory on disk there is no bed at any rung and the probe refuses
-by name at `find_template` -- which is the state the tree is in after a run
-purge. Getting one back is the whole staging chain: the surface family under
-`exoplasim/inputs/<rung>/` has to be built, and then one arm has to be staged at
-the rung, a failing one being enough. `python scripts/pipeline.py --status`
-names the steps.
+**What no probe at any rung can settle** is the endurance question, and that is
+where the route's steps actually come from. `exoplasim/notes/route-step-criteria.md`
+carries the rule and the evidence.
 
-**Every binary rebuilt, and the manifest naming them.** The probe refuses an
-executable `binary_manifest.json` does not match, so the staleness world-anl
-found cannot recur -- but that guard only helps once the manifest describes the
-tree. Note that a manifest is a description of source, not of a directory: a
-worktree whose `vendor/exoplasim` files hash to what the manifest records still
-has to build the executables locally, because build directories are deliberately
-not linked between worktrees.
-
-**A settled model source.** Rule 7 makes the grid worthless the moment the
-source under `vendor/exoplasim` moves again, so it is re-taken after the model
-settles and not before. A grid taken while a batch is still landing changes to
-the surface builders is in the same position: the staging it was measured on
-would be superseded on arrival.
-
-**And the cost half needs the machine to itself.** It prices a step from wall
-time by differencing two lengths, so a concurrent run does not add noise to it,
-it adds a bias in one direction. `--refusal-only` exists so the half that does
-not care can be taken anyway.
