@@ -352,3 +352,17 @@ exoplasim/inputs/templates/*.rest
 # These directories sat untracked-and-unignored, which is the shape a `git add -A`
 # sweeps into the tree -- the same gap biosphere/generated/ had above.
 exoplasim/inputs/*/*.sra
+
+# THE SAME COMPILED PAYLOADS AGAIN, AS SYMLINKS. `link_worktree.py
+# --model-binaries` links vendor/exoplasim and the LPJ-GUESS build into a
+# worktree, and an ignore rule ending in "/" matches a DIRECTORY and not the
+# symlink standing in for one. So the rules that hide these in the main
+# checkout -- vendor/exoplasim/build/ above, and /exoplasim/plasim/{bin,bld}/
+# and build/ in the two vendored .gitignore files -- leave the links visible to
+# git in every worktree that takes them. `link_worktree.py:check_git_clean`
+# reports exactly this, and a bisect run under --model-binaries is where it
+# came up. The vendored files are subtrees and are not edited for it.
+vendor/exoplasim/build
+vendor/exoplasim/exoplasim/plasim/bin
+vendor/exoplasim/exoplasim/plasim/bld
+vendor/lpj-guess/build
