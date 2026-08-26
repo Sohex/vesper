@@ -62,6 +62,55 @@ from lib import builds  # noqa: E402
 FREEZE_K = 273.15
 
 
+def subgrid_peak_excess(grid_root: Path) -> dict | None:
+    """`orog_max - orog_mean` over the cell's LAND, READ from the support artifact.
+
+    The quantity is how far a cell's highest ground stands above the elevation
+    the model evaluates that cell at, which is what says how much colder that
+    ground is than the model's own column. It is read and not computed:
+    `hydrography/scripts/build_spatial_support.py` is the registered generator
+    and GRID-2 exists because this criterion had three implementations and no
+    artifact carrying it.
+
+    What was here before took the export's gridded `orog_max - orog_mean`, which
+    is a statistic over EVERY region in the cell. A coastal cell's mean sits
+    below its own coast under that population, so the excess it reports is
+    inflated by seabed rather than by terrain, and it is exactly the mistake
+    `CLAUDE.md` rule 1 and the operators' population argument exist to stop.
+
+    Weighted by LAND AREA, because a cell is not a unit of land: an unweighted
+    mean over cells counts a narrow polar cell holding a sliver of coast the
+    same as an equatorial cell holding a mountain range.
+
+    Returns None where the artifact has not been built for this rung, which is a
+    statement about the tree rather than a value to fall back on.
+    """
+    grid_root = Path(grid_root)
+    support = builds.component_data("hydrography") / f"support_{grid_root.name}.nc"
+    if not support.is_file():
+        print(f"no spatial support at {support}; run\n"
+              f"  python hydrography/scripts/build_spatial_support.py "
+              f"--rungs {builds.resolution_of(grid_root)}\n"
+              "for the sub-grid peak excess")
+        return None
+    with Dataset(str(support)) as ds:
+        mean = np.asarray(ds["land_elevation_mean_km"][:], float).ravel()
+        peak = np.asarray(ds["land_elevation_max_km"][:], float).ravel()
+        land_area = np.asarray(ds["land_area_km2"][:], float).ravel()
+        build = getattr(ds, "vesper_source_build", None)
+    live = land_area > 0
+    exc = (peak - mean)[live]
+    w = land_area[live]
+    return {"mean": float(np.average(exc, weights=w)),
+            "median": float(np.median(exc)),
+            "p90": float(np.percentile(exc, 90)),
+            "max": float(exc.max()),
+            "weighting": "land area, over cells that hold land",
+            "population": "surface_class == LAND inside each cell",
+            "source": str(support),
+            "source_build": build}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--climatology", type=Path, required=True)
@@ -124,17 +173,21 @@ def main() -> None:
             float(area[land & (t_local < FREEZE_K)].sum() / la),
         "by_margin_k": {},
     }
-    # what the grid cannot see: the ground inside a cell against its mean
-    if all(k in gnc.variables for k in ("orog_max", "orog_mean", "surface_class")):
-        gm = np.asarray(gnc["orog_mean"][:], float)
-        gx = np.asarray(gnc["orog_max"][:], float)
-        gl = np.asarray(gnc["surface_class"][:], int) > 0
-        exc = (gx - gm)[gl]
-        out["subgrid_peak_excess_km"] = {
-            "mean": float(exc.mean()), "median": float(np.median(exc)),
-            "p90": float(np.percentile(exc, 90)), "max": float(exc.max())}
+    # What the grid cannot see: the ground inside a cell against its mean. READ
+    # from the spatial support rather than rebuilt here. This block used to take
+    # the export's own gridded `orog_max - orog_mean`, which is a statistic over
+    # EVERY region in the cell, land and seabed together -- so a coastal cell's
+    # mean sits below its own coast and the excess measured against it is
+    # inflated by ocean floor rather than by terrain.
+    # `hydrography/scripts/build_spatial_support.py` takes both moments over the
+    # LAND population and its file is the one artifact carrying them. GRID-2 is
+    # the row: this was one of three places the same criterion was computed, and
+    # there is no reason for a second opinion about it here.
+    excess = subgrid_peak_excess(grid_root)
+    if excess is not None:
+        out["subgrid_peak_excess_km"] = excess
         out["temperature_the_grid_never_sees_k"] = {
-            "mean": float(exc.mean() * rate), "p90": float(np.percentile(exc, 90) * rate)}
+            "mean": excess["mean"] * rate, "p90": excess["p90"] * rate}
 
     print(f"warm-season environmental lapse rate: {rate:.3f} K/km")
     if glac is not None:

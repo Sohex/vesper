@@ -96,8 +96,12 @@ repeating. See `exoplasim/notes/parameter-decisions.md`.
   A real glacier also needs accumulation, and a cold dry peak does not glaciate.
   This is the single largest reason to treat these numbers as an upper bound.
 - **No lapse-rate feedback on precipitation phase, no ice albedo, no flow.**
-- **Sub-grid hypsometry is not persisted.** It was computed inline. The reusable
-  version belongs with the downscaling machinery rather than as a one-off here.
+- **Sub-grid hypsometry was computed inline here and thrown away.** It is now an
+  artifact: `hydrography/scripts/build_spatial_support.py` writes the whole
+  distribution of mesh elevations inside every cell of every requested ladder
+  rung, over the LAND population rather than over land and seabed together, and
+  `lib/gridding.py:area_fraction_above` reads a share above a threshold back out
+  of it. Nothing needs to integrate it inline again. SPAT-3 closing GRID-2.
 
 ## Correction, 2026-08-19: the rate is measured, and the old bracket was one-sided
 

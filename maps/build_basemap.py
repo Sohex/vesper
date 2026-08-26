@@ -433,9 +433,22 @@ def main():
     lrgb = lrgb * (1 - dry) + PLAYA_RGB * dry
 
     # Permanent snow and ice: warmest month below freezing after a lapse-rate
-    # correction from the T42 orography to this one. The rate is measured, not
-    # Earth's 6.5 (PHYS-12), and it is the warm-season one because the field
+    # correction from the CLIMATOLOGY'S OWN orography, `clim_elev_hi`, to this
+    # raster's. Neither rung is named here: the climatology carries its
+    # `surface_elevation` and the rung it was run at is whichever one produced
+    # the file `--climatology` points at, so a truncation written into this
+    # comment goes stale the first time the ladder moves. The rate is measured,
+    # not Earth's 6.5 (PHYS-12), and it is the warm-season one because the field
     # being extrapolated is the warmest month.
+    #
+    # THIS IS A RENDER AND NOT A REDUCTION. It is the same freezing-height
+    # criterion the ice mask uses, evaluated per PIXEL against the mesh region
+    # under it, and it stays here rather than reading
+    # `hydrography/data/<build>/support_<grid>.nc`: that artifact holds the
+    # distribution inside a MODEL cell, and what this needs is the elevation at
+    # a point. GRID-2 counted this as one of three implementations of one
+    # criterion; the two that had to converge are the mask and the statistic,
+    # and they now both come from the support artifact.
     # The file is passed rather than left to default: lapse.py resolves its own
     # from config/planet.yaml, which would ignore --climatology and take the
     # rate from a different climatology than the tint.

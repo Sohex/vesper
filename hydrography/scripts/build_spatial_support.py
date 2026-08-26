@@ -57,7 +57,26 @@ require one and `CLAUDE.md` rule 1 is why: land is `surface_class` and never
 `land_mask`, or the dry closed-basin floors below sea level drop out of the very
 distribution this exists to hold. The export's own fields are compared against
 this artifact's ALL-region moments and the difference is reported, which is what
-says the two binnings are the same binning.
+says the two binnings are the same binning: both place every region of one mesh
+in exactly one cell by its centre, so the totals are an identity and are checked
+as one, and a per-cell count may differ only where a region sits on a boundary.
+
+## Two partitions of the sphere, and the artifact carries both
+
+`cell_area_km2` and `mesh_area_km2` are not two estimates of one thing. The
+first is the QUADRATURE partition -- the Gauss-Legendre weights laid end to end
+in the sine of latitude, which is the weight the spectral model's own global
+budget is taken over. The second is what the BINNING delivered, and the binning
+cuts at the midpoints between row centres. Those are different partitions and
+`lib/gridding.py:export_grid` documents the gap: it is small away from the poles
+and does not shrink with the rung, because it is a property of the two
+constructions rather than of the mesh. Every share written here is a share of
+the mesh area or of the land inside it, so nothing in the file mixes the two,
+and the report carries the ratio per rung because a consumer turning a share
+into a model-cell quantity crosses exactly that gap. The report separates it
+from the other thing the same ratio shows -- the per-cell tails, which ARE the
+mesh being coarse against the cell and which widen with the rung until a polar
+cell holds no region at all.
 
 ## What is written
 
@@ -371,10 +390,19 @@ def build_rung(mesh: Export, grid_dir: Path, rung: str, ctx: dict) -> tuple[dict
     inland = ctx["inland"]
     elev = ctx["elev"]
 
-    # -- area and count. `cell_area_km2` is the EXACT partition of the sphere
-    # the grid is, constructed from the Gauss-Legendre weights; `mesh_area_km2`
-    # is what the mesh actually put in the cell. The two are different facts and
-    # their difference is what a rung finer than the mesh costs.
+    # -- area and count. THESE ARE TWO DIFFERENT PARTITIONS OF THE SPHERE and
+    # the artifact carries both on purpose. `cell_area_km2` is the QUADRATURE
+    # partition, the Gauss-Legendre weights laid end to end in the sine of
+    # latitude, which is the weight the spectral model's own global budget is
+    # taken over. `mesh_area_km2` is what the BINNING delivered, and the binning
+    # is `row()`, which cuts at the midpoints between row centres. The gap is
+    # the one `export_grid` documents, it is systematic in the polar row, and it
+    # does not shrink with the rung because it belongs to the two constructions
+    # rather than to the mesh; the report measures it per rung. A share here
+    # is a share of the MESH area or of the land area inside it and never of
+    # `cell_area_km2`, so nothing in this file mixes the two; a consumer
+    # converting a share into a model-cell quantity needs the model's weight and
+    # that is what `cell_area_km2` is for.
     cell_area = spec.cell_area(ctx["radius_m"]).ravel() * 1e-6
     mesh_area = gridding.cell_sum(cell, ncell, area)
     land_area = gridding.cell_sum(cell, ncell, area, land)
@@ -487,11 +515,39 @@ def build_rung(mesh: Export, grid_dir: Path, rung: str, ctx: dict) -> tuple[dict
         all_mean, all_var, _, all_cov = gridding.cell_moments(cell, ncell, area, elev)
         lo_all, hi_all = extremes(cell, ncell, elev, np.ones(cell.shape, bool))
         good = all_cov & (orog["orog_count"] > 0)
+        # THE BINNING CHECK, and it is the one with a right answer: the export
+        # counts the regions whose CENTRE falls in each cell and so does
+        # `region_cells`, so the two counts must sum to the same mesh and may
+        # differ per cell only where a region sits on a boundary. A convention
+        # difference would show as a systematic offset, not as a handful.
+        count_diff = counts - orog["orog_count"].astype(np.int64)
+        if int(counts.sum()) != int(orog["orog_count"].sum()):
+            raise SystemExit(
+                f"{rung}: this binning placed {int(counts.sum()):,} regions and "
+                f"the export's own placed {int(orog['orog_count'].sum()):,}. "
+                "Both are supposed to be every region of one mesh assigned to "
+                "exactly one cell, so one of them is not a partition.")
         diag = {
             "cells_compared": int(good.sum()),
             "note": ("the export's orog_* are taken over EVERY region in the "
                      "cell, so they are compared against this artifact's "
                      "ALL-region moments and not against its land ones"),
+            "peak_excess_note": (
+                "the two peak excesses below are NOT two estimates of one "
+                "number and their difference is not an error bar. They differ "
+                "in three ways at once: the population inside a cell (every "
+                "region against the cell's land), the set of cells (those whose "
+                "CENTRE region is land against every cell holding any land), "
+                "and the weighting (one vote per cell against one vote per "
+                "square kilometre of land). The land one is what a consumer "
+                "asking how much colder a cell's high ground is should read, "
+                "because each of those three is the correct choice for that "
+                "question and none of the export's three is"),
+            "region_count_total_here": int(counts.sum()),
+            "region_count_total_export": int(orog["orog_count"].sum()),
+            "cells_whose_region_count_differs": int((count_diff != 0).sum()),
+            "worst_region_count_difference": int(np.abs(count_diff).max()),
+            "median_regions_per_cell": float(np.median(counts[good])) if good.any() else 0.0,
             "max_abs_mean_km": float(np.abs(all_mean[good] - orog["orog_mean"][good]).max()),
             "max_abs_sd_km": float(np.abs(np.sqrt(all_var[good]) - orog["orog_std"][good]).max()),
             "max_abs_min_km": float(np.abs(lo_all[good] - orog["orog_min"][good]).max()),
@@ -568,6 +624,27 @@ def build_rung(mesh: Export, grid_dir: Path, rung: str, ctx: dict) -> tuple[dict
             "tolerances": {"partition_and_area": CLOSURE_TOL,
                            "share_against_extensive": EXTENSIVE_TOL,
                            "mesh_against_manifest": MESH_CLOSURE_TOL},
+        },
+        "two_partitions": {
+            "note": ("cell_area_km2 is the QUADRATURE partition the model "
+                     "budgets over and mesh_area_km2 is what the midpoint "
+                     "binning delivered. They are not the same partition, and "
+                     "the ratio below separates two effects that look alike. "
+                     "The POLAR ROW total is systematic and is the partitions "
+                     "themselves disagreeing, the gap "
+                     "lib/gridding.py:export_grid documents; it does not fall "
+                     "with the rung. The per-cell TAILS are the mesh being "
+                     "coarse against the cell, and they widen with the rung "
+                     "until a polar cell can hold no region at all, which is "
+                     "what cells_with_no_region counts"),
+            "mesh_over_cell_area": {
+                str(p): float(np.percentile(
+                    (mesh_area[covered] / cell_area[covered]), p))
+                for p in (0, 1, 50, 99, 100)},
+            "polar_row_mesh_over_cell_area": [
+                float(mesh_area.reshape((nlat, nlon))[i].sum()
+                      / cell_area.reshape((nlat, nlon))[i].sum())
+                for i in (0, -1)],
         },
         "ledger": {"all_regions": ledger_all, "land": ledger_land, "ocean": ledger_ocean},
         "fallback": {
@@ -663,13 +740,21 @@ def write_rung(path: Path, a: dict, mesh: Export, grid_dir: Path, rung: str,
 
         # -- area and count
         var("cell_area_km2", a["cell_area_km2"], "f8", ("lat", "lon"), "km2",
-            "the cell's exact area, from the Gauss-Legendre weights laid end to "
-            "end in the sine of latitude. Sums to 4 pi R^2 and is the weight "
-            "the model's own global budget is taken over")
+            "the cell's area under the QUADRATURE partition: the Gauss-Legendre "
+            "weights laid end to end in the sine of latitude. Sums to 4 pi R^2 "
+            "and is the weight the spectral model's own global budget is taken "
+            "over. Use it to turn a share here into a model-cell quantity")
         var("mesh_area_km2", a["mesh_area_km2"], "f8", ("lat", "lon"), "km2",
-            "mesh region area that landed in the cell, EXTENSIVE. Different "
-            "from cell_area_km2 by what the binning is: their difference is "
-            "what a rung finer than the mesh costs")
+            "mesh region area that landed in the cell, EXTENSIVE, and the "
+            "denominator every share here is a share of. It is a DIFFERENT "
+            "partition from cell_area_km2: the binning cuts at the midpoints "
+            "between row centres and the quadrature does not, and the gap is a "
+            "property of the two constructions rather than of the mesh, so it "
+            "does not shrink with the rung. The report's two_partitions block "
+            "carries their ratio and separates that from the other thing it "
+            "shows, which is the mesh being coarse against the cell; where a "
+            "rung is finer than the mesh the binning delivers nothing at all "
+            "and empty_cell says so")
         var("land_area_km2", a["land_area_km2"], "f8", ("lat", "lon"), "km2",
             "land area in the cell, EXTENSIVE, over surface_class == LAND")
         var("ocean_area_km2", a["ocean_area_km2"], "f8", ("lat", "lon"), "km2",
@@ -876,7 +961,7 @@ def main() -> int:
     print(f"mesh {n:,} regions from {mesh.root.parent.name}/{mesh.root.name}")
     print(f"rungs to build: {', '.join(todo)}  (largest {biggest:,} cells)")
     print(f"estimated peak footprint about {peak_gb:.1f} GB; "
-          f"resident now {rss_mb():.0f} MB")
+          f"resident now {rss_mb():.0f} MB", flush=True)
 
     area = mesh.cell_area.astype(np.float64)
     surface = np.asarray(mesh.surface_class, dtype=np.int64)
@@ -977,8 +1062,9 @@ def main() -> int:
               f"{rung_report['seconds']:6.1f} s  "
               f"empty {rung_report['cells_with_no_region']:>5}  "
               f"rss {rss_mb():6.0f} MB  elapsed {elapsed:6.1f} s  "
-              f"about {left:6.1f} s left")
-        print(f"        wrote {out} ({out.stat().st_size / 2**20:.1f} MB)")
+              f"about {left:6.1f} s left", flush=True)
+        print(f"        wrote {out} ({out.stat().st_size / 2**20:.1f} MB)",
+              flush=True)
 
     print(f"\nwrote {REPORT}")
     print(f"wrote {ckpt_path}")
