@@ -1,8 +1,8 @@
 {
-  "generated": "2026-08-26T00:20:33+00:00",
+  "generated": "2026-08-26T19:52:36+00:00",
   "code": 173,
   "field": "dz0clim, total aerodynamic roughness length, metres",
-  "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
+  "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
   "replaces_uniform": 2.0,
   "surface_z0_m": {
     "bare": 0.003,
@@ -10,13 +10,46 @@
     "forest": 1.0,
     "forest_fraction_used": 0.5
   },
+  "anchor": {
+    "arm": "reference",
+    "target_land_mean_m": 2.204850052252377,
+    "unrescaled_land_mean_m": 0.34053,
+    "unrescaled_ce_bracket": [
+      0.004629,
+      0.004852
+    ],
+    "written_ce_bracket": [
+      0.009944,
+      0.010658
+    ],
+    "earth_reference": {
+      "rung": "T21",
+      "dataset": "N032",
+      "files": [
+        "vendor/exoplasim/exoplasim/plasim/run/N032_surf_0172.sra",
+        "vendor/exoplasim/exoplasim/plasim/run/N032_surf_0173.sra",
+        "vendor/exoplasim/exoplasim/plasim/run/N032_surf_1730.sra"
+      ],
+      "land_cells": 673,
+      "reference_height_m": 113.96,
+      "effective_land_z0_m": 2.204850052252377,
+      "land_mean_ce": 0.010279959009933747,
+      "land_mean_of_length_m": 2.396712376085461,
+      "topography_only_land_mean_m": 2.2304562892254385,
+      "surface_part_land_mean_m": 0.3162410692655255,
+      "land_max_m": 46.8217,
+      "namelist_fallback_m": 2.0
+    },
+    "cover_roughness_ratio_to_earth": 1.0768,
+    "note": "the high end is the effective land roughness of PlaSim's own Earth boundary dataset, code 173 reduced over its land in ce at this planet's reference height; the low end is this world's own cover with no orographic term. The namelist fallback dz0land is reported inside earth_reference and is not the anchor."
+  },
   "orographic": {
-    "coefficient_solved": 0.004062,
+    "coefficient_solved": 0.00429,
     "relation": "z0_oro = coefficient * stdev(elevation) within the cell",
     "subgrid_stdev_m": {
       "min": 0.0,
-      "median": 141.03,
-      "max": 1847.4
+      "median": 153.57,
+      "max": 2056.74
     },
     "mesh_regions_per_land_cell_median": 1980,
     "coefficient_was_solved": true
@@ -27,27 +60,27 @@
     "population": "surface_class == land",
     "reference_height_anchor_m": 113.96,
     "land_mean_m_over_reference_air_bracket": [
-      2.00015,
-      1.99986
+      2.20496,
+      2.20475
     ],
     "jensen_gap_in_ce_relative": {
-      "min": -0.4582745141913362,
-      "median": -5.482739823407873e-05,
-      "max": 8.881007175823482e-08,
-      "land_area_weighted_mean": -0.011827489186966246
+      "min": -0.5202492087403568,
+      "median": -1.5103431961302737e-05,
+      "max": 9.178593477853778e-08,
+      "land_area_weighted_mean": -0.008626756084324599
     },
     "transfer": {
-      "regions_offered": 4328736,
+      "regions_offered": 4328732,
       "cells": 2048,
       "cells_with_no_population": 409,
-      "area_offered": 318136980.5317639,
-      "area_landed": 318136980.5317639,
+      "area_offered": 318136714.761382,
+      "area_landed": 318136714.761382,
       "closure_residual_relative": 0.0
     }
   },
-  "land_mean_m": 2.0,
-  "land_min_m": 0.003772,
-  "land_max_m": 7.5263,
+  "land_mean_m": 2.20485,
+  "land_min_m": 0.003,
+  "land_max_m": 8.8428,
   "exchange_coefficient": {
     "note": "ce = k^2 / ln(z_ref / z0)^2, the quantity roughness acts through. z_ref is lib/lapse.py:reference_height_m at this planet's gravity; each value is [low, high] over reference_air_k, across which z_ref is linear.",
     "karman": 0.4,
@@ -64,19 +97,19 @@
       0.010141
     ],
     "this_field_land_max": [
-      0.020652,
-      0.02284
+      0.023269,
+      0.025898
     ],
     "this_field_land_min": [
-      0.001484,
-      0.001524
+      0.001421,
+      0.001458
     ]
   },
-  "file": "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_0173.sra",
+  "file": "/home/cfutro/docs/world/.claude/worktrees/agent-ab0ec840ea32d0444/exoplasim/inputs/t21/orogen_T21_surf_0173.sra",
   "generator": "exoplasim/scripts/build_surface_roughness.py",
   "source_config": {
     "schema_version": 1,
-    "source_build": "precarve-craton-10m",
+    "source_build": "canonical-10m-base",
     "baseline_climatology": null,
     "planet": {
       "radius_earth": 1.2,
@@ -137,6 +170,12 @@
       "sea_ice": true,
       "sea_ice_max_thickness_m": -1.0,
       "sea_ice_lead_closing_m": 0.5,
+      "cryosphere": {
+        "sea_ice_density_kg_m3": 920.0,
+        "sea_ice_specific_heat_j_kg_k": 2070.0,
+        "sea_ice_conductivity_w_m_k": 2.03,
+        "snow_fusion_j_kg": 333444.87
+      },
       "glaciers": {
         "enabled": true,
         "min_snow_depth_m": 2.0,
@@ -145,14 +184,16 @@
         "persistence_orbits": 1.0
       },
       "land_water_column": {
-        "scheme": "bucket",
-        "layers": 1,
+        "scheme": "layered",
+        "layers": 2,
         "lower_boundary": "impermeable",
         "layer_capacity_fraction": [
-          1.0
+          0.333333,
+          0.666667
         ],
         "layer_thickness_m": [
-          1.5
+          0.5,
+          1.0
         ],
         "soil_phase": false,
         "evaporation_limiter": {
@@ -193,7 +234,7 @@
         "profile": "production"
       },
       "ncpus": 16,
-      "timestep_minutes": 30.0,
+      "timestep_minutes": 45.0,
       "physics_filter": "gp|exp|sp",
       "filter_kappa": 8.0,
       "filter_power": 16,
@@ -333,6 +374,6 @@
       "alignment_recurrence_earth_years": 314
     }
   },
-  "config_sha256": "5ab8c97d4d36f6c7f0b1610648e6b8abf3a5d338458f310fb996b3b584b1769c",
-  "git_commit": "4038c12e10834da1c9441229f6abbc2ff5d39d8b"
+  "config_sha256": "bbaf4fb96e6bdc602f038fbcab375aca86ff4a7efb8468f1f49ba16644a4708e",
+  "git_commit": "ad1dec529e252f7fd5bab29d88bc6cb502f30197"
 }

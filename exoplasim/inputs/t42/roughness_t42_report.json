@@ -1,8 +1,8 @@
 {
-  "generated": "2026-08-26T00:48:35+00:00",
+  "generated": "2026-08-26T19:53:54+00:00",
   "code": 173,
   "field": "dz0clim, total aerodynamic roughness length, metres",
-  "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
+  "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
   "replaces_uniform": 2.0,
   "surface_z0_m": {
     "bare": 0.003,
@@ -10,13 +10,46 @@
     "forest": 1.0,
     "forest_fraction_used": 0.5
   },
+  "anchor": {
+    "arm": "reference",
+    "target_land_mean_m": 1.2145281754825732,
+    "unrescaled_land_mean_m": 0.35067,
+    "unrescaled_ce_bracket": [
+      0.004676,
+      0.004902
+    ],
+    "written_ce_bracket": [
+      0.007537,
+      0.008005
+    ],
+    "earth_reference": {
+      "rung": "T42",
+      "dataset": "N064",
+      "files": [
+        "vendor/exoplasim/exoplasim/plasim/run/N064_surf_0172.sra",
+        "vendor/exoplasim/exoplasim/plasim/run/N064_surf_0173.sra",
+        "vendor/exoplasim/exoplasim/plasim/run/N064_surf_1730.sra"
+      ],
+      "land_cells": 2665,
+      "reference_height_m": 113.96,
+      "effective_land_z0_m": 1.2145281754825732,
+      "land_mean_ce": 0.007757625688610643,
+      "land_mean_of_length_m": 1.579444375406755,
+      "topography_only_land_mean_m": 1.3781930408703906,
+      "surface_part_land_mean_m": 0.31923169161281595,
+      "land_max_m": 36.6793,
+      "namelist_fallback_m": 2.0
+    },
+    "cover_roughness_ratio_to_earth": 1.0985,
+    "note": "the high end is the effective land roughness of PlaSim's own Earth boundary dataset, code 173 reduced over its land in ce at this planet's reference height; the low end is this world's own cover with no orographic term. The namelist fallback dz0land is reported inside earth_reference and is not the anchor."
+  },
   "orographic": {
-    "coefficient_solved": 0.004962,
+    "coefficient_solved": 0.002576,
     "relation": "z0_oro = coefficient * stdev(elevation) within the cell",
     "subgrid_stdev_m": {
       "min": 0.0,
-      "median": 66.57,
-      "max": 1987.24
+      "median": 74.77,
+      "max": 2163.37
     },
     "mesh_regions_per_land_cell_median": 608,
     "coefficient_was_solved": true
@@ -27,27 +60,27 @@
     "population": "surface_class == land",
     "reference_height_anchor_m": 113.96,
     "land_mean_m_over_reference_air_bracket": [
-      2.00018,
-      1.99984
+      1.21473,
+      1.21434
     ],
     "jensen_gap_in_ce_relative": {
-      "min": -0.49128430256456346,
-      "median": -6.20317888978717e-05,
-      "max": 1.1260692100142319e-07,
-      "land_area_weighted_mean": -0.014375999166778178
+      "min": -0.5242925418057032,
+      "median": -0.000132078677672568,
+      "max": 2.6438162506910866e-15,
+      "land_area_weighted_mean": -0.018321129232875773
     },
     "transfer": {
-      "regions_offered": 4328736,
+      "regions_offered": 4328732,
       "cells": 8192,
       "cells_with_no_population": 2438,
-      "area_offered": 318136980.5317639,
-      "area_landed": 318136980.5317639,
+      "area_offered": 318136714.761382,
+      "area_landed": 318136714.761382,
       "closure_residual_relative": 0.0
     }
   },
-  "land_mean_m": 2.0,
-  "land_min_m": 0.003507,
-  "land_max_m": 9.8784,
+  "land_mean_m": 1.21453,
+  "land_min_m": 0.003,
+  "land_max_m": 5.6077,
   "exchange_coefficient": {
     "note": "ce = k^2 / ln(z_ref / z0)^2, the quantity roughness acts through. z_ref is lib/lapse.py:reference_height_m at this planet's gravity; each value is [low, high] over reference_air_k, across which z_ref is linear.",
     "karman": 0.4,
@@ -64,19 +97,19 @@
       0.010141
     ],
     "this_field_land_max": [
-      0.025367,
-      0.02837
+      0.016892,
+      0.018498
     ],
     "this_field_land_min": [
-      0.001464,
-      0.001503
+      0.001421,
+      0.001458
     ]
   },
-  "file": "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0173.sra",
+  "file": "/home/cfutro/docs/world/.claude/worktrees/agent-ab0ec840ea32d0444/exoplasim/inputs/t42/orogen_T42_surf_0173.sra",
   "generator": "exoplasim/scripts/build_surface_roughness.py",
   "source_config": {
     "schema_version": 1,
-    "source_build": "precarve-craton-10m",
+    "source_build": "canonical-10m-base",
     "baseline_climatology": null,
     "planet": {
       "radius_earth": 1.2,
@@ -137,6 +170,12 @@
       "sea_ice": true,
       "sea_ice_max_thickness_m": -1.0,
       "sea_ice_lead_closing_m": 0.5,
+      "cryosphere": {
+        "sea_ice_density_kg_m3": 920.0,
+        "sea_ice_specific_heat_j_kg_k": 2070.0,
+        "sea_ice_conductivity_w_m_k": 2.03,
+        "snow_fusion_j_kg": 333444.87
+      },
       "glaciers": {
         "enabled": true,
         "min_snow_depth_m": 2.0,
@@ -145,14 +184,16 @@
         "persistence_orbits": 1.0
       },
       "land_water_column": {
-        "scheme": "bucket",
-        "layers": 1,
+        "scheme": "layered",
+        "layers": 2,
         "lower_boundary": "impermeable",
         "layer_capacity_fraction": [
-          1.0
+          0.333333,
+          0.666667
         ],
         "layer_thickness_m": [
-          1.5
+          0.5,
+          1.0
         ],
         "soil_phase": false,
         "evaporation_limiter": {
@@ -162,9 +203,9 @@
       }
     },
     "model": {
-      "resolution": "T42",
-      "latitudes": 64,
-      "longitudes": 128,
+      "resolution": "T21",
+      "latitudes": 32,
+      "longitudes": 64,
       "layers": 10,
       "vertical_grid": 4,
       "model_top_hpa": 50.0,
@@ -193,7 +234,7 @@
         "profile": "production"
       },
       "ncpus": 16,
-      "timestep_minutes": 30.0,
+      "timestep_minutes": 45.0,
       "physics_filter": "gp|exp|sp",
       "filter_kappa": 8.0,
       "filter_power": 16,
@@ -333,6 +374,6 @@
       "alignment_recurrence_earth_years": 314
     }
   },
-  "config_sha256": "d46cd5f74d357bb89d0274ef609178c56f7ad62116c89817829d00e66f1bf6e8",
-  "git_commit": "3b0ba6267c5d81baf790c0d948de03aa9604e792"
+  "config_sha256": "bbaf4fb96e6bdc602f038fbcab375aca86ff4a7efb8468f1f49ba16644a4708e",
+  "git_commit": "ad1dec529e252f7fd5bab29d88bc6cb502f30197"
 }
