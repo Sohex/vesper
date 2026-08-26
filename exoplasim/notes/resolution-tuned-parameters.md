@@ -1666,14 +1666,25 @@ the hyperdiffusion removes before it becomes the state, and T21 has far less
 spectrum for that divergence to live in. The two rungs run different timesteps
 and different damping timescales, so the ratio is an order and not a coefficient.
 
-**The fixer's own identity holds.** The fixer-on arm reports +0.0034 where the
-fixer-off arm reports -0.0206, which is the residual near zero this section
-predicts, and it is a check that could have failed. The applied correction on a
-T21 full-physics arm at the configured settings, `run_352f6a4180e5`, wanders
-across -0.33 to +0.12 W/m2 over one orbit with repeated sign changes; that is the
-day-to-day variation in the model's own imbalance already measured above and not
-a new defect, and at this rung it is an order larger than the 0.021 W/m2 the dry
-arm says the fixer is there to correct.
+**The fixer's own identity holds, and it is a check that could have failed.** The
+fixer-on arm reports a residual of +0.0034 where the fixer-off arm reports
+-0.0206, and it applies +0.0222 to get there. Applied is minus the defect to
+within eight per cent, which is what this section's controller argument requires
+and is what fixes the sign convention for the next paragraph.
+
+**At T21 the fixer is not mainly carrying `world-0ov`'s defect.** On
+`run_14906cb7b914`, 35 orbits of T21 full physics at the configured settings, the
+manifest's `energy_fixer_applied` gives a mean of **-0.300 W/m2** over the second
+half, range -0.691 to -0.076 and one-signed across all thirty samples. Negative
+applied means a spurious energy GAIN of +0.300 W/m2. The dry adiabatic conversion
+defect at the same rung is -0.021, a LOSS, fourteen times smaller and the other
+way round.
+
+So the quantity the fixer removes on a T21 production run is not the conversion
+displacement this document is about. Whatever it is, it is larger and of opposite
+sign, and it is the term that would have to be named before the fixer at this
+rung can be described as correcting `world-0ov`. That is a separate question from
+the T42 dry arm, where the two do match in sign and size.
 
 All four runs above are `_crashed` directories. `nenergy > 0` segfaults in
 `epilog` after the last timestep, so the restart is lost and `plasim_diag` is
