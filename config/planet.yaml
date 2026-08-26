@@ -800,10 +800,26 @@ model:
   # change and no rebuild. Reaching the model as NDEL, NHDIFF, TDISSD, TDISSZ,
   # TDISST, TDISSQ.
   hyperdiffusion:
-    # Measured, not assumed: eddy RMS wind (departure from the zonal mean, which
-    # is what cascades -- the jet does not), area-weighted over the column, from
-    # run_4182235e9781 orbit 39. Re-measure if the climate moves materially.
-    eddy_wind_m_s: 5.94
+    # MEASURED, and the measurement is re-runnable: the eddy RMS wind of the
+    # modelled atmosphere, meaning the departure from the ZONAL MEAN at the same
+    # instant, level and row -- which is what cascades, where a uniform zonal
+    # flow only Doppler-shifts a wave -- taken on the INSTANTANEOUS snapshot
+    # stream, area-weighted by the model's own Gaussian row weights and
+    # mass-weighted by dsigma over the column.
+    # `exoplasim/scripts/measure_eddy_wind.py` is the instrument and states the
+    # definition in full; it writes a JSON verdict under
+    # `exoplasim/analysis/eddy-wind/` that outlives the run directory, which is
+    # the failure this value is recovering from.
+    # INSTANTANEOUS IS THE WHOLE OF IT. A time-mean field carries the stationary
+    # eddies only, and nothing is advected by a time average; the same recipe on
+    # the time-mean stream returns 0.58 of this and is a different quantity.
+    # Bracket +/- 5 per cent, which covers the 1.3 per cent spread across five
+    # T21 runs including two independent cold starts, the 0.2 per cent the
+    # unresolved band above 0.7 of the truncation is worth, and the one term not
+    # yet measured: these runs were damped with the PREVIOUS value, so the
+    # sweep that closes the bracket is the next run's own re-measurement.
+    # Re-measure if the climate moves materially.
+    eddy_wind_m_s: 10.09
     # Shape, applied as a FRACTION so confinement is the same at every rung.
     # T42's alpha and cutoff, which the confinement table shows is well confined;
     # a choice within the family the requirement allows, not a unique derivation.
@@ -820,11 +836,11 @@ model:
     # and checked against it by scripts/check_consistency.py. Regenerate rather
     # than edit.
     timescales_days:
-      T21: {divergence: 0.4457, vorticity: 2.2285, temperature: 5.6449, humidity: 0.7421}
-      T42: {divergence: 0.2229, vorticity: 1.1143, temperature: 2.8224, humidity: 0.3711}
-      T85: {divergence: 0.1101, vorticity: 0.5506, temperature: 1.3946, humidity: 0.1833}
-      T127: {divergence: 0.0737, vorticity: 0.3685, temperature: 0.9334, humidity: 0.1227}
-      T170: {divergence: 0.0551, vorticity: 0.2753, temperature: 0.6973, humidity: 0.0917}
+      T21: {divergence: 0.2624, vorticity: 1.3119, temperature: 3.3231, humidity: 0.4369}
+      T42: {divergence: 0.1312, vorticity: 0.6560, temperature: 1.6616, humidity: 0.2184}
+      T85: {divergence: 0.0648, vorticity: 0.3241, temperature: 0.8210, humidity: 0.1079}
+      T127: {divergence: 0.0434, vorticity: 0.2169, temperature: 0.5495, humidity: 0.0722}
+      T170: {divergence: 0.0324, vorticity: 0.1621, temperature: 0.4105, humidity: 0.0540}
   # DERIVED, 2026-08-24. The COLD START's initial temperature profile, which
   # `setzt` builds from a surface temperature, a lapse rate and a tropopause
   # height and which `initfd` reaches only when `nrestart` is 0. Until this
