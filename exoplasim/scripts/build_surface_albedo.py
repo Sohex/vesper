@@ -1038,7 +1038,8 @@ def main() -> None:
             "wetting cycle without moving its ends",
             "THE SURFACE LAYER IS NOT YET WHAT THE RUN CONFIGURES. "
             "`config/planet.yaml`'s `surface.land_water_column` still declares "
-            "two layers of 0.5 and 1.0 m; the mixing needs the three-layer "
+            "the two-layer 0.5 and 1.0 m cut; the mixing needs the "
+            "three-layer "
             "0.02/0.48/1.0 cut the contract declares, and `nwetsoil` refuses "
             "until it has it",
         ],
