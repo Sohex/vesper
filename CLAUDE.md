@@ -294,7 +294,10 @@ Rayleigh coefficient), `sensitivity.py` (the one flux-to-kelvin conversion),
 `climatology.py` (time-bin weights),
 `autocorrelation.py` (the integrated autocorrelation time, the effective
 sample size, and the ONE standard error of a mean over a series whose samples
-carry memory), `lapse.py` (lapse rates, and the
+carry memory), `run_lengths.py` (how many orbits to BUY, derived from the
+timescales: a commissioning span from the MEMORY time and a settling block from
+the RELAXATION time, both bracketed because neither time is measured, and the
+two never interchanged), `lapse.py` (lapse rates, and the
 height of the lowest model level),
 `surface_classes.py` (derived surface classes BY NAME),
 `sea_water.py` (the four numbers salinity reaches the model through, read

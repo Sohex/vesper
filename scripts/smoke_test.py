@@ -107,6 +107,7 @@ import argparse
 import ast
 import builtins
 import importlib.util
+import math
 from pathlib import Path
 import re
 import shutil
@@ -2222,6 +2223,68 @@ def check_melting_point_follows_the_run() -> list[str]:
     return bad
 
 
+def check_run_length_derivation() -> list[str]:
+    """A declared run length is derived from a timescale, and from the right one.
+
+    `lib/run_lengths.py` turns two timescales into two lengths, and the whole
+    value of it is that the two are kept apart: a commissioning span is bought
+    in the memory time and a settling block in the relaxation time. This checks
+    the arithmetic against answers known in closed form, checks that the two
+    tolerances that must be one number ARE one number, and checks that the
+    derived lengths still reproduce the operational experience they were built
+    to agree with -- because a derivation that no longer lands where experience
+    does is either wrong or has found something, and either way it must not pass
+    silently.
+    """
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    sys.path.insert(0, str(ROOT / "lib"))
+    try:
+        import assess_convergence
+        import run_lengths
+    except ImportError as exc:
+        return [f"lib/run_lengths.py or assess_convergence.py does not import: {exc}"]
+    bad = []
+    if run_lengths.SETTLING_RESIDUAL_K != assess_convergence._OFFSET_TOLERANCE_K:
+        bad.append(
+            f"a settling block decays to {run_lengths.SETTLING_RESIDUAL_K} K while "
+            f"the offset criterion allows {assess_convergence._OFFSET_TOLERANCE_K} K; "
+            "they are one number and a settling residual the next verdict can see "
+            "is not settled")
+    # Closed form: n = tau * ln(A0 / residual). At A0 = e * residual it is
+    # exactly tau, which is an identity rather than a comparison.
+    tau = 7.0
+    want = tau
+    got = run_lengths.settling_orbits(math.e * run_lengths.SETTLING_RESIDUAL_K, tau)
+    if abs(got - want) > 1e-9:
+        bad.append(f"a perturbation e times the residual should settle in one tau, "
+                   f"{want}; got {got}")
+    # A perturbation already below the residual has nothing to decay.
+    if run_lengths.settling_orbits(0.5 * run_lengths.SETTLING_RESIDUAL_K, tau) != 1.0:
+        bad.append("a perturbation smaller than the residual was given more than "
+                   "one orbit to decay")
+    # Closed form: the span is the multiple, and the commissioning length adds
+    # the approach to it rather than replacing it.
+    if run_lengths.production_span_orbits(3.0) != 3.0 * run_lengths.PRODUCTION_SPAN_TAU_MULTIPLE:
+        bad.append("the production span is not the declared multiple of tau")
+    if run_lengths.commissioning_orbits(11.0, 3.0) != 11.0 + run_lengths.production_span_orbits(3.0):
+        bad.append("a commissioning length is not its approach plus its span")
+    for name, bracket in (("memory", run_lengths.TAU_MEMORY_ORBITS_BRACKET),
+                          ("relaxation", run_lengths.TAU_RELAXATION_ORBITS_BRACKET)):
+        low, high = bracket
+        if not 0 < low <= high:
+            bad.append(f"the {name}-time bracket {bracket} is not an ordered "
+                       "pair of positive times")
+    # THE DERIVED LENGTHS MUST STILL LAND ON THE EXPERIENCE. A reconvergence has
+    # repeatedly taken ten to twenty orbits after a step change worth about half
+    # a kelvin, and the settling bracket for that perturbation has to cover it.
+    low, high = run_lengths.settling_bracket(0.5)
+    if not (low <= 20.0 and high >= 10.0):
+        bad.append(f"a 0.5 K step settles in {low:.1f} to {high:.1f} orbits by "
+                   "derivation, which no longer overlaps the ten to twenty this "
+                   "project has repeatedly seen")
+    return bad
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-help", action="store_true",
@@ -2309,6 +2372,8 @@ def main() -> None:
                check_slab_capacity_follows_the_run()),
               ("the state closure's melting point follows the run",
                check_melting_point_follows_the_run()),
+              ("a declared run length is derived from the right timescale",
+               check_run_length_derivation()),
               ("the tools environment.md names are on this host",
                check_documented_tools())]
     if not args.skip_help:

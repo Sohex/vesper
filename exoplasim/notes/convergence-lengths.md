@@ -349,3 +349,44 @@ enough to batch, which reports its own interval without needing tau at all.
 **The twenty-orbit window is short by a factor of four even under the
 optimistic branch**, which is the answer world-wdsk asked for. It is short in
 the batch length, which is the term no number of extra windows repairs.
+
+## The two lengths a run is bought in, and the two taus they are bought in
+
+Every number above is now consumed rather than only recorded.
+`lib/run_lengths.py` turns the two timescales into the two lengths and keeps
+them apart, because both are called tau and neither substitutes for the other:
+the MEMORY time is how long the model's stationary wobble stays correlated with
+itself and it prices a mean's interval; the RELAXATION time is the e-folding of
+an approach and it prices a decay.
+
+**A commissioning length is the approach plus twenty memory times.** The memory
+time is bracketed at 4.2 to 10.43, so at T21 from cold the approach of about
+seventy orbits is followed by a span of 84 to 209 and the run is 154 to 279
+orbits. The declared length is the FLOOR of that bracket, and it is not a
+stopping rule: a run that reaches it and is still refused by the convergence
+criteria is not finished.
+
+**Running until the instrument stops refusing does not substitute for
+declaring the length**, which is the alternative that had to be ruled in or out
+before the derivation was worth building. It would be strictly better if the
+refusal were the same bar. It is not: the convergence window is sized so the
+offset criterion's slope error resolves its threshold, which is about 38 orbits
+on the dt-45 run, while the span above is 84 at the optimistic end of the
+bracket. The instruments therefore stop refusing tens of orbits before the
+climatology's own interval is bought, so the refusal is a weaker bar and can
+only decide whether to buy MORE.
+
+**A settling length is `tau_relaxation * ln(A / 0.15 K)`**, where A is the
+perturbation the step change made. The residual is the offset criterion's own
+allowance, so what is left is smaller than the instrument that judges the next
+state can see. The relaxation time is bracketed by the three fits that are
+evidence, 6.27 to 13.68, rather than taken from the derived 10.1, because that
+value is not established as a bound on them. A step change worth about half a
+kelvin therefore settles in 8 to 17 orbits, which is where the ten to twenty
+this project has repeatedly seen comes from -- the derivation reproduces the
+experience rather than replacing it, and `scripts/smoke_test.py` fails if it
+stops doing so.
+
+A settling length establishes only that a restart is not mid-transient. It does
+not establish equilibrium, a rung's climate, or an interval on any mean taken
+over it.
