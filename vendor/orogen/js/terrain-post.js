@@ -15,8 +15,8 @@ import {
     GLACIAL_CARVE_RATE, GLACIAL_CONVERGENCE_BONUS, GLACIAL_DEPOSIT_AMOUNT,
     GLACIAL_FJORD_CARVE, GLACIAL_FLOW_THRESHOLD, GLACIAL_FJORD_THRESHOLD,
     GLACIAL_WIDENING_FRAC, GLACIAL_TERMINUS_RATIO, GLACIAL_FJORD_ICE_MIN,
-    GLACIAL_POST_SMOOTH, GLACIAL_MID_FLOOD_FRAC, GLACIAL_MID_FLOOD_CARVE,
-    GLACIAL_INITIAL_CARVE,
+    GLACIAL_POST_SMOOTH,
+    HYDRAULIC_INITIAL_CARVE, HYDRAULIC_MID_FLOOD_FRAC, HYDRAULIC_MID_FLOOD_CARVE,
     HYDRAULIC_DEPOSIT_FRAC, HYDRAULIC_SLOPE_SENSITIVITY,
     HYDRAULIC_REF_REGIONS, HYDRAULIC_REF_RADIUS_KM,
     THERMAL_TRANSFER_FRAC,
@@ -530,7 +530,7 @@ export function erodeComposite(mesh, r_elevation, r_xyz, r_isOcean,
     // Priority-flood pit resolution: ensure every land cell drains to ocean
     // before hydraulic erosion begins. Carves canyons through spill points.
     if (hIters > 0) {
-        priorityFloodCarve(mesh, r_elevation, r_isOcean, GLACIAL_INITIAL_CARVE, protection);
+        priorityFloodCarve(mesh, r_elevation, r_isOcean, HYDRAULIC_INITIAL_CARVE, protection);
     }
 
     // ---- Glacial precomputation (once — index is position-based) ----
@@ -564,9 +564,12 @@ export function erodeComposite(mesh, r_elevation, r_xyz, r_isOcean,
     const gFlowThreshold = GLACIAL_FLOW_THRESHOLD;
     const gFjordThreshold = GLACIAL_FJORD_THRESHOLD;
 
-    // Mid-loop drainage fix: at 75% of iterations, run a carve-biased
-    // priority-flood to cut outlets through basins created by glaciation.
-    const midFloodIter = Math.round(totalIters * GLACIAL_MID_FLOOD_FRAC);
+    // Mid-loop drainage fix: partway through the loop, run a carve-biased
+    // priority-flood to cut outlets through the depressions erosion has closed
+    // so far, whichever of the three processes closed them. The gate is on the
+    // iteration index and totalIters is the max of the three counts, so this
+    // fires in a generation with glacial erosion off as well.
+    const midFloodIter = Math.round(totalIters * HYDRAULIC_MID_FLOOD_FRAC);
     let midFloodDone = false;
 
     // Pre-allocate thermal erosion buffers (max neighbor degree)
@@ -586,7 +589,7 @@ export function erodeComposite(mesh, r_elevation, r_xyz, r_isOcean,
 
         if (!midFloodDone && iter >= midFloodIter) {
             midFloodDone = true;
-            priorityFloodCarve(mesh, r_elevation, r_isOcean, GLACIAL_MID_FLOOD_CARVE, protection);
+            priorityFloodCarve(mesh, r_elevation, r_isOcean, HYDRAULIC_MID_FLOOD_CARVE, protection);
         }
 
         // Sort land cells by descending elevation — needed by glacial ice flow
