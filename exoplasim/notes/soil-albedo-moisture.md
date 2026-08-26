@@ -198,12 +198,13 @@ DUST-17's one profile and not a number this row may define.
 
 ## The magnitude
 
-Three figures, from loosest to tightest. All are land-mean albedo deltas, which
-is the unit `scripts/error_budget.py` consumes, and all are UPPER reaches: the
-realised term is these times the fraction of simulated land wet at the skin and
-how wet it is, and that fraction is unknown for the reason in section 1.
-`build_surface_albedo.py` recomputes the first two per build into
-`albedo_report.json` under `moisture_dependence`.
+Three figures, from loosest to tightest. Each carries a land-mean albedo delta,
+which is the unit `scripts/error_budget.py` consumes, and the third carries a
+per-cell one beside it because that is where the class-level effect lives. All
+are UPPER reaches: the realised term is these times the fraction of simulated
+land wet at the skin and how wet it is, and that fraction is unknown for the
+reason in section 1. `build_surface_albedo.py` recomputes all three per build
+into `albedo_report.json` under `moisture_dependence`.
 
 **The hard ceiling, both bands, all classes.** A wetted modelled surface cannot
 be darker than the open water that would cover it if the wetting went all the
