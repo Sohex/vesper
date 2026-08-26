@@ -2322,12 +2322,14 @@ cannot fall. Two consequences follow, both one-signed:
   every cell, and no artifact in this tree prices its own response, so no
   magnitude is registered for it.
 
-**WHAT THIS MUST NOT DO, and it is checkable without a run.** `awc_mm` is what
-LPJ-GUESS installs and it does not move: the two are separate columns of the same
-states file and this commit changes which one ExoPlaSim reads, not what either
-one is. `biosphere/scripts/build_lpj_driver.py` must produce a byte-identical
-driver across this commit. If it does not, the two consumers have been conflated
-and the biosphere's water has moved.
+**WHAT THIS MUST NOT DO, and it is checkable without a run.** The biosphere's
+water does not move, and the reason is stronger than "the other column is left
+alone". `biosphere/scripts/build_lpj_driver.py` reads `b`, `theta_s`, `theta_fc`
+and `theta_wp` and the per-layer usable shares, and no capacity column at all:
+`vesperinput.cpp` scales each layer's own available water, wilting point and
+saturation by the share and rescales the aggregates to match. So this commit
+touches nothing the driver reads. The check is that the driver is BYTE-IDENTICAL
+across it, and a difference means the two consumers have been conflated.
 
 **THE ZERO HYPOTHESIS AND THE MATERIALITY THRESHOLD.** The predicted global-mean
 separation is ZERO, and the term is MATERIAL if a settled pair separates by more
