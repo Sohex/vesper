@@ -1447,12 +1447,12 @@ the reasons the previous section gives: two of the five terms are compiled in
 with no namelist that reverts them, three have no route from config, and no
 pre-batch-2 binary was preserved to serve as a control.
 
-**The finding is the disagreement itself and it does not need the decomposition.**
-A bundle whose parts were predicted to sum to about +1 K moves the modelled
-global mean by at least -12.5 K at T21. That is the outcome A3 attaches the
-prediction for, and per `docs/src/practice/failure-modes.md` class 15 it is also
-the shape two errors that nearly cancel would NOT produce: a residual this large
-is one term being wrong by a lot, not two being wrong by a little.
+**A residual this large is the shape of one term, not of two that nearly
+cancel**, which is what `docs/src/practice/failure-modes.md` class 15 would
+otherwise warn about. The section "The bisect" below finds that term: it is
+`world-trs3`'s derived `gamma`, worth about -7 to -8 K through a cloud increase
+carrying 9.6 W/m2 of extra reflected shortwave, and its code path is doing
+exactly what it was written to do.
 
 **What this does not license.** Nothing here says a term should be removed.
 Physics is not a knob, and a correct term that moves the simulated climate a long
@@ -1468,11 +1468,14 @@ bucket the donor ran, against this same control on this same restart, staging
 `NLANDWCOL = 0`, `DSOILWZ = 1.5` and `DSOILWF = 1` where the control stages
 `NLANDWCOL = 1`, `DSOILWZ = 0.5, 1` and `DSOILWF = 0.333333, 0.666667`.
 
-Whatever that arm does not account for is the model source's, and that is as far
-as the split can go without a control binary. Removing the `cryosphere` block to
-build the second arm does not work and should not: `derive()` indexes it rather
-than using `.get`, deliberately, so that a config which has lost the block fails
-instead of reverting the model to its compiled values in silence.
+It accounts for +0.17 +/- 0.07 K of the drift and no more, so the config is not
+where the drift lives and the rest is the model source's. The bisect below takes
+it from there.
+
+Removing the `cryosphere` block to build a second config arm does not work and
+should not: `derive()` indexes it rather than using `.get`, deliberately, so that
+a config which has lost the block fails instead of reverting the model to its
+compiled values in silence.
 
 ## A3's fourth condition cannot be met on an arm's first segment
 
