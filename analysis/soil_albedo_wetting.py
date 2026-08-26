@@ -123,7 +123,9 @@ import argparse
 import datetime
 import glob
 import json
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -418,6 +420,111 @@ def qualifying_spectra(code: str, spec: dict):
     return out
 
 
+# --------------------------------------------------------------------------
+# The shape between the ends, and the check that the compiled model runs it.
+# --------------------------------------------------------------------------
+
+def kubelka_munk_transform(albedo: np.ndarray) -> np.ndarray:
+    """r = (1 - R)**2 / (2R), clipped off the two singular ends."""
+    r = np.clip(np.asarray(albedo, dtype=float), 1.0e-4, 0.999)
+    return (1.0 - r) ** 2 / (2.0 * r)
+
+
+def sadeghi_mix(alb_dry, alb_wet, saturation, sigma):
+    """Sadeghi, Jones and Philpot (2015) Eqs (4) and (13).
+
+    LINEAR IN THE TRANSFORMED REFLECTANCE and therefore not in the albedo. The
+    ends are returned exactly, on their own branch, because a mixing that moved
+    the staged dry field at zero saturation would be changing a boundary
+    condition rather than responding to water.
+    """
+    s = np.clip(np.asarray(saturation, dtype=float), 0.0, 1.0)
+    r_d = kubelka_munk_transform(alb_dry)
+    r_w = kubelka_munk_transform(alb_wet)
+    r = (sigma * r_d * (1.0 - s) + r_w * s) / (sigma * (1.0 - s) + s)
+    out = 1.0 + r - np.sqrt(r * r + 2.0 * r)
+    out = np.where(s <= 0.0, np.asarray(alb_dry, dtype=float), out)
+    return np.where(s >= 1.0, np.asarray(alb_wet, dtype=float), out)
+
+
+MODEL_MIXING_DRIVER = """\
+      program wetmix
+      use landcolumn
+      implicit none
+      real :: pd, pw, ps, pg
+      integer :: ios
+      do
+       read(*,*,iostat=ios) pd, pw, ps, pg
+       if (ios /= 0) exit
+       write(*,'(ES24.16)') wet_soil_albedo(pd, pw, ps, pg)
+      enddo
+      end program wetmix
+"""
+
+
+def model_mixing_check(tmp: Path) -> dict:
+    """Drive `landcolumn.f90`'s own `wet_soil_albedo` and require it to agree.
+
+    THE CHECK WITH A RIGHT ANSWER. The staged endmembers are useless if the
+    model interpolates between them on a different curve, and "the Fortran says
+    what this script says" is not something a comment can establish. The module
+    is written to compile on its own -- that is its stated design constraint --
+    so a nine-line driver is enough to run the compiled function on the same
+    inputs and compare.
+
+    Two answers, both exact rather than close: at zero saturation the model must
+    return the staged DRY albedo bit for bit and at full saturation the staged
+    WET one, because those are boundary conditions and not results; in between
+    it must agree with Eq (13) to the precision the model is compiled at.
+    """
+    src = ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "src" / "landcolumn.f90"
+    if not src.is_file():
+        return {"ran": False, "why": f"{rel(src)} is absent"}
+    exe = tmp / "wetmix"
+    (tmp / "driver.f90").write_text(MODEL_MIXING_DRIVER, encoding="utf-8")
+    build = subprocess.run(
+        ["gfortran", "-O2", "-fdefault-real-8", "-J", str(tmp),
+         str(src), str(tmp / "driver.f90"), "-o", str(exe)],
+        capture_output=True, text=True)
+    if build.returncode != 0:
+        return {"ran": False, "why": build.stderr.strip()[-2000:]}
+
+    rng = np.random.default_rng(20260826)
+    dry = rng.uniform(0.05, 0.60, 400)
+    wet = dry * rng.uniform(0.25, 0.90, 400)
+    sat = np.concatenate([np.zeros(4), np.ones(4), rng.uniform(0.0, 1.0, 392)])
+    sig = rng.uniform(0.05, 1.0, 400)
+    stdin = "\n".join(
+        f"{float(a):.17e} {float(b):.17e} {float(c):.17e} {float(d):.17e}"
+        for a, b, c, d in zip(dry, wet, sat, sig))
+    run = subprocess.run([str(exe)], input=stdin + "\n",
+                         capture_output=True, text=True)
+    if run.returncode != 0:
+        return {"ran": False, "why": run.stderr.strip()[-2000:]}
+    got = np.array([float(line) for line in run.stdout.split()])
+    want = sadeghi_mix(dry, wet, sat, sig)
+    worst = float(np.max(np.abs(got - want)))
+    ends = sat <= 0.0
+    worst_dry = float(np.max(np.abs(got[ends] - dry[ends])))
+    full = sat >= 1.0
+    worst_wet = float(np.max(np.abs(got[full] - wet[full])))
+    tolerance = 1.0e-12
+    return {
+        "ran": True,
+        "samples": int(dry.size),
+        "worst_disagreement": worst,
+        "tolerance": tolerance,
+        "dry_end_exact": worst_dry == 0.0,
+        "wet_end_exact": worst_wet == 0.0,
+        "passes": bool(worst <= tolerance and worst_dry == 0.0
+                       and worst_wet == 0.0),
+        "what": "the compiled model's wet_soil_albedo against Sadeghi Eq (13) "
+                "evaluated here, over 400 random (dry, wet, saturation, sigma) "
+                "quadruples, with the two ends required to be BITWISE the "
+                "staged fields",
+    }
+
+
 def paper_reproduction() -> dict:
     """Check 1: both implementations against their own papers' printed numbers."""
     n_l = 4.0 / 3.0
@@ -627,6 +734,18 @@ def main() -> None:
                         for v in lekner_wet(probe, WATER_INDEX_BAND1,
                                             normal_illumination=False)]
 
+    with tempfile.TemporaryDirectory() as tmp:
+        model_mixing = model_mixing_check(Path(tmp))
+    if model_mixing.get("ran") and not model_mixing["passes"]:
+        raise SystemExit(
+            "the compiled model's wet_soil_albedo does not run the curve this "
+            f"script derives the ends for: worst disagreement "
+            f"{model_mixing['worst_disagreement']:.3e}, dry end exact "
+            f"{model_mixing['dry_end_exact']}, wet end exact "
+            f"{model_mixing['wet_end_exact']}. Staging endmembers for a "
+            "mixing that runs a different shape between them is worse than "
+            "staging neither.")
+
     report = {
         "generated": datetime.date.today().isoformat(),
         "generator": rel(Path(__file__)),
@@ -655,6 +774,7 @@ def main() -> None:
             "dry level and a laboratory powder sits 2.2 to 5.1 times above the "
             "outcrop it came from",
         "paper_reproduction": paper_reproduction(),
+        "model_mixing": model_mixing,
         "held_pair_bracket": bracket_check(omega_table),
         "substrate_index_sensitivity": {
             "dry_probe": [float(v) for v in probe],
@@ -711,6 +831,10 @@ def main() -> None:
     rep = report["paper_reproduction"]
     print("\npaper reproduction:",
           "all pass" if all(v["passes"] for v in rep.values()) else "FAILED")
+    mm = report["model_mixing"]
+    print("model mixing:  ",
+          ("agrees with Sadeghi Eq (13), ends exact" if mm.get("passes")
+           else mm.get("why", "DISAGREES")))
     bc = report["held_pair_bracket"]
     print("held wet/dry pairs:",
           "as expected" if bc["passes"] else "NOT as expected")

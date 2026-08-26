@@ -164,16 +164,24 @@ geometry:
   vadose_base_m: 1.5
   consumers:
     exoplasim:
-      geometry: 2 liquid water layers of 0.5 and 1.0 m, ACTIVE only at nlandwcol 1
-      what_it_reads: awc_mm from the emitted states as the column capacity `dwmax` in metres of water, and the per-layer usable shares grouped onto its two water layers as the capacity SPLIT `dsoilwfc`
+      geometry: 3 liquid water layers of 0.02, 0.48 and 1.0 m, ACTIVE only at nlandwcol 1
+      what_it_reads: evaporable_mm from the emitted states as the column capacity `dwmax` in metres of water, and the per-layer usable shares grouped onto its three water layers as the capacity SPLIT `dsoilwfc`
       note: >
         `dwmax` is a capacity, not a thickness. The geometry above is the
         running one -- `surface.land_water_column` declares `layered` at these
-        two layers -- and it is not a free choice: 0.5 and 1.0 m is exactly this
-        file's own 500 mm upper and 1000 mm lower grouping, which is the only
-        two-layer cut at which the climate column and the ecology column share a
-        boundary. LSHY-5 needs them to share it, because two columns cannot
-        agree about frozen soil across geometries that do not meet.
+        three layers -- and the 0.5 m boundary in it is not a free choice: it is
+        exactly this file's own 500 mm upper and 1000 mm lower grouping, which
+        is the only cut at which the climate column and the ecology column share
+        a boundary. LSHY-5 needs them to share it, because two columns cannot
+        agree about frozen soil across geometries that do not meet. The 0.02 m
+        cut ABOVE it is `surface_layer`, and it moves no boundary either column
+        reads: 0.02 + 0.48 is 0.5.
+
+        `evaporable_mm` and not `awc_mm`, and the difference is one layer deep.
+        A root cannot reach the water between air dry and the wilting point and
+        a bare drying surface can, so the surface layer's capacity is cut from
+        air dry and the column's is the sum. LPJ-GUESS reads `awc_mm`, which is
+        unchanged. See `surface_layer`.
 
         THE CAPACITY SPLIT IS A FIELD, on the same footing as the capacity it
         splits. It is not one shape: measured over this build's land cells the
@@ -209,6 +217,145 @@ geometry:
         FROM. Its `awc` column is pedology's own declared endmember mixture,
         cut at the column base under WORLD-7702, and no consumer reads it: it
         is the alternative the report costs the adopted closure against.
+
+# ---------------------------------------------------------------------------
+# THE SURFACE LAYER. The ONE description of the top of the simulated land
+# column, and the reason it is here rather than in either consumer.
+#
+# Two things read the top of this column at a depth of their own. The dust
+# scheme's threshold correction takes a GRAVIMETRIC water content over its
+# emitting depth; the soil albedo takes a DEGREE OF SATURATION over its albedo
+# depth. Neither depth need be the other, and both are readings off ONE
+# profile. DUST-17 owns the emitting depth and forbids a second central
+# hydrology; PHYS-15 owns the albedo depth and consumes this rather than
+# deriving one. `aeolian/config/dust.yaml`'s `moisture.soil_depth_m` is the
+# emitting depth and reads `thickness_m` below once DUST-17 lands; until then
+# it carries 0.5 m, which is the top water layer read whole.
+#
+# WHY IT IS A LAYER AND NOT A DIAGNOSTIC. The climate column's liquid water is
+# a tipping-bucket cascade: the surface flux enters the top layer, each layer
+# fills to capacity and passes its excess down, and a withdrawal larger than
+# the top layer holds draws on the layers beneath. A store 0.02 m deep
+# therefore empties under evaporation in about a day and refills with the first
+# rain, where the 0.5 m layer above it relaxes on the column's own timescale.
+# That distinction is not a refinement: Craft and Horel measure a salt crust
+# recovering from 0.22 to 0.32 in EIGHT DAYS after flooding, so an albedo
+# driven from a 0.5 m store is wrong in PHASE and not merely imprecise.
+#
+# TWO CHANGES, AND ONLY ONE OF THEM MOVES WATER.
+#
+#   THE SPLIT is free and exact. Splitting the top layer at `thickness_m` while
+#   holding the column's total capacity fixed leaves the total the cascade
+#   carries BITWISE unchanged, because what enters is the surface flux and what
+#   leaves is base overflow and neither depends on where the internal
+#   boundaries are. `pedology/scripts/land_column_properties.py`
+#   `check_split_invariance` drives the model's own kernel at both layer counts
+#   and requires exactly that.
+#
+#   THE FLOOR is a real change and it is declared. `available` is
+#   field capacity minus wilting point because that is what a ROOT can remove,
+#   and evaporation from a bare surface is not a root: the top of a drying soil
+#   goes to air dry, which is below the wilting point and outside every state
+#   this contract's capacity carries. So the surface layer's capacity is cut
+#   from `air_dry` instead, and the column's capacity gains
+#   `thickness_m * theta_wp` over that layer. `awc_mm` is unchanged and is what
+#   LPJ-GUESS reads; `evaporable_mm` is the sum and is what ExoPlaSim installs
+#   as `dwmax`. They are two different quantities and not one number stated
+#   twice: a root cannot reach the water between air dry and the wilting point
+#   and a bare surface can.
+# ---------------------------------------------------------------------------
+surface_layer:
+  thickness_m: 0.02
+  thickness_source: >
+    ClimaLand's `albedo_calc_top_thickness`, read from
+    references/climaland/src/standalone/Soil/soil_albedo.jl, which is the
+    artifact rather than a description of one. Its `update_albedo!` falls back
+    to the whole top layer when no layer is centred above that depth, which is
+    what the 0.5 m column was doing. 0.02 m is ALREADY generous against the
+    optical penetration depth of a soil, which Ciani et al. put at the
+    micrometre to millimetre scale through Sadeghi, Jones and Philpot (2015);
+    it is an upper bound on the depth a radiation scheme sees, and the
+    direction of that bound is stated because it is the direction that
+    UNDERSTATES how fast the modelled surface dries.
+  shares_a_boundary_with: >
+    the 0.5 m cut. 0.02 + 0.48 + 1.0 keeps the climate column's water layer
+    boundary at 0.5 m, which `geometry.consumers.exoplasim` argues is the only
+    two-layer cut where the climate column and the ecology column meet. LSHY-5
+    needs them to meet, so a surface layer that moved that boundary would not
+    be admissible however thin it was.
+  lower_bound: air_dry
+  air_dry_water_content: 0.0
+  air_dry_argument: >
+    ZERO, AND IT IS A DECLARATION RATHER THAN A MEASUREMENT. Two things make it
+    the right one. It is the state every dry endmember this project stages is
+    MEASURED at -- the ECOSTRESS and POSEIDON spectra `analysis/rock_albedo.py`
+    and `analysis/rock_albedo_bands.py` integrate are prepared laboratory
+    samples at or near zero water content -- so an empty surface layer and the
+    staged dry albedo are the same state and the mixing has no level shift at
+    its dry end. And it is a bound whose direction is known: a real soil holds
+    adsorbed water at the ambient humidity, so this makes the layer give up at
+    most `thickness_m * theta_ad` more water than it should, which the report
+    states per build as `surface_layer.air_dry_overdraw_mm`.
+
+    THE ALTERNATIVE IS REGISTERED AND NOT ADOPTED. Air dry could be evaluated
+    through this contract's own retention closure at the Kelvin-equation
+    potential of a declared relative humidity, which is around -160 MPa at 30
+    percent and 293 K. That is a hundredfold extrapolation past the wilting
+    point and far outside the suctions Cosby's samples were fitted over, and
+    Clapp-Hornberger has no adsorption branch at all, so it would report a
+    number the closure cannot support. Adopting it needs a dry-end retention
+    form -- Campbell and Shiozawa, or Rossi and Nimmo -- which this project
+    does not hold.
+  capacity_form: thickness_m * (theta_fc - air_dry_water_content) * usable
+  capacity_note: >
+    The layers BENEATH it keep `theta_fc - theta_wp` unchanged, so
+    `thermal.saturation_mapping`'s `sr_at_wilting_point` and
+    `sr_at_field_capacity` still describe them exactly and the soil heat
+    solver, which maps its 0.4 m first temperature layer onto the 0.48 m water
+    layer by midpoint, reads a layer whose semantics have not moved.
+  saturation_mapping:
+    form: Sr = sr_at_air_dry + f * (sr_at_field_capacity - sr_at_air_dry)
+    f_is: the surface layer's liquid store as a fraction of its own capacity
+    sr_at_air_dry: 0.0
+    sr_at_field_capacity_from: thermal.saturation_mapping.sr_at_field_capacity
+    note: >
+      A SECOND mapping and not a second hydrology. It differs from
+      `thermal.saturation_mapping` in ONE place, the lower endpoint, because
+      the surface layer's capacity is cut from air dry and the layers below it
+      are cut from the wilting point. The upper endpoint is the same number,
+      read from there rather than restated here.
+  frozen_water: >
+    EXCLUDED, and by construction. The store the mapping reads is the layer's
+    LIQUID water; ice in the same layer occupies pore space and comes off the
+    capacity, so a frozen surface layer reads as a dry one. That is the
+    behaviour both consumers want -- ice in the pores neither darkens the
+    modelled surface nor raises the dust threshold the way liquid water does --
+    and it needs no switch, because under the default `nlandwphase = 0` there
+    is no soil ice at all.
+  consumers:
+    albedo:
+      owner: phys-15
+      depth_m: 0.02
+      reads: the degree of saturation, through `surface_layer.saturation_mapping`
+      note: >
+        `landmod`'s `getalb` under `nwetsoil = 1` mixes the staged dry and wet
+        band pairs on this saturation. The mixing form is Sadeghi, Jones and
+        Philpot (2015): linear in the Kubelka-Munk transformed reflectance and
+        therefore NOT linear in the albedo, which is the CLM form this row
+        started from and which no longer describes the shape between the ends.
+    dust_emission:
+      owner: dust-17
+      depth_m: undeclared
+      reads: a gravimetric water content, through this layer's bulk density and thickness
+      note: >
+        The emitting depth is DUST-17's and is not this contract's to set. What
+        is settled here is that whatever depth it declares is a reading off
+        this profile: `aeolian/config/dust.yaml` states the gravimetric
+        conversion once and reaches the model as the single namelist constant
+        `dustwcv`, and the surface layer is what that conversion applies to.
+        Until DUST-17 lands, that file's `moisture.soil_depth_m` is 0.5 and the
+        two rows are reading different depths off the same column, which is
+        legal and is why the depth is a per-consumer field here.
 
 # ---------------------------------------------------------------------------
 # MATERIAL FRACTIONS. What the column is made of, per physical layer. The
@@ -488,17 +635,24 @@ thermal:
     sr_at_field_capacity_p5_p95: [0.6994, 0.8626]
     tolerance: 0.002
     what_this_bounds: >
-      THE STORE CANNOT REACH A DRY SOIL, and that is the finding rather than a
-      caveat. An empty store is the wilting point, which on this build is a
-      degree of saturation near 0.41, so a thermal inertia driven by the store
-      spans about a factor of 1.37 between an empty and a full column. The full
-      saturation sweep from air dry to saturated is a factor of 4.91. The
-      difference is water held below the wilting point, which the soil physically
-      carries and the model's store does not represent, and it is why the dry
-      playa and salt-crust surfaces cannot be given their own inertia by this
-      route however the endpoints are set. Representing them needs a thin surface
-      layer that dries below the wilting point, which is a change to the column
-      and not to a constant.
+      THE LAYERS THIS MAPPING DESCRIBES CANNOT REACH A DRY SOIL, and that is the
+      finding rather than a caveat. An empty store is the wilting point, which on
+      this build is a degree of saturation near 0.41, so a thermal inertia driven
+      by the store spans about a factor of 1.37 between an empty and a full
+      column. The full saturation sweep from air dry to saturated is a factor of
+      4.91. The difference is water held below the wilting point, which the soil
+      physically carries and these layers' capacity does not represent, and it is
+      why the dry playa and salt-crust surfaces cannot be given their own inertia
+      by this route however the endpoints are set.
+
+      `surface_layer` is the thin layer that DOES dry below the wilting point,
+      and it carries its own mapping for that reason. What it does not yet reach
+      is the soil heat solver: landmod maps its 0.4 m first temperature layer
+      onto the 0.48 m water layer by midpoint, so the temperature column still
+      reads a store floored at the wilting point and the inertia of a dry playa
+      is still out of its range. Giving the heat solver the surface layer means
+      a temperature layer thin enough to sit above 0.02 m, which is a change to
+      that column's geometry and is LSHY-5's.
     owner: lshy-5
 
   # -------------------------------------------------------------------------

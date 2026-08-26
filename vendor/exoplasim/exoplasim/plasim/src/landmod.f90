@@ -28,6 +28,45 @@
       integer :: nlandw   = 1     ! switch for soil model (1/0 : prog./clim)
       integer :: newsurf  = 0     ! (dtcl,dwcl) 1: update from file, 2:reset 
       integer :: nwatcini = 0     ! (0/1) initialize water content of soil
+!     THE MOISTURE-DEPENDENT SOIL ALBEDO. Wet ground is darker than dry
+!     ground, and at nwetsoil = 0 the modelled land surface keeps its dry
+!     albedo through every wetting and drying cycle the land column simulates.
+!
+!     WHAT THIS REPLACED. Upstream shipped a switch of the same name whose body
+!     overwrote the staged background albedo with `alblandmax` blended toward
+!     the ocean's, on a curve with two fitted constants and no derivation, and
+!     drove it from `dwater` -- which is the net surface water FLUX in m/s, not
+!     a store. A flux over a capacity in metres is not a wetness; at ordinary
+!     fluxes the expression pins at its own floor and paints every unfrozen
+!     land cell one constant. It also set band 1 equal to the broadband, which
+!     asserts that wetting is spectrally flat, and liquid water's absorption
+!     sits in band 2.
+!
+!     WHAT IT DOES NOW. Three things, each sourced somewhere outside this file:
+!
+!       THE STATE is the degree of saturation of the SURFACE LAYER, the top
+!       water layer of the layered column, declared in
+!       pedology/config/land_column_properties.yaml under `surface_layer`. It
+!       is the layer's LIQUID store over its own capacity, mapped onto a degree
+!       of saturation by `skinsrad` and `skinsrfc` the way `soilsrwp` and
+!       `soilsrfc` map the layers below it. Ice in that layer occupies pore
+!       space and comes off the capacity, so a frozen surface reads as a dry
+!       one, which is what both consumers of that layer want.
+!
+!       THE ENDS are the staged dry band pair, codes 174/175/176, and a staged
+!       SATURATED band pair beside it, derived per class and per band by
+!       analysis/soil_albedo_wetting.py from Lekner and Dorf (1988) and
+!       Twomey, Bohren and Mergenthaler (1986) applied per wavelength to the
+!       same reflectance spectra the dry pair comes from.
+!
+!       THE SHAPE between them is Sadeghi, Jones and Philpot (2015): linear in
+!       the Kubelka-Munk transformed reflectance and therefore NOT linear in
+!       the albedo. `wetsigma`, `wetsigma1` and `wetsigma2` are that paper's
+!       shape parameter per staged field.
+!
+!     IT NEEDS THE LAYERED COLUMN. The scalar bucket has no depth, so there is
+!     no surface layer to read and `landini` refuses rather than falling back
+!     to the whole column, whose drydown is a season where the skin's is a day.
       integer :: nwetsoil = 0     ! (0/1) Soil albedo responds to water content
       real    :: alblandnl  = 0.2   ! albedo for land
       real    :: albland  = 0.22
@@ -314,6 +353,28 @@
       real :: soilcapsat = 2.9689E6 ! soil heat capacity, saturated
       real :: soilsrwp   = 0.4114   ! degree of saturation at an empty store
       real :: soilsrfc   = 0.7877   ! degree of saturation at a full store
+!     THE SURFACE LAYER'S OWN MAPPING, for `nwetsoil`. It differs from the pair
+!     above in the LOWER endpoint and only there: the surface layer's capacity
+!     is cut from air dry and the layers beneath it are cut from the wilting
+!     point, because a root cannot reach the water between the two and a bare
+!     drying surface can. Both come from the land column property contract, and
+!     `skinsrad` is zero there for a stated reason: it is the state every dry
+!     reflectance spectrum this project stages was measured at, so an empty
+!     surface layer and the staged dry albedo are the same state and the mixing
+!     has no level shift at its dry end.
+      real :: skinsrad   = 0.0      ! saturation at an empty surface layer
+      real :: skinsrfc   = 0.7877   ! saturation at a full surface layer
+!     Sadeghi, Jones and Philpot's shape parameter, one per staged albedo
+!     field. It is the ratio of the dry soil's scattering coefficient to the
+!     saturated soil's, so it is one where the water's own scattering is
+!     negligible against the soil's, which that paper finds at the strongly
+!     water-absorbing wavelengths of band 2. One is ADOPTED in both bands and
+!     is the limit rather than a fit; their visible-band fits run 0.042 to
+!     0.528, and a value below one darkens the modelled surface SOONER in a
+!     wetting cycle rather than changing its ends.
+      real :: wetsigma   = 1.0      ! shape parameter, broadband
+      real :: wetsigma1  = 1.0      ! shape parameter, below 0.75 um
+      real :: wetsigma2  = 1.0      ! shape parameter, above 0.75 um
 !     THE GLACIAL ICE PAIR IS DERIVED IN `glaciermod`, NOT DECLARED HERE.
 !     `sicecap` and `sicediff` are the heat capacity per unit volume and the
 !     thermal conductivity of the ice `glaciermod` grows. Both are properties of
@@ -506,6 +567,15 @@
       real :: dalbclim(NHOR)    =  2.0  ! climatological background albedo
       real :: dalbclim1(NHOR)   =  2.0  ! climatological background albedo (<.75 um)
       real :: dalbclim2(NHOR)   =  2.0  ! climatological background albedo (>.75 um)
+!     The SATURATED background albedo, the other end of the moisture mixing.
+!     Staged fields, not an annual cycle: the material's wet reflectance is a
+!     property of the material and the season is carried by the saturation the
+!     mixing reads. The negative sentinel is "no file staged", which
+!     `landini` refuses on when nwetsoil is on rather than mixing toward a
+!     number nobody wrote.
+      real :: dalbwet(NHOR)     = -1.0  ! saturated background albedo
+      real :: dalbwet1(NHOR)    = -1.0  ! saturated background albedo (<.75 um)
+      real :: dalbwet2(NHOR)    = -1.0  ! saturated background albedo (>.75 um)
 !
 
 !     Threads instead of ranks: a thread owns what a rank owned.
@@ -513,6 +583,7 @@
 !$omp threadprivate(albforest,albgmax,albgmax1,albgmax2,albgmin,albgmin1,albgmin2,albland,alblandmax,&
 !$omp&  alblandnl,albsmax,albsmax1,albsmax2,albsmaxf,albsmaxf1,albsmaxf2,albsmin,albsmin1,albsmin2,&
 !$omp&  albsminf,albsminf1,albsminf2,co2conv,dalbcl,dalbcl1,dalbcl2,dalbclim,dalbclim1,dalbclim2,&
+!$omp&  dalbwet,dalbwet1,dalbwet2,skinsrad,skinsrfc,wetsigma,wetsigma1,wetsigma2,&
 !$omp&  darea,dgroundalbnl,doro,dqs,drhsfull,drhsland,driver,dsmax,dsnowt,dsnowz,dsoilt,dsoilz,dtcl,&
 !$omp&  dtclim,dtclsoil,dts,dtsm,duroff,dvroff,dwatcini,dwater,dwcl,dwclim,dz0clim,dz0climo,dz0land,&
 !$omp&  dwatcl,dsoili,ddrain,adrain,dsoilwf,dsoilwfc,dsoilwz,drhslow,nlandwcol,nlsoilw,nlandwdrain,nrhsexp,nlandwphase,dzglac,dztop,&
@@ -580,7 +651,8 @@
      &                ,dsmax,wsmax,drhsfull,dzglac,dztop,dsoilz         &
      &                ,rlue,co2conv,tau_veg,tau_soil                    &
      &                ,rnbiocats,nwetsoil,soilcapdry,soilcapsat          &
-     &                ,soilsrwp,soilsrfc                                 &
+     &                ,soilsrwp,soilsrfc,skinsrad,skinsrfc               &
+     &                ,wetsigma,wetsigma1,wetsigma2                      &
      &                ,albforest,forcovmx,forcovmn                      &
      &                ,forhgt,forpai,forext,forint                       &
      &                ,soildifdry,soildifsat                           &
@@ -736,6 +808,69 @@
        endif
       endif
 
+!     PHYS-15. The moisture-dependent soil albedo reads the SURFACE LAYER, so
+!     it needs the layered column: the scalar bucket has no depth, and the
+!     whole column's drydown is a season where the skin's is a day, which is
+!     the error this switch exists to remove rather than one it may fall back
+!     on. It also needs the saturated pair staged, because mixing toward a
+!     sentinel is mixing toward nothing.
+      if (nwetsoil == 1) then
+       if (nlandwcol /= 1) then
+        if (mypid == NROOT) then
+         write(nud,*)'*** nwetsoil = 1 needs nlandwcol = 1: the scalar bucket'
+         write(nud,*)'*** has no surface layer, and the column it does have'
+         write(nud,*)'*** dries on the wrong timescale for an albedo'
+        endif
+        stop
+       endif
+!      THE SATURATED PAIR IS A BOUNDARY CONDITION AND NOT A STATE, so it is
+!      read here on EVERY start rather than carried through the restart the way
+!      `dalbcl1` and `dalbcl2` are. It cannot drift, there is nothing in it a
+!      run could have changed, and a restart that had to carry it would be
+!      three more records for a field the surface file already holds. A
+!      continuation with no surface file staged therefore stops below instead
+!      of mixing toward the sentinel.
+       call mpsurfgp('dalbwet' ,dalbwet ,NHOR,1)
+       call mpsurfgp('dalbwet1',dalbwet1,NHOR,1)
+       call mpsurfgp('dalbwet2',dalbwet2,NHOR,1)
+       if (dalbwet1(1) < 0.0 .or. dalbwet2(1) < 0.0) then
+        if (mypid == NROOT) then
+         write(nud,*)'*** nwetsoil = 1 with no saturated albedo field staged.'
+         write(nud,*)'*** exoplasim/scripts/build_surface_albedo.py writes'
+         write(nud,*)'*** codes 1742, 1750 and 1760 beside 174, 175 and 176;'
+         write(nud,*)'*** stage them or leave nwetsoil at 0'
+        endif
+        stop
+       endif
+       if (newsurf == 2) then
+        if (mypid == NROOT) then
+         write(nud,*)'*** nwetsoil = 1 with newsurf = 2 mixes a staged'
+         write(nud,*)'*** saturated albedo against a namelist dry one, which'
+         write(nud,*)'*** is half a boundary condition'
+        endif
+        stop
+       endif
+       if (skinsrfc <= skinsrad) then
+        if (mypid == NROOT) then
+         write(nud,*)'*** skinsrfc must exceed skinsrad: a full surface layer'
+         write(nud,*)'*** cannot be drier than an empty one'
+        endif
+        stop
+       endif
+       if (wetsigma <= 0.0 .or. wetsigma1 <= 0.0 .or. wetsigma2 <= 0.0) then
+        if (mypid == NROOT) then
+         write(nud,*)'*** wetsigma must be positive: it is a ratio of two'
+         write(nud,*)'*** scattering coefficients'
+        endif
+        stop
+       endif
+       if (mypid == NROOT) then
+        write(nud,*)' *** PHYS-15: soil albedo responds to the surface layer,'
+        write(nud,*)' *** saturation ',skinsrad,' empty to ',skinsrfc,' full'
+        write(nud,*)' *** shape sigma ',wetsigma1,' band 1, ',wetsigma2,' band 2'
+       endif
+      endif
+
 !     LSHY-5. Phase is a property of a layer, so it needs the layered column.
       if (nlandwphase == 1) then
        if (nlandwcol /= 1) then
@@ -786,6 +921,11 @@
       call mpbcr(soilcapsat)
       call mpbcr(soilsrwp)
       call mpbcr(soilsrfc)
+      call mpbcr(skinsrad)
+      call mpbcr(skinsrfc)
+      call mpbcr(wetsigma)
+      call mpbcr(wetsigma1)
+      call mpbcr(wetsigma2)
       call mpbcr(rhosnow)
 !     Every thread derives its own snow heat capacity from the density it has
 !     just been given, so the two cannot drift apart. GRAV-8.
@@ -2585,15 +2725,6 @@
 
       subroutine getalb
       use landmod
-      
-      real, parameter :: aa = 5.2
-      real, parameter :: yy = 4.0
-      real :: bf = 0.0
-!     Implicitly SAVE, so one copy shared by the whole team.
-!$omp threadprivate(bf)
-      real :: al = 0.0
-!     Implicitly SAVE, so one copy shared by the whole team.
-!$omp threadprivate(al)
 !
 !     get surface background albedo from  annual cycle
 !
@@ -2602,32 +2733,61 @@
       dalbclim(:)=zgw1*dalbcl(:,jm1)+zgw2*dalbcl(:,jm2)
       dalbclim1(:)=zgw1*dalbcl1(:,jm1)+zgw2*dalbcl1(:,jm2)
       dalbclim2(:)=zgw1*dalbcl2(:,jm1)+zgw2*dalbcl2(:,jm2)
-      
-!      
-!     Modify the surface background albedo according to soil water capacity
-!
-      if (nwetsoil > 0.5) then
-        do jhor = 1,NHOR
-          if (dls(jhor)>0.5) then
-            if (dts(jhor)>273.15) then !We have wet soil. The wetter, the darker.
-              bf = dwater(jhor)/wsmax
-              al = 1.0/aa*(max(bf,1.0e-3)**((1.0-yy)/yy) - 1)**(1.0/yy)
-              dalbclim(jhor) = alblandmax * exp(-(bf*25)**6)+ &
-&                              al * (1 - exp(-(bf*25)**6) - exp(-((1-bf)*30)**9))+ &
-&                              doceanalb(1) * exp(-((1-bf)*30)**9)
-              dalbclim1(jhor) = dalbclim(jhor)
-              dalbclim2(jhor) = alblandmax * exp(-(bf*25)**6)+ &
-&                              al * (1 - exp(-(bf*25)**6) - exp(-((1-bf)*30)**9))+ &
-&                              doceanalb(2) * exp(-((1-bf)*30)**9)
-            else !Frozen soil.
-              dalbclim(jhor) = albland
-              dalbclim1(jhor) = dgroundalb(1)
-              dalbclim2(jhor) = dgroundalb(2)
-            endif
-          endif
-        enddo
-      endif
-      
+
+      if (nwetsoil == 1) call wetalb
+
       return
       end subroutine getalb
+
+!     =================
+!     SUBROUTINE WETALB
+!     =================
+!
+!     PHYS-15. The modelled soil albedo between its dry and saturated ends, on
+!     the degree of saturation of the surface layer.
+!
+!     THE STATE. The surface layer is water layer 1 of the layered column, and
+!     what is read is its LIQUID store over its own capacity. Ice in the layer
+!     occupies pore space and comes off that capacity in `column_step`, so a
+!     frozen surface reads as a dry one without a branch for it, and under the
+!     default nlandwphase = 0 there is no soil ice at all. The fill fraction is
+!     mapped onto a degree of saturation by `skinsrad` and `skinsrfc`, which
+!     are the surface layer's own endpoints and not the column's: its capacity
+!     is cut from air dry, so an empty layer is a dry soil and the mixing has
+!     no level shift at its dry end.
+!
+!     WHY IT IS NOT A LINEAR MIX OF THE TWO ALBEDOS. Sadeghi, Jones and Philpot
+!     derive the reflectance of a wetting soil from Kubelka-Munk two-flux
+!     theory, and what is linear in the water content is the TRANSFORMED
+!     reflectance r = (1-R)^2 / 2R, not R. Mixing the albedos directly is the
+!     CLM form this row started from; it has the same two ends and the wrong
+!     shape between them, and the difference is largest at low saturation,
+!     which is where a drying skin spends its time.
+!
+!     `wet_soil_albedo` in landcolumn carries the arithmetic and takes
+!     everything as an argument, so it can be driven on its own.
+
+      subroutine wetalb
+      use landmod
+      real    :: zcap, zf, zsr
+      integer :: jhor
+
+      do jhor = 1, NHOR
+       if (dls(jhor) > 0.5) then
+        zcap = dwmax(jhor) * dsoilwfc(jhor,1)
+        zf   = 0.
+        if (zcap > 0.0) zf = dwatcl(jhor,1) / zcap
+        zf   = AMIN1(1., AMAX1(0., zf))
+        zsr  = skinsrad + zf * (skinsrfc - skinsrad)
+        dalbclim(jhor)  = wet_soil_albedo(dalbclim(jhor) ,dalbwet(jhor) ,     &
+     &                                    zsr,wetsigma)
+        dalbclim1(jhor) = wet_soil_albedo(dalbclim1(jhor),dalbwet1(jhor),     &
+     &                                    zsr,wetsigma1)
+        dalbclim2(jhor) = wet_soil_albedo(dalbclim2(jhor),dalbwet2(jhor),     &
+     &                                    zsr,wetsigma2)
+       endif
+      enddo
+
+      return
+      end subroutine wetalb
 

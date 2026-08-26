@@ -376,4 +376,92 @@
       return
       end function land_wetness
 
+!     ==========================
+!     FUNCTION WET_SOIL_ALBEDO
+!     ==========================
+!
+!     PHYS-15. The albedo of a soil at a given degree of saturation, between a
+!     dry and a saturated endmember of the same material.
+!
+!     Sadeghi, Jones and Philpot (2015), Remote Sens. Environ. 164, 66-76,
+!     Eqs (4) and (13). Kubelka-Munk two-flux theory gives a semi-infinite
+!     scattering and absorbing layer the reflectance
+!
+!         R = 1 + r - sqrt(r*r + 2*r),      r = (1 - R)**2 / (2*R) = k/s
+!
+!     and treating the soil's absorption and scattering coefficients as
+!     additive over its solid, water and air fractions makes the TRANSFORMED
+!     reflectance r, not R, the quantity that interpolates:
+!
+!         r(S) = (sigma*r_dry*(1 - S) + r_sat*S) / (sigma*(1 - S) + S)
+!
+!     with S the degree of saturation and sigma = s_dry / s_sat the ratio of
+!     the two scattering coefficients. At sigma = 1 that is linear in S, which
+!     is the limit the paper derives and verifies where the water's own
+!     scattering is negligible against the dry soil's.
+!
+!     WHY NOT alpha_dry*(1-S) + alpha_wet*S. Because R and r are not linearly
+!     related. Mixing the albedos has the same two ENDS and the wrong shape
+!     between them, and the disagreement is largest at low saturation, which is
+!     where a drying surface layer spends its time. The linear-in-albedo form
+!     is CLM's, and this is the physics behind it rather than a second opinion
+!     about it.
+!
+!     THE ENDS ARE RETURNED EXACTLY. At S = 0 this returns palbdry and at
+!     S = 1 it returns palbwet, bit for bit, because the transform and its
+!     inverse are skipped on those branches. A wetting term that moved the
+!     staged dry field would be changing a boundary condition rather than
+!     responding to water, and the branch is what makes that checkable rather
+!     than true to a tolerance.
+
+      pure function wet_soil_albedo(palbdry, palbwet, psat, psigma)          &
+     &              result(palb)
+      real, intent(in) :: palbdry   ! albedo of the dry endmember
+      real, intent(in) :: palbwet   ! albedo of the saturated endmember
+      real, intent(in) :: psat      ! degree of saturation, 0 to 1
+      real, intent(in) :: psigma    ! s_dry / s_sat, Sadeghi's shape parameter
+      real :: palb
+      real :: zs, zrd, zrw, zr, zden
+
+      zs = AMIN1(1., AMAX1(0., psat))
+      if (zs <= 0.0) then
+       palb = palbdry
+       return
+      endif
+      if (zs >= 1.0) then
+       palb = palbwet
+       return
+      endif
+!     The transform is singular at zero and at one reflectance, and neither is
+!     a surface: clipped rather than guarded, because a clip that fires is a
+!     staged field outside the range the derivation covers and the ends above
+!     already carry the exact cases.
+      zrd = albedo_floor_transform(palbdry)
+      zrw = albedo_floor_transform(palbwet)
+      zden = psigma * (1.0 - zs) + zs
+      zr = (psigma * zrd * (1.0 - zs) + zrw * zs) / zden
+      palb = 1.0 + zr - SQRT(zr * zr + 2.0 * zr)
+
+      return
+      end function wet_soil_albedo
+
+!     ================================
+!     FUNCTION ALBEDO_FLOOR_TRANSFORM
+!     ================================
+!
+!     The Kubelka-Munk transform r = (1 - R)**2 / (2*R), with R held inside the
+!     open interval it is defined on. A perfect absorber has infinite r and a
+!     perfect reflector has zero, and neither is a staged surface.
+
+      pure function albedo_floor_transform(palb) result(pr)
+      real, intent(in) :: palb
+      real :: pr
+      real :: zr
+
+      zr = AMIN1(0.999, AMAX1(1.0e-4, palb))
+      pr = (1.0 - zr) ** 2 / (2.0 * zr)
+
+      return
+      end function albedo_floor_transform
+
       end module landcolumn

@@ -74,6 +74,16 @@
       "note": "the paper carries its example through Eq (3), the zenith REFLECTANCE, and reads omega' = 0.825 off Figure 3's reflectance curve. This implementation uses Eq (4), the flux albedo, on both legs, because a flux albedo is what the model reads; the end-to-end map differs from the paper's printed answer by less than the width of its figure. The two are not the same quantity and are not required to agree exactly."
     }
   },
+  "model_mixing": {
+    "ran": true,
+    "samples": 400,
+    "worst_disagreement": 0.0,
+    "tolerance": 1e-12,
+    "dry_end_exact": true,
+    "wet_end_exact": true,
+    "passes": true,
+    "what": "the compiled model's wet_soil_albedo against Sadeghi Eq (13) evaluated here, over 400 random (dry, wet, saturation, sigma) quadruples, with the two ends required to be BITWISE the staged fields"
+  },
   "held_pair_bracket": {
     "pairs": [
       {
