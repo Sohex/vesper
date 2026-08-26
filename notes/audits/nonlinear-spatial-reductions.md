@@ -52,7 +52,7 @@ from the mesh.
 
 The law is
 
-    depth = maximum_depth * P / (P + erosion_weight * E),   E proportional to erodibility
+    depth = maximum_depth * P / (P + E),   E proportional to erodibility
 
 which is convex in the erodibility, so the mean of the depths lies above the
 depth at the mean. `pedology/scripts/build_soil.py` area-mixed every rock class's
@@ -67,7 +67,7 @@ orders of the reduction are therefore well defined and the difference between
 them is the operator's and nothing else's.
 
 Everything the law needs except the erodibility collapses into one ratio,
-`rho = erosion_weight * E / P` at the cell mean, so no climatology is needed to
+`rho = E / P` at the cell mean, so no climatology is needed to
 size this: `rho` is swept over the decades the law can reach.
 
 | `rho` | depth at the mixed erodibility | land-mean gap | land area above the 0.02 m bar |

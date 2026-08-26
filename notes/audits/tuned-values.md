@@ -165,11 +165,13 @@ PAR at the plant level.
 
 ### 3. The regolith depth level: `erosion_weight` and `erosion_reference_relief_m`
 
-`pedology/config/pedogenesis.yaml:557` and `:560`, consumed at
-`pedology/scripts/build_soil.py:313-318`:
+`pedology/config/pedogenesis.yaml`'s `regolith:` block, consumed in
+`pedology/scripts/build_soil.py:regolith_depth`. The two keys are now ONE,
+`erosion_coefficient_per_relief_m`, and the paragraphs below record what they
+were and why they collapsed:
 
-    erosion = erodibility * max(relief_m,0)/erosion_reference_relief_m * moisture
-    depth   = maximum_depth_m * production / (production + erosion_weight * erosion)
+    erosion = erosion_coefficient_per_relief_m * erodibility * max(relief_m,0) * moisture
+    depth   = maximum_depth_m * production / (production + erosion)
 
 **The file confesses the first and says nothing about the second.**
 `pedogenesis.yaml:545-549`: "the one free scale parameter in the depth model.
@@ -193,15 +195,54 @@ field, and its level rests on a calibration.
 denominator, so a 10 per cent move in either key moves land-mean regolith depth
 and land-mean PAWC by 7.9 per cent in the opposite direction.
 
-**Disposition: REPLACEABLE, SOURCE NEEDED, and one of the two papers is
-already read.** Heimsath et al. (1997), `10.1038/41056`, gives the production
-function and is read. Portenga and Bierman (2011), *Understanding Earth's
-eroding surface with 10Be*, GSA Today 21(8), 4-10, `10.1130/G111A.1`, gives
-global cosmogenic denudation by lithology and is HELD, which by
-`references/INDEX.md`'s own rule is an open exposure rather than a resource: its
-numbers have only ever been used secondhand here. An absolute
-production-to-erosion ratio is constructible from the pair rather than fitted,
-and reading the second is the first step.
+**Disposition: DEGENERACY REMOVED, LEVEL BRACKETED FROM THE PAIR. Both papers
+are now read.** Portenga and Bierman (2011) was read on 2026-08-25 and it does
+not contain what this row expected of it, which is recorded here rather than
+left standing: it publishes **no relief-to-erosion relation**. Mean basin SLOPE
+is the dominant global regressor for drainage-basin denudation and the top one
+in nearly every climatic, lithologic and tectonic subpopulation; relief is a
+secondary bivariate correlate and is "unimportant for most categories of
+outcrops"; and the article gives no regression equation for either. Its
+by-lithology result is for OUTCROPS, which are bare rock and carry no regolith,
+and for drainage basins lithology does not separate the rates at all.
+
+What the pair does supply is two separate things, and separating them is the
+point.
+
+**The FORM is sourced.** `relief_m` is the height spread across a cell's
+neighbours, so at fixed mesh spacing it is a slope, and erosion rising with it
+is Portenga and Bierman's leading result rather than an assumption. That also
+retires the unsourced normalisation comment: what the term is proportional to is
+now stated by a source, and how it is scaled is one number.
+
+**The LEVEL is a bracket and not a value, and the pair does not close.** A
+soil-mantled hillslope at steady state has production equal to erosion, so
+Heimsath's measured function inverts to `h = 0.435 m * ln(77 / E)` with `E` in
+m/Myr, and Portenga and Bierman supply `E` on a standardised global footing.
+Their drainage-basin median of 54 m/Myr gives 0.15 m. Their outcrop mean of 12
+gives 0.81 m and their outcrop median of 5.4 gives 1.16 m. Their slowest
+subpopulation, polar outcrops at 3.9, gives 1.30 m. **Their drainage-basin mean
+of 218 and their arid-basin mean of 100 both exceed Heimsath's maximum
+production rate of 77 m/Myr, where the balance has no solution and no soil is
+possible at all.** So the absolute production-to-erosion ratio this row hoped
+for is constructible and is not single-valued: it brackets the land-mean
+regolith at 0.15 to 1.30 m and contains a regime with no steady state. The width
+is a property of the sources, not of the arithmetic -- Heimsath's 77 m/Myr is
+one greywacke site and Portenga and Bierman's basins cover 2.3 per cent of
+Earth's land with a stated accessibility bias -- and neither paper narrows it.
+
+**The two degenerate keys are one.** `erosion_weight` and
+`erosion_reference_relief_m` are replaced by
+`erosion_coefficient_per_relief_m = 1.5/200 = 0.0075`, with the law and every
+number it produces unchanged. One degree of freedom is now carried in one
+watched key, inside a declared bracket, with `regolith_depth_bracket_m` beside
+it as what a sweep runs over. The declared value puts the land mean at 1.04 m,
+inside the bracket and in its upper third, which is the branch reached by
+outcrop denudation rather than basin denudation.
+
+**What is left open** is converting the depth bracket into a coefficient
+bracket, which is one re-run of `pedology/scripts/build_soil.py` per endpoint on
+a build with a climatology and is not a model run.
 
 ---
 
@@ -218,8 +259,21 @@ regolith depth and therefore land-mean PAWC by exactly 10 per cent. Per unit
 fractional change it is a larger lever than `erosion_weight`, and unlike
 `erosion_weight` it is not labelled free anywhere.
 
-**Disposition: REPLACEABLE, SOURCE NEEDED.** Same pair of papers as row 3; a
-weathering-front depth is what a production function integrates to.
+**Disposition: REPLACEABLE, SOURCE NEEDED, and NOT from the pair in row 3.**
+This row said "same pair of papers as row 3; a weathering-front depth is what a
+production function integrates to", and having read both, that is wrong. A
+production function integrates to a STEADY-STATE depth against an erosion rate,
+which is row 3's bracket; it does not integrate to a maximum reach. Heimsath's
+form has no asymptote at all, running to infinity as erosion vanishes -- that
+divergence is the reason this file replaced it. Portenga and Bierman measure
+denudation and not the depth a weathering front reaches. Neither bears on this
+number and no amount of re-reading either will.
+
+What would settle it is a measured depth-to-bedrock distribution. Shangguan,
+Hengl, Mendes de Jesus, Yuan and Dai (2017), *Mapping the global depth to
+bedrock for land surface modeling*, JAMES 9, `10.1002/2016MS000686`, is the
+global product and is not held. Until then it is a declared prefactor and is
+labelled as one in the config.
 
 ---
 
@@ -410,16 +464,39 @@ ECHAM REPORT 218, which is "a report and not a derivation", and the declaration
 says none of the three is separately justified there or here: "they are one
 fitted set and are used as one."
 
-**Disposition: IRREDUCIBLE as stated, REPLACEABLE in principle.** Louis (1979),
-*A parametric model of vertical eddy fluxes in the atmosphere*, Boundary-Layer
-Meteorology 17, 187-202, `10.1007/BF00117978`, is the primary and is not in
-`references/`; fetching it would establish whether the three fives are Louis's
-own fitted set or ECHAM's re-fit, which is a different question from whether
-they transfer. The mixing
-length is the harder half: 160 m is a length scale of Earth's free troposphere
-and the corresponding scale here follows from the atmosphere's own scale height,
-which is 0.766 of Earth's. That is a derivation this project can do, and doing it
-is a physics claim rather than a transcription.
+**Disposition: IRREDUCIBLE for the three fives, ANSWERED against the primary.
+BLOCKED ON ONE FETCH for the mixing length.** Louis (1979) was read on
+2026-08-25 and settles both halves, one of them negatively.
+
+**The fives are ECHAM's re-fit and not Louis's**, which was the question this
+row asked. Louis's unstable fit is `F = 1 - b Ri/(1 + c sqrt(|Ri|))` and his
+stable one `F = 1/(1 + b' Ri)^2`, with `b = 2b' = 9.4` chosen so that `dF/dRi`
+is continuous across neutrality -- a constraint rather than a fit, and the only
+derived relation in the set. His `c` is not a constant: it is
+`C* a^2 b sqrt(z/z0)` from a free-convection dimensional argument, with `C*`
+7.4 for momentum and 5.3 for heat and moisture and `a^2` the neutral drag
+coefficient. The model's `b = c = d = 5` with 2b and 3b folded into the
+expressions corresponds to Louis's `b` near 10 and 15 against his own 9.4.
+Reading further does not help: Louis says of his own values that they "are
+rather uncertain because of the large scatter in the observations", so both sets
+are fits and neither transfers on its authority.
+
+**A NEW FINDING FELL OUT OF IT, and it is not about a value.** `vdiff_c` being
+one number is a DROPPED DEPENDENCE rather than a different fit. Louis's `c`
+varies as `sqrt(z/z0)`, and this world's derived roughness field spans 0.025 to
+11.2 m -- a factor of 450 in `z0` and 21 in `sqrt(z/z0)`, all of it flattened
+into a single constant. That is `world-awm5`, filed separately, and it is a form
+question rather than a tuning one.
+
+**The mixing length: this row's proposed derivation is not supported.** 160 m
+is not Louis's either; his eq. 22 is Blackadar's `l = kz/(1 + kz/lambda)`, he
+calls `lambda` "an adjustable parameter", and he took it as 100 m. Nothing in
+Blackadar's or Louis's form makes `lambda` proportional to an atmospheric scale
+height, so scaling 160 m by 0.766 would be a guess wearing a derivation's
+clothes and it is not done. What WOULD give a transferable rule is Louis's own
+primary, Blackadar (1962), where `lambda` follows from the geostrophic wind and
+the Coriolis parameter and therefore carries to another rotation rate. It is not
+held, and fetching it is the whole of what this half now waits on.
 
 ---
 
@@ -450,13 +527,36 @@ default, sitting inside a saturation, so between one and two times on the
 denitrification substrate and hence on the mineral nitrogen the simulated plants
 can reach.
 
-**Disposition: REPLACEABLE, SOURCE NEEDED.** The labile fraction traces to Li et
-al. (1992), which `ntransform.yaml:743` records as not held here: *A model of
-nitrous oxide evolution from soil driven by rainfall events: 1. Model structure
-and sensitivity*, J. Geophys. Res. 97(D9), 9759-9776, `10.1029/92JD00509`,
-confirmed against Crossref. Fetching it settles this and the
-`michaelis_menten_divisor` entry together. Registering it in `ntransform.yaml`
-is the immediate move and does not wait on the paper.
+**Disposition: REGISTERED, and IRREDUCIBLE AS A CONSTANT.** It is now in
+`ntransform.yaml`'s `instruction_parameters.values`, its `parser_bounds` and its
+`calibration.entries` with an `unsourced` verdict, so `--strict` refuses on it.
+That was the immediate move and it did not wait on the paper.
+
+Li et al. (1992) was read on 2026-08-25 and **it does not supply the number,
+because DNDC never forms this ratio.** Its soluble carbon is per-path: 60 per
+cent of the carbon leaving microbial biomass and 20 per cent of that leaving
+humads, in both cases the share recycled into biomass, and the paper states it
+"is not actually a carbon pool but rather an indicator of the daily rate of
+decomposition". The CO2 shares on those same two paths are 20 and 40 per cent,
+so the soluble-to-respired ratio DNDC implies is **3.0 on the biomass path and
+0.5 on the humads path**. The declared 0.5 is the humads path's ratio applied to
+ALL respiration: exact on one path and six times low on the other.
+
+So what is sourced is a FORM with two coefficients on two respiration paths, and
+`somdynam.cpp` does not separate those paths at the point it sets
+`labile_carbon`. As a single fraction of total respiration the quantity is not
+recoverable from the primary, and this row's expectation that fetching the paper
+would settle it was wrong. Splitting the paths is `world-vyvn`'s remaining half.
+
+Reading it settled a second thing the row named. Li's table 7 gives `Kc` = 0.017
+kg C/m3 and `Kn` = 0.083 kg N/m3 and attributes BOTH to Shah and Coulman (1978)
+rather than measuring them, so the chain to a measurement is one paper longer
+than this project recorded -- and it states the units exactly as Xu-Ri does, per
+cubic metre of an unnamed volume. The `michaelis_menten_divisor` question is
+therefore NOT closed by it; what it adds is a magnitude, since DNDC's own
+soluble carbon runs at 10 to 20 mg C per kg soil and `Kc` reaches pool magnitude
+only under the per-cubic-metre-of-SOIL reading, which is the branch the operator
+does not run. Evidence, not proof; Shah and Coulman (1978) is what settles it.
 
 ---
 
@@ -474,13 +574,40 @@ the thing this audit is about: "with no derivation on either side". Upstream had
 **Magnitude.** The two upstream values differ by 43 per cent, which is the only
 scale anyone has ever put on it.
 
-**Disposition: REPLACEABLE, SOURCE NEEDED.** A re-evaporation fraction per
-timestep is not a published quantity; what is published is a fall-speed and a
-ventilated evaporation rate for a drop-size distribution, from which a per-step
-fraction follows given the layer depth and the step. Kessler (1969), *On the
-Distribution and Continuity of Water Substance in Atmospheric Circulations*,
-`10.1007/978-1-935704-36-2`, is the canonical form and is not in `references/`.
-This is a derivation to do, not a number to copy.
+**Disposition: DERIVED, and the derived object is a FORM rather than a
+constant.** Kessler (1969) was read on 2026-08-25 and the derivation this row
+called for closes. His table 4 gives rain evaporation for a Marshall-Palmer
+distribution as `dM/dt = k3 N0^(7/20) m M^(13/20)` in g m-3 s-1, with the
+evaporation coefficient `k3` = 1.93e-6, `N0` = 1e7 m-4 so `N0^(7/20)` = 282,
+`m` the saturation deficit and `M` the rain water content, both in g/m3; his
+mean volume-weighted fall speed is `38.8 N0^(-1/8) M^(1/8)`, i.e.
+`5.17 M^0.125` m/s. Integrated over the layer the four re-evaporation sites act
+on, **the layer depth cancels** and
+
+    gamma = 5.44e-4 * M^0.65 * deltsec2,   M = P / V
+
+with `P` the layer's precipitation flux. Three consequences, none of which a
+constant can carry. `gamma` is **proportional to the timestep**, which the
+declaration already inferred from the form and which now has a derivation under
+it. It goes as **P^0.578**, so it is not one number per planet, let alone per
+rung. And it carries **ga^(-0.289)** through the drop terminal speed, which is
+0.926 of its Earth value here.
+
+**The magnitude disagrees with the declared value and that is the finding.** At
+this project's step, `deltsec2` = 3600 s, the derived value is 0.039 at 0.5
+mm/day, 0.10 at 3 mm/day and 0.22 at 10 mm/day. **0.01 is below the whole of
+that span**: it is the Kessler value at 0.048 mm/day, sixty times below a
+global-mean precipitation rate. Using a grid-mean flux understates `M` and so
+understates `gamma`, which makes those figures floors rather than estimates.
+
+The derivation is in the declaration. The value is left at 0.01 because
+replacing it is a change of FORM in `rainmod.f90` -- the four blocks compute
+`gamma` per level from `zprl`, `zprc`, `zprsl` and `zprsc`, which they already
+hold -- and that is `world-trs3`'s remaining half. Kessler's own caveats travel
+with it: the single-drop fit is accurate to about 40 per cent, a constant `N0`
+misrepresents evaporation because the process depletes small drops
+preferentially, and the rate is for standard air density with no altitude
+variation.
 
 ---
 
@@ -751,15 +878,15 @@ filed.
 | --- | --- |
 | 1. `baseline_flux_earth` and the cap solved backwards | `clim-30` |
 | 2. `ALPHAA_NLIM` | `bio-26` |
-| 3, 4. the regolith depth level and its asymptote | `world-qs63` |
+| 3, 4. the regolith depth level and its asymptote | `world-qs63`; the degeneracy is gone and the level is bracketed, and `maximum_depth_m` needs a different source than this row named |
 | 5. the carve size floor | `world-7vj6` |
 | 6. `eddy_wind_m_s` | `world-9y07` |
 | 7. `acllwr` | fixed |
 | 8. `th2oc` | `world-2esd` |
 | 9. the `dz0land` anchor | `world-u8ds` |
-| 10. `vdiff_lamm` and the Louis fives | `world-x6q8` |
-| 11. `frac_labile_carbon` | `world-vyvn` |
-| 12. `gamma` | `world-trs3` |
+| 10. `vdiff_lamm` and the Louis fives | `world-x6q8`; the fives are answered and irreducible, the mixing length waits on Blackadar (1962), and `vdiff_c`'s dropped roughness dependence is `world-awm5` |
+| 11. `frac_labile_carbon` | `world-vyvn`; registered, and the primary shows the sourced object is a two-path form rather than a constant |
+| 12. `gamma` | `world-trs3`; the form is derived and in the declaration, and implementing it in `rainmod.f90` is what is left |
 | 13. `zcca`, `zccb`, `rcrit` | `world-o12h`; `world-khn` closed the resolution half by declaring it |
 | 14. `a1` in the sigma quartic | none: irreducible, and a convergence sweep across it is a measurement rather than a fix |
 | 15. the unbracketed pedogenesis values | `world-9ctm` |
@@ -768,11 +895,23 @@ filed.
 | 18. the dormant knobs | `world-9g8p` |
 | 19. the cgenie tier | `world-u9kg` |
 
-Three papers are named as needed and none is in `references/`. They are the
-whole of what this audit's dispositions wait on that cannot be done from inside
-the tree: Li et al. (1992) `10.1029/92JD00509` for `frac_labile_carbon`, Louis
-(1979) `10.1007/BF00117978` for the three fives, and Kessler (1969)
-`10.1007/978-1-935704-36-2` for the re-evaporation form. Portenga and Bierman
-(2011) `10.1130/G111A.1` is already on disk and marked *held*, so reading it is
-the fourth and cheapest.
+## The four papers, and what reading them changed
+
+All four are read. Three of the four dispositions they were fetched for moved,
+and **three of the four expectations recorded against them were wrong** -- which
+is what an expectation written against an unread paper is worth, and the reason
+this section says which.
+
+| paper | what it was expected to give | what it gave |
+| --- | --- | --- |
+| Portenga and Bierman (2011) `10.1130/G111A.1` | global cosmogenic denudation BY LITHOLOGY, and with Heimsath an absolute production-to-erosion ratio for rows 3 and 4 | by-lithology denudation for OUTCROPS only, which carry no regolith, and none at all for drainage basins; no relief-to-erosion relation of any kind, mean basin slope being the regressor. It sourced the erosion term's FORM and, with Heimsath, bracketed the level at 0.15 to 1.30 m with a regime in it where no soil is possible. Row 4's expectation was wrong outright: it measures denudation, not a weathering-front reach |
+| Li et al. (1992) `10.1029/92JD00509` | the value of `frac_labile_carbon`, and the `michaelis_menten_divisor` volume, together | neither. DNDC's soluble carbon is per-path, 0.6 of biomass turnover and 0.2 of humads, so the ratio to respired carbon is 3.0 on one path and 0.5 on the other and a single fraction of total respiration is not a quantity the paper forms. On the divisor it repeats Xu-Ri's silence and pushes the chain one paper further, to Shah and Coulman (1978) |
+| Louis (1979) `10.1007/BF00117978` | whether the three fives are Louis's set or ECHAM's re-fit | ECHAM's re-fit, definitively: Louis's own set is `b = 2b' = 9.4` with `c` varying as `sqrt(z/z0)`, and he calls his values uncertain. It also removed a proposed derivation, since his `lambda` is 100 m and declared adjustable, and it exposed a dropped roughness dependence in `vdiff_c` |
+| Kessler (1969) `10.1007/978-1-935704-36-2` | the re-evaporation FORM, as a derivation to do rather than a number to copy | exactly that, and the derivation closes: `gamma = 5.44e-4 M^0.65 deltsec2` with the layer depth cancelling, proportional to the step, going as `P^0.578` and carrying `ga^(-0.289)`. The declared 0.01 is below the whole span the derived form reaches |
+
+Three papers are still named as needed and none is in `references/`: Blackadar
+(1962) for the asymptotic mixing length, Shah and Coulman (1978) for the
+Michaelis-Menten volume, and Shangguan et al. (2017) `10.1002/2016MS000686` for
+`maximum_depth_m`. Each was identified by reading one of the four above, which
+is the ordinary shape of this: a primary names its own primary.
 

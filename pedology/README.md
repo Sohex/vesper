@@ -463,7 +463,7 @@ Two changes fixed it.
 
 **A saturating form**, bounded at both ends by construction:
 
-    depth = maximum_depth * P / (P + erosion_weight * E)
+    depth = maximum_depth * P / (P + E)
 
 As erosion vanishes the profile approaches `maximum_depth`, which is the physical
 statement that a weathering front cannot advance forever because water and oxygen
@@ -489,11 +489,16 @@ The result:
 | 95 | 3.24 |
 
 Land mean 1.04 m, **0.0% of land on the floor and 0.5% on the ceiling**, against
-25% on each before. `erosion_weight` is the one free scale parameter and there is
-no measurement of this world's soils to fit it to, so it is calibrated against a
-declared Earth-analogue target of about 1 m mean thickness. That target was
-chosen before looking at what it does downstream, which is the difference between
-calibrating and tuning.
+25% on each before. `erosion_coefficient_per_relief_m` is the one free scale
+parameter, and it is one key rather than the two degenerate ones it replaced.
+Its level is bracketed rather than fitted. Heimsath et al. (1997)'s measured
+production function inverted against Portenga and Bierman (2011)'s standardised
+global cosmogenic denudation rates gives a land-mean regolith of 0.15 m at their
+drainage-basin median and 1.30 m at their slowest outcrop subpopulation, with
+their drainage-basin mean above Heimsath's maximum production rate entirely,
+where no soil is possible at all. The declared value lands inside that bracket
+and in its upper third. `pedogenesis.yaml` carries the arithmetic; report the
+spread where a result turns on it and do not tune within it.
 
 The land-mean plant-available water capacity that falls out, 133 mm, sits in the
 middle of Earth's typical 100-200 mm root zone. That is a check on the result
@@ -567,13 +572,19 @@ Report the spread where a result depends on it. Do not present the precipitation
 branch as an equally likely world.
 
 With that demoted, the largest remaining uncertainty in this component is
-`erosion_weight`, which is calibrated rather than measured and sets the level of
-the water capacity.
+`maximum_depth_m`, a declared prefactor on every cell's depth that no source
+here bears on, and the width of the sourced bracket on
+`erosion_coefficient_per_relief_m`, which together set the level of the water
+capacity.
 
 ### What is not yet earned
 
-- `erosion_weight` is calibrated against a declared 1 m target, not measured.
-  It sets the level of the field that matters most.
+- `erosion_coefficient_per_relief_m` sits inside a sourced bracket a factor of
+  8.7 wide, and the bracket has a regime in it where the balance has no steady
+  state. It sets the level of the field that matters most.
+- `maximum_depth_m` is a declared prefactor with no source. Neither the
+  production function nor the denudation compilation measures a weathering-front
+  reach; a depth-to-bedrock product would.
 - The catena slope term carries the pattern and not the magnitude, because even
   the 15.19 km mesh is two orders of magnitude coarser than a hillslope.
 - Nothing here has been validated against an independent product, unlike the
