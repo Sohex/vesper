@@ -297,27 +297,57 @@ needed for.
 ## 3f. What the connector says about the same ceiling
 
 `references/muffingen` is the generator for the `.k1`, `.paths` and `.psiles`
-files a new geography needs, and it is where OCN-18's second half sits.
+files a new geography needs, and it is where OCN-18's second half sat. Re-read
+2026-08-25 for world-crky.
 
-- **Its declared range is `[1-72]`** for `par_max_i` and `par_max_j`, annotated
-  on every example configuration. So the grid probed here is exactly the top of
-  what the connector claims, and 131 of the shipped cGENIE configurations sit at
-  36 x 36 with nothing above it. A declared range is not a demonstrated one, and
-  this document demonstrates only that the MODEL runs at 72 x 72.
-- **Islands are found automatically, not drawn.** `muffingen.m:1033` calls
-  `find_grid_islands` and `:1054` `find_grid_islands_update`; the `ginput` calls
-  in `source/fun_grid_edit_*.m` are an interactive editor for corrections, not
-  the primary path. The manual records that the ORIGINAL generator required
-  hand-drawn island paths and that getting them wrong could leave the
-  circulation unsolved somewhere without any complaint, which is why the
-  automatic version exists.
+- **It has been run above 36 x 36, and the evidence ships.**
+  `vendor/cgenie/genie-paleo/fm0000bb/` holds a complete world at 48 x 40 x 16 --
+  a `.k1` of 50 by 42 numbers, which is 48 by 40 plus the one-cell border the
+  format carries, with `.paths`, `.psiles`, wind stress, albedo and mask beside
+  it -- together with the generator's own configuration
+  (`par_max_i=48`, `par_max_j=40`, `par_max_k=16`, `par_gcm='foam'`) and its run
+  log. Two shipped cGENIE configurations compile against it,
+  `muffin.C.fm0000bb` and `muffin.CB.fm0450ab.BASES`. It is the only one:
+  `genie-paleo` holds 294 `.k1` files across 234 worlds that carry a muffingen
+  log, and every other one of them is 36 x 36, 18 x 18 or 12 x 12. So the earlier
+  reading that nothing above 36 x 36 ships was wrong, and the demonstrated
+  ceiling for the CONNECTOR is 48 x 40 rather than 36 x 36. The declared
+  `[1-72]` is still only declared.
+- **The automatic island machinery ran at that resolution and found the
+  answer.** The log's steps 14 and 15 are `IDENTIFY ISLANDS` and
+  `UPDATING ISLANDS & PATHS`, and they report four candidates narrowing to
+  "total # true islands = 3". The interactive editors were entered and declined,
+  so the paths in that directory are the automatic ones. Statically the
+  machinery carries no dimension: `make_genie_grid.m` takes `n_i`, `n_j` and
+  `n_k` as arguments, and `find_grid_islands.m`, `find_grid_islands_update.m`
+  and `make_grid_psiles.m` take their extent from the mask they are handed.
+  Nothing in the tree keys on 36.
+- **The netCDF dependency is confined to the four GCM input arms.** Every file
+  that touches the low-level `netcdf.*` family is named for the model it reads --
+  `fun_read_*_hadcm3x`, `*_foam`, `*_cesm`, `*_rockee`, and the matching
+  `make_grid_winds_*` -- and the whole of that interface is five entry points:
+  `netcdf.open`, `netcdf.close`, `netcdf.inq`, `netcdf.inqVarID`,
+  `netcdf.getVar`. Nothing creates or writes netCDF, and the two `ncread` calls
+  in the tree are inside comments. The `mask`, `k1`, `k2` and `blank` arms leave
+  every `par_nc_*_name` empty, read their input through `load()` on a plain
+  ASCII `.dat`, and take their winds from `make_grid_winds_zonal`, which reads
+  nothing. So the arm this project would use -- geography from Orogen, not from
+  a vendored GCM -- needs no netCDF at all, and the Octave question narrows from
+  a package to core language and graphics.
+- **The interactive path is optional and off by default on that arm.**
+  `opt_user=false` and `opt_plots=false` disable every `ginput` and every
+  figure, which is what makes a headless run possible at all.
+- **Whether it runs under Octave is STILL not demonstrated, and it is a host
+  blocker rather than an open question.** `octave` and `octave-cli` are both
+  absent from this host; the distribution packages `extra/octave` and it is not
+  installed, and there is no MATLAB. The reproducible test, once one of them is
+  present, is `EXAMPLE_MASK_waterworld.m` with `par_max_i` and `par_max_j`
+  raised, `opt_user=false`, `opt_plots=false`, run headless. That exercises the
+  grid, the island machinery and the file writers with no netCDF and no display,
+  which is the shortest path from "declared" to "demonstrated" for both halves
+  of world-crky.
 - **It is GPL-3**, where cGENIE is MIT. Consuming its output is unencumbered;
   vendoring the generator would bring a different licence into this tree.
-- **Whether it runs under Octave is still not demonstrated**, and is world-crky.
-  The manual says MATLAB throughout and states no position either way. The only interface that
-  would decide it is the low-level `netcdf.*` family, used in about 170 places,
-  which Octave provides through a separate package; nothing here has run it.
-  That is the one part of OCN-18 this document does not close.
 
 The island count itself is a compile-time bound, `GOLDSTEINMAXISLES`, and the
 sweeps here compile with it raised well past the shipped default, so it is a
