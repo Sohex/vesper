@@ -109,12 +109,49 @@
 !     below the whole of that span. Using a grid-mean flux understates M and
 !     therefore understates gamma, so those figures are floors.
 !
-!     Left at 0.01 because replacing it is a change of FORM -- the four blocks
-!     below would compute gamma per level from zprl, zprc, zprsl and zprsc,
-!     which they already hold -- and no run on this tree has exercised it.
-!     world-trs3 carries the implementation.
-      real :: gamma   = 0.01  ! fraction of the sub-saturation deficit that
-                              ! falling precipitation evaporates per timestep
+!     THE DERIVED FORM IS WHAT THE FOUR SITES NOW INTEGRATE. Substituting
+!     M = P/V and Kessler's own fall speed into the expression above collapses
+!     the two exponents into one, which is the form actually evaluated:
+!
+!         gamma = gamevap * (P/zvcoef)**GAMPEXP * deltsec2
+!
+!     with P the layer's precipitation flux in g m-2 s-1, GAMPEXP = 13/20 * 8/9
+!     = 0.577778, gamevap = k3*N0^(7/20) = 5.4395e-4 and zvcoef the fall-speed
+!     coefficient 5.17*sqrt(ga/9.80665) m/s, derived in rainini so that the drop
+!     terminal speed carries THIS world's gravity. The four sites read P from
+!     zprl, zprc, zprsl and zprsc, which they already hold, through
+!     P = zpr*dp/ga*1000 -- the same conversion mkrain's own output line uses,
+!     read in the opposite direction.
+!
+!     GAMMA IS THE OVERRIDE AND NOT THE VALUE. Negative (the default) integrates
+!     the derived form per cell and per level. A POSITIVE value is used as a
+!     literal constant at every cell and every step, which is what upstream did,
+!     and is how the control arm of the matched pair that measures this change is
+!     declared: gamma = 0.01 in rainmod_nl. The sentinel follows clwhsc below,
+!     which derives from gascon and ga on the same rule.
+!
+!     WHAT THE FORM DOES NOT COVER, and it is declared rather than hidden. The
+!     two SNOW sites (zprsl, zprsc) evaluate the same rain expression, because
+!     Kessler supplies a Marshall-Palmer drop distribution and no snow analogue:
+!     a snowflake's fall speed and ventilation are not this paper's. That is not
+!     a regression -- the constant applied one number to all four sites and
+!     carried no flux dependence at any of them -- but the snow limb is a rain
+!     form and a snow-specific distribution would replace it. Kessler's own
+!     three caveats travel with all four: the single-drop fit is good to about
+!     40 per cent, a constant N0 misrepresents evaporation because the process
+!     depletes small drops preferentially, and the rate is for standard air
+!     density with no altitude variation.
+      real :: gamma   = -1.0  ! <0: derive per cell from Kessler (default).
+                              ! >0: use as a literal constant fraction of the
+                              ! sub-saturation deficit per timestep
+      real :: gamevap = 5.4395E-4 ! Kessler k3*N0^(7/20), (g/m3)^-0.65 s-1
+      real :: zvcoef  = 0.0   ! drop fall-speed coefficient, set by rainini
+!     13/20 from Kessler's M exponent and 8/9 from inverting M = P/V against
+!     V proportional to M^(1/8). Not a fitted number and not a namelist key.
+      real, parameter :: GAMPEXP = 13./20.*8./9.
+!     Earth surface gravity, the acceleration Kessler's tabulated fall speed
+!     was measured under. Only ever a RATIO against this world's ga.
+      real, parameter :: GAMGAE  = 9.80665
 
 !
 !     THE TWO CCM3 CLOUD-WATER CONSTANTS, which were bare literals in mkclouds
@@ -169,6 +206,51 @@
       real :: clwref = 0.00021 ! reference in-cloud liquid water density (kg/m3)
       real :: rcritmod = 1.0   ! Modifier for cloud critical relative humidity
       real :: rcritslope = 0.0 !By-level modifier for changing cloud height bias
+!
+!     THE SUBGRID HUMIDITY WIDTH, and it is the one NLAT term in the cloud
+!     scheme. rcrit is the cell-mean relative humidity at which stratiform cloud
+!     starts, so what it encodes is the WIDTH of the humidity distribution
+!     inside the cell: cloud begins when the moist tail of that distribution
+!     reaches saturation, which puts the onset a distance proportional to the
+!     width below saturation. The quantity with a resolution dependence is
+!     therefore (1 - rcrit) and never rcrit itself.
+!
+!     THE SCALING IS DERIVED AND NOT FITTED. Specific humidity is a passive
+!     scalar, and in the inertial-convective subrange its variance across a
+!     separation L follows Kolmogorov-Obukhov-Corrsin, <s'^2> proportional to
+!     L^(2/3). The standard deviation therefore goes as L^(1/3), and a cell's
+!     width is its grid spacing, which on a Gaussian grid goes as 1/NLAT. So
+!
+!         (1 - rcrit) proportional to NLAT^(-1/3)
+!
+!     and the model integrates it as
+!
+!         1 - rcrit(jlev) = (1 - rcrit_T21(jlev)) * (RCNLATREF/NLAT)^(1/3)
+!
+!     WHY THE WIDTH AND NOT rcritmod. rcritmod multiplies rcrit, and a
+!     multiplicative modifier cannot express this: at the top and bottom levels
+!     the sigma limb already puts rcrit near 0.95, and the factor that gives the
+!     right floor at T85 drives those levels past 1.0, where (rh-rcrit)/(1-rcrit)
+!     divides by zero. Scaling the width is exact at every level and bounded
+!     below 1 by construction. rcritmod and rcritslope keep their own meanings
+!     and apply on top.
+!
+!     THE ANCHOR IS PRESERVED, WHICH IS WHY T21 DOES NOT MOVE. RCNLATREF is 32,
+!     the T21 NLAT the 0.85 floor was fitted at, so the factor is exactly 1 there
+!     and every T21 answer is unchanged. It is 1.036 at T42 and 1.065 at T85 on
+!     the floor, taking rcrit from 0.85 to 0.881 and 0.906: cloud starts later in
+!     a smaller cell, which is the direction the argument requires.
+!
+!     WHAT IS STILL A FIT. The 0.85 anchor itself is irreducible and no paper can
+!     supply it -- a subgrid width is a property of the mesh, not of this world.
+!     What changes is that the fit is now a DECLARED FUNCTION OF THE GRID and can
+!     be tested against the grid: a ladder sweep that holds everything else fixed
+!     has a prediction to fail. rcritwidth is the handle that sweep turns.
+!     world-o12h.
+      real :: rcritwidth = -1.0 ! <0: derive from NLAT (default). >0: use as the
+                                ! subgrid humidity width factor directly
+      integer, parameter :: RCNLATREF = 32   ! NLAT the 0.85 floor is anchored at
+      real, parameter :: RCRITREF = 0.85     ! that anchor's floor
       real :: rcrit(NLEV)    ! critical relative hum. for non conv. clouds
 
 !
@@ -199,9 +281,9 @@
 
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
-!$omp threadprivate(clwcrit1,clwcrit2,clwfac,dprcl,dprll,dprscl,dprsll,gamma,icclev,icctot,kbeta,&
+!$omp threadprivate(clwcrit1,clwcrit2,clwfac,dprcl,dprll,dprscl,dprsll,gamma,gamevap,zvcoef,icclev,icctot,kbeta,&
 !$omp&  nbeta,nclouds,ncsurf,ndca,nevapprec,nmoment,nprc,nprl,nshallow,nstorain,pdeep,pdeepth,rbeta,&
-!$omp&  clwhsc,clwref,rcrit,rcritmod,rcritslope,rhbeta,rkshallow,time4cl,time4dca,time4prc,&
+!$omp&  clwhsc,clwref,rcrit,rcritmod,rcritslope,rcritwidth,rhbeta,rkshallow,time4cl,time4dca,time4prc,&
 !$omp&  time4prl,time4rain,&
 !$omp&  version)
 
@@ -216,7 +298,9 @@
 !
       namelist/rainmod_nl/kbeta,nprl,nprc,ndca,ncsurf,nmoment,nshallow  &
      &       ,nstorain,rcrit,clwcrit1,clwcrit2,pdeep,rkshallow,gamma    &
+     &       ,gamevap                                                   &
      &       ,nclouds,pdeepth,nevapprec,nbeta,rhbeta,rbeta,rcritmod,rcritslope      &
+     &       ,rcritwidth                                               &
      &       ,clwhsc,clwref
 !
 !     SHALLOW CONVECTION IS ON AT EVERY TRUNCATION AND EVERY LAYER COUNT.
@@ -236,13 +320,12 @@
 !     ten layers, NLEV is a compiled parameter, and every entry in
 !     rebuild_binaries.py's MATRIX is ten. world-677x.
 !
-!     THE CRITICAL RELATIVE HUMIDITY, and the 0.85 floor is the subgrid half.
-!     rcrit is the cell-mean relative humidity at which cloud starts to form, so
-!     it encodes an assumed distribution of humidity WITHIN the cell: a smaller
-!     cell holds a narrower distribution and should start later. The by-level
-!     modifier below normalises by NLEV; the horizontal assumption has no NLAT
-!     term anywhere. Anchored to T21. world-khn.
-      rcrit(:)=MAX(0.85,MAX(sigma(:),1.-sigma(:)))
+!     THE CRITICAL RELATIVE HUMIDITY. The T21-anchored profile is built first
+!     and then narrowed by the subgrid width factor, which is where this
+!     scheme's NLAT dependence lives; the declaration of rcritwidth above
+!     carries the derivation. The sigma limb is unchanged and the floor is
+!     RCRITREF rather than a bare literal so the anchor is named once.
+      rcrit(:)=MAX(RCRITREF,MAX(sigma(:),1.-sigma(:)))
 !
       if(mypid==NROOT) then
          open(11,file=rainmod_namelist)
@@ -255,6 +338,24 @@
          write(nud,'(" ***********************************************")')
          write(nud,rainmod_nl)
          
+!        The subgrid width narrows (1-rcrit) before rcritmod and rcritslope act,
+!        so the two keys keep meaning what they meant and the grid term is
+!        applied once. Derived from NLAT unless the namelist gave a positive
+!        factor. At NLAT = RCNLATREF this is exactly 1 and nothing moves.
+         if(rcritwidth < 0.)                                            &
+     &      rcritwidth = (float(RCNLATREF)/float(NLAT))**(1./3.)
+         write(nud,*) 'subgrid humidity width factor ',rcritwidth
+!        THE UNIT FACTOR IS SKIPPED RATHER THAN APPLIED, so that a rung at the
+!        anchor is bit-identical and not merely equal to rounding. 1-(1-x) is
+!        not an identity in floating point for every x, and rcrit's sigma limb
+!        supplies values this file does not choose. At NLAT = RCNLATREF the
+!        factor is exactly 1 and the transform is a no-op by construction, which
+!        is what makes "T21 must not move" a check that can fail.
+         if(rcritwidth /= 1.) then
+          do jlev=1,NLEV
+             rcrit(jlev) = 1. - (1.-rcrit(jlev))*rcritwidth
+          enddo
+         endif
          do jlev=1,NLEV
             rcrit(jlev) = rcrit(jlev)*rcritmod*(1-2*rcritslope*(float(NLEV)/2-jlev)/(float(NLEV)))
          enddo
@@ -281,10 +382,11 @@
       call mpbcr(pdeepth)
       call mpbcr(rkshallow)
       call mpbcr(gamma)
+      call mpbcr(gamevap)
       call mpbcr(clwhsc)
       call mpbcr(clwref)
       call mpbcrn(rcrit,NLEV)
-      call mpbcrn(rcrit,NLEV)
+      call mpbcr(rcritwidth)
 !
 !     CCM3 cloud-water e-folding length coefficient. Derived from this planet's
 !     own gascon and ga unless the namelist gave a positive value, so the
@@ -294,6 +396,23 @@
       if(clwhsc < 0.) clwhsc = 700.*(gascon/ga)/(287.0/9.80665)
       if(mypid==NROOT) then
        write(nud,*) 'cloud water e-folding length coefficient (m) ',clwhsc
+      endif
+!
+!     PRECIPITATION RE-EVAPORATION: the drop fall-speed coefficient, and it is
+!     the whole of what this world's gravity changes in the derived gamma.
+!     Kessler's mean volume-weighted fall speed is 38.8*N0^(-1/8)*M^(1/8) =
+!     5.17*M^(1/8) m/s at Earth's gravity; a drop's terminal speed goes as
+!     sqrt(ga), so the coefficient is scaled once here rather than at every
+!     gridpoint and every level. Larger ga means faster drops, less rain water
+!     held per unit flux, and a SMALLER evaporated fraction: gamma carries
+!     ga^(-0.2889), which is 0.926 of its Earth value here.
+      zvcoef = 5.17*SQRT(ga/GAMGAE)
+      if(mypid==NROOT) then
+       if(gamma > 0.) then
+        write(nud,*) 'precip re-evaporation: CONSTANT gamma ',gamma
+       else
+        write(nud,*) 'precip re-evaporation: derived, fall-speed coeff ',zvcoef
+       endif
       endif
 !
 !     smoothing factor for cloud suppression
@@ -2121,6 +2240,26 @@
 !     storm spread over a smaller cell gives a larger rate and more cover: the
 !     cloud fraction of a convecting region is rung dependent through this pair
 !     alone. Anchored to T21, with no NLAT term upstream. world-khn.
+!
+!     THIS PAIR DOES NOT TAKE rcritwidth's SCALING, and the reason is that they
+!     are not the same kind of quantity. rcrit encodes the WIDTH of a subgrid
+!     scalar distribution, which Kolmogorov-Obukhov-Corrsin gives an exponent
+!     for; zcca and zccb encode how a convecting AREA dilutes into a cell, and
+!     the exponent there is set by the unresolved convective area fraction. A
+!     storm small against the cell dilutes as L^-2 and one that fills the cell
+!     does not dilute at all, so the correction that would hold zcc fixed,
+!     zcca -> zcca + 2*zccb*ln(NLATREF/NLAT), is exact only in the first limit
+!     and wrong by up to that whole term in the second. The model carries no
+!     convective area fraction, so nothing here can tell the two limits apart
+!     and no exponent between them is derivable from what this scheme holds.
+!
+!     They therefore stay irreducible and anchored, which is a different verdict
+!     from rcrit's and is reached for a different reason: not that a subgrid
+!     scale cannot be sourced, but that the dependence has a free exponent this
+!     scheme cannot determine. Writing one in would be a fit wearing a
+!     derivation's clothes. What would settle it is a convective area fraction
+!     carried alongside the rate, which is a scheme change and not a constant.
+!     world-o12h.
       parameter(zcca=0.245,zccb=0.125)
       parameter(zccmax=0.8,zccmin=0.05)
 
@@ -2401,6 +2540,12 @@
       real :: zprsc(NHOR)
       real :: zprsl(NHOR)
       real :: zdqdt(NHOR)               ! q-change due to evap of rain
+!     The per-cell re-evaporation fraction, recomputed at each of the four
+!     sites below from that site's own precipitation flux. It is NOT masked by
+!     the `where` that uses it -- see the note on masked lanes below -- so the
+!     flux is floored at zero before the fractional power, which is what keeps
+!     a lane the mask discards from forming a negative base.
+      real :: zgam(NHOR)                ! re-evaporation fraction per cell
       real :: zdtdt(NHOR,NLEV)          ! t-change
       real :: zdqdts(NHOR,NLEV)         ! sublimation rate
       real :: zdqdtl(NHOR,NLEV)         ! evaporation rate
@@ -2508,9 +2653,13 @@
            zqsat(:) = 0.0
          endwhere
 !
+         zgam(:)=gamma
+         if(gamma <= 0.)                                                &
+     &     zgam(:)=gamevap*deltsec2                                     &
+     &            *(AMAX1(zprl(:),0.)*dp(:)/ga*1000./zvcoef)**GAMPEXP
          where((zq(:).lt.zqsat(:)).AND.zprl(:) > zeps)
            zlcpe(:)=ALV/(acpd*(1.+ADV*dq(:,jlev)))
-           zdqdt(:)=AMIN1(gamma*(zqsat(:)-zq(:))*dsigma(jlev)/deltsec2  &
+           zdqdt(:)=AMIN1(zgam(:)*(zqsat(:)-zq(:))*dsigma(jlev)/deltsec2 &
      &                   /(1.0+zlcpe(:)*ra2s(zt(:))*(TMELT-ra4s(zt(:)))                 &
      &                   *zqsat(:)*zcor(:)/ra4d(zt(:),ra4s(zt(:)))**2)              &
      &                   ,zprl(:))
@@ -2519,9 +2668,13 @@
            zdtdt(:,jlev)=zdtdt(:,jlev)-zdqdt(:)*zlcpe(:)
            zdqdtl(:,jlev)=zdqdtl(:,jlev)+zdqdt(:)
          endwhere
+         zgam(:)=gamma
+         if(gamma <= 0.)                                                &
+     &     zgam(:)=gamevap*deltsec2                                     &
+     &            *(AMAX1(zprc(:),0.)*dp(:)/ga*1000./zvcoef)**GAMPEXP
          where((zq(:).lt.zqsat(:)).AND.zprc(:) > zeps)
            zlcpe(:)=ALV/(acpd*(1.+ADV*dq(:,jlev)))
-           zdqdt(:)=AMIN1(gamma*(zqsat(:)-zq(:))*dsigma(jlev)/deltsec2  &
+           zdqdt(:)=AMIN1(zgam(:)*(zqsat(:)-zq(:))*dsigma(jlev)/deltsec2 &
      &                   /(1.0+zlcpe(:)*ra2s(zt(:))*(TMELT-ra4s(zt(:)))                 &
      &                   *zqsat(:)*zcor(:)/ra4d(zt(:),ra4s(zt(:)))**2)              &
      &                   ,zprc(:))
@@ -2530,9 +2683,13 @@
            zdtdt(:,jlev)=zdtdt(:,jlev)-zdqdt(:)*zlcpe(:)
            zdqdtl(:,jlev)=zdqdtl(:,jlev)+zdqdt(:)
          endwhere
+         zgam(:)=gamma
+         if(gamma <= 0.)                                                &
+     &     zgam(:)=gamevap*deltsec2                                     &
+     &            *(AMAX1(zprsl(:),0.)*dp(:)/ga*1000./zvcoef)**GAMPEXP
          where((zq(:).lt.zqsat(:)).AND.zprsl(:) > zeps)
            zlcpe(:)=ALS/(acpd*(1.+ADV*dq(:,jlev)))
-           zdqdt(:)=AMIN1(gamma*(zqsat(:)-zq(:))*dsigma(jlev)/deltsec2  &
+           zdqdt(:)=AMIN1(zgam(:)*(zqsat(:)-zq(:))*dsigma(jlev)/deltsec2 &
      &                   /(1.0+zlcpe(:)*ra2s(zt(:))*(TMELT-ra4s(zt(:)))                 &
      &                   *zqsat(:)*zcor(:)/ra4d(zt(:),ra4s(zt(:)))**2)              &
      &                   ,zprsl(:))
@@ -2541,9 +2698,13 @@
            zdtdt(:,jlev)=zdtdt(:,jlev)-zdqdt(:)*zlcpe(:)
            zdqdts(:,jlev)=zdqdts(:,jlev)+zdqdt(:)
          endwhere
+         zgam(:)=gamma
+         if(gamma <= 0.)                                                &
+     &     zgam(:)=gamevap*deltsec2                                     &
+     &            *(AMAX1(zprsc(:),0.)*dp(:)/ga*1000./zvcoef)**GAMPEXP
          where((zq(:).lt.zqsat(:)).AND.zprsc(:) > zeps)
            zlcpe(:)=ALS/(acpd*(1.+ADV*dq(:,jlev)))
-           zdqdt(:)=AMIN1(gamma*(zqsat(:)-zq(:))*dsigma(jlev)/deltsec2  &
+           zdqdt(:)=AMIN1(zgam(:)*(zqsat(:)-zq(:))*dsigma(jlev)/deltsec2 &
      &                   /(1.0+zlcpe(:)*ra2s(zt(:))*(TMELT-ra4s(zt(:)))                 &
      &                   *zqsat(:)*zcor(:)/ra4d(zt(:),ra4s(zt(:)))**2)              &
      &                   ,zprsc(:))
