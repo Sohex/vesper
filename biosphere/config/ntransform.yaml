@@ -775,8 +775,8 @@ calibration:
 
     - what: form:michaelis_menten_divisor
       reads: "denitrification, water_cont_m3 = wcont * gawc[0] / 1000"
-      source: "xuri2008 table 11 gives Kc and Kn in kg m-3, of an unstated volume"
-      verdict: unsourced
+      source: "shah1978, the primary at the end of the chain: Ks values in mg/liter measured in a continuous stirred tank reactor"
+      verdict: agrees
       owner: world-nga5
       why: >
         Kc and Kn are half-saturation constants per cubic metre, and the paper
@@ -787,22 +787,28 @@ calibration:
         6.7 to 30 over the reachable water contents of the LPJ soil codes, and a
         smaller divisor saturates the Michaelis-Menten terms sooner, so the
         soil-solution reading is the one that maximises denitrification.
-        li1992 is now held and read and it does NOT close the question: its
-        table 7 states Kc and Kn per cubic metre and does not say per cubic
-        metre of what either, so the primary carries the same silence and the
-        chain runs one paper further, to Shah and Coulman (1978), which neither
-        this project nor Xu-Ri quotes a volume from.
-        What li1992 does add is a magnitude. Its own soluble carbon runs at
-        10 to 20 mg C per kg soil across the sensitivity runs, initialised at
-        20, and Kc = 0.017 kg C/m3 is 17 mg C per kg soil at a bulk density near
-        1 Mg/m3 -- the same units and the same magnitude as the pool the
-        constant half-saturates, which is where a half-saturation belongs. Under
-        the soil-solution reading Kc would be about 5 mg C per kg soil, a third
-        of that pool. The magnitude match therefore favours the per-cubic-metre-
-        of-SOIL divisor, which is the LOWER-denitrification branch and NOT the
-        one the operator runs. That is evidence and not proof, it rests on an
-        assumed bulk density, and it is not enough to move a factor of 6.7 to 30
-        on denitrification: Shah and Coulman (1978) is what would settle it.
+        SETTLED 2026-08-26 AGAINST THE PRIMARY, and the operator is right.
+        shah1978 is held and read. Its constants are Ks = 83 mg/liter for
+        nitrate nitrogen and Ks = 17.4 mg/liter for organic carbon, which are
+        0.083 and 0.0174 kg m-3 -- Xu-Ri's table 11 and li1992's table 7
+        exactly, so the chain is closed and the two secondaries transcribed
+        faithfully. THE VOLUME IS THE SOLUTION'S, and it is not an inference
+        from the units: the values were measured in a CONTINUOUS STIRRED TANK
+        REACTOR on dissolved substrates, and there is no soil in the experiment
+        at all. The paper draws that contrast itself, recording that soil
+        scientists work in soil columns while sanitary engineers work in CSTRs,
+        and this is the second kind. A concentration measured in a reactor's
+        liquid is a concentration per cubic metre of liquid.
+        So the operator's divisor -- the depth of AVAILABLE WATER in the upper
+        layer -- is the correct one, and the factor of 6.7 to 30 is closed in
+        favour of the branch already running.
+        THE MAGNITUDE ARGUMENT FROM li1992 IS WITHDRAWN. It read Kc = 17 mg C
+        per kg soil against DNDC's soluble carbon pool of 10 to 20 mg C per kg
+        soil and concluded the per-cubic-metre-of-SOIL reading matched, which
+        would have been the lower-denitrification branch. It rested on an
+        assumed bulk density and on a coincidence of numerals between two
+        different volumes, and the provenance beats it. Recorded because the
+        argument was written down and would otherwise be re-derived.
 
     - what: function:f_volat_temperature
       source: "xuri2008 table 5 eqn 7"
