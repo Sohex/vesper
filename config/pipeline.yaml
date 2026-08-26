@@ -137,7 +137,7 @@ steps:
     loop: [A, C]
     cost: minutes
     needs: [lpj_run, rock_albedo_bands, soil_albedo_wetting, vegetation_albedo]
-    writes: ["exoplasim/inputs/{res_lower}/albedo_report.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0174.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0175.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0176.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0212.sra"]
+    writes: ["exoplasim/inputs/{res_lower}/albedo_report.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0174.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0175.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0176.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0212.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1742.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1750.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1760.sra"]
     gate: >
       the `lpj_run` edge is loop C and is a BACK edge: the first pass of an
       iteration runs --mode vegetated on terrain alone, before any biosphere
@@ -146,6 +146,13 @@ steps:
       row, so the mode is the state of albedo_report.json rather than a second
       step. Adopting modelled requires the flux to be re-derived: the two land
       endmembers are 15-19 W/m2 apart in absorbed flux (`docs/src/pipeline/sequencing.md` A3).
+
+      1742, 1750 and 1760 are the SATURATED end of the moisture mixing, one per
+      surface 174, 175 and 176 already carries, and this step writes them from
+      `analysis/soil_albedo_wetting.json` unless `--flat-bands` is passed, which
+      leaves no band pair for a wet pair to be a pair with. They are required
+      inputs to a run only under `surface.soil_albedo_moisture.enabled`; at the
+      switch off the model never opens them. PHYS-15.
 
   - id: surface_roughness
     reads_export: true

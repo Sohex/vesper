@@ -589,7 +589,16 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.geography_land_threshold", "model.h2o_sw_level",
         "model.h2o_sw_level_bracket",
         "model.h2o_sw_weight", "model.land_albedo_source",
-        "model.layers", "model.lithology_albedo_overrides",
+        # `model.layers` is NOT listed here, and it is the one entry in these
+        # four sets whose textual trace cannot be made to hold. The trace is a
+        # substring match on the leaf name, and this generator's whole subject
+        # is the land water column's LAYERS: the word is ordinary English in
+        # every second line of it, so a claim that the name is absent would be
+        # true only until the next sentence. It is dropped rather than defended,
+        # which costs a regeneration of a generator that runs in seconds
+        # whenever the atmosphere's vertical layer count moves. That is the
+        # cheap direction this list's own header names.
+        "model.lithology_albedo_overrides",
         "model.ncpus", "model.output_type", "model.ozone_scale",
         "model.ozone_uv_weight", "model.ozone_visible_weight",
         "model.physics_filter", "model.cold_start_seed",

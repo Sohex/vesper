@@ -500,17 +500,31 @@ surface:
   # is unreachable on a scalar store, as are WORLD-JSFM's moisture-dependent
   # soil heat, DUST-17's top emitting-layer water and PHYS-15's soil albedo.
   #
-  # The geometry is not free either: `layers: 2` at
-  # `layer_thickness_m: [0.5, 1.0]`, which is `pedology/config/
+  # The geometry is not free either: `layers: 3` at
+  # `layer_thickness_m: [0.02, 0.48, 1.0]`, which is `pedology/config/
   # land_column_properties.yaml`'s own 500 mm upper and 1000 mm lower grouping
-  # and the only two-layer cut at which the two columns share a boundary.
-  # LSHY-5 needs them to share it, because two columns cannot agree about
-  # frozen soil across geometries that do not meet.
+  # with the surface layer that contract declares cut off the top of it. The
+  # 0.5 m boundary SURVIVES the cut, 0.02 + 0.48 = 0.5, and it is the only
+  # boundary at which the two columns meet; LSHY-5 needs them to meet, because
+  # two columns cannot agree about frozen soil across geometries that do not.
+  #
+  # THE SURFACE LAYER IS 0.02 m AND ITS CAPACITY IS CUT FROM AIR DRY, both of
+  # them the contract's `surface_layer` block and neither of them chosen here.
+  # It exists because the modelled soil albedo and the modelled dust threshold
+  # read the top of this column at a depth of their own, and a 0.5 m store dries
+  # on the column's timescale where the skin they read dries in about a day.
+  # Splitting a layer while holding the column's total capacity fixed costs the
+  # cascade nothing, which `land_column_properties.py:check_split_invariance`
+  # DRIVES rather than asserts; what does change the column is the air-dry
+  # floor, and it is why `dwmax` comes from the states file's `evaporable_mm`
+  # column and not its `awc_mm`. LPJ-GUESS still reads `awc_mm`. Two consumers,
+  # two capacities, and `exoplasim/notes/soil-albedo-moisture.md` argues both.
   #
   # `layer_capacity_fraction` is a FALLBACK SHAPE and not the split. The split
   # is a per-cell property -- the same integral `dwmax` is, cut at the layer
-  # boundary instead of summed -- and over this build's land cells it runs from
-  # the geometric 500/1500 to nearly nine tenths in the top layer, so one shape
+  # boundaries instead of summed -- and over this build's land cells it departs
+  # from the geometric share wherever the regolith contact and the weathered
+  # bedrock fraction reweight the profile, so one shape
   # for the whole simulated planet is wrong for most of the map and the one that
   # makes a comparison come out is a tuned value. It arrives instead as surface
   # code 2290, one record per layer, written by
@@ -539,21 +553,75 @@ surface:
   # prices it rather than admitting it.
   land_water_column:
     scheme: layered
-    layers: 2
+    layers: 3
     lower_boundary: impermeable
     # THE GEOMETRIC SHAPE, and a FALLBACK rather than the split. It is the
-    # thickness-proportional share a uniform profile gives, so it is derived
-    # from `layer_thickness_m` and is not a number picked to make anything come
-    # out. Every land cell whose capacity came from the soil takes surface code
-    # 2290 instead, and `landmod` refuses to run if one does not; this is what a
-    # cell whose `dwmax` is still the namelist `wsmax` takes, and for such a
-    # cell there is no profile for it to be wrong about.
-    layer_capacity_fraction: [0.333333, 0.666667]
-    layer_thickness_m: [0.5, 1.0]
+    # thickness-proportional share a uniform profile gives -- each thickness
+    # over the column's 1.5 m -- so it is DERIVED from `layer_thickness_m` and
+    # is not a number picked to make anything come out. It moves when the
+    # thicknesses do, which is why it moved with the surface cut. `landini`
+    # renormalises it to sum to one, so it is a shape and its scale carries
+    # nothing. Every land cell whose capacity came from the soil takes surface
+    # code 2290 instead, and `landmod` refuses to run if one does not; this is
+    # what a cell whose `dwmax` is still the namelist `wsmax` takes, and for
+    # such a cell there is no profile for it to be wrong about.
+    #
+    # A uniform profile is also the only state in which this shape and the
+    # staged split AGREE at the surface layer, and they disagree there by
+    # construction on any real cell: the staged split cuts the surface layer's
+    # capacity from AIR DRY and the layers below it from the wilting point, so
+    # the surface layer's true share is larger than its depth share by the
+    # sub-wilting water. A cell that falls back to this shape has no soil, so it
+    # has no air-dry floor to be wrong about either.
+    layer_capacity_fraction: [0.013333, 0.32, 0.666667]
+    layer_thickness_m: [0.02, 0.48, 1.0]
     soil_phase: false
     evaporation_limiter:
       theta_low: 0.0
       exponent: 1
+
+  # THE MODELLED SOIL ALBEDO'S RESPONSE TO THE WATER UNDER IT. PHYS-15.
+  # `landmod`'s `getalb` under `nwetsoil = 1` mixes the staged dry band pair,
+  # codes 174/175/176, against a staged SATURATED pair, codes 1742/1750/1760,
+  # on the degree of saturation of the land column's surface layer. Wet ground
+  # is darker than dry ground and at `enabled: false` the modelled land surface
+  # keeps one albedo through every wetting and drying cycle the column
+  # simulates.
+  #
+  # THE ENDS, THE SHAPE AND THE STATE ARE EACH SOURCED SOMEWHERE ELSE, which is
+  # why nothing here is a magnitude. The saturated pair is derived per rock
+  # class and per band by `analysis/soil_albedo_wetting.py` from Lekner and Dorf
+  # (1988) and Twomey, Bohren and Mergenthaler (1986) applied per wavelength;
+  # the shape between the ends is Sadeghi, Jones and Philpot (2015), linear in
+  # the Kubelka-Munk transformed reflectance and therefore NOT in the albedo;
+  # the state is the surface layer declared in `pedology/config/
+  # land_column_properties.yaml`. `exoplasim/notes/soil-albedo-moisture.md`
+  # carries the argument and the one class the staged field refuses.
+  #
+  # THE TWO SATURATION ENDPOINTS ARE READ, NOT CHOSEN. They are the contract's
+  # `surface_layer.saturation_mapping`, and `run_exoplasim.py` checks both this
+  # block and `landmod.f90`'s compiled defaults against it at the contract's own
+  # tolerance, the way it already checks the soil heat solver's six. They differ
+  # from `surface.soil_thermal`'s pair in the LOWER endpoint alone, because the
+  # surface layer's capacity is cut from air dry and the layers below it are cut
+  # from the wilting point.
+  #
+  # `shape_sigma` IS A LIMIT AND NOT A FIT. It is the ratio of the dry soil's
+  # scattering coefficient to the saturated soil's, and it is one where the
+  # water's own scattering is negligible against the soil's, which Sadeghi et
+  # al. verify at the strongly water-absorbing wavelengths that make up band 2.
+  # One is adopted in BOTH bands as that limit; their visible-band fits run
+  # 0.042 to 0.528 and the direction is known, a value below one darkening the
+  # modelled surface sooner in a wetting cycle without moving either end. That
+  # is the declared bracket on band 1 and it is swept by moving
+  # `shape_sigma_band1` alone.
+  soil_albedo_moisture:
+    enabled: true
+    saturation_at_empty_layer: 0.0
+    saturation_at_full_layer: 0.7877
+    shape_sigma_broadband: 1.0
+    shape_sigma_band1: 1.0
+    shape_sigma_band2: 1.0
 
 # DETERMINED for the current configuration, and TRANSITIVE rather than a fact
 # about the world: resolution, layers, ranks and timestep are operational

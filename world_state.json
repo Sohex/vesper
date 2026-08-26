@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-26T19:54:27.470885+00:00",
-  "git_commit": "862d0a516769447a0cd62940218f47d6a06e96d4",
+  "generated": "2026-08-26T21:51:37.240176+00:00",
+  "git_commit": "5bd0ad9e35e60be8b50b3f520b5bbf7314063f33",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in the `bd` issue tracker.",
   "planet": {
@@ -162,6 +162,9 @@
       "energy_fixer": true,
       "cloud_absorption_scale": 1.192,
       "cloud_water_reference_kg_m3": 0.00021,
+      "precip_reevaporation_gamma": "derived",
+      "cloud_fraction_subgrid_width": "derived",
+      "asymptotic_mixing_length_m": "derived",
       "land_longwave_emissivity": 0.9357,
       "sea_longwave_emissivity": 0.98,
       "ozone_scale": 0.794,
@@ -233,14 +236,16 @@
       },
       "land_water_column": {
         "scheme": "layered",
-        "layers": 2,
+        "layers": 3,
         "lower_boundary": "impermeable",
         "layer_capacity_fraction": [
-          0.333333,
+          0.013333,
+          0.32,
           0.666667
         ],
         "layer_thickness_m": [
-          0.5,
+          0.02,
+          0.48,
           1.0
         ],
         "soil_phase": false,
@@ -248,6 +253,14 @@
           "theta_low": 0.0,
           "exponent": 1
         }
+      },
+      "soil_albedo_moisture": {
+        "enabled": true,
+        "saturation_at_empty_layer": 0.0,
+        "saturation_at_full_layer": 0.7877,
+        "shape_sigma_broadband": 1.0,
+        "shape_sigma_band1": 1.0,
+        "shape_sigma_band2": 1.0
       }
     },
     "radiation": {
