@@ -1992,3 +1992,32 @@ even though it is live in every run. Its size is not bounded here and should not
 be guessed: the ground heat flux is near zero in the annual mean, which argues
 for a small effect on the mean and says nothing about the seasonal amplitude or
 about when a land cell first holds snow.
+
+## Measured: the star weight on its new carrier, `CLOUDABS`, 2026-08-26
+
+`run_a61f97a32b45` against the same control `run_c9c24d438a94`, same restart,
+same binary, differing in `CLOUDABS` alone: 1.0 against the configured 1.192.
+Over orbits 15 to 24, **-1.373 +/- 0.033 K**, resolved at 41 to 1. So this
+star's co-albedo correction is worth **+1.37 K of warming** as configured.
+
+**This is NOT part of the drift**, and the reason matters. The donor staged
+`TSWR3 = 0.006556`, which is the compiled 0.0055 times the same 1.192, so the
+star correction was already in the donor and did not change across the window.
+What changed is the CARRIER, and that is the `world-f9ig` term measured above.
+
+**The prediction registered before this arm ran was 1.4 to 2.6 K of cooling, and
+the measurement falls just outside it**, by 0.03 K at the near edge. It was
+built from PHYS-11's own arms, which measured -2.63 K at scale 0.78 and +2.53 K
+at 1.28 for a slope of 10.3 K per unit scale, and 0.192 of that is 2.0 K. The
+implied slope here is 1.373/0.192 = **7.15 K per unit scale**, thirty per cent
+below it.
+
+**The weight transfers and its kelvin worth does not.** `cloud_band_weight.py`
+derives 1.192 as a ratio of flux-weighted co-albedos, and a ratio is carrier
+independent, which is why `world-f9ig` was right to move it from `TSWR3` to
+`CLOUDABS` unchanged. What is carrier DEPENDENT is the base it multiplies:
+Table 1(a)'s co-albedo is not `tswr3*mu0^2*ln(1000/tau)`, so the same 19.2 per
+cent lands on a different number and buys a different number of kelvin. A slope
+measured on one carrier is not a prediction for the same key on another, and
+PHYS-11's 10.3 K per unit scale should be quoted against the fits it was taken
+on rather than against the tables.
