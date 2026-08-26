@@ -1901,3 +1901,29 @@ namelist rather than for the current one. The source-built control used above is
 the cleaner instrument for a single term, because it differs in one object file
 instead of in every change between two dates. What is wrong is only the claim
 that nothing was kept.
+
+## A seventh term with no route: the soil heat solver's moisture dependence
+
+`3aecf4ec` made the land soil heat solver read the soil water the model already
+carries, interpolating conductivity and heat capacity between a dry and a
+saturated endpoint instead of holding one pair. `landmod.f90` declares them:
+
+    soildifdry = 0.2088   soildifsat = 1.4332   W/m/K
+    soilcapdry = 1.1111E6 soilcapsat = 2.9689E6 J/m3/K
+
+A factor of 6.9 in conductivity and 2.7 in capacity across the wetness range, on
+every land cell, and it is inside the batch-2 window: the donor predates it.
+
+**All six keys are already in `landmod_nl`**, so the model can be told to run the
+old behaviour -- setting a dry endpoint equal to its saturated partner makes the
+column constant and the solver bitwise what it was. What is missing is the route:
+`run_exoplasim.py` writes none of them, `expected_namelist_keys` does not cover
+them, and the arms above staged none, so every run since the commit has
+integrated the compiled pair and no artifact says which pair that was.
+
+**UNTESTED, and cheaply testable.** It is the same one-row change that gave
+`vdiff_lamm` a control, and until it exists the term cannot enter a bundle sum
+even though it is live in every run. Its size is not bounded here and should not
+be guessed: the ground heat flux is near zero in the annual mean, which argues
+for a small effect on the mean and says nothing about the seasonal amplitude or
+about when a land cell first holds snow.
