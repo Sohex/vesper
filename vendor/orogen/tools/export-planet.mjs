@@ -455,6 +455,27 @@ async function main() {
 
         if (!touched(BASIN_FLAGS)) {
             const basinArea = basinAreaFromSlider(d.basinSlider ?? 0);
+            // THE CODE'S SLIDER MAY NOT SILENTLY OUTRANK THE FORK'S FLOOR.
+            // basinAreaFromSlider returns a rung of BASIN_AREA_LADDER_KM2, and
+            // BASIN_MIN_AREA_KM2 is a decision this fork took that need not be
+            // on that ladder -- 850 is not. Taking the rung anyway splits the
+            // generation in two, because elevation.js reads the constant
+            // DIRECTLY for its resolvable test while the catalogue is selected
+            // at whatever lands here. That ran twice before it was caught, at
+            // 23 minutes an export, and the only evidence was minAreaKm2 in the
+            // manifest. So say so and stop, naming the flag that settles it.
+            if (basinArea > 0 && basinArea !== BASIN_MIN_AREA_KM2) {
+                console.error(
+                    `The planet code's basin slider gives a floor of ${basinArea} km2 and\n` +
+                    `terrain-config.js declares BASIN_MIN_AREA_KM2 = ${BASIN_MIN_AREA_KM2}.\n` +
+                    `js/elevation.js reads the constant directly, so taking the code's value\n` +
+                    `here would select the catalogue at one floor and decide what the mesh\n` +
+                    `resolves at another, in the same generation.\n\n` +
+                    `Pass --basin-min-area explicitly to say which you mean. The fork's\n` +
+                    `answer is --basin-min-area ${BASIN_MIN_AREA_KM2}; the code's own is\n` +
+                    `--basin-min-area ${basinArea}.`);
+                process.exit(2);
+            }
             args.preserveBasins = basinArea > 0;
             if (basinArea > 0) args.basinMinAreaKm2 = basinArea;
         }

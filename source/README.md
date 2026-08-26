@@ -238,10 +238,16 @@ So what has to survive is the recipe, not the export. This is it:
 # The planet code carries the seed and every terrain slider. It does NOT carry
 # radius, gravity, or lithology strength, so those three are passed explicitly
 # and are the ones to check against config/planet.yaml.
+#
+# --basin-min-area is passed for a DIFFERENT reason: the code DOES carry a basin
+# slider, and it outranks terrain-config.js unless a basin flag is given. Its
+# ladder has no 850 rung, so the fork's floor can only be stated here. The
+# exporter now refuses rather than silently taking the code's 1000; see below.
 cd vendor/orogen
 COMMON="--code 01eshm059lt0b9mpgro2y83t \
         --radius 7645.2 --gravity 12.81 \
         --lithology-strength 0.682 --regions 10000004 \
+        --basin-min-area 850 \
         --netcdf --quiet"
 
 node --max-old-space-size=32000 tools/export-planet.mjs $COMMON \
@@ -338,7 +344,24 @@ and the erosion and shaping sliders. An explicit flag beats the decoded value,
 which is why `--regions` above overrides the count and the rest of the code still
 applies. Verify against `manifest.params` after
 generating: `lithologyStrength` in particular must read 0.682 and not the 1 the
-code decodes to, because it is a fork addition the code predates.
+code decodes to, because it is a fork addition the code predates. Verify
+`basins.selectionCriteria.minAreaKm2` too, for the opposite reason -- there the
+code has an answer and it is the WRONG one.
+
+**THE BASIN FLOOR IS THE ONE THE CODE ARGUES WITH.** `basinAreaFromSlider` maps
+the code's slider onto `BASIN_AREA_LADDER_KM2`, which has rungs at 300, 1000 and
+3000 and none at 850, and that value outranks `BASIN_MIN_AREA_KM2` unless one of
+the basin flags is given. Taking the rung splits a generation in half:
+`js/elevation.js` reads `BASIN_MIN_AREA_KM2` DIRECTLY for its resolvable test
+while `js/basins.js` selects the catalogue at whatever the exporter passes, so
+the mesh decides what it resolves at 850 while the catalogue is chosen at 1000.
+Because basin preservation clamps the carve kernel, that reaches the finished
+terrain and not only the catalogue. `export-planet.mjs` refuses the
+disagreement rather than resolving it silently, and names both numbers; passing
+one basin flag skips the code's whole basin block, which is safe here only
+because `preserveBasins` defaults to true. That last point is the trap the
+`BASIN_FLAGS` comment in the exporter is about, and it is why the list names
+every basin flag rather than one.
 
 ## `source/maps/`
 
