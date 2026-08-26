@@ -315,18 +315,11 @@ and are not changed.
 ## What this did not establish
 
 - **Nothing was run.** Every statement is against the source, the standard, or a
-  published relation. The model was not compiled beyond a syntax check and no
-  climate run was made, so **what these changes are worth in kelvin or in ice
-  thickness is not measured here.**
-- **What the snow bracket is worth is not measured either.** The run that would
-  measure it is a second pair, on the same terms as the `rhosnow` pair below and
-  not folded into it: two T21 baseline arms differing only in which arm of the
-  kinetics bracket `landini` evaluates -- Fourteau's row against Calonne's
-  equation (12) -- at one density, one rung, one timestep and one orbit count.
-  The quantity to read is the same: ground and basal heat flux under
-  snow-covered cells, and the ice thickness that follows. Running the two
-  brackets as one four-arm sweep would confound them, because both act on the
-  same conductive resistance.
+  published relation, with one exception that is labelled where it appears: the
+  temperature span of the modelled sea ice is read off an EXISTING bootstrap
+  climatology, and a bootstrap's numbers are not the baseline. The model was not
+  compiled beyond a syntax check and no climate run was made, so **what these
+  changes are worth in kelvin or in ice thickness is not measured here.**
 - **The run that would measure it**, when the binaries are current: a pair of
   T21 baseline arms differing only in `landmod_nl`'s `rhosnow` -- the GRAV-8
   bracket that this row exists to make honest -- held at the same rung, the same
@@ -334,6 +327,15 @@ and are not changed.
   change that pair moved the pack's thickness and thermal mass and held its
   conductivity; after it, all three move. The quantity to read is the ground and
   basal heat flux under snow-covered cells and the resulting ice thickness.
+- **What the snow bracket is worth is not measured either.** The run that would
+  measure it is a second pair, on the same terms as the `rhosnow` pair above and
+  not folded into it: two T21 baseline arms differing only in which arm of the
+  kinetics bracket `landini` evaluates -- Fourteau's row against Calonne's
+  equation (12) -- at one density, one rung, one timestep and one orbit count.
+  The quantity to read is the same: ground and basal heat flux under
+  snow-covered cells, and the ice thickness that follows. Running the two
+  brackets as one four-arm sweep would confound them, because both act on the
+  same conductive resistance.
 - **The sea-ice declarations are still not bracketed, and Yen says how wide the
   bracket would be.** Three of the six are stated positions, and the quantity
   that would set a range for them is a brine volume the model does not carry.
@@ -354,5 +356,5 @@ and are not changed.
 | `references/sturm_1997_the-thermal-conductivity-of-seasonal-snow.pdf` -- Sturm, Holmgren, Konig, Morris (1997). J. Glaciol. 43(143), 26-41. `10.3189/S0022143000002781` | **read** -- the quadratic and its stated range, its R2 of 0.79, its 0.1 W/m/K uncertainty at 95 per cent confidence, and its statement that the regressions are strictly valid only near -14.6 C. NOT ADOPTED, for the reasons above |
 | `references/riche_2013_thermal-conductivity-of-snow-measured-by-three-independent-methods-and.pdf` -- Riche, Schneebeli (2013). The Cryosphere 7, 217-227. `10.5194/tc-7-217-2013` | **read** -- three methods on identical samples, the conclusion that direct numerical simulation is the most reliable, and the up to plus or minus 25 per cent anisotropy error on a horizontally inserted needle probe. This is what decides against Sturm |
 | `references/fourteau_2021_impact-of-water-vapor-diffusion-and-latent-heat-on-the-effective-therm.pdf` -- Fourteau, Domine, Hagenmuller (2021). The Cryosphere 15, 2739-2755. `10.5194/tc-15-2739-2021` | **read** -- Eq. (18), the vertical effective thermal conductivity under fast kinetics at five temperatures as a quadratic in the ice volume fraction, with 917 kg/m3 as the normalising ice density. ADOPTED. Also the statement that the fast and slow kinetics limits both remain plausible, which is the bracket recorded above |
-| `references/calonne2011-effective-thermal-conductivity-of-snow.pdf` -- Calonne, Flin, Morin, Lesaffre, Rolland du Roscoat, Geindreau (2011). Geophys. Res. Lett. 38, L23501. `10.1029/2011GL049234` | **read** 2026-08-25, all six pages. SUPPLIED BY THE USER after every open-access route and Sci-Hub returned 403. Equation (12), its quadratic in density fitted so that the value goes to air's at zero density, with its correlation coefficient and the residual standard deviation that decides whether the bracket is bigger than the noise; the statement that only conduction through ice and interstitial air is counted, which is what makes it the slow arm; the table showing that neglecting conduction in the pore air alone would lower the answer by up to a factor of two; and section 3.1's agreement with Yen's snow curve. ITS NEEDLE-PROBE POSITION IS NOT WHAT THE EARLIER ROW EXPECTED, and section 4 above says what it is instead |
+| `references/calonne2011-effective-thermal-conductivity-of-snow.pdf` -- Calonne, Flin, Morin, Lesaffre, Rolland du Roscoat, Geindreau (2011). Geophys. Res. Lett. 38, L23501. `10.1029/2011GL049234` | **read** 2026-08-25, all six pages. SUPPLIED BY THE USER after every open-access route and Sci-Hub returned 403. Equation (12), its quadratic in density fitted so that the value goes to air's at zero density, with its correlation coefficient and the residual standard deviation that decides whether the bracket is bigger than the noise; the statement that only conduction through ice and interstitial air is counted, which is what makes it the slow arm; the table showing that dropping conduction through the pore AIR would lower the answer by a factor of two in dense snow and an order of magnitude in fresh snow; and section 3.1's agreement with Yen's snow curve. ITS NEEDLE-PROBE POSITION IS NOT WHAT THE EARLIER ROW EXPECTED, and section 4 above says what it is instead |
 | `references/yen1981-review-of-thermal-properties-of-snow-ice-and-sea-ice.pdf` -- Yen (1981). *Review of thermal properties of snow, ice and sea ice.* CRREL Report 81-10 | **read** 2026-08-25, the conductivity sections: "Thermal conductivity of ice" with equation (33) and Table 3's three regression arms, "Thermal conductivity of snow" with equation (34), and "Density and thermal conductivity of sea ice" and "Thermal conductivity model for sea ice" with equations (70) to (72) and Figures 22 and 23. This is `CKAPI`'s bound, which IAPWS-06 cannot give because a Gibbs function carries no transport property. Also the sea-ice conductivity model itself, which is the arithmetic behind the sentence that these constants are not derivable here: it needs a salinity and a temperature per cell, and shows the brine term SUBTRACTING |
