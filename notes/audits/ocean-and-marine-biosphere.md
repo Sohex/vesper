@@ -1152,10 +1152,36 @@ and the pass it recorded stands.
 
 ### 11h. What is instrumented and what is still not verified
 
-The three new arms have been STAGED and their criteria declared and self-checked.
-**None of them has been run**, and until one is, nothing below section 11e's
-"what this section does NOT establish" has moved: the monthly interpolation and
-the two ice branches remain untested against the model. The commands are
+*All three arms were RUN on 2026-08-26 at T42 on model source `a041a1e9`, and
+all three PASS. The monthly interpolation and both `addfc` ice branches are
+verified against the model.*
+
+| arm | segment | verdict |
+| --- | --- | --- |
+| `monthly` | a full orbit, 8774 steps at dt 30, cold | **PASS**, all four criteria |
+| `ice` | 2193 steps, cold, branch (c) | **PASS** |
+| `ice_clim` | 2193 steps, cold, code 211 staged, branch (b) | **PASS** |
+
+The monthly arm's fourth criterion is the one that needed the full orbit, and it
+is met by a wide margin: the recovered per-month scalar series spans 0.468 to
+1.532 against a declared 0.467 to 1.533, so the model is reading the month index
+rather than holding one month. The ice arms close
+`CRHOS*CPS*mld*dSST = (yheat + yfsst + yiflux)*dt_record` and recover the record
+interval as 57600.010 s and 57600.027 s against a declared 57600, a relative
+error of 1.7e-07 and 4.6e-07.
+
+The `selftest` for each arm was run first and passes: every criterion answered
+against a synthetic stream that satisfies it, and every criterion broken in one
+named way and seen to fail.
+
+**Each arm ended in the SIGSEGV of
+`notes/audits/epilog-adenergy-use-after-free.md`**, which is after the
+integration and after the ocean stream is written, so it reaches none of the
+above: the stream `oceanmod` writes during the run is complete to its last
+interval and the checks read it. What those arms lost is their restart, which
+nothing here consumes.
+
+The commands are
 
     python exoplasim/scripts/verify_ocean_flux_channel.py stage RUNDIR --rung T42 --arm monthly
     python exoplasim/scripts/verify_ocean_flux_channel.py selftest RUNDIR

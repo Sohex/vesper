@@ -125,6 +125,27 @@ knows and the text does not. Only a run at the
 optimisation level whose transforms fire says whether anything is left, and that
 is the world-bhs probe at -O3 under `-ffpe-trap`, which is world-v9j9.
 
+**Run 2026-08-26, and it did not fire.** A T42 arm built
+`build_model.py --res T42 --ranks 16 --extra-flag=-O3 --no-publish` (sha
+`401aa19d`, in its own build directory) integrated a full orbit from cold --
+8774 steps at dt 30, 1531 s -- with `-ffpe-trap=invalid,zero,overflow` unmasked
+and took **no SIGFPE**. `lint_masked_domains.py` reports zero remaining sites
+over the same source. So a full orbit of this model at the optimisation level
+that woke the class does not wake it.
+
+**That is not yet the row's PASS**, and the reason is a different defect
+entirely. The arm ended in SIGSEGV at `epilog_` -> `mpputgp_` -> `mpgagp_`, the
+restart write, and so produced no finite restart to check; the `-O2` companion
+from the same cold start ends at the identical frame. That is
+`notes/audits/epilog-adenergy-use-after-free.md` -- `adenergy` freed and then
+written -- and it is not optimisation-dependent, not resolution-dependent and
+not thread-count-dependent. Until it is fixed, `compare_restarts.py` has nothing
+to compare: both arms' `plasim_status` end one record marker short.
+
+What the orbit does establish is the half that a trap can deliver on its own: a
+SIGFPE would have named a surviving site and none appeared. What is still owed
+is the finite restart, and it costs one rebuild plus one orbit.
+
 ## The division class, and what re-deriving the population found
 
 The pass reported a division only where the divisor was PARENTHESISED, which
