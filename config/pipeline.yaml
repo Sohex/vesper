@@ -218,6 +218,20 @@ steps:
     writes: [exoplasim/analysis/convergence/]
     presence: by_index   # as bootstrap_convergence: the artifact is named by run
 
+  - id: relaxation_ceiling
+    script: exoplasim/scripts/check_relaxation_ceiling.py
+    loop: A
+    cost: seconds
+    needs: [baseline_convergence]
+    writes: [exoplasim/analysis/convergence/relaxation_ceiling.json]
+    gate: >
+      the offset criterion's fallback holds the relaxation time FIXED at the
+      derived value, and that is conservative only while the derived value is a
+      CEILING on the fitted one. This reads every convergence report and says
+      whether any of them falsifies that. It accumulates: a run whose fit has
+      grip is evidence and a settled run is not, so the answer sharpens with the
+      number of approaches on record rather than with any one run.
+
   - id: baseline_climatology
     script: exoplasim/scripts/build_climatology.py
     loop: A
