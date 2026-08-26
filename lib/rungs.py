@@ -253,6 +253,16 @@ STABILITY_CEILING_MINUTES = {
 # The artifact the ceilings are read out of, and the two conditions that select
 # the cells that count. A cell at another kappa or on inherited damping is a
 # boundary for a different model.
+#
+# `tau_scale` is a multiplier on the DERIVED table in `config/planet.yaml`, and
+# that table moved when `model.hyperdiffusion.eddy_wind_m_s` was re-measured:
+# every timescale is now 1.699x shorter, so a cell probed at `tau_scale` 1.0
+# then and one probed at 1.0 now are not the same damping. The cells stand
+# anyway, and as FLOORS rather than as boundaries that need re-taking, because
+# the change is MORE damping and the operator that applies it is implicit in
+# the damped variable (`plasim.f90:5148`), which is unconditionally stable and
+# cannot bring a refusal forward. `exoplasim/notes/resolution-tuned-parameters.md`
+# carries the measurement.
 STABILITY_GRID = "exoplasim/analysis/stability_probe.json"
 STABILITY_GRID_KAPPA = 8.0
 STABILITY_GRID_TAU_SCALE = 1.0
