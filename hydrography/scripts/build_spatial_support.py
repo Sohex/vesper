@@ -41,10 +41,11 @@ artifact.
   is a statistic of the regions a cell actually holds: `cell_quantiles` returns
   values the mesh has and interpolates between none of them.
 
-  NOT a coarse grid treated as truth. The reference support is the 10M mesh at a
-  7.60 km mean edge on every rung, and where a rung is finer than the mesh the
+  NOT a coarse grid treated as truth. The reference support is the same 10M mesh
+  on every rung, whatever the rung, and where a rung is finer than the mesh the
   cells that hold no region are REPORTED rather than filled. This artifact
-  applies no nearest-region fallback at all.
+  applies no nearest-region fallback at all. The mesh's own mean edge is
+  measured into the report rather than written here.
 
 ## The support, and why it is the mesh rather than the export's own grid fields
 
@@ -104,6 +105,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import pathlib
 import sys
 import time
 
@@ -782,6 +784,13 @@ def write_rung(path: Path, a: dict, mesh: Export, grid_dir: Path, rung: str,
             {"solved_lake": ctx["lake_absent"]} if ctx["lake_absent"] else {})
         ds.provenance = json.dumps(ctx["stamp"])
         ds.closure = json.dumps(rung_report["closure"])
+        ds.precision = (
+            "Shares, the quantile tables and anything that is a ratio are "
+            "stored float32; areas, volumes and moments are float64. Every "
+            "closure in the `closure` attribute was taken in float64 BEFORE "
+            "the cast, so a consumer re-summing the stored shares should "
+            "expect float32 rounding and not the tolerance those numbers "
+            "report.")
         ds.created = datetime.now(timezone.utc).isoformat()
 
         ds.createDimension("lat", nlat)
@@ -1143,7 +1152,7 @@ def main() -> int:
 
 
 def _selftest() -> int:
-    """Eight checks, and five are fixtures built to be WRONG in a named way.
+    """Twelve checks, and six are fixtures built to be WRONG in a named way.
 
     Every rule this script enforces is handed a case that violates it and is
     required to refuse, because a check that has only ever seen correct input
@@ -1213,6 +1222,20 @@ def _selftest() -> int:
     bad[3, 0] -= 0.1
     ok, msg = refuses(lambda: check_quantiles(bad, cov, lo, hi, "not the minimum"))
     check("a table whose end is not the true extreme is refused", ok, msg)
+
+    # THE CHECKPOINT IS VALIDATED, not trusted. A state file that has lost track
+    # of which inputs it belongs to is worse than none: it silently skips work
+    # that was never done for the build in hand. large-data.md.
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        ck = pathlib.Path(d) / CHECKPOINT
+        mine = {"terrain_hash": "abc", "probs": [0.0, 1.0]}
+        theirs = {"terrain_hash": "def", "probs": [0.0, 1.0]}
+        ck.write_text(json.dumps({"identity": mine, "rungs": {"T42": {}}}))
+        check("a checkpoint for these inputs is resumed",
+              load_checkpoint(ck, mine)["rungs"] == {"T42": {}})
+        check("a checkpoint for other inputs is discarded",
+              load_checkpoint(ck, theirs)["rungs"] == {})
 
     # THE NEGATIVE CONTROL the artifact exists for, and it is GRID-2's own
     # criterion: a cell that is mostly low ground with one per cent of its area

@@ -339,13 +339,13 @@
       }
     },
     "config_sha256": "f6d38da9be22664cbaa4e5040c0625edc7918d4744e18b5ee639b8da9e14fd9c",
-    "git_commit": "d69baae0fc916b6fc316b27dbe2aa486d2be91c0",
+    "git_commit": "94a0496fdf5f43ff48e6c059351ca7e99546581d",
     "source_inputs": {
       "hydrography/data/precarve-craton-10m/regions.nc": "1d8d490e7ad223f70eb2628fdea57439ba4d8a04c9570082b3fc00d2c51bfa9a",
       "hydrography/data/precarve-craton-10m/surface_water.nc": "105538809a56b3448653adeb0be0553173eb556fd1603ab159a004069c8c48cd"
     }
   },
-  "created": "2026-08-26T08:44:49.241546+00:00",
+  "created": "2026-08-26T08:47:21.228251+00:00",
   "rungs": {
     "T21": {
       "grid": "exoplasim-T21",
@@ -459,7 +459,7 @@
         }
       },
       "absent": {},
-      "seconds": 10.293842792510986,
+      "seconds": 11.680168867111206,
       "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T21.nc",
       "output_bytes": 825720
     },
@@ -575,7 +575,7 @@
         }
       },
       "absent": {},
-      "seconds": 10.270973682403564,
+      "seconds": 11.668195247650146,
       "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T42.nc",
       "output_bytes": 2396839
     },
@@ -691,7 +691,7 @@
         }
       },
       "absent": {},
-      "seconds": 10.712211608886719,
+      "seconds": 12.179718732833862,
       "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T85.nc",
       "output_bytes": 7495033
     },
@@ -807,7 +807,7 @@
         }
       },
       "absent": {},
-      "seconds": 10.965042114257812,
+      "seconds": 11.993284463882446,
       "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T127.nc",
       "output_bytes": 14539636
     },
@@ -923,7 +923,7 @@
         }
       },
       "absent": {},
-      "seconds": 11.506792545318604,
+      "seconds": 12.601900339126587,
       "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T170.nc",
       "output_bytes": 23519172
     }
