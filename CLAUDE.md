@@ -79,10 +79,23 @@ do not renumber.
    climatology and build that has been consumed.** A defect in the model is
    therefore never weighed against the cost of the output it invalidates.
    `docs/src/reference/builds.md` has the argument.
-8. **Before an expensive run**, and after changing `source_build`:
+8. **The gates come in two tiers, and the tier is the cost.** Before every
+   commit, the fast one -- every check in it is a static read:
 
-       python scripts/check_consistency.py     # do the artifacts agree?
-       python scripts/smoke_test.py            # does the code that makes them?
+       python scripts/smoke_test.py            # is this tree coherent?
+
+   **Before an expensive run or a build**, and after changing `source_build`,
+   add the three that read artifacts or spawn a process per unit of the tree:
+
+       python scripts/check_consistency.py                # do the artifacts agree?
+       python scripts/verify_entry_points.py              # does every script still start?
+       python exoplasim/scripts/verify_model_compiles.py  # does the model source compile?
+
+   The last two used to run inside `smoke_test.py` behind opt-out flags. They
+   are gates, not extras: an import graph that no longer resolves and a model
+   source no compiler accepts are both invisible to every static pass, and both
+   are cheap next to what runs after them. What made them wrong per commit is
+   that a per-commit gate's cost is multiplied by every commit in the project.
 
 9. **Read `docs/src/practice/failure-modes.md`** before quoting a geography
    number, adding a component, changing a quantity that more than one script

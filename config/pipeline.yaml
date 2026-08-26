@@ -1309,14 +1309,34 @@ steps:
 checks:
   - id: check_consistency
     script: scripts/check_consistency.py
+  # The FAST static gate, and the only one of these rows that is a per-commit
+  # check. Every pass in it is a parse, a text read, a config comparison or a
+  # small synthetic fixture, because its cost is multiplied by every commit in
+  # the project and this host runs several sessions at once. The two rows below
+  # it are the passes that spawn a process per unit of the tree; smoke_test used
+  # to run both behind opt-out flags and no longer runs either.
   - id: smoke_test
     script: scripts/smoke_test.py
+  # Does every script START: does it import on this interpreter, and does its
+  # argparse parser build without raising? `--help` on each of about 136 entry
+  # points, one fresh interpreter each, because a single process would let one
+  # script's sys.path edit make the next one's import succeed for the wrong
+  # reason. Nothing static answers this -- smoke_test's parse, pyflakes and
+  # symtable passes are all about name binding inside a source text, and an
+  # import is a dynamic act. Parallel, bounded by scripts/machine.py.
+  #
+  # Run before a build or a push, not per commit: CLAUDE.md rule 8.
+  - id: verify_entry_points
+    script: scripts/verify_entry_points.py
   # Does the model SOURCE compile: gfortran -fsyntax-only over every translation
   # unit `plasim/CMakeLists.txt` names, in `use` order, under the flag line
   # config/planet.yaml declares. Not whether a binary is current, which is rule
-  # 4's question and check_consistency's row above. smoke_test runs it, and it
-  # is registered here as well because it is a gate a caller can run alone --
-  # after a Fortran edit, before paying for a build.
+  # 4's question and check_consistency's row above.
+  #
+  # Run after a Fortran edit and before paying for a build, with the row above
+  # it; smoke_test does NOT run it. What smoke_test keeps of the Fortran is the
+  # dropped-continuation text check, which catches the one class that has cost a
+  # build and catches it in the commit that makes it.
   - id: verify_model_compiles
     script: exoplasim/scripts/verify_model_compiles.py
   # Does any domain-sensitive intrinsic sit inside a masked `where` block whose

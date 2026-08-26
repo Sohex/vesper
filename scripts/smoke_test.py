@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise every script's entry points without running any science.
+"""Is this tree coherent? Every check is a static read, and none of them runs science.
 
     python scripts/smoke_test.py
 
@@ -7,23 +7,46 @@
 them, which is where a different class of bug lives: in one day this project
 found basin ids read from the wrong terrain, six scripts defaulting to a stale
 data directory, five stale binaries, and a config change that left `latitudes`
-behind. Every one of those was reachable by importing a module and looking at
+behind. Every one of those was reachable by reading a module and looking at
 where its defaults pointed -- none needed a model run.
+
+THE COST BOUND IS PART OF WHAT THIS FILE IS. It is the gate every session runs
+before every commit, so its cost is multiplied by every commit in the project,
+and this host runs several sessions at once. So a check belongs here when it is
+a parse, a text read, a config comparison, or a small synthetic fixture; a check
+that spawns a process per unit of the tree does not, however true it is. Two
+such passes used to run here, both behind their own opt-out flag -- and the
+`--help` flag's own help text said it "dominates runtime", which was the file
+admitting the problem rather than fixing it. They are now their own gates,
+neither weakened and neither deleted:
+
+* **`scripts/verify_entry_points.py`** -- every script with a `__main__` answers
+  `--help` in an interpreter of its own, about 136 of them. It catches an
+  argparse default that raises while being constructed, which is what a strict
+  per-build default does when the build directory is missing, and an import
+  graph that no longer resolves. Nothing static answers either question, and the
+  checks below do NOT stand in for it: they are all about name binding inside a
+  source text.
+* **`exoplasim/scripts/verify_model_compiles.py`** -- `gfortran -fsyntax-only`
+  over every translation unit `plasim/CMakeLists.txt` names. Check 12f below
+  catches the one class that has actually cost a build, statically and in the
+  commit that makes it; the compile gate is the authority on whether the source
+  is legal at all.
+
+Both run before a build or a push, where a per-unit process is the cheap half of
+what is about to be paid. `CLAUDE.md` rule 8 names them.
 
 The checks, all cheap (plus registered-script existence and the
 purge-never-reaches-the-terrain property, run from `main()` with the rest):
 
-1. **Imports.** Every module imports. Catches a missing import added while
-   editing, which `--help` alone will also catch but this localises better.
-1b. **Undefined names**, via pyflakes F821. `--help` proves argparse builds and
-   nothing about the code after it, so a name used but never imported survives
-   the entry-point check and crashes at the end of `main()` -- after the artifact
-   has been written. That is exactly how a six-site `relative_to` sweep shipped
-   five NameErrors.
-2. **Entry points.** Every script with a `main()` answers `--help`. Catches an
-   argparse default that raises while being constructed -- which is exactly what
-   a strict per-build default does when the build directory is missing, and is
-   the intended failure.
+1. **Every module parses.** An `ast.parse` of every source, which localises a
+   syntax error to the file that has it. It does not IMPORT: nothing here does,
+   and `verify_entry_points.py` is what answers that question.
+1b. **Undefined names**, via pyflakes F821. A name used but never imported is
+   bound by nothing and crashes at the end of `main()` -- after the artifact has
+   been written. That is exactly how a six-site `relative_to` sweep shipped five
+   NameErrors, and no entry-point check can see it: `--help` proves argparse was
+   constructed and nothing about the code after it.
 3. **Defaults point at the active build.** Any default path under a component's
    `data/` must resolve beneath the active build's directory. This is the check
    that would have caught `carve_verdict.py` reading 2,107 basins from
@@ -80,9 +103,6 @@ purge-never-reaches-the-terrain property, run from `main()` with the rest):
    a line and the line above it kept its terminator, so the statement ended
    early and `,snowcovz` began a new one. See the check for why a grep is the
    right shape for this and a compile is not a substitute.
-12g. **The model source compiles**, front end only, under the declared flags.
-   Every other check of the Fortran here is a grep or a parse, so a tree that no
-   binary could be built from passed all of them. `--skip-compile` opts out.
 12h. **No name is loaded that nothing binds**, in this project's Python AND in
    the Python the model ships. Asked of CPython's own symbol table, so it is
    the language's resolver that answers rather than a pattern. `world-ro6` swept
@@ -103,6 +123,23 @@ purge-never-reaches-the-terrain property, run from `main()` with the rest):
 
 from __future__ import annotations
 
+import os
+
+# ONE CORE, BEFORE ANYTHING IMPORTS NUMPY. Nothing in this file is a numerical
+# workload: the two numeric checks fit a plane on a 2,562-vertex icosphere and
+# run an AR(1) recursion, and neither is BLAS-bound. numpy's bundled OpenBLAS
+# nonetheless opens a pool sized to the logical core count -- 32 here -- and
+# OpenBLAS threads SPIN after a parallel region rather than sleeping, so the
+# gate was observed at 1129% CPU and kept burning cores through its own
+# teardown. That is what made a static gate the thing several sessions were
+# waiting on at once, and there is no reading of it in which a coherence check
+# should take eleven cores. Set before the import because a pool is sized when
+# the library loads and cannot be resized afterwards.
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
+           "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"):
+    os.environ.setdefault(_v, "1")
+os.environ.setdefault("OMP_WAIT_POLICY", "passive")
+
 import argparse
 import ast
 import builtins
@@ -120,39 +157,19 @@ SCRIPT_DIRS = [ROOT / "scripts", ROOT / "lib", ROOT / "exoplasim" / "scripts",
                ROOT / "hydrography" / "scripts", ROOT / "pedology" / "scripts",
                ROOT / "biosphere" / "scripts", ROOT / "maps"]
 
-# Entry points that must not be smoke-run: they are slow, or they mutate the
-# tree, and --help on them is not free of side effects.
-SKIP_HELP = {"rebuild_binaries.py"}
-
 # `sorted(x.glob(...))[i]`, `sorted(glob(...))[i]`, `list(...glob(...))[i]`,
 # and max/min over a glob: all of them choose one artifact by ordering.
 ORDER_PICK = re.compile(
     r"(sorted|list|max|min)\s*\([^\n]*\.?glob\([^\n]*\)[^\n]*\)\s*\[")
 
 
-def check_imports(files: list[Path]) -> list[str]:
+def check_modules_parse(files: list[Path]) -> list[str]:
     bad = []
     for f in files:
         try:
             ast.parse(f.read_text(encoding="utf-8"))
         except SyntaxError as exc:
             bad.append(f"{f.relative_to(ROOT)}: {exc}")
-    return bad
-
-
-def check_help(files: list[Path]) -> list[str]:
-    bad = []
-    for f in files:
-        if f.name in SKIP_HELP or f.name.startswith("_"):
-            continue
-        src = f.read_text(encoding="utf-8")
-        if "__main__" not in src:
-            continue
-        r = subprocess.run([sys.executable, str(f), "--help"],
-                           capture_output=True, text=True, timeout=120, cwd=ROOT)
-        if r.returncode != 0:
-            tail = (r.stderr.strip().splitlines() or ["(no output)"])[-1]
-            bad.append(f"{f.relative_to(ROOT)}: {tail}")
     return bad
 
 
@@ -1088,39 +1105,6 @@ def check_no_dropped_continuation() -> list[str]:
                     f"{path.name}:{opened_at[directive]} ends the file with a "
                     f"{what} continued onto nothing")
     return problems
-
-
-def check_model_source_compiles() -> list[str]:
-    """The model source passes gfortran's front end, under the declared flags.
-
-    THE GAP THIS CLOSES. Every other check of the Fortran in this file is a grep
-    or a text parse, so the property that makes the source usable at all was
-    checked by nothing until somebody ran `rebuild_binaries.py` by hand -- and
-    rule 4 means that is the most expensive moment to find out. A tree no binary
-    could be built from reported 24 of 24 green here. world-adts.
-
-    WHAT IT COSTS, in the units that survive a contended host: 36 translation
-    units, one `gfortran -fsyntax-only` each, against a full build's same set
-    compiled AND optimised at `-O2 -march=znver4 -funroll-loops` and then linked
-    against SHTns and FFTW. The front end reads the source, resolves the `use`
-    graph and writes module files; there is no code generation and no link. That
-    is the same shape of cost as the `--help` pass this file already runs over
-    every script, and `--skip-compile` opts out of it the same way.
-
-    IT DOES NOT BUILD A BINARY, deliberately. Whether an executable is CURRENT is
-    rule 4's question and `check_consistency.py` answers it; whether the source
-    compiles is this one. `exoplasim/scripts/verify_model_compiles.py` holds the
-    gate itself, including why the flag line has to be the declared one.
-    """
-    script = ROOT / "exoplasim" / "scripts" / "verify_model_compiles.py"
-    if not script.is_file():
-        return [f"{script.relative_to(ROOT)} is gone, and it is what checks "
-                "that the model source compiles"]
-    r = subprocess.run([sys.executable, str(script)],
-                       capture_output=True, text=True, cwd=ROOT)
-    if r.returncode == 0:
-        return []
-    return [(r.stderr.strip() or r.stdout.strip() or "(no output)")]
 
 
 def check_diag_writes_are_answered() -> list[str]:
@@ -2352,12 +2336,12 @@ def check_run_length_derivation() -> list[str]:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--skip-help", action="store_true",
-                    help="skip the subprocess --help pass, which dominates runtime")
-    ap.add_argument("--skip-compile", action="store_true",
-                    help="skip the gfortran -fsyntax-only pass over the model source")
-    args = ap.parse_args()
+    argparse.ArgumentParser(
+        description="The fast static gate: every check here is a read, a parse "
+                    "or a small synthetic fixture. The two passes that spawn a "
+                    "process per unit are scripts/verify_entry_points.py and "
+                    "exoplasim/scripts/verify_model_compiles.py, which run "
+                    "before a build or a push. Takes no arguments.").parse_args()
 
     files = sorted({f for d in SCRIPT_DIRS if d.is_dir()
                     for f in d.glob("*.py")})
@@ -2369,98 +2353,97 @@ def main() -> None:
                            for f in d.glob("*.py")})
     print(f"{len(files)} modules under {len(SCRIPT_DIRS)} directories\n")
 
-    checks = [("imports", check_imports(files)),
-              ("no undefined names", check_undefined_names(files)),
+    checks = [("every module parses", lambda: check_modules_parse(files)),
+              ("no undefined names", lambda: check_undefined_names(files)),
               ("every per-build data path is namespaced by the build",
-               check_build_scoped_defaults()),
-              ("no artifact selection by sort order", check_no_order_picks(files)),
+               lambda: check_build_scoped_defaults()),
+              ("no artifact selection by sort order", lambda: check_no_order_picks(files)),
               ("one grid convention, in lib/gridding.py",
-               check_one_grid_convention(files)),
+               lambda: check_one_grid_convention(files)),
               ("every generator is declared in config/pipeline.yaml",
-               check_registered_in_workflow(files)),
+               lambda: check_registered_in_workflow(files)),
               ("every registered script exists",
-               check_registered_paths_exist()),
+               lambda: check_registered_paths_exist()),
               ("every step is named in its component README",
-               check_documented_in_component(files)),
+               lambda: check_documented_in_component(files)),
               ("purge never reaches the terrain, from any seed",
-               check_purge_never_reaches_the_terrain()),
+               lambda: check_purge_never_reaches_the_terrain()),
               ("local_slope_deg reproduces an analytic gradient",
-               check_slope_fit()),
+               lambda: check_slope_fit()),
               ("a re-derived input file is caught under an unchanged name",
-               check_input_stamp_guard()),
+               lambda: check_input_stamp_guard()),
               ("a staged surface field from another build is refused",
-               check_staged_surface_build_guard()),
+               lambda: check_staged_surface_build_guard()),
               ("the convergence window follows the declared purposes",
-               check_production_window()),
+               lambda: check_production_window()),
               ("no control patch is left in the model source",
-               check_no_control_patch()),
+               lambda: check_no_control_patch()),
               ("SHTns is asked for the one mode that runs no timing race",
-               check_shtns_init_is_deterministic()),
+               lambda: check_shtns_init_is_deterministic()),
               ("pyburn's compiled extensions load on this interpreter",
-               check_compiled_extensions()),
+               lambda: check_compiled_extensions()),
               ("no OpenMP directive line is truncated",
-               check_omp_directive_length()),
+               lambda: check_omp_directive_length()),
               ("no continuation marker is dropped in the model Fortran",
-               check_no_dropped_continuation()),
+               lambda: check_no_dropped_continuation()),
               ("no diagnostics write is reachable by every thread",
-               check_diag_writes_are_answered()),
+               lambda: check_diag_writes_are_answered()),
               ("no model local has all its definitions inside a where",
-               check_masked_only_locals_are_answered()),
+               lambda: check_masked_only_locals_are_answered()),
               ("no imported module name is rebound",
-               check_no_shadowed_imports(files)),
+               lambda: check_no_shadowed_imports(files)),
               ("no name is loaded that nothing binds, model Python included",
-               check_no_unbound_names(files + vendor_files)),
+               lambda: check_no_unbound_names(files + vendor_files)),
               ("the spectral tail slope is fitted above the roundoff floor",
-               check_tail_fit_stops_above_roundoff()),
+               lambda: check_tail_fit_stops_above_roundoff()),
               ("the restart schema covers every record the model writes",
-               check_restart_schema_covers_the_model()),
+               lambda: check_restart_schema_covers_the_model()),
               ("every postprocessor code requested is one something produces",
-               check_requested_codes_are_produced()),
+               lambda: check_requested_codes_are_produced()),
               ("the autocorrelation estimator recovers a known answer",
-               check_autocorrelation_estimator()),
+               lambda: check_autocorrelation_estimator()),
               ("the transform gates run the configured spectral filter",
-               check_gate_filter_matches_config()),
+               lambda: check_gate_filter_matches_config()),
               ("a continuation redeclares what a prepare declared",
-               check_continuation_redeclares_everything()),
+               lambda: check_continuation_redeclares_everything()),
               ("every per-level namelist key is written for every level",
-               check_per_level_namelist_keys_cover_every_level()),
+               lambda: check_per_level_namelist_keys_cover_every_level()),
               ("no artifact path carries a resolution literal",
-               check_no_rung_literal_in_a_path(files + shell_files)),
+               lambda: check_no_rung_literal_in_a_path(files + shell_files)),
               ("the rung-to-dimension table is lib/rungs.py and nowhere else",
-               check_no_rung_table_outside_rungs(files + shell_files)),
+               lambda: check_no_rung_table_outside_rungs(files + shell_files)),
               ("the configured resolution matches its own grid dimensions",
-               check_configured_grid()),
+               lambda: check_configured_grid()),
               ("every restatement of the ladder agrees with lib/rungs.py",
-               check_ladder_restatements()),
+               lambda: check_ladder_restatements()),
               ("the ceiling and the route agree with what they restate",
-               check_ladder_timestep_declarations()),
+               lambda: check_ladder_timestep_declarations()),
               ("the configured timestep is one the route runs this rung at",
-               check_configured_timestep()),
+               lambda: check_configured_timestep()),
               ("a resume refuses a rewritten spectrum file",
-               check_spectrum_guard()),
+               lambda: check_spectrum_guard()),
               ("the convergence slab's sea water follows the run",
-               check_slab_capacity_follows_the_run()),
+               lambda: check_slab_capacity_follows_the_run()),
               ("the state closure's melting point follows the run",
-               check_melting_point_follows_the_run()),
+               lambda: check_melting_point_follows_the_run()),
               ("a declared run length is derived from the right timescale",
-               check_run_length_derivation()),
+               lambda: check_run_length_derivation()),
               ("the tools environment.md names are on this host",
-               check_documented_tools())]
-    if not args.skip_help:
-        checks.insert(1, ("entry points answer --help", check_help(files)))
-    if not args.skip_compile:
-        checks.append(("the model source compiles under the declared flags",
-                       check_model_source_compiles()))
-
+               lambda: check_documented_tools())]
+    # Run and REPORT one at a time, rather than evaluating the list and then
+    # printing it. A gate that prints nothing until it is finished cannot be
+    # told apart from a gate that has hung, and stdout is block-buffered into a
+    # pipe, so the flush is the half that makes it true.
     failed = 0
-    for name, problems in checks:
+    for name, run in checks:
+        problems = run()
         if problems:
             failed += 1
-            print(f"[ FAIL ] {name}")
+            print(f"[ FAIL ] {name}", flush=True)
             for p in problems:
-                print(f"         {p}")
+                print(f"         {p}", flush=True)
         else:
-            print(f"[  ok  ] {name}")
+            print(f"[  ok  ] {name}", flush=True)
 
     print(f"\n{len(checks)} checks, {failed} failed")
     raise SystemExit(1 if failed else 0)

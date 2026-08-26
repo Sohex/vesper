@@ -111,6 +111,28 @@ def check(verbose=True):
     return 1 if (c or busy or load1 > QUIET_LOAD) else 0
 
 
+def workers(cap=8):
+    """How many worker processes a load-INSENSITIVE job may take right now.
+
+    A gate that spawns a process per unit is not timing-sensitive and never
+    claims, but it still generates load, and load is what turns somebody else's
+    claimed measurement into a different experiment. So this reads the same two
+    sources `check` does -- a live claim, and heavy jobs in the process table --
+    and drops to one worker while either says the host is in use. A job that can
+    wait finishing slowly is a cost to nobody; the same job taking eight cores
+    across a claimed measurement costs that measurement.
+
+    Otherwise it is `cap` or a quarter of the logical cores, whichever is
+    smaller, so a gate on a shared host is never the heavy job someone else has
+    to wait for. Nothing here is a permission system: a caller may pass its own
+    count, and this is the number it should use when it has no reason to.
+    """
+    cores = os.cpu_count() or 1
+    if _read() or _running():
+        return 1
+    return max(1, min(cap, cores // 4))
+
+
 def claim(who, purpose, minutes):
     c = _read()
     if c:
