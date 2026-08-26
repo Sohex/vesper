@@ -3772,10 +3772,14 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     BY DIFFERENCE therefore books that second half to advection, which is what
 !     the first attribution did. These arrays measure it directly, in the same
 !     arithmetic and the same units as denergy02, so the two halves can be added.
-!     zcnow holds the divergence at time t -- sd is still the state gridpointa
-!     read, and mpsyncsp does not advance it to t+dt until the end of this
-!     routine -- so the same term can be evaluated at the explicit half's time
-!     level and the semi-implicit displacement read off as the difference.
+!     zcnow holds the divergence at time t. sd is still the state gridpointa
+!     read: what advances it to t+dt is step 4.b below, where `sdp = 2 sdt -
+!     adm` writes THROUGH THE POINTER into this thread's slice of sd, and
+!     mpsyncsp afterwards only publishes that write. So the same term can be
+!     evaluated at the explicit half's time level and the semi-implicit
+!     displacement read off as the difference. Every thread copies the WHOLE
+!     array while owning one slice of it, which is why the copy has to be
+!     closed against 4.b by a barrier. See the copy.
       real, allocatable :: zcnow(:,:), zcsdt(:,:), zcwrk(:,:), zcgp(:,:)
       real :: zcw(NHOR)
       real :: zcs(10)
@@ -3797,10 +3801,27 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       if (nqspec == 1) aqm(:,:) = sqm(:,:) ! spec.  humidity
 !
 !     The control's copy of the divergence at time t, taken BEFORE the solve
-!     overwrites sdt and before mpsyncsp advances sd. See the declaration.
+!     overwrites sdt and BEFORE step 4.b advances sd. See the declaration.
+!
+!     Every thread copies the FULL array, and each owns only the slice
+!     sd(mypid*NSPP+1 : mypid*NSPP+NSPP,:). A thread's own slice is safe --
+!     nothing but that thread writes it, and not before 4.b -- but the rest of
+!     sd belongs to the other threads, and they reach 4.b on their own
+!     schedule. Without the barrier a thread's zcnow is a MIXTURE of the
+!     divergence at t and at t+dt, slice by slice, and which slices are which
+!     depends on where each thread happened to be when the copy passed them.
+!     That is what made terms 3 and 4 of the decomposition -- the only two that
+!     read zcnow -- fail to reproduce across identical runs while the other
+!     seven columns stayed bit-identical, and it put the sign of Cimp - Ct
+!     inside the scatter. world-tqh4.
+!
+!     The barrier is conditional and that is safe: nenergy and nconvtime are
+!     broadcast by mpbci, so the team enters this branch together or not at
+!     all, and the configurations that set neither pay nothing.
       if (nenergy > 1 .or. nconvtime > 0) then
          allocate(zcnow(NESP,NLEV))
          zcnow(:,:) = sd(:,:)
+!$omp barrier
       endif
 !
 !*    do the advective time step
