@@ -1595,7 +1595,9 @@ every kelvin below.
 | the energy fixer off | +0.23 K | the donor's manifest and `lib/sensitivity.py` |
 | `world-o12h`, `rcritwidth` | exactly 0 | construction, `RCNLATREF` = `NLAT` |
 | `world-2esd`, `th2oc` | 0 | not swept; the config value is unchanged |
-| `world-f9ig`, the shortwave cloud tables | **the rest of it** | A/B on a source-built control binary, `run_a2b1bd1e859f`, +18.43 W/m2 |
+| `world-f9ig` with `world-jgen`, the cloud optics | **-10.01 +/- 0.07 K** | A/B on a source-built control binary, `run_a2b1bd1e859f`, 25 orbits |
+| `world-80ia`, `vdiff_lamm` | -0.15 +/- 0.06 K, not resolved | A/B, `run_5373310a7b9f`, 25 orbits |
+| **residual, unattributed** | **-0.65 K** | by difference |
 
 **The control has settled, so the total is not a lower bound.** Its last ten
 orbits of sixty sit at 279.96 K against the donor's last at 292.26, flat to
@@ -1605,11 +1607,12 @@ WARMING and so making the cooling smaller rather than larger, which left about
 -10.8 K for the compiled-in half.
 
 **That residual is `world-f9ig`**, and the section "The bisect finishes" below
-measures it: reverting the shortwave cloud optics to their pre-jgen form on a
-binary that differs in one object file returns +18.43 W/m2 of top-of-atmosphere
-shortwave, one-signed, on the same restart. The bracket for it was already in
-the tree, in `exoplasim/analysis/stephens_tables_vs_fits.json`, at -25.35 to
--6.54 W/m2 and -20.63 to -5.32 K.
+measures it at **-10.01 +/- 0.07 K**: reverting the shortwave cloud optics to
+their pre-jgen form on a binary that differs in one object file returns
++18.43 W/m2 of top-of-atmosphere shortwave from the first orbit and +10.01 K at
+equilibrium, on the same restart. The bracket for it was already in the tree, in
+`exoplasim/analysis/stephens_tables_vs_fits.json`, at -25.35 to -6.54 W/m2 and
+-20.63 to -5.32 K. What is left over after it is -0.65 K.
 
 ### `world-trs3`, the derived Kessler `gamma`: CLEARED, and worth a seventh of the drift
 
@@ -1790,6 +1793,38 @@ than in how much cloud there is: `gamma`'s forcing fell from 10.4 to 6.9 W/m2 as
 its cloud difference shrank, and this one has no cloud difference to shrink. So
 the sublinearity that made `gamma` worth 1.89 K instead of 7 does not apply here,
 and the separation should run to the order the damping allows.
+
+**Settled, and the budget closes.** All three arms reached 25 orbits. Over the
+declared window, orbits 15 to 24:
+
+| arm | run | window mean `ts` | TOA net |
+| --- | --- | ---: | ---: |
+| control | `run_c9c24d438a94` | 280.137 K | -0.525 W/m2 |
+| pre-jgen, pre-f9ig | `run_a2b1bd1e859f` | 290.144 K | -0.319 W/m2 |
+| `vdiff_lamm` = 160 | `run_5373310a7b9f` | 279.984 K | -0.513 W/m2 |
+
+**Reverting the cloud optics is worth +10.01 +/- 0.07 K**, resolved at 136 to 1
+against the criterion fixed before the run, with the window flat to 0.2 K and
+both arms' top-of-atmosphere imbalance inside 0.53 W/m2. The prediction
+registered before the arm ran was +5 to +13 K; the measurement sits in it.
+
+So the bundle's kelvin budget against the donor's 292.26 K:
+
+| term | K |
+| --- | ---: |
+| `world-f9ig` with `world-jgen`, the cloud optics | **-10.01** |
+| `world-trs3`, the derived `gamma` | -1.89 |
+| the land water column | +0.17 |
+| the energy fixer off | +0.23 |
+| `vdiff_lamm`, not resolved from zero | -0.15 |
+| **accounted** | **-11.65** |
+| **measured drift** | **-12.30** |
+| **residual** | **-0.65** |
+
+The residual was -10.8 K before this section and is -0.65 K after it, which is
+five per cent of the drift and inside what the remaining unpriced terms --
+`OCN-22` at -0.02 to -0.13 K, the soil heat solver, and the arms' own scatter --
+can carry between them.
 
 **Do not turn 18.43 W/m2 into kelvin with the static slope.** At
 `lib/sensitivity.py`'s 0.778 K per W/m2 it reads as 14.3 K, and the same
