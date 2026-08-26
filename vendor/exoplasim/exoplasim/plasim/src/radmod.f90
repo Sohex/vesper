@@ -1074,6 +1074,25 @@
       call mpbcr(solcdec)
       call mpbcr(clgray)
       call mpbcr(dawn)
+!
+!     A NEGATIVE dawn IS REFUSED, because the shortwave reads the beam cosine as
+!     a non-negative number in seven places and would fault rather than warn.
+!     solang zeroes gmu0 and overwrites it only where the cosine exceeds
+!     sin(dawn), so dawn >= 0 is what makes gmu0, and swr's zmu0 with it,
+!     non-negative on every lane. Below zero swr forms zmu0**1.7 for the ECHAM6
+!     ocean albedo, a real power of a negative base, which is the invalid the
+!     declared flag line traps on -- and the two beam-cosine divisors zmu0+0.15
+!     and zmu0+zero would lose their floors on the way. The declared default is
+!     0.0 and nothing in this project writes the key. world-px61.
+!
+      if (dawn < 0.0) then
+       if (mypid == NROOT) then
+        write(nud,*) 'RADMOD_NL dawn is ',dawn
+        write(nud,*) 'dawn is the zenith-angle threshold for night, in degrees,'
+        write(nud,*) 'and the shortwave requires a non-negative beam cosine.'
+       endif
+       call mpabort('dawn must not be negative')
+      endif
       call mpbcr(th2oc)
       call mpbcr(tpofmt)
       call mpbcr(acllwr)
@@ -2556,6 +2575,93 @@
       zywvt(:)=0.
       zco2t(:)=0.
       zyco2t(:)=0.
+!
+!     THE WHOLE TWO-STREAM IS PRESET ON EVERY LANE, for the reason the
+!     magnification factor above is set unconditionally and the cloud-optics and
+!     aerosol chains already are. Every array below has ALL of its definitions
+!     inside a where(losun(:)) block and is read inside one, and a `where` masks
+!     the ASSIGNMENT rather than the evaluation: on a night lane the store is
+!     discarded but the right-hand side may still be computed, so the read is of
+!     whatever the stack held. That reaches the transmissivity quotients
+!     (1./zto3t, 1./ztwvu, 1./ztco2t and their five siblings), the adding
+!     method's 1./(1.-r*r) at four sites, and EXP and LOG of stale words -- all
+!     under -ffpe-trap=invalid,zero,overflow. world-px61, and the same class as
+!     world-5a0 and world-bhs.
+!
+!     THE VALUES ARE THE TRANSPARENT ATMOSPHERE OVER A BLACK SURFACE, which is
+!     what the arithmetic here produces on a lane carrying no absorber, no
+!     scatterer and no insolation: zero absorber amount, unit transmissivity,
+!     zero reflectivity, zero flux. Every quotient then divides by exactly 1 --
+!     zto3t and its siblings are 1, and 1.-r*r is 1.-0.*0. -- and the two
+!     absorptance denominators at the upward beam are 1.-A(0)/zsolar, which is
+!     also exactly 1, because zo3t, zxo3t, zwvt, zywvt, zco2t and zyco2t are
+!     already zero on every lane by the block above and the per-level copies
+!     below are now zero too.
+!
+!     NOTHING STORED MOVES. On every lane losun keeps, each of these is assigned
+!     inside the same masked block, on the same pass, before any read of it: the
+!     four combined-layer pairs at the preset above the downward loop, the
+!     per-level R and T at the head of each loop body, the column copies at the
+!     absorber loop, and z1mrabr, zscf, zfd* and zfu* one statement before their
+!     use. The preset is visible only on lanes whose stores are discarded.
+!
+      zo3(:)     = 0.
+      zwv(:)     = 0.
+      zco2(:)    = 0.
+      zo3l(:,:)  = 0.
+      zxo3l(:,:) = 0.
+      zwvl(:,:)  = 0.
+      zywvl(:,:) = 0.
+      zco2l(:,:) = 0.
+      zyco2l(:,:)= 0.
+!
+      zto3(:)    = 1.
+      zto3u(:)   = 1.
+      zto3t(:)   = 1.
+      zto3tu(:)  = 1.
+      ztwv(:)    = 1.
+      ztwvu(:)   = 1.
+      ztwvt(:)   = 1.
+      ztwvtu(:)  = 1.
+      ztco2(:)   = 1.
+      ztco2u(:)  = 1.
+      ztco2t(:)  = 1.
+      ztco2tu(:) = 1.
+!
+      zt1(:,:)   = 1.
+      zt2(:,:)   = 1.
+      ztb1(:,:)  = 1.
+      ztb2(:,:)  = 1.
+      ztb1u(:,:) = 1.
+      ztb2u(:,:) = 1.
+      zta1(:)    = 1.
+      zta2(:)    = 1.
+      zta1s(:)   = 1.
+      zta2s(:)   = 1.
+!
+      zr1s(:,:)  = 0.
+      zr2s(:,:)  = 0.
+      zrl1(:,:)  = 0.
+      zrl2(:,:)  = 0.
+      zrl1s(:,:) = 0.
+      zrl2s(:,:) = 0.
+      zrb1(:,:)  = 0.
+      zrb2(:,:)  = 0.
+      zrb1s(:,:) = 0.
+      zrb2s(:,:) = 0.
+      zrcs(:,:)  = 0.
+      zrcsu(:,:) = 0.
+      zra1(:)    = 0.
+      zra2(:)    = 0.
+      zra1s(:)   = 0.
+      zra2s(:)   = 0.
+!
+      z1mrabr(:) = 1.
+      zscf(:)    = 0.
+      zfd1(:)    = 0.
+      zfd2(:)    = 0.
+      zfu1(:)    = 0.
+      zfu2(:)    = 0.
 !
 !     CO2 is well mixed, so its mass mixing ratio is one scalar for the column.
 !     co2 is the namelist volume mixing ratio in ppmv, the same quantity lwr

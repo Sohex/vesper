@@ -1381,9 +1381,10 @@ checks:
   # CLASSIFIED table, keyed on the argument text, so a changed argument is
   # reported again. Exit 1 on anything neither guarded nor classified.
   #
-  # `--kind intrinsic` is the default and is what this row runs. `--kind divide`
-  # is the same parse over divisions, in all three spellings, and is not a gate
-  # yet: radmod.f90's 45 divisor keys are unread and are world-px61.
+  # `--kind any` is the default and is what this row runs: the intrinsics, the
+  # divisions in all three spellings, and the merges together. It was
+  # `--kind intrinsic` while radmod.f90's 45 divisor keys were unread, and
+  # world-px61 read them.
   - id: lint_masked_domains
     script: exoplasim/scripts/lint_masked_domains.py
   # Which declarations in plasim/src acquire SAVE inside a procedure body? A
@@ -1420,9 +1421,9 @@ checks:
   # reports on the tree, and its positive control is the pre-d016 tree, where it
   # returns exactly the seventeen locals that work found. Each site's verdict is
   # a row in the script's CLASSIFIED table keyed on the variable name; exit 1 on
-  # anything with neither a fix nor a row. radmod.f90 is DEFERRED to world-px61,
-  # reported separately and not gating, for the reason lint_masked_domains'
-  # division remainder is. smoke_test runs it.
+  # anything with neither a fix nor a row. smoke_test runs it. Its DEFERRED
+  # table, which reports a file without gating it, is empty: radmod.f90 was its
+  # one entry and world-px61 read it.
   - id: lint_masked_locals
     script: exoplasim/scripts/lint_masked_locals.py
   # Which writes to the shared diagnostics unit can a thread other than 0
