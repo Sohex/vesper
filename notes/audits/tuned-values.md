@@ -325,33 +325,54 @@ number it produces is.
 
 ---
 
-### 6. `eddy_wind_m_s = 5.94`, measured on a run that was deleted
+### 6. `eddy_wind_m_s`, re-measured on runs that exist. RESOLVED
 
-`config/planet.yaml:731`. The single free quantity in the hyperdiffusion rule
-`tau_vorticity = pi * radius / (NTRU * eddy_wind)`, dividing into every entry of
-the `timescales_days` table at `:747-752` for all five rungs and four fields,
-which reach the model as TDISSD, TDISSZ, TDISST and TDISSQ.
+`config/planet.yaml`, `model.hyperdiffusion`. The single free quantity in the
+hyperdiffusion rule `tau_vorticity = pi * radius / (NTRU * eddy_wind)`, dividing
+into every entry of the `timescales_days` table for all five rungs and four
+fields, which reach the model as TDISSD, TDISSZ, TDISST and TDISSQ.
 
-**The comment is a measurement claim**: "Measured, not assumed: eddy RMS wind
-... from run_4182235e9781 orbit 39." That run is not on this tree. It survives
-as a `restart_from_run` string in seven manifests and one INDEX row in
-`archive/runs/_bulk_2026-08-24/INDEX_AT_DELETION.json`; the archive's README
-records that those directories were removed by an `rm -rf` whose argument came
-from an unguarded command substitution that expanded to nothing. No manifest, no
-series, no NetCDF.
+**What was wrong.** The value was 5.94 m/s and the comment beside it was a
+measurement claim on `run_4182235e9781` orbit 39. That run is not on this tree:
+it survives as a `restart_from_run` string in seven manifests and one INDEX row
+in `archive/runs/_bulk_2026-08-24/INDEX_AT_DELETION.json`, and the archive's
+README records that the directories were removed by an `rm -rf` whose argument
+came from an unguarded command substitution that expanded to nothing. No
+manifest, no series, no NetCDF. So the row failed this audit's criterion on
+"cannot be inspected, cannot be checked" rather than on "fitted".
 
-So this fails the audit's criterion on "cannot be inspected, cannot be checked"
-rather than on "fitted". The distinction matters for the fix. Note also that the
-block's own corroboration is on the RULE and not on the value: ECHAM5's
-empirically tuned table implies a constant eddy wind of 12.6 to 17.5 m/s, and
-5.94 is a factor of two to three below that band.
+**What it is now.** Re-measured 2026-08-26 at 10.09 m/s on
+`run_57cecaa8391b`, 25 orbits and 800 instantaneous snapshots, by
+`exoplasim/scripts/measure_eddy_wind.py`, which states the definition in full and
+writes its verdict under `exoplasim/analysis/eddy-wind/` so the derivation
+outlives the run directory. Five T21 runs -- four links of one 110-orbit restart
+chain and one cold start independent of it -- give 10.05 to 10.18, a spread of
+1.3 per cent; the within-run standard error is 0.2 per cent against a 5 per cent
+criterion fixed before the measurement. Declared with a +/- 5 per cent bracket.
 
-**Magnitude.** Linear: a factor of two in `eddy_wind` halves every damping
-timescale in the table.
+**The old value was a different quantity, and this is checkable.** Reducing the
+TIME-MEAN output stream by the same recipe returns 5.82 to 5.97 on the same five
+runs, and 5.94 sits inside that spread; reducing the INSTANTANEOUS stream returns
+10.05 to 10.18. A time mean carries the stationary eddies and drops the
+transients, at a ratio of 0.58 on every run measured. That is not a choice
+between two defensible readings: nothing is advected by a time average, so an
+advective time built from a time-mean field is not an advective time. The
+correction also removes the gap the block's own corroboration could not explain,
+since 5.94 sat a factor of 2.1 to 2.9 below the 12.6 to 17.5 m/s ECHAM5's tuned
+table implies for Earth and 10.09 sits 1.25 to 1.7 below it.
 
-**Disposition: REPLACEABLE NOW ONCE A BASELINE EXISTS.** No paper is needed. The
-recipe is fully stated in the config block, the quantity is well defined, and it
-needs one converged climatology, which loop A produces anyway.
+**Magnitude of the change.** Linear. Every damping timescale in the table
+shortens by 1.699x at every rung. The operator is applied implicitly in the
+damped variable (`plasim.f90:5148`), so no stability ceiling and no binary
+changes, and the keys are namelist keys, so no rebuild.
+
+**The one term left, and what sweeps it.** These runs were damped with the
+previous value, so 10.09 is a first iterate rather than a measured fixed point.
+The next run reads the new value and the same instrument re-measures it at no
+marginal cost; the criterion is the declared bracket, within 5 per cent the value
+stands and outside it the value is replaced and the run repeated.
+`exoplasim/notes/resolution-tuned-parameters.md` carries the bound on how far
+that iterate can move and the argument for the recipe.
 
 ---
 

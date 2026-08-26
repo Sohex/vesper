@@ -1587,6 +1587,15 @@ one_offs:
   - exoplasim/scripts/stability_probe.py
   - exoplasim/scripts/spectral_tail.py
   - exoplasim/scripts/filter_spectral_cost.py
+  # Measures the eddy RMS wind that config/planet.yaml's hyperdiffusion rule
+  # divides by, on a run's snapshot stream, and writes a JSON verdict under
+  # exoplasim/analysis/eddy-wind/. Outside the graph because the verdict is
+  # EVIDENCE for a value declared by hand in config/planet.yaml rather than an
+  # input any step reads, and because it answers a question about a run that
+  # has already been taken rather than generating anything a later step needs.
+  # It exists so that the value's derivation survives the run it was taken on.
+  # world-9y07.
+  - exoplasim/scripts/measure_eddy_wind.py
   - exoplasim/scripts/predict_ocean_terms.py
   # Stages a known field into a run directory and answers each criterion
   # against the stream that run wrote. Outside the graph: both products

@@ -304,11 +304,56 @@ flow through `U`, and it was not fitted to the values it reproduces.
 
 ### Applied to this planet
 
-`U` is the EDDY wind -- the departure from the zonal mean, which is what
-cascades to the truncation; the zonal-mean jet does not. Measured from
-`run_4182235e9781` orbit 39, area-weighted over the column: **5.94 m/s**, against
-14.7 implied for Earth. Vesper's eddies are slower and its grid boxes larger, so
-the same rule asks for LESS damping at a given truncation, not more.
+`U` is the EDDY wind -- the departure from the zonal mean at the same instant,
+level and row, which is what cascades to the truncation. The zonal-mean jet does
+not: a uniform zonal flow Doppler-shifts a wave rather than straining it.
+
+**Measured on 2026-08-26 at 10.09 m/s**, on the instantaneous snapshot stream of
+`run_57cecaa8391b`, 25 orbits and 800 snapshots, area-weighted by the model's own
+Gaussian row weights and mass-weighted by `dsigma` over the column.
+`exoplasim/scripts/measure_eddy_wind.py` is the instrument and states the
+definition in full; it writes its verdict under `exoplasim/analysis/eddy-wind/`,
+which is what makes this value survive the run it came off.
+
+Five T21 runs give 10.05, 10.05, 10.09, 10.17 and 10.18 m/s -- four links of one
+restart chain 110 orbits long, and one cold start independent of it -- so the
+spread across realisations and across states of settling is 1.3 per cent, with
+the two arms still carrying spin-up orbits at the top of it. Within a run
+the standard error of the mean is 0.2 per cent on a per-orbit series whose
+integrated autocorrelation time is one orbit, which clears the 5 per cent
+criterion fixed before the measurement by a factor of twenty-five. Against
+ECHAM5's 14.7 implied for Earth at T42, Vesper's eddies are slower by 1.46x and
+its grid boxes larger by 1.2x, so the same rule asks for 1.75x LESS damping at a
+given truncation, not more.
+
+### The value this replaces measured the stationary eddies alone
+
+The previous value, 5.94 m/s, was recorded as a measurement on `run_4182235e9781`
+orbit 39, and that run was deleted by the incident
+`archive/runs/_bulk_2026-08-24/` records: no manifest, no series, no NetCDF. The
+number could not be inspected or re-run, which is what
+`notes/audits/tuned-values.md` section 6 charged it with.
+
+It is nevertheless identifiable, because the two readings of the recipe separate
+cleanly and only one of them lands on it. Reducing the TIME-MEAN output stream by
+the same recipe -- zonal departure of a field that has already been averaged over
+a month -- returns 5.82 to 5.97 m/s across the five runs, and 5.94 sits inside
+that spread. Reducing the INSTANTANEOUS stream returns 10.05 to 10.18. The
+jet-inclusive totals land the same way: 17.4 on the time-mean stream against 19.3
+instantaneous, where the recorded triple carried 19.77.
+
+A time mean carries the STATIONARY eddies and drops the transients, and the ratio
+of the two is 0.58 on every run measured. That is not a definitional choice
+between two defensible quantities: nothing in a fluid is advected by a time
+average, so an advective time built from a time-mean field is not an advective
+time. The instantaneous reading is the one the rule asks for.
+
+This also closes the gap the block's own corroboration could not explain. 5.94
+sat a factor of 2.1 to 2.9 below the 12.6 to 17.5 m/s that ECHAM5's tuned table
+implies for Earth, with nothing to account for it; 10.09 sits 1.25 to 1.7 below,
+which is what a larger, more slowly rotating planet should give, and the residual
+gap is the constant discussed under "the weak link is U" below rather than a
+mismatch of quantities.
 
 **The rule's `tau` belongs to VORTICITY.** The argument is about the enstrophy
 cascade, and enstrophy is a vorticity quantity. That assignment is checkable on
@@ -326,11 +371,11 @@ than a system.
 
 | rung | tau_xi = dx/U | tau_D | tau_T | tau_q | what the model uses, vorticity |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| T21 | 2.229 d | 0.446 | 5.646 | 0.743 | 0.49x -- **2.0x too strong** |
-| T42 | 1.114 d | 0.223 | 2.823 | 0.371 | 0.27x -- **3.7x too strong** |
-| T85 | 0.551 d | 0.110 | 1.395 | 0.184 | 2.00x -- 2x too weak |
-| T127 | 0.368 d | 0.074 | 0.934 | 0.123 | 2.99x -- 3x too weak |
-| T170 | 0.275 d | 0.055 | 0.697 | 0.092 | 4.00x -- 4x too weak |
+| T21 | 1.312 d | 0.262 | 3.323 | 0.437 | 0.84x -- 1.2x too strong |
+| T42 | 0.656 d | 0.131 | 1.662 | 0.218 | 0.46x -- **2.2x too strong** |
+| T85 | 0.324 d | 0.065 | 0.821 | 0.108 | 3.39x -- 3.4x too weak |
+| T127 | 0.217 d | 0.043 | 0.550 | 0.072 | 5.07x -- 5.1x too weak |
+| T170 | 0.162 d | 0.032 | 0.411 | 0.054 | 6.79x -- **6.8x too weak** |
 
 So the error is not one-signed. The fixed defaults are too STRONG at the coarse
 end and too WEAK at the fine end, crossing over between T42 and T85, which is
@@ -371,10 +416,24 @@ diagnostic is what judges it.
   choice and are not derived here.
 - **`alpha` and `n*`.** The rule fixes the damping AT the truncation and says
   nothing about how far down the spectrum it should reach.
-- **Whether `U` is resolution-dependent.** It was measured at T42; a finer grid
-  resolves more eddy kinetic energy, so `U` may rise with truncation and the rule
-  may need one iteration. Most eddy energy sits at large scales, so the effect is
-  expected to be small, and it is a prediction to check rather than an assumption.
+- **Whether `U` is resolution-dependent, which is now bounded rather than
+  guessed.** One `U` is applied at every rung, and it is measured at one. Split
+  by zonal wavenumber at T21, 0.43 per cent of the eddy variance sits above 0.7
+  of the truncation, against the 5 per cent criterion fixed before the split was
+  taken. A rung that resolves the whole of that band and more can therefore add
+  at most 0.43 per cent of variance and 0.2 per cent of wind directly, so the
+  measurement transfers along the ladder to well inside its own bracket. What
+  that does NOT bound is the climate's own response to a finer grid, which is
+  not a term one rung can measure.
+- **Whether `U` responds to the damping `U` sets.** These runs were damped with
+  the previous value, so the value is a first iterate and not a fixed point. The
+  spectrum measurement below bounds it: hyperdiffusion's operator is identically
+  zero below `nhdiff` and the eddy variance is overwhelmingly below it, and the
+  arm pair that changed the hyperdiffusion far more than 1.7x moved the eddy
+  kinetic energy by 1.3 sigma, which is not a resolved separation. The sweep that
+  settles it is the next run's own re-measurement by the same instrument, and the
+  criterion is the declared bracket: within 5 per cent the value stands, outside
+  it the value is replaced and the run repeated.
 
 ## The hyperdiffusion reaches every level now, and it moves the spectrum
 
@@ -511,20 +570,24 @@ advective reading survives.
 
 ### The weak link is U, and it is weaker than the rule
 
-`tau ~ 1/U`, and "the eddy wind" has several defensible definitions. At T42:
-column eddy RMS 5.94 m/s gives 1.114 d, top-level eddy RMS 6.95 gives 0.952,
-total RMS including the jet 19.77 gives 0.335. **A 3.3x spread in the definition
-is a 3.3x spread in the answer.**
+`tau ~ 1/U`, and "the eddy wind" still has more than one defensible reading. On
+`run_57cecaa8391b` at T21: column eddy RMS 10.09 m/s gives 1.312 d, the top model
+level alone at 8.72 gives 1.518, the total including the jet at 19.34 gives 0.684.
+**A 2.2x spread in the definition is a 2.2x spread in the answer.** The column
+reading is the one declared, and the argument for it is the rule's own: the
+straining that fills the truncation is done by the whole column's departure from
+the zonal mean, and the zonal mean itself only advects the phase.
 
-Worse, the constant is ASSUMED TO BE ONE. ECHAM's implied 14.7 m/s at Earth T42
-is "one advective time" only if Earth's eddy wind, measured the same way as
-Vesper's 5.94, is also about 14.7. Earth's column-mean transient eddy RMS is
-nearer 8 to 10, which would make their constant 0.6 to 0.7 and this project's
-derived `tau` correspondingly 1.4 to 1.7 times too long. **Unresolved**: settling
-it needs Earth reanalysis reduced by the identical definition, which is not held
-here. Until then the derived damping carries a factor of roughly 1.5 of
-uncertainty on top of the definitional spread, and that is larger than most of
-the differences this note has been arguing about.
+What that spread NO LONGER contains is the instantaneous-against-time-mean gap,
+which was inside it while the recorded value was 5.94 and which was never a
+definitional choice at all -- it was two different quantities under one name.
+Removing it is where 1.3x of the old 3.3x went.
+
+The constant in `tau = C dx/U` was the other half of this weakness and is no
+longer part of it: `C = 1` is a SUFFICIENCY requirement rather than a fit to
+Earth, and it was measured on this model with the filter off, below. Whether
+ECHAM's own implied constant is 1.0 or 0.65 is a fact about their tuning and not
+an input here.
 
 ### The other soft spots, named
 
@@ -577,10 +640,10 @@ hold. That is the wrong shape for an Earth-agnostic system, and it is avoidable.
 
 ### The two requirements are different and only one is physics
 
-- **Absorb the cascade.** `tau <= dx/U`, which at T42 is 1.114 d. Derived from
+- **Absorb the cascade.** `tau <= dx/U`, which at T42 is 0.656 d. Derived from
   this planet's own radius and measured eddy wind, with no Earth in it.
 - **Run at all.** The filter currently supplies an e-folding of 169 s at the
-  truncation, which is **571 times more damping than the cascade requires**.
+  truncation, which is **335 times more damping than the cascade requires**.
 
 That gap is a property of the dynamical core, not of the planet, so the constant
 was never "one advective time" in the first place -- it is whatever stability
@@ -608,6 +671,14 @@ spectral confinement measured -- 0.76 of the truncation against the filter's
 It did not need calibrating against Earth, and the question of whether ECHAM's
 constant is 1.0 or 0.65 does not arise: their constant is theirs, and this one
 is measured here.
+
+These arms ran at `tau_xi = 1.114 d`, the value `U = 5.94` gave. The corrected
+`U` shortens it to 0.656 d, which is MORE damping at the same truncation, so the
+sufficiency this measured holds a fortiori and does not need re-running. Nor does
+the shorter timescale cost a timestep: `plasim.f90:5148` applies the operator as
+`-tdiss*sak*s / (1 + delt2*tdiss*sak)`, which is implicit in the damped variable
+and unconditionally stable, so the stability ceilings in `lib/rungs.py` are
+untouched and no binary changes.
 
 ### What is still confounded, and what it would take
 
