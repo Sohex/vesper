@@ -50,11 +50,16 @@ loops:
       convert to T85 at dt 22.5, converge; then continue at NLOWIO = 0 with
       high-cadence orbits for dust. Every conversion therefore happens at
       constant dt, so exactly one variable moves per step and a surprise after
-      a conversion is attributable to the support alone. A reconvergence is ONE
-      CONVERGENCE WINDOW, then THREE-orbit increments until the convergence
-      criteria are met; the criteria cannot be evaluated on fewer orbits than
-      they are taken over, and `assess_convergence.py` derives that window
-      rather than carrying a literal. Advance only after the current support has settled, replaying A, B
+      a conversion is attributable to the support alone. Steps 2 and 4 are
+      SETTLING blocks and not commissioning verdicts: their length is
+      `lib/run_lengths.py:settling_orbits`, the orbits a step change takes to
+      decay below the offset criterion's own allowance, and they establish only
+      that the restart handed to the next conversion is not mid-transient. Steps
+      1, 3 and 5 are COMMISSIONING: ONE CONVERGENCE WINDOW, then THREE-orbit
+      increments until the convergence criteria are met; the criteria cannot be
+      evaluated on fewer orbits than they are taken over, and
+      `assess_convergence.py` derives that window rather than carrying a
+      literal. Advance only after the current support has settled, replaying A, B
       and C on it. There is no between-rung convergence comparison: choosing
       T85 by decision removed the question one would answer, and nothing finer
       is being run to difference it against. The three
@@ -184,6 +189,13 @@ steps:
     needs: [rebuild_binaries, boundary_conditions, surface_albedo, surface_roughness, ocean_tier_gate]
     writes: []
     presence: by_index   # UUID-named; ask exoplasim/runs/INDEX.json, not the path
+    gate: >
+      the orbit count is DERIVED and not typed:
+      `lib/run_lengths.py:commissioning_bracket`, the approach plus the span a
+      window mean's interval needs. It is a floor, so the run is not finished
+      when it is reached and the convergence criteria still refuse.
+      `docs/src/pipeline/sequencing.md` section A has the argument and why
+      running until the instrument stops refusing does not substitute.
 
   - id: bootstrap_convergence
     script: exoplasim/scripts/assess_convergence.py
@@ -217,6 +229,20 @@ steps:
     needs: [baseline_run, state_energy]
     writes: [exoplasim/analysis/convergence/]
     presence: by_index   # as bootstrap_convergence: the artifact is named by run
+
+  - id: relaxation_ceiling
+    script: exoplasim/scripts/check_relaxation_ceiling.py
+    loop: A
+    cost: seconds
+    needs: [baseline_convergence]
+    writes: [exoplasim/analysis/convergence/relaxation_ceiling.json]
+    gate: >
+      the offset criterion's fallback holds the relaxation time FIXED at the
+      derived value, and that is conservative only while the derived value is a
+      CEILING on the fitted one. This reads every convergence report and says
+      whether any of them falsifies that. It accumulates: a run whose fit has
+      grip is evidence and a settled run is not, so the answer sharpens with the
+      number of approaches on record rather than with any one run.
 
   - id: baseline_climatology
     script: exoplasim/scripts/build_climatology.py
@@ -733,6 +759,11 @@ steps:
     needs: [surface_water, surface_albedo, surface_soil_water, rebuild_binaries, ocean_tier_gate]
     writes: []
     presence: by_index
+    gate: >
+      as bootstrap_run: the orbit count is `lib/run_lengths.py:commissioning_bracket`
+      and not a typed number. This is the run downstream components read a
+      climatology from, so the production span is what its interval is bought
+      with.
 
   - id: stellar_cycle_run
     script: exoplasim/scripts/run_stellar_cycle.py

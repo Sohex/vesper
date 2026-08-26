@@ -107,6 +107,7 @@ import argparse
 import ast
 import builtins
 import importlib.util
+import math
 from pathlib import Path
 import re
 import shutil
@@ -2200,6 +2201,121 @@ def check_slab_capacity_follows_the_run() -> list[str]:
     return bad
 
 
+def check_melting_point_follows_the_run() -> list[str]:
+    """The state closure takes the melting point from the RUN, not from a literal.
+
+    `tmelt` is pumamod's and a `planet_nl` key, so a run can set it and
+    `icemod` takes it through `iceini` rather than holding a compile-time copy.
+    It weights the sea-ice part of the rebuilt mixed-layer heat content, so a
+    literal that no longer tracks the model rescales the storage term the
+    convergence criterion passes on, and rescales it without failing.
+
+    Two synthetic run directories with known answers in closed form -- the
+    override's own value and the planet module's `planet_ini` assignment -- plus
+    the absence of a module-level copy, which is the form the defect took.
+    """
+    import tempfile
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    sys.path.insert(0, str(ROOT / "lib"))
+    try:
+        import close_state_energy
+        import sea_water
+    except ImportError as exc:
+        return [f"close_state_energy.py or lib/sea_water.py does not import: {exc}"]
+    bad = []
+    if hasattr(close_state_energy, "TMELT"):
+        bad.append("close_state_energy.py carries a module-level TMELT again; the "
+                   "melting point is sea_water.melting_point(run_dir)'s to state")
+    compiled = sea_water.melting_point()["TMELT"]
+    with tempfile.TemporaryDirectory() as tmp:
+        override = Path(tmp) / "with_namelist"
+        override.mkdir()
+        tmelt = 260.5
+        (override / "planet_namelist").write_text(
+            f" &planet_nl\n GA = 12.81\n TMELT = {tmelt}\n /END\n", encoding="utf-8")
+        got = sea_water.melting_point(override)["TMELT"]
+        if got != tmelt:
+            bad.append(f"a run declaring TMELT={tmelt} was closed at {got}")
+        bare = Path(tmp) / "no_namelist"
+        bare.mkdir()
+        got_bare = sea_water.melting_point(bare)["TMELT"]
+        if got_bare != compiled:
+            bad.append(f"a run declaring no melting point was closed at {got_bare}, "
+                       f"not the planet module's {compiled}")
+        if got == got_bare:
+            bad.append("the override and the planet module gave the same melting "
+                       "point, so this check cannot see the difference it exists "
+                       "to catch")
+    # It must be the melting point and not the sea-water freezing point: the
+    # stale comment this check replaces named the wrong one of the two.
+    if abs(compiled - sea_water.constants()["TFREEZE"]) < 1.0:
+        bad.append("sea_water.melting_point() is returning something within a "
+                   "kelvin of TFREEZE; those are two different quantities")
+    return bad
+
+
+def check_run_length_derivation() -> list[str]:
+    """A declared run length is derived from a timescale, and from the right one.
+
+    `lib/run_lengths.py` turns two timescales into two lengths, and the whole
+    value of it is that the two are kept apart: a commissioning span is bought
+    in the memory time and a settling block in the relaxation time. This checks
+    the arithmetic against answers known in closed form, checks that the two
+    tolerances that must be one number ARE one number, and checks that the
+    derived lengths still reproduce the operational experience they were built
+    to agree with -- because a derivation that no longer lands where experience
+    does is either wrong or has found something, and either way it must not pass
+    silently.
+    """
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    sys.path.insert(0, str(ROOT / "lib"))
+    try:
+        import assess_convergence
+        import run_lengths
+    except ImportError as exc:
+        return [f"lib/run_lengths.py or assess_convergence.py does not import: {exc}"]
+    bad = []
+    if run_lengths.SETTLING_RESIDUAL_K != assess_convergence._OFFSET_TOLERANCE_K:
+        bad.append(
+            f"a settling block decays to {run_lengths.SETTLING_RESIDUAL_K} K while "
+            f"the offset criterion allows {assess_convergence._OFFSET_TOLERANCE_K} K; "
+            "they are one number and a settling residual the next verdict can see "
+            "is not settled")
+    # Closed form: n = tau * ln(A0 / residual). At A0 = e * residual it is
+    # exactly tau, which is an identity rather than a comparison.
+    tau = 7.0
+    want = tau
+    got = run_lengths.settling_orbits(math.e * run_lengths.SETTLING_RESIDUAL_K, tau)
+    if abs(got - want) > 1e-9:
+        bad.append(f"a perturbation e times the residual should settle in one tau, "
+                   f"{want}; got {got}")
+    # A perturbation already below the residual has nothing to decay.
+    if run_lengths.settling_orbits(0.5 * run_lengths.SETTLING_RESIDUAL_K, tau) != 1.0:
+        bad.append("a perturbation smaller than the residual was given more than "
+                   "one orbit to decay")
+    # Closed form: the span is the multiple, and the commissioning length adds
+    # the approach to it rather than replacing it.
+    if run_lengths.production_span_orbits(3.0) != 3.0 * run_lengths.PRODUCTION_SPAN_TAU_MULTIPLE:
+        bad.append("the production span is not the declared multiple of tau")
+    if run_lengths.commissioning_orbits(11.0, 3.0) != 11.0 + run_lengths.production_span_orbits(3.0):
+        bad.append("a commissioning length is not its approach plus its span")
+    for name, bracket in (("memory", run_lengths.TAU_MEMORY_ORBITS_BRACKET),
+                          ("relaxation", run_lengths.TAU_RELAXATION_ORBITS_BRACKET)):
+        low, high = bracket
+        if not 0 < low <= high:
+            bad.append(f"the {name}-time bracket {bracket} is not an ordered "
+                       "pair of positive times")
+    # THE DERIVED LENGTHS MUST STILL LAND ON THE EXPERIENCE. A reconvergence has
+    # repeatedly taken ten to twenty orbits after a step change worth about half
+    # a kelvin, and the settling bracket for that perturbation has to cover it.
+    low, high = run_lengths.settling_bracket(0.5)
+    if not (low <= 20.0 and high >= 10.0):
+        bad.append(f"a 0.5 K step settles in {low:.1f} to {high:.1f} orbits by "
+                   "derivation, which no longer overlaps the ten to twenty this "
+                   "project has repeatedly seen")
+    return bad
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-help", action="store_true",
@@ -2287,6 +2403,10 @@ def main() -> None:
                check_spectrum_guard()),
               ("the convergence slab's sea water follows the run",
                check_slab_capacity_follows_the_run()),
+              ("the state closure's melting point follows the run",
+               check_melting_point_follows_the_run()),
+              ("a declared run length is derived from the right timescale",
+               check_run_length_derivation()),
               ("the tools environment.md names are on this host",
                check_documented_tools())]
     if not args.skip_help:

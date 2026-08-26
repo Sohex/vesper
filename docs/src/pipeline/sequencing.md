@@ -82,6 +82,35 @@ python scripts/world_state.py                         # LAST: it reads everythin
 `python scripts/pipeline.py --plan carve_list` prints that list against the
 current state, with what is already present marked skippable.
 
+**How long the two `run_exoplasim.py` lines are, and why the length is declared
+before the run starts.** A commissioning run is an APPROACH followed by a
+PRODUCTION SPAN, and the span is what the climatology's error bar is bought
+with: a window mean's interval covers only over a span of about twenty times the
+model's memory time, made of batches of at least five, and batch length rather
+than batch count is what has to be bought first. `lib/run_lengths.py` carries
+that derivation and `exoplasim/notes/convergence-lengths.md` carries the
+measurement behind it. The memory time is not measured and cannot be measured
+here, so the answer is a BRACKET and the declared length is its floor: at T21
+from cold, an approach of about seventy orbits and a span of eighty-four to two
+hundred and nine, so a commissioning run is a hundred and fifty-four to two
+hundred and seventy-nine orbits.
+
+The declared length is a FLOOR and not a stopping rule. A run that reaches it
+and is still refused by the convergence criteria is not finished; what the
+declaration prevents is the opposite error, an orbit count chosen by whoever is
+watching the wall clock, which is what the forty-orbit precision arm that
+reversed sign when it was re-run at eighty-five cost.
+
+**Declaring nothing and running until the instrument stops refusing was priced
+and rejected.** It is the cheaper design and it would be strictly better if the
+refusal were the same bar, but it is not: the convergence window is sized so the
+offset criterion's slope error resolves its threshold, which on this model is
+about thirty-eight orbits, while the climatology's own interval needs the twenty
+times the memory time above. The instrument therefore stops refusing tens of
+orbits before the error bar is bought, so it cannot stand in for the
+declaration. Both are kept: the derived floor decides what to buy, and the
+instruments' refusals decide whether to buy more.
+
 The other half is **the carve gate: nothing outstanding may still move an
 artifact the verdict is computed from.** It is not a ceremony about
 irreversibility -- a wrong verdict is recoverable, because a build is replaced
@@ -409,17 +438,41 @@ target as spanning its own. The converter refuses the combination rather than
 taking it, and its self-test walks this route to check that every conversion the
 route asks for is one it accepts. WORLD-FL9C.
 
-**A reconvergence is one convergence window, then three-orbit increments until
-the criteria are met.** The first block is the window because the criteria
-cannot be evaluated on fewer orbits than they are taken over; three after,
-because that is the smallest increment the criteria can judge and a longer one
-overshoots the exit by more than it costs to test again.
+**Steps 2 and 4 are SETTLING blocks, not commissioning verdicts, and the two
+are named apart so they cannot be confused.** A commissioning verdict supports a
+claim about this world's climate, and its window is priced so a slope's standard
+error resolves its threshold. Nothing reads the climate of T21 at dt 30 or T42
+at dt 22.5. Those states exist to hand the next conversion a restart that is not
+mid-transient, and any residual drift they leave is absorbed by the convergence
+that follows that conversion. Applying the commissioning standard to them buys
+a claim nothing consumes, at about four and a half times the orbits the purpose
+needs, and it grows up the ladder: at step 4 those are T42 orbits.
 
-That first block is longer than the reconvergence itself, which settles in ten
-to twenty orbits. It is not waste: the window is set by how long a mean has to
-be before the model's own variability has averaged out of it, and a block
-shorter than that returns a verdict that flips rather than a verdict.
-`assess_convergence.py` owns the number and derives it;
+**A settling block is a LENGTH derived from the relaxation time, not a verdict
+on a mean.** A perturbation decays as `exp(-n / tau)`, so the orbits needed for
+a step change worth `A` kelvin to fall below a residual `r` is `tau * ln(A / r)`.
+The residual is the same 0.15 K the offset criterion allows, deliberately: a
+residual smaller than what the instrument judging the NEXT state can see is one
+that state cannot be held responsible for. `lib/run_lengths.py` carries the
+derivation. The relaxation time is bracketed by the fits that are evidence
+rather than taken from the derived value, because that value is not established
+as a bound on them, so a step change worth about half a kelvin settles in eight
+to seventeen orbits -- which is where the ten to twenty this project has
+repeatedly seen comes from.
+
+**What a settling block does NOT establish**, and this is why it carries its own
+name: that the state is equilibrated, that its climate is the rung's climate, or
+that any mean taken on it carries an interval. Steps 1, 3 and 5 are
+COMMISSIONING and keep the full standard, because loop A is replayed on each of
+those rungs and the carve verdict is taken on their climatologies. Steps 2 and 4
+are not read that way by anything.
+
+**A commissioning convergence, at steps 1, 3 and 5, is one convergence window
+then three-orbit increments until the criteria are met.** The first block is the
+window because the criteria cannot be evaluated on fewer orbits than they are
+taken over; three after, because that is the smallest increment the criteria can
+judge and a longer one overshoots the exit by more than it costs to test again.
+`assess_convergence.py` owns the window and derives it;
 `exoplasim/notes/convergence-lengths.md` carries the arithmetic and the bracket
 it lands in.
 

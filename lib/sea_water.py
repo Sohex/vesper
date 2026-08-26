@@ -27,6 +27,13 @@ correction moved it away from the model.
 A run may set any of the four, so a caller that has the run directory passes it
 and gets what that run used; a caller that has only the model gets the compiled
 declaration. Either way the number is read, never written down.
+
+`melting_point()` at the foot of this file is a FIFTH number and is NOT one of
+the four: it is the melting point of the modelled water, pumamod's `tmelt` and a
+`planet_nl` key, not the sea-water freezing point. It lives here because the two
+are adjacent and were confused -- a script asked for the melting point and cited
+TFREEZE's owner for it -- and a reader who comes here for one now meets both with
+the difference stated.
 """
 
 from __future__ import annotations
@@ -87,3 +94,52 @@ def slab_heat_capacity(mixed_layer_depth_m: float,
     """CRHOS * CPS * mld, J/m2/K. The mixed layer's heat capacity per unit area."""
     c = constants(run_dir)
     return float(c["CRHOS"]) * float(c["CPS"]) * float(mixed_layer_depth_m)
+
+
+# ---------------------------------------------------------------------------
+# NOT ONE OF THE FOUR, and here so that the two are never confused again.
+#
+# TFREEZE above is the SEA WATER FREEZING POINT at the declared salinity: where
+# sea ice forms at all, an `icemod_nl` key, depressed below pure water's by the
+# brine. `tmelt` below is the MELTING POINT OF THE MODELLED WATER: what every
+# soil, snow, sea and ice routine tests a skin temperature against, and what the
+# condensation schemes switch phase at. They are different quantities and they
+# have different owners, and a script that wanted the second and cited the first
+# is why this accessor exists rather than a literal.
+#
+# THE OWNER IS pumamod, THROUGH planet_nl. `exoplasim/config/ocean_tier.yaml`
+# declares it as a single-declaration handoff: `p_earth.f90` assigns it in
+# `planet_ini` before reading `planet_nl`, so a run can set it, and `icemod`
+# takes it through `iceini` rather than holding a compile-time copy. That is why
+# the run's `planet_namelist` is consulted first and `p_earth.f90` second: the
+# namelist is what the run integrated with, and the assignment is what it
+# integrated with when the namelist is silent.
+PLANET_SOURCE = (Path(__file__).resolve().parents[1] / "vendor" / "exoplasim"
+                 / "exoplasim" / "plasim" / "src" / "p_earth.f90")
+
+
+def melting_point(run_dir: Path | None = None) -> dict:
+    """The modelled water's melting point in K, plus where the value came from.
+
+    NOT the sea-water freezing point; that is `constants()["TFREEZE"]`.
+
+    Raises if neither the run nor the planet module states it. A melting point
+    that silently reverts to Earth's rescales the sea-ice part of a rebuilt heat
+    content without failing, which is the same shape of defect the four above
+    are read for.
+    """
+    namelist = (run_dir / "planet_namelist") if run_dir is not None else None
+    if namelist is not None and namelist.is_file():
+        value = _number(namelist.read_text(encoding="utf-8", errors="replace"),
+                        r"^\s*TMELT\b\s*=\s*([-+0-9.eEdD]+)")
+        if value is not None:
+            return {"TMELT": value, "source": f"{namelist.name} sets TMELT"}
+
+    source = PLANET_SOURCE.read_text(encoding="utf-8", errors="replace")
+    value = _number(source, r"^\s*tmelt\b\s*=\s*([-+0-9.eEdD]+)")
+    if value is None:
+        raise SystemExit(
+            f"{PLANET_SOURCE} no longer assigns tmelt in planet_ini. It is a "
+            "planet_nl key and the melting point must be read from the run or "
+            "the model, never copied into the script that uses it.")
+    return {"TMELT": value, "source": f"{PLANET_SOURCE.name} planet_ini default"}
