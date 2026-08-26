@@ -1487,28 +1487,45 @@ should not: `derive()` indexes it rather than using `.get`, deliberately, so tha
 a config which has lost the block fails instead of reverting the model to its
 compiled values in silence.
 
-## A3's fourth condition cannot be met on an arm's first segment
+## A3's fourth condition, and how an arm now demonstrates its own settling
 
 A3 requires that "the segments are labelled as diagnostics, so a short A/B tail
-never enters a convergence window or a climatology". `continue_exoplasim.py`
-takes a required `--purpose` and will stamp `diagnostic`. `run_exoplasim.py`
-takes no such flag: every run it prepares gets a first segment labelled `spinup`
-and a manifest carrying `canonical_lineage_eligible: true`, whatever the run is
-for. Measured on the five arms above, each of which is an A/B arm and none of
-which says so.
+never enters a convergence window or a climatology", and world-u9hq recorded the
+condition as UNTESTABLE rather than unmet: `assess_convergence.py` read only
+PRODUCTION orbits, so the label that satisfied A3 was exactly what hid an arm
+from the test that would judge whether it had settled. No arm could satisfy both
+halves, and the h2oswl pair above stood on its paired difference's
+autocorrelation-corrected error instead.
 
-So an arm is self-labelling only from its SECOND segment onward, and its first
-one -- which for a short A/B is the whole of it -- is indistinguishable on the
-manifest from a spin-up meant for the canonical chain. Nothing has been mislabelled
-INTO a climatology yet, because `baseline_climatology` is null and the canonical
-lineage does not exist; the gap is that the guard A3 names is not there to catch
-it when one does.
+Both halves are closed, and they had to be closed together: a guard on the label
+alone would have left every arm unable to show its own settling.
 
-`--binary` already stamps an arm's build tag and sets `canonical_lineage_eligible
-= false`, so the mechanism exists and reaches only arms that carry their own
-executable. A `--purpose` on `run_exoplasim.py` with the same three values
-`continue_exoplasim.py` takes, defaulting to `spinup` so no existing call
-changes, is what closes it.
+`run_exoplasim.py` takes a required `--purpose`, `spinup` or `diagnostic`, with
+NO DEFAULT. A default of `spinup` would leave the failure where it was and
+silent in the direction that matters, because a diagnostic tail carrying the
+default label is indistinguishable later from production orbits. The purpose
+reaches the first segment and the manifest, and `diagnostic` sets
+`canonical_lineage_eligible = false` -- which until now only `--binary` did, so
+an A/B run the way A3 asks for it, as one binary differing by one namelist key,
+was eligible for the canonical lineage on every arm this project has run.
+`continue_exoplasim.py` already refuses a `post_equilibrium_climatology` segment
+on a run carrying false, so the arm cannot acquire climatology orbits later
+either.
+
+`assess_convergence.py --assess diagnostic` takes the same six criteria over the
+orbits a run declares ARE diagnostics, with `production_window`'s own
+trailing-drop and interior-hole rules applied to that purpose instead. The
+verdict it produces is about the EXPERIMENT and not about the planet: whether an
+arm had settled far enough for its difference against another arm to mean
+anything. It carries its mode in its report and plot filenames and writes
+nothing into the run -- not `status`, not `equilibrium_cutoff_year_index`, not
+`convergence_assessment` -- on the terms `--through` is already kept out, and
+for a stronger reason: those fields are claims about where the planet has got
+to, and a diagnostic segment is by declaration not evidence about that.
+
+So an arm's settling is now demonstrable and reported, and it still cannot be
+mistaken for the run's own verdict or promoted into the canonical lineage.
+world-ucww.
 
 ## Measured: the `world-u9hq` h2oswl arms, 2026-08-26
 
@@ -1931,6 +1948,17 @@ is a namelist key rather than a code fork. The model says which branch it took:
 `run_5373310a7b9f`'s `plasim_diag` prints `asymptotic mixing length (m)
 160.0000` against the control's `200.5476`.
 
+AND THE NUMBER IS ON THE MANIFEST, which is what a bundle needs rather than a
+diag a reader has to know to open. `vdiff_lamm`, `gamma` and `rcritwidth` are
+the three keys the model reads on their SIGN, deriving when it is negative, so
+for those three the namelist records the selection and not the value: two runs
+at different rotation rates or different rungs stage the same `-1` and
+integrated different constants. `config/planet.yaml` declares the selection by
+name, `derived`, and `run_exoplasim.py` reads the model's own initialisation
+print back into `derived_model_constants` on the run manifest.
+`check_consistency.py` refuses a run that staged a sentinel and recorded no
+value, and refuses a declared literal the model did not echo back. world-et25.
+
 **Measured, on the declared window.** `run_5373310a7b9f` against
 `run_c9c24d438a94`, both 25 orbits, difference over orbits 15 to 24:
 **-0.153 +/- 0.062 K**, with the standard error from `lib/autocorrelation.py`
@@ -1968,7 +1996,7 @@ the cleaner instrument for a single term, because it differs in one object file
 instead of in every change between two dates. What is wrong is only the claim
 that nothing was kept.
 
-## A seventh term with no route: the soil heat solver's moisture dependence
+## world-5oyp: a seventh bundle term, the soil heat solver's moisture dependence
 
 `3aecf4ec` made the land soil heat solver read the soil water the model already
 carries, interpolating conductivity and heat capacity between a dry and a
@@ -1978,21 +2006,99 @@ saturated endpoint instead of holding one pair. `landmod.f90` declares them:
     soilcapdry = 1.1111E6 soilcapsat = 2.9689E6 J/m3/K
 
 A factor of 6.9 in conductivity and 2.7 in capacity across the wetness range, on
-every land cell, and it is inside the batch-2 window: the donor predates it.
+every simulated land cell, and it is inside the batch-2 window: the donor
+predates it. It appeared in no registered prediction, which is the second time
+the sum has been checked against a total missing a live term.
 
 **All six keys are already in `landmod_nl`**, so the model can be told to run the
 old behaviour -- setting a dry endpoint equal to its saturated partner makes the
-column constant and the solver bitwise what it was. What is missing is the route:
-`run_exoplasim.py` writes none of them, `expected_namelist_keys` does not cover
-them, and the arms above staged none, so every run since the commit has
-integrated the compiled pair and no artifact says which pair that was.
+column constant and the solver bitwise what it was. The arms above staged none of
+them, so every run between `3aecf4ec` and the route below integrated the compiled
+pair with no artifact saying which pair that was.
 
-**UNTESTED, and cheaply testable.** It is the same one-row change that gave
-`vdiff_lamm` a control, and until it exists the term cannot enter a bundle sum
-even though it is live in every run. Its size is not bounded here and should not
-be guessed: the ground heat flux is near zero in the annual mean, which argues
-for a small effect on the mean and says nothing about the seasonal amplitude or
-about when a land cell first holds snow.
+It has a route now. All six reach `landmod_nl` from `surface.soil_thermal`,
+written unconditionally by `configure_otherargs` at the compiled defaults and
+checked by `expected_namelist_keys`, so the control arm is four namelist keys
+rather than a code fork. `run_exoplasim.py` also checks the model's compiled
+endpoints against
+`pedology/config/land_column_properties.yaml:thermal`, which is where they are
+DERIVED, at the contract's own tolerances: the six numbers exist twice and a
+stale copy of a derived endpoint is a number with no live derivation.
+
+### The registered prediction, before any arm
+
+The magnitude comes from `notes/audits/soil-thermal-inertia.md` and from the
+saturation reach declared in
+`pedology/config/land_column_properties.yaml:thermal.saturation_mapping`, which
+is the artifact that prices this term and nothing else. Thermal inertia in
+J/m2/K/s^0.5: the retired pair is `sqrt(1.8 * 2.4e6)` = 2078, and the interval
+the store can reach on this build's median column is 1342 at an empty store and
+1834 at a full one. So the term is a one-signed REDUCTION in soil thermal
+inertia of 12 to 35 per cent on every land cell, largest where the column is
+driest.
+
+**TOP-OF-ATMOSPHERE FORCING: ZERO, EXACTLY, AND THAT IS THE ENTRY IN THE SUM.**
+The soil column is closed at its base, so its annual-mean heat flux is zero
+whatever its heat capacity and conductivity are: this is a change to how a
+closed reservoir stores and conducts heat, not a change to any flux crossing the
+top of the atmosphere at fixed state. It enters the bundle sum at 0.00 W/m2 with
+that reason, which is a different object from being absent from the list. Every
+kelvin it can be worth arrives through the response to the amplitude below.
+
+**THE DIRECT TERM, AND IT IS AN AMPLITUDE.** For a periodic surface flux on a
+semi-infinite column the surface temperature amplitude goes as the inverse of
+the thermal inertia, and the seasonal skin depth here, `sqrt(2*kappa/omega)` at
+`kappa` near 5e-7 m2/s, is about 2 m against the column's 12.4 m, so
+semi-infinite is the right limit for both the diurnal and the seasonal wave.
+Inverting the inertia reduction:
+
+- **The land seasonal peak-to-trough range of `ts` rises by 13 to 55 per cent
+  per cell**, +13 at a full store and +55 at an empty one, and the land-area
+  mean of that range rises by a value inside that bracket. Read off the monthly
+  `ts` of the two arms over the same orbits.
+- **The rise is largest where the column is driest**, because the store's own
+  reach is what sets it. The per-cell change must correlate positively with the
+  cell's soil water deficit.
+- **The soil's thermal diffusivity falls by about a third** -- 7.5e-7 m2/s to
+  5.1e-7 -- almost independently of the store, because the capacity and the
+  conductivity fall together. The seasonal penetration depth therefore falls by
+  about 18 per cent and the phase lag of the deep soil layers shortens with it.
+
+**THE GLOBAL MEAN: NOT RESOLVED, AND NEGATIVE IF IT IS.** No magnitude is
+registered for it, because none of the artifacts in this tree prices the
+feedback that carries it: with no direct forcing, the mean can move only through
+terms nonlinear in the amplitude, and the one that is one-signed is the snow
+line, which a larger seasonal range pushes equatorward in winter. The zero
+hypothesis under test is that the settled pair does not separate. The term is
+MATERIAL if it separates by more than 1.0 K, which is the threshold `vdiff_lamm`
+was registered against and is fixed here before the arm for the same reason.
+
+**THE RESOLUTION BAR, FIXED IN ADVANCE.** A paired 25-orbit set from one
+restart, one binary, differing only in the four `landmod_nl` endpoints;
+difference taken over orbits 15 to 24, standard error from
+`lib/autocorrelation.py` over the paired difference. The difference is RESOLVED
+only where `|diff| > 2*sqrt(2)*max(SEM)`, the same bar `vdiff_lamm` was reported
+under. Anything below it is reported as not resolved at this length and not as a
+result.
+
+**What would mean wrong:**
+
+- The land seasonal range FALLS, anywhere. Lowering the thermal inertia cannot
+  damp the surface more, and a cell that damps more is an implementation fault
+  rather than a small result.
+- The land-mean seasonal range moves by less than 13 per cent or more than 55
+  per cent. Below is the store not reaching the saturation interval the contract
+  declares, and the first thing to check is the arm's own `SOILSRWP` and
+  `SOILSRFC`; above is the semi-infinite limit being the wrong one, which would
+  mean the column's 12.4 m base is being felt at the seasonal period.
+- The per-cell amplitude change does not correlate with soil wetness. That says
+  `soilwtherm` is not reading the water at all, and the control arm would then
+  agree with its own arm by construction.
+- A resolved WARMING in the global mean. The one one-signed feedback runs the
+  other way.
+- A resolved global-mean separation above 1.0 K. The term is then material, the
+  zero-forcing argument is not what the model is doing, and it must be bisected
+  rather than folded into the bundle.
 
 ## Measured: the star weight on its new carrier, `CLOUDABS`, 2026-08-26
 

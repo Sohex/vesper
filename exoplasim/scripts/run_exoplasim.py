@@ -469,7 +469,19 @@ def configure_otherargs(derived: dict) -> dict:
     like it had confirmed one.
     """
     lwc = derived["land_water_column"]
+    soil = derived["soil_thermal"]
     return {
+        # world-5oyp, landmod_nl. THE SOIL HEAT SOLVER'S SIX ENDPOINTS, all of
+        # them and unconditionally, so the namelist in the run directory says
+        # what the segment's soil was made of. `3aecf4ec` made the column's
+        # thermal inertia a function of the water it carries, a factor of 6.9 in
+        # conductivity across the wetness range on every simulated land cell,
+        # and the term entered no bundle prediction because it had no key to be
+        # named by. They travel together because they are one selection: an arm
+        # that moved a dry endpoint and left its saturated partner would be
+        # neither the constant column nor the interpolation.
+        **{f"{key}@landmod_namelist": f"{soil[key]:.6g}"
+           for key in SOIL_THERMAL_KEYS},
         "N_DAYS_PER_YEAR@plasim_namelist": str(
             derived["rotations_per_orbit_namelist"]
         ),
@@ -789,6 +801,63 @@ def landmod_default(name: str) -> float:
     return _fortran_default(LANDMOD_SOURCE, name)
 
 
+# THE WORD FOR "THE MODEL DERIVES IT". world-et25.
+#
+# `vdiff_lamm`, `gamma` and `rcritwidth` each select between a DERIVED form and
+# a declared literal, and the model makes that selection on the SIGN of the key:
+# negative derives. So a config that wanted the derived form used to say nothing
+# at all, and the selection was made by a `.get()` default in this script
+# reading a sentinel out of the model source. Nothing in `config/planet.yaml`
+# said which form the run integrated, and a reader looking for it found silence.
+#
+# The three are now declared, and declared BY NAME rather than by the sentinel's
+# number, on the argument LAND_WATER_SCHEMES is built on: `-1` in a config file
+# reads as a magnitude and is not one, and transcribing the model's sentinel
+# would put back exactly the copy `_fortran_default` exists to remove. The
+# DERIVED NUMBER is not declared here at all, and cannot honestly be: two of the
+# three are functions of things `config/planet.yaml` already states -- the
+# rotation rate and the grid -- so a number here would be a second, silently
+# staleable statement of a derivation the model owns, and the third derives a
+# FIELD that has no scalar to state. Where the derived number IS recorded is the
+# run's manifest, read back from the model's own print; see
+# `read_derived_constants`.
+DERIVE_WORD = "derived"
+
+
+def selected_constant(config: dict, config_key: str, model_default,
+                      namelist_key: str) -> float:
+    """A constant that selects between the model's derived form and a literal.
+
+    Returns the number written to the namelist: the model's compiled sentinel
+    for `derived`, and the declared value otherwise. Both refusals below are
+    right answers the model already knows, so both can fail.
+    """
+    value = config["model"].get(config_key, DERIVE_WORD)
+    if isinstance(value, str):
+        if value != DERIVE_WORD:
+            raise ValueError(
+                f"model.{config_key} is {value!r}. The only word it takes is "
+                f"{DERIVE_WORD!r}, which selects the form the model derives; "
+                "anything else is the constant itself, as a number.")
+        sentinel = float(model_default())
+        if sentinel >= 0.0:
+            raise ValueError(
+                f"model.{config_key} says {DERIVE_WORD!r} and the model "
+                f"compiles {namelist_key} = {sentinel:g}, which is not a "
+                "sentinel: the derive branch is selected by a NEGATIVE value. "
+                "The word no longer reaches the form it names, so a config "
+                "asking for the derived form would silently declare a literal.")
+        return sentinel
+    number = float(value)
+    if number < 0.0:
+        raise ValueError(
+            f"model.{config_key} is {number:g}. A negative number IS the "
+            f"model's derive sentinel, and a config that means the derived "
+            f"form says so with the word {DERIVE_WORD!r}; a number here is the "
+            "constant as declared, and every one of these three is positive.")
+    return number
+
+
 def rainmod_default(name: str) -> float:
     """A scalar `rainmod_nl` default."""
     return _fortran_default(RAINMOD_SOURCE, name)
@@ -828,6 +897,128 @@ def landmod_default_array(name: str) -> list[float]:
     body = re.sub(r"&\s*\n\s*&?", " ", m.group(1))
     return [float(v.replace("d", "e").replace("D", "e"))
             for v in body.replace("\n", " ").split(",") if v.strip()]
+
+
+# THE SOIL HEAT SOLVER'S SIX ENDPOINTS, `landmod_nl`. world-5oyp.
+#
+# `soilwtherm` builds the soil column's heat capacity and conductivity from the
+# water the column carries: the capacity is linear in the degree of saturation
+# and the conductivity interpolates through Johansen's Kersten number, between a
+# dry and a saturated endpoint, with two more endpoints mapping the model's
+# plant-available store onto that degree of saturation. Six numbers, all of them
+# already `landmod_nl` keys, and until now none of them written -- so every run
+# since `3aecf4ec` integrated the compiled pair and no artifact says which pair
+# that was, and the term could not be made into an arm because an arm is one
+# binary differing by namelist keys.
+#
+# THEY TRAVEL AS ONE SELECTION, the way the land column's eight do. Setting a
+# dry endpoint equal to its saturated partner recovers a constant column exactly
+# and bitwise, because `a + 0.0*Ke` is `a`; that is the control arm and it needs
+# no switch. An arm that moved one of the pair and not the other would be
+# neither the constant column nor the interpolation.
+SOIL_THERMAL_KEYS = ("SOILDIFDRY", "SOILDIFSAT", "SOILCAPDRY", "SOILCAPSAT",
+                     "SOILSRWP", "SOILSRFC")
+
+# WHERE THE ENDPOINTS ARE DECLARED, and it is not this file and not
+# `landmod.f90`. The relations are the land column property contract's, which
+# emits the saturation states per cell and declares these as the medians of the
+# build's own land; `landmod.f90` carries them as compiled defaults so a run
+# that declares nothing reproduces them, and `_fortran_default` reads them from
+# there rather than transcribing them here. The check below is what keeps those
+# two statements of one fact from drifting apart.
+LAND_COLUMN_CONTRACT = (PROJECT_ROOT / "pedology" / "config"
+                        / "land_column_properties.yaml")
+
+
+def soil_thermal(config: dict) -> dict:
+    """The six `landmod_nl` soil thermal keys, from the configuration.
+
+    Returns {NAMELIST KEY: value} with every key present: written
+    unconditionally, compiled defaults included, on the same argument CLWREF and
+    the land column's eight are written on. A key the run directory does not
+    record is a key no artifact can attribute an arm to.
+
+    Shared with `expected_namelist_keys` the way `land_water_column` is: this
+    maps the CONFIG to a value and knows nothing about what gets written, and
+    the list of keys is stated independently on both sides.
+    """
+    block = config.get("surface", {}).get("soil_thermal", {}) or {}
+    declared = {
+        "SOILDIFDRY": block.get("dry_conductivity_w_m_k"),
+        "SOILDIFSAT": block.get("saturated_conductivity_w_m_k"),
+        "SOILCAPDRY": block.get("dry_heat_capacity_j_m3_k"),
+        "SOILCAPSAT": block.get("saturated_heat_capacity_j_m3_k"),
+        "SOILSRWP": block.get("saturation_at_empty_store"),
+        "SOILSRFC": block.get("saturation_at_full_store"),
+    }
+    out = {}
+    for key in SOIL_THERMAL_KEYS:
+        value = declared[key]
+        out[key] = float(landmod_default(key.lower()) if value is None
+                         else value)
+    if out["SOILSRWP"] > out["SOILSRFC"]:
+        raise ValueError(
+            f"surface.soil_thermal.saturation_at_empty_store "
+            f"{out['SOILSRWP']:g} is above saturation_at_full_store "
+            f"{out['SOILSRFC']:g}. The first is the wilting point and the "
+            "second is field capacity; inverted, `soilwtherm` runs the "
+            "interpolation backwards and a wetter column damps LESS.")
+    for key in ("SOILDIFDRY", "SOILDIFSAT", "SOILCAPDRY", "SOILCAPSAT"):
+        if out[key] <= 0.0:
+            raise ValueError(
+                f"surface.soil_thermal {key} is {out[key]:g}. A conductivity "
+                "and a heat capacity are both positive, and a zero capacity "
+                "makes the soil temperature solve singular.")
+    return out
+
+
+def _contract_soil_thermal() -> dict:
+    """The endpoints and the saturation mapping the land column contract states.
+
+    Returned as {NAMELIST KEY: (declared value, absolute tolerance)}. The two
+    tolerances are the contract's own and are applied the way
+    `pedology/scripts/land_column_properties.py` applies them: the saturation
+    mapping's is absolute and the endpoints' is relative, so a heat capacity of
+    order 1e6 is not compared against an absolute 0.005.
+    """
+    decl = yaml.safe_load(LAND_COLUMN_CONTRACT.read_text(encoding="utf-8"))
+    thermal = decl["thermal"]
+    ends = thermal["endpoints"]
+    mapping = thermal["saturation_mapping"]
+    tol_end = float(ends["tolerance"])
+    tol_map = float(mapping["tolerance"])
+    want = {}
+    for key, path in (("SOILDIFDRY", ("dry", "thermal_conductivity_w_m_k")),
+                      ("SOILDIFSAT", ("saturated", "thermal_conductivity_w_m_k")),
+                      ("SOILCAPDRY", ("dry", "volumetric_heat_capacity_j_m3_k")),
+                      ("SOILCAPSAT",
+                       ("saturated", "volumetric_heat_capacity_j_m3_k"))):
+        value = float(ends[path[0]][path[1]])
+        want[key] = (value, tol_end * abs(value))
+    for key, name in (("SOILSRWP", "sr_at_wilting_point"),
+                      ("SOILSRFC", "sr_at_field_capacity")):
+        want[key] = (float(mapping[name]), tol_map)
+    return want
+
+
+# THE MODEL'S COMPILED ENDPOINTS AGAINST THE CONTRACT THAT DERIVED THEM. This is
+# a right answer another artifact already knows, so it is a check that can fail:
+# the six numbers exist twice, once in `landmod.f90` where the solver reads them
+# and once in the land column property contract where they are DERIVED, and a
+# consumer that silently ran a stale copy of a derived endpoint would be
+# calibrating against a number with no live derivation. Run at import, on the
+# same argument the land water scheme words are checked on, because both are
+# transcription failures that no downstream gate could name.
+for _key, (_declared, _tol) in _contract_soil_thermal().items():
+    _compiled = landmod_default(_key.lower())
+    if abs(_compiled - _declared) > _tol:
+        raise RuntimeError(
+            f"landmod.f90 compiles {_key.lower()} = {_compiled:g} and "
+            f"{LAND_COLUMN_CONTRACT} declares {_declared:g}, which is outside "
+            f"the contract's own tolerance of {_tol:g}. The endpoint is DERIVED "
+            "by the contract and the model carries it as a compiled default, so "
+            "the two are one fact; the model's copy has gone stale, or the "
+            "contract has been re-derived and the model was not updated with it.")
 
 
 def land_water_layer_limit() -> int:
@@ -1116,18 +1307,18 @@ def derive(config: dict, flux_ratio: float) -> dict:
         # `exoplasim/notes/forcing-bundle-predictions.md` measures, and until
         # now it was the one term in that bundle with a control and no way to
         # reach it.
-        "precip_reevaporation_gamma": float(
-            config["model"].get("precip_reevaporation_gamma",
-                                rainmod_default("gamma"))),
+        "precip_reevaporation_gamma": selected_constant(
+            config, "precip_reevaporation_gamma",
+            lambda: rainmod_default("gamma"), "GAMMA"),
         # world-o12h, rainmod_nl. The subgrid humidity width. NEGATIVE is the
         # sentinel and the default, deriving `(RCNLATREF/NLAT)^(1/3)` from the
         # grid; a POSITIVE value is used as the factor directly, and 1.0 is the
         # identity. At T21 the derived value IS 1.0, so the two agree there by
         # construction and the path is untestable at this rung rather than
         # verified at it.
-        "cloud_fraction_subgrid_width": float(
-            config["model"].get("cloud_fraction_subgrid_width",
-                                rainmod_default("rcritwidth"))),
+        "cloud_fraction_subgrid_width": selected_constant(
+            config, "cloud_fraction_subgrid_width",
+            lambda: rainmod_default("rcritwidth"), "RCRITWIDTH"),
         # world-80ia, fluxmod_nl. The asymptotic mixing length of the
         # boundary-layer scheme, in metres. NEGATIVE is the sentinel and the
         # default: `fluxini` then derives it as `160 * (OMEGA_EARTH/ww)` from
@@ -1140,13 +1331,16 @@ def derive(config: dict, flux_ratio: float) -> dict:
         # that no registered prediction covers: it sets turbulent exchange over
         # land and ocean alike, it moved by 25 per cent, and without a key the
         # only control was a code fork.
-        "asymptotic_mixing_length_m": float(
-            config["model"].get("asymptotic_mixing_length_m",
-                                fluxmod_default("vdiff_lamm"))),
+        "asymptotic_mixing_length_m": selected_constant(
+            config, "asymptotic_mixing_length_m",
+            lambda: fluxmod_default("vdiff_lamm"), "VDIFF_LAMM"),
         # world-py6p, landmod_nl. The eight keys of the land liquid water
         # column: which of LSHY-3's registered hypotheses runs, its evaporation
         # limiter, and LSHY-5's soil phase. See `land_water_column`.
         "land_water_column": land_water_column(config),
+        # world-5oyp, landmod_nl. The six endpoints the soil heat solver builds
+        # the column's capacity and conductivity from. See `soil_thermal`.
+        "soil_thermal": soil_thermal(config),
     }
 
 
@@ -1677,6 +1871,101 @@ def declare_cold_start_seed(model, config: dict, is_cold: bool) -> None:
     model._edit_namelist("plasim_namelist", "SEED", str(seed))
     print(f"cold start: SEED = {seed} (declared; without it initrandom takes "
           f"the system clock and the run is unreproducible)")
+
+
+# THE THREE KEYS THAT SELECT A FORM RATHER THAN CARRYING A VALUE. world-et25.
+#
+# `vdiff_lamm`, `gamma` and `rcritwidth` each take a compiled sentinel meaning
+# "derive it", and each derives from something the model owns: `vdiff_lamm` from
+# this world's rotation rate, `rcritwidth` from the grid's own NLAT, and `gamma`
+# per cell and per level from Kessler's rain evaporation, through a fall-speed
+# coefficient that carries this planet's gravity.
+#
+# SO THE NAMELIST RECORDS THE SELECTION AND NOT THE NUMBER. A run whose
+# `fluxmod_namelist` says `VDIFF_LAMM = -1` did not integrate minus one metre;
+# it integrated whatever `fluxini` computed, and the manifest is what a later
+# reader reconstructs the run from. Two runs at different rotation rates or
+# different rungs carry the same sentinel and integrated different constants.
+#
+# THE VALUE IS READ BACK FROM THE MODEL'S OWN ECHO rather than recomputed here,
+# for `read_applied_energy_fix`'s reason: a Python copy of `160*(OMEGA_EARTH/ww)`
+# is a transcription of a model formula and is free to disagree with it, whereas
+# the print cannot. `gamma`'s derived form is a FIELD and has no scalar to
+# record, so what travels for it is the one scalar its derivation turns on.
+#
+# Each entry is (marker on the line, manifest key, what the number is).
+DERIVED_CONSTANT_ECHOES = (
+    ("fluxmod_namelist", "VDIFF_LAMM", "asymptotic mixing length",
+     "asymptotic_mixing_length_m",
+     "metres; fluxini's 160*(OMEGA_EARTH/ww) from Blackadar (1962) eq. 25 "
+     "when the namelist gave a sentinel, the declared length otherwise"),
+    ("rainmod_namelist", "RCRITWIDTH", "subgrid humidity width factor",
+     "cloud_fraction_subgrid_width",
+     "dimensionless; rainini's (RCNLATREF/NLAT)^(1/3) when the namelist gave a "
+     "sentinel, the declared factor otherwise"),
+    ("rainmod_namelist", "GAMMA", "precip re-evaporation",
+     "precip_reevaporation_fall_speed_coefficient_m_s",
+     "m/s; rainini's 5.17*sqrt(ga/9.80665), the drop fall-speed coefficient "
+     "the derived per-cell gamma turns on and the whole of what this world's "
+     "gravity changes in it. Under a declared constant gamma the model prints "
+     "that constant instead and `branch` says so"),
+)
+
+
+def read_derived_constants(run_dir: Path) -> dict:
+    """What the model DERIVED for each sentinel-selected constant, from its diag.
+
+    Returns {manifest key: {"value": float, "branch": str, "namelist_value":
+    float}}. Raises when a key the run staged at its sentinel produced no echo:
+    the sentinel says the model chose the number, so a run that cannot say which
+    number it chose is a run no later reader can reconstruct, and that is the
+    whole of world-et25.
+
+    The FIRST diag is read, not the last. These are initialisation prints and a
+    resume's diag does not repeat all of them.
+    """
+    diags = sorted(run_dir.glob("MOST_DIAG.*"))
+    if not diags:
+        raise RuntimeError(
+            f"{run_dir} has no MOST_DIAG to read the derived constants from. "
+            "The model prints what it derived for each sentinel-selected key, "
+            "and without that print the run's record states a sentinel where a "
+            "number was integrated.")
+    lines = diags[0].read_text(errors="replace").splitlines()
+    out: dict[str, dict] = {}
+    for fname, key, marker, name, units in DERIVED_CONSTANT_ECHOES:
+        try:
+            staged = float(namelist_value(run_dir / fname, key).rstrip(",").strip())
+        except (KeyError, FileNotFoundError, ValueError):
+            # The run did not stage the key at all, so it is not this run's
+            # sentinel to resolve. `check_consistency.py` reports a key with no
+            # namelist route separately, and that is a different defect.
+            continue
+        echoed = None
+        branch = "derived" if staged < 0 else "declared"
+        for line in lines:
+            if marker not in line:
+                continue
+            for token in reversed(line.replace("*", " ").split()):
+                try:
+                    echoed = float(token.replace("D", "e").replace("d", "e"))
+                except ValueError:
+                    continue
+                break
+            if echoed is not None:
+                break
+        if echoed is None:
+            raise RuntimeError(
+                f"{run_dir.name} staged {key} = {staged:g} and its diag never "
+                f"printed '{marker}'. At a sentinel the model chooses the "
+                f"number and the namelist records only that it chose; a run "
+                f"whose record cannot state the number it integrated is one "
+                f"nothing can reconstruct or build an arm against. "
+                f"world-et25.")
+        out[name] = {"value": echoed, "branch": branch,
+                     "namelist_key": f"{key}@{fname}",
+                     "namelist_value": staged, "units": units}
+    return out
 
 
 def read_applied_energy_fix(run_dir: Path) -> dict | None:
@@ -2790,17 +3079,20 @@ def expected_namelist_keys(config: dict) -> dict:
     # argument: each selects between a derived form and a literal, so a
     # continuation that dropped one would silently return the segment to the
     # derived branch and no artifact would say it had.
-    gamma = float(m.get("precip_reevaporation_gamma", rainmod_default("gamma")))
+    gamma = selected_constant(config, "precip_reevaporation_gamma",
+                              lambda: rainmod_default("gamma"), "GAMMA")
     want["rainmod_namelist"]["GAMMA"] = float(f"{gamma:.6g}")
-    rcritwidth = float(m.get("cloud_fraction_subgrid_width",
-                             rainmod_default("rcritwidth")))
+    rcritwidth = selected_constant(config, "cloud_fraction_subgrid_width",
+                                   lambda: rainmod_default("rcritwidth"),
+                                   "RCRITWIDTH")
     want["rainmod_namelist"]["RCRITWIDTH"] = float(f"{rcritwidth:.6g}")
     # world-80ia, fluxmod_nl, unconditional on the same argument: the
     # asymptotic mixing length selects between a rotation-derived value and a
     # declared literal, so a continuation that dropped it would return the
     # segment to the derived branch with nothing in the run directory saying so.
-    lamm = float(m.get("asymptotic_mixing_length_m",
-                       fluxmod_default("vdiff_lamm")))
+    lamm = selected_constant(config, "asymptotic_mixing_length_m",
+                             lambda: fluxmod_default("vdiff_lamm"),
+                             "VDIFF_LAMM")
     want["fluxmod_namelist"]["VDIFF_LAMM"] = float(f"{lamm:.6g}")
     # world-py6p, landmod_nl. THE LAND COLUMN, all eight, unconditionally.
     # `land_water_column` is shared with the staging side the way
@@ -2818,6 +3110,17 @@ def expected_namelist_keys(config: dict) -> dict:
     for _key in ("DSOILWF", "DSOILWZ"):
         want["landmod_namelist"][_key] = [
             float(f"{v:.6g}") for v in lwc[_key]]
+    # world-5oyp, landmod_nl. THE SOIL HEAT SOLVER'S SIX ENDPOINTS,
+    # unconditionally and for the land column's reason: the control arm of the
+    # soil thermal bracket is the CONSTANT column, which is reached by setting
+    # each dry endpoint equal to its saturated partner, so a continuation that
+    # dropped them would return the segment to the interpolation and produce a
+    # control that agrees with its own arm by accident. The key list is stated
+    # here independently of the staging side, which is the half that must not
+    # come from it.
+    _soil = soil_thermal(config)
+    for _key in SOIL_THERMAL_KEYS:
+        want["landmod_namelist"][_key] = float(f"{_soil[_key]:.6g}")
     salinity = config.get("ocean", {}).get("salinity_psu")
     if salinity is not None:
         celsius = freezing_point_k(salinity) - 273.15
@@ -3112,6 +3415,34 @@ def main() -> None:
         help="Seed the initial state from an existing MOST_REST file instead of "
              "cold-starting. Only the spin-up path changes, not the equilibrium.",
     )
+    # WHAT THIS RUN IS FOR, DECLARED AND NOT DEFAULTED. world-ucww.
+    #
+    # `continue_exoplasim.py` has taken a required `--purpose` all along and
+    # this script took none, so every run it prepared wrote a first segment
+    # labelled `spinup` and a manifest claiming `canonical_lineage_eligible`,
+    # whatever the run was. sequencing.md A3's fourth condition requires the
+    # segments of a short A/B to be labelled DIAGNOSTICS so a tail never enters
+    # a convergence window or a climatology, and on a short A/B the first
+    # segment is the whole of it: the condition was unmeetable from this script.
+    #
+    # THERE IS NO DEFAULT, on the argument `segments.py` states for the whole
+    # vocabulary: the purpose is declared by the caller and never inferred from
+    # the flags. A default of `spinup` would leave the failure exactly where it
+    # was and silent in the direction that matters, because a mislabelled
+    # diagnostic tail is indistinguishable later from production orbits.
+    parser.add_argument(
+        "--purpose", choices=("spinup", "diagnostic"), default=None,
+        required=True,
+        help="what the orbits this run integrates are FOR. `spinup` carries "
+             "the planet toward equilibrium and belongs in a convergence "
+             "window; `diagnostic` measures the MODEL rather than the planet "
+             "-- an A/B arm, an I/O verification, a high-cadence sample -- and "
+             "is excluded from a convergence window and from a climatology, "
+             "and sets canonical_lineage_eligible = false. "
+             "post_equilibrium_climatology is deliberately NOT offered here: a "
+             "run's first orbits are not at equilibrium, and that purpose "
+             "comes from continue_exoplasim.py on a run assess_convergence.py "
+             "has judged.")
     args = parser.parse_args()
     config_path = args.config.resolve()
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
@@ -3604,13 +3935,26 @@ def main() -> None:
                      "registry's naming carries no precision at all, which is "
                      "why `arm` below is the only statement of an arm's."),
         },
+        # WHAT THIS RUN IS FOR, from --purpose. On the manifest as well as on
+        # every segment, because a reader asking whether a run belongs in the
+        # canonical chain reads the manifest and a run has no segments at all
+        # until it has integrated something. world-ucww.
+        "purpose": args.purpose,
         # An ARM RUN IS NOT PRODUCTION. Set false when the caller named the
         # binary rather than letting the registry's naming resolve it: the
         # executable is then one build_model.py refused to publish, and no
         # climatology built on it belongs to the canonical lineage.
         # `continue_exoplasim.py` refuses a post_equilibrium_climatology
         # segment on a run carrying false here.
-        "canonical_lineage_eligible": exe_provenance.get("arm") is None,
+        #
+        # A DECLARED DIAGNOSTIC IS THE OTHER WAY IN. `--binary` catches an arm
+        # that carries its own executable and reaches nothing else, so an A/B
+        # run as one binary differing by one namelist key -- which is the shape
+        # A3 asks for and the shape `--binary` exists to make unnecessary --
+        # was eligible for the canonical lineage on every arm this project has
+        # run. The two conditions are independent and either one disqualifies.
+        "canonical_lineage_eligible": (exe_provenance.get("arm") is None
+                                       and args.purpose != "diagnostic"),
         "software": {
             "python": platform.python_version(),
             "exoplasim": getattr(exo, "__version__", "3.4.2"),
@@ -3683,6 +4027,16 @@ def main() -> None:
         try:
             model.run(years=args.run_years, crashifbroken=True, clean=True)
             manifest["output_validation"] = validate_outputs(run_dir)
+            # WHAT THE MODEL DERIVED, on the manifest. world-et25. Three keys
+            # select a FORM rather than carrying a value, and the namelist
+            # therefore records the selection and not the number that was
+            # integrated. Read from the model's own print, and a run that
+            # staged a sentinel and printed nothing refuses here rather than
+            # recording a sentinel where a constant belongs.
+            manifest["derived_model_constants"] = read_derived_constants(run_dir)
+            for _name, _rec in manifest["derived_model_constants"].items():
+                print(f"{_name}: {_rec['value']:g} ({_rec['branch']}, from "
+                      f"{_rec['namelist_key']} = {_rec['namelist_value']:g})")
             manifest["status"] = (
                 "smoke_complete" if args.run_years == 1 else "run_complete"
             )
@@ -3711,11 +4065,15 @@ def main() -> None:
             # default it would be a run whose first block really is
             # accumulations and says so nowhere.
             #
-            # The purpose is `spinup` and is not a parameter: this script
-            # prepares a run and integrates it from a cold start or a seed,
-            # which is the definition of one. Orbits meant to be read as data
-            # come from `continue_exoplasim.py --purpose
-            # post_equilibrium_climatology`, on a run something has assessed.
+            # THE PURPOSE IS THE CALLER'S AND IS REQUIRED. It was `spinup`
+            # unconditionally, on the argument that this script prepares a run
+            # and integrates it from a cold start or a seed; that is true of a
+            # commissioning run and false of an A/B arm, whose whole life is
+            # its first segment and which A3 requires be labelled a diagnostic.
+            # Orbits meant to be read as data still come only from
+            # `continue_exoplasim.py --purpose post_equilibrium_climatology`,
+            # on a run something has assessed, which is why this flag does not
+            # offer that value.
             manifest.setdefault("segments", []).append({
                 "start_year_index": 0,
                 "end_year_index": args.run_years - 1,
@@ -3723,7 +4081,7 @@ def main() -> None:
                 "low_io": bool(args.low_io),
                 "ecological_stream": eco_stream,
                 "high_cadence": False,
-                "purpose": "spinup",
+                "purpose": args.purpose,
                 # WHY A FIRST RECORD IS REFUSABLE, and it is no longer CLIM-31.
                 #
                 # CLIM-31 was the donor's partial accumulation window arriving
