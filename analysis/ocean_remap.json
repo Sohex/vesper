@@ -440,7 +440,7 @@
       }
     },
     "config_sha256": "5ab8c97d4d36f6c7f0b1610648e6b8abf3a5d338458f310fb996b3b584b1769c",
-    "git_commit": "353476be66078061d6accbfdf467f441b9a668e5"
+    "git_commit": "f59a621ebd8573440ef78464fea34df13a102f01"
   },
   "export_area_disagreement": {
     "gauss_weights_against_construction": 1.3834419720915037e-15,

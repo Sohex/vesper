@@ -74,7 +74,6 @@ import remap as remap_lib  # noqa: E402
 import rungs  # noqa: E402
 
 OUT_JSON = ROOT / "analysis" / "ocean_remap.json"
-OUT_WEIGHTS = ROOT / "analysis" / "ocean_remap_weights.npz"
 
 # The negative control has to MISS the acceptance bar by at least three orders,
 # or the bar is not discriminating and the whole suite is decoration. Fixed here
@@ -136,8 +135,8 @@ def ocean_mask(grid_dir: Path, spec: gridding.GridSpec) -> np.ndarray:
     return cls == 0
 
 
-def run_checks(atm: gridding.GridSpec, ocn: gridding.GridSpec,
-               grid_dir: Path | None) -> tuple[list[dict], remap_lib.Crossing]:
+def run_checks(atm: gridding.GridSpec,
+               ocn: gridding.GridSpec) -> tuple[list[dict], remap_lib.Crossing]:
     checks: list[dict] = []
 
     def record(name, residual, bar, comparator="<=", detail=""):
@@ -339,7 +338,7 @@ def main() -> int:
     else:
         checked_against = str(grid_dir.relative_to(ROOT))
 
-    checks, crossing = run_checks(atm, ocn, grid_dir)
+    checks, crossing = run_checks(atm, ocn)
     report = {
         "atmosphere": {"name": atm.name, "shape": list(atm.shape), "source": atm.source},
         "ocean": {"name": ocn.name, "shape": list(ocn.shape), "source": ocn.source,
