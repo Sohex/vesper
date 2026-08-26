@@ -363,6 +363,16 @@ dimension from NLAT, it belongs in `Geometry`; where it is a compile-time
 `integer, parameter`, `parameter_dimensions_from_source()` reads it out of the
 source and nothing here restates the number.
 
+**Say what happens when a restart does not carry it.** `Policy.resume` is
+`required` by default, which means the model stops with the record's name
+printed -- the right answer wherever resuming would integrate from a state that
+is not the state, and affordable because rule 7 makes the cost a
+re-commissioning. `optional` has to be earned: say in `resume_cold` what the
+model starts from, and make it true at the call site with `mpgetgp_found`, a
+lowered `nexcheck`, a `has_restart_array` question, or a version marker named in
+`resume_marker`. The gate holds the two against each other in both directions.
+The argument per record is in `notes/audits/absent-restart-records.md`.
+
 **An accumulator's clean value is not always zero.** `tempmin` resets to 1.0e3
 and `atsami` to 1.0e10, both running minima; `asndch` and `aanrho` are reset by
 the model nowhere. The schema carries all four and the gate holds them against

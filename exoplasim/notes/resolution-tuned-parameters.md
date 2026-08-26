@@ -126,7 +126,16 @@ sits at the module default. This project writes one shortwave cloud key,
 `CLOUDABS`, from `model.cloud_absorption_scale`, and that is a stellar
 re-weighting rather than a resolution tuning.
 
-## 3. The two narrow ones: one deleted, one that applies
+## 3. The narrow ones, and the rule that separates a default from an override
+
+The dividing line runs through all of them and it is POSITION, not which
+configuration a branch names. A preset ABOVE `read(11,plasim_nl)` is a default:
+whatever the caller declares beats it, and the declaration is on disk where
+`verify_staged_namelists` can read it. A preset BELOW the read is an override
+that no declaration can beat and that nothing on disk records. The first shape
+stands wherever the quantity it presets genuinely needs the configuration it
+branches on; the second is deleted.
+
 
 `rainini`'s clearing of `nshallow` at T21 with 5 levels is gone. No rung is a
 special case, and this project's ten-layer configuration could not hit it at any
@@ -144,19 +153,43 @@ get upstream's behaviour; the key has always been there. Nothing this project
 has run or can build moved.
 
 `readnl` sets Rayleigh friction timescales when `NLEV==10`, a layer-count branch
-rather than a truncation one, and it applies here -- overwritten by the `TFRC`
-this project declares, since it too runs before the namelist read. Two more
-`NLEV==20` blocks in `readnl` run AFTER that read and would overwrite a declared
-`TFRC` without `verify_staged_namelists` noticing, because the namelist FILE
-would still hold the declared value; they need `nrdrag` 1, whose compiled
-default is 0 and which nothing here sets. `world-helo` carries them.
+rather than a truncation one, and it STANDS. `tfrc` is a per-level array, so a
+drag profile is a statement about the top two of however many layers there are
+and cannot be written without a layer count -- which is what separates it from
+the `NTRU==42` preset world-677x deleted, where `nhdiff` was an ABSOLUTE
+wavenumber whose meaning changed under the truncation it was keyed to. The block
+runs BEFORE `read(11,plasim_nl)`, so it is a DEFAULT: a caller that declares
+`TFRC` wins and a caller that declares none gets a sponge rather than none. This
+project declares all ten levels from `model.rayleigh_sponge_rotations` on every
+prepare and every continuation, so it is overwritten on every run here.
+
+**The two `NLEV==20` blocks that stood after the read are deleted, and `nrdrag`
+with them.** They ran AFTER `read(11,plasim_nl)`, which makes a preset something
+else entirely: a compiled constant that the namelist cannot beat. They would
+have overwritten a declared `TFRC` with nothing on disk to show for it, and
+`verify_staged_namelists` could not catch it because the namelist FILE would
+still hold the declared value. `nrdrag`'s compiled default was 0, nothing in this
+tree set it, and no namelist file anywhere names the key, so nothing here moved;
+`nrdrag` had nothing left to switch and is out of `plasim_nl` too. The deletion
+is NOT a no-op for a twenty-layer caller, which is the NSHALLOW footing exactly:
+that caller writes the profile into `TFRC` in `plasim_nl`, which is where a
+per-level friction profile belongs. The values are
+
+    nrdrag 1, neqsig /= 5:  tfrc(1)=20 d, tfrc(2)=30 d, tfrc(3)=tfrc(4)=100 d, tfrc(5:NLEV)=0
+    nrdrag 1, neqsig == 5:  tfrc(1:NLEV-10)=0, tfrc(NLEV-9)=20 d, tfrc(NLEV-8)=100 d, tfrc(NLEV-7:NLEV)=0
 
 `initpm` picks a timestep from `nlat` in three arms labelled T21, T31 and
 everything above, but only when the caller supplies neither `mpstep` nor
-`ntspd`. This project writes `MPSTEP` from `model.timestep_minutes` on every
-run, so the ladder is unreachable here; deleting it WOULD change what an
-auto-timestep run integrates, so unlike the branches world-677x removed it
-stands. `world-helo`.
+`ntspd`. It is therefore a DEFAULT and not an override, and it STANDS. This
+project writes `MPSTEP` from `model.timestep_minutes` on every run, so the
+ladder is unreachable here. Folding the two hand-picked arms into the third's
+formula is the change that would look like tidying, and it is refused on a
+measured number: at `nlat` 32 the formula gives 60 minutes, and 60 is exactly
+the coarsest step T21 has been measured to start clean at
+(`lib/rungs.py STABILITY_CEILING_MINUTES`), so a caller who declared no timestep
+would be defaulted to the rung's ceiling with no margin. The arm's 45 sits below
+it. Nothing here says what the T31 arm's 36 is worth, because T31 is not a rung
+this project probes. `world-helo`.
 
 The third, `gamma=0.007` at T42 with 10 levels, is gone, and so is the constant
 it branched from. `gamma` is the fraction of the sub-saturation deficit that

@@ -232,3 +232,54 @@ def cell_area(nlat: int) -> np.ndarray:
     edges = latitude_edges(nlat)
     rows = np.asarray(edges[:-1] - edges[1:], dtype=np.float64)
     return np.repeat(rows / (2 * nlat), 2 * nlat)
+
+
+def cell_directions(nlat: int) -> np.ndarray:
+    """Unit vectors to every cell centre of a Gaussian grid, row-major.
+
+    The same index convention `remap` uses: latitude row-major from the north,
+    longitude as a fraction of a turn taken from the cell index alone, so index
+    zero is the same meridian at every resolution and no degree convention has
+    to be agreed on. The Gaussian nodes ARE the sine latitudes, which is what
+    makes the third component free.
+    """
+    mu, _ = gauss_legendre(nlat)
+    mu = np.asarray(mu, dtype=np.float64)
+    nlon = 2 * nlat
+    turn = 2.0 * np.pi * np.arange(nlon) / nlon
+    coslat = np.sqrt(np.maximum(0.0, 1.0 - mu * mu))
+    out = np.empty((nlat * nlon, 3), dtype=np.float64)
+    out[:, 0] = np.outer(coslat, np.cos(turn)).ravel()
+    out[:, 1] = np.outer(coslat, np.sin(turn)).ravel()
+    out[:, 2] = np.repeat(mu, nlon)
+    return out
+
+
+def nearest_of_class(nlat_src: int, nlat_tgt: int, src_valid: np.ndarray,
+                     tgt_wanted: np.ndarray, chunk: int = 4096) -> np.ndarray:
+    """For each wanted target cell, the nearest source cell of its own class.
+
+    `src_valid` selects the source cells that may be donors -- the field's own
+    domain, land or ocean -- and `tgt_wanted` the target cells that need one.
+    The answer is an index array over the target grid, -1 where nothing was
+    asked for and -1 everywhere when no source cell qualifies at all.
+
+    Nearest is by great-circle distance, taken as the largest dot product of two
+    unit vectors, which is monotone in the angle and needs no arccos. The whole
+    comparison is (wanted x valid), so it is chunked over the target rather than
+    built as one matrix: T21 to T85 is 32,768 target cells against 2,048 source
+    cells and the intermediate is what would be large, not the answer.
+    """
+    src_valid = np.asarray(src_valid, dtype=bool)
+    tgt_wanted = np.asarray(tgt_wanted, dtype=bool)
+    out = np.full(tgt_wanted.size, -1, dtype=np.int64)
+    donors = np.flatnonzero(src_valid)
+    wanted = np.flatnonzero(tgt_wanted)
+    if donors.size == 0 or wanted.size == 0:
+        return out
+    src_xyz = cell_directions(nlat_src)[donors]
+    tgt_xyz = cell_directions(nlat_tgt)
+    for lo in range(0, wanted.size, chunk):
+        idx = wanted[lo:lo + chunk]
+        out[idx] = donors[np.argmax(tgt_xyz[idx] @ src_xyz.T, axis=1)]
+    return out

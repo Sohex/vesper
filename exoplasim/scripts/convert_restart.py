@@ -358,6 +358,50 @@ def convert(src: RestartState, tgt: RestartState, *,
     # counting. Conflating the two reported 3,399 fallbacks on a T21-to-T42
     # conversion where the real number was zero.
     tgt_masks = {d: _domain_mask(tgt, d) for d in ("global", "land", "ocean")}
+    # THE FALLBACK FOR A TARGET CELL WITH NO SAME-CLASS SOURCE OVERLAP IS THE
+    # NEAREST SOURCE CELL OF ITS OWN CLASS, world-3e3. It used to be the target
+    # template, which is the only value on hand that belongs to the target grid
+    # and is the wrong argument: the template's value is consistent with nothing
+    # in the file, and the donor's own neighbour is consistent with every
+    # prognostic that was just converted. That is the argument the schema
+    # already makes against taking the template's value for the records the
+    # model rebuilds, and it is stronger here, because a prognostic reservoir
+    # dropped on a cell a moved coastline created is the state that cell
+    # integrates from rather than something one timestep repairs. Measured at
+    # T21 to T42 before the change: 124 land and 132 ocean target cells out of
+    # 8,192, and a template cut from a one-orbit cold start put 103 per cent of
+    # the converted state's sea-ice volume residual on them.
+    #
+    # THE ALTERNATIVE WAS A DECLARED DISTANCE between the template's state and
+    # the donor's, with a refusal beyond it. It is refused as a design: the
+    # distance would be a number with no derivation, chosen until conversions
+    # stopped being refused, which is a tuned value by the project's own
+    # definition. Requiring the template to be near the donor is also the wrong
+    # requirement -- a template exists to supply the TARGET's record set,
+    # precision and static fields, and asking it to also be in the donor's
+    # climate state makes cutting one depend on the state one is converting.
+    #
+    # A target cell OUTSIDE the field's domain still takes the template's value
+    # and that is not a fallback: an ocean cell's soil temperature is the
+    # target's own, and the model owns it.
+    nearest: dict = {}
+
+    def donors_for(domain: str) -> np.ndarray:
+        """Target index -> source index of the same class, -1 where none exists.
+
+        Built once per domain and reused across every record and every level:
+        it depends on the two masks and the two grids, and on nothing a record
+        carries.
+        """
+        if domain not in nearest:
+            valid = masks[domain]
+            if valid is None:
+                valid = np.ones(src.geometry.nugp, dtype=bool)
+            nearest[domain] = rt.nearest_of_class(
+                src.geometry.nlat, tgt.geometry.nlat, valid,
+                np.ones(tgt.geometry.nugp, dtype=bool))
+        return nearest[domain]
+
     out_dtype = REAL[tgt.real_bytes]
     fractions: dict[str, np.ndarray] = {}      # remapped covers, for their pairs
     records, reports = [], []
@@ -457,7 +501,7 @@ def convert(src: RestartState, tgt: RestartState, *,
                                      ).astype(np.float64).reshape(-1, tgt.geometry.nugp)
             out = np.empty((src_lv.shape[0], tgt.geometry.nugp))
             detail = {"remap": pol.remap, "domain": pol.domain}
-            unfilled = outside = 0
+            unfilled = outside = stranded = 0
             for k, level in enumerate(src_lv):
                 if pol.remap == rs.THICKNESS:
                     cover = fractions.get(pol.partner)
@@ -477,9 +521,17 @@ def convert(src: RestartState, tgt: RestartState, *,
                 in_domain = tgt_masks[pol.domain]
                 if in_domain is None:
                     in_domain = np.ones(tgt.geometry.nugp, dtype=bool)
-                unfilled = max(unfilled, int((gaps & in_domain).sum()))
+                inside = gaps & in_domain
+                unfilled = max(unfilled, int(inside.sum()))
                 outside = max(outside, int((gaps & ~in_domain).sum()))
+                # The template first, which settles every out-of-domain gap and
+                # every in-domain cell whose class has no source anywhere.
                 value = np.where(gaps, fallback[k % fallback.shape[0]], value)
+                if inside.any():
+                    donors = donors_for(pol.domain)
+                    take = inside & (donors >= 0)
+                    value[take] = level[donors[take]]
+                    stranded = max(stranded, int((inside & (donors < 0)).sum()))
                 if pol.bounds is not None:
                     lo, hi = pol.bounds
                     clipped = np.clip(value, lo, hi)
@@ -504,18 +556,17 @@ def convert(src: RestartState, tgt: RestartState, *,
                         detail["inventory_measured_per"] = pol.measured_per
                     before = float((level * src_w * src_area)[src_in].sum())
                     after = float((value * tgt_w * tgt_area)[in_domain].sum())
-                    # What the TEMPLATE put there, on the in-domain cells the
+                    # What the FALLBACK put there, on the in-domain cells the
                     # mask change left with no source of their own class. It is
                     # the whole of the difference wherever the remap itself is
                     # conservative, and separating it is what makes the residual
-                    # actionable: a template cut from a run in a different state
-                    # from the donor injects that state at every moved
-                    # coastline cell.
-                    injected = float(
-                        (value * tgt_w * tgt_area)[gaps & in_domain].sum())
+                    # actionable: these cells are added inventory whatever the
+                    # fallback is, because they overlap no source of their class
+                    # and so nothing was taken away to pay for them.
+                    injected = float((value * tgt_w * tgt_area)[inside].sum())
                     detail.setdefault("inventory", []).append(
                         {"level": k, "source": before, "target": after,
-                         "from_template_fallback": injected,
+                         "from_fallback": injected,
                          "relative_residual": (abs(after - before) / abs(before))
                          if before else 0.0,
                          "residual_explained_by_fallback": (
@@ -526,10 +577,21 @@ def convert(src: RestartState, tgt: RestartState, *,
                 fractions[name] = out[0]
             detail["fallback_cells"] = unfilled
             detail["cells_outside_domain"] = outside
+            detail["stranded_cells"] = stranded
             if unfilled:
-                detail["fallback"] = ("the target template, for target cells "
-                                      "IN this field's domain that found no "
-                                      "source of their own class")
+                detail["fallback"] = (
+                    "the nearest source cell of the same class, for target "
+                    "cells IN this field's domain that found no source of "
+                    "their own class")
+            if stranded:
+                raise ConversionError(
+                    f"'{name}' has {stranded} target cells in its "
+                    f"{pol.domain} domain and the source restart has no "
+                    f"{pol.domain} cell anywhere to take a value from, so the "
+                    "only thing left to put there is the template's own state. "
+                    "That is a change of surface, not a change of resolution: "
+                    "convert onto a template whose mask has the class the "
+                    "source has, or stage the field rather than converting it.")
             if pol.conserve:
                 detail["conserves"] = pol.conserve
             payload, cast_detail = cast(out.ravel())
@@ -590,6 +652,25 @@ def template_provenance(template: Path) -> dict | None:
     return json.loads(side.read_text(encoding="utf-8"))
 
 
+def fallback_summary(reports) -> dict:
+    """How many target cells the moved coastline left with no source, by domain.
+
+    Said BEFORE the conversion is used rather than derived from its consequence
+    afterwards, which is what world-3e3 was about. It is a property of the two
+    masks alone, so one line per domain says the whole of it and the per-record
+    counts under `records` are all the same number.
+    """
+    by_domain: dict = {}
+    for r in reports:
+        cells = r.detail.get("fallback_cells")
+        if cells:
+            domain = r.detail.get("domain", "global")
+            by_domain[domain] = max(by_domain.get(domain, 0), int(cells))
+    return {"cells_by_domain": by_domain,
+            "filled_from": ("the nearest source cell of the same class"
+                            if by_domain else None)}
+
+
 def build_report(src, tgt, out_path, reports, source_manifest,
                  timestep=None) -> dict:
     recompute = sorted(r.name for r in reports
@@ -603,6 +684,7 @@ def build_report(src, tgt, out_path, reports, source_manifest,
         if rs.POLICY[r.name].semantic == rs.ACCUMULATOR
         and rs.POLICY[r.name].model_reset == "none")
     return {
+        "coastline_fallback": fallback_summary(reports),
         "schema_version": 1,
         "converter_version": CONVERTER_VERSION,
         "converter_sha256": sha256(Path(__file__)),
@@ -767,6 +849,13 @@ def main() -> int:
         return 0
 
     records, reports = convert(src, tgt, seed_override=seed_override)
+    # SAID AT THE CONVERSION, not left in a report to be read afterwards.
+    # world-3e3.
+    coastline = fallback_summary(reports)["cells_by_domain"]
+    if coastline:
+        counts = ", ".join(f"{n} {d}" for d, n in sorted(coastline.items()))
+        print(f"the coastline moved: {counts} target cells found no source of "
+              f"their own class and take the nearest source cell of that class")
     if args.output is None:
         ap.error("an output path is required")
     if args.dry_run:
