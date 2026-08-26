@@ -46,6 +46,7 @@ from _paths import (ANALYSIS, CONFIG, PEDOGENESIS, PROJECT_ROOT, SOURCE,
 import climatology as climatology_lib  # noqa: E402  from lib/, via _paths.
 # Aliased because `climatology` names a Path in main() and in read_weathering().
 from builds import grid_export  # noqa: E402
+from gridding import export_grid  # noqa: E402
 from paths import rel  # noqa: E402
 
 from build_soil import EARTH_YEAR_DAYS, KELVIN, weathering_intensity
@@ -72,17 +73,24 @@ def read_weathering(climatology: Path, params: dict) -> np.ndarray:
 
 
 def read_terrain(build: str) -> dict:
-    # planet.nc is PER GRID -- grid_cell_area, is_endorheic and basin_index are
+    # planet.nc is PER GRID -- is_endorheic, basin_index and surface_class are
     # all on the export's own Gaussian grid -- and these are combined
     # elementwise with a climatology, so reading the T42 one while the model
     # runs at another rung mixes two supports. SPAT-2.
-    path = grid_export(build=build) / "planet.nc"
+    grid_dir = grid_export(build=build)
+    path = grid_dir / "planet.nc"
     with nc.Dataset(path) as data:
         return {
             "path": path,
             "endorheic": np.asarray(data["is_endorheic"][:], dtype=float) > 0.5,
             "basin_index": np.asarray(data["basin_index"][:]).astype(int),
-            "area": np.asarray(data["grid_cell_area"][:], dtype=float),
+            # Cell areas are CONSTRUCTED from the grid rather than read from the
+            # export's grid_cell_area, which on a Gaussian grid is the
+            # nearest-row partition and not the quadrature the model integrates
+            # over -- 22 per cent wide in the polar row, and both polar rows on
+            # this terrain are land. Every use below is a ratio, so the share of
+            # the sphere is enough and the radius cancels.
+            "area": export_grid(grid_dir).cell_area_fraction(),
             # surface_class is the authoritative land definition; land_mask
             # floods the dry closed-basin floors, which is exactly the terrain
             # this measurement is about.

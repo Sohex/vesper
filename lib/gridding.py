@@ -180,6 +180,55 @@ def grid_geometry(grid_dir: Path):
     return lat, lon, gm
 
 
+def export_grid(grid_dir: Path, name: str | None = None) -> "GridSpec":
+    """The cell boundaries of an export's gridded output, CONSTRUCTED not read.
+
+    An export ships three area quantities and only one of them is the weight for
+    a gridded field: `raw/cell_area.bin` is the mesh region's dual area,
+    `grid/gauss_weights.bin` is the quadrature the spectral model's global budget
+    is taken over, and `grid/grid_cell_area.bin` is meant to be the second of
+    those in km2. Exports written before the generator was corrected instead
+    carry the NEAREST-ROW partition there: a valid partition of the sphere that
+    closes to 4 pi R^2 and reports a global mean the model does not take, wider
+    than the quadrature interval by 22 per cent in the polar row at every
+    truncation and not converging. `notes/audits/ocean-grid-crossing.md` has the
+    measurement.
+
+    So this constructs the partition from the manifest's `gridType` and shape
+    rather than reading a field, which makes it right on both sides of that
+    change, and then checks the rows it built against the axis the export
+    actually ships so a disagreement is an error instead of a quiet wrong
+    weight. Take `spec.cell_area(radius_m)` for areas and
+    `spec.cell_area_fraction()` where the radius would cancel.
+    """
+    lat, lon, gm = grid_geometry(grid_dir)
+    nlat, nlon = lat.size, lon.size
+    kind = str(gm.get("gridType", "uniform"))
+    if kind == "gaussian":
+        spec = gaussian_grid(nlat, nlon, name=name or f"{grid_dir.name}-gaussian")
+        require_gaussian_rows(spec, lat, what=f"the export grid at {grid_dir}")
+    elif kind == "uniform":
+        lat_edges = 90.0 - np.arange(nlat + 1, dtype=np.float64) * (180.0 / nlat)
+        sin_edges = np.sin(np.deg2rad(lat_edges))
+        sin_edges[0], sin_edges[-1] = 1.0, -1.0
+        lon_edges = -180.0 + np.arange(nlon + 1, dtype=np.float64) * (360.0 / nlon)
+        spec = GridSpec(name=name or f"{grid_dir.name}-uniform",
+                        lon_edges=lon_edges, sin_edges=sin_edges,
+                        source="lib/gridding.py:export_grid, equally spaced in latitude")
+        want = 90.0 - (np.arange(nlat) + 0.5) * (180.0 / nlat)
+        if float(np.abs(want - lat).max()) > 1e-6:
+            raise ValueError(
+                f"{grid_dir}: manifest says gridType=uniform but grid/lat.bin is not "
+                "equally spaced; the cell boundaries this would build are not the "
+                "export's own")
+    else:
+        raise ValueError(
+            f"{grid_dir}: gridType {kind!r} is not one this module builds boundaries "
+            "for. Add the arm rather than defaulting one, because the wrong "
+            "partition closes to the sphere just as exactly as the right one.")
+    return spec
+
+
 def region_cells(export: Export, grid_dir: Path):
     """Flat grid-cell index for every mesh region, plus the grid shape."""
     lat, lon, _ = grid_geometry(grid_dir)

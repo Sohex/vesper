@@ -275,10 +275,17 @@ def export_area_disagreement(grid_dir: Path, spec: gridding.GridSpec) -> dict:
     """How far the export's own `grid_cell_area` is from the quadrature weights.
 
     The export ships both `grid/gauss_weights.bin` and `grid/grid_cell_area.bin`
-    and they describe the same grid, so a disagreement between them is a fact
+    and they describe the same grid, so any disagreement between them is a fact
     about the artifact rather than about this crossing. It is measured here
     because this is the code that has to choose one of them, and it chooses the
     weights: the model's budget is a quadrature.
+
+    A corrected export returns zero here by construction, since `grid_cell_area`
+    is then the quadrature partition in km2. An export built before that
+    correction carries the NEAREST-ROW partition instead and returns about 0.22
+    in the polar row at every truncation; `notes/audits/ocean-grid-crossing.md`
+    section 3 has which is which and what it was worth. So this stays as a
+    check on the build in hand rather than being retired.
     """
     weights = np.fromfile(grid_dir / "grid" / "gauss_weights.bin", dtype="float64")
     area = np.fromfile(grid_dir / "grid" / "grid_cell_area.bin",

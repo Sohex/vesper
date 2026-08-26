@@ -86,24 +86,102 @@ three semantics, to 2.1e-16; and rotating the ocean's `phi0` by exactly one ocea
 column rolls the answer by one column and changes nothing else, to 2.7e-17.
 Seventeen checks in all, and the tolerances were fixed before any of them ran.
 
-# 3. The export ships two answers about its own cell areas
+# 3. The export shipped two answers about its own cell areas, and which one is right
 
 Every export carries both `grid/gauss_weights.bin` and `grid/grid_cell_area.bin`
-and they describe the same grid. They disagree.
+and they describe the same grid. They disagreed, and world-yolx settled which of
+them was wrong.
 
 `gauss_weights.bin` reproduces the Gauss-Legendre construction to 1.4e-15 at
 T21, 1.3e-15 at T42 and 3.1e-15 at T85 -- the same expression evaluated twice.
-`grid_cell_area.bin`, whose manifest entry calls itself "exact grid geometry" and
-"the correct weight for area-averaging any gridded field", differs from those
-weights by 22.0 per cent in the polar row at every rung tested, and the
-disagreement does not shrink with resolution: 21.99 per cent at T21, 22.10 at T42,
-22.13 at T85. In the interior it shrinks as expected of an O(1/N) construction --
-0.156 per cent at T21, 0.040 at T42, 0.010 at T85 -- so the two files agree in the
-limit and never at the poles.
+`grid_cell_area.bin` differed from those weights by 22.0 per cent in the polar
+row at every rung tested, and the disagreement did not shrink with resolution:
+21.99 per cent at T21, 22.10 at T42, 22.13 at T85. In the interior it shrank as
+expected of an O(1/N) construction -- 0.156 per cent at T21, 0.040 at T42, 0.010
+at T85 -- so the two agreed in the limit and never at the poles.
 
-The crossing takes the weights, because the model's global budget is a
-quadrature and the weights are what it is taken over. What ELSE in the tree
-area-weights with `grid_cell_area` is a separate question and is world-yolx.
+## 3a. It was a real partition of the sphere, answering a question nobody asked
+
+`vendor/orogen/js/geometry.js:latitudeEdges` builds row boundaries midway in the
+SINE of latitude between adjacent row centres, with the poles clamped. That is
+the NEAREST-ROW partition, and it is exactly right for what it was written for:
+`rowForLatitude` uses it to decide which grid row a mesh point falls in, and a
+point should go to the row whose centre is closest to it. `gridCellArea` then
+reused those edges as if they were cell boundaries.
+
+So the file was not arithmetic nonsense. It was the exact area of the region of
+the sphere that BINS into each cell, it closed to 4 pi R^2 to the last bit, and
+that is why the disagreement survived: a wrong partition of the sphere passes
+every conservation check a right one passes. Section 2's negative control is the
+same construction and it misses the known-integral bar by seven orders.
+
+**A Gaussian row is a quadrature abscissa and not a cell centre**, so there is no
+geometric midpoint to appeal to and the partition is chosen rather than derived.
+Only one choice makes a global mean of a model field equal the model's own global
+mean, and it is the quadrature's: the weights ARE the sine extents of the
+intervals a spectral transform integrates over, they sum to 2, and laid end to end
+from the north pole they tile the sphere. So the label was the thing that was
+wrong, and the file has been corrected to carry the partition the label promised
+rather than the label corrected to describe the binning partition -- because
+nothing in the tree wants a binning area, and four documents were recruiting
+readers to use it as a weight.
+
+The same defect had a second, independent instance: the uniform
+`grid-512x256` export, whose rows ARE cell centres and whose cell boundary is
+therefore unambiguously midway in LATITUDE, also took its bands from
+`latitudeEdges` and was 25.0 per cent wide in its polar row, converging to
+exactly 25 and never to zero.
+
+## 3b. What the error was worth, on fields the tree already has
+
+A 22 per cent error in one row is only worth what that row's area share is, and
+on a Gaussian grid the polar row is the smallest there is. Measured on
+`precarve-craton`'s own `planet.nc`, the shipped field against the quadrature:
+
+| rung | polar rows' share of the sphere | of land | endorheic land-area fraction | global land fraction | land-mean elevation |
+| --- | --- | --- | --- | --- | --- |
+| T21 | 0.702 per cent | 1.438 per cent | +0.143 per cent | +0.163 per cent | -0.104 per cent |
+| T42 | 0.178 per cent | 0.412 per cent | +0.010 per cent | +0.052 per cent | -0.040 per cent |
+| T85 | 0.045 per cent | 0.104 per cent | -0.009 per cent | +0.013 per cent | -0.010 per cent |
+
+Both polar rows are entirely land on this terrain, so the error is not masked
+away; it is diluted, by the area share and nothing else. **That dilution is a
+property of the statistic, not of the field**, so a diagnostic restricted to the
+polar rows takes the full 22 per cent, and an ABSOLUTE per-cell quantity takes it
+undamped in the cells it lands on.
+
+Which is the shape of the second finding. `pedology/scripts/weathering_fluxes.py`
+carried its own cell-area construction, midway in LATITUDE rather than in its
+sine -- a third partition again -- 5.79 per cent wide in the polar row and again
+not converging. It turns a flux per litre into an absolute silica and CO2 flux
+per cell per year, and `phosphorus_budget.py` imports it for phosphorus release,
+so there the polar cells were simply 5.8 per cent high with no ratio to damp it.
+Both now take `lib/gridding.py:gaussian_grid`.
+
+## 3c. What changed, and what it makes worthless
+
+`vendor/orogen/js/geometry.js` gains `cellSinEdges`, which returns the cell
+boundaries -- the quadrature intervals on a Gaussian grid, midway in latitude on
+an equally spaced one -- and `gridCellArea` takes them. `latitudeEdges` is
+untouched, because the binning it serves was never wrong; its docstring now says
+which of the two questions it answers. Three tests in
+`vendor/orogen/tools/test-integration.mjs` hold the new construction to an
+identity against the weights and carry the binning partition as a negative
+control that must MISS, so the check discriminates rather than decorates.
+
+`lib/gridding.py:export_grid` constructs an export's cell boundaries from the
+manifest's grid type and shape and checks them against the axis the export
+ships. It never reads `grid_cell_area.bin`, which is what makes it right on both
+sides of this change.
+
+**Per rule 7, this makes a FIELD worthless and no build.** Terrain is untouched,
+so no export is superseded; but every export on disk carries the nearest-row
+partition in `grid/grid_cell_area.bin` and in `planet.nc`'s `grid_cell_area`,
+and those are wrong until a build is regenerated. Anything derived from them is
+worthless in the same narrow way: `pedology`'s weathering, phosphorus and
+thermostat products, in their absolute per-cell numbers and in their polar rows.
+This document's own section 3 measurements are measurements OF the superseded
+field and stay true of what is on disk.
 
 # 4. The coastline is the part construction does not settle
 

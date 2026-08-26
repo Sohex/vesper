@@ -132,12 +132,29 @@ manifest rather than trusting a figure quoted anywhere.
 - **`elevation` is not kilometres.** It is the generator's internal shaping
   parameter (nonlinear hypsometric curve; 0.5 ≈ 1.1 km, 1.0 = 6 km; ocean linear
   at 10 km/unit). Use `elevation_km` for physical orography.
-- **Weighting.** `grid_cell_area` in the gridded output is the true cell area and
-  sums exactly to 4πR², so it is a correct area weight on every grid.
-  `grid/gauss_weights.bin` is equivalent on the Gaussian grids and `cos(lat)` on
-  the uniform one; all three agree to ~2e-4. `raw/cell_area.bin` is the mesh
-  region area. (Earlier exports called the gridded field `cell_area` and it was
-  a mesh diagnostic, not a cell area -- that trap is fixed, but any code written
+- **Weighting: three area quantities, three questions, and only one of them is
+  a grid weight.** `raw/cell_area.bin` is the MESH region's dual area and is the
+  right weight for reducing mesh regions onto a grid cell, which is what
+  `lib/gridding.py`'s `cell_*` operators do with it; averaged onto a grid it
+  carries no information about the cell and is not a grid weight.
+  `grid/grid_cell_area.bin` is the area of the grid CELL and is the weight for
+  area-averaging a gridded field. `grid/gauss_weights.bin` is that same
+  partition on a Gaussian grid expressed as weights summing to 2, and it is
+  what the spectral model's own global budget is taken over, so on those grids
+  the two are one fact: `grid_cell_area = R² × Δlon × gauss_weight`.
+  `cos(lat)` is a fourth thing and is none of them; it is not a partition of the
+  sphere at all.
+  A Gaussian row is a quadrature abscissa and not a cell centre, so a partition
+  built on midpoints between rows is a DIFFERENT partition of the sphere. It
+  closes to 4πR² just as exactly and it reports a global mean the model does not
+  take: it is wider than the quadrature interval by 22 per cent in the polar row
+  at every truncation, and that does not shrink with resolution. Exports built
+  before 2026-08-25 carry that partition in `grid/grid_cell_area.bin` and in
+  `planet.nc`'s `grid_cell_area`; on those, take `grid/gauss_weights.bin`, or
+  `lib/gridding.py:gaussian_grid(nlat, nlon).cell_area(radius_m)`, which
+  constructs it and never reads the field.
+  (Earlier exports called the gridded field `cell_area` and it was a mesh
+  diagnostic, not a cell area -- that trap is fixed, but any code written
   against an older export needs checking.)
 - **Distance fields are in cell hops, not km.** Convert with
   `avgEdgeKm = π × R / √numRegions`, and `manifest.basins.resolution.avgEdgeKm`

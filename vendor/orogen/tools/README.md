@@ -505,6 +505,14 @@ written to `grid/gauss_weights.bin`. Emitting the Gaussian grid straight off the
 mesh removes the lossy equirect intermediate you would otherwise have to regrid
 through.
 
+A Gaussian row is a quadrature abscissa and NOT a cell centre, so the row owns
+its quadrature interval and not the band around its midpoint. Those are two
+different partitions of the sphere, both of which tile it exactly, and only the
+first reports the global mean a spectral model takes -- they differ by 22% in
+the polar row at every truncation and that does not shrink with resolution.
+`grid/grid_cell_area.bin` is the quadrature partition in km², so it and
+`gauss_weights.bin` are one fact: `grid_cell_area = R² × Δlon × gauss_weight`.
+
 ## Sub-grid orography
 
 Resampling gives a cell its mean elevation and nothing else, but a GCM wants to
