@@ -192,10 +192,10 @@ a 1.4 W/m2 criterion, so a field was refused and the scalar kept.
 seawater's 0.985 to 0.99 is still declared and is worth roughly 0.5 to
 1.5 W/m2.
 
-## 7. The land roughness field is anchored through Earth's gravity
+## 7. The land roughness field was anchored through Earth's gravity. RESOLVED
 
-`build_surface_roughness.py:19, 221, 244` hardcodes 141.6 m as "this planet's
-lowest level", three times, with no config key and no derivation.
+`build_surface_roughness.py` carried 141.6 m as "this planet's lowest level" in
+three places, with no config key and no derivation.
 `hydrography/scripts/carve_verdict.py:217` derives the same quantity as
 `(GASCON * t_air / gravity) * ln(1/SIGMA_LOWEST)`.
 
@@ -208,20 +208,23 @@ Measured 2026-08-24, with `GASCON` 287.017 and `SIGMA_LOWEST` 0.9828:
 
 The hardcoded value is the Earth one, high by exactly the gravity ratio 1.306.
 
-The builder bisects the free orographic coefficient so that the area-weighted land
-mean of the derived `z0` field hits a target, through `ce = 0.16/ln(141.6/z0)^2`,
-so the anchor is 14% low: `ce` at the 2.0 m default is 0.00882 as coded against
-0.01004 correct. The "7.7x too much exchange" claim in the script's own docstring
-and in `lake-representation.md:208-214` is really 8.4x. This reaches land
-sensible heat and land evaporation, and therefore the carve criterion's numerator.
-Separately, the `0.16` is an unstated von Karman squared.
+Every roughness the builder reported passed through `ce = 0.16/ln(141.6/z0)^2`,
+so the reference height was 14% high: `ce` at the 2.0 m default is 0.00882 as
+coded against 0.01004 correct. The "7.7x too much exchange" claim in the
+script's own docstring and in `lake-representation.md:208-214` is really 8.4x.
+This reaches land sensible heat and land evaporation, and therefore the carve
+criterion's numerator. Separately, the `0.16` is an unstated von Karman squared.
 
-The anchor itself is the second half: the target is ExoPlaSim's own `dz0land` =
-2.0 m, whose only documentation in the model source is the comment "roughness
-length land". `config-rationale.md:764-766` records the decision to anchor there
-so the field "redistributes roughness without moving the global value the model
-was tuned against", and neither that nor `steps.md:40-41` establishes that 2.0 m
-is a tuned value rather than an unexamined default.
+**Resolved.** The builder takes the height from `lib/lapse.py:reference_height_m`
+at this planet's gravity, the same derivation `carve_verdict.py` uses, and
+brackets it over the liquid-water span because it is linear in an air
+temperature no climatology has measured yet.
+
+The anchor that sat beside it is gone too, and `notes/audits/tuned-values.md`
+section 9 carries the whole of it: the land mean was solved onto ExoPlaSim's own
+`dz0land` and is now DERIVED from this world's own subgrid slope, with Earth's
+value reported as a comparison. The height error and the anchor were separate
+defects on one coefficient and both are closed.
 
 ## 8. Cloud liquid water, and therefore cloud optical depth
 

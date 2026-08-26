@@ -1,9 +1,15 @@
 # Which mesh-to-grid reductions the order of operations changes, and by how much
 
-**Measured:** 2026-08-24, saturation arm re-measured 2026-08-25, on `precarve-craton-10m`, terrain hash
-`ab0d679b`, 10,000,005 regions, at every rung of the T21/T42/T85/T127/T170
-ladder. `analysis/spatial_reduction_gap.py` is the measurement and
-`analysis/spatial_reduction_gap.json` its output.
+**Measured:** the roughness arms, sections 3 and 5, on 2026-08-26 on
+`canonical-10m-base`, terrain hash `20046729`; the pedology and saturation arms,
+sections 1, 2, 4 and 6, on 2026-08-24 and 2026-08-25 on `precarve-craton-10m`,
+terrain hash `ab0d679b`. Both builds carry 10,000,005 regions and every arm is
+measured at every rung of the T21/T42/T85/T127/T170 ladder.
+`analysis/spatial_reduction_gap.py` is the measurement and
+`analysis/spatial_reduction_gap.json` its output; the artifact holds one build
+at a time and currently holds the later one, so the sections measured on the
+earlier build are quoted here and not reproducible from it until they are
+re-run.
 
 This is worldbuilding. Vesper is an invented super-Earth; every quantity below
 is a modelled field of that planet or a parameterisation this pipeline applies
@@ -43,9 +49,9 @@ from the mesh.
 | --- | --- | --- | --- |
 | erodibility mixed before the regolith depth law | `soil` | **MATERIAL, by an order of magnitude** | 0.19 to 0.28 m of regolith at the land mean, against a 0.02 m bar, on 63 to 87% of land area |
 | subgrid elevation through saturation vapour pressure | `boundary_conditions`, then evaporation | **NO VERDICT, and the whole of it turns on one number** | 0.32% to 12.0% of `e_sat` against a 1% bar; the bar is crossed once the land-mean lapse rate passes 3.95 to 7.07 K per km, against this planet's dry adiabat of 12.75 |
-| surface roughness averaged as a length | `surface_roughness` | **NOT material in the land mean; material on a growing tail** | 0.29% to -0.01% at the land mean against a 7.0% instrument, but past the instrument on 1.9% of land area at T21 rising to 4.2% at T170, and reaching 30% on the closed-basin floors |
+| surface roughness averaged as a length | `surface_roughness` | **MATERIAL, in the land mean and over most of land area** | -10.3% to -8.1% at the land mean against a 5.1% instrument, past the instrument on 81% of land area at T21 falling to 53% at T170, and -24% at the land mean in the top decile of barren share |
 | parent texture mixed before weathering | `soil` | **NOT material, and the premise is wrong** | the clay total is exactly 0.0 at every intensity and every rung; sand and silt trade at most 0.0047 of the land mean, inside Dunne's own scatter everywhere |
-| the orographic coefficient re-solved per rung | `surface_roughness` | a support-dependent CALIBRATION, not a gap | moves by a factor 1.98 across the ladder while the relief it multiplies falls by 5.96 |
+| the orographic term across the ladder | `surface_roughness` | DERIVED, and flat where it used to be a calibration | the land mean spreads by 0.9% from T21 to T170, where the solved coefficient it replaced moved by a factor of 1.98 |
 | `subgrid_slope` as an elevation spread over the mesh spacing | `soil` | a length carried from the MESH, not a gap | doubled between this project's two builds while the spread it is built from moved 1.6%; the run is now declared, and 11.8% of regolith depth at the land mean rests on the change |
 
 ## 1. Erodibility mixed before the regolith depth law. The large one
@@ -177,11 +183,11 @@ below it the reduction is admissible and no operator is needed.
 Refinement is not a route out. The critical rate rises by only a factor 1.49
 from T21 to T170 while the bracket it is being compared against spans a factor
 of 3.2, so a finer rung moves the answer by less than the ignorance does. That
-is the same conclusion the roughness recalibration reaches in section 5 for a
-different reason, and it is why this belongs to SPAT-5's partial-surface
-decision rather than to a rung choice.
+is where section 5 lands on the roughness for a different reason, and it is
+why this belongs to SPAT-5's partial-surface decision rather than to a rung
+choice.
 
-## 3. Surface roughness averaged as a length. Not material, except where it is
+## 3. Surface roughness averaged as a length. Material, and it grew
 
 `build_surface_roughness.py` gave every mesh region a roughness from its land
 cover, area-averaged the LENGTHS over a cell's land, and handed the model one
@@ -189,33 +195,42 @@ cover, area-averaged the LENGTHS over a cell's land, and handed the model one
 linear in `ce`, so what the cell owes the atmosphere is the area mean of `ce`
 over its own surfaces, not `ce` of the mean length.
 
-In the land mean the two agree: 0.29% at T21 falling through 0.18%, 0.08%,
-0.03% to -0.01% at T170, against an instrument -- the step's own `z_ref` bracket
--- of 7.0%. Twenty-four times inside it at the worst rung. By the declared bar
-that is noise.
+The gap is in the land mean and not only in a tail. Measured on
+`canonical-10m-base` on 2026-08-26, the land-mean gap runs -10.3%, -9.8%,
+-9.1%, -8.6%, -8.1% from T21 to T170, against an instrument -- the step's own
+`z_ref` bracket -- of 5.1%. Twice the instrument at the coarsest rung and still
+past it at the finest.
 
-It is not noise everywhere. The 1st-percentile cell carries -13% at T21 and
--22% at T170, and the land area whose gap exceeds the instrument runs 1.9%,
-2.4%, 3.2%, 3.9%, 4.2% across the ladder. **That share grows with refinement**,
-which is the opposite of what a reader would assume, and the reason is that a
-finer cell is more often DOMINATED by one surface with a minority of the other,
-which is exactly where a logarithm parts company with its argument.
+**Its size depends on how rough the field is, and that is why this measurement
+moved.** The first pass of it was taken while the field's land mean was solved
+onto Earth's, which put an orographic term of several metres under every land
+cell and swamped the two-decade contrast between barren ground and canopy; the
+gap then read a few tenths of a per cent and the verdict was "not material in
+the land mean". Against a derived land mean, where the orographic term is a
+small addition to the cover roughness rather than the whole of it, the same
+reduction decides a first-order quantity. The operator was already the right
+one. What changed is what it is worth.
 
-Stratifying by the cell's barren share finds the tail where the field's purpose
-lives. In the top decile of barren share the 1st-percentile cell reaches -31%,
-and those cells are the flat closed-basin floors the carve verdict integrates
-evaporation over. Averaging the lengths puts a canopy minority in charge of a
-playa cell's exchange coefficient and overstates its evaporation by up to a
-third.
+The land area whose gap exceeds the instrument runs 81%, 74%, 64%, 58%, 53%
+across the ladder. **That share falls with refinement**, the opposite of what
+the first pass reported, and for the same reason: a coarser cell mixes more
+surface classes, so more cells carry the contrast at all, and a fine enough cell
+is one class and has no gap to have.
 
-**Corrected.** The builder now reduces in `ce` and writes the length that
-reproduces the cell's area mean of it. The inversion needs `z_ref`, which is
-unknown before a climatology, so it is taken at the midpoint of the same
-liquid-water bracket the report already declares -- and the whole bracket is
-worth 1.5e-4 of the land mean, measured, so the anchor choice is not a free
-parameter in disguise. At T21 the land mean stays at the anchored 2.0 m by
-construction, the roughest land cell falls from 7.572 to 7.526 m and the
-smoothest from 0.003781 to 0.003772 m.
+Stratifying by the cell's barren share finds where the field's purpose lives. In
+the top decile of barren share at T21 the land-area-weighted gap is -24% and the
+1st-percentile cell reaches -34%; those cells are the flat closed-basin floors
+the carve verdict integrates evaporation over. Averaging the lengths puts a
+canopy minority in charge of a playa cell's exchange coefficient and overstates
+its evaporation by a third.
+
+**Corrected.** The builder reduces in `ce` and writes the length that reproduces
+the cell's area mean of it. The height that average is taken at is not free and
+is not the model's lowest level: Mason (1988) shows the average that reproduces
+the correct area-mean surface stress is taken at the BLENDING HEIGHT, and his
+Eq (14) puts it an order of magnitude lower on this mesh. `notes/audits/
+tuned-values.md` section 9 carries that and the derivation of the orographic
+term beside it.
 
 ## 4. Parent texture mixed before weathering. The premise does not hold
 
@@ -248,33 +263,48 @@ for runoff and temperature this project does not hold one. Sizing that term
 needs a climatology and a within-cell distribution of it, and neither exists.
 The texture reduction itself is admissible at a cell mean and needs no operator.
 
-## 5. The orographic coefficient is re-solved on every rung
+## 5. The orographic term across the ladder. Was a calibration, is now derived
 
-Not a Jensen gap. `build_surface_roughness.py` solves the constant relating
-subgrid relief to a roughness so that the land mean lands on ExoPlaSim's own
-`dz0land`, and it solves it on whichever grid it is building for.
+Not a Jensen gap, and no longer a calibration either. `build_surface_roughness.py`
+used to solve a constant relating subgrid relief to a roughness so the land mean
+landed on ExoPlaSim's own `dz0land`, and it solved it on whichever grid it was
+building for: the constant rose by a factor of 1.98 from T21 to T170 while the
+relief it multiplied fell by 5.96. Two rungs built with the defaults therefore
+differed by their terrain and by their calibration at once, and finding 8's
+convergence question could not be answered from them.
 
-| rung | coefficient | ratio to T42 | median subgrid relief |
-| --- | ---: | ---: | ---: |
-| T21 | 0.004088 | 0.820 | 141.0 m |
-| T42 | 0.004985 | 1.000 | 66.6 m |
-| T85 | 0.006149 | 1.234 | 38.3 m |
-| T127 | 0.007147 | 1.434 | 28.5 m |
-| T170 | 0.008093 | 1.623 | 23.7 m |
+The relation the constant sat in was the defect. Turbulent orographic form drag
+is quadratic in the subgrid SLOPE, not linear in relief amplitude, so a
+coefficient multiplying an elevation spread has to carry the missing horizontal
+scale inside itself -- and the horizontal scale of a within-cell spread IS the
+cell. That is why it moved with the rung. The orographic term is now derived from
+the mesh's own plane-fit slope through Wood and Mason (1993) Eq (33) and
+Beljaars et al. (2004) Eq (6), with no constant to solve;
+`notes/audits/tuned-values.md` section 9 carries the derivation.
 
-The relief falls by 5.96 across the ladder, as it must -- a smaller cell holds
-less of the terrain's variance -- and the coefficient rises by 1.98 to hold the
-anchor. Their product still falls, from 0.576 to 0.192 m, so the orographic
-contribution to `z0` is genuinely smaller at fine support AND the constant that
-sets it has moved. Two rungs built with the defaults therefore differ by their
-terrain and by their calibration at once, and finding 8's convergence question
-cannot be answered from them.
+Measured on `canonical-10m-base` on 2026-08-26, the derived land-mean roughness
+across the whole ladder:
 
-The solve stays, because it is the anchoring argument the field rests on and
-removing it would move the global roughness ExoPlaSim was tuned against.
-`--orographic-coefficient` supplies one value to a whole ladder comparison
-instead, the default still solves, and a single-rung build is unchanged. SPAT-8
-must pass it.
+| rung | land-mean `z0` | ratio to T42 | median slope variance | median subgrid relief |
+| --- | ---: | ---: | ---: | ---: |
+| T21 | 0.4800 m | 0.9974 | 3.46e-4 | 153.57 m |
+| T42 | 0.4813 m | 1.0000 | 1.44e-4 | 74.77 m |
+| T85 | 0.4826 m | 1.0027 | 5.31e-5 | 42.29 m |
+| T127 | 0.4836 m | 1.0049 | 2.72e-5 | 31.09 m |
+| T170 | 0.4845 m | 1.0067 | 1.66e-5 | 25.58 m |
+
+The spread is 0.9% end to end. These are the arm's own aggregate-then-process
+land means, so they are not the field's own -- the builder reduces in `ce` at the
+blending height and reports that per rung -- but the comparison across rungs is
+like for like and it is the one this section asks about.
+
+The slope variance falls by 21 across the ladder and the land mean does not
+follow it, because the drag is a property of the land and the mesh rather than of
+the cell: each cell averages the same per-region drag over a different number of
+regions. **SPAT-8's constraint is discharged.** A ladder comparison no longer has
+to pass one coefficient to every rung, because there is no coefficient; a derived
+land mean that moved with the rung would say the scheme was still carrying the
+support inside it, and this table is that check.
 
 ## 6. `subgrid_slope` measured the mesh, not the gradient
 

@@ -37,9 +37,9 @@ fraction (212). Three more are conditional on model keys: soil water capacity
 `model.dust_source`), and the dust emission fields (1801,
 `model.dust_emission`).
 
-Roughness is measured from land cover and subgrid relief rather than
-asserted uniform, with its land mean anchored to the model's tuned default so
-only the distribution moves; every other surface field falls back to a
+Roughness is measured from land cover and derived from this world's own
+subgrid slope rather than asserted uniform, so its land mean is an output and
+not an anchor; every other surface field falls back to a
 declared uniform, because Earth's maps are tied to Earth's continents.
 `exoplasim/README.md` has the construction.
 

@@ -916,10 +916,15 @@ NVEG is 0 in these runs, so landmod.f90:409 takes dz0 = dz0clim directly and
 173 is the field that matters; SIMBA's separate vegetation and orographic
 terms never run.
 
-The land mean is anchored to ExoPlaSim's own 2.0 m, so this redistributes
-roughness without moving the global value the model was tuned against. The
-field spans 0.025 to 11.2 m and its exchange coefficient 0.0021 to 0.0249,
-against the uniform 0.0088.
+The land mean is DERIVED and not anchored. The orographic term is the
+turbulent form drag this world's own subgrid slope exerts, through Wood and
+Mason (1993) Eq (33) and Beljaars et al. (2004) Eq (6), with no free
+coefficient in it; the cell average is of drag coefficients at Mason (1988)'s
+blending height. The land mean of PlaSim's own Earth boundary dataset is
+reported beside it as a comparison, and the builder's report carries the
+distance, both ends of the declared bracket and the land means the field
+spans. `notes/audits/tuned-values.md` section 9 has the derivation and what
+each paper settled.
 
 ## `soil_water_source`
 
