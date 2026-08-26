@@ -1828,6 +1828,13 @@ returns 0.0592, a ratio that runs 1.8 to 2.6 across the whole water-path range,
 and band-2 layer reflectance rises with it from 0.47 to 0.67 while
 transmissivity roughly halves. Band 2 carries 0.6176 of this star's flux.
 
+**The artifact's own per-layer split says the same thing.** Its
+`per_layer_band2` runs to -23.7 W/m2 on the layers carrying the most cloud water
+where `per_layer_band1` reaches only -1.5, so more than nine tenths of the term
+is in band 2. Band 1 is where the optical depth changed most and band 2 is where
+the backscatter table landed, which is the same conclusion the layer optics above
+reach from the coefficients rather than from the fluxes.
+
 The pair already on disk agrees from the other side. `run_d35b554cab2a` against
 `run_57cecaa8391b` is namelist-identical with both binaries pre-f9ig and differs
 only in world-jgen's tau relation: 0.13 K. The tau relation is worth tenths of a
