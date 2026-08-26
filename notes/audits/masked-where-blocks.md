@@ -263,29 +263,100 @@ three classes, so `--kind any` is its default and its gate, and
 
 ### What the reading found that is not a masked-domain defect
 
-Nine divisors are not bounded on a lane `losun` KEEPS, and the mask never had
-anything to do with them: the expression is the same on a kept lane as on a
-discarded one. They are two shapes, and they are world-2223.
+Thirteen divisors in `swr` are not bounded on a lane `losun` KEEPS, and the
+mask never had anything to do with them: the expression is the same on a kept
+lane as on a discarded one. They are two shapes, they were world-2223, and the
+two shapes got different answers. Measured 2026-08-26 by
+`exoplasim/scripts/swr_divisor_domain.py`, which evaluates each expression over
+the model's own absorber ranges rather than arguing from the formulae. It
+writes nothing: what it produces is a bound, and the bound belongs here and in
+the CLASSIFIED rows of `exoplasim/scripts/lint_masked_domains.py` that cite it.
 
-`1 - A(u)/zsolar_b` is the clear-sky band transmissivity, at `zto3t`, `zto3u`,
-`ztwvt`, `ztwvu`, `ztco2t`, `ztco2u` and the three denominators written out.
-`A` is Lacis and Hansen's absorptance as a fraction of TOTAL incident flux and
-`zsolar_b` is band b's share of it, so the quotient is the fraction of the BAND
-the absorber removes and the divisor vanishes when it removes all of it. Whether
-it can is not a property of the formulae: `o3uvw`, `o3visw`, `h2osww`, `h2oswl`
-and `co2sww` are namelist re-weightings for a non-solar host and are not
-confined to 1, and `zsolar1` falls as the host reddens. `lwr` clamps its
-counterpart, `ztaucs` to `[zero, 1-zero]`; `swr` clamps nothing.
+#### `1 - A(u)/zsolar_b`, nine sites: the family gets the clamp
 
-`1 - R_above*R_below` is the adding method's denominator, at four sites. Both
-factors are layer reflectivities summed from a Rayleigh term, a cloud term and
-an aerosol term without the sum being bounded. The direct-beam cloud
-reflectivity `1 - 1/(1 + zb1*ztau1/zmu0)` approaches 1 as the beam cosine falls,
-so `zrb1` can exceed 1 at low sun under thick cloud even though each term is
-below it. The scattered-beam pair the divisors actually use is tighter --
-`zrcl1s` is capped near 0.94 by the optical-depth ceiling and `zrcsu` by the
-Rayleigh coefficient -- but the bound runs through the surface pressure and is
-not comfortable.
+The clear-sky band transmissivity, at `zto3t`, `zto3u`, `ztwvt`, `ztwvu`,
+`ztco2t`, `ztco2u` and the three denominators written out. `A` is Lacis and
+Hansen's absorptance as a fraction of TOTAL incident flux and `zsolar_b` is band
+b's share of it, so the quotient is the fraction of the BAND the absorber removes
+and the divisor vanishes when it removes all of it.
+
+**All three absorptances can exceed their band's share, and one of them does so
+at a finite asymptote this configuration puts 24 per cent above 1.**
+
+| absorber | supremum of `A/zsolar_b` | crosses zero at | model's own maximum | margin |
+| --- | --- | --- | --- | --- |
+| ozone, band 1 | unbounded; the Huggins term goes as u^0.195 | 9.134e8 cm STP | 12.89 cm STP | 7.09e7x |
+| water vapour, band 2 | 1.24053, the closed form `h2osww*h2oswl*2.9/5.925/zsolar2` | 2090.3 precipitable cm | 212.89 cm | 9.82x |
+| CO2, band 2 | unbounded; two logarithms | 1.096e45 atmos-cm | 5403 atmos-cm | 2.03e41x |
+
+The model ranges are derived and not assumed: the ozone column is `mko3`'s own
+`a0o3+a1o3+aco3` times `ozone_scale`, the water and CO2 columns are `swr`'s own
+`zwv` and `zco2` on the bootstrap climatology's `hus`, `ta` and `ps` with the
+reconstructed sigma grid, and the magnification ceiling is `zm = 35`, which the
+mask's own threshold lets a kept lane reach.
+
+**The water vapour margin is a property of the host, not of the formula.** On
+the Sun, with both weights at 1 and `radmod`'s declared `zsolar2 = 0.483`, the
+supremum is 1.0134 and the crossing is at 5.75e6 cm. Here it is 1.2405 and the
+crossing falls to 2090 cm: five orders of magnitude of margin removed by a K
+dwarf's band split and by two re-weightings that are not confined to 1. Over the
+declared `h2o_sw_level_bracket` the supremum runs 1.2043 to 1.2864 and the
+crossing 3271 to 1296 cm, so the verdict survives its own bracket at both ends.
+
+**So the divisor cannot reach zero on a lane this planet's configuration
+produces -- the tightest of the nine floors at 0.2016 -- and nothing structural
+keeps it there.** `swr` now applies the clamp `lwr` already applies to `ztaucs`,
+`AMIN1(1.-zero, AMAX1(zero, .))` at each of the nine sites, through a `zcstr`
+preset to 1 OUTSIDE the mask so a discarded lane still divides by exactly 1.
+Being 0.2016 away from binding, the clamp is bit-identical to its control on
+this configuration: it changes stored values only where the alternative was
+dividing by a number approaching zero, which is the condition it exists for.
+
+#### `1 - R_above*R_below`, four sites: the family gets a bound
+
+The adding method's denominator, in the downward loop, the upward loop and the
+flux loop. Both factors are layer reflectivities summed from a Rayleigh term, a
+cloud term and an aerosol term without the sum being bounded, and the
+direct-beam cloud reflectivity `1 - 1/(1 + zb1*ztau1/zmu0)` does approach 1 as
+the beam cosine falls. The divisors use the SCATTERED pair, and that one is
+bounded, by caps already in the code:
+
+- **Rayleigh.** `zscf = rcoeff*ps/101100*9.80665/ga` is 0.5452 at this planet's
+  gravity and surface pressure, giving a diffuse reflectance of 0.0813. Over
+  every `rcoeff` candidate and every surface pressure the model produces, the
+  ceiling is 0.1003.
+- **Cloud.** `zlwp` is capped at 1000 g/m2, which caps `tau1` at 138.48 and
+  `tau2` at 145.84, so `zrcl1s <= 0.9449` and `zrcl2s <= 0.7369`. The band-2
+  maximum is interior, at 360 g/m2, not at the cap.
+- **Aerosol.** The two-stream form is strictly below 1 at any optical depth:
+  `(u-1)/(u+1)` ceilings of 0.5139 in band 1 and 0.5684 in band 2 on the optical
+  constants the model reads. `naerosp` is 0 in the configured runs, so `iaeron`
+  is 0 and the term is absent.
+- **The layer sum.** Both terms are linear in `dcc`, so the maximum is exact and
+  at an endpoint: 0.9449 at `dcc = 1` in band 1, 0.7369 in band 2. The sum
+  cannot exceed 1.
+- **The accumulation.** Every layer satisfies R + T <= 1 by construction, since
+  `ztb1u` is 1 minus the ozone absorptance times the clear fraction, minus
+  `zrb1s`, minus aerosol absorption. The adding recursion is therefore bounded
+  by 1, with its fixed point at a conservative layer exactly 1; ten conservative
+  layers at 0.9449 accumulate to 0.9942.
+
+**The product's floor is therefore 0.005799 in band 1 and 0.034467 in band 2
+against a perfect reflector, 0.1136 and 0.4730 at the model's own maximum
+band-1 surface albedo, and 0.1298 and 0.4763 at the fields the model actually
+carries.** It cannot reach zero, the bound is structural, and it is recorded
+rather than clamped: a clamp here would be guarding against a state the caps
+already forbid.
+
+#### Which of the thirteen is tightest depends on the currency
+
+By divisor VALUE it is the band-1 flux-loop denominator at 0.005799, but only
+with every cap in the code saturated at once and a perfect reflector under it;
+at the model's own fields it is 0.1298. By margin in the quantity that can
+GROW it is the water vapour trio at 9.82x, and that is the one that matters:
+the family-B margin sits behind hard caps, while the family-A margin sits on a
+water column that grows with the modelled climate and on three namelist
+quantities none of which is confined.
 
 ## The local whose only definition is inside a mask, as a class of its own
 

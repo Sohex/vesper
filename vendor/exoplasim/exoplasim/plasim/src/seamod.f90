@@ -200,6 +200,22 @@
        dqs(:)  = dqs(:)/(1.-(1./rdbrv-1.)*dqs(:))
        dq(:,NLEP) = dqs(:)
        drhs(:)=drhssea*(1.-dicec(:))+drhsice*dicec(:)
+!
+!     WHERE THE OPEN-WATER PART OF THIS SURVIVES, AND WHERE IT DOES NOT. OCN-7.
+!     The doceanalb pair written here reaches the shortwave only with BOTH of
+!     radmod's ocean zenith branches off, necham = necham6 = 0. Under either
+!     branch -- ECHAM-3 by default -- radmod's upward loop replaces the
+!     open-water part of dsalb with its own zenith fit and this pair survives
+!     only on the sea-ice fraction. The band SPLIT of the pair is carried across
+!     that replacement, since OCN-22, by radmod normalising the fit onto
+!     doceanalb's own two-band ratio; the MAGNITUDE and its zenith dependence
+!     are the fit's.
+!
+!     So a spatially varying ocean albedo installed HERE would be discarded
+!     before the shortwave read it over open water. The term has to land inside
+!     radmod's own expression. OCN-14 owns the water-leaving reflectance such a
+!     term would need.
+!
        dalb(:)=albsea*(1.-dicec(:))   &
      &         +dicec(:)*(albicemn+zsicf(:)*(albice-albicemn))
        dsalb(1,:)=doceanalb(1)*(1.-dicec(:))   &

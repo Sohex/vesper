@@ -80,6 +80,17 @@ numerator definition, same denominator, so the two must agree to within Howard's
 if they do not. That keeps two measurements of one quantity from drifting apart
 in silence, which is what `h2o_sw_level` rests on.
 
+THE TWO PART BELOW THE AMOUNTS THE MODEL EVALUATES, by 14.4% at 0.01
+precipitable cm against 0.26% at the operating path, and the reason is on this
+side: Howard's weak-band fit is a square-root law, which is the strong-line
+regime, and every weak band leaves that regime as the path dries out. The
+correlated-k band mean over Howard's own intervals is 1.02 of this
+reconstruction's at 6.3 um and 0.02 at 0.81 um at 0.01 cm, monotone in how weak
+the band is. Dropping the 0.72 and 0.81 um bands entirely removes less than a
+fifth of the gap, so it is the extrapolation and not those two bands.
+`--blue` re-measures all of it; the dry end is reported and does not gate,
+because a T42 column spans roughly 0.3 to 5 cm.
+
 The solar reference is a BT-Settl 5772 K model built through the same blend as
 `build_stellar_spectrum.py` uses for the star, so grid, converter and any model
 systematic divide out of the ratio. Two further checks that can fail: it must
@@ -124,9 +135,12 @@ this star; without it the ratio would be two unvalidated integrals.
 
     python exoplasim/scripts/shortwave_band_weights.py
     python exoplasim/scripts/shortwave_band_weights.py --verify
+    python exoplasim/scripts/shortwave_band_weights.py --blue
 
 Writes `analysis/shortwave_band_weights.json`. Downloads are cached in the same
 place `build_stellar_spectrum.py` caches its own; pass --refresh to refetch.
+`--blue` writes nothing and is the only mode that opens the correlated-k bundle
+`corrk_cross_check.py` reads.
 """
 
 from __future__ import annotations
@@ -200,6 +214,38 @@ H2O_BLUE_BANDS = {
     "0.72": dict(lo=13514.0, hi=14286.0, c=38.0, k=0.27, C=None, D=None, K=None, transition=200.0),
 }
 WEAK_BLUE_SCALE = {"0.81": 0.30, "0.72": 0.10}
+
+# THOSE TWO FACTORS ARE DECLARED WITH A MEASURED BRACKET, and the bracket is the
+# correlated-k band-mean absorptance over Howard's own two intervals divided by
+# what the 0.94 um shape puts there. Measured on 2026-08-26 against HITRAN2020
+# through the LMD Generic PCM tables, the same absorption data BAR 4 of
+# `exoplasim/notes/corrk-cross-check.md` gates on, at each water amount:
+#
+#     w, cm     0.01    0.03    0.1     0.3     1.0    2.7891   5.0    10.0
+#     0.81 um  0.0206  0.0353  0.0624  0.0992  0.1453  0.1779  0.1919  0.2032
+#     0.72 um  0.0109  0.0188  0.0336  0.0549  0.0850  0.1093  0.1206  0.1302
+#
+# so `WEAK_BLUE_MEASURED_RANGE` below is that over the 0.3 to 5 cm a T42 column
+# spans. NO CONSTANT IS RIGHT FOR EITHER BAND: the factor runs by a factor of ten
+# across the table because the 0.94 um band's SHAPE is what is wrong, not only
+# its size. Howard's weak fit is a square-root law, which is the strong-line
+# regime, and these two bands are unsaturated enough to go as w^0.83 and w^0.86.
+#
+# THE DECLARED VALUES STAY AS THEY ARE, and that is a statement about the gate
+# rather than about the numbers. This reconstruction is the independent side of
+# BAR 4: its evidential value is that it reaches the same defined quantity from
+# Howard's laboratory data with no correlated-k input anywhere in it, and two of
+# nine bands taking their strength from those tables would make the gate partly a
+# comparison of the tables with themselves. The substitution is priced instead,
+# by `--blue`, and it moves BOTH aggregates away from the correlated-k answer --
+# `h2osww` 1.3456 to 1.3502 against its 1.3272, `ratio_to_eq21` +0.20% to -1.35%
+# -- because the operating-path agreement is a cancellation of band-level
+# disagreements running 0.70 to 1.24 and a partial substitution breaks the
+# cancellation without touching the bands supplying the other half of it. The
+# whole question is worth 0.0046 in `h2osww`, 0.034 K, and lands inside the
+# bracket this file already reports.
+WEAK_BLUE_MEASURED = {"0.81": 0.1779, "0.72": 0.1093}
+WEAK_BLUE_MEASURED_RANGE = {"0.81": (0.0992, 0.1919), "0.72": (0.0549, 0.1206)}
 
 CO2_BANDS = {
     "15": dict(lo=550.0, hi=800.0, c=3.16, k=0.44, C=-68.0, D=55.0, K=47.0, transition=50.0),
@@ -366,6 +412,28 @@ CORRK_RATIO_TO_EQ21 = 1.127592
 # Howard's own +/-3% is the tolerance because it is the only stated accuracy
 # either side of the comparison carries. Fixed before the comparison was made.
 CORRK_AGREEMENT = HOWARD_BAND_ABSORPTION_ACCURACY
+
+# THE DRY END, WHERE THE TWO PART, and which half of this reconstruction does it.
+# The same correlated-k ratio at the two smallest amounts, declared from the same
+# note. The two determinations agree to 1.5% from 0.1 to 10 cm and are 14.4%
+# apart at 0.01, and the divergence is Howard's weak-band fit evaluated below the
+# water amounts he measured: dropping the 0.72 and 0.81 um bands entirely removes
+# 0.183 of the gap at 0.01 cm and 0.307 at 0.03, leaving 11.8% and 6.1%. The
+# per-band evidence is monotone in band strength -- at 0.01 cm the correlated-k
+# band mean over Howard's own intervals is 1.02 of the reconstruction's at 6.3 um
+# and 0.02 at 0.81 um -- which is a wrongly extrapolated weak-band form and not a
+# wrong scale on two bands.
+#
+# REPORTED AND NOT GATED, for the reason `world-njlb` states: a T42 column spans
+# roughly 0.3 to 5 cm so the model never evaluates there, and `h2o_sw_weight` is
+# a ratio in which a dry-end level error largely divides out. The gate is at
+# CORRK_PATH_CM, which is where the number that is used comes from.
+CORRK_RATIO_TO_EQ21_DRY = {0.01: 1.1529, 0.03: 1.0957}
+# The share of the dry-end gap the blue pair carries, at those two amounts, as
+# `--blue` measures it. Recorded so a change to the band set moves a reported
+# number rather than nothing. One digit each: the correlated-k side's own
+# temperature scan moves the 0.01 cm share over 0.15 to 0.23.
+BLUE_SHARE_OF_DRY_GAP = {0.01: 0.18, 0.03: 0.31}
 
 # THE WATER VAPOUR CONTINUUM NEITHER SIDE OF THAT RATIO CARRIES, as a fraction of
 # the correlated-k absorptance. The correlated-k tables hold line centres to
@@ -1033,6 +1101,119 @@ def weight_curve(star: Spectrum, sun: Spectrum, bands: dict, scale: dict, amount
     return rows
 
 
+def blue_bands_against_correlated_k(refresh: bool = False) -> None:
+    """Re-measure the dry-end attribution and the two blue scale factors.
+
+    WRITES NOTHING. It needs the LMD Generic PCM bundle that
+    `corrk_cross_check.py` reads, which lives outside this repository, so it is
+    a mode rather than part of the report: everything the report carries from
+    this measurement is a declared constant above, exactly as
+    `CORRK_RATIO_TO_EQ21` is, and regenerating the report needs no bundle.
+
+    The import is deferred because `corrk_cross_check` imports THIS module at
+    module level, and a top-level import here would close the cycle.
+    """
+    import corrk_cross_check as ck  # noqa: PLC0415  deferred: see the docstring
+
+    config = yaml.safe_load(CONFIG.read_text())
+    teff = float(config["star"]["effective_temperature_k"])
+    sun = Spectrum(*blend(SOLAR_TEFF, 5700, 5800, refresh)[:2], "G2V reference", {})
+    star = Spectrum(*blend(teff, 4900, 5000, refresh)[:2],
+                    config["star"]["spectral_type"], {})
+    table = ck.CorrK(ck.TABLE_376)
+    f_sun = ck.flux_fractions(table, sun)
+    f_star = ck.flux_fractions(table, star)
+
+    def corrk_absorptance(w: float, t_k: float = ck.DEFAULT_TEMPERATURE,
+                          q: float = ck.DEFAULT_WATER_VMR) -> np.ndarray:
+        """H2O-only absorptance per correlated-k band, the note's own isolation."""
+        u = ck.air_column_for_water(w, q)
+        wet = table.transmission(ck.P_STANDARD_MBAR, t_k, q, u)
+        dry = table.transmission(ck.P_STANDARD_MBAR, t_k, ck.DRY, u)
+        return 1.0 - wet / dry
+
+    def interval_mean(per_band: np.ndarray, lo: float, hi: float) -> float:
+        """Flux-weighted correlated-k band mean over one of Howard's intervals."""
+        num = den = 0.0
+        for (edge_lo, edge_hi), value in zip(table.edges, per_band):
+            left, right = max(lo, edge_lo), min(hi, edge_hi)
+            if right <= left:
+                continue
+            f = sun.fraction_in_band(left, right)
+            num += f * value
+            den += f
+        return num / den
+
+    bands, scale = h2o_bands(include_blue=True)
+    bands_no_blue, scale_no_blue = h2o_bands(include_blue=False)
+    amounts = (0.01, 0.03, 0.1, 0.3, 1.0, CORRK_PATH_CM, 5.0, 10.0)
+
+    print("THE DRY-END ATTRIBUTION. f_blue is the share of the gap between this "
+          "reconstruction\nand correlated-k that the 0.72 and 0.81 um bands carry.\n")
+    print(f"{'w, cm':>8} {'R_full':>8} {'R_noblue':>9} {'R_ck':>8} {'f_blue':>8} {'noblue-ck':>10}")
+    for w in amounts:
+        eq21 = float(lacis_hansen_h2o(w))
+        full = absorptance(sun, bands, w, scale) / eq21
+        no_blue = absorptance(sun, bands_no_blue, w, scale_no_blue) / eq21
+        corrk = ck.broadband(f_sun, corrk_absorptance(w)) / eq21
+        # The share of a gap is only a share where there IS a gap. Inside the
+        # tolerance the two determinations agree, and dividing by that residual
+        # returns whatever the last digit of each happens to be.
+        gap = full / corrk - 1.0
+        share = (f"{(full - no_blue) / (full - corrk):8.3f}"
+                 if gap > CORRK_AGREEMENT else f"{'--':>8}")
+        print(f"{w:8.4f} {full:8.4f} {no_blue:9.4f} {corrk:8.4f} {share} "
+              f"{no_blue / corrk - 1:9.2%}")
+
+    print("\nPER BAND: the correlated-k mean over each Howard interval, divided by "
+          "what this\nfile puts there. The dry-end error is monotone in how weak "
+          "the band is.\n")
+    all_bands = dict(H2O_BANDS)
+    all_bands.update(H2O_BLUE_BANDS)
+    print(f"{'w, cm':>8} " + " ".join(f"{name:>7}" for name in all_bands))
+    for w in amounts:
+        per_band = corrk_absorptance(w)
+        cells = []
+        for name, band in all_bands.items():
+            shape = band_absorption(band, w) / (band["hi"] - band["lo"])
+            cells.append(interval_mean(per_band, band["lo"], band["hi"]) / shape)
+        print(f"{w:8.4f} " + " ".join(f"{c:7.4f}" for c in cells))
+    print("\nThe last two columns ARE the measured WEAK_BLUE_SCALE. Declared: "
+          + ", ".join(f"{k} {v:g}" for k, v in WEAK_BLUE_SCALE.items()))
+
+    # WHY NO CONSTANT IS RIGHT: the power of w the correlated-k band mean over
+    # each blue interval follows, against the 1/2 Howard's weak fit imposes. A
+    # square-root law is the strong-line regime and these two bands are not in
+    # it, so the scale factor has to absorb the difference between the laws and
+    # cannot be one number.
+    ends = (amounts[0], amounts[-1])
+    span = math.log10(ends[1] / ends[0])
+    per_band = [corrk_absorptance(w) for w in ends]
+    for name, band in H2O_BLUE_BANDS.items():
+        lo, hi = (interval_mean(p, band["lo"], band["hi"]) for p in per_band)
+        print(f"  {name} um: the correlated-k band mean goes as w^"
+              f"{math.log10(hi / lo) / span:.2f} over {ends[0]:g} to {ends[1]:g} cm, "
+              f"against the w^0.5 Howard's weak fit imposes")
+
+    print("\nWHAT SUBSTITUTING THE MEASURED FACTORS WOULD COST, at the operating path.")
+    eq21 = float(lacis_hansen_h2o(CORRK_PATH_CM))
+    arms = (("declared", bands, scale), ("measured", bands, WEAK_BLUE_MEASURED),
+            ("dropped", bands_no_blue, scale_no_blue))
+    for label, arm_bands, arm_scale in arms:
+        a_sun = absorptance(sun, arm_bands, CORRK_PATH_CM, arm_scale)
+        a_star = absorptance(star, arm_bands, CORRK_PATH_CM, arm_scale)
+        print(f"  blue pair {label:>8}: ratio_to_eq21 {a_sun / eq21:.4f} "
+              f"({a_sun / eq21 / CORRK_RATIO_TO_EQ21 - 1:+.2%} from correlated-k)  "
+              f"h2osww {a_star / a_sun:.4f}")
+    per_band = corrk_absorptance(CORRK_PATH_CM)
+    a_sun = ck.broadband(f_sun, per_band)
+    a_star = ck.broadband(f_star, per_band)
+    print(f"  correlated-k itself: ratio_to_eq21 {a_sun / eq21:.4f}"
+          f"{'':>28}h2osww {a_star / a_sun:.4f}")
+    print("\nexoplasim/notes/corrk-cross-check.md carries the argument and the "
+          "criterion,\nwhich was fixed before any of this was computed.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--refresh", action="store_true", help="refetch the grid points")
@@ -1049,7 +1230,18 @@ def main() -> None:
         help="derive h2o_sw_level into its own artifact and stop; needs no "
              "spectrum, no climatology and no network",
     )
+    parser.add_argument(
+        "--blue",
+        action="store_true",
+        help="re-measure the dry-end attribution and the two blue scale factors "
+             "against the correlated-k tables and stop; writes nothing, and "
+             "needs the bundle corrk_cross_check.py reads",
+    )
     args = parser.parse_args()
+
+    if args.blue:
+        blue_bands_against_correlated_k(args.refresh)
+        return
 
     if args.level:
         report = h2o_sw_level_report()
@@ -1178,6 +1370,43 @@ def main() -> None:
             "LMD Generic PCM correlated-k tables at the same homogeneous "
             "760 mm Hg path; tolerance is Howard, Burch and Williams (1956) "
             "+/-3%, the only stated accuracy either side carries"),
+    }
+    # THE DRY END, REPORTED AND NOT GATED. The two determinations part below the
+    # amounts the model evaluates, and this records which half of the
+    # reconstruction does it, so a change to the band set moves a number here
+    # rather than nothing. `--blue` re-measures the correlated-k side; the
+    # constants it is compared against are declared, so this node needs no
+    # bundle. It does not raise, for the reason `world-njlb` records: a T42
+    # column spans roughly 0.3 to 5 cm, and the weight is a ratio in which a
+    # dry-end level error largely divides out.
+    dry_end = []
+    dry_bands, dry_scale = h2o_bands(include_blue=False)
+    for w, corrk in sorted(CORRK_RATIO_TO_EQ21_DRY.items()):
+        eq21 = float(lacis_hansen_h2o(w))
+        full = absorptance(sun, bands, w, scale) / eq21
+        no_blue = absorptance(sun, dry_bands, w, dry_scale) / eq21
+        dry_end.append({
+            "w": w,
+            "reconstruction_over_eq21": full,
+            "reconstruction_without_blue_over_eq21": no_blue,
+            "correlated_k_over_eq21": corrk,
+            "apart": full / corrk - 1.0,
+            "apart_without_blue": no_blue / corrk - 1.0,
+            "blue_share_of_gap": (full - no_blue) / (full - corrk),
+            "blue_share_of_gap_measured": BLUE_SHARE_OF_DRY_GAP[w],
+        })
+    checks["reconstruction_vs_correlated_k_dry_end"] = {
+        "per_amount": dry_end,
+        "attributed_to": "howard weak-band fit extrapolated below the measured amounts",
+        "gates": False,
+        "why_not_a_gate": (
+            "the model never evaluates there: a T42 column spans roughly 0.3 "
+            "to 5 cm, and h2o_sw_weight is a ratio in which a dry-end level "
+            "error largely divides out. The gate is at CORRK_PATH_CM"),
+        "source": (
+            "exoplasim/notes/corrk-cross-check.md, the dry-end section; "
+            "`--blue` re-measures the correlated-k side and the per-band "
+            "attribution behind the verdict"),
     }
     # Reported here as well because it belongs beside the ratio it is built on,
     # but `exoplasim/analysis/h2o_sw_level.json` is the artifact config is

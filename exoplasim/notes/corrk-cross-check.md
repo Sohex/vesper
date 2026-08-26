@@ -481,10 +481,11 @@ agree to 0.26%, far inside the +/-3% the bar was set at:
 | 10.0 | 1.159 | 1.142 | 1.5% |
 
 **The dry end is where they part, and that is a real finding rather than
-scatter.** At 0.01 cm the reconstruction is 14% above the correlated-k answer,
-which is the small-w Elsasser extrapolation and the 0.72 and 0.81 um bands that
-Howard never measured, carried at the 0.94 um band's shape under a scale factor
-no source supplies. It is also the one amount at which both land inside the
+scatter.** At 0.01 cm the reconstruction is 14% above the correlated-k answer.
+The dry-end section below separates the two candidates for that and settles it
+on Howard's weak-band fit evaluated below the water amounts he measured, with
+the 0.72 and 0.81 um bands he never measured carrying under a fifth of it. It is
+also the one amount at which both land inside the
 envelope, so the two failures do not overlap. The model does not operate there --
 a T42 column spans roughly 0.3 to 5 cm -- and the weight is a ratio in which the
 dry end largely divides out, so this is recorded and tracked and does not gate.
@@ -636,6 +637,221 @@ bundle should NOT inherit this script's join. The two sets are meant to be used
 separately, over their own spans, by two solvers; joining them is an instrument
 for comparing one broadband number against another, and the 2000 to 3000 cm-1
 overlap the join throws away is real data that a thermal scheme wants.
+
+## The dry-end divergence, and which of its two candidates it is
+
+Measured on 2026-08-26; the finding is `world-njlb`. **The criteria below were
+fixed and written down before any of the numbers under them was computed.**
+
+BAR 4 leaves the two determinations 14.4% apart at 0.01 precipitable cm and
+inside 1.5% of each other everywhere from 0.1 to 10 cm. Everything that could
+put them apart is on the reconstruction side, and only two things are:
+
+- the 0.72 and 0.81 um bands, which Howard never measured, carried at the 0.94
+  um band's shape under `WEAK_BLUE_SCALE` = 0.30 and 0.10, factors no source
+  supplies;
+- Howard's weak-band fit `c w^(1/2) (P + p)^k` evaluated below the water amounts
+  he measured, which is where every band in the set sits at 0.01 cm.
+
+They are separable because the first can simply be removed. Write
+
+- `R_full(w)`  the reconstruction over Eq. 21, all nine H2O bands, the blue pair
+  scaled by `WEAK_BLUE_SCALE`;
+- `R_noblue(w)` the same over the seven bands Howard measured, which is the arm
+  `shortwave_band_weights.py` already computes as `weight_without_0.72_0.81um`;
+- `R_ck(w)`  correlated-k over Eq. 21 at the same amount, the same table, the
+  same 290 K and the same broadening fraction;
+- `f_blue(w) = (R_full - R_noblue) / (R_full - R_ck)`, the share of the gap the
+  blue pair carries.
+
+The blue pair can only ADD absorption, so `f_blue` lies in 0 to 1 whenever the
+reconstruction is above correlated-k. A value outside that range would mean the
+sign assumption behind the whole attribution is wrong, and is reported as that
+rather than read as a share.
+
+**What means which, at 0.01 and 0.03 cm:**
+
+- **the blue bands**, if `f_blue(0.01)` is at least 0.67 AND dropping them puts
+  `R_noblue` within 3% of `R_ck` at BOTH 0.01 and 0.03 cm;
+- **the small-w extrapolation**, if `f_blue(0.01)` is at most 0.33 AND
+  `R_noblue` is still more than 3% from `R_ck` at 0.01 cm;
+- **both**, for anything else, including a split verdict between the two
+  amounts. Then neither candidate is settled by this measurement.
+
+3% is Howard's own stated accuracy on the band absorptions, which is the only
+accuracy either side of the comparison carries and is the tolerance BAR 4's gate
+at the operating path already uses. 0.67 and 0.33 are the two-thirds and
+one-third of a gap that a majority attribution and a minority one need, chosen
+because a cause that carries less than a third of an effect does not explain it.
+
+**What each verdict licenses.** If it is the blue bands, `WEAK_BLUE_SCALE` gains
+a value MEASURED against the correlated-k absorptance in Howard's own two blue
+intervals, which is a determination against an independent absorption dataset
+and not a factor fitted until a comparison came out. The measured value is
+admissible only if the reconstruction still agrees with correlated-k at the
+2.7891 cm operating path to inside the same 3%, since that is the gate the
+number is actually used through. If it is the extrapolation, `WEAK_BLUE_SCALE`
+stays unsourced, stays declared as a bracket, and the bracket is what gets swept.
+
+**The instrument, before the effect.** The effect is 14.4% in a ratio of two
+absorptances. Both sides are deterministic, so what stands in for scatter is
+how far each moves under choices that are not the quantity: for the
+reconstruction, the flux fractions, which are differences of one trapezoidal
+cumulative integral over the BT-Settl grid interpolated at the band edges; for
+correlated-k, the temperature and broadening-fraction choices this note already
+scans at the operating path. The comparison is readable only if both are below
+0.5%, a thirtieth of the effect, and it is reported below whether they are.
+
+### The verdict: it is the small-w extrapolation
+
+Measured on 2026-08-26, 76-band join, 290 K, 1013.25 mbar, broadening fraction
+1e-2, the same solar blend on both sides. `R_full` and `R_noblue` reproduce
+BAR 4's table row for row, so nothing below turns on a re-measurement of the
+reconstruction.
+
+| water path, cm | `R_full` | `R_noblue` | `R_ck` | `f_blue` | `R_noblue` against `R_ck` |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 0.01 | 1.3191 | 1.2887 | 1.1529 | 0.183 | +11.77% |
+| 0.03 | 1.1918 | 1.1622 | 1.0957 | 0.307 | +6.07% |
+
+**Both amounts land in the extrapolation branch and neither is close to the
+other one.** `f_blue` is 0.183 at 0.01 cm against a 0.33 line, and dropping the
+blue pair leaves 11.77% of gap against a 3% line. The blue pair carries under a
+fifth of the dry-end divergence; the rest is Howard's weak-band fit evaluated
+below the water amounts he measured.
+
+**The mechanism is visible band by band, and it is monotone in band strength.**
+The correlated-k band-mean absorptance over each of Howard's own intervals,
+divided by what the reconstruction puts there:
+
+| water path, cm | 6.3 | 3.2 | 2.7 | 1.87 | 1.38 | 1.1 | 0.94 | 0.81 | 0.72 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.01 | 1.022 | 0.805 | 0.986 | 0.885 | 0.880 | 0.749 | 0.347 | 0.021 | 0.011 |
+| 2.7891 | 0.924 | 0.700 | 0.845 | 0.937 | 0.824 | 1.240 | 1.014 | 0.178 | 0.109 |
+
+At 0.01 cm the two strongest bands are right to 2%, and the error grows in
+lockstep with how weak the band is: 0.75 at 1.1 um, 0.35 at 0.94 um, 0.02 at
+0.81 um. That ordering is what a wrongly extrapolated weak-band form looks like
+and is not what a wrong scale factor on two bands looks like. Howard's weak fit
+is `c w^(1/2) (P + p)^k`, a square-root law, which is the strong-line regime;
+the correlated-k band means over the two blue intervals go as `w^0.83` and
+`w^0.86` from 0.01 to 10 cm, close to the linear law an unsaturated band obeys.
+So the reconstruction puts every weak band on the wrong branch at small `w`, and
+the weaker the band the further off the branch it is.
+
+**What the verdict survives.** Re-running the correlated-k side across every
+choice this note already scans, at 0.01 cm:
+
+| choice | `R_ck` | `f_blue` | `R_noblue` against `R_ck` |
+| --- | ---: | ---: | ---: |
+| 230 K | 1.1162 | 0.150 | +15.45% |
+| 290 K | 1.1529 | 0.183 | +11.77% |
+| 350 K | 1.1856 | 0.228 | +8.70% |
+| broadening 1e-3 | 1.1355 | 0.166 | +13.49% |
+| broadening 1e-2 | 1.1529 | 0.183 | +11.77% |
+| broadening 1e-1 | 1.2442 | 0.406 | +3.58% |
+
+The verdict holds at 0.01 cm everywhere except the far end of the broadening
+scan, and that end is the one that makes the two sides LESS comparable rather
+than more: the reconstruction evaluates Howard's fits at `(P + p)` = 760 mm Hg
+with `p` dropped, which is a statement about a path whose water is a trace, so
+the comparable direction is 1e-3, where `f_blue` falls to 0.166 and the residual
+grows to 13.5%. The 0.03 cm row is the weaker of the two: its gap is 8.8% rather
+than 14.4%, so at 350 K or at a broadening fraction of 1e-1 it moves into the
+"both" branch. It supports the verdict and does not carry it.
+
+### The instrument, measured against the effect
+
+**The reconstruction side passes the bar with three orders of magnitude to
+spare.** Its only numerical content is the flux fractions, differences of one
+trapezoidal cumulative integral over the 395228-point BT-Settl blend
+interpolated at the band edges. Decimating that grid moves `R_full` at 0.01 cm
+by +0.025% at every second point, +0.065% at every fourth and +0.150% at every
+eighth; the trapezoid is second order, so Richardson on the first pair puts the
+residual at full resolution near 0.008%. Against a 14.4% effect that is a factor
+of 1800.
+
+**The correlated-k side does NOT pass it, and the bar was fixed before that was
+known.** Its broadband absorptance at 0.01 cm moves -3.19% at 230 K and +2.83%
+at 350 K, and -1.51% to +7.91% across the broadening scan, against the 0.5%
+required. What that costs is stated rather than argued away: the quantity the
+verdict turns on is the 11.77% residual after the blue pair is dropped, which is
+3.7 times the temperature excursion and 1.5 times the extreme broadening one, and
+the robustness table above shows the branch surviving every one of them. So the
+verdict is readable and `f_blue` itself is not: 0.183 has one digit, running 0.15
+to 0.23 over the temperature scan, which is far from the 0.33 line but is not a
+number to quote to three places.
+
+**The per-band ratios are the sharp part of this measurement.** The two blue
+intervals move by under 4% across the whole scan -- 0.1757 to 0.1902 for 0.81 um
+and 0.1080 to 0.1156 for 0.72 um at the operating path -- because they are
+ratios of two band means over the same interval.
+
+### What this does to `WEAK_BLUE_SCALE`
+
+It is measured now, and it does not change, and those are separate statements.
+The criterion above put the extrapolation verdict's consequence as "stays
+declared as a bracket, and the bracket is what gets swept"; what the measurement
+adds is that the bracket is now a measured one rather than an asserted one.
+
+**Measured.** Correlated-k over Howard's own two intervals gives the factor the
+0.94 um shape needs, at each water amount:
+
+| water path, cm | 0.81 um | 0.72 um |
+| --- | ---: | ---: |
+| 0.01 | 0.0206 | 0.0109 |
+| 0.03 | 0.0353 | 0.0188 |
+| 0.1 | 0.0624 | 0.0336 |
+| 0.3 | 0.0992 | 0.0549 |
+| 1.0 | 0.1453 | 0.0850 |
+| 2.7891 | 0.1779 | 0.1093 |
+| 5.0 | 0.1919 | 0.1206 |
+| 10.0 | 0.2032 | 0.1302 |
+
+Over the 0.3 to 5 cm a T42 column spans that is 0.099 to 0.192 and 0.055 to
+0.121. The declared 0.10 for the 0.72 um band sits inside its measured range and
+within 9% of the operating-path value; the declared 0.30 for the 0.81 um band is
+above the measured value at every amount in the table, by 1.7 times at the
+operating path. **And no constant is right for either**, which is the finding
+under the finding: the factor runs by a factor of ten across the table, because
+the thing it is scaling has the wrong `w` law and not merely the wrong size.
+
+**Unchanged, for a reason that is about the gate and not about the number.** The
+reconstruction is the independent side of BAR 4. Its whole evidential value is
+that it reaches the same defined quantity from Howard's laboratory data with no
+correlated-k input anywhere in it, and two of its nine bands taking their
+strength from the correlated-k tables would make the gate partly a comparison of
+those tables with themselves. The measured factors are therefore recorded here
+and carried in `shortwave_band_weights.py` as a declared bracket beside the
+constants, not substituted into them.
+
+**And the substitution is priced, so the disposition is a decision rather than a
+preference.** At the operating path:
+
+| the blue pair at | `ratio_to_eq21` | against correlated-k | `h2osww` |
+| --- | ---: | ---: | ---: |
+| the declared 0.30 and 0.10 | 1.1299 | +0.20% | 1.3456 |
+| the measured 0.178 and 0.109 | 1.1124 | -1.35% | 1.3502 |
+| dropped altogether | 1.0684 | -5.25% | 1.3634 |
+| correlated-k itself | 1.1276 | | 1.3272 |
+
+Two things fall out of that table. **Dropping the blue bands fails BAR 4's
+gate**, at -5.25% against a 3% tolerance, so the no-blue arm is a bracket end
+and not a candidate for the reconstruction itself. And **correcting one band pair
+against correlated-k moves both aggregates AWAY from correlated-k**, `h2osww`
+from 1.3456 to 1.3502 against its 1.3272 and `ratio_to_eq21` from +0.20% to
+-1.35%. The operating-path agreement is a cancellation of band-level
+disagreements that run from 0.70 to 1.24, and a partial substitution breaks the
+cancellation without fixing the bands that supply the other half of it. What
+would fix them is the correlated-k answer entire, which this project already
+uses, through `h2oswl`.
+
+The whole question is worth 0.0046 in `h2osww`, which is 0.034 K on this note's
+own sensitivity, and 1.3502 lies between two arms of the bracket
+`shortwave_band_weights.py` already reports. Nothing here reopens the weight.
+
+`python exoplasim/scripts/shortwave_band_weights.py --blue` re-measures every
+number in this section and writes nothing.
 
 ## The data
 
