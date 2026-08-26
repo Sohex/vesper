@@ -384,9 +384,9 @@ LH -- so nothing here is a second measurement of Eq. 21.
 
 ### BAR 1: the key moves, to 1.163
 
-    correlated-k over Eq. 21, no continuum          1.127
-    with the continuum, estimate                   1.163
-    two-sided bound                        1.129 to 1.206
+    correlated-k over Eq. 21, no continuum       1.127592
+    with the continuum, estimate                1.162547
+    two-sided bound                 1.129283 to 1.206523
 
 1.163 - 1.127 = 0.036, which is 0.35 K and clears the 0.02 the bar was set at,
 so `h2o_sw_level` becomes **1.163** and stops being one-signed. The third digit is
@@ -395,6 +395,18 @@ bracket is what says how well the number is known. The direction is
 the one that was declared: the continuum ADDS absorption to the line-by-line
 side, so it moves Eq. 21 further below a modern calculation, and 1.127 was a
 floor.
+
+**Six digits on the base because the product is rounded to three.** The ratio is
+quoted as 1.127 everywhere it appears in a COMPARISON, which is all that
+comparison resolves; multiplied by 1 + 0.031 and rounded to the three decimals
+`config/planet.yaml` writes, the fourth digit of the base reaches the third of
+the key -- 1.127 gives 1.162 and the measured 1.127592 gives 1.163. The
+arithmetic now lives in `exoplasim/scripts/shortwave_band_weights.py`, which
+carries the base, the continuum fraction and its bracket as declared constants
+and writes `exoplasim/analysis/h2o_sw_level.json` under `--level`;
+`scripts/check_consistency.py` holds the config key against that artifact.
+That path needs no climatology, which is why it can be regenerated on this tree
+while the full band-weight report cannot.
 
 The cost side of that bar is small in fact rather than in principle. A config key
 change makes every existing run unresumable, but no run has yet used the k25v

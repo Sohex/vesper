@@ -30,3 +30,15 @@
   tectonic bug was fixed. When a rule starts firing for the first time, audit
   everything it controls.
 
+- **This world's cloud droplet effective radius is Earth's stratiform relation,
+  and that is declared rather than absent.** The shortwave cloud optics is
+  Stephens (1978), whose fitted optical depths carry the effective radius
+  implicitly rather than taking it as an input: his Eq. (7) is
+  `tau = 1.5 W / r_e` and his p. 2125 states that the dependence has been
+  "inherently parameterized" into the fits, over eight terrestrial stratiform
+  cloud models. So there is no missing input to supply. What the model carries
+  is a fixed `r_e(W)` measured on Earth's clouds, and nothing in this project
+  determines a cloud condensation nucleus population that would give another.
+  Supplying an effective radius means replacing the scheme with one that takes
+  it, which is a scheme decision and not a constant.
+  `exoplasim/notes/cloud-water-reference.md`.

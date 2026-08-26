@@ -953,6 +953,15 @@ model:
   # this key. Carried as a key rather than as a line in the error budget, per
   # PHYS-9; `exoplasim/notes/corrk-cross-check.md` is the measurement and the
   # bound. radmod.f90's default is 1.0, which is Eq. 21 unmodified.
+  #
+  # DERIVED, by `exoplasim/scripts/shortwave_band_weights.py --level` into
+  # `exoplasim/analysis/h2o_sw_level.json`, which `scripts/check_consistency.py`
+  # holds this key against exactly as it holds the two weights above. What is
+  # derived is the ARITHMETIC: both factors it multiplies are DECLARED, the
+  # correlated-k ratio because its tables live outside this repository and the
+  # continuum fraction because it is bounded from published numbers rather than
+  # computed here. Regenerating that artifact needs neither a climatology nor a
+  # spectrum, so this key is checkable on any tree.
   h2o_sw_level: 1.163
   h2o_sw_level_bracket: [1.129, 1.206]
   co2_sw_weight: 1.510

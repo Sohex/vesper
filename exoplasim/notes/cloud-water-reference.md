@@ -115,6 +115,163 @@ cloud fraction for overlap; this model does neither. Those are separate
 structural gaps, recorded here so they are not re-derived, and they are not
 `world-8h6`'s to close.
 
+## The Stephens fit, read (world-jimc)
+
+Both papers are now in `references/` and both have been read. They settle three
+questions the section above could only name, and they open one the header
+comment concealed.
+
+**`ztau` is Stephens Eq. (10b), used for both bands.** Stephens (1978) p. 2124
+gives TWO optical depths, one per spectral region, fitted by least squares to
+Mie calculations on eight standard cloud models:
+
+    log10(tau_N1) = 0.2633 + 1.7095 ln(log10 W)   0.3 to 0.75 um, Eq. (10a)
+    log10(tau_N2) = 0.3492 + 1.6518 ln(log10 W)   0.75 to 4.0 um, Eq. (10b)
+
+with W the cloud liquid water path in g m-2. Both are the code's form:
+10^(a + b ln x) is 10^a x^(b ln 10), so (10a) is a prefactor 1.8336 with an
+exponent 3.9363 and (10b) is 2.2346 with 3.8034. `radmod`'s single
+`ztau = 2.0*ALOG10(1.5 + zlwp)**3.9` sits at 2.0 and 3.9 and is within 3 per
+cent of (10b) at every path above 20 g m-2. It is applied to both bands, and
+the split it is applied across is Stephens's own: `radmod` divides at 0.75 um,
+exactly where (10a) gives way to (10b).
+
+So band 2 gets its own equation and band 1 gets band 2's. The error is
+ONE-SIGNED, because (10b) is above (10a) everywhere: the fork's `ztau` runs 5
+per cent above (10a) at 1000 g m-2, 8 per cent at 90, 19 per cent at 20 and
+87 per cent at 5.4. Through `zrcl1`, which is Stephens Eq. (1) verbatim, that
+is band-1 cloud reflectance too high by 0.012 to 0.025 over the paths this
+model's low cloud layers actually carry, and by more above them.
+
+**The `+1.5` offset is not in the paper, and at the thin end it is the whole
+term.** Stephens's form is singular at W = 1 g m-2 and undefined below it; the
+offset is a domain guard, and `radmod`'s own comment says so. It also makes
+`ztau` finite where the paper's optical depth is going to zero. At 2.15 g m-2
+the fork's band-1 cloud reflectance is 8.6 times Eq. (10a)'s at mu0 = 0.5, at
+3 g m-2 it is 3.7 times, and the two agree to 30 per cent only above about
+10 g m-2. The guard is correct to exist; what it should return below 1 g m-2 is
+an optical depth of zero rather than 0.11.
+
+**The tuned coefficients are the ones the 1984 paper withdrew.** Stephens,
+Ackerman and Smith (1984) p. 687 say of the 1978 analytic formulas for the
+scheme's own single-scattering albedo and backscatter fractions: "Unfortunately,
+these formulas contained errors and better results are obtained when the
+parameter values are taken directly from the tables provided." Their Table 1(a)
+replaces the single-scattering albedo table, and the replacement is almost
+entirely at low sun: 1 - omega at tau_N = 1 goes from 0.0173 to 0.0017 at
+mu0 = 0.1, a factor of ten, and the revision is monotone in mu0 where the 1978
+table was not. `radmod` takes none of it. `tswr1`, `tswr2` and `tswr3` are
+analytic fits of the same shape as the withdrawn ones, they carry the same
+mu0 dependence, and `tswr3` is the one this project already re-weights through
+`model.cloud_absorption_scale`. The 1984 revision touches nothing in the
+tau(W) relation: it restates Eqs. (1) to (3) unchanged and never reprints (10a)
+or (10b).
+
+### Do this model's cloud water paths sit inside the fitted range
+
+The fitted range is Fig. 1's axes, 10 to 10,000 g m-2, over eight terrestrial
+cloud models (St I, St II, Sc I, Sc II, As, Ns, Cu, Cb); the tuned tables span
+tau_N 1 to 500, which inverts through (10a) to about 7 to 14,000 g m-2; and
+p. 2130 calls 10 to 1000 g m-2 "typical of what may be expected in stratiform
+clouds observed in the real atmosphere". `radmod` caps `zlwp` at 1000, which
+lands on the top of that range at tau 145, well inside the tuned table. The
+CEILING is safe.
+
+The floor is not, and this is answerable without a climatology because the
+surface pressure cancels out of it. `mkclouds` builds `dql` as a specific
+quantity, `clwref*exp(-z/hl)*gascon*T/(sigma*dp)`, and `swr` turns it into a
+path as `1000*dql*dp/ga*dsigma`, so
+
+    zlwp(j) = 1000 clwref gascon T(j) (dsigma(j)/sigma(j)) exp(-z(j)/hl) / ga
+
+carries the sigma grid, the temperature profile and the column water and
+nothing else. On the ten-level quartic grid at a 50 hPa top, with the derived
+`clwhsc`, the bottom three layers carry 43 to 105 g m-2 across column water
+from 10 to 50 kg m-2, which is inside the fitted range; the layers above sigma
+0.55 carry under 30 g m-2 and the top three carry under 2.2 g m-2 at every
+column water a moist column reaches. So the model's high cloud layers run one
+to three decades BELOW the range the fit was made over, in exactly the regime
+Stephens, Ackerman and Smith (1984) p. 690 excludes: "the reflection errors
+become large when the liquid water path is small (i.e., when cloud optical
+depth is less than about 2). Special parameterization of reflection (and for
+that matter, absorption) are required for optically thin cloud such as cirrus
+cloud."
+
+Two further stated limits apply to cells this model has. Stephens (1978)
+p. 2127 on the cloud-over-reflecting-surface correction: "care must be observed
+when (12) is applied for larger surface albedos", with the error growing sharply
+above a = 0.75, which is every snow and sea-ice cell. And p. 2132: "The
+parameterization is less effective at lower solar elevations", which at 32
+degrees of obliquity is a larger share of the year than on Earth.
+
+### The absent effective radius is a scheme boundary, not a gap
+
+Stephens does not eliminate the droplet effective radius; he buries a particular
+one. His Eq. (7) is tau_N = 1.5 W / r_e, and p. 2125 says of the fits that "the
+dependence of tau_N on r_e as described in (7) has been inherently parameterized
+in (10a) and (10b)", with p. 2132 adding that a formal parameterization of
+optical depth against water path "is academic at this point due to our current
+lack of knowledge of the behavior of effective radius". The calculations also
+"assume that the cloud is vertically uniform with respect to drop-size
+distribution" (p. 2124).
+
+So this model does not lack an input its own shortwave scheme wants. It carries,
+silently, the r_e(W) relation of eight terrestrial stratiform cloud models,
+which through (10a) implies an effective radius near 5 um at 100 g m-2 and near
+11 um at 1000. THAT is what to declare: this world's cloud droplet effective
+radius is Earth's stratiform relation, because nothing in this project
+determines a cloud condensation nucleus population and nothing measures one.
+Filling the gap instead would mean replacing Stephens with a scheme that carries
+r_e explicitly, which is Slingo, and that is a scheme decision rather than a
+constant.
+
+### `clwref` does not move under Stephens, and that is falsifiable
+
+The question the mismatch invites is what `clwref` should be under the optics
+that actually consume it. It has no answer, and the reason is arithmetic rather
+than preference.
+
+`clwref` is a condensate density fixed by microphysics. Stephens and Slingo are
+two mappings from a water path to an optical depth, and changing which one reads
+the water does not change how much water is in the cloud. Re-fitting `clwref` so
+that Stephens returns Slingo's optical depth would be a physical constant used
+to absorb a difference between two optics schemes.
+
+It also cannot be done. Slingo's optical depth is linear in the path; the
+Stephens fit's elasticity runs from about 1.9 at 5 g m-2 to 0.73 at 200. Ask for
+the scale factor s on `clwref` that makes `2*log10(1.5 + sW)**3.9` equal
+`1.5 W / r_e`, and s is a different number at every path: over 20 to 300 g m-2
+it spreads 36 per cent at r_e = 14 um, 63 per cent at 10 um and 86 per cent at
+8 um. A single value matches at one path and misses at every other, so there is
+no `clwref` that carries CCM3's calibration across the boundary. The bracket
+below stands as the answer instead, and it is a bracket on the WATER rather than
+on the optics.
+
+### What this is worth, and what would settle it
+
+The band-1 defect is one-signed and makes the model's cloud too bright in the
+visible, so it runs cold. Band 1 carries 0.3824 of this star's flux through the
+model's own split, against 0.517 for the Sun, so the same port error costs less
+here than it would on Earth.
+
+An order of magnitude, and it is a bracket because the instrument is a hand
+chain rather than a radiation calculation: band-1 incident flux is the global
+mean insolation at the baseline flux times 0.3824, and a reflectance excess of
+0.012 to 0.04 over a cloud fraction of 0.4 to 0.7 is 0.6 to 3.4 W m-2 of extra
+reflected shortwave at the top of the atmosphere, which through
+`lib/sensitivity.py` at a planetary albedo of 0.25 to 0.35 is 0.5 to 3.1 K,
+cold. That chain has no cloud fraction field, no overlap and no surface in it,
+and all three reduce it, so it leans high. It is not a measurement and nothing
+downstream should read it as one.
+
+WHAT SETTLES IT IS A RUN, and the run is nameable: a T21 pair on a settled
+baseline, control against an arm in which band 1 takes Eq. (10a), band 2 takes
+Eq. (10b), and the domain guard returns zero optical depth below 1 g m-2
+instead of the offset. `tswr1` is HELD at its inherited value in that arm, on
+purpose: it was tuned against the optical depth being corrected, and an arm that
+moves both reports nothing about either. If the corrected optical depth at the
+inherited tuning makes an agreement worse, that is information about `tswr1`.
+
 ## The bracket
 
 **Bracket: `clwref` in [0.000105, 0.00042] kg m-3, a factor of two either side
@@ -231,8 +388,11 @@ each time.
 What remains is the three points themselves, on one binary and one restart,
 against the predictions and the three falsifying conditions above.
 
-The Stephens fit itself remains uncited beyond `radmod`'s own header naming
-Stephens (1978) and Stephens et al. (1984); neither is in `references/`. Its
-validity outside the water paths it was fitted over is untested, and that is
-the second half of what `opaque-constants.md` finding 8 named. That is
-`world-jimc`.
+The Stephens fit is read and the section above is what it settled, so the
+second half of `opaque-constants.md` finding 8 is answered: this model's low
+cloud layers sit inside the range the fit was made over and its high ones sit
+one to three decades below it, in the regime the 1984 revision excludes by name.
+What is NOT settled by reading the papers is what the band-1 optical depth
+defect is worth, because that needs the pair run named above, and what the 1984
+single-scattering albedo tables would change, because `radmod` carries the
+analytic fits the same paper withdrew.
