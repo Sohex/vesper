@@ -32,6 +32,23 @@ The data lives in `references/poseidon_surface_albedo/`, from the POSEIDON
 retrieval code's surface reflectivity database, which reports
 directional-hemispherical reflectance -- the geometry a model albedo actually
 wants.
+
+## Every number here is a DRY endmember, and that is a scope, not a caveat
+
+Each spectrum integrated below was measured on a prepared laboratory sample --
+slab, crushed or powder -- so each albedo is the reflectance of that material at
+or near zero water content. The modelled ground this feeds is therefore dry
+ground, always and everywhere, and `exoplasim/scripts/build_surface_albedo.py`
+stages it as the dry endmember.
+
+The wet endmember of the same material needs a wet-to-dry reflectance relation
+to apply to these spectra. One is held for band 1 -- Penndorf (1956) Table 1's
+dry and wet pairs, luminous reflectance over 0.38 to 0.77 um -- and none is held
+for band 2, which is where liquid water absorbs and where the larger share of
+this star's flux arrives. Closing band 2 is one of the four preconditions on the
+moisture-dependent soil albedo; the whole argument, with the magnitude of what
+is missing and the DOIs that were sought and not reached, is in
+`exoplasim/notes/soil-albedo-moisture.md`.
 """
 
 from __future__ import annotations

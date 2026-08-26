@@ -79,6 +79,55 @@ repaint moves a level without moving the material with it.
 `--flat-bands` writes one identical field to all three codes, which is what this
 script did before the rock table had a split and is the only way to reproduce a
 surface built then.
+
+Wet ground and dry ground
+-------------------------
+
+Every value written here is the DRY endmember, and the modelled soil albedo
+carries no moisture dependence at all. This is where that absence lands, so it
+is declared here rather than left implicit; the argument, the magnitude and the
+four things that would arm the term are in
+`exoplasim/notes/soil-albedo-moisture.md`.
+
+The parameterisation is not what is missing. `dalbclim1` and `dalbclim2`,
+`landmod.f90:507-508`, are prescribed static fields on the same 0.75 um split
+this script writes into codes 175 and 176, and the CLM two-band mixing
+`alpha_band = alpha_dry*(1 - S_e) + alpha_wet*S_e` is defined on exactly that
+pair. Nor is the modelled land column, which since LSHY-3 holds a top-layer
+liquid store that `pedology/config/land_column_properties.yaml`'s
+`saturation_mapping` converts into a degree of saturation.
+
+What blocks it is that the modelled store cannot reach a dry soil. An empty
+store is the wilting point and a full one is field capacity, so the reachable
+saturation is an interval well inside [0, 1] -- that contract's
+`saturation_mapping.what_this_bounds` states it and states the same consequence
+for the modelled soil's heat capacity. Every spectrum
+`analysis/rock_albedo.py` and `analysis/playa_albedo.py` integrate is a prepared
+laboratory sample at the dry end of that scale, so mixing the two would hold
+every simulated land cell a fixed fraction of the way from dry to wet at all
+times: a level shift on land albedo carrying a seasonal term smaller than
+itself. On the salt-crust class that shift is 0.105 to 0.140 in albedo, applied
+in the driest season as much as the wettest, against a
+bare-against-vegetated gap of 0.069 over the whole simulated planet.
+
+The wet endmember is further along than that but is not staged either. Several
+wet-against-dry pairs are held and read, including in-situ pyranometer pairs on
+salt crust, but the model reads the PAIR of bands and those measurements are
+broadband: band 1 is bracketed by Penndorf and band 2, where liquid water
+absorbs and where the larger flux share arrives, has no relation at all. The
+silicate classes have no wetting measurement here, and the sign on salt crust is
+disputed between the in-situ pairs and a twenty-year MODIS series.
+
+`moisture_dependence` in the report is the magnitude, on two footings. The
+ceiling is the substrate's own albedo minus open water's, because a wetted
+modelled surface cannot be darker than the open water that would cover it if the
+wetting went all the way. `band1_wetting` is tighter and covers less: the
+band-1 loss at full wetting, from the wet/dry ratio bracket below, with band 2's
+unbracketed flux share reported beside it. Both are land-mean albedo deltas,
+which is what `scripts/error_budget.py` consumes. The ceiling's sign claim is
+checked before anything is written: a land region at or below open water's
+albedo would be one the ceiling does not bound, and the script refuses rather
+than reporting a bound it has not got.
 """
 
 from __future__ import annotations
@@ -119,6 +168,32 @@ VEGETATION_BANDS = PROJECT_ROOT / "analysis" / "vegetation_albedo.json"
 # values cannot be held tighter. Twice that leaves the check able to fail on a
 # construction error while ignoring the format's own rounding.
 RECOMBINATION_TOLERANCE = 1.0e-5
+
+# The only WETTING measurement this project holds, and it covers one of the two
+# bands. Penndorf (1956) Table 1, the Sewing Handbook column, read by eye off
+# the render because that file's text layer is machine-generated: clay soil
+# 7.5/15, sand 18/31, bare rich soil 5.5/7.2. Ratios are taken WITHIN one column
+# so the measurement's own preparation and geometry cancel, which is the same
+# discipline analysis/playa_albedo.py applies to ECOSTRESS.
+#
+# It is LUMINOUS reflectance, eye-weighted over 0.38-0.77 um, so it bears on
+# band 1 and says nothing whatever about band 2 -- and band 2 is where liquid
+# water's absorption sits and where the larger share of this star's flux
+# arrives. Penndorf's own text puts +/-25 percent on "the actual variations
+# under natural conditions". The LEVELS do not transfer to this world and are
+# not used; the ratio is what transfers, which is the reading
+# references/INDEX.md already records for this source.
+PENNDORF_WET_DRY_RATIO = (0.500, 0.764)
+
+# The BROADBAND wetting of a salt crust, from the two in-situ pyranometer
+# sources this project has read. Malek et al. (1990) on Pilot Valley playa,
+# 0.24 wet against above 0.75 after three dry weeks; Craft and Horel (2019) on
+# the Bonneville Salt Flats, 0.22 under 20-40 mm of flooding against 0.45 dry
+# summer crust. Both cover BOTH bands, which Penndorf does not, and both are the
+# darkening direction. A twenty-year MODIS series over Uyuni runs the other way
+# on interannual composites -- see the note -- so this bracket describes the
+# water film and not the state of the crust between floods.
+SALT_CRUST_WET_DRY_RATIO = (0.320, 0.489)
 
 # 212 is forest fraction. It is written here rather than left at its default
 # because it is not independent of the albedo assumption: landmod blends snow
@@ -403,6 +478,16 @@ def main() -> None:
                 "what the biosphere is worth; pair only these two.",
         "bare_rock": _land_mean(region_albedo),
     }
+
+    # The substrate as the moisture term would act on it: overrides applied,
+    # nothing painted over it yet. Snapshot rather than recompute, because the
+    # array below is mutated in place by the vegetation paint, the derived
+    # evaporite split and the lakes, and the moisture term acts on the ground
+    # under all three. See "Wet ground and dry ground" above. The band ratio is
+    # snapshot beside it for the same reason the two are only ever assigned
+    # together: a level without its material is not a spectrum.
+    substrate_albedo = region_albedo.copy()
+    substrate_rho = region_rho.copy()
     veg_painted = None
     if mode == "vegetated":
         veg_painted = is_land & ~barren
@@ -704,6 +789,140 @@ def main() -> None:
     water_albedo = float(next(r["albedo"] for r in json.loads(
         (mesh.root / "manifest.json").read_text(encoding="utf-8"))["lithology"]["rockClasses"]
         if r["code"] == "water"))
+    # --- the moisture term, declared absent -----------------------------------
+    #
+    # The ceiling on what a moisture-dependent soil albedo could be worth, and
+    # the check that the ceiling means what it says. A wetted modelled surface
+    # cannot be darker than the open water that would cover it if the wetting
+    # went all the way, so the substrate's own albedo minus open water's bounds
+    # the darkening branch per region. Taken on the substrate rather than on the
+    # written field, because vegetation and snow override the soil albedo in the
+    # model and the moisture term acts on what is underneath them.
+    #
+    # THE CHECK THAT CAN FAIL: a land region at or below open water's albedo is
+    # one this bound does not bound, and on such a region the claim that wetting
+    # darkens the ground is not something the export supports. Orogen's darkest
+    # land class is basalt and open water is well below it, so this passes with
+    # room today; it fails if a class is added or re-valued into that range,
+    # which is exactly when the declaration would need rewriting.
+    substrate_land = substrate_albedo[is_land]
+    ceiling_land = substrate_land - water_albedo
+    if float(ceiling_land.min()) <= 0.0:
+        dark = int((ceiling_land <= 0.0).sum())
+        raise SystemExit(
+            f"{dark} land regions carry a substrate albedo at or below open "
+            f"water's {water_albedo}, the darkest being "
+            f"{float(substrate_land.min()):.4f}. The moisture-term ceiling in "
+            "exoplasim/notes/soil-albedo-moisture.md bounds a DARKENING, and it "
+            "does not bound ground already darker than the water that would "
+            "cover it. Re-derive the bound for those classes before writing a "
+            "report that claims it.")
+    moisture_dependence = {
+        "state": "absent",
+        "what": "the modelled soil albedo is constant in time; codes 174, 175 "
+                "and 176 carry the DRY endmember and the modelled land surface "
+                "keeps it through every wetting and drying cycle the land "
+                "column simulates",
+        "form_that_is_not_missing":
+            "alpha_band = alpha_dry*(1 - S_e) + alpha_wet*S_e on the same 0.75 "
+            "um pair, read from "
+            "references/climaland/src/standalone/Soil/soil_albedo.jl",
+        "why_absent": [
+            "the modelled land store cannot reach a dry soil: an empty store is "
+            "the wilting point and a full one is field capacity, so S_e is "
+            "confined to the interval pedology/config/land_column_properties."
+            "yaml:saturation_mapping declares, while the dry endmembers written "
+            "here are integrated from prepared laboratory samples at the other "
+            "end of that scale. Mixing them is a level shift, not a season",
+            "the wet endmember is broadband where it exists and the model reads "
+            "the PAIR: the held wetting measurements are in-situ pyranometer "
+            "pairs on salt crust plus luminous reflectance on soils, so band 1 "
+            "is bracketed and band 2 is not -- and band 2 is where liquid "
+            "water absorbs and where the larger share of this star's flux "
+            "arrives. The silicate classes have no pair at all",
+            "the sign is disputed on the class it matters most for: two in-situ "
+            "sources make wetted salt crust much darker and a twenty-year MODIS "
+            "series makes wet years brighter, and one saturation number cannot "
+            "carry both",
+            "the modelled top water layer is 0.5 m against the 0.02 m the "
+            "parameterisation names, and the albedo depth is DUST-17's to "
+            "declare off its one top-layer profile",
+        ],
+        "argument": "exoplasim/notes/soil-albedo-moisture.md",
+        "ceiling_note":
+            "the most the darkening branch could be worth, as a land-mean albedo "
+            "delta, which is the unit scripts/error_budget.py consumes. A "
+            "CEILING and not an estimate: the realised term is this times a "
+            "wet-area fraction and a wetting efficiency, neither of which is "
+            "known here. Bounds the darkening branch only; see the sign row "
+            "above",
+        "open_water_albedo": water_albedo,
+        "ceiling_land_mean": round(
+            float(np.average(ceiling_land, weights=area_land)), 6),
+        "ceiling_min_region": round(float(ceiling_land.min()), 6),
+        "ceiling_max_region": round(float(ceiling_land.max()), 6),
+    }
+
+    # The one band the magnitude can be bracketed on rather than merely bounded.
+    # Penndorf's wet/dry ratio is a band-1 quantity, so this is the broadband
+    # albedo delta a fully wetted modelled land surface would show from band 1
+    # ALONE, at the two ends of that ratio. Band 2 carries no bracket at all and
+    # carries the larger flux share, which is reported beside it so the number
+    # is not mistaken for the whole term.
+    sub_s1, _sub_s2 = band_shapes(substrate_rho, z1, z2)
+    substrate_band1_mean = float(np.average(
+        (substrate_albedo * sub_s1)[is_land], weights=area_land))
+    moisture_dependence["band1_wetting"] = {
+        "source": "Penndorf (1956) Table 1, Sewing Handbook column; ratios "
+                  "taken within that column",
+        "wet_over_dry_ratio_bracket": list(PENNDORF_WET_DRY_RATIO),
+        "substrate_band1_land_mean": round(substrate_band1_mean, 6),
+        "broadband_delta_if_all_land_wet": [
+            round(z1 * substrate_band1_mean * (1.0 - r), 6)
+            for r in sorted(PENNDORF_WET_DRY_RATIO, reverse=True)],
+        "band2_flux_fraction_with_no_bracket": round(z2, 6),
+        "note": "band 1 only, and a FULLY wetted simulated land surface, which "
+                "no state here can say the area of. Luminous reflectance is "
+                "eye-weighted over 0.38-0.77 um and band 1 is flat to 0.75 um, "
+                "so the ratio is transferred across two weightings; Penndorf "
+                "puts +/-25 percent on the natural variation. Band 2 has no "
+                "measurement, and it is the band liquid water absorbs in.",
+    }
+
+    # Both bands, one class: salt crust is where this project holds in-situ
+    # pyranometer pairs, so the darkening branch can be bracketed outright
+    # there instead of merely bounded. The level shift is the number that
+    # decides the verdict -- what arming the mixing on the current land column
+    # would apply to every salt-crust cell in every season -- and it is stated
+    # per unit of the reachable saturation floor rather than multiplied by it
+    # here, because that floor belongs to
+    # pedology/config/land_column_properties.yaml and is not restated in this
+    # tree. See the note for the arithmetic.
+    try:
+        salt_sel = is_land & (rock == _rock_id(mesh.root, "evaporite"))
+    except KeyError:
+        salt_sel = np.zeros(rock.shape, dtype=bool)
+    salt_share = float(area[salt_sel].sum() / area[is_land].sum())
+    salt_level = float(np.median(substrate_albedo[salt_sel])) if salt_sel.any() else 0.0
+    moisture_dependence["salt_crust_wetting"] = {
+        "source": "Malek et al. (1990) and Craft, Horel (2019), both in-situ "
+                  "and broadband; see references/INDEX.md",
+        "wet_over_dry_ratio_bracket": list(SALT_CRUST_WET_DRY_RATIO),
+        "class": "evaporite",
+        "share_of_land": round(salt_share, 6),
+        "dry_level": round(salt_level, 6),
+        "per_cell_delta_if_wet": [
+            round(salt_level * (1.0 - r), 6)
+            for r in sorted(SALT_CRUST_WET_DRY_RATIO, reverse=True)],
+        "land_mean_contribution_if_wet": [
+            round(salt_share * salt_level * (1.0 - r), 6)
+            for r in sorted(SALT_CRUST_WET_DRY_RATIO, reverse=True)],
+        "note": "covers BOTH bands, unlike band1_wetting, and one class. The "
+                "sign is disputed for this class on interannual timescales; "
+                "this bracket is the water film, not the state of the crust "
+                "between floods.",
+    }
+
     field = np.where(land_cells, alb_grid, water_albedo)
 
     if mode == "modelled" and args.forest_fraction is None:
@@ -818,6 +1037,7 @@ def main() -> None:
         "land_mean_bare_rock": raw_mean,
         "land_mean_written": final_mean,
         "endmembers": endmembers,
+        "moisture_dependence": moisture_dependence,
         "lakes": lake_report,
         "derived_evaporite": evap_report,
         "exoplasim_default_albland": 0.22,
@@ -825,7 +1045,9 @@ def main() -> None:
         "land_max": float(field[land_cells].max()),
         "files": written,
         "caveat": ("Substrate albedo, not land-surface albedo. Vegetation and "
-                   "snow are applied by the model on top of this."),
+                   "snow are applied by the model on top of this. It is the DRY "
+                   "substrate; `moisture_dependence` says what that omits and "
+                   "what it is worth."),
     }
     # Provenance stamp; lib/provenance.py owns the shape and the inert set.
     # `inputs` is the half the config stamp cannot cover: every DERIVED FILE

@@ -30,6 +30,23 @@ records which rule fired AND which other rules of that axis it also satisfied.
 A rule that never fires and a rule that always fires are both bugs, and neither
 is visible without that record.
 
+## There is no wet/dry axis, and there is not going to be one here
+
+`surface_cover` carries INUNDATION, as `water`, from the solved lake extent.
+It does not carry whether the ground under an unflooded class is wet or dry, and
+that is a decision rather than a gap: a wet/dry cover state would be a
+near-surface water state defined by this component, which is the second central
+hydrology DUST-17 exists to prevent. The one authoritative top-layer liquid
+water state is DUST-17's, off the land column, and a consumer that needs the
+wetness of a surface reads that at its own declared depth. The class table's job
+is what the surface IS MADE OF; how much water is in it at a given moment is the
+column's.
+
+The consumer this most affects is the modelled soil albedo, which is constant in
+time for related reasons. `pedology/config/surface_classes.yaml` states the
+decision beside the `water` rule and
+`exoplasim/notes/soil-albedo-moisture.md` carries the argument.
+
 ## What can fail here
 
 Seven checks, all with a right answer:
