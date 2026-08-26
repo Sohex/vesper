@@ -605,6 +605,15 @@ def configure_otherargs(derived: dict) -> dict:
         # to.
         "CLWREF@rainmod_namelist":
             f"{derived['cloud_water_reference_kg_m3']:.6g}",
+        # world-trs3 and world-o12h, rainmod_nl. Written unconditionally, the
+        # compiled sentinels included, on the same argument CLWREF above is
+        # written on: both select between a DERIVED form and a literal, and a
+        # run directory that does not record which one it used cannot be
+        # attributed to either. Negative means derive.
+        "GAMMA@rainmod_namelist":
+            f"{derived['precip_reevaporation_gamma']:.6g}",
+        "RCRITWIDTH@rainmod_namelist":
+            f"{derived['cloud_fraction_subgrid_width']:.6g}",
         # world-py6p, landmod_nl. THE LAND COLUMN, all eight keys and
         # unconditionally, so the namelist in the run directory says which
         # scheme the segment integrated. They travel together because they are
@@ -1082,6 +1091,30 @@ def derive(config: dict, flux_ratio: float) -> dict:
         "cloud_water_reference_kg_m3": float(
             config["model"].get("cloud_water_reference_kg_m3",
                                 rainmod_default("clwref"))),
+        # world-trs3, rainmod_nl. The precipitation re-evaporation fraction.
+        # NEGATIVE is the sentinel and the default: `rainini` then derives it
+        # per cell and per level from Kessler (1969), and a POSITIVE value
+        # restores the pre-derivation literal at all four re-evaporation sites.
+        # Read out of rainmod.f90 for the same reason `clwref` is, so a config
+        # that says nothing reproduces the compiled sentinel exactly. The route
+        # exists because the derived form is a factor of 3.6 to 20 above the
+        # constant it replaced over the fluxes that matter, which makes it the
+        # largest single suspect in the bundle drift
+        # `exoplasim/notes/forcing-bundle-predictions.md` measures, and until
+        # now it was the one term in that bundle with a control and no way to
+        # reach it.
+        "precip_reevaporation_gamma": float(
+            config["model"].get("precip_reevaporation_gamma",
+                                rainmod_default("gamma"))),
+        # world-o12h, rainmod_nl. The subgrid humidity width. NEGATIVE is the
+        # sentinel and the default, deriving `(RCNLATREF/NLAT)^(1/3)` from the
+        # grid; a POSITIVE value is used as the factor directly, and 1.0 is the
+        # identity. At T21 the derived value IS 1.0, so the two agree there by
+        # construction and the path is untestable at this rung rather than
+        # verified at it.
+        "cloud_fraction_subgrid_width": float(
+            config["model"].get("cloud_fraction_subgrid_width",
+                                rainmod_default("rcritwidth"))),
         # world-py6p, landmod_nl. The eight keys of the land liquid water
         # column: which of LSHY-3's registered hypotheses runs, its evaporation
         # limiter, and LSHY-5's soil phase. See `land_water_column`.
@@ -2715,6 +2748,15 @@ def expected_namelist_keys(config: dict) -> dict:
     clwref = float(m.get("cloud_water_reference_kg_m3",
                          rainmod_default("clwref")))
     want["rainmod_namelist"]["CLWREF"] = float(f"{clwref:.6g}")
+    # world-trs3 and world-o12h, rainmod_nl, unconditional on the same
+    # argument: each selects between a derived form and a literal, so a
+    # continuation that dropped one would silently return the segment to the
+    # derived branch and no artifact would say it had.
+    gamma = float(m.get("precip_reevaporation_gamma", rainmod_default("gamma")))
+    want["rainmod_namelist"]["GAMMA"] = float(f"{gamma:.6g}")
+    rcritwidth = float(m.get("cloud_fraction_subgrid_width",
+                             rainmod_default("rcritwidth")))
+    want["rainmod_namelist"]["RCRITWIDTH"] = float(f"{rcritwidth:.6g}")
     # world-py6p, landmod_nl. THE LAND COLUMN, all eight, unconditionally.
     # `land_water_column` is shared with the staging side the way
     # `freezing_point_k` is: it maps the CONFIG to a value and knows nothing
