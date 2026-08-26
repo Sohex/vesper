@@ -1525,11 +1525,13 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       endif
       call mpbcr(zaccuvers)
       call mpbci(ienerok)
-!     ONE DECISION, TAKEN BEFORE ANY ACCUMULATOR IS READ. `outreset` has to come
-!     first or not at all: the aa* set below used to be read after it, so a
-!     discarded interval put naccuout at zero and then loaded the partial sums
-!     back over it, which is the counter outliving what it counts by the other
-!     route. Everything the interval consists of is now inside one branch.
+!     ONE DECISION, AND NOTHING IS READ BEFORE IT IS TAKEN. The aa* set below
+!     used to be read AFTER the `outreset` a discarded interval calls, so at
+!     nlowio > 0 -- the only setting at which those arrays hold anything, since
+!     `outaccu` and `outreset` both gate them on it -- naccuout went to zero and
+!     the partial sums were then loaded back over the reset. That is the counter
+!     outliving what it counts, by the route `accuvers` was built to close.
+!     Everything the output interval consists of is now inside one branch.
       if (zaccuvers < 2.0 .or. ienerok == 0) then
          call outreset          ! no complete accumulator set: start clean
          if (mypid == NROOT) then
