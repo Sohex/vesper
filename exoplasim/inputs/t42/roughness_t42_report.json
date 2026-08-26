@@ -1,0 +1,338 @@
+{
+  "generated": "2026-08-26T00:48:35+00:00",
+  "code": 173,
+  "field": "dz0clim, total aerodynamic roughness length, metres",
+  "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
+  "replaces_uniform": 2.0,
+  "surface_z0_m": {
+    "bare": 0.003,
+    "canopy": 0.625,
+    "forest": 1.0,
+    "forest_fraction_used": 0.5
+  },
+  "orographic": {
+    "coefficient_solved": 0.004962,
+    "relation": "z0_oro = coefficient * stdev(elevation) within the cell",
+    "subgrid_stdev_m": {
+      "min": 0.0,
+      "median": 66.57,
+      "max": 1987.24
+    },
+    "mesh_regions_per_land_cell_median": 608,
+    "coefficient_was_solved": true
+  },
+  "surface_aggregation": {
+    "operator": "gridding.cell_expectation, NONLINEAR, over the cell's land population: ce evaluated per mesh region and then area-averaged, inverted to the length that reproduces that mean. lib/gridding.py owns the reduction operators and this file calls one rather than reimplementing it.",
+    "law": "ce = karman^2 / ln(z_ref / z0)^2",
+    "population": "surface_class == land",
+    "reference_height_anchor_m": 113.96,
+    "land_mean_m_over_reference_air_bracket": [
+      2.00018,
+      1.99984
+    ],
+    "jensen_gap_in_ce_relative": {
+      "min": -0.49128430256456346,
+      "median": -6.20317888978717e-05,
+      "max": 1.1260692100142319e-07,
+      "land_area_weighted_mean": -0.014375999166778178
+    },
+    "transfer": {
+      "regions_offered": 4328736,
+      "cells": 8192,
+      "cells_with_no_population": 2438,
+      "area_offered": 318136980.5317639,
+      "area_landed": 318136980.5317639,
+      "closure_residual_relative": 0.0
+    }
+  },
+  "land_mean_m": 2.0,
+  "land_min_m": 0.003507,
+  "land_max_m": 9.8784,
+  "exchange_coefficient": {
+    "note": "ce = k^2 / ln(z_ref / z0)^2, the quantity roughness acts through. z_ref is lib/lapse.py:reference_height_m at this planet's gravity; each value is [low, high] over reference_air_k, across which z_ref is linear.",
+    "karman": 0.4,
+    "reference_air_k": [
+      273.15,
+      313.15
+    ],
+    "reference_height_m": [
+      106.18,
+      121.73
+    ],
+    "uniform_default": [
+      0.009478,
+      0.010141
+    ],
+    "this_field_land_max": [
+      0.025367,
+      0.02837
+    ],
+    "this_field_land_min": [
+      0.001464,
+      0.001503
+    ]
+  },
+  "file": "/home/cfutro/docs/world/exoplasim/inputs/t42/orogen_T42_surf_0173.sra",
+  "generator": "exoplasim/scripts/build_surface_roughness.py",
+  "source_config": {
+    "schema_version": 1,
+    "source_build": "precarve-craton-10m",
+    "baseline_climatology": null,
+    "planet": {
+      "radius_earth": 1.2,
+      "gravity_m_s2": 12.81,
+      "mass_earth": 1.881009,
+      "rotation_hours": 30.0,
+      "obliquity_degrees": 32.0,
+      "eccentricity": 0.02,
+      "rotation_direction": "prograde",
+      "longitude_positive": "east",
+      "prime_meridian": "orogen_export_zero"
+    },
+    "star": {
+      "spectral_type": "K2.5V",
+      "activity": "active",
+      "surface_uv_relative_to_earth": 0.4,
+      "mass_solar": 0.8,
+      "luminosity_solar": 0.32359365692962827,
+      "effective_temperature_k": 4965.0,
+      "metallicity": 0.0
+    },
+    "orbit": {
+      "earth_solar_constant_w_m2": 1361.0,
+      "baseline_flux_earth": 0.945,
+      "sweep_flux_earth": [
+        0.9,
+        0.95,
+        1.0
+      ],
+      "longitude_vernal_equinox_degrees": 102.7
+    },
+    "atmosphere": {
+      "pN2_bar": 0.78025,
+      "pO2_bar": 0.21,
+      "pAr_bar": 0.0093,
+      "pCO2_bar": 0.00045,
+      "pCH4_bar": 1.6e-06,
+      "pN2O_bar": 3e-07,
+      "ozone": true
+    },
+    "radiation": {
+      "two_band_albedo": true,
+      "stellar_spectrum": "k25v"
+    },
+    "ocean": {
+      "horizontal_diffusion": false,
+      "horizontal_diffusivity_m2_s": 1000.0,
+      "salinity_psu": 34.7,
+      "cold_start": {
+        "sst_equator_k": 300.0,
+        "sst_pole_k": 273.0,
+        "sea_ice_thickness_m": 0.0
+      },
+      "sea_ice_fusion_j_kg": 328000.0
+    },
+    "surface": {
+      "mixed_layer_depth_m": 50.0,
+      "sea_ice": true,
+      "sea_ice_max_thickness_m": -1.0,
+      "sea_ice_lead_closing_m": 0.5,
+      "glaciers": {
+        "enabled": true,
+        "min_snow_depth_m": 2.0,
+        "initial_height_m": -1.0,
+        "max_snow_depth_m": -1.0,
+        "persistence_orbits": 1.0
+      },
+      "land_water_column": {
+        "scheme": "bucket",
+        "layers": 1,
+        "lower_boundary": "impermeable",
+        "layer_capacity_fraction": [
+          1.0
+        ],
+        "layer_thickness_m": [
+          1.5
+        ],
+        "soil_phase": false,
+        "evaporation_limiter": {
+          "theta_low": 0.0,
+          "exponent": 1
+        }
+      }
+    },
+    "model": {
+      "resolution": "T42",
+      "latitudes": 64,
+      "longitudes": 128,
+      "layers": 10,
+      "vertical_grid": 4,
+      "model_top_hpa": 50.0,
+      "precision_bytes": 8,
+      "compile_flags": {
+        "f90_opts": [
+          "-O2",
+          "-cpp",
+          "-ffpe-trap=invalid,zero,overflow",
+          "-ffpe-summary=none",
+          "-march=znver4",
+          "-funroll-loops",
+          "-g"
+        ],
+        "profiles": {
+          "production": [],
+          "checked": [
+            "-fcheck=all"
+          ],
+          "poisoned": [
+            "-fcheck=all",
+            "-finit-real=snan",
+            "-Og"
+          ]
+        },
+        "profile": "production"
+      },
+      "ncpus": 16,
+      "timestep_minutes": 30.0,
+      "physics_filter": "gp|exp|sp",
+      "filter_kappa": 8.0,
+      "filter_power": 16,
+      "cold_start_seed": 88888888,
+      "hyperdiffusion": {
+        "eddy_wind_m_s": 5.94,
+        "order_alpha": 4,
+        "cutoff_fraction": 0.381,
+        "ratios_to_vorticity": {
+          "divergence": 0.2,
+          "temperature": 2.533,
+          "humidity": 0.333
+        },
+        "timescales_days": {
+          "T21": {
+            "divergence": 0.4457,
+            "vorticity": 2.2285,
+            "temperature": 5.6449,
+            "humidity": 0.7421
+          },
+          "T42": {
+            "divergence": 0.2229,
+            "vorticity": 1.1143,
+            "temperature": 2.8224,
+            "humidity": 0.3711
+          },
+          "T85": {
+            "divergence": 0.1101,
+            "vorticity": 0.5506,
+            "temperature": 1.3946,
+            "humidity": 0.1833
+          },
+          "T127": {
+            "divergence": 0.0737,
+            "vorticity": 0.3685,
+            "temperature": 0.9334,
+            "humidity": 0.1227
+          },
+          "T170": {
+            "divergence": 0.0551,
+            "vorticity": 0.2753,
+            "temperature": 0.6973,
+            "humidity": 0.0917
+          }
+        }
+      },
+      "cold_start_profile": {
+        "surface_temperature_k": 289.03,
+        "lapse_rate_k_per_m": 0.008489,
+        "tropopause_height_m": 9220.0
+      },
+      "semi_implicit_reference_temperature_k": 249.4,
+      "rayleigh_sponge_rotations": [
+        20.0,
+        100.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_type": ".nc",
+      "uniform_land_surface": true,
+      "energy_diagnostics": true,
+      "energy_diagnostics_3d": false,
+      "energy_fixer": true,
+      "cloud_absorption_scale": 1.192,
+      "cloud_water_reference_kg_m3": 0.00021,
+      "land_longwave_emissivity": 0.9357,
+      "sea_longwave_emissivity": 0.98,
+      "ozone_scale": 0.794,
+      "ozone_height_m": 15311.8,
+      "ozone_spread_m": 3828.0,
+      "ozone_uv_weight": 0.335,
+      "ozone_visible_weight": 0.914,
+      "h2o_sw_weight": 1.346,
+      "h2o_sw_level": 1.163,
+      "h2o_sw_level_bracket": [
+        1.129,
+        1.206
+      ],
+      "co2_sw_weight": 1.51,
+      "roughness_source": "lithology",
+      "soil_water_source": "uniform",
+      "lake_dwmax_m": 0.2,
+      "land_albedo_source": "vegetated",
+      "vegetation_albedo": 0.165,
+      "vegetation_albedo_bracket": [
+        0.15,
+        0.171
+      ],
+      "vegetation_albedo_bands": [
+        0.074,
+        0.222
+      ],
+      "tree_albedo": 0.143,
+      "tree_albedo_bracket": [
+        0.13,
+        0.148
+      ],
+      "grass_albedo": 0.209,
+      "grass_albedo_bracket": [
+        0.19,
+        0.217
+      ],
+      "lithology_albedo_overrides": {
+        "playa_clastic": {
+          "albedo": 0.23,
+          "replaces": 0.19
+        }
+      },
+      "barren_rock_classes": [
+        "evaporite",
+        "playa_clastic"
+      ],
+      "geography_land_threshold": 0.5,
+      "seasonal_samples_per_orbit": 32,
+      "regular_output_bins_per_orbit": 12
+    },
+    "stellar_cycle": {
+      "components": {
+        "medium": {
+          "period_earth_years": 11.0,
+          "amplitude_flux_peak_to_peak": 0.025,
+          "note": "The lived rhythm. Damped about 0.83, so roughly 3.1 K peak-to-peak, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow.\n"
+        },
+        "long": {
+          "period_earth_years": 57.0,
+          "amplitude_flux_peak_to_peak": 0.035,
+          "note": "The geomorphic driver. Essentially undamped at 0.99, roughly 5.2 K peak-to-peak, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+        }
+      },
+      "total_amplitude_flux_peak_to_peak": 0.06,
+      "alignment_recurrence_earth_years": 314
+    }
+  },
+  "config_sha256": "d46cd5f74d357bb89d0274ef609178c56f7ad62116c89817829d00e66f1bf6e8",
+  "git_commit": "3b0ba6267c5d81baf790c0d948de03aa9604e792"
+}

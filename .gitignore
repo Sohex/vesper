@@ -322,3 +322,21 @@ vendor/exoplasim/build/
 # each one IS tracked, because it is the only record of which templates exist,
 # which executable wrote each, and which staged surface it is sound against.
 exoplasim/inputs/templates/*.rest
+
+# Staged surface fields, one .sra family per rung under exoplasim/inputs/<rung>/.
+# Same exclude-the-bulk, keep-the-record rule as the restart templates above, and
+# the same reason: an .sra is OUTPUT under rule 7 -- build_boundary_conditions.py,
+# build_surface_albedo.py, build_surface_roughness.py and build_surface_soil_water.py
+# re-derive the whole family from the export and config/planet.yaml in minutes,
+# and a carve replaces it wholesale. It also scales with the rung, so what is
+# 107 KB a field at T42 is two orders larger at the top of the ladder.
+#
+# The JSON beside them is NOT bulk and IS tracked: the *_report.json files and the
+# *_provenance.json sidecars are what check_consistency.py's "generated inputs vs
+# their config" pass reads, and the provenance sidecar is the only record of which
+# build and which config hash a staged field was written from. Excluding those
+# alongside the payload would delete the drift check rather than the bulk.
+#
+# These directories sat untracked-and-unignored, which is the shape a `git add -A`
+# sweeps into the tree -- the same gap biosphere/generated/ had above.
+exoplasim/inputs/*/*.sra

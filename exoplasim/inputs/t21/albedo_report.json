@@ -1,0 +1,339 @@
+{
+  "mode": "vegetated",
+  "mesh": "/home/cfutro/docs/world/source/precarve-craton-10m/exoplasim-T42",
+  "grid": "/home/cfutro/docs/world/source/precarve-craton-10m/exoplasim-T21",
+  "resolution": "T21",
+  "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
+  "codes": [
+    174,
+    175,
+    176,
+    212
+  ],
+  "forest_fraction_value": 0.5,
+  "vegetation": null,
+  "forest_fraction_land_mean": 0.3398707747484783,
+  "lithology_albedo_overrides": {
+    "playa_clastic": {
+      "rock_id": 19,
+      "albedo": 0.23,
+      "exported_albedo": 0.1899999976158142,
+      "regions": 1209816
+    }
+  },
+  "vegetation_albedo": {
+    "value": 0.165,
+    "source": "config model.vegetation_albedo",
+    "derivation": "analysis/vegetation_albedo.json",
+    "band_ratio": 3.0052,
+    "bands_175_176": [
+      0.07371,
+      0.22152
+    ]
+  },
+  "bands": {
+    "split": true,
+    "band_flux_fractions": [
+      0.382372,
+      0.617628
+    ],
+    "band_flux_source": "lib/stellar.band_fractions",
+    "rock_band_ratios": "analysis/rock_albedo_bands.json",
+    "canopy_band_ratios": "analysis/vegetation_albedo.json",
+    "recombination_worst_residual": 1.8596235662471372e-15,
+    "recombination_tolerance": 1e-05,
+    "note": "z1*175 + z2*176 == 174 over the whole grid, checked before writing. The .sra format rounds at %12.5f, so the tolerance is twice that quantum and not tighter.",
+    "band1_land_mean": 0.10974915917211786,
+    "band2_land_mean": 0.24614511351698926
+  },
+  "barren_rock_classes": [
+    "evaporite",
+    "playa_clastic"
+  ],
+  "forest_note": "dforest blends snow albedo between forested and unforested endpoints, so it has to agree with the background albedo assumption. ExoPlaSim's default is a uniform 0.5.",
+  "land_mean_bare_rock": 0.2482695493883222,
+  "land_mean_written": 0.19399112053583548,
+  "endmembers": {
+    "note": "land-mean albedo of the two surface endmembers, on the overridden rock table and before lakes. Their difference is what the biosphere is worth; pair only these two.",
+    "bare_rock": 0.2594608146857134,
+    "vegetated": 0.19297601514203205
+  },
+  "lakes": null,
+  "derived_evaporite": null,
+  "exoplasim_default_albland": 0.22,
+  "land_min": 0.16515390558877513,
+  "land_max": 0.29300583337387126,
+  "files": [
+    "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_0174.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_0175.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_0176.sra",
+    "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_0212.sra"
+  ],
+  "caveat": "Substrate albedo, not land-surface albedo. Vegetation and snow are applied by the model on top of this.",
+  "generator": "exoplasim/scripts/build_surface_albedo.py",
+  "source_config": {
+    "schema_version": 1,
+    "source_build": "precarve-craton-10m",
+    "baseline_climatology": null,
+    "planet": {
+      "radius_earth": 1.2,
+      "gravity_m_s2": 12.81,
+      "mass_earth": 1.881009,
+      "rotation_hours": 30.0,
+      "obliquity_degrees": 32.0,
+      "eccentricity": 0.02,
+      "rotation_direction": "prograde",
+      "longitude_positive": "east",
+      "prime_meridian": "orogen_export_zero"
+    },
+    "star": {
+      "spectral_type": "K2.5V",
+      "activity": "active",
+      "surface_uv_relative_to_earth": 0.4,
+      "mass_solar": 0.8,
+      "luminosity_solar": 0.32359365692962827,
+      "effective_temperature_k": 4965.0,
+      "metallicity": 0.0
+    },
+    "orbit": {
+      "earth_solar_constant_w_m2": 1361.0,
+      "baseline_flux_earth": 0.945,
+      "sweep_flux_earth": [
+        0.9,
+        0.95,
+        1.0
+      ],
+      "longitude_vernal_equinox_degrees": 102.7
+    },
+    "atmosphere": {
+      "pN2_bar": 0.78025,
+      "pO2_bar": 0.21,
+      "pAr_bar": 0.0093,
+      "pCO2_bar": 0.00045,
+      "pCH4_bar": 1.6e-06,
+      "pN2O_bar": 3e-07,
+      "ozone": true
+    },
+    "radiation": {
+      "two_band_albedo": true,
+      "stellar_spectrum": "k25v"
+    },
+    "ocean": {
+      "horizontal_diffusion": false,
+      "horizontal_diffusivity_m2_s": 1000.0,
+      "salinity_psu": 34.7,
+      "cold_start": {
+        "sst_equator_k": 300.0,
+        "sst_pole_k": 273.0,
+        "sea_ice_thickness_m": 0.0
+      },
+      "sea_ice_fusion_j_kg": 328000.0
+    },
+    "surface": {
+      "mixed_layer_depth_m": 50.0,
+      "sea_ice": true,
+      "sea_ice_max_thickness_m": -1.0,
+      "sea_ice_lead_closing_m": 0.5,
+      "glaciers": {
+        "enabled": true,
+        "min_snow_depth_m": 2.0,
+        "initial_height_m": -1.0,
+        "max_snow_depth_m": -1.0,
+        "persistence_orbits": 1.0
+      },
+      "land_water_column": {
+        "scheme": "bucket",
+        "layers": 1,
+        "lower_boundary": "impermeable",
+        "layer_capacity_fraction": [
+          1.0
+        ],
+        "layer_thickness_m": [
+          1.5
+        ],
+        "soil_phase": false,
+        "evaporation_limiter": {
+          "theta_low": 0.0,
+          "exponent": 1
+        }
+      }
+    },
+    "model": {
+      "resolution": "T21",
+      "latitudes": 32,
+      "longitudes": 64,
+      "layers": 10,
+      "vertical_grid": 4,
+      "model_top_hpa": 50.0,
+      "precision_bytes": 8,
+      "compile_flags": {
+        "f90_opts": [
+          "-O2",
+          "-cpp",
+          "-ffpe-trap=invalid,zero,overflow",
+          "-ffpe-summary=none",
+          "-march=znver4",
+          "-funroll-loops",
+          "-g"
+        ],
+        "profiles": {
+          "production": [],
+          "checked": [
+            "-fcheck=all"
+          ],
+          "poisoned": [
+            "-fcheck=all",
+            "-finit-real=snan",
+            "-Og"
+          ]
+        },
+        "profile": "production"
+      },
+      "ncpus": 16,
+      "timestep_minutes": 30.0,
+      "physics_filter": "gp|exp|sp",
+      "filter_kappa": 8.0,
+      "filter_power": 16,
+      "cold_start_seed": 88888888,
+      "hyperdiffusion": {
+        "eddy_wind_m_s": 5.94,
+        "order_alpha": 4,
+        "cutoff_fraction": 0.381,
+        "ratios_to_vorticity": {
+          "divergence": 0.2,
+          "temperature": 2.533,
+          "humidity": 0.333
+        },
+        "timescales_days": {
+          "T21": {
+            "divergence": 0.4457,
+            "vorticity": 2.2285,
+            "temperature": 5.6449,
+            "humidity": 0.7421
+          },
+          "T42": {
+            "divergence": 0.2229,
+            "vorticity": 1.1143,
+            "temperature": 2.8224,
+            "humidity": 0.3711
+          },
+          "T85": {
+            "divergence": 0.1101,
+            "vorticity": 0.5506,
+            "temperature": 1.3946,
+            "humidity": 0.1833
+          },
+          "T127": {
+            "divergence": 0.0737,
+            "vorticity": 0.3685,
+            "temperature": 0.9334,
+            "humidity": 0.1227
+          },
+          "T170": {
+            "divergence": 0.0551,
+            "vorticity": 0.2753,
+            "temperature": 0.6973,
+            "humidity": 0.0917
+          }
+        }
+      },
+      "cold_start_profile": {
+        "surface_temperature_k": 289.03,
+        "lapse_rate_k_per_m": 0.008489,
+        "tropopause_height_m": 9220.0
+      },
+      "semi_implicit_reference_temperature_k": 249.4,
+      "rayleigh_sponge_rotations": [
+        20.0,
+        100.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_type": ".nc",
+      "uniform_land_surface": true,
+      "energy_diagnostics": true,
+      "energy_diagnostics_3d": false,
+      "energy_fixer": true,
+      "cloud_absorption_scale": 1.192,
+      "cloud_water_reference_kg_m3": 0.00021,
+      "land_longwave_emissivity": 0.9357,
+      "sea_longwave_emissivity": 0.98,
+      "ozone_scale": 0.794,
+      "ozone_height_m": 15311.8,
+      "ozone_spread_m": 3828.0,
+      "ozone_uv_weight": 0.335,
+      "ozone_visible_weight": 0.914,
+      "h2o_sw_weight": 1.346,
+      "h2o_sw_level": 1.163,
+      "h2o_sw_level_bracket": [
+        1.129,
+        1.206
+      ],
+      "co2_sw_weight": 1.51,
+      "roughness_source": "lithology",
+      "soil_water_source": "uniform",
+      "lake_dwmax_m": 0.2,
+      "land_albedo_source": "vegetated",
+      "vegetation_albedo": 0.165,
+      "vegetation_albedo_bracket": [
+        0.15,
+        0.171
+      ],
+      "vegetation_albedo_bands": [
+        0.074,
+        0.222
+      ],
+      "tree_albedo": 0.143,
+      "tree_albedo_bracket": [
+        0.13,
+        0.148
+      ],
+      "grass_albedo": 0.209,
+      "grass_albedo_bracket": [
+        0.19,
+        0.217
+      ],
+      "lithology_albedo_overrides": {
+        "playa_clastic": {
+          "albedo": 0.23,
+          "replaces": 0.19
+        }
+      },
+      "barren_rock_classes": [
+        "evaporite",
+        "playa_clastic"
+      ],
+      "geography_land_threshold": 0.5,
+      "seasonal_samples_per_orbit": 32,
+      "regular_output_bins_per_orbit": 12
+    },
+    "stellar_cycle": {
+      "components": {
+        "medium": {
+          "period_earth_years": 11.0,
+          "amplitude_flux_peak_to_peak": 0.025,
+          "note": "The lived rhythm. Damped about 0.83, so roughly 3.1 K peak-to-peak, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow.\n"
+        },
+        "long": {
+          "period_earth_years": 57.0,
+          "amplitude_flux_peak_to_peak": 0.035,
+          "note": "The geomorphic driver. Essentially undamped at 0.99, roughly 5.2 K peak-to-peak, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+        }
+      },
+      "total_amplitude_flux_peak_to_peak": 0.06,
+      "alignment_recurrence_earth_years": 314
+    }
+  },
+  "config_sha256": "5ab8c97d4d36f6c7f0b1610648e6b8abf3a5d338458f310fb996b3b584b1769c",
+  "git_commit": "4038c12e10834da1c9441229f6abbc2ff5d39d8b",
+  "source_inputs": {
+    "analysis/rock_albedo_bands.json": "349c9e843b813b57384d8565b8b4aaa4b47d6ae25da57ce8a1c70fdb0ccd4eea",
+    "analysis/vegetation_albedo.json": "f6a970ca470dbbfa2d75a11a3767d57f66ee48cf8da66815d0f3b601851463bf"
+  }
+}

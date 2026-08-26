@@ -1,0 +1,226 @@
+{
+  "schema_version": 2,
+  "criterion": "|mean_A - mean_B| <= 2.0 * sqrt(2) * max(SEM_A, SEM_B), declared before either arm was compared",
+  "standard_error": "sigma * sqrt(tau / n_window), with sigma and the integrated autocorrelation time tau taken over the longest stationary tail of each run's production series. Orbits within a window are not independent samples and the scatter over the root of their count understated this by about a factor of two. world-yj9o.",
+  "window_orbits": 10,
+  "run_a": {
+    "path": "exoplasim/runs/run_d35b554cab2a",
+    "window": [
+      15,
+      24
+    ],
+    "production_orbits_read": 25
+  },
+  "run_b": {
+    "path": "exoplasim/runs/run_57cecaa8391b",
+    "window": [
+      15,
+      24
+    ],
+    "production_orbits_read": 25
+  },
+  "pattern": {
+    "surface_temperature_rms_k": 1.5190436212480398,
+    "spatial_correlation": 0.9933852125965632,
+    "note": "reported for context; two runs of a chaotic model differ in pattern at equilibrium and no bound is applied here"
+  },
+  "metrics": [
+    {
+      "metric": "surface_temperature_k",
+      "a": 292.46850277196256,
+      "b": 292.6005523549469,
+      "difference": 0.13204958298433667,
+      "variability_a": {
+        "tau_span_start_orbit": 5,
+        "tau_span_orbits": 20,
+        "tau_orbits": 1.3812730341372357,
+        "lag1_autocorrelation": 0.4555673708195445,
+        "effective_samples_in_window": 7.2396982731557875,
+        "orbit_scatter": 0.08080421097061825,
+        "tail_drift_per_orbit": 0.0026093978704452244,
+        "resolved": true,
+        "sem": 0.030031274286165578
+      },
+      "variability_b": {
+        "tau_span_start_orbit": 5,
+        "tau_span_orbits": 20,
+        "tau_orbits": 2.318946360393713,
+        "lag1_autocorrelation": 0.4480909059988108,
+        "effective_samples_in_window": 4.312303281694791,
+        "orbit_scatter": 0.08711235310328085,
+        "tail_drift_per_orbit": 0.004539213041550533,
+        "resolved": false,
+        "reason": "tau 2.32 was estimated over 20 orbits, under the 10x span it needs to mean anything"
+      },
+      "within": null,
+      "verdict": "indeterminate: tau 2.32 was estimated over 20 orbits, under the 10x span it needs to mean anything"
+    },
+    {
+      "metric": "air_temperature_2m_k",
+      "a": 292.4103501674106,
+      "b": 292.54193897201577,
+      "difference": 0.1315888046051441,
+      "variability_a": {
+        "tau_span_start_orbit": 5,
+        "tau_span_orbits": 20,
+        "tau_orbits": 1.427435105285175,
+        "lag1_autocorrelation": 0.4382345795243067,
+        "effective_samples_in_window": 7.005572416549322,
+        "orbit_scatter": 0.07783825112684883,
+        "tail_drift_per_orbit": 0.0025444439230928864,
+        "resolved": true,
+        "sem": 0.02940839048132935
+      },
+      "variability_b": {
+        "tau_span_start_orbit": 5,
+        "tau_span_orbits": 20,
+        "tau_orbits": 2.0081251089961634,
+        "lag1_autocorrelation": 0.3776613772669371,
+        "effective_samples_in_window": 4.9797694153622105,
+        "orbit_scatter": 0.08658258815470184,
+        "tail_drift_per_orbit": 0.004328826574393523,
+        "resolved": false,
+        "reason": "tau 2.01 was estimated over 20 orbits, under the 10x span it needs to mean anything"
+      },
+      "within": null,
+      "verdict": "indeterminate: tau 2.01 was estimated over 20 orbits, under the 10x span it needs to mean anything"
+    },
+    {
+      "metric": "precipitation_mm_day",
+      "a": 2.8428709987366885,
+      "b": 2.847956616496801,
+      "difference": 0.005085617760112626,
+      "variability_a": {
+        "tau_span_start_orbit": 0,
+        "tau_span_orbits": 25,
+        "tau_orbits": 1.0,
+        "lag1_autocorrelation": -0.056275969182043306,
+        "effective_samples_in_window": 10.0,
+        "orbit_scatter": 0.0159393030875221,
+        "tail_drift_per_orbit": -0.00010909597582600499,
+        "resolved": true,
+        "sem": 0.005040450207232401
+      },
+      "variability_b": {
+        "tau_span_start_orbit": 11,
+        "tau_span_orbits": 14,
+        "tau_orbits": 1.2839651982235085,
+        "lag1_autocorrelation": 0.394523336267669,
+        "effective_samples_in_window": 7.788373091292488,
+        "orbit_scatter": 0.015374562539009963,
+        "tail_drift_per_orbit": 0.0011336281619328428,
+        "resolved": true,
+        "sem": 0.005509083990355388
+      },
+      "sem": 0.005509083990355388,
+      "bound": 0.015582042590826158,
+      "sigmas": 0.6527536721157156,
+      "within": true,
+      "smallest_resolvable_difference": 0.015582042590826158
+    },
+    {
+      "metric": "sea_ice_fraction",
+      "a": 0.007063873363995991,
+      "b": 0.006209735433593384,
+      "difference": -0.000854137930402607,
+      "variability_a": {
+        "tau_span_start_orbit": 0,
+        "tau_span_orbits": 25,
+        "tau_orbits": 2.30525293917665,
+        "lag1_autocorrelation": 0.5113937881699551,
+        "effective_samples_in_window": 4.337918772406652,
+        "orbit_scatter": 0.0005431193909138138,
+        "tail_drift_per_orbit": -1.21964282376612e-05,
+        "resolved": true,
+        "sem": 0.0002607681829586805
+      },
+      "variability_b": {
+        "tau_span_start_orbit": 10,
+        "tau_span_orbits": 15,
+        "tau_orbits": 1.0,
+        "lag1_autocorrelation": 0.06541757801246002,
+        "effective_samples_in_window": 10.0,
+        "orbit_scatter": 0.0003207381399146097,
+        "tail_drift_per_orbit": -7.951486212930871e-06,
+        "resolved": true,
+        "sem": 0.00010142630546159302
+      },
+      "sem": 0.0002607681829586805,
+      "bound": 0.0007375638019511093,
+      "sigmas": 2.3161058830249512,
+      "within": false,
+      "smallest_resolvable_difference": 0.0007375638019511093
+    },
+    {
+      "metric": "toa_shortwave_up_w_m2",
+      "a": 76.22807755999689,
+      "b": 75.87910535737333,
+      "difference": -0.3489722026235569,
+      "variability_a": {
+        "tau_span_start_orbit": 0,
+        "tau_span_orbits": 25,
+        "tau_orbits": 1.0,
+        "lag1_autocorrelation": -0.13040371568280135,
+        "effective_samples_in_window": 10.0,
+        "orbit_scatter": 0.33286877500705486,
+        "tail_drift_per_orbit": -0.0043041095671479705,
+        "resolved": true,
+        "sem": 0.10526234909724241
+      },
+      "variability_b": {
+        "tau_span_start_orbit": 0,
+        "tau_span_orbits": 25,
+        "tau_orbits": 1.0,
+        "lag1_autocorrelation": 0.2350645767725197,
+        "effective_samples_in_window": 10.0,
+        "orbit_scatter": 0.2747158855562271,
+        "tail_drift_per_orbit": -0.0055907956662649225,
+        "resolved": true,
+        "sem": 0.08687279077878302
+      },
+      "sem": 0.10526234909724241,
+      "bound": 0.2977268834011431,
+      "sigmas": 2.344243815922852,
+      "within": false,
+      "smallest_resolvable_difference": 0.2977268834011431
+    },
+    {
+      "metric": "toa_longwave_up_w_m2",
+      "a": 245.56006914890935,
+      "b": 245.8739704458057,
+      "difference": 0.31390129689634705,
+      "variability_a": {
+        "tau_span_start_orbit": 0,
+        "tau_span_orbits": 25,
+        "tau_orbits": 1.2165309622362,
+        "lag1_autocorrelation": 0.13377560212045697,
+        "effective_samples_in_window": 8.220094934220354,
+        "orbit_scatter": 0.2252758192783438,
+        "tail_drift_per_orbit": 0.007995358423754194,
+        "resolved": true,
+        "sem": 0.07857351126415944
+      },
+      "variability_b": {
+        "tau_span_start_orbit": 0,
+        "tau_span_orbits": 25,
+        "tau_orbits": 1.0,
+        "lag1_autocorrelation": -0.0447578664990938,
+        "effective_samples_in_window": 10.0,
+        "orbit_scatter": 0.23983159398006354,
+        "tail_drift_per_orbit": 0.009478066888500083,
+        "resolved": true,
+        "sem": 0.07584140918457281
+      },
+      "sem": 0.07857351126415944,
+      "bound": 0.2222394505460989,
+      "sigmas": 2.824892665321226,
+      "within": false,
+      "smallest_resolvable_difference": 0.2222394505460989
+    }
+  ],
+  "same_equilibrium": false,
+  "indeterminate_metrics": [
+    "air_temperature_2m_k",
+    "surface_temperature_k"
+  ]
+}
