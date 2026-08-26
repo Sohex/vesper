@@ -139,11 +139,17 @@
 !     direction that matters. sqrt(z/z0) never appears without the a^2 that
 !     accompanies it in eq. 20, and the two run opposite: a^2 FALLS as z/z0 rises
 !     because it carries ln(z/z0) in its denominator. Over this world's land
-!     roughness span, 0.025 to 11.2 m, the product a^2*sqrt(z/z0+1) moves by a
-!     factor of 2.7 at a lowest-level height of 331 m and is not even monotonic
-!     in z0 -- against the factor of 21 that sqrt(z/z0) alone suggests. A
-!     quantity varying by 2.7 across the field is what the model already
-!     integrates, not what it flattens.
+!     roughness span -- read from the roughness report rather than restated
+!     here, because the field is regenerated -- the product a^2*sqrt(z/z0+1)
+!     moves by a factor of about 5 at a lowest-level height of 331 m and is not
+!     even monotonic in z0, against the factor of 34 that sqrt(z/z0) alone
+!     suggests. A quantity varying by a handful across the field is what the
+!     model already integrates, not what it flattens.
+!
+!     Those figures are on the DERIVED roughness of WORLD-U8DS, span 0.003 to
+!     3.59 m at T21. The same argument on the superseded Earth-anchored field
+!     gave 2.7 against 21; the conclusion is unchanged and the numbers are not,
+!     which is why the span is now cited rather than copied.
 !
 !     THE MOMENTUM AND HEAT LIMBS ARE ALSO ALREADY SEPARATED, in the numerator
 !     instead of the denominator: zrifm carries 2*vdiff_b and zrifh 3*vdiff_b

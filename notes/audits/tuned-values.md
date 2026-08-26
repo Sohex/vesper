@@ -724,11 +724,21 @@ against his 7.4 and 5.3.
 **The magnitude argument was wrong in the direction that decides it.**
 `sqrt(z/z0)` never appears without the `a^2` that accompanies it in eq. 20, and
 the two run opposite, because `a^2` carries `ln(z/z0)` in its denominator.
-Measured across this world's land roughness span of 0.025 to 11.2 m, the product
-`a^2*sqrt(z/z0+1)` moves by a factor of 2.7 at a lowest-level height of 331 m,
-by 1.9 at 150 m and by 3.3 at 600 m, and it is not monotonic in `z0` -- against
-the factor of 21 that `sqrt(z/z0)` alone suggests. The quantity that varies by
-2.7 is one the model already integrates at every gridpoint.
+Measured across this world's land roughness span, read from
+`exoplasim/inputs/t21/roughness_t21_report.json` rather than restated here, the
+product `a^2*sqrt(z/z0+1)` moves by a factor of 5.2 at a lowest-level height of
+331 m, by 4.1 at 150 m and by 6.1 at 600 m, and it is not monotonic in `z0` --
+against the factor of 34 that `sqrt(z/z0)` alone suggests. The quantity that
+varies by 5.2 is one the model already integrates at every gridpoint.
+
+  RE-MEASURED 2026-08-26 on the DERIVED roughness field, span 0.003 to 3.59 m at
+  T21. The figures on the superseded Earth-anchored field were 2.7, 1.9 and 3.3
+  against 21, and reproducing them on that span is what checked this
+  calculation. The ratios roughly doubled because the derived field's span is
+  wider in logarithm, and the CONCLUSION did not move: a factor of five is still
+  a quantity the model integrates rather than one it flattens. A magnitude
+  argument that rests on a regenerated field has to be re-taken when the field
+  is, which is why the span is now cited and not copied.
 
 **The momentum and heat limbs are separated too, in the numerator.** `zrifm`
 carries `2*vdiff_b` and `zrifh` `3*vdiff_b` over a shared denominator, where
