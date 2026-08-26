@@ -774,6 +774,15 @@ _OPTIONAL = {
     # run that wants them and does not find them discards the interval.
     "adenergy": (None, "outreset: the whole output interval is discarded"),
     "adener3d": (None, "outreset: the whole output interval is discarded"),
+    # WORLD-VJBZ's per-cell capacity split, through mpgetgp_found. A restart
+    # written before surface code 2290 existed has no per-layer split, and
+    # landwfrac falls back to the namelist shape -- which is the split EXACTLY
+    # at one water layer, and is refused above it wherever a land cell's dwmax
+    # came from a soil, so the fallback cannot quietly stand in for a field it
+    # is not equal to.
+    "dsoilwfc": (None, "landwfrac falls back to the namelist dsoilwf, which is "
+                       "the split exactly at one water layer and is refused "
+                       "above it wherever dwmax came from a soil"),
     # world-onw8's four, through mpgetgp_found. The layered store and the
     # drainage rebuild from the single-layer fields a pre-LSHY-3 restart has.
     "dwatcl": (None, "landini rebuilds the layered store from dwatc"),
