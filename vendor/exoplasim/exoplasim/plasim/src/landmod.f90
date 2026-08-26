@@ -236,29 +236,24 @@
       real    :: rinifor  =  0.5
       real    :: rnbiocats=  0.0
 !
-!     Surface thermal scalars (snow similar to the sea ice module).
+!     Surface thermal properties (snow similar to the sea ice module).
 !
-!     All seven are namelist keys, in landmod_nl below. They were compiled-in
-!     constants, so a run could not say what thermal inertia its land carried
-!     and could not vary it; soildiff in particular was reachable from nowhere
-!     at all while soilcap was reachable only through cpsoil.
+!     Every one of these is either a namelist key in landmod_nl below or derived
+!     from one. They were compiled-in constants, so a run could not say what
+!     thermal inertia its land carried and could not vary it; the soil's
+!     conductivity in particular was reachable from nowhere at all.
 !
-!     They are SCALARS, so one thermal inertia covers the whole planet: 2078
-!     J/m2/K/s**0.5, which is a WET, DENSE mineral soil. A dry playa or salt
-!     crust is nearer 600, so the surfaces this world has most of are damped
-!     several times too much, and that reaches evaporation, P minus E and the
-!     dust emission threshold.
-!
-!     WHAT THAT DIFFERENCE IS MADE OF IS WATER, NOT ROCK, and the distinction
-!     decides what the fix is. In Johansen's interpolation the mineralogy
-!     enters only through the SATURATED conductivity, so parent material is
-!     worth a factor of 1.36 in inertia where the soil is wet and exactly
-!     nothing where it is dry. Sweeping the saturation instead is worth a
-!     factor of 4.9. So a per-cell field out of the lithology map would write a
-!     uniform value over the dry classes it would have been built for; what is
-!     missing is a response to dwatc, which this model carries prognostically
-!     and which the block below does not read.
-!     analysis/soil_thermal_inertia.py is the measurement.
+!     WHAT THE SOIL'S THERMAL INERTIA IS MADE OF IS WATER, NOT ROCK, and the
+!     distinction decides what the fix is. In Johansen's interpolation the
+!     mineralogy enters only through the SATURATED conductivity, so parent
+!     material is worth a factor of 1.36 in inertia where the soil is wet and
+!     exactly nothing where it is dry -- and less than that on a coarse soil,
+!     where Farouki's own low-quartz branch closes the gap. A per-cell field out
+!     of the lithology map would therefore write a uniform value over the dry
+!     classes it would have been built for. Sweeping the saturation instead is
+!     worth a factor of about four, and that is the term the soil pair below now
+!     carries. analysis/soil_thermal_inertia.py is the measurement and
+!     notes/audits/soil-thermal-inertia.md is the argument.
 !
 !     rhosnow is a settled snow density and converts water equivalent to the
 !     physical snow thickness that insulates the soil column below; rhoglac in
@@ -270,8 +265,55 @@
 !     `iceini`. GRAV-8.
 !
       real :: rhosnow  = 330.    ! snow density (kg/m**3)
-      real :: soildiff = 1.8     ! heat diffusivity of the soil (W/m/K)
-      real :: soilcap  = 2.4E6   ! heat capacity of the soil  (J/m**3/K)
+
+!     THE SOIL'S THERMAL PAIR RESPONDS TO THE SOIL'S OWN WATER. WORLD-JSFM.
+!
+!     It used to be one conductivity and one heat capacity for the whole
+!     simulated planet, Earth's global average for a moist mineral soil and
+!     unattributed upstream. The model carries the soil water prognostically --
+!     `dwatc`, and `dwatcl` by layer under the layered column -- and the soil
+!     heat solver did not read it, so a wet cell and a dry one damped their
+!     diurnal and seasonal surface temperature the same way. That reaches
+!     evaporation, P minus E and the dust emission threshold.
+!
+!     THE RELATION IS JOHANSEN'S, as Farouki (1981) tabulates it, and it is
+!     DECLARED IN `pedology/config/land_column_properties.yaml` under
+!     `thermal.composition_dependent` rather than here. The heat capacity is the
+!     volume-weighted mixture and is LINEAR in the degree of saturation; the
+!     conductivity interpolates between a dry and a saturated value through the
+!     Kersten number, `log10(Sr) + 1` clipped to zero and one, which is not.
+!     Using one shape for both would be the mistake this arrangement prevents.
+!
+!     FOUR ENDPOINTS INSTEAD OF TWO CONSTANTS, and they are namelist keys so a
+!     run says what its soil is made of. Setting a dry endpoint equal to its
+!     saturated partner recovers a constant column EXACTLY and bitwise, because
+!     `a + 0.0*Ke` is `a`; that is the control arm and it needs no extra switch.
+!
+!     THE SATURATION MAPPING IS THE PART THIS MODEL CANNOT DERIVE. `dwatc` is
+!     metres of water against `dwmax`, a PLANT-AVAILABLE capacity, so an empty
+!     store is the WILTING POINT and a full one is field capacity; a degree of
+!     saturation is a fraction of PORE volume. `soilsrwp` and `soilsrfc` are the
+!     two ends of that map and they come from the land column property contract,
+!     which emits both per cell and declares these as the medians. Choosing them
+!     here would be calibrating against numbers with no derivation.
+!
+!     WHAT THE STORE CAN REACH IS A FINDING AND NOT A CAVEAT. Because an empty
+!     store is the wilting point rather than a dry soil, the inertia this route
+!     can span is about a factor of 1.37 between an empty and a full column,
+!     against 4.2 for the full sweep from air dry to saturated. The dry playa
+!     and salt-crust surfaces sit below the wilting point, so they are not
+!     reachable by this route however the endpoints are set; representing them
+!     needs a thin surface layer that dries below it, which is a change to the
+!     column and not to a constant. The shipped endpoints are still a
+!     one-signed correction: the constant they replace is a thermal inertia of
+!     2078 J/m2/K/s**0.5, which is ABOVE the saturated endpoint of this build's
+!     own median column and therefore above every state the store can reach.
+      real :: soildifdry = 0.2088   ! soil conductivity, dry      (W/m/K)
+      real :: soildifsat = 1.4332   ! soil conductivity, saturated(W/m/K)
+      real :: soilcapdry = 1.1111E6 ! soil heat capacity, dry   (J/m**3/K)
+      real :: soilcapsat = 2.9689E6 ! soil heat capacity, saturated
+      real :: soilsrwp   = 0.4114   ! degree of saturation at an empty store
+      real :: soilsrfc   = 0.7877   ! degree of saturation at a full store
 !     THE GLACIAL ICE PAIR IS DERIVED IN `glaciermod`, NOT DECLARED HERE.
 !     `sicecap` and `sicediff` are the heat capacity per unit volume and the
 !     thermal conductivity of the ice `glaciermod` grows. Both are properties of
@@ -477,7 +519,8 @@
 !$omp&  forcovmn,forcovmx,lversion,newsurf,nlandt,nlandw,nwatcini,nwetsoil,rhosnow,forext,forhgt,forint,forpai,&
 !$omp&  snowcovz,&
 !$omp&  rinifor,rlue,rnbiocats,roffexp,roffpit,roffvel,&
-!$omp&  sicecap,sicediff,snowcap,snowdiff,soilcap,soildiff,tau_soil,tau_veg,wsmax)
+!$omp&  sicecap,sicediff,snowcap,snowdiff,soilcapdry,soilcapsat,soildifdry,soildifsat,&
+!$omp&  soilsrwp,soilsrfc,tau_soil,tau_veg,wsmax)
 
       end module landmod
 
@@ -536,10 +579,11 @@
      &                ,dsnowalbmn,dsnowalbmx,dglacalbmn,dsnowalb        &
      &                ,dsmax,wsmax,drhsfull,dzglac,dztop,dsoilz         &
      &                ,rlue,co2conv,tau_veg,tau_soil                    &
-     &                ,rnbiocats,nwetsoil,soilcap                       &
+     &                ,rnbiocats,nwetsoil,soilcapdry,soilcapsat          &
+     &                ,soilsrwp,soilsrfc                                 &
      &                ,albforest,forcovmx,forcovmn                      &
      &                ,forhgt,forpai,forext,forint                       &
-     &                ,soildiff                                        &
+     &                ,soildifdry,soildifsat                           &
      &                ,rhosnow,roffvel,roffexp,roffpit                  &
      &                ,newsurf,rinifor,nwatcini,dwatcini,dgroundalb     &
      &                ,snowcovz
@@ -736,8 +780,12 @@
       call mpbcr(forint)
       call mpbcr(forcovmx)
       call mpbcr(forcovmn)
-      call mpbcr(soildiff)
-      call mpbcr(soilcap)
+      call mpbcr(soildifdry)
+      call mpbcr(soildifsat)
+      call mpbcr(soilcapdry)
+      call mpbcr(soilcapsat)
+      call mpbcr(soilsrwp)
+      call mpbcr(soilsrfc)
       call mpbcr(rhosnow)
 !     Every thread derives its own snow heat capacity from the density it has
 !     just been given, so the two cannot drift apart. GRAV-8.
@@ -1394,6 +1442,8 @@
       real zdsnowz(NHOR)      ! snow depth tendency
       real zcap(NHOR,NLSOIL)  ! heat capacity  of soil layers
       real zdiff(NHOR,NLSOIL) ! thermal conductivity of soil layers
+      real zsoilc(NHOR)       ! soil heat capacity at this layer's own water
+      real zsoild(NHOR)       ! soil conductivity at this layer's own water
       real zsoilz(NHOR,NLSOIL)! soil layer thicknesses
       real zcap1(NHOR)        ! heat capacity (upper soil layer)
       real zdiff1(NHOR)       ! thermal conductivity (upper soil layer)
@@ -1446,13 +1496,18 @@
       zsnowz(:)=0.
       zsntop(:)=0.
       zsoilz1(:)=dsoilz(1)
-      zcap1(:)=soilcap
-      zdiff1(:)=soildiff
-      zctop(:)=soilcap
+      zcap1(:)=soilcapsat
+      zdiff1(:)=soildifsat
+      zctop(:)=soilcapsat
 !
+!     THE SOIL'S THERMAL PAIR, PER LAYER, FROM THE COLUMN'S OWN WATER.
+!     WORLD-JSFM. `soilwtherm` returns this layer's heat capacity and
+!     conductivity for the SOIL fraction; the glacier fraction keeps its own
+!     pair, which is a property of the ice's density and not of any water.
       do jlev=1,NLSOIL
-       zcap(:,jlev)=sicecap*dglac(:)+soilcap*(1.-dglac(:))
-       zdiff(:,jlev)=sicediff*dglac(:)+soildiff*(1.-dglac(:))
+       call soilwtherm(jlev,zsoilc,zsoild)
+       zcap(:,jlev)=sicecap*dglac(:)+zsoilc(:)*(1.-dglac(:))
+       zdiff(:,jlev)=sicediff*dglac(:)+zsoild(:)*(1.-dglac(:))
        zsoilz(:,jlev)=dsoilz(jlev)
       enddo
 !
@@ -1942,6 +1997,16 @@
       real :: zztop(NLSOILWX)
       real :: ztop, zmid
       integer :: itlay(NLSOILWX)
+!     The soil's own heat capacity per temperature layer, WORLD-JSFM. Filled
+!     once per layer from `soilwtherm`, which is the same routine `tands` reads,
+!     so the capacity the latent heat is booked against is the capacity the
+!     temperature was solved on.
+      real :: zsoilcl(NHOR,NLSOIL)
+      real :: zsoildl(NHOR)
+!
+      do jt=1,NLSOIL
+       call soilwtherm(jt,zsoilcl(1,jt),zsoildl)
+      enddo
 !
 !     Which temperature layer each water layer's midpoint falls in. A property
 !     of the two declared geometries and not of the cell, so it is worked out
@@ -1965,7 +2030,12 @@
 !
       do jhor=1,NHOR
        if (dls(jhor) > 0.0) then
-        zcapv = sicecap*dglac(jhor) + soilcap*(1.-dglac(jhor))
+!       The layer's own volumetric heat capacity, which is what the latent
+!       exchange is booked against. It follows the layer's water like every
+!       other reading of it, WORLD-JSFM, and `zsoilcl` is filled once per
+!       temperature layer above.
+        zcapv = sicecap*dglac(jhor)                                       &
+     &        + zsoilcl(jhor,it)*(1.-dglac(jhor))
         do jlay=1,nlsoilw
          zwl(jlay) = dwatcl(jhor,jlay)
          zil(jlay) = dsoili(jhor,jlay)
@@ -1992,6 +2062,103 @@
 !
       return
       end subroutine landphase
+
+!     =====================
+!     SUBROUTINE SOILWTHERM
+!     =====================
+
+      subroutine soilwtherm(klev,pcap,pdiff)
+      use landmod
+!
+!     The soil's heat capacity and thermal conductivity for one SOIL TEMPERATURE
+!     layer, as functions of the water that layer holds. WORLD-JSFM.
+!
+!     WHY THIS IS A SUBROUTINE AND NOT AN EXPRESSION. It is read from two places
+!     that must agree -- `tands`, which solves the temperatures, and `landphase`,
+!     which books the latent heat of freezing against the same layer's heat
+!     capacity -- and a second copy of the relation would be free to disagree
+!     with the first.
+!
+!     THE MAPPING BETWEEN THE TWO COLUMNS IS THE ONE `landphase` ALREADY
+!     DECLARES, read the other way. There are three geometries here: five soil
+!     TEMPERATURE layers reaching 12.4 m, `nlsoilw` WATER layers reaching the
+!     vadose base, and nothing shared between them. A temperature layer takes the
+!     saturation of whichever water layer contains its MIDPOINT, and a
+!     temperature layer whose midpoint is below the water column takes the
+!     deepest water layer's. That last case is a declared extrapolation and not a
+!     measurement: the land column property contract owns the vadose zone and
+!     says the material below it changes owner, so the model has no water for
+!     those layers and carries the deepest it has.
+!
+!     UNDER THE SCALAR BUCKET there is one store and no depth at all, so every
+!     temperature layer takes the column's own fill. That is the whole of why
+!     LSHY-3 blocked this row: the bucket cannot tell the top of the column from
+!     the bottom, and the top is what sets the diurnal amplitude.
+!
+!     ICE COUNTS AS WATER HERE. Ice fills pore space, and the mixture this
+!     interpolates over is declared on the pore FILLING; giving frozen water
+!     liquid water's properties understates a frozen layer's conductivity and is
+!     the residual the contract records under `thermal.composition_dependent`.
+!     Under the default `nlandwphase = 0` there is no soil ice and it is exact.
+!
+      integer, intent(in) :: klev
+      real, intent(out)   :: pcap(NHOR)
+      real, intent(out)   :: pdiff(NHOR)
+!
+      real    :: zf, zsr, zke, zcapl
+      integer :: jhor, jlay, jw, jt
+      real    :: ztop, zmid, zbot
+!
+!     Which water layer this temperature layer's midpoint falls in. A property
+!     of the two declared geometries and not of the cell.
+      zmid = 0.
+      do jt=1,klev-1
+       zmid = zmid + dsoilz(jt)
+      enddo
+      zmid = zmid + 0.5*dsoilz(klev)
+      jw = 1
+      if (nlandwcol == 1) then
+       ztop = 0.
+       jw = nlsoilw
+       do jlay=1,nlsoilw
+        zbot = ztop + dsoilwz(jlay)
+        if (zmid <= zbot) then
+         jw = jlay
+         exit
+        endif
+        ztop = zbot
+       enddo
+      endif
+!
+      do jhor=1,NHOR
+       zf = 0.
+       if (dls(jhor) > 0.0 .and. dwmax(jhor) > 0.0) then
+        if (nlandwcol == 1) then
+         zcapl = dwmax(jhor) * dsoilwfc(jhor,jw)
+         if (zcapl > 0.0) then
+          zf = (dwatcl(jhor,jw) + dsoili(jhor,jw)) / zcapl
+         endif
+        else
+         zf = dwatc(jhor) / dwmax(jhor)
+        endif
+       endif
+       zf  = AMIN1(1., AMAX1(0., zf))
+       zsr = soilsrwp + zf * (soilsrfc - soilsrwp)
+!      Johansen's Kersten number, clipped to the interpolation's own ends. The
+!      relation is declared in pedology/config/land_column_properties.yaml;
+!      analysis/soil_thermal_inertia.py is the implementation the endpoints
+!      above were derived from.
+       zke = AMIN1(1., AMAX1(0., log10(AMAX1(1.e-6,zsr)) + 1.))
+!      The heat capacity is the volume-weighted mixture and is LINEAR in the
+!      degree of saturation. The conductivity is not, and using one shape for
+!      both is the mistake keeping them together prevents.
+       pcap(jhor)  = soilcapdry + zsr * (soilcapsat - soilcapdry)
+       pdiff(jhor) = soildifdry + zke * (soildifsat - soildifdry)
+      enddo
+!
+      return
+      end subroutine soilwtherm
+
 
 !     ==================
 !     SUBROUTINE SOILINI
