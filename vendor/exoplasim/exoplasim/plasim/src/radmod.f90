@@ -23,10 +23,37 @@
 !     and the band-2 extinction ratio were scalars: one set of optical
 !     properties for the whole planet. That is not a resolution question but a
 !     species question, so this is a plain parameter and not a resolution one.
-!     Four covers what aeolian/ produces and can price -- mineral dust, sea
-!     salt, volcanic sulfate -- with one slot spare for the carbonaceous
-!     aerosol that CLIM-29 is waiting on a biosphere run for. Raising it costs
-!     memory in aodsp and nothing else.
+!     Five covers what aeolian/ produces and can price -- mineral dust, sea
+!     salt, volcanic sulfate -- plus a slot each for the two carbonaceous
+!     species, PRIMARY FIRE carbonaceous (CLIM-29) and biogenic SOA (BVOC-8).
+!     Those two are not one spare between them. One scalar optical set cannot
+!     describe two species whose single-scattering albedos differ, and these
+!     two differ by about 0.06 at the most generous possible pairing against
+!     the 0.0336 separation of mineral dust and sea salt that the species
+!     array already exists to resolve; their implied critical surface albedos
+!     fall on OPPOSITE sides of every surface this world carries, so a blended
+!     slot gets the sign of the forcing wrong and not merely its size.
+!     aeolian/notes/multi-species-aerosol.md section 10.1 carries the bars,
+!     which were fixed before the optical properties were fetched, and the
+!     measurement against them.
+!
+!     WHAT AN EXTRA SPECIES COSTS. Three NAERSP-dimensioned arrays scale with
+!     the grid -- aodsp(NHOR,NLEV,NAERSP), ddustod(NHOR,NLEV,NAERSP) and
+!     ddustcol(NHOR,NAERSP) -- and all three are threadprivate, so the cost is
+!     one copy per thread and CLAUDE.md's 32 MB working-set rule counts the
+!     whole team. NHOR is NLON*NLAT/NPRO, so the TEAM total is independent of
+!     the thread count: NLON*NLAT*(2*NLEV+1) reals per species, which at 8
+!     bytes under -fdefault-real-8 and NLEV = 10 is 0.33 MB at T21, 1.31 at
+!     T42, 5.25 at T85 and 21.00 at T170. Free at the rung this world runs at,
+!     NOT free at the top of the ladder.
+!
+!     WHAT IT DOES NOT TOUCH. readdat takes its column count from naerosp and
+!     not from NAERSP, and shares the leading dimension 8 with aeroqs(8,NAERSP),
+!     so the aerofile format is unchanged and an existing file stays valid.
+!     radini refuses naerosp > NAERSP by name. Every species loop is bounded by
+!     naerosp. dustsc, dusthsc and dustqlw are declared and broadcast with an
+!     explicit NAERSP extent and the driver writes ONE namelist value into each,
+!     so the remaining elements keep their declared defaults at either extent.
 !
 !     NOT pumamod's NAERO, and the two must not be conflated. NAERO is how many
 !     TRANSPORTED tracers aerocore carries and sizes daeros and numrhos; NAERSP
@@ -35,7 +62,7 @@
 !     occupy one radiative species, which is what makes the prescribed and
 !     interactive paths coexist, but the counts are independent.
 !
-      parameter(NAERSP = 4)      ! max # of aerosol species carried at once
+      parameter(NAERSP = 5)      ! max # of aerosol species carried at once
 !       parameter(zsolar1=0.517)  
 !       parameter(zsolar2=0.483)  
 
@@ -2378,9 +2405,19 @@
 !     Two logarithms rather than Lacis & Hansen's Eq. 21 form because that form
 !     fits this curve worse and wants a negative coefficient in its denominator,
 !     which can go singular on a column nothing here forbids. Quoted over 1 to
-!     1e4 atmos-cm, which the model never leaves: the thinnest sigma layer
-!     carries a few percent of the column and the smallest magnification is
-!     zbetta.
+!     1e4 atmos-cm.
+!
+!     THE MODEL LEAVES THAT RANGE AT THE TOP OF THE COLUMN, and the reasoning
+!     that said it does not was wrong about which weighting applies. The
+!     thinnest sigma layer does not carry a few percent of the column: the
+!     amounts reaching this fit are pressure-reduced by sigma*ps/p0, so the top
+!     layer carries 0.26 percent of it and sits at 0.382 atmos-cm even at zbetta,
+!     below the quoted floor. Nothing follows for the absorptance -- A(0) = 0,
+!     the fit is monotone, and at 0.382 atmos-cm it returns 1.0e-3, so the
+!     transmissivity there is within 0.002 of 1 -- but the range claim is an
+!     accuracy claim and the pressure reduction does not support it. The largest
+!     amount the model reaches is 5403 atmos-cm, which is inside the range.
+!     Measured by exoplasim/scripts/swr_divisor_domain.py, world-2223.
 !
 !     FITTED TO A LINE LIST, not to Howard's 1956 band set. The level comes from
 !     HITRAN2020 through the Generic PCM correlated-k tables, integrated against
@@ -2476,6 +2513,43 @@
       real zta1(NHOR),zta2(NHOR)   ! transmissivities combined layer (di)
       real zta1s(NHOR),zta2s(NHOR) ! transmissivities combined layer (sc)
       real z1mrabr(NHOR)           ! 1/(1.-rb*ra(*))
+!
+!     WHY THE CLEAR-SKY BAND TRANSMISSIVITIES ARE CLAMPED. world-2223.
+!
+!     Each of the nine sites below forms 1 - A(u)/zsolar_b, where A is Lacis
+!     and Hansen's absorptance as a fraction of TOTAL incident flux and
+!     zsolar_b is band b's share of it, so the quotient is the fraction of the
+!     BAND the absorber removes and the divisor vanishes when it removes all of
+!     it. Six of them are stored and three are divided by directly, and the
+!     three running products carry any zero forward into every later division.
+!
+!     NONE of the three is confined to 1 by its own algebra. The water vapour
+!     form is the one that matters: A_wv/zsolar2 has the finite asymptote
+!     h2osww*h2oswl*2.9/5.925/zsolar2, which is 1.2405 on this planet's
+!     configuration, so the divisor reaches zero at a water path of 2090
+!     precipitable cm. The model's own largest reduced path is 212.9 cm, a
+!     margin of 9.82x, and the verdict survives the declared h2o_sw_level
+!     bracket at both ends. On the Sun with both weights at 1 the same
+!     asymptote is 1.0134 and the crossing is at 5.75e6 cm: the margin here is
+!     five orders of magnitude smaller, because zsolar2 is a K dwarf's and
+!     because h2osww and h2oswl are re-weightings that are not confined. The
+!     ozone and CO2 forms cross only at 9.1e8 cm STP and 1.1e45 atmos-cm.
+!
+!     So the clamp is a GUARD and not a forcing. On this configuration it never
+!     binds -- the tightest of the nine divisors floors at 0.2016 -- and the
+!     arm is bit-identical to its control. It changes stored values only where
+!     the alternative was dividing by a number approaching zero, which is the
+!     condition it exists for, and it is the same clamp lwr applies to ztaucs.
+!     exoplasim/scripts/swr_divisor_domain.py measures all of it;
+!     notes/audits/masked-where-blocks.md carries the bounds.
+!
+      real zcstr(NHOR)             ! clear-sky band transmissivity, clamped
+!
+!     The open-ocean zenith parameterisations below are BROADBAND. These two
+!     carry the band structure across them. OCN-22.
+!
+      real zoalbb                  ! star-weighted broadband ocean albedo
+      real zofrc1,zofrc2           ! doceanalb(b) / that broadband, per band
 !
       real zrcl1(NHOR,NLEV),zrcl2(NHOR,NLEV)  ! cloud reflexivities (direct)
       real zrcl1s(NHOR,NLEV),zrcl2s(NHOR,NLEV)! cloud reflexivities (scattered)
@@ -3199,15 +3273,18 @@
      &          -(o3visw*0.02118*zo3(:)/(1.+0.042*zo3(:)+0.000323*zo3(:)**2)   &
      &           +o3uvw*1.082*zo3(:)/((1.+138.6*zo3(:))**0.805)               &
      &           +o3uvw*0.0658*zo3(:)/(1.+(103.6*zo3(:))**3))/zsolar1
+       zto3tu(:)=AMIN1(1.-zero,AMAX1(zero,zto3tu(:)))
        ztwvt(:)=1.
        zwv(:)=zywvt(:)+zbetta*zwvt(:)
        ztwvtu(:)=1.-h2osww*h2oswl*2.9*zwv(:)                            &
      &            /((1.+141.5*zwv(:))**0.635+5.925*zwv(:))              &
      &            /zsolar2
+       ztwvtu(:)=AMIN1(1.-zero,AMAX1(zero,ztwvtu(:)))
        ztco2t(:)=1.
        zco2(:)=zyco2t(:)+zbetta*zco2t(:)
        ztco2tu(:)=1.-co2sww*(zca1*LOG(1.+zcb1*zco2(:))                  &
      &                      +zca2*LOG(1.+zcb2*zco2(:)))/zsolar2
+       ztco2tu(:)=AMIN1(1.-zero,AMAX1(zero,ztco2tu(:)))
 !
 !     clear sky scattering (Rayleigh scatterin lower most level only)
 !
@@ -3225,6 +3302,17 @@
      &                              * nrscat*(1-newrsc)
        
       endwhere
+!
+!     PRESET ON EVERY LANE, NOT UNDER THE MASK, and that is the whole reason
+!     this is an array and not an inline expression. Each site below assigns
+!     zcstr and then divides by it inside the same where(losun(:)), and a WHERE
+!     construct is free to evaluate its right-hand side on every element before
+!     applying the mask. Holding zcstr at 1 on the lanes losun discards keeps
+!     those lanes dividing by exactly 1, which is the invariant every other
+!     divisor in this routine already relies on and which
+!     notes/audits/masked-where-blocks.md records. world-2223.
+!
+      zcstr(:) = 1.0
 !
       do jlev=1,NLEV
        where(losun(:))
@@ -3254,20 +3342,22 @@
 !     downward beam
 !
         zo3(:)=zxo3l(:,jlev)
-        zto3(:)=(1.                                                     &
+        zcstr(:)=1.                                                     &
      &          -(o3visw*0.02118*zo3(:)/(1.+0.042*zo3(:)+0.000323*zo3(:)**2)   &
      &           +o3uvw*1.082*zo3(:)/((1.+138.6*zo3(:))**0.805)               &
-     &           +o3uvw*0.0658*zo3(:)/(1.+(103.6*zo3(:))**3))/zsolar1)        &
-     &         /zto3t(:)
+     &           +o3uvw*0.0658*zo3(:)/(1.+(103.6*zo3(:))**3))/zsolar1
+        zcstr(:)=AMIN1(1.-zero,AMAX1(zero,zcstr(:)))
+        zto3(:)=zcstr(:)/zto3t(:)
         zto3t(:)=zto3t(:)*zto3(:)
 !
 !     upward scattered beam
 !
         zo3(:)=zxo3t(:)+zmbar*(zo3t(:)-zo3l(:,jlev))
-        zto3u(:)=zto3tu(:)                                              &
-     &         /(1.-(o3visw*0.02118*zo3(:)/(1.+0.042*zo3(:)+0.000323*zo3(:)**2)&
+        zcstr(:)=1.-(o3visw*0.02118*zo3(:)/(1.+0.042*zo3(:)+0.000323*zo3(:)**2)&
      &              +o3uvw*1.082*zo3(:)/((1.+138.6*zo3(:))**0.805)            &
-     &              +o3uvw*0.0658*zo3(:)/(1.+(103.6*zo3(:))**3))/zsolar1)
+     &              +o3uvw*0.0658*zo3(:)/(1.+(103.6*zo3(:))**3))/zsolar1
+        zcstr(:)=AMIN1(1.-zero,AMAX1(zero,zcstr(:)))
+        zto3u(:)=zto3tu(:)/zcstr(:)
         zto3tu(:)=zto3tu(:)/zto3u(:)
 !
 !     total T = 1-(A(ozon)+R(rayl.))*(1-dcc)-R(cloud)*dcc
@@ -3317,35 +3407,39 @@
 !     downward beam
 !
        zwv(:)=zywvl(:,jlev)
-       ztwv(:)=(1.-h2osww*h2oswl*2.9*zwv(:)                             &
+       zcstr(:)=1.-h2osww*h2oswl*2.9*zwv(:)                              &
      &            /((1.+141.5*zwv(:))**0.635+5.925*zwv(:))              &
-     &            /zsolar2)                                             &
-     &        /ztwvt(:)
+     &            /zsolar2
+       zcstr(:)=AMIN1(1.-zero,AMAX1(zero,zcstr(:)))
+       ztwv(:)=zcstr(:)/ztwvt(:)
        ztwvt(:)=ztwvt(:)*ztwv(:)
 !
 !     CO2 absorption, downward beam
 !
        zco2(:)=zyco2l(:,jlev)
-       ztco2(:)=(1.-co2sww*(zca1*LOG(1.+zcb1*zco2(:))                   &
-     &                     +zca2*LOG(1.+zcb2*zco2(:)))/zsolar2)         &
-     &         /ztco2t(:)
+       zcstr(:)=1.-co2sww*(zca1*LOG(1.+zcb1*zco2(:))                     &
+     &                     +zca2*LOG(1.+zcb2*zco2(:)))/zsolar2
+       zcstr(:)=AMIN1(1.-zero,AMAX1(zero,zcstr(:)))
+       ztco2(:)=zcstr(:)/ztco2t(:)
        ztco2t(:)=ztco2t(:)*ztco2(:)
 !
 !     upward scattered beam
 !
        zwv(:)=zywvt(:)+zbetta*(zwvt(:)-zwvl(:,jlev))
-       ztwvu(:)=ztwvtu(:)                                               &
-     &         /(1.-h2osww*h2oswl*2.9*zwv(:)                            &
+       zcstr(:)=1.-h2osww*h2oswl*2.9*zwv(:)                              &
      &            /((1.+141.5*zwv(:))**0.635+5.925*zwv(:))              &
-     &            /zsolar2)
+     &            /zsolar2
+       zcstr(:)=AMIN1(1.-zero,AMAX1(zero,zcstr(:)))
+       ztwvu(:)=ztwvtu(:)/zcstr(:)
        ztwvtu(:)=ztwvtu(:)/ztwvu(:)
 !
 !     CO2 absorption, upward scattered beam
 !
        zco2(:)=zyco2t(:)+zbetta*(zco2t(:)-zco2l(:,jlev))
-       ztco2u(:)=ztco2tu(:)                                             &
-     &          /(1.-co2sww*(zca1*LOG(1.+zcb1*zco2(:))                  &
-     &                      +zca2*LOG(1.+zcb2*zco2(:)))/zsolar2)
+       zcstr(:)=1.-co2sww*(zca1*LOG(1.+zcb1*zco2(:))                     &
+     &                      +zca2*LOG(1.+zcb2*zco2(:)))/zsolar2
+       zcstr(:)=AMIN1(1.-zero,AMAX1(zero,zcstr(:)))
+       ztco2u(:)=ztco2tu(:)/zcstr(:)
        ztco2tu(:)=ztco2tu(:)/ztco2u(:)
 !
 !     total T = 1-A(water vapor)*(1.-dcc)-(A(cloud)+R(cloud))*dcc
@@ -3369,6 +3463,22 @@
         zta2s(:)=ztb2u(:,jlev)*zta2s(:)*z1mrabr(:)
        endwhere
       enddo
+!
+!     The two band fractions the open-ocean albedo block below applies. They are
+!     scalars and they are computed HERE because a WHERE construct admits array
+!     assignments only. OCN-22; the argument is at the block that uses them.
+!     Falling back to 1.0 on a non-positive broadband keeps the reduction total:
+!     a configuration that zeroes doceanalb gets the zenith fit it got before,
+!     not a zero ocean albedo.
+!
+      zoalbb = zsolars(1)*doceanalb(1) + zsolars(2)*doceanalb(2)
+      if (zoalbb > 1.E-12) then
+       zofrc1 = doceanalb(1)/zoalbb
+       zofrc2 = doceanalb(2)/zoalbb
+      else
+       zofrc1 = 1.0
+       zofrc2 = 1.0
+      endif
       where(losun(:))
        zt1(:,NLEP)=zta1(:)
        zt2(:,NLEP)=zta2(:)
@@ -3380,21 +3490,61 @@
 !     make upward R
 !
 
-! Currently: we use the same albedo for both spectral ranges.
+!     THE DIFFUSE PAIR IS READ HERE, BEFORE THE DIRECT BEAM IS OVERWRITTEN
+!     BELOW, and it is the reason the diffuse component keeps both bands where
+!     the direct beam does not. Leave the order alone.
 
        zra1s(:)=dalb(:)*(1-nstartemp) + dsalb(1,:)*nstartemp
        zra2s(:)=dalb(:)*(1-nstartemp) + dsalb(2,:)*nstartemp
-       
+
+!
+!     THE BAND SPLIT OF THE OPEN-OCEAN ALBEDO. OCN-22.
+!
+!     Both zenith branches below -- ECHAM-3 under necham, Briegleb under
+!     necham6 -- are BROADBAND fits and are spectrally flat, which the source
+!     states rather than denies. Written straight into dsalb(1,:) and
+!     dsalb(2,:) they put the SAME number in both, so over ice-free ocean, which
+!     is most of this planet, the band index of the direct-beam surface albedo
+!     held one value: a physical dimension carrying no variation. That undid the
+!     two-band surface albedo this configuration is set up to obtain, and it
+!     undid it for the term the shortwave weights most, the direct beam.
+!
+!     WHAT CARRIES THE SPLIT. solarini already computes doceanalb(1) and
+!     doceanalb(2) by integrating exoplasim/surfacespecs.py's ocean reflectance
+!     against THIS star's spectrum on either side of 0.75 um. That is the
+!     spectral shape; the zenith fits supply the magnitude and its angular
+!     dependence. Applying the shape to the magnitude is legitimate here because
+!     the angular dependence of a water surface is Fresnel's, a function of the
+!     refractive index alone, and water's index moves by about 3 per cent across
+!     the 0.75 um split -- so the shape is very nearly zenith-independent even
+!     though neither fit resolves it. The part of doceanalb that is NOT Fresnel
+!     is the water-leaving reflectance, which is pigment and particles and which
+!     OCN-14 owns; until that exists this reproduces the shape solarini already
+!     has and adds nothing of its own.
+!
+!     IT IS EXACTLY BROADBAND-PRESERVING, WHICH IS THE CHECK. zofrc1 and zofrc2
+!     are normalised so that zsolars(1)*zofrc1 + zsolars(2)*zofrc2 = 1
+!     identically. The flux-weighted recombination of the two bands therefore
+!     returns the zenith fit's own broadband value unchanged, cell by cell and
+!     step by step, and dalb below is untouched. This is the same identity
+!     build_surface_albedo.py already enforces on codes 174/175/176 over the
+!     whole grid. An arm that moves the broadband ocean albedo has a bug in it,
+!     not a result.
+!
+!     IT REDUCES TO WHAT WAS HERE. Under nsimplealbedo the two doceanalb
+!     elements are set equal, so both fractions are 1 and every expression below
+!     is the expression that was here before. Under necham = necham6 = 0 the
+!     zenith terms drop out and seamod's pair survives, as it did.
 !
 !      set albedo for the direct beam (for ocean use ECHAM3 param unless necham=0)
        dsalb(1,:)=dls(:)*dsalb(1,:)   +   (1.-dls(:)) * dicec(:)*dsalb(1,:)              &
-     &           + (1.-dls(:)) * (1.-dicec(:)) * AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham*(1-necham6) &
-     &           + (1.-dls(:)) * (1.-dicec(:)) * (1-necham)*necham6 &
+     &           + (1.-dls(:)) * (1.-dicec(:)) * zofrc1*AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham*(1-necham6) &
+     &           + (1.-dls(:)) * (1.-dicec(:)) * (1-necham)*necham6*zofrc1 &
      &  *(0.026/(zmu0(:)**1.7+0.065)+0.15*(zmu0(:)-1)*(zmu0(:)-0.5)*(zmu0(:)-0.1)+0.0082) &
      &           + (1.-dls(:)) * (1.-dicec(:)) * (1.-necham)*(1-necham6)*dsalb(1,:)
        dsalb(2,:)=dls(:)*dsalb(2,:)   +   (1.-dls(:)) * dicec(:)*dsalb(2,:)              &
-     &           + (1.-dls(:)) * (1.-dicec(:)) * AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham*(1-necham6) &
-     &           + (1.-dls(:)) * (1.-dicec(:)) * (1-necham)*necham6 &
+     &           + (1.-dls(:)) * (1.-dicec(:)) * zofrc2*AMIN1(0.05/(zmu0(:)+0.15),0.15)*necham*(1-necham6) &
+     &           + (1.-dls(:)) * (1.-dicec(:)) * (1-necham)*necham6*zofrc2 &
      &  *(0.026/(zmu0(:)**1.7+0.065)+0.15*(zmu0(:)-1)*(zmu0(:)-0.5)*(zmu0(:)-0.1)+0.0082) &
      &           + (1.-dls(:)) * (1.-dicec(:)) * (1.-necham)*(1-necham6)*dsalb(2,:)
        

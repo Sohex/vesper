@@ -917,3 +917,95 @@ measured. `h2oswl` reaches the model as `H2OSWL@radmod_namelist` through
 `run_exoplasim.py`'s `SHORTWAVE_GAS_KEYS`, which writes it only when it differs
 from the model default, and `verify_staged_namelists` is what makes the arm's
 own namelist the record of what it integrated.
+
+## OCN-22: the open-ocean albedo's band split, and it is not an arm
+
+Registered here because it is a numeric change to the shortwave that changes
+stored values and cannot be run in the batch that made it, which is exactly the
+condition A3 attaches a prediction to. It is NOT a swept key: there is no
+namelist number to move, and the change either preserves the broadband ocean
+albedo exactly or it is wrong. That distinction is the whole of the check.
+
+**What changed.** `radmod`'s upward loop replaces the open-ocean part of the
+direct-beam surface albedo with a zenith fit, ECHAM-3 under `necham` or Briegleb
+under `necham6`. Both fits are broadband and spectrally flat, and both were
+written into `dsalb(1,:)` and `dsalb(2,:)` unchanged, so over ice-free ocean the
+band index of the direct-beam surface albedo held one value. `solarini` had
+already integrated `exoplasim/surfacespecs.py`'s ocean reflectance against this
+star's spectrum on either side of 0.75 um to get `doceanalb(1)` and
+`doceanalb(2)`; the overwrite discarded that split every radiation step, over
+most of the modelled planet, for the term the shortwave weights most. The
+diffuse component escaped, because `zra1s` and `zra2s` are read before the
+overwrite.
+
+The fit now carries `doceanalb`'s own band ratio across the replacement. The
+shape is the spectrum's; the magnitude and the zenith dependence remain the
+fit's. The shape may be applied to a directional quantity because the angular
+dependence of a water surface is Fresnel's, a function of the refractive index
+alone, and water's index moves by about three per cent across the 0.75 um split.
+The part of `doceanalb` that is not Fresnel is water-leaving reflectance, which
+is pigment and particles and which OCN-14 owns.
+
+**Predicted magnitude, and it is small on purpose.** The band fractions are
+normalised so `zsolars(1)*zofrc1 + zsolars(2)*zofrc2 = 1` identically, so the
+flux-weighted broadband ocean albedo is unchanged cell by cell. The direct-beam
+ocean albedo moves by +9.85 per cent in band 1 and -6.10 per cent in band 2 at
+the `doceanalb` pair `solarini` computes today. Recomputing the same integral
+independently on the same 965-point grid against `k25v.dat` gives +10.78 and
+-6.67 per cent, and the 1.5 per cent gap in band 1 is world-a0y's `zdenom1`
+mis-normalisation reached from a second direction; the prediction holds at
+either value.
+
+Because the broadband is preserved, the change reaches the top of the atmosphere
+only through the difference between the two bands' two-way atmospheric
+transmission, T1 - T2:
+
+    dR_toa = f_ocean * S_toa * zsolar1 * dalpha1 * (T1 - T2)
+
+At the ice-free ocean area fraction 0.564, a global-mean top-of-atmosphere
+downward shortwave of 321.6 W/m2 (`cloud_optical_depth_bracket.json`'s band-1
+incident over `zsolar1`), and a flux-weighted daily-mean ECHAM-3 ocean albedo of
+0.055 to 0.080 from OCN-7's own daily means, that is **+0.02 to +0.15 W/m2 of
+extra reflected shortwave, hence -0.02 to -0.13 K, COOLING**, over
+|T1 - T2| = 0.05 to 0.25.
+
+**The direction of that bracket is a claim and it is the weaker half.** T1 - T2
+is taken positive because band 2 carries the water vapour bands and band 1's
+attenuation is Rayleigh and ozone, which on a water-rich column is the smaller
+of the two; but neither band's transmission is written out, so the sign is
+argued and not measured. If T2 exceeds T1 the change warms by the same
+magnitude. The MAGNITUDE bracket does not depend on the sign.
+
+The prediction is deliberately of the same order as the 0.002 spectral bound
+OCN-7 reached from the other direction, and that agreement is the point: this is
+a structural correction to a physical dimension that was carrying no variation,
+not a forcing. A large response would be evidence of a bug.
+
+**What would mean wrong, in the A/B:**
+
+- **The broadband must not move.** `zsolars(1)*dsalb(1,:) + zsolars(2)*dsalb(2,:)`
+  over ice-free ocean must equal the zenith fit's own value to machine
+  precision, and `dalb` over open water must be bit-identical to the control.
+  This is the same identity `build_surface_albedo.py` already enforces on codes
+  174, 175 and 176 over the whole grid. Any change in the broadband ocean albedo
+  is a bug, not a result.
+- **Two configurations must be bit-identical to the control.** `nsimplealbedo`
+  sets the two `doceanalb` elements equal, so both fractions are 1; and
+  `necham = necham6 = 0` drops the zenith terms entirely. Either arm differing
+  from its control means the reduction is broken.
+- **Magnitude.** A response beyond +/-0.5 K global mean is more than three times
+  what the arithmetic above allows at its widest and points at the
+  implementation or at the conversion.
+- **Sign, conditionally.** Cooling is expected but is not a refutation if it
+  reverses, because T1 - T2 is argued rather than measured. What WOULD refute
+  the chain is a response whose magnitude requires |T1 - T2| above 1.
+
+**Not blocked on anything.** The change is in the tree and needs no key set. It
+lands with whatever pair runs next and does not need an arm of its own; it is
+registered so that a bundle total which includes it is checked against a
+prediction that named it.
+
+**What OCN-7 still cannot deliver.** Its remaining half is a sourced bound on
+the SPATIAL span of the ocean albedo, which needs a modelled water-leaving
+reflectance. OCN-14 owns that and it does not exist, so the span is unbounded
+here and is not smuggled into this prediction.

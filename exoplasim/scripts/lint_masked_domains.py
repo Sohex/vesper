@@ -123,6 +123,44 @@ _DIV_GUARDS = ("max", "amax1", "sign", "abs")
 # Evidence: notes/audits/masked-where-blocks.md.
 # ---------------------------------------------------------------------------
 
+# THE TWO BOUNDS THE swr ROWS BELOW CARRY, stated once because they are one
+# measurement each and a bound restated per row goes stale per row. Both are
+# from exoplasim/scripts/swr_divisor_domain.py, 2026-08-26, and the argument
+# and the tables are in notes/audits/masked-where-blocks.md. world-2223.
+
+BOUND_A = (
+    "swr clamps it to [zero, 1-zero] exactly as lwr clamps ztaucs, through a "
+    "zcstr preset to 1 OUTSIDE the mask so a discarded lane still divides by "
+    "exactly 1; the divisor is therefore at least 1.E-6 on every lane. The "
+    "clamp does not bind on this configuration: the tightest of the nine "
+    "floors at 0.2016, because the water vapour absorptance reaches its band "
+    "share only at 2090 precipitable cm against a model maximum of 212.9, a "
+    "margin of 9.82x that survives the declared h2o_sw_level bracket at both "
+    "ends. Nothing structural holds that margin -- the same asymptote on the "
+    "Sun crosses five orders of magnitude further out -- which is why the "
+    "clamp is there rather than a note"
+)
+
+BOUND_B = (
+    "and on a kept lane the product is bounded by caps already in the code: "
+    "zlwp capped at 1000 g/m2 puts zrcl1s at or below 0.9449, the Rayleigh "
+    "diffuse reflectance at or below 0.1003 over every rcoeff and surface "
+    "pressure the model produces, and the aerosol two-stream strictly below 1; "
+    "both terms are linear in dcc so the layer sum maxima are exact and at an "
+    "endpoint, and every layer satisfies R + T <= 1 so the accumulation is "
+    "bounded by 1. Band-1 product at or below 0.9942 against a perfect "
+    "reflector, 0.8702 at the fields the model carries: divisor floors 0.005799 "
+    "and 0.1298. Not clamped, because a clamp would guard a state the caps "
+    "forbid"
+)
+
+BOUND_B2 = (
+    "and the band-2 product is bounded the same way, by zrcl2s at or below "
+    "0.7369 with no Rayleigh term beside it: at or below 0.9655 against a "
+    "perfect reflector and 0.5237 at the fields the model carries, divisor "
+    "floors 0.034467 and 0.4763"
+)
+
 CLASSIFIED: dict[tuple[str, str, str, str], str] = {
     ("radmod.f90", "subroutine swr", "alog", "3.+0.1*ztau2(:)"):
         "ztau2 is preset to 1 and is otherwise a product of non-negative "
@@ -538,11 +576,18 @@ CLASSIFIED: dict[tuple[str, str, str, str], str] = {
     # radini now refuses a negative dawn, so zmu0 is at or above zero on every
     # lane whatever the mask selects.
     #
-    # NINE ROWS CITE world-2223 RATHER THAN A BOUND. The clear-sky
-    # transmissivities and the adding method's reflectivities are not confined
-    # by anything swr does, and the mask never confined them either -- the
-    # expression is the same on a kept lane as on a discarded one, so it is not
-    # a masked-domain site. Whether either can reach zero is that issue.
+    # THIRTEEN ROWS THAT CARRY A BOUND RATHER THAN A CITATION. The clear-sky
+    # transmissivities and the adding method's reflectivities were never
+    # confined by the mask -- the expression is the same on a kept lane as on a
+    # discarded one, so neither is a masked-domain site -- and world-2223 asked
+    # whether either could reach zero anyway. Measured over the model's own
+    # absorber ranges: neither can, and the two families got different
+    # remedies. The nine clear-sky transmissivities are now clamped, because
+    # their margin is 9.82x and rests on namelist weights that are not
+    # confined; the four reflectivity products are bounded by caps already in
+    # the code and are recorded rather than clamped. Both bounds are in
+    # notes/audits/masked-where-blocks.md, re-derived by
+    # exoplasim/scripts/swr_divisor_domain.py.
     # -----------------------------------------------------------------------
 
     ("radmod.f90", "subroutine lwr", "divide", "1.-ztau0(:)"):
@@ -582,9 +627,26 @@ CLASSIFIED: dict[tuple[str, str, str, str], str] = {
         "on every lane, so the divisor is at least 1",
     ("radmod.f90", "subroutine swr", "divide",
      "1.+zb1(:)*ztau1(:)/max(1.E-30,zmu0(:))"):
-        "zb1 is tswr1*SQRT(max(0.,zmu0)) and non-negative, ztau1 is preset to "
-        "0 and otherwise a product of non-negative factors, and the inner "
-        "divisor is floored, so the divisor is at least 1",
+        "zb1 is swcbet1, Stephens et al. (1984) Table 1(b) interpolated at "
+        "this layer's own range-1 optical depth and beam cosine; every entry "
+        "in that table is positive and the interpolation is convex, so zb1 is "
+        "positive. ztau1 is preset to 0 and otherwise a product of "
+        "non-negative factors, and the inner divisor is floored, so the "
+        "divisor is at least 1",
+    ("radmod.f90", "subroutine swr", "divide",
+     "1.+zb1(:)*ztau1(:)/zmu00"):
+        "the scattered-beam twin of the row above, on the fixed 0.5 "
+        "diffusivity cosine rather than the beam cosine: positive by the same "
+        "argument and with no floor needed, since zmu00 is a positive "
+        "constant. This is the site whose value the family-B bound is built "
+        "on -- 1 - 1/(1 + zb1*ztau1/zmu00) is zrcl1s, capped at 0.9449 by "
+        "zlwp's own 1000 g/m2 cap. world-2223",
+    ("radmod.f90", "subroutine swr", "divide", "zcstr(:)"):
+        "the clear-sky band transmissivity, at all three of the upward-beam "
+        "sites that used to spell the absorptance out. It is preset to 1.0 "
+        "OUTSIDE the mask, so a lane losun discards divides by exactly 1, and "
+        "on a kept lane it is assigned and then clamped in the two lines above "
+        "each division. " + BOUND_A,
     ("radmod.f90", "subroutine swr", "divide", "1.+zb3*ztau1(:)"):
         "zb3 is tswr1*SQRT(zmu00)/zmu00, a non-negative scalar set above the "
         "level loop, and ztau1 is non-negative, so the divisor is at least 1",
@@ -596,41 +658,40 @@ CLASSIFIED: dict[tuple[str, str, str, str], str] = {
         "zo3 is preset to 0 and zo3t and zxo3t are zero on every lane by the "
         "block above the absorber loop. On a lane losun keeps it is the same "
         "expression the downward beam stores as a VALUE, so the mask does not "
-        "decide it and this is not a masked-domain site. world-2223 carries "
-        "whether swr's clear-sky transmissivities can be driven to zero",
+        "decide it and this is not a masked-domain site. " + BOUND_A,
     ("radmod.f90", "subroutine swr", "divide",
      "1.-co2sww*(zca1*LOG(1.+zcb1*zco2(:)) "
      "+zca2*LOG(1.+zcb2*zco2(:)))/zsolar2"):
         "the clear-sky CO2 transmissivity for the upward beam, exactly the "
         "ozone row's shape: 1 on a discarded lane because zco2, zco2t and "
         "zyco2t are all zero there, and the same expression as the stored "
-        "downward value on a kept one. world-2223",
+        "downward value on a kept one. " + BOUND_A,
     ("radmod.f90", "subroutine swr", "divide",
      "1.-h2osww*h2oswl*2.9*zwv(:) "
      "/((1.+141.5*zwv(:))**0.635+5.925*zwv(:)) /zsolar2"):
         "the clear-sky water vapour transmissivity for the upward beam, "
         "exactly the ozone row's shape: 1 on a discarded lane because zwv, "
         "zwvt and zywvt are all zero there, and the same expression as the "
-        "stored downward value on a kept one. world-2223",
+        "stored downward value on a kept one. " + BOUND_A,
     ("radmod.f90", "subroutine swr", "divide",
      "1.-zr1s(:,jlev)*zrl1s(:,jlev)"):
         "the adding method's 1 - R_above*R_below, the geometric series of "
         "round trips between two layers. Both factors are locals now preset to "
         "0 on every lane, so a discarded lane divides by exactly 1; on a kept "
         "lane both are layer reflectivities and the mask has no bearing on "
-        "either. world-2223 carries whether the scheme bounds them",
+        "either. " + BOUND_B,
     ("radmod.f90", "subroutine swr", "divide",
      "1.-zr2s(:,jlev)*zrl2s(:,jlev)"):
         "the band-2 twin of the row above: both factors preset to 0, so a "
-        "discarded lane divides by exactly 1. world-2223",
+        "discarded lane divides by exactly 1. " + BOUND_B2,
     ("radmod.f90", "subroutine swr", "divide", "1.-zra1s(:)*zrb1s(:,jlev)"):
         "the same adding-method denominator in the downward and upward loops, "
         "with the combined layer above in place of the interface value: both "
         "factors preset to 0, so a discarded lane divides by exactly 1. "
-        "world-2223",
+        + BOUND_B,
     ("radmod.f90", "subroutine swr", "divide", "1.-zra2s(:)*zrb2s(:,jlev)"):
         "the band-2 twin of the row above: both factors preset to 0, so a "
-        "discarded lane divides by exactly 1. world-2223",
+        "discarded lane divides by exactly 1. " + BOUND_B2,
     ("radmod.f90", "subroutine swr", "divide", "1.0+ztcon(:)"):
         "ztcon is b*tau/mu in the conservative-scattering limit: a "
         "non-negative mixture backscatter ratio times an optical depth the "
