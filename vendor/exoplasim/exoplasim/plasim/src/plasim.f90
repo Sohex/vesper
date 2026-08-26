@@ -924,18 +924,6 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       real    (kind=8) :: zut,zst
       integer (kind=8) :: imem,ipr,ipf,isw,idr,idw
 !
-!     deallocate additional diagnostic arrays, if switched on
-!
-      if(ndiaggp2d > 0) deallocate(dgp2d)
-      if(ndiagsp2d > 0) deallocate(dsp2d)
-      if(ndiaggp3d > 0) deallocate(dgp3d)
-      if(ndiagsp3d > 0) deallocate(dsp3d)
-      if(ndiagcf   > 0) deallocate(dclforc)
-      if(nenergy   > 0) deallocate(denergy)
-      if(nenergy   > 0) deallocate(adenergy)
-      if(nener3d   > 0) deallocate(dener3d)
-      if(nener3d   > 0) deallocate(adener3d)
-!
 !     close output file
 !
       if (mypid == NROOT) close(40)
@@ -1232,7 +1220,31 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call restart_stop
       endif
 
-      
+!
+!     DEALLOCATE THE DIAGNOSTIC ARRAYS, AND NOT ONE LINE EARLIER. This block sat
+!     at the TOP of epilog until WORLD-0OV's arms found what that costs: since
+!     `adenergy` and `adener3d` became restart records (world-5qy), freeing them
+!     here and writing them at `mpputgp` below is a use-after-free, and it fires
+!     at EVERY orbit boundary rather than once at the end -- so the standing
+!     production configuration, which sets `energy_fixer` and therefore requires
+!     `energy_diagnostics`, could not complete a single orbit.
+!
+!     The whole block moved rather than the two accumulators, and that is the
+!     point: the order is now STRUCTURAL. Nothing epilog frees can precede the
+!     restart, so the next array promoted to a restart record cannot re-create
+!     this by being added to a list that looks unrelated. Freeing after the write
+!     costs nothing here -- epilog is the end of the run.
+!
+      if(ndiaggp2d > 0) deallocate(dgp2d)
+      if(ndiagsp2d > 0) deallocate(dsp2d)
+      if(ndiaggp3d > 0) deallocate(dgp3d)
+      if(ndiagsp3d > 0) deallocate(dsp3d)
+      if(ndiagcf   > 0) deallocate(dclforc)
+      if(nenergy   > 0) deallocate(denergy)
+      if(nenergy   > 0) deallocate(adenergy)
+      if(nener3d   > 0) deallocate(dener3d)
+      if(nener3d   > 0) deallocate(adener3d)
+
       call hurricanestop
 !
 !     time consumption
