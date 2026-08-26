@@ -283,7 +283,10 @@ steps:
       answer. The cap on extreme-cold land fraction must be DECLARED in advance
       by this re-derivation: the purged artifact inferred it at 0.0642, which
       reproduced 0.945 from an unconstrained winner of 0.8725, and a threshold
-      fitted to its own answer is what CLIM-30 exists to undo
+      fitted to its own answer is what CLIM-30 exists to undo. The script
+      refuses on an undeclared cap before it reads a field, and refuses again if
+      the winner lands on either end of the candidate range, because a search
+      that cannot reach its own answer returns an edge rather than a result
 
   - id: analyze_climatology
     script: exoplasim/scripts/analyze_climatology.py

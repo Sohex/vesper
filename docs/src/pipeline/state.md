@@ -30,18 +30,30 @@ The flux is set by a derivation, not inherited.
 **The mean is chosen for habitability by latitude band.** Summer and winter
 temperature per band were measured on converged runs and projected across
 candidate means; the trade is tropics against poles, and the tropics win on
-area -- a lower flux moves half the land's warm-season monthly means back
-inside the design comfort band at the cost of a tenth of it going from harsh
-to extreme, keeping most land in Earth-like conditions and leaving the polar
-margins severe but small. The derivation is CODIFIED: `derive_design_flux.py`,
-step `design_flux`, writes `exoplasim/analysis/design_flux.json` with its
-thresholds declared in the script before it runs. Re-run it on a new terrain
-rather than reinventing it, and know its standing: the recorded flux is
-unsupported until the cold-extreme land-fraction cap is DECLARED ahead of the
-next re-derivation (CLIM-30); the finding and the purged artifact's history
-are in the script and the task row. The cap must be
-DECLARED in advance by the next re-derivation; the purged artifact inferred it
-from the answer, which is what CLIM-30 exists to undo.
+area -- a lower flux moves more land's warm-season monthly means back inside the
+design comfort band than it costs on the cold side, keeping most land in
+Earth-like conditions and leaving the polar margins severe but small. The
+derivation is CODIFIED: `derive_design_flux.py`, step `design_flux`, writes
+`exoplasim/analysis/design_flux.json` with its thresholds declared in the script
+before it runs. Re-run it on a new terrain rather than reinventing it, and know
+its standing: the recorded flux is unsupported until the cold-extreme
+land-fraction cap is DECLARED ahead of the next re-derivation, which is CLIM-30.
+The script refuses to run with the cap unset, so the block is enforced and not
+merely recorded; the purged artifact inferred the cap from the answer, and that
+is what CLIM-30 exists to undo.
+
+**The comfort band is in degrees and the search range is in flux, and a change
+to the radiation reaches only the second.** That is the rule for maintaining
+this step, and it is why the shortwave cloud optics moving by up to 20.6 K
+(world-f9ig, world-jgen) re-derived the candidate range and left the comfort
+thresholds where they were. A radiation change moves which stellar flux delivers
+a given temperature field; it does not move which temperature this world is
+meant to find comfortable. What the same change DID reach was the one threshold
+that had been read off the old answer rather than declared, and
+`notes/audits/tuned-values.md` finding 1 carries the per-threshold verdicts. The
+range must be wide enough to contain its own winner: a search that cannot reach
+its answer returns the end of its range, so an end-of-range winner is a refusal
+in the script rather than a number in the artifact.
 
 **Glaciers are decoupled from the mean, and that is the load-bearing
 finding.** Cooling is close to useless for making them: summer amplification
