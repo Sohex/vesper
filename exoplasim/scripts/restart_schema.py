@@ -29,6 +29,15 @@ reset column against `outreset` and its per-module equivalents, which is what
 stops "an accumulator's clean value is zero" from quietly becoming false -- it
 already is for four of them.
 
+THE RESUME COLUMN is the third thing POLICY carries, and it is a DECISION rather
+than a description: what should happen when a restart does not carry the record.
+`read_sites_from_source()` is its mechanical half -- which readers touch a name,
+whether any read is inside a lowered `nexcheck`, whether anything asks for it
+with `has_restart_array` -- and `check_resume_policy()` holds the two against
+each other in both directions, so a decision the code does not implement and a
+handling nobody decided both go red. world-t16e;
+`notes/audits/absent-restart-records.md` argues it per record.
+
 IF YOU ADD OR REMOVE A RESTART RECORD, THIS FILE IS THE ONE TO EDIT, and
 `scripts/smoke_test.py` is what fails until you have. `exoplasim/README.md`
 carries the contract under "If you add or remove a restart record"; the tools
