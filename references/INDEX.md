@@ -966,11 +966,7 @@ model of what happens to the solutes once they cannot leave.
 | `deocampo2014-geochemistry-saline-lakes.pdf` | Deocampo, Jones (2014). *Geochemistry of Saline Lakes*, in Treatise on Geochemistry 2nd edn, vol. 7, 437-469. `10.1016/b978-0-08-095975-7.00515-5` | **read** -- the modern synthesis, and the quantitative route. The **chemical divide** (Hardie and Eugster 1970): calcite precipitation removes Ca and CO3 in equal equivalents, so whichever is in excess dominates everything afterward, and the early calcite decides whether the brine turns carbonate-rich or carbonate-poor. The **Spencer Triangle** in Ca-SO4-(HCO3+CO3) applies it, with the CaCO3-SO4 join as the calcite divide and CaCO3-CaSO4 as the gypsum divide. Those are exactly three of Meybeck's Table 2C columns, so the two papers compose directly |
 | `gibbs1970-world-water-chemistry.pdf` | Gibbs (1970). *Mechanisms Controlling World Water Chemistry.* Science 170(3962), 1088-1090. `10.1126/science.170.3962.1088` | held -- the global framing: rock dominance, atmospheric precipitation dominance, and evaporation-crystallisation. Endorheic waters are the third limb, which is where this world mostly sits |
 
-Hardie, Eugster (1970), *The evolution of closed-basin brines*, Mineral. Soc.
-Amer. Spec. Publ. 3, 273-290, is the origin of the chemical divide and could not
-be fetched -- it is an old society special publication. It is not held. Both
-papers above restate it in full, so it is cited through them rather than
-secondhand from a citing abstract, but the original has not been read here.
+| `MSA_SP3_273-290.pdf` | Hardie, Eugster (1970). *The evolution of closed-basin brines.* Mineral. Soc. Amer. Spec. Publ. 3, 273-290 | held -- the origin of the chemical divide, which Eugster and Jones (1979) and Deocampo and Jones (2014) above both restate in full. Recorded as unfetchable here until 2026-08-26, when it was found already on disk; the two papers above are still the route the divide is cited through, and this is the primary behind them |
 
 ---
 
