@@ -299,7 +299,9 @@ height of the lowest model level),
 `surface_classes.py` (derived surface classes BY NAME),
 `sea_water.py` (the four numbers salinity reaches the model through, read
 from `icemod.f90` and the run's namelist rather than copied), `provenance.py` (build
-stamping, config drift, the hashes of the derived files a generator read, and
+stamping, config drift, the declared removals that let the drift guard tell a key
+that no longer exists from a key whose value changed, the hashes of the derived
+files a generator read, and
 `staged_surface_field`, the one door onto a staged `.sra` keyed by the rung). Rule 5 cites `builds.py` and `provenance.py` from this list.
 
 Git does not track `exoplasim/runs/` (model output; but `runs/INDEX.json` IS

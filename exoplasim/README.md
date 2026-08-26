@@ -100,6 +100,18 @@ require clean windows for the same reason. See `segments.py` and CLIM-9.
 `continue_exoplasim.py` continues the SAME run: same config, same surface fields,
 more orbits. That is the normal spin-up path and it has no caveat.
 
+It refuses when `config/planet.yaml` no longer means what the run's manifest
+recorded, and the comparison is of parsed values, so a comment is not a
+difference. Two things soften it and neither is a flag. `INERT_CONFIG_KEYS` in
+that script names the keys nothing passes to the model, each traced to nothing
+and each with the trace beside it. `lib/provenance.py:REMOVED_CONFIG_KEYS` names
+the keys that no longer exist at all, because a removal reads to the comparison
+exactly as an edited parameter does and the guard would otherwise have to refuse
+both -- which killed a commissioning at 28 orbits over a refactor with no
+behavioural content. A removal is declared in advance with the value the key
+held, both halves are checked, and a resume that rests on one says so on stdout.
+`docs/src/practice/failure-modes.md` class 35.
+
 `run_exoplasim.py --restart-from` seeds a NEW run from another's restart. It is
 valid only when the surface fields are identical and the FORCING differs -- flux
 or CO2, which are namelist parameters rather than restart state. Use it for a

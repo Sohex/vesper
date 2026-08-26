@@ -18,7 +18,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, INPUTS, RUNS  # noqa: E402
-from provenance import config_drift  # noqa: E402
+from provenance import applied_removals, config_drift  # noqa: E402
 from restart_surface import verify_restart_surface_fields  # noqa: E402
 from segments import SEGMENT_PURPOSES  # noqa: E402
 from run_exoplasim import (  # noqa: E402
@@ -139,6 +139,13 @@ def year_diagnostics(path: Path) -> dict:
 # failure one level up -- a semantically real change to a physically inert key.
 # The fix is to name the inert keys, not to loosen the comparison. Anything not
 # listed here is assumed to reach the model.
+#
+# A key that has been REMOVED from the configuration is a THIRD case and does not
+# belong here: an inert entry excuses a key that still exists and whose value
+# may change again, while a removal is a one-time event with a value that can be
+# recorded. `lib/provenance.py:REMOVED_CONFIG_KEYS` is where it is declared, and
+# the guard checks both halves of that declaration before it excuses anything.
+# world-51wj.
 INERT_CONFIG_KEYS = {
     "star.spectral_type",     # a label; the model gets effective_temperature_k
                               # and the spectrum file, not this. THE ENTRY IS
@@ -359,6 +366,14 @@ def main() -> None:
             "Configuration differs from the run manifest; refusing to resume:\n  "
             + "\n  ".join(drift)
         )
+    # A key REMOVED from the configuration reads to the comparison above exactly
+    # as an edited parameter does, so it refuses both unless the removal was
+    # declared in advance with the value the key held. That refusal killed a
+    # commissioning at 28 orbits, and a declaration that nobody sees at the
+    # moment it is used is a silence however well it is written down; say which
+    # ones this resume rested on. lib/provenance.py:REMOVED_CONFIG_KEYS.
+    for line in applied_removals(manifest["source_config"], config):
+        print(f"  resuming across a declared removal: {line}")
 
     # The other half of that comparison, and the half a parsed-value diff cannot
     # do: the spectrum reaches the model as a FILE, and the file is regenerated
