@@ -20,14 +20,32 @@ biosphere. That is the third loop in this pipeline.
 
 **This reads and does not derive.** The field is
 `pedology/data/<build>/land_column_states_<res>.txt`, written by
-`pedology/scripts/land_column_properties.py`, whose `awc_mm` column is the
-plant-available capacity of the declared physical column: the contract's
-retention states at this world's gravity, integrated over the declared column
-with the weathered-bedrock rule applied. The same file gives LPJ-GUESS its
-per-layer states, so the two land columns agree on how much water there is by
-construction. It used to be `soilmap.txt`'s `awc` column, which is pedology's
-own declared endmember mixture and a different capacity; WORLD-OF6N settled
-which of the two the world has.
+`pedology/scripts/land_column_properties.py`. It used to be `soilmap.txt`'s
+`awc` column, which is pedology's own declared endmember mixture and a
+different capacity; WORLD-OF6N settled which of the two the world has.
+
+**TWO CAPACITY COLUMNS, AND THEY ARE TWO QUANTITIES.** The states file carries
+both and this script installs exactly one of them:
+
+    awc_mm         plant-available over the whole physical column, field
+                   capacity minus the wilting point, which is what a ROOT can
+                   remove. LPJ-GUESS installs this and NOTHING here moves it.
+    evaporable_mm  the same integral with the SURFACE LAYER's share cut from air
+                   dry instead, because a bare drying surface reaches the water
+                   between air dry and the wilting point and a root does not.
+
+`evaporable_mm` is what ExoPlaSim installs as `dwmax`, and it is installed only
+where the declared water column actually HAS the contract's surface layer at its
+top. The two travel together: the extra water is water the top 0.02 m can give
+up, so putting it in a column whose top layer is 0.5 m would hand a seasonal
+store water that only a drying skin can reach. Where the surface layer is absent
+this installs `awc_mm` and cuts every layer from the wilting point, which is what
+it did before PHYS-15. `exoplasim/notes/soil-albedo-moisture.md` argues the
+floor; `pedology/config/land_column_properties.yaml` declares it.
+
+The identity that keeps the two from being one number written twice is checked
+here per cell and not merely inherited: the three layer capacities this script
+cuts must sum to the capacity it installs.
 
 **Expect the effect to be small, and build it anyway.** The uniform bucket was
 once the leading suspect for this world's land runoff ratio, and an offline
@@ -39,11 +57,11 @@ rather than a namelist-borne one, which is the loop, and 229 is cheap once the
 soil exists. See `pedology/README.md`.
 
 **This changes climate results**, so it belongs in the run whose climatology the
-carve verdict will use, not after it. `model.soil_water_source: pedology` is set
-in `config/planet.yaml`; the code defaults to `uniform` when the key is absent,
-which is what kept runs in flight resumable while the key was held back, since
-adding it is a configuration change `continue_exoplasim.py` refuses to resume
-across.
+carve verdict will use, not after it. `model.soil_water_source` in
+`config/planet.yaml` is the switch and it says which state it is in; the code
+defaults to `uniform` when the key is absent, which is what kept runs in flight
+resumable while the key was held back, since moving it is a configuration change
+`continue_exoplasim.py` refuses to resume across.
 """
 
 from __future__ import annotations
@@ -85,27 +103,57 @@ EXOPLASIM_DEFAULT_WSMAX_M = 0.5
 COORD_DECIMALS = 4
 
 
-def read_land_column_states(path: Path) -> dict[tuple[float, float], float]:
-    """Plant-available water capacity in mm, keyed by rounded coordinates.
+def read_land_column_states(path: Path, column_name: str
+                            ) -> dict[tuple[float, float], float]:
+    """One capacity column in mm, keyed by rounded coordinates.
 
-    From the contract's emitted states, not from the soil map. The two carry
-    columns that would both parse as a capacity, so the column name is checked
-    by name and the file is named in the error.
+    From the contract's emitted states, not from the soil map. The file carries
+    several columns that would all parse as a capacity and they are NOT
+    interchangeable -- `awc_mm` is LPJ-GUESS's and `evaporable_mm` is this
+    model's -- so the caller names which one it wants and the file and the
+    column are both named in the error.
     """
     lines = path.read_text().splitlines()
     header = lines[0].split()
-    if "awc_mm" not in header:
+    if column_name not in header:
         raise SystemExit(
-            f"{path} has no awc_mm column. It is the land column property "
-            "contract's emitted states; write it with "
+            f"{path} has no {column_name} column. It is the land column "
+            "property contract's emitted states; re-emit it with "
             "pedology/scripts/land_column_properties.py.")
-    column = header.index("awc_mm")
+    column = header.index(column_name)
     capacity = {}
     for line in lines[1:]:
         parts = line.split()
         capacity[(round(float(parts[0]), COORD_DECIMALS),
                   round(float(parts[1]), COORD_DECIMALS))] = float(parts[column])
     return capacity
+
+
+def read_retention_states(path: Path) -> dict[tuple[float, float], tuple[float, float]]:
+    """Field capacity and wilting point per cell, volumetric.
+
+    The two volumetric states the per-layer capacities are cut between, read
+    from the same states file rather than re-derived from texture: the contract
+    owns the closure and this script owns no retention curve. The surface
+    layer's cut needs the wilting point EXPLICITLY, because its capacity is the
+    one that does not stop there.
+    """
+    lines = path.read_text().splitlines()
+    header = lines[0].split()
+    for name in ("theta_fc", "theta_wp"):
+        if name not in header:
+            raise SystemExit(
+                f"{path} has no {name} column. The per-layer capacity split is "
+                "cut between the two volumetric states; re-emit the states "
+                "with pedology/scripts/land_column_properties.py.")
+    ifc, iwp = header.index("theta_fc"), header.index("theta_wp")
+    out = {}
+    for line in lines[1:]:
+        parts = line.split()
+        out[(round(float(parts[0]), COORD_DECIMALS),
+             round(float(parts[1]), COORD_DECIMALS))] = (float(parts[ifc]),
+                                                         float(parts[iwp]))
+    return out
 
 
 def read_layer_usable_shares(path: Path) -> tuple[dict, int]:
@@ -135,37 +183,56 @@ def read_layer_usable_shares(path: Path) -> tuple[dict, int]:
     return shares, len(columns)
 
 
-def layer_grouping(thicknesses: list[float], physical_m: float,
-                   physical_count: int) -> list[slice]:
-    """Which physical layer set each model water layer is made of.
+def layer_depth_weights(thicknesses: list[float], physical_m: float,
+                        physical_count: int) -> np.ndarray:
+    """How much of each physical increment each model water layer owns, in m.
 
-    The model's water column is a GROUPING of the contract's physical column
-    and never a re-cut of it: LSHY-3 chose 0.5 and 1.0 m because that is the
-    contract's own 500 mm upper over five of the physical column's own
-    increments and 1000 mm lower over ten, which is the only two-layer cut at
-    which the climate column and the ecology column share a boundary. This refuses any thickness that is not a
-    whole number of those increments, and any set that does not cover the column,
-    because either one would make the split an interpolation of a profile rather
-    than a partition of it.
+    Returns an array of shape (water layers, physical increments) whose entries
+    are overlap DEPTHS, so each column sums to `physical_m` and the whole array
+    sums to the column depth.
+
+    The model's water column is a PARTITION of the contract's physical column
+    and never an interpolation of it. Where a model boundary lands on an
+    increment boundary that is a grouping, which is what LSHY-3's 0.5 and 1.0 m
+    cut is: the contract's own 500 mm upper over five increments and 1000 mm
+    lower over ten, the only two-layer cut at which the climate column and the
+    ecology column share a boundary.
+
+    A boundary may also land INSIDE an increment, which is what the contract's
+    0.02 m surface layer does, and splitting by depth there is still a partition
+    rather than an interpolation. The reason is the contract's own
+    `materials.mineral.vertical_rule`, which is `uniform`: one texture per cell
+    applied to every increment, so the retention states are constant within an
+    increment and the usable share is one number for it. Half an increment
+    therefore holds exactly half its water, by the contract's own rule and not
+    by an assumption made here. If that rule ever becomes a profile, this
+    function is where the profile has to be integrated instead.
+
+    What is still refused is a column that does not COVER the contract's
+    column, because a split over part of it would not sum to the capacity
+    `dwmax` carries.
     """
-    groups = []
-    used = 0
+    weights = np.zeros((len(thicknesses), physical_count), dtype=float)
+    top = 0.0
     for index, thickness in enumerate(thicknesses):
-        count = thickness / physical_m
-        if abs(count - round(count)) > 1.0e-9 or round(count) < 1:
+        if thickness <= 0.0:
             raise SystemExit(
                 f"surface.land_water_column.layer_thickness_m[{index}] = "
-                f"{thickness} is not a whole number of the contract's "
-                f"{physical_m} m physical increment. The model's water column is "
-                "a grouping of that column, so a partial layer has no split.")
-        groups.append(slice(used, used + round(count)))
-        used += round(count)
-    if used != physical_count:
+                f"{thickness} is not positive. It is a depth in metres.")
+        bottom = top + thickness
+        for cell in range(physical_count):
+            lo, hi = cell * physical_m, (cell + 1) * physical_m
+            overlap = min(bottom, hi) - max(top, lo)
+            if overlap > 0.0:
+                weights[index, cell] = overlap
+        top = bottom
+    column_m = physical_m * physical_count
+    if abs(top - column_m) > 1.0e-9:
         raise SystemExit(
-            f"the declared water column covers {used} of the "
-            f"{physical_count} increments the contract carries. A split over "
-            "part of the column would not sum to the capacity dwmax carries.")
-    return groups
+            f"the declared water column reaches {top} m of the {column_m} m "
+            f"the contract carries. A split over part of the column would not "
+            "sum to the capacity dwmax carries.")
+    return weights
 
 
 def main() -> None:
@@ -209,7 +276,28 @@ def main() -> None:
         raise SystemExit(
             f"{args.states} does not exist. Run "
             "pedology/scripts/land_column_properties.py.")
-    capacity_mm = read_land_column_states(args.states)
+
+    # WHICH CAPACITY THIS INSTALLS, and it is decided by the declared GEOMETRY
+    # rather than by a switch of its own. The air-dry floor and the surface
+    # layer are one selection: `evaporable_mm` is `awc_mm` plus the water the
+    # top 0.02 m can give up below the wilting point, so it belongs in a column
+    # that has that layer and nowhere else. A column cut at 0.5 m taking
+    # `evaporable_mm` would put a drying skin's water into a seasonal store.
+    contract = yaml.safe_load(
+        (PROJECT_ROOT / "pedology" / "config" / "land_column_properties.yaml")
+        .read_text(encoding="utf-8"))
+    column = config.get("surface", {}).get("land_water_column", {}) or {}
+    physical_m = float(contract["geometry"]["physical_layer_thickness_m"])
+    physical_count = int(contract["geometry"]["physical_layer_count"])
+    thicknesses = [float(v) for v in column.get(
+        "layer_thickness_m", [physical_m * physical_count])]
+    surface = contract["surface_layer"]
+    surface_thickness_m = float(surface["thickness_m"])
+    air_dry = float(surface["air_dry_water_content"])
+    has_surface_layer = abs(thicknesses[0] - surface_thickness_m) <= 1.0e-12
+    capacity_column = "evaporable_mm" if has_surface_layer else "awc_mm"
+    capacity_mm = read_land_column_states(args.states, capacity_column)
+    retention = read_retention_states(args.states)
 
     # Grid and land mask come from the climatology, which is the boundary land
     # mask as the model itself saw it, and is the same grid pedology wrote its
@@ -318,15 +406,18 @@ def main() -> None:
     # to run without it: the split is a per-cell property and the namelist
     # `dsoilwf` is a shape for the whole simulated planet.
     # ------------------------------------------------------------------
-    contract = yaml.safe_load(
-        (PROJECT_ROOT / "pedology" / "config" / "land_column_properties.yaml")
-        .read_text(encoding="utf-8"))
-    physical_m = float(contract["geometry"]["physical_layer_thickness_m"])
-    shares, physical_count = read_layer_usable_shares(args.states)
-    if physical_count != int(contract["geometry"]["physical_layer_count"]):
+    # THE SURFACE LAYER'S SHARE IS CUT FROM AIR DRY, and that is the whole of
+    # what PHYS-15 changed here. Every layer below it keeps `theta_fc -
+    # theta_wp`, what a root can remove; the surface layer takes `theta_fc -
+    # air_dry`, what a bare drying surface can. So the split is no longer a
+    # normalisation of the usable shares alone -- the two cuts differ per cell by
+    # the wilting point -- and the three capacities are built in millimetres and
+    # divided by the capacity actually installed at the end.
+    shares, usable_count = read_layer_usable_shares(args.states)
+    if usable_count != physical_count:
         raise SystemExit(
-            f"{args.states} carries {physical_count} usable-share columns and "
-            f"the contract declares {contract['geometry']['physical_layer_count']} "
+            f"{args.states} carries {usable_count} usable-share columns and "
+            f"the contract declares {physical_count} "
             "physical increments; re-emit the states.")
 
     # THE GEOMETRY IS THE THICKNESS LIST, and the count is its length. The split
@@ -334,33 +425,69 @@ def main() -> None:
     # `run_exoplasim.py` is where a config whose declared count disagrees with
     # the length of its own per-layer lists is refused, and refusing it twice
     # would put the same rule in two places.
-    column = config.get("surface", {}).get("land_water_column", {}) or {}
-    thicknesses = [float(v) for v in column.get("layer_thickness_m",
-                                                [physical_m * physical_count])]
     nwater = len(thicknesses)
-    groups = layer_grouping(thicknesses, physical_m, physical_count)
+    depth_weights = layer_depth_weights(thicknesses, physical_m, physical_count)
 
     # The geometric split is the one a uniform profile gives: thickness over
     # column depth. It is what a cell with no soil takes, and what every land
     # cell would take if `dsoilwf` were the only route -- so it is also the
-    # baseline the spread below is reported against.
+    # baseline the spread below is reported against. It is `config/planet.yaml`'s
+    # `layer_capacity_fraction` by the same arithmetic, and on a cell that HAS a
+    # soil it is wrong at the surface layer by construction, because it cuts by
+    # depth where the surface layer's capacity is cut from air dry.
     geometric = np.array(thicknesses, dtype=float)
     geometric = geometric / geometric.sum()
 
     split = np.tile(geometric[:, None, None], (1, nlat, nlon))
     split_matched = 0
+    worst_identity_mm = 0.0
     for j in range(nlat):
         for i in range(nlon):
             if not land[j, i]:
                 continue
-            usable = shares.get((float(lon_signed[i]), float(lat_rounded[j])))
-            if usable is None:
+            key = (float(lon_signed[i]), float(lat_rounded[j]))
+            usable = shares.get(key)
+            states = retention.get(key)
+            installed = capacity_mm.get(key)
+            if usable is None or states is None or installed is None:
                 continue
-            total = usable.sum()
+            theta_fc, theta_wp = states
+            # Metres of usable depth per model water layer, which is the only
+            # place the geometry enters. Times the volumetric range that layer's
+            # capacity is cut over, times 1000, is millimetres of water.
+            depth = depth_weights @ usable
+            floor = np.full(nwater, theta_wp, dtype=float)
+            if has_surface_layer:
+                floor[0] = air_dry
+            capacities = 1000.0 * depth * (theta_fc - floor)
+            total = float(capacities.sum())
             if total <= 0.0:
                 continue
-            split[:, j, i] = [usable[g].sum() / total for g in groups]
+            # A RIGHT ANSWER THE CONTRACT ALREADY KNOWS. The three capacities
+            # cut here and the one column installed as `dwmax` are the same
+            # integral written two ways, so they must agree cell by cell. This
+            # is what would catch the surface layer being cut from the wilting
+            # point while `evaporable_mm` is installed, which is silent in every
+            # other output: the split would still sum to one.
+            worst_identity_mm = max(worst_identity_mm, abs(total - installed))
+            split[:, j, i] = capacities / total
             split_matched += 1
+    # THE TOLERANCE IS THE STATES FILE'S OWN PRECISION and not a physical
+    # allowance. It prints capacities to three decimals and volumetric states to
+    # six, so the capacity column and the integral rebuilt from the states beside
+    # it differ at the file's rounding: measured at 2e-3 mm at the worst cell of
+    # this build. 0.01 mm is an order above that and two and a half orders below
+    # what the surface layer's floor is worth, so a wilting-point cut installed
+    # against an air-dry capacity fails this by a factor of several hundred.
+    identity_tolerance_mm = 0.01
+    if split_matched and worst_identity_mm > identity_tolerance_mm:
+        raise SystemExit(
+            f"the per-layer capacities cut here disagree with the "
+            f"{capacity_column} column installed as dwmax by "
+            f"{worst_identity_mm:.3e} mm at the worst cell, against a tolerance "
+            f"of {identity_tolerance_mm:g}. The split and the capacity are one "
+            "integral, so this is a floor cut at the wrong state or a column "
+            "read by the wrong name, not a rounding error.")
 
     split_output = output.with_name(
         output.name.replace(f"{SOIL_WATER_CODE:04d}",
@@ -374,9 +501,23 @@ def main() -> None:
                  "fraction of dwmax, per cell",
         "water_layer_count": nwater,
         "layer_thickness_m": thicknesses,
-        "physical_layer_per_model_layer": [g.stop - g.start for g in groups],
+        "physical_increments_per_model_layer": [
+            round(float(v), 6) for v in depth_weights.sum(axis=1) / physical_m],
         "geometric_split": [round(float(v), 6) for v in geometric],
         "land_cells_matched": split_matched,
+        "surface_layer": {
+            "present": has_surface_layer,
+            "thickness_m": surface_thickness_m,
+            "cut_from": "air_dry" if has_surface_layer else "wilting_point",
+            "air_dry_water_content": air_dry,
+            "note": "the top water layer's capacity is cut from air dry when it "
+                    "IS the contract's surface layer, because a bare drying "
+                    "surface reaches water a root cannot. Every layer below it "
+                    "keeps field capacity minus the wilting point, which is why "
+                    "soilsrwp and soilsrfc still describe them.",
+        },
+        "capacity_identity_residual_mm": worst_identity_mm,
+        "capacity_identity_tolerance_mm": identity_tolerance_mm,
         "top_layer_share_over_land": {
             "min": round(float(upper.min()), 4),
             "p50": round(float(np.percentile(upper, 50)), 4),
@@ -387,10 +528,12 @@ def main() -> None:
                 float(np.mean(np.abs(upper - geometric[0]) < 1.0e-6)), 4),
         },
         "derivation": "the per-layer usable shares the land column property "
-                      "contract emits, grouped onto the declared water column "
-                      "and normalised. The same array the awc_mm column is the "
-                      "integral of, so the split and the capacity are one "
-                      "arithmetic rather than two that agree.",
+                      "contract emits, cut onto the declared water column by "
+                      "overlap depth and multiplied by the volumetric range "
+                      "each layer's capacity is taken over. The same array the "
+                      "capacity column is the integral of, so the split and the "
+                      "capacity are one arithmetic rather than two that agree, "
+                      "and `capacity_identity_residual_mm` is the check.",
         "lakes": "the lake blend moves dwmax and not the split: the lake "
                  "fraction of a cell has no soil profile, so its share of the "
                  "bucket is cut on the surrounding column's shape. The split "
@@ -413,9 +556,14 @@ def main() -> None:
         "land_column_states": rel(args.states),
         "land_column_states_sha256": hashlib.sha256(
             args.states.read_bytes()).hexdigest(),
-        "capacity_source": "the land column property contract's awc_mm column. "
-                           "This script converts mm to m and installs it; it "
-                           "derives no capacity of its own.",
+        "capacity_column": capacity_column,
+        "capacity_source": f"the land column property contract's "
+                           f"{capacity_column} column, selected by whether the "
+                           "declared water column carries the contract's "
+                           "surface layer at its top. This script converts mm "
+                           "to m and installs it; it derives no capacity of its "
+                           "own. `awc_mm` is LPJ-GUESS's and is not what this "
+                           "installs when a surface layer is present.",
         "config_sha256": hashlib.sha256(args.config.read_bytes()).hexdigest(),
         "resolution": resolution,
         "land_cells": int(land.sum()),
