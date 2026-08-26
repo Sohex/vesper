@@ -120,12 +120,13 @@ The shape:
   JHU library's snow and Dang's model of pure snow. It is about a twentieth of
   an albedo, comparable to the band-definition term, and it FALLS SLOWLY WITH
   GRAIN SIZE: across the factor of seven in radius the three library entries
-  span, it moves by about a fifth of itself.
+  span, it moves by about a sixth of itself.
 
 **The constant term does not transfer and the grain-size slope does**: the
-fitted near-infrared linear coefficient on both arms sits within a few
-thousandths of Dang's published one, while the constant terms are several
-hundredths apart. A dust term scales against the slope, so the part this row
+fitted near-infrared linear coefficient on both arms sits within under a
+hundredth of Dang's published one, while the constant terms are more than a
+tenth apart -- and the whole of that difference in slope is smaller than what
+the geometry offset alone moves the constant by. A dust term scales against the slope, so the part this row
 needs is the part that survives the comparison, and the part that does not
 survive it is the part the row was right to fit locally.
 
@@ -167,10 +168,13 @@ questions this comparison actually has -- the library's stated near-normal
 illumination against Dang's 49.5 degrees, and the library's unqualified
 "effective size" if it is a diameter rather than a radius.
 
-Applying equation (5) between the two illumination geometries removes a little
-under half of what the near-infrared comparison had left unexplained, and it is
-the largest identified term in it. What remains after both the band definition
-and the geometry is the part with no axis representation: the asymmetry
+Correcting the zenith form to equation (5) removes about a third of what the
+near-infrared comparison had left unexplained. It is not the largest term in
+that residual -- the band definition, already known, is larger -- but it is the
+one this paper newly identifies, and unlike the band definition it is a physical
+difference between two illuminations rather than an accounting difference
+between two band edges. What remains after both is the part with no axis
+representation: the asymmetry
 parameter is the one single-scattering quantity a sphere representation is
 documented to get wrong, and it is not degenerate with the radius, so a
 difference in grain shape shows up as an offset that no rescaling of the axis
