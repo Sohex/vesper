@@ -19,6 +19,13 @@ and another's coupling matrix and raised an IndexError purely because the counts
 differed; had they matched it would have paired row *i* of one build with row *i*
 of another and produced a number.
 
+**The registry does not refuse the configured build.** `lib/orogen.py` registers
+a build so that results computed from it stay readable, which is a different
+question from whether the tree may point at it; entries that answer the second
+one "no" carry a `refusal`. Config named one of those for as long as nobody
+read the comment above its entry, and batch P0C measured the basin catalogue on
+two builds because it could not tell which was active.
+
 **Stale flat data directories.** Hydrography is per-build now. A leftover
 `<component>/data/*.nc` from an earlier build is not an error, but it is what
 `world_state.py` was reading when it reported 2,107 basins for a build with
@@ -75,6 +82,12 @@ allowlist entry must name a key that exists. The parameter case is the one that
 matters: a comparison that fired at nothing would pass every negative case here
 and no positive one, which is why each negative case is paired with the positive
 that proves the edit landed.
+
+It also drives the activation guard with a build the registry is known to refuse.
+That guard's live input is the configured build, so a case reading the config
+would report whatever the tree happens to be in the middle of rather than
+whether the guard works.
+
 **The stellar band split.** `lib/stellar.py` must still reproduce
 `radmod.f90:solarini`, the shipped spectrum file must still represent the
 BT-Settl blend it was resampled from, and every consumer that stores the band-1
@@ -416,6 +429,30 @@ def audit_runs(rep: "Report", runs: Path, runner) -> None:
                 f"not checked: {exc}")
 
 
+def activation_row(build: str, terrain_hash: str | None) -> tuple[str, str, str]:
+    """One report row: may `build` be named as `source_build`?
+
+    A function rather than a paragraph inside `main()` because `--self-test`
+    drives it with a build the registry is known to refuse, and with one it
+    allows. A guard whose only input is the live config reports the tree rather
+    than itself.
+    """
+    import orogen
+    # By hash where there is an export to hash, because the hash is the identity;
+    # by name otherwise, so the check still answers when the build is absent,
+    # which is the state that makes the terrain hash optional here.
+    refusal = orogen.activation_refusal(terrain_hash, name=build)
+    by = "hash" if terrain_hash is not None else "name"
+    if refusal:
+        return (FAIL, "build activatable",
+                f"lib/orogen.py refuses {build!r} as source_build: {refusal}")
+    if orogen.registry_entry(terrain_hash, name=build) is None:
+        return (WARN, "build activatable",
+                f"{build!r} has no entry in lib/orogen.py; a build with no "
+                f"registry entry cannot be refused and cannot be vouched for")
+    return (OK, "build activatable", f"registry allows {build} (by {by})")
+
+
 def self_test() -> int:
     """Assert what the config comparison must say about known edits.
 
@@ -719,6 +756,35 @@ def self_test() -> int:
          without["runs that record no surface hashes"][0], WARN,
          "which surface it integrated cannot be settled either way")
 
+    # The activation guard, against the registry as it stands. Driven by name
+    # and not by the live config on purpose. Which build the config names moves,
+    # so a case reading it asserts whichever state the tree is in on the day
+    # rather than that the guard separates the two.
+    import orogen
+    refused = sorted(e["name"] for e in orogen._KNOWN_TERRAIN_HASHES.values()
+                     if e.get("refusal"))
+    allowed = sorted(e["name"] for e in orogen._KNOWN_TERRAIN_HASHES.values()
+                     if not e.get("refusal"))
+    # A withdrawn export and a carve verdict decided on the wrong climate are
+    # permanently wrong terrains, so this list does not empty. If it ever does,
+    # the positive case has no input and saying so is the only honest verdict --
+    # a self-test that quietly skips its positive case is the thing it exists
+    # against.
+    case("the registry still refuses something",
+         bool(refused), True,
+         "otherwise the case below has nothing to drive it and can only pass")
+    if refused:
+        case("a refused build fails activation",
+             activation_row(refused[0], None)[0], FAIL,
+             f"{refused[0]} carries a refusal in lib/orogen.py")
+    case("an allowed build passes activation",
+         activation_row(allowed[0], None)[0], OK,
+         f"{allowed[0]} carries none, so the case above is the refusal and "
+         f"not the check failing at everything")
+    case("a build in no entry is not vouched for",
+         activation_row("no-such-build-selftest", None)[0], WARN,
+         "unregistered is neither refused nor allowed")
+
     width = max(len(n) for n, _, _ in cases) + 2
     for name, ok, why in cases:
         print(f"[{'  ok  ' if ok else ' FAIL '}] {name:<{width}} {why}")
@@ -758,6 +824,34 @@ def main() -> int:
                 f"in source/README.md -- then register its hash in lib/orogen.py")
     if want is not None:
         rep.add(OK, f"active build", f"{build}  {want[:16]}")
+
+    # -- the registry does not refuse the build the config names -------------
+    #
+    # `lib/orogen.py` is the registry, and being registered there is not
+    # permission to be active. Some entries are recorded precisely so that a
+    # result already computed from them stays readable: a withdrawn export, three
+    # superseded carve verdicts, and a 10M-region measurement artifact generated
+    # for the resolution audit. Each of those carries a `refusal`, and a build
+    # with one may not be named as `source_build`.
+    #
+    # Nothing enforced that, and the two files disagreed in silence with config
+    # naming a build whose entry refused it. What that costs is not abstract.
+    # Batch P0C could not tell which build was
+    # active and measured the basin catalogue on both, and relaxing minCells adds
+    # 4,463 basins on precarve-craton against 8 on precarve-craton-10m, so
+    # "is the catalogue resolution-limited" came back TRUE on one build and FALSE
+    # on the other.
+    #
+    # Here rather than in smoke_test.py, though the check itself is a static read
+    # and would cost that tier nothing. The tier is set by the cost of the STATE,
+    # not of the check. A refused build named in config is a legitimate transient
+    # -- the export being regenerated, the config still pointing at the old one --
+    # and a per-commit gate that fails on it stops every commit in the tree,
+    # including the commits that resolve it. What must never happen is that the
+    # disagreement survives into something that MEASURES, and this file is the
+    # gate that runs before an expensive run and after a change to `source_build`.
+    if build:
+        rep.add(*activation_row(build, want))
 
     # -- the named baseline climatology belongs to the active build ----------
     #
