@@ -1467,3 +1467,26 @@ and one with the four cryosphere constants at the values the donor ran without
 them, each against this same control on this same restart. That is two arms and
 it splits the -12.5 K into the part the config carries and the part the source
 carries, which is as far as the split can go without a control binary.
+
+## A3's fourth condition cannot be met on an arm's first segment
+
+A3 requires that "the segments are labelled as diagnostics, so a short A/B tail
+never enters a convergence window or a climatology". `continue_exoplasim.py`
+takes a required `--purpose` and will stamp `diagnostic`. `run_exoplasim.py`
+takes no such flag: every run it prepares gets a first segment labelled `spinup`
+and a manifest carrying `canonical_lineage_eligible: true`, whatever the run is
+for. Measured on the five arms above, each of which is an A/B arm and none of
+which says so.
+
+So an arm is self-labelling only from its SECOND segment onward, and its first
+one -- which for a short A/B is the whole of it -- is indistinguishable on the
+manifest from a spin-up meant for the canonical chain. Nothing has been mislabelled
+INTO a climatology yet, because `baseline_climatology` is null and the canonical
+lineage does not exist; the gap is that the guard A3 names is not there to catch
+it when one does.
+
+`--binary` already stamps an arm's build tag and sets `canonical_lineage_eligible
+= false`, so the mechanism exists and reaches only arms that carry their own
+executable. A `--purpose` on `run_exoplasim.py` with the same three values
+`continue_exoplasim.py` takes, defaulting to `spinup` so no existing call
+changes, is what closes it.
