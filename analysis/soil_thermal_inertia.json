@@ -1,21 +1,33 @@
 {
-  "generated": "2026-08-25T08:26:28+00:00",
+  "generated": "2026-08-26T10:18:13+00:00",
   "question": "is the modelled soil's thermal inertia controlled by moisture or by parent material",
   "model": "Johansen's interpolation as Farouki tabulates it; the mineralogy enters only through k_sat, so the dry conductivity is a function of bulk density alone",
   "column": {
     "bulk_density_kg_m3": 1300.0,
     "porosity": 0.519
   },
-  "landmod_scalars": {
-    "soildiff_w_m_k": 1.8,
-    "soilcap_j_m3_k": 2400000.0,
-    "thermal_inertia_j_m2_k_s05": 2078.5,
-    "saturation_that_reproduces_it": null
+  "landmod_endpoints": {
+    "soildifdry": 0.2088,
+    "soildifsat": 1.4332,
+    "soilcapdry": 1111100.0,
+    "soilcapsat": 2968900.0,
+    "thermal_inertia_dry_j_m2_k_s05": 481.7,
+    "thermal_inertia_saturated_j_m2_k_s05": 2062.8,
+    "span": 4.28,
+    "what_they_replaced": {
+      "soildiff_w_m_k": 1.8,
+      "soilcap_j_m3_k": 2400000.0,
+      "thermal_inertia_j_m2_k_s05": 2078.5,
+      "saturation_that_reproduces_it": null,
+      "note": "one number for the whole simulated planet, Earth's global average for a moist mineral soil. It is above the saturated endpoint of this column, so it is not a mid-range value: it is past the wet end."
+    }
   },
   "moisture_spread": {
     "air_dry": 405.7,
     "saturated": 1991.9,
-    "ratio": 4.91
+    "validity_floor": 439.2,
+    "ratio": 4.91,
+    "ratio_within_stated_validity": 4.5
   },
   "lithology_spread": {
     "air_dry": {
@@ -28,6 +40,19 @@
         "playa mud and fan fill": 405.7,
         "quartzite": 405.7,
         "schist and melange": 405.7
+      },
+      "ratio": 1.0
+    },
+    "validity_floor": {
+      "by_parent_material": {
+        "andesite and granodiorite": 439.2,
+        "basalt and carbonate": 439.2,
+        "continental clastics": 439.2,
+        "evaporite salt crust": 439.2,
+        "granite and gneiss": 439.2,
+        "playa mud and fan fill": 439.2,
+        "quartzite": 439.2,
+        "schist and melange": 439.2
       },
       "ratio": 1.0
     },
@@ -44,6 +69,67 @@
       },
       "ratio": 1.36
     }
+  },
+  "farouki_texture_branches": {
+    "declared_column_is": "fine, by Farouki's Figure 160 rule that a soil with more than 5 per cent finer than 2 micrometres is fine. So the rows that apply are Ke = log10(Sr) + 1 and k_other = 2.0.",
+    "kersten_coarse_alternative": "0.7*log10(Sr) + 1, which reaches k_dry at a HIGHER saturation and therefore widens the moisture spread rather than narrowing it",
+    "k_other_coarse_low_quartz_w_m_k": 3.0,
+    "low_quartz_branch_at": 0.2,
+    "on_a_coarse_column": {
+      "air_dry": {
+        "by_parent_material": {
+          "andesite and granodiorite": 405.7,
+          "basalt and carbonate": 405.7,
+          "continental clastics": 405.7,
+          "evaporite salt crust": 405.7,
+          "granite and gneiss": 405.7,
+          "playa mud and fan fill": 405.7,
+          "quartzite": 405.7,
+          "schist and melange": 405.7
+        },
+        "ratio": 1.0
+      },
+      "validity_floor": {
+        "by_parent_material": {
+          "andesite and granodiorite": 537.9,
+          "basalt and carbonate": 529.9,
+          "continental clastics": 558.3,
+          "evaporite salt crust": 529.9,
+          "granite and gneiss": 529.9,
+          "playa mud and fan fill": 529.9,
+          "quartzite": 586.9,
+          "schist and melange": 529.9
+        },
+        "ratio": 1.11
+      },
+      "saturated": {
+        "by_parent_material": {
+          "andesite and granodiorite": 2061.3,
+          "basalt and carbonate": 1992.4,
+          "continental clastics": 2231.5,
+          "evaporite salt crust": 1992.4,
+          "granite and gneiss": 1991.9,
+          "playa mud and fan fill": 1991.9,
+          "quartzite": 2459.7,
+          "schist and melange": 1991.9
+        },
+        "ratio": 1.23
+      }
+    },
+    "saturated_inertia_lift_on_the_low_quartz_classes": {
+      "basalt and carbonate": 1.103,
+      "evaporite salt crust": 1.103,
+      "andesite and granodiorite": 1.087
+    },
+    "why_it_does_not_change_the_finding": "the branch enters k_solid, k_solid enters k_sat, and k_sat is multiplied by a Kersten number that is zero at and below the dry floor. So it lifts the WET end of the lithology spread for the low-quartz classes and leaves the dry end at exactly 1.00, which is the row the finding rests on."
+  },
+  "validity": {
+    "kersten_floor_fine": 0.1,
+    "kersten_floor_coarse": 0.05,
+    "dry_relation_accuracy": "+/- 20 per cent, stated with the equation on Farouki p. 112",
+    "below_the_floor": "Farouki 7.13.1: below a saturation of about 0.1 no method predicts well except Van Rooyen's. The air-dry point is below that floor, so the clip and not the relation sets the conductivity there; the floor row is the one inside the method's stated range and the ranking is the same at either.",
+    "coefficients_checked_against": "Farouki (1981) CRREL Monograph 81-1, Section 7.11 and Table 24, pp. 112-113. Table 24 misprints 0.137 for 0.135 in the dry numerator and 0.39 for 0.039 in the crushed-rock relation; the body text is the row to copy.",
+    "crushed_rock_not_used": "Farouki gives a separate dry relation for crushed rock, 0.039*n**-2.2 +/- 25 per cent, a function of porosity alone, and says Johansen's method does NOT apply well to dry crushed rocks. This column is a natural soil and takes the natural-soil relation."
   },
   "bulk_density_sensitivity": {
     "1100": {

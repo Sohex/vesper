@@ -1336,6 +1336,13 @@ ALBEDO_SURFACE_CODES = {174, 175, 176, 212}
 # dwmax, the soil water bucket whose overflow *is* ExoPlaSim's runoff. Supplied
 # from pedology when asked for; otherwise the uniform namelist default stands.
 SOIL_WATER_SURFACE_CODES = {229}
+# dsoilwfc, the capacity split of that bucket over the land column's water
+# layers. WORLD-VJBZ. Staged only when the column has more than one layer,
+# because at one layer the split is identically one and `landmod_nl`'s dsoilwf
+# says so exactly -- so requiring the file there would be a staging cost for a
+# field that carries no information. Above one layer landmod REFUSES to run
+# without it, which is the same position surfmod takes on an absent land mask.
+SOIL_WATER_SPLIT_SURFACE_CODES = {2290}
 ROUGHNESS_SURFACE_CODES = {173}
 # ddustcol, the prescribed band-1 column dust optical depth. DUST-11. Only read
 # by a binary carrying patches/exoplasim-3.4.2-prescribed-dust.patch; an
@@ -1498,6 +1505,9 @@ def intended_surface_codes(config: dict) -> set[int]:
         codes |= ALBEDO_SURFACE_CODES
     if str(config["model"].get("soil_water_source", "uniform")) != "uniform":
         codes |= SOIL_WATER_SURFACE_CODES
+        if int((config.get("surface", {}).get("land_water_column", {})
+                or {}).get("layers", 1)) > 1:
+            codes |= SOIL_WATER_SPLIT_SURFACE_CODES
     if str(config["model"].get("roughness_source", "uniform")) != "uniform":
         codes |= ROUGHNESS_SURFACE_CODES
     if str(config["model"].get("dust_source", "none")) != "none":
@@ -2415,7 +2425,7 @@ def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
     for code in sorted(intended_surface_codes(config) - BASE_SURFACE_CODES):
         src = surface_sra(config, code)
         if not src.is_file():
-            if code in SOIL_WATER_SURFACE_CODES:
+            if code in SOIL_WATER_SURFACE_CODES | SOIL_WATER_SPLIT_SURFACE_CODES:
                 builder, setting = ("build_surface_soil_water.py",
                                     "model.soil_water_source")
             elif code in DUST_SURFACE_CODES:

@@ -332,24 +332,24 @@ CLASSIFIED: dict[tuple[str, str, str, str], str] = {
     ("landmod.f90", "subroutine tands", "divide",
      "snowdiff*zsoilz(:,1)+zdiff(:,1)*zsnowz(:)"):
         "the world-d016 presets in tands give every lane, sea included, "
-        "zsoilz(:,1) = dsoilz(1) = 0.4 m, zdiff1 = soildiff, zctop = soilcap "
+        "zsoilz(:,1) = dsoilz(1) = 0.4 m, zdiff1 = soildifsat, zctop = soilcapsat "
         "and zsnowz = 0, and each is overwritten with a positive value on the "
         "lanes the mask keeps; the divisor is therefore at least "
         "snowdiff*dsoilz(1)",
     ("landmod.f90", "subroutine tands", "divide", "zctop(:)"):
         "the world-d016 presets in tands give every lane, sea included, "
-        "zsoilz(:,1) = dsoilz(1) = 0.4 m, zdiff1 = soildiff, zctop = soilcap "
+        "zsoilz(:,1) = dsoilz(1) = 0.4 m, zdiff1 = soildifsat, zctop = soilcapsat "
         "and zsnowz = 0, and each is overwritten with a positive value on the "
         "lanes the mask keeps",
     ("landmod.f90", "subroutine tands", "divide",
      "zctop(:)*zztop(:)/deltsec+2.*zdiff1(:)/zsoilz1(:)"):
         "the world-d016 presets in tands give every lane, sea included, "
-        "zsoilz(:,1) = dsoilz(1) = 0.4 m, zdiff1 = soildiff, zctop = soilcap "
+        "zsoilz(:,1) = dsoilz(1) = 0.4 m, zdiff1 = soildifsat, zctop = soilcapsat "
         "and zsnowz = 0, and each is overwritten with a positive value on the "
         "lanes the mask keeps; every term is then positive",
     ("landmod.f90", "subroutine tands", "divide", "zsoilz1(:)"):
         "the world-d016 presets in tands give every lane, sea included, "
-        "zsoilz(:,1) = dsoilz(1) = 0.4 m, zdiff1 = soildiff, zctop = soilcap "
+        "zsoilz(:,1) = dsoilz(1) = 0.4 m, zdiff1 = soildifsat, zctop = soilcapsat "
         "and zsnowz = 0, and each is overwritten with a positive value on the "
         "lanes the mask keeps",
     ("landmod.f90", "subroutine tands", "divide", "zztop(:)"):

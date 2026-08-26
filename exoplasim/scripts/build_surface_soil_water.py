@@ -64,6 +64,18 @@ from provenance import config_stamp  # noqa: E402
 from sra import write_sra
 
 SOIL_WATER_CODE = 229
+# The capacity SPLIT of that bucket over the land column's water column, one
+# record per layer. WORLD-VJBZ. `dsoilwf` in `landmod_nl` is one shape for the
+# whole simulated planet and the split is not one shape: it is the same integral
+# `awc_mm` is, cut at the model's layer boundaries instead of summed, so it
+# varies with regolith depth and weathered-bedrock fraction exactly as the
+# capacity does. Over this build's land cells the upper share of the declared
+# 0.5/1.0 m cut runs from the geometric 0.3333 to 0.8882.
+#
+# INERT AT ONE LAYER, where the split is identically one and the namelist says
+# so exactly. It becomes the field the model refuses to run without the moment
+# the water column is cut into more than one.
+SOIL_WATER_SPLIT_CODE = 2290
 
 # ExoPlaSim's own default, landmod.f90 `WSMAX_EARTH`. Non-land cells keep it,
 # since dwmax is meaningless over ocean but must still be a sane number.
@@ -94,6 +106,66 @@ def read_land_column_states(path: Path) -> dict[tuple[float, float], float]:
         capacity[(round(float(parts[0]), COORD_DECIMALS),
                   round(float(parts[1]), COORD_DECIMALS))] = float(parts[column])
     return capacity
+
+
+def read_layer_usable_shares(path: Path) -> tuple[dict, int]:
+    """Per physical layer, the usable share of that layer's capacity, by cell.
+
+    The `u00..` columns of the same states file `awc_mm` comes from. They are
+    the weathered-bedrock rule evaluated ONCE, by the contract's own script, and
+    the column capacity is this array integrated -- so the split derived from
+    them and the capacity installed as `dwmax` are the same arithmetic rather
+    than two that agree today.
+    """
+    lines = path.read_text().splitlines()
+    header = lines[0].split()
+    columns = [i for i, name in enumerate(header)
+               if name.startswith("u") and name[1:].isdigit()]
+    if not columns:
+        raise SystemExit(
+            f"{path} carries no per-layer usable-share columns. The capacity "
+            "split is derived from them; re-emit the states with "
+            "pedology/scripts/land_column_properties.py.")
+    shares = {}
+    for line in lines[1:]:
+        parts = line.split()
+        shares[(round(float(parts[0]), COORD_DECIMALS),
+                round(float(parts[1]), COORD_DECIMALS))] = np.array(
+                    [float(parts[i]) for i in columns])
+    return shares, len(columns)
+
+
+def layer_grouping(thicknesses: list[float], physical_m: float,
+                   physical_count: int) -> list[slice]:
+    """Which physical layer set each model water layer is made of.
+
+    The model's water column is a GROUPING of the contract's physical column
+    and never a re-cut of it: LSHY-3 chose 0.5 and 1.0 m because that is the
+    contract's own 500 mm upper over five of the physical column's own
+    increments and 1000 mm lower over ten, which is the only two-layer cut at
+    which the climate column and the ecology column share a boundary. This refuses any thickness that is not a
+    whole number of those increments, and any set that does not cover the column,
+    because either one would make the split an interpolation of a profile rather
+    than a partition of it.
+    """
+    groups = []
+    used = 0
+    for index, thickness in enumerate(thicknesses):
+        count = thickness / physical_m
+        if abs(count - round(count)) > 1.0e-9 or round(count) < 1:
+            raise SystemExit(
+                f"surface.land_water_column.layer_thickness_m[{index}] = "
+                f"{thickness} is not a whole number of the contract's "
+                f"{physical_m} m physical increment. The model's water column is "
+                "a grouping of that column, so a partial layer has no split.")
+        groups.append(slice(used, used + round(count)))
+        used += round(count)
+    if used != physical_count:
+        raise SystemExit(
+            f"the declared water column covers {used} of the "
+            f"{physical_count} increments the contract carries. A split over "
+            "part of the column would not sum to the capacity dwmax carries.")
+    return groups
 
 
 def main() -> None:
@@ -237,6 +309,97 @@ def main() -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     write_sra(output, SOIL_WATER_CODE, field)
 
+    # ------------------------------------------------------------------
+    # THE CAPACITY SPLIT, code 2290. WORLD-VJBZ.
+    #
+    # The same integral as `dwmax`, cut at the model's water layer boundaries
+    # instead of summed. It is written unconditionally, because at one layer it
+    # is identically one and costs a file, and above one layer the model refuses
+    # to run without it: the split is a per-cell property and the namelist
+    # `dsoilwf` is a shape for the whole simulated planet.
+    # ------------------------------------------------------------------
+    contract = yaml.safe_load(
+        (PROJECT_ROOT / "pedology" / "config" / "land_column_properties.yaml")
+        .read_text(encoding="utf-8"))
+    physical_m = float(contract["geometry"]["physical_layer_thickness_m"])
+    shares, physical_count = read_layer_usable_shares(args.states)
+    if physical_count != int(contract["geometry"]["physical_layer_count"]):
+        raise SystemExit(
+            f"{args.states} carries {physical_count} usable-share columns and "
+            f"the contract declares {contract['geometry']['physical_layer_count']} "
+            "physical increments; re-emit the states.")
+
+    # THE GEOMETRY IS THE THICKNESS LIST, and the count is its length. The split
+    # is cut at thicknesses, so that list is the whole of what this needs;
+    # `run_exoplasim.py` is where a config whose declared count disagrees with
+    # the length of its own per-layer lists is refused, and refusing it twice
+    # would put the same rule in two places.
+    column = config.get("surface", {}).get("land_water_column", {}) or {}
+    thicknesses = [float(v) for v in column.get("layer_thickness_m",
+                                                [physical_m * physical_count])]
+    nwater = len(thicknesses)
+    groups = layer_grouping(thicknesses, physical_m, physical_count)
+
+    # The geometric split is the one a uniform profile gives: thickness over
+    # column depth. It is what a cell with no soil takes, and what every land
+    # cell would take if `dsoilwf` were the only route -- so it is also the
+    # baseline the spread below is reported against.
+    geometric = np.array(thicknesses, dtype=float)
+    geometric = geometric / geometric.sum()
+
+    split = np.tile(geometric[:, None, None], (1, nlat, nlon))
+    split_matched = 0
+    for j in range(nlat):
+        for i in range(nlon):
+            if not land[j, i]:
+                continue
+            usable = shares.get((float(lon_signed[i]), float(lat_rounded[j])))
+            if usable is None:
+                continue
+            total = usable.sum()
+            if total <= 0.0:
+                continue
+            split[:, j, i] = [usable[g].sum() / total for g in groups]
+            split_matched += 1
+
+    split_output = output.with_name(
+        output.name.replace(f"{SOIL_WATER_CODE:04d}",
+                            f"{SOIL_WATER_SPLIT_CODE:04d}"))
+    write_sra(split_output, SOIL_WATER_SPLIT_CODE, split)
+
+    upper = split[0][land]
+    split_report = {
+        "code": SOIL_WATER_SPLIT_CODE,
+        "field": "dsoilwfc, the capacity of each land water layer as a "
+                 "fraction of dwmax, per cell",
+        "water_layer_count": nwater,
+        "layer_thickness_m": thicknesses,
+        "physical_layer_per_model_layer": [g.stop - g.start for g in groups],
+        "geometric_split": [round(float(v), 6) for v in geometric],
+        "land_cells_matched": split_matched,
+        "top_layer_share_over_land": {
+            "min": round(float(upper.min()), 4),
+            "p50": round(float(np.percentile(upper, 50)), 4),
+            "p95": round(float(np.percentile(upper, 95)), 4),
+            "max": round(float(upper.max()), 4),
+            "mean": round(float(upper.mean()), 4),
+            "at_the_geometric_value": round(
+                float(np.mean(np.abs(upper - geometric[0]) < 1.0e-6)), 4),
+        },
+        "derivation": "the per-layer usable shares the land column property "
+                      "contract emits, grouped onto the declared water column "
+                      "and normalised. The same array the awc_mm column is the "
+                      "integral of, so the split and the capacity are one "
+                      "arithmetic rather than two that agree.",
+        "lakes": "the lake blend moves dwmax and not the split: the lake "
+                 "fraction of a cell has no soil profile, so its share of the "
+                 "bucket is cut on the surrounding column's shape. The split "
+                 "is a property of the soil column and this is the limit of it."
+                 if lake_report is not None else None,
+        "output": rel(split_output),
+        "output_sha256": hashlib.sha256(split_output.read_bytes()).hexdigest(),
+    }
+
     weights = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, nlon))
     land_mean = float(np.average(field[land], weights=weights[land])) if land.any() else 0.0
 
@@ -246,6 +409,7 @@ def main() -> None:
         "code": SOIL_WATER_CODE,
         "field": "dwmax, maximum soil water capacity, metres",
         "lakes": lake_report,
+        "capacity_split": split_report,
         "land_column_states": rel(args.states),
         "land_column_states_sha256": hashlib.sha256(
             args.states.read_bytes()).hexdigest(),
@@ -296,7 +460,13 @@ def main() -> None:
           f"left at default {unmatched_land}")
     print(f"land-mean dwmax   {land_mean:.3f} m against ExoPlaSim's uniform "
           f"{EXOPLASIM_DEFAULT_WSMAX_M} m")
+    upper_stats = split_report["top_layer_share_over_land"]
+    print(f"capacity split    {nwater} layer(s); top share over land "
+          f"{upper_stats['min']:.4f} to {upper_stats['max']:.4f}, p50 "
+          f"{upper_stats['p50']:.4f} against the geometric "
+          f"{geometric[0]:.4f}")
     print(f"\nwrote {rel(output)}")
+    print(f"      {rel(split_output)}")
     print(f"      {report_path.name}")
     # Say what is actually true rather than printing the same warning forever.
     # This read "NOT enabled" unconditionally, long after the key was set, which

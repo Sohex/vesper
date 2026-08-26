@@ -12,11 +12,18 @@ for a lake, and what that surrogate does not carry.
 ## What the surrogate is
 
 There is no lake model in PlaSim. A cell holding a lake gets `landmod.f90`'s
-soil column, whose thermal properties are the scalars `soilcap = 2.4e6`
-J/m3/K and `soildiff = 1.8` W/m/K, uniform over every non-glacier cell of the
-planet (`landmod.f90:265-269, 1130-1131`). Its thermal inertia is
-`sqrt(soildiff * soilcap) = 2078` J/m2/K/s^0.5, which is
-`notes/audits/soil-thermal-inertia.md`'s number and is a wet, dense soil.
+soil column, whose heat capacity and thermal conductivity are interpolated
+between a dry and a saturated endpoint on the water that column carries. A lake
+cell's store sits at or near its capacity, so the surrogate a lake gets is the
+SATURATED end: a thermal inertia of about 2063 J/m2/K/s^0.5 on the build's own
+median column, which `notes/audits/soil-thermal-inertia.md` measures and which
+is a wet, dense soil.
+
+The bound below was computed when the column carried one pair for the whole
+planet, at an inertia of 2078. That number is within one per cent of the
+saturated endpoint, so the comparison it supports is unchanged; what has changed
+is that a DRY cell no longer gets a lake's inertia, which sharpens the surrogate
+rather than moving this bound.
 
 The column is 12.4 m deep over five layers. This planet's orbit is 182.80 Earth
 days, so the seasonal skin depth `sqrt(2 k / (rho c omega))` is 1.94 m and the

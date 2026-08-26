@@ -312,6 +312,15 @@
       call surfcode( 232,'dglac'   )   
       call surfcode( 212,'dforest' )
       call surfcode( 229,'dwmax'   )
+!     The capacity split of dwmax over the land column's water layers, one
+!     record per layer, on the 1730/1740 precedent of a companion code. It is
+!     the same integral 229 is -- the plant-available content over the physical
+!     column with the weathered-bedrock share applied -- cut at the model's
+!     layer boundaries instead of summed, so it is a second field rather than
+!     more levels of 229: 229 is a column capacity that fluxmod, simba and
+!     outmod each read as one number, and overloading its record count would
+!     make an old staged file read as a split with no warning. WORLD-VJBZ.
+      call surfcode(2290,'dsoilwfc')
       call surfcode( 209,'dtclsoil')
       call surfcode( 169,'dtcl'    )   ! same as xclsst
       call surfcode( 140,'dwcl'    )

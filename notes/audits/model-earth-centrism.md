@@ -664,37 +664,52 @@ and evaporite quarter get no gustiness enhancement.
 
 ## 14. One Earth-average soil thermal pair, and no per-cell field behind it
 
-`landmod.f90:143`, `soildiff = 1.8` W/m/K, and `landmod.f90:146`,
-`soilcap = 2.4E6` J/m3/K, applied uniformly at `landmod.f90:835-836`. These are
-moist mineral soil, Earth's global average, on a project that already derives
-albedo and roughness per cell from lithology.
+`landmod.f90` carried `soildiff = 1.8` W/m/K and `soilcap = 2.4E6` J/m3/K and
+applied them uniformly. They are moist mineral soil, Earth's global average and
+unattributed upstream, on a project that already derives albedo and roughness
+per cell from lithology.
 
-**Half settled, and world-sy9 is OPEN.** The reachability half is done: all six
-thermal constants are `landmod_nl` keys and broadcast --
-`soildiff`, `sicediff`, `snowdiff`, `soilcap`, `sicecap` and `snowcap` at
-`landmod.f90:143-148`, declared at `:126-131`, in the namelist at `:251-253`,
-broadcast at `:376-381` -- at the values the literals carried, so no run
-changed. `rhosnow` joined them under world-1pl; see finding 25.
+**Settled, and in a different place from where it was specified.** The
+reachability half was done first: every thermal constant became a `landmod_nl`
+key at the value its literal carried, so no run changed and a run could say for
+the first time what thermal inertia its land had. What settles the physics half
+is the moisture dependence, not the per-cell lithology field the finding
+implied.
 
-**What is still open is the physics, and world-yip re-shaped it.** These are
-scalars, so one thermal inertia covers the whole simulated planet. A per-cell
-field out of the LITHOLOGY map is not what would fix it:
+**A per-cell field out of the LITHOLOGY map is not what fixes it.**
 `analysis/soil_thermal_inertia.py` measures the three terms and mineralogy is
-the smallest, worth a factor of 1.36 in inertia at saturation and exactly 1.00
-where the soil is dry, because Johansen's dry conductivity carries no
-mineralogy at all. Sweeping the saturation is worth 4.91 and bulk density at
-the dry end 1.61. So the barren classes are over-damped because they are DRY,
-not because of what they are made of, and the missing term is a response to
-`dwatc`, which the model carries prognostically and the soil heat solver does
-not read. `notes/audits/soil-thermal-inertia.md` is the finding, `world-yip` is
-closed on it and `world-jsfm` carries the moisture dependence.
+the smallest: worth a factor of 1.36 in inertia at saturation, less than that on
+a coarse soil where Farouki's own low-quartz branch closes the gap, and exactly
+1.00 where the soil is dry, because Johansen's dry conductivity carries no
+mineralogy at all. Sweeping the saturation is worth about a factor of four and
+bulk density at the dry end 1.61. So the barren classes are over-damped because
+they are DRY, not because of what they are made of, and a lithology field would
+have written a uniform value over exactly the cells it was specified for. The
+coefficients are checked against Farouki (1981) itself and not through a
+restatement, and the one branch the restatement lost moves the mineralogical
+term DOWN. `notes/audits/soil-thermal-inertia.md` is the finding; `world-yip`
+and `world-37j7` are closed on it.
 
-**What it costs, today.** Thermal inertia I = sqrt(k*rho*c) gives 2078
-J/m2/K/s^0.5 for the default against roughly 625 for a dry playa or salt crust,
-so about a quarter of the modelled land carries **3.3 times too much thermal
-inertia** and its diurnal and seasonal surface temperature swing is damped by
-roughly that factor. That feeds evaporation, which feeds P minus E, and it feeds
-the dust emission threshold.
+**What replaced the pair.** `landmod`'s soil heat solver now interpolates
+between a dry and a saturated endpoint on the water the column itself carries,
+the relation and the saturation mapping both declared in
+`pedology/config/land_column_properties.yaml` rather than in the model. The four
+endpoints are namelist keys and setting a dry one equal to its saturated partner
+recovers a constant column bitwise, which is the control arm. `world-jsfm`
+carries it.
+
+**What it cost while it stood, and what the replacement can and cannot
+recover.** Thermal inertia sqrt(k*rho*c) gives 2078 J/m2/K/s^0.5 for the old
+pair against roughly 625 for a dry playa or salt crust, so about a quarter of
+the modelled land carried some 3.3 times too much thermal inertia and its
+diurnal and seasonal surface temperature swing was damped by roughly that
+factor. That feeds evaporation, which feeds P minus E, and it feeds the dust
+emission threshold. The moisture dependence does NOT recover all of it: the
+model's store is a plant-available capacity, so an empty store is the wilting
+point and the inertia it can span is about a factor of 1.37 between an empty and
+a full column. The dry surfaces sit below the wilting point and need a thin
+surface layer that dries below it, which is a change to the column rather than
+to a constant.
 
 ---
 

@@ -1,7 +1,7 @@
 {
-  "generated": "2026-08-25T11:17:00+00:00",
+  "generated": "2026-08-26T10:04:07+00:00",
   "declaration": "pedology/config/land_column_properties.yaml",
-  "declaration_sha256": "6126b44021baf47a6e18e2d5f353391bf21acb365a2f57a90fcd46fe93d600b0",
+  "declaration_sha256": "464f617ae83f0b89e943bfa9fb562f8643b2cd42de4f3f2919912c32a0e398db",
   "version": 2,
   "soil_map": "pedology/data/precarve-craton-10m/soilmap_T21.txt",
   "soil_map_sha256": "92f74f2878f2ad9ad3b6536c352fc53476f1ae88d144d9355c41a48a68b3d97f",
@@ -23,9 +23,9 @@
     "vadose_base_m": 1.5,
     "consumers": {
       "exoplasim": {
-        "geometry": "none",
-        "what_it_reads": "awc_mm from the emitted states, as a scalar bucket depth `dwmax` in metres of water",
-        "note": "`dwmax` is a capacity, not a thickness. The land column has no vertical liquid structure at all, so no layer geometry can be given to it until LSHY-3 provides one. Its five SOIL TEMPERATURE layers are a separate geometry, 0.4/0.8/1.6/3.2/6.4 m, which reaches 12.4 m and shares no boundary with either water column.\n"
+        "geometry": "2 liquid water layers of 0.5 and 1.0 m, ACTIVE only at nlandwcol 1",
+        "what_it_reads": "awc_mm from the emitted states as the column capacity `dwmax` in metres of water, and the per-layer usable shares grouped onto its two water layers as the capacity SPLIT `dsoilwfc`",
+        "note": "`dwmax` is a capacity, not a thickness. The geometry above is the running one -- `surface.land_water_column` declares `layered` at these two layers -- and it is not a free choice: 0.5 and 1.0 m is exactly this file's own 500 mm upper and 1000 mm lower grouping, which is the only two-layer cut at which the climate column and the ecology column share a boundary. LSHY-5 needs them to share it, because two columns cannot agree about frozen soil across geometries that do not meet.\nTHE CAPACITY SPLIT IS A FIELD, on the same footing as the capacity it splits. It is not one shape: measured over this build's land cells the upper layer's share sits at the geometric 500/1500 wherever the profile is uniform -- the quarter of land where the regolith fills the column, plus the cells whose weathered bedrock is at the capacity ceiling -- and rises to nearly nine tenths everywhere the regolith contact and the bedrock fraction reweight it. So it crosses as surface code 2290, one record per water layer, derived from the SAME per-layer usable shares the `awc_mm` column is the integral of: the split and the capacity are one arithmetic rather than two that agree today. `dsoilwf` in `landmod_nl` is what a cell no field covers takes. WORLD-VJBZ.\nIts five SOIL TEMPERATURE layers are a THIRD geometry, 0.4/0.8/1.6/3.2/ 6.4 m, which reaches 12.4 m and shares no boundary with either water column; landmod maps between them by midpoint.\n"
       },
       "lpj_guess": {
         "geometry": "15 physical layers of 100 mm, grouped 5 upper and 10 lower",
@@ -184,7 +184,7 @@
     "direction": "down, on every cell. Stronger gravity drains a column to a drier state at equilibrium; the wilting point is a plant pressure and does not move, so plant-available water falls.",
     "applied_by_any_consumer": true,
     "applied_note": "APPLIED. WORLD-OF6N adopted the contract read literally, so the emitted states evaluate field capacity at rho_w * g * L with this planet's gravity and every consumer installs them. Pedology's declared endmember capacities are Earth field observations and are no longer what any consumer reads.",
-    "bracket_note": "an UPPER BOUND on the size of the effect and adopted as one: it holds the Clapp-Hornberger exponent fixed while gravity moves, so it is the whole of the shift a gravity-invariant curve can produce, and the within-texture-class variance Cosby reports is larger than the shift. A declared limitation of the adopted value, not a reason to leave the states at Earth's suction: the shift moves every cell the same way, so unlike a scatter it does not average out over the map."
+    "bracket_note": "an UPPER BOUND on the size of the effect and adopted as one: it holds the Clapp-Hornberger exponent fixed while gravity moves, so it is the whole of the shift a gravity-invariant curve can produce, and the within-texture-class spread Cosby reports is larger than the shift -- `uncertainty_cases` measures both moves in the same capacity. A declared limitation of the adopted value, not a reason to leave the states at Earth's suction: the shift moves every cell the same way, so unlike a scatter it does not average out over the map."
   },
   "frame_consistency": {
     "gravity_ratio_to_earth": 1.3062564688247262,
@@ -284,7 +284,8 @@
         }
       },
       "deleted": "pedology's endmember volumetric capacities, its additive organic term and its allophane term as the source of any consumer's capacity; soilinput.cpp's get_mineral Cosby inversion; and vesperinput.cpp's apply_regolith_depth rescaling, whose rule is now layer_usable_fraction here",
-      "limitation": "the gravity shift holds the Clapp-Hornberger exponent fixed while gravity moves, so the adopted field capacity is an UPPER BOUND on how far a gravity-invariant retention curve can fall. Cosby's within-texture-class variance is larger than the shift and no artifact here carries it, so the reported spread is a lower bound."
+      "limitation": "the gravity shift holds the Clapp-Hornberger exponent fixed while gravity moves, so the adopted field capacity is an UPPER BOUND on how far a gravity-invariant retention curve can fall.",
+      "uncertainty": "Cosby's within-texture-class residual spread, carried in `uncertainty_cases` and declared in the contract's uncertainty block. It is larger than the gravity shift, and that comparison is measured there rather than asserted here."
     },
     "not_adopted": {
       "closure_at_earth_suction": {
@@ -373,6 +374,188 @@
     "not_execution_verified": "nothing on the LPJ-GUESS side. It does not build on this tree until a baseline climatology exists, so every LPJ number here is a transcription of the vendored source evaluated offline",
     "owner": "world-of6n"
   },
+  "uncertainty_cases": {
+    "source": "cosby1984 Table 4, the S.D. rows: the within-texture-class residual spread of the same parameters whose means are the adopted central case",
+    "reference": "references/cosby_1984_a-statistical-exploration-of-the-relationships-of-soil-moisture-charac.pdf",
+    "deviate": 1.0,
+    "corners": 8,
+    "applied": "coherently across all layers and all properties in one case",
+    "is_an_envelope": "low and high are the per-cell extremes over the corners of the one-sigma box in b, log Psi_s and Theta_s. Cosby reports the three residual spreads separately and no correlation between them, so this is a bound on what the spread can be worth and not a percentile of a distribution. A correlation, if it were published, could only narrow it.",
+    "within_class_sd": {
+      "b": {
+        "p10": 2.3503423999999997,
+        "median": 2.750936,
+        "p90": 3.3065744,
+        "mean": 2.8030219470068696
+      },
+      "log_psi_s": {
+        "p10": 0.660102,
+        "median": 0.669728,
+        "p90": 0.6930676,
+        "mean": 0.6737714661432778
+      },
+      "theta_s_volumetric": {
+        "p10": 0.04841125000000001,
+        "median": 0.05710805000000001,
+        "p90": 0.06245451000000001,
+        "mean": 0.05607281526005888
+      },
+      "b_relative_to_central": {
+        "p10": 0.35621903274427913,
+        "median": 0.37543891601980606,
+        "p90": 0.3834490182022929,
+        "mean": 0.3725970833961095
+      },
+      "theta_s_relative_to_central": {
+        "p10": 0.1079803029510476,
+        "median": 0.1303066480176143,
+        "p90": 0.1461773839360152,
+        "mean": 0.12834254874265205
+      }
+    },
+    "awc_mm": {
+      "central": {
+        "p10": 46.60616843927622,
+        "median": 175.0326956700348,
+        "p90": 242.5189767650578,
+        "mean": 156.48121366577058
+      },
+      "low": {
+        "p10": 29.017727889923794,
+        "median": 109.47546937967405,
+        "p90": 152.41496148864576,
+        "mean": 98.26480178680458
+      },
+      "high": {
+        "p10": 87.16232162052378,
+        "median": 320.47282298074236,
+        "p90": 446.5961448458284,
+        "mean": 285.48351360757937
+      },
+      "low_over_central": {
+        "p10": 0.6176891335807518,
+        "median": 0.6278488392358162,
+        "p90": 0.6443332357581185,
+        "mean": 0.6262510589005945
+      },
+      "high_over_central": {
+        "p10": 1.7454092533655627,
+        "median": 1.8496044960664495,
+        "p90": 1.8715079682337474,
+        "mean": 1.830133605097381
+      }
+    },
+    "states": {
+      "theta_s": {
+        "central": {
+          "p10": 0.42582152000000006,
+          "median": 0.4373141,
+          "p90": 0.45157842,
+          "mean": 0.4379315025515211
+        },
+        "low": {
+          "p10": 0.36386373000000005,
+          "median": 0.38023619999999997,
+          "p90": 0.40362033,
+          "mean": 0.3818586872914622
+        },
+        "high": {
+          "p10": 0.48659343,
+          "median": 0.4937583,
+          "p90": 0.50194801,
+          "mean": 0.49400431781158
+        }
+      },
+      "theta_fc": {
+        "central": {
+          "p10": 0.30798056008542174,
+          "median": 0.34459794522295956,
+          "p90": 0.3876546938740018,
+          "mean": 0.34560390802380503
+        },
+        "low": {
+          "p10": 0.143891044104635,
+          "median": 0.186237260261936,
+          "p90": 0.23896363136532714,
+          "mean": 0.1893170943911477
+        },
+        "high": {
+          "p10": 0.4620429145342902,
+          "median": 0.48400801331999094,
+          "p90": 0.5015528702488912,
+          "mean": 0.4826066035119457
+        }
+      },
+      "theta_wp": {
+        "central": {
+          "p10": 0.14163808325896943,
+          "median": 0.18007169043757007,
+          "p90": 0.2258210278373463,
+          "mean": 0.18260736318423335
+        },
+        "low": {
+          "p10": 0.040743176435279665,
+          "median": 0.06589028055012695,
+          "p90": 0.10487918050284133,
+          "mean": 0.07018433072674465
+        },
+        "high": {
+          "p10": 0.2634868334158634,
+          "median": 0.30156775861472374,
+          "p90": 0.34507746543767653,
+          "mean": 0.3024862165909206
+        }
+      },
+      "b": {
+        "central": {
+          "p10": 6.14965,
+          "median": 7.3514,
+          "p90": 9.215300000000001,
+          "mean": 7.555019273797841
+        },
+        "low": {
+          "p10": 3.7909716,
+          "median": 4.594111999999999,
+          "p90": 5.909593199999998,
+          "mean": 4.751997326790971
+        },
+        "high": {
+          "p10": 8.5101032,
+          "median": 10.106876,
+          "p90": 12.537530000000002,
+          "mean": 10.358041220804711
+        }
+      }
+    },
+    "ordering_violations_over_all_cases": 0,
+    "cells_by_high_corner": {
+      "(-1.0, 1.0, 1.0)": 1019
+    },
+    "installed_by_any_consumer": false,
+    "installed_note": "the emitted states are the central case and every consumer installs that. A case is a states file away: `contract_states` takes the deviates and nothing downstream of it knows which case it read.",
+    "against_the_gravity_shift": {
+      "gravity_move_in_awc": {
+        "p10": 0.06762124886809125,
+        "median": 0.07171884311958121,
+        "p90": 0.07580009518539474,
+        "mean": 0.07172468394047005
+      },
+      "case_move_in_awc": {
+        "p10": 0.7454092533655626,
+        "median": 0.8496044960664495,
+        "p90": 0.8715079682337474,
+        "mean": 0.830133605097381
+      },
+      "case_over_gravity": {
+        "p10": 10.819009964361445,
+        "median": 11.707081570821817,
+        "p90": 12.075266387102882,
+        "mean": 11.570063829710005
+      },
+      "cells_where_the_case_move_is_smaller": 0,
+      "note": "the gravity shift is one-signed and moves every cell the same way, so it does not average out over the map; this spread is a scatter and does. They are not interchangeable and the comparison is of magnitude only."
+    }
+  },
   "undeclared_properties": [
     {
       "property": "states.residual",
@@ -400,9 +583,9 @@
       "owner": "lshy-5"
     },
     {
-      "property": "thermal.composition_dependent",
+      "property": "thermal.composition_dependent.organic_thermal_term",
       "field": "value",
-      "owner": "lshy-5"
+      "owner": "sdec-10"
     },
     {
       "property": "materials.organic",
@@ -413,11 +596,31 @@
       "property": "materials.andic",
       "field": "hydraulic_effect",
       "owner": "world-nupa"
-    },
-    {
-      "property": "uncertainty.sources.cosby_within_class_variance",
-      "field": "value",
-      "owner": "world-rhtx"
     }
-  ]
+  ],
+  "thermal_reduction": {
+    "sr_at_wilting_point": 0.41142418334383235,
+    "sr_at_field_capacity": 0.7876778918625867,
+    "sr_at_wilting_point_p5_p95": [
+      0.3088626476346498,
+      0.5410039889564962
+    ],
+    "sr_at_field_capacity_p5_p95": [
+      0.6994445194582215,
+      0.8625852352535783
+    ],
+    "median_bulk_density_kg_m3": 1500.0,
+    "dry_conductivity_w_m_k": 0.20883157483391948,
+    "saturated_conductivity_w_m_k": 1.433229077470146,
+    "dry_heat_capacity_j_m3_k": 1111111.1111111112,
+    "saturated_heat_capacity_j_m3_k": 2968888.888888889,
+    "thermal_inertia_j_m2_k_s05": {
+      "empty_store": 1342.5,
+      "full_store": 1833.9,
+      "air_dry": 489.7,
+      "saturated": 2062.8,
+      "store_range_factor": 1.366,
+      "full_sweep_factor": 4.212
+    }
+  }
 }

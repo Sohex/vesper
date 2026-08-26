@@ -92,7 +92,23 @@ CRHOI = 920.0        # oceanmod.f90: density of sea ice, kg/m3
 # one of `lib/sea_water.py`'s four. `sea_water.melting_point(run_dir)` reads the
 # run's own `planet_namelist` first and `p_earth.f90`'s `planet_ini` assignment
 # second, and raises if neither states it.
-SOILCAP = 2.4e6      # landmod.f90: soil heat capacity, J/m3/K
+# THE SOIL'S HEAT CAPACITY IS NOT A CONSTANT AND IS NOT COPIED. `SOILCAP =
+# 2.4e6` stood here as a transcription of a `landmod.f90` scalar that no longer
+# exists: WORLD-JSFM made the soil's volumetric heat capacity a function of the
+# water the column carries, interpolated between a dry and a saturated endpoint
+# through the declared saturation mapping. One number for the whole simulated
+# planet would misstate the soil reservoir, and would misstate it differently in
+# a wet orbit than in a dry one -- which is exactly the direction a STORAGE
+# TREND is read in.
+#
+# `soil_capacity_parameters` reads THIS RUN's four endpoints, from its own
+# `landmod_namelist` first and from the model source second, on the same terms
+# `sea_water.constants` reads the sea water: a run older than a change to the
+# model must be closed at what it integrated with.
+MODEL_SRC = (Path(__file__).resolve().parents[2] / "vendor" / "exoplasim"
+             / "exoplasim" / "plasim" / "src" / "landmod.f90")
+SOIL_THERMAL_KEYS = ("soilcapdry", "soilcapsat", "soilsrwp", "soilsrfc")
+SOIL_WATER_CODE = 229
 DSOILZ = np.array([0.4, 0.8, 1.6, 3.2, 6.4])   # landmod.f90: soil layer thicknesses, m
 RHO_WATER = 1000.0   # snow depth is reported as metres water equivalent
 AKAP_DEFAULT = 0.286     # p_earth.f90, not overridden by this project's namelist
@@ -127,8 +143,79 @@ def global_mean(field: np.ndarray, weights: np.ndarray) -> np.ndarray:
     return np.sum(field * weights[..., None], axis=(-2, -1)) / (2.0 * field.shape[-1])
 
 
+def _nlat_from_output(run_dir: Path) -> int:
+    """The run's latitude count, from the output it wrote.
+
+    `planet_namelist` does not carry NLAT -- the grid is compiled in -- so it is
+    read off the first annual file rather than assumed. It is needed only to
+    find a staged surface field by name and to read it at the right shape.
+    """
+    for path in sorted(run_dir.glob("*.nc")):
+        with Dataset(path) as nc:
+            if "lat" in nc.dimensions:
+                return int(len(nc.dimensions["lat"]))
+    raise SystemExit(f"{run_dir} has no output to read a latitude count from")
+
+
+def soil_capacity_parameters(run_dir: Path, nlat: int) -> dict[str, object]:
+    """This run's soil thermal endpoints and the capacity its store is against.
+
+    Read the way `sea_water.constants` reads the sea water and for the same
+    reason: a run older than a change to `landmod.f90` has to be closed at the
+    numbers it integrated with, not at today's. The run's own
+    `landmod_namelist` is authoritative; the model source is the fallback for a
+    key the namelist did not write.
+
+    `wmax` is what `mrso` is a fraction of. Where the run staged the per-cell
+    soil water field it is that field, copied into the run directory as the
+    model read it; where it did not, it is `WSMAX`, which is what `landini`
+    presets `dwmax` to.
+    """
+    values = namelist_values(run_dir / "landmod_namelist")
+    source = MODEL_SRC.read_text(encoding="utf-8", errors="replace")
+
+    def endpoint(name: str) -> float:
+        if name.upper() in values:
+            return float(values[name.upper()])
+        match = re.search(rf"^\s*real\s*::\s*{name}\s*=\s*([-+0-9.eEdD]+)",
+                          source, re.IGNORECASE | re.MULTILINE)
+        if match is None:
+            raise SystemExit(
+                f"neither {run_dir/'landmod_namelist'} nor {MODEL_SRC} states "
+                f"`{name}`. The soil reservoir cannot be closed against a "
+                "capacity nothing declares, and a hardcoded one is what this "
+                "reader exists to remove.")
+        return float(match.group(1).replace("D", "e").replace("d", "e"))
+
+    out: dict[str, object] = {"capdry": endpoint("soilcapdry"),
+                              "capsat": endpoint("soilcapsat"),
+                              "srwp": endpoint("soilsrwp"),
+                              "srfc": endpoint("soilsrfc")}
+
+    staged = run_dir / f"N{nlat:03d}_surf_{SOIL_WATER_CODE:04d}.sra"
+    if staged.is_file():
+        from sra import read_sra
+        out["wmax"] = read_sra(staged, nlat, 2 * nlat)[None, :, :]
+        out["wmax_source"] = f"staged code {SOIL_WATER_CODE}"
+    else:
+        wsmax = values.get("WSMAX")
+        if wsmax is None:
+            match = re.search(r"parameter\(WSMAX_EARTH\s*=\s*([-+0-9.eEdD]+)\)",
+                              source, re.IGNORECASE)
+            if match is None:
+                raise SystemExit(
+                    f"{run_dir} staged no code {SOIL_WATER_CODE} and its "
+                    "landmod_namelist states no WSMAX, so what the soil store "
+                    "is a fraction OF is unknown")
+            wsmax = float(match.group(1).replace("D", "e").replace("d", "e"))
+        out["wmax"] = float(wsmax)
+        out["wmax_source"] = "namelist WSMAX"
+    return out
+
+
 def heat_content(nc: Dataset, gravity: float, acpd: float,
-                 crhos: float, cps: float, tmelt: float) -> dict[str, np.ndarray]:
+                 crhos: float, cps: float, tmelt: float,
+                 soil: dict[str, object]) -> dict[str, np.ndarray]:
     """Planetary heat content per unit area, J/m2, per output bin.
 
     Reference level is arbitrary and cancels in the time derivative; what has to
@@ -173,10 +260,21 @@ def heat_content(nc: Dataset, gravity: float, acpd: float,
     # implicit top-layer solve. `ts` stands in for it, worth 3% of the column.
     soil_profile = np.stack([ts, read("tso2"), read("tso3"), read("tso4"),
                              read("tsod")], axis=1)
-    soil = SOILCAP * np.sum(soil_profile * DSOILZ[None, :, None, None], axis=1) * land
+    # The soil's own heat capacity, from the water it holds. `mrso` is the
+    # model's `dwatc`, the liquid store in metres of water, and `wmax` is the
+    # capacity it is measured against -- the staged per-cell field where the run
+    # had one, the namelist scalar where it did not. The mapping from that fill
+    # to a degree of saturation is the land column property contract's and
+    # reaches this file through the model's own namelist keys.
+    fill = np.clip(read("mrso") / np.maximum(soil["wmax"], 1.0e-12), 0.0, 1.0)
+    saturation = soil["srwp"] + fill * (soil["srfc"] - soil["srwp"])
+    soilcap = soil["capdry"] + saturation * (soil["capsat"] - soil["capdry"])
+    soil_heat = (soilcap
+                 * np.sum(soil_profile * DSOILZ[None, :, None, None], axis=1)
+                 * land)
 
     return {"atmosphere": atmosphere, "vapour": vapour, "mixed_layer": mixed_layer,
-            "sea_ice": ice, "snow": snow, "soil": soil}
+            "sea_ice": ice, "snow": snow, "soil": soil_heat}
 
 
 def state_energy(run_dir: Path, first: int, last: int) -> dict:
@@ -216,6 +314,13 @@ def state_energy(run_dir: Path, first: int, last: int) -> dict:
                          "orbital_year_earth_days; refusing a hardcoded year")
     orbit_seconds = float(_days) * 86400.0
 
+    # THIS RUN's soil, on the same terms as its sea water above. The grid comes
+    # from the run's own resolution namelist so a staged field is read at the
+    # size the model read it at.
+    nlat = int(namelist_values(run_dir / "planet_namelist").get("NLAT")
+               or _nlat_from_output(run_dir))
+    soil_thermal = soil_capacity_parameters(run_dir, nlat)
+
     reservoirs = ["atmosphere", "vapour", "mixed_layer", "sea_ice", "snow", "soil"]
     fluxes = ["ntr", "hfns", "rst", "rsut", "rlut", "rss", "rls", "hfss", "hfls",
               "ts", "mld", "lsm"]
@@ -226,7 +331,7 @@ def state_energy(run_dir: Path, first: int, last: int) -> dict:
             record = {"orbit": index}
             content = heat_content(nc, gravity, acpd,
                                    water["CRHOS"], water["CPS"],
-                                   planet_water["TMELT"])
+                                   planet_water["TMELT"], soil_thermal)
             for name in reservoirs:
                 record[name] = float(global_mean(content[name], weights).mean())
             for name in fluxes:

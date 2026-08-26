@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-25",
+  "generated": "2026-08-26",
   "generator": "analysis/ice_properties.py",
   "standard": "IAPWS R10-06(2009), the equation of state 2006 for H2O ice Ih",
   "standard_reference": "references/iapws_2009_revised-release-on-the-equation-of-state-2006-for-h2o-ice-ih.pdf",
@@ -114,6 +114,70 @@
     "declared_w_m_k": 2.03,
     "verdict": "the declared conductivity of the modelled sea ice sits BELOW pure ice's over the whole range, which is the side brine puts it on: Yen's Eq. (71) subtracts a brine term from bubbly pure ice, so sea ice is the less conductive of the two. Yen's own Figure 23 computes that band and the declared value sits at the top of it, against his zero-salinity curves -- which is the ice this model carries, since it has no salinity and no brine volume. So the declaration is the brine-free limit of the bound and not a value for salty ice."
   },
+  "glacial_ice": {
+    "density_kg_m3": 850.0,
+    "declared_temperature_k": 263.15,
+    "why_this_temperature": "the one landmod already evaluates the snow conductivity at, so the two cryosphere materials are stated at one temperature rather than two",
+    "specific_heat_j_kg_k": 2023.0979,
+    "heat_capacity_j_m3_k": 1719633.2,
+    "heat_capacity_source": "IAPWS-06 at the declared temperature, times the modelled glacial ice's own density",
+    "superseded_heat_capacity_j_m3_k": 2070000.0,
+    "what_the_superseded_value_was": "one thousand times ice's specific heat, which is LIQUID WATER's density. It followed nothing, so a bracket on rhoglac moved the ice orography and left the thermal mass of the ice behind.",
+    "bubbly_factor_eq37": 0.894266,
+    "bubbly_factor_eq70": 0.896094,
+    "bubbly_forms_agree_to_relative": 0.00204,
+    "air_volume_fraction": 0.07306,
+    "conductivity_w_m_k": 1.961145,
+    "conductivity_source": "Yen (1981) Eq. (33) for pure ice at the declared temperature, reduced by his Eq. (37) for the air the density implies. Eq. (70) is the unreduced Maxwell form and is carried beside it so the reduction is checked.",
+    "conductivity_on_yens_other_arm_w_m_k": 2.045132,
+    "superseded_conductivity_w_m_k": 2.03,
+    "brackets": {
+      "yen_arms_at_the_declared_temperature": 1.0428,
+      "temperature_233k_to_melting_conductivity": 1.2562,
+      "temperature_233k_to_melting_heat_capacity": 1.162,
+      "which_dominates": "the declared TEMPERATURE, by a wide margin. Over 233.15 K to the melting point the conductivity moves about four times as far as the difference between Yen's two regression arms does at one temperature. A temperature-dependent pair is a change to the soil heat solver's material model rather than to a constant, and is named rather than made here."
+    },
+    "sweep": [
+      {
+        "temperature_k": 233.15,
+        "heat_capacity_j_m3_k": 1533830.9,
+        "conductivity_eq33_w_m_k": 2.3269,
+        "conductivity_above_195k_w_m_k": 2.3128
+      },
+      {
+        "temperature_k": 243.15,
+        "heat_capacity_j_m3_k": 1595406.4,
+        "conductivity_eq33_w_m_k": 2.198,
+        "conductivity_above_195k_w_m_k": 2.2199
+      },
+      {
+        "temperature_k": 253.15,
+        "heat_capacity_j_m3_k": 1657357.1,
+        "conductivity_eq33_w_m_k": 2.0762,
+        "conductivity_above_195k_w_m_k": 2.1307
+      },
+      {
+        "temperature_k": 263.15,
+        "heat_capacity_j_m3_k": 1719633.2,
+        "conductivity_eq33_w_m_k": 1.9611,
+        "conductivity_above_195k_w_m_k": 2.0451
+      },
+      {
+        "temperature_k": 268.15,
+        "heat_capacity_j_m3_k": 1750879.5,
+        "conductivity_eq33_w_m_k": 1.906,
+        "conductivity_above_195k_w_m_k": 2.0036
+      },
+      {
+        "temperature_k": 273.16,
+        "heat_capacity_j_m3_k": 1782253.7,
+        "conductivity_eq33_w_m_k": 1.8524,
+        "conductivity_above_195k_w_m_k": 1.9629
+      }
+    ],
+    "not_ckapi": "icemod's CKAPI carried the same number as the superseded sicediff and is a different quantity. Yen's Eq. (71) subtracts a brine term from exactly the bubbly ice computed here, so the modelled sea ice conducts LESS than the modelled glacial ice of the same density and the two must not be deduplicated.",
+    "what_this_is_worth_today": "nothing measured. dglac is identically zero on every cell of the climatology this world has, so the pair reaches no result until glaciermod grows ice."
+  },
   "snow_conductivity_bracket": {
     "slow_arm": "Calonne et al. (2011) Eq. (12), conduction through ice and interstitial air only, his whole sample set at 271 K",
     "fast_arm": "Fourteau et al. (2021) Eq. (18), the same computation WITH the latent heat carried by water vapour through the pore space, at 263 K and at 273 K",
@@ -166,6 +230,124 @@
     ],
     "instrument_versus_effect": "the bracket is wider than the scatter of the fit that defines its lower arm at every density carried, so it is a real disagreement and not the noise of one regression.",
     "cross_component": "SETTLED. vendor/lpj-guess/modules/soil.cpp computed its snow conductivity from Sturm et al. (1997), which is BELOW the slow arm at every density here, so the ecology column and the climate column insulated their soil differently from the same snowfall at the same density by more than the bracket between the two published limits. Both now restate lib/snow.py's one relation, held there by snow.check_restatements, which scripts/smoke_test.py and biosphere/scripts/snow_thermal_gate.py both run. The Sturm column below is what the superseded ecology column ran and is the evidence for the choice."
+  },
+  "snow_compaction": {
+    "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+    "snowy_land_bins": 4030,
+    "land_bins": 12228,
+    "scheme": "Willeit and Ganopolski (2016) Eqs. (46)-(48); self-loading after Kojima (1967) as implemented by Pitman et al. (1991), fresh-snow density after Anderson (1976)",
+    "constants": {
+      "eta_0_pa_s": 9000000.0,
+      "k_T_per_k": 0.06,
+      "k_rho_m3_per_kg": 0.02,
+      "rho_min_kg_m3": 50.0,
+      "derivation": "none stated. The paper tabulates the three viscosity constants with a description and no source column, no range of validity and no sensitivity test, and takes them from a 1991 technical report's implementation of a 1967 conference paper. Adopting the scheme imports them."
+    },
+    "cases": {
+      "constant": {
+        "gravity_m_s2": null,
+        "density_kg_m3": {
+          "p5": 330.0,
+          "p50": 330.0,
+          "p95": 330.0,
+          "max": 330.0
+        },
+        "physical_depth_m": {
+          "p5": 0.0063,
+          "p50": 0.0922,
+          "p95": 0.2803,
+          "max": 0.5534
+        },
+        "conductive_resistance_m2_k_w": {
+          "p5": 0.0199,
+          "p50": 0.2909,
+          "p95": 0.8844,
+          "max": 1.7461
+        }
+      },
+      "prognostic_earth_gravity": {
+        "gravity_m_s2": 9.80665,
+        "density_kg_m3": {
+          "p5": 96.2253,
+          "p50": 160.8402,
+          "p95": 256.0908,
+          "max": 309.096
+        },
+        "physical_depth_m": {
+          "p5": 0.0135,
+          "p50": 0.2042,
+          "p95": 0.438,
+          "max": 0.7057
+        },
+        "conductive_resistance_m2_k_w": {
+          "p5": 0.1239,
+          "p50": 2.0445,
+          "p95": 3.7122,
+          "max": 5.4474
+        }
+      },
+      "prognostic_this_gravity": {
+        "gravity_m_s2": 12.81,
+        "density_kg_m3": {
+          "p5": 102.7349,
+          "p50": 169.9605,
+          "p95": 269.1164,
+          "max": 322.9341
+        },
+        "physical_depth_m": {
+          "p5": 0.0135,
+          "p50": 0.1892,
+          "p95": 0.4089,
+          "max": 0.6647
+        },
+        "conductive_resistance_m2_k_w": {
+          "p5": 0.1222,
+          "p50": 1.7804,
+          "p95": 3.12,
+          "max": 4.5353
+        }
+      }
+    },
+    "resistance_ratios": {
+      "prognostic_earth_over_constant": {
+        "p5": 1.956,
+        "p50": 6.0506,
+        "p95": 17.2207,
+        "max": 29.1054
+      },
+      "this_gravity_over_earth_gravity": {
+        "p5": 0.8301,
+        "p50": 0.8638,
+        "p95": 0.9894,
+        "max": 0.9988
+      },
+      "prognostic_this_over_constant": {
+        "p5": 1.7198,
+        "p50": 5.3363,
+        "p95": 15.2648,
+        "max": 28.328
+      }
+    },
+    "albedo": {
+      "worth": 0.0,
+      "why": "landmod takes the snow-covered fraction as dsnow/(dsnow + snowcovz) in WATER EQUIVALENT, so the density does not enter it. The only path from density to albedo is the canopy burial depth handed to snowcanopymask, read only when forhgt is positive, and it is not. So the answer is exactly zero rather than small, and it becomes non-zero when the canopy gets a height.",
+      "peer_practice": "ClimaLand multiplies snow albedo by min(1 - beta*(rho/rho_liq - x0), 1). Its beta is a FREE PARAMETER with no citation, 0.97 in its calibrated set and 0 in its uncalibrated one, so adopting that path would import a tuned constant rather than a mechanism. PALADYN puts no density in albedo at all and uses a snow AGE factor as the grain-size proxy instead."
+    },
+    "instrument_versus_effect": {
+      "quantity": "the pack's conductive resistance, z/k",
+      "gravity_effect": 0.1577,
+      "gravity_effect_is": "the resistance at 170.0 kg/m3 against 160.8, which is what the 1.306x compaction rate is worth on the STATE",
+      "kinetics_bracket_effect": 0.5312,
+      "kinetics_bracket_is": "Fourteau's fast arm over Calonne's slow arm at the same density, which is the width of an open question rather than an error bar",
+      "gravity_over_bracket": 0.297,
+      "verdict": "the gravity term is SMALLER than the bracket the conductivity already carries, so a pair of runs differing only in gravity would not separate it from the arm the model happens to evaluate"
+    },
+    "limitations": [
+      "the forcing is a climatology, so an intermittent pack appears as a persistent thin one. Compaction is linear in the load, so a time-mean water equivalent understates the compaction of a transient deep pack and the reported densities are a floor for those cells",
+      "the water equivalent is PRESCRIBED from a run that used the constant density, so this prices the density on that snow rather than on the snow a prognostic density would itself produce",
+      "the snow layer temperature is proxied by the surface temperature capped at melting, which is the pack's warm end and makes the viscosity soft, so the compaction here is an upper bound",
+      "PALADYN itself neglects metamorphism and the effect of melting on density, and this inherits both"
+    ]
   },
   "what_is_not_derivable_here": "the density, specific heat and conductivity of SEA ice are functions of brine volume, hence of the ice's own salinity and temperature, and this model carries neither as a variable. icemod.f90 already says so of the heat of fusion. The pure ice Ih values above are the bound those declarations sit against, not substitutes for them."
 }

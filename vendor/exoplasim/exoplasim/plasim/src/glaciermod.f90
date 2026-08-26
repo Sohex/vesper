@@ -77,6 +77,74 @@
 !     than guessed at. Both are namelist keys so the bracket can be run.
       real :: rhoglac  = 850.    ! glacial ice density (kg/m**3)
 
+!     WHAT THE MODELLED GLACIAL ICE IS MADE OF, DERIVED FROM THAT DENSITY.
+!     WORLD-FG8W.
+!
+!     `landmod`'s `sicecap` and `sicediff` are the heat capacity per unit volume
+!     and the thermal conductivity of the ice `glaciermod` grows, and they weight
+!     the soil column's thermal properties by `dglac`. Both followed nothing: the
+!     capacity factorised exactly as one thousand times ice's specific heat --
+!     LIQUID WATER's density, not the ice's -- so a bracket that moved `rhoglac`
+!     moved the ice orography and left the thermal mass of the ice behind, which
+!     is the defect GRAV-8 removed from `snowcap` and WORLD-A9S5 from `snowdiff`.
+!
+!     THEY ARE DERIVED HERE AND NOT IN `landini`, because this is where the
+!     density they follow is declared. `glacierprep` runs before `landini` in
+!     `surfini` and this module already uses `landmod`, so each thread writes its
+!     own copy of both before anything reads them; `landini` no longer touches
+!     either and they have left `landmod_nl`. Deriving them in `landini` instead
+!     would need `landmod` to use `glaciermod`, which is a cycle: this module
+!     uses that one.
+!
+!     THE CAPACITY is `rhoglac * CPGLAC`. `CPGLAC` is the specific heat of ice Ih
+!     from IAPWS-06 at `TGLACREF`, computed by `analysis/ice_properties.py` from
+!     the release's own Gibbs function and checked against every entry of its
+!     numerical check table before it is reported. That script holds this literal
+!     to the value it computes, so the two cannot drift.
+!
+!     THE CONDUCTIVITY is pure ice's, reduced for the air the density implies.
+!     Two steps, both Yen (1981), CRREL Report 81-10:
+!
+!     - Pure ice, his Eq. (33), `lambda = a exp(b T)`, the whole-range arm of his
+!       Table 3. He recommends it for practical use because it has the highest
+!       correlation coefficient of his three arms, 0.9313 against 0.5962 for the
+!       arm fitted above the 150-195 K data gap. IAPWS-06 CANNOT supply this: a
+!       Gibbs function carries density, specific heat and compressibility and no
+!       transport property at all.
+!     - Bubbles, his Eq. (37), `2 rho / (3 rhoice - rho)`, which is Schwerdtfeger's
+!       reduction of Maxwell's effective-medium result for randomly distributed
+!       spherical air inclusions once the conductivity of air is dropped against
+!       the ice's. Yen states the same relation twice, as Eq. (36)/(37) for dense
+!       snow and as Eq. (70) for the bubbly ice inside sea ice, and the two agree
+!       to two parts in a thousand at this density. Glacial ice IS bubbly, and
+!       his Figure 22 is the same equation drawn.
+!
+!     `RHOICE_YEN1981` is the pure-ice density Yen's air-fraction relations are
+!     written against and is part of THEM. It is not `icemod`'s `CRHOI`, which is
+!     the density of the modelled SEA ice, and it is not `landmod`'s
+!     `RHOICE_F2021`, which is the normalising density of a snow conductivity fit;
+!     the three must not be deduplicated into one another because each belongs to
+!     a different relation.
+!
+!     NOT `icemod`'s `CKAPI`, WHICH IS THE SAME NUMBER TODAY BY COINCIDENCE. That
+!     is the conductivity of the modelled SEA ice, which is brine-bearing, and
+!     Yen's Eq. (71) subtracts a brine term from exactly the bubbly ice computed
+!     here -- so the two sit on opposite sides of pure ice's value for different
+!     reasons and deduplicating them would assert that glacial ice is salty.
+!
+!     THE DECLARED TEMPERATURE IS THE LARGER UNCERTAINTY, not the density. Over
+!     233.15 K to the melting point the conductivity moves by about a quarter and
+!     the specific heat by about a sixth, against a fifteenth for the difference
+!     between Yen's two conductivity arms. `TGLACREF` is the temperature
+!     `landmod` already evaluates the snow conductivity at, so the two cryosphere
+!     materials are stated at one temperature rather than two.
+!     `notes/audits/cryosphere-material-properties.md` carries the sweep.
+      real, parameter :: TGLACREF       = 263.15  ! declared ice temperature (K)
+      real, parameter :: CPGLAC         = 2023.10 ! ice Ih specific heat (J/kg/K)
+      real, parameter :: RHOICE_YEN1981 = 917.    ! Yen's pure ice density (kg/m3)
+      real, parameter :: YENICE_A       = 9.828   ! Eq. (33) prefactor (W/m/K)
+      real, parameter :: YENICE_B       = -0.0057 ! Eq. (33) exponent (1/K)
+
 !
 
 !     Threads instead of ranks: a thread owns what a rank owned.
@@ -112,6 +180,19 @@
       call mpbcr(icesheeth)
       call mpbcr(glacpersist)
       call mpbcr(rhoglac)
+
+!     The modelled glacial ice's thermal properties, from the density every
+!     thread has just been given, so the two cannot drift apart. WORLD-FG8W; the
+!     argument is above the declarations. `landini` runs after this and no longer
+!     writes either.
+      sicecap  = rhoglac * CPGLAC
+      sicediff = YENICE_A * exp(YENICE_B * TGLACREF)                      &
+     &         * 2.0 * rhoglac / (3.0 * RHOICE_YEN1981 - rhoglac)
+
+      if (mypid==NROOT) then
+         write(nud,'(" * Glacial ice at ",f7.2," K: cap ",e12.4,          &
+     &        " J/m3/K, diff ",f7.4," W/m/K *")') TGLACREF,sicecap,sicediff
+      endif
 
 !     Orbits to seconds. m_days_per_year * day_24hr is the orbital period, the
 !     same conversion landini uses for tau_veg and tau_soil, and initpm has

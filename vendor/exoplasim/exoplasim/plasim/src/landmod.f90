@@ -171,10 +171,15 @@
       integer :: nlsoilw     = 1   ! liquid water layers when nlandwcol = 1
       integer :: nlandwdrain = 0   ! lower boundary: 0 impermeable, 1 free drain
 
-!     Layer capacity as a fraction of dwmax. Only the first nlsoilw entries are
-!     read and they are renormalised to sum to one, so a partial list is a
-!     shape rather than an error. The default puts everything in one layer,
-!     which is the reduction.
+!     Layer capacity as a fraction of dwmax, THE FALLBACK SHAPE. Only the first
+!     nlsoilw entries are read and they are renormalised to sum to one, so a
+!     partial list is a shape rather than an error. The default puts everything
+!     in one layer, which is the reduction.
+!
+!     IT IS THE FALLBACK AND NOT THE SPLIT. The capacity split is a per-cell
+!     property and this is one shape for the whole simulated planet, so it is
+!     what a cell gets when no field covers it, on the same footing as `wsmax`
+!     against the staged `dwmax`. `dsoilwfc` below is the field. WORLD-VJBZ.
       real    :: dsoilwf(NLSOILWX) = (/1.0, 0.0, 0.0, 0.0,                    &
      &                                 0.0, 0.0, 0.0, 0.0/)
 
@@ -231,29 +236,24 @@
       real    :: rinifor  =  0.5
       real    :: rnbiocats=  0.0
 !
-!     Surface thermal scalars (snow similar to the sea ice module).
+!     Surface thermal properties (snow similar to the sea ice module).
 !
-!     All seven are namelist keys, in landmod_nl below. They were compiled-in
-!     constants, so a run could not say what thermal inertia its land carried
-!     and could not vary it; soildiff in particular was reachable from nowhere
-!     at all while soilcap was reachable only through cpsoil.
+!     Every one of these is either a namelist key in landmod_nl below or derived
+!     from one. They were compiled-in constants, so a run could not say what
+!     thermal inertia its land carried and could not vary it; the soil's
+!     conductivity in particular was reachable from nowhere at all.
 !
-!     They are SCALARS, so one thermal inertia covers the whole planet: 2078
-!     J/m2/K/s**0.5, which is a WET, DENSE mineral soil. A dry playa or salt
-!     crust is nearer 600, so the surfaces this world has most of are damped
-!     several times too much, and that reaches evaporation, P minus E and the
-!     dust emission threshold.
-!
-!     WHAT THAT DIFFERENCE IS MADE OF IS WATER, NOT ROCK, and the distinction
-!     decides what the fix is. In Johansen's interpolation the mineralogy
-!     enters only through the SATURATED conductivity, so parent material is
-!     worth a factor of 1.36 in inertia where the soil is wet and exactly
-!     nothing where it is dry. Sweeping the saturation instead is worth a
-!     factor of 4.9. So a per-cell field out of the lithology map would write a
-!     uniform value over the dry classes it would have been built for; what is
-!     missing is a response to dwatc, which this model carries prognostically
-!     and which the block below does not read.
-!     analysis/soil_thermal_inertia.py is the measurement.
+!     WHAT THE SOIL'S THERMAL INERTIA IS MADE OF IS WATER, NOT ROCK, and the
+!     distinction decides what the fix is. In Johansen's interpolation the
+!     mineralogy enters only through the SATURATED conductivity, so parent
+!     material is worth a factor of 1.36 in inertia where the soil is wet and
+!     exactly nothing where it is dry -- and less than that on a coarse soil,
+!     where Farouki's own low-quartz branch closes the gap. A per-cell field out
+!     of the lithology map would therefore write a uniform value over the dry
+!     classes it would have been built for. Sweeping the saturation instead is
+!     worth a factor of about four, and that is the term the soil pair below now
+!     carries. analysis/soil_thermal_inertia.py is the measurement and
+!     notes/audits/soil-thermal-inertia.md is the argument.
 !
 !     rhosnow is a settled snow density and converts water equivalent to the
 !     physical snow thickness that insulates the soil column below; rhoglac in
@@ -265,10 +265,78 @@
 !     `iceini`. GRAV-8.
 !
       real :: rhosnow  = 330.    ! snow density (kg/m**3)
-      real :: soildiff = 1.8     ! heat diffusivity of the soil (W/m/K)
-      real :: sicediff = 2.03    ! heat diffusivity of ice      (W/m/K)
-      real :: soilcap  = 2.4E6   ! heat capacity of the soil  (J/m**3/K)
-      real :: sicecap  = 2.07E6  ! heat capacity of ice       (J/m**3/K)
+
+!     THE SOIL'S THERMAL PAIR RESPONDS TO THE SOIL'S OWN WATER. WORLD-JSFM.
+!
+!     It used to be one conductivity and one heat capacity for the whole
+!     simulated planet, Earth's global average for a moist mineral soil and
+!     unattributed upstream. The model carries the soil water prognostically --
+!     `dwatc`, and `dwatcl` by layer under the layered column -- and the soil
+!     heat solver did not read it, so a wet cell and a dry one damped their
+!     diurnal and seasonal surface temperature the same way. That reaches
+!     evaporation, P minus E and the dust emission threshold.
+!
+!     THE RELATION IS JOHANSEN'S, as Farouki (1981) tabulates it, and it is
+!     DECLARED IN `pedology/config/land_column_properties.yaml` under
+!     `thermal.composition_dependent` rather than here. The heat capacity is the
+!     volume-weighted mixture and is LINEAR in the degree of saturation; the
+!     conductivity interpolates between a dry and a saturated value through the
+!     Kersten number, `log10(Sr) + 1` clipped to zero and one, which is not.
+!     Using one shape for both would be the mistake this arrangement prevents.
+!
+!     FOUR ENDPOINTS INSTEAD OF TWO CONSTANTS, and they are namelist keys so a
+!     run says what its soil is made of. Setting a dry endpoint equal to its
+!     saturated partner recovers a constant column EXACTLY and bitwise, because
+!     `a + 0.0*Ke` is `a`; that is the control arm and it needs no extra switch.
+!
+!     THE SATURATION MAPPING IS THE PART THIS MODEL CANNOT DERIVE. `dwatc` is
+!     metres of water against `dwmax`, a PLANT-AVAILABLE capacity, so an empty
+!     store is the WILTING POINT and a full one is field capacity; a degree of
+!     saturation is a fraction of PORE volume. `soilsrwp` and `soilsrfc` are the
+!     two ends of that map and they come from the land column property contract,
+!     which emits both per cell and declares these as the medians. Choosing them
+!     here would be calibrating against numbers with no derivation.
+!
+!     WHAT THE STORE CAN REACH IS A FINDING AND NOT A CAVEAT. Because an empty
+!     store is the wilting point rather than a dry soil, the inertia this route
+!     can span is about a factor of 1.37 between an empty and a full column,
+!     against 4.2 for the full sweep from air dry to saturated. The dry playa
+!     and salt-crust surfaces sit below the wilting point, so they are not
+!     reachable by this route however the endpoints are set; representing them
+!     needs a thin surface layer that dries below it, which is a change to the
+!     column and not to a constant. The shipped endpoints are still a
+!     one-signed correction: the constant they replace is a thermal inertia of
+!     2078 J/m2/K/s**0.5, which is ABOVE the saturated endpoint of this build's
+!     own median column and therefore above every state the store can reach.
+      real :: soildifdry = 0.2088   ! soil conductivity, dry      (W/m/K)
+      real :: soildifsat = 1.4332   ! soil conductivity, saturated(W/m/K)
+      real :: soilcapdry = 1.1111E6 ! soil heat capacity, dry   (J/m**3/K)
+      real :: soilcapsat = 2.9689E6 ! soil heat capacity, saturated
+      real :: soilsrwp   = 0.4114   ! degree of saturation at an empty store
+      real :: soilsrfc   = 0.7877   ! degree of saturation at a full store
+!     THE GLACIAL ICE PAIR IS DERIVED IN `glaciermod`, NOT DECLARED HERE.
+!     `sicecap` and `sicediff` are the heat capacity per unit volume and the
+!     thermal conductivity of the ice `glaciermod` grows. Both are properties of
+!     that ice's DENSITY, `rhoglac`, in the same way `snowcap` and `snowdiff` are
+!     properties of `rhosnow`: a volumetric heat capacity is a density times a
+!     specific heat, and the conductivity of bubbly ice is pure ice's reduced for
+!     the air the density implies. `sicecap` used to factorise as one thousand
+!     times ice's specific heat -- LIQUID WATER's density -- so a bracket on
+!     `rhoglac` moved the ice orography and left the ice's thermal mass behind.
+!
+!     They live in landmod's storage because `tands` is what reads them, and they
+!     are SET in `glacierprep`, which runs before `landini` in `surfini` and is
+!     where `rhoglac` is declared. Nothing here writes them and neither is a
+!     `landmod_nl` key any more, on the same grounds `snowcap` and `snowdiff`
+!     stopped being ones: a key held fixed beside the density it follows is a
+!     broken relation, not an axis. WORLD-FG8W.
+!     The values are what `glacierprep` derives at the shipped `rhoglac` and
+!     `TGLACREF`, so reading the declaration tells the truth about what the model
+!     runs; `analysis/ice_properties.py` computes both from the standard and the
+!     regression and holds these literals to what it computes. They were 2.03 and
+!     2.07E6, which are 3.4 per cent and 17 per cent above these.
+      real :: sicediff = 1.961145 ! heat diffusivity of glacial ice (W/m/K)
+      real :: sicecap  = 1.719635E6 ! heat capacity of glacial ice (J/m**3/K)
 !     snowcap is NOT independent of rhosnow: a snow layer's heat capacity per
 !     unit volume is its density times the specific heat of ice, and its
 !     thickness is the water equivalent divided by that same density, so the
@@ -381,6 +449,38 @@
       real :: dsoili(NHOR,NLSOILWX) = 0.0  ! soil ice by layer (m water equiv.)
       real :: ddrain(NHOR)          = 0.0  ! drainage out of the column base (m/s)
 !
+!     THE CAPACITY SPLIT, PER CELL. WORLD-VJBZ.
+!
+!     `dsoilwf` above is one shape for the whole simulated planet and the split
+!     is not one shape. It is the same integral `dwmax` is: the column capacity
+!     is the plant-available water content integrated over the physical column
+!     with the weathered-bedrock usable share applied layer by layer, and the
+!     SPLIT of that integral at a layer boundary is a function of the same
+!     regolith depth and bedrock fraction. Measured over this build's 1,019 land
+!     cells at the declared 0.5/1.0 m cut, the upper layer's share sits at the
+!     geometric 500/1500 = 0.3333 wherever the profile is uniform -- the 26.5
+!     per cent of land where the regolith fills the column, plus the cells whose
+!     weathered bedrock is at the capacity ceiling, 28.9 per cent together --
+!     and runs p50 0.4699, p95 0.8540, max 0.8882 elsewhere. One namelist number
+!     is wrong for most of the map, and the one that makes a comparison come out
+!     is a tuned value.
+!
+!     So it arrives the way every comparable surface property already does:
+!     `dwmax` is surface code 229, albedo and roughness are fields, and this is
+!     code 2290, `nlsoilw` levels of it, on the 1730/1740 precedent of a
+!     companion code. `pedology/scripts/land_column_properties.py` already emits
+!     the per-layer usable share the split is computed from, so the producer
+!     existed and what was missing was the code, the writer and this read.
+!
+!     THE SENTINEL IS NEGATIVE and it means "no field covers this cell". A
+!     staged file is optional at `nlsoilw = 1`, where the split is identically
+!     one and the namelist says so exactly; above one layer `landwfrac` refuses
+!     to run without it, because a split picked rather than derived is the thing
+!     this field exists to prevent. Renormalised per cell, so the layer
+!     capacities sum to `dwmax` by construction and cannot drift from the field
+!     the whole pedology loop feeds.
+      real :: dsoilwfc(NHOR,NLSOILWX) = -1.0 ! layer capacity share, per cell
+!
 !     The drainage's output accumulator, WORLD-P9QQ. `outmod` fills it, divides
 !     it by the output counter and resets it on the pattern `aroff` uses for
 !     the surface runoff, and it lives HERE rather than beside `aroff` in
@@ -415,11 +515,12 @@
 !$omp&  albsminf,albsminf1,albsminf2,co2conv,dalbcl,dalbcl1,dalbcl2,dalbclim,dalbclim1,dalbclim2,&
 !$omp&  darea,dgroundalbnl,doro,dqs,drhsfull,drhsland,driver,dsmax,dsnowt,dsnowz,dsoilt,dsoilz,dtcl,&
 !$omp&  dtclim,dtclsoil,dts,dtsm,duroff,dvroff,dwatcini,dwater,dwcl,dwclim,dz0clim,dz0climo,dz0land,&
-!$omp&  dwatcl,dsoili,ddrain,adrain,dsoilwf,dsoilwz,drhslow,nlandwcol,nlsoilw,nlandwdrain,nrhsexp,nlandwphase,dzglac,dztop,&
+!$omp&  dwatcl,dsoili,ddrain,adrain,dsoilwf,dsoilwfc,dsoilwz,drhslow,nlandwcol,nlsoilw,nlandwdrain,nrhsexp,nlandwphase,dzglac,dztop,&
 !$omp&  forcovmn,forcovmx,lversion,newsurf,nlandt,nlandw,nwatcini,nwetsoil,rhosnow,forext,forhgt,forint,forpai,&
 !$omp&  snowcovz,&
 !$omp&  rinifor,rlue,rnbiocats,roffexp,roffpit,roffvel,&
-!$omp&  sicecap,sicediff,snowcap,snowdiff,soilcap,soildiff,tau_soil,tau_veg,wsmax)
+!$omp&  sicecap,sicediff,snowcap,snowdiff,soilcapdry,soilcapsat,soildifdry,soildifsat,&
+!$omp&  soilsrwp,soilsrfc,tau_soil,tau_veg,wsmax)
 
       end module landmod
 
@@ -464,7 +565,7 @@
       use radmod
       use snowmaskmod
 
-      integer :: ifound(4)
+      integer :: ifound(5)
 !     The ice volume fraction the snow conductivity is derived from. Declared
 !     rather than left to implicit typing, and NOT initialised, so it is an
 !     automatic local and every thread computes its own. WORLD-A9S5.
@@ -478,10 +579,11 @@
      &                ,dsnowalbmn,dsnowalbmx,dglacalbmn,dsnowalb        &
      &                ,dsmax,wsmax,drhsfull,dzglac,dztop,dsoilz         &
      &                ,rlue,co2conv,tau_veg,tau_soil                    &
-     &                ,rnbiocats,nwetsoil,soilcap                       &
+     &                ,rnbiocats,nwetsoil,soilcapdry,soilcapsat          &
+     &                ,soilsrwp,soilsrfc                                 &
      &                ,albforest,forcovmx,forcovmn                      &
      &                ,forhgt,forpai,forext,forint                       &
-     &                ,soildiff,sicediff,sicecap                        &
+     &                ,soildifdry,soildifsat                           &
      &                ,rhosnow,roffvel,roffexp,roffpit                  &
      &                ,newsurf,rinifor,nwatcini,dwatcini,dgroundalb     &
      &                ,snowcovz
@@ -678,10 +780,12 @@
       call mpbcr(forint)
       call mpbcr(forcovmx)
       call mpbcr(forcovmn)
-      call mpbcr(soildiff)
-      call mpbcr(sicediff)
-      call mpbcr(soilcap)
-      call mpbcr(sicecap)
+      call mpbcr(soildifdry)
+      call mpbcr(soildifsat)
+      call mpbcr(soilcapdry)
+      call mpbcr(soilcapsat)
+      call mpbcr(soilsrwp)
+      call mpbcr(soilsrfc)
       call mpbcr(rhosnow)
 !     Every thread derives its own snow heat capacity from the density it has
 !     just been given, so the two cannot drift apart. GRAV-8.
@@ -750,6 +854,10 @@
          call mpsurfgp('dglac'   ,dglac   ,NHOR,1)
          call mpsurfgp('dforest' ,dforest ,NHOR,1)
          call mpsurfgp('dwmax'   ,dwmax   ,NHOR,1)
+!        The capacity split, code 2290, `nlsoilw` levels. WORLD-VJBZ. Left at
+!        its negative sentinel when no file is staged, which `landwfrac` reads
+!        as "fall back to the namelist shape" at one layer and refuses above it.
+         call mpsurfgp('dsoilwfc',dsoilwfc,NHOR,nlsoilw)
          call mpsurfgp('dtclsoil',dtclsoil,NHOR,1)
    
          call mpsurfgp('dtcl',dtcl,NHOR,14)
@@ -791,6 +899,10 @@
          elsewhere
             dglac(:) = 0.0
          endwhere
+!
+!*    the capacity split, before soilini distributes the store over the layers
+!
+       call landwfrac
 !
 !*    initialize soil
 !
@@ -952,17 +1064,24 @@
        call mpgetgp_found('dsoili',dsoili,NHOR,NLSOILWX,ifound(2))
        call mpgetgp_found('ddrain',ddrain,NHOR,     1  ,ifound(3))
        call mpgetgp_found('adrain',adrain,NHOR,     1  ,ifound(4))
+!      The capacity split. WORLD-VJBZ. On this path the surface files are not
+!      read at all, so the restart is where the field comes from; an absent
+!      record leaves the negative sentinel and `landwfrac` falls back to the
+!      namelist shape, which at one layer is the field exactly.
+       call mpgetgp_found('dsoilwfc',dsoilwfc,NHOR,NLSOILWX,ifound(5))
        if (mypid == NROOT .and. ifound(1) == 1 .and.                    &
      &     (ifound(2) == 0 .or. ifound(3) == 0 .or. ifound(4) == 0)) then
         write(nud,*)' *** LSHY-3: this restart carries dwatcl but not all'
         write(nud,*)' *** of dsoili, ddrain, adrain; the absent ones start'
         write(nud,*)' *** at zero.'
        endif
+       if (ifound(5) == 0) dsoilwfc(:,:) = -1.
+       call landwfrac
        if (ifound(1) == 0) then
         dwatcl(:,:) = 0.
         dsoili(:,:) = 0.
         do jlay=1,nlsoilw
-         where(dls(:) > 0.0) dwatcl(:,jlay)=dwatc(:)*dsoilwf(jlay)
+         where(dls(:) > 0.0) dwatcl(:,jlay)=dwatc(:)*dsoilwfc(:,jlay)
         enddo
         ddrain(:) = 0.
         if (mypid == NROOT) then
@@ -990,6 +1109,11 @@
 
       if (newsurf == 2) then ! preset some fields
          dwmax(:)    = wsmax
+!        The capacity split follows dwmax back to the namelist: this branch is
+!        "take the land surface from the namelist again", and a per-cell split
+!        left standing over a uniform capacity would be half a field. WORLD-VJBZ.
+         dsoilwfc(:,:) = -1.
+         call landwfrac
          dz0clim(:)  = dz0land
          dalbcl(:,:) = albland
          dalbcl1(:,:) = dgroundalb(1)
@@ -999,6 +1123,119 @@
 
       return
       end subroutine landini
+
+!     ====================
+!     SUBROUTINE LANDWFRAC
+!     ====================
+
+      subroutine landwfrac
+      use landmod
+!
+!     The capacity split, per cell, resolved once. WORLD-VJBZ.
+!
+!     `dsoilwfc` arrives either from surface code 2290 or from the restart, and
+!     either way carries the negative sentinel on any cell no field covered.
+!     This turns whatever arrived into a usable shape and is the ONLY place that
+!     happens, so nothing downstream has to ask where the split came from.
+!
+!     THE FALLBACK IS THE NAMELIST SHAPE AND IT IS ONLY DEFENSIBLE AT ONE LAYER.
+!     At `nlsoilw = 1` the split is identically one, `dsoilwf` already says so
+!     exactly, and the field buys nothing -- so a run with no staged file is not
+!     approximating anything and there is nothing to refuse. Above one layer the
+!     shape is a model-form approximation with a measured cost: over this
+!     build's land cells the upper share of the declared 0.5/1.0 m cut runs from
+!     the geometric 0.3333 to 0.8882 with a median of 0.4699, so one number is
+!     wrong for most of the map and the one that makes a comparison come out is
+!     a tuned value. That is what the refusal below is for. It is the same
+!     position `get_surf_array` takes on an absent land mask: a field this world
+!     supplies itself is missing because staging failed, never on purpose.
+!
+!     THE REFUSAL IS ON THE CELLS WHOSE CAPACITY IS A FIELD, and that is the
+!     whole of the rule: the split and the capacity are one integral, so a cell
+!     whose `dwmax` is still the namelist `wsmax` has no profile for a split to
+!     be wrong about and the geometric shape is exact for it. A cell whose
+!     `dwmax` came from a soil and whose split did not is the defect this row
+!     names. It also keeps the bootstrap runnable, which the alternative does
+!     not: that run goes out on terrain with no soil at all, so code 229 is
+!     absent by design and a refusal keyed on the split alone would stop it.
+!
+!     RENORMALISED PER CELL, so `sum(dwmax*dsoilwfc)` is `dwmax` to the layer
+!     sum's rounding whatever the writer emitted. The column capacity is the
+!     field the whole pedology loop feeds and a split that did not sum to one
+!     would move it without saying so -- the same argument landini's
+!     renormalisation of `dsoilwf` already makes, applied a cell at a time.
+!
+      real    :: zf(NLSOILWX)
+      real    :: zsum
+      real    :: zmiss, zbad
+      integer :: jhor, jlay
+!
+!     COUNTED AS REALS because the reduction that adds them across ranks is
+!     `mpsumbcr` and there is no integer one. They are counts and nothing
+!     divides by them, so the representation carries them exactly.
+      zmiss = 0.
+      zbad  = 0.
+      do jhor = 1, NHOR
+       zsum = 0.
+       do jlay = 1, nlsoilw
+        zf(jlay) = dsoilwfc(jhor,jlay)
+        if (zf(jlay) < 0.) then
+         zsum = -1.
+         exit
+        endif
+        zsum = zsum + zf(jlay)
+       enddo
+!      A cell with no field, or with a shape that sums to nothing, takes the
+!      namelist shape. landini has already renormalised that over nlsoilw and
+!      zeroed its tail, so it needs no second pass here.
+       if (zsum <= 0.) then
+        if (dls(jhor) > 0.0 .and. dwmax(jhor) /= wsmax) then
+         if (zsum < 0.) then
+          zmiss = zmiss + 1.
+         else
+          zbad = zbad + 1.
+         endif
+        endif
+        do jlay = 1, NLSOILWX
+         dsoilwfc(jhor,jlay) = dsoilwf(jlay)
+        enddo
+       else
+        do jlay = 1, nlsoilw
+         dsoilwfc(jhor,jlay) = zf(jlay) / zsum
+        enddo
+        do jlay = nlsoilw+1, NLSOILWX
+         dsoilwfc(jhor,jlay) = 0.
+        enddo
+       endif
+      enddo
+!
+      call mpsumbcr(zmiss,1)
+      call mpsumbcr(zbad,1)
+!
+      if (nlsoilw > 1 .and. zmiss + zbad > 0.) then
+       if (mypid == NROOT) then
+        write(nud,*)'*** WORLD-VJBZ: nlsoilw = ',nlsoilw,' and ',        &
+     &              nint(zmiss+zbad),' land cells carry a per-cell dwmax'
+        write(nud,*)'*** with no capacity split. Above one layer the split'
+        write(nud,*)'*** is a per-cell field, surface code 2290, and the'
+        write(nud,*)'*** namelist dsoilwf is a fallback shape rather than'
+        write(nud,*)'*** the split. Stage it with'
+        write(nud,*)'*** exoplasim/scripts/build_surface_soil_water.py.'
+       endif
+       stop
+      endif
+!
+      if (mypid == NROOT) then
+       if (nlsoilw == 1) then
+        write(nud,*)' *** WORLD-VJBZ: one water layer, so the capacity',  &
+     &              ' split is identically one'
+       else
+        write(nud,*)' *** WORLD-VJBZ: the capacity split is a field'
+       endif
+      endif
+!
+      return
+      end subroutine landwfrac
 
 
 !     ===================
@@ -1176,6 +1413,10 @@
       call mpputgp('dsoili'  ,dsoili  ,NHOR,NLSOILWX)
       call mpputgp('ddrain'  ,ddrain  ,NHOR, 1)
       call mpputgp('adrain'  ,adrain  ,NHOR, 1)
+!     The capacity split travels with the restart for the same reason `dwmax`
+!     does: it is a per-cell surface property, and a resumed run that rebuilt it
+!     from the namelist would silently swap a field for a shape. WORLD-VJBZ.
+      call mpputgp('dsoilwfc',dsoilwfc,NHOR,NLSOILWX)
       call mpputgp('dz0clim' ,dz0clim ,NHOR, 1)
       call mpputgp('dz0climo',dz0climo,NHOR, 1)
       call mpputgp('dalbcl'  ,dalbcl  ,NHOR,14)
@@ -1201,6 +1442,8 @@
       real zdsnowz(NHOR)      ! snow depth tendency
       real zcap(NHOR,NLSOIL)  ! heat capacity  of soil layers
       real zdiff(NHOR,NLSOIL) ! thermal conductivity of soil layers
+      real zsoilc(NHOR)       ! soil heat capacity at this layer's own water
+      real zsoild(NHOR)       ! soil conductivity at this layer's own water
       real zsoilz(NHOR,NLSOIL)! soil layer thicknesses
       real zcap1(NHOR)        ! heat capacity (upper soil layer)
       real zdiff1(NHOR)       ! thermal conductivity (upper soil layer)
@@ -1253,13 +1496,18 @@
       zsnowz(:)=0.
       zsntop(:)=0.
       zsoilz1(:)=dsoilz(1)
-      zcap1(:)=soilcap
-      zdiff1(:)=soildiff
-      zctop(:)=soilcap
+      zcap1(:)=soilcapsat
+      zdiff1(:)=soildifsat
+      zctop(:)=soilcapsat
 !
+!     THE SOIL'S THERMAL PAIR, PER LAYER, FROM THE COLUMN'S OWN WATER.
+!     WORLD-JSFM. `soilwtherm` returns this layer's heat capacity and
+!     conductivity for the SOIL fraction; the glacier fraction keeps its own
+!     pair, which is a property of the ice's density and not of any water.
       do jlev=1,NLSOIL
-       zcap(:,jlev)=sicecap*dglac(:)+soilcap*(1.-dglac(:))
-       zdiff(:,jlev)=sicediff*dglac(:)+soildiff*(1.-dglac(:))
+       call soilwtherm(jlev,zsoilc,zsoild)
+       zcap(:,jlev)=sicecap*dglac(:)+zsoilc(:)*(1.-dglac(:))
+       zdiff(:,jlev)=sicediff*dglac(:)+zsoild(:)*(1.-dglac(:))
        zsoilz(:,jlev)=dsoilz(jlev)
       enddo
 !
@@ -1699,7 +1947,7 @@
         zwl(:)  = 0.
         zil(:)  = 0.
         do jlay=1,nlsoilw
-         zcap(jlay) = dwmax(jhor) * dsoilwf(jlay)
+         zcap(jlay) = dwmax(jhor) * dsoilwfc(jhor,jlay)
          zwl(jlay)  = dwatcl(jhor,jlay)
          zil(jlay)  = dsoili(jhor,jlay)
         enddo
@@ -1749,6 +1997,16 @@
       real :: zztop(NLSOILWX)
       real :: ztop, zmid
       integer :: itlay(NLSOILWX)
+!     The soil's own heat capacity per temperature layer, WORLD-JSFM. Filled
+!     once per layer from `soilwtherm`, which is the same routine `tands` reads,
+!     so the capacity the latent heat is booked against is the capacity the
+!     temperature was solved on.
+      real :: zsoilcl(NHOR,NLSOIL)
+      real :: zsoildl(NHOR)
+!
+      do jt=1,NLSOIL
+       call soilwtherm(jt,zsoilcl(1,jt),zsoildl)
+      enddo
 !
 !     Which temperature layer each water layer's midpoint falls in. A property
 !     of the two declared geometries and not of the cell, so it is worked out
@@ -1772,7 +2030,12 @@
 !
       do jhor=1,NHOR
        if (dls(jhor) > 0.0) then
-        zcapv = sicecap*dglac(jhor) + soilcap*(1.-dglac(jhor))
+!       The layer's own volumetric heat capacity, which is what the latent
+!       exchange is booked against. It follows the layer's water like every
+!       other reading of it, WORLD-JSFM, and `zsoilcl` is filled once per
+!       temperature layer above.
+        zcapv = sicecap*dglac(jhor)                                       &
+     &        + zsoilcl(jhor,it)*(1.-dglac(jhor))
         do jlay=1,nlsoilw
          zwl(jlay) = dwatcl(jhor,jlay)
          zil(jlay) = dsoili(jhor,jlay)
@@ -1799,6 +2062,103 @@
 !
       return
       end subroutine landphase
+
+!     =====================
+!     SUBROUTINE SOILWTHERM
+!     =====================
+
+      subroutine soilwtherm(klev,pcap,pdiff)
+      use landmod
+!
+!     The soil's heat capacity and thermal conductivity for one SOIL TEMPERATURE
+!     layer, as functions of the water that layer holds. WORLD-JSFM.
+!
+!     WHY THIS IS A SUBROUTINE AND NOT AN EXPRESSION. It is read from two places
+!     that must agree -- `tands`, which solves the temperatures, and `landphase`,
+!     which books the latent heat of freezing against the same layer's heat
+!     capacity -- and a second copy of the relation would be free to disagree
+!     with the first.
+!
+!     THE MAPPING BETWEEN THE TWO COLUMNS IS THE ONE `landphase` ALREADY
+!     DECLARES, read the other way. There are three geometries here: five soil
+!     TEMPERATURE layers reaching 12.4 m, `nlsoilw` WATER layers reaching the
+!     vadose base, and nothing shared between them. A temperature layer takes the
+!     saturation of whichever water layer contains its MIDPOINT, and a
+!     temperature layer whose midpoint is below the water column takes the
+!     deepest water layer's. That last case is a declared extrapolation and not a
+!     measurement: the land column property contract owns the vadose zone and
+!     says the material below it changes owner, so the model has no water for
+!     those layers and carries the deepest it has.
+!
+!     UNDER THE SCALAR BUCKET there is one store and no depth at all, so every
+!     temperature layer takes the column's own fill. That is the whole of why
+!     LSHY-3 blocked this row: the bucket cannot tell the top of the column from
+!     the bottom, and the top is what sets the diurnal amplitude.
+!
+!     ICE COUNTS AS WATER HERE. Ice fills pore space, and the mixture this
+!     interpolates over is declared on the pore FILLING; giving frozen water
+!     liquid water's properties understates a frozen layer's conductivity and is
+!     the residual the contract records under `thermal.composition_dependent`.
+!     Under the default `nlandwphase = 0` there is no soil ice and it is exact.
+!
+      integer, intent(in) :: klev
+      real, intent(out)   :: pcap(NHOR)
+      real, intent(out)   :: pdiff(NHOR)
+!
+      real    :: zf, zsr, zke, zcapl
+      integer :: jhor, jlay, jw, jt
+      real    :: ztop, zmid, zbot
+!
+!     Which water layer this temperature layer's midpoint falls in. A property
+!     of the two declared geometries and not of the cell.
+      zmid = 0.
+      do jt=1,klev-1
+       zmid = zmid + dsoilz(jt)
+      enddo
+      zmid = zmid + 0.5*dsoilz(klev)
+      jw = 1
+      if (nlandwcol == 1) then
+       ztop = 0.
+       jw = nlsoilw
+       do jlay=1,nlsoilw
+        zbot = ztop + dsoilwz(jlay)
+        if (zmid <= zbot) then
+         jw = jlay
+         exit
+        endif
+        ztop = zbot
+       enddo
+      endif
+!
+      do jhor=1,NHOR
+       zf = 0.
+       if (dls(jhor) > 0.0 .and. dwmax(jhor) > 0.0) then
+        if (nlandwcol == 1) then
+         zcapl = dwmax(jhor) * dsoilwfc(jhor,jw)
+         if (zcapl > 0.0) then
+          zf = (dwatcl(jhor,jw) + dsoili(jhor,jw)) / zcapl
+         endif
+        else
+         zf = dwatc(jhor) / dwmax(jhor)
+        endif
+       endif
+       zf  = AMIN1(1., AMAX1(0., zf))
+       zsr = soilsrwp + zf * (soilsrfc - soilsrwp)
+!      Johansen's Kersten number, clipped to the interpolation's own ends. The
+!      relation is declared in pedology/config/land_column_properties.yaml;
+!      analysis/soil_thermal_inertia.py is the implementation the endpoints
+!      above were derived from.
+       zke = AMIN1(1., AMAX1(0., log10(AMAX1(1.e-6,zsr)) + 1.))
+!      The heat capacity is the volume-weighted mixture and is LINEAR in the
+!      degree of saturation. The conductivity is not, and using one shape for
+!      both is the mistake keeping them together prevents.
+       pcap(jhor)  = soilcapdry + zsr * (soilcapsat - soilcapdry)
+       pdiff(jhor) = soildifdry + zke * (soildifsat - soildifdry)
+      enddo
+!
+      return
+      end subroutine soilwtherm
+
 
 !     ==================
 !     SUBROUTINE SOILINI
@@ -1842,7 +2202,7 @@
        dwatcl(:,:)=0.
        dsoili(:,:)=0.
        do jlay=1,nlsoilw
-        where(dls(:) > 0.0) dwatcl(:,jlay)=dwatc(:)*dsoilwf(jlay)
+        where(dls(:) > 0.0) dwatcl(:,jlay)=dwatc(:)*dsoilwfc(:,jlay)
        enddo
 !
       endif
