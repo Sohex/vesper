@@ -337,6 +337,61 @@ steps:
       runs the crossing's identity checks against the annual paint and needs no
       build and no climatology
 
+  - id: spatial_support
+    reads_export: true
+    script: hydrography/scripts/build_spatial_support.py
+    loop: A
+    cost: minutes
+    needs: [hydrography, surface_water]
+    writes: ["hydrography/data/{build}/support_exoplasim-{res}.nc", "hydrography/data/{build}/support_exoplasim-*.nc", "hydrography/data/{build}/support_checkpoint.json", hydrography/analysis/spatial_support_report.json]
+    gate: >
+      SPAT-3, extending GRID-2. The 10M native mesh UNDER every cell of every
+      requested ladder rung, one file per (build, rung) on the coupling
+      matrices' precedent: exact cell, land and ocean area against the native
+      region count; the surface-class partition and the barren, rootable and
+      solved-lake shares of the cell's land; land elevation and ocean depth
+      moments and HYPSOMETRY; co-located lithology and drainage class shares;
+      and explicit empty-cell accounting. Terrain and the solved lake only: no
+      climate run, no ocean, no biosphere.
+      THE HYPSOMETRY IS WHY THE ROW EXISTS. GRID-2 found the distribution of
+      mesh elevations inside a cell computed three times and persisted nowhere,
+      on a criterion that decides where ice can sit: a cell is evaluated at its
+      MEAN elevation and its high ground stands well above that.
+      `lib/gridding.py`'s DISTRIBUTION operator is what that quantity is, and
+      `area_fraction_above` reads a share back out of it, so the criterion is
+      one expression in the module that already owns mesh-to-grid.
+      EVERY STATISTIC NAMES ITS POPULATION, because the export's own
+      `orog_mean/std/min/max` do not: they are taken over every region in the
+      cell, so a coastal cell's mean is dragged toward the seabed and a peak
+      excess measured against it is inflated by ocean floor rather than by
+      terrain. Land is `surface_class` and never `land_mask`, CLAUDE.md rule 1,
+      or the dry closed-basin floors drop out of the distribution this exists to
+      hold. The binning is `region_cells`, by index and never by longitude, rule
+      3. The export's own fields are compared against this artifact's ALL-region
+      moments and reported as a diagnostic, which is what says the two binnings
+      are one binning.
+      THREE RESERVATIONS ARE ENFORCED RATHER THAN NOTED. It manufactures no
+      below-mesh terrain: `cell_quantiles` returns values the mesh has and
+      interpolates between none of them, so GW-6's relief inside a region stays
+      GW-6's. It is not a second land or bathymetry product: the mask the model
+      reads is `boundary_conditions`' and the bathymetry contract is OCN-11's,
+      and what is here is the support underneath both -- the CLIMBER-X
+      precedent's 90th-percentile bed elevation is a quantile this SUPPLIES and
+      a choice it does not make. And it treats no coarse grid as truth: where a
+      rung is finer than the mesh the cells holding no region are counted and
+      left empty, with NO nearest-region fallback applied at all, so a consumer
+      that wants one chooses it and records it.
+      EVERY CHECK HAS A RIGHT ANSWER: the constructed cell areas sum to the
+      sphere, the binned mesh and land areas close against the mesh's own, each
+      partition sums to one in every covered cell, every categorical share times
+      its denominator equals its own extensive area, and each quantile table's
+      ends are the population's true extremes computed a second way. `--selftest`
+      hands five of those a case built to violate them.
+      THE CHUNK IS THE RUNG, `docs/src/reference/large-data.md`: each rung is
+      written as it finishes and recorded in `support_checkpoint.json` against
+      the hashes of the inputs it was built from, so a killed run resumes at the
+      cost of one rung.
+
   - id: topographic_index
     reads_export: true
     script: hydrography/scripts/build_topographic_index.py
