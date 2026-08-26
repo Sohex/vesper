@@ -1187,19 +1187,23 @@ this section says which.
 | Kessler (1969) `10.1007/978-1-935704-36-2` | the re-evaporation FORM, as a derivation to do rather than a number to copy | exactly that, and the derivation closes: `gamma = 5.44e-4 M^0.65 deltsec2` with the layer depth cancelling, proportional to the step, going as `P^0.578` and carrying `ga^(-0.289)`. The declared 0.01 is below the whole span the derived form reaches |
 | Blackadar (1962) `10.1029/JZ067i008p03095` | a rule for the asymptotic mixing length that carries to another rotation rate | exactly that: eq. 25 is `lambda = 0.00027 G/f`, dimensionally argued with `z0` ruled out of the free atmosphere. The VALUE does not transfer -- 0.00027 is matched to one observed wind deflection, he offers `u*/f` as equally acceptable, and his 26 m is a boundary-layer asymptote against ECHAM's whole-column 160 m -- but the `1/Omega` SCALING does, taking `vdiff_lamm` to 200.5 m on a 30-hour rotator with `G` left as the bracket |
 
-Two papers are still named as needed and neither is in `references/`: Shah and
-Coulman (1978) `10.1002/bit.260200105` for the Michaelis-Menten volume, and
-Shangguan et al. (2017) `10.1002/2016MS000686` for `maximum_depth_m`. Each was
-identified by reading one of the papers above, which is the ordinary shape of
-this: a primary names its own primary.
+Both papers named as needed by the readings above are now HELD AND READ, and
+the shape is the ordinary one for this project: a primary names its own primary,
+and the chain is walked rather than stopped at the secondary.
 
-**Shah and Coulman is closed access on every route tried**, which is a different
-state from not yet fetched and is recorded so the next attempt starts from it.
-The DOI is confirmed against Crossref and matches the citation exactly, title,
-authors, journal, volume, issue and pages. Unpaywall returns `is_oa: false` with
-no OA locations, OpenAlex returns `oa_status: closed` with
-`any_repository_has_fulltext: false`, Semantic Scholar returns `CLOSED` with an
-empty PDF URL, the publisher's own PDF endpoint returns a paywall page, and
-there is no Wayback snapshot of it. It needs institutional access or a copy from
-an author, not another automated attempt.
+Shah and Coulman (1978) `10.1002/bit.260200105` settled the Michaelis-Menten
+volume. It was closed access on every automated route and was SUPPLIED BY THE
+USER. Its constants are measured in a continuous stirred tank reactor on
+dissolved substrates with no soil in the experiment at all, so the volume is the
+SOLUTION'S and `ntransform.cpp` dividing by the depth of available water is
+correct. The factor of 6.7 to 30 on denitrification closed in favour of the
+branch already running.
+
+Shangguan et al. (2017) `10.1002/2016MS000686` sourced `maximum_depth_m`. It is
+read and NOT HELD AS A PDF, which is a third state worth distinguishing from
+both "fetched" and "closed": the article is gold open access and the publisher's
+own OA URL returns HTTP 403 to every automated route tried, while the full text
+is reachable through the HTML article page. The numbers were transcribed from it
+and cross-checked against a second independent read. `references/INDEX.md`
+records that state on the row rather than implying a file exists.
 

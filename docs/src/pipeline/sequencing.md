@@ -48,7 +48,7 @@ python exoplasim/scripts/build_boundary_conditions.py # land mask, topography
 python exoplasim/scripts/build_surface_albedo.py      # lithology albedo, no lakes yet
 python exoplasim/scripts/build_surface_roughness.py   # z0
                                                       # soil_water_source: uniform
-python exoplasim/scripts/run_exoplasim.py             # BOOTSTRAP run; hours
+python exoplasim/scripts/run_exoplasim.py --purpose spinup   # BOOTSTRAP run; hours
 python exoplasim/scripts/assess_convergence.py <run>  # NOT optional: it writes the
                                                       # run's status, and nothing may
                                                       # treat a run as settled without it
@@ -66,7 +66,7 @@ python exoplasim/scripts/dust_optics.py               # only if the spectrum mov
 python exoplasim/scripts/dust_aerofile.py             # the model's aerofile
 python exoplasim/scripts/build_surface_dust.py        # 1811, only if ndustrad = 1
 
-python exoplasim/scripts/run_exoplasim.py             # the BASELINE; hours
+python exoplasim/scripts/run_exoplasim.py --purpose spinup   # the BASELINE; hours
 python exoplasim/scripts/assess_convergence.py <run>
 python exoplasim/scripts/build_climatology.py <run>   # repoint baseline_climatology
 python exoplasim/scripts/analyze_climatology.py <...> # Koppen, biomes, the report

@@ -16,7 +16,7 @@ On Arch Linux the required host tools are `gcc-fortran` and `openmpi`. Activate
 ```bash
 python exoplasim/scripts/build_boundary_conditions.py   # land mask + topography
 python exoplasim/scripts/build_surface_albedo.py        # background albedo
-python exoplasim/scripts/run_exoplasim.py --run-years 1
+python exoplasim/scripts/run_exoplasim.py --purpose spinup --run-years 1
 ```
 
 `build_boundary_conditions.py` integrates the mask and topography from the
@@ -277,7 +277,7 @@ recomputes `mpstep` so that `mtspd * mpstep * 60 = day_24hr`. It writes
 `MOST_ECO.NNNNN` -- `ecoini` opens the unit without `position='append'`, so a
 multi-orbit call would otherwise keep only its last orbit.
 
-    python exoplasim/scripts/run_exoplasim.py --ecological-stream
+    python exoplasim/scripts/run_exoplasim.py --purpose spinup --ecological-stream
     python exoplasim/scripts/continue_exoplasim.py --purpose ... --ecological-stream
 
 Both scripts take `--eco-interval-steps` to declare an interval other than the
