@@ -42,6 +42,26 @@
 # `world-2ic` on a pair that is still live -- NSHTNS=0 against NSHTNS=1 on one
 # binary. That is where the rung-dependence experiment world-2ic names is run.
 #
+# A SECOND MODEL ARM IS AVAILABLE AND IS DELIBERATELY NOT TAKEN. WORLD-1YQR
+# found that `build_model.py` still accepts `--ranks 1`: it refuses only ranks
+# below one and counts that do not divide NLAT, so `most_plasim_<res>_l10_p1.x`
+# is a buildable, differently named binary with NPRO=1, one band covering the
+# globe and mpimod_omp's reductions collapsed to a single slot. That is a
+# genuinely different execution path, and it is NOT the trap world-d5l's refusal
+# was written against -- that trap was the mpi arm building the threaded binary
+# under the threaded binary's own name, and p1 has a name of its own.
+#
+# The decision, taken 2026-08-26, is to keep ONE model arm here. Two builds of
+# one source can agree and both be wrong: a defect in code both configurations
+# run is invisible to their comparison, which is the whole reason the
+# independent driver was built instead of a second build. What a p1 arm would
+# restore is the growth curve at last-bit scale on the band question, and
+# `verify_shtns_model.sh` already carries that curve with its birth bound, its
+# jump bound and its reassociation floor. Buying a second arm that shares the
+# source to re-run a curve that is already run elsewhere adds a build
+# configuration to maintain and no coverage. Reopen this only if the shtns pair
+# stops being live.
+#
 # THE CONTROL must fail, and choosing it took a wrong turn worth recording.
 # The obvious one -- every thread takes its NEIGHBOUR's band -- PASSES, because
 # it is not a mistake. The physics is per-point and does not consult mypid, and
