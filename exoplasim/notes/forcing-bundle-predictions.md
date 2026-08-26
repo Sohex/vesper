@@ -1968,7 +1968,7 @@ the cleaner instrument for a single term, because it differs in one object file
 instead of in every change between two dates. What is wrong is only the claim
 that nothing was kept.
 
-## A seventh term with no route: the soil heat solver's moisture dependence
+## world-5oyp: a seventh bundle term, the soil heat solver's moisture dependence
 
 `3aecf4ec` made the land soil heat solver read the soil water the model already
 carries, interpolating conductivity and heat capacity between a dry and a
@@ -1978,7 +1978,9 @@ saturated endpoint instead of holding one pair. `landmod.f90` declares them:
     soilcapdry = 1.1111E6 soilcapsat = 2.9689E6 J/m3/K
 
 A factor of 6.9 in conductivity and 2.7 in capacity across the wetness range, on
-every land cell, and it is inside the batch-2 window: the donor predates it.
+every simulated land cell, and it is inside the batch-2 window: the donor
+predates it. It appeared in no registered prediction, which is the second time
+the sum has been checked against a total missing a live term.
 
 **All six keys are already in `landmod_nl`**, so the model can be told to run the
 old behaviour -- setting a dry endpoint equal to its saturated partner makes the
@@ -1987,12 +1989,80 @@ column constant and the solver bitwise what it was. What is missing is the route
 them, and the arms above staged none, so every run since the commit has
 integrated the compiled pair and no artifact says which pair that was.
 
-**UNTESTED, and cheaply testable.** It is the same one-row change that gave
-`vdiff_lamm` a control, and until it exists the term cannot enter a bundle sum
-even though it is live in every run. Its size is not bounded here and should not
-be guessed: the ground heat flux is near zero in the annual mean, which argues
-for a small effect on the mean and says nothing about the seasonal amplitude or
-about when a land cell first holds snow.
+### The registered prediction, before any arm
+
+The magnitude comes from `notes/audits/soil-thermal-inertia.md` and from the
+saturation reach declared in
+`pedology/config/land_column_properties.yaml:thermal.saturation_mapping`, which
+is the artifact that prices this term and nothing else. Thermal inertia in
+J/m2/K/s^0.5: the retired pair is `sqrt(1.8 * 2.4e6)` = 2078, and the interval
+the store can reach on this build's median column is 1342 at an empty store and
+1834 at a full one. So the term is a one-signed REDUCTION in soil thermal
+inertia of 12 to 35 per cent on every land cell, largest where the column is
+driest.
+
+**TOP-OF-ATMOSPHERE FORCING: ZERO, EXACTLY, AND THAT IS THE ENTRY IN THE SUM.**
+The soil column is closed at its base, so its annual-mean heat flux is zero
+whatever its heat capacity and conductivity are: this is a change to how a
+closed reservoir stores and conducts heat, not a change to any flux crossing the
+top of the atmosphere at fixed state. It enters the bundle sum at 0.00 W/m2 with
+that reason, which is a different object from being absent from the list. Every
+kelvin it can be worth arrives through the response to the amplitude below.
+
+**THE DIRECT TERM, AND IT IS AN AMPLITUDE.** For a periodic surface flux on a
+semi-infinite column the surface temperature amplitude goes as the inverse of
+the thermal inertia, and the seasonal skin depth here, `sqrt(2*kappa/omega)` at
+`kappa` near 5e-7 m2/s, is about 2 m against the column's 12.4 m, so
+semi-infinite is the right limit for both the diurnal and the seasonal wave.
+Inverting the inertia reduction:
+
+- **The land seasonal peak-to-trough range of `ts` rises by 13 to 55 per cent
+  per cell**, +13 at a full store and +55 at an empty one, and the land-area
+  mean of that range rises by a value inside that bracket. Read off the monthly
+  `ts` of the two arms over the same orbits.
+- **The rise is largest where the column is driest**, because the store's own
+  reach is what sets it. The per-cell change must correlate positively with the
+  cell's soil water deficit.
+- **The soil's thermal diffusivity falls by about a third** -- 7.5e-7 m2/s to
+  5.1e-7 -- almost independently of the store, because the capacity and the
+  conductivity fall together. The seasonal penetration depth therefore falls by
+  about 18 per cent and the phase lag of the deep soil layers shortens with it.
+
+**THE GLOBAL MEAN: NOT RESOLVED, AND NEGATIVE IF IT IS.** No magnitude is
+registered for it, because none of the artifacts in this tree prices the
+feedback that carries it: with no direct forcing, the mean can move only through
+terms nonlinear in the amplitude, and the one that is one-signed is the snow
+line, which a larger seasonal range pushes equatorward in winter. The zero
+hypothesis under test is that the settled pair does not separate. The term is
+MATERIAL if it separates by more than 1.0 K, which is the threshold `vdiff_lamm`
+was registered against and is fixed here before the arm for the same reason.
+
+**THE RESOLUTION BAR, FIXED IN ADVANCE.** A paired 25-orbit set from one
+restart, one binary, differing only in the four `landmod_nl` endpoints;
+difference taken over orbits 15 to 24, standard error from
+`lib/autocorrelation.py` over the paired difference. The difference is RESOLVED
+only where `|diff| > 2*sqrt(2)*max(SEM)`, the same bar `vdiff_lamm` was reported
+under. Anything below it is reported as not resolved at this length and not as a
+result.
+
+**What would mean wrong:**
+
+- The land seasonal range FALLS, anywhere. Lowering the thermal inertia cannot
+  damp the surface more, and a cell that damps more is an implementation fault
+  rather than a small result.
+- The land-mean seasonal range moves by less than 13 per cent or more than 55
+  per cent. Below is the store not reaching the saturation interval the contract
+  declares, and the first thing to check is the arm's own `SOILSRWP` and
+  `SOILSRFC`; above is the semi-infinite limit being the wrong one, which would
+  mean the column's 12.4 m base is being felt at the seasonal period.
+- The per-cell amplitude change does not correlate with soil wetness. That says
+  `soilwtherm` is not reading the water at all, and the control arm would then
+  agree with its own arm by construction.
+- A resolved WARMING in the global mean. The one one-signed feedback runs the
+  other way.
+- A resolved global-mean separation above 1.0 K. The term is then material, the
+  zero-forcing argument is not what the model is doing, and it must be bisected
+  rather than folded into the bundle.
 
 ## Measured: the star weight on its new carrier, `CLOUDABS`, 2026-08-26
 
