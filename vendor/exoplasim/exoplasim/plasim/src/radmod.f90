@@ -2282,10 +2282,58 @@
 !     arrays for diagnostic cloud properties
 !
       real :: zlwp(NHOR)
-      real :: ztau(NHOR)
+      real :: zwl(NHOR)
+      real :: ztau1(NHOR)
+      real :: ztau2(NHOR)
       real :: zlog(NHOR)
       real zb2(NHOR),zom0(NHOR),zuz(NHOR),zun(NHOR),zr(NHOR)
       real zexp(NHOR),zu(NHOR),zb1(NHOR)
+!
+!     ONE BROADBAND OPTICAL DEPTH PER SHORTWAVE BAND, because Stephens (1978)
+!     p. 2124 fits one per band and radmod splits its bands where he splits
+!     his. Both fits are least squares to Mie calculations on the eight
+!     standard cloud models of Part 1, in the form
+!
+!       log10(tau_N) = a + b ln(log10 W)      W the liquid water path, g m-2
+!
+!     with (a,b) = (0.2633, 1.7095) over 0.3 to 0.75 um, Eq. (10a), and
+!     (0.3492, 1.6518) over 0.75 to 4.0 um, Eq. (10b). That is a power law in
+!     log10 W: 10**(a + b ln x) is 10**a times x**(b ln 10), so the pairs below
+!     are (10**a, b*ln 10) for each band. Eq. (10b) lies above Eq. (10a) at
+!     every path, so a single optical depth serving both bands makes the
+!     visible band's cloud too bright. world-jgen.
+!
+      real, parameter :: ztaua1 = 1.8336  ! 10**0.2633,  Eq. (10a) prefactor
+      real, parameter :: ztaup1 = 3.9363  ! 1.7095*ln10, Eq. (10a) exponent
+      real, parameter :: ztaua2 = 2.2346  ! 10**0.3492,  Eq. (10b) prefactor
+      real, parameter :: ztaup2 = 3.8034  ! 1.6518*ln10, Eq. (10b) exponent
+!
+!     THE FIT'S FLOOR IS 10 g m-2 AND THIS MODEL'S HIGH CLOUD LIVES BELOW IT.
+!     Figs. 1a and 1b span 10 to 10000 g m-2 and the fitted form is singular at
+!     W = 1 and undefined below it, so below 10 g m-2 every value is an
+!     extrapolation and the choice of continuation is a physical statement
+!     rather than a guard against a domain error. Extending the fit itself is
+!     the wrong statement: its elasticity d ln tau / d ln W is
+!     b*ln10 / (ln10 * log10 W), which is already 1.7 at 10 g m-2 and grows
+!     without bound as W falls towards 1, so the extrapolated optical depth
+!     collapses far faster than linearly. Read back through Stephens Eq. (7),
+!     tau_N = 1.5 W / r_e, that is a droplet effective radius growing past
+!     100 um as the cloud thins, which no cloud does.
+!
+!     The continuation used below is Eq. (7) at fixed r_e: tau is linear in W
+!     under ZWFIT and matches the fit's own value at ZWFIT, so the effective
+!     radius is held at what the fit implies at the bottom of its range --
+!     8.2 um in band 1, 6.7 um in band 2 -- rather than allowed to run away. It
+!     is continuous at ZWFIT, it introduces no constant the fit does not
+!     already contain, and it returns zero optical depth at zero cloud water,
+!     which the inherited `1.5 +` offset did not: that offset left 0.055 of
+!     optical depth in a layer holding no cloud water at all. Stephens,
+!     Ackerman and Smith (1984) p. 690 state that reflection below an optical
+!     depth of about 2 needs a parameterization of its own; this is the
+!     weakest continuation that does not assert something false about the
+!     droplets. world-jgen.
+!
+      real, parameter :: zwfit = 10.0     ! g m-2, bottom of the fitted range
 !
       logical losun(NHOR)         ! flag for gridpoints with insolation
 !
@@ -2403,11 +2451,14 @@
 !     masks the ASSIGNMENT rather than the evaluation: a lane with no cloud at
 !     this level is never stored to, so the read takes whatever the stack held.
 !     A lane the mask KEEPS is stored before every read of it, so presetting
-!     cannot move a result the model uses. ztau is preset to 1 and not to 0
-!     because 1000/ztau is formed on every lane. world-5a0.
+!     cannot move a result the model uses. ztau2 is preset to 1 and not to 0
+!     because 1000/ztau2 is formed on every lane, and zwl to 1 because it is
+!     raised to a non-integer power on every lane. world-5a0.
 !
        zlwp(:) = 0.0
-       ztau(:) = 1.0
+       zwl(:)  = 1.0
+       ztau1(:)= 0.0
+       ztau2(:)= 1.0
        zlog(:) = 0.0
        zb1(:)  = 0.0
        zb2(:)  = 0.0
@@ -2424,36 +2475,54 @@
 !     floor is what makes the rest of this chain safe. dql is set to 0 and then
 !     to MAX(dql,1.E-9) in rainmod, so zlwp cannot be negative on any lane the
 !     model has computed and the floor cannot bind on one. What it removes is a
-!     stale lane: ALOG10 of an argument below 1 is negative, and raising a
-!     negative base to 3.9 is a domain error of its own. With the floor in,
-!     ztau is at least 2*ALOG10(1.5)**3.9, so 1000/ztau below cannot divide by
-!     zero and 3.+0.1*ztau cannot leave ALOG's domain. world-5a0.
+!     stale lane, whose word can be anything at all. world-5a0.
+!
+!     THE TWO BRANCHES OF tau(W) ARE ONE EXPRESSION, and it is safe for every
+!     zlwp from zero up. Above ZWFIT, min(1,zlwp/ZWFIT) is 1 and zwl is
+!     log10(zlwp), so each band evaluates its own fit. Below ZWFIT, zwl is
+!     log10(ZWFIT) = 1 exactly, so zwl**p is 1 and what is left is
+!     ztaua_b * zlwp/ZWFIT: linear in the water path, matching the fit at
+!     ZWFIT. The base of the power is never below 1 and never negative, so
+!     there is no domain error to guard, and no offset is added to the water
+!     path. world-jgen.
 !
          zlwp(:) = min(1000.0,1000.*dql(:,jlev)*dp(:)/ga*dsigma(jlev))
-         ztau(:) = 2.0 * ALOG10(1.5+max(0.,zlwp(:)))**3.9
-         zlog(:) = log(max(1.E-30,1000.0 / ztau(:)))
-         zb2(:)  = zb4 / ALOG(3.+0.1*ztau(:))
+         zwl(:)  = ALOG10(max(zwfit,max(0.,zlwp(:))))
+         ztau1(:)= ztaua1*zwl(:)**ztaup1*min(1.0,max(0.,zlwp(:))/zwfit)
+         ztau2(:)= ztaua2*zwl(:)**ztaup2*min(1.0,max(0.,zlwp(:))/zwfit)
+!
+!     ztau2 IS FLOORED ONLY WHERE IT IS DIVIDED INTO, and the floor is inert.
+!     The optical depth now reaches zero on a layer holding no cloud water, so
+!     1000/ztau2 needs a divisor that cannot be zero. At the floor the layer is
+!     already transparent -- zexp is 1, so the band-2 reflectivity carries the
+!     factor (zexp - 1/zexp) = 0 and the transmissivity is 4u/4u = 1 -- and the
+!     only thing zlog still reaches is zom0, which multiplies nothing that
+!     survives. So the value of the floor cannot move a result; it only keeps
+!     the divide defined. world-jgen.
+!
+         zlog(:) = log(max(1.E-30,1000.0 / max(1.E-10,ztau2(:))))
+         zb2(:)  = zb4 / ALOG(3.+0.1*ztau2(:))
          zom0(:) = min(0.9999,1.0 - zb5 * zlog(:))
          zun(:)  = 1.0 - zom0(:)
          zuz(:)  = zun(:) + 2.0 * zb2(:) * zom0(:)
          zu(:)   = SQRT(max(0.,zuz(:)/zun(:)))
-         zexp(:) = exp(min(25.0,ztau(:)*SQRT(max(0.,zuz(:)*zun(:)))/zmu00))
+         zexp(:) = exp(min(25.0,ztau2(:)*SQRT(max(0.,zuz(:)*zun(:)))/zmu00))
          zr(:)   = (zu(:)+1.)*(zu(:)+1.)*zexp(:)                      &
      &           - (zu(:)-1.)*(zu(:)-1.)/zexp(:)
-         zrcl1s(:,jlev)=1.-1./(1.+zb3*ztau(:))
+         zrcl1s(:,jlev)=1.-1./(1.+zb3*ztau1(:))
          ztcl2s(:,jlev)=4.*zu(:)/zr(:)
          zrcl2s(:,jlev)=(zu(:)*zu(:)-1.)/zr(:)*(zexp(:)-1./zexp(:))
 
          zb1(:)  = tswr1*SQRT(max(0.,zmu0(:)))
-         zb2(:)  = tswr2*SQRT(max(0.,zmu0(:)))/ALOG(3.+0.1*ztau(:))
+         zb2(:)  = tswr2*SQRT(max(0.,zmu0(:)))/ALOG(3.+0.1*ztau2(:))
          zom0(:) = min(0.9999,1.-tswr3*zmu0(:)*zmu0(:)*zlog(:))
          zun(:)  = 1.0 - zom0(:)
          zuz(:)  = zun(:) + 2.0 * zb2(:) * zom0(:)
          zu(:)   = SQRT(max(0.,zuz(:)/zun(:)))
-         zexp(:) = exp(min(25.0,ztau(:)*SQRT(max(0.,zuz(:)*zun(:)))/max(1.E-30,zmu0(:))))
+         zexp(:) = exp(min(25.0,ztau2(:)*SQRT(max(0.,zuz(:)*zun(:)))/max(1.E-30,zmu0(:))))
          zr(:)   = (zu(:)+1.)*(zu(:)+1.)*zexp(:)                      &
      &           - (zu(:)-1.)*(zu(:)-1.)/zexp(:)
-         zrcl1(:,jlev)=1.-1./(1.+zb1(:)*ztau(:)/max(1.E-30,zmu0(:)))
+         zrcl1(:,jlev)=1.-1./(1.+zb1(:)*ztau1(:)/max(1.E-30,zmu0(:)))
          ztcl2(:,jlev)=4.*zu(:)/zr(:)
          zrcl2(:,jlev)=(zu(:)*zu(:)-1.)/zr(:)*(zexp(:)-1./zexp(:))
          zrcl1(:,jlev)=zcs(:)*zrcl1(:,jlev)+(1.-zcs(:))*zrcl1s(:,jlev)

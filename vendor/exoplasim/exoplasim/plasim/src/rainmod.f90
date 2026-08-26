@@ -111,11 +111,14 @@
 !     WHAT CONSUMES dql IS NOT CCM3'S OPTICS. CCM3 puts the layer cloud water
 !     path into Slingo (1989) delta-Eddington, where extinction optical depth is
 !     LINEAR in the path and carries a droplet effective radius; radmod's swr is
-!     Stephens (1978), ztau = 2*ALOG10(zlwp+1.5)**3.9, and no effective radius
-!     exists anywhere in this model. The two curve differently in the path --
-!     the Stephens fit is super-linear below about 30 g/m2 and sub-linear above
-!     it -- so whatever cloud water path rho_l0 was chosen to deliver, the
-!     optical depth it delivers HERE is not the one it delivered in CCM3. CCM3
+!     Stephens (1978) Eqs. (10a) and (10b), one broadband optical depth per
+!     shortwave band, and no effective radius is carried explicitly anywhere in
+!     this model. The two curve differently in the path -- each Stephens fit is
+!     super-linear from 10 to about 30 g/m2 and sub-linear above it, and radmod
+!     continues it linearly below 10 g/m2 at the effective radius the fit
+!     implies there -- so whatever cloud water path rho_l0 was chosen to
+!     deliver, the optical depth it delivers HERE is not the one it delivered
+!     in CCM3. CCM3
 !     also splits the condensate into liquid and ice by temperature and this
 !     model does not. The LONGWAVE side does match: radmod's
 !     1-dcc*(1-exp(-1.66*acllwr*CWP)) is CCM3 Eq. 12-13 exactly, at acllwr
