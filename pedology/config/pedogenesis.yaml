@@ -234,6 +234,23 @@ texture:
   # where weatherable = 1 - quartz - clay_primary. Saturating, because a soil
   # cannot become more than entirely clay and ferralsols top out around 0.6-0.8.
   clay_conversion: 0.55
+  # BRACKET, not a value, and do not tune within it. The reciprocal of this key
+  # is the weathering intensity at which the conversion is 1 - 1/e complete, in
+  # the units W is normalised in, so the bracket is stated on that intensity:
+  # no faster than complete by Earth's land mean, W = 1, and no slower than
+  # still running at the wettest of the sixteen type localities, W = 3.41,
+  # which is the wettest soil this model has ever been compared against. The
+  # declared value puts the e-folding at W = 1.82.
+  clay_conversion_bracket: [0.29, 1.00]
+  # AND IT IS NEAR-DEGENERATE WITH `clay_yield` BELOW at low weathering
+  # intensity. The two multiply, and where `clay_conversion * W` is small the
+  # exponential is in its linear regime, so only the product is identified.
+  # That is the same defect the regolith block removed by collapsing two keys
+  # into one, and it is not removable here, because the two separate at high W
+  # -- which is where the sixteen localities are and where this world is not.
+  # Sweep them together, and read a Vesper clay figure as resting on the
+  # product rather than on either key.
+  #
   # Fraction of weatherable material that ends up as clay-SIZED silicate. The
   # rest leaves as solute, or becomes iron and aluminium sesquioxides, or is a
   # resistant primary mineral other than quartz -- none of which a texture
@@ -296,9 +313,31 @@ texture:
   # calibrated in, where the bias is largest, +0.084 for sites under W = 1
   # against +0.044 above it. Treat a Vesper clay figure as extrapolated.
   clay_yield: 0.55
-  # Sand and silt give up their share of what becomes clay in this ratio. Sand
-  # goes first: coarse primary grains have the most surface area to lose.
-  sand_to_silt_loss_ratio: 2.0
+  # Sand and silt give up their share of what becomes clay in this ratio.
+  #
+  # NOT DERIVABLE FROM MECHANISM, because the two mechanisms point opposite
+  # ways. Specific surface area goes as one over grain diameter, so silt
+  # carries more reactive area per unit mass than sand and dissolves faster:
+  # over the USDA class limits the geometric mean diameters are 0.316 mm and
+  # 0.010 mm, a factor of 31.6, which is a ratio of 0.032. Against that,
+  # weathering is a size cascade -- a sand grain becomes silt before it becomes
+  # clay -- so sand leaves its own class faster than dissolution alone implies
+  # while silt is replenished out of it, which is a ratio above 1 and unbounded
+  # in the limit where silt sits in quasi-steady state.
+  #
+  # So the bracket is the span those two allow, and the declared value is the
+  # one point inside it that carries a statement: loss in proportion to
+  # abundance, no size preference. The comment here used to read "sand goes
+  # first: coarse primary grains have the most surface area to lose", which has
+  # the surface-area argument backwards and is why the number beside it did not
+  # follow from the sentence beside it.
+  #
+  # It redistributes between sand and silt at fixed clay, and it moves
+  # plant-available water capacity by under one per cent, because clay's
+  # volumetric capacity sits BETWEEN sand's and silt's. Report the spread if a
+  # result turns on it; do not tune within it.
+  sand_to_silt_loss_ratio: 1.0
+  sand_to_silt_loss_ratio_bracket: [0.032, 31.6]
 
 # ---------------------------------------------------------------------------
 # Regolith depth
@@ -549,13 +588,45 @@ regolith:
   # infinity as erosion vanishes, and Portenga and Bierman measure denudation
   # rather than the depth a weathering front reaches. A production function
   # integrates to a steady-state depth against an erosion rate; it does not
-  # integrate to a maximum reach. What would settle this is a measured
-  # depth-to-bedrock distribution -- Shangguan, Hengl, Mendes de Jesus, Yuan and
-  # Dai (2017), 10.1002/2016MS000686, is the global product -- and it is not
-  # held here. Until then this is a declared prefactor: every cell's depth and
-  # therefore the land-mean plant-available water capacity scale with it
-  # exactly.
-  maximum_depth_m: 5.0
+  # integrate to a maximum reach.
+  #
+  # SOURCE, read directly: Shangguan, Hengl, Mendes de Jesus, Yuan and Dai
+  # (2017), "Mapping the global depth to bedrock for land surface modeling",
+  # JAMES 9, 65-88, 10.1002/2016MS000686. Table 1, the world row of ABSOLUTE
+  # depth to bedrock over 1,590,464 soil-profile and borehole observations:
+  # median 670 cm, mean 1,309.3 cm, maximum 312,541 cm. Their definition is the
+  # depth from the ground surface to contact with coherent bedrock, so what it
+  # measures is the thickness of everything unconsolidated above rock.
+  #
+  # BRACKET, not a value, and the two ends are the two ways that measurement
+  # differs from this quantity. The paper states both.
+  #
+  #   6.70 m, the observed MEDIAN, bounds it from BELOW. The observed
+  #   population is overwhelmingly eroding land, whose depth to bedrock sits
+  #   under the depth an uneroded profile reaches. The paper adds a second
+  #   reason pointing the same way: a soil survey logs intact weathered rock as
+  #   R horizon and stops at 2 m, so a map built from profiles reads as "deeper
+  #   than" what it prints.
+  #
+  #   13.09 m, the observed MEAN, bounds it from ABOVE. Depth to bedrock counts
+  #   transported fill as readily as in-situ weathering product, and this
+  #   model's regolith is in-situ product only. The mean is 1.95 times the
+  #   median and the maximum is 3.1 km, which is the size of that
+  #   contamination.
+  #
+  # The declared value is the low end, which is a reading of the direction
+  # every correction runs in rather than a point chosen inside the bracket: the
+  # observations are dominated by boreholes in North America and Europe, where
+  # glacial drift and alluvium are most of what the drill passes through.
+  #
+  # THIS KEY AND `erosion_coefficient_per_relief_m` ARE JOINTLY CONSTRAINED.
+  # This one is a pure prefactor and that one carries the level, and the
+  # land-mean depth the pair produces has to land inside
+  # `regolith_depth_bracket_m` below, which brackets the LEVEL and not either
+  # key. A sweep runs the two together, and moving one alone can leave the
+  # level outside a bracket that neither key's own bracket mentions.
+  maximum_depth_m: 6.70
+  maximum_depth_bracket_m: [6.70, 13.09]
   minimum_depth_m: 0.02
   # ONE COEFFICIENT, NOT TWO. Erosion entered the depth law through a weight of
   # 1.5 against production and a reference relief of 200 m, and the two were
@@ -608,9 +679,33 @@ regolith:
   regolith_depth_bracket_m: [0.15, 1.30]
   # Denudation that does not need runoff: wind, dry ravel, freeze-thaw creep,
   # rare events. Without it, erosion is exactly zero wherever P - E is zero, and
-  # depth pins to the ceiling across the whole arid fraction of the planet, which
-  # is 18% of this world's land. A slope in a desert still loses material.
-  dry_erosion_baseline: 0.15
+  # depth pins to the ceiling across the whole arid fraction of the planet. A
+  # slope in a desert still loses material.
+  #
+  # The moisture term is `runoff / reference_runoff + dry_erosion_baseline`, so
+  # this key IS the ratio of denudation at zero runoff to denudation at Earth's
+  # reference runoff, as b / (1 + b). That is a quantity the compilation
+  # already read for the coefficient above reports.
+  #
+  # SOURCE. Portenga and Bierman (2011) put arid drainage basins at
+  # 100 +/- 17.3 m/Myr, the slowest of their climate zones, against a global
+  # drainage-basin mean of 218 +/- 35 m/Myr. The ratio is 0.459, which inverts
+  # to 0.85.
+  #
+  # BRACKET from their two stated uncertainties; do not tune within it. Two
+  # approximations set its width and they pull opposite ways: arid basins carry
+  # some runoff, so the true zero-runoff ratio is below theirs; and their global
+  # mean is drawn from steep, tectonically active, accessible terrain, so it is
+  # high for a reference condition, which makes the ratio too low.
+  #
+  # The same compilation is why the bracket reaches a moisture term nearly flat
+  # in runoff: their basin denudation has NO significant bivariate correlation
+  # with mean annual precipitation at all, slope being the regressor. A weak
+  # moisture dependence is what that paper supports. What this key used to be,
+  # 0.15, is a suppression of dry denudation to 13 per cent of the reference
+  # rate, and nothing supported it.
+  dry_erosion_baseline: 0.85
+  dry_erosion_baseline_bracket: [0.49, 1.79]
 
   # ---------------------------------------------------------------------------
   # Water held below the bedrock contact
@@ -664,21 +759,107 @@ regolith:
 # Base cations leach with drainage, so pH falls as runoff rises. Parent material
 # sets the starting point. Endorheic basins run the other way: salts concentrate
 # rather than leaving, and the soil goes alkaline and sodic.
+#
+# WHAT THE ONE GLOBAL MEASUREMENT OF THIS QUANTITY SAYS, and where this form
+# departs from it. Slessarev, Lin, Bingham, Johnson, Dai, Schimel and Chadwick
+# (2016), "Water balance creates a threshold in soil pH at the global scale",
+# Nature 540, 567-569, 10.1038/nature20139, draw a spatially random sample of
+# 20,000 subsoil pH measurements from a compilation of 60,291 and find the
+# distribution BIMODAL: a calcite-buffered mode near 8.2 and a gibbsite-buffered
+# mode near 5.1, with an abrupt step between them where mean annual
+# precipitation begins to exceed potential evapotranspiration. Predicting only
+# those two values from the sign of the water balance explains 42 per cent of
+# the observed variation. Soils in the neutral range are UNCOMMON, because that
+# range is held by primary mineral dissolution, which is slow.
+#
+# Two consequences, and they differ in kind.
+#
+# THE ACID END IS PARENT-INDEPENDENT in the observation and parent-dependent
+# here. Gibbsite sets it wherever leaching has run, whatever the rock was. This
+# block instead carries every parent down a line of its own, so its wet cells
+# spread where the measurement clusters, and a single `leaching_slope` cannot
+# land them all on one buffer. That is a property of the FORM and not of any
+# value in it, which is why the values below are bracketed rather than fitted:
+# they cannot be sized against this observation without changing the form
+# first.
+#
+# THE ALKALINE END IS DERIVABLE, and is derived below at this world's own
+# atmosphere rather than read off Earth's.
 ph:
-  # pH of a fresh, unleached soil on each rock category
+  # pH of a fresh, unleached soil on each rock category.
+  #
+  # DERIVED BRACKET on the silicate entries, from the carbonate system at this
+  # planet's declared pCO2 (`config/planet.yaml` is the source of that number
+  # and nothing here restates it). A soil solution supplied with base cations
+  # sits above water in equilibrium with the atmosphere and nothing else, and
+  # below the point where calcite precipitates and takes the buffering over:
+  #
+  #   5.59  water and atmospheric CO2 alone, no alkalinity
+  #   8.16  calcite equilibrium, open to the atmosphere
+  #
+  # Both ends come out of the same equilibrium, Slessarev's Methods eq. (6) in
+  # the four dissociation constants and the calcite solubility, and the
+  # implementation reproduces their published 8.2 at their stated laboratory
+  # pCO2 before being evaluated at this world's. The bracket therefore travels
+  # to another planet, which is the point of deriving it instead of taking a
+  # value measured on Earth.
+  #
+  # WHAT IS STILL DECLARED is the ORDER and the SPACING inside that bracket.
+  # Mafic above clastic above metamorphic above felsic is a contrast this file
+  # asserts; no source here sizes it. Do not tune within the bracket.
   parent_by_category:
     igneous_mafic: 7.6
     igneous_felsic: 6.4
     metamorphic: 6.6
     sedimentary_clastic: 6.8
-    carbonate: 8.0
+    # DERIVED, not declared: calcite equilibrium at this world's pCO2, open to
+    # the atmosphere. That is the condition a laboratory pH is measured under
+    # and the one Slessarev's 8.2 is stated at, so it is the condition to put
+    # a number that gets compared against measured pH on. Soil air runs ten to
+    # a hundred times atmospheric and the same equilibrium gives 7.50 and 6.83
+    # there, so a field pH on carbonate reads below this.
+    carbonate: 8.16
+    # Above the calcite buffer, because sodium carbonate rather than calcite
+    # sets it.
     evaporite: 8.8
-  # pH lost per e-folding of the leaching index (runoff over reference runoff)
-  leaching_slope: 0.9
+  parent_bracket_silicate: [5.59, 8.16]
+  parent_bracket_carbonate: [6.83, 8.16]
+  # Bracketed by what a closed basin reaches. Helvaci (2019) lists lake water
+  # at pH 8.5 to 11 among the conditions the Turkish borate deposits form
+  # under, which is the one measured closed-basin range this project holds. It
+  # is LAKE WATER in one depositional setting and not a soil, which is why it
+  # bounds the entry and does not set it.
+  parent_bracket_evaporite: [8.50, 11.00]
+  # pH lost per e-folding of the leaching index (runoff over reference runoff).
+  #
+  # BRACKET, not a value, and both ends are one requirement evaluated at two
+  # runoffs: that the term can carry the modal clastic parent down to
+  # Slessarev's gibbsite buffer of 5.1, a drop of 1.7. At Earth's reference
+  # runoff the index is ln 2 and the slope that does it is 2.45; at five times
+  # that runoff the index is ln 6 and the slope is 0.95. The multiple of five
+  # is declared, not measured.
+  #
+  # The declared value is the low end, and the reason is the clip below rather
+  # than a preference: a steeper slope drives the felsic and metamorphic
+  # parents onto `minimum` across the wet fraction of this world's land, which
+  # is the railing the regolith block above was rewritten to remove. A form
+  # with a parent-independent acid end would not have to choose. Report the
+  # spread; do not tune within it.
+  leaching_slope: 0.95
+  leaching_slope_bracket: [0.95, 2.45]
+  # Clips, and nothing here rests on either. The two buffered modes Slessarev
+  # measures are at 8.2 and 5.1 and are not clips: a soil goes below the
+  # gibbsite buffer under organic acids and above the calcite one under sodium
+  # carbonate, and these bound those two directions.
   minimum: 3.8
   maximum: 9.5
-  # Added where drainage is closed and salts accumulate
+  # Added where drainage is closed and salts accumulate.
+  #
+  # BRACKET from the carbonate entry above: the bonus has to carry a
+  # calcite-buffered soil at 8.16 into the range a closed basin reaches, which
+  # is Helvaci's 8.5 to 11. Do not tune within it.
   endorheic_alkalinity_bonus: 0.8
+  endorheic_alkalinity_bonus_bracket: [0.34, 2.84]
 
 # ---------------------------------------------------------------------------
 # Organic matter, the loop closure
