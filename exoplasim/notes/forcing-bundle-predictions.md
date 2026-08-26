@@ -1847,6 +1847,16 @@ alike. No registered prediction covered it. `world-awm5` closed as "no numeric
 and no form change", which is true of `vdiff_c` and not of the mixing-length
 half delivered in the same commit.
 
+**The prediction for it is RETROSPECTIVE and is marked so here**, because a
+prediction written after the change shipped is not the same object as one
+written before it and treating the two alike is worse than having neither. What
+was fixed before the arm ran, and only that: the term is MATERIAL if the settled
+pair separates by more than 1.0 K, and no sign was predicted, because a longer
+asymptotic length raises free-tropospheric exchange and lowers the near-surface
+gradient and which way that moves the global mean depends on the cloud and ice
+response. The zero hypothesis under test was world-awm5's closing claim, "no
+numeric and no form change".
+
 It has a route now. `VDIFF_LAMM` reaches `fluxmod_nl` from
 `model.asymptotic_mixing_length_m`, written unconditionally by
 `configure_otherargs` and checked by `expected_namelist_keys`, so a control arm
