@@ -296,24 +296,74 @@ this world's scale height and an Earth configuration reproduces 700 exactly.
 The default is -1.0, so the derivation is what runs unless a run declares
 otherwise, and `rainini` echoes the value it used.
 
-Integrated at 25 kg/m2 precipitable water, the Vesper-over-Earth liquid water
-per layer ran 7.2 at sigma 0.038, 4.1 at 0.12, 2.6 at 0.21, 1.9 at 0.32, 1.5 at
-0.44, 1.2 at 0.57, 1.0 at 0.70, 0.89 at 0.82, 0.81 at 0.92 and 0.78 at 0.98.
-**That table is on the wrong sigma set**, `plasim.f90`'s `neqsig == 0` fallback
-rather than the rescaled `NEQSIG = 4` set every run on record uses; see the
-correction under finding 20. The two agree from level 3 down and differ by a
-third and a fifth at levels 1 and 2, which is where a cloud-water profile is
-read, so the top-layer entries are the ones the correction moves.
+Measured 2026-08-26 by `exoplasim/scripts/cloud_water_scale_height_ratio.py`,
+on the `NEQSIG = 4` sigma grid at a 50 hPa model top that every run on record
+integrates, with the global mean temperature profile of `run_2b20e3324bb0`'s
+climatology and a modelled column holding 25 kg/m2 of precipitable water, which
+is that climatology's median column. At this column water the e-folding length
+`hl` is 2281 m under the inherited coefficient and 1746 m under the derived one.
 
-**What it cost.** Column-integrated liquid water barely moved, 5 to 7 per cent
-low, but mid and upper cloud carried 1.5 to 4 times the calibrated water at the
-same cloud fraction while the lowest three layers carried 11 to 22 per cent
-less. That is the wrong direction on both terms that matter: thicker high cloud
-raises the longwave trap, thinner low cloud lowers the shortwave reflection.
-`dql` is not diagnostic; it sets shortwave cloud optical depth and longwave
-cloud emissivity in `radmod`. The correction applied is exactly the one the
-finding named, scaling by `g_earth/g` because liquid water should track vapour
-and vapour's geometric scale height is 0.766 here.
+**Two ratios, and they answer different questions.** *Inherited over derived* is
+the modelled layer cloud liquid water path with `clwhsc` held at CCM3's 700 m,
+over the same layer with `clwhsc` derived: same planet, same sigma level, same
+temperature profile, same column water. That is what the defect cost. *Vesper
+over Earth* is the same numerator over the same scheme evaluated at `gascon`
+287.0 and `ga` 9.80665, the configuration in which the derivation returns 700 m
+exactly. It carries a gravity ratio the derived configuration carries too, so it
+is a property of a shallower modelled atmosphere rather than a cost.
+
+| level | sigma | mid-layer height, m | derived, g/m2 | inherited, g/m2 | inherited / derived | Vesper / Earth |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 0.02500 | 17794 | 0.075 | 0.821 | 10.90 | 8.35 |
+| 2 | 0.09372 | 13766 | 0.346 | 2.196 | 6.35 | 4.86 |
+| 3 | 0.18812 | 9973 | 1.93 | 7.35 | 3.81 | 2.92 |
+| 4 | 0.29717 | 7446 | 6.44 | 17.51 | 2.72 | 2.08 |
+| 5 | 0.42058 | 5429 | 16.94 | 35.11 | 2.07 | 1.59 |
+| 6 | 0.55432 | 3763 | 36.59 | 60.64 | 1.66 | 1.27 |
+| 7 | 0.69069 | 2394 | 65.12 | 89.81 | 1.38 | 1.06 |
+| 8 | 0.81826 | 1313 | 92.56 | 110.40 | 1.19 | 0.91 |
+| 9 | 0.92191 | 537 | 95.00 | 102.10 | 1.07 | 0.82 |
+| 10 | 0.98282 | 115 | 45.05 | 45.75 | 1.02 | 0.78 |
+| column | | | 360.0 | 471.7 | 1.31 | 1.00 |
+
+Over the climatology's own moist columns, each at its own temperature and column
+water rather than at one stated condition, inherited over derived spans 6.3 to
+20.4 at level 1, 2.9 to 7.7 at level 3, and 1.01 to 1.03 at level 10, p10 to
+p90.
+
+**The identity the table rests on.** `zzf` is built hypsometrically and scales as
+`gascon/ga`, and the derived `hl` scales as `gascon/ga` too, so the exponent
+`-zzf/hl` is invariant between the two configurations at the same sigma level.
+Under the derived coefficient the Vesper-over-Earth layer water path is
+therefore exactly `(gascon/ga)/(287.0/9.80665)`, 0.7656, in EVERY layer, for any
+temperature profile and any column water. The two ratio columns are that
+constant apart, which is why each has to be named wherever it is used: read
+Vesper over Earth as a cost and the defect is charged with a gravity ratio the
+derived configuration also carries, which makes the lowest three layers look as
+though they lost water. The script computes
+both sides independently and raises if they part; it also reproduces
+`exoplasim/analysis/cloud_optical_depth_bracket.json`'s per-layer water paths to
+2e-16 relative, and rebuilds the model's own `lev` axis from `plasim.f90`'s
+`neqsig == 4` construction to 4e-7.
+
+**What it cost.** The inherited length put 31 per cent more liquid water in the
+modelled column and no layer carried less: 10.9 times the derived water at sigma
+0.025, 6.3 at 0.094, 3.8 at 0.188, and within 2 per cent of it in the lowest
+layer. `dql` is not diagnostic; it sets shortwave cloud optical depth and
+longwave cloud emissivity in `radmod`. The longwave side is where a top-heavy
+error bites hardest: at `acllwr` = 0.090361 m2/g the modelled longwave cloud
+emissivity at sigma 0.188 was 0.67 against the derived profile's 0.25, and every
+layer below sigma 0.42 is saturated under either profile, so the inherited
+coefficient raised the longwave trap of the modelled high cloud and left the low
+cloud's alone. The shortwave side opposes it: the same extra water raises the
+modelled cloud optical depth, and the three layers that gained most carry under
+10 g/m2, where `radmod` continues the Stephens fit linearly in the water path,
+so their optical depth rose in proportion from a small base. Which term wins at
+the top of the modelled atmosphere is a question only a run answers.
+
+The correction is the one the finding named, scaling by `g_earth/g` because the
+modelled liquid water tracks the modelled vapour and vapour's geometric scale
+height is 0.766 of Earth's here.
 
 **The `0.00021` beside it is closed separately, by world-8h6.** Both CCM3
 sources are now in `references/` and read, and neither gives the reference
@@ -325,8 +375,11 @@ bracket to run as arms, in `exoplasim/notes/cloud-water-reference.md`. That note
 carries the per-layer cloud water path, optical depth and cloud emissivity on
 the `NEQSIG = 4` sigma set every run on record uses, and it records that this
 fork's shortwave cloud optics is Stephens rather than the Slingo scheme the CCM3
-value was fixed inside (world-jimc). It does NOT redo the Vesper-over-Earth
-ratio table above, which is still on the fallback sigma set; that is world-d4su.
+value was fixed inside (world-jimc). Its per-layer water paths are the
+derived-coefficient case of the table above, taken over the climatology's own
+columns rather than at one stated column water, and the two are computed by
+different scripts from the same fields; that agreement is the table's check
+against a quantity the other side already knew.
 
 ## 6. Land longwave surface emissivity is exactly 1.0, and is now declared to be
 
@@ -854,8 +907,8 @@ is `plasim.f90`'s `neqsig == 0` fallback, which runs the same polynomial
 UNRESCALED and puts the model top at 7660 Pa instead of 5000. Every run on
 record is on the rescaled set. The two agree from level 3 down and differ by a
 third and a fifth at levels 1 and 2, which is exactly where a top-of-model
-sponge and a cloud-water profile are read. Finding 15's per-layer liquid-water
-table is computed on the fallback set and is `world-ofn`'s to redo.
+sponge and a cloud-water profile are read. Finding 5's per-layer liquid-water
+table is on the rescaled set.
 
 ## 21. The boundary-layer mixing length is a fixed number of metres in a sigma scheme
 
