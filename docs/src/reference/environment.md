@@ -185,6 +185,62 @@ arms**. Run as blocks, whichever arm goes first after an idle stretch gets the
 boost clock and the comparison measures the CPU's thermal state instead of the
 flag. That was worth 6% on a stock baseline against itself.
 
+## One host, many agents: the lock, and what it does not do
+
+This project fans work out across many agents on ONE machine, and several of
+them run model integrations, builds and profiles. Anything that uses the CPU
+for more than a moment takes a lock first:
+
+```
+until mkdir /tmp/world.lock 2>/dev/null; do sleep 30; done
+echo "$(date): what you are doing" > /tmp/world.lock/who
+# ... the heavy work ...
+rm -rf /tmp/world.lock
+```
+
+**`mkdir` rather than `touch`, and the reason is the whole design.** `mkdir`
+fails if the directory exists, so testing and taking are ONE atomic step. The
+obvious spelling -- look for the file, then create it -- is check-then-act, and
+two agents that check in the same moment both find it free and both proceed.
+That is the failure the lock exists to prevent, so it must not be the failure
+the lock is built on.
+
+The lock is a directory OUTSIDE the repository. Each fan-out agent works in its
+own worktree, so an in-tree path is a different file for every agent and
+coordinates nothing.
+
+The `who` file is what makes a stale lock recoverable. A session that dies
+holding the lock leaves it held forever; `cat /tmp/world.lock/who` says who
+took it and when, so a successor can tell a live holder from a corpse instead of
+guessing. Clear a dead one with `rm -rf` and say that you did.
+
+**HOLDING THE LOCK DOES NOT PARTITION THE HOST.** It keeps other AGENTS off the
+machine. It says nothing about how you divide the machine between your own
+processes, and reading it as a reservation is how two 16-thread integrations
+came to be co-scheduled on 32 logical cores under a single claim. Two paired
+arms at once are `p8` binaries pinned to their own cores; two `p16` at once is
+never right. An unpinned pair fights over the same CCDs, which breaks the 32 MB
+per-die target below -- that target is stated per thread TEAM, and two teams on
+one die exceed it silently. Worse, the pair then measures the scheduler as much
+as the model, which is the one thing a paired experiment exists to avoid.
+
+**A timing is a measurement of a machine state as much as of a model.** Record
+the load beside any timing worth keeping: one without the machine state it was
+taken under cannot be compared against a later one, and a number taken while
+someone else is integrating is not a slow number, it is a number of a different
+experiment. Where the choice exists, price work in something the scheduler
+cannot move -- retired instructions under `OMP_WAIT_POLICY=passive` survive
+contention that wall clock does not, though once a run is threaded that count
+needs its own correction, because a thread spinning at a barrier retires
+instructions in proportion to how long it waits.
+
+**What this replaced, and why.** A 172-line `scripts/machine.py` carried a claim
+file, a process-table scan, a load threshold and a worker-count API. The parts
+beyond "do not start heavy work while someone else is running" were not the job,
+and the vocabulary actively misled: a "claim" reads as though it reserves the
+host. Four lines an agent can follow without opening a script are the whole of
+what was needed.
+
 ## The per-die working set targets 32 MB
 
 **A thread team's working set on one die targets 32 MB, and a change that takes

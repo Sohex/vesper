@@ -135,28 +135,21 @@ The arguments and the incidents behind these are in
   column alignment. They get copied out.
 - Every run and analysis product records its provenance (config hash, input
   hashes, software versions) in JSON. Keep that up when adding steps.
-- **One host, many agents: take the lock before anything CPU-heavy.**
-  A model run, a build, a profile, a long analysis -- anything using the CPU
-  for more than a moment. The lock is a directory outside the repo, because
-  each fan-out agent works in its own worktree and an in-tree file would
-  coordinate nothing:
+- **One host, many agents: take the lock before anything CPU-heavy.** A model
+  run, a build, a profile, a long analysis -- anything using the CPU for more
+  than a moment:
 
       until mkdir /tmp/world.lock 2>/dev/null; do sleep 30; done
       echo "$(date): what you are doing" > /tmp/world.lock/who
       # ... the heavy work ...
       rm -rf /tmp/world.lock
 
-  `mkdir` rather than `touch` because it is the test and the take in one
-  atomic step; check-then-touch lets two agents both see it free. `cat
-  /tmp/world.lock/who` says who holds it, and if that is a dead session,
-  `rm -rf` it and say so. A timing is a measurement of a MACHINE STATE as much
-  as of a model, so record the load beside any timing you keep -- one without
-  the machine state it was taken under cannot be compared against a later one.
-  Holding the lock keeps other agents off the host; it does NOT partition the
-  host between your own runs, so two paired arms are p8 binaries pinned to
-  their own cores, never two p16 at once. Where you can, price work in
-  something the scheduler cannot move: retired instructions under
-  `OMP_WAIT_POLICY=passive` survive contention that wall clock does not.
+  `mkdir` not `touch`: it tests and takes atomically, where check-then-act lets
+  two agents both see it free. The lock keeps other AGENTS off the host; it does
+  NOT partition it between your own runs, so two paired arms are `p8` binaries
+  pinned to their own cores and never two `p16` at once. Record the load beside
+  any timing you keep. `docs/src/reference/environment.md` has the argument, the
+  stale-lock recovery, and what a claim-shaped vocabulary cost.
 - **A thread team's working set on one die targets 32 MB**, counting one copy
   per thread for anything threadprivate. Above it is a regression even when
   this machine gets faster: 32 MB is CCD1 here and is what a part without
