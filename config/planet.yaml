@@ -130,6 +130,17 @@ star:
 # this flux is habitable BECAUSE the world is vegetated. Move the flux by
 # luminosity once the calendar is locked, not by the orbit;
 # docs/src/pipeline/sequencing.md loop C says why.
+#
+# THE SHORTWAVE MOVED UNDER IT, and by more than the re-derivation was expecting
+# to move it. world-f9ig replaced the three tuned coefficients of the cloud
+# optics with Stephens et al. (1984)'s own tables, which reflect substantially
+# more in the near infrared at the optical depths this model's cloud layers
+# reach. `exoplasim/analysis/stephens_tables_vs_fits.json` brackets that at a
+# flux ratio of +0.026 to +0.102 to offset, over a black surface and with all
+# the model's cover on one layer, so it is a magnitude bound rather than an
+# estimate and the upper end is not reachable. Whatever it turns out to be, this
+# number is not it, and `derive_design_flux.py` cannot be re-run until a
+# commissioning pair exists on the current model source.
 orbit:
   earth_solar_constant_w_m2: 1361.0
   baseline_flux_earth: 0.945
