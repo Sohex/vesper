@@ -63,14 +63,18 @@ endmember for `playa_clastic` and is staged as one. Playa mud is the class where
 that matters most on this world: it is the largest single surface class on the
 simulated land and it is by definition ground that floods and dries.
 
-The wet endmember is not measured in either population. It has to come from a
-wetting RATIO applied to the dry answer, and the one held ratio -- Penndorf
-(1956) Table 1, clay soil 7.5/15 -- is a luminous-reflectance quantity that
-brackets band 1 and leaves band 2 open. The sign is not safe to assume on the
-neighbouring class either: the twenty-year MODIS record over the largest halite
-pan in `references/INDEX.md` reads BRIGHTER in wet years than in dry ones.
-`exoplasim/notes/soil-albedo-moisture.md` carries the argument, the magnitude,
-and the four preconditions that would arm a moisture-dependent soil albedo.
+The wet endmember is not measured in either population and is not taken from a
+broadband ratio. `analysis/soil_albedo_wetting.py` derives it from the same
+ECOSTRESS spectra this script selects, by applying the closed-form wet-from-dry
+relations of Lekner and Dorf (1988) and of Twomey, Bohren and Mergenthaler
+(1986) per WAVELENGTH and re-integrating under this star, so `playa_clastic`
+gets a saturated band pair rather than one number. The NEIGHBOURING class is
+where that stops: on `evaporite` the sign is disputed -- the twenty-year MODIS
+record over the largest halite pan in `references/INDEX.md` reads BRIGHTER in
+wet years than in dry ones, against two in-situ pyranometer pairs that read much
+darker -- so that class is refused and staged wet equal to dry. Playa mud is a
+soil and is not refused. `exoplasim/notes/soil-albedo-moisture.md` carries the
+argument and the magnitude.
 """
 
 from __future__ import annotations
