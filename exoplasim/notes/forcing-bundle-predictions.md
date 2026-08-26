@@ -1767,6 +1767,15 @@ optics reflect and the pre-jgen ones do not**, one-signed, and inside the
 artifact's -6.54 to -25.35 W/m2 bracket. The measured drift of -12.3 K is inside
 its -5.32 to -20.63 K. The bracket was right and nothing read it.
 
+**The modelled sea ice separates the forcing from its amplifier.** Over the same
+first six orbits the control's sea-ice fraction runs 0.0097, 0.0154, 0.0216,
+0.0283, 0.0349, 0.0414 and reaches 0.074 by orbit 18, thirteen times the donor's
+0.0058. Arm P's runs 0.0078, 0.0088, 0.0102, 0.0101, 0.0102, 0.0110 and stays
+there. So the drift is not the shortwave forcing alone: the forcing cools the
+modelled ocean, the ice-albedo feedback takes it the rest of the way, and
+reverting the cloud optics stops both. That is why the section above reported
+sea ice carrying most of the amplitude without being able to say what started it.
+
 **This forcing PERSISTS, where `gamma`'s decayed.** Over the arm's first six
 orbits the top-of-atmosphere shortwave difference runs 18.43, 17.41, 16.11,
 16.50, 17.20, 16.82 W/m2 while the surface separation grows 1.56, 3.19, 4.47,
