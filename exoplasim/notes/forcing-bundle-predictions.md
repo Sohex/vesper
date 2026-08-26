@@ -2128,3 +2128,226 @@ cent lands on a different number and buys a different number of kelvin. A slope
 measured on one carrier is not a prediction for the same key on another, and
 PHYS-11's 10.3 K per unit scale should be quoted against the fits it was taken
 on rather than against the tables.
+
+## PHYS-15, the first of two commits: the modelled soil albedo responds to the surface layer
+
+Written 2026-08-26, BEFORE the arming edits and before any arm. It prices ONE
+commit: the one that declares `surface.soil_albedo_moisture`, cuts
+`surface.land_water_column` to three layers at 0.02, 0.48 and 1.0 m, routes
+`NWETSOIL`, `SKINSRAD`, `SKINSRFC` and the three `WETSIGMA` keys into
+`landmod_nl`, and stages codes 1742, 1750 and 1760 beside 174, 175 and 176. The
+`dwmax` capacity half is a separate commit with its own entry below, sized from
+its own artifact, because a joint entry is exactly the failure A3 records.
+
+**THE ARTIFACT ITS MAGNITUDE COMES FROM.** `analysis/soil_albedo_wetting.json`
+derives the saturated endmember per rock class and per band from Lekner and Dorf
+(1988) and Twomey, Bohren and Mergenthaler (1986) applied per wavelength, and it
+prices this term and nothing else. `build_surface_albedo.py` integrates it to the
+land-mean pair it writes into `albedo_report.json:wetting`, quoted in
+`exoplasim/notes/soil-albedo-moisture.md` and measured 2026-08-26 at T21: land
+mean 0.261450 dry against 0.105609 saturated. The saturation mapping the model
+reads is `pedology/analysis/land_column_properties_report.json`'s
+`surface_layer.saturation_endpoints`, 0.0 at an empty layer and 0.7877 at a full
+one. Neither is a number this entry chose.
+
+**THE FLUX-TO-KELVIN ROUTE, stated because a surface albedo is not a planetary
+one.** `lib/sensitivity.py` deliberately refuses that conversion, so it goes
+through the budget that owns the assumption:
+`scripts/error_budget.py:albedo_to_kelvin`, land fraction 0.432841 by surface
+class from the build manifest, and `DEFAULT_ATTENUATION = 0.5` with the factor of
+two that file declares for itself. The planetary albedo is 0.3173, taken from
+`run_c9c24d438a94`'s own annual means over orbits 15 to 24 through
+`sensitivity.planetary_albedo_from_fluxes`, because `config/planet.yaml`'s
+`baseline_climatology` is null and this build has no climatology to read.
+
+**THE SIGN IS HARD AND IT IS ONE-SIGNED.** Every non-refused region's saturated
+field is darker than its dry field, `build_surface_albedo.py` refuses to write a
+field where that fails, and `wet_soil_albedo` is monotone in the saturation. So
+the armed arm's land-mean surface albedo can only FALL and its absorbed shortwave
+over land can only RISE. A resolved cooling is an implementation fault, not a
+small result.
+
+**THE CEILING, WHICH IS NOT THE PREDICTION.** A permanently full surface layer
+maps to 0.7877 and not to 1, so the staged saturated endmember is an endpoint the
+mixing approaches and never reaches. Mixed on the land-mean pair that is a
+land-mean albedo fall of 0.140804 against the 0.155841 endmember swing, worth
++9.0 K at attenuation 0.5 and +4.5 to +18.0 across the declared factor of two.
+That is a state the model cannot hold and it is registered as a bound, not an
+estimate. It is also far outside the regime `SLOPE_K_PER_FLUX_RATIO` was measured
+in, which is itself the finding: this term cannot be settled by prediction.
+
+**WHAT IS PRICED EXACTLY: the term per unit wetness.** `f` is the surface
+layer's liquid store as a fraction of its own capacity, land-area and time
+meaned; `Sr` is `skinsrad + f*(skinsrfc - skinsrad)`; the albedo is the
+Kubelka-Munk mixing at `wetsigma = 1` on the land-mean pair.
+
+| f | Sr | land-mean albedo | fall | K at 0.25 | K at 0.5 | K at 1.0 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0.02 | 0.0158 | 0.255267 | 0.006183 | +0.20 | +0.40 | +0.79 |
+| 0.05 | 0.0394 | 0.246556 | 0.014894 | +0.48 | +0.95 | +1.91 |
+| 0.10 | 0.0788 | 0.233360 | 0.028090 | +0.90 | +1.80 | +3.60 |
+| 0.15 | 0.1182 | 0.221574 | 0.039876 | +1.28 | +2.55 | +5.11 |
+| 0.25 | 0.1969 | 0.201383 | 0.060067 | +1.92 | +3.85 | +7.69 |
+| 0.50 | 0.3938 | 0.164381 | 0.097069 | +3.11 | +6.22 | +12.43 |
+| 1.00 | 0.7877 | 0.120646 | 0.140804 | +4.51 | +9.02 | +18.03 |
+
+The curve is strongly CONCAVE, which is the half of Sadeghi, Jones and Philpot
+that matters here: a skin at a tenth of its capacity has already given up a fifth
+of the swing, where a linear mix in the albedo would give a tenth. Evaluating the
+mixing at the mean rather than meaning it over the distribution OVERSTATES the
+fall, because the fall is concave in the saturation, so every row is an upper
+bound at its own `f`.
+
+**THE ONE QUANTITY NO HELD ARTIFACT PRICES, and it is `f`.** Three reasons, and
+each is a property of the tree rather than an opinion.
+
+- `config/planet.yaml`'s `baseline_climatology` is null. This build has no
+  climatology at all.
+- Every run in `exoplasim/runs/INDEX.json` integrated the two-layer column at
+  0.5 and 1.0 m with `dwmax` from `awc_mm`. Its `mrso` is the whole column and
+  its finest reservoir is 0.5 m, twenty-five times the albedo depth, so no held
+  run carries the store this term reads.
+- The finest cadence any held run writes is the snapshot stream, 32 records per
+  orbit. An orbit is 182.8 Earth days, so those are 4.6 Vesper days apart against
+  a skin that empties under evaporation in about one. No held stream resolves the
+  store's duty cycle even in principle.
+
+So `f` is not bracketed here, and a plausible-looking central value would be a
+guess wearing an artifact's name. `pedology/README.md` records the two-layer
+column sitting at a median 15 per cent of capacity, and that is NOT adopted as
+`f`: it prices a different reservoir, and the two corrections to it run opposite
+ways, the skin filling before anything below it and emptying two orders of
+magnitude faster.
+
+**REGISTERED, AND IT IS A THRESHOLD RATHER THAN A VALUE.**
+
+- **Top-of-atmosphere forcing: POSITIVE, and its entry in the bundle sum is
+  `+9.0 K times f_eff` with `f_eff` unmeasured.** The bundle sum cannot be closed
+  on this term until the arm measures it, and that is stated rather than papered
+  over with a mid-range number.
+- **The term is MATERIAL at the 1.0 K threshold, the one `vdiff_lamm` and
+  `world-5oyp` were registered against, as soon as `f` exceeds 0.0526** --
+  equivalently as soon as the armed arm's land-mean `alb` over snow-free land
+  falls by more than 0.0156. The zero hypothesis under test is that the pair does
+  not separate, and the prediction is that it FAILS. A separation below 1 K would
+  be the surprising outcome and would mean the modelled skin is essentially never
+  wet, which is a statement about the cascade rather than about the albedo.
+- **The realised fall is measured directly and needs no saturation diagnostic.**
+  Both arms write `alb`; its land mean over the same orbits IS the fall, and the
+  row of the table it lands on converts it. That measurement is what turns this
+  entry from a threshold into a number.
+- **It acts only where the modelled surface is snow-free, ice-free land.** Snow
+  and glacier albedo override the background pair after `getalb` has mixed it, so
+  the realised area is below the land fraction, one-signed and downward.
+
+**THE RESOLUTION BAR, FIXED IN ADVANCE.** A paired 25-orbit set from one restart,
+one binary, differing only in `NWETSOIL`; difference over orbits 15 to 24,
+standard error from `lib/autocorrelation.py` over the paired difference, resolved
+only where `|diff| > 2*sqrt(2)*max(SEM)`. The same bar `vdiff_lamm` and
+`world-5oyp` were reported under.
+
+**What would mean wrong:**
+
+- A resolved COOLING, or a land-mean `alb` that RISES. The staged pair cannot
+  brighten any region and the mixing is monotone, so either is an implementation
+  fault. The first thing to check is that the arm read codes 1742, 1750 and 1760
+  rather than the sentinel, which `landini` prints.
+- A land-mean `alb` fall above 0.140804. That is the permanently-saturated
+  ceiling and the surface layer caps at field capacity, so exceeding it means the
+  fill fraction is not being clipped to one or `dsoilwfc` is not the capacity the
+  cascade fills.
+- `evaporite` cells moving at all. The class is staged wet-equal-to-dry, so its
+  albedo must be bitwise identical between the arms at every saturation. A move
+  there means the refusal was not written into the field.
+- The measured fall not tracking the table at the arm's own measured `f`. The
+  mixing is checked bitwise against Sadeghi Eq (13) over 400 random quadruples in
+  `analysis/soil_albedo_wetting.json:model_mixing`, so a disagreement is in the
+  saturation the model hands it, not in the curve.
+- A separation resolved above the ceiling row, +9.0 K at attenuation 0.5. The
+  attenuation is declared to a factor of two and the ceiling is a bound on the
+  albedo, so anything above +18.0 K is not this term.
+
+## PHYS-15, the second of two commits: `dwmax` from `evaporable_mm`
+
+Written 2026-08-26, before the edit. It prices ONE commit: the one that makes
+`build_surface_soil_water.py` install the column capacity from the states file's
+`evaporable_mm` column instead of `awc_mm`, and cut the surface layer's share of
+the capacity split from AIR DRY instead of from the wilting point. It is a
+HYDROLOGICAL change and shares no artifact with the albedo entry above.
+
+**THE ARTIFACT ITS MAGNITUDE COMES FROM.**
+`pedology/analysis/land_column_properties_report.json`'s `surface_layer` block,
+which prices this and nothing else: the surface layer's capacity, the sub-wilting
+increment it adds, and `increment_over_awc` per cell. Measured on this build,
+the increment over `awc_mm` runs 0.0137 at p10 to 0.0747 at p90, median 0.0225,
+mean 0.0340. The identity `evaporable_mm - awc_mm` equals the surface layer's
+increment cell by cell to 2.8e-14 mm, so the column gains exactly the water the
+surface layer can reach and nothing else.
+
+**TOP-OF-ATMOSPHERE FORCING: ZERO, EXACTLY, AND THAT IS THE ENTRY IN THE SUM.**
+`dwmax` is a capacity, not a radiative quantity; at fixed state nothing about
+this change alters a flux crossing the top of the atmosphere. Every kelvin it can
+be worth arrives through the hydrological response below. This is the same object
+as `world-5oyp`'s zero and a different object from being absent from the list.
+
+**THE LAYER CUT ITSELF ENTERS AT ZERO, AND IT IS DRIVEN RATHER THAN ASSERTED.**
+Splitting the top layer while holding the column's total capacity fixed cannot
+move the cascade: what enters is the surface flux and what leaves is base
+overflow, and neither depends on where the internal boundaries sit.
+`land_column_properties.py:check_split_invariance` drives a two-layer and a
+three-layer column through one flux sequence and gets agreement to 1.1e-13 mm on
+both the total and the runoff over 4096 steps, against a 1e-9 mm tolerance fixed
+before the first run. The soil heat solver is untouched by the cut for a separate
+reason: `soilwtherm` gives each temperature layer the saturation of whichever
+water layer contains its MIDPOINT, the first temperature layer spans 0 to 0.4 m,
+and 0.2 m falls in the 0.02-to-0.5 m layer, so no temperature layer ever reads
+the surface layer or its air-dry mapping.
+
+**THE DIRECT TERM, AND IT IS A CAPACITY.** The column's capacity rises by 1.37 to
+7.47 per cent per cell, median 2.25, on every land cell that carries a soil. It
+cannot fall. Two consequences follow, both one-signed:
+
+- **Land runoff falls.** ExoPlaSim's runoff is the overflow of this bucket, so a
+  deeper bucket overflows less. `pedology/README.md` records the one measured
+  point on that response: an offline bucket validated against the model's own
+  soil water, 0.500 m giving 149.96 mm/Earth-yr and 0.133 m giving 158.46, a
+  chord slope of -0.0416 in log capacity. Applied to the capacity bracket above,
+  **land runoff falls by 0.06 to 0.30 per cent, central 0.09.** The chord spans a
+  factor of 3.75 and the local slope at the operating point is not measured, so
+  treat the magnitude as bounded by "well under one per cent" rather than as
+  three digits; the sign is not in question.
+- **Land evaporation falls slightly.** The wetness factor the limiter builds is a
+  function of the store over `dwmax`, so a deeper bucket reaches any given
+  wetness on more water. Same fractional scale as the capacity, same sign on
+  every cell, and no artifact in this tree prices its own response, so no
+  magnitude is registered for it.
+
+**WHAT THIS MUST NOT DO, and it is checkable without a run.** `awc_mm` is what
+LPJ-GUESS installs and it does not move: the two are separate columns of the same
+states file and this commit changes which one ExoPlaSim reads, not what either
+one is. `biosphere/scripts/build_lpj_driver.py` must produce a byte-identical
+driver across this commit. If it does not, the two consumers have been conflated
+and the biosphere's water has moved.
+
+**THE ZERO HYPOTHESIS AND THE MATERIALITY THRESHOLD.** The predicted global-mean
+separation is ZERO, and the term is MATERIAL if a settled pair separates by more
+than 1.0 K, the threshold fixed here before the arm for the reason `vdiff_lamm`
+and `world-5oyp` fixed theirs. A 0.1 per cent change in land runoff is orders
+below the carve criterion's own resolution, and the offline bucket experiment
+already settled that this world's land runoff ratio is a property of the climate
+and not of the bucket.
+
+**What would mean wrong:**
+
+- Land runoff RISES. A deeper bucket cannot overflow more.
+- The land-mean `dwmax` does not rise by the report's own increment. The field is
+  a read of `evaporable_mm` and nothing here derives a capacity, so a mismatch is
+  a column read by the wrong name.
+- The capacity split's three shares do not sum to one, or the three per-cell
+  capacities do not sum to `evaporable_mm`. The split and the capacity are one
+  arithmetic and the builder checks it cell by cell.
+- The LPJ-GUESS driver moves. That is the conflation this commit exists to avoid
+  and it is a failure whatever the climate does.
+- A resolved global-mean separation above 1.0 K. The zero-forcing argument is
+  then not what the model is doing and the term must be bisected rather than
+  folded into the bundle.
