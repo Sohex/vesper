@@ -490,6 +490,106 @@ def frame_consistency(soil: dict[str, np.ndarray], decl: dict,
 # 1. The declaration
 # ---------------------------------------------------------------------------
 
+def check_thermal_against_states(decl: dict, soil: dict[str, np.ndarray],
+                                 gravity_m_s2: float) -> tuple[dict, list[str]]:
+    """The declared thermal reduction, recomputed from this build's own states.
+
+    `thermal.saturation_mapping` and `thermal.endpoints` are SCALARS standing in
+    for per-cell quantities this contract already emits, and a scalar standing in
+    for a distribution is honest only while it is the statistic it says it is.
+    So both are recomputed here and the contract is refused when either has
+    drifted: the mapping's two endpoints against the medians of theta_wp/theta_s
+    and theta_fc/theta_s, and the conductivity and heat capacity endpoints
+    against Johansen's relations at the declared column.
+
+    THE RELATIONS COME FROM `analysis/soil_thermal_inertia.py` and are not
+    restated here. That module is where Farouki's coefficients and his two
+    texture branches live, and a second copy would be free to agree with
+    neither.
+    """
+    sys.path.insert(0, str(PROJECT_ROOT / "analysis"))
+    import soil_thermal_inertia as sti
+
+    _, theta_s, theta_fc, theta_wp = cosby_states_from_contract(
+        soil, decl, gravity_m_s2)
+    sr_wp = theta_wp / theta_s
+    sr_fc = theta_fc / theta_s
+
+    mapping = decl["thermal"]["saturation_mapping"]
+    ends = decl["thermal"]["endpoints"]
+    rho_b = float(ends["evaluated_at"]["bulk_density_kg_m3"])
+    quartz = float(ends["evaluated_at"]["quartz_fraction"])
+
+    measured = {
+        "sr_at_wilting_point": float(np.median(sr_wp)),
+        "sr_at_field_capacity": float(np.median(sr_fc)),
+        "sr_at_wilting_point_p5_p95": [float(np.percentile(sr_wp, 5)),
+                                       float(np.percentile(sr_wp, 95))],
+        "sr_at_field_capacity_p5_p95": [float(np.percentile(sr_fc, 5)),
+                                        float(np.percentile(sr_fc, 95))],
+        "median_bulk_density_kg_m3": float(np.median(soil["bulkdensity"])),
+        "dry_conductivity_w_m_k": float(sti.conductivity(0.0, quartz, rho_b)),
+        "saturated_conductivity_w_m_k": float(sti.conductivity(1.0, quartz, rho_b)),
+        "dry_heat_capacity_j_m3_k": float(sti.heat_capacity(0.0, rho_b)),
+        "saturated_heat_capacity_j_m3_k": float(sti.heat_capacity(1.0, rho_b)),
+    }
+
+    # What the store can actually reach, which is the point of the whole block:
+    # an empty store is the wilting point, not a dry soil.
+    reach = {}
+    for label, sr in (("empty_store", measured["sr_at_wilting_point"]),
+                      ("full_store", measured["sr_at_field_capacity"]),
+                      ("air_dry", sti.SATURATION_RANGE[0]),
+                      ("saturated", 1.0)):
+        reach[label] = round(float(sti.inertia(sr, quartz, rho_b)), 1)
+    reach["store_range_factor"] = round(reach["full_store"] / reach["empty_store"], 3)
+    reach["full_sweep_factor"] = round(reach["saturated"] / reach["air_dry"], 3)
+    measured["thermal_inertia_j_m2_k_s05"] = reach
+
+    bad: list[str] = []
+    tol_map = float(mapping["tolerance"])
+    for key in ("sr_at_wilting_point", "sr_at_field_capacity"):
+        if abs(float(mapping[key]) - measured[key]) > tol_map:
+            bad.append(
+                f"thermal.saturation_mapping.{key} declares {mapping[key]} and "
+                f"this build's states give {measured[key]:.4f}. It is declared "
+                f"as the median of a distribution this contract emits, so a "
+                f"drift past {tol_map} means it is no longer that statistic")
+    tol_end = float(ends["tolerance"])
+    for path, declared_value, name in (
+            (("dry", "thermal_conductivity_w_m_k"),
+             ends["dry"]["thermal_conductivity_w_m_k"], "dry_conductivity_w_m_k"),
+            (("saturated", "thermal_conductivity_w_m_k"),
+             ends["saturated"]["thermal_conductivity_w_m_k"],
+             "saturated_conductivity_w_m_k"),
+            (("dry", "volumetric_heat_capacity_j_m3_k"),
+             ends["dry"]["volumetric_heat_capacity_j_m3_k"],
+             "dry_heat_capacity_j_m3_k"),
+            (("saturated", "volumetric_heat_capacity_j_m3_k"),
+             ends["saturated"]["volumetric_heat_capacity_j_m3_k"],
+             "saturated_heat_capacity_j_m3_k")):
+        got = measured[name]
+        if abs(float(declared_value) - got) > tol_end * abs(got):
+            bad.append(
+                f"thermal.endpoints.{'.'.join(path)} declares {declared_value} "
+                f"and Johansen's relations at the declared column give {got:.6g}. "
+                f"The endpoint is derived, not chosen, so the two must agree")
+    if abs(measured["median_bulk_density_kg_m3"] - rho_b) > 1.0:
+        bad.append(
+            f"thermal.endpoints.evaluated_at.bulk_density_kg_m3 is {rho_b} and "
+            f"the soil map's median is "
+            f"{measured['median_bulk_density_kg_m3']:.1f}. The endpoints are "
+            "evaluated at the build's own median column and that is the "
+            "statistic they are declared as")
+    return measured, bad
+
+
+def cosby_states_from_contract(soil: dict[str, np.ndarray], decl: dict,
+                               gravity_m_s2: float):
+    """The adopted per-cell states, in the one place they are derived."""
+    return contract_states(soil["sand"], soil["clay"], decl, gravity_m_s2)
+
+
 def check_declaration(decl: dict) -> list[str]:
     """Internal inconsistencies in the contract. Empty means it hangs together."""
     bad: list[str] = []
@@ -1253,6 +1353,9 @@ def build_report(decl: dict, soil_map: Path, gravity_m_s2: float,
     mutations, defects = run_declaration_mutations()
     frames = frame_consistency(soil, decl, gravity_m_s2)
     defects = defects + frames["defects"]
+    thermal_measured, thermal_bad = check_thermal_against_states(
+        decl, soil, gravity_m_s2)
+    failures = failures + thermal_bad
     emitted = (emit_states(decl, soil, gravity_m_s2, states_path)
                if states_path is not None else None)
     return {
@@ -1277,6 +1380,7 @@ def build_report(decl: dict, soil_map: Path, gravity_m_s2: float,
         "adopted_case": adopted_case(decl, soil, gravity_m_s2),
         "uncertainty_cases": uncertainty_cases(decl, soil, gravity_m_s2),
         "undeclared_properties": undeclared_properties(decl),
+        "thermal_reduction": thermal_measured,
     }
 
 
@@ -1413,6 +1517,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"    ordering violations   "
               f"{unc['ordering_violations_over_all_cases']} over "
               f"{unc['corners']} cases and every cell")
+
+        th = report["thermal_reduction"]
+        ti = th["thermal_inertia_j_m2_k_s05"]
+        print(f"\n  the declared thermal reduction, on this build's own column")
+        print(f"    saturation the store spans "
+              f"{th['sr_at_wilting_point']:.4f} empty to "
+              f"{th['sr_at_field_capacity']:.4f} full")
+        print(f"    thermal inertia            {ti['empty_store']:7.1f} empty to "
+              f"{ti['full_store']:7.1f} full, a factor "
+              f"{ti['store_range_factor']:.3f}")
+        print(f"    the full saturation sweep  {ti['air_dry']:7.1f} air dry to "
+              f"{ti['saturated']:7.1f} saturated, a factor "
+              f"{ti['full_sweep_factor']:.3f}")
+        print(f"    an empty store is the WILTING POINT, not a dry soil, so the "
+              f"store cannot reach the dry end")
 
         print(f"\n  {len(report['undeclared_properties'])} properties undeclared; "
               "the contract is defined and is not complete")
