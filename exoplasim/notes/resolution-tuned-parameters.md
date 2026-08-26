@@ -1611,3 +1611,47 @@ nobody looks at turns a known 0.9 W/m2 into an unknown one that can grow. That i
 the whole reason the applied increment is reported rather than absorbed, and the
 reason `check_consistency.py` refuses a run whose manifest claims the fixer while
 its namelist says otherwise.
+
+### The sink at T21, and why the diagnosis belongs at T42
+
+Every number above for `world-0ov` was measured at T42. Measured at T21 on
+2026-08-26, `most_plasim_t21_l10_p8.x`, dry adiabatic, 30 min timestep, one
+orbit from `run_14906cb7b914`'s `MOST_REST.00034`, first three prints dropped,
+host load 5.0 to 7.4 over 32 cores:
+
+| arm | `denergy26 - denergy27` | `Cimp - Ct` |
+| --- | ---: | ---: |
+| fixer off, `run_d3606ce0d265` | -0.0206 | -0.000172 |
+| fixer off again, `run_c24776f33d25` | -0.0206 | -0.0000256 |
+| fixer on, `run_614579b8b44a` | +0.0034 | -0.000197 |
+
+**The displacement is below what this rung can resolve.** The two fixer-off arms
+are the same configuration on the same restart and their displacements differ by
+1.5e-4, which is the size of the displacement itself. `Cimp - Ct` is a difference
+of two numbers near -0.079, so it is catastrophic cancellation at the level where
+OpenMP reduction order decides the answer, and a T21 dry arm is not an instrument
+for it. At T42 the same quantity is -0.96 against a run-to-run reproducibility
+that `run_252234b974e0` showed to be bit for bit, which is why the diagnosis was
+done there and has to stay there.
+
+**The sink itself is smaller at T21 by more than an order of magnitude**, -0.021
+against -0.79, and at matched early model time -0.137 against -1.675. That is the
+direction `world-bxr` predicts: the sink is the conversion applied to divergence
+the hyperdiffusion removes before it becomes the state, and T21 has far less
+spectrum for that divergence to live in. The two rungs run different timesteps
+and different damping timescales, so the ratio is an order and not a coefficient.
+
+**The fixer's own identity holds.** The fixer-on arm reports +0.0034 where the
+fixer-off arm reports -0.0206, which is the residual near zero this section
+predicts, and it is a check that could have failed. The applied correction on a
+T21 full-physics arm at the configured settings, `run_352f6a4180e5`, wanders
+across -0.33 to +0.12 W/m2 over one orbit with repeated sign changes; that is the
+day-to-day variation in the model's own imbalance already measured above and not
+a new defect, and at this rung it is an order larger than the 0.021 W/m2 the dry
+arm says the fixer is there to correct.
+
+All four runs above are `_crashed` directories. `nenergy > 0` segfaults in
+`epilog` after the last timestep, so the restart is lost and `plasim_diag` is
+not; `exoplasim/notes/energy-diagnostic-restart-defect.md` has the defect and
+`exoplasim/analysis/arms/read_conversion_decomposition.py` reads these numbers
+out of it.
