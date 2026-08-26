@@ -65,6 +65,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -77,6 +78,8 @@ from lib.paths import PROJECT_ROOT, rel  # noqa: E402
 ROOT = PROJECT_ROOT
 PLANET = ROOT / "config" / "planet.yaml"
 ICEMOD = ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "src" / "icemod.f90"
+LANDMOD = ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "src" / "landmod.f90"
+LPJ_SOIL_H = ROOT / "vendor" / "lpj-guess" / "modules" / "soil.h"
 OUTPUT = ROOT / "analysis" / "ice_properties.json"
 
 # ---------------------------------------------------------------------------
@@ -130,6 +133,89 @@ CHECK_TABLE = [
      "g_TT": -0.866333195517e1, "h": -0.483491635676e6, "s": -0.261195122589e4,
      "cp": 0.866333195517e3, "rho": 0.941678203297e3},
 ]
+
+# ---------------------------------------------------------------------------
+# Yen (1981), CRREL Report 81-10, the thermal conductivity of PURE ice as a
+# function of temperature. IAPWS-06 is a Gibbs function and gives density,
+# specific heat and compressibility; it says NOTHING about conductivity, which
+# is a transport property. So the bound the modelled sea ice's declared
+# conductivity sits against is Yen's and not the standard's.
+#
+# Yen regressed the polycrystalline-ice measurements of Jakob and Erk (1929),
+# Powell (1958), Ratcliffe (1962), Dean and Timmerhaus (1963), Wolfe and Thieme
+# (1964), Dillard and Timmerhaus (1966) and Ashworth (1972) on the form
+# `lambda = a exp(b T)`, T in kelvin, and reports three arms in his Table 3
+# because the data have a gap between 150 and 195 K. Eq. (33) is the whole-range
+# arm, which he recommends for practical use because it has the highest
+# correlation coefficient; the `> 195 K` arm is the one fitted where the
+# modelled ice actually lives, and the two are carried as a bracket rather than
+# collapsed, because their disagreement at the melting point is the honest width
+# of "pure ice's conductivity".
+# ---------------------------------------------------------------------------
+YEN_1981_ICE_CONDUCTIVITY = {
+    "eq_33_all_temperatures": (9.828, -0.0057, 0.9313),
+    "table_3_above_195_k": (6.727, -0.0041, 0.5962),
+}
+"""Yen's `a`, `b` and his correlation coefficient, for `lambda = a exp(b T)`."""
+
+YEN_1981_SEA_ICE_LAMBDA_I = 2.09
+"""The pure-ice conductivity Yen's OWN sea-ice model uses over 0 to -20 C.
+
+Carried because it is what his Figure 23's sea-ice curves were computed with,
+so the band those curves span is only comparable against this number. W/m/K.
+"""
+
+# ---------------------------------------------------------------------------
+# The snow conductivity bracket. Snow's conductivity is not a property of ice
+# but of a porous arrangement of it, and the two arms below differ in WHICH
+# PROCESSES they count, not in how well they were measured.
+#
+# Fourteau et al. (2021) Eq. (18) computes the effective conductivity on
+# tomographic microstructures WITH the latent heat carried by water vapour
+# diffusing through the pore space, under the FAST kinetics limit in which the
+# vapour is at saturation at every ice surface. It is a quadratic in the ice
+# volume fraction at each of five temperatures, and `landmod` derives `snowdiff`
+# from the 263 K row of it.
+#
+# Calonne et al. (2011) Eq. (12) computes the same quantity on the same kind of
+# data with conduction through ice and interstitial air ONLY. Fourteau's Sect.
+# 2.1 identifies that as the SLOW kinetics limit -- the case where deposition is
+# too slow for latent heat to reach either the temperature field or the
+# conduction -- and treats it as the lower bound of the same bracket. Calonne's
+# is a quadratic in the DENSITY rather than the volume fraction, and its fit was
+# made on his entire sample set at 271 K, which Fourteau states.
+#
+# Neither paper claims to know which limit snow is in. Fourteau's Sect. 4.1 says
+# so in as many words, which is why this is reported as a bracket.
+# ---------------------------------------------------------------------------
+CALONNE_2011_SNOW = (2.5e-6, -1.23e-4, 0.024)
+"""Eq. (12), `k = a rho**2 + b rho + c`, rho in kg/m3 and k in W/m/K.
+
+Fitted so that k goes to the conductivity of air at zero snow density. The
+correlation coefficient over his 30 samples is 0.985 and the standard deviation
+of the residuals is 0.025 W/m/K, which is the scatter to compare any claimed
+effect against before believing it.
+"""
+CALONNE_2011_RESIDUAL_SD = 0.025
+CALONNE_2011_FIT_TEMPERATURE_K = 271.0
+
+FOURTEAU_2021_SNOW = {
+    223.0: (2.564, -0.059, 0.0205),
+    248.0: (2.172, 0.015, 0.0252),
+    263.0: (1.985, 0.073, 0.0336),
+    268.0: (1.883, 0.107, 0.0386),
+    273.0: (1.776, 0.147, 0.0455),
+}
+"""Eq. (18), `k = a vf**2 + b vf + c` in the ice volume fraction, per temperature."""
+
+RHOICE_F2021 = 917.0
+"""The normalising ice density Fourteau's volume fraction is taken against.
+
+The same constant `landmod.f90` declares as `RHOICE_F2021`, and it belongs to
+the RELATION rather than to this world's ice: changing it would not describe
+denser ice, it would misread the fit.
+"""
+
 
 H_LIQUID_AT_TRIPLE_POINT = 0.611783e-3 * 1.0e3
 """IAPWS-95's specific enthalpy of liquid water at the triple point, J/kg.
@@ -221,6 +307,84 @@ def verify_against_release() -> tuple[float, list[str]]:
     return worst, failures
 
 
+def declared(path: Path, name: str) -> float:
+    """One Fortran declaration's default, read from the source that compiles it.
+
+    The comparisons below are only comparisons if the declared side is the
+    number the model actually carries, so it is PARSED rather than restated.
+    """
+    pattern = re.compile(rf"^\s*real\s*::\s*{name}\s*=\s*([-\d.eE+]+)", re.M | re.I)
+    match = pattern.search(path.read_text())
+    if match is None:
+        raise SystemExit(f"{rel(path)} no longer declares `{name}`, so the "
+                         f"comparison this file makes against it is not a "
+                         f"comparison. Re-locate it before trusting anything here.")
+    return float(match.group(1).rstrip("."))
+
+
+def lpj_constant(name: str) -> float:
+    """One LPJ-GUESS constant, read the same way and for the same reason."""
+    pattern = re.compile(rf"^\s*const\s+double\s+{name}\s*=\s*([-\d.eE+]+)", re.M)
+    match = pattern.search(LPJ_SOIL_H.read_text())
+    if match is None:
+        raise SystemExit(f"{rel(LPJ_SOIL_H)} no longer declares `{name}`.")
+    return float(match.group(1))
+
+
+def sturm_1997_snow(density_kg_m3: float) -> float:
+    """Sturm et al. (1997)'s needle-probe regression, W/m/K, as LPJ-GUESS runs it.
+
+    Carried NOT as a candidate -- `notes/audits/cryosphere-material-properties.md`
+    argues against adopting it -- but because `vendor/lpj-guess`'s `soil.cpp`
+    computes its snow conductivity from exactly this, so the ecology column and
+    the climate column stand on two different relations for one material
+    property and the gap between them is a number rather than a suspicion.
+    """
+    x = density_kg_m3 / 1000.0
+    if density_kg_m3 > 156.0:
+        return float(0.138 - 1.01 * x + 3.233 * x * x)
+    return float(0.023 + 0.234 * x)
+
+
+def yen_1981_snow(density_kg_m3: float) -> float:
+    """Yen (1981) Eq. (34), `2.22362 (rho/rho_water)**1.885`, W/m/K.
+
+    An APPARENT conductivity: Yen states that a measured snow conductivity
+    "includes vapor diffusion", so his curve counts the latent heat term that
+    separates the two arms of the bracket rather than sitting on one side of it.
+    Calonne's Sect. 3.1 reports his own purely conductive data agreeing with it,
+    which is the coincidence that makes carrying it worthwhile.
+    """
+    return float(2.22362 * (density_kg_m3 / 1000.0) ** 1.885)
+
+
+def pure_ice_conductivity(temperature_k: float, arm: str) -> float:
+    """Yen (1981)'s pure ice conductivity, W/m/K, on one of his two warm arms."""
+    a, b, _ = YEN_1981_ICE_CONDUCTIVITY[arm]
+    return float(a * np.exp(b * temperature_k))
+
+
+def snow_conductivity_fast(density_kg_m3: float, temperature_k: float = 263.0) -> float:
+    """Fourteau (2021) Eq. (18): the fast-kinetics arm, W/m/K.
+
+    This is the relation `landmod`'s `landini` evaluates to set `snowdiff`, and
+    it is reproduced here rather than restated so that the two cannot drift.
+    """
+    a, b, c = FOURTEAU_2021_SNOW[temperature_k]
+    vf = density_kg_m3 / RHOICE_F2021
+    return float(a * vf * vf + b * vf + c)
+
+
+def snow_conductivity_slow(density_kg_m3: float) -> float:
+    """Calonne (2011) Eq. (12): the slow-kinetics arm, W/m/K.
+
+    Conduction through ice and interstitial air, with no latent heat term. One
+    temperature only: the fit is his whole sample set at 271 K.
+    """
+    a, b, c = CALONNE_2011_SNOW
+    return float(a * density_kg_m3 * density_kg_m3 + b * density_kg_m3 + c)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--output", type=Path, default=OUTPUT)
@@ -278,6 +442,97 @@ def main() -> None:
                    "through nothing else.",
     }
 
+    # The conductivity of pure ice, which IAPWS-06 does not give: a Gibbs
+    # function carries no transport property. Yen (1981) is the bound the
+    # modelled sea ice's declared conductivity sits against, and the two arms
+    # are carried as a bracket rather than averaged.
+    ckapi = declared(ICEMOD, "CKAPI")
+    conductivity_profile = []
+    for t in temperatures:
+        arms = {arm: pure_ice_conductivity(t, arm) for arm in YEN_1981_ICE_CONDUCTIVITY}
+        conductivity_profile.append({
+            "temperature_k": round(t, 4),
+            "eq_33_all_temperatures_w_m_k": round(arms["eq_33_all_temperatures"], 4),
+            "table_3_above_195_k_w_m_k": round(arms["table_3_above_195_k"], 4),
+            "declared_over_pure_ice": round(ckapi / max(arms.values()), 4),
+        })
+    ice_conductivity = {
+        "source": "Yen (1981), CRREL Report 81-10, Eq. (33) and Table 3",
+        "form": "lambda = a exp(b T), T in kelvin, lambda in W/m/K",
+        "arms": {k: {"a": v[0], "b": v[1], "correlation_coefficient": v[2]}
+                 for k, v in YEN_1981_ICE_CONDUCTIVITY.items()},
+        "profile": conductivity_profile,
+        "declared_w_m_k": ckapi,
+        "verdict": "the declared conductivity of the modelled sea ice sits "
+                   "BELOW pure ice's over the whole range, which is the side "
+                   "brine puts it on: Yen's Eq. (71) subtracts a brine term "
+                   "from bubbly pure ice, so sea ice is the less conductive of "
+                   "the two. Yen's own Figure 23 computes that band and the "
+                   "declared value sits at the top of it, against his "
+                   "zero-salinity curves -- which is the ice this model "
+                   "carries, since it has no salinity and no brine volume. So "
+                   "the declaration is the brine-free limit of the bound and "
+                   "not a value for salty ice.",
+    }
+
+    # The snow conductivity bracket. Two arms, differing in which processes they
+    # count rather than in how well they were measured, and neither paper claims
+    # to know which limit snow is in.
+    rhosnow = declared(LANDMOD, "rhosnow")
+    snowdiff = declared(LANDMOD, "snowdiff")
+    densities = sorted({lpj_constant("snowdens_start"), rhosnow,
+                        lpj_constant("snowdens_end")}
+                       | {400.0})
+    bracket = []
+    for rho in densities:
+        slow = snow_conductivity_slow(rho)
+        fast = snow_conductivity_fast(rho, 263.0)
+        fast_warm = snow_conductivity_fast(rho, 273.0)
+        bracket.append({
+            "density_kg_m3": rho,
+            "slow_kinetics_w_m_k": round(slow, 4),
+            "fast_kinetics_263k_w_m_k": round(fast, 4),
+            "fast_kinetics_273k_w_m_k": round(fast_warm, 4),
+            "fast_over_slow_263k": round(fast / slow, 4),
+            "width_over_slow_arm_residual_sd": round(
+                (fast - slow) / CALONNE_2011_RESIDUAL_SD, 3),
+            "yen_1981_apparent_w_m_k": round(yen_1981_snow(rho), 4),
+            "sturm_1997_as_lpj_guess_runs_it_w_m_k": round(sturm_1997_snow(rho), 4),
+        })
+    snow_bracket = {
+        "slow_arm": "Calonne et al. (2011) Eq. (12), conduction through ice and "
+                    "interstitial air only, his whole sample set at 271 K",
+        "fast_arm": "Fourteau et al. (2021) Eq. (18), the same computation WITH "
+                    "the latent heat carried by water vapour through the pore "
+                    "space, at 263 K and at 273 K",
+        "which_limit_applies": "unsettled in the literature. Fourteau's Sect. "
+                               "4.1 says so, citing Krol and Lowe (2016) for "
+                               "isothermal metamorphism looking like slow "
+                               "kinetics and temperature-gradient metamorphism "
+                               "looking like fast. That is why this is a "
+                               "bracket and not a correction.",
+        "adopted": "the FAST arm. `landmod`'s landini evaluates Eq. (18) at 263 "
+                   "K, so the adopted relation is the bracket's upper endpoint "
+                   "rather than a point inside it, and the slow arm below is "
+                   "how far under it the other limit sits.",
+        "declared_density_kg_m3": rhosnow,
+        "declared_conductivity_w_m_k": snowdiff,
+        "slow_arm_residual_sd_w_m_k": CALONNE_2011_RESIDUAL_SD,
+        "per_density": bracket,
+        "instrument_versus_effect": "the bracket is wider than the scatter of "
+                                    "the fit that defines its lower arm at "
+                                    "every density carried, so it is a real "
+                                    "disagreement and not the noise of one "
+                                    "regression.",
+        "cross_component": "vendor/lpj-guess/modules/soil.cpp computes its snow "
+                           "conductivity from Sturm et al. (1997), which is "
+                           "BELOW the slow arm at every density here. So the "
+                           "ecology column and the climate column insulate "
+                           "their soil differently from the same snowfall at "
+                           "the same density, and the difference is larger "
+                           "than the bracket between the two published limits.",
+    }
+
     report = {
         "generated": datetime.date.today().isoformat(),
         "generator": "analysis/ice_properties.py",
@@ -300,6 +555,8 @@ def main() -> None:
             "profile_at_normal_pressure": profile,
         },
         "gravity": overburden,
+        "pure_ice_conductivity": ice_conductivity,
+        "snow_conductivity_bracket": snow_bracket,
         "what_is_not_derivable_here": "the density, specific heat and "
                                       "conductivity of SEA ice are functions of "
                                       "brine volume, hence of the ice's own "
@@ -321,6 +578,24 @@ def main() -> None:
     for row in profile:
         print(f"{row['temperature_k']:8.2f}  {row['density_kg_m3']:12.4f}  "
               f"{row['specific_heat_j_kg_k']:12.4f}")
+    print(f"\npure ice conductivity, Yen (1981), W/m/K")
+    print(f"{'T (K)':>8}  {'Eq. (33)':>9}  {'>195 K':>9}")
+    for row in conductivity_profile:
+        print(f"{row['temperature_k']:8.2f}  "
+              f"{row['eq_33_all_temperatures_w_m_k']:9.4f}  "
+              f"{row['table_3_above_195_k_w_m_k']:9.4f}")
+    print(f"declared conductivity of the modelled sea ice: {ckapi:.4f}\n")
+
+    print("snow conductivity bracket, W/m/K")
+    print(f"{'rho':>6}  {'slow':>7}  {'fast263':>8}  {'ratio':>6}  "
+          f"{'Yen':>7}  {'Sturm':>7}")
+    for row in bracket:
+        print(f"{row['density_kg_m3']:6.0f}  {row['slow_kinetics_w_m_k']:7.4f}  "
+              f"{row['fast_kinetics_263k_w_m_k']:8.4f}  "
+              f"{row['fast_over_slow_263k']:6.3f}  "
+              f"{row['yen_1981_apparent_w_m_k']:7.4f}  "
+              f"{row['sturm_1997_as_lpj_guess_runs_it_w_m_k']:7.4f}")
+
     print(f"\ngravity: {overburden['relative_density_change']:.2e} relative "
           f"density change under {hmax:.0f} m of ice, against "
           f"{overburden['earth_relative_density_change']:.2e} at Earth's")

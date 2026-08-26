@@ -310,6 +310,17 @@
 !     it a per-cell function would be a change to the snow scheme rather than
 !     to this constant. notes/audits/cryosphere-material-properties.md.
 !
+!     THIS IS THE UPPER ENDPOINT OF A BRACKET, NOT A POINT INSIDE ONE. Fourteau
+!     computes both limits of the vapour deposition kinetics and says it is
+!     unresolved which one snow is in. The FAST limit is the row above; the SLOW
+!     limit is Calonne et al. (2011) Eq. (12), which counts conduction through
+!     ice and interstitial air only and lies below it at every density -- by
+!     about a third at the bottom of the density range this model's snow
+!     reaches and about an eighth at the top. So the open question about this
+!     constant is one-sided: the modelled snow may conduct LESS than this line
+!     says and cannot conduct more. analysis/ice_properties.py evaluates both
+!     arms; the note argues the bracket and names the run that would price it.
+!
 !     THE MODEL'S SEA ICE TAKES THIS SAME VALUE. icemod's CKAPSN was a second,
 !     compile-time statement of the conductivity of snow, at the same 0.31, and
 !     it now arrives through iceini so the snow on the modelled sea ice and the

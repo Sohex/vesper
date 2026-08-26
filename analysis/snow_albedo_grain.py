@@ -162,17 +162,40 @@ DANG_2015 = {
     "nir_direct": (0.6596, -0.1927, -0.0229),
 }
 DANG_ZENITH_GRAIN_SCALING = {"vis": 0.781, "nir": 0.791}
-"""`snow_albedo_dang`'s effective-radius correction for illumination angle,
-`r_eff = r * (1 + k*(mu0 - 0.65)**2)`. Needed because the library spectra were
-measured at a stated angle rather than hemispherically, so a comparison against
-the published direct form has to be made at the geometry the library measured
-in."""
+"""`a` in Dang's Eq. (5), the effective-radius correction for illumination angle.
 
-DANG_BAND_EDGES_UM = {"vis": (0.2, 0.7), "nir": (0.7, 5.0)}
-"""The band boundaries Dang's coefficients were fitted over. The model's are
-0.34 to the row boundary near 0.75 and that boundary to 100 um, so the two are
-NOT the same bands and the published triple is a reference point rather than an
-answer. `band_edge_mismatch` below prices each end of the difference."""
+THE FORM IS THE PAPER'S AND NOT CLIMBER-X'S, and the two are not the same
+function. Dang Eq. (5), after Marshall (1989) Eq. (2.4), is
+
+    r' = r * (1 + a*(mu0 - muD))**2,   muD = 0.65,
+
+with the square on the whole bracket. `snow_albedo_dang` in
+`references/climber-x/src/smb/smb_surface_par.f90` writes it as
+`r * (1 + a*(coszm - 0.65)**2)`, with the square on the angle difference alone.
+The two agree only at `mu0 = muD`; away from it CLIMBER-X's is flat to first
+order where the paper's is linear, and it raises the effective radius for a LOW
+sun as well as a high one, which reverses the sign of the effect on the low
+side. Where a comparison is made at a stated geometry, as it is below, the
+difference is not small: at the library's near-normal incidence the two differ
+by about a factor of one and a half in effective radius.
+
+The coefficients above were read from CLIMBER-X before the paper was held, and
+this correction is the first thing holding it changed."""
+
+DANG_ZENITH_REFERENCE_MU = 0.65
+"""`muD`, the standard zenith cosine Dang's clear-sky coefficients are stated at.
+
+Zenith angle 49.5 degrees, which Marshall and Warren (1987) give as the
+effective angle for diffuse radiation, and which Dang notes is close to the
+insolation-weighted 2/3 for the sunlit hemisphere of a planet."""
+
+DANG_BAND_EDGES_UM = {"vis": (0.3, 0.7), "nir": (0.7, 4.0)}
+"""The band boundaries Dang's coefficients were fitted over, from his Table 1.
+
+The model's are 0.34 to the row boundary near 0.75 and that boundary to 100 um,
+so the two are NOT the same bands and the published triple is a reference point
+rather than an answer. `band_edge_mismatch` below prices each end of the
+difference. These edges were 0.2-0.7 and 0.7-5.0 before the paper was held."""
 
 # The eight blends `radini` weights, with what it printed for each. Copied from
 # `analysis/ice_albedo.py`'s RECORDED block, which is checked against the model
@@ -245,11 +268,41 @@ def dang_direct(band: str, radius_um: float, mu0: float) -> float:
     comparison to be between two statements of one thing. `snow_albedo_dang`
     carries the angle in an effective radius rather than in the coefficients.
     """
-    k = DANG_ZENITH_GRAIN_SCALING[band]
-    r_eff = radius_um * (1.0 + k * (mu0 - 0.65) ** 2)
-    rn = np.log10(r_eff / R0_UM)
+    rn = np.log10(dang_effective_radius(band, radius_um, mu0) / R0_UM)
     a0, a1, a2 = DANG_2015[f"{band}_direct"]
     return float(a0 + a1 * rn + a2 * rn * rn)
+
+
+def dang_effective_radius(band: str, radius_um: float, mu0: float) -> float:
+    """Dang Eq. (5): the grain radius that mimics a change of illumination angle."""
+    a = DANG_ZENITH_GRAIN_SCALING[band]
+    return float(radius_um * (1.0 + a * (mu0 - DANG_ZENITH_REFERENCE_MU)) ** 2)
+
+
+def grain_shift_decomposition(band: str, shift: float) -> dict:
+    """What a rigid shift of the grain axis does to a quadratic in `log10(r/r0)`.
+
+    THIS IS WHY THE CONSTANT DOES NOT TRANSFER AND THE SLOPE DOES, and it is
+    algebra rather than an observation. Every difference between two statements
+    of pure snow's albedo that acts as a RESCALING of the effective radius --
+    the illumination geometry through Eq. (5), a radius read where a diameter
+    was meant, a different sphere-equivalence convention for a nonspherical
+    grain -- moves `rn = log10(r/r0)` by a constant `d`. Under
+    `alpha = m0 + m1 rn + m2 rn**2` that carries the constant to
+    `m0 + m1 d + m2 d**2`, the linear coefficient to `m1 + 2 m2 d`, and leaves
+    the quadratic alone. So the constant moves by roughly `m1 d` and the slope
+    by `2 m2 d`, and the two are in the ratio `m1 / (2 m2)`, which Dang's own
+    near-infrared coefficients put at about four. An axis offset lands on the
+    constant several times harder than on the slope, whatever caused it.
+    """
+    m0, m1, m2 = DANG_2015[f"{band}_direct"]
+    return {
+        "shift_in_log10_r": round(shift, 6),
+        "constant_moves_by": round(m1 * shift + m2 * shift * shift, 6),
+        "slope_moves_by": round(2.0 * m2 * shift, 6),
+        "quadratic_moves_by": 0.0,
+        "constant_over_slope_leverage": round(abs(m1 / (2.0 * m2)), 4),
+    }
 
 
 def fit_dang_form(radii_um, values) -> tuple[float, float, float]:
@@ -445,8 +498,38 @@ def main() -> None:
                 "band_definition_worth": round(on_dang - on_model, 6),
                 "data_difference": round(published - on_dang, 6),
             })
+    # WHAT THE PAPER SETTLES ABOUT THE RESIDUAL. Dang's pure-snow albedo is a
+    # DISORT computation on a semi-infinite plane-parallel snowpack of Mie
+    # spheres, using Warren and Brandt (2008)'s ice refractive index, with a
+    # nonspherical crystal represented by spheres of the same volume-to-area
+    # ratio and a size distribution collapsed to its area-weighted effective
+    # radius. Two of those choices are AXIS conventions rather than physics --
+    # what counts as the radius, and at what illumination angle the albedo is
+    # stated -- and the block below prices what an axis convention can do,
+    # because that is the part of the residual that has a mechanism.
+    geometry_shift = 2.0 * float(np.log10(
+        1.0 + DANG_ZENITH_GRAIN_SCALING["nir"] * (mu0 - DANG_ZENITH_REFERENCE_MU)))
+    axis_leverage = {
+        "library_illumination_mu0": round(mu0, 6),
+        "dang_reference_mu0": DANG_ZENITH_REFERENCE_MU,
+        "geometry": grain_shift_decomposition("nir", geometry_shift),
+        "radius_read_as_diameter": grain_shift_decomposition(
+            "nir", float(np.log10(2.0))),
+        "note": "each row is what one rigid shift of the grain axis does to "
+                "Dang's near-infrared quadratic: the constant moves, the slope "
+                "moves by `2*m2*d`, and the quadratic does not move at all. "
+                "`constant_over_slope_leverage` is the ratio of the two, and "
+                "it is why a comparison against a differently-posed model of "
+                "pure snow keeps its SLOPE and loses its CONSTANT. The "
+                "geometry row is Dang Eq. (5) taken from the library's stated "
+                "measurement angle to the angle his coefficients are stated "
+                "at; the diameter row is what the library's unqualified "
+                "'effective size' would cost if it is not a radius.",
+    }
+
     band_edge_mismatch = {
         "per_grain": decomposition,
+        "axis_leverage": axis_leverage,
         "note": "`band_definition_worth` is what re-integrating THE SAME "
                 "spectrum over Dang's band edges is worth; `data_difference` "
                 "is what is left, and it is a difference between the JHU "
@@ -454,13 +537,18 @@ def main() -> None:
                 "the near infrared the band definition is worth a few "
                 "hundredths -- almost all of it the 0.70 to 0.75 um slice, "
                 "which Dang counts as near infrared and the model counts as "
-                "band 1, and where snow is still bright -- and the data "
+                "band 1, and where snow is still bright. The library's own "
+                "first wavelength is 0.34 um, so the 0.30 to 0.34 slice of "
+                "Dang's visible band is held at the first value rather than "
+                "measured; snow is flat there and the slice is narrow, which "
+                "is why it is stated rather than corrected -- and the data "
                 "difference is several times larger and near-constant in grain "
                 "size. THAT IS THE REASON THIS ROW FITS THE FORM RATHER THAN "
                 "IMPORTING THE COEFFICIENTS: the published constant term does "
                 "not transfer onto these spectra even under the Sun, while the "
                 "grain-size SLOPE does, which is the part a dust term scales "
-                "against.",
+                "against. `axis_leverage` says why that split is the one to "
+                "expect rather than a coincidence.",
     }
 
     lowres, hires = stellar.spectrum_paths(args.spectrum)
@@ -499,14 +587,20 @@ def main() -> None:
         "grain_size_reading": "the library states an 'effective size' in "
                               "micrometres and does not say radius or "
                               "diameter. It is read as a RADIUS, which is what "
-                              "Dang's r0 = 100 um is and what makes 24, 82 and "
-                              "178 um an ordinary seasonal-snow range; read as "
-                              "diameters they would be finer than fresh snow. "
-                              "A radius-for-diameter error would shift every "
-                              "fitted linear coefficient by log10(2) times "
-                              "itself and leave the three albedos untouched, "
-                              "so it is a statement about the AXIS and not "
-                              "about the values on it.",
+                              "Dang's r0 is -- the area-weighted effective "
+                              "radius of a distribution of spheres -- and his "
+                              "paper states that surface snow on Earth is "
+                              "rarely finer than 30 um effective radius, which "
+                              "the three entries straddle read as radii and "
+                              "all fall below read as diameters. A "
+                              "radius-for-diameter error leaves the three "
+                              "albedos untouched and shifts the AXIS by "
+                              "log10(2), which `band_edge_mismatch."
+                              "axis_leverage.radius_read_as_diameter` prices "
+                              "the same way as the geometry offset: the "
+                              "constant moves, the slope moves by twice the "
+                              "QUADRATIC coefficient times the shift, and the "
+                              "quadratic does not move.",
         "what_this_does_not_establish": "the radius is an axis and not a "
                                         "prediction: nothing in this model "
                                         "evolves a snow grain, so a run is "

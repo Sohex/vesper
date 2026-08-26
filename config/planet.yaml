@@ -369,9 +369,16 @@ surface:
   # variable -- it has one number per cell, a thickness. So each is a stated
   # position about what this world's sea ice is, exactly as
   # `ocean.sea_ice_fusion_j_kg` above already is and for the same reason.
-  # `analysis/ice_properties.json` carries pure ice Ih from IAPWS-06 as the
-  # bound each sits against: 916.72 kg/m3 and 2096.71 J/kg/K at the melting
-  # point, both computed rather than quoted.
+  # `analysis/ice_properties.json` carries the bound each sits against, computed
+  # rather than quoted. TWO SOURCES, NOT ONE: IAPWS-06 gives the density and the
+  # specific heat of pure ice Ih, and it CANNOT give the conductivity, because a
+  # Gibbs function carries no transport property. That third bound is Yen
+  # (1981)'s regression of pure ice against temperature, and Yen's own sea-ice
+  # model is what says which side of it a declaration belongs on: his brine term
+  # SUBTRACTS, so sea ice conducts less than the fresh ice it is made of, and
+  # the declared value sitting below pure ice's is right. It sits at the top of
+  # the band his Figure 23 computes, against the zero-salinity curves -- which
+  # is the ice this model carries.
   #
   # GRAVITY CANCELS. It reaches a material property of ice only through
   # overburden pressure, and `analysis/ice_properties.py` prices that: under a

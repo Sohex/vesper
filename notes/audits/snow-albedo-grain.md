@@ -64,9 +64,28 @@ into the half of the spectrum where the material absorbs.
 `references/climber-x/src/smb/smb_surface_par.f90:snow_albedo_dang` implements
 Dang, Brandt and Warren (2015): a quadratic in `rn = log10(r/r0)` with `r0` at
 100 um, one coefficient triple per band and per illumination, and a dust
-darkening whose black-carbon-equivalent loading scales as `(r/r0)**0.73`. That
+darkening whose black-carbon-equivalent loading scales as `(r/r0)**s`. That
 exponent is why a dust coefficient cannot be grafted onto a grain-free ramp, and
 it is why this row unblocks `dust-14`.
+
+**The exponent's provenance, which the paper gives.** It is not a fitted
+constant of the darkening law but the exponent that COLLAPSES the family: Dang's
+equation (7) combines the impurity mixing ratio and the grain radius into one
+predictor, and `s` is varied until the albedo-reduction curves for different
+radii merge onto a single curve. The paper reports two values, one for the
+all-wave and visible bands and a much smaller one for the near infrared, and
+CLIMBER-X uses the visible one because it applies the darkening in the visible
+only. That choice is the paper's own: it states that mineral dust does not
+significantly change the near-infrared band albedo, because dust grains and snow
+grains absorb similarly when averaged over 0.7 to 4.0 um. So `dust-14`'s term is
+a VISIBLE-band term, and the visible is the band where this note's comparison
+against the published coefficients came out small at both ends.
+
+The paper also states a validity range for the collapsed form -- a range in the
+combined predictor, and a floor on the radius below which the single-predictor
+version should not be used -- and a ceiling on impurity loading. Those are
+declarations `dust-14` inherits with the exponent, and they belong in the
+implementation rather than here.
 
 The published coefficients are a fit to Earth's solar spectrum, so importing
 them would carry the Sun's band weighting into a K dwarf's radiation, which is
@@ -80,37 +99,109 @@ a dust term can scale against.
 
 The obvious check -- does the solar arm reproduce the published values -- is not
 a check as it stands, because the two do not average over the same wavelengths.
-Dang's bands are 0.2 to 0.7 um and 0.7 to 5.0; the model's are 0.34 to the row
-boundary near 0.75 and that boundary out to 100. So each grain is re-integrated
-over Dang's OWN band edges under the same blackbody, which splits the difference
-into a band-definition part and a data part. `band_edge_mismatch.per_grain` in
-the JSON carries both, per grain and per band. The shape:
+Dang's Table 1 bands are 0.3 to 0.7 um and 0.7 to 4.0; the model's are 0.34 to
+the row boundary near 0.75 and that boundary out to 100. So each grain is
+re-integrated over Dang's OWN band edges under the same blackbody, which splits
+the difference into a band-definition part and a data part.
+`band_edge_mismatch.per_grain` in the JSON carries both, per grain and per band.
+The shape:
 
-- In the visible both parts are small, a few thousandths each.
-- In the near infrared the band definition is worth several hundredths, and
+- In the visible both parts are small, a few thousandths each. The library's own
+  spectra begin at 0.34 um, so the narrow 0.30 to 0.34 slice of Dang's visible
+  band is held at the first measured value; snow is flat there and the slice is
+  narrow, so this is stated rather than corrected.
+- In the near infrared the band definition is worth about five hundredths, and
   almost all of that is the 0.70 to 0.75 um slice, which Dang counts as near
   infrared and the model counts as band 1, and over which snow is still bright.
-  The 5 to 100 um tail the model's band 2 includes and Dang's excludes is worth
-  under a hundredth of the band, because under either star well under one per
+  The 4 to 100 um tail the model's band 2 includes and Dang's excludes runs the
+  other way and is much smaller, because under either star well under one per
   cent of the shortwave flux lands there.
 - What remains after the band definition is removed is a difference between the
-  JHU library's snow and Dang's two-stream model of pure snow. It is roughly
-  twice the band-definition term in the near infrared and it is NEARLY CONSTANT
-  IN GRAIN SIZE.
+  JHU library's snow and Dang's model of pure snow. It is about a twentieth of
+  an albedo, comparable to the band-definition term, and it FALLS SLOWLY WITH
+  GRAIN SIZE: across the factor of seven in radius the three library entries
+  span, it moves by about a sixth of itself.
 
-That last point is the useful one. **The constant term does not transfer and the
-grain-size slope does**: the fitted near-infrared linear coefficient on both
-arms sits within a few thousandths of Dang's published one, while the constant
-terms are a tenth apart. A dust term scales against the slope, so the part this
-row needs is the part that survives the comparison, and the part that does not
+**The constant term does not transfer and the grain-size slope does**: the
+fitted near-infrared linear coefficient on both arms sits within under a
+hundredth of Dang's published one, while the constant terms are more than a
+tenth apart -- and the whole of that difference in slope is smaller than what
+the geometry offset alone moves the constant by. A dust term scales against the slope, so the part this row
+needs is the part that survives the comparison, and the part that does not
 survive it is the part the row was right to fit locally.
 
-The residual is not resolved here and this note does not claim to. The library
-entries state that their 0.3 to 2.08 um portion was MODELLED and only the longer
-wavelengths measured, so the two sides are two models of pure snow using
-different optical constants, grain shapes and geometries, and separating those
-would need Dang's own paper. It could not be fetched; see the reference row
-below.
+## Why the constant does not transfer, which the paper settles
+
+Dang's pure-snow albedo is a DISORT computation on a semi-infinite
+plane-parallel snowpack of Mie spheres. Its three ingredients, each named in the
+paper's section 3:
+
+- **The optical constants** are Warren and Brandt (2008)'s revised compilation of
+  the complex refractive index of ice. The paper states what the revision was
+  worth: its pure-snow albedos are slightly higher than the same group's earlier
+  work because the revised absorption coefficient of ice is smaller between 300
+  and 600 nm.
+- **The grain shape is a sphere**, with Mie theory for radii 5 to 2500 um. A
+  nonspherical crystal is represented by a collection of spheres of the same
+  volume-to-area ratio, and a size distribution by its area-weighted effective
+  radius. The paper cites the evaluations of that representation and states
+  their result: good accuracy for the extinction efficiency and the
+  single-scattering albedo, DISCREPANCIES FOR THE ASYMMETRY PARAMETER.
+- **The geometry** is a deep opaque snowpack under a direct beam at a standard
+  zenith cosine of 0.65, or under diffuse illumination for the overcast set,
+  with incident spectra measured at the Arctic sea surface and extended to 4 um
+  with a radiative transfer model.
+
+Two of those three are AXIS CONVENTIONS rather than physics -- what counts as
+the radius, and at what illumination angle the albedo is stated -- and the paper
+supplies the transformation that makes their effect calculable. Its equation (5)
+says a change of illumination angle can be MIMICKED by a change of grain radius,
+which is to say that a geometry difference acts as a rigid shift of
+`rn = log10(r/r0)`. Under a quadratic in `rn` a shift moves the constant term,
+moves the linear coefficient by twice the quadratic coefficient times the shift,
+and does not move the quadratic coefficient at all. Dang's own near-infrared
+coefficients put the ratio of those two effects at about four: **any axis
+offset, whatever caused it, lands four times harder on the constant than on the
+slope.** That is the mechanism, and it is algebra rather than an observation.
+`band_edge_mismatch.axis_leverage` in the JSON carries it for the two axis
+questions this comparison actually has -- the library's stated near-normal
+illumination against Dang's 49.5 degrees, and the library's unqualified
+"effective size" if it is a diameter rather than a radius.
+
+Correcting the zenith form to equation (5) removes about a third of what the
+near-infrared comparison had left unexplained. It is not the largest term in
+that residual -- the band definition, already known, is larger -- but it is the
+one this paper newly identifies, and unlike the band definition it is a physical
+difference between two illuminations rather than an accounting difference
+between two band edges. What remains after both is the part with no axis
+representation: the asymmetry
+parameter is the one single-scattering quantity a sphere representation is
+documented to get wrong, and it is not degenerate with the radius, so a
+difference in grain shape shows up as an offset that no rescaling of the axis
+can absorb. It cannot be pushed further from this side, because the library
+entries state that their 0.3 to 2.08 um portion was MODELLED and do not say with
+what optical constants, what shape or what method; the introductory text that
+would say is not held here.
+
+## The zenith correction is the paper's, not CLIMBER-X's
+
+`snow_albedo_dang` writes the effective-radius correction as
+`r * (1 + a*(coszm - 0.65)**2)`, with the square on the angle difference alone.
+Dang's equation (5), after Marshall (1989), is `r * (1 + a*(mu - 0.65))**2`,
+with the square on the whole bracket. The two agree only at the reference angle.
+Away from it CLIMBER-X's is flat to first order where the paper's is linear, and
+it raises the effective radius for a low sun as well as for a high one, which
+reverses the sign of the effect on the low side: a low sun makes snow brighter,
+not darker, and only the paper's form says so. At the library's near-normal
+incidence the two differ by about a factor of one and a half in effective
+radius.
+
+The coefficients here were read from CLIMBER-X's implementation before this
+paper was held, and this is what holding it changed. It is failure-mode class 9
+in the small: a form taken from an implementation of a citation rather than from
+the citation. Nothing this project runs consumed the wrong form -- the
+comparison in this note is its only reader -- and `analysis/snow_albedo_grain.py`
+now carries the paper's.
 
 ## The checks, all fixed before any was run
 
@@ -135,11 +226,22 @@ below.
 ## What is read as a radius, and what that costs if it is wrong
 
 The library states an "effective size" in micrometres and does not say radius or
-diameter. It is read as a RADIUS: that is what Dang's `r0` is, and it puts the
-three points in an ordinary seasonal-snow range, whereas read as diameters they
-would be finer than fresh snow. If that reading is wrong, every fitted LINEAR
-coefficient shifts by `log10(2)` times itself and the three albedos are
-untouched -- it is a statement about the axis, not about the values on it.
+diameter. It is read as a RADIUS, and the paper supports that reading twice
+over: Dang's `r0` is a radius, defined as the area-weighted effective radius of
+a distribution of spheres, and the paper states that the effective radii of
+surface snow on Earth are rarely smaller than 30 um. Read as radii the three
+library entries straddle that lower end and sit in an ordinary seasonal-snow
+range; read as diameters they would all fall below it.
+
+If the reading is wrong the three albedos are untouched and only the AXIS moves,
+by `log10(2)`. What that costs is now arithmetic rather than an assertion, and
+it is the same arithmetic as the geometry offset above: the constant term moves
+by roughly the linear coefficient times the shift, the linear coefficient moves
+by twice the QUADRATIC coefficient times the shift, and the quadratic does not
+move. On the star's band 2 the quadratic coefficient is small, so a
+radius-for-diameter error would move the near-infrared constant by about six
+hundredths and the slope by under a thousandth. It is a statement about where
+the axis is pinned, not about the shape of the curve on it.
 
 ## What this does not establish
 
@@ -156,4 +258,4 @@ not whatever metamorphism this world's own snow would reach.
 | --- | --- |
 | `references/ecospeclib-all/water.snow.{fine,medium,coarse}granular.*.jhu.becknic.spectrum.txt` | **read** -- the three spectra with their stated effective grain sizes, their measurement geometry (directional-hemispherical at 10 degrees), and the statement that 0.3 to 2.08 um was modelled and 2.08 to 14 um measured |
 | `references/climber-x/src/smb/smb_surface_par.f90` | **read** -- the implementation of Dang's form, with all four published coefficient triples and the zenith-angle effective-radius correction. This is the source the coefficients are quoted from |
-| Dang, Brandt, Warren (2015). *Parameterizations for narrowband and broadband albedo of pure snow and snow containing mineral dust and black carbon.* J. Geophys. Res. Atmos. 120, 5446-5468. `10.1002/2014JD022646` | **NOT OBTAINED.** Open-access routes and Sci-Hub all returned 403. It would have settled what optical constants, grain shape and geometry lie behind the near-constant near-infrared offset between the published coefficients and the JHU library, which is the one thing this note leaves open. Nothing here depends on it: the coefficients used for comparison are read from the CLIMBER-X implementation, and the deliverable is fitted locally rather than imported |
+| `references/dang2015-parameterizations-for-narrowband-and-broadband-albedo-of-snow.pdf` -- Dang, Brandt, Warren (2015). J. Geophys. Res. Atmos. 120, 5446-5468. `10.1002/2014JD022646` | **read** 2026-08-25, sections 1, 3, 3.1, 6 and 10 and Tables 1 and 3. SUPPLIED BY THE USER after open-access routes and Sci-Hub returned 403. It settles all three parts of what lay behind the near-infrared offset -- Warren and Brandt (2008) optical constants, Mie spheres under the volume-to-area equivalence with the asymmetry parameter called out as the quantity that representation gets wrong, and a semi-infinite DISORT geometry at a standard zenith cosine of 0.65 -- and its equation (5) supplies the transformation that makes an axis difference calculable, which is what turns the offset from fitted into understood. It also corrects two things read out of CLIMBER-X: the band edges of Table 1, and the FORM of the zenith correction |
