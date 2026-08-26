@@ -342,6 +342,7 @@ instruction_parameters:
     f_denitri_gas_max: 0.33
     k_N: 0.083
     k_C: 0.017
+    frac_labile_carbon: 0.5
   # plib's own bounds, from framework/parameters.cpp `declareitem`. A declared
   # value outside its parser bound would be refused by the model itself, so the
   # gate checks it here rather than discovering it at run time.
@@ -352,6 +353,7 @@ instruction_parameters:
     f_denitri_gas_max: [0.00001, 1.0]
     k_N: [0.0001, 1.0]
     k_C: [0.00001, 1.0]
+    frac_labile_carbon: [0.0, 1.0]
 
 # The domains every response function is evaluated over. These are properties of
 # the simulated soil, not of the functions, so they are declared once.
@@ -611,6 +613,15 @@ calibration:
       dynamic global vegetation model, Global Change Biology 14(8) 1745-1764,
       10.1111/j.1365-2486.2008.01625.x.
       references/xuri2008-terrestrial-nitrogen-cycle-dgvm.pdf
+    li1992: >
+      Li, Frolking and Frolking (1992), A model of nitrous oxide evolution from
+      soil driven by rainfall events: 1. Model structure and sensitivity,
+      Journal of Geophysical Research 97(D9) 9759-9776, 10.1029/92JD00509.
+      references/li1992-parameterization-of-cloud-optical-properties.pdf
+      DNDC itself, and the primary behind three of the entries below. The
+      filename is WRONG and the file is right: it was fetched under a slug
+      belonging to a different Li et al. (1992), and the PDF's own title page
+      and metadata are this paper. Do not re-fetch on the strength of the name.
     weier1993: >
       Weier, Doran, Power and Walters (1993), Denitrification and the
       dinitrogen/nitrous oxide ratio as affected by soil water, available carbon,
@@ -680,7 +691,43 @@ calibration:
       source: "xuri2008 table 11, Kc, Michaelis-Menten constant for labile carbon, from Li et al. (1992)"
       paper_value: 0.017
       verdict: agrees
-      why: "0.017 kgC m-3, identical."
+      why: >
+        0.017 kgC m-3, identical. li1992 is now held and read, and it is the
+        origin rather than the intermediate: its table 7 gives Kc as the
+        half-saturation value of soluble carbon, 0.017 kg C/m3, and Kn as the
+        half-saturation value of N-oxides, 0.083 kg N/m3, both attributed to
+        Shah and Coulman (1978) rather than measured by Li. So neither constant
+        is DNDC's either, and the chain to a measurement is one paper longer
+        than this register recorded.
+
+    - what: instruction:frac_labile_carbon
+      source: "li1992 pp. 9764-9765, the soluble carbon pool of the DNDC decomposition submodel"
+      verdict: unsourced
+      owner: world-vyvn
+      why: >
+        The fraction of total microbial respiration declared labile, set in the
+        instruction file with no comment and halving the 1.0 that
+        framework/parameters.cpp compiles in. It is the ONLY substrate control
+        on denitrification in this model: somdynam.cpp sets
+        soil.labile_carbon = respsum * frac_labile_carbon, the pool is split by
+        water-filled pore space, and ntransform.cpp's d_N_max multiplies both
+        denitrification steps.
+        li1992 is where the quantity comes from and it does NOT supply this
+        number, because DNDC never forms this ratio. Its soluble carbon is
+        per-pool and per-path: 60 per cent of the carbon leaving microbial
+        biomass and 20 per cent of the carbon leaving humads, in both cases the
+        share recycled into microbial biomass, and the paper states plainly
+        that it "is not actually a carbon pool but rather an indicator of the
+        daily rate of decomposition". The CO2 shares on those same two paths are
+        20 and 40 per cent, so the soluble-to-respired ratio DNDC implies is 3.0
+        on the biomass path and 0.5 on the humads path. The declared 0.5 is the
+        humads path's ratio applied to ALL respiration, which is a factor of six
+        low on the biomass path and exact on the other.
+        What is sourced is therefore a FORM, not a constant, and the form needs
+        two coefficients on two respiration paths that somdynam.cpp does not
+        separate at the point it sets labile_carbon. Until it does, this is one
+        number standing for two that differ by six times, and its value is not
+        recoverable from the primary.
 
     - what: instruction:f_denitri_gas_max
       source: "xuri2008 table 9 eqn 4"
@@ -739,8 +786,23 @@ calibration:
         would be the 0.5 m layer depth instead. The two differ by a factor of
         6.7 to 30 over the reachable water contents of the LPJ soil codes, and a
         smaller divisor saturates the Michaelis-Menten terms sooner, so the
-        soil-solution reading is the one that maximises denitrification. Li et
-        al. (1992) is where the constants come from and is not held here.
+        soil-solution reading is the one that maximises denitrification.
+        li1992 is now held and read and it does NOT close the question: its
+        table 7 states Kc and Kn per cubic metre and does not say per cubic
+        metre of what either, so the primary carries the same silence and the
+        chain runs one paper further, to Shah and Coulman (1978), which neither
+        this project nor Xu-Ri quotes a volume from.
+        What li1992 does add is a magnitude. Its own soluble carbon runs at
+        10 to 20 mg C per kg soil across the sensitivity runs, initialised at
+        20, and Kc = 0.017 kg C/m3 is 17 mg C per kg soil at a bulk density near
+        1 Mg/m3 -- the same units and the same magnitude as the pool the
+        constant half-saturates, which is where a half-saturation belongs. Under
+        the soil-solution reading Kc would be about 5 mg C per kg soil, a third
+        of that pool. The magnitude match therefore favours the per-cubic-metre-
+        of-SOIL divisor, which is the LOWER-denitrification branch and NOT the
+        one the operator runs. That is evidence and not proof, it rests on an
+        assumed bulk density, and it is not enough to move a factor of 6.7 to 30
+        on denitrification: Shah and Coulman (1978) is what would settle it.
 
     - what: function:f_volat_temperature
       source: "xuri2008 table 5 eqn 7"
