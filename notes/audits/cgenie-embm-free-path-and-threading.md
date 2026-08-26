@@ -44,8 +44,7 @@ differences and no others.
 
 ---
 
-# 1. `genie.F` has two flux paths, both gated on an atmosphere, and a third
-routine that nothing calls
+# 1. Two flux paths, both gated on an atmosphere, and a third routine nothing calls
 
 The question this settles is whether an EMBM-free configuration needs a new
 surface-flux path or only a switch. It needs a new path, and less of one than
