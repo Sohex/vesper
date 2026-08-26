@@ -559,6 +559,28 @@ steps:
     needs: [bootstrap_climatology, surface_water]
     writes: [aeolian/analysis/dust_baseline.nc, aeolian/analysis/dust_baseline.json]
 
+  - id: ocean_remap
+    reads_export: true
+    script: analysis/ocean_remap.py
+    cost: seconds
+    needs: []
+    writes: [analysis/ocean_remap.json, analysis/ocean_remap_weights.npz]
+    gate: >
+      The grid-to-grid crossing the offline ocean under OCN-3 needs, and the
+      integral that says whether it works. ExoPlaSim's Gaussian grid and
+      GOLDSTEIN's are different in kind, so the weights are built from cell
+      BOUNDARIES constructed in lib/gridding.py and applied by lib/remap.py,
+      never from a longitude label matched across the boundary. The acceptance
+      test is a field whose integral over the sphere is known analytically and
+      which Gauss-Legendre quadrature returns exactly, so a crossing whose row
+      areas are not the model's quadrature weights misses it; the midpoint
+      construction runs beside it as the negative control that has to miss the
+      same bar by three orders. Terrain only: no climate run, no ocean run, and
+      no adopted ocean component, which is why it sits outside every loop and
+      why nothing needs it yet. The masked arm is a DEMONSTRATION of the coast
+      rule on the export's own surface_class; the ocean's real wet mask arrives
+      with OCN-11.
+
   - id: dust_optics
     script: exoplasim/scripts/dust_optics.py
     cost: minutes

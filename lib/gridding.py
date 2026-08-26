@@ -16,11 +16,16 @@ for every export, so mesh and grid can come from different directories.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 
 from orogen import Export, LAND
+
+# One full turn of longitude, in degrees. Named because this module is the only
+# one allowed to do arithmetic with it and a bare literal reads as a magic number.
+_FULL_TURN = 360.0
 
 # --- the convention, and the only place it is written down ------------------
 #
@@ -538,6 +543,259 @@ def require_index_alignment(coupling, lsm) -> float:
     return frac
 
 
+
+# --- grids as CELL BOUNDARIES, for the crossings that are not the identity ---
+#
+# Everything above bins a mesh onto ONE grid, where the answer is an index. A
+# crossing between two DIFFERENT grids has no index to appeal to, so it needs
+# each grid's cell boundaries and their areas, and `lib/remap.py` is the
+# operator that consumes them. The boundaries are constructed here because this
+# module owns the column expression and a second file deriving one is the defect
+# `check_one_grid_convention` exists to catch.
+#
+# Two facts make the boundaries constructible rather than negotiable:
+#
+#   A Gaussian grid HAS NO CELL BOUNDARIES. It has nodes and quadrature
+#   weights, and the only construction whose cell areas reproduce those weights
+#   is the one that lays the weights end to end in the sine of latitude. Taking
+#   midpoints between Gaussian latitudes instead gives a partition of the
+#   sphere that is perfectly self-consistent and is NOT the one the model's own
+#   budget is taken over, so a crossing built on it would conserve against a
+#   grid the model does not use and would do it quietly.
+#
+#   GOLDSTEIN's `igrid = 0` is uniform in the sine of latitude by construction:
+#   `initialise_goldstein.F` sets `sv(j) = s0 + j*(s1-s0)/jmax` and
+#   `asurf(j) = rsc*rsc*ds(j)*dphi`, so every ocean cell has exactly the same
+#   area. `igrid = 1` is uniform in latitude and `igrid = 2` takes the
+#   atmosphere's own rows, which is what the shipped PlaSim coupling
+#   (`genie-main/configs/pl_go_gs_GMD.xml`) selects.
+#
+# Neither grid's row boundaries depend on longitude and neither grid's column
+# boundaries depend on latitude, so an overlap area factorises into a longitude
+# overlap times a sine-of-latitude overlap. That is why a `GridSpec` carries two
+# one-dimensional edge arrays and no polygon.
+#
+# THE PLANETARY RADIUS IS NOT HERE. Every remap weight is a ratio of areas, so
+# the radius cancels; `cell_area_fraction` returns the share of the sphere and
+# `cell_area` multiplies it by a radius the CALLER reads from
+# `config/planet.yaml`. `CLAUDE.md` rule 2.
+
+
+@dataclass(frozen=True)
+class GridSpec:
+    """A grid as its cell boundaries: what an area weight needs and a centre is not.
+
+    `lon_edges` is `nlon + 1` degrees, strictly increasing, spanning exactly
+    360. `sin_edges` is `nlat + 1` values of the SINE of latitude in the grid's
+    OWN row order, so row `i` is bounded by `sin_edges[i]` and `sin_edges[i+1]`
+    and the array decreases for a north-to-south grid and increases for a
+    south-to-north one. Both orders are real: this project's grids run north to
+    south (`row()` above) and GOLDSTEIN's `j` runs south to north, and a
+    remapped field comes out in the DESTINATION grid's order because that is the
+    order the model that reads it wants.
+
+    `source` records what constructed the edges. It is not decoration: the
+    crossing refuses a spec that was assembled from centre labels read off a
+    file, because reconstructing a coordinate from labels is what `CLAUDE.md`
+    rule 3 forbids and it has already matched zero cells three times.
+    """
+
+    name: str
+    lon_edges: np.ndarray
+    sin_edges: np.ndarray
+    source: str
+
+    def __post_init__(self):
+        lon = np.asarray(self.lon_edges, dtype=np.float64)
+        sin = np.asarray(self.sin_edges, dtype=np.float64)
+        if lon.ndim != 1 or lon.size < 2 or sin.ndim != 1 or sin.size < 2:
+            raise ValueError(f"{self.name}: edges must be one-dimensional and hold a cell")
+        if not np.all(np.diff(lon) > 0):
+            raise ValueError(f"{self.name}: longitude edges must strictly increase")
+        span = float(lon[-1] - lon[0])
+        if abs(span - _FULL_TURN) > 1e-9:
+            raise ValueError(f"{self.name}: longitude edges span {span} degrees, not a full turn")
+        step = np.diff(sin)
+        if not (np.all(step > 0) or np.all(step < 0)):
+            raise ValueError(f"{self.name}: sine-of-latitude edges must be monotonic")
+        if abs(abs(sin[0]) - 1.0) > 1e-12 or abs(abs(sin[-1]) - 1.0) > 1e-12:
+            raise ValueError(f"{self.name}: sine-of-latitude edges must run pole to pole")
+        object.__setattr__(self, "lon_edges", lon)
+        object.__setattr__(self, "sin_edges", sin)
+
+    @property
+    def nlat(self) -> int:
+        return self.sin_edges.size - 1
+
+    @property
+    def nlon(self) -> int:
+        return self.lon_edges.size - 1
+
+    @property
+    def ncell(self) -> int:
+        return self.nlat * self.nlon
+
+    @property
+    def shape(self) -> tuple[int, int]:
+        return self.nlat, self.nlon
+
+    @property
+    def dsin(self) -> np.ndarray:
+        """Sine-of-latitude extent of each row. For a Gaussian grid these ARE
+        the Gauss-Legendre quadrature weights, which is the property that makes
+        a crossing built on this spec conserve against the model's own budget."""
+        return np.abs(np.diff(self.sin_edges))
+
+    @property
+    def dlon(self) -> np.ndarray:
+        """Longitude extent of each column, in degrees."""
+        return np.diff(self.lon_edges)
+
+    def cell_area_fraction(self) -> np.ndarray:
+        """Share of the sphere in each cell, shaped (nlat, nlon). Sums to one.
+
+        A cell between two sines of latitude and two longitudes covers
+        `dsin * dlon / (2 * full turn)` of the sphere, exactly, at any latitude.
+        No radius, because every remap weight is a ratio of areas and the radius
+        cancels out of all of them.
+        """
+        return np.outer(self.dsin, self.dlon) / (2.0 * _FULL_TURN)
+
+    def cell_area(self, radius_m: float) -> np.ndarray:
+        """Cell areas in square metres, for a radius the CALLER read from
+        `config/planet.yaml`. Nothing here knows the planet."""
+        return self.cell_area_fraction() * (4.0 * np.pi * float(radius_m) ** 2)
+
+    def cell_centres(self):
+        """(lat, lon) cell centres in degrees, for distance work and for the eye.
+
+        The latitude is the centre of the cell in the SINE, which is the cell's
+        centroid on the sphere, and for a Gaussian grid it is NOT the Gaussian
+        node -- the node is a quadrature abscissa, not a centre. Nothing in a
+        remap weight goes through here; `_FULL_TURN` arithmetic on a centre is
+        how a coordinate gets reconstructed.
+        """
+        mid = 0.5 * (self.sin_edges[:-1] + self.sin_edges[1:])
+        lat = np.rad2deg(np.arcsin(np.clip(mid, -1.0, 1.0)))
+        lon = 0.5 * (self.lon_edges[:-1] + self.lon_edges[1:])
+        return lat, lon
+
+
+def gaussian_grid(nlat: int, nlon: int | None = None, name: str | None = None) -> GridSpec:
+    """The spectral grid ExoPlaSim and the export share, as cell boundaries.
+
+    Rows run north to south, matching `row()` and the export's own
+    `rowOrder`. The row boundaries are the Gauss-Legendre weights laid end to
+    end from the north pole, so `dsin` reproduces the weights and the cell areas
+    reproduce the quadrature the model's global budget is taken over. Columns
+    are `column()`'s: cell `k` spans `[-180 + k*dlon, -180 + (k+1)*dlon)`.
+
+    `nlon` defaults to `2 * nlat`, which is the ladder's shape; passing it
+    explicitly is for a grid that is Gaussian but not on the ladder.
+    """
+    nlat = int(nlat)
+    nlon = 2 * nlat if nlon is None else int(nlon)
+    _, weights = np.polynomial.legendre.leggauss(nlat)
+    sin_edges = 1.0 - np.concatenate([[0.0], np.cumsum(weights[::-1])])
+    sin_edges[0], sin_edges[-1] = 1.0, -1.0
+    lon_edges = -180.0 + np.arange(nlon + 1, dtype=np.float64) * (360.0 / nlon)
+    return GridSpec(name=name or f"gaussian-{nlat}x{nlon}",
+                    lon_edges=lon_edges, sin_edges=sin_edges,
+                    source="lib/gridding.py:gaussian_grid, Gauss-Legendre weights")
+
+
+def gaussian_latitudes(nlat: int) -> np.ndarray:
+    """The Gaussian NODES, north to south, in degrees. Not cell centres.
+
+    This is the axis the export writes and the model transforms on. It is here
+    so that a caller checking a spec against an artifact has one expression to
+    check against rather than a second construction of its own.
+    """
+    nodes, _ = np.polynomial.legendre.leggauss(int(nlat))
+    return np.rad2deg(np.arcsin(nodes))[::-1]
+
+
+def require_gaussian_rows(spec: GridSpec, lat_axis, what: str = "the grid") -> None:
+    """Refuse a Gaussian spec whose rows are not the axis the artifact carries.
+
+    The spec is CONSTRUCTED and the artifact's axis is READ, and this is the one
+    place they are compared. If they disagree the spec is describing a different
+    grid from the field it is about to remap, and every weight is then a weight
+    between two grids nobody is using. Measured against the export's own axis
+    the two agree to about 1e-14 degrees, which is the same expression evaluated
+    twice; the bar below is loose against that and tight against any real
+    disagreement.
+    """
+    axis = np.asarray(lat_axis, dtype=np.float64)
+    want = gaussian_latitudes(spec.nlat)
+    if axis.size != want.size:
+        raise SystemExit(
+            f"{what}: the spec has {want.size} rows and the axis has {axis.size}. "
+            "They are not the same grid and no mapping between them is defined.")
+    off = float(np.abs(axis - want).max())
+    if off > 1e-6:
+        raise SystemExit(
+            f"{what}: the constructed Gaussian rows and the axis on disk differ "
+            f"by up to {off:.3g} degrees. Do NOT reconcile them by matching "
+            "nearest centres; construct both from one source. CLAUDE.md rule 3.")
+
+
+GOLDSTEIN_EQUAL_AREA = 0        # igrid = 0: uniform in the sine of latitude
+GOLDSTEIN_EQUAL_ANGLE = 1       # igrid = 1: uniform in latitude
+GOLDSTEIN_ATMOSPHERE_ROWS = 2   # igrid = 2: the atmosphere's own rows
+GOLDSTEIN_LON_ORIGIN = -260.0   # phi0 in initialise_goldstein.F, degrees
+
+
+def goldstein_grid(nlon: int, nlat: int, igrid: int = GOLDSTEIN_EQUAL_AREA,
+                   lon_origin_deg: float = GOLDSTEIN_LON_ORIGIN,
+                   atmosphere_rows: np.ndarray | None = None,
+                   name: str | None = None) -> GridSpec:
+    """The GOLDSTEIN ocean grid as cell boundaries, read off the model's own setup.
+
+    `nlon` is `imax` and `nlat` is `jmax`, and rows run SOUTH TO NORTH because
+    `j` does. The three `igrid` arms are the three the model implements and the
+    arm is a required fact about the ocean configuration rather than a default
+    to be inherited quietly: `igrid = 0` makes every ocean cell exactly equal in
+    area, and it is what the shipped 36 x 36 configurations use, while the
+    shipped PlaSim coupling uses `igrid = 2`.
+
+    `lon_origin_deg` is `phi0`, whose shipped value puts the first column edge
+    at 260 degrees west. It is a parameter and not a label: the crossing takes
+    both grids' columns from their constructors and never compares longitude
+    numbers between them, which is the form `CLAUDE.md` rule 3 takes here.
+    """
+    nlon, nlat, igrid = int(nlon), int(nlat), int(igrid)
+    if igrid == GOLDSTEIN_EQUAL_AREA:
+        sin_edges = -1.0 + np.arange(nlat + 1, dtype=np.float64) * (2.0 / nlat)
+        sin_edges[-1] = 1.0
+        arm = "igrid=0, uniform in the sine of latitude"
+    elif igrid == GOLDSTEIN_EQUAL_ANGLE:
+        lat_edges = -90.0 + np.arange(nlat + 1, dtype=np.float64) * (180.0 / nlat)
+        sin_edges = np.sin(np.deg2rad(lat_edges))
+        sin_edges[0], sin_edges[-1] = -1.0, 1.0
+        arm = "igrid=1, uniform in latitude"
+    elif igrid == GOLDSTEIN_ATMOSPHERE_ROWS:
+        if atmosphere_rows is None:
+            raise ValueError(
+                "igrid=2 takes the atmosphere's own row boundaries; pass "
+                "atmosphere_rows=gaussian_grid(nlat).sin_edges rather than "
+                "letting this module guess which atmosphere is meant")
+        sin_edges = np.sort(np.asarray(atmosphere_rows, dtype=np.float64))
+        if sin_edges.size != nlat + 1:
+            raise ValueError(
+                f"igrid=2 with jmax={nlat} needs {nlat + 1} row boundaries and "
+                f"was given {sin_edges.size}")
+        arm = "igrid=2, the atmosphere's rows"
+    else:
+        raise ValueError(
+            f"igrid={igrid} is not one GOLDSTEIN implements. "
+            "initialise_goldstein.F has 0, 1 and 2 and nothing else.")
+    lon_edges = float(lon_origin_deg) + np.arange(nlon + 1, dtype=np.float64) * (360.0 / nlon)
+    return GridSpec(name=name or f"goldstein-{nlon}x{nlat}",
+                    lon_edges=lon_edges, sin_edges=sin_edges,
+                    source=f"lib/gridding.py:goldstein_grid, {arm}, phi0={lon_origin_deg}")
+
+
 # --- the operators' own checks. SPAT-4 --------------------------------------
 #
 # `python lib/gridding.py --selftest`
@@ -549,7 +807,7 @@ def require_index_alignment(coupling, lsm) -> float:
 # where the answer is unknown is not a check.
 
 
-_CHECKS = 10
+_CHECKS = 15
 
 
 def _selftest() -> int:
@@ -653,6 +911,44 @@ def _selftest() -> int:
           bool((edge >= 0).all() and (edge < nlon).all()
                and edge[0] == 0 and edge[1] == nlon - 1),
           f"{edge}")
+
+    # GRID SPECS. A crossing between two grids is only as good as the two
+    # partitions of the sphere it is built from, and each of these has an
+    # answer rather than a range. `analysis/ocean_remap.py` carries the rest of
+    # the suite, including the negative control, because it needs the export.
+    gauss = gaussian_grid(64)
+    check("a Gaussian spec's cells partition the sphere",
+          abs(gauss.cell_area_fraction().sum() - 1.0) <= 1e-13,
+          f"{gauss.cell_area_fraction().sum() - 1.0:.3g}")
+    _, gl = np.polynomial.legendre.leggauss(64)
+    check("a Gaussian spec's rows ARE the quadrature weights",
+          float(np.abs(gauss.dsin - gl[::-1]).max()) <= 1e-13,
+          f"{np.abs(gauss.dsin - gl[::-1]).max():.3g}")
+    ocean = goldstein_grid(36, 36)
+    spread = float(np.ptp(ocean.cell_area_fraction()))
+    check("GOLDSTEIN igrid=0 makes every cell exactly equal in area",
+          spread <= 1e-16, f"spread {spread:.3g}")
+    equal_angle = goldstein_grid(36, 36, igrid=GOLDSTEIN_EQUAL_ANGLE)
+    lat_edges = np.rad2deg(np.arcsin(equal_angle.sin_edges))
+    check("GOLDSTEIN igrid=1 makes every row exactly equal in latitude",
+          float(np.ptp(np.diff(lat_edges))) <= 1e-12
+          and abs(equal_angle.cell_area_fraction().sum() - 1.0) <= 1e-13,
+          f"row spread {np.ptp(np.diff(lat_edges)):.3g}")
+
+    # THE CONTROL: a spec that is not a partition of the sphere must be refused
+    # at construction. Without this the four checks above would pass on an
+    # object that silently describes a different world from the one it names.
+    refused = 0
+    for bad in (dict(lon_edges=np.linspace(-180.0, 90.0, 5),
+                     sin_edges=np.linspace(1.0, -1.0, 5)),
+                dict(lon_edges=np.linspace(-180.0, 180.0, 5),
+                     sin_edges=np.array([1.0, 0.5, 0.7, -1.0]))):
+        try:
+            GridSpec(name="control", source="the selftest's control", **bad)
+        except ValueError:
+            refused += 1
+    check("a spec that is not a partition of the sphere is refused",
+          refused == 2, f"{refused} of 2 refused")
 
     print(f"\n{_CHECKS} checks, {len(problems)} failed")
     return 1 if problems else 0

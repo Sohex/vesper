@@ -287,9 +287,14 @@ apart -- each rung's measured stability ceiling, the escalation route's step per
 rung, and what a commissioning-length run has shown about a pair),
 `paths.py` (repo-relative paths, the climatology resolver, and its clean-I/O
 and configured-grid guards), `gridding.py` (mesh-to-grid, the one grid
-convention, and the reduction operators by field semantics: extensive,
-intensive, categorical, moments, expectation, and the ledger of what a
-reduction dropped), `orbit.py` (orbital period), `stellar.py` (spectrum, band split,
+convention, the reduction operators by field semantics: extensive,
+intensive, categorical, moments, expectation, the ledger of what a
+reduction dropped, and grids as CELL BOUNDARIES: the Gaussian and GOLDSTEIN
+constructors a crossing takes its coordinates from),
+`remap.py` (grid-to-grid: the separable overlap weights between two grids
+that are not the same grid, normalisation by field semantics, the coverage
+that travels with the result, and where a coastal flux goes when the two
+masks disagree), `orbit.py` (orbital period), `stellar.py` (spectrum, band split,
 Rayleigh coefficient), `sensitivity.py` (the one flux-to-kelvin conversion),
 `climatology.py` (time-bin weights),
 `autocorrelation.py` (the integrated autocorrelation time, the effective
