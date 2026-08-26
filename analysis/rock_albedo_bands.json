@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-24",
+  "generated": "2026-08-26",
   "generator": "analysis/rock_albedo_bands.py",
   "spectrum": "exoplasim/inputs/stellarspectra/k25v_hr.dat",
   "spectrum_sha256": "50729d2432316108c45332eac45e6d36e7b6f7fd0c34c854bfc822533119cb51",
@@ -18,6 +18,27 @@
   "method_check": "preparation_spread_below_sample_spread, per class: the ratio is claimed to be a property of the mineral, so within a class the spread between sample preparations must be smaller than the spread between samples. Fixed before the first run.",
   "recombination_tolerance": 1e-05,
   "residual_flag_threshold_albedo": 0.005,
+  "sample_selection": "Each class's proxy is an ECOSTRESS taxon narrowed to the samples whose MINERALOGY is the class's, read from each spectrum's own Name and Description against the class definition in lithology.js. `taxon` per class is what the whole taxon gives, so what the narrowing bought is a measurement. Grain size, induration and weathering are not grounds for exclusion: they are what the preparation axis measures.",
+  "residual_after_selection": {
+    "axis": "iron, as the ECOSTRESS description records it: ferruginous staining, limonite, hematite, and the colour names that follow from them",
+    "taxon": "rock.sedimentary.sandstone",
+    "why_not_a_selector": "vendor/orogen/js/lithology.js does not say which side of this axis any clastic class sits on. A red bed and a grey quartz arenite are both intracratonic clastics, and choosing between them from the width of the bracket they produce would be a tuned value. This is what the remaining bracket is waiting on.",
+    "all": {
+      "spectra": 21,
+      "band2_over_band1": 1.3341,
+      "bracket_width": 0.6552
+    },
+    "iron_stained": {
+      "spectra": 16,
+      "band2_over_band1": 1.444,
+      "bracket_width": 0.6829
+    },
+    "not_iron_stained": {
+      "spectra": 5,
+      "band2_over_band1": 1.2528,
+      "bracket_width": 0.33
+    }
+  },
   "lithology_table": "vendor/orogen/js/lithology.js",
   "overridden_levels": {
     "playa_clastic": 0.23
@@ -40,6 +61,28 @@
       "preparation_spread_below_sample_spread": false,
       "measured_band1_flux_share": 0.3923,
       "thin": true,
+      "excluded_samples": {},
+      "taxon": {
+        "spectra": 2,
+        "band2_over_band1": 0.7632,
+        "band2_over_band1_bracket": [
+          0.6819,
+          0.8445
+        ],
+        "by_preparation": {
+          "liquid": 0.8445,
+          "poseidon": 0.6819
+        },
+        "preparation_spread": 0.1626,
+        "sample_spread_p10_p90": 0.1301,
+        "preparation_spread_below_sample_spread": false,
+        "measured_band1_flux_share": 0.3923,
+        "thin": true
+      },
+      "bracket_width": 0.1626,
+      "taxon_bracket_width": 0.1626,
+      "bracket_narrowed_by": 0.0,
+      "central_moved_by": 0.0,
       "broadband": 0.06,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
@@ -62,299 +105,655 @@
     },
     "morb": {
       "why": "basalt",
-      "spectra": 83,
-      "band2_over_band1": 0.9937,
+      "spectra": 80,
+      "band2_over_band1": 0.9934,
       "band2_over_band1_bracket": [
-        0.8359,
-        1.2092
+        0.8323,
+        1.2162
       ],
       "by_preparation": {
-        "fine": 1.131,
+        "fine": 1.1322,
         "solid": 0.9783
       },
-      "preparation_spread": 0.1526,
-      "sample_spread_p10_p90": 0.3733,
+      "preparation_spread": 0.1539,
+      "sample_spread_p10_p90": 0.3838,
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {
+        "Anorthos_H1": {
+          "name": "Anorthosite",
+          "why": "plagioclase cumulate, not basalt"
+        },
+        "Ward42": {
+          "name": "Anorthosite",
+          "why": "plagioclase cumulate, not basalt"
+        }
+      },
+      "taxon": {
+        "spectra": 83,
+        "band2_over_band1": 0.9937,
+        "band2_over_band1_bracket": [
+          0.8359,
+          1.2092
+        ],
+        "by_preparation": {
+          "fine": 1.131,
+          "solid": 0.9783
+        },
+        "preparation_spread": 0.1526,
+        "sample_spread_p10_p90": 0.3733,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.3839,
+      "taxon_bracket_width": 0.3733,
+      "bracket_narrowed_by": -0.0106,
+      "central_moved_by": -0.0003,
       "broadband": 0.1,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
         0.1004,
-        0.0998
+        0.0997
       ],
       "range_mismatch_residual_albedo": -1e-05,
       "flagged": false,
-      "band1_shape": 1.0039,
-      "band2_shape": 0.9976,
+      "band1_shape": 1.0041,
+      "band2_shape": 0.9975,
       "band1_shape_bracket": [
-        0.8856,
-        1.1128
+        0.8822,
+        1.1155
       ],
       "band2_shape_bracket": [
-        0.9302,
-        1.0708
+        0.9285,
+        1.0729
       ],
-      "range_mismatch_residual_relative": -6e-05
+      "range_mismatch_residual_relative": -7e-05
     },
     "oib": {
       "why": "basalt",
-      "spectra": 83,
-      "band2_over_band1": 0.9937,
+      "spectra": 80,
+      "band2_over_band1": 0.9934,
       "band2_over_band1_bracket": [
-        0.8359,
-        1.2092
+        0.8323,
+        1.2162
       ],
       "by_preparation": {
-        "fine": 1.131,
+        "fine": 1.1322,
         "solid": 0.9783
       },
-      "preparation_spread": 0.1526,
-      "sample_spread_p10_p90": 0.3733,
+      "preparation_spread": 0.1539,
+      "sample_spread_p10_p90": 0.3838,
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {
+        "Anorthos_H1": {
+          "name": "Anorthosite",
+          "why": "plagioclase cumulate, not basalt"
+        },
+        "Ward42": {
+          "name": "Anorthosite",
+          "why": "plagioclase cumulate, not basalt"
+        }
+      },
+      "taxon": {
+        "spectra": 83,
+        "band2_over_band1": 0.9937,
+        "band2_over_band1_bracket": [
+          0.8359,
+          1.2092
+        ],
+        "by_preparation": {
+          "fine": 1.131,
+          "solid": 0.9783
+        },
+        "preparation_spread": 0.1526,
+        "sample_spread_p10_p90": 0.3733,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.3839,
+      "taxon_bracket_width": 0.3733,
+      "bracket_narrowed_by": -0.0106,
+      "central_moved_by": -0.0003,
       "broadband": 0.1,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
         0.1004,
-        0.0998
+        0.0997
       ],
       "range_mismatch_residual_albedo": -1e-05,
       "flagged": false,
-      "band1_shape": 1.0039,
-      "band2_shape": 0.9976,
+      "band1_shape": 1.0041,
+      "band2_shape": 0.9975,
       "band1_shape_bracket": [
-        0.8856,
-        1.1128
+        0.8822,
+        1.1155
       ],
       "band2_shape_bracket": [
-        0.9302,
-        1.0708
+        0.9285,
+        1.0729
       ],
-      "range_mismatch_residual_relative": -6e-05
+      "range_mismatch_residual_relative": -7e-05
     },
     "flood_basalt": {
       "why": "basalt",
-      "spectra": 83,
-      "band2_over_band1": 0.9937,
+      "spectra": 80,
+      "band2_over_band1": 0.9934,
       "band2_over_band1_bracket": [
-        0.8359,
-        1.2092
+        0.8323,
+        1.2162
       ],
       "by_preparation": {
-        "fine": 1.131,
+        "fine": 1.1322,
         "solid": 0.9783
       },
-      "preparation_spread": 0.1526,
-      "sample_spread_p10_p90": 0.3733,
+      "preparation_spread": 0.1539,
+      "sample_spread_p10_p90": 0.3838,
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {
+        "Anorthos_H1": {
+          "name": "Anorthosite",
+          "why": "plagioclase cumulate, not basalt"
+        },
+        "Ward42": {
+          "name": "Anorthosite",
+          "why": "plagioclase cumulate, not basalt"
+        }
+      },
+      "taxon": {
+        "spectra": 83,
+        "band2_over_band1": 0.9937,
+        "band2_over_band1_bracket": [
+          0.8359,
+          1.2092
+        ],
+        "by_preparation": {
+          "fine": 1.131,
+          "solid": 0.9783
+        },
+        "preparation_spread": 0.1526,
+        "sample_spread_p10_p90": 0.3733,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.3839,
+      "taxon_bracket_width": 0.3733,
+      "bracket_narrowed_by": -0.0106,
+      "central_moved_by": -0.0003,
       "broadband": 0.1,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
         0.1004,
-        0.0998
+        0.0997
       ],
       "range_mismatch_residual_albedo": -1e-05,
       "flagged": false,
-      "band1_shape": 1.0039,
-      "band2_shape": 0.9976,
+      "band1_shape": 1.0041,
+      "band2_shape": 0.9975,
       "band1_shape_bracket": [
-        0.8856,
-        1.1128
+        0.8822,
+        1.1155
       ],
       "band2_shape_bracket": [
-        0.9302,
-        1.0708
+        0.9285,
+        1.0729
       ],
-      "range_mismatch_residual_relative": -6e-05
+      "range_mismatch_residual_relative": -7e-05
     },
     "arc_basalt": {
       "why": "basalt to basaltic andesite, so mafic and intermediate together",
-      "spectra": 114,
-      "band2_over_band1": 1.0159,
+      "spectra": 109,
+      "band2_over_band1": 1.0132,
       "band2_over_band1_bracket": [
-        0.8512,
-        1.209
+        0.8503,
+        1.2228
       ],
       "by_preparation": {
-        "fine": 1.1353,
-        "solid": 0.9735
+        "fine": 1.1446,
+        "solid": 0.9744
       },
-      "preparation_spread": 0.1618,
-      "sample_spread_p10_p90": 0.3578,
+      "preparation_spread": 0.1702,
+      "sample_spread_p10_p90": 0.3725,
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {
+        "Anorthos_H1": {
+          "name": "Anorthosite",
+          "why": "plagioclase cumulate, not basalt"
+        },
+        "Ward42": {
+          "name": "Anorthosite",
+          "why": "plagioclase cumulate, not basalt"
+        },
+        "Obsidian_H1": {
+          "name": "Rhyolitic obsidian",
+          "why": "volcanic glass, which has no mineral assemblage to transfer. The rule these proxies are chosen by has nothing to say about an amorphous solid"
+        }
+      },
+      "taxon": {
+        "spectra": 114,
+        "band2_over_band1": 1.0159,
+        "band2_over_band1_bracket": [
+          0.8512,
+          1.209
+        ],
+        "by_preparation": {
+          "fine": 1.1353,
+          "solid": 0.9735
+        },
+        "preparation_spread": 0.1618,
+        "sample_spread_p10_p90": 0.3578,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.3725,
+      "taxon_bracket_width": 0.3578,
+      "bracket_narrowed_by": -0.0147,
+      "central_moved_by": -0.0027,
       "broadband": 0.13,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
-        0.1287,
-        0.1308
+        0.1289,
+        0.1307
       ],
       "range_mismatch_residual_albedo": 2e-05,
       "flagged": false,
-      "band1_shape": 0.9903,
-      "band2_shape": 1.006,
+      "band1_shape": 0.9919,
+      "band2_shape": 1.005,
       "band1_shape_bracket": [
-        0.8857,
-        1.1012
+        0.879,
+        1.1019
       ],
       "band2_shape_bracket": [
-        0.9373,
-        1.0708
+        0.9369,
+        1.0749
       ],
-      "range_mismatch_residual_relative": 0.00016
+      "range_mismatch_residual_relative": 0.00013
     },
     "arc_andesite": {
       "why": "andesite to dacite",
-      "spectra": 31,
-      "band2_over_band1": 1.0818,
+      "spectra": 25,
+      "band2_over_band1": 1.0988,
       "band2_over_band1_bracket": [
-        0.8854,
-        1.1981
+        0.8848,
+        1.3704
       ],
       "by_preparation": {
-        "fine": 1.1533,
-        "solid": 0.9506
+        "fine": 1.162,
+        "solid": 0.9591
       },
-      "preparation_spread": 0.2027,
-      "sample_spread_p10_p90": 0.3128,
+      "preparation_spread": 0.2029,
+      "sample_spread_p10_p90": 0.4856,
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {
+        "Obsidian_H1": {
+          "name": "Rhyolitic obsidian",
+          "why": "volcanic glass, which has no mineral assemblage to transfer. The rule these proxies are chosen by has nothing to say about an amorphous solid"
+        },
+        "Syenite_H1": {
+          "name": "Alkalic Syenite",
+          "why": "alkaline, feldspathoid-bearing where the class is calc-alkaline andesite to dacite"
+        },
+        "Syenite_H2": {
+          "name": "Nepheline Syenite",
+          "why": "alkaline, feldspathoid-bearing where the class is calc-alkaline andesite to dacite"
+        }
+      },
+      "taxon": {
+        "spectra": 31,
+        "band2_over_band1": 1.0818,
+        "band2_over_band1_bracket": [
+          0.8854,
+          1.1981
+        ],
+        "by_preparation": {
+          "fine": 1.1533,
+          "solid": 0.9506
+        },
+        "preparation_spread": 0.2027,
+        "sample_spread_p10_p90": 0.3128,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.4856,
+      "taxon_bracket_width": 0.3127,
+      "bracket_narrowed_by": -0.1729,
+      "central_moved_by": 0.017,
       "broadband": 0.2,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
-        0.1904,
-        0.206
+        0.1885,
+        0.2071
       ],
-      "range_mismatch_residual_albedo": 0.00015,
+      "range_mismatch_residual_albedo": 0.00019,
       "flagged": false,
-      "band1_shape": 0.9519,
-      "band2_shape": 1.0298,
+      "band1_shape": 0.9425,
+      "band2_shape": 1.0356,
       "band1_shape_bracket": [
-        0.891,
-        1.0762
+        0.8138,
+        1.0766
       ],
       "band2_shape_bracket": [
-        0.9528,
-        1.0675
+        0.9526,
+        1.1153
       ],
-      "range_mismatch_residual_relative": 0.00077
+      "range_mismatch_residual_relative": 0.00093
     },
     "rift_bimodal": {
       "why": "bimodal by definition: basalt and rhyolite, no intermediate term",
-      "spectra": 114,
-      "band2_over_band1": 1.0303,
+      "spectra": 102,
+      "band2_over_band1": 1.0246,
       "band2_over_band1_bracket": [
-        0.8662,
-        1.3343
+        0.852,
+        1.3245
       ],
       "by_preparation": {
-        "fine": 1.1565,
-        "solid": 0.9937
+        "fine": 1.1671,
+        "solid": 0.9881
       },
-      "preparation_spread": 0.1627,
-      "sample_spread_p10_p90": 0.4681,
+      "preparation_spread": 0.179,
+      "sample_spread_p10_p90": 0.4725,
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {
+        "Anorthos_H1": {
+          "name": "Anorthosite",
+          "why": "plagioclase cumulate, not basalt"
+        },
+        "Ward42": {
+          "name": "Anorthosite",
+          "why": "plagioclase cumulate, not basalt"
+        },
+        "Cup1": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup2": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "cup3": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup4": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup5": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup6": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup7": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup8": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Ward01": {
+          "name": "Obsidian",
+          "why": "volcanic glass, which has no mineral assemblage to transfer. The rule these proxies are chosen by has nothing to say about an amorphous solid"
+        }
+      },
+      "taxon": {
+        "spectra": 114,
+        "band2_over_band1": 1.0303,
+        "band2_over_band1_bracket": [
+          0.8662,
+          1.3343
+        ],
+        "by_preparation": {
+          "fine": 1.1565,
+          "solid": 0.9937
+        },
+        "preparation_spread": 0.1627,
+        "sample_spread_p10_p90": 0.4681,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.4725,
+      "taxon_bracket_width": 0.4681,
+      "bracket_narrowed_by": -0.0044,
+      "central_moved_by": -0.0057,
       "broadband": 0.16,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
-        0.1571,
-        0.1618
+        0.1576,
+        0.1615
       ],
-      "range_mismatch_residual_albedo": 5e-05,
+      "range_mismatch_residual_albedo": 4e-05,
       "flagged": false,
-      "band1_shape": 0.9816,
-      "band2_shape": 1.0114,
+      "band1_shape": 0.985,
+      "band2_shape": 1.0093,
       "band1_shape_bracket": [
-        0.8289,
-        1.0901
+        0.833,
+        1.1006
       ],
       "band2_shape_bracket": [
-        0.9442,
-        1.106
+        0.9377,
+        1.1034
       ],
-      "range_mismatch_residual_relative": 0.0003
+      "range_mismatch_residual_relative": 0.00024
     },
     "granite": {
       "why": "granite",
-      "spectra": 31,
-      "band2_over_band1": 1.2222,
+      "spectra": 22,
+      "band2_over_band1": 1.2453,
       "band2_over_band1_bracket": [
-        0.948,
-        1.5877
+        0.9481,
+        1.576
       ],
       "by_preparation": {
         "fine": 1.2689,
-        "solid": 1.161
+        "solid": 1.2453
       },
-      "preparation_spread": 0.1079,
-      "sample_spread_p10_p90": 0.6397,
+      "preparation_spread": 0.0236,
+      "sample_spread_p10_p90": 0.628,
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {
+        "Cup1": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup2": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "cup3": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup4": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup5": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup6": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup7": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup8": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Ward01": {
+          "name": "Obsidian",
+          "why": "volcanic glass, which has no mineral assemblage to transfer. The rule these proxies are chosen by has nothing to say about an amorphous solid"
+        }
+      },
+      "taxon": {
+        "spectra": 31,
+        "band2_over_band1": 1.2222,
+        "band2_over_band1_bracket": [
+          0.948,
+          1.5877
+        ],
+        "by_preparation": {
+          "fine": 1.2689,
+          "solid": 1.161
+        },
+        "preparation_spread": 0.1079,
+        "sample_spread_p10_p90": 0.6397,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.6279,
+      "taxon_bracket_width": 0.6397,
+      "bracket_narrowed_by": 0.0118,
+      "central_moved_by": 0.0231,
       "broadband": 0.3,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
-        0.2638,
-        0.3224
+        0.2605,
+        0.3244
       ],
-      "range_mismatch_residual_albedo": 0.00058,
+      "range_mismatch_residual_albedo": 0.00064,
       "flagged": false,
-      "band1_shape": 0.8793,
-      "band2_shape": 1.0747,
+      "band1_shape": 0.8684,
+      "band2_shape": 1.0815,
       "band1_shape_bracket": [
-        0.7337,
-        1.0332
+        0.7376,
+        1.0331
       ],
       "band2_shape_bracket": [
         0.9795,
-        1.1649
+        1.1625
       ],
-      "range_mismatch_residual_relative": 0.00194
+      "range_mismatch_residual_relative": 0.00212
     },
     "granodiorite": {
       "why": "granodiorite sits between granite and diorite",
-      "spectra": 62,
-      "band2_over_band1": 1.106,
+      "spectra": 49,
+      "band2_over_band1": 1.1112,
       "band2_over_band1_bracket": [
-        0.9085,
-        1.5406
+        0.9063,
+        1.5058
       ],
       "by_preparation": {
-        "fine": 1.1713,
-        "solid": 1.0177
+        "fine": 1.1801,
+        "solid": 1.0263
       },
-      "preparation_spread": 0.1536,
-      "sample_spread_p10_p90": 0.6321,
+      "preparation_spread": 0.1538,
+      "sample_spread_p10_p90": 0.5995,
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {
+        "Cup1": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup2": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "cup3": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup4": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup5": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup6": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup7": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Cup8": {
+          "name": "Altered volcanic tuff",
+          "why": "an alteration assemblage rather than a rock class: what the spectrum is OF is the alteration. No class here is an alteration halo"
+        },
+        "Ward01": {
+          "name": "Obsidian",
+          "why": "volcanic glass, which has no mineral assemblage to transfer. The rule these proxies are chosen by has nothing to say about an amorphous solid"
+        },
+        "Obsidian_H1": {
+          "name": "Rhyolitic obsidian",
+          "why": "volcanic glass, which has no mineral assemblage to transfer. The rule these proxies are chosen by has nothing to say about an amorphous solid"
+        },
+        "Syenite_H2": {
+          "name": "Nepheline Syenite",
+          "why": "silica-undersaturated and feldspathoid-bearing, which an arc-root granodiorite is not"
+        }
+      },
+      "taxon": {
+        "spectra": 62,
+        "band2_over_band1": 1.106,
+        "band2_over_band1_bracket": [
+          0.9085,
+          1.5406
+        ],
+        "by_preparation": {
+          "fine": 1.1713,
+          "solid": 1.0177
+        },
+        "preparation_spread": 0.1536,
+        "sample_spread_p10_p90": 0.6321,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.5995,
+      "taxon_bracket_width": 0.6321,
+      "bracket_narrowed_by": 0.0326,
+      "central_moved_by": 0.0052,
       "broadband": 0.28,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
-        0.2628,
-        0.2907
+        0.262,
+        0.2911
       ],
-      "range_mismatch_residual_albedo": 0.00028,
+      "range_mismatch_residual_albedo": 0.00029,
       "flagged": false,
-      "band1_shape": 0.9386,
-      "band2_shape": 1.038,
+      "band1_shape": 0.9357,
+      "band2_shape": 1.0398,
       "band1_shape_bracket": [
-        0.7497,
-        1.0599
+        0.762,
+        1.0614
       ],
       "band2_shape_bracket": [
-        0.9629,
-        1.155
+        0.962,
+        1.1474
       ],
-      "range_mismatch_residual_relative": 0.00099
+      "range_mismatch_residual_relative": 0.00103
     },
     "gneiss": {
       "why": "gneiss",
@@ -374,6 +773,29 @@
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {},
+      "taxon": {
+        "spectra": 19,
+        "band2_over_band1": 1.2164,
+        "band2_over_band1_bracket": [
+          0.9806,
+          2.0948
+        ],
+        "by_preparation": {
+          "coarse": 1.2587,
+          "fine": 1.3262,
+          "solid": 1.079
+        },
+        "preparation_spread": 0.2472,
+        "sample_spread_p10_p90": 1.1142,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 1.1142,
+      "taxon_bracket_width": 1.1142,
+      "bracket_narrowed_by": 0.0,
+      "central_moved_by": 0.0,
       "broadband": 0.28,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
@@ -412,6 +834,29 @@
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {},
+      "taxon": {
+        "spectra": 27,
+        "band2_over_band1": 1.2905,
+        "band2_over_band1_bracket": [
+          0.9658,
+          1.7658
+        ],
+        "by_preparation": {
+          "coarse": 1.2905,
+          "fine": 1.3452,
+          "solid": 1.1969
+        },
+        "preparation_spread": 0.1483,
+        "sample_spread_p10_p90": 0.8,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.8,
+      "taxon_bracket_width": 0.8,
+      "bracket_narrowed_by": 0.0,
+      "central_moved_by": 0.0,
       "broadband": 0.22,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
@@ -450,6 +895,29 @@
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {},
+      "taxon": {
+        "spectra": 13,
+        "band2_over_band1": 1.3251,
+        "band2_over_band1_bracket": [
+          1.1404,
+          2.3527
+        ],
+        "by_preparation": {
+          "coarse": 1.3661,
+          "fine": 1.2391,
+          "solid": 1.2476
+        },
+        "preparation_spread": 0.127,
+        "sample_spread_p10_p90": 1.2123,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 1.2123,
+      "taxon_bracket_width": 1.2123,
+      "bracket_narrowed_by": 0.0,
+      "central_moved_by": 0.0,
       "broadband": 0.45,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
@@ -472,231 +940,575 @@
     },
     "melange": {
       "why": "block-in-matrix: mafic and cherty blocks in a sheared argillaceous matrix, so shale and slate with a mafic term",
-      "spectra": 114,
-      "band2_over_band1": 1.0601,
+      "spectra": 102,
+      "band2_over_band1": 1.023,
       "band2_over_band1_bracket": [
-        0.8495,
-        1.6978
+        0.8343,
+        1.3352
       ],
       "by_preparation": {
-        "coarse": 1.2088,
+        "coarse": 1.1625,
         "fine": 1.2095,
-        "solid": 0.9823
+        "solid": 0.9754
       },
-      "preparation_spread": 0.2272,
-      "sample_spread_p10_p90": 0.8483,
+      "preparation_spread": 0.2341,
+      "sample_spread_p10_p90": 0.5009,
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {
+        "shale_2": {
+          "name": "Shale (Phosphatic)",
+          "why": "oolitic collophane, the same apatite mineralogy under the name Shale (Phosphatic)"
+        },
+        "Phop002": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop004": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop005": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop008": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop009": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop011": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop02a": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Anorthos_H1": {
+          "name": "Anorthosite",
+          "why": "plagioclase cumulate: the mafic blocks in a melange are basalt and gabbro, not an anorthosite body"
+        },
+        "Ward42": {
+          "name": "Anorthosite",
+          "why": "plagioclase cumulate: the mafic blocks in a melange are basalt and gabbro, not an anorthosite body"
+        }
+      },
+      "taxon": {
+        "spectra": 114,
+        "band2_over_band1": 1.0601,
+        "band2_over_band1_bracket": [
+          0.8495,
+          1.6978
+        ],
+        "by_preparation": {
+          "coarse": 1.2088,
+          "fine": 1.2095,
+          "solid": 0.9823
+        },
+        "preparation_spread": 0.2272,
+        "sample_spread_p10_p90": 0.8483,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.5009,
+      "taxon_bracket_width": 0.8483,
+      "bracket_narrowed_by": 0.3474,
+      "central_moved_by": -0.0371,
       "broadband": 0.18,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
-        0.1736,
-        0.184
+        0.1775,
+        0.1816
       ],
-      "range_mismatch_residual_albedo": 0.0001,
+      "range_mismatch_residual_albedo": 4e-05,
       "flagged": false,
-      "band1_shape": 0.9642,
-      "band2_shape": 1.0222,
+      "band1_shape": 0.986,
+      "band2_shape": 1.0087,
       "band1_shape_bracket": [
-        0.6988,
-        1.1025
+        0.8285,
+        1.114
       ],
       "band2_shape_bracket": [
-        0.9366,
-        1.1865
+        0.9294,
+        1.1062
       ],
-      "range_mismatch_residual_relative": 0.00058
+      "range_mismatch_residual_relative": 0.00023
     },
     "shelf_clastic": {
       "why": "sandstone and shale",
-      "spectra": 46,
-      "band2_over_band1": 1.4438,
+      "spectra": 37,
+      "band2_over_band1": 1.2928,
       "band2_over_band1_bracket": [
-        1.0928,
-        2.1618
+        1.0688,
+        1.9548
       ],
       "by_preparation": {
-        "coarse": 1.3123,
-        "fine": 1.5618,
-        "solid": 1.5519
+        "coarse": 1.2906,
+        "fine": 1.4925,
+        "solid": 1.2113
       },
-      "preparation_spread": 0.2495,
-      "sample_spread_p10_p90": 1.069,
+      "preparation_spread": 0.2812,
+      "sample_spread_p10_p90": 0.886,
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {
+        "shale_2": {
+          "name": "Shale (Phosphatic)",
+          "why": "oolitic collophane, the same apatite mineralogy under the name Shale (Phosphatic)"
+        },
+        "Phop002": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop004": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop005": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop008": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop009": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop011": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop02a": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        }
+      },
+      "taxon": {
+        "spectra": 46,
+        "band2_over_band1": 1.4438,
+        "band2_over_band1_bracket": [
+          1.0928,
+          2.1618
+        ],
+        "by_preparation": {
+          "coarse": 1.3123,
+          "fine": 1.5618,
+          "solid": 1.5519
+        },
+        "preparation_spread": 0.2495,
+        "sample_spread_p10_p90": 1.069,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.886,
+      "taxon_bracket_width": 1.069,
+      "bracket_narrowed_by": 0.183,
+      "central_moved_by": -0.151,
       "broadband": 0.3,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
-        0.2355,
-        0.34
+        0.2541,
+        0.3284
       ],
-      "range_mismatch_residual_albedo": 0.00104,
+      "range_mismatch_residual_albedo": 0.00074,
       "flagged": false,
-      "band1_shape": 0.7849,
-      "band2_shape": 1.1332,
+      "band1_shape": 0.8469,
+      "band2_shape": 1.0948,
       "band1_shape_bracket": [
-        0.5822,
-        0.9458
+        0.629,
+        0.9592
       ],
       "band2_shape_bracket": [
-        1.0336,
-        1.2586
+        1.0252,
+        1.2297
       ],
-      "range_mismatch_residual_relative": 0.00347
+      "range_mismatch_residual_relative": 0.00247
     },
     "carbonate": {
       "why": "limestone, dolomite and marble",
-      "spectra": 54,
-      "band2_over_band1": 1.1089,
+      "spectra": 49,
+      "band2_over_band1": 1.119,
       "band2_over_band1_bracket": [
-        0.9142,
-        1.5388
+        0.929,
+        1.5478
       ],
       "by_preparation": {
-        "coarse": 1.0767,
-        "fine": 1.1192,
-        "solid": 1.1037
+        "coarse": 1.1979,
+        "fine": 1.1569,
+        "solid": 1.1066
       },
-      "preparation_spread": 0.0426,
-      "sample_spread_p10_p90": 0.6247,
+      "preparation_spread": 0.0913,
+      "sample_spread_p10_p90": 0.6189,
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {
+        "marble2": {
+          "name": "Serpentine Marble",
+          "why": "serpentinite, not a carbonate assemblage"
+        },
+        "marble5": {
+          "name": "Serpentine Marble",
+          "why": "serpentinite, not a carbonate assemblage"
+        },
+        "Ward98": {
+          "name": "Verde Antique",
+          "why": "serpentinite, not a carbonate assemblage"
+        }
+      },
+      "taxon": {
+        "spectra": 54,
+        "band2_over_band1": 1.1089,
+        "band2_over_band1_bracket": [
+          0.9142,
+          1.5388
+        ],
+        "by_preparation": {
+          "coarse": 1.0767,
+          "fine": 1.1192,
+          "solid": 1.1037
+        },
+        "preparation_spread": 0.0426,
+        "sample_spread_p10_p90": 0.6247,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.6188,
+      "taxon_bracket_width": 0.6246,
+      "bracket_narrowed_by": 0.0058,
+      "central_moved_by": 0.0101,
       "broadband": 0.35,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
-        0.3279,
-        0.3637
+        0.326,
+        0.3648
       ],
-      "range_mismatch_residual_albedo": 0.00035,
+      "range_mismatch_residual_albedo": 0.00039,
       "flagged": false,
-      "band1_shape": 0.937,
-      "band2_shape": 1.039,
+      "band1_shape": 0.9315,
+      "band2_shape": 1.0424,
       "band1_shape_bracket": [
-        0.7503,
-        1.056
+        0.7472,
+        1.0459
       ],
       "band2_shape_bracket": [
-        0.9654,
-        1.1546
+        0.9716,
+        1.1565
       ],
-      "range_mismatch_residual_relative": 0.00101
+      "range_mismatch_residual_relative": 0.0011
     },
     "foreland_clastic": {
       "why": "molasse and flysch: sandstone, shale, conglomerate",
-      "spectra": 49,
-      "band2_over_band1": 1.4197,
+      "spectra": 40,
+      "band2_over_band1": 1.3351,
       "band2_over_band1_bracket": [
-        1.0932,
-        2.1489
+        1.0863,
+        1.8903
       ],
       "by_preparation": {
-        "coarse": 1.3123,
-        "fine": 1.5618,
-        "solid": 1.4265
+        "coarse": 1.2906,
+        "fine": 1.4925,
+        "solid": 1.2649
       },
-      "preparation_spread": 0.2495,
-      "sample_spread_p10_p90": 1.0557,
+      "preparation_spread": 0.2276,
+      "sample_spread_p10_p90": 0.8041,
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {
+        "shale_2": {
+          "name": "Shale (Phosphatic)",
+          "why": "oolitic collophane, the same apatite mineralogy under the name Shale (Phosphatic)"
+        },
+        "Phop002": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop004": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop005": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop008": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop009": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop011": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop02a": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        }
+      },
+      "taxon": {
+        "spectra": 49,
+        "band2_over_band1": 1.4197,
+        "band2_over_band1_bracket": [
+          1.0932,
+          2.1489
+        ],
+        "by_preparation": {
+          "coarse": 1.3123,
+          "fine": 1.5618,
+          "solid": 1.4265
+        },
+        "preparation_spread": 0.2495,
+        "sample_spread_p10_p90": 1.0557,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.804,
+      "taxon_bracket_width": 1.0557,
+      "bracket_narrowed_by": 0.2517,
+      "central_moved_by": -0.0846,
       "broadband": 0.28,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
-        0.2224,
-        0.3157
+        0.232,
+        0.3097
       ],
-      "range_mismatch_residual_albedo": 0.00093,
+      "range_mismatch_residual_albedo": 0.00077,
       "flagged": false,
-      "band1_shape": 0.7941,
-      "band2_shape": 1.1274,
+      "band1_shape": 0.8285,
+      "band2_shape": 1.1062,
       "band1_shape_bracket": [
-        0.5849,
-        0.9456
+        0.6452,
+        0.9494
       ],
       "band2_shape_bracket": [
-        1.0337,
-        1.257
+        1.0313,
+        1.2196
       ],
-      "range_mismatch_residual_relative": 0.00332
+      "range_mismatch_residual_relative": 0.00276
     },
     "continental_clastic": {
       "why": "intracratonic sandstone, siltstone and shale",
-      "spectra": 50,
-      "band2_over_band1": 1.4067,
+      "spectra": 36,
+      "band2_over_band1": 1.2917,
       "band2_over_band1_bracket": [
-        1.0891,
-        2.1447
+        1.0478,
+        1.9763
       ],
       "by_preparation": {
-        "coarse": 1.3123,
-        "fine": 1.4552,
-        "solid": 1.5519
+        "coarse": 1.2589,
+        "fine": 1.4925,
+        "solid": 1.2096
       },
-      "preparation_spread": 0.2395,
-      "sample_spread_p10_p90": 1.0556,
+      "preparation_spread": 0.2829,
+      "sample_spread_p10_p90": 0.9284,
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {
+        "greywacke_1": {
+          "name": "Greywacke Sandstone",
+          "why": "the library's own names for the lithic and feldspathic end of the sandstone taxon, which is the debris a foreland basin takes and the opposite of the mature clastic an intracratonic basin fills with"
+        },
+        "sandstone_1": {
+          "name": "Arkosic Sandstone",
+          "why": "the library's own names for the lithic and feldspathic end of the sandstone taxon, which is the debris a foreland basin takes and the opposite of the mature clastic an intracratonic basin fills with"
+        },
+        "Ward62": {
+          "name": "Arkose",
+          "why": "the library's own names for the lithic and feldspathic end of the sandstone taxon, which is the debris a foreland basin takes and the opposite of the mature clastic an intracratonic basin fills with"
+        },
+        "shale_2": {
+          "name": "Shale (Phosphatic)",
+          "why": "oolitic collophane, the same apatite mineralogy under the name Shale (Phosphatic)"
+        },
+        "Phop002": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop004": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop005": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop008": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop009": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop011": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop02a": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        }
+      },
+      "taxon": {
+        "spectra": 50,
+        "band2_over_band1": 1.4067,
+        "band2_over_band1_bracket": [
+          1.0891,
+          2.1447
+        ],
+        "by_preparation": {
+          "coarse": 1.3123,
+          "fine": 1.4552,
+          "solid": 1.5519
+        },
+        "preparation_spread": 0.2395,
+        "sample_spread_p10_p90": 1.0556,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.9285,
+      "taxon_bracket_width": 1.0556,
+      "bracket_narrowed_by": 0.1271,
+      "central_moved_by": -0.115,
       "broadband": 0.28,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
-        0.2238,
-        0.3148
+        0.2373,
+        0.3065
       ],
-      "range_mismatch_residual_albedo": 0.00091,
+      "range_mismatch_residual_albedo": 0.00069,
       "flagged": false,
-      "band1_shape": 0.7992,
-      "band2_shape": 1.1243,
+      "band1_shape": 0.8473,
+      "band2_shape": 1.0945,
       "band1_shape_bracket": [
-        0.5858,
-        0.9478
+        0.6238,
+        0.9713
       ],
       "band2_shape_bracket": [
-        1.0323,
-        1.2564
+        1.0178,
+        1.2329
       ],
-      "range_mismatch_residual_relative": 0.00324
+      "range_mismatch_residual_relative": 0.00246
     },
     "pelagic": {
       "why": "abyssal clay and ooze: argillaceous, with a carbonate term for the ooze",
-      "spectra": 58,
-      "band2_over_band1": 1.3278,
+      "spectra": 46,
+      "band2_over_band1": 1.2918,
       "band2_over_band1_bracket": [
-        0.9898,
-        2.1261
+        0.9809,
+        1.7973
       ],
       "by_preparation": {
-        "coarse": 1.2977,
-        "fine": 1.3278,
-        "solid": 1.417
+        "coarse": 1.2728,
+        "fine": 1.3185,
+        "solid": 1.1742
       },
-      "preparation_spread": 0.1192,
-      "sample_spread_p10_p90": 1.1362,
+      "preparation_spread": 0.1443,
+      "sample_spread_p10_p90": 0.8164,
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {
+        "shale_1": {
+          "name": "Shale (Arenaceous)",
+          "why": "a sand fraction, which an abyssal clay or ooze does not have"
+        },
+        "shale_2": {
+          "name": "Shale (Phosphatic)",
+          "why": "oolitic collophane, the same apatite mineralogy under the name Shale (Phosphatic)"
+        },
+        "Phop002": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop004": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop005": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop008": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop009": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop011": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Phop02a": {
+          "name": "Phosphorite",
+          "why": "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of the Phosphoria Formation's Meade Peak Member whose spectrum is hydroxylapatite, buddingtonite and muscovite. No class here is an ore"
+        },
+        "Ward53": {
+          "name": "Arenaceous Shale",
+          "why": "a sand fraction, which an abyssal clay or ooze does not have"
+        }
+      },
+      "taxon": {
+        "spectra": 58,
+        "band2_over_band1": 1.3278,
+        "band2_over_band1_bracket": [
+          0.9898,
+          2.1261
+        ],
+        "by_preparation": {
+          "coarse": 1.2977,
+          "fine": 1.3278,
+          "solid": 1.417
+        },
+        "preparation_spread": 0.1192,
+        "sample_spread_p10_p90": 1.1362,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.8164,
+      "taxon_bracket_width": 1.1363,
+      "bracket_narrowed_by": 0.3199,
+      "central_moved_by": -0.036,
       "broadband": 0.25,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
-        0.2079,
-        0.2761
+        0.2118,
+        0.2736
       ],
-      "range_mismatch_residual_albedo": 0.00068,
+      "range_mismatch_residual_albedo": 0.00062,
       "flagged": false,
-      "band1_shape": 0.8316,
-      "band2_shape": 1.1042,
+      "band1_shape": 0.8473,
+      "band2_shape": 1.0945,
       "band1_shape_bracket": [
-        0.5898,
-        1.0063
+        0.67,
+        1.0119
       ],
       "band2_shape_bracket": [
-        0.9961,
-        1.254
+        0.9926,
+        1.2043
       ],
-      "range_mismatch_residual_relative": 0.00271
+      "range_mismatch_residual_relative": 0.00246
     },
     "evaporite": {
       "why": "salt crust. Halite is the mineral the class is named for and the one whose spectrum is featureless through the near infrared; the hydrous sulfate is carried beside it because a real crust is not pure halite and gypsum's structural-water bands run the other way. references/INDEX.md, the Slater 1987 row.",
@@ -716,6 +1528,29 @@
       "preparation_spread_below_sample_spread": true,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {},
+      "taxon": {
+        "spectra": 12,
+        "band2_over_band1": 0.9657,
+        "band2_over_band1_bracket": [
+          0.7922,
+          1.0253
+        ],
+        "by_preparation": {
+          "coarse": 0.9023,
+          "fine": 0.9667,
+          "medium": 0.9324
+        },
+        "preparation_spread": 0.0644,
+        "sample_spread_p10_p90": 0.2331,
+        "preparation_spread_below_sample_spread": true,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.2331,
+      "taxon_bracket_width": 0.2331,
+      "bracket_narrowed_by": 0.0,
+      "central_moved_by": 0.0,
       "broadband": 0.5,
       "broadband_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
       "band_pair": [
@@ -752,6 +1587,27 @@
       "preparation_spread_below_sample_spread": null,
       "measured_band1_flux_share": 0.3923,
       "thin": false,
+      "excluded_samples": {},
+      "taxon": {
+        "spectra": 9,
+        "band2_over_band1": 1.8252,
+        "band2_over_band1_bracket": [
+          1.5384,
+          1.9337
+        ],
+        "by_preparation": {
+          "none": 1.8252
+        },
+        "preparation_spread": null,
+        "sample_spread_p10_p90": 0.3953,
+        "preparation_spread_below_sample_spread": null,
+        "measured_band1_flux_share": 0.3923,
+        "thin": false
+      },
+      "bracket_width": 0.3953,
+      "taxon_bracket_width": 0.3953,
+      "bracket_narrowed_by": 0.0,
+      "central_moved_by": 0.0,
       "broadband": 0.23,
       "broadband_source": "config model.lithology_albedo_overrides",
       "band_pair": [
