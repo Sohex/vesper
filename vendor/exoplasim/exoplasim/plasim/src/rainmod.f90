@@ -1290,8 +1290,15 @@
 !     kuo without beta
 !
 
+!     THE DIVISOR IS THE MASK ITSELF, NEGATED, AND SO IS EXACTLY ZERO ON THE
+!     LANES THE MASK DISCARDS. A `where` selects which lanes the ASSIGNMENT
+!     stores and leaves the compiler free to evaluate the right-hand side on
+!     every lane, and the declared -ffpe-trap=zero turns a discarded lane into
+!     SIGFPE. The floor is inert on every kept lane, which the mask holds
+!     strictly above zero, and keeps the discarded lane's quotient finite.
+!     world-d016, the same mechanism as world-bhs and world-5a0.
        where(zpt(:)+zpq(:) > 0.)
-        zat(:)=zi(:)/(zpt(:)+zpq(:))
+        zat(:)=zi(:)/max(zpt(:)+zpq(:),1.0e-30)
         zaq(:)=zat(:)
        end where
       else
@@ -1301,7 +1308,8 @@
 !     a) beta computed from rel. humidity       
 !
        zrhm(:)=0.
-       where(zpbeta(:) > 0.) zrhm(:)=zbeta(:)/zpbeta(:)
+!      FLOORED FOR THE REASON GIVEN AT zat ABOVE. world-d016.
+       where(zpbeta(:) > 0.) zrhm(:)=zbeta(:)/max(zpbeta(:),1.0e-30)
        zbeta(:)=1.
        where(zrhm(:) >= rhbeta) 
         zbeta(:)=((1.-zrhm(:))/(1.-rhbeta))**nbeta
@@ -1311,8 +1319,9 @@
 
        if(kbeta==2) zbeta(:)=rbeta        
 
-       where(zpt(:) > 0.) zat(:)=zi(:)*(1.-zbeta(:))/zpt(:)
-       where(zpq(:) > 0.) zaq(:)=zi(:)*zbeta(:)/zpq(:)
+!      FLOORED FOR THE REASON GIVEN AT zat ABOVE. world-d016.
+       where(zpt(:) > 0.) zat(:)=zi(:)*(1.-zbeta(:))/max(zpt(:),1.0e-30)
+       where(zpq(:) > 0.) zaq(:)=zi(:)*zbeta(:)/max(zpq(:),1.0e-30)
 
       endif
 
@@ -1404,8 +1413,9 @@
 !
 
        zau(:)=0.
+!      FLOORED FOR THE REASON GIVEN AT zat ABOVE. world-d016.
        where(zpt(:)+zpq(:) > 0.)
-        zau(:)=AMIN1(1.,zi(:)/(zpt(:)+zpq(:)))
+        zau(:)=AMIN1(1.,zi(:)/max(zpt(:)+zpq(:),1.0e-30))
        end where
 
 !
@@ -1423,9 +1433,10 @@
          zsums(:)=zsums(:)+dsigma(jlev)
         endwhere
        enddo
+!      FLOORED FOR THE REASON GIVEN AT zat ABOVE. world-d016.
        where(zsums(:) > 0.)
-        zup(:)=zup(:)/zsums(:)
-        zvp(:)=zvp(:)/zsums(:)
+        zup(:)=zup(:)/max(zsums(:),1.0e-30)
+        zvp(:)=zvp(:)/max(zsums(:),1.0e-30)
        endwhere
 
 !
@@ -2167,6 +2178,24 @@
        itop(:)=NLEV
        ztht(:)=0.
        zqt(:)=0.
+!      THE FOUR SUMS ARE PRESET SO THE MASKED DIVISION HAS A DIVISOR. zsum1,
+!      zsum2, zsumq1 and zsumq2 are automatic locals with no initialiser and
+!      were written only inside `where(zth(:,jlev) < zth(:,jlep))`, where they
+!      are also divided by -- so on a lane that mask discards the divisor was
+!      INDETERMINATE stack memory, and the declared -ffpe-trap turns whatever
+!      the stack held into SIGFPE. world-d016.
+!
+!      The presets are inert. On a lane the mask keeps, both denominators are
+!      ASSIGNED before they are read; the later accumulation is under
+!      `itop(:) == jlev` for jlev below NLEM, which no lane still holding the
+!      itop(:)=NLEV preset can satisfy. And the values chosen reproduce the
+!      ztht(:)=0. and zqt(:)=0. presets two lines above on a discarded lane,
+!      so the masked evaluation now computes exactly what those lanes already
+!      hold.
+       zsum1(:)=1.
+       zsum2(:)=0.
+       zsumq1(:)=1.
+       zsumq2(:)=0.
        do jlev=1,NLEM
         jlep=jlev+1
         where(zth(:,jlev) < zth(:,jlep))

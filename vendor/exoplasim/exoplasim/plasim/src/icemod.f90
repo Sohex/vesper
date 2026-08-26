@@ -1412,8 +1412,21 @@
        picec(:)=picec(:)+(1.-picec(:))*(picedn(:)-picedo(:))/hlead
        picec(:)=AMIN1(picec(:),1.)
       endwhere
+!     THE DIVISOR IS FLOORED BECAUSE THE MASK DOES NOT PROTECT IT. A `where`
+!     selects which lanes the ASSIGNMENT stores and leaves the compiler free to
+!     evaluate the right-hand side on every lane; the declared -ffpe-trap=zero
+!     turns a lane that was going to be discarded into SIGFPE. world-d016, the
+!     same mechanism as world-bhs and world-5a0.
+!     Here the divisor IS the mask, negated: a lane the mask keeps has
+!     picedo(:) > picedn(:) >= 0 and so picedo(:) > 0, and a lane it discards
+!     has picedo(:) >= picedn(:), zero included. The floor is inert on every
+!     kept lane -- 1.0e-30 m of ice is thirty decades below any thickness this
+!     model carries -- and keeps the discarded lane's quotient finite, which a
+!     floor at tiny() would not: -ffpe-trap=overflow is declared beside the
+!     zero trap.
       where(picedn(:) < picedo(:))
-       picec(:)=picec(:)+picec(:)*(picedn(:)-picedo(:))/(2.*picedo(:))
+       picec(:)=picec(:)+picec(:)*(picedn(:)-picedo(:))                 &
+     &         /(2.*max(picedo(:),1.0e-30))
        picec(:)=AMAX1(picec(:),0.)
       endwhere
       where(picedn(:) <= 0.)
@@ -1616,10 +1629,26 @@
        xcflux(:)=xheat(:)
        xcfluxf(:)=0.
       end where
+!     THE DIVISOR IS FLOORED BECAUSE THE MASK DOES NOT PROTECT IT. A `where`
+!     selects which lanes the ASSIGNMENT stores and leaves the compiler free to
+!     evaluate the right-hand side on every lane; the declared -ffpe-trap=zero
+!     turns a lane that was going to be discarded into SIGFPE. world-d016, the
+!     same mechanism as world-bhs and world-5a0.
+!     A lane the mask keeps has xiced(:) >= xmind, so the divisor is at least
+!     xmind/CKAPI; a lane it discards can have xiced(:) and xsnow(:) both zero,
+!     which is open water and is the common case, and the divisor is then
+!     EXACTLY zero. zhsnow is threadprivate with a zero initialiser and was
+!     written only inside this mask, so a discarded lane carried a stale value
+!     as well. It is computed on every lane now, which costs one multiply and
+!     makes the value a discarded lane holds a defined one.
+!
+!     The floor is inert on every kept lane by twenty-eight decades and keeps
+!     the discarded lane's quotient finite: the numerator there is zhsnow+xiced,
+!     which is the same near-zero quantity, so the quotient is of order one.
+      zhsnow(:)=1.E3/crhosn*xsnow(:)
       where(xiced(:) >= xmind)
-       zhsnow(:)=1.E3/crhosn*xsnow(:)
        zckap(:)=(zhsnow(:)+xiced(:))                                    &
-     &         /(zhsnow(:)/CKAPSN+xiced(:)/CKAPI)
+     &         /max(zhsnow(:)/CKAPSN+xiced(:)/CKAPI,1.0e-30)
       endwhere
 !
 !     limit ice thickness 
@@ -1630,10 +1659,17 @@
        endwhere
       endif
 !
+!     FLOORED FOR THE REASON GIVEN AT zckap ABOVE: a lane the mask discards can
+!     be open water with zhsnow(:) and xiced(:) both zero, and the divisor is
+!     then exactly zero. A kept lane has xiced(:) >= xmind, so the floor is
+!     inert there, and on a discarded lane zckap(:) is zero, so the quotient is
+!     zero rather than an overflow. world-d016.
       where(xiced(:) >= xmind) 
-       xfluxc(:)=zckap(:)*(xts(:)-xsst(:))/(zhsnow(:)+xiced(:))
+       xfluxc(:)=zckap(:)*(xts(:)-xsst(:))                              &
+     &          /max(zhsnow(:)+xiced(:),1.0e-30)
        xcflux(:)=xfluxc(:)
-       xcfluxf(:)=zckap(:)*(TFREEZE-xsst(:))/(zhsnow(:)+xiced(:))
+       xcfluxf(:)=zckap(:)*(TFREEZE-xsst(:))                            &
+     &           /max(zhsnow(:)+xiced(:),1.0e-30)
       end where
 !
       if(nfluko > 0. .or. nice == 0) xcfluxf(:)=0.

@@ -1244,6 +1244,10 @@ checks:
   # list. The sites it cannot guard carry their argument in the script's
   # CLASSIFIED table, keyed on the argument text, so a changed argument is
   # reported again. Exit 1 on anything neither guarded nor classified.
+  #
+  # `--kind intrinsic` is the default and is what this row runs. `--kind divide`
+  # is the same parse over divisions, in all three spellings, and is not a gate
+  # yet: radmod.f90's 45 divisor keys are unread and are world-px61.
   - id: lint_masked_domains
     script: exoplasim/scripts/lint_masked_domains.py
   # Which declarations in plasim/src acquire SAVE inside a procedure body? A

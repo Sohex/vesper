@@ -125,13 +125,77 @@ domain for a reason the physics knows and the text does not. Only a run at the
 optimisation level whose transforms fire says whether anything is left, and that
 is the world-bhs probe at -O3 under `-ffpe-trap`, which is world-v9j9.
 
+## The division class, and what re-deriving the population found
+
+The pass reported a division only where the divisor was PARENTHESISED, which
+made the count of 133 a measurement of the parser rather than of the class. A
+division by a bare name, and one by a name with a subscript or an argument
+list, are the identical hazard: the mask does not stop the lane being
+evaluated, and `-ffpe-trap=zero` does not care how the divisor was spelled.
+Extending the pass to all three spellings took the population to 345 sites,
+156 distinct divisor keys. The masked Tetens divisors within it are settled
+separately, by `ra4d` in `plasimmod.f90`, which is world-6tp.
+
+Every key outside `radmod.f90` has now been read in context. Most are what the
+first reading supposed: a scalar or a named constant the mask has no bearing
+on, a field positive on every gridpoint, or a sum bounded away from zero. Each
+carries a row in `lint_masked_domains.py`'s `CLASSIFIED` table with the
+argument that says why it cannot vanish.
+
+Nine were not, and they fall into two kinds.
+
+### The divisor is the mask, negated
+
+`initpm` computes `sidereal_day / (TWOPI * restim)` under `where (restim >
+0.0)`, and the same for `tfrc`. Both arrays carry `= 0.0` in their `plasimmod`
+declarations, so on a run that sets neither the divisor is zero on EVERY lane
+and only `-O2`'s not having vectorised `initpm` has kept the trap from firing.
+`mkicec` divides by `2.*picedo(:)` under `where (picedn(:) < picedo(:))`; a
+lane the mask keeps has `picedo > picedn >= 0`, and a lane it discards is open
+water with `picedo` exactly zero. `kuo` has five of the shape written out
+plainly -- `where (zpt(:) > 0.) zat(:) = zi(:)*(1.-zbeta(:))/zpt(:)` and its
+four siblings. `mkcflux`'s two conduction divisors, `zhsnow/CKAPSN +
+xiced/CKAPI` and `zhsnow + xiced`, are zero on any discarded lane that is open
+water with no snow, which is most of them.
+
+Each is floored, and each floor is argued at the site to be a no-op on the
+lanes the mask keeps. The floor is `1.0e-30` rather than `tiny()` throughout:
+`-ffpe-trap=overflow` is declared beside the zero trap, and a floor at the
+smallest normal number trades one trap for the other.
+
+### The divisor is indeterminate memory
+
+This is the kind the first reading did not anticipate, and it is the larger
+one. `tands` declares `zcap`, `zdiff`, `zsoilz`, `zsnowz`, `zsoilz1`, `zdiff1`,
+`zcap1`, `zsntop` and `zctop` as automatic locals with no initialiser, and
+writes every one of them only inside `where (dls(:) > 0.0)`. So on a sea lane
+the divisors below -- `zsoilz1(:)`, `zctop(:)`, `snowdiff*zsoilz(:,1) +
+zdiff(:,1)*zsnowz(:)` -- were evaluating against whatever the stack held.
+`mktsoil` has the same shape for `ztn`, `zebs`, `zcap` and `zdiff`, and
+`mkdca` for `zsum1` and `zsumq1`.
+
+The remedy is not a floor. `tands` and `mkdca` preset the locals on every lane,
+and `mktsoil` drops the mask from its elimination and back-substitution
+entirely and keeps it only on the two statements that write `dsoilt`. Both
+leave the kept lanes bit-identical: every preset value is overwritten before it
+is read on a lane the mask keeps, every consumer outside the mask is itself
+masked on the same test, and `mktsoil`'s recursion stays positive on a sea lane
+for the same reason it does on a land one, because the caller now presets
+`pcap`, `pdiff` and `psoilz` positive everywhere.
+
+The presets in `mkdca` were chosen to reproduce what the lane already holds:
+`zsum1 = 1.`, `zsum2 = 0.` make the masked `ztht = zsum2/zsum1` evaluate to the
+`ztht(:) = 0.` two lines above it.
+
 ## What is not settled
 
-The division class is reported and not resolved. 133 sites have a parenthesised
-divisor inside a masked block, and most of them are sums that cannot vanish
-(`1.+ztcon`, `zcap+zdiff`); the pass has no way to tell those from the handful
-that can. The masked Tetens divisors within it are settled separately, by
-`ra4d` in `plasimmod.f90`, which is world-6tp. The rest is world-d016,
-which has to re-derive the population first: the pass reports a division only
-where the divisor is parenthesised, and a division by a bare name is the same
-hazard.
+`radmod.f90` was not read. Its 45 divisor keys, 102 sites, are the whole of what
+`--kind divide` still reports, and they were left because the file was being
+edited on another branch: a `CLASSIFIED` row is keyed on the argument text, so a
+row written against a version that no longer exists is a claim about nothing.
+world-px61 carries that remainder. Some of them are shapes settled elsewhere
+here, and some are not -- `1.-zra1s(:)*zrb1s(:,jlev)` is one minus a product of
+two reflectances and vanishes when both reach 1 -- so the remainder is a reading
+and not a pattern match.
+
+Until it is done, `--kind intrinsic` is the gate and `--kind divide` reports.
