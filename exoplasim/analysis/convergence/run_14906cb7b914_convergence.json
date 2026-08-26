@@ -1,0 +1,509 @@
+{
+  "run_dir": "/home/cfutro/docs/world/exoplasim/runs/run_14906cb7b914",
+  "completed_orbits": 35,
+  "window_orbits": 35,
+  "window_start_year_index": 0,
+  "window_end_year_index": 34,
+  "orbits_after_window_excluded_as_non_production": [],
+  "segment_purposes": {
+    "0": "spinup",
+    "1": "spinup",
+    "2": "spinup",
+    "3": "spinup",
+    "4": "spinup",
+    "5": "spinup",
+    "6": "spinup",
+    "7": "spinup",
+    "8": "spinup",
+    "9": "spinup",
+    "10": "spinup",
+    "11": "spinup",
+    "12": "spinup",
+    "13": "spinup",
+    "14": "spinup",
+    "15": "spinup",
+    "16": "spinup",
+    "17": "spinup",
+    "18": "spinup",
+    "19": "spinup",
+    "20": "spinup",
+    "21": "spinup",
+    "22": "spinup",
+    "23": "spinup",
+    "24": "spinup",
+    "25": "spinup",
+    "26": "spinup",
+    "27": "spinup",
+    "28": "spinup",
+    "29": "spinup",
+    "30": "spinup",
+    "31": "spinup",
+    "32": "spinup",
+    "33": "spinup",
+    "34": "spinup"
+  },
+  "metrics": {
+    "temperature_slope_k_per_orbit": -0.013613813733483601,
+    "toa_balance_slope_w_m2_per_orbit": -0.009799118195441148,
+    "surface_balance_slope_w_m2_per_orbit": -0.012102021488357111,
+    "sea_ice_slope_fraction_per_orbit": 0.00014698429906513836,
+    "mean_toa_balance_w_m2": -0.1377352850524472,
+    "mean_surface_balance_w_m2": 0.054451009687700364,
+    "temperature_mean_k": 292.61274954494127,
+    "temperature_last_k": 292.2561397156042,
+    "sea_ice_mean_fraction": 0.005783545064339912,
+    "state_storage_w_m2": -0.0744463392715933,
+    "state_storage_endpoint_w_m2": -0.04158303072259463,
+    "surface_storage_w_m2": -0.07280439943639222,
+    "reported_toa_minus_storage_w_m2": -0.0632889457808539,
+    "temperature_asymptote_k": 292.47526246746713,
+    "temperature_asymptote_half_width_k": 0.1443405979606262,
+    "temperature_remaining_offset_k": -0.1374870774741563,
+    "relaxation_orbits_fitted": 44017.878518950165,
+    "relaxation_orbits_expected": 10.099086131610758,
+    "planetary_albedo_in_window": 0.2366487456109018,
+    "radiative_damping_w_m2_per_k": 1.2857933876529242,
+    "slab_heat_capacity_j_m2_k": 205090991.01,
+    "slab_sea_water": {
+      "TFREEZE": 271.2449,
+      "CRHOS": 1027.94,
+      "CPS": 3990.33,
+      "CLFI": 328000.0,
+      "source": "icemod_namelist sets TFREEZE, CRHOS, CPS, CLFI; the rest are icemod.f90 defaults"
+    },
+    "slab_mixed_layer_depth_m": 50.0,
+    "remaining_offset_implied_by_drift_k": -0.1374870774741563,
+    "temperature_slope_standard_error_k_per_orbit": 0.004351776681632194,
+    "toa_balance_slope_standard_error_w_m2_per_orbit": 0.00629678592547934,
+    "surface_balance_slope_standard_error_w_m2_per_orbit": 0.007376639394095537,
+    "sea_ice_slope_standard_error_fraction_per_orbit": 2.7908393824116897e-05
+  },
+  "criteria": {
+    "abs_temperature_slope_lt_0.05_k_per_orbit": true,
+    "abs_toa_slope_lt_0.05_w_m2_per_orbit": true,
+    "abs_surface_slope_lt_0.05_w_m2_per_orbit": true,
+    "abs_sea_ice_slope_lt_0.001_per_orbit": true,
+    "abs_state_storage_lt_0.12_w_m2": true,
+    "extrapolated_offset_lt_0.15_k": false
+  },
+  "criteria_provenance": {
+    "energy_balance_tests": "state storage, not reported top-of-atmosphere net",
+    "storage_tolerance_w_m2": 0.12,
+    "storage_tolerance_derivation": "0.15 K offset tolerance / (0.128 K per orbit per W/m2 * 9.9 orbits) = 0.118 W/m2, against an estimator that resolves 0.11 W/m2 on a 10-orbit block. The two meet at 0.12.",
+    "supersedes": "abs_mean_toa_lt_0.5_w_m2 and abs_mean_surface_lt_0.5_w_m2",
+    "why": "The reported TOA net carries a structural offset of -0.573 +/- 0.035 W/m2 across four runs, so the criterion was thresholding a diagnostic rather than the planet. The 0.5 W/m2 it replaces was chosen early, never revisited, and applied to two different quantities. CLIM-7, decided 2026-08-17; the offset itself is CLIM-1 and is still open, which is why both numbers and their difference are recorded."
+  },
+  "resolving_power": {
+    "factor": 3.0,
+    "criterion": "a threshold discriminates when the standard error of the statistic it tests is at most 1/factor of it",
+    "window_orbits": 35,
+    "temperature_residual_scatter_k": 0.118619120446528,
+    "temperature_residual_tau_orbits": 4.663661723599201,
+    "temperature_residual_lag1": 0.6285587154471213,
+    "tau_estimated_from_the_window_itself": true,
+    "tau_span_supports_the_estimate": false,
+    "required_window_is_a_lower_bound": true,
+    "rows": [
+      {
+        "criterion": "abs_temperature_slope",
+        "threshold": 0.05,
+        "statistic_standard_error": 0.004351776681632194,
+        "resolves": true
+      },
+      {
+        "criterion": "abs_toa_slope",
+        "threshold": 0.05,
+        "statistic_standard_error": 0.00629678592547934,
+        "resolves": true
+      },
+      {
+        "criterion": "abs_surface_slope",
+        "threshold": 0.05,
+        "statistic_standard_error": 0.007376639394095537,
+        "resolves": true
+      },
+      {
+        "criterion": "abs_sea_ice_slope",
+        "threshold": 0.001,
+        "statistic_standard_error": 2.7908393824116897e-05,
+        "resolves": true
+      },
+      {
+        "criterion": "extrapolated_offset",
+        "threshold": 0.15,
+        "statistic_standard_error": 0.08789793506667755,
+        "resolves": false
+      }
+    ],
+    "window_orbits_for_offset_criterion": 50.46893262207652,
+    "window_orbits_for_offset_criterion_if_independent": 30.21460491994122,
+    "default_window_orbits": 35
+  },
+  "convergence_lengths": {
+    "basis": "operational experience across this project's runs, not a measured distribution; every number here is bracketed by what has been seen rather than fitted",
+    "cold_start_t21_orbits": 70,
+    "cold_start_note": "seed- and initial-condition-dependent; exoplasim/notes/parameter-decisions.md records a cold start converging on all six criteria after 70 orbits",
+    "reconvergence_after_timestep_or_resolution_change_orbits": [
+      10,
+      20
+    ],
+    "reconvergence_note": "the state is already at a climate; what settles is the response to a changed discretisation",
+    "recorded_in": "exoplasim/notes/convergence-lengths.md"
+  },
+  "sufficiently_equilibrated_for_worldbuilding": false,
+  "failed_criteria": [
+    "extrapolated_offset_lt_0.15_k"
+  ],
+  "annual_records": [
+    {
+      "year_index": 0,
+      "ts": 292.9762196111162,
+      "ntr": 0.8121452565081372,
+      "hfns": 1.6513150630659938,
+      "sic": 0.0020952322744867548,
+      "pr": 2.7716368497614283,
+      "rst": 246.67915920447217,
+      "rsut": -75.01598272117825
+    },
+    {
+      "year_index": 1,
+      "ts": 292.79973906457803,
+      "ntr": 0.446656940501957,
+      "hfns": 0.3986637839538556,
+      "sic": 0.0024564772566879763,
+      "pr": 2.8558705051148787,
+      "rst": 246.17297727295832,
+      "rsut": -75.53577859007949
+    },
+    {
+      "year_index": 2,
+      "ts": 292.6728604434099,
+      "ntr": -0.14927217494393874,
+      "hfns": 0.06810026834629464,
+      "sic": 0.0033602535828800464,
+      "pr": 2.8607539199024417,
+      "rst": 245.55885703984828,
+      "rsut": -76.14989832417267
+    },
+    {
+      "year_index": 3,
+      "ts": 292.6809542625745,
+      "ntr": 0.006765537971882581,
+      "hfns": 0.20119024146078987,
+      "sic": 0.0030431869358444837,
+      "pr": 2.869608214049594,
+      "rst": 245.4412691260095,
+      "rsut": -76.26748402768688
+    },
+    {
+      "year_index": 4,
+      "ts": 292.66197497349367,
+      "ntr": -0.40568557433392805,
+      "hfns": -0.23413886264460468,
+      "sic": 0.0033538315281203394,
+      "pr": 2.866194313547382,
+      "rst": 245.72851994510327,
+      "rsut": -75.9802325480258
+    },
+    {
+      "year_index": 5,
+      "ts": 292.6905915840183,
+      "ntr": -0.23650205285325976,
+      "hfns": -0.020208737703050428,
+      "sic": 0.0036525822610948785,
+      "pr": 2.8442030621459273,
+      "rst": 245.65931762857812,
+      "rsut": -76.04943555037435
+    },
+    {
+      "year_index": 6,
+      "ts": 292.6413962511503,
+      "ntr": 0.040845304252345706,
+      "hfns": 0.2548021950936006,
+      "sic": 0.0038689771878231117,
+      "pr": 2.8394605957939882,
+      "rst": 246.04300467518476,
+      "rsut": -75.66575121438979
+    },
+    {
+      "year_index": 7,
+      "ts": 292.73380318291515,
+      "ntr": -0.27333814489031605,
+      "hfns": -0.06934783130371303,
+      "sic": 0.004442149720975948,
+      "pr": 2.8565563006876147,
+      "rst": 245.86654657319966,
+      "rsut": -75.84221240397753
+    },
+    {
+      "year_index": 8,
+      "ts": 292.7180206526527,
+      "ntr": -0.23437470570265173,
+      "hfns": -0.10006465006249243,
+      "sic": 0.004398243633860109,
+      "pr": 2.8678196203888247,
+      "rst": 245.09156644530609,
+      "rsut": -76.6171902006749
+    },
+    {
+      "year_index": 9,
+      "ts": 292.6821027203287,
+      "ntr": -0.12074213028335927,
+      "hfns": -0.0717851444812571,
+      "sic": 0.0047826753808950006,
+      "pr": 2.873316344026215,
+      "rst": 245.6430404725448,
+      "rsut": -76.0657115275149
+    },
+    {
+      "year_index": 10,
+      "ts": 292.5802008710161,
+      "ntr": -0.04203683059478491,
+      "hfns": 0.30534904101844335,
+      "sic": 0.005539687074001512,
+      "pr": 2.8439764054478465,
+      "rst": 245.75561218444363,
+      "rsut": -75.95313421273542
+    },
+    {
+      "year_index": 11,
+      "ts": 292.67414284111953,
+      "ntr": -0.24006539101512173,
+      "hfns": -0.1068658860741832,
+      "sic": 0.005369770719265786,
+      "pr": 2.8536980038382844,
+      "rst": 245.5766910723121,
+      "rsut": -76.13205285578066
+    },
+    {
+      "year_index": 12,
+      "ts": 292.6961771017813,
+      "ntr": 0.010629751500142485,
+      "hfns": 0.01612689854607859,
+      "sic": 0.005465377822883079,
+      "pr": 2.845903288118417,
+      "rst": 245.5828839399929,
+      "rsut": -76.12586259044619
+    },
+    {
+      "year_index": 13,
+      "ts": 292.6760249006602,
+      "ntr": 0.14664831145972027,
+      "hfns": 0.44299859577118267,
+      "sic": 0.00542882470169125,
+      "pr": 2.8532124995724124,
+      "rst": 245.78840921220535,
+      "rsut": -75.9203389987255
+    },
+    {
+      "year_index": 14,
+      "ts": 292.83439670468164,
+      "ntr": -0.04843579134784074,
+      "hfns": 0.10479107271493075,
+      "sic": 0.005975277073770679,
+      "pr": 2.8581951961852337,
+      "rst": 245.93302076398672,
+      "rsut": -75.77572890817603
+    },
+    {
+      "year_index": 15,
+      "ts": 292.8202663896193,
+      "ntr": -0.1114264296821134,
+      "hfns": 0.02826110060758798,
+      "sic": 0.006157494402882064,
+      "pr": 2.8499429149611784,
+      "rst": 245.98541657124778,
+      "rsut": -75.72333695303975
+    },
+    {
+      "year_index": 16,
+      "ts": 292.69011093747537,
+      "ntr": 0.11728892998033273,
+      "hfns": 0.2099126537298869,
+      "sic": 0.0058378950765039074,
+      "pr": 2.8464432551641403,
+      "rst": 246.00609579812468,
+      "rsut": -75.7026599674651
+    },
+    {
+      "year_index": 17,
+      "ts": 292.9154454619373,
+      "ntr": -0.08559288255987507,
+      "hfns": 0.2096420651323053,
+      "sic": 0.0052531652304124545,
+      "pr": 2.817242856477785,
+      "rst": 246.15788861068245,
+      "rsut": -75.55086683491034
+    },
+    {
+      "year_index": 18,
+      "ts": 292.8585533399553,
+      "ntr": -0.02885816236390785,
+      "hfns": 0.05131800999579661,
+      "sic": 0.006090799613301288,
+      "pr": 2.820787506912442,
+      "rst": 245.7343445644261,
+      "rsut": -75.97440849146297
+    },
+    {
+      "year_index": 19,
+      "ts": 292.7874042689472,
+      "ntr": -0.2967384041015462,
+      "hfns": 0.03037575255857261,
+      "sic": 0.006246928868514725,
+      "pr": 2.8483334358564494,
+      "rst": 246.01391957021056,
+      "rsut": -75.69483305407242
+    },
+    {
+      "year_index": 20,
+      "ts": 292.6807773181141,
+      "ntr": -0.5371537756073765,
+      "hfns": -0.38964371523085867,
+      "sic": 0.00670863588120341,
+      "pr": 2.8402145750060455,
+      "rst": 245.41019779420307,
+      "rsut": -76.29855528928515
+    },
+    {
+      "year_index": 21,
+      "ts": 292.4621027053192,
+      "ntr": -0.5604024914298833,
+      "hfns": -0.24293393728883114,
+      "sic": 0.00846166617604854,
+      "pr": 2.8627208837039015,
+      "rst": 245.32402544555688,
+      "rsut": -76.38473057589106
+    },
+    {
+      "year_index": 22,
+      "ts": 292.6368001985188,
+      "ntr": -0.4659019489435982,
+      "hfns": -0.44132117728236536,
+      "sic": 0.007856885280506416,
+      "pr": 2.8641012921851914,
+      "rst": 245.50886380744714,
+      "rsut": -76.19989514843012
+    },
+    {
+      "year_index": 23,
+      "ts": 292.5359462812748,
+      "ntr": -0.0817107685162514,
+      "hfns": 0.06559576764625034,
+      "sic": 0.007148437973740037,
+      "pr": 2.8519495159914117,
+      "rst": 245.50575880804948,
+      "rsut": -76.2029977346589
+    },
+    {
+      "year_index": 24,
+      "ts": 292.51688945195707,
+      "ntr": -0.6948890290339217,
+      "hfns": -0.5584288678363989,
+      "sic": 0.007503371982054041,
+      "pr": 2.8691881605779916,
+      "rst": 245.03384661870882,
+      "rsut": -76.67490541186106
+    },
+    {
+      "year_index": 25,
+      "ts": 292.4837057180049,
+      "ntr": -0.21616661473530607,
+      "hfns": -0.003939744228519911,
+      "sic": 0.0077246702443021275,
+      "pr": 2.844646161404775,
+      "rst": 245.31909859157494,
+      "rsut": -76.38964789051668
+    },
+    {
+      "year_index": 26,
+      "ts": 292.4271900462517,
+      "ntr": -0.4848526951363379,
+      "hfns": -0.2910105684982289,
+      "sic": 0.00728264241875663,
+      "pr": 2.877788350914636,
+      "rst": 244.91736462464996,
+      "rsut": -76.7913793833659
+    },
+    {
+      "year_index": 27,
+      "ts": 292.30532952662566,
+      "ntr": -0.5248048177444731,
+      "hfns": -0.1196248822028078,
+      "sic": 0.007404390897380898,
+      "pr": 2.889668410464529,
+      "rst": 244.24351769170914,
+      "rsut": -77.46522885885612
+    },
+    {
+      "year_index": 28,
+      "ts": 292.4200905527455,
+      "ntr": -0.19072983892657516,
+      "hfns": -0.11274002396810238,
+      "sic": 0.008167534007891409,
+      "pr": 2.826486691196729,
+      "rst": 245.04817749814103,
+      "rsut": -76.6605707106544
+    },
+    {
+      "year_index": 29,
+      "ts": 292.4300104840091,
+      "ntr": 0.23747293725752497,
+      "hfns": 0.32381363942695146,
+      "sic": 0.0069576065567412415,
+      "pr": 2.82144171577648,
+      "rst": 245.99495283633306,
+      "rsut": -75.71379675770488
+    },
+    {
+      "year_index": 30,
+      "ts": 292.47891319179047,
+      "ntr": -0.24981111806964731,
+      "hfns": -0.17393694276544971,
+      "sic": 0.006461030184914596,
+      "pr": 2.8419267151853127,
+      "rst": 245.26239263472075,
+      "rsut": -76.44636095599226
+    },
+    {
+      "year_index": 31,
+      "ts": 292.37758574349294,
+      "ntr": -0.07143201185970242,
+      "hfns": 0.19619102859970164,
+      "sic": 0.006787286820941203,
+      "pr": 2.837308804348032,
+      "rst": 245.45972759905592,
+      "rsut": -76.2490281529864
+    },
+    {
+      "year_index": 32,
+      "ts": 292.32034739366986,
+      "ntr": -0.4280755580327889,
+      "hfns": -0.15770726190548814,
+      "sic": 0.0060802731568041215,
+      "pr": 2.8702233068315355,
+      "rst": 244.87262134825505,
+      "rsut": -76.83613398383811
+    },
+    {
+      "year_index": 33,
+      "ts": 292.3240201821357,
+      "ntr": -0.04939878850885945,
+      "hfns": 0.30284972384581654,
+      "sic": 0.007189529885902755,
+      "pr": 2.835016978002952,
+      "rst": 245.45797604895884,
+      "rsut": -76.2507770193432
+    },
+    {
+      "year_index": 34,
+      "ts": 292.2561397156042,
+      "ntr": 0.18921018494966946,
+      "hfns": 0.1381866710318255,
+      "sic": 0.007871285438814064,
+      "pr": 2.829256077407889,
+      "rst": 245.39983683562548,
+      "rsut": -76.30891576149874
+    }
+  ]
+}
