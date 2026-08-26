@@ -231,5 +231,123 @@
     "instrument_versus_effect": "the bracket is wider than the scatter of the fit that defines its lower arm at every density carried, so it is a real disagreement and not the noise of one regression.",
     "cross_component": "SETTLED. vendor/lpj-guess/modules/soil.cpp computed its snow conductivity from Sturm et al. (1997), which is BELOW the slow arm at every density here, so the ecology column and the climate column insulated their soil differently from the same snowfall at the same density by more than the bracket between the two published limits. Both now restate lib/snow.py's one relation, held there by snow.check_restatements, which scripts/smoke_test.py and biosphere/scripts/snow_thermal_gate.py both run. The Sturm column below is what the superseded ecology column ran and is the evidence for the choice."
   },
+  "snow_compaction": {
+    "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+    "snowy_land_bins": 4030,
+    "land_bins": 12228,
+    "scheme": "Willeit and Ganopolski (2016) Eqs. (46)-(48); self-loading after Kojima (1967) as implemented by Pitman et al. (1991), fresh-snow density after Anderson (1976)",
+    "constants": {
+      "eta_0_pa_s": 9000000.0,
+      "k_T_per_k": 0.06,
+      "k_rho_m3_per_kg": 0.02,
+      "rho_min_kg_m3": 50.0,
+      "derivation": "none stated. The paper tabulates the three viscosity constants with a description and no source column, no range of validity and no sensitivity test, and takes them from a 1991 technical report's implementation of a 1967 conference paper. Adopting the scheme imports them."
+    },
+    "cases": {
+      "constant": {
+        "gravity_m_s2": null,
+        "density_kg_m3": {
+          "p5": 330.0,
+          "p50": 330.0,
+          "p95": 330.0,
+          "max": 330.0
+        },
+        "physical_depth_m": {
+          "p5": 0.0063,
+          "p50": 0.0922,
+          "p95": 0.2803,
+          "max": 0.5534
+        },
+        "conductive_resistance_m2_k_w": {
+          "p5": 0.0199,
+          "p50": 0.2909,
+          "p95": 0.8844,
+          "max": 1.7461
+        }
+      },
+      "prognostic_earth_gravity": {
+        "gravity_m_s2": 9.80665,
+        "density_kg_m3": {
+          "p5": 96.2253,
+          "p50": 160.8402,
+          "p95": 256.0908,
+          "max": 309.096
+        },
+        "physical_depth_m": {
+          "p5": 0.0135,
+          "p50": 0.2042,
+          "p95": 0.438,
+          "max": 0.7057
+        },
+        "conductive_resistance_m2_k_w": {
+          "p5": 0.1239,
+          "p50": 2.0445,
+          "p95": 3.7122,
+          "max": 5.4474
+        }
+      },
+      "prognostic_this_gravity": {
+        "gravity_m_s2": 12.81,
+        "density_kg_m3": {
+          "p5": 102.7349,
+          "p50": 169.9605,
+          "p95": 269.1164,
+          "max": 322.9341
+        },
+        "physical_depth_m": {
+          "p5": 0.0135,
+          "p50": 0.1892,
+          "p95": 0.4089,
+          "max": 0.6647
+        },
+        "conductive_resistance_m2_k_w": {
+          "p5": 0.1222,
+          "p50": 1.7804,
+          "p95": 3.12,
+          "max": 4.5353
+        }
+      }
+    },
+    "resistance_ratios": {
+      "prognostic_earth_over_constant": {
+        "p5": 1.956,
+        "p50": 6.0506,
+        "p95": 17.2207,
+        "max": 29.1054
+      },
+      "this_gravity_over_earth_gravity": {
+        "p5": 0.8301,
+        "p50": 0.8638,
+        "p95": 0.9894,
+        "max": 0.9988
+      },
+      "prognostic_this_over_constant": {
+        "p5": 1.7198,
+        "p50": 5.3363,
+        "p95": 15.2648,
+        "max": 28.328
+      }
+    },
+    "albedo": {
+      "worth": 0.0,
+      "why": "landmod takes the snow-covered fraction as dsnow/(dsnow + snowcovz) in WATER EQUIVALENT, so the density does not enter it. The only path from density to albedo is the canopy burial depth handed to snowcanopymask, read only when forhgt is positive, and it is not. So the answer is exactly zero rather than small, and it becomes non-zero when the canopy gets a height.",
+      "peer_practice": "ClimaLand multiplies snow albedo by min(1 - beta*(rho/rho_liq - x0), 1). Its beta is a FREE PARAMETER with no citation, 0.97 in its calibrated set and 0 in its uncalibrated one, so adopting that path would import a tuned constant rather than a mechanism. PALADYN puts no density in albedo at all and uses a snow AGE factor as the grain-size proxy instead."
+    },
+    "instrument_versus_effect": {
+      "quantity": "the pack's conductive resistance, z/k",
+      "gravity_effect": 0.1577,
+      "gravity_effect_is": "the resistance at 170.0 kg/m3 against 160.8, which is what the 1.306x compaction rate is worth on the STATE",
+      "kinetics_bracket_effect": 0.5312,
+      "kinetics_bracket_is": "Fourteau's fast arm over Calonne's slow arm at the same density, which is the width of an open question rather than an error bar",
+      "gravity_over_bracket": 0.297,
+      "verdict": "the gravity term is SMALLER than the bracket the conductivity already carries, so a pair of runs differing only in gravity would not separate it from the arm the model happens to evaluate"
+    },
+    "limitations": [
+      "the forcing is a climatology, so an intermittent pack appears as a persistent thin one. Compaction is linear in the load, so a time-mean water equivalent understates the compaction of a transient deep pack and the reported densities are a floor for those cells",
+      "the water equivalent is PRESCRIBED from a run that used the constant density, so this prices the density on that snow rather than on the snow a prognostic density would itself produce",
+      "the snow layer temperature is proxied by the surface temperature capped at melting, which is the pack's warm end and makes the viscosity soft, so the compaction here is an upper bound",
+      "PALADYN itself neglects metamorphism and the effect of melting on density, and this inherits both"
+    ]
+  },
   "what_is_not_derivable_here": "the density, specific heat and conductivity of SEA ice are functions of brine volume, hence of the ice's own salinity and temperature, and this model carries neither as a variable. icemod.f90 already says so of the heat of fusion. The pure ice Ih values above are the bound those declarations sit against, not substitutes for them."
 }

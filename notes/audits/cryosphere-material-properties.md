@@ -1,11 +1,13 @@
 # What the modelled sea ice and its snow are made of
 
-**Derived:** 2026-08-25, by `analysis/ice_properties.py` from IAPWS R10-06(2009)
-and from the papers named at the foot of this note. No World Orogen generation
-and no ExoPlaSim run: every number here is either a laboratory standard
-evaluated, or a published relation evaluated at a declared density or
-temperature. One measured number is quoted from an existing bootstrap
-climatology and is labelled where it appears.
+**Derived:** 2026-08-25 and 2026-08-26, by `analysis/ice_properties.py` from
+IAPWS R10-06(2009) and from the papers named at the foot of this note. No World
+Orogen generation and no ExoPlaSim run: every number here is either a laboratory
+standard evaluated, or a published relation evaluated at a declared density or
+temperature, or a published relation integrated OFFLINE over an existing
+climatology. The two places that read a climatology are the temperature span of
+the modelled sea ice and the snow compaction pricing, and both are labelled
+where they appear: a bootstrap's numbers are not the baseline.
 
 This is worldbuilding. Vesper is an invented super-Earth around a mid-K dwarf,
 and every quantity below is a material property of that planet's simulated sea
@@ -33,6 +35,7 @@ note is the answer, one row at a time.
 | `Ksnow`, conductivity of the modelled snow in the vegetation model | Sturm et al. (1997), compiled | **changed, DERIVED from the same relation.** Below both arms of the bracket at every density the two components span; the relation is declared once in `lib/snow.py` and restated in both models under a check |
 | `sicecap`, heat capacity of the modelled glacial ice | `landmod_nl` key | **changed, DERIVED from `rhoglac`.** It factorised as one thousand times ice's specific heat, which is LIQUID WATER's density; a bracket on the ice density moved the orography and left the ice's thermal mass behind |
 | `sicediff`, conductivity of the modelled glacial ice | `landmod_nl` key | **changed, DERIVED from `rhoglac`.** Pure ice from Yen's Eq. (33), reduced by his Eq. (37) for the air the density implies. Glacial ice is bubbly and the reduction is the whole difference from pure ice |
+| `rhosnow`, density of the modelled snow | `landmod_nl` key, no compaction | **unchanged, and now PRICED.** A prognostic density is worth a factor of six on the pack's conductive resistance and the gravity term inside it is worth 14 per cent, which is smaller than the vapour-kinetics bracket the conductivity already carries. On the modelled surface albedo it is worth exactly zero, because the snow-covered fraction is taken in water equivalent |
 
 ## The line between what is derivable here and what is not
 
@@ -406,6 +409,114 @@ neither constant reaches a result until `glaciermod` grows ice. The run that
 would price them is therefore not a bracket arm at all: it is any run that
 produces a glaciated cell.
 
+## What snow compaction is worth, and where
+
+Measured 2026-08-26 by `analysis/ice_properties.py --climatology`, offline
+against an existing bootstrap climatology and before any change to the model.
+GRAV-8's own sequencing, and the reason for it is that adding a prognostic
+density imports three viscosity constants with no stated derivation, so the
+question of what they buy has to be answered first. A bootstrap's numbers are
+not the baseline, and this is labelled as one of the two places in this note
+that reads one.
+
+### The scheme, and what it costs to adopt
+
+PALADYN's, Willeit and Ganopolski (2016) Eqs. (46) to (48): self-loading after
+Kojima (1967) as implemented by Pitman et al. (1991), fresh-snow density after
+Anderson (1976).
+
+    d(rho)/dt = 0.5 g rho w / eta  +  P (rho_fresh - rho) / w
+    eta       = eta_0 exp[k_T (T_0 - T_sn) + k_rho rho]
+    rho_fresh = rho_min + 1.7 (T_a - T_0 + 15)**1.5
+
+Gravity enters ONE term, linearly, so the compaction RATE runs 1.306 times
+Earth's here. The three viscosity constants are tabulated with a description and
+no source column, no range of validity and no sensitivity test, and reach the
+paper from a 1991 technical report's implementation of a 1967 conference paper.
+Adopting the scheme imports all three.
+
+### The rate ratio is not the state ratio, and that is the first finding
+
+Prognostic density over this world's modelled snow, at the median snowy land
+cell and time bin: 161 kg/m3 at Earth's gravity, 170 at this world's. The
+compaction rate is 1.306 times Earth's and the DENSITY it produces is 1.06
+times, because the pack also relaxes toward the fresh-snow density at a rate set
+by the snowfall and this world's modelled snow does not survive long enough for
+the load term to dominate. Reading the rate ratio as a state ratio would
+overstate the effect fivefold.
+
+### The constant is worth six times what the gravity term is
+
+The quantity is the pack's CONDUCTIVE RESISTANCE, thickness over conductivity,
+which is what sets the temperature drop across the pack per unit ground heat
+flux and is what `landmod` builds `zdiff1` from. Depth and conductivity both
+move with the density and in opposite directions, so quoting either alone says
+nothing.
+
+| Case | Density | Physical depth | z/k |
+| --- | --- | --- | --- |
+| the compiled constant | 330 kg/m3 | 0.092 m | 0.291 m2K/W |
+| prognostic at Earth's gravity | 161 kg/m3 | 0.204 m | 2.044 m2K/W |
+| prognostic at this world's gravity | 170 kg/m3 | 0.189 m | 1.780 m2K/W |
+
+Medians over 4030 snowy land cell-bins. The prognostic pack is about six times
+more insulating than the constant makes it, and the gravity term inside that is
+worth 14 per cent. **The model form is the large term and the gravity is the
+small one**, which is the opposite of the order the row was filed in.
+
+### The gravity term is smaller than a bracket the model already carries
+
+At the prognostic density the gravity term moves the resistance by 16 per cent.
+The vapour-kinetics bracket on the conductivity -- Fourteau's fast arm against
+Calonne's slow arm at ONE density, which is an open question rather than an
+error bar -- moves it by 53 per cent. So a pair of runs differing only in
+gravity would not separate the gravity term from the arm the model happens to
+evaluate. That is not an argument against representing compaction; it is an
+argument that the gravity term is not what a run should be bought to measure.
+
+### On albedo the answer is exactly zero, and it is a fact about the model
+
+The row was filed expecting the density to reach surface albedo through snow
+cover depth. It does not. `landmod` takes the snow-covered fraction as
+`dsnow/(dsnow + snowcovz)` in WATER EQUIVALENT, so the density cancels out of it
+entirely. The one path from density to albedo is the canopy burial depth handed
+to `snowcanopymask`, and that argument is read only when `forhgt` is positive,
+which it is not. So the density reaches the modelled surface albedo through
+nothing at all, and a compaction term is worth exactly zero there until the
+canopy gets a height under GRAV-7 and BIO-33.
+
+Peer practice does not rescue that path either. ClimaLand multiplies snow albedo
+by `min(1 - beta*(rho/rho_liq - x0), 1)`, and its `beta` is a free parameter with
+no citation: 0.97 in its calibrated parameter set and 0 in its uncalibrated one.
+Adopting it would import a tuned constant rather than a mechanism. PALADYN puts
+no density in albedo at all and uses a snow AGE factor as the grain-size proxy
+instead. So of the two peer schemes, one has no such term and the other's is
+tuned.
+
+### Where the density does still reach a result
+
+The conductive resistance above, on land; the top soil layer's blended heat
+capacity, but only where the physical pack is deeper than `dztop`, which is 16
+per cent of snowy land cell-bins under the constant and more under a prognostic
+density, because below that depth `snowcap * zsntop` is the water equivalent
+times the specific heat of ice and the density cancels; and the modelled sea
+ice, which takes the same density through `iceini` and uses it the same way.
+
+### What this measurement cannot say
+
+- The forcing is a climatology, so an intermittent pack appears as a persistent
+  thin one. Compaction is linear in the load, so a time-mean water equivalent
+  understates the compaction of a transient deep pack: those cells' densities
+  here are a floor.
+- The water equivalent is PRESCRIBED from a run that used the constant density,
+  so this prices a density on that snow rather than on the snow a prognostic
+  density would itself produce. The feedback is one-signed and named: a less
+  dense, more insulating pack keeps the ground warmer under it.
+- The snow layer temperature is proxied by the surface temperature capped at
+  melting, which is the pack's warm end and therefore the soft end of the
+  viscosity, so the compaction reported here is an upper bound.
+- PALADYN itself neglects metamorphism and the effect of melting on density.
+
 ## What this did not establish
 
 - **Nothing was run.** Every statement is against the source, the standard, or a
@@ -421,6 +532,11 @@ produces a glaciated cell.
   change that pair moved the pack's thickness and thermal mass and held its
   conductivity; after it, all three move. The quantity to read is the ground and
   basal heat flux under snow-covered cells and the resulting ice thickness.
+  **The pricing above says what that pair should be**, and it is not a gravity
+  bracket: the two arms worth buying are the compiled constant against a
+  prognostic density, which differ by a factor of six in the pack's conductive
+  resistance, rather than the same prognostic density at two gravities, which
+  differ by less than the kinetics bracket already open at one density.
 - **What the snow bracket is worth is not measured either.** The run that would
   measure it is a second pair, on the same terms as the `rhosnow` pair above and
   not folded into it: two T21 baseline arms differing only in which arm of the
@@ -457,4 +573,5 @@ produces a glaciated cell.
 | `references/riche_2013_thermal-conductivity-of-snow-measured-by-three-independent-methods-and.pdf` -- Riche, Schneebeli (2013). The Cryosphere 7, 217-227. `10.5194/tc-7-217-2013` | **read** -- three methods on identical samples, the conclusion that direct numerical simulation is the most reliable, and the up to plus or minus 25 per cent anisotropy error on a horizontally inserted needle probe. This is what decides against Sturm |
 | `references/fourteau_2021_impact-of-water-vapor-diffusion-and-latent-heat-on-the-effective-therm.pdf` -- Fourteau, Domine, Hagenmuller (2021). The Cryosphere 15, 2739-2755. `10.5194/tc-15-2739-2021` | **read** -- Eq. (18), the vertical effective thermal conductivity under fast kinetics at five temperatures as a quadratic in the ice volume fraction, with 917 kg/m3 as the normalising ice density. ADOPTED. Also the statement that the fast and slow kinetics limits both remain plausible, which is the bracket recorded above |
 | `references/calonne2011-effective-thermal-conductivity-of-snow.pdf` -- Calonne, Flin, Morin, Lesaffre, Rolland du Roscoat, Geindreau (2011). Geophys. Res. Lett. 38, L23501. `10.1029/2011GL049234` | **read** 2026-08-25, all six pages. SUPPLIED BY THE USER after every open-access route and Sci-Hub returned 403. Equation (12), its quadratic in density fitted so that the value goes to air's at zero density, with its correlation coefficient and the residual standard deviation that decides whether the bracket is bigger than the noise; the statement that only conduction through ice and interstitial air is counted, which is what makes it the slow arm; the table showing that dropping conduction through the pore AIR would lower the answer by a factor of two in dense snow and an order of magnitude in fresh snow; and section 3.1's agreement with Yen's snow curve. ITS NEEDLE-PROBE POSITION IS NOT WHAT THE EARLIER ROW EXPECTED, and section 4 above says what it is instead |
+| `references/willeit_2016_paladyn-v1-0-a-comprehensive-land-surfacevegetationcarbon-cycle-model.pdf` -- Willeit, Ganopolski (2016). Geosci. Model Dev. 9, 3817-3857. `10.5194/gmd-9-3817-2016` | **read in part** 2026-08-26: Sect. 5.2's snow model with Eqs. (46) to (49), Table 2's surface model parameters, Sect. 3.1's snow albedo with Eqs. (17) to (20) and Appendix A's snow age factor, and Sect. 4's Eqs. (35) and (36). The compaction scheme priced above, and the source of the finding that PALADYN puts no density in its snow albedo at all. Its three viscosity constants carry no derivation, no range of validity and no sensitivity test, which is what makes adopting the scheme a cost rather than a free improvement |
 | `references/yen1981-review-of-thermal-properties-of-snow-ice-and-sea-ice.pdf` -- Yen (1981). *Review of thermal properties of snow, ice and sea ice.* CRREL Report 81-10 | **read** 2026-08-25, the conductivity sections: "Thermal conductivity of ice" with equation (33) and Table 3's three regression arms, "Thermal conductivity of snow" with equation (34), and "Density and thermal conductivity of sea ice" and "Thermal conductivity model for sea ice" with equations (70) to (72) and Figures 22 and 23. This is `CKAPI`'s bound, which IAPWS-06 cannot give because a Gibbs function carries no transport property. Also the sea-ice conductivity model itself, which is the arithmetic behind the sentence that these constants are not derivable here: it needs a salinity and a temperature per cell, and shows the brine term SUBTRACTING |

@@ -223,8 +223,19 @@ def main() -> None:
         if not m:
             raise SystemExit(f"landmod.f90 no longer declares {name}")
         return float(m.group(1).replace("D", "e").replace("d", "e"))
-    soildiff, soilcap = declared("soildiff"), declared("soilcap")
-    model_inertia = float(np.sqrt(soildiff * soilcap))
+    # WHAT THE MODEL NOW CARRIES IS A RANGE, not a pair. WORLD-JSFM replaced the
+    # two scalars with four endpoints the soil heat solver interpolates between
+    # on the column's own water, so the comparison this script makes is against
+    # the SPAN those endpoints open and against the point the retired constant
+    # sat at. Both are read from the source rather than restated.
+    ends = {name: declared(name) for name in
+            ("soildifdry", "soildifsat", "soilcapdry", "soilcapsat")}
+    model_dry = float(np.sqrt(ends["soildifdry"] * ends["soilcapdry"]))
+    model_sat = float(np.sqrt(ends["soildifsat"] * ends["soilcapsat"]))
+    # The pair the endpoints replaced, kept because this script's whole argument
+    # is about how far that one number sat from the states the soil occupies.
+    RETIRED_SOILDIFF, RETIRED_SOILCAP = 1.8, 2.4e6
+    model_inertia = float(np.sqrt(RETIRED_SOILDIFF * RETIRED_SOILCAP))
 
     lo, hi = SATURATION_RANGE
     mid_quartz = QUARTZ_FRACTION["playa mud and fan fill"]
@@ -290,9 +301,9 @@ def main() -> None:
     # dry end: bulk density. It is a texture property, which pedology's soil
     # map holds and the lithology map does not, and unlike mineralogy it does
     # not vanish where the soil is dry.
-    ends = [inertia(lo, mid_quartz, r) for r in BULK_DENSITY_BRACKET]
+    rho_ends = [inertia(lo, mid_quartz, r) for r in BULK_DENSITY_BRACKET]
     bulk_density_spread = {
-        "air_dry_ratio": round(float(max(ends) / min(ends)), 2),
+        "air_dry_ratio": round(float(max(rho_ends) / min(rho_ends)), 2),
         "note": "bulk density is the one term besides moisture that acts at "
                 "the dry end. It is texture, not parent material, and the "
                 "component that carries it is pedology",
@@ -307,12 +318,23 @@ def main() -> None:
                  "conductivity is a function of bulk density alone",
         "column": {"bulk_density_kg_m3": rho_b,
                    "porosity": round(1.0 - rho_b / RHO_SOLID, 3)},
-        "landmod_scalars": {"soildiff_w_m_k": soildiff,
-                            "soilcap_j_m3_k": soilcap,
-                            "thermal_inertia_j_m2_k_s05": round(model_inertia, 1),
-                            "saturation_that_reproduces_it": (
-                                round(model_saturation, 3)
-                                if model_saturation is not None else None)},
+        "landmod_endpoints": {
+            **{k: v for k, v in ends.items()},
+            "thermal_inertia_dry_j_m2_k_s05": round(model_dry, 1),
+            "thermal_inertia_saturated_j_m2_k_s05": round(model_sat, 1),
+            "span": round(model_sat / model_dry, 2),
+            "what_they_replaced": {
+                "soildiff_w_m_k": RETIRED_SOILDIFF,
+                "soilcap_j_m3_k": RETIRED_SOILCAP,
+                "thermal_inertia_j_m2_k_s05": round(model_inertia, 1),
+                "saturation_that_reproduces_it": (
+                    round(model_saturation, 3)
+                    if model_saturation is not None else None),
+                "note": "one number for the whole simulated planet, Earth's "
+                        "global average for a moist mineral soil. It is above "
+                        "the saturated endpoint of this column, so it is not a "
+                        "mid-range value: it is past the wet end.",
+            }},
         "moisture_spread": {k: (round(v, 1) if k != "ratio" else round(v, 2))
                             for k, v in moisture.items()},
         "lithology_spread": {
@@ -384,14 +406,15 @@ def main() -> None:
     }
     args.json.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
+    print(f"landmod's endpoints span a thermal inertia of {model_dry:.0f} dry "
+          f"to {model_sat:.0f} saturated, a factor {model_sat/model_dry:.2f}")
     if model_saturation is not None:
-        print(f"landmod's single pair is a thermal inertia of "
-              f"{model_inertia:.0f}, which this column reaches at a saturation "
-              f"of {model_saturation:.2f}")
+        print(f"  the retired single pair was {model_inertia:.0f}, which this "
+              f"column reaches at a saturation of {model_saturation:.2f}")
     else:
-        print(f"landmod's single pair is a thermal inertia of "
-              f"{model_inertia:.0f}, which this column does not reach even "
-              f"saturated: it is a wetter or denser soil than this one")
+        print(f"  the retired single pair was {model_inertia:.0f}, which this "
+              f"column does not reach even saturated: it was a wetter or "
+              f"denser soil than this one")
     print(f"moisture, one parent material:  {moisture['air_dry']:.0f} air dry "
           f"to {moisture['saturated']:.0f} saturated, a factor "
           f"{moisture['ratio']:.2f}")

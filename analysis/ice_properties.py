@@ -440,9 +440,305 @@ def snow_conductivity_slow(density_kg_m3: float) -> float:
     return float(a * density_kg_m3 * density_kg_m3 + b * density_kg_m3 + c)
 
 
+# ---------------------------------------------------------------------------
+# SNOW COMPACTION, and what the gravity term inside it is worth. GRAV-8.
+#
+# This model's snow density is the constant `rhosnow` and there is no compaction
+# at all, so the one snow term that carries gravity is absent. PALADYN's is the
+# formulation at this project's throughput -- Willeit and Ganopolski (2016)
+# Eqs. (46) to (48), self-loading after Kojima (1967) as implemented by Pitman
+# et al. (1991), fresh-snow density after Anderson (1976):
+#
+#     d(rho)/dt = 0.5 g rho w / eta  +  P (rho_fresh - rho) / w
+#     eta       = eta_0 exp[k_T (T_0 - T_sn) + k_rho rho]
+#     rho_fresh = rho_min + 1.7 (T_a - T_0 + 15)**1.5, over T_0-15 < T_a < T_0+2
+#
+# with `w` the water equivalent as a mass per area and `P` the snowfall reaching
+# the ground. GRAVITY ENTERS ONE TERM, linearly, so the compaction RATE runs
+# 1.306 times Earth's here for the same load and viscosity. The density it
+# produces does not: the pack also relaxes toward the fresh-snow density at a
+# rate set by the snowfall, so what the rate ratio is worth on the state depends
+# on how long the modelled snow survives.
+#
+# THE THREE VISCOSITY CONSTANTS HAVE NO STATED DERIVATION. Willeit and
+# Ganopolski give eta_0, k_T and k_rho in a table with a description and no
+# source column, no range of validity and no sensitivity test, and take them
+# from a 1991 technical report's implementation of a 1967 conference paper. So
+# adding this scheme imports three constants of exactly the class this project
+# refuses, which is why GRAV-8 asks for the term to be PRICED before it is
+# added rather than the other way round. The paper's own stated limitation is
+# scope: metamorphism and the effect of melting on density are neglected.
+# ---------------------------------------------------------------------------
+PALADYN_ETA_0 = 9.0e6      # Pa s, reference snow viscosity
+PALADYN_K_T = 0.06         # 1/K
+PALADYN_K_RHO = 0.02       # m3/kg
+PALADYN_RHO_MIN = 50.0     # kg/m3, and the paper declares no maximum
+PALADYN_FRESH_A = 1.7      # kg/m3/K**1.5
+PALADYN_FRESH_EXP = 1.5
+PALADYN_FRESH_OFFSET = 15.0  # K
+# The freezing temperature of water the viscosity and the fresh-snow relation
+# are both written against. NOT `TT`, which is the TRIPLE POINT and is 0.01 K
+# above it: the two are different quantities and the paper states this one.
+PALADYN_T_0 = 273.15
+G_EARTH = 9.80665
+
+# The snow water equivalent below which a cell is treated as bare, kg/m2. One
+# millimetre: a numerical floor on a store that is a ratio's divisor, not a
+# threshold with physical content.
+SNOW_PRESENT_KG_M2 = 1.0
+
+
+def paladyn_fresh_density(air_temperature_k):
+    """Anderson (1976)'s fresh-snow density as PALADYN states it, kg/m3.
+
+    Clipped to the stated validity window rather than extrapolated: the paper
+    gives the relation only over `T_0 - 15 < T_a < T_0 + 2` and says nothing
+    about outside it, so the ends are held rather than invented.
+    """
+    x = np.clip(np.asarray(air_temperature_k, dtype=float) - PALADYN_T_0 + PALADYN_FRESH_OFFSET,
+                0.0, PALADYN_FRESH_OFFSET + 2.0)
+    return PALADYN_RHO_MIN + PALADYN_FRESH_A * x ** PALADYN_FRESH_EXP
+
+
+def paladyn_density(gravity, water_equivalent, snowfall, air_temperature,
+                    snow_temperature, year_seconds, substeps=240, cycles=6):
+    """Integrate PALADYN's prognostic snow density over a repeating year.
+
+    `water_equivalent` (kg/m2), `snowfall` (kg/m2/s) and the two temperatures
+    are (bin, cell) arrays from a climatology, held constant within each bin.
+    The water equivalent is PRESCRIBED rather than integrated, because the
+    climatology already carries what this model's own snow scheme produced, and
+    the question is what a density would do on that snow rather than what a
+    different mass balance would.
+
+    Cycled until periodic: the density is a state with a memory of order the
+    pack's lifetime, so a single pass through the year would carry the initial
+    condition into the answer.
+    """
+    nbin = water_equivalent.shape[0]
+    dt = year_seconds / (nbin * substeps)
+    rho = paladyn_fresh_density(air_temperature[0]).copy()
+    out = np.zeros_like(water_equivalent)
+    for _ in range(cycles):
+        for b in range(nbin):
+            w = water_equivalent[b]
+            fresh = paladyn_fresh_density(air_temperature[b])
+            # The snow layer's own temperature is what the viscosity is a
+            # function of, and this model does not report it. The surface
+            # temperature capped at melting stands in for it, which is the
+            # warm end of the pack and therefore the SOFT end: it makes the
+            # viscosity smaller and the compaction faster than the pack mean
+            # would, so the compaction reported here is an upper bound.
+            tsn = np.minimum(snow_temperature[b], PALADYN_T_0)
+            bare = w <= SNOW_PRESENT_KG_M2
+            for _step in range(substeps):
+                eta = PALADYN_ETA_0 * np.exp(PALADYN_K_T * (PALADYN_T_0 - tsn)
+                                             + PALADYN_K_RHO * rho)
+                load = 0.5 * gravity * rho * w / eta
+                source = np.where(w > 0.0,
+                                  snowfall[b] * (fresh - rho)
+                                  / np.maximum(w, SNOW_PRESENT_KG_M2), 0.0)
+                rho = rho + dt * (load + source)
+                rho = np.where(bare, fresh, rho)
+                rho = np.clip(rho, PALADYN_RHO_MIN, RHOICE_F2021)
+            out[b] = rho
+    return out
+
+
+def price_snow_compaction(path, gravity, year_seconds, rhosnow):
+    """What compaction, and the gravity inside it, are worth on this world's snow.
+
+    Offline, against an existing climatology, and BEFORE any source change --
+    which is GRAV-8's own sequencing, and the reason is that adding a prognostic
+    density imports three Earth-calibrated viscosity constants with no stated
+    derivation. What this answers is whether that price buys anything.
+
+    THE QUANTITY IS THE PACK'S CONDUCTIVE RESISTANCE, `lib/snow.py:resistance`,
+    and not its depth. Depth and conductivity both move with the density and in
+    OPPOSITE directions, so quoting either alone says nothing; the resistance is
+    what sets the temperature drop across the pack per unit ground heat flux and
+    is what `landmod`'s `zdiff1` is built from.
+
+    AND IT IS NOT ALBEDO, which is the correction this pricing makes to its own
+    row. `landmod` takes the snow-covered fraction as
+    `dsnow/(dsnow + snowcovz)` in WATER EQUIVALENT, so the density does not
+    enter it. The one path from density to albedo is the canopy burial depth
+    handed to `snowcanopymask`, and that is read only when `forhgt` is positive,
+    which it is not. So at the shipped configuration the density reaches the
+    modelled surface albedo through nothing at all, and what a compaction term
+    would be worth there is exactly zero until BIO-33 and GRAV-7 give the canopy
+    a height.
+    """
+    import netCDF4 as nc
+
+    with nc.Dataset(path) as data:
+        land = np.asarray(data["lsm"][0], dtype=float) > 0.5
+        swe = np.asarray(data["snd"][:], dtype=float) * 1000.0    # m w.e. -> kg/m2
+        snowfall = np.asarray(data["prsn"][:], dtype=float) * 1000.0
+        air = np.asarray(data["tas"][:], dtype=float)
+        surface = np.asarray(data["ts"][:], dtype=float)
+
+    rows, cols = np.where(land)
+    swe = swe[:, rows, cols]
+    snowfall = snowfall[:, rows, cols]
+    air = air[:, rows, cols]
+    surface = surface[:, rows, cols]
+    snowy = swe > SNOW_PRESENT_KG_M2
+    if not snowy.any():
+        return {"climatology": rel(Path(path)),
+                "verdict": "this climatology carries no snow on land, so "
+                           "nothing here can be priced against it"}
+
+    rho_here = paladyn_density(gravity, swe, snowfall, air, surface, year_seconds)
+    rho_earth = paladyn_density(G_EARTH, swe, snowfall, air, surface, year_seconds)
+
+    resist = np.vectorize(snow.resistance)
+    cases = {
+        "constant": (np.full_like(rho_here, rhosnow), None),
+        "prognostic_earth_gravity": (rho_earth, G_EARTH),
+        "prognostic_this_gravity": (rho_here, gravity),
+    }
+    priced = {}
+    for name, (rho, g) in cases.items():
+        res = resist(swe / 1000.0, rho)
+        priced[name] = {
+            "gravity_m_s2": g,
+            "density_kg_m3": _spread(rho[snowy]),
+            "physical_depth_m": _spread((swe / rho)[snowy]),
+            "conductive_resistance_m2_k_w": _spread(res[snowy]),
+        }
+        priced[name]["_res"] = res
+
+    def ratio(a, b):
+        return _spread((priced[a]["_res"] / priced[b]["_res"])[snowy])
+
+    out = {
+        "climatology": rel(Path(path)),
+        "snowy_land_bins": int(snowy.sum()),
+        "land_bins": int(snowy.size),
+        "scheme": "Willeit and Ganopolski (2016) Eqs. (46)-(48); self-loading "
+                  "after Kojima (1967) as implemented by Pitman et al. (1991), "
+                  "fresh-snow density after Anderson (1976)",
+        "constants": {"eta_0_pa_s": PALADYN_ETA_0, "k_T_per_k": PALADYN_K_T,
+                      "k_rho_m3_per_kg": PALADYN_K_RHO,
+                      "rho_min_kg_m3": PALADYN_RHO_MIN,
+                      "derivation": "none stated. The paper tabulates the three "
+                                    "viscosity constants with a description and "
+                                    "no source column, no range of validity and "
+                                    "no sensitivity test, and takes them from a "
+                                    "1991 technical report's implementation of a "
+                                    "1967 conference paper. Adopting the scheme "
+                                    "imports them."},
+        "cases": {k: {n: v for n, v in body.items() if not n.startswith("_")}
+                  for k, body in priced.items()},
+        "resistance_ratios": {
+            "prognostic_earth_over_constant": ratio("prognostic_earth_gravity",
+                                                    "constant"),
+            "this_gravity_over_earth_gravity": ratio("prognostic_this_gravity",
+                                                     "prognostic_earth_gravity"),
+            "prognostic_this_over_constant": ratio("prognostic_this_gravity",
+                                                   "constant"),
+        },
+        "albedo": {
+            "worth": 0.0,
+            "why": "landmod takes the snow-covered fraction as "
+                   "dsnow/(dsnow + snowcovz) in WATER EQUIVALENT, so the "
+                   "density does not enter it. The only path from density to "
+                   "albedo is the canopy burial depth handed to "
+                   "snowcanopymask, read only when forhgt is positive, and it "
+                   "is not. So the answer is exactly zero rather than small, "
+                   "and it becomes non-zero when the canopy gets a height.",
+            "peer_practice": "ClimaLand multiplies snow albedo by "
+                             "min(1 - beta*(rho/rho_liq - x0), 1). Its beta is "
+                             "a FREE PARAMETER with no citation, 0.97 in its "
+                             "calibrated set and 0 in its uncalibrated one, so "
+                             "adopting that path would import a tuned constant "
+                             "rather than a mechanism. PALADYN puts no density "
+                             "in albedo at all and uses a snow AGE factor as "
+                             "the grain-size proxy instead.",
+        },
+        # CHECK THE INSTRUMENT AGAINST THE SIZE OF THE EFFECT. The gravity term
+        # is read through the pack's conductive resistance, and the conductivity
+        # that resistance is built from already carries a BRACKET at fixed
+        # density: the fast and slow limits of the vapour deposition kinetics,
+        # which no paper claims to resolve. If the gravity term is smaller than
+        # that bracket, a pair of runs differing only in gravity cannot separate
+        # it from a choice the model has already had to make.
+        "instrument_versus_effect": _instrument_check(
+            priced["prognostic_this_gravity"]["density_kg_m3"]["p50"],
+            priced["prognostic_earth_gravity"]["density_kg_m3"]["p50"],
+            ratio("prognostic_this_gravity", "prognostic_earth_gravity")["p50"]),
+        "limitations": [
+            "the forcing is a climatology, so an intermittent pack appears as a "
+            "persistent thin one. Compaction is linear in the load, so a "
+            "time-mean water equivalent understates the compaction of a "
+            "transient deep pack and the reported densities are a floor for "
+            "those cells",
+            "the water equivalent is PRESCRIBED from a run that used the "
+            "constant density, so this prices the density on that snow rather "
+            "than on the snow a prognostic density would itself produce",
+            "the snow layer temperature is proxied by the surface temperature "
+            "capped at melting, which is the pack's warm end and makes the "
+            "viscosity soft, so the compaction here is an upper bound",
+            "PALADYN itself neglects metamorphism and the effect of melting on "
+            "density, and this inherits both",
+        ],
+    }
+    return out
+
+
+def _instrument_check(density_here, density_earth, gravity_resistance_ratio):
+    """Is the gravity term bigger than the uncertainty already in the relation?
+
+    The comparison is made in ONE quantity -- the pack's conductive resistance
+    -- so the two sides are commensurable. The gravity side is what moving the
+    density from the Earth-gravity answer to this world's does to it. The
+    instrument side is what choosing the other arm of the kinetics bracket does
+    to it at ONE density, which is a choice the model has already had to make
+    and cannot currently justify either way.
+    """
+    fast = snow_conductivity_fast(density_here)
+    slow = snow_conductivity_slow(density_here)
+    gravity_effect = abs(1.0 / gravity_resistance_ratio - 1.0)
+    bracket_effect = abs(fast / slow - 1.0)
+    return {
+        "quantity": "the pack's conductive resistance, z/k",
+        "gravity_effect": round(gravity_effect, 4),
+        "gravity_effect_is": f"the resistance at {density_here:.1f} kg/m3 "
+                             f"against {density_earth:.1f}, which is what the "
+                             "1.306x compaction rate is worth on the STATE",
+        "kinetics_bracket_effect": round(bracket_effect, 4),
+        "kinetics_bracket_is": "Fourteau's fast arm over Calonne's slow arm at "
+                               "the same density, which is the width of an "
+                               "open question rather than an error bar",
+        "gravity_over_bracket": round(gravity_effect / bracket_effect, 3),
+        "verdict": ("the gravity term is SMALLER than the bracket the "
+                    "conductivity already carries, so a pair of runs differing "
+                    "only in gravity would not separate it from the arm the "
+                    "model happens to evaluate"
+                    if gravity_effect < bracket_effect else
+                    "the gravity term is LARGER than the bracket the "
+                    "conductivity already carries, so it is separable"),
+    }
+
+
+def _spread(values):
+    values = np.asarray(values, dtype=float)
+    return {"p5": round(float(np.percentile(values, 5)), 4),
+            "p50": round(float(np.median(values)), 4),
+            "p95": round(float(np.percentile(values, 95)), 4),
+            "max": round(float(values.max()), 4)}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--output", type=Path, default=OUTPUT)
+    ap.add_argument("--climatology", type=Path, default=None,
+                    help="an existing climatology to price snow compaction "
+                         "against, GRAV-8. Named rather than resolved because "
+                         "the pricing is a question about a PARTICULAR run's "
+                         "snow, and because the answer is reported with the "
+                         "climatology it was measured on")
     args = ap.parse_args()
 
     worst, failures = verify_against_release()
@@ -454,6 +750,9 @@ def main() -> None:
 
     config = yaml.safe_load(PLANET.read_text())
     gravity = float(config["planet"]["gravity_m_s2"])
+    sys.path.insert(0, str(ROOT / "lib"))
+    import orbit  # noqa: E402  from lib/
+    year_seconds = orbit.orbital_year_days(config) * 86400.0
 
     # The melting enthalpy of the modelled snow: liquid water minus ice Ih, both
     # on the IAPWS-95 reference, at the triple point where the liquid's value is
@@ -708,6 +1007,17 @@ def main() -> None:
                                     "result until glaciermod grows ice.",
     }
 
+    # GRAV-8. Priced only when a climatology is named, because the question is
+    # what compaction is worth on a PARTICULAR run's snow and there is no
+    # defensible default run to answer it against.
+    compaction = (price_snow_compaction(args.climatology, gravity, year_seconds,
+                                        rhosnow)
+                  if args.climatology is not None
+                  else {"priced": False,
+                        "how": "pass --climatology; GRAV-8 asks for the term to "
+                               "be priced offline against an existing "
+                               "climatology before any source change"})
+
     report = {
         "generated": datetime.date.today().isoformat(),
         "generator": "analysis/ice_properties.py",
@@ -733,6 +1043,7 @@ def main() -> None:
         "pure_ice_conductivity": ice_conductivity,
         "glacial_ice": glacial_ice,
         "snow_conductivity_bracket": snow_bracket,
+        "snow_compaction": compaction,
         "what_is_not_derivable_here": "the density, specific heat and "
                                       "conductivity of SEA ice are functions of "
                                       "brine volume, hence of the ice's own "
@@ -782,6 +1093,26 @@ def main() -> None:
               f"{row['fast_over_slow_263k']:6.3f}  "
               f"{row['yen_1981_apparent_w_m_k']:7.4f}  "
               f"{row['sturm_1997_as_lpj_guess_runs_it_w_m_k']:7.4f}")
+
+    if compaction.get("priced") is not False:
+        print("\nsnow compaction, PALADYN's Kojima self-loading, priced on "
+              f"{compaction['snowy_land_bins']} snowy land bins of "
+              f"{compaction['climatology']}")
+        for name, body in compaction["cases"].items():
+            print(f"  {name:26s} density p50 "
+                  f"{body['density_kg_m3']['p50']:6.1f} kg/m3   depth p50 "
+                  f"{body['physical_depth_m']['p50']:.4f} m   z/k p50 "
+                  f"{body['conductive_resistance_m2_k_w']['p50']:.4f} m2K/W")
+        for name, body in compaction["resistance_ratios"].items():
+            print(f"  resistance {name:38s} p50 {body['p50']:.3f} "
+                  f"(p5 {body['p5']:.3f} to p95 {body['p95']:.3f})")
+        inst = compaction["instrument_versus_effect"]
+        print(f"  the gravity term moves the resistance by "
+              f"{100*inst['gravity_effect']:.1f} per cent; the kinetics "
+              f"bracket at the same density moves it by "
+              f"{100*inst['kinetics_bracket_effect']:.1f} per cent")
+        print(f"  what it is worth on the modelled surface albedo: "
+              f"{compaction['albedo']['worth']:.1f}, exactly")
 
     print(f"\ngravity: {overburden['relative_density_change']:.2e} relative "
           f"density change under {hmax:.0f} m of ice, against "

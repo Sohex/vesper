@@ -1,16 +1,26 @@
 {
-  "generated": "2026-08-26T09:51:13+00:00",
+  "generated": "2026-08-26T10:18:13+00:00",
   "question": "is the modelled soil's thermal inertia controlled by moisture or by parent material",
   "model": "Johansen's interpolation as Farouki tabulates it; the mineralogy enters only through k_sat, so the dry conductivity is a function of bulk density alone",
   "column": {
     "bulk_density_kg_m3": 1300.0,
     "porosity": 0.519
   },
-  "landmod_scalars": {
-    "soildiff_w_m_k": 1.8,
-    "soilcap_j_m3_k": 2400000.0,
-    "thermal_inertia_j_m2_k_s05": 2078.5,
-    "saturation_that_reproduces_it": null
+  "landmod_endpoints": {
+    "soildifdry": 0.2088,
+    "soildifsat": 1.4332,
+    "soilcapdry": 1111100.0,
+    "soilcapsat": 2968900.0,
+    "thermal_inertia_dry_j_m2_k_s05": 481.7,
+    "thermal_inertia_saturated_j_m2_k_s05": 2062.8,
+    "span": 4.28,
+    "what_they_replaced": {
+      "soildiff_w_m_k": 1.8,
+      "soilcap_j_m3_k": 2400000.0,
+      "thermal_inertia_j_m2_k_s05": 2078.5,
+      "saturation_that_reproduces_it": null,
+      "note": "one number for the whole simulated planet, Earth's global average for a moist mineral soil. It is above the saturated endpoint of this column, so it is not a mid-range value: it is past the wet end."
+    }
   },
   "moisture_spread": {
     "air_dry": 405.7,
