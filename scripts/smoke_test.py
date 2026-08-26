@@ -1122,6 +1122,37 @@ def check_model_source_compiles() -> list[str]:
     return [(r.stderr.strip() or r.stdout.strip() or "(no output)")]
 
 
+def check_diag_writes_are_answered() -> list[str]:
+    """No write to the shared diagnostics unit is reachable by every thread.
+
+    `nud` is unit 6 and `opendiag` opens it once, under a root guard, so it is
+    the diagnostics file for the WHOLE thread team; `plasim.f90` then wraps
+    `mpstart` through `mpstop` in one `!$omp parallel`, so every statement in
+    the model runs on NPRO threads unless something on the path tests
+    `mypid == NROOT`. An unguarded `write(nud,...)` is therefore NPRO
+    interleaved copies in `plasim_diag`, in an order that is not the same twice.
+
+    THE GAP THIS CLOSES. world-0ihs read all 928 sites by hand, found thirteen
+    that every thread reached and fixed them, and left the convention resting on
+    the next author reading the audit note. The model gains write sites; a
+    convention nothing enforces is a convention until someone is in a hurry.
+
+    `exoplasim/scripts/lint_diag_writes.py` holds the passes and the argument
+    for each of the four answers it accepts. It is a text parse of `plasim/src`,
+    no build and no run, and it answers a set of reduced fixtures on every
+    invocation before it reports on the tree.
+    """
+    script = ROOT / "exoplasim" / "scripts" / "lint_diag_writes.py"
+    if not script.is_file():
+        return [f"{script.relative_to(ROOT)} is gone, and it is what holds the "
+                "guard convention on the shared diagnostics unit"]
+    r = subprocess.run([sys.executable, str(script)],
+                       capture_output=True, text=True, cwd=ROOT)
+    if r.returncode == 0:
+        return []
+    return [(r.stdout.strip() or r.stderr.strip() or "(no output)")]
+
+
 # Command-line tools `docs/src/reference/environment.md` sends a reader to, mapped
 # to the Arch package shipping each. The package belongs in the failure message
 # because the tool name is usually not the package name: looking for a binary
@@ -2220,6 +2251,8 @@ def main() -> None:
                check_omp_directive_length()),
               ("no continuation marker is dropped in the model Fortran",
                check_no_dropped_continuation()),
+              ("no diagnostics write is reachable by every thread",
+               check_diag_writes_are_answered()),
               ("no imported module name is rebound",
                check_no_shadowed_imports(files)),
               ("no name is loaded that nothing binds, model Python included",

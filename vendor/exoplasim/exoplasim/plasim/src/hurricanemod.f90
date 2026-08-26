@@ -620,7 +620,19 @@
       
       endif
       
-      if (xhi<0) print *,smr,R(NLEP),sms-sme,smo-smb,smrt,R(i600)
+!     NOT ROOT-GUARDED, AND DELIBERATELY: xhi is the entropy deficit of the
+!     THREAD's own gridcell, reached from hurricanestep's do jhor=1,NHOR over
+!     that thread's chunk, so guarding it on mypid == NROOT would silence
+!     exactly the cells that are not thread 0's. The write is serialised
+!     instead, and the thread id goes in the record because the numbers mean
+!     nothing without it. `print` is unit 6, which is nud, which is one unit
+!     for the whole thread team. world-630r.
+      if (xhi<0) then
+!$omp critical (nudwrite)
+         print *,'thread',mypid,'entropy_deficit xhi<0',                &
+     &           smr,R(NLEP),sms-sme,smo-smb,smrt,R(i600)
+!$omp end critical (nudwrite)
+      endif
       
       
       RETURN

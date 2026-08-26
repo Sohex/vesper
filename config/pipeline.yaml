@@ -1261,6 +1261,23 @@ checks:
   # neither.
   - id: lint_implicit_save
     script: exoplasim/scripts/lint_implicit_save.py
+  # Which writes to the shared diagnostics unit can a thread other than 0
+  # reach? nud is unit 6, opendiag opens it once under a root guard, and a
+  # Fortran unit belongs to the process -- so that one open makes it the
+  # diagnostics file for the whole thread team, write(*,...) included. The run
+  # is one !$omp parallel region, so an unguarded write(nud,...) is NPRO
+  # interleaved copies in plasim_diag and the file stops being the same twice.
+  # world-0ihs read all 928 sites by hand and closed thirteen holes; this is
+  # the two passes that reading used, written down.
+  #
+  # A pure text parse, no build and no run. It permits four answers and nothing
+  # else: an enclosing mypid == NROOT, an enclosing npro == 1, an enclosing
+  # !$omp critical, or an enclosing procedure the call graph shows is reached
+  # only through those. It over-reports the same way the two lints above do,
+  # and it answers reduced fixtures on every invocation before it reports on
+  # the tree. Exit 1 on anything unanswered; smoke_test runs it.
+  - id: lint_diag_writes
+    script: exoplasim/scripts/lint_diag_writes.py
   # Does anything uninitialised reach a stored value, at the optimisation level
   # this project ships? The trapping form of that question does not arm at -O2
   # -- world-5rs measured the positive control -- and `-finit-real=zero` was
