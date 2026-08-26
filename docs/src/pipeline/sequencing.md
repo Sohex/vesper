@@ -38,8 +38,10 @@ point:
 
 ```bash
 python exoplasim/scripts/rebuild_binaries.py --verify # CLAUDE.md rule 4. FIRST, always
-python scripts/check_consistency.py                   # rule 8
-python scripts/smoke_test.py
+python scripts/check_consistency.py                   # rule 8, the pre-run tier
+python scripts/verify_entry_points.py                 # does every script still start
+python exoplasim/scripts/verify_model_compiles.py     # does the model source compile
+python scripts/smoke_test.py                          # the fast gate, per commit too
 
 python hydrography/scripts/build_hydrography.py       # drainage, basins, coupling
 python exoplasim/scripts/build_boundary_conditions.py # land mask, topography
