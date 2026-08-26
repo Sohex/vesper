@@ -359,11 +359,25 @@ def probe(rung: str, dt: float, kappa: float | None, steps: int,
         # declare or it is measuring a different model. See
         # declare_hyperdiffusion in run_exoplasim.py.
         nlev = int(cfg_all["model"]["layers"])
+        # NHDIFF TOO, AND IT IS PER-RUNG. The four timescales say how hard the
+        # damping is at the truncation; `nhdiff` is the absolute wavenumber it
+        # starts from, and it is derived as `cutoff_fraction * ntru` -- 8 at
+        # T21, 16 at T42, 32 at T85. A bed staged from a T21 run carries 8, so
+        # a probe that wrote the timescales and left this alone damped a T42
+        # bed from T21's wavenumber: 8 is 38% of T21's spectrum and 19% of
+        # T42's, and the operator that results is not the one any run of that
+        # rung uses. That is the same contamination the timescales had, one
+        # key over. `declare_hyperdiffusion` in run_exoplasim.py is where the
+        # runs get it, and the two derivations are the same line.
+        hyper = cfg_all["model"]["hyperdiffusion"]
+        ntru = int(rung.lstrip("Tt"))
+        nhdiff = int(round(float(hyper["cutoff_fraction"]) * ntru))
         keys |= {"TDISSD": f"{nlev}*{hd['divergence'] / tau_scale}",
                  "TDISSZ": f"{nlev}*{hd['vorticity'] / tau_scale}",
                  "TDISST": f"{nlev}*{hd['temperature'] / tau_scale}",
                  "TDISSQ": f"{nlev}*{hd['humidity'] / tau_scale}",
-                 "NDEL": f"{nlev}*{int(cfg_all['model']['hyperdiffusion']['order_alpha'])}"}
+                 "NHDIFF": f"{nhdiff}",
+                 "NDEL": f"{nlev}*{int(hyper['order_alpha'])}"}
     # WHICH BINARY, AND WHAT DAMPING, IN EVERY RESULT. A refusal boundary and a
     # per-step cost are both properties of one executable measured under one
     # damping, and a result naming neither can only be re-derived, never
@@ -373,13 +387,30 @@ def probe(rung: str, dt: float, kappa: float | None, steps: int,
     # contaminations are independent.
     declared = {"gamma": gamma, "tau_scale": tau_scale,
                 "hyperdiffusion": "inherited" if tau_scale is None else "derived",
-                "per_level": tau_scale is not None}
+                "per_level": tau_scale is not None,
+                "nhdiff": None if tau_scale is None else nhdiff,
+                "ndel": None if tau_scale is None else int(
+                    cfg_all["model"]["hyperdiffusion"]["order_alpha"]),
+                "tdiss_days": None if tau_scale is None else {
+                    "divergence": hd["divergence"] / tau_scale,
+                    "vorticity": hd["vorticity"] / tau_scale,
+                    "temperature": hd["temperature"] / tau_scale,
+                    "humidity": hd["humidity"] / tau_scale}}
     first_steps = steps if refusal_only else short_steps
     set_keys(bed, keys | {"N_RUN_STEPS": str(first_steps)})
     staging = staging_shas(bed)
     t_short, trapped, text = time_run(bed, exe.name, threads)
     result = {"rung": rung, "dt_minutes": dt, "kappa": kappa, "threads": threads,
               "steps_short": first_steps, "steps_long": steps,
+              # HOW MUCH OF AN ORBIT THIS CELL ACTUALLY COVERS, in the units the
+              # endurance question is asked in. A refusal verdict is a statement
+              # about the first fraction of an orbit and nothing else, and the
+              # fraction is small: 600 steps at dt 45 is 0.08 orbit, while the
+              # T42 blow-up this grid exists beside happened in orbit 47. Left
+              # to be re-derived, that ratio is exactly what a reader does not
+              # do -- `docs/src/practice/failure-modes.md` class 34 -- so the
+              # cell carries it.
+              "orbits_covered": round(steps / steps_per_orbit(dt), 4),
               "declared": declared,
               "outcome": "refused" if trapped else "no_refusal_in_steps",
               "staging_sha256": staging,
@@ -505,8 +536,15 @@ def main() -> None:
             k = "off" if kappa is None else f"{kappa:g}"
             head = f"  {args.rung} kappa {k:>3s} dt {dt:5.1f}"
             if r["outcome"] == "refused":
-                print(f"{head}  REFUSED after {r['failed_after_s']:.1f} s",
-                      flush=True)
+                # NO WALL CLOCK UNDER --refusal-only, and the line has to say so
+                # rather than read it: `failed_after_s` is a cost field and the
+                # refusal path deliberately writes none, so reading it here
+                # killed the sweep on its FIRST refusing cell -- which is the
+                # one cell a refusal sweep exists to find, and the one whose
+                # result was then never written to the grid.
+                when = (f" after {r['failed_after_s']:.1f} s"
+                        if "failed_after_s" in r else "")
+                print(f"{head}  REFUSED{when}", flush=True)
             elif r["outcome"] == "refused_only_at_length":
                 # The cell this grid exists to find: it starts, and dies inside
                 # the probe's own range. Reported as its own verdict because a
