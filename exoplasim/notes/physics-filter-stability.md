@@ -350,7 +350,7 @@ from about 190 K to below zero inside a single orbit.
 
 ### What this changes about the grid
 
-The grid's cells are 400-step probes and one full orbit, and this note already
+The grid's cells are 600-step probes, a tenth of an orbit at dt 45, and this note already
 says the probe cannot see a late blow-up. The correction is larger than that:
 **an orbit cannot see one either.** T42 at dt 45 passes a two-orbit arm and
 fails at the forty-seventh, so a cell marked as running has been shown to run

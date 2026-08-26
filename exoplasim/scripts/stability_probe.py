@@ -99,10 +99,27 @@ RUNS = ROOT / "exoplasim" / "runs"
 WORK = Path("/tmp/vesper-stability-probe")
 OUT = ROOT / "exoplasim" / "analysis" / "stability_probe.json"
 
-# Hours in a Vesper orbit: 182.801 d x 30.0 h. Both come from config/planet.yaml
-# through derive(); restated here only to turn a per-step cost into a per-orbit
-# one, and checked against the matrix's own measured orbits below.
-ORBIT_HOURS = 182.801 * 30.0
+# THE ORBIT, DERIVED, AND IN THE UNIT lib/orbit.py RETURNS IT IN.
+# `orbital_year_days` is Earth days of 24 hours -- that is what
+# EARTH_SIDEREAL_YEAR_DAYS scales -- and this file used to multiply it by the
+# planet's 30-hour ROTATION instead, which made every orbit 25 per cent too
+# long. The model settles it: `run_exoplasim.py` asks for 5850 steps at dt 45
+# and 8774 at dt 30 for one orbit, both 4387 hours, where the restated constant
+# implied 7312 and 10968. So a per-orbit cost read off this file was a quarter
+# too high and every `orbits_covered` a fifth too low.
+#
+# Read rather than restated for that reason. The model's own calendar rounds
+# the orbit to a whole number of 30-hour solar days -- 146 of them, which is
+# 4380 hours -- and the 0.16 per cent between that and the true period is below
+# anything this file reports.
+def _orbit_hours() -> float:
+    sys.path.insert(0, str(ROOT / "lib"))
+    import orbit as orbit_lib
+    cfg = yaml.safe_load((ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    return orbit_lib.orbital_year_days(cfg) * 24.0
+
+
+ORBIT_HOURS = _orbit_hours()
 NLAT = {"T21": 32, "T42": 64, "T85": 128, "T127": 192, "T170": 256}
 TRAP = re.compile(r"SIGFPE|Floating-point exception|signal 8")
 
