@@ -448,16 +448,16 @@ weaker claim than a calibration and is stated as such.
 
 ### The depth model railed, and was replaced
 
-Adding the catena made an existing weakness visible: a quarter of land sat on the
-0.02 m floor and a quarter on the 5.00 m ceiling. That was
+Adding the catena made an existing weakness visible: a quarter of land sat on
+the floor and a quarter on the ceiling. That was
 `depth = h_star * ln(production / erosion)`, Heimsath's exponential production
 function at steady state, which diverges as erosion approaches zero and runs to
 minus infinity as it grows.
 
-The cause is dynamic range. Spanning 0 to 5 m through a logarithm at Heimsath's
-`h_star` of 0.5 m needs production over erosion to cover a factor of **22,000**.
-Nothing in these inputs covers that, so nearly every cell landed outside and was
-clipped.
+The cause is dynamic range. Spanning the declared depth range through a
+logarithm at Heimsath's `h_star` of 0.5 m needs production over erosion to
+cover a factor of order **10,000**. Nothing in these inputs covers that, so
+nearly every cell landed outside and was clipped.
 
 Two changes fixed it.
 
@@ -474,41 +474,41 @@ principled one that cannot be evaluated over it.
 
 **Erosion that does not require runoff.** With erosion built purely from runoff,
 it was exactly zero wherever `P - E` was, so the entire arid fraction pinned to
-the ceiling: 18% of land, even after the saturating form removed the floor
-problem. A slope in a desert still loses material to wind, dry ravel and creep,
-so a `dry_erosion_baseline` of 0.15 now floors the moisture term.
+the ceiling even after the saturating form had removed the floor problem. A
+slope in a desert still loses material to wind, dry ravel and creep, so
+`dry_erosion_baseline` floors the moisture term.
 
-The result:
+Under the saturating form neither clip carries an appreciable share of land,
+against a quarter on each under the logarithm. `soil_report.json` holds the
+distribution; nothing here restates it.
 
-| percentile | depth m |
-| --- | --- |
-| 5 | 0.09 |
-| 25 | 0.29 |
-| 50 | 0.66 |
-| 75 | 1.46 |
-| 95 | 3.24 |
+**Three keys set the LEVEL of that field and each is bracketed rather than
+fitted.** `erosion_coefficient_per_relief_m` is the scale on the erosion term
+and is one key rather than the two degenerate ones it replaced. Heimsath et al.
+(1997)'s measured production function inverted against Portenga and Bierman
+(2011)'s standardised global cosmogenic denudation rates gives a land-mean
+regolith of 0.15 m at their drainage-basin median and 1.30 m at their slowest
+outcrop subpopulation, with their drainage-basin mean above Heimsath's maximum
+production rate entirely, where no soil is possible at all.
+`dry_erosion_baseline` is the ratio of denudation at zero runoff to denudation
+at Earth's reference runoff, which is the same compilation's arid drainage
+basins against its global drainage-basin mean. And `maximum_depth_m`, a pure
+prefactor on every cell, is a statistic of Shangguan et al. (2017)'s
+depth-to-bedrock compilation, bracketed between its observed median and its
+observed mean because an eroding profile sits below the asymptote while
+transported fill sits above it.
 
-Land mean 1.04 m, **0.0% of land on the floor and 0.5% on the ceiling**, against
-25% on each before. `erosion_coefficient_per_relief_m` is the one free scale
-parameter, and it is one key rather than the two degenerate ones it replaced.
-Its level is bracketed rather than fitted. Heimsath et al. (1997)'s measured
-production function inverted against Portenga and Bierman (2011)'s standardised
-global cosmogenic denudation rates gives a land-mean regolith of 0.15 m at their
-drainage-basin median and 1.30 m at their slowest outcrop subpopulation, with
-their drainage-basin mean above Heimsath's maximum production rate entirely,
-where no soil is possible at all. The declared value lands inside that bracket
-and in its upper third. `pedogenesis.yaml` carries the arithmetic; report the
-spread where a result turns on it and do not tune within it.
+The prefactor and the erosion scale are jointly constrained: the land-mean
+depth the pair produces has to land inside `regolith_depth_bracket_m`, which
+brackets the level and not either key, so a sweep runs the two together.
+`pedogenesis.yaml` carries the arithmetic and
+`notes/pedogenesis-value-provenance.md` carries the sources; report the spread
+where a result turns on it and do not tune within any of them.
 
-The land-mean plant-available water capacity that falls out, 133 mm, sits in the
-middle of Earth's typical 100-200 mm root zone. That is a check on the result
-rather than an input to it.
-
-**This changes the downstream numbers.** Water capacity was 347 mm under the
-railing model and is 133 mm now, so the `dwmax` field handed to ExoPlaSim is
-0.133 m against its uniform 0.5 m default rather than 0.342 m. The soil-water
-feedback on runoff is therefore a larger perturbation than previously estimated,
-not a smaller one.
+**This field is what reaches the climate.** Regolith depth times the volumetric
+capacity is the `dwmax` bucket ExoPlaSim runs, against its uniform 0.5 m
+namelist default, so the level of the depth model sets the size of the
+soil-water feedback on runoff.
 
 ## Where this stands, honestly
 
@@ -523,13 +523,22 @@ water capacity tracks depth and texture as it must.
 
 **Plausible against Earth**, where a comparison exists at all:
 
-| | Vesper | Earth |
-| --- | --- | --- |
-| clay | 0.30 | 0.20-0.30 |
-| sand | 0.40 | 0.35-0.45 |
-| pH | 6.85 | ~6.5, higher in arid |
-| plant-available water | 130 mm | 100-200 mm root zone |
-| regolith depth | 1.03 m | 0.5-2 m |
+| field | Earth, for scale |
+| --- | --- |
+| clay | 0.20-0.30 |
+| sand | 0.35-0.45 |
+| pH | ~6.5, higher in arid |
+| plant-available water | 100-200 mm root zone |
+| regolith depth | 0.5-2 m |
+
+The Vesper side of that comparison lives in `analysis/soil_report.json`, which
+is where a land mean belongs. The soil pH column has a second limit on it that
+the water and depth columns do not: Slessarev et al. (2016) measure the global
+soil pH distribution as BIMODAL, clustered on a calcite buffer near 8.2 and a
+gibbsite buffer near 5.1, and this model's pH form takes every parent down a
+line of its own from its own starting value, so a Vesper pH figure is being
+compared against a central tendency the measurement says is uncommon.
+`notes/pedogenesis-value-provenance.md` section 3 has the argument.
 
 ### The pattern is terrain; the level is weathering
 
@@ -571,20 +580,25 @@ own scheme reproduces it independently at a ratio of 0.89.
 Report the spread where a result depends on it. Do not present the precipitation
 branch as an equally likely world.
 
-With that demoted, the largest remaining uncertainty in this component is
-`maximum_depth_m`, a declared prefactor on every cell's depth that no source
-here bears on, and the width of the sourced bracket on
-`erosion_coefficient_per_relief_m`, which together set the level of the water
-capacity.
+With that demoted, the largest remaining uncertainty in this component is the
+width of the three sourced brackets that set the level of the water capacity --
+`maximum_depth_m`, `erosion_coefficient_per_relief_m` and
+`dry_erosion_baseline` -- and the fact that the first two are jointly
+constrained by a bracket on the level that neither of their own brackets
+mentions.
 
 ### What is not yet earned
 
 - `erosion_coefficient_per_relief_m` sits inside a sourced bracket a factor of
   8.7 wide, and the bracket has a regime in it where the balance has no steady
   state. It sets the level of the field that matters most.
-- `maximum_depth_m` is a declared prefactor with no source. Neither the
-  production function nor the denudation compilation measures a weathering-front
-  reach; a depth-to-bedrock product would.
+- `maximum_depth_m` is a pure prefactor inside a bracket a factor of 2.0 wide,
+  and its two ends are the two ways a depth-to-bedrock measurement misses a
+  weathering-front reach rather than a scatter on one estimate.
+- The soil pH form cannot be sized against the one global measurement of soil
+  pH, because that measurement's acid end is set by a gibbsite buffer whatever
+  the rock was and this form's acid end is parent-dependent. The values in the
+  block are bracketed; the form is recorded as the thing to change.
 - The catena slope term carries the pattern and not the magnitude, because even
   the 15.19 km mesh is two orders of magnitude coarser than a hillslope.
 - Nothing here has been validated against an independent product, unlike the
@@ -776,7 +790,9 @@ topology.
   support a real age term.
 - **Salinity is only a pH bonus.** Endorheic basins raise pH but sodicity,
   osmotic stress and the actual salt budget are not modelled, and LPJ-GUESS has
-  no salinity response to receive them anyway.
+  no salinity response to receive them anyway. The bonus is bounded by what a
+  closed basin's water reaches and not by what its soil does, which is a
+  different measurement.
 - **C:N is a single declared constant**, because this world has no measured
   nitrogen cycle and the deposition rate feeding LPJ-GUESS is itself an
   assumption.
