@@ -252,8 +252,49 @@ divergence is live in, because two of the three are inert under the `ifplim 0`
 this project runs and are waiting rather than harmless. The argument is
 `biosphere/notes/phosphorus-cycle-parameterisation.md`.
 
+### The snowpack's conductivity diverges from the RELEASE, and the relation is not declared in this subtree
+
+`modules/soil.cpp`'s `update_snow_properties` carries one more declared
+divergence, and its reference point is the release rather than the fork.
+The function arrived byte-identical to `guess_4.1/modules/soil.cpp`'s apart from
+the stripped licence header -- the CNP fork never touched it -- and it is ON BY
+DEFAULT: `data/ins/global.ins` sets `iftwolayersoil 0`, which selects the
+multilayer soil temperature scheme, and `Ksnow` becomes the conductivity of
+every active snow layer in that scheme's numerical solve whether
+`ifmultilayersnow` is 1 or 0. So it sits with `ntransform.cpp` rather than with
+the phosphorus path: a change to default-on behaviour in a widely used community
+model.
+
+What changed is WHICH RELATION turns the simulated snowpack's density into a
+conductivity. The release computes it from Sturm et al. (1997) and the climate
+model computes it from Fourteau et al. (2021) Eq. (18), and at the snow density
+`landmod` declares the two differ by close to a factor of two, so one snowfall
+insulated the vegetation model's soil about twice as well as the climate
+model's. `biosphere/config/snow_thermal.yaml` holds the register with mainline's
+own lines recorded verbatim, and `biosphere/scripts/snow_thermal_gate.py` checks
+it on the same three conditions the other two gates use.
+
+**The relation itself is NOT declared in this subtree, and that is the point.**
+`lib/snow.py` states it once. A Fortran model and a C++ model cannot import a
+Python module at runtime, so `landmod.f90` and `soil.cpp` each carry the adopted
+row as a literal and `snow.check_restatements()` holds both to that one table;
+`scripts/smoke_test.py` runs it as well as the gate. Generating a header for the
+vegetation model was the alternative, and the tree already generates
+`framework/vesper.h` that way, but it covers only one of the two consumers,
+because the climate model's Fortran is committed source that is read and edited
+by hand. A route that fixes one side and leaves the other restating is two
+declarations again with the drift moved.
+
+The two cannot be reconciled by matching VALUES in any case. The vegetation
+model's snow density is prognostic across the compaction ramp `modules/soil.h`
+declares, where the climate model's is one namelist key inside that span, so
+equal conductivities at one density would be a coincidence at one point of two
+curves that diverge everywhere else. `notes/audits/cryosphere-material-properties.md`
+argues the choice, the bracket it sits at the upper endpoint of, and what the
+change is worth.
+
 No other file under `vendor/lpj-guess/modules/` carries a register of this kind.
-Where one does, it belongs beside these two.
+Where one does, it belongs beside these three.
 
 Vendoring the CNP source does not itself enable phosphorus limitation.
 `data/ins/global.ins` and the run harness keep `ifplim 0` until the gridded
