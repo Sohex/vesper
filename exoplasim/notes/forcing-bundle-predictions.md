@@ -1767,6 +1767,16 @@ optics reflect and the pre-jgen ones do not**, one-signed, and inside the
 artifact's -6.54 to -25.35 W/m2 bracket. The measured drift of -12.3 K is inside
 its -5.32 to -20.63 K. The bracket was right and nothing read it.
 
+**This forcing PERSISTS, where `gamma`'s decayed.** Over the arm's first six
+orbits the top-of-atmosphere shortwave difference runs 18.43, 17.41, 16.11,
+16.50, 17.20, 16.82 W/m2 while the surface separation grows 1.56, 3.19, 4.47,
+5.63, 6.46, 7.24 K. Cloud cover between the arms moves by 0.015 over the same
+span. That is the signature of a change in the cloud's OPTICAL PROPERTIES rather
+than in how much cloud there is: `gamma`'s forcing fell from 10.4 to 6.9 W/m2 as
+its cloud difference shrank, and this one has no cloud difference to shrink. So
+the sublinearity that made `gamma` worth 1.89 K instead of 7 does not apply here,
+and the separation should run to the order the damping allows.
+
 **Do not turn 18.43 W/m2 into kelvin with the static slope.** At
 `lib/sensitivity.py`'s 0.778 K per W/m2 it reads as 14.3 K, and the same
 arithmetic on the gamma arm gave 7 K where the settled arm said 1.89. The
