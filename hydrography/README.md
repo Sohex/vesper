@@ -78,11 +78,13 @@ already had.
 | `data/<build>/surface_water.nc` | per region: lake, lake depth, river discharge, and the periodic cycle painted onto regions -- how much of the cycle each region spends under water, in how many bins, and whether its basin closed its year; per basin: solved area, level, volume, overflow, and the periodic cycle -- area, level and volume in every time bin, the seasonal amplitude, the residence time, and whether the cycle closed |
 | `data/<build>/topographic_index_<grid>.nc` | per region: the compound topographic index on both slope arms; per grid cell: its area-weighted mean, its within-cell spread, and `f_sat_max`, the share of the cell's land AREA above that mean |
 | `data/<build>/wetness_<grid>.nc` | per region: one mutually exclusive wetness class; per grid cell: the AREA share of each class over the cell's land |
+| `data/<build>/support_<grid>.nc` | per grid cell: the 10M mesh under it -- exact cell, land and ocean area against the native region count, the surface-class partition, the barren, rootable and solved-lake shares of its land, land elevation and ocean depth moments and HYPSOMETRY, lithology and drainage class shares, and which cells hold no region at all |
 | `analysis/lake_balance_sweep.json` | solver sensitivity under placeholder forcing |
 | `analysis/surface_water_report.json` | the solved water balance and its forcing |
 | `analysis/topographic_index_report.json` | the index's distribution, the scale measurement, and the score declared before it |
 | `analysis/topographic_index_score.json` | the score itself, per observation set, with the gain each arm carries against the scatter its own support puts on it |
 | `analysis/wetness_report.json` | the class shares, the partition, the identity the playa rule is checked against, and every class declared absent with its reason |
+| `analysis/spatial_support_report.json` | per rung: the closures, the empty-cell accounting, the transfer ledger, the peak excess measured over the land population against the export's own all-region one, and the provenance |
 | `analysis/land_water_ledger_report.json` | the land water ledger's graph, its closure fixtures, its graph mutations, and every store that still has a shadow copy |
 
 ## The land water ledger
@@ -755,6 +757,86 @@ on one and a classification that switched too would put the physics in two
 places. No cell-mean water table depth or available water capacity may stand in
 for an area fraction. No per-region saturated fraction. No absolute threshold on
 the topographic index. Each is a config key the script reads and exits on.
+
+## The spatial support: the 10M mesh under a model cell
+
+`build_spatial_support.py`, SPAT-3 extending GRID-2. One file per (build, rung),
+on the coupling matrices' precedent, holding what the native mesh is doing
+inside each cell of a Gaussian grid the climate model or the biosphere runs on.
+
+**Why it exists.** The distribution of MESH elevations inside a cell was
+computed three separate ways in this tree and persisted nowhere, on a criterion
+that decides where ice can sit. A cell is evaluated at its MEAN elevation while
+its high ground stands well above that, so the model runs its own peaks warm by
+the peak excess times the lapse rate and no permanent ice forms anywhere. From
+the other side, the spatial-support audit's finding 2 records several consumers
+independently rebuilding counts, moments and class shares off the same mesh.
+Both are one absence and this is the artifact that fills it.
+
+**Every statistic names its POPULATION.** That is the difference between this
+and the export's own `orog_mean/std/min/max`, which are taken over every region
+in a cell: a coastal cell's mean is dragged toward the seabed there, so a peak
+excess measured against it is inflated by ocean floor rather than by terrain.
+Land is `surface_class` and never `land_mask` (`CLAUDE.md` rule 1), or the dry
+closed-basin floors below sea level leave the distribution this exists to hold.
+The export's fields are compared against this artifact's ALL-region moments and
+the difference is reported, which is what says the two binnings are one binning.
+
+**The hypsometry is a quantile table and it interpolates nothing.** `Q(p)` is
+the elevation of the first region whose cumulative area share in the cell
+reaches `p`, so every value in the table is ground the mesh actually has;
+`Q(0)` is the cell's minimum and `Q(1)` its maximum, exactly, and the write path
+checks both against extremes computed a second way. `lib/gridding.py` owns the
+operator (`cell_quantiles`) and the inverse (`area_fraction_above`), which turns
+a per-cell threshold -- a freezing height, a rooting depth -- into the share of
+the cell's land past it. A share read that way is accurate to the probability
+STEP bracketing the threshold, which is 0.0025 in the top and bottom per cent
+and 0.05 across the middle; the tails are dense because that is where the
+answers are.
+
+**Three reservations, enforced rather than noted.**
+
+- It manufactures no below-mesh terrain. Relief inside a mesh region is GW-6's
+  and `notes/audits/orogen-resolution.md` finds the generator designs nothing
+  below about 20 km, so there is nothing under the mesh to persist.
+- It is not a second land or bathymetry product. The land mask the model reads
+  is `build_boundary_conditions.py`'s and the ocean contract is OCN-11's; what
+  is here is the support underneath both. CLIMBER-X hands a coarse ocean cell
+  the 90th-percentile bed elevation of its ocean part -- this artifact supplies
+  that quantile and does not make that choice.
+- It treats no coarse grid as truth. Where a rung is finer than the mesh, the
+  cells holding no region are counted and left empty. **No nearest-region
+  fallback is applied at all**, which is the one thing that separates this from
+  `lib/gridding.py:land_weighted`; a consumer wanting a fallback chooses one and
+  records it.
+
+**What it is checked by.** Each is an identity with a right answer rather than
+an agreement between estimates: the constructed cell areas sum to `4 pi R^2`,
+the binned mesh and land areas close against the mesh's own, each partition sums
+to one in every covered cell, every categorical share times its denominator
+equals its own extensive area, each quantile table's ends are the population's
+true extremes, and this binning and the exporter's own place the same region
+total. `--selftest` hands five of those a case built to violate them, and closes
+on the negative control the artifact exists for: a cell that is one per cent 4 km
+peaks and otherwise low ground has to report that one per cent, which its mean
+returns as nothing.
+
+**And one check on what the artifact is for.** A consumer reads a SHARE out of
+the hypsometry rather than the table itself, so every run reads the share above
+each cell's own mean-plus-one-sd back out and compares it against the exact
+answer computed on the 10M mesh. The bar is the widest step in the quantile
+vector, and it is a theorem rather than a tolerance: the interpolated cumulative
+curve and the true one both lie between the two bracketing probabilities, so
+exceeding it means the operator is wrong and the run is refused. Cells whose land
+is a single repeated elevation have no distribution -- the threshold lands on the
+table's own `Q(0)`, where the convention returns all of the cell rather than none
+-- and they are counted rather than averaged in.
+
+**The chunk is the rung.** `docs/src/reference/large-data.md` binds -- the input
+is a 10M-region mesh across five rungs. Each rung is written as it finishes and
+recorded in `support_checkpoint.json` against the hashes of the inputs it was
+built from, so a killed run resumes at the cost of one rung, and the checkpoint
+is refused if it belongs to different inputs.
 
 ## The Earth comparator
 

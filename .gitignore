@@ -94,6 +94,18 @@ hydrography/data/*/surface_water.nc
 # and ARE tracked, in hydrography/analysis/topographic_index_report.json.
 hydrography/data/*/topographic_index_*.nc
 
+# SPAT-3's spatial support: per grid cell the area, the region count, the
+# class shares and the land/ocean hypsometry of the 10M mesh under it, one file
+# per rung. The hypsometry is a quantile table per cell, so these are the
+# largest artifacts this component writes and they grow with the rung; they are
+# rebuilt in minutes by hydrography/scripts/build_spatial_support.py from
+# artifacts that are themselves regenerable. The closures, the empty-cell
+# accounting, the ledger and the provenance are small and ARE tracked, in
+# hydrography/analysis/spatial_support_report.json. The checkpoint is state
+# about one machine's partial run and belongs to neither.
+hydrography/data/*/support_*.nc
+hydrography/data/*/support_checkpoint.json
+
 # WET-2's wetness classification, per region and so the same size as the
 # rasters above, and one file per grid. Rebuilt in seconds by
 # hydrography/scripts/build_wetness.py from artifacts that are themselves

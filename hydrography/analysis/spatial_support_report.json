@@ -1,0 +1,931 @@
+{
+  "script": "hydrography/scripts/build_spatial_support.py",
+  "issues": [
+    "SPAT-3",
+    "GRID-2"
+  ],
+  "source_build": "precarve-craton-10m",
+  "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
+  "regions": 10000005,
+  "mesh_mean_edge_km": 7.595189522169292,
+  "probs": [
+    0.0,
+    0.0005,
+    0.001,
+    0.002,
+    0.003,
+    0.005,
+    0.0075,
+    0.01,
+    0.015,
+    0.02,
+    0.03,
+    0.04,
+    0.05,
+    0.07,
+    0.1,
+    0.15,
+    0.2,
+    0.25,
+    0.3,
+    0.35,
+    0.4,
+    0.45,
+    0.5,
+    0.55,
+    0.6,
+    0.65,
+    0.7,
+    0.75,
+    0.8,
+    0.85,
+    0.9,
+    0.93,
+    0.95,
+    0.96,
+    0.97,
+    0.98,
+    0.985,
+    0.99,
+    0.9925,
+    0.995,
+    0.997,
+    0.998,
+    0.999,
+    0.9995,
+    1.0
+  ],
+  "barren_rock_classes_applied": [
+    "evaporite",
+    "playa_clastic"
+  ],
+  "barren_rock_classes_absent": [],
+  "hydrologic_classes": [
+    "exorheic",
+    "endorheic"
+  ],
+  "solved_lake_absent": null,
+  "surface_classes": [
+    "ocean",
+    "land",
+    "inland_water"
+  ],
+  "chunk": "one ladder rung; see the module docstring",
+  "provenance": {
+    "generator": "hydrography/scripts/build_spatial_support.py",
+    "source_config": {
+      "schema_version": 1,
+      "source_build": "precarve-craton-10m",
+      "baseline_climatology": null,
+      "planet": {
+        "radius_earth": 1.2,
+        "gravity_m_s2": 12.81,
+        "mass_earth": 1.881009,
+        "rotation_hours": 30.0,
+        "obliquity_degrees": 32.0,
+        "eccentricity": 0.02,
+        "rotation_direction": "prograde",
+        "longitude_positive": "east",
+        "prime_meridian": "orogen_export_zero"
+      },
+      "star": {
+        "spectral_type": "K2.5V",
+        "activity": "active",
+        "surface_uv_relative_to_earth": 0.4,
+        "mass_solar": 0.8,
+        "luminosity_solar": 0.32359365692962827,
+        "effective_temperature_k": 4965.0,
+        "metallicity": 0.0
+      },
+      "orbit": {
+        "earth_solar_constant_w_m2": 1361.0,
+        "baseline_flux_earth": 0.945,
+        "sweep_flux_earth": [
+          0.9,
+          0.95,
+          1.0
+        ],
+        "longitude_vernal_equinox_degrees": 102.7
+      },
+      "atmosphere": {
+        "pN2_bar": 0.78025,
+        "pO2_bar": 0.21,
+        "pAr_bar": 0.0093,
+        "pCO2_bar": 0.00045,
+        "pCH4_bar": 1.6e-06,
+        "pN2O_bar": 3e-07,
+        "ozone": true
+      },
+      "radiation": {
+        "two_band_albedo": true,
+        "stellar_spectrum": "k25v"
+      },
+      "ocean": {
+        "horizontal_diffusion": false,
+        "horizontal_diffusivity_m2_s": 1000.0,
+        "salinity_psu": 34.7,
+        "cold_start": {
+          "sst_equator_k": 300.0,
+          "sst_pole_k": 273.0,
+          "sea_ice_thickness_m": 0.0
+        },
+        "sea_ice_fusion_j_kg": 328000.0
+      },
+      "surface": {
+        "mixed_layer_depth_m": 50.0,
+        "sea_ice": true,
+        "sea_ice_max_thickness_m": -1.0,
+        "sea_ice_lead_closing_m": 0.5,
+        "cryosphere": {
+          "sea_ice_density_kg_m3": 920.0,
+          "sea_ice_specific_heat_j_kg_k": 2070.0,
+          "sea_ice_conductivity_w_m_k": 2.03,
+          "snow_fusion_j_kg": 333444.87
+        },
+        "glaciers": {
+          "enabled": true,
+          "min_snow_depth_m": 2.0,
+          "initial_height_m": -1.0,
+          "max_snow_depth_m": -1.0,
+          "persistence_orbits": 1.0
+        },
+        "land_water_column": {
+          "scheme": "bucket",
+          "layers": 1,
+          "lower_boundary": "impermeable",
+          "layer_capacity_fraction": [
+            1.0
+          ],
+          "layer_thickness_m": [
+            1.5
+          ],
+          "soil_phase": false,
+          "evaporation_limiter": {
+            "theta_low": 0.0,
+            "exponent": 1
+          }
+        }
+      },
+      "model": {
+        "resolution": "T21",
+        "latitudes": 32,
+        "longitudes": 64,
+        "layers": 10,
+        "vertical_grid": 4,
+        "model_top_hpa": 50.0,
+        "precision_bytes": 8,
+        "compile_flags": {
+          "f90_opts": [
+            "-O2",
+            "-cpp",
+            "-ffpe-trap=invalid,zero,overflow",
+            "-ffpe-summary=none",
+            "-march=znver4",
+            "-funroll-loops",
+            "-g"
+          ],
+          "profiles": {
+            "production": [],
+            "checked": [
+              "-fcheck=all"
+            ],
+            "poisoned": [
+              "-fcheck=all",
+              "-finit-real=snan",
+              "-Og"
+            ]
+          },
+          "profile": "production"
+        },
+        "ncpus": 16,
+        "timestep_minutes": 30.0,
+        "physics_filter": "gp|exp|sp",
+        "filter_kappa": 8.0,
+        "filter_power": 16,
+        "cold_start_seed": 88888888,
+        "hyperdiffusion": {
+          "eddy_wind_m_s": 5.94,
+          "order_alpha": 4,
+          "cutoff_fraction": 0.381,
+          "ratios_to_vorticity": {
+            "divergence": 0.2,
+            "temperature": 2.533,
+            "humidity": 0.333
+          },
+          "timescales_days": {
+            "T21": {
+              "divergence": 0.4457,
+              "vorticity": 2.2285,
+              "temperature": 5.6449,
+              "humidity": 0.7421
+            },
+            "T42": {
+              "divergence": 0.2229,
+              "vorticity": 1.1143,
+              "temperature": 2.8224,
+              "humidity": 0.3711
+            },
+            "T85": {
+              "divergence": 0.1101,
+              "vorticity": 0.5506,
+              "temperature": 1.3946,
+              "humidity": 0.1833
+            },
+            "T127": {
+              "divergence": 0.0737,
+              "vorticity": 0.3685,
+              "temperature": 0.9334,
+              "humidity": 0.1227
+            },
+            "T170": {
+              "divergence": 0.0551,
+              "vorticity": 0.2753,
+              "temperature": 0.6973,
+              "humidity": 0.0917
+            }
+          }
+        },
+        "cold_start_profile": {
+          "surface_temperature_k": 289.03,
+          "lapse_rate_k_per_m": 0.008489,
+          "tropopause_height_m": 9220.0
+        },
+        "semi_implicit_reference_temperature_k": 249.4,
+        "rayleigh_sponge_rotations": [
+          20.0,
+          100.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "output_type": ".nc",
+        "uniform_land_surface": true,
+        "energy_diagnostics": true,
+        "energy_diagnostics_3d": false,
+        "energy_fixer": true,
+        "cloud_absorption_scale": 1.192,
+        "cloud_water_reference_kg_m3": 0.00021,
+        "land_longwave_emissivity": 0.9357,
+        "sea_longwave_emissivity": 0.98,
+        "ozone_scale": 0.794,
+        "ozone_height_m": 15311.8,
+        "ozone_spread_m": 3828.0,
+        "ozone_uv_weight": 0.335,
+        "ozone_visible_weight": 0.914,
+        "h2o_sw_weight": 1.346,
+        "h2o_sw_level": 1.163,
+        "h2o_sw_level_bracket": [
+          1.129,
+          1.206
+        ],
+        "co2_sw_weight": 1.51,
+        "roughness_source": "lithology",
+        "soil_water_source": "uniform",
+        "lake_dwmax_m": 0.2,
+        "land_albedo_source": "vegetated",
+        "vegetation_albedo": 0.165,
+        "vegetation_albedo_bracket": [
+          0.15,
+          0.171
+        ],
+        "vegetation_albedo_bands": [
+          0.074,
+          0.222
+        ],
+        "tree_albedo": 0.143,
+        "tree_albedo_bracket": [
+          0.13,
+          0.148
+        ],
+        "grass_albedo": 0.209,
+        "grass_albedo_bracket": [
+          0.19,
+          0.217
+        ],
+        "lithology_albedo_overrides": {
+          "playa_clastic": {
+            "albedo": 0.23,
+            "replaces": 0.19
+          }
+        },
+        "barren_rock_classes": [
+          "evaporite",
+          "playa_clastic"
+        ],
+        "geography_land_threshold": 0.5,
+        "seasonal_samples_per_orbit": 32,
+        "regular_output_bins_per_orbit": 12
+      },
+      "stellar_cycle": {
+        "components": {
+          "medium": {
+            "period_earth_years": 11.0,
+            "amplitude_flux_peak_to_peak": 0.025,
+            "note": "The lived rhythm. Damped about 0.83, so roughly 3.1 K peak-to-peak, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow.\n"
+          },
+          "long": {
+            "period_earth_years": 57.0,
+            "amplitude_flux_peak_to_peak": 0.035,
+            "note": "The geomorphic driver. Essentially undamped at 0.99, roughly 5.2 K peak-to-peak, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+          }
+        },
+        "total_amplitude_flux_peak_to_peak": 0.06,
+        "alignment_recurrence_earth_years": 314
+      }
+    },
+    "config_sha256": "f6d38da9be22664cbaa4e5040c0625edc7918d4744e18b5ee639b8da9e14fd9c",
+    "git_commit": "94a0496fdf5f43ff48e6c059351ca7e99546581d",
+    "source_inputs": {
+      "hydrography/data/precarve-craton-10m/regions.nc": "1d8d490e7ad223f70eb2628fdea57439ba4d8a04c9570082b3fc00d2c51bfa9a",
+      "hydrography/data/precarve-craton-10m/surface_water.nc": "105538809a56b3448653adeb0be0553173eb556fd1603ab159a004069c8c48cd"
+    }
+  },
+  "created": "2026-08-26T08:47:21.228251+00:00",
+  "rungs": {
+    "T21": {
+      "grid": "exoplasim-T21",
+      "latitudes": 32,
+      "longitudes": 64,
+      "cells": 2048,
+      "grid_spec_source": "lib/gridding.py:gaussian_grid, Gauss-Legendre weights",
+      "cells_with_any_region": 2048,
+      "cells_with_no_region": 0,
+      "cells_with_no_region_area_fraction_of_sphere": 0.0,
+      "cells_with_land": 1639,
+      "cells_with_ocean": 1462,
+      "median_regions_per_cell": 5397.0,
+      "min_regions_per_covered_cell": 562,
+      "closure": {
+        "cell_area_against_sphere_relative": 0.0,
+        "mesh_area_against_export_relative": 0.0,
+        "land_area_against_mesh_relative": 0.0,
+        "land_volume_against_direct_relative": 1.3001666872163278e-16,
+        "surface_shares_worst_partition_departure": 0.0,
+        "lithology_shares_worst_partition_departure": 2.220446049250313e-16,
+        "drainage_shares_worst_partition_departure": 0.0,
+        "rootable_against_barren_worst_departure": 0.0,
+        "barren_share_against_area_worst_relative": 1.0016814816547378e-16,
+        "solved_lake_share_against_area_worst_relative": 1.0026351673757186e-16,
+        "tolerances": {
+          "partition_and_area": 1e-12,
+          "share_against_extensive": 1e-09,
+          "mesh_against_manifest": 1e-06
+        }
+      },
+      "two_partitions": {
+        "note": "cell_area_km2 is the QUADRATURE partition the model budgets over and mesh_area_km2 is what the midpoint binning delivered. They are not the same partition, and the ratio below separates two effects that look alike. The POLAR ROW total is systematic and is the partitions themselves disagreeing, the gap lib/gridding.py:export_grid documents; it does not fall with the rung. The per-cell TAILS are the mesh being coarse against the cell, and they widen with the rung until a polar cell can hold no region at all, which is what cells_with_no_region counts",
+        "mesh_over_cell_area": {
+          "0": 0.9877300514690168,
+          "1": 0.9952913021506308,
+          "50": 1.0003806915401052,
+          "99": 1.0690059928543632,
+          "100": 1.0869369008950334
+        },
+        "polar_row_mesh_over_cell_area": [
+          1.0577662670574213,
+          1.058212714470446
+        ]
+      },
+      "hypsometry_inverse_against_the_mesh": {
+        "threshold": "the cell's own land elevation mean plus one sd",
+        "bar": 0.050000000000000044,
+        "bar_is": "the widest step in PROBS. The interpolated curve and the true one both lie between the two bracketing probabilities, so this is a bound rather than a tolerance",
+        "cells": 1639,
+        "single_valued_cells": 10,
+        "single_valued_land_area_fraction": 2.471109304654037e-06,
+        "mean_abs_error": 0.0017144524655950048,
+        "p99_abs_error": 0.028924118691724177,
+        "worst_abs_error": 0.04108977759208729
+      },
+      "ledger": {
+        "all_regions": {
+          "regions_offered": 10000005,
+          "cells": 2048,
+          "cells_with_no_population": 0,
+          "area_offered": 734996288.1974249,
+          "area_landed": 734996288.1974249,
+          "closure_residual_relative": 0.0
+        },
+        "land": {
+          "regions_offered": 4328736,
+          "cells": 2048,
+          "cells_with_no_population": 409,
+          "area_offered": 318136980.5317639,
+          "area_landed": 318136980.5317639,
+          "closure_residual_relative": 0.0
+        },
+        "ocean": {
+          "regions_offered": 5671269,
+          "cells": 2048,
+          "cells_with_no_population": 586,
+          "area_offered": 416859307.6656609,
+          "area_landed": 416859307.6656609,
+          "closure_residual_relative": 0.0
+        }
+      },
+      "fallback": {
+        "applied": "none",
+        "note": "this artifact substitutes nothing for an empty cell. lib/gridding.py:land_weighted falls back to the nearest region centre and would have substituted a value in every cell counted in cells_with_no_region; the count is reported so a consumer taking that door knows its size"
+      },
+      "export_orography_diagnostic": {
+        "cells_compared": 2048,
+        "note": "the export's orog_* are taken over EVERY region in the cell, so they are compared against this artifact's ALL-region moments and not against its land ones",
+        "peak_excess_note": "the two peak excesses below are NOT two estimates of one number and their difference is not an error bar. They differ in three ways at once: the population inside a cell (every region against the cell's land), the set of cells (those whose CENTRE region is land against every cell holding any land), and the weighting (one vote per cell against one vote per square kilometre of land). The land one is what a consumer asking how much colder a cell's high ground is should read, because each of those three is the correct choice for that question and none of the export's three is",
+        "region_count_total_here": 10000005,
+        "region_count_total_export": 10000005,
+        "cells_whose_region_count_differs": 1977,
+        "worst_region_count_difference": 95,
+        "median_regions_per_cell": 5397.0,
+        "max_abs_mean_km": 0.28107081687484414,
+        "max_abs_sd_km": 0.26861612474192587,
+        "max_abs_min_km": 4.184005469083786,
+        "max_abs_max_km": 2.836726427078247,
+        "export_cells_with_no_region": 0,
+        "export_all_region_peak_excess_km": {
+          "mean": 2.0156614808917395,
+          "p90": 4.240322387218475,
+          "max": 5.702157020568848
+        },
+        "land_population_peak_excess_km": {
+          "mean": 2.2514161807154234,
+          "p90": 3.855997897729372,
+          "max": 4.399372482819192,
+          "weighting": "land area, over cells that hold land"
+        }
+      },
+      "absent": {},
+      "seconds": 11.680168867111206,
+      "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T21.nc",
+      "output_bytes": 825720
+    },
+    "T42": {
+      "grid": "exoplasim-T42",
+      "latitudes": 64,
+      "longitudes": 128,
+      "cells": 8192,
+      "grid_spec_source": "lib/gridding.py:gaussian_grid, Gauss-Legendre weights",
+      "cells_with_any_region": 8192,
+      "cells_with_no_region": 0,
+      "cells_with_no_region_area_fraction_of_sphere": 0.0,
+      "cells_with_land": 5754,
+      "cells_with_ocean": 5153,
+      "median_regions_per_cell": 1351.5,
+      "min_regions_per_covered_cell": 61,
+      "closure": {
+        "cell_area_against_sphere_relative": 0.0,
+        "mesh_area_against_export_relative": 0.0,
+        "land_area_against_mesh_relative": 0.0,
+        "land_volume_against_direct_relative": 0.0,
+        "surface_shares_worst_partition_departure": 0.0,
+        "lithology_shares_worst_partition_departure": 2.220446049250313e-16,
+        "drainage_shares_worst_partition_departure": 0.0,
+        "rootable_against_barren_worst_departure": 0.0,
+        "barren_share_against_area_worst_relative": 1.0667182504446815e-16,
+        "solved_lake_share_against_area_worst_relative": 1.0444395509778634e-16,
+        "tolerances": {
+          "partition_and_area": 1e-12,
+          "share_against_extensive": 1e-09,
+          "mesh_against_manifest": 1e-06
+        }
+      },
+      "two_partitions": {
+        "note": "cell_area_km2 is the QUADRATURE partition the model budgets over and mesh_area_km2 is what the midpoint binning delivered. They are not the same partition, and the ratio below separates two effects that look alike. The POLAR ROW total is systematic and is the partitions themselves disagreeing, the gap lib/gridding.py:export_grid documents; it does not fall with the rung. The per-cell TAILS are the mesh being coarse against the cell, and they widen with the rung until a polar cell can hold no region at all, which is what cells_with_no_region counts",
+        "mesh_over_cell_area": {
+          "0": 0.9272160610653065,
+          "1": 0.9796732771297477,
+          "50": 1.000694562447548,
+          "99": 1.0835298660844408,
+          "100": 1.203213441674002
+        },
+        "polar_row_mesh_over_cell_area": [
+          1.0576809737301847,
+          1.0581408254932294
+        ]
+      },
+      "hypsometry_inverse_against_the_mesh": {
+        "threshold": "the cell's own land elevation mean plus one sd",
+        "bar": 0.050000000000000044,
+        "bar_is": "the widest step in PROBS. The interpolated curve and the true one both lie between the two bracketing probabilities, so this is a bound rather than a tolerance",
+        "cells": 5754,
+        "single_valued_cells": 50,
+        "single_valued_land_area_fraction": 1.1775665229926925e-05,
+        "mean_abs_error": 0.0025909245171473424,
+        "p99_abs_error": 0.028639514970151773,
+        "worst_abs_error": 0.04664124434482825
+      },
+      "ledger": {
+        "all_regions": {
+          "regions_offered": 10000005,
+          "cells": 8192,
+          "cells_with_no_population": 0,
+          "area_offered": 734996288.1974249,
+          "area_landed": 734996288.1974249,
+          "closure_residual_relative": 0.0
+        },
+        "land": {
+          "regions_offered": 4328736,
+          "cells": 8192,
+          "cells_with_no_population": 2438,
+          "area_offered": 318136980.5317639,
+          "area_landed": 318136980.5317639,
+          "closure_residual_relative": 0.0
+        },
+        "ocean": {
+          "regions_offered": 5671269,
+          "cells": 8192,
+          "cells_with_no_population": 3039,
+          "area_offered": 416859307.6656609,
+          "area_landed": 416859307.6656609,
+          "closure_residual_relative": 0.0
+        }
+      },
+      "fallback": {
+        "applied": "none",
+        "note": "this artifact substitutes nothing for an empty cell. lib/gridding.py:land_weighted falls back to the nearest region centre and would have substituted a value in every cell counted in cells_with_no_region; the count is reported so a consumer taking that door knows its size"
+      },
+      "export_orography_diagnostic": {
+        "cells_compared": 8192,
+        "note": "the export's orog_* are taken over EVERY region in the cell, so they are compared against this artifact's ALL-region moments and not against its land ones",
+        "peak_excess_note": "the two peak excesses below are NOT two estimates of one number and their difference is not an error bar. They differ in three ways at once: the population inside a cell (every region against the cell's land), the set of cells (those whose CENTRE region is land against every cell holding any land), and the weighting (one vote per cell against one vote per square kilometre of land). The land one is what a consumer asking how much colder a cell's high ground is should read, because each of those three is the correct choice for that question and none of the export's three is",
+        "region_count_total_here": 10000005,
+        "region_count_total_export": 10000005,
+        "cells_whose_region_count_differs": 6902,
+        "worst_region_count_difference": 17,
+        "median_regions_per_cell": 1351.5,
+        "max_abs_mean_km": 0.25202001083126,
+        "max_abs_sd_km": 0.34177956081823724,
+        "max_abs_min_km": 2.1752045899629593,
+        "max_abs_max_km": 1.7357945442199707,
+        "export_cells_with_no_region": 0,
+        "export_all_region_peak_excess_km": {
+          "mean": 1.2905457891481806,
+          "p90": 3.4476866543293,
+          "max": 6.129060864448547
+        },
+        "land_population_peak_excess_km": {
+          "mean": 1.511249061833821,
+          "p90": 3.1752902339722424,
+          "max": 4.364097841556041,
+          "weighting": "land area, over cells that hold land"
+        }
+      },
+      "absent": {},
+      "seconds": 11.668195247650146,
+      "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T42.nc",
+      "output_bytes": 2396839
+    },
+    "T85": {
+      "grid": "exoplasim-T85",
+      "latitudes": 128,
+      "longitudes": 256,
+      "cells": 32768,
+      "grid_spec_source": "lib/gridding.py:gaussian_grid, Gauss-Legendre weights",
+      "cells_with_any_region": 32768,
+      "cells_with_no_region": 0,
+      "cells_with_no_region_area_fraction_of_sphere": 0.0,
+      "cells_with_land": 20719,
+      "cells_with_ocean": 18882,
+      "median_regions_per_cell": 339.0,
+      "min_regions_per_covered_cell": 3,
+      "closure": {
+        "cell_area_against_sphere_relative": 0.0,
+        "mesh_area_against_export_relative": 0.0,
+        "land_area_against_mesh_relative": 0.0,
+        "land_volume_against_direct_relative": 1.3001666872163278e-16,
+        "surface_shares_worst_partition_departure": 0.0,
+        "lithology_shares_worst_partition_departure": 2.220446049250313e-16,
+        "drainage_shares_worst_partition_departure": 0.0,
+        "rootable_against_barren_worst_departure": 0.0,
+        "barren_share_against_area_worst_relative": 1.087324709094675e-16,
+        "solved_lake_share_against_area_worst_relative": 1.100493210012725e-16,
+        "tolerances": {
+          "partition_and_area": 1e-12,
+          "share_against_extensive": 1e-09,
+          "mesh_against_manifest": 1e-06
+        }
+      },
+      "two_partitions": {
+        "note": "cell_area_km2 is the QUADRATURE partition the model budgets over and mesh_area_km2 is what the midpoint binning delivered. They are not the same partition, and the ratio below separates two effects that look alike. The POLAR ROW total is systematic and is the partitions themselves disagreeing, the gap lib/gridding.py:export_grid documents; it does not fall with the rung. The per-cell TAILS are the mesh being coarse against the cell, and they widen with the rung until a polar cell can hold no region at all, which is what cells_with_no_region counts",
+        "mesh_over_cell_area": {
+          "0": 0.2931453438559354,
+          "1": 0.8978370406415074,
+          "50": 1.0006741916923336,
+          "99": 1.129419396582508,
+          "100": 1.9128863623800159
+        },
+        "polar_row_mesh_over_cell_area": [
+          1.0572067902612412,
+          1.0567690189872623
+        ]
+      },
+      "hypsometry_inverse_against_the_mesh": {
+        "threshold": "the cell's own land elevation mean plus one sd",
+        "bar": 0.050000000000000044,
+        "bar_is": "the widest step in PROBS. The interpolated curve and the true one both lie between the two bracketing probabilities, so this is a bound rather than a tolerance",
+        "cells": 20719,
+        "single_valued_cells": 224,
+        "single_valued_land_area_fraction": 5.547645978895596e-05,
+        "mean_abs_error": 0.0043379896592893544,
+        "p99_abs_error": 0.03398540730361478,
+        "worst_abs_error": 0.04898961395733245
+      },
+      "ledger": {
+        "all_regions": {
+          "regions_offered": 10000005,
+          "cells": 32768,
+          "cells_with_no_population": 0,
+          "area_offered": 734996288.1974249,
+          "area_landed": 734996288.1974249,
+          "closure_residual_relative": 0.0
+        },
+        "land": {
+          "regions_offered": 4328736,
+          "cells": 32768,
+          "cells_with_no_population": 12049,
+          "area_offered": 318136980.5317639,
+          "area_landed": 318136980.5317639,
+          "closure_residual_relative": 0.0
+        },
+        "ocean": {
+          "regions_offered": 5671269,
+          "cells": 32768,
+          "cells_with_no_population": 13886,
+          "area_offered": 416859307.6656609,
+          "area_landed": 416859307.6656609,
+          "closure_residual_relative": 0.0
+        }
+      },
+      "fallback": {
+        "applied": "none",
+        "note": "this artifact substitutes nothing for an empty cell. lib/gridding.py:land_weighted falls back to the nearest region centre and would have substituted a value in every cell counted in cells_with_no_region; the count is reported so a consumer taking that door knows its size"
+      },
+      "export_orography_diagnostic": {
+        "cells_compared": 32768,
+        "note": "the export's orog_* are taken over EVERY region in the cell, so they are compared against this artifact's ALL-region moments and not against its land ones",
+        "peak_excess_note": "the two peak excesses below are NOT two estimates of one number and their difference is not an error bar. They differ in three ways at once: the population inside a cell (every region against the cell's land), the set of cells (those whose CENTRE region is land against every cell holding any land), and the weighting (one vote per cell against one vote per square kilometre of land). The land one is what a consumer asking how much colder a cell's high ground is should read, because each of those three is the correct choice for that question and none of the export's three is",
+        "region_count_total_here": 10000005,
+        "region_count_total_export": 10000005,
+        "cells_whose_region_count_differs": 19962,
+        "worst_region_count_difference": 6,
+        "median_regions_per_cell": 339.0,
+        "max_abs_mean_km": 0.43591714892837996,
+        "max_abs_sd_km": 0.653095792041666,
+        "max_abs_min_km": 2.76847542822361,
+        "max_abs_max_km": 1.7443183362483978,
+        "export_cells_with_no_region": 0,
+        "export_all_region_peak_excess_km": {
+          "mean": 0.8127968842171935,
+          "p90": 2.5329159975051883,
+          "max": 6.093271732330322
+        },
+        "land_population_peak_excess_km": {
+          "mean": 0.9789318522382795,
+          "p90": 2.3425185726528324,
+          "max": 4.371037002634594,
+          "weighting": "land area, over cells that hold land"
+        }
+      },
+      "absent": {},
+      "seconds": 12.179718732833862,
+      "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T85.nc",
+      "output_bytes": 7495033
+    },
+    "T127": {
+      "grid": "exoplasim-T127",
+      "latitudes": 192,
+      "longitudes": 384,
+      "cells": 73728,
+      "grid_spec_source": "lib/gridding.py:gaussian_grid, Gauss-Legendre weights",
+      "cells_with_any_region": 73696,
+      "cells_with_no_region": 32,
+      "cells_with_no_region_area_fraction_of_sphere": 8.689942634154709e-06,
+      "cells_with_land": 44392,
+      "cells_with_ocean": 40882,
+      "median_regions_per_cell": 151.0,
+      "min_regions_per_covered_cell": 1,
+      "closure": {
+        "cell_area_against_sphere_relative": 0.0,
+        "mesh_area_against_export_relative": 0.0,
+        "land_area_against_mesh_relative": 0.0,
+        "land_volume_against_direct_relative": 0.0,
+        "surface_shares_worst_partition_departure": 0.0,
+        "lithology_shares_worst_partition_departure": 2.220446049250313e-16,
+        "drainage_shares_worst_partition_departure": 0.0,
+        "rootable_against_barren_worst_departure": 0.0,
+        "barren_share_against_area_worst_relative": 1.0831917431233394e-16,
+        "solved_lake_share_against_area_worst_relative": 1.0970293195746974e-16,
+        "tolerances": {
+          "partition_and_area": 1e-12,
+          "share_against_extensive": 1e-09,
+          "mesh_against_manifest": 1e-06
+        }
+      },
+      "two_partitions": {
+        "note": "cell_area_km2 is the QUADRATURE partition the model budgets over and mesh_area_km2 is what the midpoint binning delivered. They are not the same partition, and the ratio below separates two effects that look alike. The POLAR ROW total is systematic and is the partitions themselves disagreeing, the gap lib/gridding.py:export_grid documents; it does not fall with the rung. The per-cell TAILS are the mesh being coarse against the cell, and they widen with the rung until a polar cell can hold no region at all, which is what cells_with_no_region counts",
+        "mesh_over_cell_area": {
+          "0": 0.04187315377730555,
+          "1": 0.7869738851483855,
+          "50": 1.000621279784054,
+          "99": 1.223634767918663,
+          "100": 3.4288041308404584
+        },
+        "polar_row_mesh_over_cell_area": [
+          1.0599191835445108,
+          1.0608494578514085
+        ]
+      },
+      "hypsometry_inverse_against_the_mesh": {
+        "threshold": "the cell's own land elevation mean plus one sd",
+        "bar": 0.050000000000000044,
+        "bar_is": "the widest step in PROBS. The interpolated curve and the true one both lie between the two bracketing probabilities, so this is a bound rather than a tolerance",
+        "cells": 44392,
+        "single_valued_cells": 662,
+        "single_valued_land_area_fraction": 0.00016043352209346015,
+        "mean_abs_error": 0.006107243836158646,
+        "p99_abs_error": 0.03725909839261682,
+        "worst_abs_error": 0.04966727125827067
+      },
+      "ledger": {
+        "all_regions": {
+          "regions_offered": 10000005,
+          "cells": 73728,
+          "cells_with_no_population": 32,
+          "area_offered": 734996288.1974249,
+          "area_landed": 734996288.1974249,
+          "closure_residual_relative": 0.0
+        },
+        "land": {
+          "regions_offered": 4328736,
+          "cells": 73728,
+          "cells_with_no_population": 29336,
+          "area_offered": 318136980.5317639,
+          "area_landed": 318136980.5317639,
+          "closure_residual_relative": 0.0
+        },
+        "ocean": {
+          "regions_offered": 5671269,
+          "cells": 73728,
+          "cells_with_no_population": 32846,
+          "area_offered": 416859307.6656609,
+          "area_landed": 416859307.6656609,
+          "closure_residual_relative": 0.0
+        }
+      },
+      "fallback": {
+        "applied": "none",
+        "note": "this artifact substitutes nothing for an empty cell. lib/gridding.py:land_weighted falls back to the nearest region centre and would have substituted a value in every cell counted in cells_with_no_region; the count is reported so a consumer taking that door knows its size"
+      },
+      "export_orography_diagnostic": {
+        "cells_compared": 73696,
+        "note": "the export's orog_* are taken over EVERY region in the cell, so they are compared against this artifact's ALL-region moments and not against its land ones",
+        "peak_excess_note": "the two peak excesses below are NOT two estimates of one number and their difference is not an error bar. They differ in three ways at once: the population inside a cell (every region against the cell's land), the set of cells (those whose CENTRE region is land against every cell holding any land), and the weighting (one vote per cell against one vote per square kilometre of land). The land one is what a consumer asking how much colder a cell's high ground is should read, because each of those three is the correct choice for that question and none of the export's three is",
+        "region_count_total_here": 10000005,
+        "region_count_total_export": 10000005,
+        "cells_whose_region_count_differs": 26056,
+        "worst_region_count_difference": 4,
+        "median_regions_per_cell": 151.0,
+        "max_abs_mean_km": 0.5868673159603357,
+        "max_abs_sd_km": 0.7698997361042863,
+        "max_abs_min_km": 3.9558067431062227,
+        "max_abs_max_km": 1.864200904383324,
+        "export_cells_with_no_region": 15,
+        "export_all_region_peak_excess_km": {
+          "mean": 0.6036551024970027,
+          "p90": 2.010681629180908,
+          "max": 5.379462897777557
+        },
+        "land_population_peak_excess_km": {
+          "mean": 0.738792597537702,
+          "p90": 1.83424015692731,
+          "max": 4.361093469673813,
+          "weighting": "land area, over cells that hold land"
+        }
+      },
+      "absent": {},
+      "seconds": 11.993284463882446,
+      "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T127.nc",
+      "output_bytes": 14539636
+    },
+    "T170": {
+      "grid": "exoplasim-T170",
+      "latitudes": 256,
+      "longitudes": 512,
+      "cells": 131072,
+      "grid_spec_source": "lib/gridding.py:gaussian_grid, Gauss-Legendre weights",
+      "cells_with_any_region": 130707,
+      "cells_with_no_region": 365,
+      "cells_with_no_region_area_fraction_of_sphere": 5.219662703120723e-05,
+      "cells_with_land": 76168,
+      "cells_with_ocean": 71149,
+      "median_regions_per_cell": 85.0,
+      "min_regions_per_covered_cell": 1,
+      "closure": {
+        "cell_area_against_sphere_relative": 0.0,
+        "mesh_area_against_export_relative": 0.0,
+        "land_area_against_mesh_relative": 0.0,
+        "land_volume_against_direct_relative": 1.3001666872163278e-16,
+        "surface_shares_worst_partition_departure": 0.0,
+        "lithology_shares_worst_partition_departure": 2.220446049250313e-16,
+        "drainage_shares_worst_partition_departure": 0.0,
+        "rootable_against_barren_worst_departure": 0.0,
+        "barren_share_against_area_worst_relative": 1.1016069388662719e-16,
+        "solved_lake_share_against_area_worst_relative": 1.0957935179545386e-16,
+        "tolerances": {
+          "partition_and_area": 1e-12,
+          "share_against_extensive": 1e-09,
+          "mesh_against_manifest": 1e-06
+        }
+      },
+      "two_partitions": {
+        "note": "cell_area_km2 is the QUADRATURE partition the model budgets over and mesh_area_km2 is what the midpoint binning delivered. They are not the same partition, and the ratio below separates two effects that look alike. The POLAR ROW total is systematic and is the partitions themselves disagreeing, the gap lib/gridding.py:export_grid documents; it does not fall with the rung. The per-cell TAILS are the mesh being coarse against the cell, and they widen with the rung until a polar cell can hold no region at all, which is what cells_with_no_region counts",
+        "mesh_over_cell_area": {
+          "0": 0.01315093745283592,
+          "1": 0.7124715377919312,
+          "50": 1.000646007783609,
+          "99": 1.3338750556691195,
+          "100": 5.203105997910353
+        },
+        "polar_row_mesh_over_cell_area": [
+          1.0675822159020787,
+          1.0587072991437159
+        ]
+      },
+      "hypsometry_inverse_against_the_mesh": {
+        "threshold": "the cell's own land elevation mean plus one sd",
+        "bar": 0.050000000000000044,
+        "bar_is": "the widest step in PROBS. The interpolated curve and the true one both lie between the two bracketing probabilities, so this is a bound rather than a tolerance",
+        "cells": 76168,
+        "single_valued_cells": 1586,
+        "single_valued_land_area_fraction": 0.0004083024763760866,
+        "mean_abs_error": 0.00785872698552456,
+        "p99_abs_error": 0.03896191457926641,
+        "worst_abs_error": 0.04990653228297076
+      },
+      "ledger": {
+        "all_regions": {
+          "regions_offered": 10000005,
+          "cells": 131072,
+          "cells_with_no_population": 365,
+          "area_offered": 734996288.1974249,
+          "area_landed": 734996288.1974249,
+          "closure_residual_relative": 0.0
+        },
+        "land": {
+          "regions_offered": 4328736,
+          "cells": 131072,
+          "cells_with_no_population": 54904,
+          "area_offered": 318136980.5317639,
+          "area_landed": 318136980.5317639,
+          "closure_residual_relative": 0.0
+        },
+        "ocean": {
+          "regions_offered": 5671269,
+          "cells": 131072,
+          "cells_with_no_population": 59923,
+          "area_offered": 416859307.6656609,
+          "area_landed": 416859307.6656609,
+          "closure_residual_relative": 0.0
+        }
+      },
+      "fallback": {
+        "applied": "none",
+        "note": "this artifact substitutes nothing for an empty cell. lib/gridding.py:land_weighted falls back to the nearest region centre and would have substituted a value in every cell counted in cells_with_no_region; the count is reported so a consumer taking that door knows its size"
+      },
+      "export_orography_diagnostic": {
+        "cells_compared": 130696,
+        "note": "the export's orog_* are taken over EVERY region in the cell, so they are compared against this artifact's ALL-region moments and not against its land ones",
+        "peak_excess_note": "the two peak excesses below are NOT two estimates of one number and their difference is not an error bar. They differ in three ways at once: the population inside a cell (every region against the cell's land), the set of cells (those whose CENTRE region is land against every cell holding any land), and the weighting (one vote per cell against one vote per square kilometre of land). The land one is what a consumer asking how much colder a cell's high ground is should read, because each of those three is the correct choice for that question and none of the export's three is",
+        "region_count_total_here": 10000005,
+        "region_count_total_export": 10000005,
+        "cells_whose_region_count_differs": 25097,
+        "worst_region_count_difference": 3,
+        "median_regions_per_cell": 85.0,
+        "max_abs_mean_km": 1.1155686676502228,
+        "max_abs_sd_km": 0.6103620608614747,
+        "max_abs_min_km": 3.594193402910605,
+        "max_abs_max_km": 2.638819247484207,
+        "export_cells_with_no_region": 312,
+        "export_all_region_peak_excess_km": {
+          "mean": 0.47614875050330385,
+          "p90": 1.6279534459114076,
+          "max": 5.143647313117981
+        },
+        "land_population_peak_excess_km": {
+          "mean": 0.5878295880673282,
+          "p90": 1.4759217800509994,
+          "max": 4.35378023210476,
+          "weighting": "land area, over cells that hold land"
+        }
+      },
+      "absent": {},
+      "seconds": 12.601900339126587,
+      "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T170.nc",
+      "output_bytes": 23519172
+    }
+  }
+}
