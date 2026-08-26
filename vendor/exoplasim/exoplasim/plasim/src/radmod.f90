@@ -2714,7 +2714,6 @@
 !     the transmissivity is 4u/4u = 1, and the range-1 reflectivity is
 !     1 - 1/(1+0). world-jgen, world-f9ig.
 !
-!
 !     SCATTERED LIGHT, at the diffuse-beam cosine zmu00. Every quantity is
 !     interpolated from Stephens's tables at this layer's own optical depth in
 !     the band that reads it: beta1 at the range-1 depth, beta2 and the
