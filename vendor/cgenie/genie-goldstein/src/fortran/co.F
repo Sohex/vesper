@@ -12,6 +12,18 @@ c 1/8/06 old/new convection scheme option added (rma)
 c 04/08/08 KICO modified to handle thermobaricity
 c 05/08/08 KICO merging of duplicated code
 
+c THREADED OVER j. Convective adjustment is a COLUMN algorithm: the
+c mixing search runs down k inside one (i,j) and reaches no other column.
+c Everything it writes -- tv, rho, cost, icosd and mldpk -- is indexed by
+c that column, and everything it reads besides those is a grid constant.
+c
+c k, dzm and sum are the search's own scratch and are private. icond is
+c private and initialised inside the region: it is reset per wet column
+c when iconv is 1 and never read otherwise, but a private copy that
+c inherited nothing would start as whatever was on the stack.
+c
+c coshuffle is called before the region rather than inside it, and carries
+c its own.
       subroutine co(tv,mldpk)
 
 #include "ocean.cmn"
@@ -35,6 +47,10 @@ c don't comment out the call without ensuring icosd is initialised
          call coshuffle(tv,mldpk)
       endif
 
+!$OMP PARALLEL DEFAULT(SHARED)
+!$OMP&   PRIVATE(i,j,k,l,m,n,ni,lastmix,icond,dzm,sum)
+      icond = 0
+!$OMP DO SCHEDULE(STATIC)
       do 210 j=1,jmax
          do 211 i=1,imax
 
@@ -160,6 +176,8 @@ c wet points only
         endif
  211  continue
  210  continue
+!$OMP END DO
+!$OMP END PARALLEL
 
       end
 c
@@ -206,6 +224,10 @@ c    +       , icosd(maxi,maxj)
 
       maxpass = kmax
 
+c THREADED OVER j, for the same reason as co above: the shuffle runs down
+c one column and writes only tv, rho, icosd and mldpk at that column.
+!$OMP PARALLEL DO DEFAULT(SHARED) SCHEDULE(STATIC)
+!$OMP&   PRIVATE(i,j,k,k0,l,ipass,tv_temp)
       do 10 j=1,jmax
          do 11 i=1,imax
             if(k1(i,j).le.kmax)then
@@ -262,5 +284,6 @@ c              if(icosd(i,j).gt.0)print*,'coshuff',i,j,icosd(i,j),ipass
             endif
  11   continue
  10   continue
+!$OMP END PARALLEL DO
 
       end

@@ -351,6 +351,20 @@ if [ $COMPILE_ONLY = "FALSE" ] ; then
     #######################################################
     echo 'STARTING EXPERIMENT:'
     date
+    #######################################################
+    # STACK. The gfortran SHIP block compiles -frecursive, so a procedure
+    # body's locals live on the stack rather than in static storage -- which
+    # is what makes them private to a thread inside a parallel region. BIOGEM
+    # declares per-column arrays large enough that the default 8 MB is not
+    # enough for them: the eb_go_gs_ac_bg regression case segfaults before its
+    # first timestep with the default limit and completes with this one.
+    #
+    # OMP_STACKSIZE is the same limit for every thread OTHER than the master,
+    # which takes the shell's. It is set here rather than left to the 4 MB
+    # default for the same reason, and a caller that has already chosen one
+    # keeps it.
+    ulimit -s unlimited 2>/dev/null || ulimit -s 262144 2>/dev/null || true
+    export OMP_STACKSIZE=${OMP_STACKSIZE:-256M}
     time ./genie.exe ||  ABORT EXECUTE
     echo 'ENDING EXPERIMENT:'
     set +e                                  # Disable exit on error.

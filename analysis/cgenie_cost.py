@@ -399,6 +399,27 @@ def write_config(path: Path, case: dict, years: int, nyear: int, maxisles: int,
     )
 
 
+# ONE THREAD, DECLARED RATHER THAN INHERITED.
+#
+# `makefile.arc`'s gfortran block compiles `-fopenmp`, and genie-goldstein's
+# tstepo_flux, co, coshuffle and velc carry directives. With OMP_NUM_THREADS
+# unset the runtime takes the core count, so a driver that measures a serial
+# process would silently be measuring a 32-thread one on this host -- and the
+# per-symbol shares, the per-second rates and the wall clock would all be of a
+# different program. Every quantity these drivers report is defined on ONE
+# thread, so they set it rather than hoping.
+#
+# The wait policy goes with it: a thread spinning at a barrier retires
+# instructions in proportion to how long it waits, so an active wait would put
+# that spin into an instruction count. It is set for the same reason at one
+# thread as at sixteen, because a caller may override the count.
+def serial_env(base: dict | None = None) -> dict:
+    env = dict(base if base is not None else os.environ)
+    env.setdefault("OMP_NUM_THREADS", "1")
+    env.setdefault("OMP_WAIT_POLICY", "passive")
+    return env
+
+
 # This host runs other work. cGENIE is one serial process on a 32-thread part,
 # so a run is not competing for a core, but it does compete for last-level cache
 # and memory bandwidth, and that is a real effect on a model whose state is one
@@ -410,7 +431,8 @@ def write_config(path: Path, case: dict, years: int, nyear: int, maxisles: int,
 def run(cmd: list[str], log: Path, cwd: Path = GENIE_MAIN) -> tuple[int, float]:
     start = time.perf_counter()
     with log.open("w") as fh:
-        rc = subprocess.call(cmd, cwd=cwd, stdout=fh, stderr=subprocess.STDOUT)
+        rc = subprocess.call(cmd, cwd=cwd, stdout=fh, stderr=subprocess.STDOUT,
+                             env=serial_env())
     return rc, time.perf_counter() - start
 
 
@@ -1005,7 +1027,8 @@ def perf_run(outdir: Path, log: Path) -> dict:
     copied the executable into `outdir`, so running it again there repeats
     exactly the same integration."""
     cmd = ["perf", "stat", "-x,", "-e", _PERF_EVENTS, "./genie.exe"]
-    proc = subprocess.run(cmd, cwd=outdir, capture_output=True, text=True, check=False)
+    proc = subprocess.run(cmd, cwd=outdir, capture_output=True, text=True,
+                          check=False, env=serial_env())
     log.write_text(proc.stdout + "\n----- perf -----\n" + proc.stderr)
     out: dict = {}
     for line in proc.stderr.split("\n"):

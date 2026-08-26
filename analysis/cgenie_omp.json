@@ -1,0 +1,840 @@
+{
+  "cases": {
+    "base.t1": {
+      "arm": "base",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 2.159,
+      "output": "/home/cfutro/cgenie_log/omp/nc/base.t1",
+      "vs_shipped": {
+        "reference": "/home/cfutro/cgenie_z3/vendor/cgenie/genie-knowngood/genie_eb_go_gs_knowngood/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/base.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": false,
+        "differing": {
+          "uvel": {
+            "max_abs_diff": 6.855227519661518e-22,
+            "max_rel_to_field_range": 6.855296072622244e-27,
+            "cells_differing": 2
+          }
+        },
+        "worst_relative": 6.855296072622244e-27
+      }
+    },
+    "base_eosd.build": {
+      "arm": "base",
+      "flags": [],
+      "build_seconds": 80.6,
+      "build_ok": true,
+      "exe": "/home/cfutro/cgenie_log/omp/exe/base.exe"
+    },
+    "base_eosd.t1": {
+      "arm": "base",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 2.081,
+      "output": "/home/cfutro/cgenie_log/omp/nc/base_eosd.t1",
+      "vs_shipped": {
+        "reference": "/home/cfutro/cgenie_z3/vendor/cgenie/genie-knowngood/genie_eb_go_gs_knowngood/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/base_eosd.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": false,
+        "differing": {
+          "uvel": {
+            "max_abs_diff": 6.855227519661518e-22,
+            "max_rel_to_field_range": 6.855296072622244e-27,
+            "cells_differing": 2
+          }
+        },
+        "worst_relative": 6.855296072622244e-27
+      },
+      "vs_base.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/base_eosd.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "base_frec.build": {
+      "arm": "base",
+      "flags": [],
+      "build_seconds": 123.4,
+      "build_ok": true,
+      "exe": "/home/cfutro/cgenie_log/omp/exe/base.exe"
+    },
+    "base_frec.t1": {
+      "arm": "base",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 3.475,
+      "output": "/home/cfutro/cgenie_log/omp/nc/base_frec.t1",
+      "vs_shipped": {
+        "reference": "/home/cfutro/cgenie_z3/vendor/cgenie/genie-knowngood/genie_eb_go_gs_knowngood/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/base_frec.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": false,
+        "differing": {
+          "uvel": {
+            "max_abs_diff": 6.855227519661518e-22,
+            "max_rel_to_field_range": 6.855296072622244e-27,
+            "cells_differing": 2
+          }
+        },
+        "worst_relative": 6.855296072622244e-27
+      },
+      "vs_base.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/base_frec.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "base.eb_go_gs_pre.build": {
+      "arm": "base",
+      "flags": [],
+      "build_seconds": 201.9,
+      "build_ok": true,
+      "case": "eb_go_gs",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/base.eb_go_gs.exe"
+    },
+    "base.eb_go_gs_pre.t1": {
+      "arm": "base",
+      "case": "eb_go_gs",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 3.288,
+      "output": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1",
+      "vs_shipped": {
+        "reference": "/home/cfutro/cgenie_z3_pre/vendor/cgenie/genie-knowngood/genie_eb_go_gs_knowngood/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": false,
+        "differing": {
+          "uvel": {
+            "max_abs_diff": 6.855227519661518e-22,
+            "max_rel_to_field_range": 6.855296072622244e-27,
+            "cells_differing": 2
+          }
+        },
+        "worst_relative": 6.855296072622244e-27
+      }
+    },
+    "base.eb_go_gs_ac_bg_pre.build": {
+      "arm": "base",
+      "flags": [],
+      "build_seconds": 134.0,
+      "build_ok": true,
+      "case": "eb_go_gs_ac_bg",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/base.eb_go_gs_ac_bg.exe"
+    },
+    "base.eb_go_gs_ac_bg_pre.t1": {
+      "arm": "base",
+      "case": "eb_go_gs_ac_bg",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 4.378,
+      "output": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_ac_bg_pre.t1",
+      "vs_shipped": {
+        "reference": "/home/cfutro/cgenie_z3_pre/vendor/cgenie/genie-knowngood/genie_eb_go_gs_ac_bg_knowngood/biogem/fields_biogem_3d.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_ac_bg_pre.t1/biogem/fields_biogem_3d.nc",
+        "variables": 62,
+        "variables_only_in_reference": [],
+        "bit_for_bit": false,
+        "differing": {
+          "bio_fpart_CaCO3_13C": {
+            "max_abs_diff": 2.9802322387695312e-08,
+            "max_rel_to_field_range": 2.989436723892943e-45,
+            "cells_differing": 1
+          },
+          "phys_u": {
+            "max_abs_diff": 1.3952944570700734e-21,
+            "max_rel_to_field_range": 1.3996038417233255e-58,
+            "cells_differing": 2
+          }
+        },
+        "worst_relative": 2.989436723892943e-45
+      }
+    },
+    "base.eb_go_gs_now.build": {
+      "arm": "base",
+      "flags": [],
+      "build_seconds": 134.1,
+      "build_ok": true,
+      "case": "eb_go_gs",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/base.eb_go_gs.exe"
+    },
+    "base.eb_go_gs_now.t1": {
+      "arm": "base",
+      "case": "eb_go_gs",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 3.274,
+      "output": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_now.t1",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_now.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "base.eb_go_gs_ac_bg_now.build": {
+      "arm": "base",
+      "flags": [],
+      "build_seconds": 120.9,
+      "build_ok": true,
+      "case": "eb_go_gs_ac_bg",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/base.eb_go_gs_ac_bg.exe"
+    },
+    "base.eb_go_gs_ac_bg_now.t1": {
+      "arm": "base",
+      "case": "eb_go_gs_ac_bg",
+      "threads": 1,
+      "run_ok": false,
+      "seconds": 0.994,
+      "why": "ERROR: !!!!!!!!!! ERROR PROCESSING !!!!!!!!!!"
+    },
+    "base.eb_go_gs_ac_bg_now2.build": {
+      "arm": "base",
+      "flags": [],
+      "build_seconds": 176.8,
+      "build_ok": true,
+      "case": "eb_go_gs_ac_bg",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/base.eb_go_gs_ac_bg.exe"
+    },
+    "base.eb_go_gs_ac_bg_now2.t1": {
+      "arm": "base",
+      "case": "eb_go_gs_ac_bg",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 11.356,
+      "output": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_ac_bg_now2.t1",
+      "vs_base.eb_go_gs_ac_bg_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_ac_bg_pre.t1/biogem/fields_biogem_3d.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_ac_bg_now2.t1/biogem/fields_biogem_3d.nc",
+        "variables": 88,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "initpoison.eb_go_gs.build": {
+      "arm": "initpoison",
+      "flags": [
+        "-finit-real=snan",
+        "-finit-integer=-2147483647"
+      ],
+      "build_seconds": 141.7,
+      "build_ok": true,
+      "case": "eb_go_gs",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/initpoison.eb_go_gs.exe"
+    },
+    "initpoison.eb_go_gs.t1": {
+      "arm": "initpoison",
+      "case": "eb_go_gs",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 4.462,
+      "output": "/home/cfutro/cgenie_log/omp/nc/initpoison.eb_go_gs.t1",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/initpoison.eb_go_gs.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "initpoison.eb_go_gs_ac_bg.build": {
+      "arm": "initpoison",
+      "flags": [
+        "-finit-real=snan",
+        "-finit-integer=-2147483647"
+      ],
+      "build_seconds": 509.3,
+      "build_ok": true,
+      "case": "eb_go_gs_ac_bg",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/initpoison.eb_go_gs_ac_bg.exe"
+    },
+    "initpoison.eb_go_gs_ac_bg.t1": {
+      "arm": "initpoison",
+      "case": "eb_go_gs_ac_bg",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 10.99,
+      "output": "/home/cfutro/cgenie_log/omp/nc/initpoison.eb_go_gs_ac_bg.t1",
+      "vs_base.eb_go_gs_ac_bg_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_ac_bg_pre.t1/biogem/fields_biogem_3d.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/initpoison.eb_go_gs_ac_bg.t1/biogem/fields_biogem_3d.nc",
+        "variables": 88,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "base.eb_go_gs_flux.build": {
+      "arm": "base",
+      "flags": [],
+      "build_seconds": 463.3,
+      "build_ok": true,
+      "case": "eb_go_gs",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/base.eb_go_gs.exe"
+    },
+    "base.eb_go_gs_flux.t1": {
+      "arm": "base",
+      "case": "eb_go_gs",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 6.81,
+      "output": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_flux.t1",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_flux.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_flux.build": {
+      "arm": "omp",
+      "flags": [
+        "-fopenmp"
+      ],
+      "build_seconds": 181.2,
+      "build_ok": true,
+      "case": "eb_go_gs",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/omp.eb_go_gs.exe"
+    },
+    "omp.eb_go_gs_flux.t1": {
+      "arm": "omp",
+      "case": "eb_go_gs",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 2.392,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_flux.t1",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_flux.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_flux.t2": {
+      "arm": "omp",
+      "case": "eb_go_gs",
+      "threads": 2,
+      "run_ok": true,
+      "seconds": 2.645,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_flux.t2",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_flux.t2/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_flux.t4": {
+      "arm": "omp",
+      "case": "eb_go_gs",
+      "threads": 4,
+      "run_ok": true,
+      "seconds": 2.643,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_flux.t4",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_flux.t4/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_flux.t8": {
+      "arm": "omp",
+      "case": "eb_go_gs",
+      "threads": 8,
+      "run_ok": true,
+      "seconds": 2.901,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_flux.t8",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_flux.t8/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_flux.t16": {
+      "arm": "omp",
+      "case": "eb_go_gs",
+      "threads": 16,
+      "run_ok": true,
+      "seconds": 2.468,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_flux.t16",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_flux.t16/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_v2.build": {
+      "arm": "omp",
+      "flags": [
+        "-fopenmp"
+      ],
+      "build_seconds": 79.8,
+      "build_ok": true,
+      "case": "eb_go_gs",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/omp.eb_go_gs.exe"
+    },
+    "omp.eb_go_gs_v2.t1": {
+      "arm": "omp",
+      "case": "eb_go_gs",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 2.072,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_v2.t1",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_v2.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_v2.t4": {
+      "arm": "omp",
+      "case": "eb_go_gs",
+      "threads": 4,
+      "run_ok": true,
+      "seconds": 1.822,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_v2.t4",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_v2.t4/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_v2.t16": {
+      "arm": "omp",
+      "case": "eb_go_gs",
+      "threads": 16,
+      "run_ok": true,
+      "seconds": 2.537,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_v2.t16",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_v2.t16/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omppoison.eb_go_gs.build": {
+      "arm": "omppoison",
+      "flags": [
+        "-fopenmp",
+        "-finit-real=snan",
+        "-finit-integer=-2147483647"
+      ],
+      "build_seconds": 86.0,
+      "build_ok": true,
+      "case": "eb_go_gs",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/omppoison.eb_go_gs.exe"
+    },
+    "omppoison.eb_go_gs.t16": {
+      "arm": "omppoison",
+      "case": "eb_go_gs",
+      "threads": 16,
+      "run_ok": true,
+      "seconds": 2.063,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omppoison.eb_go_gs.t16",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omppoison.eb_go_gs.t16/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_ac_bg.build": {
+      "arm": "omp",
+      "flags": [
+        "-fopenmp"
+      ],
+      "build_seconds": 80.6,
+      "build_ok": true,
+      "case": "eb_go_gs_ac_bg",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/omp.eb_go_gs_ac_bg.exe"
+    },
+    "omp.eb_go_gs_ac_bg.t1": {
+      "arm": "omp",
+      "case": "eb_go_gs_ac_bg",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 2.574,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg.t1",
+      "vs_base.eb_go_gs_ac_bg_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_ac_bg_pre.t1/biogem/fields_biogem_3d.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg.t1/biogem/fields_biogem_3d.nc",
+        "variables": 88,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_ac_bg.t16": {
+      "arm": "omp",
+      "case": "eb_go_gs_ac_bg",
+      "threads": 16,
+      "run_ok": true,
+      "seconds": 2.497,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg.t16",
+      "vs_base.eb_go_gs_ac_bg_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_ac_bg_pre.t1/biogem/fields_biogem_3d.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg.t16/biogem/fields_biogem_3d.nc",
+        "variables": 88,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "cost.base_pre.t1": {
+      "arm": "base",
+      "threads": 1,
+      "case": "worjh2_36x36x16",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3_pre/vendor/cgenie",
+      "load_before": 2.78,
+      "wall_seconds": 21.61,
+      "load_after": 13.61,
+      "instructions": 302680176900,
+      "task_clock_ms": 20951.91,
+      "instructions_per_model_year": 3.027
+    },
+    "cost.serialstatic.t1": {
+      "arm": "serialstatic",
+      "threads": 1,
+      "case": "worjh2_36x36x16",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "load_before": 94.44,
+      "wall_seconds": 83.79,
+      "load_after": 112.3,
+      "instructions": 288985000234,
+      "task_clock_ms": 26153.47,
+      "instructions_per_model_year": 2.89
+    },
+    "cost.serial.t1": {
+      "arm": "serial",
+      "threads": 1,
+      "case": "worjh2_36x36x16",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "load_before": 92.31,
+      "wall_seconds": 43.63,
+      "load_after": 81.23,
+      "instructions": 247337252667,
+      "task_clock_ms": 20873.11,
+      "instructions_per_model_year": 2.473
+    },
+    "cost.omp.t1": {
+      "arm": "omp",
+      "threads": 1,
+      "case": "worjh2_36x36x16",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "load_before": 112.26,
+      "wall_seconds": 63.04,
+      "load_after": 101.3,
+      "instructions": 258718375288,
+      "task_clock_ms": 21764.65,
+      "instructions_per_model_year": 2.587
+    },
+    "cost.serialstatic_v3.t1": {
+      "arm": "serialstatic",
+      "threads": 1,
+      "case": "worjh2_36x36x16",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3b/vendor/cgenie",
+      "load_before": 95.36,
+      "wall_seconds": 26.11,
+      "load_after": 77.56,
+      "instructions": 247875445003,
+      "task_clock_ms": 22062.94,
+      "instructions_per_model_year": 2.479
+    },
+    "cost.serial_v3.t1": {
+      "arm": "serial",
+      "threads": 1,
+      "case": "worjh2_36x36x16",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3b/vendor/cgenie",
+      "load_before": 16.69,
+      "wall_seconds": 14.38,
+      "load_after": 14.5,
+      "instructions": 246640185841,
+      "task_clock_ms": 14350.93,
+      "instructions_per_model_year": 2.466
+    },
+    "cost.omp_v3.t1": {
+      "arm": "omp",
+      "threads": 1,
+      "case": "worjh2_36x36x16",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3b/vendor/cgenie",
+      "load_before": 6.0,
+      "wall_seconds": 14.47,
+      "load_after": 5.03,
+      "instructions": 246637767672,
+      "task_clock_ms": 14439.92,
+      "instructions_per_model_year": 2.466
+    },
+    "cost.omp_v3.t2": {
+      "arm": "omp",
+      "threads": 2,
+      "case": "worjh2_36x36x16",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3b/vendor/cgenie",
+      "load_before": 4.41,
+      "wall_seconds": 11.84,
+      "load_after": 3.79,
+      "instructions": 248437318161,
+      "task_clock_ms": 15524.81,
+      "instructions_per_model_year": 2.484
+    },
+    "cost.omp_v3.t4": {
+      "arm": "omp",
+      "threads": 4,
+      "case": "worjh2_36x36x16",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3b/vendor/cgenie",
+      "load_before": 3.67,
+      "wall_seconds": 11.09,
+      "load_after": 3.65,
+      "instructions": 251869812792,
+      "task_clock_ms": 18648.12,
+      "instructions_per_model_year": 2.519
+    },
+    "cost.omp_v3.t8": {
+      "arm": "omp",
+      "threads": 8,
+      "case": "worjh2_36x36x16",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3b/vendor/cgenie",
+      "load_before": 3.53,
+      "wall_seconds": 11.78,
+      "load_after": 3.58,
+      "instructions": 258956500477,
+      "task_clock_ms": 25638.63,
+      "instructions_per_model_year": 2.59
+    },
+    "cost.omp_v3.t16": {
+      "arm": "omp",
+      "threads": 16,
+      "case": "worjh2_36x36x16",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3b/vendor/cgenie",
+      "load_before": 3.3,
+      "wall_seconds": 13.27,
+      "load_after": 3.02,
+      "instructions": 275688145068,
+      "task_clock_ms": 37434.61,
+      "instructions_per_model_year": 2.757
+    },
+    "omp.eb_go_gs_final.build": {
+      "arm": "omp",
+      "flags": [
+        "-fopenmp"
+      ],
+      "build_seconds": 195.5,
+      "build_ok": true,
+      "case": "eb_go_gs",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/omp.eb_go_gs.exe"
+    },
+    "omp.eb_go_gs_final.t1": {
+      "arm": "omp",
+      "case": "eb_go_gs",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 4.429,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_final.t1",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_final.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_final.t16": {
+      "arm": "omp",
+      "case": "eb_go_gs",
+      "threads": 16,
+      "run_ok": true,
+      "seconds": 6.915,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_final.t16",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_final.t16/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_ac_bg_final.build": {
+      "arm": "omp",
+      "flags": [
+        "-fopenmp"
+      ],
+      "build_seconds": 175.2,
+      "build_ok": true,
+      "case": "eb_go_gs_ac_bg",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/omp.eb_go_gs_ac_bg.exe"
+    },
+    "omp.eb_go_gs_ac_bg_final.t1": {
+      "arm": "omp",
+      "case": "eb_go_gs_ac_bg",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 5.511,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg_final.t1",
+      "vs_base.eb_go_gs_ac_bg_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_ac_bg_pre.t1/biogem/fields_biogem_3d.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg_final.t1/biogem/fields_biogem_3d.nc",
+        "variables": 88,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_ac_bg_final.t16": {
+      "arm": "omp",
+      "case": "eb_go_gs_ac_bg",
+      "threads": 16,
+      "run_ok": true,
+      "seconds": 6.747,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg_final.t16",
+      "vs_base.eb_go_gs_ac_bg_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_ac_bg_pre.t1/biogem/fields_biogem_3d.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg_final.t16/biogem/fields_biogem_3d.nc",
+        "variables": 88,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omppoison.eb_go_gs_final.build": {
+      "arm": "omppoison",
+      "flags": [
+        "-fopenmp",
+        "-finit-real=snan",
+        "-finit-integer=-2147483647"
+      ],
+      "build_seconds": 205.5,
+      "build_ok": true,
+      "case": "eb_go_gs",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/omppoison.eb_go_gs.exe"
+    },
+    "omppoison.eb_go_gs_final.t16": {
+      "arm": "omppoison",
+      "case": "eb_go_gs",
+      "threads": 16,
+      "run_ok": true,
+      "seconds": 7.304,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omppoison.eb_go_gs_final.t16",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omppoison.eb_go_gs_final.t16/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    }
+  },
+  "provenance": {
+    "repo_head": "6dcded1b020ac3ee1ad2d3b787cdf020bd9dda5e",
+    "repo_dirty": false,
+    "fortran": "GNU Fortran (GCC) 16.2.1 20260810",
+    "netcdf_c": "netCDF 4.9.3",
+    "netcdf_fortran": "4.6.2",
+    "netcdf_flibs": "-L/usr/lib -lnetcdff -lnetcdf",
+    "host": "yggdrasil",
+    "cores": 32,
+    "load_average_at_start": 55.98,
+    "timing_estimator": "minimum over --repeats, of the model's own `time real` rather than the wrapper's, on a host that runs other work. cGENIE is one serial process and cores were free throughout; cache and memory bandwidth were not exclusively its own. Each run records the load average it finished under.",
+    "cpu": "AMD Ryzen 9 7950X3D 16-Core Processor",
+    "kernel": "7.1.8-1-cachyos",
+    "build_type": "SHIP (user.mak default), gfortran, serial",
+    "parallelism": "None available. -fopenmp is commented out in makefile.arc, and every $omp string in goldstein, embm, biogem and genie-main is commented out in column one, so it is not a sentinel: enabling the flag would parallelise nothing. Three live `use omp_lib` statements have no call against them. MPI exists only in genie-plasim, which this project does not use. Cost is one core against simulated years; parallelism is across experiments, not within a run.",
+    "code_model": "medium",
+    "make_overrides": "GENIE_ROOT=/home/cfutro/cgenie_z3/vendor/cgenie RUNTIME_ROOT=/home/cfutro/cgenie_z3/vendor/cgenie NETCDF_DIR=/usr OUT_DIR=/home/cfutro/cgenie_omp_out -j 1 GENIE_FFLAGS=-mcmodel=medium GENIE_LDFLAGS=-mcmodel=medium",
+    "build_command": "cd vendor/cgenie/genie-main && ./genie.job -x -f <config> -o <outdir> -c <cgenie root> -g <cgenie root> -h . -m 'genie.exe GENIE_ROOT=<cgenie root> RUNTIME_ROOT=<cgenie root> NETCDF_DIR=/usr OUT_DIR=<outdir> -j 1'",
+    "notes": [
+      "The make target genie.exe is passed through -m because the default target also builds nccompare, whose src/c/compare.cpp needs the legacy netCDF C++ header netcdf.hh, absent on this host.",
+      "-j 1 is required: the dependency generator genie-main/finc.py is Python 2 and fails under this host's python3, so no .d files are produced and a parallel make races on .mod files."
+    ],
+    "cgenie_tree": "/home/cfutro/cgenie_z3/vendor/cgenie"
+  }
+}

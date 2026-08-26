@@ -13,8 +13,6 @@ c AY (12/07/05) : removed surplus input argument to function
 c
       subroutine tstepo
 
-      use omp_lib
-
 #include "ocean.cmn"
       
       real ups0
@@ -26,13 +24,6 @@ c KICO Mixed layer scheme needs:
       real mldrhonew(maxi,maxj,maxk)
       real mldtstmp(2), mldrhotmp
       integer mldpk(2,maxi,maxj)
-
-ccc      integer::nthreads,thread_id
-ccc      real t1,t2,t3,t4
-      real ts_t1(maxl,maxi,maxj,maxk),ts1_t1(maxl,maxi,maxj,maxk)
-      real rho_t1(maxi,maxj,maxk)
-      real ts_t2(maxl,maxi,maxj,maxk),ts1_t2(maxl,maxi,maxj,maxk)
-      real rho_t2(maxi,maxj,maxk)
 
       if(imld.eq.1)then
 c KICO 18/09/07, before calculating fluxes, calculate energy consumed
@@ -52,49 +43,7 @@ c of density x height^2, or (Energy/area)/2*acceleration (due to gravity).
         enddo
       endif
 
-c **********************************************************************
-c **********************************************************************
-c **********************************************************************
-      do k=1,kmax
-         do j=1,jmax
-            do i=1,imax
-               do l=1,lmax
-                  ts_t1(l,i,j,k)  = ts(l,i,j,k)
-                  ts1_t1(l,i,j,k) = ts1(l,i,j,k)
-                  ts_t2(l,i,j,k)  = ts(l,i,j,k)
-                  ts1_t2(l,i,j,k) = ts1(l,i,j,k)
-               enddo
-               rho_t1(i,j,k)  = rho(i,j,k)
-               rho_t2(i,j,k)  = rho(i,j,k)
-            enddo
-         enddo
-      enddo  
-ccc      call cpu_time(t1)
-ccc      print*,t1
-c!$omp parallel private(nthreads,thread_id)
-c            call omp_set_num_threads(2)
-c            nthreads = omp_get_max_threads()
-c            print*,'* # MAX THREADS: ',nthreads
-c            nthreads = omp_get_num_threads()
-c            print*,'* # ACTUAL THREADS: ',nthreads
-c!$OMP SECTIONS
-c!$OMP SECTION
-ccc      call cpu_time(t2)
-c      call tstepo_flux_t(ts_t1(:,:,:,:),ts1_t1(:,:,:,:),rho_t1(:,:,:))
-c!$OMP SECTION
-ccc      call cpu_time(t3)
-c      call tstepo_flux_t(ts_t2(:,:,:,:),ts1_t2(:,:,:,:),rho_t2(:,:,:))
-c!$OMP SECTION
       call tstepo_flux()
-c!$OMP END SECTIONS
-c!$omp end parallel
-ccc      call cpu_time(t4)
-ccc      print*,'tstepo_flux   : ',1.e6*(t2-t1)
-ccc      print*,'tstepo_flux_t1: ',1.e6*(t3-t2)
-ccc      print*,'tstepo_flux_t2: ',1.e6*(t4-t3)
-c **********************************************************************
-c **********************************************************************
-c **********************************************************************
 
        if(imld.eq.1) then
 c KICO 18/09/07, remember old T and S only so we can calculate PE 

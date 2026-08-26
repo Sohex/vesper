@@ -314,12 +314,25 @@ netCDF C++ interface, which this host does not have, so the target has to be
 `.d` files are written and a parallel make races on `.mod` files.
 
 A fourth thing appears only at larger grids. Every field cGENIE holds is in a
-named COMMON block sized from the grid macros, and `user.mak` compiles with
-`-fno-automatic`, so all of it is static; past roughly a gigabyte of it the
-default `-mcmodel=small` cannot reach it and the LINK fails with
-`relocation truncated to fit: R_X86_64_PC32 ... defined in COMMON section`. A
-72 x 72 x 16 ocean is past that line and needs `-mcmodel=medium`. Like the grid
-macros, that is a per-configuration build flag rather than a source change.
+named COMMON block sized from the grid macros, so all of it is static; past
+roughly a gigabyte of it the default `-mcmodel=small` cannot reach it and the
+LINK fails with `relocation truncated to fit: R_X86_64_PC32 ... defined in
+COMMON section`. A 72 x 72 x 16 ocean is past that line and needs
+`-mcmodel=medium`. Like the grid macros, that is a per-configuration build flag
+rather than a source change.
+
+**The gfortran block compiles `-frecursive -fopenmp`, and the storage class is
+a correctness setting rather than a preference.** Upstream's `-fno-automatic`
+puts every procedure-body local in static storage, which is one variable for
+the whole process and therefore SHARED between threads unless a `private`
+clause names it; gfortran accepts `private` on such a variable rather than
+rejecting it, and the only diagnostic the combination draws names no variable.
+`-frecursive` puts the same locals on the stack, where each thread has its own,
+so `genie.job` raises the shell's stack limit and sets `OMP_STACKSIZE` before
+running the executable. That is required and not precautionary: with the
+default limit the shipped `eb_go_gs_ac_bg` regression case segfaults before its
+first timestep. The threaded routines are in `genie-goldstein`, and the thread
+count is `OMP_NUM_THREADS` as usual.
 
 `analysis/cgenie_cost.py` is the driver that puts those together; it records the
 exact command and the toolchain in its provenance block, builds through a
@@ -339,6 +352,17 @@ then bounds, and the coupling resolution and regridding contract that budget
 supports. It builds from a `git archive` export outside the repository, because a
 worktree's ignored build products are symlinks into the main checkout and a build
 in place would write there.
+
+`analysis/cgenie_omp.py` is the third driver and the one that CHANGES the tree
+rather than measuring it as it stands. It builds named ARMS -- the tree serial,
+the tree threaded, the tree compiled with uninitialised locals poisoned -- and
+holds every one to the same acceptance test: every float variable in a shipped
+regression case's reference netCDF, bit-for-bit against what a named git
+revision writes. It also counts retired instructions with `perf stat` on the
+audit's own cost case, which is exact on a single-threaded process and is not a
+cost on a threaded one, since a thread waiting at a barrier retires
+instructions in proportion to how long it waits.
+`notes/audits/cgenie-embm-free-path-and-threading.md` is what it found.
 
 Run output goes to `OUT_DIR = $(HOME)/cgenie_output`, outside this repository,
 which is why the ignore rules here cover only what a build leaves in the tree.
