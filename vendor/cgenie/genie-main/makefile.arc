@@ -315,9 +315,19 @@ ifeq ($(F77),gfortran)
   F77FLAGS += -x f77-cpp-input -ffixed-line-length-80
   F90FLAGS += -x f95-cpp-input -ffree-line-length-none
   FFLAGS += -Wall -fimplicit-none
-###  FFLAGS += -fopenmp
+  # OpenMP. The threaded routines are in genie-goldstein: tstepo_flux, the
+  # tracer transport that is half the ocean's instructions, and the column
+  # algorithms co, coshuffle and velc. Without this flag every !$OMP
+  # sentinel is a comment and the same source compiles serially, which is
+  # how "the restructuring alone changed nothing" is tested apart from
+  # "the threads changed nothing".
+  #
+  # The thread count is OMP_NUM_THREADS as usual. genie.job sets
+  # OMP_STACKSIZE, because -fopenmp implies -frecursive and a thread's
+  # locals then live on its own stack.
+  FFLAGS += -fopenmp
+  LDFLAGS += -fopenmp
 ###  LDFLAGS += -static
-###  LDFLAGS += -fopenmp
   # NOTE: Apparently ... the compiler detects differences in the kind (byte-length) of actual arguments used in different calls to the same subroutine.
   #       => error (-fallow-argument-mismatch turns this is a warning) (cannot then have -pedantic) [error occurs in outm_netcdf.F]
   # first get gfortran major version number

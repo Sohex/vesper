@@ -6,15 +6,41 @@
 * w calc assuming extended u array
 * updated for generalised grid (RMA, 10/5/05)
 *
+c THREADED OVER j, in three worksharing loops rather than one.
+c
+c The three loops below are separate because the second and third read
+c what the first wrote in a NEIGHBOURING row: the periodic copy takes
+c u(1,imax,j,k) into u(1,0,j,k), and the vertical velocity reads
+c u(2,i,j-1,k). The barrier at the end of each !$OMP DO is what orders
+c them; merging them would be wrong at every row boundary between two
+c threads.
+c
+c Inside each loop the algorithm is a column: the u and v recurrences run
+c down k inside one (i,j) and nothing crosses to another column. rho,
+c drag, dztau, dztav, rtv, rh and ub are read-only here, and u1 is read
+c and written at the same index as u.
+c
+c dzu IS NOW A LOCAL. It is declared in ocean.cmn as dzu(2,maxk), which
+c is one array for the whole process, but it is per-column scratch: this
+c routine is the only reader and writer of it anywhere in the tree, and
+c initialise_goldstein only zeroes it. Left in the COMMON block it would
+c be shared between the threads. The COMMON member is now unused; taking
+c it out changes the block's layout in every file that includes the
+c header, which is a separate change.
       subroutine velc
 
 #include "ocean.cmn"
 
       real tv, tv1, tv2, tv4, tv5, sum(2)
+      real dzu_col(2,maxk)
 c      real tv3
 
       integer i, j, k, l
 
+!$OMP PARALLEL DEFAULT(SHARED)
+!$OMP&   PRIVATE(i,j,k,l,tv,tv1,tv2,tv4,tv5,sum,dzu_col)
+
+!$OMP DO SCHEDULE(STATIC)
       do 10 j=1,jmax
          do 20 i=1,imax
             do l=1,2
@@ -82,14 +108,14 @@ c
 c              dzu(1,k) = - (s(j)*tv1 + a*tv2 )*rtv(j)
 c              dzu(2,k) = - (a*tv4 - sv(j)*tv5 )*rtv3(j)
 ccc as JEFF/Bob
-               dzu(1,k) = - (s(j)*tv1 + drag(1,i,j)*tv2 )*rtv(i,j)
-               dzu(2,k) = - (drag(2,i,j)*tv4 - sv(j)*tv5 )*rtv3(i,j)
+               dzu_col(1,k) = - (s(j)*tv1 + drag(1,i,j)*tv2)*rtv(i,j)
+               dzu_col(2,k) = - (drag(2,i,j)*tv4 - sv(j)*tv5)*rtv3(i,j)
                do l=1,2
                   if(k.eq.k1(i,j))then
                      u(l,i,j,k) = 0
                   else
-                     u(l,i,j,k) = u(l,i,j,k-1) + dza(k-1)*(dzu(l,k)
-     1                            + dzu(l,k-1))*0.5
+                     u(l,i,j,k) = u(l,i,j,k-1) + dza(k-1)*(dzu_col(l,k)
+     1                            + dzu_col(l,k-1))*0.5
                      sum(l) = sum(l) + dz(k)*u(l,i,j,k)
                   endif
                enddo  
@@ -111,17 +137,21 @@ c
             enddo
    20    continue
    10 continue
+!$OMP END DO
 c
 c set boundary conditions 
 c
+!$OMP DO SCHEDULE(STATIC)
       do j=1,jmax
          do k=k1(1,j),kmax
             u(1,0,j,k) = u(1,imax,j,k)
          enddo
       enddo
+!$OMP END DO
 c
 c calculate w
 c
+!$OMP DO SCHEDULE(STATIC)
       do j=1,jmax
          do i=1,imax
             tv = 0
@@ -134,5 +164,7 @@ c     if(k.lt.kmax.and.abs(u(3,i,j,k)).gt.1e-6)print*,i,j,k,u(3,i,j,k)
             enddo
          enddo
       enddo
+!$OMP END DO
+!$OMP END PARALLEL
 
       end

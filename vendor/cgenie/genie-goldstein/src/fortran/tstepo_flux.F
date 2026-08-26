@@ -1,12 +1,52 @@
-
 c **********************************************************************
-c *** ocean flux calculation -- SINGLE *********************************
+c *** ocean flux calculation *******************************************
 c **********************************************************************
+c
+c THE PARALLEL AXIS IS j, AND WHY IT IS j RATHER THAN k OR i.
+c
+c This routine is half the ocean's retired instructions, so it is the
+c routine the threading is for. Its nest is k outside, then j, then i, and
+c each index carries a different kind of dependence:
+c
+c   k  fb(l,i,j) holds the flux through the BOTTOM face and is filled at
+c      level k for use at level k+1. That is a real dependence over the
+c      whole domain, so k stays sequential and the levels are separated by
+c      the barrier at the end of the !$OMP DO.
+c
+c   i  fw(l) holds the flux through the WESTERN face and is filled by the
+c      previous cell in the row. That is contained within one j, so it does
+c      not constrain a decomposition over j at all.
+c
+c   j  fs(l,i) holds the flux through the SOUTHERN face and was filled by
+c      the previous ROW. That is the one dependence a decomposition over j
+c      has to remove, and it is the recoverable kind: the northern flux of
+c      row j-1 is a pure function of u, ts1 and k1 at that row, all of
+c      which are read-only for the whole routine. So each row RECOMPUTES
+c      its own southern face rather than inheriting it. That costs one
+c      extra meridional flux per cell and removes the dependence exactly:
+c      the expression below is the same expression, at j-1, that the
+c      recycling filled fs from.
+c
+c ts1 is not written anywhere in this routine -- tstepo updates it after
+c this returns -- which is what makes that recomputation exact rather than
+c approximate.
+c
+c THE TWO REDUCTIONS ARE BOTH ORDER-INDEPENDENT. limps counts flux-limited
+c points and dmax takes a maximum, so neither depends on the thread count
+c and the result is reproducible rather than merely correct. They are
+c accumulated into locals because limps and dmax themselves are members of
+c a COMMON block.
+c
+c diffv IS INITIALISED INSIDE THE PARALLEL REGION and that is not
+c cosmetic. It is assigned per cell only when iediff is 1 or 2 AND the
+c cell is wet and below the surface; everywhere else it keeps the value it
+c had, which for iediff = 0 is diff(2) from before the loop. A private
+c copy that inherited nothing would be whatever was on the stack.
 
       subroutine tstepo_flux
 
 #include "ocean.cmn"
-           
+
       real tv, ups(3), ups0, pec(3)
 
       real fe(maxl), fw(maxl), fn(maxl), fs(maxl,maxi), fa(maxl)
@@ -21,12 +61,14 @@ c KICO ediff calc needs
       real dxrho(4), dxts(maxl,4), dyrho(4), dyts(maxl,4), dzts(maxl)
       integer ina, nnp, knp
       integer loc_lmax
+c reduction accumulators, see the header
+      integer loc_limps
+      real loc_dmax
 
 c ------------------------------------------------------------ c
 c INITIALIZE VARIABLES
 c ------------------------------------------------------------ c
       scc = 0.0
-      rdzrho = 0.0
 c ------------------------------------------------------------ c
 
       if(diso)then
@@ -34,9 +76,9 @@ c ------------------------------------------------------------ c
          limps = 0
       endif
 
-c KICO initialise diffv
-      diffv=diff(2)
       dmax = 0
+      loc_limps = 0
+      loc_dmax = 0
 
 * 2nd order explicit step
 
@@ -49,15 +91,44 @@ c lower boundary fluxes
  221     continue
  220  continue
 
+!$OMP PARALLEL DEFAULT(SHARED)
+!$OMP&   PRIVATE(i,j,k,l,tv,ups,pec,fe,fw,fn,fs,fa,fwsave,diffv,
+!$OMP&           tec,dzrho,rdzrho,slim,tv1,dxrho,dxts,dyrho,dyts,dzts,
+!$OMP&           ina,nnp,knp,loc_lmax)
+!$OMP&   REDUCTION(+:loc_limps) REDUCTION(MAX:loc_dmax)
+
+c KICO initialise diffv
+      diffv=diff(2)
+      rdzrho = 0.0
+
       do 100 k=1,kmax
-c southern boundary fluxes
-         j = 1
-         do 230 i=1,imax
-            do 231 l=1,lmax
-               fs(l,i) = 0
- 231        continue
- 230     continue
+!$OMP DO SCHEDULE(STATIC)
          do 101 j=1,jmax
+c southern boundary fluxes: the northern flux of row j-1, RECOMPUTED
+c rather than inherited from the previous iteration, which is what lets
+c this loop be divided over threads. See the header.
+            if(j.eq.1)then
+               do i=1,imax
+                  do l=1,lmax
+                     fs(l,i) = 0
+                  enddo
+               enddo
+            else
+               do i=1,imax
+                  pec(2) = u(2,i,j-1,k)*dsv(min(j-1,jmax-1))/diff(1)
+                  ups(2) = pec(2) / (2.0 + abs(pec(2)))
+                  do l=1,lmax
+                     if(k.lt.max(k1(i,j-1),k1(i,j)))then
+                        fs(l,i) = 0
+                     else
+                        fs(l,i) = cv(j-1)*u(2,i,j-1,k)*((1.-ups(2))
+     &                   *ts1(l,i,j,k) + (1.+ups(2))*ts1(l,i,j-1,k))*0.5
+                        fs(l,i) = fs(l,i) - cv2(j-1)*(ts1(l,i,j,k) -
+     1                       ts1(l,i,j-1,k))*diff(1)
+                     endif
+                  enddo
+               enddo
+            endif
 c western boundary fluxes
             i = 1
             pec(1) = u(1,imax,j,k)*dphi/diff(1)
@@ -193,15 +264,15 @@ c limit flux by factor slim for large slope
                         if(tv1.gt.ssmax(k))then
                            slim = ssmax(k)*ssmax(k)/(tv1*tv1)
 c count flux-limited points
-                           limps = limps + 1
+                           loc_limps = loc_limps + 1
                         else
                            slim = 1.0
                         endif
                         tv1 = tv1*slim*diff(1)*rdza(k)
 c test vertical diffusion number
                         tv = tv1*dt(k)*rdza(k)
-                        if(tv.gt.dmax)then
-                           dmax = tv
+                        if(tv.gt.loc_dmax)then
+                           loc_dmax = tv
                         endif
                         do l=1,loc_lmax
                            dzts(l) = (ts1(l,i,j,k+1) 
@@ -229,7 +300,9 @@ c add isoneutral vertical flux
      3                           + (fa(l) - fb(l,i,j))*rdz(k))
                   endif
                   fw(l) = fe(l)
-                  fs(l,i) = fn(l)
+c fs(l,i) = fn(l) was here. It is a dead store now: row j+1 recomputes
+c its own southern face from ts1 and u rather than inheriting this one,
+c which is what removes the j dependence.
                   fb(l,i,j) = fa(l)
                enddo
 
@@ -237,7 +310,11 @@ c add isoneutral vertical flux
      1            ieos,rho(i,j,k))
  102        continue
  101     continue
+!$OMP END DO
  100  continue
+!$OMP END PARALLEL
+
+      limps = limps + loc_limps
+      dmax = loc_dmax
 
       end
-

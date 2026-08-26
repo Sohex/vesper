@@ -149,6 +149,17 @@ ARMS = {
     # paths read a local it had not written.
     "initpoison": dict(fflags=["-finit-real=snan",
                                "-finit-integer=-2147483647"]),
+    # The threaded build. Without -fopenmp the !$OMP sentinels are comments,
+    # so `base` is the same source compiled serially -- which is what makes
+    # "the restructuring alone changed nothing" a separate, answerable
+    # question from "the threads changed nothing".
+    "omp": dict(fflags=["-fopenmp"]),
+    # -fopenmp and the poison together: an OpenMP private copy is
+    # uninitialised on entry to the region exactly as an automatic local is,
+    # so this is the arm that catches a variable that needed the value it had
+    # outside.
+    "omppoison": dict(fflags=["-fopenmp", "-finit-real=snan",
+                              "-finit-integer=-2147483647"]),
 }
 
 # The regression CASES the acceptance test runs. Each names the shipped
