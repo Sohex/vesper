@@ -699,7 +699,17 @@ steps:
     script: exoplasim/scripts/shortwave_band_weights.py
     cost: minutes
     needs: [stellar_spectrum]
-    writes: [exoplasim/analysis/shortwave_band_weights.json]
+    writes: [exoplasim/analysis/shortwave_band_weights.json, exoplasim/analysis/h2o_sw_level.json]
+    gate: >
+      two artifacts from one script because they are one subject reached at two
+      costs. The full report re-weights the Lacis and Hansen gas absorptances
+      for this star and prices the result on a climatology, so it cannot be
+      written while `baseline_climatology` is null. `--level` writes
+      `h2o_sw_level.json` from the correlated-k ratio and the water vapour
+      continuum fraction alone, with no spectrum, no climatology and no
+      network, which is what lets `scripts/check_consistency.py` hold
+      `model.h2o_sw_level` against a generator instead of against nothing.
+      world-o3t1.
 
   - id: cloud_band_weight
     script: exoplasim/scripts/cloud_band_weight.py

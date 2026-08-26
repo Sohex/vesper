@@ -356,20 +356,98 @@ LH74_FIT_RANGE_CM = (0.01, 10.0)
 # not drift apart in silence: a change to the band set, to the spectra or to that
 # note's table has to show up somewhere, and this is where.
 CORRK_PATH_CM = 2.7891
-CORRK_RATIO_TO_EQ21 = 1.127
+# Six digits because `H2O_SW_LEVEL` below MULTIPLIES this and then rounds to the
+# three decimals `config/planet.yaml` writes, so the fourth digit reaches the
+# third of the key. `exoplasim/notes/corrk-cross-check.md` quotes it as 1.127
+# because that is all the comparison it appears in can resolve; this is
+# `corrk_cross_check.py`'s own absorptance at CORRK_PATH_CM over Eq. 21 at the
+# same amount, and running that script reproduces it.
+CORRK_RATIO_TO_EQ21 = 1.127592
 # Howard's own +/-3% is the tolerance because it is the only stated accuracy
 # either side of the comparison carries. Fixed before the comparison was made.
 CORRK_AGREEMENT = HOWARD_BAND_ABSORPTION_ACCURACY
 
-# The level correction `config/planet.yaml` carries as `h2o_sw_level`, reported
-# here so the two derived numbers in this file's subject live in one place. It is
-# CORRK_RATIO_TO_EQ21 with the MT_CKD-convention water vapour continuum added,
-# which neither Eq. 21 nor the correlated-k tables have: the continuum absorbs in
-# the WINDOWS between the bands, so it adds to the line-by-line side and makes
-# Eq. 21's deficit larger. The bracket ends are arms to run rather than an error
-# bar, and `exoplasim/notes/corrk-cross-check.md` derives all three.
-H2O_SW_LEVEL = 1.163
-H2O_SW_LEVEL_BRACKET = (1.129, 1.206)
+# THE WATER VAPOUR CONTINUUM NEITHER SIDE OF THAT RATIO CARRIES, as a fraction of
+# the correlated-k absorptance. The correlated-k tables hold line centres to
+# +/-25 cm-1 with the plinth removed, which is the MT_CKD definition, and Eq. 21
+# is a fit to Yamamoto's sum over Howard's laboratory BAND absorptions, so
+# neither has the window continuum. It absorbs BETWEEN the bands, so it adds to
+# the line-by-line side and makes Eq. 21's deficit larger rather than smaller.
+#
+# DECLARED, from published numbers this project did not measure:
+# `shine2012` p. 548 sizes the CAVIAR laboratory continuum against MT_CKD and
+# p. 536 gives water vapour's share of clear-sky shortwave absorption;
+# `mlawer2012` p. 2551 gives the laboratory-over-MT_CKD factor window by window,
+# which is what turns an increment into a total. The bracket ends carry the
+# transfer from a global mean to this homogeneous path as well.
+# `exoplasim/notes/corrk-cross-check.md` does the arithmetic and cites each.
+H2O_CONTINUUM_FRACTION = 0.031
+H2O_CONTINUUM_FRACTION_BRACKET = (0.0015, 0.070)
+
+# The level correction `config/planet.yaml` carries as `h2o_sw_level`. DERIVED
+# here, from the two declared quantities above and nothing else -- no spectrum,
+# no climatology, no network -- which is why `--level` can write its artifact on
+# a tree that has neither. The bracket ends are arms to run rather than an error
+# bar on a settled number.
+H2O_SW_LEVEL = CORRK_RATIO_TO_EQ21 * (1.0 + H2O_CONTINUUM_FRACTION)
+H2O_SW_LEVEL_BRACKET = tuple(
+    CORRK_RATIO_TO_EQ21 * (1.0 + f) for f in H2O_CONTINUUM_FRACTION_BRACKET)
+
+
+def h2o_sw_level_report() -> dict:
+    """The `h2o_sw_level` derivation, its inputs and where each came from.
+
+    Its own artifact rather than a node of the full report, because the full
+    report cannot be written without a baseline climatology -- `predict()` opens
+    one and there is deliberately no Earth fallback -- while this half needs
+    nothing but the two declared constants above. Tying `config/planet.yaml`'s
+    retyped copy to a node inside the climatology-dependent artifact would have
+    made a stale file into a failing gate; this is the same tie without it.
+    """
+    return {
+        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generator": "exoplasim/scripts/shortwave_band_weights.py --level",
+        "key": "model.h2o_sw_level",
+        "value": H2O_SW_LEVEL,
+        "bracket": list(H2O_SW_LEVEL_BRACKET),
+        "value_rounded_for_config": round(H2O_SW_LEVEL, 3),
+        "bracket_rounded_for_config": [round(x, 3) for x in H2O_SW_LEVEL_BRACKET],
+        "inputs": {
+            "correlated_k_over_eq21": {
+                "value": CORRK_RATIO_TO_EQ21,
+                "water_cm": CORRK_PATH_CM,
+                "status": "DECLARED",
+                "source": (
+                    "exoplasim/notes/corrk-cross-check.md, HITRAN2020 through "
+                    "the LMD Generic PCM correlated-k tables at a homogeneous "
+                    "760 mm Hg path; reproduced by "
+                    "exoplasim/scripts/corrk_cross_check.py, whose tables live "
+                    "outside this repository. Gated inside this script against "
+                    "the Howard reconstruction to +/-3%"),
+            },
+            "continuum_fraction": {
+                "value": H2O_CONTINUUM_FRACTION,
+                "bracket": list(H2O_CONTINUUM_FRACTION_BRACKET),
+                "status": "DECLARED",
+                "source": (
+                    "shine2012 pp. 536 and 548, mlawer2012 p. 2551; the "
+                    "MT_CKD-convention window continuum as a fraction of the "
+                    "correlated-k absorptance, transferred to this path. "
+                    "exoplasim/notes/corrk-cross-check.md"),
+            },
+        },
+        "derivation": (
+            "h2o_sw_level = correlated_k_over_eq21 * (1 + continuum_fraction), "
+            "and the bracket is the same product at each end of the continuum "
+            "fraction's bracket. Both factors are DECLARED, so the key is "
+            "derived arithmetic on measurements this tree does not itself make; "
+            "what this artifact closes is the retyping route into "
+            "config/planet.yaml, not the measurements"),
+        "what_it_scales": (
+            "radmod.f90's h2oswl, a multiplicative level on the 2.9 of Lacis "
+            "and Hansen Eq. 21 in swr (the ztwvtu and ztwv terms). The model "
+            "default is 1.0, which is Eq. 21 unmodified"),
+    }
 
 
 def sha256(path: Path) -> str:
@@ -965,7 +1043,29 @@ def main() -> None:
         default=None,
         help="precipitable water in cm to quote the weight at; default is the config value",
     )
+    parser.add_argument(
+        "--level",
+        action="store_true",
+        help="derive h2o_sw_level into its own artifact and stop; needs no "
+             "spectrum, no climatology and no network",
+    )
     args = parser.parse_args()
+
+    if args.level:
+        report = h2o_sw_level_report()
+        ANALYSIS.mkdir(parents=True, exist_ok=True)
+        out = ANALYSIS / "h2o_sw_level.json"
+        out.write_text(json.dumps(report, indent=2) + "\n")
+        lo, hi = report["bracket"]
+        print(f"h2o_sw_level {report['value']:.6f}  bracket {lo:.6f} to {hi:.6f}")
+        print(f"  = {CORRK_RATIO_TO_EQ21:.6f} x (1 + {H2O_CONTINUUM_FRACTION:g}), "
+              f"the bracket over the continuum fraction's "
+              f"{H2O_CONTINUUM_FRACTION_BRACKET[0]:g} to "
+              f"{H2O_CONTINUUM_FRACTION_BRACKET[1]:g}")
+        print(f"  config/planet.yaml carries model.h2o_sw_level to three "
+              f"decimals: {report['value_rounded_for_config']:g}")
+        print(f"wrote {out}")
+        return
 
     config = yaml.safe_load(CONFIG.read_text())
     teff = float(config["star"]["effective_temperature_k"])
@@ -1079,15 +1179,13 @@ def main() -> None:
             "760 mm Hg path; tolerance is Howard, Burch and Williams (1956) "
             "+/-3%, the only stated accuracy either side carries"),
     }
-    checks["h2o_sw_level"] = {
-        "value": H2O_SW_LEVEL,
-        "bracket": list(H2O_SW_LEVEL_BRACKET),
-        "source": (
-            "CORRK_RATIO_TO_EQ21 with the MT_CKD-convention water vapour "
-            "continuum added, which neither side of it carries; derived in "
-            "exoplasim/notes/corrk-cross-check.md from shine2012 and "
-            "mlawer2012. The bracket ends are arms to run"),
-    }
+    # Reported here as well because it belongs beside the ratio it is built on,
+    # but `exoplasim/analysis/h2o_sw_level.json` is the artifact config is
+    # checked against: this report cannot be written without a climatology and
+    # that one can, so the tie to `config/planet.yaml` hangs off the half that
+    # is always regenerable.
+    checks["h2o_sw_level"] = h2o_sw_level_report()
+    checks["h2o_sw_level"]["artifact"] = "exoplasim/analysis/h2o_sw_level.json"
 
     water = args.water
     water_source = "given on the command line"

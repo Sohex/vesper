@@ -1708,11 +1708,23 @@ def main() -> int:
         model = config["model"]
         sw = ROOT / "exoplasim" / "analysis" / "shortwave_band_weights.json"
         cloud = ROOT / "exoplasim" / "analysis" / "cloud_band_weight.json"
+        # `h2o_sw_level` is read out of its OWN artifact and not out of
+        # `shortwave_band_weights.json`, although that report carries the same
+        # node. The full report cannot be written while `baseline_climatology`
+        # is null -- its prediction blocks open a climatology and have no Earth
+        # fallback by design -- so a row pointed at it would turn a stale
+        # derived artifact into a failing gate. `--level` writes the artifact
+        # below from two declared constants and needs no climatology, no
+        # spectrum and no network, so this row can be regenerated whenever it
+        # fails. world-o3t1.
+        level = ROOT / "exoplasim" / "analysis" / "h2o_sw_level.json"
         rows = [
             ("h2o_sw_weight", sw, ("h2o", "weight"),
              "exoplasim/scripts/shortwave_band_weights.py"),
             ("co2_sw_weight", sw, ("co2", "weight"),
              "exoplasim/scripts/shortwave_band_weights.py"),
+            ("h2o_sw_level", level, ("value",),
+             "exoplasim/scripts/shortwave_band_weights.py --level"),
             ("cloud_absorption_scale", cloud, ("weight", "central"),
              "exoplasim/scripts/cloud_band_weight.py"),
         ]
@@ -1725,8 +1737,21 @@ def main() -> int:
                 problems.append(f"{key}: {rel(path)} is missing; run {generator}")
                 continue
             node = json.loads(path.read_text(encoding="utf-8"))
+            # Walked with a guard rather than bare indexing: a missing node
+            # would otherwise raise into this block's own except and downgrade
+            # every OTHER comparison here to a warning, which is the one failure
+            # mode a consistency check must not have.
+            missing = False
             for step in where:
+                if not isinstance(node, dict) or step not in node:
+                    problems.append(
+                        f"{key}: {rel(path)} has no {'.'.join(where)}; it "
+                        f"predates the node, so re-run {generator}")
+                    missing = True
+                    break
                 node = node[step]
+            if missing:
+                continue
             declared = float(model[key])
             # Half a unit in the last decimal place the config actually wrote.
             written = str(model[key])

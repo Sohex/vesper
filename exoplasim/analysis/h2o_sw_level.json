@@ -1,0 +1,34 @@
+{
+  "generated": "2026-08-26T00:35:34+00:00",
+  "generator": "exoplasim/scripts/shortwave_band_weights.py --level",
+  "key": "model.h2o_sw_level",
+  "value": 1.1625473519999998,
+  "bracket": [
+    1.129283388,
+    1.20652344
+  ],
+  "value_rounded_for_config": 1.163,
+  "bracket_rounded_for_config": [
+    1.129,
+    1.207
+  ],
+  "inputs": {
+    "correlated_k_over_eq21": {
+      "value": 1.127592,
+      "water_cm": 2.7891,
+      "status": "DECLARED",
+      "source": "exoplasim/notes/corrk-cross-check.md, HITRAN2020 through the LMD Generic PCM correlated-k tables at a homogeneous 760 mm Hg path; reproduced by exoplasim/scripts/corrk_cross_check.py, whose tables live outside this repository. Gated inside this script against the Howard reconstruction to +/-3%"
+    },
+    "continuum_fraction": {
+      "value": 0.031,
+      "bracket": [
+        0.0015,
+        0.07
+      ],
+      "status": "DECLARED",
+      "source": "shine2012 pp. 536 and 548, mlawer2012 p. 2551; the MT_CKD-convention window continuum as a fraction of the correlated-k absorptance, transferred to this path. exoplasim/notes/corrk-cross-check.md"
+    }
+  },
+  "derivation": "h2o_sw_level = correlated_k_over_eq21 * (1 + continuum_fraction), and the bracket is the same product at each end of the continuum fraction's bracket. Both factors are DECLARED, so the key is derived arithmetic on measurements this tree does not itself make; what this artifact closes is the retyping route into config/planet.yaml, not the measurements",
+  "what_it_scales": "radmod.f90's h2oswl, a multiplicative level on the 2.9 of Lacis and Hansen Eq. 21 in swr (the ztwvtu and ztwv terms). The model default is 1.0, which is Eq. 21 unmodified"
+}
