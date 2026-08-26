@@ -148,17 +148,24 @@ drag_partition:
   # WHICH ROUGHNESS THE SCHEME IS FED, and it is not the obvious one.
   #
   # `orogen_T42_surf_0173.sra` is a GRID CELL effective roughness: it carries
-  # subgrid orography measured as the elevation spread among the ~610 mesh
-  # regions in a cell, and its land mean is anchored to 2.0 m so the value
-  # ExoPlaSim was tuned against does not move. Over the cells that actually hold
-  # erodible ground its median is 0.49 m.
+  # subgrid orography measured as the elevation spread among the mesh regions in
+  # a cell, and its land mean is anchored on the effective land roughness of the
+  # model's own Earth boundary dataset at the same rung, which
+  # `build_surface_roughness.py` derives from the vendored model source rather
+  # than declaring. That anchor is a bracket, not a value: its other end sets the
+  # orographic term to zero and writes the roughness this world's lithology and
+  # land cover alone imply, and the two ends differ by more than a factor of two
+  # in the land exchange coefficient. Read the arm and the land mean out of
+  # `roughness_<rung>_report.json` rather than assuming either end.
   #
-  # MB95 returns zero above a z0 of about 4.4 mm, so feeding it that field shuts
-  # emission off over 99% of the source area. That is not a result, it is a
-  # category error: MB95 partitions stress between a bed and centimetre-scale
-  # roughness ELEMENTS standing on it, and a 15 km orographic variance is not
-  # a roughness element. Dust models that use MB95 in a GCM carry a separate
-  # aeolian roughness map for exactly this reason.
+  # MB95 returns zero above a z0 of about 4.4 mm, and the anchored arm of that
+  # field is orders above it over nearly all of the source area, so feeding it
+  # in shuts emission off almost everywhere. That is not a result, it is a
+  # category error, and it is one on either arm: MB95 partitions stress between
+  # a bed and centimetre-scale roughness ELEMENTS standing on it, and a grid
+  # cell's orographic variance is not a roughness element whatever its
+  # magnitude. Dust models that use MB95 in a GCM carry a separate aeolian
+  # roughness map for exactly this reason.
   #
   # So the scheme is driven by the aeolian roughness of the erodible surface
   # itself, and the grid-cell roughness is not used for the partition at all.
