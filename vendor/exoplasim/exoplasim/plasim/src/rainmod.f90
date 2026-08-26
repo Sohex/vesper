@@ -494,6 +494,23 @@
 
        zq(:)=dq(:,jlev)+dqdt(:,jlev)*deltsec2
        zt(:)=dt(:,jlev)+dtdt(:,jlev)*deltsec2
+!
+!      THE CONDENSED STATE IS PRESET ON EVERY LANE. ztn and zqn are automatic
+!      locals with no initialiser and were written only inside
+!      `where(zq(:) > zqsto(:))`, where they are also read -- ztn by the Tetens
+!      exponent and by ra4d, zqn by the second iteration's tendency. A `where`
+!      masks the ASSIGNMENT and not the evaluation, so on a lane that is not
+!      supersaturated the saturation humidity was being formed from whatever
+!      the stack held, and the declared -ffpe-trap turns that into SIGFPE.
+!      world-d016's class, the same mechanism as world-bhs.
+!
+!      THE PRESET IS INERT ON THE LANES THE MASK KEEPS. On a supersaturated
+!      lane both are assigned from zt and zq at the head of the block before
+!      anything reads them, and every consumer of either is inside that same
+!      block. The values chosen are the unchanged state, which is what a lane
+!      the mask discards holds: no condensation means ztn = zt and zqn = zq.
+       ztn(:)=zt(:)
+       zqn(:)=zq(:)
 
 !
 !*    set l/cp
@@ -1442,6 +1459,20 @@
 !
 !     6c) make and add tendencies
 !
+!      THE MOMENTUM DIFFERENCES ARE PRESET ON EVERY LANE. zdudt and zdvdt are
+!      automatic locals with no initialiser and were written only inside the
+!      convecting mask below, where the next two statements read them back. A
+!      `where` masks the ASSIGNMENT and not the evaluation, so on a lane that is
+!      not convecting `dudt(:,jlev)+zdudt(:,jlev)/deltsec2` was formed from
+!      whatever the stack held, and the declared -ffpe-trap turns an overflow or
+!      a signalling word there into SIGFPE. world-d016's class.
+!
+!      THE PRESET IS INERT ON THE LANES THE MASK KEEPS. On a convecting lane
+!      each is assigned two statements before it is read, in the same block and
+!      on the same pass, and neither is read anywhere else in the routine. Zero
+!      is the no-convection difference, which is what a discarded lane holds.
+       zdudt(:,:)=0.
+       zdvdt(:,:)=0.
 
        do jlev=1,NLEV
         where(ilift(:) >= jlev .and. itop(:) <= jlev .and. zi(:) > 0.   &
@@ -1649,6 +1680,37 @@
       pdqdt(:,:)=0.
       pdtdt(:,:)=0.
 !
+!     THE ELIMINATION'S LOCALS ARE PRESET ON EVERY LANE, NOT ONLY WHERE SHALLOW
+!     CONVECTION IS DIAGNOSED. zebs, zqn, ztn, zke, zken and zdtdt are automatic
+!     locals with no initialiser and every one of them was written only inside
+!     `where(kshallow(:) > 0)`. A `where` masks the ASSIGNMENT and not the
+!     evaluation, so on a lane with no shallow convection the tridiagonal
+!     recursion below was reading the previous level's zebs, zqn and ztn out of
+!     indeterminate stack memory: `zkdiff*(1.-zebs)` is a product with a stack
+!     word, `zqn(:,jlev)+zebs(:,jlev)*zqn(:,jlep)` is a product of two, and the
+!     declared -ffpe-trap=invalid,zero,overflow turns either into SIGFPE.
+!     world-d016's class, the same shape as mktsoil.
+!
+!     THE PRESETS ARE INERT ON THE LANES THE MASK KEEPS. On a lane with
+!     kshallow > 0 the top-layer elimination assigns zebs and zqn, and then ztn,
+!     before the middle-layer elimination reads either, and the back-substitution
+!     reads only what the elimination has already written; zke is assigned for
+!     every level before zken reads it, and zdtdt is assigned one statement
+!     before pdtdt reads it. Every consumer of any of them is itself inside
+!     `where(kshallow(:) > 0)`, so no discarded lane reaches a stored field.
+!
+!     The values chosen are what the recursion produces on a lane it discards.
+!     zkdiff is preset to 0 on every lane below and is written only where
+!     kshallow > 0, so an unconverted lane has zebs = 0/(dsigma+0) = 0 and
+!     zqn = dsigma*zq/dsigma = zq at every level, and ztn = zt likewise; the
+!     kinetic-energy pair and the dissipation tendency are zero there.
+      zebs(:,:)=0.
+      zqn(:,:)=zq(:,:)
+      ztn(:,:)=zt(:,:)
+      zke(:,:)=0.
+      zken(:,:)=0.
+      zdtdt(:,:)=0.
+!
 !     modified ktop according to pdeepth
 !
       kktop(:)=1
@@ -1826,6 +1888,19 @@
 !
        zu(:,:)=du(:,1:NLEV)
        zv(:,:)=dv(:,1:NLEV)
+!
+!      PRESET ON EVERY LANE, for the reason argued at the top of the routine:
+!      zun, zvn, zdudt and zdvdt are automatic locals written only under
+!      `where(kshallow(:) > 0)` and read inside the same blocks. They are preset
+!      here rather than there because zu and zv, the values a discarded lane
+!      keeps, are not formed until this branch is entered. Inert on the lanes
+!      the mask keeps: the elimination writes zun and zvn at every level before
+!      the back-substitution reads them, and zdudt and zdvdt are read one
+!      statement after they are written.
+       zun(:,:)=zu(:,:)
+       zvn(:,:)=zv(:,:)
+       zdudt(:,:)=0.
+       zdvdt(:,:)=0.
 !
 !     top layer elimination
 !
@@ -2299,6 +2374,29 @@
       zdtdt(:,:)=0.
       zdqdts(:,:)=0.
       zdqdtl(:,:)=0.
+!
+!     THE PHASE-CHANGE LOCALS ARE PRESET ON EVERY LANE. zlcp, zlcpe and zdqdt
+!     are automatic locals with no initialiser and every one of them was written
+!     only inside a `where`, and read inside the same block: zlcp by the
+!     zdtdt it multiplies, zlcpe by the evaporation divisor
+!     `1.0+zlcpe(:)*...`, and zdqdt by the three statements that follow it. A
+!     `where` masks the ASSIGNMENT and not the evaluation, so a lane the mask
+!     discarded was multiplying and dividing by whatever the stack held, and the
+!     declared -ffpe-trap turns an overflow or a signalling word there into
+!     SIGFPE. world-d016's class.
+!
+!     THE PRESETS ARE INERT ON THE LANES THE MASK KEEPS. Each of the three is
+!     assigned at the head of the block that reads it, before the read, on the
+!     same pass; and every consumer of any of them is inside that same block, so
+!     no discarded lane reaches a stored field. Zero is the value each takes on
+!     a lane with no phase change: no latent-heat difference, and no
+!     evaporation. It also holds the premise the masked-division table already
+!     records for the evaporation divisor -- one plus a product of NON-NEGATIVE
+!     factors, zlcpe among them -- on the discarded lanes as well as the kept
+!     ones.
+      zlcp(:)=0.
+      zlcpe(:)=0.
+      zdqdt(:)=0.
 !
 !*    convert rain <-> snow according to temperature
 !
