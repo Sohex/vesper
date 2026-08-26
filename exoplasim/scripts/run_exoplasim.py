@@ -469,7 +469,19 @@ def configure_otherargs(derived: dict) -> dict:
     like it had confirmed one.
     """
     lwc = derived["land_water_column"]
+    soil = derived["soil_thermal"]
     return {
+        # world-5oyp, landmod_nl. THE SOIL HEAT SOLVER'S SIX ENDPOINTS, all of
+        # them and unconditionally, so the namelist in the run directory says
+        # what the segment's soil was made of. `3aecf4ec` made the column's
+        # thermal inertia a function of the water it carries, a factor of 6.9 in
+        # conductivity across the wetness range on every simulated land cell,
+        # and the term entered no bundle prediction because it had no key to be
+        # named by. They travel together because they are one selection: an arm
+        # that moved a dry endpoint and left its saturated partner would be
+        # neither the constant column nor the interpolation.
+        **{f"{key}@landmod_namelist": f"{soil[key]:.6g}"
+           for key in SOIL_THERMAL_KEYS},
         "N_DAYS_PER_YEAR@plasim_namelist": str(
             derived["rotations_per_orbit_namelist"]
         ),
@@ -830,6 +842,128 @@ def landmod_default_array(name: str) -> list[float]:
             for v in body.replace("\n", " ").split(",") if v.strip()]
 
 
+# THE SOIL HEAT SOLVER'S SIX ENDPOINTS, `landmod_nl`. world-5oyp.
+#
+# `soilwtherm` builds the soil column's heat capacity and conductivity from the
+# water the column carries: the capacity is linear in the degree of saturation
+# and the conductivity interpolates through Johansen's Kersten number, between a
+# dry and a saturated endpoint, with two more endpoints mapping the model's
+# plant-available store onto that degree of saturation. Six numbers, all of them
+# already `landmod_nl` keys, and until now none of them written -- so every run
+# since `3aecf4ec` integrated the compiled pair and no artifact says which pair
+# that was, and the term could not be made into an arm because an arm is one
+# binary differing by namelist keys.
+#
+# THEY TRAVEL AS ONE SELECTION, the way the land column's eight do. Setting a
+# dry endpoint equal to its saturated partner recovers a constant column exactly
+# and bitwise, because `a + 0.0*Ke` is `a`; that is the control arm and it needs
+# no switch. An arm that moved one of the pair and not the other would be
+# neither the constant column nor the interpolation.
+SOIL_THERMAL_KEYS = ("SOILDIFDRY", "SOILDIFSAT", "SOILCAPDRY", "SOILCAPSAT",
+                     "SOILSRWP", "SOILSRFC")
+
+# WHERE THE ENDPOINTS ARE DECLARED, and it is not this file and not
+# `landmod.f90`. The relations are the land column property contract's, which
+# emits the saturation states per cell and declares these as the medians of the
+# build's own land; `landmod.f90` carries them as compiled defaults so a run
+# that declares nothing reproduces them, and `_fortran_default` reads them from
+# there rather than transcribing them here. The check below is what keeps those
+# two statements of one fact from drifting apart.
+LAND_COLUMN_CONTRACT = (PROJECT_ROOT / "pedology" / "config"
+                        / "land_column_properties.yaml")
+
+
+def soil_thermal(config: dict) -> dict:
+    """The six `landmod_nl` soil thermal keys, from the configuration.
+
+    Returns {NAMELIST KEY: value} with every key present: written
+    unconditionally, compiled defaults included, on the same argument CLWREF and
+    the land column's eight are written on. A key the run directory does not
+    record is a key no artifact can attribute an arm to.
+
+    Shared with `expected_namelist_keys` the way `land_water_column` is: this
+    maps the CONFIG to a value and knows nothing about what gets written, and
+    the list of keys is stated independently on both sides.
+    """
+    block = config.get("surface", {}).get("soil_thermal", {}) or {}
+    declared = {
+        "SOILDIFDRY": block.get("dry_conductivity_w_m_k"),
+        "SOILDIFSAT": block.get("saturated_conductivity_w_m_k"),
+        "SOILCAPDRY": block.get("dry_heat_capacity_j_m3_k"),
+        "SOILCAPSAT": block.get("saturated_heat_capacity_j_m3_k"),
+        "SOILSRWP": block.get("saturation_at_empty_store"),
+        "SOILSRFC": block.get("saturation_at_full_store"),
+    }
+    out = {}
+    for key in SOIL_THERMAL_KEYS:
+        value = declared[key]
+        out[key] = float(landmod_default(key.lower()) if value is None
+                         else value)
+    if out["SOILSRWP"] > out["SOILSRFC"]:
+        raise ValueError(
+            f"surface.soil_thermal.saturation_at_empty_store "
+            f"{out['SOILSRWP']:g} is above saturation_at_full_store "
+            f"{out['SOILSRFC']:g}. The first is the wilting point and the "
+            "second is field capacity; inverted, `soilwtherm` runs the "
+            "interpolation backwards and a wetter column damps LESS.")
+    for key in ("SOILDIFDRY", "SOILDIFSAT", "SOILCAPDRY", "SOILCAPSAT"):
+        if out[key] <= 0.0:
+            raise ValueError(
+                f"surface.soil_thermal {key} is {out[key]:g}. A conductivity "
+                "and a heat capacity are both positive, and a zero capacity "
+                "makes the soil temperature solve singular.")
+    return out
+
+
+def _contract_soil_thermal() -> dict:
+    """The endpoints and the saturation mapping the land column contract states.
+
+    Returned as {NAMELIST KEY: (declared value, absolute tolerance)}. The two
+    tolerances are the contract's own and are applied the way
+    `pedology/scripts/land_column_properties.py` applies them: the saturation
+    mapping's is absolute and the endpoints' is relative, so a heat capacity of
+    order 1e6 is not compared against an absolute 0.005.
+    """
+    decl = yaml.safe_load(LAND_COLUMN_CONTRACT.read_text(encoding="utf-8"))
+    thermal = decl["thermal"]
+    ends = thermal["endpoints"]
+    mapping = thermal["saturation_mapping"]
+    tol_end = float(ends["tolerance"])
+    tol_map = float(mapping["tolerance"])
+    want = {}
+    for key, path in (("SOILDIFDRY", ("dry", "thermal_conductivity_w_m_k")),
+                      ("SOILDIFSAT", ("saturated", "thermal_conductivity_w_m_k")),
+                      ("SOILCAPDRY", ("dry", "volumetric_heat_capacity_j_m3_k")),
+                      ("SOILCAPSAT",
+                       ("saturated", "volumetric_heat_capacity_j_m3_k"))):
+        value = float(ends[path[0]][path[1]])
+        want[key] = (value, tol_end * abs(value))
+    for key, name in (("SOILSRWP", "sr_at_wilting_point"),
+                      ("SOILSRFC", "sr_at_field_capacity")):
+        want[key] = (float(mapping[name]), tol_map)
+    return want
+
+
+# THE MODEL'S COMPILED ENDPOINTS AGAINST THE CONTRACT THAT DERIVED THEM. This is
+# a right answer another artifact already knows, so it is a check that can fail:
+# the six numbers exist twice, once in `landmod.f90` where the solver reads them
+# and once in the land column property contract where they are DERIVED, and a
+# consumer that silently ran a stale copy of a derived endpoint would be
+# calibrating against a number with no live derivation. Run at import, on the
+# same argument the land water scheme words are checked on, because both are
+# transcription failures that no downstream gate could name.
+for _key, (_declared, _tol) in _contract_soil_thermal().items():
+    _compiled = landmod_default(_key.lower())
+    if abs(_compiled - _declared) > _tol:
+        raise RuntimeError(
+            f"landmod.f90 compiles {_key.lower()} = {_compiled:g} and "
+            f"{LAND_COLUMN_CONTRACT} declares {_declared:g}, which is outside "
+            f"the contract's own tolerance of {_tol:g}. The endpoint is DERIVED "
+            "by the contract and the model carries it as a compiled default, so "
+            "the two are one fact; the model's copy has gone stale, or the "
+            "contract has been re-derived and the model was not updated with it.")
+
+
 def land_water_layer_limit() -> int:
     """`NLSOILWX`, the compiled ceiling on the water column's layer count."""
     text = LANDCOLUMN_SOURCE.read_text(encoding="utf-8", errors="replace")
@@ -1147,6 +1281,9 @@ def derive(config: dict, flux_ratio: float) -> dict:
         # column: which of LSHY-3's registered hypotheses runs, its evaporation
         # limiter, and LSHY-5's soil phase. See `land_water_column`.
         "land_water_column": land_water_column(config),
+        # world-5oyp, landmod_nl. The six endpoints the soil heat solver builds
+        # the column's capacity and conductivity from. See `soil_thermal`.
+        "soil_thermal": soil_thermal(config),
     }
 
 
@@ -2818,6 +2955,17 @@ def expected_namelist_keys(config: dict) -> dict:
     for _key in ("DSOILWF", "DSOILWZ"):
         want["landmod_namelist"][_key] = [
             float(f"{v:.6g}") for v in lwc[_key]]
+    # world-5oyp, landmod_nl. THE SOIL HEAT SOLVER'S SIX ENDPOINTS,
+    # unconditionally and for the land column's reason: the control arm of the
+    # soil thermal bracket is the CONSTANT column, which is reached by setting
+    # each dry endpoint equal to its saturated partner, so a continuation that
+    # dropped them would return the segment to the interpolation and produce a
+    # control that agrees with its own arm by accident. The key list is stated
+    # here independently of the staging side, which is the half that must not
+    # come from it.
+    _soil = soil_thermal(config)
+    for _key in SOIL_THERMAL_KEYS:
+        want["landmod_namelist"][_key] = float(f"{_soil[_key]:.6g}")
     salinity = config.get("ocean", {}).get("salinity_psu")
     if salinity is not None:
         celsius = freezing_point_k(salinity) - 273.15

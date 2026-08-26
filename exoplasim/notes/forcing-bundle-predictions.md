@@ -1984,10 +1984,18 @@ the sum has been checked against a total missing a live term.
 
 **All six keys are already in `landmod_nl`**, so the model can be told to run the
 old behaviour -- setting a dry endpoint equal to its saturated partner makes the
-column constant and the solver bitwise what it was. What is missing is the route:
-`run_exoplasim.py` writes none of them, `expected_namelist_keys` does not cover
-them, and the arms above staged none, so every run since the commit has
-integrated the compiled pair and no artifact says which pair that was.
+column constant and the solver bitwise what it was. The arms above staged none of
+them, so every run between `3aecf4ec` and the route below integrated the compiled
+pair with no artifact saying which pair that was.
+
+It has a route now. All six reach `landmod_nl` from `surface.soil_thermal`,
+written unconditionally by `configure_otherargs` at the compiled defaults and
+checked by `expected_namelist_keys`, so the control arm is four namelist keys
+rather than a code fork. `run_exoplasim.py` also checks the model's compiled
+endpoints against
+`pedology/config/land_column_properties.yaml:thermal`, which is where they are
+DERIVED, at the contract's own tolerances: the six numbers exist twice and a
+stale copy of a derived endpoint is a number with no live derivation.
 
 ### The registered prediction, before any arm
 
