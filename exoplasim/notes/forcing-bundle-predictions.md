@@ -1403,3 +1403,67 @@ parts, and a note that says otherwise would be describing an A/B nobody can run.
    control executable that cost nothing to keep at the time.
 3. Running `world-o12h` at T42 against a T42 control, which is the only rung
    where it has a value.
+
+## Measured: the bundle is an order of magnitude larger than its predictions, and the other sign
+
+2026-08-26, T21, `most_plasim_t21_l10_p8.x` at model source `a041a1e9`, five arms
+branched from `run_14906cb7b914`'s `MOST_REST.00034`, host load 25 to 50 over 32
+cores. That donor is 35 orbits at 292.6 K, integrated by the SUPERSEDED source
+and its config, which is what makes it a usable initial condition and not a
+baseline.
+
+**Every arm relaxes to a state at least 12.5 K colder than the donor, and is
+still falling.** The control arm, which carries `config/planet.yaml`'s own values
+for everything except the two energy keys:
+
+| orbit | 0 | 4 | 9 | 14 | 19 | 24 | 31 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| global mean `ts`, K | 290.78 | 284.81 | 281.76 | 280.98 | 280.37 | 280.18 | 279.80 |
+| sea ice, fraction | 0.0099 | 0.0340 | 0.0568 | 0.0667 | 0.0728 | 0.0737 | 0.0737 |
+
+Sea ice reaches thirteen times the donor's 0.0058 and the ice-albedo feedback is
+carrying most of the amplitude. The donor's last orbit is 292.26 K, so the drop
+is at least 12.5 K and the arm has not stopped.
+
+**The sum of the registered predictions is about +1 K of WARMING.** `world-jgen`
+with `world-f9ig` is +0.59 to +1.63 K warming and is the largest single term;
+`OCN-22` is -0.02 to -0.13 K; `world-o12h` is identically zero at this rung;
+`world-2esd` and `world-trs3` are not swept in the baseline config. Nothing in
+the table predicts a term of this size and nothing predicts cooling of this size.
+
+**What the drift is NOT.** The arms differ from the donor's configuration in four
+places and only one is large enough to matter for sign:
+
+| difference | worth |
+| --- | --- |
+| `energy_fixer` and `energy_diagnostics` off | at most +0.3 K, and WARMING, so it makes the gap larger rather than smaller. The fixer applies -0.300 W/m2 on the donor and `lib/sensitivity.py` prices that at about 0.26 K |
+| `ncpus` 16 to 8 | none. Thread count is compiled in and changes no physics |
+| four `surface.cryosphere` constants, absent in the donor's config and declared now | unbounded here. They set the modelled sea ice's density, heat capacity and conductivity and the snow fusion enthalpy, and sea ice is where the amplitude is |
+| `surface.land_water_column` from a 1-layer bucket to a 2-layer scheme | unbounded here |
+
+So the measured drift confounds the compiled forcing terms with two config
+changes, and the split above says which. **It is not attributable further**, for
+the reasons the previous section gives: two of the five terms are compiled in
+with no namelist that reverts them, three have no route from config, and no
+pre-batch-2 binary was preserved to serve as a control.
+
+**The finding is the disagreement itself and it does not need the decomposition.**
+A bundle whose parts were predicted to sum to about +1 K moves the modelled
+global mean by at least -12.5 K at T21. That is the outcome A3 attaches the
+prediction for, and per `docs/src/practice/failure-modes.md` class 15 it is also
+the shape two errors that nearly cancel would NOT produce: a residual this large
+is one term being wrong by a lot, not two being wrong by a little.
+
+**What this does not license.** Nothing here says a term should be removed.
+Physics is not a knob, and a correct term that moves the simulated climate a long
+way is information. What it says is that the next baseline cannot be taken on
+this configuration until the two config changes above are priced, because they
+are the two candidates that are cheap to price and are not yet.
+
+**The cheapest next measurement, and it needs no new tooling.** Both config
+changes are declared in `config/planet.yaml` and both are therefore arm-able the
+way `clwref` was: one arm with the land water column back at the 1-layer bucket
+and one with the four cryosphere constants at the values the donor ran without
+them, each against this same control on this same restart. That is two arms and
+it splits the -12.5 K into the part the config carries and the part the source
+carries, which is as far as the split can go without a control binary.
