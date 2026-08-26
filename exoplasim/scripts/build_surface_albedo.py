@@ -886,7 +886,9 @@ def main() -> None:
                 "eye-weighted over 0.38-0.77 um and band 1 is flat to 0.75 um, "
                 "so the ratio is transferred across two weightings; Penndorf "
                 "puts +/-25 percent on the natural variation. Band 2 has no "
-                "measurement, and it is the band liquid water absorbs in.",
+                "measurement, and it is the band liquid water absorbs in. "
+                "Taken on the substrate's own spectrum, so under --flat-bands "
+                "it describes the material and not the flat pair staged.",
     }
 
     # Both bands, one class: salt crust is where this project holds in-situ
