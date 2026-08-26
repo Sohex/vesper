@@ -1350,7 +1350,7 @@ checks:
   # script's sys.path edit make the next one's import succeed for the wrong
   # reason. Nothing static answers this -- smoke_test's parse, pyflakes and
   # symtable passes are all about name binding inside a source text, and an
-  # import is a dynamic act. Parallel, bounded by scripts/machine.py.
+  # import is a dynamic act. Parallel, bounded to a quarter of the cores.
   #
   # Run before a build or a push, not per commit: CLAUDE.md rule 8.
   - id: verify_entry_points
@@ -1504,7 +1504,6 @@ one_offs:
   # OUTSIDE the repository. It is not a step because it produces nothing the
   # pipeline reads and nothing `--purge` should ever delete; it is here so the
   # generator gate can see that its absence from the graph is deliberate.
-  - scripts/machine.py
   # Not a step and not a gate: the compiler launcher CMake puts in front of
   # every Fortran compile of the model. It applies the -ffile-prefix-map options
   # already on the compile line to the cpp line markers gcc(1) says those

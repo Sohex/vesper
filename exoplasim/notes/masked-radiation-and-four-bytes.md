@@ -301,7 +301,7 @@ what a contended clock looks like is worth being able to recognise.
 
 ## Reproduce
 
-    python scripts/machine.py --claim "world-43rk" --minutes 45 --who <id>
+    until mkdir /tmp/world.lock 2>/dev/null; do sleep 30; done   # world-43rk
     python exoplasim/scripts/make_profile_bed.py --from-run <a T21 run> \
         --dest exoplasim/bench/43rk/bed_t21 --cold --steps 4000 \
         --binary most_plasim_t21_l10_p16.x --binary-dir <that run>

@@ -125,7 +125,7 @@ def launcher(spec: str, threads: int) -> tuple[list[str], dict]:
         # the machine is doing, and on this project it reproduces to about one
         # part in 10^8 across repeats, where a wall clock on a shared desktop
         # does not. `exoplasim/notes/radiation-scheme-price.md` argues that
-        # choice; `scripts/machine.py` states the same thing from the other
+        # choice; CLAUDE.md's host lock states the same thing from the other
         # side. WHAT IT CANNOT SAY is cycles: a vector call is more
         # instruction-efficient than eight scalar ones and need not be eight
         # times faster, because the limit may be elsewhere. So a counter arm

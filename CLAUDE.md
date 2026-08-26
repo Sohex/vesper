@@ -135,21 +135,27 @@ The arguments and the incidents behind these are in
   column alignment. They get copied out.
 - Every run and analysis product records its provenance (config hash, input
   hashes, software versions) in JSON. Keep that up when adding steps.
-- **One host, many agents: claim it before timing anything.**
-  `python scripts/machine.py --check` before starting heavy work,
-  `--claim "<purpose>" --minutes N` before taking a wall-clock, throughput or
-  per-step cost number, `--release` after. `--check` reads the PROCESS TABLE as
-  well as the claim, because work that is insensitive to load still generates
-  it and therefore never claims: a checker trusting the claim alone sees an
-  empty file, calls the host quiet, and is wrong. A timing is a measurement of a
-  MACHINE STATE as much as of a model, and this project runs many agents on one
-  host, so a number taken while someone else is integrating is not a slow
-  number, it is a number of a different experiment. Record the load beside any
-  timing you keep; one without the machine state it was taken under cannot be
-  compared against a later one. The claim file is deliberately outside the
-  repository, because each fan-out agent works in its own worktree and an
-  in-tree file would coordinate nothing. Where you can, price work in something
-  the scheduler cannot move -- retired instructions under
+- **One host, many agents: take the lock before anything CPU-heavy.**
+  A model run, a build, a profile, a long analysis -- anything using the CPU
+  for more than a moment. The lock is a directory outside the repo, because
+  each fan-out agent works in its own worktree and an in-tree file would
+  coordinate nothing:
+
+      until mkdir /tmp/world.lock 2>/dev/null; do sleep 30; done
+      echo "$(date): what you are doing" > /tmp/world.lock/who
+      # ... the heavy work ...
+      rm -rf /tmp/world.lock
+
+  `mkdir` rather than `touch` because it is the test and the take in one
+  atomic step; check-then-touch lets two agents both see it free. `cat
+  /tmp/world.lock/who` says who holds it, and if that is a dead session,
+  `rm -rf` it and say so. A timing is a measurement of a MACHINE STATE as much
+  as of a model, so record the load beside any timing you keep -- one without
+  the machine state it was taken under cannot be compared against a later one.
+  Holding the lock keeps other agents off the host; it does NOT partition the
+  host between your own runs, so two paired arms are p8 binaries pinned to
+  their own cores, never two p16 at once. Where you can, price work in
+  something the scheduler cannot move: retired instructions under
   `OMP_WAIT_POLICY=passive` survive contention that wall clock does not.
 - **A thread team's working set on one die targets 32 MB**, counting one copy
   per thread for anything threadprivate. Above it is a regression even when

@@ -337,7 +337,7 @@ one storage class does not price a source change under the other.**
 ## 5b. Threaded, and the bound is not what binds
 
 Taken on this host at a one-minute load average between 3.3 and 6.0, which
-`scripts/machine.py` calls marginal at the top of that range. The internal
+a shared host makes marginal at the top of that range. The internal
 control says it does not matter here: the `serial` arm at load 16.7 and the
 `omp` arm at one thread at load 6.0 differ by 0.6 per cent in the wall clock and
 by 0.001 per cent in instructions, and every arm's `task-clock` is within 0.3

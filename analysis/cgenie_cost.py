@@ -959,7 +959,7 @@ def build_all(cases: list[str], args, results: dict) -> Path:
 # Above this one-minute load average a wall-clock number is a measurement of the
 # host rather than of the model, and is labelled as such rather than dropped: a
 # number recorded as unreliable is evidence about the instrument, a deleted one
-# is nothing. scripts/machine.py uses the same threshold.
+# is nothing. CLAUDE.md's host lock exists for the same reason.
 QUIET_LOAD = 4.0
 
 

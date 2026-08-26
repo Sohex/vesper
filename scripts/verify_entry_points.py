@@ -41,11 +41,12 @@ also repeat across the script directories, so `sys.modules` would hand the
 second one the first one's module. A single process would report a pass this
 tree has not earned, which is worse than the cost it saves.
 
-PARALLELISM RESPECTS `scripts/machine.py`. This host runs several agents and
-model integrations at once. `machine.workers()` drops to one worker while a
-timing claim is live or a heavy job is in the process table, and otherwise takes
-a quarter of the logical cores; `--jobs` overrides it. The work is subprocesses,
-so threads carry it and the GIL is not in the way.
+PARALLELISM IS DELIBERATELY MODEST. This host runs several agents at once, so
+this takes a quarter of the logical cores and no more; `--jobs` overrides it.
+The work is subprocesses, so threads carry it and the GIL is not in the way.
+Anything heavier than this takes /tmp/world.lock first -- see CLAUDE.md. This
+does not, because a quarter of the cores for a few seconds is not the kind of
+load that lock exists to serialise.
 
 IT IS NOT THE COMPILE GATE'S SIBLING BY ACCIDENT.
 `exoplasim/scripts/verify_model_compiles.py` is the same shape for the model
@@ -74,7 +75,6 @@ for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
 PROBE_ENV.setdefault("OMP_WAIT_POLICY", "passive")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import machine  # noqa: E402  -- the host's view of what load it can spare
 from smoke_test import SCRIPT_DIRS  # noqa: E402  -- one declaration of the tree
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -131,13 +131,13 @@ def main() -> None:
                     help="directories to check (default: every script "
                          "directory smoke_test.py declares)")
     ap.add_argument("--jobs", type=int, default=None,
-                    help="workers (default: scripts/machine.py's view of what "
-                         "load this host can spare)")
+                    help="workers (default: a quarter of the logical cores, "
+                         "so a shared host keeps most of itself)")
     ap.add_argument("--verbose", action="store_true",
                     help="print each entry point with its verdict")
     a = ap.parse_args()
     roots = [ROOT / r for r in a.roots] if a.roots else SCRIPT_DIRS
-    jobs = a.jobs if a.jobs else machine.workers()
+    jobs = a.jobs if a.jobs else max(1, (os.cpu_count() or 4) // 4)
     problems = verify(roots, jobs, a.verbose)
     for p in problems:
         print(p, file=sys.stderr)
