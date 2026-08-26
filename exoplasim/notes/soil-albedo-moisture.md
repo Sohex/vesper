@@ -58,14 +58,26 @@ this row needs:
     wilting point, which is a change to the column and not to a constant."
 
 `dwmax` is a plant-available capacity, so an empty store is the wilting point
-and a full one is field capacity. The residual is declared zero in the same
-contract, which makes that degree of saturation the effective saturation the CLM
-mixing takes, so the two are the same quantity and the substitution is exact.
-The reachable range of `S_e` on this modelled land is therefore
+and a full one is field capacity. Those two bounds are a degree of saturation,
+`theta/theta_s`, and the CLM mixing takes an EFFECTIVE saturation,
+`(theta - theta_r)/(theta_s - theta_r)`. The two coincide only at a zero
+residual, and the same contract declares the residual `undeclared`, owned by
+LSHY-3, deliberately: "zero is a choice and this contract is where it would be
+recorded". So `S_e` cannot even be evaluated exactly today.
 
-    0.4114  to  0.7877
+What the contract does settle is that the floor is strictly positive whatever
+the residual turns out to be. Writing `x = theta_r/theta_s`, the wilting-point
+effective saturation is `(0.4114 - x)/(1 - x)`, which falls monotonically from
+0.4114 at `x = 0` and reaches zero only at `x = 0.4114`, where the residual
+equals the wilting-point water content and no water is removable at all. The
+contract's own ordering, `residual <= wilting_point <= field_capacity <=
+saturation`, admits that only as a degenerate limit. So the reachable window is
 
-against the 0 to 1 the mixing is defined on.
+    S_e(empty store)  in  (0, 0.4114]        strictly above zero
+    S_e(full store)   =   (0.7877 - x)/(1 - x)   strictly below one
+
+against the 0 to 1 the mixing is defined on, and the floor's exact height is
+undeclared.
 
 The dry endmember this project holds is at the far end of that scale: the
 spectra `analysis/rock_albedo.py` and `analysis/playa_albedo.py` integrate are
@@ -74,20 +86,22 @@ value on a surface crust after weeks without rain. A soil at its wilting point
 is neither. So arming the mixing on these ingredients would deliver, on a
 modelled land cell whose store is completely empty,
 
-    alpha = alpha_dry - 0.4114 * (alpha_dry - alpha_wet)
+    alpha = alpha_dry - S_e(empty) * (alpha_dry - alpha_wet)
 
-permanently and everywhere, swinging over only the remaining 0.376 of the
-interval as the store filled and emptied. That is a LEVEL SHIFT on the modelled
-land albedo carrying a seasonal term about a third of the full amplitude, and
-the level shift is the larger of the two. PHYS-15 names the seasonal term; the
-arithmetic delivers mostly the shift.
+permanently and everywhere, with `S_e(empty)` strictly above zero and at most
+0.4114. That is a LEVEL SHIFT on the modelled land albedo, and the seasonal
+swing rides on top of it rather than replacing it. PHYS-15 names the seasonal
+term; the arithmetic delivers a shift as well, of a size no declared quantity
+currently fixes.
 
 The size of that shift is the reason this is fatal rather than untidy. On this
 world's `evaporite` class, at albedo 0.50 and the measured salt-crust wetting
-ratios in section 2, the permanent shift would be **0.105 to 0.140 in albedo on
+ratios in section 2, the shift would be **up to 0.105 to 0.140 in albedo on
 every salt-crust cell**, applied in the driest season as much as the wettest.
 For scale, the entire bare-rock-against-vegetated gap this project brackets over
-the whole simulated planet is 0.069.
+the whole simulated planet is 0.069. Declaring the residual would fix where in
+that range the shift lands; it would not remove it, because the floor is
+positive for every admissible residual.
 
 This is the same bound that blocks the moisture-dependent soil heat capacity,
 and it has the same named remedy: a thin surface layer that dries below the
@@ -108,8 +122,11 @@ holds. Four sources, all already read:
 | Castellani Alegria et al. (2026) | Uyuni halite pan | 0.55-0.60 in dry or warm years | 0.65 in wet or cool years | 1.08-1.18 | MODIS BRDF, twenty-year series |
 | Penndorf (1956) Table 1, Sewing column | clay soil / sand / bare rich soil | 15 / 31 / 7.2 | 7.5 / 18 / 5.5 | 0.500 / 0.581 / 0.764 | luminous reflectance, 0.38-0.77 um |
 
-Penndorf's row was read on 2026-08-26 for this note, off the render rather than
-the text layer, which misreads the last wet value as 55 instead of 5.5. The
+Malek's dry value is stated as ABOVE 0.75, so 0.32 is an upper bound on that
+ratio and a lower bound on the darkening; the bracket below takes the
+conservative end. Penndorf's row was read on 2026-08-26 for this note, off the
+render rather than the text layer, which misreads the last wet value as 55
+instead of 5.5. The
 levels are Earth surfaces and do not transfer; the ratios are taken within one
 column or one instrument, so the preparation and geometry cancel and the ratio
 transfers, which is the discipline `analysis/playa_albedo.py` already applies to
@@ -236,11 +253,13 @@ not an error that can be accepted to get it.
 Four preconditions, each owned somewhere else, each checkable:
 
 1. **A modelled surface layer that dries below the wilting point**, so that
-   `S_e` spans the interval the mixing is defined on rather than
-   [0.4114, 0.7877]. Named by `land_column_properties.yaml`'s
+   `S_e` spans the interval the mixing is defined on rather than sitting inside
+   it with a positive floor. Named by `land_column_properties.yaml`'s
    `saturation_mapping.what_this_bounds` and owned there; it is a change to the
    land column, and it is the same change the modelled soil's heat capacity
-   waits on.
+   waits on. The residual, `undeclared` in the same contract and owned by
+   LSHY-3, has to be declared alongside it: without it `S_e` cannot be
+   evaluated exactly at all, only bounded.
    The cheap alternative does not work here. Re-casting the endmember pair onto
    the model's own reachable interval -- the albedo at the wilting point and at
    field capacity, rather than at laboratory-dry and saturated -- would be a

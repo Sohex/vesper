@@ -105,9 +105,9 @@ for the modelled soil's heat capacity. Every spectrum
 `analysis/rock_albedo.py` and `analysis/playa_albedo.py` integrate is a prepared
 laboratory sample at the dry end of that scale, so mixing the two would hold
 every simulated land cell a fixed fraction of the way from dry to wet at all
-times: a level shift on land albedo carrying a seasonal term smaller than
-itself. On the salt-crust class that shift is 0.105 to 0.140 in albedo, applied
-in the driest season as much as the wettest, against a
+times: a level shift on land albedo, with the season riding on top of it rather
+than replacing it. On the salt-crust class that shift reaches 0.105 to 0.140 in
+albedo, applied in the driest season as much as the wettest, against a
 bare-against-vegetated gap of 0.069 over the whole simulated planet.
 
 The wet endmember is further along than that but is not staged either. Several
@@ -829,11 +829,13 @@ def main() -> None:
             "references/climaland/src/standalone/Soil/soil_albedo.jl",
         "why_absent": [
             "the modelled land store cannot reach a dry soil: an empty store is "
-            "the wilting point and a full one is field capacity, so S_e is "
-            "confined to the interval pedology/config/land_column_properties."
-            "yaml:saturation_mapping declares, while the dry endmembers written "
-            "here are integrated from prepared laboratory samples at the other "
-            "end of that scale. Mixing them is a level shift, not a season",
+            "the wilting point and a full one is field capacity, so S_e sits "
+            "inside [0, 1] with a floor that is strictly positive on every "
+            "residual pedology/config/land_column_properties.yaml admits -- and "
+            "that contract declares the residual undeclared, so S_e cannot be "
+            "evaluated exactly today, only bounded. The dry endmembers written "
+            "here are laboratory-dry, at the other end of that scale, so mixing "
+            "them applies a permanent level shift as well as a season",
             "the wet endmember is broadband where it exists and the model reads "
             "the PAIR: the held wetting measurements are in-situ pyranometer "
             "pairs on salt crust plus luminous reflectance on soils, so band 1 "
