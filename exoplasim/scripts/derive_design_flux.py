@@ -216,7 +216,7 @@ def tail_mean_fields(run_dir: Path, orbits: list[int]) -> Path:
     read one path either way.
     """
     import tempfile
-    acc, count, template = {}, 0, None
+    acc, count = {}, 0
     for orbit in orbits:
         p = run_dir / f"MOST.{orbit:05d}.nc"
         with Dataset(p) as ds:
