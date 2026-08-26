@@ -1464,7 +1464,8 @@ are the two candidates that are cheap to price and are not yet.
 **The split needs one arm, not two.** The cryosphere row above is settled by
 reading `icemod.f90` against `config/planet.yaml`, and it is settled at
 essentially zero, so the only config change left that could carry a response of
-this size is the land water column. `run_431ecabed085` is that arm: the 1-layer
+this size is the land water column. `run_431ecabed085` is that arm, 20 orbits of
+a declared 25 before the host was taken over: the 1-layer
 bucket the donor ran, against this same control on this same restart, staging
 `NLANDWCOL = 0`, `DSOILWZ = 1.5` and `DSOILWF = 1` where the control stages
 `NLANDWCOL = 1`, `DSOILWZ = 0.5, 1` and `DSOILWF = 0.333333, 0.666667`.
@@ -1582,7 +1583,7 @@ every kelvin below.
 | term | worth at T21 | how it was established |
 | --- | ---: | --- |
 | `world-trs3`, the derived `gamma` | **-1.89 +/- 0.08 K** | A/B, `run_af3d2c9a4b05`, 25 orbits, TOA closed |
-| `world-py6p`, the land water column | +0.17 +/- 0.07 K | A/B, `run_431ecabed085` |
+| `world-py6p`, the land water column | +0.17 +/- 0.07 K | A/B, `run_431ecabed085`, 20 orbits, TOA -0.14 +/- 0.13 |
 | `surface.cryosphere` declared | about 0 | static, against `icemod.f90` |
 | the energy fixer off | +0.23 K | the donor's manifest and `lib/sensitivity.py` |
 | `world-o12h`, `rcritwidth` | exactly 0 | construction, `RCNLATREF` = `NLAT` |
