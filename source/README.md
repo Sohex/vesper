@@ -412,6 +412,17 @@ gravity stay bit-identical with or without a mask.
   currency, and undoing the scaling on the published spill and sink heights
   recovers the number, which is what
   `hydrography/scripts/catalogue_floor.py` does.
-- `orog_mean/std/min/max` are declared `units: 'km'` and are neither scaled nor
-  converted through the hypsometric curve -- they are raw model units. We do not
-  consume them. Anything that starts to must convert them first.
+- `orog_mean/std/min/max` ARE physical kilometres, on the same vertical scale as
+  `elevation_km`, with the hypsometric curve and the 1/g relief scaling both
+  applied. This entry used to say the opposite -- raw model units, do not consume
+  -- which was true of builds generated before 2026-08-16 and is true of neither
+  build in `source/`. `vendor/orogen/tools/README.md` is authoritative on the
+  format and records the fix; gridded `orog_mean` is bit-identical to
+  `elevation_km`, which is how the correction was checked rather than read.
+  WHAT THEY ARE STILL NOT is a statement about LAND: the four are taken over
+  EVERY region in a cell, so a coastal cell's mean sits below its own coast and
+  a peak excess measured against it is inflated by seabed rather than by terrain.
+  For a land-population statistic take
+  `hydrography/data/{build}/support_exoplasim-{res}.nc`, which names the
+  population of every quantity it carries and holds the sub-grid hypsometry as
+  well (SPAT-3).
