@@ -64,7 +64,7 @@ from provenance import config_stamp  # noqa: E402
 from sra import write_sra
 
 SOIL_WATER_CODE = 229
-# The capacity SPLIT of that bucket over the land column's water layers, one
+# The capacity SPLIT of that bucket over the land column's water column, one
 # record per layer. WORLD-VJBZ. `dsoilwf` in `landmod_nl` is one shape for the
 # whole simulated planet and the split is not one shape: it is the same integral
 # `awc_mm` is, cut at the model's layer boundaries instead of summed, so it
@@ -74,7 +74,7 @@ SOIL_WATER_CODE = 229
 #
 # INERT AT ONE LAYER, where the split is identically one and the namelist says
 # so exactly. It becomes the field the model refuses to run without the moment
-# `surface.land_water_column.layers` goes above one.
+# the water column is cut into more than one.
 SOIL_WATER_SPLIT_CODE = 2290
 
 # ExoPlaSim's own default, landmod.f90 `WSMAX_EARTH`. Non-land cells keep it,
@@ -137,14 +137,14 @@ def read_layer_usable_shares(path: Path) -> tuple[dict, int]:
 
 def layer_grouping(thicknesses: list[float], physical_m: float,
                    physical_count: int) -> list[slice]:
-    """Which physical layers each model water layer is made of.
+    """Which physical layer set each model water layer is made of.
 
-    The model's water layers are a GROUPING of the contract's physical column
+    The model's water column is a GROUPING of the contract's physical column
     and never a re-cut of it: LSHY-3 chose 0.5 and 1.0 m because that is the
-    contract's own 500 mm upper over five physical layers and 1000 mm lower over
-    ten, which is the only two-layer cut at which the climate column and the
-    ecology column share a boundary. This refuses any thickness that is not a
-    whole number of physical layers, and any set that does not cover the column,
+    contract's own 500 mm upper over five of the physical column's own
+    increments and 1000 mm lower over ten, which is the only two-layer cut at
+    which the climate column and the ecology column share a boundary. This refuses any thickness that is not a
+    whole number of those increments, and any set that does not cover the column,
     because either one would make the split an interpolation of a profile rather
     than a partition of it.
     """
@@ -156,15 +156,15 @@ def layer_grouping(thicknesses: list[float], physical_m: float,
             raise SystemExit(
                 f"surface.land_water_column.layer_thickness_m[{index}] = "
                 f"{thickness} is not a whole number of the contract's "
-                f"{physical_m} m physical layers. The model's water layers are "
+                f"{physical_m} m physical increment. The model's water column is "
                 "a grouping of that column, so a partial layer has no split.")
         groups.append(slice(used, used + round(count)))
         used += round(count)
     if used != physical_count:
         raise SystemExit(
-            f"the declared water layers cover {used} of the contract's "
-            f"{physical_count} physical layers. A split over part of the column "
-            "would not sum to the capacity dwmax carries.")
+            f"the declared water column covers {used} of the "
+            f"{physical_count} increments the contract carries. A split over "
+            "part of the column would not sum to the capacity dwmax carries.")
     return groups
 
 
@@ -327,17 +327,17 @@ def main() -> None:
         raise SystemExit(
             f"{args.states} carries {physical_count} usable-share columns and "
             f"the contract declares {contract['geometry']['physical_layer_count']} "
-            "physical layers; re-emit the states.")
+            "physical increments; re-emit the states.")
 
+    # THE GEOMETRY IS THE THICKNESS LIST, and the count is its length. The split
+    # is cut at thicknesses, so that list is the whole of what this needs;
+    # `run_exoplasim.py` is where a config whose declared count disagrees with
+    # the length of its own per-layer lists is refused, and refusing it twice
+    # would put the same rule in two places.
     column = config.get("surface", {}).get("land_water_column", {}) or {}
-    layers = int(column.get("layers", 1))
     thicknesses = [float(v) for v in column.get("layer_thickness_m",
                                                 [physical_m * physical_count])]
-    if len(thicknesses) != layers:
-        raise SystemExit(
-            f"surface.land_water_column declares {layers} layers and "
-            f"{len(thicknesses)} thicknesses; run_exoplasim.py refuses the same "
-            "pair, and the split cannot be cut without both.")
+    nwater = len(thicknesses)
     groups = layer_grouping(thicknesses, physical_m, physical_count)
 
     # The geometric split is the one a uniform profile gives: thickness over
@@ -372,9 +372,9 @@ def main() -> None:
         "code": SOIL_WATER_SPLIT_CODE,
         "field": "dsoilwfc, the capacity of each land water layer as a "
                  "fraction of dwmax, per cell",
-        "layers": layers,
+        "water_layer_count": nwater,
         "layer_thickness_m": thicknesses,
-        "physical_layers_per_model_layer": [g.stop - g.start for g in groups],
+        "physical_layer_per_model_layer": [g.stop - g.start for g in groups],
         "geometric_split": [round(float(v), 6) for v in geometric],
         "land_cells_matched": split_matched,
         "top_layer_share_over_land": {
@@ -387,7 +387,7 @@ def main() -> None:
                 float(np.mean(np.abs(upper - geometric[0]) < 1.0e-6)), 4),
         },
         "derivation": "the per-layer usable shares the land column property "
-                      "contract emits, grouped onto the declared water layers "
+                      "contract emits, grouped onto the declared water column "
                       "and normalised. The same array the awc_mm column is the "
                       "integral of, so the split and the capacity are one "
                       "arithmetic rather than two that agree.",
@@ -461,7 +461,7 @@ def main() -> None:
     print(f"land-mean dwmax   {land_mean:.3f} m against ExoPlaSim's uniform "
           f"{EXOPLASIM_DEFAULT_WSMAX_M} m")
     upper_stats = split_report["top_layer_share_over_land"]
-    print(f"capacity split    {layers} layer(s); top share over land "
+    print(f"capacity split    {nwater} layer(s); top share over land "
           f"{upper_stats['min']:.4f} to {upper_stats['max']:.4f}, p50 "
           f"{upper_stats['p50']:.4f} against the geometric "
           f"{geometric[0]:.4f}")
