@@ -158,13 +158,20 @@ run, so the ladder is unreachable here; deleting it WOULD change what an
 auto-timestep run integrates, so unlike the branches world-677x removed it
 stands. `world-helo`.
 
-The third, `gamma=0.007` at T42 with 10 levels, is gone. `gamma` is the fraction
-of the sub-saturation deficit that falling precipitation evaporates per
-timestep, so what it is worth depends on the step length and not on the
-truncation, and both rungs here run the same step; the override was a 43 per
-cent step in a precipitation constant taken on a rung change with no derivation
-on either side. `rainmod.f90` carries the argument at the declaration. Every run
-this project has done is T21 and integrated 0.01, so nothing that exists moved.
+The third, `gamma=0.007` at T42 with 10 levels, is gone, and so is the constant
+it branched from. `gamma` is the fraction of the sub-saturation deficit that
+falling precipitation evaporates per timestep, so what it is worth depends on
+the step length and not on the truncation, and both rungs here run the same
+step; the override was a 43 per cent step in a precipitation constant taken on a
+rung change with no derivation on either side. It is now DERIVED per cell and
+per level from Kessler (1969), as
+`gamma = 5.4395e-4*(P/zvcoef)^0.577778*deltsec2` with `P` the layer's
+precipitation flux, so it carries the timestep it was always proportional to,
+the precipitation flux it never carried at all, and this world's gravity through
+the drop terminal speed. A positive `gamma` in `rainmod_nl` restores the literal
+constant, which is how the pair that measures the change declares its control.
+`rainmod.f90` carries the derivation at the declaration and
+`forcing-bundle-predictions.md` carries the prediction. `world-trs3`.
 
 ## 4. Thresholds anchored to one rung, and what SPAT-8 must attribute to them
 
@@ -174,6 +181,14 @@ of them carries an NLAT term anywhere in this tree or upstream. They are kept at
 their values and declared as anchored to T21 rather than re-keyed, because a
 table of per-rung values would be the same undeclared fit written more times.
 
+`rcrit`'s 0.85 floor was on this list and has left it. What it encodes is the
+WIDTH of the subgrid humidity distribution, and a passive scalar's variance
+across a separation `L` goes as `L^(2/3)` in the inertial-convective subrange,
+so `(1 - rcrit)` goes as `NLAT^(-1/3)`. That is a derived NLAT term rather than
+a per-rung table, it is exactly 1 at the T21 anchor so no existing run moves,
+and it is turned by `rcritwidth`. A declared function of the grid can be tested
+against the grid, which is what separates it from the rows below. `world-o12h`.
+
 A convergence experiment that changes rung changes all of these at once, so a
 difference between two rungs is not evidence about the dynamics until they are
 accounted for. The declaration is what makes that possible; the accounting is
@@ -182,8 +197,7 @@ SPAT-8's.
 | constant | where | what moves with the rung |
 | --- | --- | --- |
 | `snowcovz`, the snow depth at half cell cover | `landmod`, and `simba` through it | the snow-covered fraction of a partially covered cell, hence the surface albedo. It was a bare 0.01 at seven sites and is now one named key in `landmod_nl` |
-| `rcrit`'s 0.85 floor | `rainmod`'s `rainini` | when cloud starts to form at a given cell-mean relative humidity. A smaller cell holds a narrower within-cell humidity distribution and should start later. The by-level modifier normalises by NLEV; the horizontal assumption does not |
-| `zcca` and `zccb` | `rainmod`'s `mkclouds` | convective cloud cover, fitted against a CELL-MEAN convective rain rate. The same simulated storm on a smaller cell gives a larger rate and more cover |
+| `zcca` and `zccb` | `rainmod`'s `mkclouds` | convective cloud cover, fitted against a CELL-MEAN convective rain rate. The same simulated storm on a smaller cell gives a larger rate and more cover. It stays anchored, and the argument is at the value: the exponent is set by an unresolved convective area fraction this scheme does not carry, so no exponent between the diluting and cell-filling limits is derivable from it |
 | the 30 m glacier flag | `glaciermod` | 30 m is a property of ice, not of the grid, but it is applied to the cell MEAN snow depth: a coarse cell half covered to 40 m does not flag while a fine cell fully covered to 31 m does |
 | `dls > 0.5`, land or sea | `icemod` at seventeen sites, and elsewhere | which cells are ocean at all. This one has no rung-independent form: it is the discretisation of a fractional mask, and moving the rung moves the coastline |
 | `SIZETHRESH`, `ENDTHRESH`, `MINSTORMLEN`, `MAXSTORMLEN` | `hurricanemod` | storm size as an UNWEIGHTED cell count (30 cells is 1.46 per cent of the globe at T21 and 0.37 per cent at T42, and a different area at different latitudes within one rung) and storm duration in TIMESTEPS |
