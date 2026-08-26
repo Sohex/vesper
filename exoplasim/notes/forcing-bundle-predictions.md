@@ -1323,3 +1323,83 @@ evaluable continuum, because the coefficients ship as data with LBLRTM. That is
 the same bundle `exoplasim/notes/corrk-cross-check.md` says the project does not
 have and which blocks `h2o_sw_level`'s bracket. The two open together and should
 be scoped together.
+
+## The bundle splits in two, and only one half can be attributed at all
+
+Measured against the tree on 2026-08-26, model source `a041a1e9`. A3 says bundle
+the terms and check the SUM against the sum of predictions, and it attaches two
+conditions to the A/B that decide which terms can enter such a sum: both arms
+use the SAME BINARY and differ only by a namelist key, and both branch from ONE
+restart. The five predictions batch 2 registered do not all meet the first.
+
+**The half that is namelist-revertible on one binary.** Each of these has a
+sentinel or a literal in a namelist that restores the pre-change constant
+exactly, so a control arm and a bundle arm can share a binary:
+
+| term | key | namelist | what restores the old behaviour |
+| --- | --- | --- | --- |
+| `world-trs3` | `gamma` | `rainmod_nl` | `gamma = 0.01`; the sentinel is `-1.0` and `> 0` restores the literal at all four sites |
+| `world-o12h` | `rcritwidth` | `rainmod_nl` | `rcritwidth = 1.0`; the sentinel is `-1.0` and derives from NLAT |
+| `world-2esd` | `th2oc` | `radmod_nl` | `th2oc = 0.024`, the compiled value, and the sweep moves it |
+| `world-s8rv` | `clwref` | `rainmod_nl` | `clwref = 0.00021`, the compiled value |
+| `world-u9hq` | `h2oswl` | `radmod_nl` | `h2oswl = 1.0`, the model default |
+
+**The half that is compiled in, where no namelist reverts anything.**
+
+- **`world-jgen` and `world-f9ig`, the band-1 cloud optics.** Stephens Eq. (10a)
+  against Eq. (10b), the `+1.5` offset replaced by a linear continuation, and
+  `tswr1` to `tswr3` deleted in favour of Stephens et al. (1984) Tables 1(a) to
+  1(c). This section says it plainly: a control on the pre-`world-jgen` tau
+  relation against an arm on the current source measures the pair. That is TWO
+  BINARIES, which A3 forbids because it confounds the term with the rebuild.
+  **No pre-batch-2 binary was preserved** -- the only saved set is
+  `prerebuild_binaries_2026-08-18`, eight days and many source changes earlier
+  -- so the control arm cannot be reconstructed from a saved executable either.
+- **`OCN-22`, the open-ocean albedo's band split.** Its own section already says
+  it is not an arm and that there is no namelist number to move. Its two
+  bit-identity conditions, `nsimplealbedo` and `necham = necham6 = 0`, are
+  REDUCTIONS that check the new code collapses correctly; neither isolates the
+  band split from everything else those switches change, so neither is a revert.
+
+**`world-o12h` is namelist-revertible and still contributes exactly zero to any
+bundle run at T21.** `rainmod.f90` declares `RCNLATREF = 32` and derives
+`rcritwidth = (RCNLATREF/NLAT)^(1/3)`, which at T21's NLAT of 32 is exactly 1,
+and the applying loop is guarded by `if(rcritwidth /= 1.)`. Its own prediction
+says so first: T21 is bit-identical to the control, by construction rather than
+by rounding. The term has a value to measure only at T42 and above, so it cannot
+enter a T21 bundle even with a route, and a T21 bundle total that named it would
+be claiming a measurement of zero as an agreement.
+
+**Three of the five have no route from `config/planet.yaml`.** `gamma`,
+`rcritwidth` and `th2oc` are read from their namelists by the model and are
+written there by nothing: `run_exoplasim.py` has no `declare_` function for any
+of them, `expected_namelist_keys` does not cover them, and `continue_exoplasim.py`
+does not reapply them per segment. `clwref` and `h2oswl` are the two that do have
+one, which is why they are the two arms this batch could run. A hand-edited
+namelist is not a substitute, because `verify_staged_namelists` is what makes an
+arm's own namelist the record of what it integrated, and a key it does not know
+about is not in that record.
+
+**So the bundle sum cannot be checked against the sum of predictions.** Of the
+five registered terms, two are unmeasurable on any pairing A3 permits, one is
+identically zero at the rung a T21 bundle would run at, and three lack the route
+that would let a control arm be staged with provenance. What remains is not a
+bundle: it is two terms with routes, and those are worth running as their own
+pairs, which is what `world-s8rv` and `world-u9hq` are.
+
+This is not a reason to serialize the iteration. A3's argument that attribution
+cannot gate anything still holds, and the terms are in the tree because they are
+correct rather than because a comparison improved. What it changes is the claim
+that can be made afterwards: the next baseline's total is not attributable to its
+parts, and a note that says otherwise would be describing an A/B nobody can run.
+
+**What would make the bundle checkable**, in the order that costs least:
+
+1. A `declare_` route and an `expected_namelist_keys` row for `gamma`,
+   `rcritwidth` and `th2oc`, the way `world-n1nu` built one for `clwref`. That is
+   a `run_exoplasim.py` change and stales no binary.
+2. Preserving one binary per rung at each source change that lands a compiled-in
+   forcing term. The two compiled-in terms here are unattributable for want of a
+   control executable that cost nothing to keep at the time.
+3. Running `world-o12h` at T42 against a T42 control, which is the only rung
+   where it has a value.
