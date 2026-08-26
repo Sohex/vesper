@@ -1746,14 +1746,19 @@ prediction row.
 **The prediction's own falsifier fired, and it is the sign one.** It registered
 "a correct band-1 tau is smaller than the one it replaces over every layer
 carrying real cloud water, so the arm must warm. A cooler arm is wrong outright,
-not a small result." The arm on the current source is about twelve kelvin
-cooler. The sign argument is sound about the band-1 optical depth and says
+not a small result." The arm reverting the change is WARMER, which is the same
+statement: on one restart the current source sits 7.6 K below the pre-jgen
+control by orbit 6 and is still separating, and it reflects 18.4 W/m2 more
+shortwave from the first orbit. The sign argument is sound about the band-1
+optical depth and says
 nothing about the backscatter fraction, which is the larger term in the same two
 commits and runs the other way: this is what it costs to size a prediction
 covering two changes from a bracket that prices one of them.
 
-**Measured: the T21 pair the artifact asked for.** Three arms branched from
-`run_14906cb7b914`'s `MOST_REST.00034`, all at T21 on `p8`. Orbit 0 is the same
+**Measured: the T21 pair the artifact asked for.** A control and two arms
+branched from `run_14906cb7b914`'s `MOST_REST.00034`, all at T21 on `p8`, each
+arm differing from the control by exactly one thing. The control is
+`run_c9c24d438a94`, on `config/planet.yaml` as it stands. Orbit 0 is the same
 initial state integrated by two executables, so the top-of-atmosphere difference
 over it is the FORCING and not a response.
 
