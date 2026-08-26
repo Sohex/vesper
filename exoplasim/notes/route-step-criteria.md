@@ -153,8 +153,21 @@ own row is missing either way, so raising C from 22.5 to 30 does not give up any
 evidence: it moves from a step neither rung has been shown to endure to one the
 donor has.
 
-**C = 45 needs two things this session did not establish**: the T42 endurance arm
-at dt 45 has to endure, and T85's refusal cell at dt 45 has to be clean.
+**Both candidates clear the refusal condition, measured here for the first
+time.** T85 had never been probed on any source: the rung had no surface family
+and so no bed. Built for this grid, it refuses at dt 90 and dt 60 and runs at
+45, 30, 22.5 and 15, which puts its refusal ceiling at 45 -- the value
+`lib/rungs.py` already declares, now carried by a cell that names its executable
+sha, its damping and its staging.
+
+**So C = 45 is blocked on exactly one thing, and it is not T85.** Its refusal
+cell is clean; the T42 endurance arm at dt 45 is the whole of what stands
+between the route and a step that halves the T85 block. That arm is one run:
+80 orbits at T42, about an hour on a quiet host at the 41 s an orbit the
+`-O2`/`-O3` benchmark measured, and about twenty hours at the 0.156 s a step
+this host was measured at all session. It is the highest-value orbit purchase
+available and it does not need a quiet machine to be VALID, only to be
+affordable.
 
 ### The saving, in the unit that needs no clock
 
@@ -179,3 +192,30 @@ block in every row, so C is where the money is, exactly as expected.
 These percentages are arithmetic and carry no instrument error. What steps
 cannot give is the weight of a T85 step against a T21 step, so they do not sum
 to one number: that needs the cost half, on a machine this session did not get.
+
+### The one arm that would settle C, and what stops it today
+
+The T42 endurance arm at dt 45 is the whole of what stands between the route and
+a step that halves its most expensive block. **It cannot be run at all on this
+source, and the reason is not the wall clock.**
+`notes/audits/epilog-adenergy-use-after-free.md`: `epilog` frees `adenergy` and
+then writes it to the restart, under the same `nenergy > 0` guard, so every run
+this tree prepares takes SIGSEGV at the end and leaves a truncated
+`plasim_status`. A multi-orbit run reads that restart to begin its next orbit,
+so the arm dies in its first one -- observed, with ExoPlaSim's own driver
+reporting `runtime crash`.
+
+So the order is fixed and it is short:
+
+1. Fix the two lines in `epilog`, rebuild every binary, `--verify`.
+2. Run the T42 endurance arm at dt 45, 80 orbits, IN `exoplasim/runs/` and
+   indexed. About an hour on a quiet host. If it blows up, preserve the
+   directory: it is the reproducer world-td3 has been missing since its own run
+   left the tree without a stub.
+3. If it endures, C goes to 45 and the T85 block halves. If it blows up, C goes
+   to 30, which is supported today, and the T85 block still loses a quarter.
+
+**Either outcome raises C.** Nothing in the evidence supports leaving it at
+22.5, because 22.5 is the one candidate with no endurance row on either side of
+its conversion.
+

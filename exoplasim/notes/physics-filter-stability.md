@@ -212,101 +212,173 @@ reproduce exactly. If it fails at the same step, it is a property of the
 configuration; if it wanders, something in the run is not deterministic, and
 archive CLIM-44 says how much that costs.
 
-## The grid, re-measured on the damping the runs actually use
+## The grid, on the damping and the filter the runs declare
 
-*Measured 2026-08-24 at a6d7e40c. 900-step probes, `--tau-scale 1`, all five
-rungs, sixteen threads. The cost column was taken on a shared machine and is
-provisional; the verdicts are not.*
+*Measured 2026-08-26 at model source `a041a1e9`. 600-step probes,
+`--tau-scale 1`, `--gamma 16`, one process on an unlimited stack. Refusal cells
+on eight threads from the registry (`most_plasim_t21_l10_p8.x` `877ab48b`,
+`most_plasim_t42_l10_p8.x` `482ed4bd`, `most_plasim_t85_l10_p8.x` `6722f728`),
+staged from `run_9947daa3f937`, `run_d03de74d6a72` and `run_2a50670d8f2b`, each
+prepared from `config/planet.yaml` on the day so the namelist keys the probe
+does not overwrite are the ones the runs carry. Every cell in
+`exoplasim/analysis/stability_probe.json` names its executable and sha, its
+build profile, the sha256 of its namelist and of each surface `.sra` in its bed,
+and a `declared` block carrying gamma, `nhdiff`, `ndel` and the four
+timescales.*
 
-The previous grid is replaced rather than corrected, because four separate
-things were wrong with how it was taken and each alone invalidates a cell. The
-replacement is itself superseded and is kept as a method rather than as an
-answer: see "What it would take to re-take this grid".
+Every grid before this one is replaced rather than corrected. Four independent
+things were wrong with how they were taken -- the damping reached one model
+level in ten, the probe declared no hyperdiffusion at all, sixteen models ran in
+one directory under `mpiexec`, and everything above T42 died on a 16 MB process
+stack and was read as refusing -- and a fifth, that no cell named the executable
+it was measured on, is why none of them could be compared against a new one.
 
+**A sixth was wrong in the writer and is fixed here.** `NHDIFF` is the absolute
+wavenumber the hyperdiffusion starts from and it is per-rung,
+`cutoff_fraction * ntru`: 8 at T21, 16 at T42, 32 at T85. The probe wrote the
+four timescales and `NDEL` over every level and left `NHDIFF` alone, so a bed
+staged from a T21 run damped a T42 probe from T21's wavenumber -- 38 per cent of
+T21's spectrum against 19 per cent of T42's. That is the contamination the
+timescales had, one key over, and it reached every cell above T21 of every grid
+this note has carried.
 
-- **The damping reached one level in ten.** `ndel` and the four `tdiss` are
-  `(NLEV)` arrays and a namelist scalar assigns element one, so nine levels
-  kept `readnl`'s presets -- and at T42, element one in seconds where days were
-  meant.
-- **The probe declared no damping at all.** It writes the `TDISS` keys only
-  under `--tau-scale`, and the grid was taken without it, so every cell ran the
-  model's own built-in values rather than the ones `config/planet.yaml`
-  derives.
-- **The probe launched under `mpiexec`.** It preferred the MPI binary and fell
-  through to the threaded one when no MPI binary existed -- which is every rung
-  now -- then ran it as `mpiexec -np 16`. That is sixteen independent models in
-  one directory, not one model on sixteen threads.
+**And the orbit was a quarter too long.** `ORBIT_HOURS` multiplied
+`lib/orbit.py`'s orbital period, which is in EARTH days of 24 hours, by the
+planet's 30-hour rotation. The model settles it: `run_exoplasim.py` writes 5850
+steps at dt 45 and 8774 at dt 30 for one orbit, both 4387 hours, where the
+restated constant implied 7312 and 10968. Every per-orbit cost the probe
+reported was 25 per cent high.
 
-A fourth thing was wrong with what could be measured at all: everything above
-T42 died with SIGSEGV before writing a record, which reads as a refusal and is
-a 16 MB process stack. T85, T127 and T170 appear here for the first time as
-something other than impossible.
+### Which rungs this grid covers
 
-### What each rung will start
+T21, T42 and **T85, which had never been probed on any source**: the rung the
+route's most expensive block runs at had no surface family and so no bed. The
+chain that gives it one -- `boundary_conditions`, `surface_roughness`,
+`surface_albedo --mode vegetated`, then one prepared run -- took under three
+minutes, and all four take `--config`, so the rung moves without touching
+`config/planet.yaml`. T127 and T170 carry no cell, and the ceilings
+`lib/rungs.py` declares for them are carried by no measurement this tree has
+produced.
 
-| rung | dt 60 | dt 45 | dt 30 | dt 22.5 | dt 15 | dt 10 |
-| --- | --- | --- | --- | --- | --- | --- |
-| T21 | runs | runs | runs | runs | runs | runs |
-| T42 | runs | runs | runs | runs | runs | runs |
-| T85 | **late** | runs | runs | runs | runs | runs |
-| T127 | refuses | refuses | runs | runs | runs | runs |
-| T170 | refuses | refuses | refuses | **late** | runs | runs |
+### What each rung will start, at kappa 8
 
-`late` means the 300-step arm ran and the 900-step arm did not: a failure
-inside the probe's own range, which is a different fact from a refusal and is
-now reported as one.
+| rung | dt 300 | dt 225 | dt 180 | dt 150 | dt 120 | dt 90 | dt 60 | dt 45 | dt 30 | dt 22.5 | dt 15 | dt 10 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| T21 | refuses | refuses | refuses | refuses | runs | runs | runs | runs | runs | runs | runs | runs |
+| T42 | -- | -- | -- | -- | refuses | refuses | runs | runs | runs | runs | runs | runs |
+| T85 | -- | -- | -- | -- | -- | refuses | refuses | runs | runs | runs | runs | -- |
 
-### The filter buys exactly one step of headroom, at every rung that needs any
+Every swept step divides the 30-hour solar day into a whole number of model
+steps, so a refusal is the model's and not a calendar's: `1800 / dt` is 6, 8,
+10, 12, 15, 20, 30, 40, 60, 80, 120 and 180 across the row.
 
-The same grid with the filter off:
+**The refusal boundaries: T21 between 120 and 150, T42 between 60 and 90, T85
+between 45 and 60.** T85's ceiling is 45, which is the value `lib/rungs.py`
+already declares and which now has a cell behind it. T21's is 120 against a
+declared 60, and the declared 60 was never a boundary -- it was the coarsest
+step any earlier grid had TESTED, and this one swept above it.
 
-| rung | dt 60 | dt 45 | dt 30 | dt 22.5 | dt 15 | dt 10 |
-| --- | --- | --- | --- | --- | --- | --- |
-| T21 | runs | runs | runs | runs | runs | runs |
-| T42 | runs | runs | runs | runs | runs | runs |
-| T85 | refuses | runs | runs | runs | runs | runs |
-| T127 | refuses | refuses | refuses | runs | runs | runs |
-| T170 | refuses | refuses | refuses | refuses | refuses | runs |
+### The filter buys exactly one step, at two rungs of three
 
-T85 goes from late to refusing at 60, T127 loses dt 30, and T170 loses dt 15.
-One rung of the ladder, each time, and never more. That is a sharper statement
-than the earlier "the filter buys timestep": it buys ONE step, and the amount
-does not grow up the ladder even though the requirement does.
+| rung | dt 300 | dt 225 | dt 180 | dt 150 | dt 120 | dt 90 | dt 60 | dt 45 | dt 30 | dt 22.5 | dt 15 | dt 10 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| T21 | refuses | refuses | refuses | refuses | **refuses** | runs | runs | runs | runs | runs | runs | runs |
+| T42 | -- | -- | -- | -- | refuses | refuses | runs | runs | runs | runs | runs | runs |
+| T85 | -- | -- | -- | -- | -- | refuses | refuses | **refuses** | runs | runs | runs | -- |
 
-### The boundary does not follow 1/N all the way
+T21 loses dt 120 and T85 loses dt 45: one step each, at the two rungs where the
+filter changes anything at all. T42's two columns are identical, and the honest
+caveat is the sweep's resolution -- the T42 bracket 60 to 90 is a factor of 1.5
+wide and one step of headroom could hide inside it.
 
-Coarsest step each rung will start clean, at kappa 8: T85 45, T127 30, T170 15.
-The middle of that is the 1/N rule -- 45 * 85/127 = 30.1 predicts T127 exactly.
-T170 breaks it: 45 * 85/170 = 22.5, and 22.5 is the cell that starts and dies.
-So the rule holds to T127 and over-predicts at T170 by a full step, which is
-the rung it would have been used to plan.
+### T42 with the filter off no longer refuses at dt 45, and two things changed
 
-### What this grid is, and what it is not
+The 2026-08-23 arms above trap at T42, dt 45, filter off, and that is what "the
+model does not run without it" rests on. This grid runs that cell for 600 steps.
+**Two things differ between the two measurements and neither is isolated here.**
+The damping is now derived, per level and in days, where those arms had element
+one only and, at T42, that element in seconds. And the probe starts COLD where
+those arms started from `MOST_REST.00039` of a developed run, which matters more
+than it looks: the refusal is on the first radiation call, so what is in the
+initial state is most of the question.
 
-**It is a floor.** A cell marked `runs` has been shown to start and to survive
-900 steps, which at dt 45 is about a seventh of an orbit. T42 at dt 45 is
-`runs` here and dies in its sixty-seventh orbit. Nothing in this table
-qualifies a step for a commissioning run, and the section below is what that
-costs when the distinction is ignored.
+The decision procedure is one arm and it needs a thing this tree does not have:
+a developed T42 restart. Run the filter-off, dt 45 cell from one, and the
+disagreement is the damping if it starts and the initial state if it traps.
+Until then the earlier claim is not superseded and this cell is not a
+contradiction of it; they are two different tests.
 
-### Cost, provisional
+### What a cell in this grid is, in the units the endurance question is asked in
 
-Minutes per orbit implied by the probe, kappa 8, where the cell runs. Taken on
-a machine with other work on it, so these are an upper bound and the ratios are
-sounder than the absolutes.
+A 600-step probe covers **0.10 of an orbit at dt 45**, 0.02 at dt 10 and 0.68 at
+dt 300; every cell carries that number as `orbits_covered`. `run_900548ae632e`
+ran 46 orbits of ordinary T42 climate at dt 45 and took a SIGFPE in the 47th,
+and `run_3e1e116f99ee`, the same configuration with the damping corrected to
+every level, reached 68. So this grid separates two verdicts and carries only
+the first:
 
-| rung | dt 45 | dt 30 | dt 22.5 | dt 15 |
-| --- | ---: | ---: | ---: | ---: |
-| T21 | 0.2 | 0.3 | 0.3 | 0.5 |
-| T42 | 0.7 | 1.0 | 1.4 | 2.1 |
-| T85 | 3.8 | 5.5 | 8.9 | 11.9 |
-| T127 | -- | 15.6 | 20.5 | 30.2 |
-| T170 | -- | -- | -- | 65.6 |
+**REFUSAL.** Whether the configuration takes its first steps at all. Measured
+here, and the failure it looks for happens at the first radiation call, so 600
+steps is two orders of magnitude more than it needs.
 
-At its own coarsest clean step each rung costs 0.2, 0.7, 3.8, 15.6 and 65.6
-minutes an orbit. **T170 is 94 times T42**, not the 16.5 the previous grid
-reported, because it is both slower per step and pinned to a third of the step.
+**ENDURANCE.** Whether a commissioning-length run survives. Not measurable by
+any probe, and not by an orbit either. It lives in
+`lib/rungs.py:COMMISSIONING_EVIDENCE`, one row per (rung, step) an actual run
+has reached. A pair with no row there has no endurance evidence, which is a
+different thing from passing, and three of the six rows the escalation route
+needs are missing. `exoplasim/notes/route-step-criteria.md` is where the route
+is chosen from the two together.
 
+**T42 at dt 45 is marked `runs` here and is the pair with both recorded
+blow-ups.** Nothing in this grid qualifies a step for a commissioning run.
+
+### Cost: the half that needs the machine, and this host did not have it
+
+*Attempted 2026-08-26 under the host lock, one cell per rung, two passes, p16.*
+
+| rung | dt | s/step | implied min/orbit |
+| --- | ---: | ---: | ---: |
+| T21 | 45 | 0.1480 | 14.4 |
+| T42 | 30 | 0.1561 | 22.8 |
+| T85 | 22.5 | 0.1962 | 38.2 |
+
+**These numbers are refused, and the check that refuses them is inside the table
+rather than beside it.** Cost per step is the model's own work, so it must grow
+with the truncation: T85 solves sixteen times T21's gridpoints and its Legendre
+transform grows faster still. The three cells span a factor of **1.33** where
+the model's work spans something between one and two orders of magnitude. An
+instrument that cannot separate T21 from T85 is not measuring the model.
+
+**C-ROUTE-5, the criterion fixed before these cells were taken, PASSES them.**
+It asked that the two passes agree to better than the saving being argued, and
+they agree to 0.5 per cent at T21. That is not a rescue, it is the lesson: the
+contention on this host was STEADY rather than bursty, and a steady bias
+reproduces perfectly. Repeatability is not validity, and a scatter check between
+two passes of the same instrument cannot see an error both passes share. The
+check that catches these numbers is the one inside a single pass -- three rungs
+that must differ and do not -- and it is the check C-ROUTE-5 should have been.
+
+The mechanism is the host and it is legible. The lock is a mutex across AGENTS
+and does not stop a process that outlives its holder's phase, and four other
+sixteen-thread-equivalent models were resident throughout at a load average
+between 42 and 50 on 32 cores. Worse, every one of them was PINNED: the probe
+exports `OMP_PLACES=cores` with `OMP_PROC_BIND=close`, which binds from core
+zero upward, so concurrent runs stack on the same low-numbered cores while the
+upper half of the machine idles. `taskset` on three resident masters returned
+cores 0, 8 and 16. Pinning without a disjoint placement is worse under sharing
+than not pinning at all.
+
+So the per-orbit costs the route wants are NOT MEASURED. What replaces them is
+in `exoplasim/notes/route-step-criteria.md`: the route's saving is expressed in
+MODEL STEPS, which is exact arithmetic and needs no clock at all. Steps cannot
+give the weight of a T85 step against a T21 step, which is precisely the
+quantity this table failed to deliver, so the rungs are reported separately and
+never summed.
+
+**What it would take**: the same six probes on a host with nothing else on it.
+Under the load actually seen they cost about twenty minutes; on a quiet machine
+the same six are a couple of minutes, and the earlier grid's T21 figure of about
+0.2 minutes an orbit is the scale to expect rather than 14.4.
 
 ## T42 at dt 45 starts clean, runs for scores of orbits, and still dies
 
