@@ -6,6 +6,30 @@ These are the project's words. Use them and not synonyms.
 not the act that made it. Identified by its terrain hash, never by its name.
 Superseded means wrong, not merely old.
 
+**base / interim** -- a BASE is the geography loop A iterates FROM, and a base is
+INTERIM while something outstanding would change the base itself. The test is not
+"will this build be regenerated" -- every base is, repeatedly, and that is the
+loop working. It is "would the thing outstanding change what the base IS".
+
+The distinction is easy to get backwards and was, in this project, in the naming
+of `interim-10m-base`. The two-pass recipe in `source/README.md` regenerates a
+new base with an ice mask once it has a climatology, and every carve regenerates
+it again -- but those are ITERATIONS. They consume the base and belong to the
+lineage when they execute; they are steps in `config/pipeline.yaml` rather than
+defects in their input. What makes a base interim is something like LITH-26,
+which would change the lithology the base is generated WITH, so a build made
+before it lands is a different starting geography rather than an earlier turn of
+the same one.
+
+A corollary worth keeping: a defect in a process the base does not run cannot
+make the base interim. GRAV-6 is the case -- glacial erosion carries no gravity
+term, and a base generated at `--glacial 0` runs no glacial erosion at all
+(`terrain-post.js` gates it on `iter < gIters`), so the defect reaches the
+ice-mask pass and not the base underneath it.
+
+Do NOT call a build `canonical` on the strength of having no outstanding trigger
+today. `canonical` is reserved below and names a LINEAGE that does not exist yet.
+
 **generation** -- the act. One pass of World Orogen, consuming the planet code,
 the seed and a carve list, producing a build. It is the only thing in this
 project that changes the terrain, and it is the only way a build comes to exist.
