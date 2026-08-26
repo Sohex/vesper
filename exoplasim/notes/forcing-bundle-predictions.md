@@ -1591,10 +1591,10 @@ every kelvin below.
 
 **The control has settled, so the total is not a lower bound any more.** Its last
 ten orbits of sixty sit at 279.96 K against the donor's last at 292.26, flat to
-0.1 K, so the drift is **-12.3 K** and equilibrated. Adding the rows above gives
--1.89 - 0.17 - 0.23 = -1.49 K of accounted change, in which the two config rows
-are WARMING and make the cooling smaller rather than larger. **About -10.8 K is
-unattributed.**
+0.1 K, so the drift is **-12.3 K** and equilibrated. The rows above sum to
+-1.89 + 0.17 + 0.23 = -1.49 K of accounted change, the two config rows being
+WARMING and so making the cooling smaller rather than larger, which leaves
+-12.3 + 1.49 = **-10.8 K unattributed**.
 
 That residual has nowhere to live except the compiled-in half of the bundle,
 which is `world-jgen` with `world-f9ig` and `OCN-22` -- and those are exactly the
