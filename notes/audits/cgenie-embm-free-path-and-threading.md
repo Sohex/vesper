@@ -293,3 +293,93 @@ variables of `eb_go_gs`'s GOLDSTEIN year-20 average and all 88 of
 | `omppoison` | a private copy that needed an inherited value | 16 |
 | `omp`, BIOGEM case | the threads under fourteen tracers and a raised stack | 1, 16 |
 
+---
+
+# 5. What it cost, measured
+
+The cost case is the parallelism note's own: the shipped `worjh2` topography at
+36 x 36 x 16, EMBM and GOLDSTEIN and the sea ice, 100 model years at `nyear`
+100, `-mcmodel=medium`. Retired instructions COUNTED with `perf stat -e
+instructions` rather than sampled, which on a single-threaded process is exact
+and does not move with what else the host is doing.
+
+**The instrument agrees with the sibling's.** The unedited tree at `4038c12e`
+retires 302.68 G instructions over that run. The parallelism note's section 2c,
+which SAMPLED the same case at a period of 2e7, reports 302.4 G. Two different
+instruments, 0.09 per cent apart.
+
+## 5a. Serial, one thread
+
+| arm | source | storage class | G instructions | against `4038c12e` |
+| --- | --- | --- | ---: | ---: |
+| `4038c12e` | unedited | `-fno-automatic` | 302.68 | -- |
+| `serialstatic` | this branch | `-fno-automatic` | 247.88 | -18.11% |
+| `serial` | this branch | `-frecursive` | 246.64 | **-18.51%** |
+| `omp`, 1 thread | this branch | `-frecursive -fopenmp` | 246.64 | -18.52% |
+
+Three readings.
+
+**The whole serial saving is 18.5 per cent**, and the ocean's tracer transport
+allocates nothing.
+
+**The OpenMP runtime is free at one thread.** 246.638 G against `serial`'s
+246.640 G is four significant figures of agreement, so a threaded binary run on
+one thread is not paying for the option.
+
+**And the storage class is nearly free here, which it was not before the last
+commit.** With the earlier form of the threading, where every row recomputed its
+own southern face, `-fno-automatic` cost 288.99 G against `-frecursive`'s
+247.34 -- 16.6 per cent -- because the recomputation loop writes `fs` and reads
+`pec` and `ups`, none of which a compiler can hold in a register when they live
+in static storage. With one recomputation per thread block the gap is 0.5 per
+cent. The lesson is not about either flag: **an instruction count taken under
+one storage class does not price a source change under the other.**
+
+## 5b. Threaded, and the bound is not what binds
+
+Taken on this host at a one-minute load average between 3.3 and 6.0, which
+`scripts/machine.py` calls marginal at the top of that range. The internal
+control says it does not matter here: the `serial` arm at load 16.7 and the
+`omp` arm at one thread at load 6.0 differ by 0.6 per cent in the wall clock and
+by 0.001 per cent in instructions, and every arm's `task-clock` is within 0.3
+per cent of its wall clock, so the process never waited for a core.
+
+| threads | wall, s | speedup | G instructions | instructions added |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 14.47 | 1.00 | 246.64 | -- |
+| 2 | 11.84 | 1.22 | 248.44 | +0.7% |
+| 4 | 11.09 | **1.30** | 251.87 | +2.1% |
+| 8 | 11.78 | 1.23 | 258.96 | +5.0% |
+| 16 | 13.27 | 1.09 | 275.69 | +11.8% |
+
+**The speedup peaks at 1.30 on four threads and falls away above it**, against
+the parallelism note's sixteen-thread Amdahl bound of 12.47. Amdahl's law is not
+what stops it, and neither is correctness: every one of these arms reproduces
+`4038c12e` bit-for-bit.
+
+What stops it is **synchronisation granularity, and the instruction column is
+the evidence**. The added instructions are the OpenMP runtime's own -- entering
+a region, dividing a loop, and waiting at a barrier -- and they grow from 0.7
+per cent at two threads to 11.8 at sixteen. At this grid `tstepo_flux` enters
+one parallel region per ocean timestep and takes a barrier at each of 16 levels,
+and the loop it divides is 36 rows. On sixteen threads that is two or three rows
+of 36 columns between barriers, which is a few hundred cells of work per
+synchronisation.
+
+Two things follow and both are measurements rather than readings.
+
+**A bigger grid moves this and a smaller one does not.** The work between two
+barriers scales as the cell count while the barrier cost does not, so 72 x 72
+puts four times the work between the same barriers and 144 x 144 sixteen times.
+The recommended ocean grid is therefore also the grid at which this
+decomposition starts to pay, and the shipped 36 x 36 is the worst case for it.
+
+**And the routines still serial matter more than the bound suggests.** EMBM is
+12.5 per cent of this case and is not threaded, which is defensible because the
+offline recipe does not run it -- but that means this measurement understates
+what an EMBM-free configuration would get, and there is no EMBM-free
+configuration to measure yet.
+
+The honest summary is that the threading is correct, reproducible, and worth
+1.3 times at the shipped grid, and that what it is worth at the grid this
+project would actually run has not been measured.
