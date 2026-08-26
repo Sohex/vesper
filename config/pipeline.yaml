@@ -1275,6 +1275,30 @@ checks:
   # neither.
   - id: lint_implicit_save
     script: exoplasim/scripts/lint_implicit_save.py
+  # Which procedure locals have ALL their definitions inside a `where`? A
+  # `where` selects which elements the assignment STORES and not which the
+  # compiler EVALUATES, so an automatic local with no initialiser, written only
+  # inside a mask and then read, is read on every discarded lane as whatever the
+  # stack held -- and the declared -ffpe-trap turns that into SIGFPE. Where the
+  # read sits under a different mask or none, the indeterminate lane is stored
+  # rather than discarded. world-d016 found the class in tands, mktsoil and
+  # mkdca and left it unenumerated; this is the enumeration.
+  #
+  # Adjacent to lint_implicit_save and its exact complement: that pass fires on
+  # the PRESENCE of an initialiser, which confers SAVE and under -fopenmp is one
+  # copy for the whole thread team, and this one on its ABSENCE. The module says
+  # why they cannot be one pass.
+  #
+  # A pure text parse, no build and no run, over-reporting in five declared
+  # directions. It answers twenty reduced fixtures on every invocation before it
+  # reports on the tree, and its positive control is the pre-d016 tree, where it
+  # returns exactly the seventeen locals that work found. Each site's verdict is
+  # a row in the script's CLASSIFIED table keyed on the variable name; exit 1 on
+  # anything with neither a fix nor a row. radmod.f90 is DEFERRED to world-px61,
+  # reported separately and not gating, for the reason lint_masked_domains'
+  # division remainder is. smoke_test runs it.
+  - id: lint_masked_locals
+    script: exoplasim/scripts/lint_masked_locals.py
   # Which writes to the shared diagnostics unit can a thread other than 0
   # reach? nud is unit 6, opendiag opens it once under a root guard, and a
   # Fortran unit belongs to the process -- so that one open makes it the
