@@ -1436,7 +1436,7 @@ places and only one is large enough to matter for sign:
 
 | difference | worth |
 | --- | --- |
-| `energy_fixer` and `energy_diagnostics` off | at most +0.3 K, and WARMING, so it makes the gap larger rather than smaller. The fixer applies -0.300 W/m2 on the donor and `lib/sensitivity.py` prices that at about 0.26 K |
+| `energy_fixer` and `energy_diagnostics` off | +0.23 K, and WARMING, so it makes the gap larger rather than smaller. The fixer applies -0.300 W/m2 on the donor and `lib/sensitivity.py` at that run's own planetary albedo of 0.2366 gives 0.778 K per W/m2 |
 | `ncpus` 16 to 8 | none. Thread count is compiled in and changes no physics |
 | four `surface.cryosphere` constants, absent in the donor's config and declared now | unbounded here. They set the modelled sea ice's density, heat capacity and conductivity and the snow fusion enthalpy, and sea ice is where the amplitude is |
 | `surface.land_water_column` from a 1-layer bucket to a 2-layer scheme | unbounded here |

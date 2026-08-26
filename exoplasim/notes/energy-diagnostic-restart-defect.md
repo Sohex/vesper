@@ -75,11 +75,11 @@ load 5.0 to 7.4 over 32 cores. Everything is held except the two energy keys.
 
 Every `nenergy > 0` row fails and the one `nenergy = 0` row does not.
 
-The third row is the control and it is what makes this an isolation rather than
-an observation: the only difference between it and the first is
-`energy_diagnostics`, and it is the only one of the four that finishes. The
-fourth row is the standing production configuration and it fails identically, at
-the same source line, at `nenergy = 1`.
+`run_2260d97ffc27` is the control and is what makes this an isolation rather
+than an observation: it differs from `run_d3606ce0d265` in `energy_diagnostics`
+and in nothing else, and it is the only row that finishes.
+`run_352f6a4180e5` is the standing production configuration, full physics with
+the fixer on, and it fails identically at the same source line at `nenergy = 1`.
 
 ## What the diagnostics are still good for
 
@@ -134,3 +134,13 @@ it reports.
 **What it costs.** The scatter is about 0.008 W/m2 on a `Ct` of 1.25. The T42
 diagnosis stands, because the displacement there is -0.96; a T21 arm cannot be
 used for this quantity at all, because the displacement there is 2e-4.
+
+## The gate sees it too
+
+`scripts/check_consistency.py` reports the five crashed runs under "runs that
+staged no namelists": they have a manifest and no `plasim_namelist`, because the
+segfault comes before the wrapper moves the staged files into place. So a run
+killed by this defect also loses the artifact that
+`verify_staged_namelists` exists to leave behind, and there is nothing to read
+back to find out what it integrated. The `plasim_diag` in the `_crashed`
+directory is the only record, and it is not the one the gate reads.
