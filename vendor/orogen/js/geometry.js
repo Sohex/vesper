@@ -172,9 +172,19 @@ export function spectralGrid(name) {
 }
 
 /**
- * Row boundaries for a latitude axis, as sine-of-latitude edges running north
- * to south. Binning by sin(lat) is what makes assignment to a Gaussian row
- * correct: the rows are unequal in angle but the edges are still monotonic.
+ * ASSIGNMENT boundaries for a latitude axis, as sine-of-latitude edges running
+ * north to south. This is the nearest-row partition: a point belongs to the row
+ * whose centre is closest to it in sin(lat). Binning by sin(lat) is what makes
+ * assignment to a Gaussian row correct, because the rows are unequal in angle
+ * but the edges are still monotonic.
+ *
+ * These are NOT the cell boundaries and their band widths are NOT cell areas.
+ * On a Gaussian grid the cell is the quadrature interval, which is wider at the
+ * pole than the nearest-row interval by 22 per cent at every truncation; on an
+ * equally spaced grid the cell boundary is midway in LATITUDE, not in its sine.
+ * `cellSinEdges` is the partition an area comes from. Two partitions, two
+ * questions: which row does this point fall in, and how much sphere does this
+ * row own.
  */
 export function latitudeEdges(latDeg) {
     const n = latDeg.length;
@@ -198,19 +208,57 @@ export function rowForLatitude(sinLat, edges) {
 }
 
 /**
+ * CELL boundaries for a latitude axis, as sine-of-latitude edges running north
+ * to south. This is the partition the rows OWN, and it is what an area and an
+ * area weight come from.
+ *
+ * On a Gaussian grid the rows sit at quadrature abscissae rather than at cell
+ * centres, so there is no geometric midpoint to appeal to and the partition is
+ * chosen rather than derived. The one that matters is the quadrature's own: the
+ * Gauss-Legendre weights ARE the sine extents of the intervals a spectral model
+ * integrates over, they sum to 2, and laying them end to end from the north pole
+ * gives the only partition on which a global mean of a model field equals the
+ * model's own global mean.
+ *
+ * On an equally spaced grid the rows ARE cell centres, the boundary is midway in
+ * latitude, and its sine is what the band area needs.
+ */
+export function cellSinEdges(grid) {
+    const { height, type, lat, weights } = grid;
+    const edges = new Float64Array(height + 1);
+    edges[0] = 1;                                     // north pole, sin(90) = 1
+    if (type === 'gaussian' && weights) {
+        for (let j = 0; j < height; j++) edges[j + 1] = edges[j] - weights[j];
+    } else {
+        for (let j = 1; j < height; j++) {
+            edges[j] = Math.sin((lat[j - 1] + lat[j]) / 2 / RAD2DEG);
+        }
+    }
+    edges[height] = -1;                               // south pole
+    return edges;
+}
+
+/**
  * Area of each cell of a lat/lon grid, km², row-major from the north pole.
  *
- * Exact for both uniform and Gaussian latitudes: a cell spans a constant
- * longitude width and a latitude band whose sine edges are known, and the area
- * of such a band is R²·Δlon·Δ(sin lat) with no approximation.
+ * A cell spans a constant longitude width and a latitude band whose sine edges
+ * `cellSinEdges` gives, and the area of such a band is R²·Δlon·Δ(sin lat) with no
+ * approximation. Summed over the grid it is 4πR².
  *
- * This is the correct weight for area-averaging a gridded field. The per-region
- * `cell_area` field is a mesh property and must NOT be used for that — resampled
- * onto a grid it becomes the mean area of the mesh regions inside each cell,
- * which is roughly constant everywhere and carries no information about the cell.
+ * This is the correct weight for area-averaging a gridded field, and on a
+ * Gaussian grid it is `grid/gauss_weights.bin` times R²·Δlon, so the two agree
+ * by construction rather than by luck.
+ *
+ * Three area quantities exist and they are three different things. The
+ * per-region `cell_area` field is a MESH property: resampled onto a grid it
+ * becomes the mean area of the mesh regions inside each cell, which is roughly
+ * constant everywhere and carries no information about the cell, so it must NOT
+ * be used to weight a gridded field. The nearest-row band widths in
+ * `latitudeEdges` are an ASSIGNMENT partition and are not areas either.
  */
 export function gridCellArea(grid, radiusKm = PLANET_RADIUS_KM) {
-    const { width, height, sinEdges } = grid;
+    const { width, height } = grid;
+    const sinEdges = cellSinEdges(grid);
     const out = new Float32Array(width * height);
     const dLon = 2 * Math.PI / width;
     const R2 = radiusKm * radiusKm;

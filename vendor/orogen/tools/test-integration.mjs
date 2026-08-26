@@ -20,7 +20,7 @@ import { setDelaunator } from '../js/sphere-mesh.js';
 import { regionLatLon } from '../js/geometry.js';
 import {
     gaussianLatitudes, spectralGrid, latitudeEdges, rowForLatitude,
-    avgEdgeKm, avgCellAreaKm2, SPECTRAL_GRIDS,
+    avgEdgeKm, avgCellAreaKm2, SPECTRAL_GRIDS, gridCellArea, cellSinEdges,
 } from '../js/geometry.js';
 import { makePlanet, gravityFromMassRadius, EARTH, planetSummary } from '../js/planet-params.js';
 import { makeGrid, buildGridLookup, computeSubgridOrography, buildExportBundle } from '../js/data-export.js';
@@ -223,6 +223,62 @@ test('every Gaussian latitude bins back into its own row', () => {
         }
         assert.equal(edges[0], 1);
         assert.equal(edges[n], -1);
+    }
+});
+
+test('grid_cell_area IS the quadrature partition, and the binning partition is not', () => {
+    // The Gauss-Legendre weights are the sine extents of the intervals a
+    // spectral transform integrates over. A cell area built on any other row
+    // boundary partitions the sphere just as validly and closes just as well,
+    // and still reports a global mean the model does not take. So the test is
+    // an identity against the weights, not a sum against the sphere -- the sum
+    // cannot fail. The nearest-row partition is carried alongside as the
+    // negative control, and it must MISS.
+    for (const n of [32, 64, 128]) {
+        const grid = makeGrid(2 * n, n, 'gaussian');
+        const area = gridCellArea(grid, 1.0);
+        const dLon = 2 * Math.PI / (2 * n);
+        let maxRel = 0, controlPolar = 0;
+        for (let j = 0; j < n; j++) {
+            const want = dLon * grid.weights[j];
+            maxRel = Math.max(maxRel, Math.abs(area[j * 2 * n] - want) / want);
+        }
+        assert.ok(maxRel < 1e-6, `n=${n}: cell area departs from the quadrature by ${maxRel}`);
+
+        const binning = latitudeEdges(grid.lat);
+        controlPolar = Math.abs((binning[0] - binning[1]) - grid.weights[0]) / grid.weights[0];
+        assert.ok(controlPolar > 0.2,
+            `n=${n}: the binning partition agrees with the quadrature to ${controlPolar} -- ` +
+            'the control no longer discriminates and this test proves nothing');
+    }
+});
+
+test('an equally spaced grid gets bands midway in latitude, not midway in sine', () => {
+    const n = 180;
+    const grid = makeGrid(2 * n, n, 'uniform');
+    const area = gridCellArea(grid, 1.0);
+    const dLon = 2 * Math.PI / (2 * n);
+    const edge = (j) => Math.sin((90 - j / n * 180) * Math.PI / 180);
+    let maxRel = 0;
+    for (let j = 0; j < n; j++) {
+        const want = dLon * (edge(j) - edge(j + 1));
+        maxRel = Math.max(maxRel, Math.abs(area[j * 2 * n] - want) / want);
+    }
+    assert.ok(maxRel < 1e-6, `equal-angle cell area is off by ${maxRel}`);
+
+    const binning = latitudeEdges(grid.lat);
+    const control = Math.abs((binning[0] - binning[1]) - (edge(0) - edge(1))) / (edge(0) - edge(1));
+    assert.ok(control > 0.2, `the midway-in-sine control agrees to ${control} and cannot discriminate`);
+});
+
+test('cell boundaries tile the sphere pole to pole with no gap', () => {
+    for (const [w, h, type] of [[64, 32, 'gaussian'], [128, 64, 'gaussian'], [360, 180, 'uniform']]) {
+        const e = cellSinEdges(makeGrid(w, h, type));
+        assert.equal(e[0], 1);
+        assert.equal(e[h], -1);
+        for (let j = 0; j < h; j++) {
+            assert.ok(e[j] > e[j + 1], `${type} ${h}: edge ${j} does not descend`);
+        }
     }
 });
 

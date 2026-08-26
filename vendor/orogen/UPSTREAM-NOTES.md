@@ -275,6 +275,16 @@ rows and regridding through equirect is a lossy extra step. `makeGrid()` in
 data-export.js owns the distinction; row binning goes through `latitudeEdges` /
 `rowForLatitude` so it is correct for both.
 
+**A row's BINNING boundary and its CELL boundary are different, and geometry.js
+keeps them apart on purpose.** `latitudeEdges` is the nearest-row partition and
+answers "which row does this point fall in"; `cellSinEdges` is the cell
+partition and answers "how much sphere does this row own". Both tile the sphere
+exactly, which is why using one for the other's job passes every conservation
+check and still reports a global mean the model does not take: at the poles they
+differ by 22% on a Gaussian grid and 25% on an equally spaced one, at every
+resolution. `gridCellArea` must take `cellSinEdges`, and an upstream merge that
+collapses the two functions reintroduces the defect silently.
+
 **The planet code is data-driven now.** `encodePlanetCode` derives its packing
 from the same field table `decodeFormat` reads. Hand-maintaining a parallel list
 of RADICES indices is how the two silently drifted apart and dropped a slider;

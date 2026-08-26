@@ -77,7 +77,7 @@ from _paths import ANALYSIS, CONFIG, PEDOGENESIS, PROJECT_ROOT, climatology_path
 
 import builds
 from brine_paths import ROCK_TO_MEYBECK
-from gridding import land_fraction_of_class
+from gridding import gaussian_grid, land_fraction_of_class, require_gaussian_rows
 from paths import rel
 
 from build_soil import EARTH_YEAR_DAYS, KELVIN, lithology_fractions
@@ -118,17 +118,22 @@ def grid_cell_area_km2(lat: np.ndarray, lon: np.ndarray,
                        radius_km: float) -> np.ndarray:
     """Area of every cell of a Gaussian grid, km2, shaped (nlat, nlon).
 
-    The rows are Gaussian latitudes and are NOT evenly spaced, so the bands run
-    between row midpoints rather than at a fixed spacing. The radius is the
-    export manifest's, not Earth's. One implementation, because two scripts
-    turn a flux per litre into a flux per year with it and a second copy is a
-    second chance to put Earth's radius in.
+    A Gaussian row is a quadrature abscissa, not a cell centre, so the band
+    between row MIDPOINTS is a different partition of the sphere from the one
+    the spectral model integrates over. It closes to 4 pi R^2 just as exactly
+    and it is 5.8 per cent wide in the polar row at every truncation, which does
+    not shrink with resolution; here that lands on an ABSOLUTE flux, so a polar
+    cell's silica and phosphorus release would come out 5.8 per cent high rather
+    than being damped by a ratio. The rows own their Gauss-Legendre intervals,
+    and `lib/gridding.py` constructs those in one place for the whole tree.
+
+    The radius is the export manifest's, not Earth's. One implementation,
+    because two scripts turn a flux per litre into a flux per year with it and a
+    second copy is a second chance to put Earth's radius in.
     """
-    dlon = 2.0 * np.pi / len(lon)
-    edges = np.deg2rad(np.concatenate(
-        ([90.0], 0.5 * (lat[:-1] + lat[1:]), [-90.0])))
-    band = np.abs(np.sin(edges[:-1]) - np.sin(edges[1:]))
-    return (radius_km ** 2 * dlon * band)[:, None] * np.ones((1, len(lon)))
+    spec = gaussian_grid(len(lat), len(lon))
+    require_gaussian_rows(spec, lat, what="the grid these cell areas are for")
+    return spec.cell_area_fraction() * (4.0 * np.pi * float(radius_km) ** 2)
 
 
 

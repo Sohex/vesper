@@ -297,55 +297,75 @@ needed for.
 ## 3f. What the connector says about the same ceiling
 
 `references/muffingen` is the generator for the `.k1`, `.paths` and `.psiles`
-files a new geography needs, and it is where OCN-18's second half sat. Re-read
-2026-08-25 for world-crky.
+files a new geography needs, and it is where OCN-18's second half sat. Run here
+2026-08-25 under GNU Octave 11.3.0 for world-crky; the driver, the settings
+files and the sixteen run logs are the reproduction recipe below.
 
-- **It has been run above 36 x 36, and the evidence ships.**
-  `vendor/cgenie/genie-paleo/fm0000bb/` holds a complete world at 48 x 40 x 16 --
-  a `.k1` of 50 by 42 numbers, which is 48 by 40 plus the one-cell border the
-  format carries, with `.paths`, `.psiles`, wind stress, albedo and mask beside
-  it -- together with the generator's own configuration
-  (`par_max_i=48`, `par_max_j=40`, `par_max_k=16`, `par_gcm='foam'`) and its run
-  log. Two shipped cGENIE configurations compile against it,
-  `muffin.C.fm0000bb` and `muffin.CB.fm0450ab.BASES`. It is the only one:
-  `genie-paleo` holds 294 `.k1` files across 234 worlds that carry a muffingen
-  log, and every other one of them is 36 x 36, 18 x 18 or 12 x 12. So the earlier
-  reading that nothing above 36 x 36 ships was wrong, and the demonstrated
-  ceiling for the CONNECTOR is 48 x 40 rather than 36 x 36. The declared
-  `[1-72]` is still only declared.
-- **The automatic island machinery ran at that resolution and found the
-  answer.** The log's steps 14 and 15 are `IDENTIFY ISLANDS` and
-  `UPDATING ISLANDS & PATHS`, and they report four candidates narrowing to
-  "total # true islands = 3". The interactive editors were entered and declined,
-  so the paths in that directory are the automatic ones. Statically the
-  machinery carries no dimension: `make_genie_grid.m` takes `n_i`, `n_j` and
-  `n_k` as arguments, and `find_grid_islands.m`, `find_grid_islands_update.m`
-  and `make_grid_psiles.m` take their extent from the mask they are handed.
-  Nothing in the tree keys on 36.
-- **The netCDF dependency is confined to the four GCM input arms.** Every file
-  that touches the low-level `netcdf.*` family is named for the model it reads --
-  `fun_read_*_hadcm3x`, `*_foam`, `*_cesm`, `*_rockee`, and the matching
-  `make_grid_winds_*` -- and the whole of that interface is five entry points:
-  `netcdf.open`, `netcdf.close`, `netcdf.inq`, `netcdf.inqVarID`,
-  `netcdf.getVar`. Nothing creates or writes netCDF, and the two `ncread` calls
-  in the tree are inside comments. The `mask`, `k1`, `k2` and `blank` arms leave
-  every `par_nc_*_name` empty, read their input through `load()` on a plain
-  ASCII `.dat`, and take their winds from `make_grid_winds_zonal`, which reads
-  nothing. So the arm this project would use -- geography from Orogen, not from
-  a vendored GCM -- needs no netCDF at all, and the Octave question narrows from
-  a package to core language and graphics.
-- **The interactive path is optional and off by default on that arm.**
-  `opt_user=false` and `opt_plots=false` disable every `ginput` and every
-  figure, which is what makes a headless run possible at all.
-- **Whether it runs under Octave is STILL not demonstrated, and it is a host
-  blocker rather than an open question.** `octave` and `octave-cli` are both
-  absent from this host; the distribution packages `extra/octave` and it is not
-  installed, and there is no MATLAB. The reproducible test, once one of them is
-  present, is `EXAMPLE_MASK_waterworld.m` with `par_max_i` and `par_max_j`
-  raised, `opt_user=false`, `opt_plots=false`, run headless. That exercises the
-  grid, the island machinery and the file writers with no netCDF and no display,
-  which is the shortest path from "declared" to "demonstrated" for both halves
-  of world-crky.
+- **It runs outside MATLAB, headless, with no netCDF package installed.**
+  Sixteen configurations of muffingen v0.9.26 completed under `octave-cli`
+  11.3.0 with `opt_user=false`, `opt_plots=false` and no display. The Octave
+  install carried no packages at all, which settles the netCDF question by
+  demonstration on the arm this project would use, and settles the arm's
+  graphics need as well.
+- **THE KNOWN-GOOD ANSWER REPRODUCES EXACTLY.** `genie-paleo/wworld` is a
+  36 x 36 world generated under MATLAB by muffingen v0.64, and it ships its own
+  generator configuration and run log. Re-run from that configuration, Octave
+  wrote a `.k1`, a `.paths` and a `.psiles` BYTE-IDENTICAL to the shipped three,
+  and its log reports the same island result: both pole islands found and
+  uncounted, `total # true islands = 1`. The wind-stress and albedo files differ,
+  and that is the v0.64 to v0.9.26 generator change rather than the interpreter:
+  the newer version splits planetary from cloud albedo, renames the output, and
+  labels its winds "idealized". Reproducing a known-good answer before attempting
+  a new one is what makes the higher-resolution runs interpretable.
+- **THREE INCOMPATIBILITIES, NONE OF THEM netCDF AND NONE OF THEM A TOOLBOX.**
+  `muffingen.m` queries `get(0,'Diary')`, which is a MATLAB root-object property
+  Octave's root does not carry; the call raises before anything else runs, and
+  `diary off` unconditionally is equivalent in both. The other two are
+  unguarded plots: `source/make_grid_winds_zonal.m` emits two zonal wind-stress
+  profile figures with no `opt_plots` test -- the flag is not even a parameter of
+  that function, so no settings file can suppress them -- and `muffingen.m`
+  emits the generic zonal-mean planetary albedo and cloud albedo profiles the
+  same way. Every other figure in the tree is behind `opt_plots`. On a host with
+  a working graphics toolkit those three would cost a `.ps` file each and
+  nothing else; this host has none, because Octave 11.3.0 is installed without
+  `fltk` and without `gnuplot`, so `available_graphics_toolkits` is empty and
+  `figure` raises. Installing either package would let muffingen run unpatched
+  except for the `Diary` line.
+- **`par_max_i` AND `par_max_j` ARE IGNORED ON THE ARM THIS PROJECT WOULD USE,
+  and this is the finding that matters most for the connector.** On `par_gcm` of
+  `mask`, `k1` or `k2`, `muffingen.m` calls `fun_read_k1`, which returns
+  `[jmax,imax] = size(gk1)` from the input file, and then re-generates the GENIE
+  grid from those. The code says so: "imax and jmax are deduced from the file".
+  Twelve runs that raised `par_max_i` and `par_max_j` to 48 x 40 and 72 x 72 over
+  the shipped 36 x 36 example masks all produced 36 x 36 output. The connector's
+  resolution is set by the MASK OROGEN WRITES, not by a muffingen parameter, and
+  the `[1-72]` annotated on those two parameters governs only the GCM arms.
+  `par_max_k` is honoured everywhere.
+- **Given genuinely high-resolution input it produces a complete, well-formed
+  world at 48 x 40 and at 72 x 72.** A 48 x 40 mask gives a `.k1` of 50 by 42,
+  exactly the shape of the shipped `fm0000bb.k1`, with the same border rows, the
+  same duplicated zonal wrap columns, land runoff codes in 91 to 94, and a
+  `.psiles` of 48 by 41. A 72 x 72 mask gives 74 by 74 and 72 by 73. Nothing
+  degrades and nothing warns.
+- **The automatic island machinery gets the right answer at 72 x 72.** A
+  synthetic 72 x 72 world built with six separate landmasses -- a meridional
+  barrier clear of both poles, four isolated islands and a north polar cap --
+  was resolved into exactly six: six land masses found, six true islands, six
+  paths built as `#2` through `#7` with `#1` the ignored border, the south pole
+  correctly left as the uncounted open-ocean reference, and `.psiles` indices
+  running 0 to 7. This is the check the manual's warning asks for, at the
+  resolution that was only declared before.
+- **The `k1` arm round-trips bathymetry exactly, and the `mask` arm has none.**
+  A 72 x 72 `.k1` carrying thirteen distinct depth levels came back with the
+  mask preserved cell for cell and every level unchanged, and the island machinery
+  ran on it with the corner handling engaged. The `mask` arm cannot do this: it
+  sets a uniform ocean depth, so its `.k1` is a flat ocean at `par_min_k`. So the
+  Orogen connector writes a `.k1`, not a mask `.dat`, and the land runoff codes
+  it carries pass through unchanged rather than being recomputed.
+- **What this did NOT establish.** No generated world was integrated by cGENIE.
+  Usability is claimed structurally -- shape, border convention, wrap columns,
+  land codes, level range, island count against `.psiles` and `.paths` -- against
+  the shipped `fm0000bb` and `wworld` as the format reference, and not by a run.
 - **It is GPL-3**, where cGENIE is MIT. Consuming its output is unencumbered;
   vendoring the generator would bring a different licence into this tree.
 
@@ -353,6 +373,16 @@ The island count itself is a compile-time bound, `GOLDSTEINMAXISLES`, and the
 sweeps here compile with it raised well past the shipped default, so it is a
 build parameter rather than a ceiling.
 
+**To reproduce.** muffingen is GPL-3 and is not vendored, so the recipe is
+stated rather than a script kept in the tree. Copy `references/muffingen`'s
+`muffingen.m`, `source/`, `DATA/` and the input mask outside the repository;
+replace the `get(0,'Diary')` line with `diary off;`; comment out the two
+figure blocks in `source/make_grid_winds_zonal.m` and the two albedo-profile
+figure blocks in `muffingen.m`, or install a graphics toolkit instead; write a
+settings file with `par_gcm='k1'`, an eight-character `par_wor_name`,
+`opt_user=false` and `opt_plots=false`; and run
+`octave-cli --no-gui --eval "muffingen('<settings>')"`. The input file's own
+dimensions set the output resolution.
 
 ---
 
@@ -687,4 +717,7 @@ planet is that audit's question and not this one's.
   instruction counts do not have this problem and every quantitative claim above
   rests on those; where seconds appear they come from the `perf` runs' own CPU
   time and are upper bounds. world-ap7w owns the quiet-host re-take.
-- **Octave is still open**, as section 3f says, and is world-crky.
+- **No generated world was integrated by cGENIE.** Section 3f establishes the
+  connector's output at 48 x 40 and 72 x 72 structurally, against the format the
+  shipped worlds use. Whether GOLDSTEIN solves the barotropic streamfunction on
+  a 72 x 72 `.paths` is a separate question and is not answered here.

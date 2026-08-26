@@ -88,12 +88,15 @@ export const FIELD_META = {
     x: M('1', 'Region unit position vector, x component'),
     y: M('1', 'Region unit position vector, y component (sin latitude)'),
     z: M('1', 'Region unit position vector, z component'),
-    cell_area: M('km2', 'Area of the region\'s dual mesh cell. A MESH property — raw output only. '
-        + 'Do not area-weight a gridded field with it; use grid_cell_area, which is the area of the '
-        + 'grid cell itself.'),
-    grid_cell_area: M('km2', 'Area of this grid cell. The correct weight for area-averaging any '
-        + 'gridded field, exact for both uniform and Gaussian latitudes. Sums to the planet\'s '
-        + 'surface area.'),
+    cell_area: M('km2', 'Area of the region\'s dual mesh cell. A MESH property — raw output only, '
+        + 'and the right weight for reducing MESH regions onto a grid cell. Resampled onto a grid it '
+        + 'becomes the mean region area per cell, which carries no information about the cell, so it '
+        + 'is not a grid weight; use grid_cell_area for that.'),
+    grid_cell_area: M('km2', 'Area of this grid cell, exact, summing to the planet\'s surface area. '
+        + 'The weight for area-averaging a gridded field. On a Gaussian grid the row boundaries are '
+        + 'the Gauss-Legendre intervals, so this is grid/gauss_weights.bin times R² times the '
+        + 'longitude step and a global mean taken with it is the one a spectral model takes; on an '
+        + 'equally spaced grid the boundaries are midway in latitude.'),
 
     // Elevation
     // The model's internal elevation is a dimensionless shaping parameter, NOT
@@ -1036,7 +1039,8 @@ export function buildExportBundle(data, opts = {}) {
                 dtype: 'float32', shape: [gridHeight, gridWidth],
                 units: FIELD_META.grid_cell_area.units,
                 description: FIELD_META.grid_cell_area.description,
-                categorical: false, method: 'exact grid geometry',
+                categorical: false, method: 'exact cell boundaries: Gauss-Legendre intervals on a '
+                    + 'Gaussian grid, midway in latitude on an equally spaced one',
             });
         }
 
@@ -1093,16 +1097,20 @@ export function buildExportBundle(data, opts = {}) {
             projection: 'equirectangular (plate carrée), cell-centre registered',
             width: gridWidth, height: gridHeight,
             rowOrder: 'north to south (row 0 = +90)',
-            areaWeighting: 'Use grid_cell_area for area-weighted statistics. The per-region '
-                + 'cell_area field is raw-only and is NOT a valid grid weight.',
+            areaWeighting: 'Use grid_cell_area for area-weighted statistics; on a Gaussian grid '
+                + 'grid/gauss_weights.bin is the same partition expressed as weights summing to 2. '
+                + 'The per-region cell_area field is raw-only and is NOT a valid grid weight.',
             colOrder: 'west to east (col 0 = -180)',
             defaultMethod: gridMethod,
             gridType,
             truncation: gridTruncation,
             latitudeNote: gridType === 'gaussian'
-                ? 'Rows are at Gauss-Legendre latitudes, matching a spectral transform grid. '
-                + 'grid/gauss_weights.bin holds the quadrature weights.'
-                : 'Rows are equally spaced in latitude.',
+                ? 'Rows are at Gauss-Legendre latitudes, matching a spectral transform grid. They '
+                + 'are quadrature abscissae and not cell centres, so a row owns its quadrature '
+                + 'interval rather than the band around its midpoint; grid/gauss_weights.bin holds '
+                + 'those intervals as weights summing to 2, and grid_cell_area is the same partition '
+                + 'in km².'
+                : 'Rows are equally spaced in latitude and are cell centres.',
             subgridOrography: manifestSubgrid,
             byteOrder: 'little-endian',
             coords: {
