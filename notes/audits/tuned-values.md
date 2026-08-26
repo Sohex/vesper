@@ -246,34 +246,72 @@ a build with a climatology and is not a model run.
 
 ---
 
-### 4. `maximum_depth_m = 5.0`, the asymptote nobody labelled
+### 4. `maximum_depth_m`, the asymptote nobody labelled
 
-`pedology/config/pedogenesis.yaml:543`. The whole comment is "Asymptote, not a
-clip: the depth to which weathering can reach at all." The block above argues at
-length for the saturating FORM over Heimsath's exponential and concedes that it
-is a parameterisation rather than a derivation; neither says where 5 m comes
-from. No source, no bracket.
+`pedology/config/pedogenesis.yaml`'s `regolith:` block. The whole comment used
+to be "Asymptote, not a clip: the depth to which weathering can reach at all."
+The block above it argues at length for the saturating FORM over Heimsath's
+exponential and concedes that it is a parameterisation rather than a
+derivation; neither said where the number came from. No source, no bracket.
 
 **Magnitude.** A pure prefactor: a 10 per cent move changes every cell's
 regolith depth and therefore land-mean PAWC by exactly 10 per cent. Per unit
-fractional change it is a larger lever than `erosion_weight`, and unlike
-`erosion_weight` it is not labelled free anywhere.
+fractional change it is a larger lever than the erosion coefficient, and unlike
+that coefficient it was not labelled free anywhere.
 
-**Disposition: REPLACEABLE, SOURCE NEEDED, and NOT from the pair in row 3.**
-This row said "same pair of papers as row 3; a weathering-front depth is what a
-production function integrates to", and having read both, that is wrong. A
+**This row's first disposition was WRONG and is recorded rather than deleted.**
+It said "same pair of papers as row 3; a weathering-front depth is what a
+production function integrates to". Having read both, that is false. A
 production function integrates to a STEADY-STATE depth against an erosion rate,
 which is row 3's bracket; it does not integrate to a maximum reach. Heimsath's
 form has no asymptote at all, running to infinity as erosion vanishes -- that
 divergence is the reason this file replaced it. Portenga and Bierman measure
 denudation and not the depth a weathering front reaches. Neither bears on this
-number and no amount of re-reading either will.
+number and no amount of re-reading either would have changed that.
 
-What would settle it is a measured depth-to-bedrock distribution. Shangguan,
-Hengl, Mendes de Jesus, Yuan and Dai (2017), *Mapping the global depth to
-bedrock for land surface modeling*, JAMES 9, `10.1002/2016MS000686`, is the
-global product and is not held. Until then it is a declared prefactor and is
-labelled as one in the config.
+**Disposition: SOURCED AS A BRACKET, from Shangguan, Hengl, Mendes de Jesus,
+Yuan and Dai (2017), *Mapping the global depth to bedrock for land surface
+modeling*, JAMES 9, 65-88, `10.1002/2016MS000686`.** Read 2026-08-26. Their
+Table 1, world row, absolute depth to bedrock over 1,590,464 soil-profile and
+borehole observations: median 670 cm, mean 1,309.3 cm, maximum 312,541 cm.
+
+The measurement is not the modelled quantity, and it misses it in two
+directions the paper itself names. Both become an end of the bracket, which is
+the same shape row 3's disposition took and for the same reason.
+
+- **The median bounds it from below.** The observed population is
+  overwhelmingly eroding land, and an eroding profile sits under the asymptote
+  it would reach without erosion. A second reason runs the same way: a soil
+  survey logs intact weathered rock as R horizon, so a profile-derived map
+  reads as deeper than what it prints.
+- **The mean bounds it from above.** Depth to bedrock counts transported fill
+  as readily as in-situ weathering product, and this model's regolith is
+  in-situ product only. The mean is 1.95 times the median and the maximum is
+  3.1 km, which is the size of that contamination.
+
+So the bracket is 6.70 to 13.09 m, and the declared value is the low end
+because every correction that separates the observation from the modelled
+quantity runs upward from the median and downward from the mean, and the
+depositional contamination is the larger of the two. The observation set is
+dominated by North American and European boreholes, where glacial drift and
+alluvium are most of what the drill passes through.
+
+**The PDF is not held and the reason is worth recording, because it is a state
+between "fetched" and "closed access".** The article is gold open access --
+Unpaywall, OpenAlex and Semantic Scholar all name the publisher's `pdfdirect`
+URL as the OA copy -- and that URL returns HTTP 403 to `paperfetch`, to plain
+curl, to a browser-impersonating curl carrying a session cookie, and to a
+reader proxy. There is no repository copy and no Wayback snapshot. The full
+text was read through the publisher's own HTML article page instead, and the
+table was transcribed twice independently before being used.
+
+**What this row also exposed, which no key's own bracket says.** This
+prefactor and `erosion_coefficient_per_relief_m` are JOINTLY constrained: the
+prefactor scales and the coefficient carries the level, and the land-mean depth
+the pair produces has to land inside `regolith_depth_bracket_m`, which brackets
+the LEVEL and not either key. Moving one alone can put the level outside a
+bracket neither key mentions. A sweep runs the two together, and nothing in the
+tree checks it, because no gate reads `pedogenesis.yaml`'s brackets at all.
 
 ---
 
@@ -758,28 +796,89 @@ can supply.
 
 ### 15. The pedology blocks that carry no bracket
 
-The pedology sweep's own headline: the tuned values in that component are
-concentrated in `pedology/config/pedogenesis.yaml`'s `regolith:` and `texture:`
-sections, and those are the only blocks in the file that do not ship brackets.
-Every other declared-without-a-source value in either that component or
-hydrography (`catena`, `water`, `andisol`, `bedrock_water`, the loess threshold,
-`f_grad`, `lambda_m`) ships a bracket and an instruction not to tune within it.
+The pedology sweep's own headline: the tuned values in that component were
+concentrated in `pedology/config/pedogenesis.yaml`'s `regolith:`, `texture:`
+and `ph:` sections, and those were the only blocks in the file that did not
+ship brackets. Every other declared-without-a-source value in either that
+component or hydrography (`catena`, `water`, `andisol`, `bedrock_water`, the
+loess threshold, `f_grad`, `lambda_m`) ships a bracket and an instruction not
+to tune within it.
 
-| where | value | what is missing | magnitude |
+| where | what was missing | magnitude | disposition |
 | --- | --- | --- | --- |
-| `pedogenesis.yaml:236` | `clay_conversion = 0.55` | no comment on the value, no source, no bracket; numerically identical to `clay_yield` at `:298`, which WAS fitted to a SoilGrids slope of 0.543 | near-linear at this world's weathering intensity: a 10 per cent move is +9.2 per cent converted clay |
-| `pedogenesis.yaml:298` | `clay_yield = 0.55` | fully admitted as an Earth fit over sixteen type localities, and applied BELOW the range it was calibrated in, where the file records the bias is largest | linear multiplier; documented residual bias of +0.084 clay fraction at this world's mean |
-| `pedogenesis.yaml:565` | `dry_erosion_baseline = 0.15` | the mechanism is argued and the value is not attached to it; no source, no bracket | 21 per cent of the moisture term at the land mean, 100 per cent of it over the arid 18 per cent of land, where depth goes as its reciprocal |
-| `pedogenesis.yaml:619-633` | the pH block: six parent values, `leaching_slope` at `:629`, `endorheic_alkalinity_bonus = 0.8` | no comment on ANY value, no citation, no bracket, nothing in README, notes or references | 0.9 moves land-mean soil pH by 0.04 per 10 per cent and wet-cell pH by 0.13; the bonus is a flat 0.08 over the closed-basin fraction that the brine and duricrust rules key on |
-| `pedogenesis.yaml:301` | `sand_to_silt_loss_ratio = 2.0` | no source; and the mechanism sentence beside it has the surface-area argument backwards, which suggests the number did not come from the reasoning printed next to it | redistributes 2 to 3 per cent between sand and silt at fixed clay; under 1 per cent on PAWC |
+| `texture.clay_conversion` | no comment on the value, no source, no bracket; numerically identical to `clay_yield`, which WAS fitted to a SoilGrids slope of 0.543 | near-linear at this world's weathering intensity: a 10 per cent move is +9.2 per cent converted clay | BRACKETED on the e-folding intensity, 0.29 to 1.00, and the near-degeneracy with `clay_yield` recorded |
+| `texture.clay_yield` | fully admitted as an Earth fit over sixteen type localities, and applied BELOW the range it was calibrated in, where the file records the bias is largest | linear multiplier; documented residual bias of +0.084 clay fraction at this world's mean | UNCHANGED. It is disclosed, and disclosure is the standard this row asks for |
+| `regolith.dry_erosion_baseline` | the mechanism was argued and the value was not attached to it; no source, no bracket | 21 per cent of the moisture term at the land mean, 100 per cent of it over the arid fraction of land, where depth goes as its reciprocal | SOURCED from Portenga and Bierman's arid basins, and bracketed from their stated uncertainties |
+| the `ph:` block: six parent values, `leaching_slope`, `endorheic_alkalinity_bonus` | no comment on ANY value, no citation, no bracket, nothing in README, notes or references | the slope moves land-mean soil pH by 0.04 per 10 per cent and wet-cell pH by 0.13; the bonus is a flat 0.08 over the closed-basin fraction that the brine and duricrust rules key on | ONE ENTRY DERIVED, the rest bracketed, and the block's FORM refuted by its own source |
+| `texture.sand_to_silt_loss_ratio` | no source; and the mechanism sentence beside it had the surface-area argument backwards, which is why the number did not follow from the reasoning printed next to it | redistributes 2 to 3 per cent between sand and silt at fixed clay; under 1 per cent on PAWC | BRACKETED over both mechanisms, sentence corrected, and the value moved to the one point in the bracket that carries a statement |
 
-**Disposition: REPLACEABLE NOW, as brackets.** The cheapest correct move here is
-not new physics. It is the bracket discipline the rest of the same file already
-enforces on itself, applied to the five rows above, so that what is unknown is
-declared as unknown and gets swept rather than quoted. SoilGrids `phh2o` over the
-sixteen sites `pedology/scripts/validate_against_earth.py` already joins to would
-bracket `leaching_slope` directly, with the caveat the file itself raises that
-those sites have absorbed one fit already.
+**Disposition: RESOLVED, and one of the five turned out not to be a bracketing
+job at all.** The arithmetic behind every end is in
+`pedology/notes/pedogenesis-value-provenance.md`; what follows is what changed
+and what reading the sources found.
+
+**`dry_erosion_baseline` was sourced, not bracketed, and it was low by a factor
+of about six.** The moisture term is `runoff / reference_runoff +
+dry_erosion_baseline`, so the key IS the ratio of denudation at zero runoff to
+denudation at Earth's reference runoff, as `b / (1 + b)` -- and that ratio is
+something the compilation already read for row 3 reports. Portenga and Bierman
+put arid drainage basins at 100 +/- 17.3 m/Myr, the slowest of their climate
+zones, against a global drainage-basin mean of 218 +/- 35 m/Myr. The ratio is
+0.459 and inverts to 0.85, with the two stated uncertainties giving a bracket
+of 0.49 to 1.79. The old 0.15 was a suppression of dry denudation to 13 per
+cent of the reference rate with nothing behind it. **The bracket reaching a
+nearly flat moisture term is the same paper's doing**: its basin denudation has
+no significant bivariate correlation with mean annual precipitation at all,
+mean basin slope being the regressor. This is the second time that compilation
+has answered a question this audit did not fetch it for.
+
+**The pH block's alkaline end is DERIVED, at this world's atmosphere rather
+than Earth's.** Slessarev, Lin, Bingham, Johnson, Dai, Schimel and Chadwick
+(2016), *Water balance creates a threshold in soil pH at the global scale*,
+Nature 540, 567-569, `10.1038/nature20139`, give the calcite equilibrium in
+their Methods as a quartic in hydrogen ion activity at a stated CO2 partial
+pressure. That is a derivation to do rather than a number to copy, which is the
+shape Kessler took in row 12. Solved at their laboratory pressure it returns
+8.236, and at the pre-1977 pressure they quote a check for it returns 8.248;
+both round to what the paper prints, so the transcription is theirs and not
+something plausible assembled beside it. Solved at Vesper's declared pCO2 it
+gives 8.16 for the calcite buffer and 5.59 for water carrying no alkalinity,
+and those two values bracket every silicate parent from both sides while the
+carbonate parent takes the first outright. The derivation travels to another
+planet, which is what separates it from adopting 8.2.
+
+**And the same paper refutes the block's FORM, which is more than this row
+asked for.** Slessarev sample 20,000 subsoil pH measurements out of 60,291 and
+find the distribution BIMODAL: a calcite mode near 8.2 and a gibbsite mode near
+5.1, with an abrupt step where mean annual precipitation begins to exceed
+potential evapotranspiration, and the neutral range uncommon. The acid end is
+set by gibbsite WHATEVER the rock was. `build_soil.py:soil_ph` instead starts
+every parent at its own value and takes a single `leaching_slope` down from it,
+so no one slope lands the wet cells on one buffer. That is a property of the
+form, and it is why the values in the block are bracketed rather than fitted:
+they cannot be sized against this observation until the form changes. The
+bracket on `leaching_slope` is the requirement evaluated at two runoffs and the
+declared value sits at its low end, because a steeper slope drives the felsic
+and metamorphic parents onto the `minimum` clip across wet land -- which is the
+railing the regolith block was rewritten to remove.
+
+**`sand_to_silt_loss_ratio` is not derivable and the bracket says so.** The two
+mechanisms point opposite ways: specific surface area goes as one over grain
+diameter, so silt dissolves faster per unit mass and the USDA class limits put
+that at a ratio of 0.032; while weathering as a size cascade has sand leaving
+its own class faster than dissolution implies with silt replenished out of it,
+which is unbounded above. The bracket is that whole span and the value now sits
+at the one point inside it carrying a statement, loss in proportion to
+abundance. That a bracket three orders of magnitude wide still moves PAWC by
+under one per cent is the result, not a weakness of the bracket.
+
+**What is left open, and it is not a value.** Nothing in the tree reads
+`pedogenesis.yaml`'s brackets. `outgassing_gate.py` already does exactly this
+job for its own declaration -- bracket well-formed, ends the right way round,
+value inside -- and there is no equivalent for the file this row is about, so a
+declared value drifting outside its declared bracket is invisible to every
+gate. Row 4's joint constraint between `maximum_depth_m` and
+`erosion_coefficient_per_relief_m` is invisible for the same reason.
 
 ---
 
