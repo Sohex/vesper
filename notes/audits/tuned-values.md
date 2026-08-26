@@ -609,11 +609,23 @@ land.** The old solve was per grid, so two rungs differed by their terrain and b
 their calibration at once and SPAT-8 had to pass one coefficient to every rung.
 The derived orographic term takes the mesh's slope and the mesh's spacing, and
 the grid rung enters only through which regions fall in which cell. Measured on
-`canonical-10m-base` on 2026-08-26 the derived land mean differs between T21 and
-T42 by about 2 per cent, against a factor of 1.8 for the Earth-anchored arm.
-`analysis/spatial_reduction_gap.py`'s recalibration arm now measures that spread
-across the whole ladder, and a derived land mean that moved with the rung would
-say the scheme was still carrying the support inside it.
+`canonical-10m-base` on 2026-08-26, the field's own land mean runs 0.403, 0.410,
+0.419 and 0.432 m at T21, T42, T85 and T170, against a factor of 1.8 between the
+two rungs the Earth-anchored arm could be built at at all. Most of that 7 per
+cent is in the COVER term, whose own land mean runs 0.375 to 0.399 m over the
+same span: the reduction is an expectation of `ce` and a finer cell holds fewer
+surface classes, so the Jensen suppression falls as the ladder is climbed.
+`analysis/spatial_reduction_gap.py`'s recalibration arm isolates the orographic
+part by holding the cover reduction linear, and there the land mean spreads by
+0.9 per cent from T21 to T170 where the solved coefficient it replaced moved by
+a factor of 1.98. A derived land mean that moved with the rung would say the
+scheme was still carrying the support inside it.
+
+**And it builds on rungs the anchored arm could not.** The model ships a
+boundary dataset at `N032` and `N064` only, so the Earth-anchored default
+refused above T42 and a ladder comparison had to pass it a fixed coefficient.
+The derived arm needs nothing from the vendored dataset and builds at every rung
+the export carries.
 
 **A consequence for SPAT-7 that has to travel with this.** The reduction-order
 correction the roughness field carries -- averaging `ce` over a cell's surfaces
