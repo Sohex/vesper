@@ -22,6 +22,23 @@ from builds import mesh_export as _configured_mesh_export
 # Elevation conversion changed meaning in this build: below-sea-level land used
 # to take the bathymetric branch and read ten times too deep. Refuse to run
 # against an export that predates the fix rather than producing quiet nonsense.
+#
+# An entry is {name, note} plus an OPTIONAL `refusal`. REGISTERED and ACTIVATABLE
+# are two different questions and this key is what separates them. Registration
+# says an export with this hash is recognised, which is what keeps a result
+# already computed from it readable; `refusal` says the tree may not POINT at it,
+# and carries the reason as a sentence. Its absence is the only statement that a
+# build may be named as `config/planet.yaml`'s `source_build`, and
+# `scripts/check_consistency.py` is what enforces that.
+#
+# The key exists because the refusals used to be prose: "NOT ACTIVATABLE AS IT
+# STANDS" in a comment above one entry, "Do not use." at the end of another's
+# note, "SUPERSEDED by <hash>" inside a third's. No gate can read any of that, so
+# config named a build the registry refused for as long as nobody noticed, and
+# batch P0C measured the basin catalogue on two builds because it could not tell
+# which was active. Add a `refusal` whenever a note gains the word WITHDRAWN,
+# SUPERSEDED or NOT ACTIVATABLE; those three are the whole trigger, and a build
+# that acquires one and does not get the key is invisible to the guard again.
 _KNOWN_TERRAIN_HASHES = {
     "821aa71b37a7beda0b59398c7f005b91531050000ca46660d0f724cdb3f401a3":
         {"name": "precarve-unzoned", "note":
@@ -35,7 +52,12 @@ _KNOWN_TERRAIN_HASHES = {
     "27b7479aa486f5dacebccb0c638ff839a60a98e617c2437229600ef0bacf32ec":
         {"name": "withdrawn-basin-floor-drift", "note":
          "WITHDRAWN 2026-08 build: basin-protection floor drift, superseded by "
-        "821aa71b. Do not use."},
+        "821aa71b. Do not use.",
+         "refusal":
+         "withdrawn: the basin-protection floor was captured pre-erosion and "
+         "stored absolute, so the carve took back divides erosion had raised. "
+         "Reverted upstream, and the regenerated export is bit-identical to "
+         "821aa71b, which is the build to name instead."},
     # Evaporite split into salt crust (0.50) and playa clastics (0.30). The two
     # have different erodibility, 3.50 against 2.80, so stream power sees a
     # different surface and the terrain moved on both planets. The basin
@@ -54,7 +76,10 @@ _KNOWN_TERRAIN_HASHES = {
     "3899a0c57d1eee2f47ba9054c218a171a7aa4532e2437c9104070c2c3dfaece6":
         {"name": "carved-zoned", "note":
          "2026-08 carved-zoned: iteration-1 carve verdict applied, crust/fill "
-        "split. SUPERSEDED by 010f2143 -- its verdict used antipodal climate."},
+        "split. SUPERSEDED by 010f2143 -- its verdict used antipodal climate.",
+         "refusal":
+         "superseded by 010f2143: 850 of its 1,522 carves were decided on the "
+         "antipode's rainfall and cannot be un-cut."},
     # SUPERSEDED. The same first pass recomputed after the longitude fix, so its
     # verdict is the right one: 1,089 carve, 170 marginal, 2,370 preserved. The
     # lithology under it was not. Correct as a build of the model as it then
@@ -68,7 +93,10 @@ _KNOWN_TERRAIN_HASHES = {
         {"name": "carved-zoned-v2", "note":
          "2026-08 corrected iteration-1 carve verdict, crust/fill split. "
          "SUPERSEDED by 5bed5549 -- basin fill was being overwritten by "
-         "cover-chain branch order."},
+         "cover-chain branch order.",
+         "refusal":
+         "superseded by 5bed5549: closed-basin fill lost to cover-chain branch "
+         "order, and 203 preserved basins reach ExoPlaSim as vegetated land."},
     # SUPERSEDED. Cover chain became a declared table walked in order with
     # closed-basin fill first, which fixed the lithology. Its verdict integrated
     # ExoPlaSim's mrro as catchment runoff,
@@ -79,7 +107,11 @@ _KNOWN_TERRAIN_HASHES = {
     "5bed5549315da14b22275fea51a0b6f5b34d79cdf2237c9380e8471e0b431c78":
         {"name": "carved-zoned-v4", "note":
          "2026-08 corrected verdict, cover-chain fix, crust/fill split. "
-         "SUPERSEDED by a4d204f6 -- its verdict read mrro as catchment runoff."},
+         "SUPERSEDED by a4d204f6 -- its verdict read mrro as catchment runoff.",
+         "refusal":
+         "superseded by a4d204f6: its verdict read mrro as catchment runoff, "
+         "which is net divergence rather than local generation, so 749 basins "
+         "that overflow under P - E are still standing on this terrain."},
     # Pass 2: 1,838 carved of 3,629, of which 1,089 carried forward from v4 and
     # 749 decided against P - E. Endorheic land falls 60.10% to 43.06% and
     # closed-basin fill 16.5% to 12.35%, because a net-divergence field
@@ -163,7 +195,9 @@ _KNOWN_TERRAIN_HASHES = {
         {"name": "precarve-substrate", "note":
          "2026-08 pre-carve base at g = 12.81; arc/forearc rules reachable, arc "
          "erodibility and albedo grounded, surface_rock renamed substrate_class"},
-    # NOT ACTIVATABLE AS IT STANDS, and registered anyway so the resolution audit
+    # Refused for activation -- the `refusal` below is the statement of that, and
+    # the rest of this comment is its argument -- and registered anyway so the
+    # resolution audit
     # that measured it resolves. Same planet code, radius, gravity and lithology
     # strength as precarve-craton, differing ONLY in --regions: 10,000,005 against
     # 2,500,001, a mean edge of 7.59 km against 15.19. It carries all five
@@ -177,7 +211,14 @@ _KNOWN_TERRAIN_HASHES = {
     "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526":
         {"name": "precarve-craton-10m", "note":
          "2026-08 resolution reference at 4x the region count: measurement "
-         "artifact for the resolution audit, all five grids, ice mask not yet fixed"},
+         "artifact for the resolution audit, all five grids, ice mask not yet fixed",
+         "refusal":
+         "generated at glacialErosion 0.8, whose ice mask PHYS-13 finds is placed "
+         "by an Earth-calibrated latitude threshold blind to this planet's "
+         "obliquity, spectrum and rotation. A generation meant to be commissioned "
+         "settles that first; regenerating gives a new terrain hash and an entry "
+         "with no refusal. Registered so notes/audits/orogen-resolution.md, which "
+         "measured this terrain, still resolves."},
 }
 
 # Basin ids are computed on the pre-conditioning surface, so they survive a
@@ -194,6 +235,53 @@ _KNOWN_CATALOGUE_HASHES = {
     "bc84109168789f519b53fc8197ddc976be93ecd8326b61a8086de85e638343cc":
         "2026-08 catalogue, same 3629 basins, ...Km fields now relief-scaled",
 }
+
+# The registry is keyed by hash because the hash is the identity, but config and
+# `source/` both address a build by NAME, so the guard has to be able to go that
+# way too. Two entries sharing a name would make that lookup return whichever
+# came first, and it would also put two terrains in one `<component>/data/<name>`
+# directory, so the collision is worth more than a wrong answer here.
+_BUILDS_BY_NAME: dict[str, dict] = {}
+for _hash, _entry in _KNOWN_TERRAIN_HASHES.items():
+    if _entry["name"] in _BUILDS_BY_NAME:
+        raise RuntimeError(
+            f"two registry entries are both named {_entry['name']!r}; a build "
+            "name addresses a source/ directory and a per-build data directory, "
+            "so it has to be unique")
+    _BUILDS_BY_NAME[_entry["name"]] = _entry
+del _hash, _entry
+
+
+def registry_entry(terrain_hash: str | None = None, *,
+                   name: str | None = None) -> dict | None:
+    """The registry's record for a build, by hash or by name; None if unknown.
+
+    Prefer the hash: a name is a label someone chose and a hash is what the
+    export is. The name route exists for the case where there is nothing on disk
+    to hash, which is a legitimate state -- a build is disposable until a climate
+    run has consumed it, so between a generator change and the next generation
+    `source/` is deliberately empty while `config/planet.yaml` still names one.
+    """
+    if terrain_hash is not None:
+        entry = _KNOWN_TERRAIN_HASHES.get(terrain_hash)
+        if entry is not None:
+            return entry
+    if name is not None:
+        return _BUILDS_BY_NAME.get(name)
+    return None
+
+
+def activation_refusal(terrain_hash: str | None = None, *,
+                       name: str | None = None) -> str | None:
+    """Why this build may not be named as `source_build`, or None if it may be.
+
+    This is about ACTIVATION only. Reading a refused build's export stays legal
+    and has to: `notes/audits/orogen-resolution.md` measured one, and a result is
+    only readable while the build it came from is still recognised here.
+    """
+    entry = registry_entry(terrain_hash, name=name)
+    return (entry or {}).get("refusal")
+
 
 OCEAN, LAND, INLAND_WATER = 0, 1, 2
 

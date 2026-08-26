@@ -29,6 +29,18 @@ others are identity stubs in `archive/builds/`, which is enough to recognise a
 build and date a result. What each superseded build got wrong, and what replaced
 it, is a note against its hash in `lib/orogen.py`.
 
+**Registered is not the same as activatable either.** A registry entry may carry
+a `refusal`: a sentence saying why the tree must not name that build in
+`source_build`, which a withdrawn export, a superseded carve verdict and a build
+generated purely as a measurement all do. Its absence is the only statement that
+a build may be active, and `scripts/check_consistency.py` fails when the
+configured build has one. The key is machine-readable because the refusals began
+as prose above the entries, where no gate could reach them: config named a build
+the registry refused, and a batch measured the basin catalogue on two builds
+because it could not tell which was active. Reading a refused build stays legal
+and has to -- an audit measured one, and a result is only readable while the
+build it came from is still recognised.
+
 A wrong verdict is recoverable and a wrong build is not the trap it sounds like:
 Orogen regenerates terrain from the planet code plus a carve list in one pass,
 so a build is replaced wholesale rather than edited.
