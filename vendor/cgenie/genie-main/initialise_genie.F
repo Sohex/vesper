@@ -30,7 +30,7 @@ c
      :      conv_kocn_kecogem,
      :      conv_kocn_korb,
      :      kgemlite,
-     :      flag_ebatmos,flag_plasimatmos,
+     :      flag_ebatmos,flag_plasimatmos,flag_fluxatmos,
      :      flag_goldsteinocean,
      :      flag_goldsteinseaice,
      :      flag_ents,
@@ -78,6 +78,7 @@ c
 c
       flag_plasimatmos=.FALSE.
       flag_ebatmos=.FALSE.
+      flag_fluxatmos=.FALSE.
 c
       flag_goldsteinocean=.TRUE.
       flag_goldlite=.FALSE.
@@ -148,6 +149,36 @@ c
 c
       if (debug_init > 1)
      & call message("read namelist: genie_control_nml",1)
+c
+c     The driven surface-flux path. flag_fluxatmos gates the third path in
+c     genie.F: it advances istep_ocn and calls surflux_goldstein_seaice with
+c     coupling fields supplied from outside, rather than with an atmosphere in
+c     this executable computing them. It is an ATMOSPHERE flag and it names the
+c     same slot the other two do, so more than one of the three is not a
+c     configuration: istep_ocn would advance once per gate that is true.
+c
+      if (flag_fluxatmos.and.(flag_ebatmos.or.flag_plasimatmos)) then
+         call die("flag_fluxatmos is an atmosphere and cannot be set "//
+     &    "beside flag_ebatmos or flag_plasimatmos: istep_ocn would "//
+     &    "advance once per gate", __LINE__, __FILE__)
+      end if
+c
+c     The SUPPLY half is not in this tree. genie.F's gate fills nothing: the
+c     coupling fields the path passes to surflux_goldstein_seaice, and the wind
+c     stress GOLDSTEIN reads, are module arrays that no routine here writes when
+c     no atmosphere runs. Running anyway would integrate an ocean forced by
+c     whatever those arrays hold and produce output shaped exactly like a
+c     result, so the flag is refused instead. Deleting this block is what
+c     turning the path on consists of, once the forcing reader that fills the
+c     fields listed in section 1d of
+c     notes/audits/cgenie-embm-free-path-and-threading.md exists.
+c
+      if (flag_fluxatmos) then
+         call die("flag_fluxatmos: the driven surface-flux path is "//
+     &    "gated, flagged and registered, but the forcing supply that "//
+     &    "fills its coupling fields is not in this tree", __LINE__,
+     &    __FILE__)
+      end if
 c
       return
       end

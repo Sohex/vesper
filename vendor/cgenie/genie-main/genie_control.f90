@@ -159,6 +159,7 @@ MODULE genie_control
       integer(kind=8) :: klnd_loop
       logical :: flag_ebatmos  !< .true. indicates that EMBM is included in model 'recipe'
       logical :: flag_plasimatmos  !< .true. indicates that PLASIM is included in model 'recipe'
+      logical :: flag_fluxatmos  !< .true. drives the surface flux from a supplied forcing set, no atmosphere here
       logical :: flag_goldsteinocean  !< .true. indicates that GOLDSTEIN ocean is included in model 'recipe'
       logical :: flag_goldsteinseaice
       logical :: flag_ents

@@ -151,7 +151,14 @@ contains
   end subroutine surflux_wrapper
 
   !!
-  subroutine plasim_surflux_wrapper
+  ! The sea-ice surface solve and the open-ocean surface balance, taking the
+  ! FLUXES and the atmosphere's own transfer coefficients as arguments rather
+  ! than a state to recompute them from. Two gates in genie.F call it and
+  ! neither owns it: flag_plasimatmos, where PLASIM fills the arguments, and
+  ! flag_fluxatmos, where a supplied forcing set does. Naming it after either
+  ! one would be wrong, and a second copy of it for the second caller is how
+  ! two copies of a routine diverge silently.
+  subroutine surflux_goldstein_seaice_wrapper
     implicit none
     call surflux_goldstein_seaice( &
 !input
@@ -172,7 +179,7 @@ contains
          delta_flux &
     )
     !
-  end subroutine plasim_surflux_wrapper
+  end subroutine surflux_goldstein_seaice_wrapper
 
   !!
   subroutine embm_wrapper
