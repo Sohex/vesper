@@ -72,6 +72,22 @@ cost is quoted only if the two passes agree to better than the saving being
 argued for; otherwise the ratio between rungs is reported and the absolutes are
 not. `docs/src/practice/failure-modes.md` class 34.
 
+**C-ROUTE-6, which model an endurance row describes.** Every row in
+`COMMISSIONING_EVIDENCE` today was taken on source that batch 2 has since
+changed -- rainmod, fluxmod, radmod, seamod, landmod, plasim and outmod all
+moved, and the binaries were rebuilt from the new source. Read strictly,
+C-ROUTE-1 would then adopt nothing and freeze the route, which is not what it is
+for. So: **an endurance row on superseded source is evidence, and it is
+evidence about a model that no longer exists.** It supports keeping a step and
+it does not condemn one. A `blew_up` row on superseded source makes its pair
+UNMEASURED on the current model rather than known-bad, and the answer to an
+unmeasured pair is to measure it. A row taken on the current source supersedes
+any older row for the same pair outright.
+
+This is stated here, before the arm that tests it ran, because it is the rule
+that decides whether T42 at dt 45 is a ceiling to respect or a candidate to
+measure. It is a candidate.
+
 ## What this rules in and out before any cell is read
 
 Rule C-ROUTE-3 means the answer can be "no raise is supportable", and that is a
