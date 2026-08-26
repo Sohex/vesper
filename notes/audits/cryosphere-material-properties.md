@@ -15,8 +15,9 @@ star does, which is the whole of why they transfer here.
 
 WORLD-04OK and WORLD-A9S5 asked, of six compile-time constants in
 `icemod.f90` and of one namelist key in `landmod.f90`, what each one's source
-is and whether it should move for this world. This note is the answer, one row
-at a time.
+is and whether it should move for this world; WORLD-FG8W asked the same two
+questions of the pair that describes the GLACIAL ice `glaciermod` grows. This
+note is the answer, one row at a time.
 
 ## The finding, in one line each
 
@@ -30,6 +31,8 @@ at a time.
 | `CKAPSN`, conductivity of the modelled snow | compile-time | **changed, HANDED.** A second statement of `landmod`'s `snowdiff`, which now follows the snow density |
 | `snowdiff`, conductivity of the modelled snow on soil | `landmod_nl` key | **changed, DERIVED from `rhosnow`.** A namelist density beside a fixed conductivity is a broken relation |
 | `Ksnow`, conductivity of the modelled snow in the vegetation model | Sturm et al. (1997), compiled | **changed, DERIVED from the same relation.** Below both arms of the bracket at every density the two components span; the relation is declared once in `lib/snow.py` and restated in both models under a check |
+| `sicecap`, heat capacity of the modelled glacial ice | `landmod_nl` key | **changed, DERIVED from `rhoglac`.** It factorised as one thousand times ice's specific heat, which is LIQUID WATER's density; a bracket on the ice density moved the orography and left the ice's thermal mass behind |
+| `sicediff`, conductivity of the modelled glacial ice | `landmod_nl` key | **changed, DERIVED from `rhoglac`.** Pure ice from Yen's Eq. (33), reduced by his Eq. (37) for the air the density implies. Glacial ice is bubbly and the reduction is the whole difference from pure ice |
 
 ## The line between what is derivable here and what is not
 
@@ -320,32 +323,88 @@ with no effect whatever, which is a worse state than the one it was in.
 `landmod`'s `CPSNOW`, at the same value, is the live declaration of that
 quantity and is what `snowcap` is derived from.
 
-## The glacial-ice pair, found beside these and not settled here
+## The glacial-ice pair
 
-`landmod.f90` carries two more material constants of modelled ice, for the
-GLACIAL ice that `glaciermod` grows and that weights the soil column's thermal
-properties by `dglac`. Both were looked at while settling the six above and
-neither is in scope for the ocean tier, so they are recorded here as a finding
-and are not changed.
+`landmod.f90` carries two material constants of the modelled GLACIAL ice, for
+the ice `glaciermod` grows and that weights the soil column's thermal properties
+by `dglac`. Both were `landmod_nl` keys standing beside a density they did not
+follow. Both are now derived from that density in `glacierprep`, which is where
+the density is declared and which runs before `landini` in `surfini`, and
+`analysis/ice_properties.py` computes both and holds the compiled literals to
+what it computes.
 
-- **`sicecap`, the heat capacity per unit volume of the modelled glacial ice,
-  is computed at LIQUID WATER'S DENSITY.** Its value factorises exactly as one
-  thousand times the specific heat of ice, and glacial ice is not water: at
-  `glaciermod`'s own declared `rhoglac` the product is about a sixth smaller,
-  and at pure ice Ih's density about a twentieth smaller. **This is GRAV-8's
-  defect, third instance.** GRAV-8 exposed `rhoglac` as a namelist key so the
-  gravity bracket could be run, and made `snowcap` follow `rhosnow` because a
-  volumetric heat capacity is a density times a specific heat; WORLD-A9S5 made
-  `snowdiff` follow it for the same reason. `sicecap` follows nothing, so a
-  bracket that moves `rhoglac` today moves the ice orography and leaves the
-  thermal mass of the ice behind.
-- **`sicediff`, the conductivity of the modelled glacial ice, stands at the
-  same number as `icemod`'s `CKAPI`.** These are NOT the same quantity and must
-  not be deduplicated into one: glacial ice is fresh and sea ice is
-  brine-bearing, and their conductivities differ by a term in the ice's
-  salinity over its temperature. What is true is that neither is sourced, and
-  that the fresh one is the one a standard could settle, because it is a pure
-  substance in the way the sea-ice constants are not.
+### The heat capacity was computed at liquid water's density
+
+`sicecap` factorised exactly as one thousand times the specific heat of ice, and
+glacial ice is not water. **This was GRAV-8's defect, third instance.** GRAV-8
+made `snowcap` follow `rhosnow` because a volumetric heat capacity is a density
+times a specific heat, and WORLD-A9S5 made `snowdiff` follow it for the same
+reason; `sicecap` followed nothing, so a bracket that moved `rhoglac` moved the
+ice orography and left the thermal mass of the ice behind.
+
+It is now `rhoglac` times the specific heat of ice Ih from IAPWS-06 at a
+declared temperature, which is 17 per cent below the superseded value at the
+shipped density.
+
+### The conductivity is pure ice's, reduced for the air the density implies
+
+`sicediff` stood at the same number as `icemod`'s `CKAPI` and was unsourced.
+IAPWS-06 cannot settle it: a Gibbs function carries density, specific heat and
+compressibility and no transport property at all. Yen (1981) does, in two steps
+that are both his:
+
+- **Pure ice, Eq. (33)**, `lambda = a exp(b T)`, the whole-range arm of his
+  Table 3. He recommends it for practical use because it has the highest
+  correlation coefficient of his three arms, 0.9313 against 0.5962 for the arm
+  fitted above the 150-195 K data gap. At the declared temperature pure ice is
+  about a twelfth ABOVE the superseded `sicediff`.
+- **Bubbles, Eq. (37)**, `2 rho / (3 rhoice - rho)`, Schwerdtfeger's reduction of
+  Maxwell's effective-medium result for randomly distributed spherical air
+  inclusions once the conductivity of air is dropped against the ice's. Yen
+  states the unreduced form twice -- Eq. (36) for dense snow and Eq. (70) for the
+  bubbly ice inside sea ice -- and the two agree to two parts in a thousand at
+  the shipped density, which the script checks rather than assumes. His Figure 22
+  is the same equation drawn. Glacial ice IS bubbly, and at `rhoglac` against
+  Yen's 917 kg/m3 pure ice the air fraction is about 7 per cent.
+
+The product lands about 3 per cent BELOW the superseded value, so the correction
+and the reduction pull opposite ways and nearly cancel. That near-cancellation is
+a coincidence of the shipped density and is exactly why the two steps are carried
+separately: a bracket on `rhoglac` moves the second and not the first.
+
+### It is still not `CKAPI`, and Yen sharpens why
+
+Sea ice is brine-bearing and glacial ice is fresh. Yen's Eq. (71) subtracts a
+brine term from **exactly the bubbly ice computed above**, so the modelled sea
+ice conducts less than modelled glacial ice of the same density, and the two
+constants sit on opposite sides of pure ice's value for different reasons.
+Deduplicating them would assert that this world's glaciers are salty.
+
+### The declared temperature is the larger uncertainty, not the density
+
+Both constants are evaluated at one declared temperature, and it is the
+temperature `landmod` already evaluates the snow conductivity at, so the two
+cryosphere materials are stated at one temperature rather than two. Over 233.15 K
+to the melting point the conductivity spans a factor of about 1.26 and the heat
+capacity about 1.16, against about 1.04 for the difference between Yen's two
+regression arms at one temperature. So the temperature dominates, and the pair
+is a **declaration with a bracket** rather than a derivation that leaves nothing
+open.
+
+Making the pair a function of the layer's own temperature is a change to the
+soil heat solver's material model rather than to a constant -- the same shape of
+change WORLD-JSFM makes for the soil half -- and it is named here rather than
+made. Yen is himself inconsistent at the 1.3 per cent level about pure ice at the
+melting point, his Eq. (33) and the 2.09 W/m/K his own sea-ice model uses
+disagreeing by that much, which is a second reason the temperature has to be
+stated rather than inherited.
+
+### What it is worth today is nothing, and that is measurable
+
+`dglac` is identically zero on every cell of the climatology this world has, so
+neither constant reaches a result until `glaciermod` grows ice. The run that
+would price them is therefore not a bracket arm at all: it is any run that
+produces a glaciated cell.
 
 ## What this did not establish
 
@@ -371,6 +430,12 @@ and are not changed.
   snow-covered cells, and the ice thickness that follows. Running the two
   brackets as one four-arm sweep would confound them, because both act on the
   same conductive resistance.
+- **The glacial pair reaches nothing yet, and that is checked rather than
+  assumed.** `dglac` is identically zero on every cell of the climatology this
+  world has, so `sicecap` and `sicediff` weight nothing in `tands`. What would
+  price them is not an arm of a bracket but any run that produces a glaciated
+  cell; until one exists, the temperature these two are declared at is the open
+  question and no sweep of it can be read anywhere.
 - **The sea-ice declarations are still not bracketed, and Yen says how wide the
   bracket would be.** Three of the six are stated positions, and the quantity
   that would set a range for them is a brine volume the model does not carry.

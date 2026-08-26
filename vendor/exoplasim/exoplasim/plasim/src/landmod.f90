@@ -271,9 +271,30 @@
 !
       real :: rhosnow  = 330.    ! snow density (kg/m**3)
       real :: soildiff = 1.8     ! heat diffusivity of the soil (W/m/K)
-      real :: sicediff = 2.03    ! heat diffusivity of ice      (W/m/K)
       real :: soilcap  = 2.4E6   ! heat capacity of the soil  (J/m**3/K)
-      real :: sicecap  = 2.07E6  ! heat capacity of ice       (J/m**3/K)
+!     THE GLACIAL ICE PAIR IS DERIVED IN `glaciermod`, NOT DECLARED HERE.
+!     `sicecap` and `sicediff` are the heat capacity per unit volume and the
+!     thermal conductivity of the ice `glaciermod` grows. Both are properties of
+!     that ice's DENSITY, `rhoglac`, in the same way `snowcap` and `snowdiff` are
+!     properties of `rhosnow`: a volumetric heat capacity is a density times a
+!     specific heat, and the conductivity of bubbly ice is pure ice's reduced for
+!     the air the density implies. `sicecap` used to factorise as one thousand
+!     times ice's specific heat -- LIQUID WATER's density -- so a bracket on
+!     `rhoglac` moved the ice orography and left the ice's thermal mass behind.
+!
+!     They live in landmod's storage because `tands` is what reads them, and they
+!     are SET in `glacierprep`, which runs before `landini` in `surfini` and is
+!     where `rhoglac` is declared. Nothing here writes them and neither is a
+!     `landmod_nl` key any more, on the same grounds `snowcap` and `snowdiff`
+!     stopped being ones: a key held fixed beside the density it follows is a
+!     broken relation, not an axis. WORLD-FG8W.
+!     The values are what `glacierprep` derives at the shipped `rhoglac` and
+!     `TGLACREF`, so reading the declaration tells the truth about what the model
+!     runs; `analysis/ice_properties.py` computes both from the standard and the
+!     regression and holds these literals to what it computes. They were 2.03 and
+!     2.07E6, which are 3.4 per cent and 17 per cent above these.
+      real :: sicediff = 1.961145 ! heat diffusivity of glacial ice (W/m/K)
+      real :: sicecap  = 1.719635E6 ! heat capacity of glacial ice (J/m**3/K)
 !     snowcap is NOT independent of rhosnow: a snow layer's heat capacity per
 !     unit volume is its density times the specific heat of ice, and its
 !     thickness is the water equivalent divided by that same density, so the
@@ -518,7 +539,7 @@
      &                ,rnbiocats,nwetsoil,soilcap                       &
      &                ,albforest,forcovmx,forcovmn                      &
      &                ,forhgt,forpai,forext,forint                       &
-     &                ,soildiff,sicediff,sicecap                        &
+     &                ,soildiff                                        &
      &                ,rhosnow,roffvel,roffexp,roffpit                  &
      &                ,newsurf,rinifor,nwatcini,dwatcini,dgroundalb     &
      &                ,snowcovz
@@ -716,9 +737,7 @@
       call mpbcr(forcovmx)
       call mpbcr(forcovmn)
       call mpbcr(soildiff)
-      call mpbcr(sicediff)
       call mpbcr(soilcap)
-      call mpbcr(sicecap)
       call mpbcr(rhosnow)
 !     Every thread derives its own snow heat capacity from the density it has
 !     just been given, so the two cannot drift apart. GRAV-8.

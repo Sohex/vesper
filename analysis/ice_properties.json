@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-25",
+  "generated": "2026-08-26",
   "generator": "analysis/ice_properties.py",
   "standard": "IAPWS R10-06(2009), the equation of state 2006 for H2O ice Ih",
   "standard_reference": "references/iapws_2009_revised-release-on-the-equation-of-state-2006-for-h2o-ice-ih.pdf",
@@ -113,6 +113,70 @@
     ],
     "declared_w_m_k": 2.03,
     "verdict": "the declared conductivity of the modelled sea ice sits BELOW pure ice's over the whole range, which is the side brine puts it on: Yen's Eq. (71) subtracts a brine term from bubbly pure ice, so sea ice is the less conductive of the two. Yen's own Figure 23 computes that band and the declared value sits at the top of it, against his zero-salinity curves -- which is the ice this model carries, since it has no salinity and no brine volume. So the declaration is the brine-free limit of the bound and not a value for salty ice."
+  },
+  "glacial_ice": {
+    "density_kg_m3": 850.0,
+    "declared_temperature_k": 263.15,
+    "why_this_temperature": "the one landmod already evaluates the snow conductivity at, so the two cryosphere materials are stated at one temperature rather than two",
+    "specific_heat_j_kg_k": 2023.0979,
+    "heat_capacity_j_m3_k": 1719633.2,
+    "heat_capacity_source": "IAPWS-06 at the declared temperature, times the modelled glacial ice's own density",
+    "superseded_heat_capacity_j_m3_k": 2070000.0,
+    "what_the_superseded_value_was": "one thousand times ice's specific heat, which is LIQUID WATER's density. It followed nothing, so a bracket on rhoglac moved the ice orography and left the thermal mass of the ice behind.",
+    "bubbly_factor_eq37": 0.894266,
+    "bubbly_factor_eq70": 0.896094,
+    "bubbly_forms_agree_to_relative": 0.00204,
+    "air_volume_fraction": 0.07306,
+    "conductivity_w_m_k": 1.961145,
+    "conductivity_source": "Yen (1981) Eq. (33) for pure ice at the declared temperature, reduced by his Eq. (37) for the air the density implies. Eq. (70) is the unreduced Maxwell form and is carried beside it so the reduction is checked.",
+    "conductivity_on_yens_other_arm_w_m_k": 2.045132,
+    "superseded_conductivity_w_m_k": 2.03,
+    "brackets": {
+      "yen_arms_at_the_declared_temperature": 1.0428,
+      "temperature_233k_to_melting_conductivity": 1.2562,
+      "temperature_233k_to_melting_heat_capacity": 1.162,
+      "which_dominates": "the declared TEMPERATURE, by a wide margin. Over 233.15 K to the melting point the conductivity moves about four times as far as the difference between Yen's two regression arms does at one temperature. A temperature-dependent pair is a change to the soil heat solver's material model rather than to a constant, and is named rather than made here."
+    },
+    "sweep": [
+      {
+        "temperature_k": 233.15,
+        "heat_capacity_j_m3_k": 1533830.9,
+        "conductivity_eq33_w_m_k": 2.3269,
+        "conductivity_above_195k_w_m_k": 2.3128
+      },
+      {
+        "temperature_k": 243.15,
+        "heat_capacity_j_m3_k": 1595406.4,
+        "conductivity_eq33_w_m_k": 2.198,
+        "conductivity_above_195k_w_m_k": 2.2199
+      },
+      {
+        "temperature_k": 253.15,
+        "heat_capacity_j_m3_k": 1657357.1,
+        "conductivity_eq33_w_m_k": 2.0762,
+        "conductivity_above_195k_w_m_k": 2.1307
+      },
+      {
+        "temperature_k": 263.15,
+        "heat_capacity_j_m3_k": 1719633.2,
+        "conductivity_eq33_w_m_k": 1.9611,
+        "conductivity_above_195k_w_m_k": 2.0451
+      },
+      {
+        "temperature_k": 268.15,
+        "heat_capacity_j_m3_k": 1750879.5,
+        "conductivity_eq33_w_m_k": 1.906,
+        "conductivity_above_195k_w_m_k": 2.0036
+      },
+      {
+        "temperature_k": 273.16,
+        "heat_capacity_j_m3_k": 1782253.7,
+        "conductivity_eq33_w_m_k": 1.8524,
+        "conductivity_above_195k_w_m_k": 1.9629
+      }
+    ],
+    "not_ckapi": "icemod's CKAPI carried the same number as the superseded sicediff and is a different quantity. Yen's Eq. (71) subtracts a brine term from exactly the bubbly ice computed here, so the modelled sea ice conducts LESS than the modelled glacial ice of the same density and the two must not be deduplicated.",
+    "what_this_is_worth_today": "nothing measured. dglac is identically zero on every cell of the climatology this world has, so the pair reaches no result until glaciermod grows ice."
   },
   "snow_conductivity_bracket": {
     "slow_arm": "Calonne et al. (2011) Eq. (12), conduction through ice and interstitial air only, his whole sample set at 271 K",

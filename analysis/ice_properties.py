@@ -80,6 +80,8 @@ ROOT = PROJECT_ROOT
 PLANET = ROOT / "config" / "planet.yaml"
 ICEMOD = ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "src" / "icemod.f90"
 LANDMOD = ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "src" / "landmod.f90"
+GLACIERMOD = (ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "src"
+              / "glaciermod.f90")
 LPJ_SOIL_H = ROOT / "vendor" / "lpj-guess" / "modules" / "soil.h"
 OUTPUT = ROOT / "analysis" / "ice_properties.json"
 
@@ -164,6 +166,23 @@ YEN_1981_SEA_ICE_LAMBDA_I = 2.09
 
 Carried because it is what his Figure 23's sea-ice curves were computed with,
 so the band those curves span is only comparable against this number. W/m/K.
+
+It is 1.3 per cent above what his own Eq. (33) gives at the melting point, which
+is the width of his internal inconsistency about the conductivity of pure ice
+and is the reason the temperature a declaration is evaluated at has to be
+stated rather than inherited.
+"""
+
+YEN_1981_AIR_CONDUCTIVITY = 2.51e-2
+"""The conductivity of air Yen's Eq. (70) is evaluated with, W/m/K."""
+
+YEN_1981_RHOICE = 917.0
+"""The pure-ice density Yen's air-fraction relations are written against.
+
+Part of THOSE relations and not a property of this model. `icemod`'s CRHOI is
+the density of the modelled SEA ice and `RHOICE_F2021` is the normalising
+density of a snow conductivity fit; the three are the same order and must not be
+deduplicated into one another. kg/m3.
 """
 
 # ---------------------------------------------------------------------------
@@ -314,6 +333,21 @@ def declared(path: Path, name: str) -> float:
     return float(match.group(1).rstrip("."))
 
 
+def declared_parameter(path: Path, name: str) -> float:
+    """One Fortran `real, parameter` default, read the same way and for the same
+    reason as `declared`: what this file compares against has to be the number
+    the model compiles, not a restatement of it."""
+    pattern = re.compile(
+        rf"^\s*real,\s*parameter\s*::\s*{name}\s*=\s*([-\d.eE+]+)", re.M | re.I)
+    match = pattern.search(path.read_text())
+    if match is None:
+        raise SystemExit(f"{rel(path)} no longer declares parameter `{name}`, "
+                         f"so the comparison this file makes against it is not "
+                         f"a comparison. Re-locate it before trusting anything "
+                         f"here.")
+    return float(match.group(1).rstrip("."))
+
+
 def lpj_constant(name: str) -> float:
     """One LPJ-GUESS constant, read the same way and for the same reason."""
     pattern = re.compile(rf"^\s*const\s+double\s+{name}\s*=\s*([-\d.eE+]+)", re.M)
@@ -357,6 +391,33 @@ def pure_ice_conductivity(temperature_k: float, arm: str) -> float:
     """Yen (1981)'s pure ice conductivity, W/m/K, on one of his two warm arms."""
     a, b, _ = YEN_1981_ICE_CONDUCTIVITY[arm]
     return float(a * np.exp(b * temperature_k))
+
+
+def bubbly_ice_factor(density_kg_m3: float) -> float:
+    """Yen (1981) Eq. (37): bubbly ice's conductivity over pure ice's.
+
+    `2 rho / (3 rhoice - rho)`, Schwerdtfeger's reduction of Maxwell's
+    effective-medium result for randomly distributed spherical air inclusions,
+    once the conductivity of air is dropped against the ice's. Yen gives the
+    unreduced form twice -- Eq. (36) for dense snow and Eq. (70) for the bubbly
+    ice inside sea ice -- and `bubbly_ice_factor_full` below is that form, kept
+    so the reduction is checked rather than assumed.
+
+    `YEN_1981_RHOICE` is the pure-ice density Yen's air-fraction relations are
+    written against and is part of THEM: it is neither `icemod`'s CRHOI, the
+    density of the modelled sea ice, nor `RHOICE_F2021`, the normalising density
+    of a snow conductivity fit.
+    """
+    return float(2.0 * density_kg_m3
+                 / (3.0 * YEN_1981_RHOICE - density_kg_m3))
+
+
+def bubbly_ice_factor_full(density_kg_m3: float) -> float:
+    """Yen (1981) Eq. (70), the Maxwell form the one above reduces from."""
+    va = 1.0 - density_kg_m3 / YEN_1981_RHOICE
+    li, la = YEN_1981_SEA_ICE_LAMBDA_I, YEN_1981_AIR_CONDUCTIVITY
+    return float((2 * li + la - 2 * va * (li - la))
+                 / (2 * li + la + va * (li - la)))
 
 
 def snow_conductivity_fast(density_kg_m3: float, temperature_k: float = 263.0) -> float:
@@ -535,6 +596,118 @@ def main() -> None:
                            "and is the evidence for the choice.",
     }
 
+    # ------------------------------------------------------------------
+    # THE MODELLED GLACIAL ICE. WORLD-FG8W.
+    #
+    # Two constants of the ice `glaciermod` grows, both DERIVED from its own
+    # declared density rather than declared beside it. The capacity is that
+    # density times ice Ih's specific heat from the standard; the conductivity is
+    # Yen's pure ice reduced for the air the density implies. Both are computed
+    # here and the compiled literals are held to them, which is a check that can
+    # fail on either side.
+    #
+    # NOT the sea-ice constants and not deduplicable with them: Yen's Eq. (71)
+    # subtracts a brine term from exactly the bubbly ice computed here, so the
+    # two sit on opposite sides of pure ice for different reasons.
+    # ------------------------------------------------------------------
+    rhoglac = declared(GLACIERMOD, "rhoglac")
+    tglacref = declared_parameter(GLACIERMOD, "TGLACREF")
+    cpglac = declared_parameter(GLACIERMOD, "CPGLAC")
+    factor = bubbly_ice_factor(rhoglac)
+    glac_state = gibbs(tglacref, P0)
+    glac_cap = rhoglac * glac_state["cp"]
+    glac_diff = pure_ice_conductivity(tglacref, "eq_33_all_temperatures") * factor
+    glac_diff_arm = pure_ice_conductivity(tglacref, "table_3_above_195_k") * factor
+
+    sweep = []
+    for t in (233.15, 243.15, 253.15, 263.15, 268.15, TT):
+        sweep.append({
+            "temperature_k": round(t, 4),
+            "heat_capacity_j_m3_k": round(rhoglac * gibbs(t, P0)["cp"], 1),
+            "conductivity_eq33_w_m_k": round(
+                pure_ice_conductivity(t, "eq_33_all_temperatures") * factor, 4),
+            "conductivity_above_195k_w_m_k": round(
+                pure_ice_conductivity(t, "table_3_above_195_k") * factor, 4),
+        })
+    caps = [row["heat_capacity_j_m3_k"] for row in sweep]
+    diffs = [row["conductivity_eq33_w_m_k"] for row in sweep]
+
+    glacier_failures = []
+    for name, path, computed in (
+            ("CPGLAC", GLACIERMOD, glac_state["cp"]),
+            ("sicecap", LANDMOD, glac_cap),
+            ("sicediff", LANDMOD, glac_diff)):
+        literal = (declared_parameter(path, name) if name == "CPGLAC"
+                   else declared(path, name))
+        if abs(literal - computed) > 1.0e-4 * abs(computed):
+            glacier_failures.append(
+                f"{rel(path)} declares {name} = {literal!r} and this file "
+                f"computes {computed:.6g} from the standard and the regression; "
+                f"they are the same quantity and must agree")
+    if glacier_failures:
+        raise SystemExit("\n".join(glacier_failures))
+
+    glacial_ice = {
+        "density_kg_m3": rhoglac,
+        "declared_temperature_k": tglacref,
+        "why_this_temperature": "the one landmod already evaluates the snow "
+                                "conductivity at, so the two cryosphere "
+                                "materials are stated at one temperature "
+                                "rather than two",
+        "specific_heat_j_kg_k": round(glac_state["cp"], 4),
+        "heat_capacity_j_m3_k": round(glac_cap, 1),
+        "heat_capacity_source": "IAPWS-06 at the declared temperature, times "
+                                "the modelled glacial ice's own density",
+        "superseded_heat_capacity_j_m3_k": 2.07e6,
+        "what_the_superseded_value_was": "one thousand times ice's specific "
+                                         "heat, which is LIQUID WATER's "
+                                         "density. It followed nothing, so a "
+                                         "bracket on rhoglac moved the ice "
+                                         "orography and left the thermal mass "
+                                         "of the ice behind.",
+        "bubbly_factor_eq37": round(factor, 6),
+        "bubbly_factor_eq70": round(bubbly_ice_factor_full(rhoglac), 6),
+        "bubbly_forms_agree_to_relative": float(
+            f"{abs(bubbly_ice_factor_full(rhoglac) - factor) / factor:.3g}"),
+        "air_volume_fraction": round(1.0 - rhoglac / YEN_1981_RHOICE, 5),
+        "conductivity_w_m_k": round(glac_diff, 6),
+        "conductivity_source": "Yen (1981) Eq. (33) for pure ice at the "
+                               "declared temperature, reduced by his Eq. (37) "
+                               "for the air the density implies. Eq. (70) is "
+                               "the unreduced Maxwell form and is carried "
+                               "beside it so the reduction is checked.",
+        "conductivity_on_yens_other_arm_w_m_k": round(glac_diff_arm, 6),
+        "superseded_conductivity_w_m_k": 2.03,
+        "brackets": {
+            "yen_arms_at_the_declared_temperature": round(
+                glac_diff_arm / glac_diff, 4),
+            "temperature_233k_to_melting_conductivity": round(
+                max(diffs) / min(diffs), 4),
+            "temperature_233k_to_melting_heat_capacity": round(
+                max(caps) / min(caps), 4),
+            "which_dominates": "the declared TEMPERATURE, by a wide margin. "
+                               "Over 233.15 K to the melting point the "
+                               "conductivity moves about four times as far as "
+                               "the difference between Yen's two regression "
+                               "arms does at one temperature. A "
+                               "temperature-dependent pair is a change to the "
+                               "soil heat solver's material model rather than "
+                               "to a constant, and is named rather than made "
+                               "here.",
+        },
+        "sweep": sweep,
+        "not_ckapi": "icemod's CKAPI carried the same number as the superseded "
+                     "sicediff and is a different quantity. Yen's Eq. (71) "
+                     "subtracts a brine term from exactly the bubbly ice "
+                     "computed here, so the modelled sea ice conducts LESS "
+                     "than the modelled glacial ice of the same density and "
+                     "the two must not be deduplicated.",
+        "what_this_is_worth_today": "nothing measured. dglac is identically "
+                                    "zero on every cell of the climatology "
+                                    "this world has, so the pair reaches no "
+                                    "result until glaciermod grows ice.",
+    }
+
     report = {
         "generated": datetime.date.today().isoformat(),
         "generator": "analysis/ice_properties.py",
@@ -558,6 +731,7 @@ def main() -> None:
         },
         "gravity": overburden,
         "pure_ice_conductivity": ice_conductivity,
+        "glacial_ice": glacial_ice,
         "snow_conductivity_bracket": snow_bracket,
         "what_is_not_derivable_here": "the density, specific heat and "
                                       "conductivity of SEA ice are functions of "
@@ -587,6 +761,17 @@ def main() -> None:
               f"{row['eq_33_all_temperatures_w_m_k']:9.4f}  "
               f"{row['table_3_above_195_k_w_m_k']:9.4f}")
     print(f"declared conductivity of the modelled sea ice: {ckapi:.4f}\n")
+
+    print(f"modelled glacial ice at {rhoglac:.0f} kg/m3 and {tglacref:.2f} K")
+    print(f"  bubbly factor, Yen Eq. (37)      {factor:11.6f} "
+          f"(Eq. (70) gives {bubbly_ice_factor_full(rhoglac):.6f})")
+    print(f"  heat capacity                    {glac_cap:11.4e} J/m3/K "
+          f"against a superseded 2.07e6")
+    print(f"  conductivity                     {glac_diff:11.6f} W/m/K "
+          f"against a superseded 2.03")
+    print(f"  over 233 K to melting it spans a factor "
+          f"{max(diffs)/min(diffs):.3f} in conductivity and "
+          f"{max(caps)/min(caps):.3f} in capacity\n")
 
     print("snow conductivity bracket, W/m/K")
     print(f"{'rho':>6}  {'slow':>7}  {'fast263':>8}  {'ratio':>6}  "
