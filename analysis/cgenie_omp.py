@@ -229,6 +229,9 @@ def arm_env(arm: str, threads: int = 1) -> dict:
     env = dict(os.environ)
     env["GENIE_FFLAGS"] = flags
     env["GENIE_LDFLAGS"] = flags
+    # DECLARED, never inherited. With OMP_NUM_THREADS unset the runtime takes
+    # the core count, so an arm meant to be serial would be a 32-thread one on
+    # this host and every quantity below would be of a different program.
     env["OMP_NUM_THREADS"] = str(threads)
     # A thread spinning at a barrier retires instructions in proportion to how
     # long it waits, so an active wait policy puts the idle threads' spin INTO

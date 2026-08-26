@@ -98,7 +98,8 @@ def retarget() -> None:
 
 def sh(cmd: list[str], log: Path, cwd: Path) -> int:
     with log.open("w") as fh:
-        return subprocess.call(cmd, cwd=cwd, stdout=fh, stderr=subprocess.STDOUT)
+        return subprocess.call(cmd, cwd=cwd, stdout=fh, stderr=subprocess.STDOUT,
+                               env=cc.serial_env())
 
 
 def build(name: str, case: dict, years: int, nyear: int, maxisles: int,
@@ -206,7 +207,8 @@ def perf_profile(outdir: Path, log: Path, period: int) -> dict:
     rec = subprocess.run(
         ["perf", "record", "-e", "instructions", "-c", str(period),
          "--no-buildid-cache", "-o", str(data), "./genie.exe"],
-        cwd=outdir, capture_output=True, text=True, check=False)
+        cwd=outdir, capture_output=True, text=True, check=False,
+        env=cc.serial_env())
     log.write_text(rec.stdout + "\n----- perf record -----\n" + rec.stderr)
     out: dict = {}
     if "Shutdown complete; home time" not in rec.stdout:
