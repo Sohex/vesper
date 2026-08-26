@@ -83,7 +83,15 @@ ALF = ALS - ALV      # fusion
 # `sea_water.constants(run_dir)` reads the run's own `icemod_namelist` first,
 # so the capacity is the one that run integrated with.
 CRHOI = 920.0        # oceanmod.f90: density of sea ice, kg/m3
-TMELT = 273.16       # icemod.f90: freezing point
+# THE MELTING POINT IS READ PER RUN TOO, and it is not the sea-water freezing
+# point. `TMELT = 273.16  # icemod.f90: freezing point` stood here, and both
+# halves of that were wrong: icemod holds no compile-time melting point any more
+# -- it takes pumamod's through `iceini`, and pumamod's is a `planet_nl` key a
+# run can set -- and the quantity is the melting point of the modelled water,
+# where TFREEZE is sea water's freezing point at the declared salinity and is
+# one of `lib/sea_water.py`'s four. `sea_water.melting_point(run_dir)` reads the
+# run's own `planet_namelist` first and `p_earth.f90`'s `planet_ini` assignment
+# second, and raises if neither states it.
 SOILCAP = 2.4e6      # landmod.f90: soil heat capacity, J/m3/K
 DSOILZ = np.array([0.4, 0.8, 1.6, 3.2, 6.4])   # landmod.f90: soil layer thicknesses, m
 RHO_WATER = 1000.0   # snow depth is reported as metres water equivalent
@@ -120,7 +128,7 @@ def global_mean(field: np.ndarray, weights: np.ndarray) -> np.ndarray:
 
 
 def heat_content(nc: Dataset, gravity: float, acpd: float,
-                 crhos: float, cps: float) -> dict[str, np.ndarray]:
+                 crhos: float, cps: float, tmelt: float) -> dict[str, np.ndarray]:
     """Planetary heat content per unit area, J/m2, per output bin.
 
     Reference level is arbitrary and cancels in the time derivative; what has to
@@ -156,7 +164,7 @@ def heat_content(nc: Dataset, gravity: float, acpd: float,
     # ice-surface temperature is not a small perturbation on it.
     sea_ice = read("sic")
     mixed_layer = (crhos * cps * read("mld")
-                   * ((1.0 - sea_ice) * ts + sea_ice * TMELT) * ocean)
+                   * ((1.0 - sea_ice) * ts + sea_ice * tmelt) * ocean)
     ice = -ALF * CRHOI * read("sit") * sea_ice * ocean
     snow = -ALF * RHO_WATER * read("snd")
 
@@ -195,6 +203,10 @@ def state_energy(run_dir: Path, first: int, last: int) -> dict:
     # `icemod_namelist`, and a run older than a change to `icemod.f90` must be
     # closed at the capacity it integrated with, not at today's.
     water = sea_water.constants(run_dir)
+    # And this run's melting point, for the same reason: it weights the sea-ice
+    # part of the mixed-layer term, and a run that set it in `planet_nl` must be
+    # closed at the value it integrated with.
+    planet_water = sea_water.melting_point(run_dir)
 
     manifest_path = run_dir / "run_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
@@ -213,7 +225,8 @@ def state_energy(run_dir: Path, first: int, last: int) -> dict:
             weights = leggauss(len(nc.dimensions["lat"]))[1][::-1]
             record = {"orbit": index}
             content = heat_content(nc, gravity, acpd,
-                                   water["CRHOS"], water["CPS"])
+                                   water["CRHOS"], water["CPS"],
+                                   planet_water["TMELT"])
             for name in reservoirs:
                 record[name] = float(global_mean(content[name], weights).mean())
             for name in fluxes:
@@ -252,6 +265,15 @@ def state_energy(run_dir: Path, first: int, last: int) -> dict:
 
     return {
         "manifest": manifest, "per_orbit": per_orbit, "series": series,
+        # THE SERIES THE STORAGE SLOPE IS FITTED TO, returned so a caller that
+        # needs the estimator's own error does not re-derive the sum. The
+        # convergence criterion passes on `storage_w_m2_least_squares`, and a
+        # threshold is only a criterion if the statistic it tests has an error
+        # smaller than it; that error is the standard error of THIS slope and
+        # nothing else. Summing the reservoirs a second time somewhere else is
+        # how a project ends up with two answers to one question.
+        "heat_content_total_j_m2": total,
+        "reservoirs": list(reservoirs),
         "orbit_seconds": orbit_seconds,
         "planet_namelist": {"GA": gravity, "GASCON": gascon,
                             "GSOL0": solar_constant, "ECCEN": eccentricity},
@@ -261,6 +283,8 @@ def state_energy(run_dir: Path, first: int, last: int) -> dict:
         # every energy artifact made before this key existed had to be dated
         # against the model's own history to find out what it used.
         "sea_water": water,
+        # The melting point the sea-ice weighting used, and where it came from.
+        "planet_water": planet_water,
         "storage_w_m2_least_squares": storage_fit,
         "storage_w_m2_endpoint": storage_endpoint,
         "mean_toa_w_m2": mean_toa,
@@ -326,6 +350,7 @@ def main() -> None:
         # every energy artifact made before this key existed had to be dated
         # against the model's own history to find out what it used.
         "sea_water": c["sea_water"],
+        "planet_water": c["planet_water"],
         "state_energy_closure": {
             "identity": "d(planetary heat content)/dt = mean net TOA radiation",
             "storage_w_m2_least_squares": storage_fit,

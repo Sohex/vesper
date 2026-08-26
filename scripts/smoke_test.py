@@ -2169,6 +2169,59 @@ def check_slab_capacity_follows_the_run() -> list[str]:
     return bad
 
 
+def check_melting_point_follows_the_run() -> list[str]:
+    """The state closure takes the melting point from the RUN, not from a literal.
+
+    `tmelt` is pumamod's and a `planet_nl` key, so a run can set it and
+    `icemod` takes it through `iceini` rather than holding a compile-time copy.
+    It weights the sea-ice part of the rebuilt mixed-layer heat content, so a
+    literal that no longer tracks the model rescales the storage term the
+    convergence criterion passes on, and rescales it without failing.
+
+    Two synthetic run directories with known answers in closed form -- the
+    override's own value and the planet module's `planet_ini` assignment -- plus
+    the absence of a module-level copy, which is the form the defect took.
+    """
+    import tempfile
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    sys.path.insert(0, str(ROOT / "lib"))
+    try:
+        import close_state_energy
+        import sea_water
+    except ImportError as exc:
+        return [f"close_state_energy.py or lib/sea_water.py does not import: {exc}"]
+    bad = []
+    if hasattr(close_state_energy, "TMELT"):
+        bad.append("close_state_energy.py carries a module-level TMELT again; the "
+                   "melting point is sea_water.melting_point(run_dir)'s to state")
+    compiled = sea_water.melting_point()["TMELT"]
+    with tempfile.TemporaryDirectory() as tmp:
+        override = Path(tmp) / "with_namelist"
+        override.mkdir()
+        tmelt = 260.5
+        (override / "planet_namelist").write_text(
+            f" &planet_nl\n GA = 12.81\n TMELT = {tmelt}\n /END\n", encoding="utf-8")
+        got = sea_water.melting_point(override)["TMELT"]
+        if got != tmelt:
+            bad.append(f"a run declaring TMELT={tmelt} was closed at {got}")
+        bare = Path(tmp) / "no_namelist"
+        bare.mkdir()
+        got_bare = sea_water.melting_point(bare)["TMELT"]
+        if got_bare != compiled:
+            bad.append(f"a run declaring no melting point was closed at {got_bare}, "
+                       f"not the planet module's {compiled}")
+        if got == got_bare:
+            bad.append("the override and the planet module gave the same melting "
+                       "point, so this check cannot see the difference it exists "
+                       "to catch")
+    # It must be the melting point and not the sea-water freezing point: the
+    # stale comment this check replaces named the wrong one of the two.
+    if abs(compiled - sea_water.constants()["TFREEZE"]) < 1.0:
+        bad.append("sea_water.melting_point() is returning something within a "
+                   "kelvin of TFREEZE; those are two different quantities")
+    return bad
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-help", action="store_true",
@@ -2254,6 +2307,8 @@ def main() -> None:
                check_spectrum_guard()),
               ("the convergence slab's sea water follows the run",
                check_slab_capacity_follows_the_run()),
+              ("the state closure's melting point follows the run",
+               check_melting_point_follows_the_run()),
               ("the tools environment.md names are on this host",
                check_documented_tools())]
     if not args.skip_help:
