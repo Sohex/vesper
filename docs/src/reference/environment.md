@@ -212,6 +212,23 @@ holding the lock leaves it held forever; `cat /tmp/world.lock/who` says who
 took it and when, so a successor can tell a live holder from a corpse instead of
 guessing. Clear a dead one with `rm -rf` and say that you did.
 
+**THE LOCK IS NOT REENTRANT, AND RELEASING IS NOT OPTIONAL.** `mkdir` protects
+you against other agents and gives you nothing against yourself: take it twice
+without releasing and the second `until mkdir` waits forever on a directory you
+are holding. That deadlock is silent -- the waiter sleeps, no error is printed,
+`who` still names the FIRST claim because the `echo` after the loop never runs,
+and the work simply never starts. It cost a verification run here, and the tell
+was that `who` described a phase that had obviously finished.
+
+So end every phase with `rm -rf /tmp/world.lock` rather than leaving it held
+until the session ends, and read `who` before believing a lock is live: a claim
+naming work that is plainly over is a corpse or a self-deadlock, not a holder.
+Two consequences follow. A HELD LOCK WHOSE `who` DESCRIBES FINISHED WORK IS THE
+SIGNATURE OF THIS BUG, not of a slow neighbour. And writing to `who` without
+having taken the directory is not taking the lock -- doing that put three
+integrations on 32 cores in one wave, at a load of 51, and made every wall clock
+from the session unusable.
+
 **HOLDING THE LOCK DOES NOT PARTITION THE HOST.** It keeps other AGENTS off the
 machine. It says nothing about how you divide the machine between your own
 processes, and reading it as a reservation is how two 16-thread integrations
