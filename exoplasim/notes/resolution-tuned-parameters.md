@@ -1623,16 +1623,41 @@ host load 5.0 to 7.4 over 32 cores:
 | --- | ---: | ---: |
 | fixer off, `run_d3606ce0d265` | -0.0206 | -0.000172 |
 | fixer off again, `run_c24776f33d25` | -0.0206 | -0.0000256 |
+| fixer off a third time, `run_383b871dcfad` | -0.0206 | -0.000250 |
 | fixer on, `run_614579b8b44a` | +0.0034 | -0.000197 |
 
-**The displacement is below what this rung can resolve.** The two fixer-off arms
-are the same configuration on the same restart and their displacements differ by
-1.5e-4, which is the size of the displacement itself. `Cimp - Ct` is a difference
-of two numbers near -0.079, so it is catastrophic cancellation at the level where
-OpenMP reduction order decides the answer, and a T21 dry arm is not an instrument
-for it. At T42 the same quantity is -0.96 against a run-to-run reproducibility
-that `run_252234b974e0` showed to be bit for bit, which is why the diagnosis was
-done there and has to stay there.
+The three fixer-off rows are one configuration run three times. `denergy26 -
+denergy27` reproduces exactly and `Cimp - Ct` does not, which is the next
+paragraph.
+
+**`Cimp - Ct` DOES NOT REPRODUCE, and the whole of the variation is `Ct`.** Three
+runs of one configuration on one restart with one binary, two of them on the same
+eight cores, give at the first kept print:
+
+    Cimp - Ct      +0.00026    +0.00400    -0.00373
+
+It changes sign between runs of the same arm. Column by column, `d02`, `d26`,
+`d27`, `Cimp`, `Cvadv`, `Ctm` and `Ctp` are bit-identical across all three and
+`Ct` and `Dt` are the only two that move. The full-physics pair below is bit
+identical on different cores, so the model is deterministic and this is specific
+to these two columns.
+
+**It localises to `zcnow`, which is the only array those two terms read.**
+`plasim.f90` computes terms 3 and 4 -- `Ct` and `Dt` -- from `zcnow`, and the
+other four from `zcsdt`, `zsd` and `sd`. `zcnow` is filled as `zcnow(:,:) =
+sd(:,:)` inside the OpenMP parallel region, and `mpsyncsp` advances `sd` from t
+to t+dt later in the same routine, which is what makes term 6 a different
+quantity from term 3. The `!$omp barrier` above the copy guards the previous
+phase's arrays against this one; nothing holds every thread's copy of `zcnow`
+ahead of the first thread's arrival at `mpsyncsp`, so a late thread can capture
+an `sd` that is already partly advanced.
+
+The scatter is about 0.008 W/m2 on a `Ct` of 1.25, six parts in a thousand.
+**That does not threaten the T42 diagnosis**, where the displacement is -0.96 and
+six parts in a thousand of `Ct` is 0.008, but it is decisive at T21, where the
+displacement is 2e-4 and the scatter is thirty times it. Any future use of
+`Cimp - Ct` has to check the quantity against this scatter first, and a repeat of
+the arm is the only way to measure it.
 
 **The sink itself is smaller at T21 by more than an order of magnitude**, -0.021
 against -0.79, and at matched early model time -0.137 against -1.675. That is the
