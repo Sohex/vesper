@@ -149,10 +149,24 @@ from a defined value.
 in the tree. `k_CO2` and `Ceq_CO2` are computed every day by
 `update_daily_gas_parameters` and never consumed, because the transport step
 replaces CO2 diffusion with `co2_store`. `CH4_gas_yesterday` is written,
-serialized, and read by nothing. `CH4_oxid` and `CH4_vgc` are the only members
-in the gas set that `Soil::init_states` does not touch at all, so they hold
-indeterminate memory until the first `Soil::methane` write; that write precedes
-every read, which is the only reason it is safe.
+serialized, and read by nothing.
+
+`CH4_oxid` and `CH4_vgc` were the only members in the gas set that
+`Soil::init_states` did not touch at all, so a freshly constructed `Soil` held
+indeterminate memory in both until the first `Soil::methane` write. That write
+precedes every read, and only over the active layer range `[IDX, NLAYERS)`, so
+a read at a shallower index would have returned whatever the allocation held.
+`Soil::init_states` now sets both, and zero is derived rather than merely
+defined: `CH4_vgc` is `CH4_gas_vol` over the layer volume and `CH4_gas_vol` is
+initialised to zero on the line above it, and `CH4_oxid` is
+`min(CH4, 0.5 * O2)` with both of those initialised to zero, so zero is what
+each member's writer in `soilmethane.cpp` would produce from the state
+`init_states` leaves. Neither belongs in `Soil::serialize`: within a simulated
+day the write at `soilmethane.cpp` and the reads beside it share one enclosing
+condition, so no read of either crosses a save point.
+
+The vendored CNP fork leaves both uninitialised, so this is a declared
+divergence from mainline and not a defect this project introduced.
 
 ## What this does not settle
 
