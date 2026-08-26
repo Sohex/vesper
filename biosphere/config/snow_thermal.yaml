@@ -1,0 +1,174 @@
+# The simulated snowpack's thermal conductivity, declared.
+#
+# Worldbuilding. Vesper is an invented planet and this file describes the
+# vegetation model's snow as it runs on the simulation of it: the relation that
+# turns the modelled snowpack's density into a thermal conductivity, and the
+# place where this project's source departs from mainline LPJ-GUESS in order to
+# run the same relation the climate model runs.
+#
+# `biosphere/scripts/snow_thermal_gate.py` reads this file. The divergence is
+# checked on both halves -- that the release's own lines are recorded beside the
+# changed one, and that the changed one is what the model runs -- and the
+# relation itself is checked against `lib/snow.py`, which is where it is
+# DECLARED. This file records the divergence; it does not restate the
+# polynomial, because a second copy of the coefficients is the defect the
+# declaration exists to remove.
+#
+# The argument is `notes/audits/cryosphere-material-properties.md`, section
+# "The snow conductivity: which relation, and why not Sturm" and the
+# cross-component section under it. `analysis/ice_properties.py` evaluates all
+# three relations across the density range the two components span.
+
+# THE ONE DIVERGENCE FROM MAINLINE LPJ-GUESS 4.1.1, WITH ITS VERDICT.
+#
+# `modules/soil.cpp`'s `update_snow_properties` arrived byte-identical to
+# guess_4.1/modules/soil.cpp's (Zenodo record 8065737, SVN r10118) apart from a
+# stripped MPL-2.0 licence header: the CNP fork never touched it, and the whole
+# of the rest of that function is unchanged here. It is ON BY DEFAULT.
+# `data/ins/global.ins` sets `iftwolayersoil 0`, which is what selects the
+# multilayer soil temperature scheme, and `Ksnow` becomes `Ki[]` for every
+# active snow layer of that scheme's numerical solve whether `ifmultilayersnow`
+# is 1 or 0. So this is a change to default-on behaviour in a widely used
+# community model, live in the configuration this project runs, and not a fork
+# quirk inherited from the CNP tree.
+#
+# NONE OF IT IS EXECUTION-VERIFIED. LPJ-GUESS does not build on this tree, so
+# every statement here is arithmetic on the declared forms and on the papers.
+# `comparison_arm` names what would change that and cannot be run here.
+#
+# `verdict` is what this project decided about the change, not what the
+# arithmetic says:
+#   keep    the divergence stands and is declared. `mainline` records the lines
+#           the release runs, verbatim, beside the changed one in the source
+#   gate    the divergence stands but is not settled, and `--strict` refuses
+#           while it does. There is no such entry; the kind exists so the next
+#           one has somewhere to go that is not `keep`
+# A divergence that does not survive review is reverted and leaves this file;
+# reverting is the null result, not a defeat.
+#
+# The gate checks BOTH halves. Each `mainline` string has to be in the source,
+# so the record cannot go missing, and NOT in it once comments are stripped, so
+# a silent revert fails; `live` has to be in the stripped source, so deleting
+# the changed line fails too.
+mainline_divergences:
+  release: "LPJ-GUESS 4.1.1, Zenodo record 8065737, SVN r10118, MPL-2.0"
+  fork_reference: "LPJ-GUESS-CNP v1.0, mateusdp/LPJ-GUESS-NTD, subtree commit b368b893c4324840b43c56866e901c6916858afb, vendored at vendor/lpj-guess"
+  execution_verified: false
+  why_not_verified: >
+    LPJ-GUESS does not build on this tree. `framework/vesper.h` is generated,
+    and the chain to it runs through a baseline run and a baseline climatology
+    that do not exist. The divergence below has not been run, in either
+    direction. That is also what makes it cheap now: nothing has consumed the
+    superseded relation.
+  comparison_arm: >
+    What would bound what this is worth in a simulated soil temperature, which
+    arithmetic on the relation cannot reach: one stock-4.1.1 arm against one
+    Vesper arm, the same build, the same climatology and the same instruction
+    file except that the stock arm restores the Sturm block in
+    modules/soil.cpp. The quantities to compare are the simulated soil
+    temperature at 25 cm under snow-covered gridcells through the cold season,
+    the thaw day, and the heterotrophic respiration and net mineralisation that
+    follow from them, since decomposition reads the soil temperature and not
+    the snow. It has to be run at `iftwolayersoil 0`, which is the default and
+    the only configuration in which the multilayer scheme's snow layers exist
+    at all.
+  entries:
+    - id: snow_conductivity_relation
+      owner: world-gjov
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/soil.cpp
+      function: update_snow_properties
+      mainline_form: line
+      mainline:
+        - "double snowdens_scaled = snowdens / rho_H2O;"
+        - "if (snowdens > 156.0)"
+        - "Ksnow = 0.138 - 1.01 * snowdens_scaled + 3.233 * snowdens_scaled * snowdens_scaled;"
+        - "Ksnow = 0.023 + 0.234 * snowdens_scaled;"
+      live: "Ksnow = 1.985 * snowdens_vf * snowdens_vf + 0.073 * snowdens_vf + 0.0336;"
+      live_under: iftwolayersoil_0
+      settles: >
+        Three things, and none of them is that the release disagreed with the
+        climate model. Sturm et al. (1997) is a needle-probe regression; Riche
+        and Schneebeli (2013) ran a long-heating needle probe, a guarded heat
+        flux plate and a direct numerical simulation on IDENTICAL samples and
+        concluded the simulation is the most reliable of the three, with a
+        horizontally inserted needle probe wrong by up to a quarter either way
+        through the anisotropy of the pack. Sturm's relation sits BELOW BOTH
+        ARMS of the published kinetics bracket at every density the modelled
+        snowpack reaches, so it is not a point inside the honest uncertainty but
+        outside it. And Fourteau et al. (2021) computes the effective
+        conductivity on tomographic microstructures INCLUDING the latent heat
+        carried by water vapour diffusing through the pore space, which is a
+        real term in a pack under a temperature gradient and which a
+        conduction-only computation omits. Sturm's own stated uncertainty is 0.1
+        W/m/K at 95 per cent confidence, which over the lower half of the
+        modelled density range is comparable to the value being predicted.
+      worth: >
+        The modelled snow conducts between 1.50 and 2.30 times better than it
+        did, over the whole density range the vegetation model reaches: the
+        ratio is largest at the fresh-snow end of the compaction ramp and
+        smallest at the settled end. The insulating resistance of a modelled
+        pack, its thickness over its conductivity, therefore falls to between 44
+        and 67 per cent of what it was at the same water equivalent, so the
+        temperature drop across the pack per unit ground heat flux falls by the
+        same factor. The snow's thermal diffusivity rises with the conductivity,
+        so the modelled pack also tracks the simulated air temperature faster.
+        Which way the simulated soil temperature moves is not settled by this,
+        because it depends on the sign of the gradient across the pack: the
+        change couples the modelled soil more tightly to the air above it in
+        both directions. Decomposition reads the soil temperature, so
+        `comparison_arm` is what prices it.
+      also_changed: >
+        Nothing else. `Csnow`, `Dsnow`, the compaction ramp, the layer count and
+        the numerical solve are the release's, unchanged. The relation is the
+        only thing that moved.
+
+# THE RELATION ITSELF IS NOT DECLARED HERE.
+#
+# `lib/snow.py` is the one statement of it, and both compiled models carry it as
+# a literal because neither can import a Python module at runtime. That module's
+# `check_restatements()` holds every literal to the one table, and this gate
+# runs it, so the register cannot certify a divergence into a relation the
+# climate column has since moved off. Restating the coefficients here would make
+# a third copy with nothing above it.
+#
+# `densities` is the span the two components put through the relation, and the
+# gate reads its two ends out of `modules/soil.h` rather than trusting this
+# file: a compaction ramp that moves and a register that does not is the same
+# drift in a different place.
+relation:
+  declared_in: lib/snow.py
+  citation: >
+    Fourteau, Domine, Hagenmuller (2021), Impact of water vapor diffusion and
+    latent heat on the effective thermal conductivity of snow, The Cryosphere
+    15, 2739-2755, 10.5194/tc-15-2739-2021, Eq. (18), the 263 K row of the
+    vertical effective thermal conductivity. Read; references/INDEX.md carries
+    the row.
+  bracket: >
+    The adopted row is the FAST kinetics limit, which is the UPPER endpoint of
+    the bracket rather than a point inside it. Fourteau's Sect. 4.1 says which
+    limit snow is in is unresolved. The slow limit is Calonne et al. (2011) Eq.
+    (12) and lies below this line at every density carried, so the residual
+    uncertainty is ONE-SIGNED: the modelled snow may conduct LESS than the model
+    says and it cannot conduct more.
+  densities:
+    source_file: vendor/lpj-guess/modules/soil.h
+    start: snowdens_start
+    end: snowdens_end
+    note: >
+      The vegetation model's snow density is PROGNOSTIC, ramped from
+      snowdens_start to snowdens_end by the Wania compaction scheme, where the
+      climate model's is a single namelist key that sits inside this span. That
+      is why the two could never have been reconciled by matching values: equal
+      conductivities at one density would be a coincidence at one point of two
+      curves that diverge everywhere else. It is the relation that is shared.
+  no_other_relation:
+    forbidden:
+      - "3.233 * snowdens_scaled"
+      - "0.234 * snowdens_scaled"
+    why: >
+      The superseded relation's own coefficients, which must appear nowhere in
+      the vendored vegetation model outside the record of it. Checked over the
+      whole subtree with comments stripped rather than over the one function, so
+      a second snow conductivity growing somewhere else fails here.

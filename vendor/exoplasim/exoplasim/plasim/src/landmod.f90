@@ -325,6 +325,16 @@
 !     compile-time statement of the conductivity of snow, at the same 0.31, and
 !     it now arrives through iceini so the snow on the modelled sea ice and the
 !     snow on the modelled soil cannot be made of different stuff.
+!
+!     AND SO DOES THE VEGETATION MODEL'S SOIL COLUMN. vendor/lpj-guess's
+!     soil.cpp computed its own snow conductivity from Sturm et al. (1997),
+!     which is below both arms of the bracket above at every density the two
+!     components span, so one snowfall insulated that column's soil about twice
+!     as well as this one's. The relation is now declared once in lib/snow.py
+!     and restated in both models under a check. The two cannot be reconciled
+!     by matching NUMBERS -- that model's snow density is prognostic across a
+!     compaction range where rhosnow here is one key, so equal values at one
+!     density would be a coincidence at one point of two curves. WORLD-GJOV.
       real, parameter :: CPSNOW = 2090. ! specific heat of snow (J/kg/K)
 !     Fourteau's normalising ice density, part of the FIT and not a free
 !     constant of this model: the polynomial is in rho/rhoice and 917 is the
@@ -679,6 +689,15 @@
 !     And its own conductivity, from the same density. Fourteau et al. (2021)
 !     Eq. (18), the vertical effective thermal conductivity at 263 K, in the
 !     ice volume fraction. WORLD-A9S5; the argument is above the declaration.
+!
+!     THE RELATION IS DECLARED IN lib/snow.py AND THE LINE BELOW IS A CHECKED
+!     RESTATEMENT OF IT. The vegetation model's soil.cpp carries the same row
+!     as a C++ literal, because neither model can import that module at
+!     runtime, and lib/snow.py's check_restatements() holds both literals to
+!     the one table. scripts/smoke_test.py runs it. That is the same
+!     arrangement lib/rungs.py's ladder has, and it exists because the two
+!     columns once modelled the same snow with two different relations that
+!     differed by close to a factor of two. WORLD-GJOV.
       zsnowvf  = rhosnow / RHOICE_F2021
       snowdiff = 1.985 * zsnowvf * zsnowvf + 0.073 * zsnowvf + 0.0336
       call mpbcr(roffvel)

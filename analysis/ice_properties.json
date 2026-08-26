@@ -118,7 +118,7 @@
     "slow_arm": "Calonne et al. (2011) Eq. (12), conduction through ice and interstitial air only, his whole sample set at 271 K",
     "fast_arm": "Fourteau et al. (2021) Eq. (18), the same computation WITH the latent heat carried by water vapour through the pore space, at 263 K and at 273 K",
     "which_limit_applies": "unsettled in the literature. Fourteau's Sect. 4.1 says so, citing Krol and Lowe (2016) for isothermal metamorphism looking like slow kinetics and temperature-gradient metamorphism looking like fast. That is why this is a bracket and not a correction.",
-    "adopted": "the FAST arm. `landmod`'s landini evaluates Eq. (18) at 263 K, so the adopted relation is the bracket's upper endpoint rather than a point inside it, and the slow arm below is how far under it the other limit sits.",
+    "adopted": "the FAST arm, at 263 K, by BOTH columns: lib/snow.py declares it, landmod's landini and soil.cpp's update_snow_properties each restate it under a check. So the adopted relation is the bracket's upper endpoint rather than a point inside it, and the slow arm below is how far under it the other limit sits.",
     "declared_density_kg_m3": 330.0,
     "declared_conductivity_w_m_k": 0.317,
     "slow_arm_residual_sd_w_m_k": 0.025,
@@ -165,7 +165,7 @@
       }
     ],
     "instrument_versus_effect": "the bracket is wider than the scatter of the fit that defines its lower arm at every density carried, so it is a real disagreement and not the noise of one regression.",
-    "cross_component": "vendor/lpj-guess/modules/soil.cpp computes its snow conductivity from Sturm et al. (1997), which is BELOW the slow arm at every density here. So the ecology column and the climate column insulate their soil differently from the same snowfall at the same density, and the difference is larger than the bracket between the two published limits."
+    "cross_component": "SETTLED. vendor/lpj-guess/modules/soil.cpp computed its snow conductivity from Sturm et al. (1997), which is BELOW the slow arm at every density here, so the ecology column and the climate column insulated their soil differently from the same snowfall at the same density by more than the bracket between the two published limits. Both now restate lib/snow.py's one relation, held there by snow.check_restatements, which scripts/smoke_test.py and biosphere/scripts/snow_thermal_gate.py both run. The Sturm column below is what the superseded ecology column ran and is the evidence for the choice."
   },
   "what_is_not_derivable_here": "the density, specific heat and conductivity of SEA ice are functions of brine volume, hence of the ice's own salinity and temperature, and this model carries neither as a variable. icemod.f90 already says so of the heat of fusion. The pure ice Ih values above are the bound those declarations sit against, not substitutes for them."
 }
