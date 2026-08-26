@@ -23,17 +23,23 @@ c Thermobaricity term is in
       end
 
 c---------------------------------------------------
-      subroutine eosd(ec,t,s,z,rdz,ieos,dzrho,tec)
+c The two levels arrive as four SCALARS rather than as two two-element
+c arrays. The only caller holds them in a four-dimensional array and would
+c have to pass strided sections ts1(l,i,j,k:k+1) to fill an array dummy;
+c gfortran packs each such section into a heap temporary before the call and
+c frees it after, once per wet cell per level per ocean timestep. Scalars are
+c passed by address and copy nothing. The arithmetic below is unchanged.
+      subroutine eosd(ec,t1,t2,s1,s2,z,rdz,ieos,dzrho,tec)
 
       implicit none
 
-      real ec(5), t(2), s(2), z, dzrho, tec
+      real ec(5), t1, t2, s1, s2, z, dzrho, tec
       integer ieos
       real tatw, rdz
 
 c Calculate dzrho (vertical density gradient).
 
-      tatw = 0.5*(t(1) + t(2))
+      tatw = 0.5*(t1 + t2)
       if(ieos.eq.0)then
 c No thermobaricity term
         tec = - ec(1) - ec(3)*tatw*2 - ec(4)*tatw*tatw*3
@@ -41,7 +47,7 @@ c No thermobaricity term
 c Thermobaricity term is in
         tec = - ec(1) - ec(3)*tatw*2 - ec(4)*tatw*tatw*3 - ec(5)*z
       endif
-      dzrho = (ec(2)*(s(2)-s(1)) - tec*(t(2)-t(1)))*rdz
+      dzrho = (ec(2)*(s2-s1) - tec*(t2-t1))*rdz
 
       end
 
