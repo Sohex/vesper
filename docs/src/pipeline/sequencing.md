@@ -255,12 +255,26 @@ convert to kelvin with the canonical slope in `lib/sensitivity.py`. Every term
 can be attributed this way while the whole bundle still costs ONE converged
 run.
 
-Four things make that A/B trustworthy, and none is optional:
+Five things make that A/B trustworthy, and none is optional:
 
 - **Every forcing change lands with a quantitative prediction of its own
   effect**, stated before it is run, with what result would mean "wrong". That
   is the check-needs-a-right-answer convention (CLAUDE.md), applied to
   physics.
+- **ONE PREDICTION PER COMMIT, AND IT NAMES THE ARTIFACT ITS MAGNITUDE CAME
+  FROM.** A prediction registered jointly for two commits is sized from
+  whichever of them the author was holding, and the other enters the sum at
+  zero while looking accounted for. That is not hypothetical: batch 2
+  registered +0.59 to +1.63 K of WARMING for `world-jgen` and `world-f9ig`
+  together, sized from `cloud_optical_depth_bracket.json`, which prices the
+  cloud optical depth and nothing else -- while
+  `stephens_tables_vs_fits.json`, already in the tree, priced `world-f9ig`'s
+  table swap at -20.63 to -5.32 K and named the experiment that would settle
+  it. The measured value was -10.01 K, inside that bracket and an order of
+  magnitude outside the registered one, with the sign reversed. Naming the
+  source artifact is what makes the omission visible while the prediction is
+  being written, because a source that prices half a change says so on its
+  face.
 - **Both arms use the SAME BINARY and differ only by a namelist key.** This is
   what the no-op-until-enabled convention is for. Two binaries would confound
   the term with the rebuild, and the low-I/O patch changes the restart layout,
@@ -278,6 +292,19 @@ genuinely risks is `docs/src/practice/failure-modes.md` class 15, two errors tha
 cancel; the mitigation is the per-term prediction above, not serialization,
 because two cancelling errors hide just as well in a serial sequence nobody
 predicted the size of.
+
+**THE SUM CHECK IS ONLY AS COMPLETE AS THE LIST OF TERMS, and that list has
+twice been short.** Batch 2 shipped `vdiff_lamm` and the soil heat solver's
+conductivity as live changes that appeared in no prediction at all -- both live
+by default, because the model takes a compiled value when `run_exoplasim.py`
+writes no namelist key for it. A term with no namelist route is invisible to
+the registry AND cannot be made into an arm, since an arm is one binary
+differing by one key. So the list of terms is not assembled from the
+predictions: it is assembled from the DIFF, every forcing-relevant commit in
+the window, and a term that cannot be named as a namelist key is a term the
+bundle is not ready to check. WORLD-SJJA and WORLD-5OYP are the two that were
+found this way, and the bisect that found them cost a full paired 25-orbit set
+that the sum check exists to avoid buying.
 
 **A budgeting fact.** `build_surface_albedo.py`
 has a `modelled` mode that takes tree cover from an LPJ-GUESS `fpc.out`
