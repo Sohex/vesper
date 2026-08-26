@@ -96,7 +96,52 @@
       real    :: solclat = 1.0    ! cos of lat of insolation if ncstsol=1
       real    :: solcdec = 1.0    ! cos of dec of insolation if ncstsol=1
       real    :: clgray  = -1.0   ! cloud grayness (-1 = computed)
-      real    :: th2oc   = 0.024  ! absorption coefficient h2o continuum (lwr)
+!
+!     THE ENTIRE LONGWAVE WATER VAPOUR CONTINUUM, DECLARED WITH A BRACKET
+!     BECAUSE NOTHING SOURCES IT. world-2esd, notes/audits/tuned-values.md.
+!
+!     WHAT IT IS. A grey mass absorption coefficient in cm2/g, applied once in
+!     lwr as zah2o = min(zah2o + (1 - exp(-th2oc*zsumwv)), 1), where zsumwv is
+!     the PRESSURE-WEIGHTED water vapour path in g/cm2 at a bar. Sasamori
+!     (1968) fits the 6.3 um band and the rotational band and carries no window
+!     absorption at all, so this one line is the whole of the modelled
+!     continuum and the only thing absorbing in the modelled window.
+!
+!     WHERE 0.024 CAME FROM: nowhere that can be inspected. It is the fourth
+!     member of the per-truncation jtune table upstream carried, alongside
+!     tswr1, tswr2 and tswr3; those three are gone with world-f9ig and this one
+!     is what is left of that block's reach. The other three named themselves
+!     as tunings in their own declarations and this one never did.
+!
+!     THE CEILING IS DERIVED AND THE VALUE IS NOT. The term adds broadband
+!     absorptance that Sasamori leaves out, and what Sasamori leaves out is the
+!     window, so the addition cannot exceed the share of the emitted Planck
+!     flux the window carries -- above that it absorbs more than the spectral
+!     region it stands in for contains. At the largest pressure-weighted path
+!     this model reaches, 6.08 g/cm2 on a T21 bootstrap climatology, and the
+!     8-12 um window's Planck share over 250 to 300 K, that ceiling is 0.038 to
+!     0.050. THE INHERITED VALUE IS HALF OF IT: at the mean path 2.23 g/cm2 the
+!     term already claims 0.052 of broadband absorptance and at the maximum
+!     path 0.136, which is more than half the entire window's Planck share.
+!     This is a first-order term carrying a residual, not a small correction.
+!
+!     THE BRACKET IS THEREFORE [0.0, 0.038] AND IT GETS SWEPT. Zero is what the
+!     surrounding if(th2oc > 0.) already supports and is the arm that measures
+!     the term's whole worth; 0.038 is the tightest ceiling across the modelled
+!     emitting temperatures. End to end that is 0.081 of broadband absorptance
+!     at the mean path. Registered with its prediction and with what would mean
+!     wrong in exoplasim/notes/forcing-bundle-predictions.md; re-derive the
+!     bracket with exoplasim/scripts/lw_continuum_bracket.py.
+!
+!     WHAT WOULD CLOSE IT, and it is the one this project knows it lacks: a
+!     correlated-k or line-by-line calculation with the MT_CKD continuum on
+!     this path. references/INDEX.md records that Mlawer et al. (2012) does not
+!     supply an evaluable continuum -- the coefficients ship as data with
+!     LBLRTM -- so the paper alone does not close it. It is the same bundle
+!     exoplasim/notes/corrk-cross-check.md says the project does not have and
+!     which blocks h2o_sw_level's bracket; the two open together.
+!
+      real    :: th2oc   = 0.024  ! grey h2o continuum coefficient, cm2/g (lwr)
 !
 !     THE RANGE-2 CLOUD CO-ALBEDO SCALE, and it is the surviving half of what
 !     `tswr3` used to carry. `tswr3` did two jobs at once: it was the

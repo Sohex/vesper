@@ -1009,3 +1009,152 @@ prediction that named it.
 the SPATIAL span of the ocean albedo, which needs a modelled water-leaving
 reflectance. OCN-14 owns that and it does not exist, so the span is unbounded
 here and is not smuggled into this prediction.
+
+## world-jgen and world-f9ig: the band-1 cloud optics, ONE T21 pair
+
+The two changes are in the model source together, so a control on the
+pre-`world-jgen` tau relation against an arm on the current source measures the
+pair. Separating them needs a third arm and nothing requires that separation.
+
+**What the arm is, and it supersedes the definition the issue was opened with.**
+`radmod` evaluated one cloud optical depth, `2*ALOG10(1.5 + W)**3.9`, for BOTH
+shortwave bands. Stephens (1978) p. 2124 fits two by least squares, Eq. (10a)
+over 0.3 to 0.75 um and Eq. (10b) over 0.75 to 4.0 um, and `radmod` splits its
+own bands at that same 0.75 um: band 2 was getting its own equation and band 1
+was getting band 2's. Each band now evaluates its own fit.
+
+The `+1.5` offset went with it, and it was NOT replaced by zero optical depth
+below 1 g/m2 as the issue proposed. Zero leaves the 1 to 10 g/m2 window on an
+extrapolated fit whose implied effective radius, through Stephens Eq. (7), is
+134 um at 2.15 g/m2. Below 10 g/m2, which is the bottom of the paper's Figs. 1a
+and 1b, each band is continued LINEARLY in the water path, matching its own
+fitted value at 10 -- Eq. (7) at the effective radius the fit implies there,
+8.2 um in band 1 and 6.7 um in band 2. Continuous, zero at zero water, and no
+new constant.
+
+**The hold on `tswr1` is lifted, because there is no coefficient left to hold.**
+The arm was written to hold `tswr1` at its inherited value, on the ground that
+it had been tuned against the optical depth being corrected. `world-f9ig` has
+since deleted `tswr1`, `tswr2` and `tswr3` and put Stephens et al. (1984) Tables
+1(a) to 1(c) in `swr` in their place, so the band-1 backscatter is interpolated
+from Table 1(b) at the layer's own range-1 optical depth. The control and the
+arm no longer share a coefficient fitted against the quantity being corrected,
+which was the whole reason the hold existed.
+
+**Predicted magnitude: +0.73 to +2.00 W/m2 at the top of the atmosphere, +0.59
+to +1.63 K, WARMING.** `exoplasim/scripts/cloud_optical_depth_bracket.py`,
+re-derived on the current source. It carries the model's own per-layer cloud
+water paths, its own total cloud cover with random overlap, its own zenith
+geometry integrated over the day, and the band-1 surface albedo through Stephens
+Eq. (12).
+
+**The correction is not one-signed, which the issue's original hand chain got
+wrong.** Over the seven layers carrying real cloud water, 7 to 90 g/m2, band-1
+cloud gets LESS bright and that warms; in the top three layers, under 2.5 g/m2,
+it gets brighter, because the linear continuation returns more optical depth
+than the `+1.5` offset did. The second is much the smaller, and the bracket
+above is the net.
+
+**The bracket leans high** and the direction is argued rather than assumed:
+band-1 gas absorption and Rayleigh scattering above and below the cloud are not
+in the chain and both attenuate the change, and the column is composed by random
+overlap without interlayer multiple reflection, which also attenuates it. Its
+WIDTH is the spread over where in the column the cover sits, which the model
+does not write out. The geometry is checked rather than trusted: the chain's
+band-1 incident flux reproduces the climatology's own `rst + rsut` to better
+than 1e-4, which is a quantity the other side already knows.
+
+**What would mean wrong, in the A/B:**
+
+- **Sign.** A correct band-1 tau is smaller than the one it replaces over every
+  layer carrying real cloud water, so the arm must warm. A cooler arm is wrong
+  outright, not a small result.
+- **Magnitude.** Below +0.59 K or above +1.63 K is outside the bracket. Above it
+  in particular points at the linear continuation, which is the only part of the
+  change with no paper behind its FORM, though its endpoint is Stephens Eq. (7).
+- **The top three layers.** Their contribution is the one that opposes, and it
+  is small. If the arm's response is dominated by the layers under 2.5 g/m2, the
+  continuation is doing more than it should be and the arm is measuring it
+  rather than the band split.
+- **The instrument.** Stephens (1978) p. 2127 warns that the
+  cloud-over-reflecting-surface correction is unreliable above a surface albedo
+  of about 0.75, which is every modelled snow and sea-ice cell, so a response
+  concentrated there is outside the parameterisation's own stated domain.
+
+**BLOCKED on the run only.** The source change is in the tree and the bracket is
+current. What is missing is a T21 pair on a settled baseline, and
+`config/planet.yaml` declares `baseline_climatology: null`.
+
+## world-2esd: `th2oc`, the model's whole longwave continuum, swept
+
+Registered as a sweep rather than a correction, because nothing this project
+holds determines the value and the honest disposition is a declared bracket.
+
+**What it is.** `radmod.f90` declares `th2oc = 0.024` and `lwr` applies it once,
+as `zah2o = min(zah2o + (1 - exp(-th2oc*zsumwv)), 1)` on the pressure-weighted
+water path. Sasamori (1968) carries no window absorption at all, so this single
+line is the entire continuum contribution to the modelled longwave and the only
+thing absorbing in the modelled window. It is the fourth member of the
+per-truncation `jtune` table upstream carried; the other three are gone with
+`world-f9ig`, they named themselves as tunings in their own declarations, and
+this one never did.
+
+**The ceiling is derived; the value is not.** The term adds broadband
+absorptance that Sasamori leaves out, and what Sasamori leaves out is the
+window, so the addition cannot exceed the share of the emitted Planck flux the
+window carries. At the largest pressure-weighted path the model reaches, 6.08
+g/cm2 on a T21 bootstrap climatology, and the 8-12 um window's Planck share over
+250 to 300 K, that is `th2oc <= 0.038 to 0.050`.
+
+**The inherited value is half of its own ceiling.** At the mean path, 2.23
+g/cm2, the term claims 0.052 of broadband absorptance; at the maximum path
+0.136, which is more than half the whole window's Planck share. This is a
+first-order term carrying a residual, not a small correction, and that is the
+finding rather than the arms.
+
+**The bracket is [0.0, 0.038] and both ends are arguable.** Zero is what the
+surrounding `if(th2oc > 0.)` supports and is the arm that measures the term's
+entire worth; it is a bound and not a candidate, because the window continuum is
+real and `shine2012` p. 536 puts it as "often the dominant cause of
+wavelength-averaged absorption" in the windows. 0.038 is the tightest ceiling
+across the modelled emitting temperatures. `exoplasim/scripts/lw_continuum_bracket.py`
+re-derives both ends and the path they rest on.
+
+**THE ARMS ARE THE TWO ENDS AGAINST EACH OTHER**, on the same instrument
+argument `world-u9hq` makes: a single end against the inherited value sits too
+close to the convergence criteria's own slack to be attributed. End to end is
+0.081 of broadband absorptance at the mean path, which against a clear-sky
+greenhouse trapping of order 150 W/m2 is roughly 12 W/m2 and roughly 10 K by
+`lib/sensitivity.py`. **That conversion is static and leans high**: it carries no
+lapse-rate response and no water vapour feedback, both of which a run has and
+both of which damp it. The prediction carried into the arms is therefore an
+ORDER, 5 to 12 K end to end, and its purpose is to establish that the term is
+first-order rather than to predict the number.
+
+**What would mean wrong, in the A/B:**
+
+- **Sign.** More continuum absorption must warm the simulated mean. A cooler
+  high arm is wrong outright.
+- **Monotonicity** against the inherited 0.024 on the same lineage: 0.0 below it
+  and 0.038 above it. An inversion says the difference is scatter.
+- **Magnitude.** Below 2 K end to end contradicts the absorptance arithmetic,
+  which is not an estimate but a direct evaluation of the term the model
+  applies, and would point at the implementation. Above 12 K exceeds the static
+  conversion, which already leans high, and would point at a feedback the
+  conversion has no way to carry.
+- **The instrument, and this arm is unusually safe from class 34.** The effect is
+  0.081 of broadband absorptance where the convergence criteria resolve
+  fractions of a W/m2; nothing here is near the noise floor. The risk runs the
+  other way: an arm at 0.0 may not equilibrate on a commissioning-length window
+  at all, and a pair that has not settled is not a slope.
+- **An arm staged at 0.024 must be bit-identical to the control**, since that is
+  the value the binary already carries.
+
+**BLOCKED on the run, and on a source for the value.** The bracket and the
+declaration are in the tree. Closing it properly, rather than sweeping it, needs
+a correlated-k or line-by-line calculation with the MT_CKD continuum on this
+path; `references/INDEX.md` records that Mlawer et al. (2012) does not supply an
+evaluable continuum, because the coefficients ship as data with LBLRTM. That is
+the same bundle `exoplasim/notes/corrk-cross-check.md` says the project does not
+have and which blocks `h2o_sw_level`'s bracket. The two open together and should
+be scoped together.
