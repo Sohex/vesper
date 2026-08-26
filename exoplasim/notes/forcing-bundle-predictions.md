@@ -1602,17 +1602,20 @@ Four checks with right answers, all passed:
   `plasim_diag` prints `precip re-evaporation: CONSTANT gamma 1.0E-002`. That is
   the first thing this note's own falsifying list says to check.
 - **Every link of the stated mechanism has the predicted sign.** Against the
-  derived default, pinning `gamma` to 0.01 gives +0.298 +/- 0.009 mm/day more
-  precipitation reaching the ground, 0.70 kg/m2 less column water vapour, 0.042
-  +/- 0.003 less cloud cover, and 9.56 +/- 0.33 W/m2 less reflected shortwave.
+  derived default over ten orbits, pinning `gamma` to 0.01 gives +0.300 +/- 0.005
+  mm/day more precipitation reaching the ground, less column water vapour, 0.038
+  +/- 0.004 less cloud cover, and 9.16 +/- 0.35 W/m2 less reflected shortwave.
   Reversed, that is the derived form moistening the column, growing cloud and
-  reflecting more, which is the chain this note describes.
+  reflecting more, which is the chain this note describes. The arm is 10 orbits
+  into a settling block `lib/run_lengths.py` prices at 25 to 54 for a
+  perturbation this size, and its surface separation is +1.58 K and still
+  climbing, so the kelvin is an order and the W/m2 is the measurement.
 
 **So the code is doing what it was written to do, and the prediction is what
 missed.** It predicted the moistening, the cloud increase and the drop in
 precipitation, and priced NONE of them in W/m2 or kelvin: "high cloud fraction
-rises slightly" is +0.042 absolute cover carrying **9.6 W/m2** of extra reflected
-shortwave, about 7.4 K at `lib/sensitivity.py`'s 0.778 K per W/m2. The
+rises slightly" is +0.038 absolute cover carrying **9.2 W/m2** of extra reflected
+shortwave, about 7 K at `lib/sensitivity.py`'s 0.778 K per W/m2. The
 precipitation reduction, 13.5 per cent of the global mean, sits inside the 10 to
 50 per cent the prediction gave for its land counterpart.
 
