@@ -219,6 +219,33 @@ _KNOWN_TERRAIN_HASHES = {
          "settles that first; regenerating gives a new terrain hash and an entry "
          "with no refusal. Registered so notes/audits/orogen-resolution.md, which "
          "measured this terrain, still resolves."},
+    # NO `refusal`, and that is the whole point of this entry. It is the first
+    # generation taken with a view to being commissioned rather than measured:
+    # `--glacial 0`, so the ice is an honest null awaiting the mask PHYS-13's
+    # route supplies, rather than the Earth-calibrated latitude ramp that
+    # refuses precarve-craton-10m above. Same planet code, seed, radius, gravity
+    # and lithology strength as the two builds above; against
+    # precarve-craton-10m it differs in glacialErosion, in the basin floor, and
+    # in the generator changes since -- the depth floor compared in physical
+    # kilometres (WORLD-YRIL) and the relief curve's branch above the shape
+    # function's domain.
+    #
+    # `--basin-min-area 850` is passed EXPLICITLY and has to be. The planet
+    # code's basin slider maps onto a ladder with no 850 rung and it outranks
+    # BASIN_MIN_AREA_KM2 unless a basin flag is given, so two generations were
+    # taken at 1000 before the exporter was made to refuse the disagreement.
+    # `source/README.md` carries the recipe and the argument.
+    #
+    # Its ANCESTRY is not settled terrain: LITH-26 replaces the shelf substrate
+    # classification and moves terrain when it lands, and it lands on a later
+    # iteration because it needs a climatology this build has to produce first.
+    # `notes/audits/orogen-first-pass-gate.md` is the reading that says nothing
+    # outstanding changes the FIRST export, which is the question the orogen
+    # step's gate asks.
+    "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9":
+        {"name": "canonical-10m-base", "note":
+         "2026-08 first pass at 10M without ice: --glacial 0, basin floor 850, "
+         "all five ladder grids plus grid-512x256, pre-carve"},
 }
 
 # Basin ids are computed on the pre-conditioning surface, so they survive a
@@ -234,6 +261,16 @@ _KNOWN_CATALOGUE_HASHES = {
     # should have. So carve verdicts computed against 2d1f8e57 still apply.
     "bc84109168789f519b53fc8197ddc976be93ecd8326b61a8086de85e638343cc":
         "2026-08 catalogue, same 3629 basins, ...Km fields now relief-scaled",
+    # canonical-10m-base. A DIFFERENT basin population, not the same one
+    # re-measured: no carve verdict computed against a catalogue above carries
+    # over, and none exists to carry. Selected at the 850 floor on ice-free
+    # terrain, where the binding floor is minCells -- 12 cells over a mean
+    # 73.449 km2 cell is 881.39 km2, above the declared 850, so the area floor
+    # does not bind at this region count. `source/README.md` put that crossover
+    # at 10.37M regions before the build was taken.
+    "35c922c3b481af4bf7b814a6719e05969db0223b9a01895beef01cf200a73b28":
+        "2026-08 catalogue on canonical-10m-base, 8772 preserved at the 850 "
+        "floor, minCells binding",
 }
 
 # The registry is keyed by hash because the hash is the identity, but config and

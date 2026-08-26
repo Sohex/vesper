@@ -34,12 +34,18 @@ schema_version: 1
 
 # DETERMINED. lib/orogen.py is the registry: it holds the hash, the note, and
 # what superseded what.
-# CHANGED 2026-08-24 to the fine-support export. `precarve-craton` is 15.19 km
-# mean edge; this is about 10M regions and 7.60 km, and it fully samples what
-# Orogen resolves rather than an aggregate of it. Everything below a build is
-# worthless rather than stale when it moves (rule 7), which is why this moved at
-# the same time as the runs directory was cleared and the transform changed.
-source_build: precarve-craton-10m
+# CHANGED 2026-08-26 to the first generation taken to be COMMISSIONED rather
+# than measured. `precarve-craton` is 15.19 km mean edge and `precarve-craton-10m`
+# is 7.60 km at about 10M regions, which fully samples what Orogen resolves; this
+# keeps that support and drops the two things that made its predecessor a
+# measurement artifact. It carries `--glacial 0`, so the ice is an honest null
+# awaiting the mask rather than the Earth-calibrated latitude ramp PHYS-13
+# refuses, and it is the first export selected at the declared 850 km2 basin
+# floor -- the planet code's slider had been silently winning at 1000.
+# `lib/orogen.py` registers it with no refusal, which is what says it may be
+# pointed at. Everything below a build is worthless rather than stale when this
+# moves (rule 7); `python scripts/pipeline.py --purge orogen` is what says what.
+source_build: canonical-10m-base
 
 # DECLARED ABSENT. Null means no baseline is named, and `climatology_path()`
 # raises rather than falling back. That is the designed state and not a gap: a
