@@ -77,6 +77,31 @@ the sha in the manifest identifies the pair and not just the sources. The
 difference arm C shows is therefore the flag, and nothing about the build
 environment.
 
+**And it took one more term than that, which this measurement could not see
+because both arms were built in one directory.** Measured 2026-08-25: the same
+commit built in a git worktree gave a different sha from the same commit built
+in the checkout the worktree was made from, with `diff -rq` reporting no
+difference between the two `plasim/src` trees. `strings` found 343 lines
+carrying the build's own absolute path in one and not the other, all of them of
+the form `At line N of file <path>`. Those are not debug information and `-g` is
+not what puts them there: gfortran stores the source path of every I/O statement
+in `.rodata` so the runtime can say where an error came from, and the string
+survives with no debug flags at all. The path reaches it through the cpp line
+markers CMake's preprocess-and-scan writes, and `gcc(1)` states that
+`-ffile-prefix-map` does not remap a directory named by a directive. The
+consequence was that a binary compiled anywhere but the one path was in no
+manifest entry under any name, so a worktree could compile the model and could
+not run what it had built.
+
+`exoplasim/scripts/prefix_map_launcher.py` now applies the declared maps to
+those markers, and `exoplasim/scripts/verify_build_path_independence.py` is the
+gate: it builds one source at two roots that differ in depth and in length and
+compares the shas. Measured 2026-08-25 at T21 l10 p16 production, byte-identical
+from both, `599021395fd30d3c`; with the launcher removed and nothing else
+changed, `ef1de3eb99b44e43` against `3d88e3c121622de1`. So the sha in the
+manifest is now a function of the source, the flags and the compiler, and one
+manifest describes every checkout. world-ynpx.
+
 ## What each arm means
 
 **AMD LibM is a loss twice over.** It is slower than glibc's `libm` plus

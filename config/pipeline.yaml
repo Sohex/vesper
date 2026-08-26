@@ -1403,6 +1403,20 @@ checks:
   # and it exits naming what is missing rather than reporting a pass.
   - id: verify_lpj_restart_continuity
     script: biosphere/scripts/verify_lpj_restart_continuity.py
+  # Is the executable a function of the model source, or of where the checkout
+  # sits? Stages the driver, the declaration and plasim/src into two roots that
+  # differ in depth and in length, shows the two stagings byte-identical, builds
+  # each through build_model.py itself and compares the two shas. Different shas
+  # is the failure, and the report then names the strings that carry a root.
+  # The manifest identifies a binary by its sha, so a build whose sha moves with
+  # the path is a build no other checkout can register -- which is what stopped
+  # a worktree running anything it had compiled. world-ynpx.
+  #
+  # It costs two builds at the rung it is asked for, publishes nothing, and each
+  # arm's run directory is inside its own staging, so the registry is not
+  # reachable from it. Not run by smoke_test for that cost.
+  - id: verify_build_path_independence
+    script: exoplasim/scripts/verify_build_path_independence.py
 
 # Present, deliberately outside the graph: no step row runs them (some are
 # imported as modules by step scripts).
@@ -1417,6 +1431,14 @@ one_offs:
   # pipeline reads and nothing `--purge` should ever delete; it is here so the
   # generator gate can see that its absence from the graph is deliberate.
   - scripts/machine.py
+  # Not a step and not a gate: the compiler launcher CMake puts in front of
+  # every Fortran compile of the model. It applies the -ffile-prefix-map options
+  # already on the compile line to the cpp line markers gcc(1) says those
+  # options do not reach, which is what keeps the executable's sha a function of
+  # the source rather than of the checkout. The only thing it writes is the
+  # preprocessed intermediate it is about to compile, inside the build
+  # directory; nothing in the graph reads it. world-ynpx.
+  - exoplasim/scripts/prefix_map_launcher.py
   - exoplasim/scripts/corrk_cross_check.py
   - exoplasim/scripts/shtns_variant_sweep.py
   - exoplasim/scripts/build_pyfft.py

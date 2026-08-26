@@ -103,7 +103,7 @@ import builds                        # noqa: E402
 import rungs                         # noqa: E402
 from paths import rel                # noqa: E402
 from gridding import coupling_ocean_fraction   # noqa: E402
-from provenance import artifact_drift, artifact_input_drift, BIOSPHERE_INERT_CONFIG_KEYS, INERT_CONFIG_KEYS, config_drift, unknown_inert_keys   # noqa: E402
+from provenance import applied_removals, artifact_drift, artifact_input_drift, BIOSPHERE_INERT_CONFIG_KEYS, INERT_CONFIG_KEYS, config_drift, REMOVED_CONFIG_KEYS, removal_problems, unknown_inert_keys   # noqa: E402
 
 
 def land_sea_mask():
@@ -474,6 +474,51 @@ def self_test() -> int:
          [d.split(":")[0] for d in config_drift(base, yaml.safe_load(dropped), inert)],
          ["planet.eccentricity"],
          "recorded -> None is a difference like any other")
+
+    # A DECLARED REMOVAL, both halves, over the same deletion. This is the one
+    # relaxation the guard admits and it has to be shown to bite in the
+    # direction that matters: a removal declared with the value the key held
+    # stops being drift, and the same removal under any other value does not.
+    # world-51wj. The fixture declares its own registry rather than reaching for
+    # REMOVED_CONFIG_KEYS, so the case cannot pass because the real one happens
+    # to be empty.
+    without = yaml.safe_load(dropped)
+    held = base["planet"]["eccentricity"]
+    declared = {"planet.eccentricity": {
+        "removed_by": "self-test", "owner": "self-test",
+        "values": (held,), "moved_to": (), "moved_to_note": "self-test",
+        "settles": "a fixture, not a decision about the world"}}
+    case("a declared removal is not drift",
+         config_drift(base, without, inert, "", declared), [],
+         "the value the artifact holds is the value the declaration records")
+    case("a declared removal under another value is drift",
+         [d.split(":")[0] for d in config_drift(base, without, inert, "",
+                                                {"planet.eccentricity":
+                                                 dict(declared["planet.eccentricity"],
+                                                      values=(held + 1.0,))})],
+         ["planet.eccentricity"],
+         "the key's value moved under the artifact before the key went")
+    case("a declared removal is named where it applied",
+         [line.split(",")[0] for line in
+          applied_removals(base, without, declared)],
+         ["planet.eccentricity"],
+         "a declaration nobody sees at the moment it is used is a silence")
+
+    # The declarations themselves, and a control for each way one can go stale.
+    case("every declared removal still holds",
+         removal_problems(base), [],
+         "a removal for a key that is back, or that something names, excuses "
+         "a refusal it has no right to")
+    case("a removal for a key still in the config fails",
+         bool(removal_problems(base, removed={"planet.eccentricity":
+                                              declared["planet.eccentricity"]})),
+         True,
+         "otherwise the check above would pass on a declaration that removed nothing")
+    case("a removal something still names fails",
+         bool(removal_problems(without, removed={"planet.eccentricity":
+                                                 declared["planet.eccentricity"]})),
+         True,
+         "eccentricity is named by run_exoplasim.py, so the claim is contradicted")
 
     # An allowlisted key, both ways round: inert only because it is allowlisted,
     # not because the edit failed to land.
@@ -1469,6 +1514,18 @@ def main() -> int:
                 else "no generator names a key its own inert set calls unread")
     except Exception as exc:
         rep.add(WARN, "generated inputs vs their config", f"not checked: {exc}")
+
+    # The same honesty question asked of the removals, which are the other thing
+    # that excuses a refusal. An inert entry goes stale by naming nothing; a
+    # removal goes stale by naming something that is BACK, or that a script has
+    # since learned to read. Either way it is a decision made once that keeps
+    # applying to a tree that has moved, so it is checked here rather than only
+    # under --self-test. world-51wj.
+    stale = removal_problems(config, ROOT)
+    rep.add(FAIL if stale else OK, "declared config removals vs the tree",
+            "; ".join(stale) if stale
+            else f"{len(REMOVED_CONFIG_KEYS)} declared, each gone from the "
+                 f"config and named by no script outside where it moved")
 
     # -- staged fields vs the DERIVED FILES they were built from -------------
     #

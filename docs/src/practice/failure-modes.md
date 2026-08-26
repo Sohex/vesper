@@ -1260,3 +1260,49 @@ of them the number was acted on or nearly was. What caught each was checking the
 instrument against the size of the effect rather than checking the result against
 expectation.
 
+
+## 35. A refactor with no behavioural content, killing every run in flight
+
+`config/planet.yaml` is compared against every run's `run_manifest.json` before a
+continuation, and a difference refuses. That is class 12's protection and it is
+right. What it cannot see is the DIRECTION of a difference: a key that has been
+removed reads as `{...} -> None`, and so does a key whose value was edited to
+nothing. The guard has one answer for both, and the answer has to be "refuse",
+because a false resume integrates orbits under a configuration nobody declared
+and says nothing, while a false refusal costs a restart and is loud.
+
+So a pure refactor kills every run in flight. Moving the ladder's per-rung
+timestep ceiling out of the config and into `lib/rungs.py` removed a table that
+nothing read at run time -- the key that sets the step is a different key, and it
+was untouched -- and a T21 development run at 28 orbits then refused every
+continuation and had to be restarted cold. This project runs many agents against
+one config while a commissioning is in flight, a commissioning is about seventy
+orbits at T21, and at the top of the escalation route an orbit is minutes rather
+than seconds. The same event there costs most of a day.
+
+**The fix is not a looser guard, and it is not a flag.** Anything that lets a
+caller wave a refusal through at the moment they meet it will be used at the
+moment they meet it, which is exactly when they are least able to judge. What is
+missing is a way to declare a REMOVAL in advance, so that the guard can tell "this
+key no longer exists anywhere" from "this key's value changed".
+`lib/provenance.py:REMOVED_CONFIG_KEYS` is that declaration and it takes the
+shape the fork's `mainline_divergences` files already use: the value the key held
+is recorded verbatim beside the removal, and the gate checks BOTH halves. The key
+must be gone from the config, and the artifact's recorded value must be one the
+declaration names. A run whose manifest holds any other value had the key's value
+move under it before the key went, which is real drift and is still refused.
+
+**What is still refused, deliberately.** A key ADDED to the config, because an
+added key can be read and can change the run; the tool for a declarative addition
+is the consumer's inert set, which is a claim about what that consumer reads. A
+rename is a removal and an addition, so it is half declarable and half refused,
+and that is the right split as long as the new name is read by anything.
+
+**The residual, and it is the reason `settles` is not optional.** The declaration
+asserts that nothing on the run path read the key. `removal_problems` checks that
+the only mechanical way available -- the key's name appears in no Python source in
+the tree outside the paths the declaration says it moved to -- and that trace is
+TEXTUAL, with the same blind spot `SURFACE_UNREAD_MODEL_KEYS` records: a key
+reached through a helper that takes the whole configuration and looks the name up
+by construction would not be found. The written argument is the other half of the
+evidence, and a removal declared without one is a refusal waived on nothing.

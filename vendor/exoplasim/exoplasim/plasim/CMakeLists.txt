@@ -91,14 +91,32 @@ if(PLASIM_PRECISION EQUAL 8)
     # MOST_PREC, appended after MOST_F90_OPTS on every compile line.
     list(APPEND _fflags -fdefault-real-8)
 endif()
-# The source path gfortran embeds in its runtime diagnostics -- "In file
-# '<path>/radmod.f90', around line N" -- is the path it was handed. Building out
-# of tree makes that absolute, which put 100 characters into every one of 1640
-# such strings and grew .rodata by 35,776 bytes. Mapping it away restores the
-# bare filename the old in-tree build produced, which is both a better message
-# and what lets this build be compared byte for byte against that one.
+# WHERE THE EXECUTABLE WOULD OTHERWISE RECORD THIS CHECKOUT'S PATH, and it is
+# three places rather than one. The source path gfortran is handed goes into its
+# runtime diagnostics -- "At line N of file <path>" -- which are .rodata strings
+# stored beside every I/O statement and are NOT debug information: they survive
+# without -g. It also goes into the debug line table, and DW_AT_comp_dir records
+# the directory the compiler ran in, which is the build directory. Each of the
+# three makes the binary differ between two checkouts of one commit, and a
+# binary that differs by checkout is in no `binary_manifest.json` entry.
+#
+# THE MAPS BELOW ARE THE DECLARATION. `${CMAKE_CURRENT_BINARY_DIR}` is mapped
+# WITHOUT a trailing slash because DW_AT_comp_dir is that directory exactly, and
+# a map that ends in a slash does not match it. The SHTns prefix is mapped
+# because shtnsmod.f90 includes shtns.f03 from it and the include's path reaches
+# the line table.
+#
+# AND WHAT THE MAPS DO NOT REACH: gcc(1) says "Directories referenced by
+# directives are not affected by these options", and CMake preprocesses each
+# Fortran source into the build directory before compiling it, so every path is
+# in a cpp line marker by the time the compiler that carries these flags sees
+# it. `exoplasim/scripts/prefix_map_launcher.py` applies these same maps to
+# those markers; build_model.py registers it as the compile launcher. world-ynpx.
 list(APPEND _fflags "-ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}/src/=")
-list(APPEND _fflags "-ffile-prefix-map=${CMAKE_CURRENT_BINARY_DIR}/=")
+list(APPEND _fflags "-ffile-prefix-map=${CMAKE_CURRENT_BINARY_DIR}=.")
+if(NOT PLASIM_SHTNS_PREFIX STREQUAL "")
+    list(APPEND _fflags "-ffile-prefix-map=${PLASIM_SHTNS_PREFIX}/=shtns/")
+endif()
 
 string(JOIN " " CMAKE_Fortran_FLAGS ${_fflags})
 set(CMAKE_C_FLAGS "-O3")

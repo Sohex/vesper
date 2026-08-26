@@ -146,7 +146,7 @@ def require_build(path: Path, what: str, config: dict | None = None,
 
 def config_drift(recorded: dict, current: dict,
                  inert: frozenset[str] | set[str] = frozenset(),
-                 path: str = "") -> list[str]:
+                 path: str = "", removed: dict | None = None) -> list[str]:
     """Semantic differences between two parsed configurations, deepest first.
 
     Returns one `key: old -> new` line per differing leaf, and an empty list when
@@ -173,17 +173,211 @@ def config_drift(recorded: dict, current: dict,
     that the entry at least names a live key: `star.surface_uv` sat in the resume
     guard's list for as long as the guard existed, matching
     `star.surface_uv_relative_to_earth` never.
+
+    `removed` is a different question and is answered separately. A key present
+    in `recorded` and absent from `current` reads here as `{...} -> None`, which
+    is what an edited parameter reads as too, so this cannot tell a REMOVAL from
+    a value change and must refuse both. `REMOVED_CONFIG_KEYS` is where a
+    removal is declared in advance with the value the key held, and both halves
+    of that declaration are checked before it excuses anything -- see
+    `_removal_verdict`. It is not a relaxation of the comparison and there is no
+    flag: an undeclared removal is still drift, and so is a declared one under a
+    value the declaration does not record.
     """
+    if removed is None:
+        removed = REMOVED_CONFIG_KEYS
     out = []
     for key in sorted(set(recorded) | set(current)):
         full = f"{path}{key}"
         if full in inert:
             continue
         a, b = recorded.get(key), current.get(key)
+        if key in recorded and key not in current:
+            out += _removal_verdict(full, a, removed)
+            continue
         if isinstance(a, dict) and isinstance(b, dict):
-            out += config_drift(a, b, inert, f"{full}.")
+            out += config_drift(a, b, inert, f"{full}.", removed)
         elif a != b:
             out.append(f"{full}: {a!r} -> {b!r}")
+    return out
+
+
+def _removal_verdict(full: str, was, removed: dict) -> list[str]:
+    """What a key present in `recorded` and absent from `current` is worth.
+
+    Both halves of the declaration are checked, and a failure of either is drift
+    rather than a warning, because the direction that must stay loud is the one
+    that refuses.
+    """
+    spec = removed.get(full)
+    if spec is None:
+        return [f"{full}: {was!r} -> removed, and no removal is declared for it. "
+                f"A key that vanished from the configuration is indistinguishable "
+                f"here from one whose value changed; declare the removal in "
+                f"lib/provenance.py:REMOVED_CONFIG_KEYS, with the value it held, "
+                f"or restore the key."]
+    if not any(was == v for v in spec["values"]):
+        return [f"{full}: {was!r} -> removed by {spec['removed_by']}, whose "
+                f"declaration records the values this key held as "
+                f"{spec['values']!r}. This artifact holds none of them, so the "
+                f"key's VALUE moved under it before the key itself went. That is "
+                f"drift, and the removal does not excuse it."]
+    return []
+
+
+def applied_removals(recorded: dict, current: dict, removed: dict | None = None,
+                     path: str = "") -> list[str]:
+    """Which declared removals a comparison of these two configurations rested on.
+
+    `config_drift` returns only problems, so a resume that crossed a declared
+    removal would otherwise say nothing at all -- and a declaration nobody sees
+    at the moment it is used is the shape of a silence, whatever is written in
+    the source. The caller prints these.
+    """
+    if removed is None:
+        removed = REMOVED_CONFIG_KEYS
+    out = []
+    for key in sorted(set(recorded) | set(current)):
+        full = f"{path}{key}"
+        a, b = recorded.get(key), current.get(key)
+        if key in recorded and key not in current:
+            spec = removed.get(full)
+            if spec is not None and any(a == v for v in spec["values"]):
+                out.append(f"{full}, removed by {spec['removed_by']}; "
+                           f"{spec['moved_to_note']}")
+        elif isinstance(a, dict) and isinstance(b, dict):
+            out += applied_removals(a, b, removed, f"{full}.")
+    return out
+
+
+# A KEY THAT NO LONGER EXISTS ANYWHERE, declared, so the guard can tell it from
+# a key whose value changed.
+#
+# WHAT THIS IS FOR. `config_drift` compares an artifact's recorded configuration
+# against the current one, and a key that was REMOVED reads there as
+# `{...} -> None`, which is exactly what an edited parameter reads as. The guard
+# cannot tell them apart and must therefore refuse both, which is the right way
+# round: a false resume integrates orbits under a configuration nobody declared
+# and is silent, a false refusal costs a restart and is loud. That refusal
+# killed a commissioning in flight when world-f997 moved the ladder's timestep
+# table into `lib/rungs.py`, and at the top of the escalation route the same
+# event costs most of a day. world-51wj.
+#
+# WHAT IS NOT WANTED IS A LOOSER GUARD. Nothing below relaxes the comparison.
+# A removal is stated in advance, in the source, with the value the key held
+# copied verbatim, and the guard then checks BOTH halves -- the same shape the
+# fork's `mainline_divergences` files use, which is the one that has held here:
+#
+#   the key must be GONE from the current configuration. A declaration for a key
+#   that is still there is stale, and `removal_problems` fails on it.
+#
+#   the artifact's recorded value must be one of the values declared below,
+#   verbatim. A run whose manifest holds anything else had the key's VALUE move
+#   under it before the key went, which is real drift and is still refused.
+#
+# So a removal cannot be declared without reading what the configuration held,
+# and it cannot be used to wave through a value that changed. There is no flag.
+#
+# THE RESIDUAL RISK, stated because it is the way this can be wrong. The
+# declaration asserts that nothing on the run path read the key, so that its
+# removal cannot change what the model integrates. `removal_problems` checks
+# that assertion the only mechanical way available -- the key's name appears in
+# no Python source in the tree outside the paths `moved_to` names -- and that is
+# a TEXTUAL trace, the same limitation `SURFACE_UNREAD_MODEL_KEYS` records. A
+# key reached through a helper that takes the whole configuration and looks the
+# name up by construction would not be found. `settles` is where the human half
+# of the argument goes, and it is not optional.
+#
+# Each entry carries:
+#   removed_by      the issue that removed the key
+#   owner           the issue that declared the removal
+#   values          every value `config/planet.yaml` is known to have held for
+#                   this key, verbatim. A run manifest matching none of them is
+#                   still refused
+#   moved_to        repo-relative paths where the meaning now lives, and the
+#                   only paths exempt from the name trace. Empty means the
+#                   quantity is gone rather than moved
+#   moved_to_note   one line, printed at the resume that rests on this entry
+#   settles         why the removal cannot change what a run integrated
+REMOVED_CONFIG_KEYS = {
+    "model.resolution_timestep_minutes": {
+        "removed_by": "world-f997",
+        "owner": "world-51wj",
+        "values": ({"T21": 45.0, "T42": 45.0, "T85": 45.0,
+                    "T127": 30.0, "T170": 22.5},),
+        "moved_to": ("lib/rungs.py",),
+        "moved_to_note": "the per-rung ceiling now lives in lib/rungs.py",
+        "settles": (
+            "A TABLE OF CEILINGS that nothing read at run time. It recorded the "
+            "coarsest step each rung was measured to carry, one row per rung, "
+            "while the step a run is actually configured at is "
+            "`model.timestep_minutes` -- a different key, which world-f997 did "
+            "not touch. `lib/rungs.py` now holds the ceiling, and its docstring "
+            "is where the three quantities the phrase 'the timestep at rung X' "
+            "has named in this tree are kept apart. Nothing on the run or the "
+            "resume path ever asked the configuration for this key: its name "
+            "appears in no Python source in the tree."),
+    },
+}
+
+
+def removal_problems(config: dict, root=None, removed: dict | None = None) -> list[str]:
+    """Every declared removal that the tree no longer bears out.
+
+    A declaration excuses a refusal, so a stale one is worse than none: it is a
+    decision that was made once and keeps applying to a tree that has moved. The
+    same argument `unknown_inert_keys` makes about an allowlist entry naming
+    nothing, in the opposite direction -- here the failure is an entry naming
+    something that is BACK.
+
+    Three ways an entry can be wrong, and each fails by name:
+
+      the key is in `config/planet.yaml` again, so nothing was removed
+      `moved_to` names a path that does not exist
+      the key's name appears in a Python source outside `moved_to`, so something
+      may read it and the removal's whole claim is contradicted
+    """
+    if removed is None:
+        removed = REMOVED_CONFIG_KEYS
+    root = PROJECT_ROOT if root is None else Path(root)
+    dirs = [root / "scripts", root / "lib", root / "maps"] + [
+        root / c / "scripts" for c in
+        ("exoplasim", "hydrography", "pedology", "biosphere", "minerals", "aeolian")]
+
+    def present(dotted: str) -> bool:
+        node = config
+        for part in dotted.split("."):
+            if not isinstance(node, dict) or part not in node:
+                return False
+            node = node[part]
+        return True
+
+    out = []
+    for key, spec in sorted(removed.items()):
+        if present(key):
+            out.append(f"{key} is declared removed by {spec['removed_by']} and "
+                       f"config/planet.yaml still has it")
+        # This module holds the declaration, so it names every removed key by
+        # construction. Exempting it here rather than by a path in `moved_to`
+        # keeps `moved_to` meaning "where the quantity went".
+        exempt = {Path(__file__).resolve()}
+        for rel_path in spec["moved_to"]:
+            path = root / rel_path
+            if not path.exists():
+                out.append(f"{key} declares it moved to {rel_path}, which is "
+                           f"not there")
+            exempt.add(path.resolve())
+        leaf = key.rsplit(".", 1)[-1]
+        for d in dirs:
+            if not d.is_dir():
+                continue
+            for f in sorted(d.glob("*.py")):
+                if f.resolve() in exempt:
+                    continue
+                if leaf in f.read_text(encoding="utf-8", errors="ignore"):
+                    out.append(f"{key} is declared removed and {rel(f)} names "
+                               f"it, so the claim that nothing reads it is "
+                               f"contradicted by the source")
     return out
 
 
