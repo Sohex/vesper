@@ -134,6 +134,12 @@
       "sea_ice": true,
       "sea_ice_max_thickness_m": -1.0,
       "sea_ice_lead_closing_m": 0.5,
+      "cryosphere": {
+        "sea_ice_density_kg_m3": 920.0,
+        "sea_ice_specific_heat_j_kg_k": 2070.0,
+        "sea_ice_conductivity_w_m_k": 2.03,
+        "snow_fusion_j_kg": 333444.87
+      },
       "glaciers": {
         "enabled": true,
         "min_snow_depth_m": 2.0,
@@ -142,14 +148,16 @@
         "persistence_orbits": 1.0
       },
       "land_water_column": {
-        "scheme": "bucket",
-        "layers": 1,
+        "scheme": "layered",
+        "layers": 2,
         "lower_boundary": "impermeable",
         "layer_capacity_fraction": [
-          1.0
+          0.333333,
+          0.666667
         ],
         "layer_thickness_m": [
-          1.5
+          0.5,
+          1.0
         ],
         "soil_phase": false,
         "evaporation_limiter": {
@@ -330,10 +338,10 @@
       "alignment_recurrence_earth_years": 314
     }
   },
-  "config_sha256": "5ab8c97d4d36f6c7f0b1610648e6b8abf3a5d338458f310fb996b3b584b1769c",
-  "git_commit": "4038c12e10834da1c9441229f6abbc2ff5d39d8b",
+  "config_sha256": "1c14a06403229df613fa653cf291eea2c1fb2847c26e2f27a4f50458c6c29a72",
+  "git_commit": "a041a1e9e9f1e73fe75f04ab8f45056fb0e93877",
   "source_inputs": {
-    "analysis/rock_albedo_bands.json": "349c9e843b813b57384d8565b8b4aaa4b47d6ae25da57ce8a1c70fdb0ccd4eea",
+    "analysis/rock_albedo_bands.json": "6232e5a11cf2d7d851aad6e01ba3ae306354f618081d11ea6a76917a70efa213",
     "analysis/vegetation_albedo.json": "f6a970ca470dbbfa2d75a11a3767d57f66ee48cf8da66815d0f3b601851463bf"
   }
 }
