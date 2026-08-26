@@ -46,13 +46,13 @@ logarithmic in `z0`, so the two orders are different reductions, and this
 world's land is the case where they part: bare ground and canopy are two orders
 apart in `z0`, so a cell that is mostly playa with a canopy minority has its
 exchange set by the minority once the lengths are mixed. SPAT-7 measured the
-difference on the 10M mesh -- negligible in the land mean, 24 times inside the
-`z_ref` bracket this file already declares, but past that bracket on a few
-percent of land area which GROWS with refinement, and reaching 30% on closed
-basin floors. Those cells are the reason this field exists. The inversion needs
-`z_ref`, which is unknown before a climatology; it is taken at the midpoint of
-the liquid-water bracket and the report carries what the whole bracket is worth,
-which is 1.5e-4 of the land mean.
+difference on the 10M mesh: it moves the land-mean `ce` by about a tenth, past
+this step's own `z_ref` bracket over most of land area, and reaches a quarter in
+the top decile of barren share. Those cells are the closed-basin floors the
+carve verdict integrates evaporation over, and they are the reason this field
+exists. `notes/audits/nonlinear-spatial-reductions.md` section 3 carries the
+measurement, and the height the average is taken at is Mason (1988)'s blending
+height rather than the lowest model level -- see below.
 
 `z0_orographic` is the part worth retaining the native mesh for. The 10M
 fine-support reference contributes about 1,221 regions per global T42 cell on
@@ -255,9 +255,9 @@ KARMAN = 0.4                     # von Karman's constant; `ce` uses its square.
 # evaporation, is defined over. Fixed here, before any field is built.
 CE_BRACKET_K = (273.15, 313.15)
 
-# landmod.f90:51, the uniform FALLBACK this replaces, and it is not the anchor.
+# landmod.f90:51, the uniform FALLBACK this replaces, and it is not a target.
 # `configure()` falls back to it over all land when no code 173 is staged. It is
-# reported beside the derived reference below, which the anchor is taken from.
+# reported beside the Earth reference below, which it is a rounding of.
 EXOPLASIM_DZ0LAND_M = 2.0
 
 # PlaSim's own boundary dataset for the model's Earth configuration, shipped with
@@ -543,7 +543,7 @@ def earth_reference_land_z0(resolution: str, z_ref: float) -> dict:
     returns the effective land roughness of its code 173, taken as the
     area-weighted mean of `ce` over its land and inverted at `z_ref`. This is
     what `dz0land` is a rounding of, and it is COMPUTED here rather than quoted
-    so that a change under `vendor/exoplasim` moves the anchor instead of
+    so that a change under `vendor/exoplasim` moves the comparison instead of
     silently disagreeing with it.
 
     The reduction is in `ce` and not in the length for the same reason the cell
@@ -649,9 +649,10 @@ def main() -> None:
                          "in mesh spacings. Both ends of the declared bracket "
                          "are reported whichever is written")
     ap.add_argument("--target-mean", type=float, default=None,
-                    help="area-weighted land mean to anchor to, as a third arm. "
-                         "Overrides --orographic-arm; the default anchor is the "
-                         "derived Earth reference and NOT the namelist fallback")
+                    help="area-weighted land mean to solve onto, as a further "
+                         "arm. Overrides --orographic-arm, and like the "
+                         "reference arm it is a DIAGNOSTIC: the default arm "
+                         "derives the land mean rather than targeting one")
     ap.add_argument("--bare-z0", type=float, default=DEFAULT_BARE_Z0_M)
     ap.add_argument("--canopy-z0", type=float, default=DEFAULT_CANOPY_Z0_M)
     ap.add_argument("--forest-z0", type=float, default=DEFAULT_FOREST_Z0_M)
@@ -681,16 +682,12 @@ def main() -> None:
     z_ref_anchor = reference_height_m(0.5 * (CE_BRACKET_K[0] + CE_BRACKET_K[1]),
                                       config)
 
-    # THE HIGH ARM OF THE DECLARED BRACKET, and the anchor. Derived, not
-    # declared: the effective land roughness of the model's own Earth boundary
-    # dataset at this rung, reduced in `ce` at this planet's reference height.
-    # The namelist fallback travels with it so a reader sees what it is a
-    # rounding of. Neither is consulted when the caller fixes the coefficient or
-    # names its own target, and the reference cannot be derived at all for a rung
-    # the model ships no dataset for -- so it is resolved HERE, before the mesh
-    # is touched, and a rung it cannot serve refuses in a second rather than
-    # after the reduction.
-    # The Earth reference is now a COMPARISON and not a target, so a rung the
+    # THE EARTH COMPARISON. Derived, not declared: the effective land roughness
+    # of the model's own Earth boundary dataset at this rung, reduced in `ce` at
+    # this planet's reference height. The namelist fallback travels with it so a
+    # reader sees what it is a rounding of.
+    #
+    # It is a COMPARISON and not a target, so a rung the
     # model ships no dataset for is no longer a reason to refuse: the derived
     # arm needs nothing from it. It is still resolved HERE, before the mesh is
     # touched, so the `reference` arm -- which does solve onto it -- refuses in
@@ -1065,15 +1062,15 @@ def main() -> None:
             "unrescaled_ce_bracket": bracketed(unrescaled_land_mean),
             "written_ce_bracket": bracketed(land_mean(z0)),
             "earth_reference": reference,
-            # WHAT BOUNDS THE TRANSFER, and the one quantity the two planets can
+            # WHERE THE DISTANCE IS, and the one quantity the two planets can
             # be compared on directly. The reference dataset carries its surface
             # and orographic parts separately, so its land-cover roughness is
-            # recoverable, and this world's low arm IS its land-cover roughness.
-            # Neither is derived from the other. If they were decades apart the
-            # transfer would be importing a land cover as well as a relief; that
-            # they are close is what makes the high arm a bounded assumption
-            # rather than an arbitrary one, and it is reported rather than
-            # gated because no threshold on it was fixed in advance.
+            # recoverable, and this world's cover term IS its land-cover
+            # roughness. Neither is derived from the other. That they are close
+            # is what locates the whole of the distance between the two planets
+            # in the RELIEF term, which is where the terrain-information floor
+            # sits. Reported rather than gated: no threshold on it was fixed in
+            # advance.
             "cover_roughness_ratio_to_earth": (
                 None if reference is None
                 else round(unrescaled_land_mean

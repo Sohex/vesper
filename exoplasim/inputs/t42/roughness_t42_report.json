@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-26T20:59:12+00:00",
+  "generated": "2026-08-26T21:20:22+00:00",
   "code": 173,
   "field": "dz0clim, total aerodynamic roughness length, metres",
   "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
@@ -462,5 +462,5 @@
     }
   },
   "config_sha256": "2267d895d516efc9925a9333607449f689a8c01b9d99d9e2b76ae5b4e3989093",
-  "git_commit": "5040d00d746146866f5826c18b5af967da6a8448"
+  "git_commit": "e0ca0485ba64810c960b60193569c9ddc7aea04e"
 }
