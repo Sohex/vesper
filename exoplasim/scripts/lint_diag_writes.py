@@ -57,10 +57,13 @@ is not:
   1. The block stack is popped only by the `end` form that matches its top. An
      `end` this parser cannot match to the construct it closes CLEARS the whole
      stack, which drops a guard the source still has and never adds one.
-  2. A condition containing `.or.` never counts as a guard, even when one arm
-     of it is the root test, because the other arm may admit every thread.
+  2. A guard has to BE the test, not merely contain it. A condition clears a
+     site only when every top-level `.or.` disjunct carries `mypid == NROOT`
+     as one of its top-level `.and.` conjuncts, so `.not. (mypid == NROOT)`
+     and `f(mypid == NROOT)` are not guards and neither is one arm of an `.or.`.
   3. Only `mypid == NROOT` and `mypid .eq. NROOT` are read as the root test,
-     in any spacing and either case. A test written some other way is reported.
+     in any spacing and either case. `/=` and `.ne.` do not match, which is the
+     direction that matters, and a test written some other way is reported.
   4. A procedure with no `call` site anywhere in `plasim/src` is NOT root-only.
      That covers the program unit, the entry points the parallel region opens
      on, and anything reached from outside this directory.
@@ -96,13 +99,6 @@ SRC = MODEL_SRC / "plasim" / "src"
 # none; it is matched anyway so that adding one does not slip past.
 _WRITE_RE = re.compile(r"^\s*write\s*\(\s*(nud|\*)\s*[,)]", re.I)
 _PRINT_RE = re.compile(r"^\s*print\s*[*'\"]", re.I)
-
-# The root test, in the two spellings and any spacing. `/=` and `.ne.` do not
-# match, which is the direction that matters: a negative test is not a guard.
-_ROOT_RE = re.compile(r"mypid\s*(?:==|\.eq\.)\s*nroot", re.I)
-# NPRO is the thread count, so `npro == 1` admits exactly the serial case.
-_SERIAL_RE = re.compile(r"npro\s*(?:==|\.eq\.)\s*1(?![0-9.])", re.I)
-_OR_RE = re.compile(r"\.or\.", re.I)
 
 _IF_THEN_RE = re.compile(r"^\s*(?:[a-z_]\w*\s*:\s*)?if\s*\(", re.I)
 _ELSE_IF_RE = re.compile(r"^\s*else\s*if\s*\(", re.I)
