@@ -455,9 +455,13 @@ so this is a first-order radiative quantity resting on two anchored-to-T21 fits.
 **Disposition: IRREDUCIBLE as scalars; REPLACEABLE as a form.** Neither number
 can be sourced, because what they encode is a subgrid distribution and the
 subgrid scale is a property of the mesh rather than of the world. What CAN be
-done is make the resolution dependence explicit, which is what `rcritmod` and
-`rcritslope` exist for and what `world-khn` tracks. A tuning that is a function
-of the grid is at least checkable across the grid.
+done is make the resolution dependence EXPLICIT rather than declared, which is
+what `rcritmod` and `rcritslope` exist for and neither appears anywhere outside
+`vendor/`. A tuning that is a declared function of the grid can be tested
+against the grid; one anchored to a truncation with a comment cannot.
+`world-khn` asked the resolution question and closed it by declaring the anchor
+with no numeric changed, which is the right answer to that question and leaves
+this one.
 
 ---
 
@@ -682,3 +686,41 @@ sourced replacement exists for any of them, keeping them is a declared
 worldbuilding decision, and the BVOC set is already bracketed as floors and
 dormant. `tswr1`, `tswr2` and `tswr3` are excluded because they were being
 settled separately while this ran.
+
+## Tasks
+
+Tracked in the `bd` issue tracker under the `tuned-value` label, not restated
+here. Two of the rows above were already tracked before this audit ran and no
+new bead was filed for either: `clim-30` for the design flux's declared cap, and
+`bio-26` for a bounded sensitivity on `ALPHAA_NLIM`. Row 7 was fixed rather than
+filed.
+
+| row | id |
+| --- | --- |
+| 1. `baseline_flux_earth` and the cap solved backwards | `clim-30` |
+| 2. `ALPHAA_NLIM` | `bio-26` |
+| 3, 4. the regolith depth level and its asymptote | `world-qs63` |
+| 5. the carve size floor | `world-7vj6` |
+| 6. `eddy_wind_m_s` | `world-9y07` |
+| 7. `acllwr` | fixed |
+| 8. `th2oc` | `world-2esd` |
+| 9. the `dz0land` anchor | `world-u8ds` |
+| 10. `vdiff_lamm` and the Louis fives | `world-x6q8` |
+| 11. `frac_labile_carbon` | `world-vyvn` |
+| 12. `gamma` | `world-trs3` |
+| 13. `zcca`, `zccb`, `rcrit` | `world-o12h`; `world-khn` closed the resolution half by declaring it |
+| 14. `a1` in the sigma quartic | none: irreducible, and a convergence sweep across it is a measurement rather than a fix |
+| 15. the unbracketed pedogenesis values | `world-9ctm` |
+| 16. `ntoc`, `frac_maxtomin`, the fire floor | `world-xfif`, `world-v5j1` |
+| 17. `ntransform.yaml`'s seven `unsourced` entries | already registered; the gate refuses on them |
+| 18. the dormant knobs | `world-9g8p` |
+| 19. the cgenie tier | `world-u9kg` |
+
+Three papers are named as needed and none is in `references/`. They are the
+whole of what this audit's dispositions wait on that cannot be done from inside
+the tree: Li et al. (1992) `10.1029/92JD00509` for `frac_labile_carbon`, Louis
+(1979) `10.1007/BF00117978` for the three fives, and Kessler (1969)
+`10.1007/978-1-935704-36-2` for the re-evaporation form. Portenga and Bierman
+(2011) `10.1130/G111A.1` is already on disk and marked *held*, so reading it is
+the fourth and cheapest.
+
