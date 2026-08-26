@@ -1496,3 +1496,61 @@ it when one does.
 executable. A `--purpose` on `run_exoplasim.py` with the same three values
 `continue_exoplasim.py` takes, defaulting to `spinup` so no existing call
 changes, is what closes it.
+
+## Measured: the `world-u9hq` h2oswl arms, 2026-08-26
+
+T21, `most_plasim_t21_l10_p8.x` at model source `a041a1e9`, both arms branched
+from `run_14906cb7b914`'s `MOST_REST.00034` and differing from the control in
+`H2OSWL` alone. `run_11b43d2c56a4` carries 1.129 and `run_fc75ca5f9fd2` carries
+1.206; `run_57a43e1fc3f4` is the central 1.163. The energy fixer and diagnostics
+are off in all three, forced by the `epilog` defect and common to every arm.
+
+The declared length is 11 orbits of settling, `lib/run_lengths.settling_bracket(0.75)`'s
+lower end, then a 35-orbit measurement window, which is `assess_convergence.py`'s
+own derived minimum. The high arm reached all 46. The low arm reached 40 before
+the host was taken over, so the paired comparison runs to 40 and its window is 29
+orbits. Host load 25 to 50 over 32 cores throughout, and 40 to 51 for the last
+third, so no wall clock from these runs is worth keeping.
+
+| comparison | window mean, K | window |
+| --- | ---: | ---: |
+| 1.206 minus 1.129, end to end | **+0.599 +/- 0.087** | 29 orbits |
+| 1.129 against the central 1.163 | -0.363 +/- 0.124 | 29 orbits |
+| 1.206 against the central 1.163 | +0.258 +/- 0.055 | 35 orbits |
+
+**Sign: holds.** More absorption at the level the key scales warms the modelled
+mean, and the high arm is the warm one. Every orbit of the end-to-end difference
+is positive.
+
+**Monotonicity: holds.** 1.129 sits below the central and 1.206 above it, both
+resolved, with no inversion. The two one-sided differences sum to the end-to-end
+one.
+
+**Magnitude: holds.** The prediction carried in was 0.72 K end to end, PHYS-9's
+fitted asymptote slope, inside a static bracket of 0.54 to 1.16 K. The measured
++0.599 +/- 0.087 K is inside that bracket and sits 1.4 standard errors below the
+point prediction. It lands nearest PHYS-9's WINDOW-MEANS slope, which predicted
+0.57, rather than the asymptote the prediction was taken from; the note's reason
+for preferring the asymptote was that the window means came from an unconverged
+run and were a lower bound, and on this pair they were not low.
+
+**The instrument condition as registered cannot be tested, and that is
+structural.** It asks that each arm meet all six convergence criteria on its
+window. `assess_convergence.py` refuses both arms: `segments.production_window`
+counts only PRODUCTION orbits, and the 35 orbits were added with
+`--purpose diagnostic` because A3's fourth condition requires exactly that. So
+A3's labelling is what makes the orbits invisible to the convergence instrument,
+and no arm can satisfy both conditions at once. At 11 production orbits the arms
+fail all six criteria, which is what a settling block should do.
+
+What stands in its place is the paired difference's own scatter, corrected for
+memory by `lib/autocorrelation.py`: +0.599 against a standard error of 0.087 is
+6.9 to one, and the top-of-atmosphere imbalance has closed to -0.074 +/- 0.085,
+so the pair is not still separating. That is an instrument and it is not the one
+the prediction named.
+
+**Which of the two conditions gives is a decision this measurement does not
+make.** Either an A3 arm's segments are production and the convergence criteria
+apply while A3's guard is off, or they are diagnostics and the registered
+condition is replaced by the paired-difference form above. The second is what
+these arms did.
