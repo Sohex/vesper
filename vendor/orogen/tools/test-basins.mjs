@@ -20,7 +20,8 @@ import Delaunator from 'delaunator';
 import { setDelaunator, buildSphere, generateTriangleCenters, computeNeighborDist } from '../js/sphere-mesh.js';
 import { makeRng } from '../js/rng.js';
 import { EARTH } from '../js/planet-params.js';
-import { BASIN_MIN_DEPTH_KM } from '../js/terrain-config.js';
+import { BASIN_MIN_DEPTH_KM, BASIN_MIN_AREA_KM2,
+         BASIN_MIN_CELLS } from '../js/terrain-config.js';
 import {
     detectBasins, selectBasins, buildBasinProtection, basinId, attachHypsometry,
     parseBasinList, inciseOutlets,
@@ -908,4 +909,34 @@ test('sha256 matches known vectors', () => {
 test('hashJson is insensitive to key order but not to values', () => {
     assert.equal(hashJson({ a: 1, b: 2 }), hashJson({ b: 2, a: 1 }));
     assert.notEqual(hashJson({ a: 1 }), hashJson({ a: 2 }));
+});
+
+
+test('the headless exporter takes the basin floors from terrain-config', async () => {
+    // A CHECK WITH A RIGHT ANSWER, and it has already been wrong. The three
+    // floors were literals in tools/export-planet.mjs, and BASIN_MIN_AREA_KM2
+    // moved to 850 in the module while the exporter still said 1000.
+    //
+    // That is not a cosmetic disagreement, because the two consumers do not
+    // read the number the same way. elevation.js reads BASIN_MIN_AREA_KM2 and
+    // BASIN_MIN_CELLS DIRECTLY with no override, deciding which depressions the
+    // mesh resolves. basins.js takes `opts.minAreaKm2 ?? BASIN_MIN_AREA_KM2`,
+    // and the exporter always passes the opt -- so the module constant was dead
+    // on the catalogue path and live on the elevation path, and one generation
+    // ran the two halves at different floors.
+    //
+    // Read out of --help rather than by importing DEFAULTS, because --help is
+    // what a caller is told and importing the module runs a generation.
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+        process.execPath, ['tools/export-planet.mjs', '--help'], { cwd: process.cwd() });
+    const shown = (flag) => {
+        const m = stdout.match(new RegExp(`${flag}[^\\n]*\\(default: ([0-9.]+)\\)`));
+        assert.ok(m, `${flag} does not publish a default`);
+        return Number(m[1]);
+    };
+    assert.equal(shown('--basin-min-depth'), BASIN_MIN_DEPTH_KM);
+    assert.equal(shown('--basin-min-area'), BASIN_MIN_AREA_KM2);
+    assert.equal(shown('--basin-min-cells'), BASIN_MIN_CELLS);
 });

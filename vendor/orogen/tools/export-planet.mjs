@@ -28,7 +28,8 @@ import { writeNetCDF, netcdfDtype } from './lib/netcdf-write.mjs';
 import { ROCK_CLASSES } from '../js/lithology.js';
 import { spectralGrid } from '../js/geometry.js';
 import { decodePlanetCode } from '../js/planet-code.js';
-import { basinAreaFromSlider } from '../js/terrain-config.js';
+import { basinAreaFromSlider, BASIN_MIN_DEPTH_KM, BASIN_MIN_AREA_KM2,
+         BASIN_MIN_CELLS } from '../js/terrain-config.js';
 import { parseBasinList } from '../js/basins.js';
 import { gravityFromMassRadius, makePlanet, planetSummary } from '../js/planet-params.js';
 
@@ -51,9 +52,17 @@ const DEFAULTS = {
     glacial: 0.3,
     temperatureOffset: 0,
     precipitationOffset: 0,
-    basinMinDepthKm: 0.05,
-    basinMinAreaKm2: 1000,
-    basinMinCells: 12,
+    // TAKEN FROM terrain-config.js, NOT RESTATED. These three were literals
+    // here, and basinMinAreaKm2 drifted to 850 in the module while this file
+    // still said 1000. That is not merely a stale default: elevation.js reads
+    // BASIN_MIN_AREA_KM2 and BASIN_MIN_CELLS directly, with no override, while
+    // basins.js takes `opts.minAreaKm2 ?? BASIN_MIN_AREA_KM2` -- and this file
+    // always passes the opt. So one generation decided which depressions the
+    // mesh RESOLVES at 850 and which ones entered the CATALOGUE at 1000.
+    // Importing them is what makes those two the same number by construction.
+    basinMinDepthKm: BASIN_MIN_DEPTH_KM,
+    basinMinAreaKm2: BASIN_MIN_AREA_KM2,
+    basinMinCells: BASIN_MIN_CELLS,
 };
 
 const HELP = `
