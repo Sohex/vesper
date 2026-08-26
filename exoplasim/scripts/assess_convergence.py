@@ -6,6 +6,13 @@ of a run declares what it was for, and orbits run to measure the model rather
 than to advance the planet -- an I/O verification, a high-cadence wind sample, a
 block on a differently patched binary -- are not evidence about where the run is
 settling. `exoplasim/scripts/segments.py` owns that vocabulary.
+
+EVERY CRITERION IS AN UPPER BOUND: `|statistic| + its standard error <
+threshold`. The argument for that form, and why it was still honest to adopt it
+after runs had been judged under the other one, is recorded in `main` beside the
+thresholds. Each criterion and the `resolving_power` row that prices it are
+built from one table there, so a row can never describe an estimator the verdict
+did not take.
 """
 
 from __future__ import annotations
@@ -537,10 +544,37 @@ def main() -> None:
     # offset ~ drift * tau, using the EXPECTED tau rather than a fitted one, and
     # carry 100% uncertainty on it. That is conservative in the right direction:
     # it can only refuse a run, never pass one it should not.
+    #
+    # THE BRANCH IS TAKEN ONCE, HERE, AND EVERYTHING THAT DESCRIBES THE OFFSET
+    # CRITERION COMES OUT OF IT. The verdict tests one estimator and the
+    # `resolving_power` row prices an estimator, and those were two independent
+    # pieces of code: the row multiplied the temperature slope's error by
+    # `tau_expected` unconditionally, which is the FALLBACK statistic's error,
+    # so on every run where the fit was used the row priced a statistic the
+    # verdict had not taken. A reader could not tell which case a row was, and
+    # `window_orbits_for_offset_criterion` was a fallback-only number without
+    # saying so. Both now come out of this branch, so a change to one case
+    # cannot leave the other pricing the wrong estimator. world-sl0q.
     fit_usable = (np.isfinite(asymptote) and np.isfinite(half_width)
                   and abs(offset) < 20.0 and half_width < 5.0)
     slope_se = slope_standard_error(arrays["ts"], w)
-    if not fit_usable:
+    if fit_usable:
+        offset_statistic_source = "exponential_fit"
+        # THE STATISTIC IS `|offset| + half_width` AND ITS ERROR IS THE FITTED
+        # ASYMPTOTE'S OWN, because `half_width` IS that error:
+        # `approach_to_equilibrium` returns the asymptote's standard error
+        # corrected for the residuals' memory and widened where the fit
+        # extrapolates past its data. The window mean the offset is measured
+        # from carries an error too, and it is left out because the asymptote
+        # and that mean are taken from one series and move together, so the
+        # difference's error is smaller than adding the two in quadrature
+        # would give.
+        offset_statistic_se = half_width
+        offset_statistic_error_source = (
+            "the fitted asymptote's autocorrelation-corrected standard error, "
+            "widened where the fit extrapolates past its own data")
+    else:
+        offset_statistic_source = "drift_fallback"
         offset = metrics["temperature_slope_k_per_orbit"] * tau_expected
         # THE FALLBACK'S HALF WIDTH IS TWO UNCERTAINTIES, NOT ONE. Carrying
         # 100% of the offset covers tau_expected being wrong, and it was the
@@ -554,6 +588,20 @@ def main() -> None:
         # slope is well determined. world-omn.
         half_width = float(np.hypot(offset, tau_expected * slope_se))
         asymptote = metrics["temperature_mean_k"] + offset
+        # THE ERROR OF THE FALLBACK STATISTIC IS NOT ITS HALF WIDTH. The half
+        # width carries a 100 per cent allowance on `tau_expected`, which is a
+        # stated allowance and not a sampling error; what a resolving row asks
+        # is whether the WINDOW can see the threshold. Both terms of
+        # `|offset| + half_width` move with the same fitted slope, and each
+        # moves by `tau_expected` times that slope's error, so the statistic's
+        # sampling error is at most twice it. That is the conservative end and
+        # it is the same product the default window was sized on.
+        offset_statistic_se = (_OFFSET_STATISTIC_TERMS * tau_expected
+                               * slope_se)
+        offset_statistic_error_source = (
+            "the temperature slope's standard error times the expected "
+            "relaxation time, counted once for the offset and once for the "
+            "half width that carries the same product")
     metrics.update({
         "temperature_asymptote_k": asymptote,
         "temperature_asymptote_half_width_k": half_width,
@@ -620,6 +668,39 @@ def main() -> None:
         "sea_ice_slope_standard_error_fraction_per_orbit":
             slope_standard_error(arrays["sic"], w),
     })
+
+    # THE FORM OF A CRITERION: AN UPPER BOUND, NOT A POINT ESTIMATE.
+    #
+    # Every criterion here is `|statistic| + its standard error < threshold`.
+    # Five of the six tested `|statistic| < threshold` instead, which is a
+    # point estimate: a state sitting exactly on its threshold passes about
+    # half the time, on the statistic's own scatter, and that is a coin flip
+    # rather than a criterion. A convergence verdict is what licenses the claim
+    # that a run is equilibrated, and every number this project publishes about
+    # the modelled world stands on that claim, so the standing conventions all
+    # point one way -- an estimate that cannot be verified is bracketed and the
+    # bracket is reported, a convergence claim is labelled honestly when it
+    # misses, and a red gate naming a real conflict beats a green one hiding
+    # it. The upper-bound form is that disposition written into the test.
+    #
+    # THE THRESHOLDS DID NOT MOVE. What changed is the form of the comparison,
+    # not its tolerance: a threshold that now looks wrong under this form is a
+    # separate finding and gets its own row rather than an adjustment here.
+    #
+    # WHY IT WAS STILL HONEST TO CHANGE THE FORM. Adopting it flips
+    # `run_ec32946bec89` from pass to fail on the storage criterion, and a
+    # criterion chosen after the run it judges is not a criterion. What
+    # dissolves the objection is that NOTHING CANONICAL HAS BEEN RUN: the
+    # canonical climatology lineage does not exist yet, so every build, run and
+    # climatology in this tree is disposable whatever has consumed it, and that
+    # run is a stepping stone on a binary already superseded. The flip costs
+    # nothing that is being kept, which is the window in which a criterion's
+    # FORM can still be settled. After the lineage is declared this change
+    # becomes impossible to make honestly, which is why it is recorded here
+    # beside the criteria rather than in a commit message. world-s8n3.
+    CRITERION_FORM = ("|statistic| + its standard error < threshold. A "
+                      "criterion states an upper bound, so a statistic whose "
+                      "interval reaches the threshold fails.")
 
     # 0.15 K against a 3 K design band: small enough that the band's edges mean
     # what they say, loose enough to be reachable. Stated before it was applied.
@@ -689,20 +770,97 @@ def main() -> None:
     # here saying it once.
     STORAGE_TOLERANCE_W_M2 = 0.12
 
-    criteria = {
-        "abs_temperature_slope_lt_0.05_k_per_orbit": abs(metrics["temperature_slope_k_per_orbit"]) < 0.05,
-        "abs_toa_slope_lt_0.05_w_m2_per_orbit": abs(metrics["toa_balance_slope_w_m2_per_orbit"]) < 0.05,
-        "abs_surface_slope_lt_0.05_w_m2_per_orbit": abs(metrics["surface_balance_slope_w_m2_per_orbit"]) < 0.05,
-        "abs_sea_ice_slope_lt_0.001_per_orbit": abs(metrics["sea_ice_slope_fraction_per_orbit"]) < 0.001,
-        f"abs_state_storage_lt_{STORAGE_TOLERANCE_W_M2}_w_m2": bool(
-            storage is not None
-            and abs(storage["storage_w_m2_least_squares"]) < STORAGE_TOLERANCE_W_M2),
-        # The one that bounds the answer rather than its rate of change. Fails
-        # closed: a fit that will not converge is not evidence of equilibrium.
-        f"extrapolated_offset_lt_{OFFSET_TOLERANCE_K}_k": bool(
-            np.isfinite(offset) and np.isfinite(half_width)
-            and abs(offset) + half_width < OFFSET_TOLERANCE_K),
-    }
+    # ONE TABLE, TWO CONSUMERS: the verdict below and the `resolving_power` row
+    # beside it. They were built by two separate pieces of code over two
+    # separate lists, and a row that prices a different estimator than the
+    # verdict was taken on is worse than no row -- a resolving row exists to say
+    # what the window can SEE about the statistic being tested. Every criterion
+    # is one entry here, so a criterion cannot gain a verdict without a row, or
+    # a row without a verdict, and neither can be repriced without the other
+    # moving with it. world-s8n3, world-sl0q.
+    #
+    # `interval` is what the upper-bound form adds to `|statistic|`, and
+    # `standard_error` is what the resolving row prices. They are the same
+    # number for the five direct measurements. They differ for the offset
+    # criterion alone, and only in its fallback branch, where the reported half
+    # width carries a stated 100 per cent allowance on `tau_expected` on top of
+    # the sampling error: the verdict must carry that allowance and the
+    # resolving question must not, because the window's ability to see 0.15 K
+    # is not a property of how far the run still has to travel.
+    criterion_table = [
+        {"key": "abs_temperature_slope_lt_0.05_k_per_orbit",
+         "statistic": metrics["temperature_slope_k_per_orbit"],
+         "interval": metrics["temperature_slope_standard_error_k_per_orbit"],
+         "standard_error": metrics["temperature_slope_standard_error_k_per_orbit"],
+         "threshold": 0.05,
+         "error_source": "the fitted slope's own standard error, with the "
+                         "residual memory in it"},
+        {"key": "abs_toa_slope_lt_0.05_w_m2_per_orbit",
+         "statistic": metrics["toa_balance_slope_w_m2_per_orbit"],
+         "interval": metrics["toa_balance_slope_standard_error_w_m2_per_orbit"],
+         "standard_error": metrics["toa_balance_slope_standard_error_w_m2_per_orbit"],
+         "threshold": 0.05,
+         "error_source": "the fitted slope's own standard error, with the "
+                         "residual memory in it"},
+        {"key": "abs_surface_slope_lt_0.05_w_m2_per_orbit",
+         "statistic": metrics["surface_balance_slope_w_m2_per_orbit"],
+         "interval": metrics["surface_balance_slope_standard_error_w_m2_per_orbit"],
+         "standard_error": metrics["surface_balance_slope_standard_error_w_m2_per_orbit"],
+         "threshold": 0.05,
+         "error_source": "the fitted slope's own standard error, with the "
+                         "residual memory in it"},
+        {"key": "abs_sea_ice_slope_lt_0.001_per_orbit",
+         "statistic": metrics["sea_ice_slope_fraction_per_orbit"],
+         "interval": metrics["sea_ice_slope_standard_error_fraction_per_orbit"],
+         "standard_error": metrics["sea_ice_slope_standard_error_fraction_per_orbit"],
+         "threshold": 0.001,
+         "error_source": "the fitted slope's own standard error, with the "
+                         "residual memory in it"},
+        # FAILS CLOSED where the window could not be closed against the state:
+        # `storage` is None, the statistic is nan, and a nan fails the
+        # comparison below. A convergence check that cannot measure the thing
+        # it tests must refuse rather than abstain.
+        {"key": f"abs_state_storage_lt_{STORAGE_TOLERANCE_W_M2}_w_m2",
+         "statistic": (storage["storage_w_m2_least_squares"]
+                       if storage is not None else float("nan")),
+         "interval": storage_se, "standard_error": storage_se,
+         "threshold": STORAGE_TOLERANCE_W_M2,
+         "error_source": "the standard error of the heat content's fitted "
+                         "slope, in the units the estimator reports"},
+        # The one that bounds the answer rather than its rate of change, and
+        # the one that already had this form. Its interval and its error are
+        # branch-dependent and both were settled where the branch was taken.
+        {"key": f"extrapolated_offset_lt_{OFFSET_TOLERANCE_K}_k",
+         "statistic": offset, "interval": half_width,
+         "standard_error": offset_statistic_se,
+         "threshold": OFFSET_TOLERANCE_K,
+         "error_source": offset_statistic_error_source,
+         "statistic_source": offset_statistic_source},
+    ]
+
+    def _number(value) -> float:
+        """A criterion term as a float, with a missing one as nan so it fails."""
+        return float("nan") if value is None else float(value)
+
+    criteria = {}
+    for entry in criterion_table:
+        # THE THRESHOLD IN THE NAME IS THE THRESHOLD APPLIED, checked rather
+        # than trusted. The key is what every consumer, every manifest and
+        # every note quotes a criterion by, and it is written out in full above
+        # so that grepping for one finds it; a threshold moved in the code and
+        # left in the name would be a silent re-verdict on every run assessed
+        # after it, and this is the one place that can catch it.
+        entry["name"] = entry["key"].rsplit("_lt_", 1)[0]
+        named = float(entry["key"].split("_lt_", 1)[1].split("_")[0])
+        if named != entry["threshold"]:
+            raise RuntimeError(
+                f"criterion {entry['key']} is named for {named} and applies "
+                f"{entry['threshold']}")
+        statistic, interval = _number(entry["statistic"]), _number(entry["interval"])
+        criteria[entry["key"]] = bool(
+            np.isfinite(statistic) and np.isfinite(interval)
+            and abs(statistic) + interval < entry["threshold"])
+
     # WHAT THIS WINDOW CAN SEE, reported beside every verdict rather than
     # assumed. Each row is a threshold, the standard error of the statistic it
     # tests, and the window at which that error would fall to a third of it.
@@ -752,49 +910,35 @@ def main() -> None:
         "required_window_is_a_lower_bound": not bool(ts_memory["reliable"]),
         "rows": [],
     }
-    for name, statistic_se, threshold in (
-            ("abs_temperature_slope", metrics[
-                "temperature_slope_standard_error_k_per_orbit"], 0.05),
-            ("abs_toa_slope", metrics[
-                "toa_balance_slope_standard_error_w_m2_per_orbit"], 0.05),
-            ("abs_surface_slope", metrics[
-                "surface_balance_slope_standard_error_w_m2_per_orbit"], 0.05),
-            ("abs_sea_ice_slope", metrics[
-                "sea_ice_slope_standard_error_fraction_per_orbit"], 0.001),
-            # THE SIXTH CRITERION HAS A ROW. It had none, so every verdict said
-            # what its window could resolve for five of the six thresholds it
-            # applied and was silent about the one derived most recently -- and
-            # that one's threshold is the one a short window cannot see. When
-            # the closure could not be taken the error is nan and the row
-            # reports `resolves` false, which is the same direction the
-            # criterion itself fails in.
-            ("abs_state_storage", storage_se, STORAGE_TOLERANCE_W_M2),
-            # The offset criterion tests a slope multiplied by tau_expected, so
-            # its statistic's error is that multiple of the slope's.
-            # The statistic is `|offset| + half_width` and both terms carry the
-            # same slope error times tau_expected, so its scale is twice the
-            # offset's. Sizing on the offset alone sizes for half the test.
-            ("extrapolated_offset",
-             _OFFSET_STATISTIC_TERMS * tau_expected * slope_se,
-             OFFSET_TOLERANCE_K)):
+    # EVERY CRITERION HAS A ROW AND EVERY ROW PRICES ITS OWN CRITERION'S
+    # STATISTIC, by construction rather than by a check afterwards: both come
+    # from `criterion_table` above, in one pass. The storage criterion once had
+    # no row at all and the offset row once priced an estimator its verdict had
+    # not used, and both were possible because the rows were a second list.
+    # Each row carries WHICH statistic its error belongs to, so a reader can
+    # tell one branch of the offset criterion from the other without inferring
+    # it from the metrics.
+    for entry in criterion_table:
+        statistic_se = _number(entry["standard_error"])
         resolves = bool(np.isfinite(statistic_se)
-                        and statistic_se * RESOLVING_FACTOR <= threshold)
-        resolving["rows"].append({
-            "criterion": name, "threshold": threshold,
+                        and statistic_se * RESOLVING_FACTOR <= entry["threshold"])
+        row = {
+            "criterion": entry["name"], "threshold": entry["threshold"],
             "statistic_standard_error": statistic_se,
-            "resolves": resolves})
-    # EVERY CRITERION HAS A ROW, checked rather than trusted. The storage
-    # criterion had none for as long as it existed, so every verdict stated what
-    # its window could resolve for five of the six thresholds it applied and was
-    # silent about the sixth. A report that is silent about one criterion is not
-    # a weaker report, it is one a reader cannot tell from a complete one.
-    row_names = {row["criterion"] for row in resolving["rows"]}
-    criterion_names = {name.rsplit("_lt_", 1)[0] for name in criteria}
-    if row_names != criterion_names:
-        raise RuntimeError(
-            "resolving_power does not cover every criterion: rows without a "
-            f"criterion {sorted(row_names - criterion_names)}, criteria without "
-            f"a row {sorted(criterion_names - row_names)}")
+            "statistic_error_source": entry["error_source"],
+            # What the verdict added to `|statistic|`. The same number as the
+            # standard error everywhere except the offset criterion's fallback,
+            # where the verdict also carries the allowance on `tau_expected`.
+            "verdict_interval": _number(entry["interval"]),
+            "resolves": resolves}
+        if "statistic_source" in entry:
+            row["statistic_source"] = entry["statistic_source"]
+        resolving["rows"].append(row)
+    # WHICH ESTIMATOR THE OFFSET CRITERION WAS ON, beside the rows rather than
+    # only inside one of them, because the window figures below are the
+    # fallback form's arithmetic and a reader has to be able to tell whether
+    # they price this run's verdict at all.
+    resolving["offset_statistic_source"] = offset_statistic_source
 
     # THE WINDOW THE STORAGE CRITERION NEEDS TO RESOLVE ITS OWN THRESHOLD,
     # in orbits, from the heat content's own scatter and memory. The target is
@@ -813,12 +957,23 @@ def main() -> None:
             STORAGE_TOLERANCE_W_M2 / RESOLVING_FACTOR * float(
                 storage["orbit_seconds"]))
         if storage is not None else float("nan"))
+    # THE WINDOW THE OFFSET CRITERION NEEDS, IN ITS FALLBACK FORM. It inverts
+    # `var(slope) = sigma^2 * tau * 12 / (n (n^2 - 1))` for the slope error the
+    # fallback multiplies by `tau_expected`, so it prices this run's verdict
+    # only where the fallback was taken. Where the fit was used the criterion's
+    # error is the fit's own and no window formula inverts it; the figure is
+    # still reported, as the window this run's variability would need if it
+    # were on the fallback, and `resolving_power.offset_statistic_source` says
+    # which case the run is. world-sl0q.
     resolving["window_orbits_for_offset_criterion"] = window_for_offset_criterion(
         ts_scatter, ts_tau, tau_expected)
     # The same window if the orbits were independent, so the price of the
     # memory is visible rather than folded into one number.
     resolving["window_orbits_for_offset_criterion_if_independent"] = \
         window_for_offset_criterion(ts_scatter, 1.0, tau_expected)
+    resolving["window_orbits_for_offset_criterion_prices"] = (
+        "the drift fallback form of the criterion; it prices this run's own "
+        "verdict only where offset_statistic_source is drift_fallback")
     resolving["default_window_orbits"] = DEFAULT_WINDOW_ORBITS
 
     report = {
@@ -835,6 +990,11 @@ def main() -> None:
         "metrics": metrics,
         "criteria": criteria,
         "criteria_provenance": {
+            "form": CRITERION_FORM,
+            "form_applies_to": "all six criteria, each with its own "
+                               "statistic's standard error. Five tested a "
+                               "point estimate until world-s8n3; the "
+                               "thresholds did not move with the form.",
             "energy_balance_tests": "state storage, not reported top-of-atmosphere net",
             "storage_tolerance_w_m2": STORAGE_TOLERANCE_W_M2,
             "storage_tolerance_derivation":

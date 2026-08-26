@@ -153,6 +153,62 @@ was read: at the window now in use the measurable floor is 0.090 W/m2, below the
 and per window, which is what says whether a given verdict discriminated instead
 of a sentence in a derivation saying it once.
 
+## What a criterion states: an upper bound, not a point estimate
+
+Every convergence criterion in `assess_convergence.py` is
+
+    |statistic| + its standard error < threshold
+
+Five of the six tested `|statistic| < threshold` instead. That is a point
+estimate, and a point estimate passes a state sitting exactly on its threshold
+about half the time on the statistic's own scatter, which is a coin flip and not
+a criterion. The sixth, the extrapolated offset, already tested an upper bound;
+the asymmetry was defensible while nothing measured the other five statistics'
+errors, and the resolving rows removed that excuse by measuring all six.
+
+The verdict is what licenses the claim that a modelled run is equilibrated, and
+every number this project publishes about the world stands on that claim. The
+standing conventions all point one way: an estimate that cannot be verified is
+bracketed and the bracket is reported, a convergence claim is labelled honestly
+when it misses, and a gate that names a real conflict beats one that hides it.
+The upper-bound form is that disposition written into the test.
+
+**The thresholds did not move.** What changed is the form of the comparison and
+not its tolerance. A threshold that looks wrong under the new form is a separate
+finding and gets its own row rather than an adjustment.
+
+**Why it was still honest to change the form after runs had been judged under
+the other one.** A criterion chosen after the run it judges is not a criterion,
+and adopting this one flips `run_ec32946bec89` from pass to fail. What dissolves
+the objection is that nothing canonical has been run: the canonical climatology
+lineage does not exist, so every build, run and climatology in the tree is
+disposable whatever has consumed it, and that run is a stepping stone on a
+binary already superseded. The flip therefore costs nothing that is being kept,
+which is exactly the window in which a criterion's FORM can still be settled.
+After the lineage is declared the same change could not be made honestly, which
+is why the argument sits in the code beside the thresholds rather than in a
+commit message.
+
+**The resolving row prices the statistic the verdict was taken on.** The offset
+criterion has two estimators -- the exponential fit where the series supports
+one, the drift fallback where it does not -- and its row priced the fallback
+unconditionally, so on a run where the fit was used the row described a
+statistic the verdict had not taken and a reader could not tell which case a row
+was. Both now come out of the branch that chooses the estimator, and every row
+carries `statistic_error_source`; the offset row also carries
+`statistic_source`, and `resolving_power.offset_statistic_source` repeats it
+beside the window figures, which are the fallback form's arithmetic and price a
+verdict only where the fallback was taken.
+
+The two numbers a row reports are not the same question. `verdict_interval` is
+what the criterion added to `|statistic|`; `statistic_standard_error` is what
+the resolving bar is applied to. They are one number for the five direct
+measurements. They differ for the offset criterion's fallback alone, where the
+reported half width carries a stated 100 per cent allowance on the expected
+relaxation time on top of the sampling error: the verdict must carry that
+allowance, and the resolving question must not, because whether the window can
+see 0.15 K is not a property of how far the run still has to travel.
+
 ## The criteria against the size of the effect they have to see
 
 The escalation route's first two rungs give the instrument something to be
