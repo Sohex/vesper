@@ -223,8 +223,15 @@ def check_restatements(root) -> list[str]:
 # `exoplasim/analysis/stability_probe.json`. `check_stability_ceilings()` below
 # re-derives these from that artifact rather than trusting this copy.
 #
-# T21 and T42 complete every column the probe measured, so 60.0 is the coarsest
-# step TESTED and not a boundary; the probe grid has no column above it.
+# EVERY VALUE HERE IS FROM THE 2026-08-26 RE-TAKE (WORLD-37TN) and none is a
+# tested-not-bounded figure any more: the grid now carries columns above each
+# ceiling, so each of these is a real boundary with a refusing cell above it.
+# T21 refuses at 150, T42 at 90, T85 at 60. T85 had never been probed on any
+# earlier source at all.
+#
+# The re-take also invalidates every grid before it, and not only on
+# attribution: NHDIFF was never written by the probe, so every cell above T21 of
+# every prior grid was damped from T21's wavenumber.
 #
 # PROVISIONAL, in two ways that are both about what a probe can say. It is a
 # FLOOR: 900 steps is about a seventh of an orbit at dt 45, so a rung marked
@@ -236,7 +243,7 @@ def check_restatements(root) -> list[str]:
 # no entry: `stability_ceiling` raises for them rather than interpolating, which
 # is what the 1/N fit would invite and what T170 is the standing warning about.
 STABILITY_CEILING_MINUTES = {
-    "T21": 60.0,
+    "T21": 120.0,
     "T42": 60.0,
     "T85": 45.0,
     "T127": 30.0,
