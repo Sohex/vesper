@@ -265,53 +265,54 @@ texture:
   # was about twice as steep as Earth across its whole range. See
   # `scripts/validate_against_earth.py` and `analysis/earth_validation.json`.
   #
-  # It does NOT fix the felsic-versus-mafic contrast, still overstated at 0.231
-  # predicted against 0.179 observed, though by less than the factor of two this
-  # comment once claimed: the QAPF correction above took granite from 45% inert
-  # quartz to 28% and closed most of the gap.
+  # THE FELSIC-VERSUS-MAFIC CONTRAST IS UNDERSTATED, NOT OVERSTATED, and this
+  # comment used to say the opposite. `analysis/earth_validation.json` is the
+  # artifact and it settles the direction: predicted divergence 0.1523 against
+  # 0.1789 observed, with the regression of observed on predicted at slope 1.11,
+  # so Earth moves further across this range than the model does. The earlier
+  # reading came from a scoring arm that inlined the conversion without the
+  # donor-pool caps; the arm that produces that artifact calls
+  # `weather_texture` itself.
   #
-  # **Quartz cannot close the rest, and this comment used to say it could.**
-  # Measured by sweeping the parameters against the sixteen sites: raising
-  # felsic quartz makes the divergence WORSE, 0.232 at the configured 0.28 going
-  # to 0.273 at 0.45 and 0.296 at 0.55, because inert quartz leaves less material
-  # to convert and so makes granite sandier still. Closing the gap through quartz
-  # would need granite BELOW 0.28, which is below the modal range of any real
-  # granite. The mineralogy is not the problem; the QAPF correction already took
-  # what there was to take.
+  # **What that inverts.** Raising felsic quartz was recorded here as making the
+  # divergence worse. Measured on the current code path against the same sixteen
+  # sites, it moves it TOWARD the observation and then past it: 0.1523 at the
+  # configured 0.28, 0.1856 at 0.45, 0.2052 at 0.55, against 0.1789 observed.
+  # The mechanism is unchanged -- inert quartz leaves less material to convert,
+  # so granite goes sandier -- and only the sign of the gap it is being read
+  # against has changed. That does NOT make quartz the fix: the QAPF correction
+  # already put felsic quartz where mineralogy says it goes, and moving it to
+  # hit a texture target would be fitting a mineral fraction to a soil
+  # measurement.
   #
   # What controls the contrast is the PRIMARY CLAY fractions above, and they are
   # not a mineralogical quantity at all: fresh granite contains no clay, so those
   # values describe the texture of freshly produced regolith rather than of rock.
-  # Two ways to reach the observed divergence, and they are not equivalent:
-  # raising felsic primary clay to 0.18 hits 0.173 but takes the overall bias
-  # from +0.062 to +0.091, while lowering mafic primary clay to 0.16 gives 0.187
-  # AND cuts the bias to +0.040 and the mafic bias from +0.088 to +0.044. The
-  # second is also the physically defensible direction, since fresh basaltic
-  # regolith is sandy and gravelly rather than a fifth clay.
+  # They stay as they are until a source says what fresh regolith texture is.
+  # Three parameters have now been compared against these same sixteen sites and
+  # one has been fitted to them; fitting a second would reproduce the
+  # calibration set and nothing else. What this wants is a weathering
+  # chronosequence with particle-size data on young basalt and granite surfaces,
+  # which is a different literature from mineralogy. See LITH-23, which is also
+  # where the re-measurement of what each primary-clay fraction does belongs:
+  # the response is not monotone, because lowering primary clay raises the
+  # weatherable fraction that feeds the conversion.
   #
-  # It stays as it is until a source says what fresh regolith texture is. Three
-  # parameters have now been compared against these same sixteen sites and one
-  # has been fitted to them; fitting a second would reproduce the calibration set
-  # and nothing else. What this wants is a weathering chronosequence with
-  # particle-size data on young basalt and granite surfaces, which is a different
-  # literature from mineralogy. See LITH-23.
-  #
-  # A residual +0.062 of clay against SoilGrids survives both corrections, and
-  # it is NOT a conversion-rate error: it barely varies with weathering
-  # intensity, correlation +0.045, so it sits in the primary clay fractions
-  # above rather than in `clay_conversion` or `clay_yield`. Fitting a second
-  # parameter to the same sixteen sites would reproduce the calibration set and
-  # nothing else. It is also cheap to carry: removing all of it moves land-mean
-  # plant-available water capacity by 0.8%, because clay's volumetric capacity
-  # of 0.13 sits BETWEEN sand's 0.07 and silt's 0.20, so trading clay for the
-  # other two barely moves the mixture. Depth dominates that field, spanning a
-  # factor of 31 across this world's land against texture's 2.9.
+  # The residual against SoilGrids is +0.004 of clay overall, and it is NOT a
+  # conversion-rate error: it barely varies with weathering intensity,
+  # correlation -0.042, so what remains sits in the primary clay fractions above
+  # rather than in `clay_conversion` or `clay_yield`. It is also cheap to carry,
+  # because clay's volumetric capacity of 0.13 sits BETWEEN sand's 0.07 and
+  # silt's 0.20, so trading clay for the other two barely moves the mixture.
+  # Depth dominates that field by far.
   #
   # **The limit of validity matters more than the bias.** The sixteen sites span
-  # weathering intensity 0.42 to 3.41, and Vesper's land mean is 0.380 with a
-  # median far below that: this model is being run BELOW the range it was
-  # calibrated in, where the bias is largest, +0.084 for sites under W = 1
-  # against +0.044 above it. Treat a Vesper clay figure as extrapolated.
+  # weathering intensity 0.42 to 3.41, and this world's land-mean intensity sits
+  # below the bottom of that span with a median further below still, so the
+  # model is being run BELOW the range it was compared in. That is where the
+  # residual is largest and where it changes sign: +0.036 over the seven sites
+  # under W = 1 against -0.021 over the nine at or above it. Treat a Vesper clay
+  # figure as extrapolated. `analysis/soil_report.json` carries the land mean.
   clay_yield: 0.55
   # Sand and silt give up their share of what becomes clay in this ratio.
   #
