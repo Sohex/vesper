@@ -163,6 +163,21 @@ CLASSIFIED: dict[tuple[str, str, str], str] = {
         "elsewhere, so the two arms partition every lane and zrop is defined "
         "everywhere before mpgagp reads it. This pass does not pair the arms "
         "of a construct, which is over-report 2",
+    ("radmod.f90", "lwr", "zaco2"):
+        "the where/elsewhere pair that writes it has an unconditional "
+        "elsewhere -- zsumco2 <= 1.0 and its complement -- so the two arms "
+        "partition every lane and zaco2 is defined everywhere before the "
+        "clear-sky transmissivity reads it. Over-report 2, the same shape as "
+        "mkradv's zrop. The sibling zah2o is not reported at all because the "
+        "continuum adds an unmasked definition below the pair",
+    ("radmod.f90", "lwr", "zao3"):
+        "the same shape: a where(zsumo3 <= 0.01) / elsewhere pair with an "
+        "unconditional elsewhere, so every lane is written before "
+        "ztaucs reads it. Over-report 2",
+    ("radmod.f90", "lwr", "zth2o"):
+        "the same shape: a where(zsumwv <= 2.) / elsewhere pair with an "
+        "unconditional elsewhere, so every lane is written before the CO2 "
+        "overlap and the CH4 and N2O bands multiply through it. Over-report 2",
     ("oceanmod.f90", "hdiffo", "zdtx"):
         "the three index ranges of zdtx(0:NLON,:) are written between them on "
         "every lane: 1:NLON-1 by a where/elsewhere pair with an unconditional "
@@ -182,12 +197,12 @@ CLASSIFIED: dict[tuple[str, str, str], str] = {
 # The bar for a row is the same one lint_masked_domains.py's radmod remainder
 # met: the file is being edited on another branch, so a per-local row written
 # now is a claim about a version that may not survive.
+#
+# The table is EMPTY. radmod.f90 was the one entry: swr's 53 locals are now
+# preset on every lane and lwr's three carry rows above, world-px61.
 # ---------------------------------------------------------------------------
 
-DEFERRED_FILES: dict[str, str] = {
-    "radmod.f90": "world-px61 -- the same file lint_masked_domains.py's "
-                  "division remainder was left in, for the same reason",
-}
+DEFERRED_FILES: dict[str, str] = {}
 
 
 def squeeze(text: str) -> str:
