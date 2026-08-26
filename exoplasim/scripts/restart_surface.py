@@ -123,10 +123,16 @@ clothes. Each exclusion is reported by name, never silently dropped.
   whole of the resumed orography: the lithographic half is the field that was
   staged, and the rest is this run's own ice. This is the check CLIM-70 declared
   it could not make, and it needed the second record rather than the spectral fit
-  reproduced. It is withdrawn, by name and with the reason, under either of the
-  two settings that take the right answer away -- `NGLACIER` other than 1, and
-  `OROSCALE` other than 1.0, which makes the record the staged field times the
-  scale rather than the staged field.
+  reproduced. It is withdrawn, by name and with the reason, under the one setting
+  that takes the right answer away: `OROSCALE` other than 1.0, which makes the
+  record the staged field times the scale rather than the staged field.
+
+  `NGLACIER` does not take it away and used to withdraw it. Both halves hold at
+  every setting: `groundoro` is assigned from `doro` before the nglacier switch
+  and nowhere else, and under NGLACIER = 0 `oroini` never runs, `glacieroro`
+  stays zero and the identity is true term by term. At that setting the identity
+  is uninformative rather than wrong, and the `groundsg` comparison carries the
+  whole of the check on its own. world-zq1k.
 * Codes 229 `dwmax` and 212 `dforest` under `NVEG = 2`. Coupled vegetation
   overwrites both prognostically every timestep (`simba.f90:484,487`), so under
   that setting the staged field stops being the right answer the moment the run
@@ -238,25 +244,31 @@ REREAD_EVERY_START = {
 # them.
 VEGETATION_OWNED = {212, 229}
 
-def not_comparable(nglacier: int, oroscale: float) -> dict[int, str]:
+def not_comparable(oroscale: float) -> dict[int, str]:
     """Codes whose right answer this run's settings take away, with the reason.
 
     Reported per code rather than dropped, so an exclusion is a verdict a reader
-    meets rather than an absence they have to notice. It depends on the RUN
-    because both entries below are settings: under this project's `nglacier = 1`
-    and `oroscale = 1.0` code 129 has a right answer and is compared, and under
-    anything else it does not.
+    meets rather than an absence they have to notice. There is one, and it is a
+    setting: under `oroscale = 1.0` code 129 has a right answer and is compared,
+    and under anything else it does not.
+
+    NGLACIER DOES NOT TAKE CODE 129'S RIGHT ANSWER AWAY, and it used to withdraw
+    the code whenever it was not 1. world-zq1k. `glacierini`'s cold branch sets
+    `groundoro(:) = doro(:)` BEFORE the nglacier switch (`glaciermod.f90:182`),
+    and the only other write to `groundoro` in the whole model is the restart
+    read itself, so `groundsg` is the staged field times `oroscale` under every
+    setting of NGLACIER. The other half holds too: under NGLACIER = 0 `oroini`
+    is never called at all, `glacieroro` stays at the zero it is declared with,
+    `doro` stays the field `glacierini` read from the `.sra`, and
+    `doro == groundsg + dglacsg` is true term by term. The identity is
+    UNINFORMATIVE at that setting rather than wrong, and an uninformative check
+    that passes is not a reason to stop making it.
+
+    `nglacier` is still reported beside the verdicts, because which of the two
+    halves is carrying the information depends on it.
     """
     out: dict[int, str] = {}
-    if nglacier != 1:
-        out[129] = (
-            f"NGLACIER = {nglacier}, so the doro record this run writes is the "
-            "bare ground with no ice orography in it and the pair of records "
-            "code 129 is read against does not mean what it means under "
-            "nglacier = 1. Whether groundsg is still the staged field under "
-            "this setting is world-zq1k and this exclusion is wider than the "
-            "reason it was given")
-    elif oroscale != 1.0:
+    if oroscale != 1.0:
         out[129] = (
             f"OROSCALE = {oroscale}, and glacierini scales the staged field by "
             "it where that field enters the model (glaciermod.f90:181), so the "
@@ -387,13 +399,14 @@ def verify_restart_surface_fields(run_dir: Path, restart: Path, codes: set[int],
     naqua = namelist_int(run_dir, "plasim_namelist", "NAQUA", 0)
     ndesert = namelist_int(run_dir, "plasim_namelist", "NDESERT", 0)
     newsurf = namelist_int(run_dir, "landmod_namelist", "NEWSURF", 0)
-    # THE TWO SETTINGS CODE 129'S RIGHT ANSWER DEPENDS ON, read from the run for
-    # the reason `namelist_int` gives. `nglacier` decides whether `groundsg`
-    # holds the lithographic orography at all, and `oroscale` decides whether it
-    # still equals the field that was staged.
+    # THE ONE SETTING CODE 129'S RIGHT ANSWER DEPENDS ON, read from the run for
+    # the reason `namelist_int` gives: `oroscale` decides whether `groundsg`
+    # still equals the field that was staged. `nglacier` is read to be REPORTED
+    # beside the verdicts -- it says which half of the check is informative, not
+    # whether either half has an answer. world-zq1k.
     nglacier = namelist_int(run_dir, "glacier_namelist", "NGLACIER", 0)
     oroscale = namelist_float(run_dir, "planet_namelist", "OROSCALE", 1.0)
-    excluded = not_comparable(nglacier, oroscale)
+    excluded = not_comparable(oroscale)
 
     if newsurf == 2:
         raise RuntimeError(
@@ -564,6 +577,12 @@ def verify_restart_surface_fields(run_dir: Path, restart: Path, codes: set[int],
     # holding it means the whole of `doro`'s departure from the staged file is
     # the model's own ice and nothing else. Without it a substituted `doro`
     # would pass on a `groundsg` that was never read.
+    #
+    # Held at every NGLACIER. Under 0 the identity is the trivial one -- `oroini`
+    # never runs, `glacieroro` stays at its declared zero and `doro` stays the
+    # field `glacierini` read -- and a right answer that is trivially true is
+    # still the answer. It goes red exactly where it should: on a `doro` that
+    # came from somewhere neither record accounts for.
     glacier_identity = None
     if 129 in codes and 129 not in excluded:
         missing = [n for n in ("doro", "groundsg", "dglacsg") if n not in records]
