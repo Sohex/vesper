@@ -119,6 +119,11 @@ purge-never-reaches-the-terrain property, run from `main()` with the rest):
    document sends a reader to `ncdump`, NCO, `h5diff` and `yq` rather than a
    Python session, and nothing else checks the claim is true. Both
    directions, so the document and the check cannot drift apart.
+14. **Every unclosed issue carries exactly one `batch:<n>`.** The batch label is
+   the tracker's ordering -- what a change to a row makes worthless -- and it is
+   maintained by hand, so a newly filed row silently sits outside the order and
+   `bd ready --label batch:2` quietly under-reports. A text read of the tracked
+   export, which is the copy every other checkout sees.
 """
 
 from __future__ import annotations
@@ -2397,6 +2402,89 @@ def check_run_length_derivation() -> list[str]:
     return bad
 
 
+def check_every_open_issue_is_batched() -> list[str]:
+    """Every unclosed issue carries exactly one `batch:<n>` label.
+
+    `docs/src/practice/conventions.md` records what the label means: where
+    `step:<id>` says WHERE work lands, `batch:<n>` says WHEN, ordered by what a
+    change to the row makes worthless under rule 7. Unlike the step marker it is
+    not derivable from anything -- it is a judgement taken by reading the row,
+    the same judgement the carve gate is -- so nothing regenerates it and a row
+    filed without one simply falls out of the order. That is a silent failure of
+    exactly the shape this file exists for: `bd ready --label batch:2` returns a
+    shorter list and says nothing about what it left out.
+
+    Read from `.beads/issues.jsonl` rather than by shelling out to `bd`. Two
+    reasons and either alone decides it. This gate's cost is multiplied by every
+    commit in the project, and a subprocess per invocation is what moved two
+    other passes out of this file. And the export is the copy every OTHER
+    checkout sees, so it is the right thing to hold to the convention: a label
+    that exists only in one machine's Dolt working set is not yet a record.
+
+    The cost of reading the export rather than the database is that a `bd label`
+    write is invisible here until the export is regenerated, which the pre-commit
+    hook does. So this check can lag by the length of one session and cannot
+    report a false FAILURE from that lag -- only a false pass, which the next
+    commit closes.
+    """
+    import json
+
+    export = ROOT / ".beads" / "issues.jsonl"
+    if not export.exists():
+        return [f"{export.relative_to(ROOT)} is missing: the tracker's export is "
+                f"the only record of the issue set outside one machine's database"]
+
+    known = {f"batch:{n}" for n in range(1, 10)}
+    unbatched: list[str] = []
+    multiple: list[str] = []
+    unknown: list[str] = []
+    undeclared_decision: list[str] = []
+    for line in export.read_text().splitlines():
+        if not line.strip():
+            continue
+        try:
+            issue = json.loads(line)
+        except json.JSONDecodeError as exc:
+            return [f"{export.relative_to(ROOT)} is not valid JSONL: {exc}"]
+        if issue.get("_type") != "issue" or issue.get("status") == "closed":
+            continue
+        labels = set(issue.get("labels") or [])
+        batches = {label for label in labels if label.startswith("batch:")}
+        if not batches:
+            unbatched.append(issue["id"])
+        elif len(batches) > 1:
+            multiple.append(f"{issue['id']} carries {', '.join(sorted(batches))}")
+        if batches - known:
+            unknown.append(f"{issue['id']} carries {', '.join(sorted(batches - known))}")
+        # The narrower claim implies the wider one: a decision that gates the
+        # current pass is a decision. Carrying only the narrow label hides the
+        # row from the query that is meant to list everything the author owes.
+        if "decision-blocks-loop-a" in labels and "needs-decision" not in labels:
+            undeclared_decision.append(issue["id"])
+
+    def _some(ids: list[str], limit: int = 12) -> str:
+        # A wholesale loss would otherwise print hundreds of lines and bury the
+        # rest of the gate's verdicts, which is what a gate exists not to do.
+        head = ", ".join(ids[:limit])
+        return head if len(ids) <= limit else f"{head} and {len(ids) - limit} more"
+
+    problems = []
+    if unbatched:
+        problems.append(f"{len(unbatched)} unclosed issues carry no batch:<n> "
+                        f"label: {_some(sorted(unbatched))}")
+    if multiple:
+        problems.append(f"{len(multiple)} carry more than one, so the order is "
+                        f"ambiguous for them: {_some(sorted(multiple))}")
+    if unknown:
+        problems.append(f"batch labels outside batch:1 through batch:9, which "
+                        f"conventions.md does not define: {_some(sorted(unknown))}")
+    if undeclared_decision:
+        problems.append(f"{len(undeclared_decision)} carry decision-blocks-loop-a "
+                        f"without needs-decision, so they are absent from the "
+                        f"list of what the author owes: {_some(sorted(undeclared_decision))}")
+    return problems
+
+
 def main() -> None:
     argparse.ArgumentParser(
         description="The fast static gate: every check here is a read, a parse "
@@ -2495,7 +2583,9 @@ def main() -> None:
               ("the model's shortwave cloud tables are the papers' tables",
                lambda: check_cloud_tables_match_the_papers()),
               ("the tools environment.md names are on this host",
-               lambda: check_documented_tools())]
+               lambda: check_documented_tools()),
+              ("every unclosed issue carries exactly one batch:<n>",
+               lambda: check_every_open_issue_is_batched())]
     # Run and REPORT one at a time, rather than evaluating the list and then
     # printing it. A gate that prints nothing until it is finished cannot be
     # told apart from a gate that has hung, and stdout is block-buffered into a

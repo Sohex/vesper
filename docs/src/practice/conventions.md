@@ -183,10 +183,16 @@ predate it and survived the move off a markdown table.
   loop A, loop B, loop C and the escalation in the order `sequencing.md` runs
   them, with a last batch for what gates nothing. The batch is a JUDGEMENT
   taken by reading the issue, exactly as the carve gate is, and for the same
-  reason: what a change makes worthless is a fact about its own prose. It is
-  re-derivable and it goes stale, so it is an annotation and never an input to
-  a gate. A row blocked by a row in a LATER batch is a loop back-edge and is
-  expected; a batch whose rows are mostly blocked forward is mis-cut.
+  reason: what a change makes worthless is a fact about its own prose. So
+  nothing computes a VERDICT from it -- it does not decide the carve gate, and
+  `pipeline.py` reads no tracker -- and the one gate that reads it,
+  `smoke_test.py`'s batch check, asks only that every unclosed row HAS one and
+  that it is one of the nine. Checking that an annotation is present is not the
+  same as taking a decision from it, and the distinction is the one the step
+  marker already draws. Maintain it by hand: it goes stale as rows close, and
+  nothing regenerates it. A row blocked by a row in a LATER batch is a loop
+  back-edge and is expected; a batch whose rows are mostly blocked forward is
+  mis-cut.
 - **A row that cannot move without the author carries `needs-decision`**, and
   `decision-blocks-loop-a` where the answer gates the current pass. That is a
   different claim from `needs-permission`, which says the design and fixture
