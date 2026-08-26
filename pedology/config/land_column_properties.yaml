@@ -164,14 +164,30 @@ geometry:
   vadose_base_m: 1.5
   consumers:
     exoplasim:
-      geometry: none
-      what_it_reads: awc_mm from the emitted states, as a scalar bucket depth `dwmax` in metres of water
+      geometry: 2 liquid water layers of 0.5 and 1.0 m, ACTIVE only at nlandwcol 1
+      what_it_reads: awc_mm from the emitted states, as the column capacity `dwmax` in metres of water
       note: >
-        `dwmax` is a capacity, not a thickness. The land column has no vertical
-        liquid structure at all, so no layer geometry can be given to it until
-        LSHY-3 provides one. Its five SOIL TEMPERATURE layers are a separate
-        geometry, 0.4/0.8/1.6/3.2/6.4 m, which reaches 12.4 m and shares no
-        boundary with either water column.
+        `dwmax` is a capacity, not a thickness, and the running configuration is
+        still the scalar bucket -- `surface.land_water_column.scheme` is
+        `bucket`, under which this geometry is inert and `dwmax` is the whole of
+        what crosses. LSHY-3 has CHOSEN the geometry above and it is not a free
+        one: 0.5 and 1.0 m is exactly this file's own 500 mm upper and 1000 mm
+        lower grouping, which is the only two-layer cut at which the climate
+        column and the ecology column share a boundary. LSHY-5 needs them to
+        share it, because two columns cannot agree about frozen soil across
+        geometries that do not meet.
+
+        WHAT IS STILL OPEN IS THE CAPACITY SPLIT, not the geometry. ExoPlaSim
+        takes it as `dsoilwf`, one shape for the whole planet, and the split is
+        not one shape: measured over this build's land cells it sits at the
+        geometric 500/1500 wherever the regolith fills the column, which is
+        about a quarter of land, and rises toward the top of the column
+        everywhere the regolith contact and the bedrock fraction reweight it.
+        WORLD-VJBZ carries the measurement and the two dispositions.
+
+        Its five SOIL TEMPERATURE layers are a THIRD geometry, 0.4/0.8/1.6/3.2/
+        6.4 m, which reaches 12.4 m and shares no boundary with either water
+        column; landmod maps between them by midpoint.
     lpj_guess:
       geometry: 15 physical layers of 100 mm, grouped 5 upper and 10 lower
       what_it_reads: the emitted states and the per-layer usable shares, through its driver file; and sand, clay, silt, pH, organic carbon and the mineral-reactivity columns from the soil map

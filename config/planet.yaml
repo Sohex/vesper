@@ -480,6 +480,32 @@ surface:
   # this project has read, cGENIE's ENTS, sits on the same axes at exponent four
   # with the knee at a full store; neither is right, which is what a bracket is
   # for. `drhsfull` is the third axis and stays landmod's own.
+  #
+  # THE SCHEME IS DECIDED AND THIS KEY DOES NOT CARRY THE DECISION YET, which is
+  # deliberate and is the one place a reader will otherwise misread this block.
+  # LSHY-3 chose LAYERED, because the bucket is a bitwise special case of it --
+  # `nlandwcol 1` at `nlsoilw 1` with an impermeable base IS the bucket,
+  # operation for operation, checked by
+  # `exoplasim/scripts/verify_land_column_reduction.sh` -- so choosing layered
+  # forfeits nothing and keeps the bucket as an exact control arm, while the
+  # bucket forfeits a great deal: `nlandwphase` REQUIRES `nlandwcol 1`, so
+  # LSHY-5's frozen-soil consistency between this column and the ecology column
+  # is unreachable on a scalar store, as are WORLD-JSFM's moisture-dependent
+  # soil heat, DUST-17's top emitting-layer water and PHYS-15's soil albedo.
+  #
+  # The geometry is chosen too, and is not free: `layers: 2` at
+  # `layer_thickness_m: [0.5, 1.0]`, which is `pedology/config/
+  # land_column_properties.yaml`'s own 500 mm upper and 1000 mm lower grouping
+  # and the only two-layer cut at which the two columns share a boundary.
+  #
+  # WHAT HOLDS THE FLIP: `layer_capacity_fraction` reaches the model as
+  # `dsoilwf`, one shape for the whole planet, and the split is not one shape --
+  # WORLD-VJBZ measures it at the geometric 500/1500 over about a quarter of
+  # land and well above that everywhere the regolith contact reweights the
+  # column. Until that is expressible, `layers: 2` would run on a split picked
+  # rather than derived. The values below therefore stay the bucket, which at
+  # `layers: 1` is what layered reduces to anyway, and the order is WORLD-VJBZ,
+  # then the paired `nlandwcol` arm, then this key.
   land_water_column:
     scheme: bucket
     layers: 1

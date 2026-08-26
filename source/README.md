@@ -69,18 +69,26 @@ the basin selection thresholds, so they are absent from the basin catalogue and
 carry `basin_index == -1`. The naive union misses exactly those and silently
 floods them. `surface_class` is the only correct source.
 
-**The threshold that decides this is `minAreaKm2`, and it is 1000 km2 -- a
-DECLARED LANDFORM FLOOR, kept.** Measured at 10M regions: the residue outside
-every preserved basin is 1.157e6 km2, 0.364 per cent of land, in 16,406 pieces,
-and the deepest ground in it is -0.513 km against -0.591 km inside a preserved
-basin, so it is ordinary dry basin floor in small pieces rather than shallow
-ground. The AREA is converged and the COUNT is not: four times the region count
-multiplies the pieces by 3.6 and leaves their total area within 10 per cent,
-because every newly resolved depression falls under the same area floor. So no
-finer generation closes this and none is meant to -- the floor is a statement
-about what counts as a landform on this planet, defensible against a 285 km2
-mesh cell, and not a resolution artefact. Quote the 0.364 per cent as the
-declared limit rather than treating it as a gap to be closed.
+**TWO thresholds decide this and they interact.** `selectBasins` keeps a
+depression only if it clears BOTH `minAreaKm2`, a physical floor of 1000 km2,
+and `minCells`, a resolution floor of 12 mesh cells; the manifest publishes
+`effectiveMinAreaKm2 = max(minAreaKm2, minCells * cell)` and `bindingFloor`
+saying which one bound. At `precarve-craton-10m` the mean cell is 73.45 km2, so
+the cell floor stands at 881 km2 and the AREA floor binds -- by 13 per cent.
+At `precarve-craton`, 293.80 km2 a cell, the cell floor is 3,526 km2 and the
+area floor is inert. The two builds sit on opposite sides of that crossover, so
+a statement about which floor governs is a statement about a BUILD.
+
+What the floor costs at 10M: 1.157e6 km2 outside every preserved basin, 0.364
+per cent of land, in 16,406 pieces, and the deepest ground in it is -0.513 km
+against -0.591 km inside a preserved basin -- ordinary dry basin floor in small
+pieces rather than shallow ground. The AREA is converged and the COUNT is not:
+four times the region count multiplies the pieces by 3.6 and leaves their total
+area within 10 per cent, because every newly resolved depression falls under the
+same area floor. So refining the mesh does not close it and is not meant to.
+
+**Lowering `minAreaKm2` below 881 km2 at this build changes nothing**, because
+`minCells` takes over there. WORLD-BVL9 is open on where the floor belongs.
 
 `surface_class == 2` (`inland_water`) is **empty**, by design rather than
 oversight -- and filling it is now done downstream: `hydrography/scripts/surface_water.py`
