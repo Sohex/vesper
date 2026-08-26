@@ -349,9 +349,10 @@ texture:
 # This was Heimsath's exponential production function, whose steady state is
 # h = h_star * ln(P0 / E). That form diverges as erosion approaches zero and runs
 # to minus infinity as it grows, so both ends needed clipping, and a quarter of
-# this world's land sat on each clip. The cause is dynamic range: spanning 0 to
-# 5 m through a logarithm at Heimsath's measured h_star of 0.435 m requires P/E
-# to cover a factor of about 100,000, which nothing in these inputs does. The
+# this world's land sat on each clip. The cause is dynamic range: spanning the
+# declared depth range through a logarithm at Heimsath's measured h_star of
+# 0.435 m requires P/E to cover a factor of order 100,000, which nothing in
+# these inputs does. The
 # discarded form is still what sets the LEVEL of the surviving one, because it
 # is the form an absolute production rate and an absolute denudation rate can be
 # read into; see the bracket on `erosion_coefficient_per_relief_m` below.
