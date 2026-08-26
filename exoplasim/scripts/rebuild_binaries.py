@@ -102,6 +102,47 @@ def f90_opts(profile: str) -> list[str]:
 # `toolchain()` documents, and it reached the manifest once already.
 THREADED_FLAGS = ["-fopenmp", "-DOMPSHARED"]
 
+# THE FILES THAT DECIDE THE BYTES AND THAT NOTHING ELSE HASHES. `model_sources`
+# covers what the executable is compiled FROM and `toolchain` covers the
+# compiler and the declared flag line, and between them they still missed the
+# build file itself: `plasim/CMakeLists.txt` appends -fdefault-real-8 and the
+# path prefix maps, and the launcher rewrites the cpp line markers those maps do
+# not reach. Either one changes every executable, and before world-ynpx a change
+# to either was invisible to --verify -- the same silence rule 4 exists to break,
+# one file over from the source it names.
+#
+# RELATIVE PATHS AND CONTENT SHAS, never absolute paths: the manifest is tracked
+# and has to read the same in every checkout, which is the property this whole
+# row is about.
+BUILD_INPUTS = ("vendor/exoplasim/exoplasim/plasim/CMakeLists.txt",
+                "exoplasim/scripts/prefix_map_launcher.py")
+
+
+def build_inputs() -> dict[str, str]:
+    missing = [rel for rel in BUILD_INPUTS if not (ROOT / rel).is_file()]
+    if missing:
+        raise SystemExit(f"the build is missing {', '.join(missing)}")
+    return {rel: sha256(ROOT / rel) for rel in BUILD_INPUTS}
+
+
+# What `build_model.py` must still be doing for the launcher above to be part of
+# the build at all. Read out of the source that does the work, for the reason
+# `assert_threaded_flags_agree` gives: this module only RECORDS, so a manifest
+# that stamps the launcher's sha while nothing puts the launcher on the compile
+# line would describe a build nobody made.
+LAUNCHER_DEFINE = "-DCMAKE_Fortran_COMPILER_LAUNCHER="
+
+
+def assert_launcher_registered() -> None:
+    src = Path(build_model.__file__).read_text(encoding="utf-8")
+    if LAUNCHER_DEFINE not in src or "prefix_map_launcher.py" not in src:
+        raise SystemExit(
+            f"build_model.py no longer passes {LAUNCHER_DEFINE} for "
+            f"prefix_map_launcher.py. Without it the cpp line markers keep this "
+            f"checkout's absolute path, the executable's sha becomes a function "
+            f"of where it was built, and no other checkout can register it. "
+            f"exoplasim/scripts/verify_build_path_independence.py is the gate.")
+
 
 def effective_opts(profile: str) -> list[str]:
     """The flag line the compiler actually receives for this configuration."""
@@ -264,7 +305,10 @@ def toolchain(profile: str) -> dict:
     `notes/audits/aocl-and-model-build-flags.md`, which also records that this
     build is bit-reproducible: same sources, same flags, same compiler give a
     byte-identical executable, which is what makes the comparison below worth
-    making at all.
+    making at all. That held only from ONE absolute path until world-ynpx, and
+    a sha that moved with the checkout is a sha that identifies nothing;
+    `exoplasim/scripts/verify_build_path_independence.py` is what now holds it,
+    and `build_inputs` above stamps the two files it rests on.
 
     There is one declaration and it is `config/planet.yaml`. What used to be
     recorded here was the contents of three generated compiler-options files, of
@@ -288,6 +332,8 @@ def toolchain(profile: str) -> dict:
     return {"compiler_versions": versions,
             "precision_bytes": PRECISION,
             "build_profile": profile,
+            # THE BUILD FILES, by content. See BUILD_INPUTS.
+            "build_inputs": build_inputs(),
             "declared_f90_opts": " ".join(f90_opts(profile)),
             # THE LINE THE COMPILER RECEIVED, declared plus the threading and
             # precision flags build_model.py appends. Recording the declared line
@@ -298,7 +344,13 @@ def toolchain(profile: str) -> dict:
             "note": "The registry builds every configuration in MATRIX. A "
                     "profiling build adds -fno-omit-frame-pointer and is an arm "
                     "rather than a registry entry. build_model.py is where a flag "
-                    "reaches the compiler."}
+                    "reaches the compiler. plasim/CMakeLists.txt appends three "
+                    "-ffile-prefix-map options whose values are this checkout's "
+                    "own directories; they are deliberately absent from the flag "
+                    "lines above, because a manifest that recorded them would "
+                    "read differently in every checkout and could not describe "
+                    "any but the one it was written in. build_inputs carries the "
+                    "sha of the file that declares them."}
 
 
 def describe_toolchain_drift(prior: dict, current: dict) -> list[str]:
@@ -314,6 +366,16 @@ def describe_toolchain_drift(prior: dict, current: dict) -> list[str]:
         got = (current.get("compiler_versions") or {}).get(exe)
         if got != want:
             out.append(f"{exe}: built with {want!r}, now {got!r}")
+    was, now = prior.get("build_inputs"), current.get("build_inputs")
+    if was is None:
+        out.append("no build inputs recorded (manifest predates the stamping), "
+                   "so nothing says what plasim/CMakeLists.txt or the compile "
+                   "launcher were when these binaries were built")
+    elif was != now:
+        for rel in sorted(set(was) | set(now or {})):
+            if was.get(rel) != (now or {}).get(rel):
+                out.append(f"{rel}: built from {(was.get(rel) or 'absent')[:16]}, "
+                           f"now {((now or {}).get(rel) or 'absent')[:16]}")
     if prior.get("precision_bytes") != current.get("precision_bytes"):
         out.append(f"precision_bytes: built at {prior.get('precision_bytes')}, "
                    f"config now declares {current.get('precision_bytes')}")
@@ -411,6 +473,7 @@ def main() -> None:
         raise SystemExit(f"no ExoPlaSim source at {SRC}; is the vendor/exoplasim subtree present?")
 
     assert_threaded_flags_agree()
+    assert_launcher_registered()
 
     rev = subprocess.run(["git", "-C", str(ROOT), "log", "-1", "--format=%h %s",
                           "--", "vendor/exoplasim"],

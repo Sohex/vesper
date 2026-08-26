@@ -65,6 +65,17 @@ BUILD_ROOT = PROJECT_ROOT / "vendor" / "exoplasim" / "build"
 # `patched_sources` for the whole argument.
 PATCHED_ROOT = BUILD_ROOT / "patched"
 SHTNS_PREFIX = PROJECT_ROOT / "vendor" / "shtns-install"
+# THE COMPILE LAUNCHER, and it is what makes the executable a function of the
+# source rather than of where the source is checked out. CMake preprocesses each
+# Fortran source into the build directory before compiling it, and the absolute
+# path it hands the preprocessor lands in the cpp line markers, which
+# `-ffile-prefix-map` explicitly does not reach; gfortran then stores that path
+# in .rodata beside every I/O statement. This applies the maps CMakeLists
+# declares to those markers. Without it the same commit built in two checkouts
+# gives two shas, so a build made anywhere but the one path is absent from
+# `binary_manifest.json` under any name. world-ynpx; the acceptance test is
+# `verify_build_path_independence.py`.
+LAUNCHER = Path(__file__).resolve().parent / "prefix_map_launcher.py"
 
 # The markers a verification arm writes into the model source before it corrupts
 # it. `scripts/smoke_test.py:check_no_control_patch` refuses to let either be
@@ -366,6 +377,7 @@ def build(res_arg: str, levels: int, ranks: int, profile: str,
         f"-DPLASIM_FFT={fft}",
         f"-DPLASIM_FFLAGS={' '.join(flags)}",
         f"-DPLASIM_SHTNS_PREFIX={SHTNS_PREFIX}",
+        f"-DCMAKE_Fortran_COMPILER_LAUNCHER={sys.executable};{LAUNCHER}",
     ]
     run(configure, bdir, verbose)
 
