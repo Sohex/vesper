@@ -53,6 +53,24 @@ not cancel is that Post's population and ECOSTRESS's population are not the same
 soils, so the ratio carries whatever difference there is between "average US
 agricultural soil" and "average ECOSTRESS soil". That is the residual
 uncertainty and it is reported rather than buried.
+
+## A third preparation axis that does NOT cancel: water content
+
+Both populations are dry. ECOSTRESS's saline desert soils are prepared
+laboratory samples, and Post's pyranometer runs were over field surfaces whose
+water content is not reported here, so the answer this script returns is the DRY
+endmember for `playa_clastic` and is staged as one. Playa mud is the class where
+that matters most on this world: it is the largest single surface class on the
+simulated land and it is by definition ground that floods and dries.
+
+The wet endmember is not measured in either population. It has to come from a
+wetting RATIO applied to the dry answer, and the one held ratio -- Penndorf
+(1956) Table 1, clay soil 7.5/15 -- is a luminous-reflectance quantity that
+brackets band 1 and leaves band 2 open. The sign is not safe to assume on the
+neighbouring class either: the twenty-year MODIS record over the largest halite
+pan in `references/INDEX.md` reads BRIGHTER in wet years than in dry ones.
+`exoplasim/notes/soil-albedo-moisture.md` carries the argument, the magnitude,
+and the four preconditions that would arm a moisture-dependent soil albedo.
 """
 
 from __future__ import annotations

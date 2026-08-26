@@ -27,6 +27,20 @@ surface_cover:
     # lake is not a subaerial surface whatever is beneath it. This is the field
     # that fills Orogen's deliberately empty `surface_class == 2`, and the
     # classifier checks that the export really did leave it empty.
+    #
+    # THIS AXIS CARRIES INUNDATION AND NOT WETNESS, and the distinction is
+    # decided rather than pending. A cover class for wet-but-unflooded ground
+    # would be a near-surface water state defined by this component, which is
+    # the second central hydrology DUST-17 exists to prevent. The one
+    # authoritative top-layer liquid water state is DUST-17's, off the land
+    # column that `pedology/config/land_column_properties.yaml` supplies the
+    # properties for, and a consumer that needs the wetness of a surface reads
+    # that profile at its own declared depth.
+    #
+    # The consumer this bears on is the modelled soil albedo, which carries no
+    # moisture dependence: `exoplasim/notes/soil-albedo-moisture.md` has the
+    # argument, the magnitude and the four preconditions that would arm it.
+    # Wetness is deliberately not on this axis, so no rule below is missing one.
     source: hydrography surface_water.nc, variable `lake`
 
   loess:
