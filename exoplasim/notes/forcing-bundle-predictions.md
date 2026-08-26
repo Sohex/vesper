@@ -1895,6 +1895,15 @@ is a namelist key rather than a code fork. The model says which branch it took:
 `run_5373310a7b9f`'s `plasim_diag` prints `asymptotic mixing length (m)
 160.0000` against the control's `200.5476`.
 
+**Measured, on the declared window.** `run_5373310a7b9f` against
+`run_c9c24d438a94`, both 25 orbits, difference over orbits 15 to 24:
+**-0.153 +/- 0.062 K**, with the standard error from `lib/autocorrelation.py`
+over the paired difference. The criterion fixed before the run was
+`|diff| > 2*sqrt(2)*max(SEM)`, which is 0.176 K here, so the term is **NOT
+RESOLVED FROM ZERO** at this length and is reported as such rather than as a
+result. The materiality threshold registered with it was 1.0 K and the arm is an
+order below that either way.
+
 Its forcing is **-0.05 W/m2** in top-of-atmosphere shortwave and -0.29 W/m2 net,
 against the cloud optics' +18.43. The mixing length moves far less than its
 asymptote does, because `zmixm = lambda*k*z/(lambda + k*z)` saturates: at the
