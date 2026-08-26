@@ -1412,18 +1412,19 @@ cores. That donor is 35 orbits at 292.6 K, integrated by the SUPERSEDED source
 and its config, which is what makes it a usable initial condition and not a
 baseline.
 
-**Every arm relaxes to a state at least 12.5 K colder than the donor, and is
-still falling.** The control arm, which carries `config/planet.yaml`'s own values
-for everything except the two energy keys:
+**Every arm relaxes to a state about 12.3 K colder than the donor.** The control
+arm, which carries `config/planet.yaml`'s own values for everything except the
+two energy keys:
 
-| orbit | 0 | 4 | 9 | 14 | 19 | 24 | 31 |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| global mean `ts`, K | 290.78 | 284.81 | 281.76 | 280.98 | 280.37 | 280.18 | 279.80 |
-| sea ice, fraction | 0.0099 | 0.0340 | 0.0568 | 0.0667 | 0.0728 | 0.0737 | 0.0737 |
+| orbit | 0 | 4 | 9 | 14 | 19 | 24 | 31 | 59 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| global mean `ts`, K | 290.78 | 284.81 | 281.76 | 280.98 | 280.37 | 280.18 | 279.80 | 279.96 |
+| sea ice, fraction | 0.0099 | 0.0340 | 0.0568 | 0.0667 | 0.0728 | 0.0737 | 0.0737 | -- |
 
 Sea ice reaches thirteen times the donor's 0.0058 and the ice-albedo feedback is
-carrying most of the amplitude. The donor's last orbit is 292.26 K, so the drop
-is at least 12.5 K and the arm has not stopped.
+carrying most of the amplitude. The control was later taken to sixty orbits and
+settles: its last ten sit at 279.96 K, flat to 0.1 K, against the donor's last
+orbit at 292.26. **The drift is -12.3 K and equilibrated**, not a lower bound.
 
 **The sum of the registered predictions is about +1 K of WARMING.** `world-jgen`
 with `world-f9ig` is +0.59 to +1.63 K warming and is the largest single term;
@@ -1450,9 +1451,9 @@ pre-batch-2 binary was preserved to serve as a control.
 **A residual this large is the shape of one term, not of two that nearly
 cancel**, which is what `docs/src/practice/failure-modes.md` class 15 would
 otherwise warn about. The section "The bisect" below finds that term: it is
-`world-trs3`'s derived `gamma`, worth about -7 to -8 K through a cloud increase
-carrying 9.6 W/m2 of extra reflected shortwave, and its code path is doing
-exactly what it was written to do.
+`world-trs3`'s derived `gamma` and finds it worth -1.89 +/- 0.08 K, which is a
+seventh of the drift and not the whole of it. About -10.8 K is still
+unattributed, and the terms it must live in are the two with no control binary.
 
 **What this does not license.** Nothing here says a term should be removed.
 Physics is not a knob, and a correct term that moves the simulated climate a long
@@ -1580,14 +1581,35 @@ every kelvin below.
 
 | term | worth at T21 | how it was established |
 | --- | ---: | --- |
-| `world-trs3`, the derived `gamma` | **about -7 to -8 K** | A/B, `run_af3d2c9a4b05` against the control |
+| `world-trs3`, the derived `gamma` | **-1.89 +/- 0.08 K** | A/B, `run_af3d2c9a4b05`, 25 orbits, TOA closed |
 | `world-py6p`, the land water column | +0.17 +/- 0.07 K | A/B, `run_431ecabed085` |
 | `surface.cryosphere` declared | about 0 | static, against `icemod.f90` |
 | the energy fixer off | +0.23 K | the donor's manifest and `lib/sensitivity.py` |
 | `world-o12h`, `rcritwidth` | exactly 0 | construction, `RCNLATREF` = `NLAT` |
 | `world-2esd`, `th2oc` | 0 | not swept; the config value is unchanged |
+| **residual, unattributed** | **about -10.8 K** | by difference |
 
-### `world-trs3`, the derived Kessler `gamma`: CLEARED, and it is most of the drift
+**The control has settled, so the total is not a lower bound any more.** Its last
+ten orbits of sixty sit at 279.96 K against the donor's last at 292.26, flat to
+0.1 K, so the drift is **-12.3 K** and equilibrated. Adding the rows above gives
+-1.89 - 0.17 - 0.23 = -1.49 K of accounted change, in which the two config rows
+are WARMING and make the cooling smaller rather than larger. **About -10.8 K is
+unattributed.**
+
+That residual has nowhere to live except the compiled-in half of the bundle,
+which is `world-jgen` with `world-f9ig` and `OCN-22` -- and those are exactly the
+two terms with no namelist that reverts them and no preserved binary to control
+against. It is worse than a bare residual, because both were predicted to WARM:
++0.59 to +1.63 K for the band-1 optics and -0.02 to -0.13 K for the ocean band
+split. Crediting the predicted warming puts the unexplained cooling at -11.4 to
+-12.4 K.
+
+**So the bisect is not finished, and it cannot be finished on this tree.** What
+would finish it is one binary per rung preserved at each source change that lands
+a compiled-in forcing term, which costs nothing at the time and is the whole
+difference between a bundle that can be bisected and this one.
+
+### `world-trs3`, the derived Kessler `gamma`: CLEARED, and worth a seventh of the drift
 
 Four checks with right answers, all passed:
 
@@ -1601,27 +1623,39 @@ Four checks with right answers, all passed:
 - **The override is reached**, and the model says so: `run_af3d2c9a4b05`'s
   `plasim_diag` prints `precip re-evaporation: CONSTANT gamma 1.0E-002`. That is
   the first thing this note's own falsifying list says to check.
-- **Every link of the stated mechanism has the predicted sign.** Against the
-  derived default over ten orbits, pinning `gamma` to 0.01 gives +0.300 +/- 0.005
-  mm/day more precipitation reaching the ground, less column water vapour, 0.038
-  +/- 0.004 less cloud cover, and 9.16 +/- 0.35 W/m2 less reflected shortwave.
-  Reversed, that is the derived form moistening the column, growing cloud and
-  reflecting more, which is the chain this note describes. The arm is 10 orbits
-  into a settling block `lib/run_lengths.py` prices at 25 to 54 for a
-  perturbation this size, and its surface separation is +1.58 K and still
-  climbing, so the kelvin is an order and the W/m2 is the measurement.
+- **Every link of the stated mechanism has the predicted sign.** Over the arm's
+  settled window, orbits 15 to 24, pinning `gamma` to 0.01 against the derived
+  default gives +0.291 +/- 0.011 mm/day more precipitation reaching the ground,
+  0.024 +/- 0.002 less cloud cover and 6.86 +/- 0.24 W/m2 less reflected
+  shortwave. Reversed, that is the derived form moistening the column, growing
+  cloud and reflecting more, which is the chain this note describes.
 
-**So the code is doing what it was written to do, and the prediction is what
-missed.** It predicted the moistening, the cloud increase and the drop in
-precipitation, and priced NONE of them in W/m2 or kelvin: "high cloud fraction
-rises slightly" is +0.038 absolute cover carrying **9.2 W/m2** of extra reflected
-shortwave, about 7 K at `lib/sensitivity.py`'s 0.778 K per W/m2. The
-precipitation reduction, 13.5 per cent of the global mean, sits inside the 10 to
-50 per cent the prediction gave for its land counterpart.
+**The response saturates, exactly as this note predicted it would.** The surface
+separation runs +0.36, +1.11, +1.72, +2.11 over the first seven orbits, reaches
+about +2.2 by orbit nine and then flattens; the settled window gives
+**+1.89 +/- 0.08 K** with the top-of-atmosphere difference closed to
+-0.22 +/- 0.16 W/m2. The shortwave forcing decays with it, from 10.4 W/m2 in the
+first orbit to 6.9 in the settled window, because the cloud difference itself
+shrinks as the two states converge. That is the sublinearity this note argued
+for: the equilibrium is reached by MOISTENING until the sub-cloud deficit falls,
+not by the evaporated flux scaling with `gamma`.
 
-The prediction is left exactly as it was written. What it teaches is that a term
-whose stated mechanism runs through cloud needs a radiative number attached to it
-before it lands, not a qualifier.
+**DO NOT CONVERT THE FORCING THROUGH THE STATIC SLOPE HERE.** 9.2 W/m2 at
+`lib/sensitivity.py`'s 0.778 K per W/m2 is about 7 K, and the arm's own answer is
+1.89. The slope is local, the forcing is not constant while the state responds,
+and the arm closes its own budget; the run's mean is the measurement and the
+conversion is not. This is `docs/src/practice/failure-modes.md` class 34 from the
+inside, and it was made once on this arm at ten orbits before the arm had settled.
+
+**So the code is doing what it was written to do, and the prediction is very
+nearly right.** It predicted the moistening, the cloud increase, the drop in
+precipitation and the saturation, and all four happened. The precipitation
+reduction, 13.5 per cent of the global mean, sits inside the 10 to 50 per cent it
+gave for its land counterpart. What it did not carry is a number for the
+radiative channel: "high cloud fraction rises slightly" is +0.024 of cover worth
+6.9 W/m2 and 1.9 K, which is not slight and is the largest single effect the term
+has. A term whose stated mechanism runs through cloud needs a radiative number
+attached before it lands, not a qualifier.
 
 ### `world-jgen` and `world-f9ig`, the band-1 cloud optics: CLEARED as far as this rung allows
 

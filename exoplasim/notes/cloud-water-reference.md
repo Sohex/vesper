@@ -513,7 +513,7 @@ the ice-albedo feedback is stronger on the cooling side. That is an argument and
 not a measurement; separating it needs the arms repeated with the sea ice held.
 
 **What the arms do NOT establish.** They are not converged. Every arm, control
-included, is inside a common relaxation of at least 12.5 K from the donor's state,
+included, is inside a common relaxation of 12.3 K from the donor's state,
 because that state was integrated by the superseded source and config;
 `exoplasim/notes/forcing-bundle-predictions.md` measures that drift. The
 separations above are paired and share it, so they are attributable to `clwref`;
