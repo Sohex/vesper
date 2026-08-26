@@ -207,11 +207,25 @@ def assert_threaded_flags_agree() -> None:
 # checks before the model is reached. A rung with a binary and no surface family
 # is not a runnable rung; it is an unfinished one, and `scripts/pipeline.py
 # --status` with that rung configured is what says which. world-3oj.
-MATRIX = [("T21", 10, 16),
-          ("T42", 10, 16),
-          ("T85", 10, 16),
-          ("T127", 10, 16),
-          ("T170", 10, 16)]
+# TWO THREAD COUNTS PER RUNG, and the second is not a spare. A paired A/B is
+# the cheap way to attribute a forcing change -- `sequencing.md` A3 -- and it
+# needs BOTH arms resident at once. The host lock is a mutex that keeps other
+# AGENTS off the machine; it does not partition the box between one agent's own
+# runs, so two sixteen-thread arms would oversubscribe it and each would measure
+# the other's contention rather than the term under test. Two eight-thread arms
+# pinned to their own cores are what a pair actually runs on.
+#
+# So p8 is registered rather than built as an unnamed arm when a pair is wanted.
+# A binary outside the manifest has no provenance -- it is a file with a name --
+# and WORLD-QNUE is what an unattributable executable costs: sixty probe cells
+# that named no source and could not be compared against anything. The build is
+# cheap and the registry is what makes an arm citable, so both counts build
+# every time.
+MATRIX = [("T21", 10, 16), ("T21", 10, 8),
+          ("T42", 10, 16), ("T42", 10, 8),
+          ("T85", 10, 16), ("T85", 10, 8),
+          ("T127", 10, 16), ("T127", 10, 8),
+          ("T170", 10, 16), ("T170", 10, 8)]
 
 
 def sha256(path: Path) -> str:
