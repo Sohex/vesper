@@ -1743,6 +1743,15 @@ the term among its five registered predictions, and could not find it there,
 because the term that explains it had a bracket in the same directory and no
 prediction row.
 
+**The prediction's own falsifier fired, and it is the sign one.** It registered
+"a correct band-1 tau is smaller than the one it replaces over every layer
+carrying real cloud water, so the arm must warm. A cooler arm is wrong outright,
+not a small result." The arm on the current source is about twelve kelvin
+cooler. The sign argument is sound about the band-1 optical depth and says
+nothing about the backscatter fraction, which is the larger term in the same two
+commits and runs the other way: this is what it costs to size a prediction
+covering two changes from a bracket that prices one of them.
+
 **Measured: the T21 pair the artifact asked for.** Three arms branched from
 `run_14906cb7b914`'s `MOST_REST.00034`, all at T21 on `p8`. Orbit 0 is the same
 initial state integrated by two executables, so the top-of-atmosphere difference
