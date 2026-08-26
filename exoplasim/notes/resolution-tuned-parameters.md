@@ -1611,3 +1611,83 @@ nobody looks at turns a known 0.9 W/m2 into an unknown one that can grow. That i
 the whole reason the applied increment is reported rather than absorbed, and the
 reason `check_consistency.py` refuses a run whose manifest claims the fixer while
 its namelist says otherwise.
+
+### The sink at T21, and why the diagnosis belongs at T42
+
+Every number above for `world-0ov` was measured at T42. Measured at T21 on
+2026-08-26, `most_plasim_t21_l10_p8.x`, dry adiabatic, 30 min timestep, one
+orbit from `run_14906cb7b914`'s `MOST_REST.00034`, first three prints dropped,
+host load 5.0 to 7.4 over 32 cores:
+
+| arm | `denergy26 - denergy27` | `Cimp - Ct` |
+| --- | ---: | ---: |
+| fixer off, `run_d3606ce0d265` | -0.0206 | -0.000172 |
+| fixer off again, `run_c24776f33d25` | -0.0206 | -0.0000256 |
+| fixer off a third time, `run_383b871dcfad` | -0.0206 | -0.000250 |
+| fixer on, `run_614579b8b44a` | +0.0034 | -0.000197 |
+
+The three fixer-off rows are one configuration run three times. `denergy26 -
+denergy27` reproduces exactly and `Cimp - Ct` does not, which is the next
+paragraph.
+
+**`Cimp - Ct` DOES NOT REPRODUCE, and the whole of the variation is `Ct`.** Three
+runs of one configuration on one restart with one binary, two of them on the same
+eight cores, give at the first kept print:
+
+    Cimp - Ct      +0.00026    +0.00400    -0.00373
+
+It changes sign between runs of the same arm. Column by column, `d02`, `d26`,
+`d27`, `Cimp`, `Cvadv`, `Ctm` and `Ctp` are bit-identical across all three and
+`Ct` and `Dt` are the only two that move. The full-physics pair below is bit
+identical on different cores, so the model is deterministic and this is specific
+to these two columns.
+
+**It localises to `zcnow`, which is the only array those two terms read.**
+`plasim.f90` computes terms 3 and 4 -- `Ct` and `Dt` -- from `zcnow`, and the
+other four from `zcsdt`, `zsd` and `sd`. `zcnow` is filled as `zcnow(:,:) =
+sd(:,:)` inside the OpenMP parallel region, and `mpsyncsp` advances `sd` from t
+to t+dt later in the same routine, which is what makes term 6 a different
+quantity from term 3. The `!$omp barrier` above the copy guards the previous
+phase's arrays against this one; nothing holds every thread's copy of `zcnow`
+ahead of the first thread's arrival at `mpsyncsp`, so a late thread can capture
+an `sd` that is already partly advanced.
+
+The scatter is about 0.008 W/m2 on a `Ct` of 1.25, six parts in a thousand.
+**That does not threaten the T42 diagnosis**, where the displacement is -0.96 and
+six parts in a thousand of `Ct` is 0.008, but it is decisive at T21, where the
+displacement is 2e-4 and the scatter is thirty times it. Any future use of
+`Cimp - Ct` has to check the quantity against this scatter first, and a repeat of
+the arm is the only way to measure it.
+
+**The sink itself is smaller at T21 by more than an order of magnitude**, -0.021
+against -0.79, and at matched early model time -0.137 against -1.675. That is the
+direction `world-bxr` predicts: the sink is the conversion applied to divergence
+the hyperdiffusion removes before it becomes the state, and T21 has far less
+spectrum for that divergence to live in. The two rungs run different timesteps
+and different damping timescales, so the ratio is an order and not a coefficient.
+
+**The fixer's own identity holds, and it is a check that could have failed.** The
+fixer-on arm reports a residual of +0.0034 where the fixer-off arm reports
+-0.0206, and it applies +0.0222 to get there. Applied is minus the defect to
+within eight per cent, which is what this section's controller argument requires
+and is what fixes the sign convention for the next paragraph.
+
+**At T21 the fixer is not mainly carrying `world-0ov`'s defect.** On
+`run_14906cb7b914`, 35 orbits of T21 full physics at the configured settings, the
+manifest's `energy_fixer_applied` gives a mean of **-0.300 W/m2** over the second
+half, range -0.691 to -0.076 and one-signed across all thirty samples. Negative
+applied means a spurious energy GAIN of +0.300 W/m2. The dry adiabatic conversion
+defect at the same rung is -0.021, a LOSS, fourteen times smaller and the other
+way round.
+
+So the quantity the fixer removes on a T21 production run is not the conversion
+displacement this document is about. Whatever it is, it is larger and of opposite
+sign, and it is the term that would have to be named before the fixer at this
+rung can be described as correcting `world-0ov`. That is a separate question from
+the T42 dry arm, where the two do match in sign and size.
+
+All four runs above are `_crashed` directories. `nenergy > 0` segfaults in
+`epilog` after the last timestep, so the restart is lost and `plasim_diag` is
+not; `exoplasim/notes/energy-diagnostic-restart-defect.md` has the defect and
+`exoplasim/analysis/arms/read_conversion_decomposition.py` reads these numbers
+out of it.

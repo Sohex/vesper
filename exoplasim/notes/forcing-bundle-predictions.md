@@ -1323,3 +1323,383 @@ evaluable continuum, because the coefficients ship as data with LBLRTM. That is
 the same bundle `exoplasim/notes/corrk-cross-check.md` says the project does not
 have and which blocks `h2o_sw_level`'s bracket. The two open together and should
 be scoped together.
+
+## The bundle splits in two, and only one half can be attributed at all
+
+Measured against the tree on 2026-08-26, model source `a041a1e9`. A3 says bundle
+the terms and check the SUM against the sum of predictions, and it attaches two
+conditions to the A/B that decide which terms can enter such a sum: both arms
+use the SAME BINARY and differ only by a namelist key, and both branch from ONE
+restart. The five predictions batch 2 registered do not all meet the first.
+
+**The half that is namelist-revertible on one binary.** Each of these has a
+sentinel or a literal in a namelist that restores the pre-change constant
+exactly, so a control arm and a bundle arm can share a binary:
+
+| term | key | namelist | what restores the old behaviour |
+| --- | --- | --- | --- |
+| `world-trs3` | `gamma` | `rainmod_nl` | `gamma = 0.01`; the sentinel is `-1.0` and `> 0` restores the literal at all four sites |
+| `world-o12h` | `rcritwidth` | `rainmod_nl` | `rcritwidth = 1.0`; the sentinel is `-1.0` and derives from NLAT |
+| `world-2esd` | `th2oc` | `radmod_nl` | `th2oc = 0.024`, the compiled value, and the sweep moves it |
+| `world-s8rv` | `clwref` | `rainmod_nl` | `clwref = 0.00021`, the compiled value |
+| `world-u9hq` | `h2oswl` | `radmod_nl` | `h2oswl = 1.0`, the model default |
+
+**The half that is compiled in, where no namelist reverts anything.**
+
+- **`world-jgen` and `world-f9ig`, the band-1 cloud optics.** Stephens Eq. (10a)
+  against Eq. (10b), the `+1.5` offset replaced by a linear continuation, and
+  `tswr1` to `tswr3` deleted in favour of Stephens et al. (1984) Tables 1(a) to
+  1(c). This section says it plainly: a control on the pre-`world-jgen` tau
+  relation against an arm on the current source measures the pair. That is TWO
+  BINARIES, which A3 forbids because it confounds the term with the rebuild.
+  **No pre-batch-2 binary was preserved** -- the only saved set is
+  `prerebuild_binaries_2026-08-18`, eight days and many source changes earlier
+  -- so the control arm cannot be reconstructed from a saved executable either.
+- **`OCN-22`, the open-ocean albedo's band split.** Its own section already says
+  it is not an arm and that there is no namelist number to move. Its two
+  bit-identity conditions, `nsimplealbedo` and `necham = necham6 = 0`, are
+  REDUCTIONS that check the new code collapses correctly; neither isolates the
+  band split from everything else those switches change, so neither is a revert.
+
+**`world-o12h` is namelist-revertible and still contributes exactly zero to any
+bundle run at T21.** `rainmod.f90` declares `RCNLATREF = 32` and derives
+`rcritwidth = (RCNLATREF/NLAT)^(1/3)`, which at T21's NLAT of 32 is exactly 1,
+and the applying loop is guarded by `if(rcritwidth /= 1.)`. Its own prediction
+says so first: T21 is bit-identical to the control, by construction rather than
+by rounding. The term has a value to measure only at T42 and above, so it cannot
+enter a T21 bundle even with a route, and a T21 bundle total that named it would
+be claiming a measurement of zero as an agreement.
+
+**Three of the five have no route from `config/planet.yaml`.** `gamma`,
+`rcritwidth` and `th2oc` are read from their namelists by the model and are
+written there by nothing: `run_exoplasim.py` has no `declare_` function for any
+of them, `expected_namelist_keys` does not cover them, and `continue_exoplasim.py`
+does not reapply them per segment. `clwref` and `h2oswl` are the two that do have
+one, which is why they are the two arms this batch could run. A hand-edited
+namelist is not a substitute, because `verify_staged_namelists` is what makes an
+arm's own namelist the record of what it integrated, and a key it does not know
+about is not in that record.
+
+**So the bundle sum cannot be checked against the sum of predictions.** Of the
+five registered terms, two are unmeasurable on any pairing A3 permits, one is
+identically zero at the rung a T21 bundle would run at, and three lack the route
+that would let a control arm be staged with provenance. What remains is not a
+bundle: it is two terms with routes, and those are worth running as their own
+pairs, which is what `world-s8rv` and `world-u9hq` are.
+
+This is not a reason to serialize the iteration. A3's argument that attribution
+cannot gate anything still holds, and the terms are in the tree because they are
+correct rather than because a comparison improved. What it changes is the claim
+that can be made afterwards: the next baseline's total is not attributable to its
+parts, and a note that says otherwise would be describing an A/B nobody can run.
+
+**What would make the bundle checkable**, in the order that costs least:
+
+1. A `declare_` route and an `expected_namelist_keys` row for `gamma`,
+   `rcritwidth` and `th2oc`, the way `world-n1nu` built one for `clwref`. That is
+   a `run_exoplasim.py` change and stales no binary.
+2. Preserving one binary per rung at each source change that lands a compiled-in
+   forcing term. The two compiled-in terms here are unattributable for want of a
+   control executable that cost nothing to keep at the time.
+3. Running `world-o12h` at T42 against a T42 control, which is the only rung
+   where it has a value.
+
+## Measured: the bundle is an order of magnitude larger than its predictions, and the other sign
+
+2026-08-26, T21, `most_plasim_t21_l10_p8.x` at model source `a041a1e9`, five arms
+branched from `run_14906cb7b914`'s `MOST_REST.00034`, host load 25 to 50 over 32
+cores. That donor is 35 orbits at 292.6 K, integrated by the SUPERSEDED source
+and its config, which is what makes it a usable initial condition and not a
+baseline.
+
+**Every arm relaxes to a state about 12.3 K colder than the donor.** The control
+arm, which carries `config/planet.yaml`'s own values for everything except the
+two energy keys:
+
+| orbit | 0 | 4 | 9 | 14 | 19 | 24 | 31 | 59 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| global mean `ts`, K | 290.78 | 284.81 | 281.76 | 280.98 | 280.37 | 280.18 | 279.80 | 279.96 |
+| sea ice, fraction | 0.0099 | 0.0340 | 0.0568 | 0.0667 | 0.0728 | 0.0737 | 0.0737 | -- |
+
+Sea ice reaches thirteen times the donor's 0.0058 and the ice-albedo feedback is
+carrying most of the amplitude. The control was later taken to sixty orbits and
+settles: its last ten sit at 279.96 K, flat to 0.1 K, against the donor's last
+orbit at 292.26. **The drift is -12.3 K and equilibrated**, not a lower bound.
+
+**The sum of the registered predictions is about +1 K of WARMING.** `world-jgen`
+with `world-f9ig` is +0.59 to +1.63 K warming and is the largest single term;
+`OCN-22` is -0.02 to -0.13 K; `world-o12h` is identically zero at this rung;
+`world-2esd` and `world-trs3` are not swept in the baseline config. Nothing in
+the table predicts a term of this size and nothing predicts cooling of this size.
+
+**What the drift is NOT.** The arms differ from the donor's configuration in four
+places and only one is large enough to matter for sign:
+
+| difference | worth |
+| --- | --- |
+| `energy_fixer` and `energy_diagnostics` off | +0.23 K, and WARMING, so it makes the gap larger rather than smaller. The fixer applies -0.300 W/m2 on the donor and `lib/sensitivity.py` at that run's own planetary albedo of 0.2366 gives 0.778 K per W/m2 |
+| `ncpus` 16 to 8 | none. Thread count is compiled in and changes no physics |
+| four `surface.cryosphere` constants, absent in the donor's config and declared now | **negligible, and it is a static check rather than an arm.** Three of the four declare the value `icemod.f90` already compiles -- `CRHOI` 920, `CPI` 2070, `CKAPI` 2.03 -- so declaring them changed nothing the model reads. The fourth, `CLFSN`, moves from the compiled 3.337E5 to the derived 333444.87, which is -0.076 per cent of the modelled snow's melting enthalpy |
+| `surface.land_water_column` from a 1-layer bucket to a 2-layer scheme | unbounded here |
+
+So the measured drift confounds the compiled forcing terms with two config
+changes, and the split above says which. **It is not attributable further**, for
+the reasons the previous section gives: two of the five terms are compiled in
+with no namelist that reverts them, three have no route from config, and no
+pre-batch-2 binary was preserved to serve as a control.
+
+**A residual this large is the shape of one term, not of two that nearly
+cancel**, which is what `docs/src/practice/failure-modes.md` class 15 would
+otherwise warn about. The section "The bisect" below finds that term: it is
+`world-trs3`'s derived `gamma` and finds it worth -1.89 +/- 0.08 K, which is a
+seventh of the drift and not the whole of it. About -10.8 K is still
+unattributed, and the terms it must live in are the two with no control binary.
+
+**What this does not license.** Nothing here says a term should be removed.
+Physics is not a knob, and a correct term that moves the simulated climate a long
+way is information. What it says is that the next baseline cannot be taken on
+this configuration until the two config changes above are priced, because they
+are the two candidates that are cheap to price and are not yet.
+
+**The split needs one arm, not two.** The cryosphere row above is settled by
+reading `icemod.f90` against `config/planet.yaml`, and it is settled at
+essentially zero, so the only config change left that could carry a response of
+this size is the land water column. `run_431ecabed085` is that arm: the 1-layer
+bucket the donor ran, against this same control on this same restart, staging
+`NLANDWCOL = 0`, `DSOILWZ = 1.5` and `DSOILWF = 1` where the control stages
+`NLANDWCOL = 1`, `DSOILWZ = 0.5, 1` and `DSOILWF = 0.333333, 0.666667`.
+
+It accounts for +0.17 +/- 0.07 K of the drift and no more, so the config is not
+where the drift lives and the rest is the model source's. The bisect below takes
+it from there.
+
+Removing the `cryosphere` block to build a second config arm does not work and
+should not: `derive()` indexes it rather than using `.get`, deliberately, so that
+a config which has lost the block fails instead of reverting the model to its
+compiled values in silence.
+
+## A3's fourth condition cannot be met on an arm's first segment
+
+A3 requires that "the segments are labelled as diagnostics, so a short A/B tail
+never enters a convergence window or a climatology". `continue_exoplasim.py`
+takes a required `--purpose` and will stamp `diagnostic`. `run_exoplasim.py`
+takes no such flag: every run it prepares gets a first segment labelled `spinup`
+and a manifest carrying `canonical_lineage_eligible: true`, whatever the run is
+for. Measured on the five arms above, each of which is an A/B arm and none of
+which says so.
+
+So an arm is self-labelling only from its SECOND segment onward, and its first
+one -- which for a short A/B is the whole of it -- is indistinguishable on the
+manifest from a spin-up meant for the canonical chain. Nothing has been mislabelled
+INTO a climatology yet, because `baseline_climatology` is null and the canonical
+lineage does not exist; the gap is that the guard A3 names is not there to catch
+it when one does.
+
+`--binary` already stamps an arm's build tag and sets `canonical_lineage_eligible
+= false`, so the mechanism exists and reaches only arms that carry their own
+executable. A `--purpose` on `run_exoplasim.py` with the same three values
+`continue_exoplasim.py` takes, defaulting to `spinup` so no existing call
+changes, is what closes it.
+
+## Measured: the `world-u9hq` h2oswl arms, 2026-08-26
+
+T21, `most_plasim_t21_l10_p8.x` at model source `a041a1e9`, both arms branched
+from `run_14906cb7b914`'s `MOST_REST.00034` and differing from the control in
+`H2OSWL` alone. `run_11b43d2c56a4` carries 1.129 and `run_fc75ca5f9fd2` carries
+1.206; `run_57a43e1fc3f4` is the central 1.163. The energy fixer and diagnostics
+are off in all three, forced by the `epilog` defect and common to every arm.
+
+The declared length is 11 orbits of settling, `lib/run_lengths.settling_bracket(0.75)`'s
+lower end, then a 35-orbit measurement window, which is `assess_convergence.py`'s
+own derived minimum. The high arm reached all 46. The low arm reached 40 before
+the host was taken over, so the paired comparison runs to 40 and its window is 29
+orbits. Host load 25 to 50 over 32 cores throughout, and 40 to 51 for the last
+third, so no wall clock from these runs is worth keeping.
+
+| comparison | window mean, K | window |
+| --- | ---: | ---: |
+| 1.206 minus 1.129, end to end | **+0.599 +/- 0.087** | 29 orbits |
+| 1.129 against the central 1.163 | -0.363 +/- 0.124 | 29 orbits |
+| 1.206 against the central 1.163 | +0.258 +/- 0.055 | 35 orbits |
+
+**Sign: holds.** More absorption at the level the key scales warms the modelled
+mean, and the high arm is the warm one. Every orbit of the end-to-end difference
+is positive.
+
+**Monotonicity: holds.** 1.129 sits below the central and 1.206 above it, both
+resolved, with no inversion. The two one-sided differences sum to the end-to-end
+one.
+
+**Magnitude: holds.** The prediction carried in was 0.72 K end to end, PHYS-9's
+fitted asymptote slope, inside a static bracket of 0.54 to 1.16 K. The measured
++0.599 +/- 0.087 K is inside that bracket and sits 1.4 standard errors below the
+point prediction. It lands nearest PHYS-9's WINDOW-MEANS slope, which predicted
+0.57, rather than the asymptote the prediction was taken from; the note's reason
+for preferring the asymptote was that the window means came from an unconverged
+run and were a lower bound, and on this pair they were not low.
+
+**The instrument condition as registered cannot be tested, and that is
+structural.** It asks that each arm meet all six convergence criteria on its
+window. `assess_convergence.py` refuses both arms: `segments.production_window`
+counts only PRODUCTION orbits, and the 35 orbits were added with
+`--purpose diagnostic` because A3's fourth condition requires exactly that. So
+A3's labelling is what makes the orbits invisible to the convergence instrument,
+and no arm can satisfy both conditions at once. At 11 production orbits the arms
+fail all six criteria, which is what a settling block should do.
+
+What stands in its place is the paired difference's own scatter, corrected for
+memory by `lib/autocorrelation.py`: +0.599 against a standard error of 0.087 is
+6.9 to one, and the top-of-atmosphere imbalance has closed to -0.074 +/- 0.085,
+so the pair is not still separating. That is an instrument and it is not the one
+the prediction named.
+
+**Which of the two conditions gives is a decision this measurement does not
+make.** Either an A3 arm's segments are production and the convergence criteria
+apply while A3's guard is off, or they are diagnostics and the registered
+condition is replaced by the paired-difference form above. The second is what
+these arms did.
+
+## The bisect: which code path is not doing what it was written to do
+
+A bundle missing its predicted sum by an order of magnitude and reversing sign is
+the shape of a defect rather than of bad estimates, so each term below is treated
+as a suspect implementation until cleared, and a check with a right answer is
+preferred to a run difference wherever one exists. Verdicts are CLEARED,
+DEFECTIVE or UNTESTED at this rung.
+
+**First, the instrument, because a control that cannot reproduce itself would
+make every number here worthless.** `Ct` and `Dt` do not reproduce between
+identical runs. **No number in this note inherits that.** Those two columns exist
+only under `nenergy > 1`, which allocates `zcnow`; every arm in this note has no
+`NENERGY` key in its `plasim_namelist` at all, so `zcnow` is never allocated and
+the decomposition never runs. The model state itself is bit-reproducible on this
+source, shown directly by `run_0730a12ecfbd` and `run_57a43e1fc3f4` writing an
+identical `MOST_REST.00000` from different cores. The instrument is clean for
+every kelvin below.
+
+**The split, measured.**
+
+| term | worth at T21 | how it was established |
+| --- | ---: | --- |
+| `world-trs3`, the derived `gamma` | **-1.89 +/- 0.08 K** | A/B, `run_af3d2c9a4b05`, 25 orbits, TOA closed |
+| `world-py6p`, the land water column | +0.17 +/- 0.07 K | A/B, `run_431ecabed085` |
+| `surface.cryosphere` declared | about 0 | static, against `icemod.f90` |
+| the energy fixer off | +0.23 K | the donor's manifest and `lib/sensitivity.py` |
+| `world-o12h`, `rcritwidth` | exactly 0 | construction, `RCNLATREF` = `NLAT` |
+| `world-2esd`, `th2oc` | 0 | not swept; the config value is unchanged |
+| **residual, unattributed** | **about -10.8 K** | by difference |
+
+**The control has settled, so the total is not a lower bound any more.** Its last
+ten orbits of sixty sit at 279.96 K against the donor's last at 292.26, flat to
+0.1 K, so the drift is **-12.3 K** and equilibrated. The rows above sum to
+-1.89 + 0.17 + 0.23 = -1.49 K of accounted change, the two config rows being
+WARMING and so making the cooling smaller rather than larger, which leaves
+-12.3 + 1.49 = **-10.8 K unattributed**.
+
+That residual has nowhere to live except the compiled-in half of the bundle,
+which is `world-jgen` with `world-f9ig` and `OCN-22` -- and those are exactly the
+two terms with no namelist that reverts them and no preserved binary to control
+against. It is worse than a bare residual, because both were predicted to WARM:
++0.59 to +1.63 K for the band-1 optics and -0.02 to -0.13 K for the ocean band
+split. Crediting the predicted warming puts the unexplained cooling at -11.4 to
+-12.4 K.
+
+**So the bisect is not finished, and it cannot be finished on this tree.** What
+would finish it is one binary per rung preserved at each source change that lands
+a compiled-in forcing term, which costs nothing at the time and is the whole
+difference between a bundle that can be bisected and this one.
+
+### `world-trs3`, the derived Kessler `gamma`: CLEARED, and worth a seventh of the drift
+
+Four checks with right answers, all passed:
+
+- **The formula reproduces the registered offline table** at 0.5, 1, 3, 10 and
+  30 mm/day, to the three digits the table carries, with `GAMPEXP` = 13/20 * 8/9
+  and `zvcoef` = 5.17*sqrt(ga/9.80665) read from the source rather than assumed.
+- **All four re-evaporation sites are structurally identical**: `zgam = gamma`,
+  then the derived form on that site's OWN precipitation flux when `gamma <= 0`,
+  then `AMIN1(..., zpr)` capping removal at the flux available. The two snow
+  sites use `ALS` where the two rain sites use `ALV`.
+- **The override is reached**, and the model says so: `run_af3d2c9a4b05`'s
+  `plasim_diag` prints `precip re-evaporation: CONSTANT gamma 1.0E-002`. That is
+  the first thing this note's own falsifying list says to check.
+- **Every link of the stated mechanism has the predicted sign.** Over the arm's
+  settled window, orbits 15 to 24, pinning `gamma` to 0.01 against the derived
+  default gives +0.291 +/- 0.011 mm/day more precipitation reaching the ground,
+  0.024 +/- 0.002 less cloud cover and 6.86 +/- 0.24 W/m2 less reflected
+  shortwave. Reversed, that is the derived form moistening the column, growing
+  cloud and reflecting more, which is the chain this note describes.
+
+**The response saturates, exactly as this note predicted it would.** The surface
+separation runs +0.36, +1.11, +1.72, +2.11 over the first seven orbits, reaches
+about +2.2 by orbit nine and then flattens; the settled window gives
+**+1.89 +/- 0.08 K** with the top-of-atmosphere difference closed to
+-0.22 +/- 0.16 W/m2. The shortwave forcing decays with it, from 10.4 W/m2 in the
+first orbit to 6.9 in the settled window, because the cloud difference itself
+shrinks as the two states converge. That is the sublinearity this note argued
+for: the equilibrium is reached by MOISTENING until the sub-cloud deficit falls,
+not by the evaporated flux scaling with `gamma`.
+
+**DO NOT CONVERT THE FORCING THROUGH THE STATIC SLOPE HERE.** 9.2 W/m2 at
+`lib/sensitivity.py`'s 0.778 K per W/m2 is about 7 K, and the arm's own answer is
+1.89. The slope is local, the forcing is not constant while the state responds,
+and the arm closes its own budget; the run's mean is the measurement and the
+conversion is not. This is `docs/src/practice/failure-modes.md` class 34 from the
+inside, and it was made once on this arm at ten orbits before the arm had settled.
+
+**So the code is doing what it was written to do, and the prediction is very
+nearly right.** It predicted the moistening, the cloud increase, the drop in
+precipitation and the saturation, and all four happened. The precipitation
+reduction, 13.5 per cent of the global mean, sits inside the 10 to 50 per cent it
+gave for its land counterpart. What it did not carry is a number for the
+radiative channel: "high cloud fraction rises slightly" is +0.024 of cover worth
+6.9 W/m2 and 1.9 K, which is not slight and is the largest single effect the term
+has. A term whose stated mechanism runs through cloud needs a radiative number
+attached before it lands, not a qualifier.
+
+### `world-jgen` and `world-f9ig`, the band-1 cloud optics: CLEARED as far as this rung allows
+
+- **The Stephens coefficients are self-consistent** with the fits they name:
+  10^0.2633 = 1.8336 and 1.7095*ln10 = 3.9363 for Eq. (10a), 10^0.3492 = 2.2346
+  and 1.6518*ln10 = 3.8034 for Eq. (10b).
+- **The linear continuation is continuous and grounded.** Below `zwfit` = 10 the
+  base of the power is clamped to 10, so `log10` is exactly 1, the power is 1,
+  and what remains is `ztaua_b * zlwp/10`: linear, equal to the fit at 10, zero
+  at zero water. No offset and no domain error.
+- **The offline chain still reproduces the model's own geometry.**
+  `cloud_optical_depth_bracket.py` on `run_57a43e1fc3f4` returns a reconstructed
+  band-1 incident flux of 122.97 W/m2 against the climatology's 122.97, +0.00 per
+  cent, and the bracket is unmoved at +0.73 to +2.00 W/m2.
+- `smoke_test.py` gates the shortwave cloud tables against the papers' tables.
+
+**One thing the registered wording understates.** "Band 2 was getting its own
+equation" reads as though band 2 did not move. It did: its prefactor went from 2
+to 2.2346, its exponent from 3.9 to 3.8034, and the `+1.5` offset left with the
+rest. Over the layers carrying real cloud water that is -0.8 to +4 per cent of
+optical depth, but below 2.5 g/m2 both bands gain 100 to 300 per cent, which is
+the continuation replacing the offset. That is the condition this note's own
+falsifying list names -- a response dominated by the layers under 2.5 g/m2 means
+the continuation is doing more than it should -- and separating it needs the
+control binary nobody kept.
+
+### `world-o12h`, `rcritwidth`: UNTESTED at this rung, not verified as zero
+
+At T21 `RCNLATREF` and `NLAT` are both 32, the derived width is exactly 1, and
+`if(rcritwidth /= 1.)` skips the transform. Measuring zero here is correct and
+expected and is NOT evidence about the path: the unit factor is skipped rather
+than applied, so nothing about the scaling is exercised. **The path is unverified,
+and T21 cannot verify it.** A T42 pair can, and now has a route: `RCRITWIDTH`
+reaches `rainmod_nl` from `config/planet.yaml` as of this batch, so an arm at
+1.0 against the derived 0.7937 is a namelist key rather than a code fork.
+
+### `OCN-22`, the ocean albedo band split: UNTESTED
+
+Compiled in, no namelist reverts it, and its broadband-preservation identity was
+not run. Its own predicted size, -0.02 to -0.13 K, is two orders below the drift,
+so it is not a candidate for what happened; it is simply unmeasured.
+
+### `world-2esd`, `th2oc`: not in the bundle
+
+The config value is unchanged, so the term contributes nothing to the measured
+drift and there is nothing to bisect. It still has no route from config, unlike
+`gamma` and `rcritwidth`, and closing that is the same one-row change.

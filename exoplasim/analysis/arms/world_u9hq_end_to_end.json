@@ -1,0 +1,141 @@
+{
+  "provenance": {
+    "generator": "exoplasim/analysis/arms/compare_forcing_arms.py",
+    "git_commit": "c06ca9e52153bca26c4fba64793123830835a8f4",
+    "python": "3.14.7"
+  },
+  "instrument": {
+    "control_run": "run_11b43d2c56a4",
+    "control_orbits": 11,
+    "control_final_tas": 281.14142317458396,
+    "settling_block_orbits_required": [
+      10.091175710961808,
+      22.01711064209849
+    ],
+    "settling_block_bought": 11,
+    "production_span_orbits_required": [
+      84.0,
+      208.6
+    ],
+    "note": "The settling block is what these arms bought. A window whose mean has an interval that covers needs the production span on top of it, and none of these arms has one, so a separation is reported as a trajectory and never as a converged response."
+  },
+  "arms": {
+    "h2oswl 1.206 against 1.129, end to end": {
+      "run_directory": "run_fc75ca5f9fd2",
+      "orbits_on_disk": 11,
+      "absolute_final_tas": 281.86924780808886,
+      "orbits_compared": 11,
+      "forcing_window_orbits": 3,
+      "tas": {
+        "forcing_mean_first_3_orbits": 0.28830875965087444,
+        "final_orbit_difference": 0.7278246335048948,
+        "mean_difference": 0.40154933913086927,
+        "paired_scatter": 0.1638989028859336,
+        "tau_orbits": 1.0,
+        "standard_error": 0.049417378583958144,
+        "resolved": true,
+        "trajectory": [
+          0.1326960075512602,
+          0.44072466566234425,
+          0.29150560573901885,
+          0.49177594799374447,
+          0.36735037982720087,
+          0.4482544591604096,
+          0.5527716442308588,
+          0.39683253860522427,
+          0.3675145808999787,
+          0.19979226726462684,
+          0.7278246335048948
+        ]
+      },
+      "ts": {
+        "forcing_mean_first_3_orbits": 0.24821239110733964,
+        "final_orbit_difference": 0.7075827902973515,
+        "mean_difference": 0.37117606946218923,
+        "paired_scatter": 0.16800689341454314,
+        "tau_orbits": 1.0,
+        "standard_error": 0.050655984331751926,
+        "resolved": true,
+        "trajectory": [
+          0.07732425054138048,
+          0.38196238249986436,
+          0.2853505402807741,
+          0.4644665207449634,
+          0.33753725741752305,
+          0.4052460730620169,
+          0.506472121556726,
+          0.4079436188865202,
+          0.3477871814543505,
+          0.16126402734261092,
+          0.7075827902973515
+        ]
+      },
+      "toa_net": {
+        "forcing_mean_first_3_orbits": 0.5307769633515894,
+        "final_orbit_difference": 1.097144710603601,
+        "mean_difference": 0.3418575149877163,
+        "paired_scatter": 0.4739664159960032,
+        "tau_orbits": 1.0934454946506715,
+        "standard_error": 0.1494341291399603,
+        "resolved": true,
+        "trajectory": [
+          1.3000441704204775,
+          0.3652459904471641,
+          -0.07295927081287346,
+          0.45073719824924297,
+          -0.11871069165914605,
+          0.15528845748409026,
+          -0.1846216243120864,
+          0.3038174685121362,
+          0.12316205485515752,
+          0.34128420107711577,
+          1.097144710603601
+        ]
+      },
+      "sea_ice": {
+        "forcing_mean_first_3_orbits": -0.0012599520723091246,
+        "final_orbit_difference": -0.0016689493900479552,
+        "mean_difference": -0.0024941468413699377,
+        "paired_scatter": 0.0012852210001679653,
+        "tau_orbits": 2.2299621254634743,
+        "standard_error": 0.0005786689956728426,
+        "resolved": true,
+        "trajectory": [
+          0.0003022892092507043,
+          -0.0017259189109478865,
+          -0.0023562265152301913,
+          -0.0021481127673336313,
+          -0.0030063936384118195,
+          -0.0032015369157167156,
+          -0.004263167535943878,
+          -0.004186450498386472,
+          -0.0030971652978945205,
+          -0.0020839829944069507,
+          -0.0016689493900479552
+        ]
+      },
+      "precip": {
+        "forcing_mean_first_3_orbits": -3.882848278558103e-10,
+        "final_orbit_difference": -1.0194844645177481e-09,
+        "mean_difference": -3.5002413433293127e-10,
+        "paired_scatter": 3.821470465294346e-10,
+        "tau_orbits": 1.0,
+        "standard_error": 1.1522166982551103e-10,
+        "resolved": true,
+        "trajectory": [
+          -9.890873795927077e-10,
+          5.594681000661254e-11,
+          -2.3171391398133575e-10,
+          -7.341377371638495e-10,
+          -3.1870932457315973e-10,
+          -7.494720840066305e-11,
+          -6.690590479226557e-11,
+          -2.301195892182908e-10,
+          -9.890742712812936e-11,
+          -1.4219933830070688e-10,
+          -1.0194844645177481e-09
+        ]
+      }
+    }
+  }
+}

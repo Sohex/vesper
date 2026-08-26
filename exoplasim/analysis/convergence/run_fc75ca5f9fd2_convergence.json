@@ -1,0 +1,286 @@
+{
+  "run_dir": "/home/cfutro/docs/world/.claude/worktrees/agent-a19c18831f5922778/exoplasim/runs/run_fc75ca5f9fd2",
+  "completed_orbits": 11,
+  "window_orbits": 11,
+  "window_start_year_index": 0,
+  "window_end_year_index": 10,
+  "orbits_after_window_excluded_as_non_production": [],
+  "segment_purposes": {
+    "0": "spinup",
+    "1": "spinup",
+    "2": "spinup",
+    "3": "spinup",
+    "4": "spinup",
+    "5": "spinup",
+    "6": "spinup",
+    "7": "spinup",
+    "8": "spinup",
+    "9": "spinup",
+    "10": "spinup"
+  },
+  "metrics": {
+    "temperature_slope_k_per_orbit": -0.8535316630285464,
+    "toa_balance_slope_w_m2_per_orbit": 1.2728921932018002,
+    "surface_balance_slope_w_m2_per_orbit": 1.135770329632845,
+    "sea_ice_slope_fraction_per_orbit": 0.005074938594438148,
+    "mean_toa_balance_w_m2": -6.7431013939687565,
+    "mean_surface_balance_w_m2": -5.81423627744831,
+    "temperature_mean_k": 285.0375035572605,
+    "temperature_last_k": 281.8900280370121,
+    "sea_ice_mean_fraction": 0.036632902140283814,
+    "state_storage_w_m2": -4.790126055222937,
+    "state_storage_endpoint_w_m2": -4.559047681864307,
+    "state_storage_standard_error_w_m2": 0.35864347153227427,
+    "surface_storage_w_m2": -4.234747552744048,
+    "reported_toa_minus_storage_w_m2": -1.9529753387458193,
+    "temperature_asymptote_k": 275.45900829586583,
+    "temperature_asymptote_half_width_k": 9.677129642258638,
+    "temperature_remaining_offset_k": -9.578495261394679,
+    "relaxation_orbits_fitted": null,
+    "relaxation_fit_identifiable": false,
+    "relaxation_fit_verdict": "the series would not support a fit at all",
+    "relaxation_fit_raw_tau_orbits": NaN,
+    "relaxation_orbits_fitted_lower_bound_orbits": 7.0,
+    "relaxation_orbits_fitted_standard_error": null,
+    "relaxation_fit_span_orbits": 7,
+    "relaxation_orbits_expected": 11.222190899641324,
+    "planetary_albedo_in_window": 0.3130441162790225,
+    "radiative_damping_w_m2_per_k": 1.1571125714656565,
+    "slab_heat_capacity_j_m2_k": 205090991.01,
+    "slab_sea_water": {
+      "TFREEZE": 271.2449,
+      "CRHOS": 1027.94,
+      "CPS": 3990.33,
+      "CLFI": 328000.0,
+      "source": "icemod_namelist sets TFREEZE, CRHOS, CPS, CLFI; the rest are icemod.f90 defaults"
+    },
+    "slab_mixed_layer_depth_m": 50.0,
+    "remaining_offset_implied_by_drift_k": -9.578495261394679,
+    "temperature_slope_standard_error_k_per_orbit": 0.12280479314749984,
+    "toa_balance_slope_standard_error_w_m2_per_orbit": 0.1841244261742315,
+    "surface_balance_slope_standard_error_w_m2_per_orbit": 0.15754193813726108,
+    "sea_ice_slope_standard_error_fraction_per_orbit": 0.00013684074462597253
+  },
+  "criteria": {
+    "abs_temperature_slope_lt_0.05_k_per_orbit": false,
+    "abs_toa_slope_lt_0.05_w_m2_per_orbit": false,
+    "abs_surface_slope_lt_0.05_w_m2_per_orbit": false,
+    "abs_sea_ice_slope_lt_0.001_per_orbit": false,
+    "abs_state_storage_lt_0.12_w_m2": false,
+    "extrapolated_offset_lt_0.15_k": false
+  },
+  "criteria_provenance": {
+    "form": "|statistic| + its standard error < threshold. A criterion states an upper bound, so a statistic whose interval reaches the threshold fails.",
+    "form_applies_to": "all six criteria, each with its own statistic's standard error. Five tested a point estimate until world-s8n3; the thresholds did not move with the form.",
+    "energy_balance_tests": "state storage, not reported top-of-atmosphere net",
+    "storage_tolerance_w_m2": 0.12,
+    "storage_tolerance_derivation": "0.15 K offset tolerance / (0.128 K per orbit per W/m2 * 9.9 orbits) = 0.118 W/m2, rounded to 0.12. The temperature tolerance is the whole of the derivation: the measurability half it was first paired with compared two NESTED blocks rather than taking the estimator's standard error, and what that error actually is at this run's own window is the resolving_power row abs_state_storage.",
+    "supersedes": "abs_mean_toa_lt_0.5_w_m2 and abs_mean_surface_lt_0.5_w_m2",
+    "why": "The reported TOA net carries a structural offset of -0.573 +/- 0.035 W/m2 across four runs, so the criterion was thresholding a diagnostic rather than the planet. The 0.5 W/m2 it replaces was chosen early, never revisited, and applied to two different quantities. CLIM-7, decided 2026-08-17; the offset itself is CLIM-1 and is still open, which is why both numbers and their difference are recorded."
+  },
+  "resolving_power": {
+    "factor": 3.0,
+    "criterion": "a threshold discriminates when the standard error of the statistic it tests is at most 1/factor of it",
+    "window_orbits": 11,
+    "temperature_residual_scatter_k": 0.8093997001447983,
+    "temperature_residual_tau_orbits": 2.278976002515801,
+    "temperature_residual_lag1": 0.507290634355975,
+    "storage_residual_scatter_j_m2": 37502046.85212511,
+    "storage_residual_tau_orbits": 2.2585918086561723,
+    "storage_residual_lag1": 0.5678777664561516,
+    "storage_tau_span_supports_the_estimate": false,
+    "tau_estimated_from_the_window_itself": true,
+    "tau_span_supports_the_estimate": false,
+    "required_window_is_a_lower_bound": true,
+    "rows": [
+      {
+        "criterion": "abs_temperature_slope",
+        "threshold": 0.05,
+        "statistic_standard_error": 0.12280479314749984,
+        "statistic_error_source": "the fitted slope's own standard error, with the residual memory in it",
+        "verdict_interval": 0.12280479314749984,
+        "resolves": false
+      },
+      {
+        "criterion": "abs_toa_slope",
+        "threshold": 0.05,
+        "statistic_standard_error": 0.1841244261742315,
+        "statistic_error_source": "the fitted slope's own standard error, with the residual memory in it",
+        "verdict_interval": 0.1841244261742315,
+        "resolves": false
+      },
+      {
+        "criterion": "abs_surface_slope",
+        "threshold": 0.05,
+        "statistic_standard_error": 0.15754193813726108,
+        "statistic_error_source": "the fitted slope's own standard error, with the residual memory in it",
+        "verdict_interval": 0.15754193813726108,
+        "resolves": false
+      },
+      {
+        "criterion": "abs_sea_ice_slope",
+        "threshold": 0.001,
+        "statistic_standard_error": 0.00013684074462597253,
+        "statistic_error_source": "the fitted slope's own standard error, with the residual memory in it",
+        "verdict_interval": 0.00013684074462597253,
+        "resolves": true
+      },
+      {
+        "criterion": "abs_state_storage",
+        "threshold": 0.12,
+        "statistic_standard_error": 0.35864347153227427,
+        "statistic_error_source": "the standard error of the heat content's fitted slope, in the units the estimator reports",
+        "verdict_interval": 0.35864347153227427,
+        "resolves": false
+      },
+      {
+        "criterion": "extrapolated_offset",
+        "threshold": 0.15,
+        "statistic_standard_error": 2.7562776641844158,
+        "statistic_error_source": "the temperature slope's standard error times the expected relaxation time, counted once for the offset and once for the half width that carries the same product",
+        "verdict_interval": 9.677129642258638,
+        "resolves": false,
+        "statistic_source": "drift_fallback"
+      }
+    ],
+    "offset_statistic_source": "drift_fallback",
+    "window_orbits_for_storage_criterion": 45.71689433763389,
+    "window_orbits_for_storage_criterion_if_independent": 34.848234370060204,
+    "window_orbits_for_offset_criterion": 153.40762248918284,
+    "window_orbits_for_offset_criterion_if_independent": 116.57484769702221,
+    "window_orbits_for_offset_criterion_prices": "the drift fallback form of the criterion; it prices this run's own verdict only where offset_statistic_source is drift_fallback",
+    "default_window_orbits": 35
+  },
+  "convergence_lengths": {
+    "basis": "operational experience across this project's runs, not a measured distribution; every number here is bracketed by what has been seen rather than fitted",
+    "cold_start_t21_orbits": 70,
+    "cold_start_note": "seed- and initial-condition-dependent; exoplasim/notes/parameter-decisions.md records a cold start converging on all six criteria after 70 orbits",
+    "reconvergence_after_timestep_or_resolution_change_orbits": [
+      10,
+      20
+    ],
+    "reconvergence_note": "the state is already at a climate; what settles is the response to a changed discretisation",
+    "recorded_in": "exoplasim/notes/convergence-lengths.md"
+  },
+  "sufficiently_equilibrated_for_worldbuilding": false,
+  "failed_criteria": [
+    "abs_sea_ice_slope_lt_0.001_per_orbit",
+    "abs_state_storage_lt_0.12_w_m2",
+    "abs_surface_slope_lt_0.05_w_m2_per_orbit",
+    "abs_temperature_slope_lt_0.05_k_per_orbit",
+    "abs_toa_slope_lt_0.05_w_m2_per_orbit",
+    "extrapolated_offset_lt_0.15_k"
+  ],
+  "annual_records": [
+    {
+      "year_index": 0,
+      "ts": 290.82580262877264,
+      "ntr": -15.032564994293553,
+      "hfns": -13.171071736164757,
+      "sic": 0.010519199307417028,
+      "pr": 2.4694635971561296,
+      "rst": 221.6936131012594,
+      "rsut": -100.00153125820714
+    },
+    {
+      "year_index": 1,
+      "ts": 288.91240796247183,
+      "ntr": -12.745781160857277,
+      "hfns": -11.283628189965361,
+      "sic": 0.015221602201325424,
+      "pr": 2.4471304002311944,
+      "rst": 220.80090746980432,
+      "rsut": -100.90784841013506
+    },
+    {
+      "year_index": 2,
+      "ts": 287.32221465710165,
+      "ntr": -10.38281603283557,
+      "hfns": -8.889813141393265,
+      "sic": 0.020622045926048584,
+      "pr": 2.338947962421222,
+      "rst": 220.39236595558953,
+      "rsut": -101.316392887076
+    },
+    {
+      "year_index": 3,
+      "ts": 286.1226094645214,
+      "ntr": -8.27785803429803,
+      "hfns": -7.147840839302327,
+      "sic": 0.02758055829914537,
+      "pr": 2.244109168543194,
+      "rst": 221.00663090292278,
+      "rsut": -100.70212564908536
+    },
+    {
+      "year_index": 4,
+      "ts": 284.87385344278965,
+      "ntr": -6.913261009171287,
+      "hfns": -6.012681474666557,
+      "sic": 0.03179410753955724,
+      "pr": 2.245487062652391,
+      "rst": 220.39644812959605,
+      "rsut": -101.31230386606494
+    },
+    {
+      "year_index": 5,
+      "ts": 284.23769308039306,
+      "ntr": -4.917512047175887,
+      "hfns": -4.266266388064964,
+      "sic": 0.038808315811033285,
+      "pr": 2.1722023430510498,
+      "rst": 221.90644207275304,
+      "rsut": -99.80230435908926
+    },
+    {
+      "year_index": 6,
+      "ts": 283.5789121155437,
+      "ntr": -4.706945015876784,
+      "hfns": -4.052644125127004,
+      "sic": 0.0425230565914504,
+      "pr": 2.163570496026087,
+      "rst": 221.02538770523495,
+      "rsut": -100.6833564369529
+    },
+    {
+      "year_index": 7,
+      "ts": 283.0285084728867,
+      "ntr": -3.8679335738639202,
+      "hfns": -3.3547652455727177,
+      "sic": 0.046373899383726665,
+      "pr": 2.1015030220460282,
+      "rst": 220.50060485358264,
+      "rsut": -101.20814182980666
+    },
+    {
+      "year_index": 8,
+      "ts": 282.59222791612126,
+      "ntr": -2.7869399311457848,
+      "hfns": -2.2144109881838667,
+      "sic": 0.05235716835891724,
+      "pr": 2.064447938929918,
+      "rst": 221.4739344698303,
+      "rsut": -100.2348137922915
+    },
+    {
+      "year_index": 9,
+      "ts": 282.02828135225127,
+      "ntr": -2.7709160887602433,
+      "hfns": -2.1898544397537596,
+      "sic": 0.057605198411582216,
+      "pr": 2.0629176864348957,
+      "rst": 220.58642824989042,
+      "rsut": -101.12232129798785
+    },
+    {
+      "year_index": 10,
+      "ts": 281.8900280370121,
+      "ntr": -1.7715874453779836,
+      "hfns": -1.37362248373683,
+      "sic": 0.05955677171291851,
+      "pr": 2.0106526095696036,
+      "rst": 221.204803973652,
+      "rsut": -100.5039495259511
+    }
+  ]
+}

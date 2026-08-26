@@ -1,0 +1,364 @@
+{
+  "provenance": {
+    "generator": "exoplasim/analysis/arms/read_conversion_decomposition.py",
+    "git_commit": "4c2e6dcf2a4aa09c209c5af98c1df2c0388a0e77",
+    "python": "3.14.7",
+    "prints_dropped": 3
+  },
+  "arms": {
+    "fixer_off": {
+      "run_directory": "run_d3606ce0d265_crashed",
+      "plasim_diag_sha256": "4fdea59f8c510724ff3253cad64aca0f1b37db3f5003ce9396b2efa5162d8927",
+      "prints": 18,
+      "kept_after_dropping_first_3": 15,
+      "final_print_nstep": 608160,
+      "final": {
+        "d02": -0.198983,
+        "d26": -0.106348,
+        "d27": -0.0857461,
+        "cimp": -0.0792013,
+        "cvadv": -6.40382e-19,
+        "ct": -0.0790298,
+        "dt": 0.0920904,
+        "ctm": -0.0746966,
+        "ctp": -0.083706
+      },
+      "final_sink_d26_minus_d27": -0.020601899999999992,
+      "final_displacement_cimp_minus_ct": -0.00017150000000000498,
+      "identity_ctp_plus_ctm_over_2": -0.0792013,
+      "identity_residual_vs_cimp": 0.0,
+      "trajectory": [
+        {
+          "nstep": 601440,
+          "sink": 0.0048960000000000115,
+          "displacement": -0.00011600000000000499
+        },
+        {
+          "nstep": 601920,
+          "sink": 0.011973999999999985,
+          "displacement": -0.00020800000000001373
+        },
+        {
+          "nstep": 602400,
+          "sink": 0.00795800000000002,
+          "displacement": -0.00019500000000000073
+        },
+        {
+          "nstep": 602880,
+          "sink": 0.006523000000000001,
+          "displacement": -0.00021629999999998872
+        },
+        {
+          "nstep": 603360,
+          "sink": -0.0022979999999999945,
+          "displacement": -0.0002134999999999984
+        },
+        {
+          "nstep": 603840,
+          "sink": -0.0008030000000000259,
+          "displacement": -0.00021896000000000025
+        },
+        {
+          "nstep": 604320,
+          "sink": -0.005309999999999981,
+          "displacement": -0.0002165000000000014
+        },
+        {
+          "nstep": 604800,
+          "sink": -0.007494000000000001,
+          "displacement": -0.00020640000000000241
+        },
+        {
+          "nstep": 605280,
+          "sink": -0.014161000000000007,
+          "displacement": -0.0002047000000000021
+        },
+        {
+          "nstep": 605760,
+          "sink": -0.011858000000000007,
+          "displacement": -0.0001956999999999931
+        },
+        {
+          "nstep": 606240,
+          "sink": -0.014556,
+          "displacement": -0.00019140000000000823
+        },
+        {
+          "nstep": 606720,
+          "sink": -0.018303,
+          "displacement": -0.0001850000000000046
+        },
+        {
+          "nstep": 607200,
+          "sink": -0.019600599999999996,
+          "displacement": -0.00017919999999999048
+        },
+        {
+          "nstep": 607680,
+          "sink": -0.0194366,
+          "displacement": -0.0001739000000000046
+        },
+        {
+          "nstep": 608160,
+          "sink": -0.020601899999999992,
+          "displacement": -0.00017150000000000498
+        }
+      ]
+    },
+    "fixer_on": {
+      "run_directory": "run_614579b8b44a_crashed",
+      "plasim_diag_sha256": "92111ef8221c9179bda0018f1892ac43535e7fc192269ac8e0ca9627a376f061",
+      "prints": 18,
+      "kept_after_dropping_first_3": 15,
+      "final_print_nstep": 608160,
+      "final": {
+        "d02": -0.172625,
+        "d26": -0.080977,
+        "d27": -0.0843976,
+        "cimp": -0.0890732,
+        "cvadv": 2.10614e-19,
+        "ct": -0.0888764,
+        "dt": 0.0934489,
+        "ctm": -0.0843104,
+        "ctp": -0.0938359
+      },
+      "final_sink_d26_minus_d27": 0.0034206000000000097,
+      "final_displacement_cimp_minus_ct": -0.00019680000000001086,
+      "identity_ctp_plus_ctm_over_2": -0.08907314999999999,
+      "identity_residual_vs_cimp": 5.000000001531557e-08,
+      "trajectory": [
+        {
+          "nstep": 601440,
+          "sink": -0.017369000000000023,
+          "displacement": -7.20000000000165e-05
+        },
+        {
+          "nstep": 601920,
+          "sink": -0.009846000000000021,
+          "displacement": -0.00017599999999998173
+        },
+        {
+          "nstep": 602400,
+          "sink": -0.004394999999999982,
+          "displacement": -0.00017000000000000348
+        },
+        {
+          "nstep": 602880,
+          "sink": 0.003048999999999996,
+          "displacement": -0.0001840000000000036
+        },
+        {
+          "nstep": 603360,
+          "sink": -0.0050030000000000074,
+          "displacement": -0.00020369999999999937
+        },
+        {
+          "nstep": 603840,
+          "sink": 0.004074999999999995,
+          "displacement": -0.00021539999999999754
+        },
+        {
+          "nstep": 604320,
+          "sink": -0.0006430000000000047,
+          "displacement": -0.0002309000000000061
+        },
+        {
+          "nstep": 604800,
+          "sink": 0.0011750000000000094,
+          "displacement": -0.0002309999999999951
+        },
+        {
+          "nstep": 605280,
+          "sink": 0.005750000000000005,
+          "displacement": -0.0002294000000000046
+        },
+        {
+          "nstep": 605760,
+          "sink": 0.001449999999999993,
+          "displacement": -0.00022800000000000598
+        },
+        {
+          "nstep": 606240,
+          "sink": 0.0033409999999999968,
+          "displacement": -0.00022159999999998847
+        },
+        {
+          "nstep": 606720,
+          "sink": 0.0036318999999999935,
+          "displacement": -0.00021840000000000748
+        },
+        {
+          "nstep": 607200,
+          "sink": 0.0038891000000000064,
+          "displacement": -0.00020989999999999898
+        },
+        {
+          "nstep": 607680,
+          "sink": 0.005096600000000007,
+          "displacement": -0.00020100000000000673
+        },
+        {
+          "nstep": 608160,
+          "sink": 0.0034206000000000097,
+          "displacement": -0.00019680000000001086
+        }
+      ],
+      "fixer_prints": 58,
+      "fixer_final": {
+        "nstep": 608160,
+        "applied_w_m2": 0.02219318,
+        "accumulated_k_per_day": 0.000249439,
+        "residual_w_m2": -0.1017315
+      },
+      "fixer_trajectory": [
+        {
+          "nstep": 604800,
+          "applied_w_m2": 0.08406226,
+          "accumulated_k_per_day": 0.0009447559,
+          "residual_w_m2": 0.08377768
+        },
+        {
+          "nstep": 605280,
+          "applied_w_m2": 0.01371011,
+          "accumulated_k_per_day": 0.000154085,
+          "residual_w_m2": 0.4328063
+        },
+        {
+          "nstep": 605760,
+          "applied_w_m2": 0.4944441,
+          "accumulated_k_per_day": 0.005557077,
+          "residual_w_m2": 0.6369012
+        },
+        {
+          "nstep": 606240,
+          "applied_w_m2": 0.05207876,
+          "accumulated_k_per_day": 0.0005853178,
+          "residual_w_m2": 0.07301535
+        },
+        {
+          "nstep": 606720,
+          "applied_w_m2": 0.01760709,
+          "accumulated_k_per_day": 0.0001978884,
+          "residual_w_m2": -0.0453339
+        },
+        {
+          "nstep": 607200,
+          "applied_w_m2": -0.2860344,
+          "accumulated_k_per_day": -0.003214768,
+          "residual_w_m2": -0.5817087
+        },
+        {
+          "nstep": 607680,
+          "applied_w_m2": -0.03555739,
+          "accumulated_k_per_day": -0.0003996365,
+          "residual_w_m2": -0.03608725
+        },
+        {
+          "nstep": 608160,
+          "applied_w_m2": 0.02219318,
+          "accumulated_k_per_day": 0.000249439,
+          "residual_w_m2": -0.1017315
+        }
+      ]
+    },
+    "fixer_off_repeat": {
+      "run_directory": "run_c24776f33d25_crashed",
+      "plasim_diag_sha256": "5b040f224375f8af1d4990b429ba51e45a2de0348ed286cb9f013fb2c74241b8",
+      "prints": 18,
+      "kept_after_dropping_first_3": 15,
+      "final_print_nstep": 608160,
+      "final": {
+        "d02": -0.198983,
+        "d26": -0.106348,
+        "d27": -0.0857461,
+        "cimp": -0.0792013,
+        "cvadv": -6.40382e-19,
+        "ct": -0.0791757,
+        "dt": 0.0921209,
+        "ctm": -0.0746966,
+        "ctp": -0.083706
+      },
+      "final_sink_d26_minus_d27": -0.020601899999999992,
+      "final_displacement_cimp_minus_ct": -2.5600000000000622e-05,
+      "identity_ctp_plus_ctm_over_2": -0.0792013,
+      "identity_residual_vs_cimp": 0.0,
+      "trajectory": [
+        {
+          "nstep": 601440,
+          "sink": 0.0048960000000000115,
+          "displacement": 0.0005609999999999782
+        },
+        {
+          "nstep": 601920,
+          "sink": 0.011973999999999985,
+          "displacement": 0.00033900000000000596
+        },
+        {
+          "nstep": 602400,
+          "sink": 0.00795800000000002,
+          "displacement": 0.00025599999999997847
+        },
+        {
+          "nstep": 602880,
+          "sink": 0.006523000000000001,
+          "displacement": 0.00016810000000000436
+        },
+        {
+          "nstep": 603360,
+          "sink": -0.0022979999999999945,
+          "displacement": 0.00012120000000000186
+        },
+        {
+          "nstep": 603840,
+          "sink": -0.0008030000000000259,
+          "displacement": 7.741999999999992e-05
+        },
+        {
+          "nstep": 604320,
+          "sink": -0.005309999999999981,
+          "displacement": 4.9400000000001526e-05
+        },
+        {
+          "nstep": 604800,
+          "sink": -0.007494000000000001,
+          "displacement": 3.4800000000001496e-05
+        },
+        {
+          "nstep": 605280,
+          "sink": -0.014161000000000007,
+          "displacement": 1.5899999999999248e-05
+        },
+        {
+          "nstep": 605760,
+          "sink": -0.011858000000000007,
+          "displacement": 7.500000000007501e-06
+        },
+        {
+          "nstep": 606240,
+          "sink": -0.014556,
+          "displacement": -3.0000000000030003e-06
+        },
+        {
+          "nstep": 606720,
+          "sink": -0.018303,
+          "displacement": -9.400000000006625e-06
+        },
+        {
+          "nstep": 607200,
+          "sink": -0.019600599999999996,
+          "displacement": -1.4699999999992497e-05
+        },
+        {
+          "nstep": 607680,
+          "sink": -0.0194366,
+          "displacement": -1.9299999999999873e-05
+        },
+        {
+          "nstep": 608160,
+          "sink": -0.020601899999999992,
+          "displacement": -2.5600000000000622e-05
+        }
+      ]
+    }
+  }
+}

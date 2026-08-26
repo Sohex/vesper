@@ -462,21 +462,68 @@ term in the forcing bundle. The project's `lib/sensitivity.py` slope is LOCAL
 and bracketed over about 7 K, so an arm this size is read from the run's own
 mean and never converted through that slope.
 
-## What is not settled, and what would settle it
+## Measured: the three arms, 2026-08-26
 
-The arms have not been run. The route exists: `config/planet.yaml` declares
-`model.cloud_water_reference_kg_m3`, `run_exoplasim.py` writes
-`CLWREF@rainmod_namelist` unconditionally the way it writes
-`TSWR3@radmod_namelist` for PHYS-11, `continue_exoplasim.py` reapplies it per
-segment, and `expected_namelist_keys` covers it, so a run that dropped the key
-fails its own staging check rather than reverting in silence. The declared
-value is read out of `rainmod.f90` rather than copied, so the control arm
-reproduces the compiled value by construction and the bit-identity the arms are
-read against is a property of the route rather than a coincidence to verify
-each time.
+T21, `most_plasim_t21_l10_p8.x` at model source `a041a1e9`, all three branched
+from `run_14906cb7b914`'s `MOST_REST.00034`, 25 orbits each, each pinned to its
+own eight cores, host load 25 to 50 over 32 cores. The energy fixer and the
+energy diagnostics are OFF in all three, which is a departure from
+`config/planet.yaml` and is forced: `nenergy > 0` segfaults at every orbit
+boundary on this source, per `exoplasim/notes/energy-diagnostic-restart-defect.md`.
+It is common to all three arms and the fixer is worth about 0.26 K, against
+separations of four kelvin.
 
-What remains is the three points themselves, on one binary and one restart,
-against the predictions and the three falsifying conditions above.
+| arm | run | `d` mean surface T, K | TOA forcing, first 3 orbits | `d` sea ice |
+| --- | --- | ---: | ---: | ---: |
+| 0.5x, `clwref` 0.000105 | `run_7536d6b7288a` | **+4.34** | +4.04 W/m2 | -0.040 |
+| 1.0x, `clwref` 0.00021 | `run_57a43e1fc3f4` | control | control | control |
+| 2.0x, `clwref` 0.00042 | `run_ccb8ee8384e6` | **-4.64** | -3.42 W/m2 | +0.058 |
+
+Both separations plateau by about orbit 15 and oscillate after it, the 0.5x arm
+around +4.2 and the 2.0x arm around -4.75.
+
+**The three falsifying conditions, and all three hold.**
+
+- **The 1.0x arm does not differ from a run that declares nothing.** A run with
+  `cloud_water_reference_kg_m3` deleted from its config, `run_0730a12ecfbd`,
+  stages `CLWREF = 0.00021` from `rainmod_default("clwref")` and writes a
+  `MOST_REST.00000` bit-identical to the control's, sha `77c3a916`. This is the
+  check that could have failed and it is the route's property, not a
+  coincidence.
+- **Neither arm moves the simulated global mean by less than 1 K.** Both move
+  more than four.
+- **The 2.0x arm cools and the 0.5x arm warms.** The sign this note assigned
+  from the low cloud's saturated longwave emissivity is the sign measured.
+
+**The predicted magnitude half holds and half does not.** "Both arms move the
+simulated global mean by more than 2 K" is confirmed at better than twice the
+threshold. "The plausible range is 5 to 10 K" is missed low: the measured
+separations are 4.34 and 4.64, so the range's lower end is 0.4 to 0.7 K above
+what the arms did. The bound was widened upward because the offline estimate
+that priced PHYS-11 had been falsified in the direction of the model responding
+MORE; this time the model responded slightly LESS, so the widening was in the
+wrong direction. That is the finding and the range is left as it was written.
+
+**The response is asymmetric, and the reflectance table does not predict that
+half.** Doubling `clwref` cools by more than halving it warms, 4.75 against 4.2,
+where the band-1 reflectance moves +0.09 on the 2.0x arm and -0.13 on the 0.5x
+arm and would give the opposite asymmetry. What is available to explain it is the
+sea ice, which the 2.0x arm grows by +0.058 and the 0.5x arm melts by -0.040, and
+the ice-albedo feedback is stronger on the cooling side. That is an argument and
+not a measurement; separating it needs the arms repeated with the sea ice held.
+
+**What the arms do NOT establish.** They are not converged. Every arm, control
+included, is inside a common relaxation of 12.3 K from the donor's state,
+because that state was integrated by the superseded source and config;
+`exoplasim/notes/forcing-bundle-predictions.md` measures that drift. The
+separations above are paired and share it, so they are attributable to `clwref`;
+the absolute temperatures are not this world's.
+
+**The conclusion the bracket was for.** `clwref` moves the modelled global mean
+by about nine kelvin across a factor of four, which is larger than any other term
+in the forcing bundle and larger than the bundle's own registered sum. It is a
+first-order lever on this model's radiation and a value with one source, no
+range and no sensitivity behind it.
 
 The Stephens fit is read and the section above is what it settled, so the
 second half of `opaque-constants.md` finding 8 is answered: this model's low
