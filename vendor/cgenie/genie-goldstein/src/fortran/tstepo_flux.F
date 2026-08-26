@@ -21,15 +21,24 @@ c   j  fs(l,i) holds the flux through the SOUTHERN face and was filled by
 c      the previous ROW. That is the one dependence a decomposition over j
 c      has to remove, and it is the recoverable kind: the northern flux of
 c      row j-1 is a pure function of u, ts1 and k1 at that row, all of
-c      which are read-only for the whole routine. So each row RECOMPUTES
-c      its own southern face rather than inheriting it. That costs one
-c      extra meridional flux per cell and removes the dependence exactly:
-c      the expression below is the same expression, at j-1, that the
-c      recycling filled fs from.
+c      which are read-only for the whole routine. ts1 is not written
+c      anywhere here -- tstepo updates it after this returns -- so the
+c      recomputation is exact rather than approximate, and the expression
+c      below is the same expression, at j-1, that the recycling filled fs
+c      from.
 c
-c ts1 is not written anywhere in this routine -- tstepo updates it after
-c this returns -- which is what makes that recomputation exact rather than
-c approximate.
+c A thread RECOMPUTES ONLY THE FIRST ROW OF ITS OWN BLOCK and inherits the
+c rest, which is what jprev and kprev are for: fs is private, so it still
+c holds the previous iteration's northern flux, and that is the right
+c value exactly when this thread did row j-1 at this level immediately
+c before. Recomputing every row instead is simpler and correct, and it
+c costs 5 per cent of the whole run in retired instructions at 36 x 36 x
+c 16 -- measured, by building it both ways -- because it doubles the
+c meridional flux work at every cell rather than at one row per block.
+c
+c The test is correct for ANY schedule, including a dynamic one that hands
+c a thread rows out of order: when the rows are not consecutive it simply
+c recomputes.
 c
 c THE TWO REDUCTIONS ARE BOTH ORDER-INDEPENDENT. limps counts flux-limited
 c points and dmax takes a maximum, so neither depends on the thread count
@@ -61,6 +70,8 @@ c KICO ediff calc needs
       real dxrho(4), dxts(maxl,4), dyrho(4), dyts(maxl,4), dzts(maxl)
       integer ina, nnp, knp
       integer loc_lmax
+c the row and level this thread's fs was last filled for, see the header
+      integer jprev, kprev
 c reduction accumulators, see the header
       integer loc_limps
       real loc_dmax
@@ -94,25 +105,32 @@ c lower boundary fluxes
 !$OMP PARALLEL DEFAULT(SHARED)
 !$OMP&   PRIVATE(i,j,k,l,tv,ups,pec,fe,fw,fn,fs,fa,fwsave,diffv,
 !$OMP&           tec,dzrho,rdzrho,slim,tv1,dxrho,dxts,dyrho,dyts,dzts,
-!$OMP&           ina,nnp,knp,loc_lmax)
+!$OMP&           ina,nnp,knp,loc_lmax,jprev,kprev)
 !$OMP&   REDUCTION(+:loc_limps) REDUCTION(MAX:loc_dmax)
 
 c KICO initialise diffv
       diffv=diff(2)
       rdzrho = 0.0
+      jprev = -1
+      kprev = -1
 
       do 100 k=1,kmax
 !$OMP DO SCHEDULE(STATIC)
          do 101 j=1,jmax
-c southern boundary fluxes: the northern flux of row j-1, RECOMPUTED
-c rather than inherited from the previous iteration, which is what lets
-c this loop be divided over threads. See the header.
+c southern boundary fluxes: the northern flux of row j-1. Inherited from
+c the previous iteration where this thread did that row at this level,
+c recomputed from ts1 and u where it did not, which is what lets this
+c loop be divided over threads. See the header.
             if(j.eq.1)then
                do i=1,imax
                   do l=1,lmax
                      fs(l,i) = 0
                   enddo
                enddo
+            elseif(j.eq.jprev+1.and.k.eq.kprev)then
+c this thread did row j-1 at this level immediately before, so its own
+c private fs already holds that row's northern flux
+               continue
             else
                do i=1,imax
                   pec(2) = u(2,i,j-1,k)*dsv(min(j-1,jmax-1))/diff(1)
@@ -145,6 +163,8 @@ c western doorway
                endif
                fwsave(l) = fw(l)
   210       continue
+            jprev = j
+            kprev = k
             do 102 i=1,imax
 
 c KICO calculate local vertical diffusivity
@@ -300,9 +320,7 @@ c add isoneutral vertical flux
      3                           + (fa(l) - fb(l,i,j))*rdz(k))
                   endif
                   fw(l) = fe(l)
-c fs(l,i) = fn(l) was here. It is a dead store now: row j+1 recomputes
-c its own southern face from ts1 and u rather than inheriting this one,
-c which is what removes the j dependence.
+                  fs(l,i) = fn(l)
                   fb(l,i,j) = fa(l)
                enddo
 
