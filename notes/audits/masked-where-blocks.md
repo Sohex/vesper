@@ -119,9 +119,9 @@ preset is visible only on lanes whose stores are discarded.
 
 The pass is a text parse and the guards are argued from the source, so what is
 established here is that the sites this pass can see are floored -- not that the
-class is gone. It cannot see a division by a bare name, an intrinsic reached
-through a call from inside a `where`, or a mask whose complement is out of
-domain for a reason the physics knows and the text does not. Only a run at the
+class is gone. It cannot see an intrinsic reached through a call from inside a
+`where`, or a mask whose complement is out of domain for a reason the physics
+knows and the text does not. Only a run at the
 optimisation level whose transforms fire says whether anything is left, and that
 is the world-bhs probe at -O3 under `-ffpe-trap`, which is world-v9j9.
 
@@ -136,8 +136,9 @@ Extending the pass to all three spellings took the population to 345 sites,
 156 distinct divisor keys. The masked Tetens divisors within it are settled
 separately, by `ra4d` in `plasimmod.f90`, which is world-6tp.
 
-Every key outside `radmod.f90` has now been read in context. Most are what the
-first reading supposed: a scalar or a named constant the mask has no bearing
+Every key has now been read in context; `radmod.f90`'s 45 are a section of
+their own below, because they and the masked locals in the same file are one
+reading. Most are what the first reading supposed: a scalar or a named constant the mask has no bearing
 on, a field positive on every gridpoint, or a sum bounded away from zero. Each
 carries a row in `lint_masked_domains.py`'s `CLASSIFIED` table with the
 argument that says why it cannot vanish.
@@ -187,18 +188,104 @@ The presets in `mkdca` were chosen to reproduce what the lane already holds:
 `zsum1 = 1.`, `zsum2 = 0.` make the masked `ztht = zsum2/zsum1` evaluate to the
 `ztht(:) = 0.` two lines above it.
 
-## What is not settled
+## radmod.f90, where both remainders lived, and why they were one reading
 
-`radmod.f90` was not read. Its 45 divisor keys, 102 sites, are the whole of what
-`--kind divide` still reports, and they were left because the file was being
-edited on another branch: a `CLASSIFIED` row is keyed on the argument text, so a
-row written against a version that no longer exists is a claim about nothing.
-world-px61 carries that remainder. Some of them are shapes settled elsewhere
-here, and some are not -- `1.-zra1s(:)*zrb1s(:,jlev)` is one minus a product of
-two reflectances and vanishes when both reach 1 -- so the remainder is a reading
-and not a pattern match.
+The file was left unread twice, in the division class and in the masked-local
+class, because it was being edited on another branch and a row keyed on
+argument text from a version that no longer exists is a claim about nothing.
+Read once the file settled: 45 divisor keys over 103 sites, and 56 locals.
 
-Until it is done, `--kind intrinsic` is the gate and `--kind divide` reports.
+They could not be read separately. Nine of the divisors ARE locals of the second
+class. `swr` computes its whole shortwave two-stream -- the transmissivities,
+the reflectivities, the band absorptions, the running column amounts and the
+interface fluxes -- into 53 automatics whose only definitions are inside
+`where (losun(:))`, and then divides by six of them, multiplies two pairs of
+them together inside `1 - r*r`, and takes `EXP` and `LOG` of others. On a night
+lane every one of those was an operation on a stack word.
+
+The remedy is the one `tands` and `mkshallow` took: a preset on every lane,
+valued at what the arithmetic produces on a lane the mask discards. Here that is
+the transparent atmosphere over a black surface -- zero absorber amount, unit
+transmissivity, zero reflectivity, zero flux -- and it settles the divisions at
+the same time, because every masked quotient then divides by exactly 1. The
+adding method's `1 - zra1s*zrb1s` becomes `1 - 0.*0.`; `zto3t` and its five
+siblings are 1; and the three spelled-out absorptance denominators are
+`1 - A(0)/zsolar`, which is 1 because the running column amounts the block above
+already zeroes on every lane now have their per-level copies zeroed too.
+
+Nothing stored moves. On every lane `losun` keeps, each of the 53 is assigned
+inside the same masked block, on the same pass, before any read of it: the four
+combined-layer pairs at the preset above the downward loop, the per-level R and
+T at the head of each loop body, the column copies inside the absorber loop, and
+`z1mrabr`, `zscf` and the four flux locals one statement before their use.
+
+Of the remaining divisors, most are the shapes settled elsewhere here: a scalar
+the mask has no lane bearing on (`ga`, `zmu00`, `zwfit`, `zsolar1`, `zsolar2`),
+a sum of a positive literal and a non-negative term (`1.+ztcon`,
+`1.+0.042*zo3+...`, `1.+bb*zmu0`), a divisor already floored at its site
+(`zmu0+zero`, `zaerd1`, `1.+0.816*max(0.,zmu0)`), or a field positive on every
+gridpoint (`dt(:,jlev)`, `qex1(jaer)`, which `radini` aborts on if it is not).
+Three needed working out rather than matching:
+
+* `zr`, the cloud two-stream denominator, is `(u+1)^2 e - (u-1)^2/e` with
+  `e >= 1` and `u >= 0`, so it is at least `4u` and vanishes only where `u`
+  does, which is where `zuz` reaches zero. `zuz` is `1 - zom0*(1-2*zb2)` with
+  `zom0` capped at 0.9999 one line above and `zb2` non-negative, so it is at
+  least 1e-4 whenever `2*zb2 <= 1`; `zb2` is at most `tswr2/ln 3`, which is
+  0.059 at the 0.065 this project leaves `tswr2` at. The `max(0.,·)` guards
+  around `zu` and `zexp` are stale-lane protections, not evidence that `zuz`
+  can go negative on a real one.
+* `lwr`'s `1.-ztau0` and `ALOG(ztau0)` are safe for the reason its `ALOG(ztau0)`
+  already was: the unconditional `AMIN1(1.-zero, MAX(zero, ·))` two lines above
+  the `where` holds `ztau0` in `[1e-6, 1-1e-6]`, so the complement is at least
+  1e-6 and the logarithm at most about -1e-6.
+* `sigma(NLEV)-sigma(NLEM)` is the gap between the two lowest full-level sigmas,
+  which the vertical coordinate makes strictly positive and which no mask
+  touches.
+
+Ten of the rows rest on the beam cosine being non-negative, which was a property
+of a namelist default rather than of the source: `solang` zeroes `gmu0` and
+overwrites it only where the cosine exceeds `sin(dawn)`. `radini` now refuses a
+negative `dawn`, so it is a property of the source. That changes no run, because
+`dawn` is 0.0 by declaration and nothing in this project writes the key, and it
+removes a latent trap of its own -- below zero `swr` forms `zmu0**1.7` for the
+ECHAM6 ocean albedo, a real power of a negative base.
+
+Both counts were checked by positive control on the tree before they were
+believed, which is the discipline the 133 that became 345 earned. Dropping the
+inner `ztau2` floor in `swr`'s cloud chain makes exactly one new division site
+appear and nothing else move; dropping the `zto3t` preset makes exactly `zto3t`
+reappear in the masked-local pass.
+
+With radmod in, `lint_masked_domains.py` has nothing unclassified in any of its
+three classes, so `--kind any` is its default and its gate, and
+`lint_masked_locals.py`'s DEFERRED table is empty.
+
+### What the reading found that is not a masked-domain defect
+
+Nine divisors are not bounded on a lane `losun` KEEPS, and the mask never had
+anything to do with them: the expression is the same on a kept lane as on a
+discarded one. They are two shapes, and they are world-2223.
+
+`1 - A(u)/zsolar_b` is the clear-sky band transmissivity, at `zto3t`, `zto3u`,
+`ztwvt`, `ztwvu`, `ztco2t`, `ztco2u` and the three denominators written out.
+`A` is Lacis and Hansen's absorptance as a fraction of TOTAL incident flux and
+`zsolar_b` is band b's share of it, so the quotient is the fraction of the BAND
+the absorber removes and the divisor vanishes when it removes all of it. Whether
+it can is not a property of the formulae: `o3uvw`, `o3visw`, `h2osww`, `h2oswl`
+and `co2sww` are namelist re-weightings for a non-solar host and are not
+confined to 1, and `zsolar1` falls as the host reddens. `lwr` clamps its
+counterpart, `ztaucs` to `[zero, 1-zero]`; `swr` clamps nothing.
+
+`1 - R_above*R_below` is the adding method's denominator, at four sites. Both
+factors are layer reflectivities summed from a Rayleigh term, a cloud term and
+an aerosol term without the sum being bounded. The direct-beam cloud
+reflectivity `1 - 1/(1 + zb1*ztau1/zmu0)` approaches 1 as the beam cosine falls,
+so `zrb1` can exceed 1 at low sun under thick cloud even though each term is
+below it. The scattered-beam pair the divisors actually use is tighter --
+`zrcl1s` is capped near 0.94 by the optical-depth ceiling and `zrcsu` by the
+Rayleigh coefficient -- but the bound runs through the surface pressure and is
+not comfortable.
 
 ## The local whose only definition is inside a mask, as a class of its own
 
@@ -265,13 +352,15 @@ of a pair whose `elsewhere` is unconditional, so the two arms partition every
 lane, and `hdiffo`'s `zdtx` is written in three index ranges that between them
 cover `0:NLON`, two by such a pair and the third by an unmasked copy.
 
-### What this class still has open
+### radmod.f90's 56, and the three that were the pass looking at itself
 
-`radmod.f90` holds 56 more, 53 of them in `swr` under `where (losun(:))` and
-three in `lwr`. The whole shortwave two-stream -- the transmissivities, the
-reflectivities, the band absorptions -- is computed into locals that are never
-preset, so on a night lane it runs on the stack. That is the same file, the same
-branch collision and the same issue as the division remainder, world-px61, and
-for the same reason: a row keyed on a name in a file being edited elsewhere is a
-claim about a version that may not survive. The pass reports it separately from
-its gate so the count cannot be mistaken for a clean one.
+`swr` held 53 and they are preset, for the reason and by the argument the
+radmod section above gives. `lwr` held three -- `zaco2`, `zao3` and `zth2o` --
+and all three are over-report 2, the same shape as `mkradv`'s `zrop`: each is
+written in both arms of a `where` / `elsewhere` pair whose `elsewhere` is
+unconditional, so the two arms partition every lane and the local is defined
+everywhere before `ztaucs` reads it. Their sibling `zah2o` is not reported at
+all, because the continuum term adds an unmasked definition below the pair,
+which is the pass behaving exactly as its five declared directions say it will.
+
+With those rows in, the DEFERRED table is empty and every file gates.
