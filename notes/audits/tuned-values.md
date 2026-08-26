@@ -470,8 +470,9 @@ says none of the three is separately justified there or here: "they are one
 fitted set and are used as one."
 
 **Disposition: IRREDUCIBLE for the three fives, ANSWERED against the primary.
-BLOCKED ON ONE FETCH for the mixing length.** Louis (1979) was read on
-2026-08-25 and settles both halves, one of them negatively.
+DERIVED for the mixing length.** Louis (1979) was read on 2026-08-25 and settles
+the fives negatively; Blackadar (1962) was fetched and read on 2026-08-26 and
+supplies the mixing length's transfer rule.
 
 **The fives are ECHAM's re-fit and not Louis's**, which was the question this
 row asked. Louis's unstable fit is `F = 1 - b Ri/(1 + c sqrt(|Ri|))` and his
@@ -486,22 +487,64 @@ Reading further does not help: Louis says of his own values that they "are
 rather uncertain because of the large scatter in the observations", so both sets
 are fits and neither transfers on its authority.
 
-**A NEW FINDING FELL OUT OF IT, and it is not about a value.** `vdiff_c` being
-one number is a DROPPED DEPENDENCE rather than a different fit. Louis's `c`
-varies as `sqrt(z/z0)`, and this world's derived roughness field spans 0.025 to
-11.2 m -- a factor of 450 in `z0` and 21 in `sqrt(z/z0)`, all of it flattened
-into a single constant. That is `world-awm5`, filed separately, and it is a form
-question rather than a tuning one.
+**`vdiff_c` IS NOT A DROPPED DEPENDENCE, and the claim that it was is withdrawn
+against the expression.** `world-awm5` asked whether the surface limb should
+carry `sqrt(z/z0)` explicitly. It already does. `fluxmod.f90`'s `mktcoe` forms
+`zdenom = 1 + 3*vdiff_c*vdiff_b*sqrt(-zri*(zbz0+1))*zkblnz2` with
+`zbz0 = znl/dz0`, so `zbz0+1` IS `z/z0` from this world's own per-cell roughness
+field, and `zkblnz2 = (vonkarman/ln(z/z0+1))^2` IS `a^2`. Factoring out the
+Richardson number leaves `3*vdiff_c*vdiff_b*a^2*sqrt(z/z0)`, which is Louis's
+eq. 20 term for term. The single constant fixes `C*` alone, at `3*vdiff_c` = 15
+against his 7.4 and 5.3.
 
-**The mixing length: this row's proposed derivation is not supported.** 160 m
-is not Louis's either; his eq. 22 is Blackadar's `l = kz/(1 + kz/lambda)`, he
-calls `lambda` "an adjustable parameter", and he took it as 100 m. Nothing in
-Blackadar's or Louis's form makes `lambda` proportional to an atmospheric scale
-height, so scaling 160 m by 0.766 would be a guess wearing a derivation's
-clothes and it is not done. What WOULD give a transferable rule is Louis's own
-primary, Blackadar (1962), where `lambda` follows from the geostrophic wind and
-the Coriolis parameter and therefore carries to another rotation rate. It is not
-held, and fetching it is the whole of what this half now waits on.
+**The magnitude argument was wrong in the direction that decides it.**
+`sqrt(z/z0)` never appears without the `a^2` that accompanies it in eq. 20, and
+the two run opposite, because `a^2` carries `ln(z/z0)` in its denominator.
+Measured across this world's land roughness span of 0.025 to 11.2 m, the product
+`a^2*sqrt(z/z0+1)` moves by a factor of 2.7 at a lowest-level height of 331 m,
+by 1.9 at 150 m and by 3.3 at 600 m, and it is not monotonic in `z0` -- against
+the factor of 21 that `sqrt(z/z0)` alone suggests. The quantity that varies by
+2.7 is one the model already integrates at every gridpoint.
+
+**The momentum and heat limbs are separated too, in the numerator.** `zrifm`
+carries `2*vdiff_b` and `zrifh` `3*vdiff_b` over a shared denominator, where
+Louis carries one `b` over denominators differing through `C*`. In the strongly
+unstable limit the heat-to-momentum enhancement ratio is 3/2 here against
+Louis's 7.4/5.3 = 1.40, the same distinction by the same amount to within the
+scatter Louis reports on his own coefficients. Splitting `C*` would import one
+fit's numbers into another fit's algebra to move that ratio from 1.50 to 1.40
+with nothing to say which is right, so no numeric and no form change follows.
+Recorded as irreducible with the argument in the declaration.
+
+**The mixing length: the scale-height derivation stays unsupported, and
+Blackadar supplies a different one.** 160 m is not Louis's either; his eq. 22 is
+Blackadar's `l = kz/(1 + kz/lambda)`, he calls `lambda` "an adjustable
+parameter", and he took it as 100 m. Nothing in Blackadar's or Louis's form makes
+`lambda` proportional to an atmospheric scale height, so scaling 160 m by 0.766
+would be a guess wearing a derivation's clothes and it is not done.
+
+Blackadar (1962) eq. 25 gives `lambda = 0.00027 G/f`, and his argument for the
+form is dimensional: `z0` is "ruled out as a factor affecting characteristics of
+the free atmosphere", leaving `G/f` as the only length the neutral problem
+supplies. **The value does not transfer and the scaling does.** The 0.00027 is
+fixed by matching one observed surface wind deflection, 32 degrees at Brookhaven
+at `z0` = 1 m and `G` = 10 m/s, and he names `lambda` proportional to `u*/f` as
+"a priori just as acceptable". His relation returns about 26 m at Earth
+mid-latitudes against the 160 m here, because his `lambda` is the neutral
+boundary layer's asymptote where ECHAM's is the value that carries
+free-tropospheric mixing through the whole column: importing 26 m would be a
+category error.
+
+What `fluxmod.f90` now integrates is ECHAM's anchor on Blackadar's rotation
+scaling. `f = 2*Omega*sin(lat)`, so at fixed latitude and geostrophic wind
+`lambda` goes as `1/Omega`, and this world turns in 30 hours against Earth's
+23.93: `vdiff_lamm = 160*(OMEGA_EARTH/ww)` = 200.5 m, derived in `fluxini` and
+overridable by a positive namelist value. Holding 160 m fixed is not the neutral
+choice; it asserts a rotation-independent length, which is what Blackadar's
+relation denies. **The bracket is `G`**, held equal to Earth's because no run on
+this tree has produced a circulation to read one from. `lambda` is linear in `G`,
+so a mid-latitude geostrophic wind 20 per cent above Earth's carries
+`vdiff_lamm` to 241 m, and that is the sweep this number wants.
 
 ---
 
@@ -618,7 +661,7 @@ variation.
 
 ### 13. `zcca = 0.245`, `zccb = 0.125`, and the `rcrit` floor of 0.85
 
-`rainmod.f90:2086` and `:207`. The convective cloud fraction as
+`rainmod.f90`'s `mkclouds` and `rainini`. The convective cloud fraction as
 `zcca + zccb*log(convective rain rate)`, and the cell-mean relative humidity at
 which stratiform cloud starts.
 
@@ -636,16 +679,54 @@ fraction by 0.01 to 0.03 absolute wherever the modelled relative humidity sits
 near threshold. Cloud fraction is the largest single lever on planetary albedo,
 so this is a first-order radiative quantity resting on two anchored-to-T21 fits.
 
-**Disposition: IRREDUCIBLE as scalars; REPLACEABLE as a form.** Neither number
-can be sourced, because what they encode is a subgrid distribution and the
-subgrid scale is a property of the mesh rather than of the world. What CAN be
-done is make the resolution dependence EXPLICIT rather than declared, which is
-what `rcritmod` and `rcritslope` exist for and neither appears anywhere outside
-`vendor/`. A tuning that is a declared function of the grid can be tested
-against the grid; one anchored to a truncation with a comment cannot.
-`world-khn` asked the resolution question and closed it by declaring the anchor
-with no numeric changed, which is the right answer to that question and leaves
-this one.
+**Disposition: IRREDUCIBLE as scalars; DERIVED as a form for `rcrit`, and
+IRREDUCIBLE as a form for the convective pair.** Neither number can be sourced,
+because what they encode is a subgrid distribution and the subgrid scale is a
+property of the mesh rather than of the world. `world-khn` asked the resolution
+question and closed it by declaring the anchor with no numeric changed, which is
+the right answer to that question and leaves this one. The two halves separate
+under it, and they separate for different reasons.
+
+**`rcrit` takes a derived NLAT term, and it goes on the WIDTH.** What `rcrit`
+encodes is the width of the subgrid humidity distribution: cloud begins when the
+moist tail reaches saturation, which puts onset a distance proportional to the
+width below saturation, so the quantity with a resolution dependence is
+`(1 - rcrit)` and never `rcrit`. Specific humidity is a passive scalar, and in
+the inertial-convective subrange Kolmogorov-Obukhov-Corrsin gives its variance
+across a separation `L` as `L^(2/3)`; the standard deviation therefore goes as
+`L^(1/3)`, and a cell's width is its grid spacing, which goes as `1/NLAT`. So
+`(1 - rcrit)` is proportional to `NLAT^(-1/3)`, integrated as
+`1 - rcrit(jlev) = (1 - rcrit_T21(jlev))*(32/NLAT)^(1/3)` through a new
+`rcritwidth` key that derives from NLAT unless given a positive value.
+
+`rcritmod` is the wrong operator for it and that is worth recording: it
+multiplies `rcrit`, and at the top and bottom levels the sigma limb already puts
+`rcrit` near 0.95, so the factor giving the right floor at T85 drives those
+levels past 1.0 where `(rh-rcrit)/(1-rcrit)` divides by zero. Scaling the width
+is exact at every level and bounded below 1 by construction. `rcritmod` and
+`rcritslope` keep their meanings and apply on top, as the sweep handles.
+
+**T21 does not move and the higher rungs do.** The anchor is NLAT 32, so the
+factor is exactly 1 at T21 and every T21 answer is unchanged. On the 0.85 floor
+it is 1.024 at T31, 1.036 at T42, 1.054 at T63 and 1.065 at T85, taking `rcrit`
+from 0.85 to 0.869, 0.881, 0.896 and 0.906, and `1/(1-rcrit)^2` from 44 to 58,
+71, 92 and 112. Cloud starts later in a smaller cell, which is the direction the
+argument requires.
+
+**The convective pair does NOT take that scaling, and the reason is that they
+are not the same kind of quantity.** `rcrit` encodes the width of a subgrid
+scalar distribution, which the Corrsin argument gives an exponent for; `zcca`
+and `zccb` encode how a convecting AREA dilutes into a cell, and the exponent
+there is set by the unresolved convective area fraction. A storm small against
+the cell dilutes as `L^-2` and one that fills the cell does not dilute at all, so
+the correction that would hold `zcc` fixed,
+`zcca -> zcca + 2*zccb*ln(NLAT_ref/NLAT)`, is exact only in the first limit and
+wrong by that whole term in the second. The model carries no convective area
+fraction, so nothing in this scheme can tell the two limits apart and no exponent
+between them is derivable from what it holds. Writing one in would be a fit
+wearing a derivation's clothes. What would settle it is a convective area
+fraction carried alongside the rate, which is a scheme change and not a
+constant.
 
 ---
 
@@ -900,10 +981,10 @@ filed.
 | 18. the dormant knobs | `world-9g8p` |
 | 19. the cgenie tier | `world-u9kg` |
 
-## The four papers, and what reading them changed
+## The five papers, and what reading them changed
 
-All four are read. Three of the four dispositions they were fetched for moved,
-and **three of the four expectations recorded against them were wrong** -- which
+All five are read. Four of the five dispositions they were fetched for moved,
+and **four of the five expectations recorded against them were wrong** -- which
 is what an expectation written against an unread paper is worth, and the reason
 this section says which.
 
@@ -911,12 +992,23 @@ this section says which.
 | --- | --- | --- |
 | Portenga and Bierman (2011) `10.1130/G111A.1` | global cosmogenic denudation BY LITHOLOGY, and with Heimsath an absolute production-to-erosion ratio for rows 3 and 4 | by-lithology denudation for OUTCROPS only, which carry no regolith, and none at all for drainage basins; no relief-to-erosion relation of any kind, mean basin slope being the regressor. It sourced the erosion term's FORM and, with Heimsath, bracketed the level at 0.15 to 1.30 m with a regime in it where no soil is possible. Row 4's expectation was wrong outright: it measures denudation, not a weathering-front reach |
 | Li et al. (1992) `10.1029/92JD00509` | the value of `frac_labile_carbon`, and the `michaelis_menten_divisor` volume, together | neither. DNDC's soluble carbon is per-path, 0.6 of biomass turnover and 0.2 of humads, so the ratio to respired carbon is 3.0 on one path and 0.5 on the other and a single fraction of total respiration is not a quantity the paper forms. On the divisor it repeats Xu-Ri's silence and pushes the chain one paper further, to Shah and Coulman (1978) |
-| Louis (1979) `10.1007/BF00117978` | whether the three fives are Louis's set or ECHAM's re-fit | ECHAM's re-fit, definitively: Louis's own set is `b = 2b' = 9.4` with `c` varying as `sqrt(z/z0)`, and he calls his values uncertain. It also removed a proposed derivation, since his `lambda` is 100 m and declared adjustable, and it exposed a dropped roughness dependence in `vdiff_c` |
+| Louis (1979) `10.1007/BF00117978` | whether the three fives are Louis's set or ECHAM's re-fit | ECHAM's re-fit, definitively: Louis's own set is `b = 2b' = 9.4` with `c` varying as `sqrt(z/z0)`, and he calls his values uncertain. It also removed a proposed derivation, since his `lambda` is 100 m and declared adjustable. The dropped roughness dependence it was read as exposing in `vdiff_c` is not there -- see row 10; the reading of the paper was right and the reading of the code beside it was not |
 | Kessler (1969) `10.1007/978-1-935704-36-2` | the re-evaporation FORM, as a derivation to do rather than a number to copy | exactly that, and the derivation closes: `gamma = 5.44e-4 M^0.65 deltsec2` with the layer depth cancelling, proportional to the step, going as `P^0.578` and carrying `ga^(-0.289)`. The declared 0.01 is below the whole span the derived form reaches |
+| Blackadar (1962) `10.1029/JZ067i008p03095` | a rule for the asymptotic mixing length that carries to another rotation rate | exactly that: eq. 25 is `lambda = 0.00027 G/f`, dimensionally argued with `z0` ruled out of the free atmosphere. The VALUE does not transfer -- 0.00027 is matched to one observed wind deflection, he offers `u*/f` as equally acceptable, and his 26 m is a boundary-layer asymptote against ECHAM's whole-column 160 m -- but the `1/Omega` SCALING does, taking `vdiff_lamm` to 200.5 m on a 30-hour rotator with `G` left as the bracket |
 
-Three papers are still named as needed and none is in `references/`: Blackadar
-(1962) for the asymptotic mixing length, Shah and Coulman (1978) for the
-Michaelis-Menten volume, and Shangguan et al. (2017) `10.1002/2016MS000686` for
-`maximum_depth_m`. Each was identified by reading one of the four above, which
-is the ordinary shape of this: a primary names its own primary.
+Two papers are still named as needed and neither is in `references/`: Shah and
+Coulman (1978) `10.1002/bit.260200105` for the Michaelis-Menten volume, and
+Shangguan et al. (2017) `10.1002/2016MS000686` for `maximum_depth_m`. Each was
+identified by reading one of the papers above, which is the ordinary shape of
+this: a primary names its own primary.
+
+**Shah and Coulman is closed access on every route tried**, which is a different
+state from not yet fetched and is recorded so the next attempt starts from it.
+The DOI is confirmed against Crossref and matches the citation exactly, title,
+authors, journal, volume, issue and pages. Unpaywall returns `is_oa: false` with
+no OA locations, OpenAlex returns `oa_status: closed` with
+`any_repository_has_fulltext: false`, Semantic Scholar returns `CLOSED` with an
+empty PDF URL, the publisher's own PDF endpoint returns a paywall page, and
+there is no Wayback snapshot of it. It needs institutional access or a copy from
+an author, not another automated attempt.
 

@@ -917,3 +917,168 @@ measured. `h2oswl` reaches the model as `H2OSWL@radmod_namelist` through
 `run_exoplasim.py`'s `SHORTWAVE_GAS_KEYS`, which writes it only when it differs
 from the model default, and `verify_staged_namelists` is what makes the arm's
 own namelist the record of what it integrated.
+
+## world-trs3: the derived precipitation re-evaporation, `gamma` arms
+
+`rainmod.f90`'s `gamma` was the fraction of a layer's sub-saturation deficit
+that falling precipitation evaporates per timestep, a constant 0.01 with no
+derivation on either side of the 0.007/0.01 step upstream took at a rung change.
+It is now derived per cell and per level from Kessler (1969), and the constant
+survives only as an override: `gamma > 0` in `rainmod_nl` restores it exactly.
+
+**The derived form.** Kessler's table 4 rain evaporation for a Marshall-Palmer
+distribution, integrated over the layer the four re-evaporation sites act on,
+cancels the layer depth and leaves `gamma = 5.4395e-4 * M^0.65 * deltsec2` with
+`M = P/V` and `V = 5.17*sqrt(ga/9.80665)*M^(1/8)` m/s. Substituting collapses
+the exponents to
+
+    gamma = 5.4395e-4 * (P/zvcoef)^0.577778 * deltsec2
+
+with `P` the layer's precipitation flux in g m-2 s-1. So `gamma` is proportional
+to the timestep, goes as `P^0.578`, and carries `ga^(-0.289)` through the drop
+terminal speed: 0.926 of its Earth value here.
+
+**What the constant was, in the derived form's units.** At `deltsec2` = 3600 s
+and this world's gravity the derived value is 0.036 at 0.5 mm/day, 0.053 at
+1 mm/day, 0.101 at 3 mm/day, 0.202 at 10 mm/day and 0.381 at 30 mm/day. The
+declared 0.01 is the Kessler value at 0.055 mm/day, some fifty times below a
+global-mean rate, and it is below the whole of that span. The change is
+therefore a factor of 3.6 to 20 upward over the fluxes that matter, and it is
+one-signed: the derived form is never below the constant at any rate the model
+produces.
+
+**The mechanism, and why the response is SUBLINEAR in that factor.** The four
+sites cap each level's removal at the precipitation actually available,
+`AMIN1(gamma*deficit*dsigma/deltsec2, zpr)`. At `gamma` = 0.01 the potential
+removal summed over a sub-saturated column is already comparable to a typical
+land precipitation flux, so the scheme sits at the transition between
+deficit-limited and flux-limited. The derived value puts it firmly in the
+flux-limited regime, where the answer is set by how much deficit the circulation
+can maintain below cloud rather than by `gamma`. The equilibrium is reached by
+MOISTENING: the sub-cloud layer wets until its deficit falls by about the factor
+`gamma` rose. That is the observable, and it is what separates this change from
+a simple scaling of the evaporated flux.
+
+**Predicted, on a matched T21 L10 pair from one restart, both arms with the
+energy fixer on and both segmented for a climatology rather than a diagnostic:**
+
+- **Land P minus E falls by 10 to 50 per cent of the control's land P minus E**,
+  centred on -25 per cent. The bracket is wide because it is bounded below by
+  the fully deficit-limited limit, where the two arms evaporate the same mass
+  and the difference is zero, and above by the no-feedback column limit, where
+  at 3 mm/day and a sub-cloud relative humidity of 0.95 the share of falling
+  precipitation reaching the ground goes from 0.87 to 0.14. Neither limit is
+  the model.
+- **Relative humidity in the lowest three levels over land rises by +0.03 to
+  +0.15 absolute**, and this is the discriminating measurement rather than the
+  flux: it is the mechanism by which the response saturates.
+- **The reduction is largest where precipitation is lightest.** `gamma` goes as
+  `P^0.578`, so the ratio of derived to constant is largest at low flux; the
+  arid, lightly precipitating land where the carve criterion bites is where the
+  change concentrates.
+- **Runoff falls with land P minus E**, and hydrography reads that field.
+- **High cloud fraction rises slightly** with the moistened column.
+
+**What would mean wrong:**
+
+- Sign. Land P minus E must not RISE. The derived `gamma` exceeds the constant
+  at every rate the model produces, and more re-evaporation cannot deliver more
+  precipitation to the ground. A higher land P minus E in the derived arm is an
+  implementation fault, not a small result.
+- Sub-cloud relative humidity unchanged to within the inter-orbit scatter. That
+  says the code path is not reached at all, and the first thing to check is that
+  the arm's own namelist did not carry a positive `gamma`.
+- The change concentrated in the heaviest-precipitating cells rather than the
+  lightest. That inverts the `P^0.578` dependence and points at the flux
+  conversion `P = zpr*dp/ga*1000`, which is `mkrain`'s own output line read
+  backwards.
+- Magnitude outside 0 to 60 per cent on land P minus E. Below zero is the sign
+  failure above; above the no-feedback column limit means the cap is not being
+  applied.
+- The instrument. Both arms must meet the convergence criteria on their windows,
+  and the difference must exceed the pooled inter-orbit scatter. If it does not,
+  the result is "below what this configuration resolves" and NOT a number.
+
+**The check that can fail, and it is an identity rather than a comparison.**
+An arm declaring `gamma = 0.01` in `rainmod_nl` must be BIT-IDENTICAL to the
+control built before this change. The override path restores the literal
+constant at all four sites with no other expression touched, so any difference
+at all is a defect in the patch and not a result. That check costs one short
+segment and settles the implementation independently of the physics.
+
+**A second identity.** The derived `gamma` printed by an instrumented run at a
+known layer flux and timestep must match the offline table above to rounding.
+The formula has no free parameter, so a mismatch localises immediately to the
+unit conversion or to `zvcoef`.
+
+**Kessler's own caveats travel with the form** and bound how well the derived
+number can do: the single-drop fit is accurate to about 40 per cent, a constant
+`N0` misrepresents evaporation because the process depletes small drops
+preferentially, and the rate is for standard air density with no altitude
+variation. The two SNOW sites evaluate the rain expression because Kessler
+supplies no snow analogue; that is declared at the value and is not a regression,
+since the constant carried no flux dependence at any of the four.
+
+**BLOCKED on a run.** `config/planet.yaml` declares `baseline_climatology: null`
+and no run exists to branch a pair from, so the arms are registered and not
+measured. One rebuild of every binary precedes them, per rule 4.
+
+## world-o12h: the cloud-fraction subgrid width, `rcritwidth` across the ladder
+
+`rainmod.f90`'s `rcrit` is the cell-mean relative humidity at which stratiform
+cloud starts, and its 0.85 floor was anchored to T21 with no NLAT term anywhere.
+What it encodes is the WIDTH of the subgrid humidity distribution, so the
+quantity carrying a resolution dependence is `(1 - rcrit)`. Specific humidity is
+a passive scalar, and Kolmogorov-Obukhov-Corrsin gives its variance across a
+separation `L` as `L^(2/3)`, so the standard deviation goes as `L^(1/3)` and a
+cell's width goes as `1/NLAT`:
+
+    1 - rcrit(jlev) = (1 - rcrit_T21(jlev)) * (32/NLAT)^(1/3)
+
+`rcritwidth` is the key, derived from NLAT unless given a positive value.
+`rcritmod` and `rcritslope` keep their meanings and apply on top.
+
+**The anchor is preserved, so T21 does not move.** At NLAT 32 the factor is
+exactly 1 and the transform is skipped by construction rather than applied and
+rounded. On the 0.85 floor the factor is 1.024 at T31, 1.036 at T42, 1.054 at
+T63 and 1.065 at T85, taking `rcrit` to 0.869, 0.881, 0.896 and 0.906 and
+`1/(1-rcrit)^2` from 44 to 58, 71, 92 and 112.
+
+**Predicted, on a ladder sweep holding everything else fixed:**
+
+- **T21 is BIT-IDENTICAL to the control.** This is the whole reason the anchor
+  was kept at 32 rather than moved to a rung nobody runs.
+- **Stratiform cloud fraction falls at every rung above T21**, monotonically in
+  NLAT, because cloud starts later in a smaller cell. `rcrit` enters as
+  `((rh-rcrit)/(1-rcrit))^2`, so at T42 a 0.031 rise in the floor removes cloud
+  wherever the modelled relative humidity sits between 0.85 and 0.881 and
+  reduces it everywhere above.
+- **Planetary albedo falls and the simulated global mean warms at T42 relative
+  to the same configuration before this change.** Cloud fraction is the largest
+  single lever on planetary albedo, which is why this row outranks its size.
+- **The T21-to-T42 cloud-fraction step SHRINKS relative to the unmodified
+  ladder.** That is the point of the change and the thing the sweep measures:
+  the scheme is being made less rung-dependent, not more.
+
+**What would mean wrong:**
+
+- T21 differing from the control at all. The factor is exactly 1 there and the
+  loop is skipped, so any difference is a defect in the patch.
+- Cloud fraction RISING at T42. That inverts the derivation's sign and points at
+  the width being applied to `rcrit` instead of to `(1 - rcrit)`.
+- `rcrit` exceeding 1 at any level and any rung. The width form is bounded below
+  1 by construction; a value at or above 1 divides by zero in the cloud
+  expression and means `rcritmod` has been used as the operator instead.
+- The T21-to-T42 cloud step widening rather than narrowing. Then the exponent is
+  wrong in magnitude even if right in sign, and 1/3 is the thing to question.
+
+**What this does NOT claim.** The 0.85 anchor is still a fit and no paper can
+supply it, because a subgrid width is a property of the mesh rather than of the
+world. What changes is that the fit is now a declared function of the grid and
+can be tested against the grid. The convective pair `zcca` and `zccb` does not
+take this scaling and stays irreducible for a different reason, argued at the
+value: their exponent is set by an unresolved convective area fraction the model
+does not carry, so no exponent between the diluting and cell-filling limits is
+derivable from what this scheme holds.
+
+**BLOCKED on a run**, and on the same rebuild.

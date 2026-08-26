@@ -45,21 +45,60 @@
 !     nothing in this project has measured a replacement -- not because 160 m
 !     has been shown to apply here.
 !
-!     THE PRIMARY HAS BEEN READ AND IT SUPPLIES NO REPLACEMENT. Louis (1979),
+!     THE PRIMARY CHAIN HAS BEEN READ TO ITS END. Louis (1979),
 !     10.1007/BF00117978, is where the scheme comes from; its eq. 22 is
 !     Blackadar's l = kz/(1 + kz/lambda) and says of lambda only that it is "an
 !     adjustable parameter", taken as 100 m in the paper's own experiments. So
-!     160 m is neither Louis's number nor a derivation of one, and Louis's own
-!     100 m is declared adjustable in the same sentence it appears. Nothing is
-!     sourced by fetching further along this chain. What WOULD supply a rule is
-!     the primary Louis cites, Blackadar (1962), where lambda is set by the
-!     geostrophic wind and the Coriolis parameter rather than declared -- a
-!     relation that carries to another rotation rate, which is what this world
-!     needs and what a length scale of Earth's free troposphere cannot give.
-!     That paper is not held. Do not scale 160 m by this atmosphere's scale
-!     height: nothing in Blackadar's or Louis's form makes lambda proportional
-!     to a scale height, so that is a guess wearing a derivation's clothes.
-      real :: vdiff_lamm = 160.  ! asymptotic mixing length (m)
+!     160 m is neither Louis's number nor a derivation of one. The rule is in the
+!     primary Louis cites, Blackadar (1962), 10.1029/JZ067i008p03095, whose
+!     eq. 24 is that mixing length and whose eq. 25 sets its parameter:
+!
+!         lambda = 0.00027 * G / f
+!
+!     G the geostrophic wind and f the Coriolis parameter. Blackadar's own
+!     argument for the FORM is dimensional and is the part that transfers: z0 is
+!     "ruled out as a factor affecting characteristics of the free atmosphere",
+!     which leaves G/f as the only length the neutral problem supplies.
+!
+!     THE VALUE DOES NOT TRANSFER AND THE SCALING DOES, which is why this is a
+!     ratio and not a substitution. Blackadar's 0.00027 is fixed by matching one
+!     observed surface wind deflection, 32 degrees at Brookhaven at z0 = 1 m and
+!     G = 10 m/s, and he names a rival hypothesis, lambda proportional to u*/f,
+!     as "a priori just as acceptable". At Earth mid-latitudes his relation
+!     returns about 26 m, six times below the 160 m here, because his lambda is
+!     the neutral BOUNDARY LAYER's asymptote and ECHAM's is the value that makes
+!     the same functional form carry free-tropospheric mixing through the whole
+!     column. Two different lengths in one formula: importing 26 m would be a
+!     category error.
+!
+!     WHAT IS INTEGRATED IS THEREFORE ECHAM's ANCHOR ON BLACKADAR's ROTATION
+!     SCALING. f = 2*Omega*sin(lat), so at fixed latitude and fixed geostrophic
+!     wind lambda goes as 1/Omega, and this world turns in 30 hours against
+!     Earth's 23.93:
+!
+!         vdiff_lamm = 160 * (OMEGA_EARTH/ww)
+!
+!     which is 200.5 m here. Holding 160 m fixed is not the neutral choice -- it
+!     asserts that the length is rotation independent, which is exactly what
+!     Blackadar's relation denies. Negative (the default) derives it; a positive
+!     namelist value is used as declared.
+!
+!     THE BRACKET IS G, and it is the one term left unmeasured. The scaling above
+!     holds this world's geostrophic wind equal to Earth's, because no run on
+!     this tree has produced a circulation to read one from; lambda is linear in
+!     G, so a mid-latitude geostrophic wind 20 per cent above Earth's would carry
+!     vdiff_lamm to 241 m. That is the sweep this number wants, and it wants it
+!     against a measured G rather than against a comparison.
+!
+!     Do not scale 160 m by this atmosphere's scale height: nothing in
+!     Blackadar's or Louis's form makes lambda proportional to a scale height, so
+!     that is a guess wearing a derivation's clothes. world-80ia, world-awm5.
+      real :: vdiff_lamm = -1.   ! <0: derive from rotation rate (default).
+                                 ! >0: asymptotic mixing length in m as declared
+!     Earth's sidereal rotation rate, the Omega the 160 m anchor was fitted at.
+!     Only ever a RATIO against this world's ww.
+      real, parameter :: OMEGA_EARTH = 7.292115E-5   ! rad/s
+      real, parameter :: VDLAMM_REF  = 160.          ! ECHAM's anchor at that Omega
 !
 !     The three Louis stability-function coefficients, cited in mktcoe to ECHAM
 !     REPORT 218, which is a report and not a derivation. None of the three is
@@ -77,13 +116,50 @@
 !     is ECHAM's re-fit of that scheme with 2b and 3b factors written into the
 !     expressions instead, so b = c = d = 5 corresponds to Louis's b near 10 for
 !     momentum and 15 for heat against his own 9.4 for both.
-!     TWO CONSEQUENCES. Reading the primary cannot replace these three, because
-!     Louis states of his own values that they "are rather uncertain because of
-!     the large scatter in the observations": both sets are fits and neither
-!     transfers on its authority. And vdiff_c being a CONSTANT is a dropped
-!     dependence rather than a different fit -- Louis's c varies as sqrt(z/z0)
-!     and this world's roughness field spans 0.025 to 11.2 m, a factor of 450 in
-!     z0 and 21 in sqrt(z/z0), all of which this single number flattens.
+!     Reading the primary cannot replace these three, because Louis states of
+!     his own values that they "are rather uncertain because of the large
+!     scatter in the observations": both sets are fits and neither transfers on
+!     its authority.
+!
+!     vdiff_c IS NOT A DROPPED DEPENDENCE, and this is checked against the
+!     expression rather than inferred from the declaration. The surface limb at
+!     mktcoe below reads
+!
+!         zdenom = 1 + 3*vdiff_c*vdiff_b*sqrt(-zri*(zbz0+1))*zkblnz2
+!
+!     with zbz0 = znl/dz0, so zbz0+1 IS z/z0 from this world's own per-cell
+!     roughness field, and zkblnz2 = (vonkarman/ln(z/z0+1))^2 IS a^2, the neutral
+!     drag coefficient. Factoring the Richardson number out leaves the
+!     coefficient of sqrt(|Ri|) as 3*vdiff_c*vdiff_b*a^2*sqrt(z/z0), which is
+!     Louis's eq. 20, c = C* a^2 b sqrt(z/z0), term for term. Both factors he
+!     derives are already carried at every gridpoint. What the single constant
+!     fixes is C* alone, at 3*vdiff_c = 15 against his 7.4 and 5.3.
+!
+!     THE MAGNITUDE ARGUMENT FOR REINSTATING IT WAS ALSO WRONG, and in the
+!     direction that matters. sqrt(z/z0) never appears without the a^2 that
+!     accompanies it in eq. 20, and the two run opposite: a^2 FALLS as z/z0 rises
+!     because it carries ln(z/z0) in its denominator. Over this world's land
+!     roughness span, 0.025 to 11.2 m, the product a^2*sqrt(z/z0+1) moves by a
+!     factor of 2.7 at a lowest-level height of 331 m and is not even monotonic
+!     in z0 -- against the factor of 21 that sqrt(z/z0) alone suggests. A
+!     quantity varying by 2.7 across the field is what the model already
+!     integrates, not what it flattens.
+!
+!     THE MOMENTUM AND HEAT LIMBS ARE ALSO ALREADY SEPARATED, in the numerator
+!     instead of the denominator: zrifm carries 2*vdiff_b and zrifh 3*vdiff_b
+!     over a shared zdenom, where Louis carries one b over denominators that
+!     differ through C*. In the strongly unstable limit ECHAM's ratio of heat to
+!     momentum enhancement is 3/2 and Louis's is 7.4/5.3 = 1.40, so the two
+!     schemes make the same distinction by the same amount to within the scatter
+!     Louis reports on his own coefficients. Splitting C* here would import one
+!     fit's numbers into another fit's algebra and change that ratio from 1.50 to
+!     1.40 with nothing to say which is right.
+!
+!     SO NO NUMERIC AND NO FORM CHANGE FOLLOWS, and the three fives stay as one
+!     fitted set for the reason above them: they are ECHAM's re-fit, they are
+!     used as one, and Louis's own set is declared uncertain in the paper. That
+!     is the irreducible disposition with the argument, not a deferral.
+!     world-awm5.
       real :: vdiff_b    = 5.    ! Louis stability function, unstable slope
       real :: vdiff_c    = 5.    ! Louis stability function, unstable denominator
       real :: vdiff_d    = 5.    ! Louis stability function, stable branch
@@ -171,6 +247,15 @@
       freeconv = 0.0016 * (ga / 9.80665)**(1./3.)
       if (mypid == NROOT) then
          write(nud,'(" * free-convection coefficient ",f12.8," *")') freeconv
+      endif
+
+!     ONCE, FROM THIS WORLD'S ROTATION RATE. See the declaration: Blackadar
+!     (1962) eq. 25 makes the asymptotic mixing length proportional to G/f, so
+!     at fixed geostrophic wind and latitude it goes as 1/Omega. ww is the
+!     model's own Omega and is broadcast before this routine runs. world-80ia.
+      if (vdiff_lamm < 0.) vdiff_lamm = VDLAMM_REF * (OMEGA_EARTH / ww)
+      if (mypid == NROOT) then
+         write(nud,'(" * asymptotic mixing length (m) ",f12.4," *")') vdiff_lamm
       endif
 
       return
