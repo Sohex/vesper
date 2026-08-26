@@ -35,8 +35,8 @@
       "star_minus_solar_broadband": -0.085414,
       "flux_outside_measured": 0.006086,
       "dang_2015_direct_at_library_geometry": {
-        "vis": 0.99295,
-        "nir": 0.764143
+        "vis": 0.991581,
+        "nir": 0.735752
       }
     },
     {
@@ -58,8 +58,8 @@
       "star_minus_solar_broadband": -0.100421,
       "flux_outside_measured": 0.006086,
       "dang_2015_direct_at_library_geometry": {
-        "vis": 0.985937,
-        "nir": 0.669043
+        "vis": 0.982239,
+        "nir": 0.636566
       }
     },
     {
@@ -81,8 +81,8 @@
       "star_minus_solar_broadband": -0.107033,
       "flux_outside_measured": 0.006086,
       "dang_2015_direct_at_library_geometry": {
-        "vis": 0.977646,
-        "nir": 0.602344
+        "vis": 0.972479,
+        "nir": 0.56729
       }
     }
   ],
@@ -151,14 +151,14 @@
           0.75
         ],
         "dang_band_um": [
-          0.2,
+          0.3,
           0.7
         ],
         "this_spectrum_on_model_band": 0.985025,
         "this_spectrum_on_dang_band": 0.987101,
-        "dang_published": 0.99295,
+        "dang_published": 0.991581,
         "band_definition_worth": 0.002076,
-        "data_difference": 0.005849
+        "data_difference": 0.00448
       },
       {
         "effective_grain_size_um": 24.0,
@@ -169,13 +169,13 @@
         ],
         "dang_band_um": [
           0.7,
-          5.0
+          4.0
         ],
         "this_spectrum_on_model_band": 0.63533,
-        "this_spectrum_on_dang_band": 0.673742,
-        "dang_published": 0.764143,
-        "band_definition_worth": 0.038412,
-        "data_difference": 0.090401
+        "this_spectrum_on_dang_band": 0.679791,
+        "dang_published": 0.735752,
+        "band_definition_worth": 0.044461,
+        "data_difference": 0.055961
       },
       {
         "effective_grain_size_um": 82.0,
@@ -185,14 +185,14 @@
           0.75
         ],
         "dang_band_um": [
-          0.2,
+          0.3,
           0.7
         ],
         "this_spectrum_on_model_band": 0.972891,
         "this_spectrum_on_dang_band": 0.976392,
-        "dang_published": 0.985937,
+        "dang_published": 0.982239,
         "band_definition_worth": 0.003501,
-        "data_difference": 0.009545
+        "data_difference": 0.005847
       },
       {
         "effective_grain_size_um": 82.0,
@@ -203,13 +203,13 @@
         ],
         "dang_band_um": [
           0.7,
-          5.0
+          4.0
         ],
         "this_spectrum_on_model_band": 0.535938,
-        "this_spectrum_on_dang_band": 0.58041,
-        "dang_published": 0.669043,
-        "band_definition_worth": 0.044472,
-        "data_difference": 0.088633
+        "this_spectrum_on_dang_band": 0.585569,
+        "dang_published": 0.636566,
+        "band_definition_worth": 0.049631,
+        "data_difference": 0.050997
       },
       {
         "effective_grain_size_um": 178.0,
@@ -219,14 +219,14 @@
           0.75
         ],
         "dang_band_um": [
-          0.2,
+          0.3,
           0.7
         ],
         "this_spectrum_on_model_band": 0.960011,
         "this_spectrum_on_dang_band": 0.965074,
-        "dang_published": 0.977646,
+        "dang_published": 0.972479,
         "band_definition_worth": 0.005063,
-        "data_difference": 0.012572
+        "data_difference": 0.007405
       },
       {
         "effective_grain_size_um": 178.0,
@@ -237,17 +237,36 @@
         ],
         "dang_band_um": [
           0.7,
-          5.0
+          4.0
         ],
         "this_spectrum_on_model_band": 0.467973,
-        "this_spectrum_on_dang_band": 0.515595,
-        "dang_published": 0.602344,
-        "band_definition_worth": 0.047622,
-        "data_difference": 0.086749
+        "this_spectrum_on_dang_band": 0.520106,
+        "dang_published": 0.56729,
+        "band_definition_worth": 0.052133,
+        "data_difference": 0.047184
       }
     ],
-    "note": "`band_definition_worth` is what re-integrating THE SAME spectrum over Dang's band edges is worth; `data_difference` is what is left, and it is a difference between the JHU library's snow and Dang's two-stream model of pure snow. In the near infrared the band definition is worth a few hundredths -- almost all of it the 0.70 to 0.75 um slice, which Dang counts as near infrared and the model counts as band 1, and where snow is still bright -- and the data difference is several times larger and near-constant in grain size. THAT IS THE REASON THIS ROW FITS THE FORM RATHER THAN IMPORTING THE COEFFICIENTS: the published constant term does not transfer onto these spectra even under the Sun, while the grain-size SLOPE does, which is the part a dust term scales against."
+    "axis_leverage": {
+      "library_illumination_mu0": 0.984808,
+      "dang_reference_mu0": 0.65,
+      "geometry": {
+        "shift_in_log10_r": 0.204066,
+        "constant_moves_by": -0.040277,
+        "slope_moves_by": -0.009346,
+        "quadratic_moves_by": 0.0,
+        "constant_over_slope_leverage": 4.2074
+      },
+      "radius_read_as_diameter": {
+        "shift_in_log10_r": 0.30103,
+        "constant_moves_by": -0.060084,
+        "slope_moves_by": -0.013787,
+        "quadratic_moves_by": 0.0,
+        "constant_over_slope_leverage": 4.2074
+      },
+      "note": "each row is what one rigid shift of the grain axis does to Dang's near-infrared quadratic: the constant moves, the slope moves by `2*m2*d`, and the quadratic does not move at all. `constant_over_slope_leverage` is the ratio of the two, and it is why a comparison against a differently-posed model of pure snow keeps its SLOPE and loses its CONSTANT. The geometry row is Dang Eq. (5) taken from the library's stated measurement angle to the angle his coefficients are stated at; the diameter row is what the library's unqualified 'effective size' would cost if it is not a radius."
+    },
+    "note": "`band_definition_worth` is what re-integrating THE SAME spectrum over Dang's band edges is worth; `data_difference` is what is left, and it is a difference between the JHU library's snow and Dang's two-stream model of pure snow. In the near infrared the band definition is worth a few hundredths -- almost all of it the 0.70 to 0.75 um slice, which Dang counts as near infrared and the model counts as band 1, and where snow is still bright. The library's own first wavelength is 0.34 um, so the 0.30 to 0.34 slice of Dang's visible band is held at the first value rather than measured; snow is flat there and the slice is narrow, which is why it is stated rather than corrected -- and the data difference is several times larger and near-constant in grain size. THAT IS THE REASON THIS ROW FITS THE FORM RATHER THAN IMPORTING THE COEFFICIENTS: the published constant term does not transfer onto these spectra even under the Sun, while the grain-size SLOPE does, which is the part a dust term scales against. `axis_leverage` says why that split is the one to expect rather than a coincidence."
   },
-  "grain_size_reading": "the library states an 'effective size' in micrometres and does not say radius or diameter. It is read as a RADIUS, which is what Dang's r0 = 100 um is and what makes 24, 82 and 178 um an ordinary seasonal-snow range; read as diameters they would be finer than fresh snow. A radius-for-diameter error would shift every fitted linear coefficient by log10(2) times itself and leave the three albedos untouched, so it is a statement about the AXIS and not about the values on it.",
+  "grain_size_reading": "the library states an 'effective size' in micrometres and does not say radius or diameter. It is read as a RADIUS, which is what Dang's r0 is -- the area-weighted effective radius of a distribution of spheres -- and his paper states that surface snow on Earth is rarely finer than 30 um effective radius, which the three entries straddle read as radii and all fall below read as diameters. A radius-for-diameter error leaves the three albedos untouched and shifts the AXIS by log10(2), which `band_edge_mismatch.axis_leverage.radius_read_as_diameter` prices the same way as the geometry offset: the constant moves, the slope moves by twice the QUADRATIC coefficient times the shift, and the quadratic does not move.",
   "what_this_does_not_establish": "the radius is an axis and not a prediction: nothing in this model evolves a snow grain, so a run is still told where on the axis its snow sits. The three points are a laboratory's fine, medium and coarse and bracket seasonal snow, not firn."
 }
