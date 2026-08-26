@@ -114,7 +114,7 @@ J/m2 and the threshold converted into J/m2 per orbit by multiplying by the
 orbit. Nothing here passes through a temperature sensitivity, which is the
 point: the threshold and the estimator are put in one unit and compared.
 
-**Measured 2026-08-25 on the dt-30 run's 35-orbit production window.** The heat
+**Measured 2026-08-25 on the dt-45 run's 35-orbit production window.** The heat
 content's residual scatter is 1.09e7 J/m2 with a lag-1 correlation of 0.80 and
 an integrated autocorrelation time of 6.70, the last estimated from inside the
 window and therefore a lower bound. The standard error of the storage slope:
@@ -209,22 +209,52 @@ relaxation time on top of the sampling error: the verdict must carry that
 allowance, and the resolving question must not, because whether the window can
 see 0.15 K is not a property of how far the run still has to travel.
 
+**Re-assessed 2026-08-25 under the new form, every run whose output is on
+disk.** One verdict moved.
+
+| run | dt | orbits | window | before | after |
+| --- | ---: | ---: | ---: | --- | --- |
+| 14906cb7b914 | 30 | 35 | 35 | fails the offset | unchanged: fails the offset |
+| ec32946bec89 | 45 | 50 | 35 | passes all six | fails the storage criterion |
+| ade7373b4c90 | 45 | 28 | 28 | fails storage and offset, at 25 orbits and a 10-orbit window | fails all but the sea-ice slope |
+
+`run_ec32946bec89` is the flip the decision was taken in spite of: its storage
+is 0.0961 W/m2 with a standard error of 0.0303, so the upper bound is 0.1264
+against 0.1200. Its offset row also changes verdict, from `resolves` false to
+true, because the fit was used on that run and the row now prices the fit's own
+error rather than the fallback's.
+
+`run_ade7373b4c90` is a 28-orbit cold start, so it is shorter than the derived
+window and was assessed at the longest window it supports. Five of its six rows
+report that the window does not resolve their threshold, which is the honest
+statement about a run a third of the way through its approach; the extra
+failures are the run's length and not the change of form.
+
+The five other artifacts in `exoplasim/analysis/convergence/` cannot be
+re-assessed: their runs' output is gone, and they predate the standard errors
+the new form needs, so nothing in them supports the comparison. They record
+verdicts taken by earlier generations of the instrument, at a 10-orbit window,
+and are superseded rather than merely old.
+
 ## The criteria against the size of the effect they have to see
 
 The escalation route's first two rungs give the instrument something to be
-measured against. T21 at dt 45 settled and T21 at dt 30 followed it from that
-restart, so any difference between their equilibria is a timestep-dependent
-shift at fixed resolution, which is what alternating resolution and timestep
-exists to expose.
+measured against. T21 at dt 45 ran to a settled state and T21 at dt 30 followed
+it from that restart, so any difference between their equilibria is a
+timestep-dependent shift at fixed resolution, which is what alternating
+resolution and timestep exists to expose.
 
 **Measured 2026-08-26, and it is not yet a measurement of the shift.** The two
 states differ by 0.103 K on the window means, 0.307 K on the fitted asymptotes
-and 0.499 K on the last orbit. They differ that widely because the dt-30 run is
-NOT equilibrated by its own verdict: it passes the four slope criteria and the
-storage criterion at 35 orbits and fails the extrapolated offset, on its
-uncertainty rather than its magnitude. So the shift is bracketed by roughly 0.1
-to 0.5 K and the top of that bracket is contaminated by the approach the run
-has left to make.
+and 0.499 K on the last orbit. They differ that widely because NEITHER arm is
+equilibrated by its own verdict. The dt-30 run passes the four slope criteria
+and the storage criterion at a 35-orbit window and fails the extrapolated
+offset, on its uncertainty rather than its magnitude. The dt-45 run passes the
+other five and fails the storage criterion, by 0.006 W/m2 of a 0.12 W/m2
+allowance, which is a fifth of that estimator's own standard error and
+therefore a miss the window can barely see. So the shift is bracketed by roughly
+0.1 to 0.5 K and the top of that bracket is contaminated by the approach both
+runs have left to make.
 
 **What the criteria can see, in each criterion's own units.** The mixed layer
 drifts 0.128 K per orbit per W/m2 and the derived relaxation time is about ten

@@ -754,7 +754,7 @@ def main() -> None:
     #   The estimator's own standard error is the standard error of the slope it
     #   fits, in the units it reports, and it is now computed per run and per
     #   window as `resolving_power` row `abs_state_storage`. Measured 2026-08-25
-    #   on the 35-orbit window of this project's dt-30 run: the heat content's
+    #   on the 35-orbit window of this project's dt-45 run: the heat content's
     #   residual scatter is 1.09e7 J/m2 with a lag-1 of 0.80, giving 0.030 W/m2
     #   at 35 orbits, 0.042 at 28 and 0.197 at 10. So the measurable floor is
     #   3 * 0.030 = 0.090 W/m2 at the window now derived, and was 0.59 W/m2 at
