@@ -574,7 +574,7 @@ model:
   # WORLD-J37. A diagnostic arm deliberately runs off the route -- that is what
   # the stability probe and the filter x timestep matrix are -- so this stays a
   # per-run choice rather than something derived from the rung.
-  timestep_minutes: 45.0
+  timestep_minutes: 30.0
   physics_filter: "gp|exp|sp"
   # The exponential filter's shape, f(n) = exp(-kappa (n/NTRU)^gamma). These are
   # ExoPlaSim's own defaults restated so they are DECLARED rather than inherited
