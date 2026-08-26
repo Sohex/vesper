@@ -84,9 +84,20 @@ def series(run_dir: pathlib.Path) -> dict:
     return out
 
 
-def paired(arm: dict, control: dict, forcing_orbits: int) -> dict:
+def paired(arm: dict, control: dict, forcing_orbits: int, window_start: int = 0) -> dict:
+    """Difference the two, and report the window mean the caller declared.
+
+    `window_start` is the first orbit of the MEASUREMENT window: everything
+    before it is the settling block and is excluded, because a pair branched
+    from one restart starts at zero separation and averaging the approach into
+    the answer understates it. The two numbers come from different places and
+    must: the settling block from `lib/run_lengths.py`, which prices how long a
+    perturbation takes to decay, and the window from `assess_convergence.py`'s
+    own derivation of the shortest span its criteria can be tested on.
+    """
     n = min(arm["orbits"], control["orbits"])
-    result = {"orbits_compared": n, "forcing_window_orbits": min(forcing_orbits, n)}
+    result = {"orbits_compared": n, "forcing_window_orbits": min(forcing_orbits, n),
+              "measurement_window_starts_at_orbit": window_start}
     for metric in ("tas", "ts", "toa_net", "sea_ice", "precip"):
         a = np.asarray(arm[metric][:n], dtype=float)
         c = np.asarray(control[metric][:n], dtype=float)
@@ -104,10 +115,22 @@ def paired(arm: dict, control: dict, forcing_orbits: int) -> dict:
         # independent samples a window holds.
         sem = (ac.mean_standard_error(diff, tau)
                if diff.size > 1 and np.isfinite(tau) and tau > 0 else float("nan"))
+        window = diff[window_start:] if window_start < diff.size else diff[:0]
+        if window.size > 3:
+            wtau = float(ac.integrated_time(window).get("tau", float("nan")))
+            wsem = (ac.mean_standard_error(window, wtau)
+                    if np.isfinite(wtau) and wtau > 0 else float("nan"))
+            wmean = float(window.mean())
+        else:
+            wtau, wsem, wmean = float("nan"), float("nan"), float("nan")
         result[metric] = {
             "forcing_mean_first_%d_orbits" % k: float(diff[:k].mean()),
             "final_orbit_difference": float(diff[-1]),
             "mean_difference": float(diff.mean()),
+            "window_mean": wmean,
+            "window_standard_error": wsem,
+            "window_tau_orbits": wtau,
+            "window_orbits": int(window.size),
             "paired_scatter": scatter,
             "tau_orbits": tau,
             "standard_error": sem,
@@ -125,6 +148,9 @@ def main() -> None:
     parser.add_argument("--forcing-orbits", type=int, default=3,
                         help="orbits at the start read as the forcing, before the "
                              "state has moved far from the shared restart")
+    parser.add_argument("--window-start", type=int, default=0,
+                        help="first orbit of the measurement window; everything before "
+                             "it is the settling block and is excluded from the mean")
     parser.add_argument("--perturbation-k", type=float, required=True,
                         help="the predicted response, so the settling block this "
                              "arm would need is reported beside what it bought")
@@ -142,7 +168,7 @@ def main() -> None:
             "run_directory": arm_dir.resolve().name,
             "orbits_on_disk": s["orbits"],
             "absolute_final_tas": s["tas"][-1] if s["tas"] else None,
-            **paired(s, control, args.forcing_orbits),
+            **paired(s, control, args.forcing_orbits, args.window_start),
         }
 
     payload = {
@@ -175,9 +201,9 @@ def main() -> None:
         for metric in ("tas", "toa_net", "sea_ice", "precip"):
             m = a[metric]
             key = [k for k in m if k.startswith("forcing_mean_first_")][0]
-            print(f"  {metric:9s} forcing {m[key]:+.4f}  final {m['final_orbit_difference']:+.4f}"
-                  f"  mean {m['mean_difference']:+.4f} +/- {m['standard_error']:.4f}"
-                  f"  resolved={m['resolved']}")
+            print(f"  {metric:9s} forcing {m[key]:+.4f}  all {m['mean_difference']:+.4f}"
+                  f"  WINDOW[{m['window_orbits']}] {m['window_mean']:+.4f}"
+                  f" +/- {m['window_standard_error']:.4f}")
 
 
 if __name__ == "__main__":
