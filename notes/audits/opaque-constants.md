@@ -246,8 +246,9 @@ g/m3 reference in-cloud liquid density, has the same standing and no dependence
 on anything.
 
 `inherited-earth-constants.md` finding 2 (PHYS-11) is the right neighbour and does
-not cover this. It names the namelist multipliers `tswr1/2/3`, `acllwr`, `rcl1`,
-`rcl2`, `acl2` and `clgray`, and it is about how a cloud reflects. How much water
+not cover this. It names the namelist multipliers of the cloud optics -- the three
+that world-f9ig has since deleted for Stephens's tables, plus `acllwr`, `rcl1`,
+`rcl2`, `acl2` and `clgray` -- and it is about how a cloud reflects. How much water
 the cloud is given has never been looked at, and the Stephens (1978) fit that
 consumes it is equally uncited.
 

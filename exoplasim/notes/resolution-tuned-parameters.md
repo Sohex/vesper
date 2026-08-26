@@ -114,11 +114,17 @@ the namelist was read. The whole of it is deleted from this fork, message
 included, and `world-677x` records the deletion.
 
 Nothing this project integrates moves. `jtune` was 0 here as it was everywhere,
-so the modelled radiation used the module defaults at `radmod.f90:72-75`, and
-that is what it uses now: `th2oc` 0.024, `tswr1` 0.077, `tswr2` 0.065 and
-`tswr3` 0.0055. This project writes `TSWR3` over its default from
-`model.cloud_absorption_scale` and leaves the other three alone. The value the
-T42 branch would have reached, had it been reachable, is not any of them.
+so the modelled radiation used the module defaults, and the value the T42 branch
+would have reached, had it been reachable, was never any of them.
+
+Three of the four keys that block selected between no longer exist. `world-f9ig`
+deleted `tswr1`, `tswr2` and `tswr3` and put Stephens et al. (1984)'s own tables
+in their place, which carry no resolution dependence and nothing to tune, so the
+question the `jtune` table was asking about the shortwave cloud optics has no
+answer to give at any rung. `th2oc` is what is left of that block's reach and
+sits at the module default. This project writes one shortwave cloud key,
+`CLOUDABS`, from `model.cloud_absorption_scale`, and that is a stellar
+re-weighting rather than a resolution tuning.
 
 ## 3. The two narrow ones: one deleted, one that applies
 

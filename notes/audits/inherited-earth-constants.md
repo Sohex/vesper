@@ -204,14 +204,20 @@ range 2 against a 5772 K Sun. 1.184 to 1.205 across droplet effective radii 5 to
 15 um and across both the weak-absorption and thick-layer scalings, so the answer
 barely depends on either; 1.192 is the median.
 
-`cloud_absorption_scale` multiplies ONE key, `tswr3`. Worth about +2.0 K on the
+`cloud_absorption_scale` multiplies ONE key, `cloudabs`, the scale `swr` applies
+to the range-2 cloud co-albedo it interpolates from Stephens et al. (1984) Table
+1(a). It used to arrive as `tswr3`, the coefficient of the analytic fit that
+table replaced; the derived value did not change with the carrier, because it is
+a star-over-Sun ratio of range-2 flux-weighted co-albedo and the table carries
+the solar weighting in the denominator. world-f9ig. Worth about +2.0 K on the
 arms' own measured slope, which is why the flux re-derivation has to follow it
 and not precede it. The arms measured +/-2.6 K.
 
 The harness applied the factor to the `acl2` triplet as well, and `acl2` has no
 reader outside the `nswrcl == 0` branch of `swr`. `nswrcl` is 1 in every run
 this project has made, including the PHYS-11 arms, so the whole of the measured
-slope is `tswr3`'s and the `acl2` half of the write was inert. The scaled write
+slope is the computed branch's co-albedo's and the `acl2` half of the write was
+inert. The scaled write
 is gone and the harness now stages `NSWRCL` at 1 explicitly, so a run's namelist
 records which of the two cloud schemes its shortwave used. clim-68.
 

@@ -793,12 +793,12 @@ steps:
     gate: >
       the CLOUD half of what shortwave_band_weights does for the gases. Lacis
       and Hansen's absorptances are fractions of solar flux and every one has to
-      be re-weighted for this host (`config/planet.yaml`); `tswr3` is the one
-      that never was. Derived from liquid water's k(lambda), which
-      carries no spectrum, flux-weighted over range 2 per star. Lands on
-      `model.cloud_absorption_scale`, which scales `tswr3` alone: the
-      prescribed-cloud key `acl2` has no reader at `nswrcl = 1`. PHYS-11,
-      clim-68
+      be re-weighted for this host (`config/planet.yaml`); the range-2 cloud
+      co-albedo is the one that never was. Derived from liquid water's
+      k(lambda), which carries no spectrum, flux-weighted over range 2 per star.
+      Lands on `model.cloud_absorption_scale`, which reaches the model as
+      `cloudabs` and scales the tabulated co-albedo alone: the prescribed-cloud
+      key `acl2` has no reader at `nswrcl = 1`. PHYS-11, clim-68, world-f9ig
 
   - id: baseline_run
     script: exoplasim/scripts/run_exoplasim.py

@@ -524,24 +524,31 @@ def configure_otherargs(derived: dict) -> dict:
         "NHDIFF@oceanmod_namelist": str(derived["ocean_horizontal_diffusion"]),
         "HDIFFK@oceanmod_namelist":
             f"{derived['ocean_horizontal_diffusivity_m2_s']:.6g}",
-        # PHYS-11, radmod_nl, and it lands on TSWR3 ALONE. The compiled value
-        # is 0.0055, so scale 1.0 reproduces it exactly.
+        # PHYS-11, radmod_nl. It lands on CLOUDABS, which is the co-albedo
+        # RATIO itself and not a coefficient carrying it: radmod's compiled
+        # default is 1.0, the Sun, so scale 1.0 reproduces the tables as
+        # printed.
         #
         # `swr` carries two shortwave cloud schemes and NSWRCL picks between
         # them. The computed branch, NSWRCL = 1, solves a two-stream layer
-        # whose single-scattering albedo is `1 - tswr3*mu0^2*log(1000/tau)`, so
-        # `tswr3` multiplies the co-albedo and the flux-weighted co-albedo
-        # ratio `cloud_band_weight.py` derives is exactly its multiplier. Both
-        # of `tswr3`'s uses are inside that branch, one for the diffuse stream
-        # through `zb5` and one for the direct beam.
+        # whose single-scattering co-albedo is interpolated from Stephens et
+        # al. (1984) Table 1(a), and CLOUDABS multiplies that interpolated
+        # co-albedo in both streams. The tables are flux-weighted over range 2
+        # against the Sun, which is exactly the denominator
+        # `cloud_band_weight.py` divides by, so the weight it derives is
+        # unchanged by the table adoption: what changed is the key it arrives
+        # on. It used to arrive as TSWR3, the coefficient of the analytic fit
+        # the tables replaced, and that coefficient no longer exists.
+        # world-f9ig.
         #
         # The prescribed branch, NSWRCL = 0, is the only reader of `acl2`, so
         # scaling `acl2` under NSWRCL = 1 wrote a number the modelled radiation
         # cannot consume. It is no longer written. Dropping it is bit-identical
         # for every run this project makes, and the +2.0 K the PHYS-11 arms
-        # measured was always `tswr3`'s: those arms ran NSWRCL = 1 too. clim-68.
-        "TSWR3@radmod_namelist":
-            f"{0.0055 * derived['cloud_absorption_scale']:.6g}",
+        # measured was always the co-albedo's: those arms ran NSWRCL = 1 too.
+        # clim-68.
+        "CLOUDABS@radmod_namelist":
+            f"{derived['cloud_absorption_scale']:.6g}",
         # NSWRCL, written unconditionally at radmod's compiled default so the
         # run's namelist records WHICH cloud scheme the shortwave used. Nothing
         # in this project had ever named it, so the branch selection was
@@ -1031,11 +1038,13 @@ def derive(config: dict, flux_ratio: float) -> dict:
             config["ocean"].get("horizontal_diffusion", False))),
         "ocean_horizontal_diffusivity_m2_s": float(
             config["ocean"].get("horizontal_diffusivity_m2_s", 1.0e3)),
-        # PHYS-11. Scales the two ABSORPTION-like cloud keys only, tswr3 and
-        # the acl2 triplet. The scattering keys are held and acllwr is a
-        # thermal-band constant with no stellar dependence, so neither gets an
-        # arm on this argument. 1.0 must reproduce the compiled values exactly,
-        # which is the arm the prediction says has to come out bit-identical.
+        # PHYS-11. Scales the range-2 cloud CO-ALBEDO and nothing else. The
+        # backscatter fractions are tabulated alongside it and are scattering
+        # rather than absorption, so they carry no stellar re-weighting, and
+        # acllwr is a thermal-band constant with no stellar dependence; neither
+        # gets an arm on this argument. 1.0 must reproduce radmod's compiled
+        # value exactly, which is the arm the prediction says has to come out
+        # bit-identical.
         "cloud_absorption_scale": float(
             config["model"].get("cloud_absorption_scale", 1.0)),
         # CLIM/world-nfh. The canopy albedo the two forested-snow endmembers
@@ -2650,9 +2659,10 @@ def expected_namelist_keys(config: dict) -> dict:
     # scale. Both are written unconditionally by `configure_otherargs`, so both
     # are checked unconditionally: ALBFOREST is per band and dropping it reverts
     # the modelled canopy to landmod's compiled Earth-Sun broadband endmember in
-    # both bands, and dropping TSWR3 reverts the modelled cloud to radmod's
-    # Earth tuning. ALBFOREST is the one this gate could not hold until the
-    # comparison carried sequences; world-2wd.
+    # both bands, and dropping CLOUDABS reverts the modelled cloud co-albedo to
+    # the solar weighting Stephens's tables are printed at. ALBFOREST is the one
+    # this gate could not hold until the comparison carried sequences;
+    # world-2wd.
     #
     # Rounded to the six significant digits `configure_otherargs` writes, for
     # AKAP's reason below: the comparison is against the value the namelist can
@@ -2660,11 +2670,11 @@ def expected_namelist_keys(config: dict) -> dict:
     want["landmod_namelist"]["ALBFOREST"] = [
         float(f"{float(v):.6g}") for v in m["vegetation_albedo_bands"]]
     cloud_scale = float(m.get("cloud_absorption_scale", 1.0))
-    want["radmod_namelist"]["TSWR3"] = float(f"{0.0055 * cloud_scale:.6g}")
-    # clim-68. NSWRCL selects the shortwave cloud scheme, and TSWR3 acts only
-    # in the computed branch it selects at 1. Checking it is what makes the
-    # line above mean anything: a segment that reached the prescribed branch
-    # would carry a scaled TSWR3 no code reads, and `acl2`, which that branch
+    want["radmod_namelist"]["CLOUDABS"] = float(f"{cloud_scale:.6g}")
+    # clim-68. NSWRCL selects the shortwave cloud scheme, and CLOUDABS acts
+    # only in the computed branch it selects at 1. Checking it is what makes
+    # the line above mean anything: a segment that reached the prescribed
+    # branch would carry a scale no code reads, and `acl2`, which that branch
     # does read, is left at radmod's Earth tuning deliberately.
     want["radmod_namelist"]["NSWRCL"] = 1.0
     # world-35en. NCLOUDS gates the branch NSWRCL selects within, so checking

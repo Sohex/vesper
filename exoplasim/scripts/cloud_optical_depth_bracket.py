@@ -57,6 +57,7 @@ import _paths  # noqa: F401  anchors every path on this file and adds lib/
 
 import sensitivity  # noqa: E402
 import stellar  # noqa: E402
+import stephens_tables_vs_fits as stephens  # noqa: E402
 from paths import rel  # noqa: E402
 
 ROOT = _paths.PROJECT_ROOT
@@ -209,20 +210,34 @@ def cloud_fraction(clt, shape):
     return dcc, 1.0 - np.prod(1.0 - dcc, axis=1)
 
 
-def band1_column_reflectance(tau, dcc, mu0, tswr1, zmu00=0.5):
+def _diffuse_reflectance(tau, zmu00=0.5):
+    """Stephens Eq. (1) for the diffuse stream at one optical depth.
+
+    The backscatter fraction moves with the optical depth in Table 1(b), so a
+    comparison between two optical depths has to interpolate at each of them
+    rather than share one hoisted beta. world-f9ig.
+    """
+    beta = stephens.interp_table(stephens.BETA1_1984, tau, zmu00)
+    return 1.0 - 1.0 / (1.0 + beta * tau / zmu00)
+
+
+def band1_column_reflectance(tau, dcc, mu0, zmu00=0.5):
     """Band-1 cloud reflectance of the column, composed the way swr composes it.
 
     Per layer, Stephens Eq. (1) in radmod's form: Re = 1 - 1/(1 + beta tau/mu0),
-    with beta = tswr1 sqrt(mu0) for the direct stream and the diffuse stream
-    evaluated at zmu00. The two are blended by the clear-sky fraction above the
-    layer, which is radmod's `zcs`, and the column is the random-overlap
-    product of what each layer leaves unreflected.
+    with beta interpolated from Stephens et al. (1984) Table 1(b) at the layer's
+    range-1 optical depth and the beam's cosine, for the direct stream, and the
+    diffuse stream evaluated at zmu00. That is what `swr` reads; the analytic
+    fit it used to read carried a coefficient nothing derived (world-f9ig). The
+    two streams are blended by the clear-sky fraction above the layer, which is
+    radmod's `zcs`, and the column is the random-overlap product of what each
+    layer leaves unreflected.
 
     tau and dcc are (lev, lat, lon); mu0 is (lat,) and may hold zeros.
     """
     mu = np.maximum(1e-30, mu0)[None, :, None]
-    b1 = tswr1 * np.sqrt(mu)
-    b3 = tswr1 * math.sqrt(zmu00) / zmu00
+    b1 = stephens.interp_table(stephens.BETA1_1984, tau, mu)
+    b3 = stephens.interp_table(stephens.BETA1_1984, tau, zmu00) / zmu00
     direct = 1.0 - 1.0 / (1.0 + b1 * tau / mu)
     diffuse = 1.0 - 1.0 / (1.0 + b3 * tau)
     clear_above = np.concatenate(
@@ -274,8 +289,6 @@ def main() -> None:
     clwref = float(nl.get("CLWREF", 0.00021))
     clwhsc = float(nl["CLWHSC"]) if "CLWHSC" in nl \
         else 700.0 * (gascon / ga) / (287.0 / 9.80665)
-    tswr1 = float(nl.get("TSWR1", 0.077))
-
     zsolar1 = float(stellar.band1_fraction())
 
     with Dataset(args.climatology) as ds:
@@ -321,10 +334,11 @@ def main() -> None:
     #                   optically thickest cloud and so the least sensitive
     #   largest_move    all of it in the layer whose band-1 cloud reflectance
     #                   moves most, evaluated at the diffuse-stream cosine
-    b3 = tswr1 * math.sqrt(0.5) / 0.5
+    b3new = stephens.interp_table(stephens.BETA1_1984, tau_new1, 0.5) / 0.5
+    b3old = stephens.interp_table(stephens.BETA1_1984, tau_old, 0.5) / 0.5
     per_layer_move = np.abs(
-        (1.0 - 1.0 / (1.0 + b3 * tau_new1))
-        - (1.0 - 1.0 / (1.0 + b3 * tau_old))).mean(axis=(0, 2, 3))
+        (1.0 - 1.0 / (1.0 + b3new * tau_new1))
+        - (1.0 - 1.0 / (1.0 + b3old * tau_old))).mean(axis=(0, 2, 3))
     shapes = {
         "uniform": np.ones(nlev),
         "water_weighted": lwp,
@@ -354,8 +368,8 @@ def main() -> None:
                 # The weight IS the incident flux: a night lane carries mu0 = 0
                 # and contributes nothing, so no separate day mask is needed.
                 w = f1 * (mu0[:, None] * np.ones((1, nlon))) / args.hours
-                r_old = band1_column_reflectance(tau_old[t], dcc[t], mu0, tswr1)
-                r_new = band1_column_reflectance(tau_new1[t], dcc[t], mu0, tswr1)
+                r_old = band1_column_reflectance(tau_old[t], dcc[t], mu0)
+                r_new = band1_column_reflectance(tau_new1[t], dcc[t], mu0)
                 d_toa = over_surface(r_new, alb1[t]) - over_surface(r_old, alb1[t])
                 d_reflected[t] += w * d_toa
                 d_reflected_black[t] += w * (r_new - r_old)
@@ -419,8 +433,8 @@ def main() -> None:
             "tau_band1_eq10a": float(tau_band(w_mean, A1, P1)),
             "tau_band2_eq10b": float(tau_band(w_mean, A2, P2)),
             "d_reflectance_diffuse": float(
-                (1.0 - 1.0 / (1.0 + b3 * tau_band(w_mean, A1, P1)))
-                - (1.0 - 1.0 / (1.0 + b3 * tau_inherited(w_mean)))),
+                _diffuse_reflectance(tau_band(w_mean, A1, P1))
+                - _diffuse_reflectance(tau_inherited(w_mean))),
         })
 
     out = {
@@ -434,7 +448,7 @@ def main() -> None:
         "constants_from": rel(run_dir),
         "constants": {
             "ga_m_s2": ga, "gascon_j_kg_k": gascon, "gsol0_w_m2": gsol0,
-            "clwref_kg_m3": clwref, "clwhsc_m": clwhsc, "tswr1": tswr1,
+            "clwref_kg_m3": clwref, "clwhsc_m": clwhsc,
             "zsolar1": zsolar1,
         },
         "planetary_albedo": alpha,

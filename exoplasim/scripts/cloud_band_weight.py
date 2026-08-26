@@ -11,21 +11,23 @@ Hansen's are fractions of TOTAL INCIDENT SOLAR flux, so the Sun's spectrum is
 baked into them and a K2.5V host gets the wrong absorbed fraction.
 `config/planet.yaml` states the general form: every one of those absorptances
 has to be re-weighted. The CLOUD constants are the same scheme and were never
-touched -- `acl2` (cloud absorptivities, range 2) and `tswr3` (single-scattering
-albedo tuning, range 2) are Earth tunings. PHYS-11.
+touched -- `acl2` (cloud absorptivities, range 2) and the range-2
+single-scattering co-albedo are stated for the Sun. PHYS-11.
 
-ONLY ONE OF THOSE TWO KEYS ACTS, AND IT IS NOT `acl2`. `nswrcl` compiles to 1
-and every run records 1, which selects the COMPUTED-cloud branch of `swr`.
-`acl2` appears only in the prescribed-cloud branch the other side of that
-switch, so scaling it changes nothing. `tswr3` acts twice in the computed
-branch, once for the diffuse stream through `zb5` and once for the direct beam,
-so the weight this script produces reaches the model through `tswr3` alone.
-`clim-68` settled that as `tswr3`-only: the harness no longer scales `acl2`, and
-it stages `NSWRCL` at 1 so a run's namelist records which cloud scheme its
+ONLY ONE OF THOSE TWO ACTS, AND IT IS NOT `acl2`. `nswrcl` compiles to 1 and
+every run records 1, which selects the COMPUTED-cloud branch of `swr`. `acl2`
+appears only in the prescribed-cloud branch the other side of that switch, so
+scaling it changes nothing. The co-albedo acts twice in the computed branch,
+once for the diffuse stream and once for the direct beam, and the weight this
+script produces reaches both through the single namelist key `cloudabs`.
+`clim-68` settled that as co-albedo-only: the harness no longer scales `acl2`,
+and it stages `NSWRCL` at 1 so a run's namelist records which cloud scheme its
 shortwave used. `NCLOUDS`, the switch above it that decides whether the
 shortwave takes a cloud branch at all, is staged beside it for the same reason
-(world-35en). Nothing here changed, because the weight is a property of the
-star and the droplets and not of which key carries it.
+(world-35en). Nothing here changed then, and nothing here changed when
+world-f9ig replaced the analytic co-albedo fit with Stephens et al. (1984)
+Table 1(a), because the weight is a property of the star and the droplets and
+not of which key carries it or of what shape the solar-weighted co-albedo has.
 
 The 2026-08-20 arm bundle measured what that omission is worth: +/-2.6 K over
 the declared 0.78 to 1.28 bracket, larger than the entire forcing bundle. That
@@ -47,9 +49,11 @@ star, so the weight is the ratio of flux-weighted co-albedo over that range:
 
     w = <1 - omega0>_star / <1 - omega0>_sun
 
-That is the quantity `tswr3` scales directly: the computed branch sets the
-layer's single-scattering albedo as `1 - tswr3*mu0^2*log(1000/tau)`, so `tswr3`
-multiplies the co-albedo and the ratio above is the right multiplier for it.
+That is the quantity `cloudabs` scales directly: the computed branch interpolates
+the layer's co-albedo from Stephens et al. (1984) Table 1(a), which is itself
+flux-weighted over range 2 against the Sun, and `cloudabs` multiplies it. The
+denominator above is the table's own weighting, which is why the ratio is the
+right multiplier for it.
 
 TWO SCALINGS, REPORTED AS A BRACKET rather than resolved. In the weak-absorption
 limit a layer's absorptance is linear in the co-albedo; for a thick scattering
