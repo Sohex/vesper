@@ -303,7 +303,7 @@ ready to land as one scientific change.
 
 ## cGENIE
 
-The candidate offline ocean is vendored at `vendor/cgenie/`, a git subtree from
+The ADOPTED offline ocean is vendored at `vendor/cgenie/`, a git subtree from
 the `master` branch of `derpycode/cgenie.muffin`, MIT licensed. Pull upstream
 with `git subtree pull --prefix vendor/cgenie cgenie-fork master --squash`.
 
