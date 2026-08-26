@@ -151,14 +151,13 @@ def _split_args(rest: str) -> list[str]:
 def _dim(token: str):
     """A dimension as an int where it is a literal, else its symbol.
 
-    A product of the two -- `NLEV*28`, which is how `adener3d(NHOR,NLEV,28)`
-    reaches `mpputgp` as one gridpoint record -- comes back as a tuple of the
-    factors, and `Geometry.resolve` multiplies them. Anything else stays a
-    single symbol and raises there if no geometry knows it.
+    A PRODUCT STAYS ONE SYMBOL, `NLEV*28`, which is how `adener3d(NHOR,NLEV,28)`
+    reaches `mpputgp` as one gridpoint record. `Geometry.resolve` splits it and
+    multiplies the factors. It is kept as a string rather than expanded into a
+    tuple because a shape is a sequence of symbols that gets sorted and printed,
+    and a tuple inside one is neither orderable against the rest nor readable.
     """
     token = token.strip()
-    if "*" in token:
-        return tuple(_dim(part) for part in token.split("*"))
     return int(token) if token.isdigit() else token.upper()
 
 
@@ -1093,10 +1092,11 @@ class Geometry:
     def resolve(self, token) -> int:
         if isinstance(token, int):
             return token
-        if isinstance(token, tuple):
+        if "*" in token:
             n = 1
-            for part in token:
-                n *= self.resolve(part)
+            for part in token.split("*"):
+                part = part.strip()
+                n *= int(part) if part.isdigit() else self.resolve(part)
             return n
         try:
             value = {"NUGP": self.nugp, "NRSP": self.nrsp, "NESP": self.nesp,

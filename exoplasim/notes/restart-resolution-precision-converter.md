@@ -279,10 +279,11 @@ Field policies differ by physical meaning:
 | geometric | grid-cell area | recompute on target grid |
 | diagnostic/derived | relative humidity, active albedo, saturation caches | recompute in the target model |
 
-Land and ocean must be remapped separately under the target mask. Newly created
-land or ocean cells need a declared fallback, preferably the target template or
-the nearest valid source cell of the same class. The report must quantify the
-inventory introduced or removed by mask changes and by any bounds correction.
+Land and ocean must be remapped separately under the target mask. A newly
+created land or ocean cell takes the nearest source cell of its own class, and
+the conversion is refused where the source has no cell of that class at all.
+The report must quantify the inventory introduced or removed by mask changes
+and by any bounds correction.
 
 Monthly/climatological fields with 14 slices are remapped slice by slice when
 they are prognostic. Static climatologies come from the target template.
@@ -533,14 +534,26 @@ seeded from the same conversion of `run_2b20e3324bb0`'s restart onto a template
 cut from `run_8102b89a08ac`. All three ran on executable `eae6b0e89357`, so the
 comparison is paired on everything but those records.
 
-**THE TEMPLATE'S OWN STATE IS WHAT MATTERS, and it is not the derived records.**
+**THE COASTLINE CELLS ARE WHAT MATTERS, and they are not the derived records.**
 On the same conversion, 124 target land cells and 132 target ocean cells found
-no source of their own class: the cells a moved coastline creates. They take
-the template's value by declared fallback, and with a cold template that is
-the template's ice -- 103% of the sea-ice volume residual is exactly that. The
+no source of their own class: the cells a moved coastline creates. They used to
+take the target template's value, and with a cold template that is the
+template's ice -- 103% of the sea-ice volume residual was exactly that. The
 derived records recover in a timestep; a prognostic reservoir arriving on a
-coastline cell does not. Cut a template from a run in a state near the donor's,
-and read `from_template_fallback` in the report before trusting an inventory.
+coastline cell does not, because it is the state that cell integrates from.
+
+They take **the nearest source cell of their own class** now, which is decision
+3 below. The counts are a property of the two masks alone and reproduce off the
+artifacts without a conversion: `run_57cecaa8391b`'s restart mask against the
+staged T42 mask gives the same 124 and 132, every one of them within 11 degrees
+of a donor cell of its class and half of them within 4.4. The value those cells
+open on is therefore a coastal neighbour's in the donor's own climate -- for
+soil water, a mean of 0.273 against the donor's land mean of 0.229 -- rather
+than whatever state a template's run happened to be in.
+
+`from_fallback` in the report is the inventory those cells add, and they add it
+under any fallback: they overlap no source of their class, so nothing was taken
+away to pay for them. Read it before trusting an inventory residual.
 
 ## The decisions the contract rests on
 
@@ -553,8 +566,27 @@ and read `from_template_fallback` in the report before trusting an inventory.
    inferable as the right answer: the caller names one, with `--seed` or
    `--keep-template-seed`.
 3. **The fallback for a target cell with no same-class source overlap is the
-   target template**, and every such cell is counted in the report. It is the
-   only value on hand that belongs to the target grid.
+   nearest source cell of that class**, and every such cell is counted in the
+   report and named at the conversion rather than after it. The target
+   template's value was the alternative and is the wrong one: it belongs to the
+   target grid and to nothing else in the file, while the donor's own coastal
+   neighbour is consistent with every prognostic that was just converted. That
+   is the argument the schema already makes for the records the model rebuilds,
+   and it is stronger here, because those recover in a timestep and a
+   prognostic reservoir on a coastline cell does not.
+
+   THE OTHER CANDIDATE WAS A DECLARED DISTANCE between the template's state and
+   the donor's, refused beyond it. It is rejected as a design. The distance
+   would have no derivation and would be set until conversions stopped being
+   refused, which is a tuned value; and the requirement is wrong in kind, since
+   a template exists to supply the TARGET's record set, precision and static
+   fields, and asking it to also be in the donor's climate state makes cutting
+   one depend on the state being converted.
+
+   A target cell OUTSIDE the field's domain still takes the template's value,
+   and that is not a fallback: an ocean cell's soil temperature is the target's
+   own. A target cell IN a domain the source has nowhere at all is refused, not
+   filled: that is a change of surface rather than a change of resolution.
 4. **The tolerance on a configuration real is one part in a million**, fixed
    before any conversion was run. It is far looser than the cast a value may
    have crossed and far tighter than a configuration change, which moves these

@@ -572,7 +572,8 @@ def test_end_to_end(tmp: Path, donor: Path) -> list[str]:
                  "how many target cells it could not fill")
     said.append(f"{len(reservoirs)} reservoirs report their inventory; the "
                 f"{len(masked)} remapped under a mask also report the cells "
-                "the mask left for the template to fill")
+                "the mask left with no source of their own class, which take "
+                "the nearest source cell of that class")
 
     static = [n for n, pol in rs.POLICY.items()
               if pol.action == rs.TARGET and n in src.by_name]
