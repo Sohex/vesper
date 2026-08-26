@@ -425,6 +425,20 @@ POLICY.update({
                       why="forest cover, staged code 212"),
     "dwmax": Policy(STATIC_GRID, TARGET, vegetation_owned=True,
                     why="field capacity, staged code 229"),
+    "dsoilwfc": Policy(STATIC_GRID, TARGET,
+                       why="WORLD-VJBZ. The capacity of each land water layer "
+                           "as a fraction of dwmax, per cell, staged code "
+                           "2290. A STATIC_GRID taken from the TARGET on the "
+                           "same terms dwmax is: both are the same integral of "
+                           "the land column property contract over the same "
+                           "profile, one summed and one cut, so a conversion "
+                           "that took dwmax from the target template and this "
+                           "from the source would install a split belonging to "
+                           "another soil. Written every step whatever "
+                           "nlandwcol is; a restart that lacks the record "
+                           "falls back to the namelist dsoilwf, which is the "
+                           "split exactly at one layer and is refused above "
+                           "it"),
     "doro": Policy(STATIC_GRID, TARGET,
                    why="oroscale-scaled and spectrally fitted at the target "
                        "truncation, and under nglacier it carries the ice "

@@ -25,19 +25,34 @@ SRA_DATE_STAMP = 20260811
 
 
 def write_sra(path: Path, code: int, field: np.ndarray) -> None:
-    """Write one field to `path` under ExoPlaSim's numeric `code`."""
-    nlat, nlon = field.shape
-    flat = np.asarray(field, dtype=np.float64).ravel(order="C")
-    if flat.size % 8:
+    """Write one field to `path` under ExoPlaSim's numeric `code`.
+
+    `field` is (nlat, nlon), or (nlev, nlat, nlon) for a code the model reads
+    with more than one level. `surfmod`'s `get_surf_array` reads `klot`
+    consecutive header-and-field records out of one file, which is how the
+    14-month climatologies arrive; a levelled field is written the same way,
+    every record under the same code. A 2-D field writes exactly one record, so
+    this is what it always was for every existing caller.
+    """
+    levels = np.asarray(field, dtype=np.float64)
+    if levels.ndim == 2:
+        levels = levels[None, :, :]
+    if levels.ndim != 3:
+        raise ValueError(
+            f"SRA field must be (nlat, nlon) or (nlev, nlat, nlon); got shape "
+            f"{np.shape(field)}")
+    nlat, nlon = levels.shape[1], levels.shape[2]
+    if (nlat * nlon) % 8:
         raise ValueError(
             f"SRA field size must be divisible by 8; {nlat}x{nlon} is "
-            f"{flat.size}, which would write a short final row and shift "
+            f"{nlat * nlon}, which would write a short final row and shift "
             f"everything ExoPlaSim reads after it")
     header = [code, 0, SRA_DATE_STAMP, 0, nlon, nlat, 0, 0]
     with path.open("w", encoding="ascii") as handle:
-        handle.write("".join(f" {value:11d}" for value in header) + "\n")
-        for row in flat.reshape(-1, 8):
-            handle.write("".join(f" {value:12.5f}" for value in row) + "\n")
+        for level in levels:
+            handle.write("".join(f" {value:11d}" for value in header) + "\n")
+            for row in level.ravel(order="C").reshape(-1, 8):
+                handle.write("".join(f" {value:12.5f}" for value in row) + "\n")
 
 
 def read_sra(path: Path, nlat: int, nlon: int) -> np.ndarray:

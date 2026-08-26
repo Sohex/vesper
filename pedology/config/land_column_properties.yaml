@@ -165,7 +165,7 @@ geometry:
   consumers:
     exoplasim:
       geometry: 2 liquid water layers of 0.5 and 1.0 m, ACTIVE only at nlandwcol 1
-      what_it_reads: awc_mm from the emitted states, as the column capacity `dwmax` in metres of water
+      what_it_reads: awc_mm from the emitted states as the column capacity `dwmax` in metres of water, and the per-layer usable shares grouped onto its two water layers as the capacity SPLIT `dsoilwfc`
       note: >
         `dwmax` is a capacity, not a thickness, and the running configuration is
         still the scalar bucket -- `surface.land_water_column.scheme` is
@@ -177,13 +177,17 @@ geometry:
         share it, because two columns cannot agree about frozen soil across
         geometries that do not meet.
 
-        WHAT IS STILL OPEN IS THE CAPACITY SPLIT, not the geometry. ExoPlaSim
-        takes it as `dsoilwf`, one shape for the whole planet, and the split is
-        not one shape: measured over this build's land cells it sits at the
-        geometric 500/1500 wherever the regolith fills the column, which is
-        about a quarter of land, and rises toward the top of the column
-        everywhere the regolith contact and the bedrock fraction reweight it.
-        WORLD-VJBZ carries the measurement and the two dispositions.
+        THE CAPACITY SPLIT IS A FIELD, on the same footing as the capacity it
+        splits. It is not one shape: measured over this build's land cells the
+        upper layer's share sits at the geometric 500/1500 wherever the profile
+        is uniform -- the quarter of land where the regolith fills the column,
+        plus the cells whose weathered bedrock is at the capacity ceiling -- and
+        rises to nearly nine tenths everywhere the regolith contact and the
+        bedrock fraction reweight it. So it crosses as surface code 2290, one
+        record per water layer, derived from the SAME per-layer usable shares
+        the `awc_mm` column is the integral of: the split and the capacity are
+        one arithmetic rather than two that agree today. `dsoilwf` in
+        `landmod_nl` is what a cell no field covers takes. WORLD-VJBZ.
 
         Its five SOIL TEMPERATURE layers are a THIRD geometry, 0.4/0.8/1.6/3.2/
         6.4 m, which reaches 12.4 m and shares no boundary with either water

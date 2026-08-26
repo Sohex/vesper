@@ -171,10 +171,15 @@
       integer :: nlsoilw     = 1   ! liquid water layers when nlandwcol = 1
       integer :: nlandwdrain = 0   ! lower boundary: 0 impermeable, 1 free drain
 
-!     Layer capacity as a fraction of dwmax. Only the first nlsoilw entries are
-!     read and they are renormalised to sum to one, so a partial list is a
-!     shape rather than an error. The default puts everything in one layer,
-!     which is the reduction.
+!     Layer capacity as a fraction of dwmax, THE FALLBACK SHAPE. Only the first
+!     nlsoilw entries are read and they are renormalised to sum to one, so a
+!     partial list is a shape rather than an error. The default puts everything
+!     in one layer, which is the reduction.
+!
+!     IT IS THE FALLBACK AND NOT THE SPLIT. The capacity split is a per-cell
+!     property and this is one shape for the whole simulated planet, so it is
+!     what a cell gets when no field covers it, on the same footing as `wsmax`
+!     against the staged `dwmax`. `dsoilwfc` below is the field. WORLD-VJBZ.
       real    :: dsoilwf(NLSOILWX) = (/1.0, 0.0, 0.0, 0.0,                    &
      &                                 0.0, 0.0, 0.0, 0.0/)
 
@@ -381,6 +386,38 @@
       real :: dsoili(NHOR,NLSOILWX) = 0.0  ! soil ice by layer (m water equiv.)
       real :: ddrain(NHOR)          = 0.0  ! drainage out of the column base (m/s)
 !
+!     THE CAPACITY SPLIT, PER CELL. WORLD-VJBZ.
+!
+!     `dsoilwf` above is one shape for the whole simulated planet and the split
+!     is not one shape. It is the same integral `dwmax` is: the column capacity
+!     is the plant-available water content integrated over the physical column
+!     with the weathered-bedrock usable share applied layer by layer, and the
+!     SPLIT of that integral at a layer boundary is a function of the same
+!     regolith depth and bedrock fraction. Measured over this build's 1,019 land
+!     cells at the declared 0.5/1.0 m cut, the upper layer's share sits at the
+!     geometric 500/1500 = 0.3333 wherever the profile is uniform -- the 26.5
+!     per cent of land where the regolith fills the column, plus the cells whose
+!     weathered bedrock is at the capacity ceiling, 28.9 per cent together --
+!     and runs p50 0.4699, p95 0.8540, max 0.8882 elsewhere. One namelist number
+!     is wrong for most of the map, and the one that makes a comparison come out
+!     is a tuned value.
+!
+!     So it arrives the way every comparable surface property already does:
+!     `dwmax` is surface code 229, albedo and roughness are fields, and this is
+!     code 2290, `nlsoilw` levels of it, on the 1730/1740 precedent of a
+!     companion code. `pedology/scripts/land_column_properties.py` already emits
+!     the per-layer usable share the split is computed from, so the producer
+!     existed and what was missing was the code, the writer and this read.
+!
+!     THE SENTINEL IS NEGATIVE and it means "no field covers this cell". A
+!     staged file is optional at `nlsoilw = 1`, where the split is identically
+!     one and the namelist says so exactly; above one layer `landwfrac` refuses
+!     to run without it, because a split picked rather than derived is the thing
+!     this field exists to prevent. Renormalised per cell, so the layer
+!     capacities sum to `dwmax` by construction and cannot drift from the field
+!     the whole pedology loop feeds.
+      real :: dsoilwfc(NHOR,NLSOILWX) = -1.0 ! layer capacity share, per cell
+!
 !     The drainage's output accumulator, WORLD-P9QQ. `outmod` fills it, divides
 !     it by the output counter and resets it on the pattern `aroff` uses for
 !     the surface runoff, and it lives HERE rather than beside `aroff` in
@@ -415,7 +452,7 @@
 !$omp&  albsminf,albsminf1,albsminf2,co2conv,dalbcl,dalbcl1,dalbcl2,dalbclim,dalbclim1,dalbclim2,&
 !$omp&  darea,dgroundalbnl,doro,dqs,drhsfull,drhsland,driver,dsmax,dsnowt,dsnowz,dsoilt,dsoilz,dtcl,&
 !$omp&  dtclim,dtclsoil,dts,dtsm,duroff,dvroff,dwatcini,dwater,dwcl,dwclim,dz0clim,dz0climo,dz0land,&
-!$omp&  dwatcl,dsoili,ddrain,adrain,dsoilwf,dsoilwz,drhslow,nlandwcol,nlsoilw,nlandwdrain,nrhsexp,nlandwphase,dzglac,dztop,&
+!$omp&  dwatcl,dsoili,ddrain,adrain,dsoilwf,dsoilwfc,dsoilwz,drhslow,nlandwcol,nlsoilw,nlandwdrain,nrhsexp,nlandwphase,dzglac,dztop,&
 !$omp&  forcovmn,forcovmx,lversion,newsurf,nlandt,nlandw,nwatcini,nwetsoil,rhosnow,forext,forhgt,forint,forpai,&
 !$omp&  snowcovz,&
 !$omp&  rinifor,rlue,rnbiocats,roffexp,roffpit,roffvel,&
@@ -464,7 +501,7 @@
       use radmod
       use snowmaskmod
 
-      integer :: ifound(4)
+      integer :: ifound(5)
 !     The ice volume fraction the snow conductivity is derived from. Declared
 !     rather than left to implicit typing, and NOT initialised, so it is an
 !     automatic local and every thread computes its own. WORLD-A9S5.
@@ -750,6 +787,10 @@
          call mpsurfgp('dglac'   ,dglac   ,NHOR,1)
          call mpsurfgp('dforest' ,dforest ,NHOR,1)
          call mpsurfgp('dwmax'   ,dwmax   ,NHOR,1)
+!        The capacity split, code 2290, `nlsoilw` levels. WORLD-VJBZ. Left at
+!        its negative sentinel when no file is staged, which `landwfrac` reads
+!        as "fall back to the namelist shape" at one layer and refuses above it.
+         call mpsurfgp('dsoilwfc',dsoilwfc,NHOR,nlsoilw)
          call mpsurfgp('dtclsoil',dtclsoil,NHOR,1)
    
          call mpsurfgp('dtcl',dtcl,NHOR,14)
@@ -791,6 +832,10 @@
          elsewhere
             dglac(:) = 0.0
          endwhere
+!
+!*    the capacity split, before soilini distributes the store over the layers
+!
+       call landwfrac
 !
 !*    initialize soil
 !
@@ -952,17 +997,24 @@
        call mpgetgp_found('dsoili',dsoili,NHOR,NLSOILWX,ifound(2))
        call mpgetgp_found('ddrain',ddrain,NHOR,     1  ,ifound(3))
        call mpgetgp_found('adrain',adrain,NHOR,     1  ,ifound(4))
+!      The capacity split. WORLD-VJBZ. On this path the surface files are not
+!      read at all, so the restart is where the field comes from; an absent
+!      record leaves the negative sentinel and `landwfrac` falls back to the
+!      namelist shape, which at one layer is the field exactly.
+       call mpgetgp_found('dsoilwfc',dsoilwfc,NHOR,NLSOILWX,ifound(5))
        if (mypid == NROOT .and. ifound(1) == 1 .and.                    &
      &     (ifound(2) == 0 .or. ifound(3) == 0 .or. ifound(4) == 0)) then
         write(nud,*)' *** LSHY-3: this restart carries dwatcl but not all'
         write(nud,*)' *** of dsoili, ddrain, adrain; the absent ones start'
         write(nud,*)' *** at zero.'
        endif
+       if (ifound(5) == 0) dsoilwfc(:,:) = -1.
+       call landwfrac
        if (ifound(1) == 0) then
         dwatcl(:,:) = 0.
         dsoili(:,:) = 0.
         do jlay=1,nlsoilw
-         where(dls(:) > 0.0) dwatcl(:,jlay)=dwatc(:)*dsoilwf(jlay)
+         where(dls(:) > 0.0) dwatcl(:,jlay)=dwatc(:)*dsoilwfc(:,jlay)
         enddo
         ddrain(:) = 0.
         if (mypid == NROOT) then
@@ -990,6 +1042,11 @@
 
       if (newsurf == 2) then ! preset some fields
          dwmax(:)    = wsmax
+!        The capacity split follows dwmax back to the namelist: this branch is
+!        "take the land surface from the namelist again", and a per-cell split
+!        left standing over a uniform capacity would be half a field. WORLD-VJBZ.
+         dsoilwfc(:,:) = -1.
+         call landwfrac
          dz0clim(:)  = dz0land
          dalbcl(:,:) = albland
          dalbcl1(:,:) = dgroundalb(1)
@@ -999,6 +1056,108 @@
 
       return
       end subroutine landini
+
+!     ====================
+!     SUBROUTINE LANDWFRAC
+!     ====================
+
+      subroutine landwfrac
+      use landmod
+!
+!     The capacity split, per cell, resolved once. WORLD-VJBZ.
+!
+!     `dsoilwfc` arrives either from surface code 2290 or from the restart, and
+!     either way carries the negative sentinel on any cell no field covered.
+!     This turns whatever arrived into a usable shape and is the ONLY place that
+!     happens, so nothing downstream has to ask where the split came from.
+!
+!     THE FALLBACK IS THE NAMELIST SHAPE AND IT IS ONLY DEFENSIBLE AT ONE LAYER.
+!     At `nlsoilw = 1` the split is identically one, `dsoilwf` already says so
+!     exactly, and the field buys nothing -- so a run with no staged file is not
+!     approximating anything and there is nothing to refuse. Above one layer the
+!     shape is a model-form approximation with a measured cost: over this
+!     build's land cells the upper share of the declared 0.5/1.0 m cut runs from
+!     the geometric 0.3333 to 0.8882 with a median of 0.4699, so one number is
+!     wrong for most of the map and the one that makes a comparison come out is
+!     a tuned value. That is what the refusal below is for. It is the same
+!     position `get_surf_array` takes on an absent land mask: a field this world
+!     supplies itself is missing because staging failed, never on purpose.
+!
+!     RENORMALISED PER CELL, so `sum(dwmax*dsoilwfc)` is `dwmax` to the layer
+!     sum's rounding whatever the writer emitted. The column capacity is the
+!     field the whole pedology loop feeds and a split that did not sum to one
+!     would move it without saying so -- the same argument landini's
+!     renormalisation of `dsoilwf` already makes, applied a cell at a time.
+!
+      real    :: zf(NLSOILWX)
+      real    :: zsum
+      real    :: zmiss, zbad
+      integer :: jhor, jlay
+!
+!     COUNTED AS REALS because the reduction that adds them across ranks is
+!     `mpsumbcr` and there is no integer one. They are counts and nothing
+!     divides by them, so the representation carries them exactly.
+      zmiss = 0.
+      zbad  = 0.
+      do jhor = 1, NHOR
+       zsum = 0.
+       do jlay = 1, nlsoilw
+        zf(jlay) = dsoilwfc(jhor,jlay)
+        if (zf(jlay) < 0.) then
+         zsum = -1.
+         exit
+        endif
+        zsum = zsum + zf(jlay)
+       enddo
+!      A cell with no field, or with a shape that sums to nothing, takes the
+!      namelist shape. landini has already renormalised that over nlsoilw and
+!      zeroed its tail, so it needs no second pass here.
+       if (zsum <= 0.) then
+        if (zsum < 0.) then
+         zmiss = zmiss + 1.
+        else
+         zbad = zbad + 1.
+        endif
+        do jlay = 1, NLSOILWX
+         dsoilwfc(jhor,jlay) = dsoilwf(jlay)
+        enddo
+       else
+        do jlay = 1, nlsoilw
+         dsoilwfc(jhor,jlay) = zf(jlay) / zsum
+        enddo
+        do jlay = nlsoilw+1, NLSOILWX
+         dsoilwfc(jhor,jlay) = 0.
+        enddo
+       endif
+      enddo
+!
+      call mpsumbcr(zmiss,1)
+      call mpsumbcr(zbad,1)
+!
+      if (nlsoilw > 1 .and. zmiss + zbad > 0.) then
+       if (mypid == NROOT) then
+        write(nud,*)'*** WORLD-VJBZ: nlsoilw = ',nlsoilw,' and ',        &
+     &              nint(zmiss+zbad),' cells carry no capacity split.'
+        write(nud,*)'*** Above one layer the split is a per-cell field,'
+        write(nud,*)'*** surface code 2290, and the namelist dsoilwf is a'
+        write(nud,*)'*** fallback shape rather than the split. Stage it'
+        write(nud,*)'*** with exoplasim/scripts/build_surface_soil_water.py.'
+       endif
+       stop
+      endif
+!
+      if (mypid == NROOT) then
+       if (zmiss + zbad == 0.) then
+        write(nud,*)' *** WORLD-VJBZ: the capacity split is a field on',  &
+     &              ' every cell'
+       else
+        write(nud,*)' *** WORLD-VJBZ: the capacity split is the namelist',&
+     &              ' shape; at nlsoilw = 1 that is the split exactly'
+       endif
+      endif
+!
+      return
+      end subroutine landwfrac
 
 
 !     ===================
@@ -1176,6 +1335,10 @@
       call mpputgp('dsoili'  ,dsoili  ,NHOR,NLSOILWX)
       call mpputgp('ddrain'  ,ddrain  ,NHOR, 1)
       call mpputgp('adrain'  ,adrain  ,NHOR, 1)
+!     The capacity split travels with the restart for the same reason `dwmax`
+!     does: it is a per-cell surface property, and a resumed run that rebuilt it
+!     from the namelist would silently swap a field for a shape. WORLD-VJBZ.
+      call mpputgp('dsoilwfc',dsoilwfc,NHOR,NLSOILWX)
       call mpputgp('dz0clim' ,dz0clim ,NHOR, 1)
       call mpputgp('dz0climo',dz0climo,NHOR, 1)
       call mpputgp('dalbcl'  ,dalbcl  ,NHOR,14)
@@ -1699,7 +1862,7 @@
         zwl(:)  = 0.
         zil(:)  = 0.
         do jlay=1,nlsoilw
-         zcap(jlay) = dwmax(jhor) * dsoilwf(jlay)
+         zcap(jlay) = dwmax(jhor) * dsoilwfc(jhor,jlay)
          zwl(jlay)  = dwatcl(jhor,jlay)
          zil(jlay)  = dsoili(jhor,jlay)
         enddo
@@ -1842,7 +2005,7 @@
        dwatcl(:,:)=0.
        dsoili(:,:)=0.
        do jlay=1,nlsoilw
-        where(dls(:) > 0.0) dwatcl(:,jlay)=dwatc(:)*dsoilwf(jlay)
+        where(dls(:) > 0.0) dwatcl(:,jlay)=dwatc(:)*dsoilwfc(:,jlay)
        enddo
 !
       endif
