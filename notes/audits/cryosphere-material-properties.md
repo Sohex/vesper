@@ -159,6 +159,33 @@ with no effect whatever, which is a worse state than the one it was in.
 `landmod`'s `CPSNOW`, at the same value, is the live declaration of that
 quantity and is what `snowcap` is derived from.
 
+## The glacial-ice pair, found beside these and not settled here
+
+`landmod.f90` carries two more material constants of modelled ice, for the
+GLACIAL ice that `glaciermod` grows and that weights the soil column's thermal
+properties by `dglac`. Both were looked at while settling the six above and
+neither is in scope for the ocean tier, so they are recorded here as a finding
+and are not changed.
+
+- **`sicecap`, the heat capacity per unit volume of the modelled glacial ice,
+  is computed at LIQUID WATER'S DENSITY.** Its value factorises exactly as one
+  thousand times the specific heat of ice, and glacial ice is not water: at
+  `glaciermod`'s own declared `rhoglac` the product is about a sixth smaller,
+  and at pure ice Ih's density about a twentieth smaller. **This is GRAV-8's
+  defect, third instance.** GRAV-8 exposed `rhoglac` as a namelist key so the
+  gravity bracket could be run, and made `snowcap` follow `rhosnow` because a
+  volumetric heat capacity is a density times a specific heat; WORLD-A9S5 made
+  `snowdiff` follow it for the same reason. `sicecap` follows nothing, so a
+  bracket that moves `rhoglac` today moves the ice orography and leaves the
+  thermal mass of the ice behind.
+- **`sicediff`, the conductivity of the modelled glacial ice, stands at the
+  same number as `icemod`'s `CKAPI`.** These are NOT the same quantity and must
+  not be deduplicated into one: glacial ice is fresh and sea ice is
+  brine-bearing, and their conductivities differ by a term in the ice's
+  salinity over its temperature. What is true is that neither is sourced, and
+  that the fresh one is the one a standard could settle, because it is a pure
+  substance in the way the sea-ice constants are not.
+
 ## What this did not establish
 
 - **Nothing was run.** Every statement is against the source, the standard, or a
