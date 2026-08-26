@@ -298,7 +298,6 @@
 #else
       integer :: nshtns   = 0   ! the MPI build cannot use SHTns
 #endif
-      integer :: nrdrag   = 0   ! 1: Apply Rayleigh fraction to 20-layer atmosphere
       integer :: l_aero    = 1   ! 1: Aerosols on; this also enables the semi-Lagrangian advection tracer grid initialisations
 !>>> AYP -- NEEDED AS PART OF GLACIERMOD      
       integer :: nglspec = 0
@@ -1152,7 +1151,7 @@
 !$omp&  dconvacc,nconvacc,nconvtime,dconvspd,dconvspa,dsdiv,ndealias,ddealias,&
 !$omp&  nfilterexp,nfixorb,ngenkeplerian,nglspec,ngptfilter,ngui,nguidbg,nhcadence,nhcstp,&
 !$omp&  nhdiff,nhordif,nhurricane,nindex,nkits,nlowio,noutput,nperpetual,nprhor,&
-!$omp&  nprint,nproc,nqspec,nrad,nrdrag,nrestart,nrho,nscatsp,nseedlen,nsela,&
+!$omp&  nprint,nproc,nqspec,nrad,nrestart,nrho,nscatsp,nseedlen,nsela,&
 !$omp&  nshtns,nshutdown,nsnapshot,&
 !$omp&  nspinit,nsponge,nspvfilter,nstep,nstep1,nstps,nstpw,nstratosponge,nsync,ntime,ntpal,ntspd,&
 !$omp&  nud,numrhos,nut,nveg,nwpd,nwritehurricane,obliq,ocean_output,oceanmod_namelist,olr,oroscale,&
