@@ -350,10 +350,10 @@ time. The instantaneous reading is the one the rule asks for.
 
 This also closes the gap the block's own corroboration could not explain. 5.94
 sat a factor of 2.1 to 2.9 below the 12.6 to 17.5 m/s that ECHAM5's tuned table
-implies for Earth, with nothing to account for it; 10.09 sits 1.25 to 1.7 below,
-which is what a larger, more slowly rotating planet should give, and the residual
-gap is the constant discussed under "the weak link is U" below rather than a
-mismatch of quantities.
+implies for Earth, and nothing accounted for it; 10.09 sits 1.25 to 1.7 below,
+which is the size of difference two planets can carry. The corroboration was
+never on the value in any case -- it is on the RULE, and on the rule's claim
+that one wind serves every truncation.
 
 **The rule's `tau` belongs to VORTICITY.** The argument is about the enstrophy
 cascade, and enstrophy is a vorticity quantity. That assignment is checkable on
@@ -581,7 +581,7 @@ the zonal mean, and the zonal mean itself only advects the phase.
 What that spread NO LONGER contains is the instantaneous-against-time-mean gap,
 which was inside it while the recorded value was 5.94 and which was never a
 definitional choice at all -- it was two different quantities under one name.
-Removing it is where 1.3x of the old 3.3x went.
+Removing it is where 1.5x of the old 3.3x went.
 
 The constant in `tau = C dx/U` was the other half of this weakness and is no
 longer part of it: `C = 1` is a SUFFICIENCY requirement rather than a fit to
