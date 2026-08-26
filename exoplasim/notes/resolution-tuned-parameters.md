@@ -1698,37 +1698,34 @@ host load 5.0 to 7.4 over 32 cores:
 | fixer on, `run_614579b8b44a` | +0.0034 | -0.000197 |
 
 The three fixer-off rows are one configuration run three times. `denergy26 -
-denergy27` reproduces exactly and `Cimp - Ct` does not, which is the next
-paragraph.
+denergy27` reproduces exactly. The `Cimp - Ct` column of that table was read
+through an instrument that did not reproduce, and the next paragraph says what
+that is worth.
 
-**`Cimp - Ct` DOES NOT REPRODUCE, and the whole of the variation is `Ct`.** Three
-runs of one configuration on one restart with one binary, two of them on the same
-eight cores, give at the first kept print:
+**`Cimp - Ct` WAS NOT REPRODUCIBLE WHEN THOSE ROWS WERE TAKEN, and the whole of
+the variation was `Ct`.** Three runs of one configuration on one restart with one
+binary gave `Cimp - Ct` of +0.00026, +0.00400 and -0.00373 W/m2 at the first
+kept print, changing sign between runs of the same arm; `d02`, `d26`, `d27`,
+`Cimp`, `Cvadv`, `Ctm` and `Ctp` were bit-identical across all three and `Ct` and
+`Dt` were the only two that moved. It was a data race on `zcnow`, the only array
+those two terms read: each thread copied the whole shared divergence into it
+inside the parallel region while every thread advanced its own slice of that
+divergence later in the same routine, with nothing between the two. `world-tqh4`
+closed the copy against the advance with a barrier, and
+`exoplasim/notes/convdecomp-reproducibility.md` carries the mechanism, the change
+and the reproduction evidence: three and five runs of one configuration now give
+byte-identical `CONVDECOMP` lines at T21 and at T42, against a pre-fix control
+that fails the same comparison on `ct` and `dt` alone.
 
-    Cimp - Ct      +0.00026    +0.00400    -0.00373
-
-It changes sign between runs of the same arm. Column by column, `d02`, `d26`,
-`d27`, `Cimp`, `Cvadv`, `Ctm` and `Ctp` are bit-identical across all three and
-`Ct` and `Dt` are the only two that move. The full-physics pair below is bit
-identical on different cores, so the model is deterministic and this is specific
-to these two columns.
-
-**It localises to `zcnow`, which is the only array those two terms read.**
-`plasim.f90` computes terms 3 and 4 -- `Ct` and `Dt` -- from `zcnow`, and the
-other four from `zcsdt`, `zsd` and `sd`. `zcnow` is filled as `zcnow(:,:) =
-sd(:,:)` inside the OpenMP parallel region, and `mpsyncsp` advances `sd` from t
-to t+dt later in the same routine, which is what makes term 6 a different
-quantity from term 3. The `!$omp barrier` above the copy guards the previous
-phase's arrays against this one; nothing holds every thread's copy of `zcnow`
-ahead of the first thread's arrival at `mpsyncsp`, so a late thread can capture
-an `sd` that is already partly advanced.
-
-The scatter is about 0.008 W/m2 on a `Ct` of 1.25, six parts in a thousand.
-**That does not threaten the T42 diagnosis**, where the displacement is -0.96 and
-six parts in a thousand of `Ct` is 0.008, but it is decisive at T21, where the
-displacement is 2e-4 and the scatter is thirty times it. Any future use of
-`Cimp - Ct` has to check the quantity against this scatter first, and a repeat of
-the arm is the only way to measure it.
+**What that costs the T21 rows above is their `Cimp - Ct` column and nothing
+else.** The race never reached the state, so `denergy26 - denergy27`, the fixer
+identity and the sink are unaffected. Those four runs have been deleted, so the
+column is not recoverable from them; it is re-measured by repeating the arm on a
+rebuilt binary. The pre-fix scatter at T42 was never measured on this arm; on the
+cold T42 bed the fix was demonstrated at it spanned more than a watt, the size of
+the -0.96 displacement itself, so no reading of `Cimp - Ct` taken before the fix
+stands on its own and every T42 number for it above is a re-measurement waiting
+to happen.
 
 **The sink itself is smaller at T21 by more than an order of magnitude**, -0.021
 against -0.79, and at matched early model time -0.137 against -1.675. That is the

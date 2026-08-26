@@ -102,38 +102,22 @@ Any such change is a `vendor/exoplasim` change and stales all ten registered
 binaries by rule 4, so it lands with a full rebuild and before any arm that has
 to survive an orbit boundary.
 
-## A second defect in the same control: `Ct` and `Dt` do not reproduce
+## A second defect in the same control: `Ct` and `Dt` did not reproduce
 
 `nenergy = 2` adds the conversion decomposition `world-0ov` is diagnosed from.
-Three runs of one configuration on one restart with one binary, two of them on
-the same eight cores, agree bit for bit on `d02`, `d26`, `d27`, `cimp`, `cvadv`,
-`ctm` and `ctp`, and disagree on `ct` and `dt` at every print. At the first kept
-print `Cimp - Ct` takes +0.00026, +0.00400 and -0.00373 W/m2, changing sign
-between runs of the same arm.
+Three runs of one configuration on one restart with one binary agreed bit for
+bit on `d02`, `d26`, `d27`, `cimp`, `cvadv`, `ctm` and `ctp`, and disagreed on
+`ct` and `dt`. Those two terms are the only ones evaluated on `zcnow`, which
+each thread copied whole from the shared divergence while every thread advanced
+its own slice of that divergence later in the same routine with nothing between
+the two. `world-tqh4`; the mechanism, the barrier that closes the copy against
+the advance and the reproduction evidence are in
+`exoplasim/notes/convdecomp-reproducibility.md`.
 
-The model itself is deterministic: two full-physics runs on different cores,
-`run_0730a12ecfbd` and `run_57a43e1fc3f4`, write a bit-identical
-`MOST_REST.00000`. The non-reproducibility is confined to these two diagnostic
-columns.
-
-**It localises to `zcnow`.** In `plasim.f90`'s decomposition block, terms 3 and 4
--- which are `ct` and `dt` -- are the only two evaluated on `zcnow`; the rest read
-`zcsdt`, `zsd` or `sd`. `zcnow` is filled as `zcnow(:,:) = sd(:,:)` inside the
-OpenMP parallel region, and `mpsyncsp` advances `sd` from t to t+dt later in the
-same routine, which is exactly what makes term 6 a different quantity from term
-3. The `!$omp barrier` above the copy guards the previous phase's shared arrays
-against this one. Nothing holds every thread's copy of `zcnow` ahead of the first
-thread's arrival at `mpsyncsp`, so a thread that reaches the copy late can capture
-an `sd` that is already partly advanced. `zcsdt` by contrast is taken through
-`mpgallsp`, and it reproduces.
-
-`nconvtime > 0` allocates and reads the same array, so `model.conversion_time_level`
-is on this path too and it CHANGES WHAT THE MODEL INTEGRATES rather than only what
-it reports.
-
-**What it costs.** The scatter is about 0.008 W/m2 on a `Ct` of 1.25. The T42
-diagnosis stands, because the displacement there is -0.96; a T21 arm cannot be
-used for this quantity at all, because the displacement there is 2e-4.
+The two defects are independent and only the epilog one is in this note's
+subject. The decomposition race never reached the state -- the racy runs and the
+clean ones write the same `plasim_status` -- so it is invisible to a gate that
+compares restarts, where the epilog defect kills the run outright.
 
 ## The gate sees it too
 
