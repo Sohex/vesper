@@ -1465,6 +1465,12 @@ one_offs:
   # names and nothing downstream reads them. world-8yyh.
   - exoplasim/scripts/verify_restart_continuity.py
   - exoplasim/scripts/trace_gas_band_model.py
+  # Prices world-jgen's band-1 cloud optical depth correction, and Stephens's
+  # tuned tables against the analytic fits radmod evaluates instead. Both write
+  # a JSON verdict under exoplasim/analysis and nothing reads either: they are
+  # evidence for a decision, not an input to a step. world-jgen, world-f9ig.
+  - exoplasim/scripts/cloud_optical_depth_bracket.py
+  - exoplasim/scripts/stephens_tables_vs_fits.py
   - exoplasim/scripts/co2_overlap_589.py
   - exoplasim/scripts/reset_restart_accumulators.py
   - exoplasim/scripts/scale_restart.py

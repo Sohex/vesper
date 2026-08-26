@@ -1,0 +1,189 @@
+{
+  "what": "band-1 cloud optical depth, Stephens Eq. (10b) replaced by Eq. (10a), at the top of the atmosphere",
+  "issue": "world-jgen",
+  "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "climatology_is_bootstrap": true,
+  "run_id": "run_2b20e3324bb0",
+  "flux_ratio": 0.945,
+  "constants_from": "exoplasim/runs/run_ec32946bec89",
+  "constants": {
+    "ga_m_s2": 12.81,
+    "gascon_j_kg_k": 287.0171275001432,
+    "gsol0_w_m2": 1286.145,
+    "clwref_kg_m3": 0.00021,
+    "clwhsc_m": 535.9144938975418,
+    "tswr1": 0.077,
+    "zsolar1": 0.3823719935950933
+  },
+  "planetary_albedo": 0.2703792764521009,
+  "geometry_check": {
+    "band1_incident_reconstructed_w_m2": 122.96715708763791,
+    "band1_incident_from_climatology_w_m2": 122.96703272761809,
+    "relative_error": 1.0113281345702774e-06
+  },
+  "layers": [
+    {
+      "level": 1,
+      "sigma": 0.024999618530273438,
+      "water_path_g_m2_mean": 0.1810643387358745,
+      "water_path_g_m2_p10": 0.00039248358507900207,
+      "water_path_g_m2_p90": 0.5651387289831029,
+      "tau_band1_inherited": 0.006010835697748168,
+      "tau_band1_eq10a": 0.033199605480168405,
+      "tau_band2_eq10b": 0.04046065628565895,
+      "d_reflectance_diffuse": 0.002948111157792921
+    },
+    {
+      "level": 2,
+      "sigma": 0.09372425079345703,
+      "water_path_g_m2_mean": 0.5850943324305656,
+      "water_path_g_m2_p10": 0.0013460575345391628,
+      "water_path_g_m2_p90": 1.5971994757349681,
+      "tau_band1_inherited": 0.023253106506833578,
+      "tau_band1_eq10a": 0.10728176040072213,
+      "tau_band2_eq10b": 0.13074524141218855,
+      "d_reflectance_diffuse": 0.00902174687800994
+    },
+    {
+      "level": 3,
+      "sigma": 0.18811702728271484,
+      "water_path_g_m2_mean": 2.504497348186316,
+      "water_path_g_m2_p10": 0.03529074969348632,
+      "water_path_g_m2_p90": 5.905869532572378,
+      "tau_band1_inherited": 0.27733038658508874,
+      "tau_band1_eq10a": 0.45921976942795617,
+      "tau_band2_eq10b": 0.5596552423342184,
+      "d_reflectance_diffuse": 0.01831047696202004
+    },
+    {
+      "level": 4,
+      "sigma": 0.29717063903808594,
+      "water_path_g_m2_mean": 7.227978642322573,
+      "water_path_g_m2_p10": 0.30856555799857877,
+      "water_path_g_m2_p90": 15.100162299023381,
+      "tau_band1_inherited": 1.5771541365505686,
+      "tau_band1_eq10a": 1.3253081253854209,
+      "tau_band2_eq10b": 1.6151648719392708,
+      "d_reflectance_diffuse": -0.020453202596299347
+    },
+    {
+      "level": 5,
+      "sigma": 0.4205760955810547,
+      "water_path_g_m2_mean": 17.220881559892174,
+      "water_path_g_m2_p10": 1.7705255193922675,
+      "water_path_g_m2_p90": 31.903233289911157,
+      "tau_band1_inherited": 5.116396078353824,
+      "tau_band1_eq10a": 4.222659543151041,
+      "tau_band2_eq10b": 5.003316603935428,
+      "d_reflectance_diffuse": -0.042813924927492586
+    },
+    {
+      "level": 6,
+      "sigma": 0.5543212890625,
+      "water_path_g_m2_mean": 35.004439186852586,
+      "water_path_g_m2_p10": 7.366703121512229,
+      "water_path_g_m2_p90": 57.300564504964164,
+      "tau_band1_inherited": 11.396219540012122,
+      "tau_band1_eq10a": 10.139180633957384,
+      "tau_band2_eq10b": 11.663656956530186,
+      "d_reflectance_diffuse": -0.029030133082879495
+    },
+    {
+      "level": 7,
+      "sigma": 0.6906890869140625,
+      "water_path_g_m2_mean": 60.60307005406244,
+      "water_path_g_m2_p10": 22.798789064192512,
+      "water_path_g_m2_p90": 87.58994119696592,
+      "tau_band1_inherited": 19.502933169824246,
+      "tau_band1_eq10a": 17.84081502340427,
+      "tau_band2_eq10b": 20.135540448472643,
+      "d_reflectance_diffuse": -0.019689474698225462
+    },
+    {
+      "level": 8,
+      "sigma": 0.8182611465454102,
+      "water_path_g_m2_mean": 86.25293053566016,
+      "water_path_g_m2_p10": 50.30218743587365,
+      "water_path_g_m2_p90": 110.40389403860945,
+      "tau_band1_inherited": 26.687136023386575,
+      "tau_band1_eq10a": 24.685220672060346,
+      "tau_band2_eq10b": 27.556607471217717,
+      "d_reflectance_diffuse": -0.015132457854058146
+    },
+    {
+      "level": 9,
+      "sigma": 0.9219131469726562,
+      "water_path_g_m2_mean": 90.42117515186725,
+      "water_path_g_m2_p10": 70.14050311646751,
+      "water_path_g_m2_p90": 104.01521081418508,
+      "tau_band1_inherited": 27.78290752530634,
+      "tau_band1_eq10a": 25.730150280736186,
+      "tau_band2_eq10b": 28.682918148724603,
+      "d_reflectance_diffuse": -0.014606175099355467
+    },
+    {
+      "level": 10,
+      "sigma": 0.982818603515625,
+      "water_path_g_m2_mean": 43.82448008018247,
+      "water_path_g_m2_p10": 38.7664790868589,
+      "water_path_g_m2_p90": 47.2447018100053,
+      "tau_band1_inherited": 14.312176252245331,
+      "tau_band1_eq10a": 12.90541026396638,
+      "tau_band2_eq10b": 14.725412611182334,
+      "d_reflectance_diffuse": -0.024892307154321558
+    }
+  ],
+  "arms": {
+    "uniform": {
+      "cloud_fraction_total_mean": 0.5979950980320167,
+      "band1_incident_w_m2": 122.96715708763791,
+      "band1_cloud_reflectance_old": 0.30498017655230414,
+      "band1_cloud_reflectance_new": 0.2965144693542891,
+      "d_reflected_w_m2": -0.8961014556141298,
+      "d_reflected_black_surface_w_m2": -1.0410039468762624,
+      "forcing_w_m2": 0.8961014556141298,
+      "forcing_black_surface_w_m2": 1.0410039468762624
+    },
+    "water_weighted": {
+      "cloud_fraction_total_mean": 0.5979950980320167,
+      "band1_incident_w_m2": 122.96715708763791,
+      "band1_cloud_reflectance_old": 0.4387630392267606,
+      "band1_cloud_reflectance_new": 0.4298547451333316,
+      "d_reflected_w_m2": -0.9682751937261894,
+      "d_reflected_black_surface_w_m2": -1.0954275991695555,
+      "forcing_w_m2": 0.9682751937261894,
+      "forcing_black_surface_w_m2": 1.0954275991695555
+    },
+    "thickest_layer": {
+      "cloud_fraction_total_mean": 0.5979950980320167,
+      "band1_incident_w_m2": 122.96715708763791,
+      "band1_cloud_reflectance_old": 0.4280516874011388,
+      "band1_cloud_reflectance_new": 0.41979986053771595,
+      "d_reflected_w_m2": -0.8957149660243208,
+      "d_reflected_black_surface_w_m2": -1.0147036901745143,
+      "forcing_w_m2": 0.8957149660243208,
+      "forcing_black_surface_w_m2": 1.0147036901745143
+    },
+    "largest_move": {
+      "cloud_fraction_total_mean": 0.5979950980320167,
+      "band1_incident_w_m2": 122.96715708763791,
+      "band1_cloud_reflectance_old": 0.23142945874796195,
+      "band1_cloud_reflectance_new": 0.2117704862919411,
+      "d_reflected_w_m2": -2.0690277664366845,
+      "d_reflected_black_surface_w_m2": -2.417407954181068,
+      "forcing_w_m2": 2.0690277664366845,
+      "forcing_black_surface_w_m2": 2.417407954181068
+    }
+  },
+  "bracket_w_m2": [
+    0.8957149660243208,
+    2.0690277664366845
+  ],
+  "bracket_kelvin": [
+    0.7288294373015417,
+    1.6835359461129842
+  ],
+  "sign": "positive forcing warms; over the paths this model's cloud water actually reaches the correction makes band-1 cloud less bright, so it is a warming",
+  "leans": "high: no band-1 gas absorption or Rayleigh above or below the cloud, and no multiple reflection between layers",
+  "settles_it": "nothing here. A T21 pair, named in exoplasim/notes/cloud-water-reference.md"
+}
