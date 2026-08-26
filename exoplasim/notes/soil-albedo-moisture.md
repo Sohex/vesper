@@ -330,26 +330,67 @@ field refuses.
 
 ## What turns it on
 
-`nwetsoil` defaults to 0 and the model refuses to run it until three things are
-true, which is what the switch checks at initialisation rather than assuming:
+`nwetsoil` defaults to 0, and three things have to be true before the model will
+run it. The switch checks all three at initialisation rather than assuming them,
+and `run_exoplasim.py` checks what it can from the configuration first, which
+costs a config read instead of a launched model.
 
 1. **`nlandwcol = 1` with the three-layer surface cut.**
-   `config/planet.yaml`'s `surface.land_water_column` declares `layers: 2` and
-   `layer_thickness_m: [0.5, 1.0]`; the mixing needs `layers: 3` and
-   `[0.02, 0.48, 1.0]`, which is the geometry `surface_layer` declares. The
-   scalar bucket is refused outright: it has no surface layer, and the column it
-   does have dries on the wrong timescale for an albedo.
+   `config/planet.yaml`'s `surface.land_water_column` declares `layers: 3` at
+   `layer_thickness_m: [0.02, 0.48, 1.0]`, which is the geometry `surface_layer`
+   declares, and `layer_capacity_fraction` follows the thicknesses because it is
+   the depth share a uniform profile gives. The scalar bucket is refused
+   outright: it has no surface layer, and the column it does have dries on the
+   wrong timescale for an albedo. `landini` refuses the bucket; what it cannot
+   check is that the first water layer IS the declared albedo depth, because
+   that depth lives in the contract and not in the model, so `run_exoplasim.py`
+   refuses a three-layer column cut anywhere else.
 2. **The saturated pair staged.** Codes 1742, 1750 and 1760 are written by
    `build_surface_albedo.py` beside 174, 175 and 176, and the model refuses on
    the negative sentinel rather than mixing toward it. They are read on every
    start rather than carried through the restart, because they are a boundary
-   condition and not a state.
+   condition and not a state. They join `intended_surface_codes` only under the
+   switch, so at `nwetsoil = 0` they are not staged and nothing opens them.
 3. **`dwmax` installed from `evaporable_mm`.** The surface layer's capacity is
    cut from air dry, so the column's capacity is `evaporable_mm` and not
-   `awc_mm`; `build_surface_soil_water.py` installs `awc_mm` today, which is
-   what LPJ-GUESS reads and is 3.57 mm smaller at the median cell.
+   `awc_mm`. `build_surface_soil_water.py` installs it, and it selects the
+   column by the declared GEOMETRY rather than by a switch of its own: the extra
+   water is water the top 0.02 m can give up, so a column without that layer
+   gets `awc_mm` and every layer cut from the wilting point. `awc_mm` is what
+   LPJ-GUESS reads and it does not move.
 
-The saturated fields staged today are the interstitial arm. Sweeping the bracket
-is `--wetting-arm lekner` and a second surface build; the two arms differ by
+The switch itself and its five companions reach `landmod_nl` from
+`surface.soil_albedo_moisture`, written unconditionally by `configure_otherargs`
+and checked by `expected_namelist_keys`, so the control arm is `NWETSOIL = 0` on
+the same binary rather than a code fork. The two saturation endpoints are
+checked against `surface_layer.saturation_mapping` on both sides, this config
+block and `landmod.f90`'s compiled defaults, at the contract's own tolerance.
+
+The saturated fields staged are the interstitial arm. Sweeping the bracket is
+`--wetting-arm lekner` and a second surface build; the two arms differ by
 roughly a factor of two in the wetting ratio, which is the largest declared
 uncertainty this term carries.
+
+`exoplasim/notes/forcing-bundle-predictions.md` carries what arming it is
+predicted to be worth, registered before the edits and split into the two
+commits that made them, per `docs/src/pipeline/sequencing.md` A3.
+
+## What the refusal is worth in the staged field
+
+`evaporite` is refused, and the refusal survives every step between the
+derivation and the model.
+
+`build_surface_albedo.py` assigns the class a wetting ratio of exactly
+`(1.0, 1.0)` before `analysis/soil_albedo_wetting.json` is consulted at all, so
+its saturated band pair is its dry band pair bitwise, and the builder then
+asserts that the ratio of every refused region is exactly 1 rather than merely
+close. `wet_soil_albedo` returns the dry albedo bitwise at an empty layer and
+the saturated one bitwise at a full one, because both ends are branches rather
+than arithmetic; in between, two equal ends give the Kubelka-Munk transform's
+round trip, which at this class's staged levels is 1e-16 in double precision and
+6e-9 in single. Both are orders below the 5e-6 quantum a value reaches the model
+with through `.sra`, so a refused cell returns its dry albedo at every
+saturation the mixing can be handed.
+
+`playa_clastic` is NOT refused and is the largest single class on this build's
+land. The dispute is about halite crust; playa mud and fan fill are a soil.
