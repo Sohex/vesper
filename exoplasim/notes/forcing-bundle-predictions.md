@@ -328,10 +328,13 @@ Earth's shortwave absorption beside the water vapour term; +/-28% of that is
 vapour calibration row exhibits (0.19), +/-0.65 W/m2 TOA, +/-0.54 K. After
 PHYS-9 this is the softest entry in the bundle and the second place to bisect.
 
-`acllwr` is in the task's list because it is untraced Earth tuning, not because
-the star moves it: it is a thermal-band constant and has no stellar dependence,
-so it gets no arm on this argument. The scattering-side keys are expected near
-unity and are held unless the absorption arms surprise.
+`acllwr` was in the task's list because it was untraced Earth tuning, not
+because the star moves it: it is a thermal-band constant and has no stellar
+dependence, so it gets no arm on this argument. That reason is closed. It is
+Kiehl et al. (1998) Eq. 14's `k_l`, the equation around it is that paper's
+Eqs. 12-13, and `exoplasim/notes/cloud-water-reference.md` carries the reading,
+so it leaves the list. The scattering-side keys are expected near unity and are
+held unless the absorption arms surprise.
 
 **What would mean wrong, in the A/B:** an arm at scale 1.0 must be bit-identical
 to the control (the keys default to the values the binary already carries); a

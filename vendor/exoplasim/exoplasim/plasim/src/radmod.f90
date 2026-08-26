@@ -74,7 +74,30 @@
       real    :: tswr2   = 0.065  ! tuning of cloud back scattering c. range2
       real    :: tswr3   = 0.0055 ! tuning of cloud s. scattering alb. range2
       real    :: tpofmt  = 1.00   ! tuning of point of mean transmittance
-      real    :: acllwr  = 0.100  ! mass absorption coefficient for clouds (lwr)
+      real    :: acllwr  = 0.090361 ! cloud longwave mass absorption (m2/g)
+!
+!     THE LONGWAVE CLOUD ABSORPTION COEFFICIENT, and it now carries the source
+!     the form it sits in has always had. lwr builds the cloud transmissivity as
+!     1 - dcc*(1 - exp(-1.66*acllwr*CWP)) with CWP in g/m2, which is Kiehl et al.
+!     (1998) Eqs. (12)-(13) written out: their D = 1.66 appears as the literal at
+!     :3361 and acllwr stands in the place of their k_abs.
+!
+!     Their Eq. (14) makes k_abs a phase-weighted mean, k_l(1 - f_ice) + k_i
+!     f_ice, and gives k_l = 0.090361 m2/g for liquid cloud water, chosen so
+!     that D*k_l = 0.15 is "in the range of observations and theory" (Stephens
+!     1984). k_i from their Eq. (15) is 0.005 + 1/r_ei, which is smaller than
+!     k_l at every effective radius a cloud has, so a phase-weighted k_abs
+!     cannot exceed k_l. THIS MODEL HAS NO PHASE SPLIT -- rainmod's mkclouds
+!     diagnoses one condensate -- so the liquid-only limit is the coefficient
+!     consistent with what the condensate here is, and it is also the ceiling
+!     on any weighted value.
+!
+!     That is the check that could have failed and did not: upstream's 0.100 is
+!     ABOVE k_l, so it is not a weighted k_abs rounded, and there is no phase
+!     mixture it can be read as. It carried no comment, no unit and no source,
+!     and it is 10.7 per cent above the value the equation around it was fitted
+!     with. exoplasim/notes/cloud-water-reference.md carries the reading;
+!     references/kiehl1998-ccm3-description.pdf is the paper.
 !
 !     SURFACE LONGWAVE EMISSIVITY, split by the land-sea mask. Upstream wrote
 !     zeps = dls + 0.98*(1-dls) as a literal in lwr, so the modelled land was a

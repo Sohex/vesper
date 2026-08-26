@@ -77,12 +77,23 @@ and a 6.5 K/km profile from 288 K, the ratio of the two is 0.999, 0.994, 0.987,
 0.977, 0.966 and 0.951 from the surface layer upward, and only leaves 1.3 per
 cent in layers carrying more than 3 g/m2. Not a defect.
 
-**The longwave consumer matches.** `radmod`'s
-`ztaucc0 = 1 - dcc*(1 - exp(-1.66*acllwr*1000*dql*dp*dsigma/ga))` is Eq. 12-13
-with `D` = 1.66 written as a literal, `acllwr` in the place of CCM3's `k_abs`,
-and the in-cloud water path in g m-2. CCM3 weights `k_abs` between liquid and
-ice phase by an ice fraction; this model has no phase split, so `acllwr` is
-used unweighted.
+**The longwave consumer matches, and `acllwr` now carries CCM3's own value.**
+`radmod`'s `ztaucc0 = 1 - dcc*(1 - exp(-1.66*acllwr*1000*dql*dp*dsigma/ga))` is
+Eq. 12-13 with `D` = 1.66 written as a literal, `acllwr` in the place of
+`k_abs`, and the in-cloud water path in g m-2. Eq. 14 makes `k_abs` a
+phase-weighted mean and gives `k_l` = 0.090361 m2/g for liquid cloud water,
+chosen so that `D k_l` = 0.15 is "in the range of observations and theory";
+Eq. 15's `k_i` = 0.005 + 1/r_ei is smaller than `k_l` at every effective radius,
+so no weighted `k_abs` can exceed `k_l`. This model has no phase split, so the
+liquid-only limit is both the coefficient consistent with the one condensate
+`mkclouds` diagnoses and the ceiling on any weighted value.
+
+Upstream's 0.100 sat ABOVE that ceiling, so it could not be a rounded weighted
+`k_abs`, and it carried no comment, no unit and no source. It is now 0.090361,
+and the difference is confined to thin cloud: the modelled longwave cloud
+emissivity moves by at most 0.0373, at a cloud water path of 6.35 g m-2, and by
+nothing at all in the two lowest layers of the table below, which are saturated
+at either coefficient.
 
 **The shortwave consumer does not match, and this is the finding.** CCM3 puts
 the cloud water path into Slingo (1989) delta-Eddington, in which extinction
