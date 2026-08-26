@@ -384,9 +384,19 @@ steps:
       EVERY CHECK HAS A RIGHT ANSWER: the constructed cell areas sum to the
       sphere, the binned mesh and land areas close against the mesh's own, each
       partition sums to one in every covered cell, every categorical share times
-      its denominator equals its own extensive area, and each quantile table's
-      ends are the population's true extremes computed a second way. `--selftest`
+      its denominator equals its own extensive area, each quantile table's ends
+      are the population's true extremes computed a second way, and this
+      binning and the exporter's own place the same region total. `--selftest`
       hands five of those a case built to violate them.
+      AND THE ONE THAT TESTS WHAT THE ARTIFACT IS FOR: a consumer reads a SHARE
+      out of the hypsometry, not the table, so the share above each cell's own
+      mean-plus-one-sd is read back and compared against the exact answer
+      computed on the 10M mesh. The bar is the widest step in the quantile
+      vector and it is a THEOREM rather than a tolerance -- the interpolated
+      cumulative curve and the true one both lie between the two bracketing
+      probabilities -- so exceeding it is a defect in the operator and is
+      refused. Cells whose land is a single repeated elevation have no
+      distribution and are counted rather than averaged in.
       THE CHUNK IS THE RUNG, `docs/src/reference/large-data.md`: each rung is
       written as it finishes and recorded in `support_checkpoint.json` against
       the hashes of the inputs it was built from, so a killed run resumes at the

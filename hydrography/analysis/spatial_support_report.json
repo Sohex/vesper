@@ -339,13 +339,13 @@
       }
     },
     "config_sha256": "f6d38da9be22664cbaa4e5040c0625edc7918d4744e18b5ee639b8da9e14fd9c",
-    "git_commit": "b61787e3366337fc55df57c90915c5afe45c0bd3",
+    "git_commit": "d69baae0fc916b6fc316b27dbe2aa486d2be91c0",
     "source_inputs": {
       "hydrography/data/precarve-craton-10m/regions.nc": "1d8d490e7ad223f70eb2628fdea57439ba4d8a04c9570082b3fc00d2c51bfa9a",
       "hydrography/data/precarve-craton-10m/surface_water.nc": "105538809a56b3448653adeb0be0553173eb556fd1603ab159a004069c8c48cd"
     }
   },
-  "created": "2026-08-26T08:38:07.221562+00:00",
+  "created": "2026-08-26T08:44:49.241546+00:00",
   "rungs": {
     "T21": {
       "grid": "exoplasim-T21",
@@ -390,6 +390,17 @@
           1.0577662670574213,
           1.058212714470446
         ]
+      },
+      "hypsometry_inverse_against_the_mesh": {
+        "threshold": "the cell's own land elevation mean plus one sd",
+        "bar": 0.050000000000000044,
+        "bar_is": "the widest step in PROBS. The interpolated curve and the true one both lie between the two bracketing probabilities, so this is a bound rather than a tolerance",
+        "cells": 1639,
+        "single_valued_cells": 10,
+        "single_valued_land_area_fraction": 2.471109304654037e-06,
+        "mean_abs_error": 0.0017144524655950048,
+        "p99_abs_error": 0.028924118691724177,
+        "worst_abs_error": 0.04108977759208729
       },
       "ledger": {
         "all_regions": {
@@ -448,7 +459,7 @@
         }
       },
       "absent": {},
-      "seconds": 10.349100351333618,
+      "seconds": 10.293842792510986,
       "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T21.nc",
       "output_bytes": 825720
     },
@@ -495,6 +506,17 @@
           1.0576809737301847,
           1.0581408254932294
         ]
+      },
+      "hypsometry_inverse_against_the_mesh": {
+        "threshold": "the cell's own land elevation mean plus one sd",
+        "bar": 0.050000000000000044,
+        "bar_is": "the widest step in PROBS. The interpolated curve and the true one both lie between the two bracketing probabilities, so this is a bound rather than a tolerance",
+        "cells": 5754,
+        "single_valued_cells": 50,
+        "single_valued_land_area_fraction": 1.1775665229926925e-05,
+        "mean_abs_error": 0.0025909245171473424,
+        "p99_abs_error": 0.028639514970151773,
+        "worst_abs_error": 0.04664124434482825
       },
       "ledger": {
         "all_regions": {
@@ -553,7 +575,7 @@
         }
       },
       "absent": {},
-      "seconds": 10.587444305419922,
+      "seconds": 10.270973682403564,
       "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T42.nc",
       "output_bytes": 2396839
     },
@@ -600,6 +622,17 @@
           1.0572067902612412,
           1.0567690189872623
         ]
+      },
+      "hypsometry_inverse_against_the_mesh": {
+        "threshold": "the cell's own land elevation mean plus one sd",
+        "bar": 0.050000000000000044,
+        "bar_is": "the widest step in PROBS. The interpolated curve and the true one both lie between the two bracketing probabilities, so this is a bound rather than a tolerance",
+        "cells": 20719,
+        "single_valued_cells": 224,
+        "single_valued_land_area_fraction": 5.547645978895596e-05,
+        "mean_abs_error": 0.0043379896592893544,
+        "p99_abs_error": 0.03398540730361478,
+        "worst_abs_error": 0.04898961395733245
       },
       "ledger": {
         "all_regions": {
@@ -658,7 +691,7 @@
         }
       },
       "absent": {},
-      "seconds": 10.760841131210327,
+      "seconds": 10.712211608886719,
       "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T85.nc",
       "output_bytes": 7495033
     },
@@ -705,6 +738,17 @@
           1.0599191835445108,
           1.0608494578514085
         ]
+      },
+      "hypsometry_inverse_against_the_mesh": {
+        "threshold": "the cell's own land elevation mean plus one sd",
+        "bar": 0.050000000000000044,
+        "bar_is": "the widest step in PROBS. The interpolated curve and the true one both lie between the two bracketing probabilities, so this is a bound rather than a tolerance",
+        "cells": 44392,
+        "single_valued_cells": 662,
+        "single_valued_land_area_fraction": 0.00016043352209346015,
+        "mean_abs_error": 0.006107243836158646,
+        "p99_abs_error": 0.03725909839261682,
+        "worst_abs_error": 0.04966727125827067
       },
       "ledger": {
         "all_regions": {
@@ -763,7 +807,7 @@
         }
       },
       "absent": {},
-      "seconds": 10.72032880783081,
+      "seconds": 10.965042114257812,
       "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T127.nc",
       "output_bytes": 14539636
     },
@@ -810,6 +854,17 @@
           1.0675822159020787,
           1.0587072991437159
         ]
+      },
+      "hypsometry_inverse_against_the_mesh": {
+        "threshold": "the cell's own land elevation mean plus one sd",
+        "bar": 0.050000000000000044,
+        "bar_is": "the widest step in PROBS. The interpolated curve and the true one both lie between the two bracketing probabilities, so this is a bound rather than a tolerance",
+        "cells": 76168,
+        "single_valued_cells": 1586,
+        "single_valued_land_area_fraction": 0.0004083024763760866,
+        "mean_abs_error": 0.00785872698552456,
+        "p99_abs_error": 0.03896191457926641,
+        "worst_abs_error": 0.04990653228297076
       },
       "ledger": {
         "all_regions": {
@@ -868,7 +923,7 @@
         }
       },
       "absent": {},
-      "seconds": 11.493721008300781,
+      "seconds": 11.506792545318604,
       "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T170.nc",
       "output_bytes": 23519172
     }

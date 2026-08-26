@@ -814,11 +814,23 @@ answers are.
 an agreement between estimates: the constructed cell areas sum to `4 pi R^2`,
 the binned mesh and land areas close against the mesh's own, each partition sums
 to one in every covered cell, every categorical share times its denominator
-equals its own extensive area, and each quantile table's ends are the
-population's true extremes. `--selftest` hands five of those a case built to
-violate them, and closes on the negative control the artifact exists for: a cell
-that is one per cent 4 km peaks and otherwise low ground has to report that one
-per cent, which its mean returns as nothing.
+equals its own extensive area, each quantile table's ends are the population's
+true extremes, and this binning and the exporter's own place the same region
+total. `--selftest` hands five of those a case built to violate them, and closes
+on the negative control the artifact exists for: a cell that is one per cent 4 km
+peaks and otherwise low ground has to report that one per cent, which its mean
+returns as nothing.
+
+**And one check on what the artifact is for.** A consumer reads a SHARE out of
+the hypsometry rather than the table itself, so every run reads the share above
+each cell's own mean-plus-one-sd back out and compares it against the exact
+answer computed on the 10M mesh. The bar is the widest step in the quantile
+vector, and it is a theorem rather than a tolerance: the interpolated cumulative
+curve and the true one both lie between the two bracketing probabilities, so
+exceeding it means the operator is wrong and the run is refused. Cells whose land
+is a single repeated elevation have no distribution -- the threshold lands on the
+table's own `Q(0)`, where the convention returns all of the cell rather than none
+-- and they are counted rather than averaged in.
 
 **The chunk is the rung.** `docs/src/reference/large-data.md` binds -- the input
 is a 10M-region mesh across five rungs. Each rung is written as it finishes and

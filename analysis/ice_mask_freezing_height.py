@@ -58,6 +58,7 @@ from lib.orogen import Export  # noqa: E402
 import gridding  # noqa: E402
 import lapse  # noqa: E402
 from lib import builds  # noqa: E402
+from lib import paths  # noqa: E402
 
 FREEZE_K = 273.15
 
@@ -107,7 +108,7 @@ def subgrid_peak_excess(grid_root: Path) -> dict | None:
             "max": float(exc.max()),
             "weighting": "land area, over cells that hold land",
             "population": "surface_class == LAND inside each cell",
-            "source": str(support),
+            "source": paths.rel(support),
             "source_build": build}
 
 
@@ -161,9 +162,13 @@ def main() -> None:
     la = area[land].sum()
     glac = np.asarray(d["glac"][:], float) if "glac" in d.variables else None
     out = {
-        "climatology": str(a.climatology),
-        "mesh_export": str(root),
-        "grid_export": str(grid_root),
+        # Repo-relative, through the one resolver. An absolute path records the
+        # machine and the worktree it was run in rather than the artifact, and
+        # a tracked report that does that is a diff on every host.
+        "climatology": paths.rel(a.climatology),
+        "mesh_export": paths.rel(root),
+        "grid_export": paths.rel(grid_root),
+        "source_build": Path(root).parent.name,
         "lapse_k_per_km_warmest": rate,
         "grid_cells_with_glac": (int((glac.max(axis=0) > 0).sum())
                                  if glac is not None else None),

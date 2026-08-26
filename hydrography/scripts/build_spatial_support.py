@@ -314,6 +314,74 @@ def check_quantiles(q, covered, lo, hi, what: str) -> None:
         raise SystemExit(f"{what}: the table decreases at {n} points")
 
 
+def check_inverse_against_mesh(cell, ncell: int, area, values, population,
+                               denominator, block, rung: str) -> dict:
+    """The whole point of the artifact, tested against the mesh it came from.
+
+    A consumer does not read the hypsometry, it reads a SHARE out of it: how
+    much of this cell's land stands above a height. So the test is that read,
+    against the exact answer computed on the 10M mesh, which is a right answer
+    rather than a second opinion. Everything else here checks that a reduction
+    closed; this checks that the reduction can be inverted.
+
+    THE THRESHOLD IS THE CELL'S OWN mean plus one standard deviation. It needs
+    no climatology, so this check runs wherever the artifact does, and it lands
+    in the upper part of the distribution, which is where the question that
+    motivates the artifact lives.
+
+    THE BAR IS A THEOREM AND NOT A MEASUREMENT. `area_fraction_above`
+    interpolates the cumulative curve linearly in probability, and the true
+    curve is monotone, so both lie between the two probabilities bracketing the
+    threshold and the error cannot exceed the widest step in `PROBS`. A run
+    that exceeds it has a defect in the operator or in the table, not a coarse
+    vector, and it is refused.
+
+    SINGLE-VALUED CELLS ARE COUNTED, NOT AVERAGED IN. A cell whose land is one
+    repeated elevation has no distribution: the threshold lands on the table's
+    own `Q(0)`, where the convention returns all of the cell rather than none.
+    `area_fraction_above` carries the argument; here they are separated so the
+    error statistic is about interpolation and the convention is a count.
+    """
+    values = np.asarray(values, dtype=np.float64)
+    area = np.asarray(area, dtype=np.float64)
+    pop = np.asarray(population, dtype=bool)
+    threshold = block["mean"] + block["sd"]
+    sel = pop & (values > threshold[np.asarray(cell)])
+    exact_area = gridding.cell_sum(cell, ncell, area, sel)
+    live = np.asarray(denominator, dtype=np.float64) > 0
+    exact = exact_area[live] / np.asarray(denominator, dtype=np.float64)[live]
+    read = gridding.area_fraction_above(block["quantiles"][live], PROBS,
+                                        threshold[live])
+    d = np.abs(read - exact)
+    flat = threshold[live] <= block["min"][live]
+    real = ~flat
+    w = np.asarray(denominator, dtype=np.float64)[live]
+    bar = float(np.diff(PROBS).max())
+    worst = float(d[real].max()) if real.any() else 0.0
+    if worst > bar + 1e-9:
+        raise SystemExit(
+            f"{rung}: reading a share back out of the hypsometry is off the "
+            f"mesh's own answer by {worst:.4g} in the worst cell, against the "
+            f"widest step in PROBS at {bar:.4g}. Linear interpolation of a "
+            "monotone curve cannot exceed that step, so this is a defect in the "
+            "operator or in the table rather than a coarse quantile vector.")
+    return {
+        "threshold": "the cell's own land elevation mean plus one sd",
+        "bar": bar,
+        "bar_is": ("the widest step in PROBS. The interpolated curve and the "
+                   "true one both lie between the two bracketing "
+                   "probabilities, so this is a bound rather than a tolerance"),
+        "cells": int(live.sum()),
+        "single_valued_cells": int(flat.sum()),
+        "single_valued_land_area_fraction":
+            float(w[flat].sum() / w.sum()) if w.sum() > 0 else 0.0,
+        "mean_abs_error": (float(np.average(d[real], weights=w[real]))
+                           if real.any() else 0.0),
+        "p99_abs_error": float(np.percentile(d[real], 99)) if real.any() else 0.0,
+        "worst_abs_error": worst,
+    }
+
+
 def extremes(cell, ncell: int, values, population):
     """Per-cell minimum and maximum of a population, for the quantile identity.
 
@@ -476,6 +544,8 @@ def build_rung(mesh: Export, grid_dir: Path, rung: str, ctx: dict) -> tuple[dict
     check_quantiles(ocean_block["quantiles"], ocean_block["covered"],
                     ocean_block["min"], ocean_block["max"],
                     f"{rung}: the ocean hypsometry")
+    inverse = check_inverse_against_mesh(cell, ncell, area, elev, land,
+                                         land_area, land_block, rung)
 
     # -- the closures. Each has a right answer.
     sphere_km2 = 4.0 * np.pi * (ctx["radius_m"] * 1e-3) ** 2
@@ -646,6 +716,7 @@ def build_rung(mesh: Export, grid_dir: Path, rung: str, ctx: dict) -> tuple[dict
                       / cell_area.reshape((nlat, nlon))[i].sum())
                 for i in (0, -1)],
         },
+        "hypsometry_inverse_against_the_mesh": inverse,
         "ledger": {"all_regions": ledger_all, "land": ledger_land, "ocean": ledger_ocean},
         "fallback": {
             "applied": "none",

@@ -552,9 +552,22 @@ def area_fraction_above(quantiles, probs, threshold):
     The cumulative curve is interpolated LINEARLY IN PROBABILITY between
     tabulated quantiles. That interpolates the CURVE and not the terrain -- the
     result is a share and never an elevation -- so nothing here manufactures
-    ground the mesh does not have. A threshold at or below the cell's minimum
-    returns 1 and one above its maximum returns `1 - probs[-1]`, which is 0 for
-    a vector that reaches one.
+    ground the mesh does not have. What comes back is accurate to the
+    probability STEP bracketing the threshold, which is a property of the
+    caller's `probs` and is the bound a check against the mesh actually reaches.
+
+    THE ENDPOINTS ARE A CONVENTION AND ONE OF THEM CAN BE READ WRONG. A
+    threshold at or below the cell's minimum returns 1 and one at or above its
+    maximum returns `1 - probs[-1]`, which is 0 for a vector reaching one. The
+    top is exactly the share strictly above. The bottom is the share strictly
+    above only where the minimum is UNIQUE, because the table records `Q(0)` as
+    standing at probability zero and cannot say how much area sits at that one
+    value. So a cell whose population is a single repeated value -- one mesh
+    region of land in a coastal cell -- reports ALL of itself above a threshold
+    equal to that value, where the exact answer is none of it. That is not an
+    interpolation error and no denser `probs` removes it: such a cell has no
+    distribution to read. Carry the population's region count beside the share
+    and treat those cells as what they are.
     """
     q = np.asarray(quantiles, dtype=np.float64)
     p = np.asarray(probs, dtype=np.float64)
@@ -995,7 +1008,7 @@ def goldstein_grid(nlon: int, nlat: int, igrid: int = GOLDSTEIN_EQUAL_AREA,
 # where the answer is unknown is not a check.
 
 
-_CHECKS = 21
+_CHECKS = 22
 
 
 def _selftest() -> int:
@@ -1147,6 +1160,21 @@ def _selftest() -> int:
     check("the inverse recovers the probability a tabulated quantile stands at",
           bool(strict.any()) and worst <= 1e-12,
           f"{int(strict.sum())} tie-free cells, worst {worst:.3g}")
+
+    # THE ENDPOINT CONVENTION, pinned rather than only documented. A cell whose
+    # population is one repeated value has no distribution, and the table cannot
+    # say how much area stands AT its own Q(0), so the inverse returns all of it
+    # above a threshold equal to that value where the exact answer is none. A
+    # consumer that does not know this reads a coastal cell holding one mesh
+    # region as entirely above every height.
+    one = np.zeros(12, dtype=np.int64)
+    flat_v = np.full(12, 1.75)
+    tbl, _ = cell_quantiles(one, 1, np.ones(12), flat_v, probs)
+    check("a single-valued cell reports all of itself above its own value",
+          float(area_fraction_above(tbl, probs, 1.75)[0]) == 1.0
+          and float(area_fraction_above(tbl, probs, 1.7500001)[0]) == 0.0,
+          f"at the value {area_fraction_above(tbl, probs, 1.75)[0]}, just above "
+          f"{area_fraction_above(tbl, probs, 1.7500001)[0]}")
 
     # THE LEDGER closes: every region offered lands in exactly one cell.
     ledger = transfer_ledger(cell, ncell, area, population)
