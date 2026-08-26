@@ -15,6 +15,13 @@ it, and the three do not overlap:
 | opaque | the derivation exists somewhere a reader of the code cannot reach | `opaque-constants.md` |
 | implicit-Earth | the derivation is sound and is for the wrong planet | `ocean-tier-implicit-earth.md`, `inherited-earth-constants.md` |
 
+The three are project vocabulary and `docs/src/reference/vocabulary.md` is
+canonical for them; this table is the restatement an auditor works from. The
+one that is read backwards is the third: IMPLICIT-EARTH IS A DIAGNOSIS AND NEVER
+AN ENDORSEMENT. Proving a constant is Earth's own number is what establishes it
+is wrong on this planet, and a reclassification out of `tuned` is progress in
+knowing rather than a repair. Row 9 is the worked example.
+
 An Earth measurement has provenance. A published fit has provenance: the paper
 can be opened and the fit's domain checked. A tuning has none, and that is the
 whole of the difference. A constant is NOT tuned here if it is a measured

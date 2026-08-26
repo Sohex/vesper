@@ -126,6 +126,48 @@ uncertainty, not about a landform.
 **carve list** -- the artifact Orogen consumes, `carve_list.txt`, one retain
 fraction per basin. The verdict is a conclusion; the list is an instruction.
 
+**tuned / opaque / implicit-Earth** -- the three ways a constant can lack a
+derivation a reader can use. They are three different defects with three
+different repairs, and the words are not interchangeable.
+
+**tuned** -- the number IS the residual of a fit. There is no derivation at all:
+it was moved until a comparison came out, and what it records is the answer it
+was fitted to rather than anything about the world. `CLAUDE.md`'s "No tuned
+values" forbids these, and the disposition space is exactly four -- source it,
+derive it, declare it with a bracket that gets swept, or record it as
+irreducible with the argument. `notes/audits/tuned-values.md` enumerates them.
+
+**opaque** -- a derivation EXISTS and sits somewhere a reader of the code cannot
+reach: a vendored default, an upstream paper nothing cites, a value transcribed
+through two secondaries. The number may be perfectly good. What is missing is the
+route to it, so the repair is to walk the chain and record it rather than to
+change the value. `notes/audits/opaque-constants.md`.
+
+**implicit-Earth** -- the derivation is sound and is FOR THE WRONG PLANET. This
+one is a DIAGNOSIS and never an endorsement, and it is the one most often read
+backwards. Establishing that a constant is implicit-Earth is what proves it is
+wrong HERE and names why; it is a reason to replace the value, not a reason to
+keep it. `notes/audits/inherited-earth-constants.md` and
+`notes/audits/ocean-tier-implicit-earth.md`.
+
+  The classes are ordered by how much is known, not by how bad they are, and
+  moving a constant between them is progress even when the number does not
+  change. `EXOPLASIM_DZ0LAND_M = 2.0` is the worked example: it was carried as
+  tuned, and WORLD-U8DS proved it is Earth's own area-averaged land roughness,
+  recoverable by reducing the vendored Earth boundary dataset's code 173 over its
+  own land. That moved it from tuned to implicit-Earth without moving the number
+  by a millimetre -- and the value of doing so is that "arbitrary" and "provably
+  Earth's" call for different work. The second is replaceable by derivation on
+  this planet's own relief, lithology and land cover; the first gave nothing to
+  derive from.
+
+  **A number's class is not a verdict on the number.** Do not read "it is only
+  implicit-Earth" as a defence, and do not read a reclassification as a repair.
+  The repair is a value this planet's own physics produces, with Earth's figure
+  kept as a COMPARISON to report the distance from rather than a target to solve
+  onto. Solving onto it reports that distance as zero by construction, which is
+  the failure the class exists to make visible.
+
 `docs/src/pipeline/costs.md` prices what a re-commissioning costs, row by row, and is
 where to look before assuming which of these you are in.
 

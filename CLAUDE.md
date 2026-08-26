@@ -256,6 +256,13 @@ the definitions, the collisions and their cost history are in
 - **marginal / bracketed / disputed** -- a landform / a disagreement between
   the two bounding climates / a disagreement between the two evaporation
   estimators. Three concepts, three words, never synonyms.
+- **tuned / opaque / implicit-Earth** -- the three ways a constant lacks a
+  usable derivation: the number IS the residual of a fit / the derivation
+  exists somewhere a reader cannot reach / the derivation is sound and is for
+  the WRONG PLANET. Three defects, three repairs. IMPLICIT-EARTH IS A
+  DIAGNOSIS AND NEVER AN ENDORSEMENT: proving a constant is Earth's is what
+  says it is wrong here. Earth's figure is then a comparison to report the
+  distance from, never a target to solve onto.
 
 ## Layout
 
