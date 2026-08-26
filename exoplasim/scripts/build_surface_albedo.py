@@ -83,40 +83,63 @@ surface built then.
 Wet ground and dry ground
 -------------------------
 
-Every value written here is the DRY endmember, and the modelled soil albedo
-carries no moisture dependence at all. This is where that absence lands, so it
-is declared here rather than left implicit; the argument, the magnitude and the
-four things that would arm the term are in
-`exoplasim/notes/soil-albedo-moisture.md`.
+Two ends, not one. Codes 174, 175 and 176 carry the DRY endmember, the
+reflectance of each material at or near zero water content, which is where every
+spectrum this project integrates was measured. Codes 1742, 1750 and 1760 carry
+the SATURATED endmember of the same material in the same three surfaces, from
+`analysis/soil_albedo_wetting.json`. `landmod`'s `getalb` under `nwetsoil = 1`
+mixes between them on the degree of saturation of the land column's surface
+layer, so the modelled soil albedo now moves through a wetting and drying cycle
+instead of holding one value through it.
 
-The parameterisation is not what is missing. `dalbclim1` and `dalbclim2`,
-`landmod.f90:507-508`, are prescribed static fields on the same 0.75 um split
-this script writes into codes 175 and 176, and the CLM two-band mixing
-`alpha_band = alpha_dry*(1 - S_e) + alpha_wet*S_e` is defined on exactly that
-pair. Nor is the modelled land column, which since LSHY-3 holds a top-layer
-liquid store that `pedology/config/land_column_properties.yaml`'s
-`saturation_mapping` converts into a degree of saturation.
+**The state comes from one place and this script does not define it.** It is the
+top water layer of the layered land column, 0.02 m thick, declared in
+`pedology/config/land_column_properties.yaml` under `surface_layer`: that block
+is the ONE top-of-column profile, and DUST-17's emitting depth reads the same
+profile at its own depth. A near-surface saturation defined here would be the
+second central hydrology that row exists to prevent. Three things about that
+layer matter to this field. It empties under evaporation in about a day where
+the 0.5 m layer above it relaxed on the column's timescale, which is what makes
+an albedo driven from it right in PHASE -- Craft and Horel measure a salt crust
+recovering from 0.22 to 0.32 in eight days. Its capacity is cut from AIR DRY
+rather than from the wilting point, so an empty layer and the dry field written
+here are the same state and the mixing has no level shift at its dry end. And
+the store it reads is LIQUID water, so a frozen surface reads as a dry one.
 
-What blocks it is that the modelled store cannot reach a dry soil. An empty
-store is the wilting point and a full one is field capacity, so the reachable
-saturation is an interval well inside [0, 1] -- that contract's
-`saturation_mapping.what_this_bounds` states it and states the same consequence
-for the modelled soil's heat capacity. Every spectrum
-`analysis/rock_albedo.py` and `analysis/playa_albedo.py` integrate is a prepared
-laboratory sample at the dry end of that scale, so mixing the two would hold
-every simulated land cell a fixed fraction of the way from dry to wet at all
-times: a level shift on land albedo, with the season riding on top of it rather
-than replacing it. On the salt-crust class that shift reaches 0.105 to 0.140 in
-albedo, applied in the driest season as much as the wettest, against a
-bare-against-vegetated gap of 0.069 over the whole simulated planet.
+**The shape between the ends is not linear in the albedo.** Sadeghi, Jones and
+Philpot (2015) derive the reflectance of a wetting soil from Kubelka-Munk
+two-flux theory, and what interpolates linearly in the water content is the
+transformed reflectance `r = (1-R)^2 / (2R)`, not `R`. The CLM form this row
+started from, `alpha_dry*(1-S) + alpha_wet*S`, has the same two ends and the
+wrong curve between them, and the difference is largest at low saturation, which
+is where a drying skin spends its time.
 
-The wet endmember is further along than that but is not staged either. Several
-wet-against-dry pairs are held and read, including in-situ pyranometer pairs on
-salt crust, but the model reads the PAIR of bands and those measurements are
-broadband: band 1 is bracketed by Penndorf and band 2, where liquid water
-absorbs and where the larger flux share arrives, has no relation at all. The
-silicate classes have no wetting measurement here, and the sign on salt crust is
-disputed between the in-situ pairs and a twenty-year MODIS series.
+**The saturated end closes band 2 without a band-2 measurement.** Lekner and Dorf
+(1988) and Twomey, Bohren and Mergenthaler (1986) both give the wet reflectance
+as a closed form in the DRY reflectance at the same wavelength, so applying
+either per wavelength to the spectra `analysis/rock_albedo_bands.py` already
+reads produces a band-2 wet endmember from band-2 dry data. The two bands come
+out wetting by different amounts because the dry spectra differ between them.
+The two papers describe two different surfaces -- a water film over a rough
+solid, and interstitial water in a finely divided medium -- so they are the two
+arms of a bracket rather than two estimates of one number; `--wetting-arm`
+sweeps it, and the interstitial arm is staged because this world's land is
+regolith and playa fill far more than it is bare outcrop.
+
+**Two classes are REFUSED and staged wet equal to dry.** `water`, because open
+water is not a surface that wets. And `evaporite`, because the sign is disputed
+on it: Malek et al. (1990) and Craft and Horel (2019) both measure a wetted
+halite crust much darker in situ, and a twenty-year MODIS series over the largest
+halite pan reads wet or cool years brighter than dry or warm ones. One saturation
+number cannot carry both, and the one physical route by which wetting brightens a
+surface -- the Fresnel reflection of a continuous film, which Sadeghi's Eq (19)
+adds -- is at most the normal-incidence reflectance of water times the porosity,
+under 0.01, against an interannual difference near 0.075. So the brightening is a
+crust-CONDITION effect, dissolution and reprecipitation and dust, which this
+model carries no state for. The refusal is in the staged FIELD and not only in
+the report: a refused class is written with its dry pair as its wet pair, and the
+check before the write requires a cell made entirely of refused material to
+carry identical dry and saturated fields.
 
 `moisture_dependence` in the report is the magnitude, on two footings. The
 ceiling is the substrate's own albedo minus open water's, because a wetted
@@ -154,6 +177,60 @@ from orogen import Export, LAND
 # radiation uses the two-band pair; 174 is written too so the broadband
 # diagnostic agrees rather than silently keeping 0.22.
 ALBEDO_CODES = (174, 175, 176)
+
+# The SATURATED pair, the far end of the moisture mixing, on the companion-code
+# precedent 1730 and 2290 already set: 1742, 1750 and 1760 sit beside 174, 175
+# and 176 and carry the same three surfaces at full saturation. `surfmod.f90`
+# registers them and `landmod`'s `getalb` mixes toward them under
+# `nwetsoil = 1`. ONE record each rather than fourteen: the wet reflectance of
+# a material is a property of the material, and the season is carried by the
+# saturation of the surface layer that the mixing reads.
+WET_ALBEDO_CODES = (1742, 1750, 1760)
+
+# Where the wetting ratios come from. Per class and per band, derived per
+# WAVELENGTH from the same reflectance spectra the dry band ratios come from.
+WETTING = PROJECT_ROOT / "analysis" / "soil_albedo_wetting.json"
+
+# WHICH ARM IS STAGED, AND WHY IT IS NOT AN AVERAGE. `soil_albedo_wetting.json`
+# carries two, from two mechanisms that describe two different surfaces: Lekner
+# and Dorf's water FILM over a rough solid, and Twomey, Bohren and
+# Mergenthaler's INTERSTITIAL water in a finely divided medium. This world's
+# land is regolith, playa mud and fan fill far more than it is bare outcrop --
+# `playa_clastic` alone is the largest single class -- and TBM's own paper
+# names finely divided media as its case while Lekner and Dorf name rough solid
+# surfaces as theirs. So the interstitial arm is staged and the film arm is the
+# other end of the declared bracket, swept with `--wetting-arm`.
+WETTING_ARMS = ("twomey", "lekner")
+
+# THE CLASSES THE MOISTURE TERM REFUSES, and the refusal travels with the
+# material the way every other per-class property here does.
+#
+# `evaporite` is refused because the SIGN is disputed on it and one saturation
+# number cannot carry both signs. Malek et al. (1990) and Craft and Horel
+# (2019) both measure a wetted halite crust much darker in situ; a twenty-year
+# MODIS series over the largest halite pan on Earth reads wet or cool years
+# BRIGHTER than dry or warm ones. They are not measuring the same thing -- a
+# water film darkens a crust, and a wet year also dissolves and reprecipitates
+# it and keeps dust off it -- and Sadeghi's Fresnel term, the one physical
+# route by which wetting could brighten a surface, is an order of magnitude too
+# small to carry the second: it adds at most the normal-incidence reflectance
+# of water times the porosity, under 0.01, against an interannual difference
+# near 0.075. So the brightening branch is a crust-CONDITION effect that this
+# model has no state for, and staging a single-signed darkening on this class
+# would assert against a held measurement.
+#
+# `water` is refused because open water is not a surface that wets.
+#
+# A refused class stages its DRY pair as its wet pair, so the mixing returns
+# the dry albedo at every saturation and the refusal is visible in the staged
+# field rather than only in a report.
+WETTING_REFUSED = {
+    "evaporite": "the sign is disputed: two in-situ pyranometer pairs make a "
+                 "wetted halite crust much darker and a twenty-year MODIS "
+                 "series makes wet years brighter, and the Fresnel term is too "
+                 "small by an order of magnitude to be the second effect",
+    "water": "open water is not a surface that wets",
+}
 
 # The two derivations that supply the band SHAPE. Neither supplies a level:
 # levels come from the export's rock table, the config overrides and the config
@@ -261,6 +338,57 @@ def band_shapes(rho: np.ndarray, z1: float, z2: float):
     return s1, rho * s1
 
 
+def rock_wetting_ratios(path: Path, mesh_root: Path, arm: str
+                        ) -> tuple[dict[int, tuple[float, float]], dict]:
+    """Rock class id -> (band1, band2) wet/dry ratio, for one arm.
+
+    Keyed by CODE in the file and resolved to this export's ids here, on the
+    same argument `rock_band_ratios` gives: ids move when Orogen adds a class
+    and codes do not. A class the file does not cover raises rather than
+    defaulting, because a silent 1.0 is a class asserted never to darken when
+    wet, which is the omission this table exists to remove -- and the classes
+    that ARE asserted not to darken are named in `WETTING_REFUSED` with their
+    reason.
+    """
+    if not path.is_file():
+        raise SystemExit(
+            f"{path} is absent. Run analysis/soil_albedo_wetting.py, which "
+            "derives the saturated endmember per class and per band; the wet "
+            "pair cannot be staged without it.")
+    table = json.loads(path.read_text(encoding="utf-8"))
+    index = WETTING_ARMS.index(arm)
+    lit = json.loads((mesh_root / "manifest.json").read_text(
+        encoding="utf-8"))["lithology"]
+    ratios: dict[int, tuple[float, float]] = {}
+    refused: dict[str, str] = {}
+    for entry in lit["rockClasses"]:
+        code = entry["code"]
+        if code in WETTING_REFUSED:
+            ratios[int(entry["id"])] = (1.0, 1.0)
+            refused[code] = WETTING_REFUSED[code]
+            continue
+        if code not in table["classes"]:
+            raise SystemExit(
+                f"{path.name} has no wetting ratio for rock class {code!r}, "
+                f"which {mesh_root} carries. Add a proxy in "
+                "analysis/soil_albedo_wetting.py and re-run it, or name the "
+                "class in WETTING_REFUSED with its reason; a class with no "
+                "ratio would be staged as never darkening when wet.")
+        row = table["classes"][code]
+        ratios[int(entry["id"])] = (float(row["band1_wet_over_dry"][index]),
+                                    float(row["band2_wet_over_dry"][index]))
+    return ratios, {
+        "arm": arm,
+        "arms_available": list(WETTING_ARMS),
+        "source": str(path),
+        "generated": table.get("generated"),
+        "refused_classes": refused,
+        "held_pair_bracket_passes": table["held_pair_bracket"]["passes"],
+        "band2_liquid_absorption_direction":
+            table["band2_liquid_absorption"]["direction"],
+    }
+
+
 def rock_band_ratios(path: Path, mesh_root: Path) -> dict[int, float]:
     """Rock class id -> band2/band1, for the classes this export carries.
 
@@ -322,6 +450,13 @@ def main() -> None:
                     help="albedo of full grass cover, for --mode modelled. "
                          "Defaults to model.grass_albedo in the config, same "
                          "derivation; 0.19 is the Earth-Sun endmember")
+    ap.add_argument("--wetting-arm", choices=WETTING_ARMS, default="twomey",
+                    help="which arm of the wet-endmember bracket to stage. "
+                         "`twomey` is the interstitial mechanism and is the "
+                         "one this world's regolith and playa surfaces are; "
+                         "`lekner` is the water-film mechanism and the other "
+                         "end of the bracket. Not an average: they are two "
+                         "surfaces, not two estimates of one")
     ap.add_argument("--target-mean", type=float, default=0.20,
                     help="land-mean albedo for --mode scaled")
     ap.add_argument("--vegetation-albedo", type=float, default=None,
@@ -427,6 +562,19 @@ def main() -> None:
     region_rho = np.empty(region_albedo.shape, dtype=np.float64)
     for rid, value in rock_ratio.items():
         region_rho[rock == rid] = value
+    # The WETTING ratio travels with the material for the same reason the band
+    # ratio does, and is repainted wherever that is: a repaint changes what the
+    # ground is made of, and how much darker it gets when wet is a property of
+    # the material and not of the cell. Two numbers per region, one per band,
+    # because the two bands wet by different amounts -- which is the whole
+    # result `soil_albedo_wetting.py` exists to produce.
+    rock_wet, wetting_report = rock_wetting_ratios(
+        WETTING, mesh.root, args.wetting_arm)
+    region_wet1 = np.empty(region_albedo.shape, dtype=np.float64)
+    region_wet2 = np.empty(region_albedo.shape, dtype=np.float64)
+    for rid, (w1, w2) in rock_wet.items():
+        region_wet1[rock == rid] = w1
+        region_wet2[rock == rid] = w2
     veg_json = json.loads(VEGETATION_BANDS.read_text(encoding="utf-8"))
     canopy_rho = float(veg_json["band2_over_band1"])
     cover_rho = {k: float(v) for k, v in veg_json["cover_band_ratio"].items()}
@@ -493,6 +641,12 @@ def main() -> None:
         veg_painted = is_land & ~barren
         region_albedo[veg_painted] = args.vegetation_albedo
         region_rho[veg_painted] = canopy_rho
+        # A canopy is not the wetting surface. The moisture term acts on soil,
+        # and what a wetted canopy does is a different question with different
+        # sources; painting the substrate's ratio onto it would answer that
+        # question by accident.
+        region_wet1[veg_painted] = 1.0
+        region_wet2[veg_painted] = 1.0
         endmembers["vegetated"] = _land_mean(region_albedo)
 
     # Lakes, last, because a lake covers whatever lithology is under it and no
@@ -586,8 +740,17 @@ def main() -> None:
                 region_albedo[geo_salt & ~ephemeral] = playa_a
                 region_rho[geo_salt & ~ephemeral] = rock_ratio[
                     _rock_id(mesh.root, "playa_clastic")]
+                pw1, pw2 = rock_wet[_rock_id(mesh.root, "playa_clastic")]
+                region_wet1[geo_salt & ~ephemeral] = pw1
+                region_wet2[geo_salt & ~ephemeral] = pw2
                 region_albedo[ephemeral] = salt_a
                 region_rho[ephemeral] = rock_ratio[evaporite_id]
+                # Salt crust, which the moisture term refuses: the sign is
+                # disputed on this class and the refusal follows the material
+                # through the derived split, not the geometric one.
+                ew1, ew2 = rock_wet[evaporite_id]
+                region_wet1[ephemeral] = ew1
+                region_wet2[ephemeral] = ew2
                 after_e = float(np.average(region_albedo[is_land],
                                            weights=area_r[is_land]))
                 evap_report = {
@@ -620,6 +783,9 @@ def main() -> None:
         before = float(np.average(region_albedo[is_land], weights=area_r[is_land]))
         region_albedo[paint_water] = water_albedo_value
         region_rho[paint_water] = rock_ratio[_rock_id(mesh.root, "water")]
+        ww1, ww2 = rock_wet[_rock_id(mesh.root, "water")]
+        region_wet1[paint_water] = ww1
+        region_wet2[paint_water] = ww2
         after = float(np.average(region_albedo[is_land], weights=area_r[is_land]))
         lake_report = {
             "source": str(args.lakes),
@@ -646,10 +812,18 @@ def main() -> None:
     # and the recombination identity survives gridding; the assertion before
     # the write is what proves that rather than this comment.
     band_grids = None
+    wet_grids = None
     if not args.flat_bands:
         shape1, shape2 = band_shapes(region_rho, z1, z2)
         band_grids = [land_weighted(mesh, grid_dir, region_albedo * shape1)[1],
                       land_weighted(mesh, grid_dir, region_albedo * shape2)[1]]
+        # The saturated pair, through the SAME gridding and from the same
+        # regions, so the two ends of the mixing describe one surface.
+        wet_grids = [
+            land_weighted(mesh, grid_dir,
+                          region_albedo * shape1 * region_wet1)[1],
+            land_weighted(mesh, grid_dir,
+                          region_albedo * shape2 * region_wet2)[1]]
 
     raw_fraction, raw_alb, _ = land_weighted(mesh, grid_dir,
                                              mesh.rock_albedo.astype(np.float64))
@@ -664,6 +838,7 @@ def main() -> None:
             with np.errstate(invalid="ignore", divide="ignore"):
                 factor = np.where(alb_grid > 0, scaled_grid / alb_grid, 1.0)
             band_grids = [g * factor for g in band_grids]
+            wet_grids = [g * factor for g in wet_grids]
         alb_grid = scaled_grid
 
     # --- the loop closure -----------------------------------------------------
@@ -747,14 +922,26 @@ def main() -> None:
             cover_shapes[name] = (cs1, cs2)
         if band_grids is not None:
             blended = []
+            wet_blended = []
             for index in (0, 1):
+                canopy = (
+                    tree_cover * args.tree_albedo * cover_shapes["tree"][index]
+                    + grass_cover * args.grass_albedo * cover_shapes["grass"][index])
                 blended.append(np.where(
                     land_cells,
-                    tree_cover * args.tree_albedo * cover_shapes["tree"][index]
-                    + grass_cover * args.grass_albedo * cover_shapes["grass"][index]
-                    + (1.0 - total_cover) * band_grids[index],
+                    canopy + (1.0 - total_cover) * band_grids[index],
                     band_grids[index]))
+                # The canopy term is the SAME in both ends, so the cover
+                # fraction of a cell does not wet and the bare fraction does.
+                # That is the honest composite: the moisture term acts on the
+                # ground under the canopy, and the canopy is what the radiation
+                # sees over the covered fraction.
+                wet_blended.append(np.where(
+                    land_cells,
+                    canopy + (1.0 - total_cover) * wet_grids[index],
+                    wet_grids[index]))
             band_grids = blended
+            wet_grids = wet_blended
 
         alb_grid = np.where(
             land_cells,
@@ -818,37 +1005,43 @@ def main() -> None:
             "cover it. Re-derive the bound for those classes before writing a "
             "report that claims it.")
     moisture_dependence = {
-        "state": "absent",
-        "what": "the modelled soil albedo is constant in time; codes 174, 175 "
-                "and 176 carry the DRY endmember and the modelled land surface "
-                "keeps it through every wetting and drying cycle the land "
-                "column simulates",
-        "form_that_is_not_missing":
-            "alpha_band = alpha_dry*(1 - S_e) + alpha_wet*S_e on the same 0.75 "
-            "um pair, read from "
-            "references/climaland/src/standalone/Soil/soil_albedo.jl",
-        "why_absent": [
-            "the modelled land store cannot reach a dry soil: an empty store is "
-            "the wilting point and a full one is field capacity, so S_e sits "
-            "inside [0, 1] with a floor that is strictly positive on every "
-            "residual pedology/config/land_column_properties.yaml admits -- and "
-            "that contract declares the residual undeclared, so S_e cannot be "
-            "evaluated exactly today, only bounded. The dry endmembers written "
-            "here are laboratory-dry, at the other end of that scale, so mixing "
-            "them applies a permanent level shift as well as a season",
-            "the wet endmember is broadband where it exists and the model reads "
-            "the PAIR: the held wetting measurements are in-situ pyranometer "
-            "pairs on salt crust plus luminous reflectance on soils, so band 1 "
-            "is bracketed and band 2 is not -- and band 2 is where liquid "
-            "water absorbs and where the larger share of this star's flux "
-            "arrives. The silicate classes have no pair at all",
-            "the sign is disputed on the class it matters most for: two in-situ "
-            "sources make wetted salt crust much darker and a twenty-year MODIS "
-            "series makes wet years brighter, and one saturation number cannot "
-            "carry both",
-            "the modelled top water layer is 0.5 m against the 0.02 m the "
-            "parameterisation names, and the albedo depth is DUST-17's to "
-            "declare off its one top-layer profile",
+        "state": "staged",
+        "what": "codes 174, 175 and 176 carry the DRY endmember and 1742, 1750 "
+                "and 1760 the SATURATED one, and `landmod`'s `getalb` under "
+                "`nwetsoil = 1` mixes between them on the degree of saturation "
+                "of the land column's surface layer",
+        "form": "Sadeghi, Jones and Philpot (2015) Eq (13): linear in the "
+                "Kubelka-Munk transformed reflectance r = (1-R)^2/(2R) and "
+                "therefore NOT in the albedo. The CLM form this row started "
+                "from, alpha_dry*(1-S) + alpha_wet*S, has the same two ends and "
+                "the wrong shape between them",
+        "state_source": "pedology/config/land_column_properties.yaml "
+                        "`surface_layer`, which is the ONE top-of-column "
+                        "profile DUST-17's emitting depth reads at its own "
+                        "depth. Not a second hydrology",
+        "what_is_still_open": [
+            "THE SIGN ON SALT CRUST, which is refused per class rather than "
+            "resolved: see `wetting.refused_classes`. Two in-situ pyranometer "
+            "pairs make a wetted halite crust much darker and a twenty-year "
+            "MODIS series makes wet years brighter; the second is a "
+            "crust-CONDITION effect this model has no state for, and the "
+            "Fresnel term is too small by an order of magnitude to be it",
+            "THE LIQUID'S OWN ABSORPTION IN BAND 2. Both mechanisms behind the "
+            "saturated endmember treat the water as non-absorbing, so both are "
+            "UPPER bounds there and the bracket is open at its dark end. "
+            "Closing it needs an absolute scattering coefficient for the dry "
+            "soil or a wet-and-dry spectrum pair on one sample",
+            "THE SHAPE PARAMETER IN BAND 1. Sadeghi's sigma is one where the "
+            "water's own scattering is negligible, which they verify in the "
+            "short-wave infrared; their visible-band fits run 0.042 to 0.528, "
+            "and a value below one darkens the modelled surface sooner in a "
+            "wetting cycle without moving its ends",
+            "THE SURFACE LAYER IS NOT YET WHAT THE RUN CONFIGURES. "
+            "`config/planet.yaml`'s `surface.land_water_column` still declares "
+            "the two-layer 0.5 and 1.0 m cut; the mixing needs the "
+            "three-layer "
+            "0.02/0.48/1.0 cut the contract declares, and `nwetsoil` refuses "
+            "until it has it",
         ],
         "argument": "exoplasim/notes/soil-albedo-moisture.md",
         "ceiling_note":
@@ -856,8 +1049,10 @@ def main() -> None:
             "delta, which is the unit scripts/error_budget.py consumes. A "
             "CEILING and not an estimate: the realised term is this times a "
             "wet-area fraction and a wetting efficiency, neither of which is "
-            "known here. Bounds the darkening branch only; see the sign row "
-            "above",
+            "known here. It bounds a FULLY INUNDATED surface, which is a "
+            "different quantity from the saturated endmember staged in 1742, "
+            "1750 and 1760: the modelled surface layer caps at field capacity "
+            "and never reaches it",
         "open_water_albedo": water_albedo,
         "ceiling_land_mean": round(
             float(np.average(ceiling_land, weights=area_land)), 6),
@@ -1002,6 +1197,102 @@ def main() -> None:
                     "writing. The .sra format rounds at %12.5f, so the "
                     "tolerance is twice that quantum and not tighter.",
         }
+
+        # --- the saturated pair, codes 1742, 1750 and 1760 -----------------
+        #
+        # The broadband member is RECOMBINED from the pair rather than gridded
+        # on its own, so the same identity holds at the wet end by construction
+        # and there is no third array to keep in step.
+        wet_fields = {
+            1750: np.where(land_cells, wet_grids[0], water_albedo * ws1),
+            1760: np.where(land_cells, wet_grids[1], water_albedo * ws2),
+        }
+        wet_fields[1742] = z1 * wet_fields[1750] + z2 * wet_fields[1760]
+
+        # THREE CHECKS THAT CAN FAIL, on the arrays about to be written.
+        #
+        # The wet field must not be brighter than the dry one anywhere: the
+        # term staged here is a DARKENING and a cell where it is not is a
+        # repaint that moved one array and not the other. The tolerance is the
+        # `.sra` write quantum, because the two fields reach the model through
+        # that format and a difference below it is not a difference.
+        #
+        # It must not be negative, which the maps cannot produce but a
+        # composite of them could if a cover weight went out of range.
+        #
+        # And the refused classes must be staged EQUAL to their dry pair, cell
+        # by cell, because that is what a refusal is: the mixing returns the
+        # dry albedo at every saturation. A refusal that is only a sentence in
+        # a report is not a refusal.
+        for code, dry_code in ((1750, 175), (1760, 176), (1742, 174)):
+            excess = float((wet_fields[code] - band_fields[dry_code]).max())
+            if excess > RECOMBINATION_TOLERANCE:
+                j, i = np.unravel_index(
+                    int((wet_fields[code] - band_fields[dry_code]).argmax()),
+                    wet_fields[code].shape)
+                raise SystemExit(
+                    f"the saturated field {code} is brighter than the dry "
+                    f"field {dry_code} at cell ({j}, {i}) by {excess:.3e}. "
+                    "Wetting darkens; a cell where it does not is a repaint "
+                    "that moved the level without moving the wetting ratio.")
+            if float(wet_fields[code].min()) < 0.0:
+                raise SystemExit(
+                    f"the saturated field {code} is negative somewhere. The "
+                    "maps cannot produce that, so a cover weight or a repaint "
+                    "is out of range.")
+        refused_ids = [_rock_id(mesh.root, code) for code in WETTING_REFUSED
+                       if any(r["code"] == code for r in json.loads(
+                           (mesh.root / "manifest.json").read_text(
+                               encoding="utf-8"))["lithology"]["rockClasses"])]
+        refused_regions = np.isin(rock, refused_ids) & is_land
+        # The refusal at the MATERIAL level, which is where it is declared and
+        # the only place it is always testable: a T21 cell need not be made
+        # entirely of one class, so the cell-level check below can have no
+        # sample, and this one cannot.
+        if refused_regions.any():
+            off = float(max(np.abs(region_wet1[refused_regions] - 1.0).max(),
+                            np.abs(region_wet2[refused_regions] - 1.0).max()))
+            if off != 0.0:
+                raise SystemExit(
+                    f"a refused rock class carries a wetting ratio {off:.3e} "
+                    "away from 1. A refusal is staged as wet equal to dry, and "
+                    "a repaint has given refused material a ratio.")
+        refused_pure = None
+        if refused_regions.any():
+            # Cells made ENTIRELY of refused material, which are the only ones
+            # where the staged fields must match exactly: a mixed cell carries
+            # some material that does wet.
+            share = land_weighted(mesh, grid_dir,
+                                  refused_regions.astype(np.float64))[1]
+            pure = land_cells & (share >= 1.0 - 1.0e-9)
+            if pure.any():
+                gap = float(np.abs(wet_fields[1750][pure]
+                                   - band_fields[175][pure]).max())
+                if gap > RECOMBINATION_TOLERANCE:
+                    raise SystemExit(
+                        f"a cell made entirely of refused material differs "
+                        f"between its dry and saturated band-1 fields by "
+                        f"{gap:.3e}. A refused class is staged wet EQUAL to "
+                        "dry, so the mixing returns the dry albedo at every "
+                        "saturation; this one would move.")
+            refused_pure = int(pure.sum())
+        wetting_report["refused_regions"] = int(refused_regions.sum())
+        wetting_report["cells_entirely_refused_material"] = refused_pure
+        wetting_report["band1_land_mean_saturated"] = gmean(wet_fields[1750])
+        wetting_report["band2_land_mean_saturated"] = gmean(wet_fields[1760])
+        wetting_report["broadband_land_mean_saturated"] = gmean(wet_fields[1742])
+        wetting_report["broadband_land_mean_dry"] = final_mean
+        wetting_report["codes"] = list(WET_ALBEDO_CODES)
+        for code in WET_ALBEDO_CODES:
+            path = output / f"orogen_{resolution}_surf_{code:04d}.sra"
+            write_sra(path, code, wet_fields[code])
+            written.append(str(path))
+    else:
+        wetting_report["staged"] = False
+        wetting_report["why_not"] = ("--flat-bands writes one field to all "
+                                     "three dry codes and there is no pair for "
+                                     "the wet end to be a pair with")
+
     for code in ALBEDO_CODES:
         path = output / f"orogen_{resolution}_surf_{code:04d}.sra"
         write_sra(path, code, band_fields[code])
@@ -1016,7 +1307,8 @@ def main() -> None:
         "grid": str(grid_dir),
         "resolution": resolution,
         "terrain_hash": mesh.terrain_hash,
-        "codes": list(ALBEDO_CODES) + [FOREST_CODE],
+        "codes": list(ALBEDO_CODES) + [FOREST_CODE]
+                 + (list(WET_ALBEDO_CODES) if band_grids is not None else []),
         "forest_fraction_value": forest_value,
         "vegetation": vegetation_summary,
         "forest_fraction_land_mean": gmean(forest),
@@ -1042,6 +1334,7 @@ def main() -> None:
         "land_mean_written": final_mean,
         "endmembers": endmembers,
         "moisture_dependence": moisture_dependence,
+        "wetting": wetting_report,
         "lakes": lake_report,
         "derived_evaporite": evap_report,
         "exoplasim_default_albland": 0.22,
@@ -1061,7 +1354,7 @@ def main() -> None:
     # files as they now stand, on the same footing as the config stamp. The
     # optional per-run inputs are listed too, because a lake solution or a
     # climatology re-derived under the same name is the same failure.
-    inputs = [ROCK_BANDS, VEGETATION_BANDS]
+    inputs = [ROCK_BANDS, VEGETATION_BANDS, WETTING]
     inputs += [p for p in (args.vegetation, args.lakes, args.climatology)
                if p is not None]
     report.update(config_stamp(config, "exoplasim/scripts/build_surface_albedo.py",

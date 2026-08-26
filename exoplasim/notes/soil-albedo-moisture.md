@@ -1,215 +1,311 @@
-# The modelled soil albedo does not know whether the soil is wet
+# The modelled soil albedo and the water in the ground under it
 
 *A worldbuilding project. Everything below is about the simulated planet Vesper
 and the models that produce it: the ExoPlaSim climate column, the land water
 column under it, and the albedo boundary condition this project stages into
 them. Measured on 2026-08-26 against `canonical-10m-base` at T21.*
 
-This is the declaration that closes PHYS-15. The moisture dependence of the
-modelled soil albedo is ABSENT, deliberately, and this note carries the
-argument, the magnitude, and the four things that would arm it.
+Wet ground is darker than dry ground, and until now the modelled land surface
+kept one albedo through every wetting and drying cycle the land column
+simulated. This note is what the term is made of: where the water state comes
+from, what closes the band the model reads and no measurement covers, what the
+term is worth, and the one class it refuses.
 
-## What is not the blocker
+## What the modelled soil albedo does through a cycle
 
-**Not the parameterisation.** `landmod.f90:507-508` declares `dalbclim1` for
-below 0.75 um and `dalbclim2` for above, the same split
-`exoplasim/scripts/build_surface_albedo.py` writes into surface codes 175 and
-176, and the CLM two-band mixing is defined on exactly that pair:
+Two staged endmembers and a curve between them.
 
-    alpha_band = alpha_band_dry * (1 - S_e) + alpha_band_wet * S_e
+    codes 174 / 175 / 176     the DRY endmember, broadband and the band pair
+    codes 1742 / 1750 / 1760  the SATURATED endmember, the same three surfaces
 
-with `S_e` the effective saturation over an albedo depth. Read from
-`references/climaland/src/standalone/Soil/soil_albedo.jl`, which is the artifact
-rather than a description of one; its default `albedo_calc_top_thickness` is
-0.02 m and its `update_albedo!` falls back to the top layer's water content when
-no layer is centred above that depth.
+`landmod`'s `getalb` under `nwetsoil = 1` calls `wetalb`, which reads the
+degree of saturation of the land column's SURFACE LAYER and mixes the two ends
+through `landcolumn`'s `wet_soil_albedo`. Over a cycle:
 
-**Not the scalar bucket, any more.** When `notes/external-model-survey.md`
-section 39 was written, ExoPlaSim's land held one store with no depth and there
-was nothing to evaluate `S_e` from at all. LSHY-3 has since landed the layered
-column: `config/planet.yaml`'s `land_water_column` runs `scheme: layered` at
-`layers: 2` and `layer_thickness_m: [0.5, 1.0]`, `landmod` carries `dwatcl` by
-layer against a per-cell capacity split, and
-`pedology/config/land_column_properties.yaml`'s `saturation_mapping` is the
-declared conversion from a store fill fraction to a degree of saturation. A
-number of the shape `S_e` is reachable today.
+- **Dry season.** The surface layer empties. An empty layer is a dry soil, not a
+  soil at its wilting point, so the modelled albedo is exactly the staged dry
+  field and not a fixed fraction of the way toward the wet one. That equality is
+  bitwise: the mixing branches on the ends rather than reaching them by
+  arithmetic.
+- **First rain.** The surface layer fills before anything below it does, because
+  the column is a cascade and the surface flux enters the top. A 0.02 m store
+  fills on the first substantial rain of the season rather than over it.
+- **Wet season.** The layer sits near its capacity and the modelled albedo sits
+  near the saturated end. It never reaches that end: the layer's capacity stops
+  at field capacity, so the saturated endmember is an endpoint the mixing
+  approaches and does not touch.
+- **Drydown.** The layer empties under evaporation in about a day, and the
+  albedo returns to its dry value on that timescale rather than on the column's.
+  This is the change that matters most and the one the previous pass identified:
+  the modelled soil albedo is now right in PHASE. Craft and Horel measure a
+  Bonneville salt crust recovering from 0.22 to 0.32 in eight days after
+  flooding, and a 0.5 m store cannot do that.
+- **Frozen ground.** The layer's store is LIQUID water; ice occupies pore space
+  and comes off the capacity in the cascade, so a frozen surface reads as a dry
+  one with no branch for it.
 
-**And not, mostly, the coefficients.** Section 2 is the surprise of this
-declaration: several wet-against-dry albedo measurements are already held and
-read in this project, including in-situ pyranometer pairs on the surface type
-that covers most of this world's land.
+The curve between the ends is **not** linear in the albedo. Sadeghi, Jones and
+Philpot derive the reflectance of a wetting soil from Kubelka-Munk two-flux
+theory, and what interpolates linearly in the water content is the transformed
+reflectance `r = (1 - R)^2 / (2R)`, not `R`:
 
-## What the blocker is
+    r(S) = (sigma*r_dry*(1 - S) + r_sat*S) / (sigma*(1 - S) + S)
+    R(r) = 1 + r - sqrt(r*r + 2*r)
 
-### 1. The modelled land store cannot reach a dry soil
+`alpha_dry*(1 - S) + alpha_wet*S`, the CLM form this row started from, has the
+same two ends and the wrong shape between them, and the disagreement is largest
+at low saturation, which is where a drying skin spends its time.
 
-`saturation_mapping` states the reachable interval and its own
-`what_this_bounds` states the consequence, for the thermal side, in the words
-this row needs:
+`sigma` is the ratio of the dry soil's scattering coefficient to the saturated
+soil's. It is ONE where the water's own scattering is negligible against the
+soil's, which Sadeghi verify at the strongly water-absorbing short-wave infrared
+wavelengths that make up band 2. One is adopted in both bands as that limit
+rather than as a fit; their visible-band fits run 0.042 to 0.528, and the
+direction is known -- a value below one darkens the modelled surface sooner in a
+wetting cycle without moving either end. That is the declared bracket on band 1.
 
-    sr_at_wilting_point: 0.4114
-    sr_at_field_capacity: 0.7877
+The one FIELD measurement of the shape this project holds sits at the adopted
+arm. Idso et al. (1975) ran four pyranometer experiments over one irrigated loam
+field with concurrent gravimetric sampling at eight depths, and found the albedo
+a linear function of the water content of the top 0.2 cm over 0.00 to 0.18
+volumetric, which on that soil is roughly the lower 0.4 of the saturation range.
+Sadeghi's `sigma = 1` is the LEAST concave member of its family -- the initial
+slope goes as `(r_sat - r_dry)/sigma` -- so a value below one would be more
+concave than Idso measures, not less. The measurement is broadband and the
+bracket is on band 1, so this does not close it; it says which end of it the
+evidence points at.
 
-    "THE STORE CANNOT REACH A DRY SOIL, and that is the finding rather than a
-    caveat. An empty store is the wilting point, which on this build is a degree
-    of saturation near 0.41 ... it is why the dry playa and salt-crust surfaces
-    cannot be given their own inertia by this route however the endpoints are
-    set. Representing them needs a thin surface layer that dries below the
-    wilting point, which is a change to the column and not to a constant."
+## The surface layer, and how its water is conserved
 
-`dwmax` is a plant-available capacity, so an empty store is the wilting point
-and a full one is field capacity. Those two bounds are a degree of saturation,
-`theta/theta_s`, and the CLM mixing takes an EFFECTIVE saturation,
-`(theta - theta_r)/(theta_s - theta_r)`. The two coincide only at a zero
-residual, and the same contract declares the residual `undeclared`, owned by
-LSHY-3, deliberately: "zero is a choice and this contract is where it would be
-recorded". So `S_e` cannot even be evaluated exactly today.
+The state the albedo reads is the top water layer of the layered land column,
+0.02 m thick, declared in `pedology/config/land_column_properties.yaml` under
+`surface_layer`. That block is the ONE top-of-column profile and both consumers
+read it at their own depth: this row takes a degree of saturation over the
+albedo depth, and DUST-17 takes a gravimetric water content over its emitting
+depth. A near-surface saturation defined in the albedo builder would be the
+second central hydrology DUST-17 exists to prevent.
 
-What the contract does settle is that the floor is strictly positive whatever
-the residual turns out to be. Writing `x = theta_r/theta_s`, the wilting-point
-effective saturation is `(0.4114 - x)/(1 - x)`, which falls monotonically from
-0.4114 at `x = 0` and reaches zero only at `x = 0.4114`, where the residual
-equals the wilting-point water content and no water is removable at all. The
-contract's own ordering, `residual <= wilting_point <= field_capacity <=
-saturation`, admits that only as a degenerate limit. So the reachable window is
+0.02 m is an UPPER bound on the depth a radiation scheme sees, and the direction
+is stated because it is the direction that understates how fast the modelled
+surface dries. Idso et al. measure that directly: their Figure 5 puts a
+single-valued albedo-against-water relation on the 0-0.2 cm layer and a near-step
+function on 0-10 cm, and their own conclusion names a controlling layer "less
+than 0.2 cm thick". ClimaLand's `albedo_calc_top_thickness` is 0.02 m and this
+project takes the coarser of the two, because the same layer is what DUST-17's
+emitting depth reads and a 0.002 m store in a tipping-bucket cascade empties
+inside one model timestep.
 
-    S_e(empty store)  in  (0, 0.4114]        strictly above zero
-    S_e(full store)   =   (0.7877 - x)/(1 - x)   strictly below one
+It is TWO changes to the column and only one of them moves water.
 
-against the 0 to 1 the mixing is defined on, and the floor's exact height is
-undeclared.
+**The split is free, and exactly.** ExoPlaSim's liquid water is a tipping-bucket
+cascade: the surface flux enters the top layer, each layer fills to capacity and
+passes its excess down, a withdrawal larger than the top layer holds draws on
+the layers beneath, and what the base cannot take backs up and leaves as runoff.
+Splitting the top layer while holding the column's total capacity fixed leaves
+the total that cascade carries unchanged, because what enters is the surface
+flux and what leaves is base overflow and neither depends on where the internal
+boundaries are. `land_column_properties.py`'s `check_split_invariance` DRIVES
+that rather than asserting it: a two-layer column and a three-layer column whose
+first two capacities sum to the two-layer column's first, one flux sequence
+through the same cascade, and the total and the runoff must agree. Over 4096
+steps they agree to 1.1e-13 mm, which is the rounding of the two sums and not a
+transfer of water; the tolerance was set at 1e-9 mm before the first run.
 
-The dry endmember this project holds is at the far end of that scale: the
-spectra `analysis/rock_albedo.py` and `analysis/playa_albedo.py` integrate are
-prepared laboratory samples, and the field pairs in section 2 take their dry
-value on a surface crust after weeks without rain. A soil at its wilting point
-is neither. So arming the mixing on these ingredients would deliver, on a
-modelled land cell whose store is completely empty,
+The 0.5 m boundary survives the split -- 0.02 + 0.48 + 1.0 -- which matters
+because that is the only cut at which the climate column and the ecology column
+share a boundary, and LSHY-5 needs them to share it.
 
-    alpha = alpha_dry - S_e(empty) * (alpha_dry - alpha_wet)
+**The floor is a real change and it is declared.** `available` is field capacity
+minus wilting point because that is what a ROOT can remove, and evaporation from
+a bare surface is not a root: the top of a drying soil goes to air dry, which is
+below the wilting point and outside every state the column's capacity carried.
+So the surface layer's capacity is cut from air dry instead, and the column's
+capacity gains that layer's sub-wilting water. Measured on this build:
 
-permanently and everywhere, with `S_e(empty)` strictly above zero and at most
-0.4114. That is a LEVEL SHIFT on the modelled land albedo, and the seasonal
-swing rides on top of it rather than replacing it. PHYS-15 names the seasonal
-term; the arithmetic delivers a shift as well, of a size no declared quantity
-currently fixes.
+| quantity | median | p10 to p90 |
+| --- | --- | --- |
+| surface layer capacity | 6.87 mm | 6.09 to 7.65 |
+| sub-wilting increment | 3.57 mm | 2.81 to 4.52 |
+| `awc_mm`, what LPJ-GUESS reads | 175.0 mm | 46.6 to 242.5 |
+| `evaporable_mm`, what ExoPlaSim would install as `dwmax` | 178.5 mm | 49.9 to 246.0 |
+| increment over `awc_mm` | 0.0225 | 0.0137 to 0.0747 |
 
-The size of that shift is the reason this is fatal rather than untidy. On this
-world's `evaporite` class, at albedo 0.50 and the measured salt-crust wetting
-ratios in section 2, the shift would be **up to 0.105 to 0.140 in albedo on
-every salt-crust cell**, applied in the driest season as much as the wettest.
-For scale, the entire bare-rock-against-vegetated gap this project brackets over
-the whole simulated planet is 0.069. Declaring the residual would fix where in
-that range the shift lands; it would not remove it, because the floor is
-positive for every admissible residual.
+The two capacity columns are two quantities and not one number written twice: a
+root cannot reach the water between air dry and the wilting point and a bare
+drying surface can. `surface_layer_report` checks the identity that defines them
+-- `evaporable_mm - awc_mm` equals the surface layer's increment, cell by cell,
+to 2.8e-14 mm -- so the column gained exactly the water the surface layer can
+now reach and not a millimetre more. The layers beneath keep their
+plant-available semantics unchanged, which is why `soilsrwp` and `soilsrfc`
+still describe them and the soil heat solver still reads a layer it understands.
 
-This is the same bound that blocks the moisture-dependent soil heat capacity,
-and it has the same named remedy: a thin surface layer that dries below the
-wilting point. It is a change to the land column, not a coefficient.
+**Air dry is declared as zero**, and the argument is that it is the state every
+dry reflectance spectrum this project stages was MEASURED at, so an empty
+surface layer and the staged dry albedo are the same state and the mixing has no
+level shift at its dry end. That was the objection that closed this row before,
+and it is answered by the column rather than by a coefficient. The cost is
+bounded and one-signed: a real soil holds adsorbed water at the ambient
+humidity, so the layer can give up at most `0.02 * theta_ad` more water than it
+should, which is under the 3.57 mm increment. The alternative -- evaluating air
+dry through this contract's own retention closure at the Kelvin potential of a
+declared humidity, near -160 MPa -- is registered and not adopted: it is a
+hundredfold extrapolation past the wilting point, far outside the suctions Cosby
+fitted, and Clapp-Hornberger carries no adsorption branch at all. Adopting it
+needs a dry-end retention form this project does not hold.
 
-### 2. The wet endmember is broadband where it exists, and band 2 is open
+## What band 2 rests on
 
-This is where the row's original framing was wrong, and the correction is worth
-recording because it moves the work. `notes/external-model-survey.md` section 39
-says no magnitude is quoted "because this tree ships none", meaning ClimaLand's;
-what it did not check is what this project's own reference library already
-holds. Four sources, all already read:
+Band 2 carries 0.617628 of this star's flux against band 1's 0.382372, and it is
+the band liquid water absorbs in. It was the open half of this row: the held
+wetting measurements were a luminous reflectance table over 0.38 to 0.77 um and
+two broadband in-situ pyranometer pairs, so band 1 was bracketed and band 2 was
+not, and an Earth calibration cannot be carried across.
 
-| source | surface | dry | wet | wet/dry | quantity |
-| --- | --- | --- | --- | --- | --- |
-| Malek et al. (1990) | thin halite crust over shallow brine, Pilot Valley playa | above 0.75 after three dry weeks; 0.64 annual mean | 0.24 | 0.32 | in-situ pyranometer pair, broadband |
-| Craft, Horel (2019) | Bonneville Salt Flats halite crust | 0.45 dry summer | 0.22 under 20-40 mm of flooding | 0.489 | broadband, and it recovers to 0.32 in eight days |
-| Castellani Alegria et al. (2026) | Uyuni halite pan | 0.55-0.60 in dry or warm years | 0.65 in wet or cool years | 1.08-1.18 | MODIS BRDF, twenty-year series |
-| Penndorf (1956) Table 1, Sewing column | clay soil / sand / bare rich soil | 15 / 31 / 7.2 | 7.5 / 18 / 5.5 | 0.500 / 0.581 / 0.764 | luminous reflectance, 0.38-0.77 um |
+It is closed WITHOUT a band-2 measurement, and the reason is that both mechanical
+theories of why wet things are darker give the wet reflectance as a closed form
+in the DRY reflectance AT THE SAME WAVELENGTH:
 
-Malek's dry value is stated as ABOVE 0.75, so 0.32 is an upper bound on that
-ratio and a lower bound on the darkening; the bracket below takes the
-conservative end. Penndorf's row was read on 2026-08-26 for this note, off the
-render rather than the text layer, which misreads the last wet value as 55
-instead of 5.5. The
-levels are Earth surfaces and do not transfer; the ratios are taken within one
-column or one instrument, so the preparation and geometry cancel and the ratio
-transfers, which is the discipline `analysis/playa_albedo.py` already applies to
-ECOSTRESS.
+**Lekner and Dorf (1988).** A water film over a rough surface sends diffusely
+reflected light back down onto it by total internal reflection at the film's
+upper face, so the surface gets more chances to absorb. Closed form and no
+fitted constant: the internal-reflection probability follows from the film's
+refractive index, and the change in the surface's own absorptance follows from
+the drop in relative index at the substrate.
 
-So the coefficient side is much further along than the row assumed. What is
-still missing on it is two things, and they are both real:
+**Twomey, Bohren and Mergenthaler (1986).** In a finely divided medium,
+replacing interstitial air with water lowers the particle-to-medium index ratio
+and makes single scattering far more forward-peaked, so a photon needs more
+scatterings to escape and is more likely to be absorbed on the way. Similarity
+scaling turns that into a reduced effective single-scattering albedo and
+Chandrasekhar's semi-infinite isotropic result turns that back into a
+reflectance.
 
-**The band split of a wet surface.** The model reads the PAIR and not the
-broadband field at `NSIMPLEALBEDO = 0`, so a broadband wetting ratio cannot be
-staged. Applying the dry band ratio to a wet level would assert that wetting is
-spectrally flat, which `build_surface_albedo.py` already argues is false of
-every material on this planet -- and it is specifically false here, because
-liquid water's absorption sits above 0.75 um. This project holds the direct
-evidence for that in Slater et al. (1987), read: White Sands gypsum runs 0.49 to
-0.62 through the visible and near infrared and then falls to 0.414 at
-1.55-1.75 um and 0.159 at 2.08-2.35 um on gypsum's structural-water bands.
-Penndorf brackets band 1 and nothing brackets band 2, and under this star band 2
-carries 0.617628 of the flux against band 1's 0.382372. The unmeasured band is
-the larger one.
+Applied per wavelength to the same reflectance spectra `rock_albedo_bands.py`
+already integrates, and then band-integrated against this star, they produce a
+band-2 wet endmember from band-2 dry data. The two bands come out wetting by
+different amounts because the dry spectra differ between the bands, not because
+a band-2 ratio was asserted: `granite` wets to 0.366 of dry in band 1 and 0.403
+in band 2, `playa_clastic` to 0.324 and 0.373.
 
-**Any pair at all for the silicate classes.** The four sources above cover salt
-crust and soils. Granite, andesite and the clastics -- 60 percent of this
-build's land between them -- have no wetting measurement here.
+**The level has to be right before the map is applied**, and that is the trap
+this derivation exists around. Both maps are strongly nonlinear in the dry
+reflectance and both fix the endpoints, so the wet/dry RATIO is not a property
+of the material alone -- it depends on where the material's dry reflectance
+sits. A laboratory powder and the outcrop it came from are 2.2 to 5.1 apart on
+the same rock, so each spectrum is rescaled to the class's own broadband albedo
+before wetting: the shape from the library, the level from the rock table.
 
-The Earth-calibrated dry and wet soil fields the CLM parameterisation ships are
-not a substitute for either gap. They are a soil colour map and a
-colour-to-albedo table, and only the FORM transfers, on the same rule that made
-BIO-18 and PHYS-14 re-derive their albedos under this star. The sources that
-would close band 2 directly were sought on 2026-08-26 and none is reachable from
-this host; they are listed with their DOIs in `references/INDEX.md`.
+**The two are two arms of a bracket and never an average.** Lekner and Dorf say
+plainly which medium each is for: theirs "would seem to apply best to rough
+solid surfaces", the other's "to finely divided media, such as sand". This
+world's land is both. The interstitial arm is what `--wetting-arm` stages by
+default, because this land is regolith and playa fill far more than bare
+outcrop, and the film arm is the other end.
 
-### 3. The sign is disputed on the class it matters most for
+**The bracket is a prediction that can fail, and it holds.** It must contain
+every wet/dry pair this project holds:
 
-The three salt-crust sources in section 2 do not agree, and the disagreement is
-not noise. Malek and Craft measure the surface state at the time of wetting and
-both find it much DARKER: 0.75 to 0.24, and 0.45 to 0.22. Castellani Alegria
-composites MODIS over twenty years and finds wet or cool years BRIGHTER, 0.65
-against 0.55-0.60.
+| source | dry | wet | bracket | in |
+| --- | --- | --- | --- | --- |
+| Penndorf (1956) clay soil | 0.150 | 0.075 | 0.045 to 0.098 | yes |
+| Penndorf (1956) sand | 0.310 | 0.180 | 0.121 to 0.197 | yes |
+| Penndorf (1956) bare rich soil | 0.072 | 0.055 | 0.019 to 0.056 | yes |
+| Angstrom (1925) sand, via Lekner Table III | 0.182 | 0.091 | 0.058 to 0.117 | yes |
+| Angstrom (1925) black mold, via Lekner Table III | 0.141 | 0.084 | 0.042 to 0.093 | yes |
+| Craft, Horel (2019) Bonneville halite crust | 0.450 | 0.220 | 0.219 to 0.301 | yes |
+| Malek et al. (1990) Pilot Valley playa | above 0.75 | 0.240 | 0.558 to 0.604 | NO |
 
-They are not measuring the same thing. A water film on a crust darkens it; a wet
-year also dissolves and reprecipitates the crust and keeps dust off it, which
-brightens it, and a twenty-year composite of annual means cannot separate the
-two. Both effects are physical and they have opposite signs on the same class.
-This project has no way to separate them at present, and one saturation number
-cannot carry both.
+The exception is named in advance rather than tolerated. Malek's surface is a
+thin halite crust over SHALLOW BRINE and its wet value is the crust with brine at
+the surface, which is inundation and not a wetted skin; its dry value is stated
+only as a bound. Both mechanisms describe a wetted medium and neither describes
+ponded water, and the modelled surface layer caps at field capacity, so the
+model cannot reach that state either.
+
+Both implementations also reproduce their own papers' printed numbers before
+they are used on anything: Lekner and Dorf's average interface reflectance
+(0.0665 against the 0.0667 their own internal-reflection probability implies),
+that probability (0.4749 against 0.475), Angstrom's lower estimate of it (0.4375
+against 0.437) and the wet-to-dry absorptance ratio at three substrate indices
+(1.068, 1.082, 1.100 against 1.07, 1.08, 1.10); and TBM's worked example carried
+end to end (0.30 to 0.115 against 0.12, the residual being that the paper runs
+its example through the zenith reflectance where a model albedo is a flux
+albedo).
+
+**What band 2 still does NOT rest on**, and it is one-signed. Both mechanisms
+treat the liquid as non-absorbing and describe only what it does to the geometry
+of scattering. Liquid water absorbs strongly in parts of band 2, so both arms are
+UPPER bounds there and the bracket is open at its dark end. Turning that into a
+correction needs an absolute scattering coefficient for the dry soil, which
+nothing in this tree carries, or a wet-and-dry reflectance spectrum pair measured
+on one sample. `references/INDEX.md` names the one that would do it.
+
+## The sign is disputed on salt crust, and the class is refused
+
+The three salt-crust sources do not agree, and the disagreement is not noise.
+Malek and Craft measure the surface at the time of wetting and both find it much
+DARKER: above 0.75 to 0.24, and 0.45 to 0.22. A twenty-year MODIS series over
+Uyuni composites annual means and finds wet or cool years BRIGHTER, 0.65 against
+0.55 to 0.60.
+
+They are not measuring the same thing. A water film darkens a crust; a wet year
+also dissolves and reprecipitates the crust and keeps dust off it, which
+brightens it, and a twenty-year composite cannot separate the two.
+
+**Sadeghi's Fresnel term rules itself out as the second effect, which is new.**
+It is the one physical route by which wetting brightens a surface in this
+framework: a nearly continuous surface film adds a specular reflection on top of
+the volume reflectance, which their Eq (19) writes as the normal-incidence
+reflectance of water times the volumetric water content. That is at most 0.0204
+times the porosity, under 0.01, against an interannual difference near 0.075. It
+is short by close to an order of magnitude, so the Uyuni brightening is a
+crust-CONDITION effect and not an optical one, and this model carries no state
+for the condition of a crust.
+
+So `evaporite` is REFUSED rather than bracketed, and the refusal is in the staged
+field: the class is written with its dry pair as its wet pair, so the mixing
+returns the dry albedo at every saturation. Two checks hold it there --
+the wetting ratio of every refused region must be exactly 1, and a grid cell made
+entirely of refused material must carry identical dry and saturated fields; at
+T21 no cell is pure enough for the second, and the first covers every region.
+`water` is refused on the different ground that open water is not a surface that
+wets.
 
 `evaporite` is 2.565 percent of this build's land and the brightest surface on
-the simulated planet; `playa_clastic` is 25.795 percent and the largest single
-class. Between them they are 28 percent of the land and they are the two classes
-the wetting term would act on hardest. A single-signed mixing applied to all
-classes would be asserting on those two something the held measurements
-contradict.
-
-### 4. The depth is 0.5 m and the term is a skin term
-
-Layer 1 of the modelled land column is 0.5 m thick against the 0.02 m the
-parameterisation names. ClimaLand's own code tolerates that by falling back to
-the top layer, but what falls back is a store whose drydown timescale is the
-column's rather than the skin's. Craft and Horel measure the skin's: the
-Bonneville crust recovers from 0.22 to 0.32 in eight days after flooding. A
-0.5 m store does not relax in eight days, so driving the albedo from it would
-hold the modelled surface dark long after the simulated ground had dried, and
-would miss the fast brightening entirely.
-
-DUST-17 already owns the top emitting-layer liquid water state and forbids a
-second central hydrology, so the albedo depth is a separate declaration off
-DUST-17's one profile and not a number this row may define.
+the simulated planet. `playa_clastic` is 25.795 percent and the largest single
+class, and it is NOT refused: the dispute is about halite crust, and playa mud
+and fan fill are a soil.
 
 ## The magnitude
 
-Three figures, from loosest to tightest. Each carries a land-mean albedo delta,
-which is the unit `scripts/error_budget.py` consumes, and the third carries a
-per-cell one beside it because that is where the class-level effect lives. All
-are UPPER reaches: the realised term is these times the fraction of simulated
-land wet at the skin and how wet it is, and that fraction is unknown for the
-reason in section 1. `build_surface_albedo.py` recomputes all three per build
-into `albedo_report.json` under `moisture_dependence`.
+`build_surface_albedo.py` recomputes all of these per build into
+`albedo_report.json`. All are land-mean albedo deltas, the unit
+`scripts/error_budget.py` consumes, except where a per-cell figure is given
+beside them.
 
-**The hard ceiling, both bands, all classes.** A wetted modelled surface cannot
-be darker than the open water that would cover it if the wetting went all the
-way, so the substrate's own albedo minus open water's bounds the darkening
-branch per region.
+**What the staged pair is worth.** The land-mean albedo of the two fields now
+written:
+
+| quantity | value |
+| --- | --- |
+| land mean, dry | 0.261450 |
+| land mean, saturated, band 1 | 0.084953 |
+| land mean, saturated, band 2 | 0.118397 |
+| land mean, saturated, broadband | 0.105609 |
+| the swing the mixing spans | 0.155841 |
+
+For scale, the bare-against-vegetated gap this project brackets over the whole
+simulated planet is 0.069381, and `build_surface_albedo.py` argues that gap is 15
+to 19 W/m2 in absorbed flux against 21 W/m2 for the entire 0.85-to-0.95 stellar
+sweep that produced a 33 K range. The wetting swing is more than twice it. That
+is a CEILING on the term and not an estimate: the realised term is the swing
+times how wet the modelled skin is and how much of the land it covers, and the
+surface layer never reaches field capacity everywhere at once.
+
+**The hard ceiling, both bands, all classes.** Retained from the declaration and
+still checked before anything is written: a fully INUNDATED modelled surface
+cannot be darker than the open water that would cover it, so the substrate's own
+albedo minus open water's bounds that branch per region.
 
 | quantity | value |
 | --- | --- |
@@ -219,79 +315,41 @@ branch per region.
 | ceiling, darkest land region (basalt) | 0.040000 |
 | ceiling, brightest land region (evaporite) | 0.440000 |
 
-**Band 1 only, all classes, from Penndorf's ratio bracket.** The broadband
-albedo delta a fully wetted simulated land surface would show from band 1 alone:
+The guard on it stands: the script refuses to write a field in which any land
+region sits at or below open water's albedo, because that is the case in which
+the ceiling's sign claim would be false. It bounds INUNDATION, which is a
+different quantity from the saturated endmember staged in 1742, 1750 and 1760 --
+the surface layer caps at field capacity and never reaches either.
 
-| quantity | value |
-| --- | --- |
-| land-mean substrate band-1 albedo | 0.218108 |
-| broadband delta at wet/dry 0.764 | 0.019682 |
-| broadband delta at wet/dry 0.500 | 0.041699 |
-| band-2 flux share carrying no bracket | 0.617628 |
+**Band 1 only, from Penndorf's ratio bracket**, and **both bands on salt crust,
+from the two in-situ pairs**, are both still computed per build. They are now
+independent CHECKS on the derived endmembers rather than the only magnitudes
+available: Penndorf's three pairs and Craft's are four of the seven the bracket
+above has to contain, and the salt-crust bracket describes a class the staged
+field refuses.
 
-**Both bands, salt crust only, from the two in-situ pairs.** Applying the
-measured salt-crust wetting ratio bracket 0.32 to 0.49 to this world's
-`evaporite` level of 0.50:
+## What turns it on
 
-| quantity | value |
-| --- | --- |
-| per-cell albedo delta at full wetting | 0.255 to 0.340 |
-| land-mean contribution, at 2.565 percent of land | 0.0065 to 0.0087 |
-| permanent level shift if the mixing were armed on the current column | 0.105 to 0.140 per cell |
+`nwetsoil` defaults to 0 and the model refuses to run it until three things are
+true, which is what the switch checks at initialisation rather than assuming:
 
-For scale, the two land-surface endmembers `build_surface_albedo.py` already
-brackets are 0.259739 bare against 0.190358 vegetated, a land-mean 0.069381
-apart, and that script argues the gap is 15 to 19 W/m2 in absorbed flux against
-21 W/m2 for the entire 0.85-to-0.95 stellar sweep that produced a 33 K range.
-Band 1 alone at full wetting is 28 to 60 percent of that whole gap, roughly 4 to
-11 W/m2 on its scaling, with band 2 and its 0.62 flux share unbracketed on top.
+1. **`nlandwcol = 1` with the three-layer surface cut.**
+   `config/planet.yaml`'s `surface.land_water_column` declares `layers: 2` and
+   `layer_thickness_m: [0.5, 1.0]`; the mixing needs `layers: 3` and
+   `[0.02, 0.48, 1.0]`, which is the geometry `surface_layer` declares. The
+   scalar bucket is refused outright: it has no surface layer, and the column it
+   does have dries on the wrong timescale for an albedo.
+2. **The saturated pair staged.** Codes 1742, 1750 and 1760 are written by
+   `build_surface_albedo.py` beside 174, 175 and 176, and the model refuses on
+   the negative sentinel rather than mixing toward it. They are read on every
+   start rather than carried through the restart, because they are a boundary
+   condition and not a state.
+3. **`dwmax` installed from `evaporable_mm`.** The surface layer's capacity is
+   cut from air dry, so the column's capacity is `evaporable_mm` and not
+   `awc_mm`; `build_surface_soil_water.py` installs `awc_mm` today, which is
+   what LPJ-GUESS reads and is 3.57 mm smaller at the median cell.
 
-This is not a term that can be dismissed on size, and section 1's level shift is
-not an error that can be accepted to get it.
-
-## What would arm it
-
-Four preconditions, each owned somewhere else, each checkable:
-
-1. **A modelled surface layer that dries below the wilting point**, so that
-   `S_e` spans the interval the mixing is defined on rather than sitting inside
-   it with a positive floor. Named by `land_column_properties.yaml`'s
-   `saturation_mapping.what_this_bounds` and owned there; it is a change to the
-   land column, and it is the same change the modelled soil's heat capacity
-   waits on. The residual, `undeclared` in the same contract and owned by
-   LSHY-3, has to be declared alongside it: without it `S_e` cannot be
-   evaluated exactly at all, only bounded.
-   The cheap alternative does not work here. Re-casting the endmember pair onto
-   the model's own reachable interval -- the albedo at the wilting point and at
-   field capacity, rather than at laboratory-dry and saturated -- would be a
-   coefficient change rather than a column change, but no held source states a
-   soil albedo at its wilting point, and section 4's eight-day drydown says the
-   surface a radiation scheme sees is not at the column's water content anyway.
-2. **A band-2 wetting relation**, above 0.75 um, to sit beside Penndorf's band-1
-   ratio, so that a wet endmember can be derived per class from the dry spectra
-   this project already integrates -- under this star, not carried across from
-   Earth calibrations, in the way `analysis/vegetation_albedo.py` derives the
-   canopy pair. This is the band the term is mostly made of. Blocked on the
-   sources listed in `references/INDEX.md`.
-3. **The sign settled for salt crust**, separating the water-film darkening that
-   Malek and Craft measure from the crust-condition brightening that the Uyuni
-   series composites, and a wetting pair for the silicate classes, which have
-   none.
-4. **An albedo depth declared off DUST-17's top emitting-layer profile**, at
-   which point the depth conversion is stated once and both consumers read the
-   same profile at their own depths.
-
-Until then the field this project stages is the dry endmember and says so, and
-`albedo_report.json` carries the magnitude so the omission has a size rather
-than a mention.
-
-## What the bootstrap run does
-
-Nothing changes in what the bootstrap run integrates. Codes 174, 175 and 176
-carry the same dry substrate field they carried before; the modelled soil albedo
-stays constant in time and the modelled land surface keeps its dry value through
-every wetting and drying cycle the land column simulates. What changes is that
-the field is now declared as the dry endmember at the point where it is written,
-the omission carries a per-build magnitude, and `build_surface_albedo.py`
-refuses to write a field in which any land region sits at or below open water's
-albedo, which is the case in which the ceiling's sign claim would be false.
+The saturated fields staged today are the interstitial arm. Sweeping the bracket
+is `--wetting-arm lekner` and a second surface build; the two arms differ by
+roughly a factor of two in the wetting ratio, which is the largest declared
+uncertainty this term carries.

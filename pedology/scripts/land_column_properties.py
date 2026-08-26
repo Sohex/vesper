@@ -385,6 +385,120 @@ def column_capacity_mm(theta_fc, theta_wp, usable, decl: dict):
     return available * thickness_mm * usable.sum(axis=1)
 
 
+def surface_layer_capacity_mm(theta_fc, theta_wp, usable, decl: dict):
+    """(capacity, sub-wilting increment) of the surface layer, both in mm.
+
+    The contract's `surface_layer` cut from AIR DRY rather than from the
+    wilting point, which is the one place this column's capacity is not
+    plant-available: a root cannot reach the water between air dry and the
+    wilting point and a bare drying surface can. Returns the increment
+    separately because that is exactly the difference between what LPJ-GUESS
+    reads and what ExoPlaSim installs, and a difference nobody can name is the
+    failure mode this contract exists to prevent.
+
+    The layer's usable fraction is the FIRST physical layer's, because the
+    surface layer is inside it: 0.02 m sits within the top 0.1 m whatever the
+    regolith contact does.
+    """
+    surf = decl["surface_layer"]
+    thickness_mm = float(surf["thickness_m"]) * 1000.0
+    air_dry = float(surf["air_dry_water_content"])
+    theta_fc = np.atleast_1d(np.asarray(theta_fc, dtype=float))
+    theta_wp = np.atleast_1d(np.asarray(theta_wp, dtype=float))
+    top = usable[:, 0]
+    capacity = (theta_fc - air_dry) * thickness_mm * top
+    increment = (theta_wp - air_dry) * thickness_mm * top
+    return capacity, increment
+
+
+def evaporable_capacity_mm(theta_fc, theta_wp, usable, decl: dict):
+    """The capacity ExoPlaSim installs as `dwmax`, mm.
+
+    `awc_mm` plus the surface layer's sub-wilting water, and nothing else. The
+    identity `evaporable_mm - awc_mm == surface_layer increment` holds cell by
+    cell by construction and is checked in `surface_layer_report`, which is the
+    conservation statement across the split: the column gained exactly the
+    water the surface layer can now reach and not a millimetre more.
+    """
+    awc = column_capacity_mm(theta_fc, theta_wp, usable, decl)
+    _capacity, increment = surface_layer_capacity_mm(theta_fc, theta_wp, usable, decl)
+    return awc + increment
+
+
+def cascade_step(capacities, store, flux_mm):
+    """`landcolumn.f90:column_step` transcribed, impermeable base, mm.
+
+    A transcription and not a second scheme: the fill-and-pass order, the
+    downward draw on a negative top layer, the base backing up and the floor at
+    zero are the Fortran's, operation for operation. It is here so that the
+    invariance the surface layer rests on can be DRIVEN rather than asserted.
+    """
+    w = list(store)
+    w[0] += flux_mm
+    for j in range(len(w) - 1):
+        if w[j] < 0.0:
+            w[j + 1] += w[j]
+            w[j] = 0.0
+    for j in range(len(w) - 1):
+        excess = max(0.0, w[j] - capacities[j])
+        w[j] = min(capacities[j], w[j])
+        w[j + 1] += excess
+    excess = max(0.0, w[-1] - capacities[-1])
+    w[-1] = min(capacities[-1], w[-1])
+    for j in range(len(w) - 2, -1, -1):
+        w[j] += excess
+        excess = max(0.0, w[j] - capacities[j])
+        w[j] = min(capacities[j], w[j])
+    return [max(v, 0.0) for v in w], excess
+
+
+def check_split_invariance(seed: int = 20260826, steps: int = 4096) -> dict:
+    """THE CHECK WITH A RIGHT ANSWER: splitting a layer moves no water.
+
+    The surface layer is a repartition of the top of the climate column, and
+    the claim it rests on is that the cascade's TOTAL is invariant under any
+    repartition of a fixed total capacity: what enters is the surface flux,
+    what leaves is base overflow, and neither depends on where the internal
+    boundaries sit. Drive a two-layer column and a three-layer column whose
+    first two capacities sum to the two-layer column's first, with the SAME
+    flux sequence, and the total and the runoff must agree exactly.
+
+    This is a conservation law and not a comparison: the answer is equality,
+    and any difference at all is a defect. Reported as the largest absolute
+    disagreement over the sequence, in mm, against a bound of zero plus the
+    accumulated floating-point rounding of the sums, which is what
+    `total_tolerance_mm` is.
+    """
+    rng = np.random.default_rng(seed)
+    cap2 = [180.0, 300.0]
+    cap3 = [3.0, 177.0, 300.0]
+    assert abs(sum(cap2) - sum(cap3)) < 1e-12
+    w2 = [90.0, 150.0]
+    w3 = [3.0, 87.0, 150.0]
+    worst_total = 0.0
+    worst_runoff = 0.0
+    for flux in rng.normal(0.0, 12.0, steps):
+        w2, off2 = cascade_step(cap2, w2, float(flux))
+        w3, off3 = cascade_step(cap3, w3, float(flux))
+        worst_total = max(worst_total, abs(sum(w2) - sum(w3)))
+        worst_runoff = max(worst_runoff, abs(off2 - off3))
+    tolerance = 1.0e-9
+    return {
+        "what": "the column total and the runoff under a two-layer and a "
+                "three-layer partition of the same total capacity, driven by "
+                "one flux sequence through landcolumn.f90's own cascade",
+        "steps": steps,
+        "worst_total_disagreement_mm": float(worst_total),
+        "worst_runoff_disagreement_mm": float(worst_runoff),
+        "total_tolerance_mm": tolerance,
+        "passes": bool(worst_total <= tolerance and worst_runoff <= tolerance),
+        "why_it_matters": "the surface layer buys a store that empties in a day "
+                          "instead of a season and costs the water budget "
+                          "nothing. If this fails, it costs something, and the "
+                          "cost is not a rounding error.",
+    }
+
+
 def frame_consistency(soil: dict[str, np.ndarray], decl: dict,
                       gravity_m_s2: float) -> dict:
     """Does the adopted derivation depend on which units the heads are carried in?
@@ -697,7 +811,8 @@ def undeclared_properties(decl: dict) -> list[dict]:
             for item in node:
                 walk(item, path, chain)
 
-    for section in ("states", "flow", "thermal", "materials", "uncertainty"):
+    for section in ("states", "flow", "thermal", "materials", "uncertainty",
+                    "surface_layer"):
         walk(decl[section], [section], [])
     # One row per property, not one per undeclared field under it.
     seen, unique = set(), []
@@ -1262,7 +1377,8 @@ def uncertainty_cases(decl: dict, soil: dict[str, np.ndarray],
 # lookup silently misses.
 COORD_DECIMALS = 4
 
-STATE_COLUMNS = ("b", "theta_s", "theta_fc", "theta_wp", "awc_mm")
+STATE_COLUMNS = ("b", "theta_s", "theta_fc", "theta_wp", "awc_mm",
+                 "evaporable_mm")
 
 
 def emit_states(decl: dict, soil: dict[str, np.ndarray], gravity_m_s2: float,
@@ -1281,15 +1397,21 @@ def emit_states(decl: dict, soil: dict[str, np.ndarray], gravity_m_s2: float,
     a consumer, and it is what makes the column capacity here and the sum over
     a consumer's layers the same arithmetic rather than two that agree today.
 
-    The capacity column is `awc_mm` and it is the ONLY plant-available capacity
-    any consumer installs. `soilmap.txt`'s `awc` is pedology's own declared
-    endmember mixture, which this report costs against the adopted closure and
-    which no consumer reads.
+    TWO CAPACITY COLUMNS, AND THEY ARE TWO QUANTITIES. `awc_mm` is
+    plant-available over the whole physical column and is what LPJ-GUESS
+    installs; `evaporable_mm` adds the surface layer's water between air dry
+    and the wilting point and is what ExoPlaSim installs as `dwmax`. A root
+    cannot reach that water and a bare drying surface can, so this is not one
+    number written twice. `surface_layer_report` carries the difference and
+    checks the identity that defines it. `soilmap.txt`'s `awc` is a third
+    thing: pedology's own declared endmember mixture, which this report costs
+    against the adopted closure and which no consumer reads.
     """
     b, theta_s, theta_fc, theta_wp = contract_states(
         soil["sand"], soil["clay"], decl, gravity_m_s2)
     usable = layer_usable_fraction(soil["depth"], soil["bedrockfrac"], decl)
     capacity = column_capacity_mm(theta_fc, theta_wp, usable, decl)
+    evaporable = evaporable_capacity_mm(theta_fc, theta_wp, usable, decl)
     nlayer = int(decl["geometry"]["physical_layer_count"])
 
     header = ("Lon Lat " + " ".join(STATE_COLUMNS) + " "
@@ -1302,7 +1424,7 @@ def emit_states(decl: dict, soil: dict[str, np.ndarray], gravity_m_s2: float,
                    f"{soil['Lat'][cell]:.{COORD_DECIMALS}f}",
                    f"{b[cell]:.5f}", f"{theta_s[cell]:.6f}",
                    f"{theta_fc[cell]:.6f}", f"{theta_wp[cell]:.6f}",
-                   f"{capacity[cell]:.3f}"]
+                   f"{capacity[cell]:.3f}", f"{evaporable[cell]:.3f}"]
             row.extend(f"{usable[cell, layer]:.6f}" for layer in range(nlayer))
             handle.write(" ".join(row) + "\n")
 
@@ -1313,15 +1435,16 @@ def emit_states(decl: dict, soil: dict[str, np.ndarray], gravity_m_s2: float,
         "physical_layers": nlayer,
         "gravity_m_s2": gravity_m_s2,
         "awc_mm": percentiles(capacity),
+        "evaporable_mm": percentiles(evaporable),
         "saturation_volumetric": percentiles(theta_s),
         "field_capacity_volumetric": percentiles(theta_fc),
         "wilting_point_volumetric": percentiles(theta_wp),
         "closure": decl["retention_closure"]["name"],
         "what_it_is": "the adopted per-cell retention states and the "
                       "weathered-bedrock usable fraction per physical layer. "
-                      "ExoPlaSim installs awc_mm as dwmax and LPJ-GUESS takes "
-                      "the states and the fractions through the driver file; "
-                      "neither derives them.",
+                      "ExoPlaSim installs evaporable_mm as dwmax, LPJ-GUESS "
+                      "takes awc_mm and the states and the fractions through "
+                      "the driver file; neither derives them.",
     }
 
 
@@ -1346,6 +1469,73 @@ def _pedogenesis() -> dict:
 
 # ---------------------------------------------------------------------------
 
+def surface_layer_report(decl: dict, soil: dict[str, np.ndarray],
+                        gravity_m_s2: float) -> tuple[dict, list[str]]:
+    """What the surface layer costs the column, and the identity that defines it.
+
+    Three things, and all three are numbers rather than claims: how much water
+    the column gained by cutting its top 0.02 m from air dry instead of from
+    the wilting point, how large that is against the capacity it is added to,
+    and the check that the two emitted capacity columns differ by exactly that
+    and by nothing else.
+    """
+    _b, _theta_s, theta_fc, theta_wp = contract_states(
+        soil["sand"], soil["clay"], decl, gravity_m_s2)
+    usable = layer_usable_fraction(soil["depth"], soil["bedrockfrac"], decl)
+    awc = column_capacity_mm(theta_fc, theta_wp, usable, decl)
+    cap, increment = surface_layer_capacity_mm(theta_fc, theta_wp, usable, decl)
+    evaporable = evaporable_capacity_mm(theta_fc, theta_wp, usable, decl)
+
+    residual = float(np.max(np.abs((evaporable - awc) - increment)))
+    bad: list[str] = []
+    if residual > 1.0e-9:
+        bad.append(
+            f"evaporable_mm - awc_mm differs from the surface layer's "
+            f"sub-wilting increment by up to {residual:.3e} mm. The two "
+            "capacity columns are supposed to differ by exactly that water and "
+            "by nothing else, so one of them is being built from something the "
+            "other does not carry.")
+    surf = decl["surface_layer"]
+    split = check_split_invariance()
+    if not split["passes"]:
+        bad.append(
+            "splitting the top water layer moved water: the two- and "
+            "three-layer columns disagree by "
+            f"{split['worst_total_disagreement_mm']:.3e} mm on the total or "
+            f"{split['worst_runoff_disagreement_mm']:.3e} mm on the runoff. "
+            "The surface layer is only free because that difference is zero.")
+    return {
+        "thickness_m": float(surf["thickness_m"]),
+        "air_dry_water_content": float(surf["air_dry_water_content"]),
+        "capacity_mm": percentiles(cap),
+        "sub_wilting_increment_mm": percentiles(increment),
+        "awc_mm": percentiles(awc),
+        "evaporable_mm": percentiles(evaporable),
+        "increment_over_awc": percentiles(increment / np.maximum(awc, 1.0e-12)),
+        "air_dry_overdraw_mm": {
+            "what": "the water the surface layer can give up that a real soil "
+                    "would hold by adsorption at the ambient humidity. "
+                    "`air_dry_water_content` is declared zero, so the overdraw "
+                    "is the sub-wilting increment times theta_ad over theta_wp, "
+                    "an unknown fraction under one; the BOUND and its direction "
+                    "are what is known",
+            "bounded_by_mm": percentiles(increment),
+        },
+        "identity_residual_mm": residual,
+        "split_invariance": split,
+        "saturation_endpoints": {
+            "sr_at_air_dry": float(surf["saturation_mapping"]["sr_at_air_dry"]),
+            "sr_at_field_capacity": float(
+                decl["thermal"]["saturation_mapping"]["sr_at_field_capacity"]),
+            "note": "the surface layer's own mapping. It differs from the "
+                    "thermal one in the lower endpoint only, because its "
+                    "capacity is cut from air dry and the layers below it are "
+                    "cut from the wilting point.",
+        },
+        "consumers": surf["consumers"],
+    }, bad
+
+
 def build_report(decl: dict, soil_map: Path, gravity_m_s2: float,
                  states_path: Path | None = None) -> dict:
     soil = read_soil_map(soil_map)
@@ -1356,6 +1546,8 @@ def build_report(decl: dict, soil_map: Path, gravity_m_s2: float,
     thermal_measured, thermal_bad = check_thermal_against_states(
         decl, soil, gravity_m_s2)
     failures = failures + thermal_bad
+    surface, surface_bad = surface_layer_report(decl, soil, gravity_m_s2)
+    failures = failures + surface_bad
     emitted = (emit_states(decl, soil, gravity_m_s2, states_path)
                if states_path is not None else None)
     return {
@@ -1381,6 +1573,7 @@ def build_report(decl: dict, soil_map: Path, gravity_m_s2: float,
         "uncertainty_cases": uncertainty_cases(decl, soil, gravity_m_s2),
         "undeclared_properties": undeclared_properties(decl),
         "thermal_reduction": thermal_measured,
+        "surface_layer": surface,
     }
 
 

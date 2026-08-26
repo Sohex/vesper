@@ -309,6 +309,16 @@
       call surfcode( 176,'dalbcl2' )   ! background albedo (>0.75 um)
       call surfcode(1740,'dalbcls' )   ! albedo for bare soil
       call surfcode(1741,'dalbclv' )   ! albedo for vegetation
+!     The SATURATED background albedo, the far end of PHYS-15's moisture
+!     mixing, on the 1730 and 2290 precedent of a companion code beside the one
+!     it belongs to: 1742, 1750 and 1760 carry the same three surfaces 174, 175
+!     and 176 carry, at full saturation. ONE record each and not fourteen: the
+!     wet reflectance of a material is a property of the material, and the
+!     season is carried by the saturation the mixing reads rather than by an
+!     annual cycle of the endmember.
+      call surfcode(1742,'dalbwet' )   ! saturated background albedo
+      call surfcode(1750,'dalbwet1')   ! saturated background albedo (<0.75 um)
+      call surfcode(1760,'dalbwet2')   ! saturated background albedo (>0.75 um)
       call surfcode( 232,'dglac'   )   
       call surfcode( 212,'dforest' )
       call surfcode( 229,'dwmax'   )

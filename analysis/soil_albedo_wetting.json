@@ -1,0 +1,889 @@
+{
+  "generated": "2026-08-26",
+  "generator": "analysis/soil_albedo_wetting.py",
+  "spectrum": "exoplasim/inputs/stellarspectra/k25v_hr.dat",
+  "library": "references/ecospeclib-all",
+  "water_optics": "exoplasim/data/water/hale_querry_1973_liquid_water.dat",
+  "band_split_um": 0.75,
+  "model_band_flux_fractions": [
+    0.382372,
+    0.617628
+  ],
+  "working_range_um": [
+    0.4,
+    2.49
+  ],
+  "arms": [
+    "twomey",
+    "lekner"
+  ],
+  "arms_note": "the two ARMS of one bracket and never an average. Lekner and Dorf give the water-film mechanism and say it fits rough solid surfaces; Twomey, Bohren and Mergenthaler give the interstitial forward-scattering mechanism and it fits finely divided media. This world's land is both. Twomey is the darker arm everywhere the bracket was evaluated, so it is listed first.",
+  "substrate_refractive_index": 1.55,
+  "substrate_refractive_index_bracket": [
+    1.5,
+    2.5
+  ],
+  "twomey_scaling_ratio": 0.235,
+  "twomey_asymmetry_pair": [
+    0.83,
+    0.96
+  ],
+  "twomey_mu0": 0.75,
+  "level_move": "each spectrum is rescaled to the class's own broadband albedo before the map is applied, because both maps are nonlinear in the dry level and a laboratory powder sits 2.2 to 5.1 times above the outcrop it came from",
+  "paper_reproduction": {
+    "lekner_mean_reflectance_water": {
+      "computed": 0.06646,
+      "paper": 0.0667,
+      "how": "implied by the paper's own p = 0.475 through its Eq (9)",
+      "passes": true
+    },
+    "lekner_internal_reflection_probability": {
+      "computed": 0.4749,
+      "paper": 0.475,
+      "passes": true
+    },
+    "angstrom_internal_reflection_probability": {
+      "computed": 0.4375,
+      "paper": 0.437,
+      "passes": true
+    },
+    "lekner_absorptance_ratio_small_absorption": {
+      "computed": {
+        "1.5": 1.068,
+        "2.0": 1.082,
+        "2.5": 1.1
+      },
+      "paper": {
+        "1.5": 1.07,
+        "2.0": 1.08,
+        "2.5": 1.1
+      },
+      "passes": true
+    },
+    "mean_reflectance_table_error": {
+      "computed": 4e-08,
+      "bound": 1e-05,
+      "passes": true,
+      "note": "the tabulated Eq (7) against the exact integral, at the indices the two maps actually ask for. The bound is one part in 1e5, which is below the .sra write quantum the staged field reaches the model through."
+    },
+    "tbm_worked_example": {
+      "dry": 0.3,
+      "computed_wet": 0.115,
+      "paper": 0.12,
+      "passes": true,
+      "note": "the paper carries its example through Eq (3), the zenith REFLECTANCE, and reads omega' = 0.825 off Figure 3's reflectance curve. This implementation uses Eq (4), the flux albedo, on both legs, because a flux albedo is what the model reads; the end-to-end map differs from the paper's printed answer by less than the width of its figure. The two are not the same quantity and are not required to agree exactly."
+    }
+  },
+  "model_mixing": {
+    "ran": true,
+    "samples": 400,
+    "worst_disagreement": 0.0,
+    "tolerance": 1e-12,
+    "dry_end_exact": true,
+    "wet_end_exact": true,
+    "passes": true,
+    "what": "the compiled model's wet_soil_albedo against Sadeghi Eq (13) evaluated here, over 400 random (dry, wet, saturation, sigma) quadruples, with the two ends required to be BITWISE the staged fields"
+  },
+  "held_pair_bracket": {
+    "pairs": [
+      {
+        "source": "Penndorf 1956 clay soil",
+        "quantity": "band1",
+        "dry": 0.15,
+        "wet_measured": 0.075,
+        "lekner": 0.0983,
+        "twomey": 0.0451,
+        "inside_bracket": true,
+        "required": true,
+        "passes": true
+      },
+      {
+        "source": "Penndorf 1956 sand",
+        "quantity": "band1",
+        "dry": 0.31,
+        "wet_measured": 0.18,
+        "lekner": 0.1972,
+        "twomey": 0.1212,
+        "inside_bracket": true,
+        "required": true,
+        "passes": true
+      },
+      {
+        "source": "Penndorf 1956 bare rich soil",
+        "quantity": "band1",
+        "dry": 0.072,
+        "wet_measured": 0.055,
+        "lekner": 0.0562,
+        "twomey": 0.0192,
+        "inside_bracket": true,
+        "required": true,
+        "passes": true
+      },
+      {
+        "source": "Angstrom 1925 sand, via Lekner Table III",
+        "quantity": "broadband",
+        "dry": 0.182,
+        "wet_measured": 0.091,
+        "lekner": 0.1167,
+        "twomey": 0.0578,
+        "inside_bracket": true,
+        "required": true,
+        "passes": true
+      },
+      {
+        "source": "Angstrom 1925 black mold, via Lekner Table III",
+        "quantity": "broadband",
+        "dry": 0.141,
+        "wet_measured": 0.084,
+        "lekner": 0.0933,
+        "twomey": 0.042,
+        "inside_bracket": true,
+        "required": true,
+        "passes": true
+      },
+      {
+        "source": "Craft, Horel 2019 Bonneville halite crust",
+        "quantity": "broadband",
+        "dry": 0.45,
+        "wet_measured": 0.22,
+        "lekner": 0.301,
+        "twomey": 0.2191,
+        "inside_bracket": true,
+        "required": true,
+        "passes": true
+      },
+      {
+        "source": "Malek et al. 1990 Pilot Valley playa",
+        "quantity": "broadband",
+        "dry": 0.75,
+        "wet_measured": 0.24,
+        "lekner": 0.604,
+        "twomey": 0.5585,
+        "inside_bracket": false,
+        "required": false,
+        "passes": true
+      }
+    ],
+    "passes": true,
+    "band1_pairs_pass": true,
+    "what_it_tests": "the MAP, at each source's own dry level. The levels are Earth surfaces and do not transfer; a map that takes a dry level to a wet one is exactly what has to."
+  },
+  "substrate_index_sensitivity": {
+    "dry_probe": [
+      0.1,
+      0.2,
+      0.3,
+      0.5
+    ],
+    "wet_by_index": {
+      "1.55": [
+        0.0709,
+        0.1273,
+        0.1905,
+        0.3428
+      ],
+      "1.5": [
+        0.071,
+        0.1273,
+        0.1906,
+        0.343
+      ],
+      "2.5": [
+        0.0693,
+        0.1242,
+        0.1859,
+        0.3361
+      ]
+    },
+    "note": "Lekner and Dorf's map over the whole index range they state their figures for. The spread is the reason the index is declared once rather than sourced per class."
+  },
+  "illumination_sensitivity": {
+    "dry_probe": [
+      0.1,
+      0.2,
+      0.3,
+      0.5
+    ],
+    "wet_by_mu0": {
+      "0.5": [
+        0.0275,
+        0.064,
+        0.1121,
+        0.2556
+      ],
+      "0.75": [
+        0.0278,
+        0.0655,
+        0.1155,
+        0.2624
+      ],
+      "1.0": [
+        0.0282,
+        0.0668,
+        0.1184,
+        0.268
+      ]
+    },
+    "lekner_film_face_normal_incidence": [
+      0.0709,
+      0.1273,
+      0.1905,
+      0.3428
+    ],
+    "lekner_film_face_isotropic": [
+      0.1146,
+      0.1683,
+      0.2285,
+      0.3737
+    ],
+    "film_face_reflectance_normal": 0.0204,
+    "film_face_reflectance_isotropic": 0.0664,
+    "note": "the TBM arm at three illuminations, and the film arm with its upper face at normal incidence, which is adopted, against Eq (7)'s isotropic average, which is not. The isotropic face is 0.066 and therefore brightens any substrate darker than that, which on this world is every basalt class; a continuous film over a dark absorber is Sadeghi's oversaturation regime and not a wetted skin."
+  },
+  "interstitial_arm_below_open_water": [
+    "arc_basalt",
+    "flood_basalt",
+    "melange",
+    "morb",
+    "oib",
+    "playa_clastic",
+    "rift_bimodal",
+    "schist"
+  ],
+  "band2_liquid_absorption": {
+    "skin_equivalent_water_m": 0.009000000000000001,
+    "band1_single_pass_absorptance": 0.0307,
+    "band2_single_pass_absorptance": 0.5855,
+    "direction": "both arms are UPPER bounds on the wet endmember in band 2: neither carries the liquid's own absorption, and a wetted surface can only be darker for it",
+    "what_would_close_it": "an absolute scattering coefficient for the dry soil, or a wet-and-dry reflectance spectrum pair measured on one sample"
+  },
+  "classes": {
+    "morb": {
+      "why": "basalt",
+      "spectra": 80,
+      "dry_broadband_level": 0.1,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.2785,
+        0.7088
+      ],
+      "band2_wet_over_dry": [
+        0.2782,
+        0.7087
+      ],
+      "broadband_wet_over_dry": [
+        0.2786,
+        0.7087
+      ],
+      "band1_wet_albedo": [
+        0.028,
+        0.0711
+      ],
+      "band2_wet_albedo": [
+        0.0277,
+        0.0707
+      ],
+      "band1_dry_albedo": 0.1004,
+      "band2_dry_albedo": 0.0997,
+      "band2_wets_less_than_band1": false,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": true
+    },
+    "oib": {
+      "why": "basalt",
+      "spectra": 80,
+      "dry_broadband_level": 0.1,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.2785,
+        0.7088
+      ],
+      "band2_wet_over_dry": [
+        0.2782,
+        0.7087
+      ],
+      "broadband_wet_over_dry": [
+        0.2786,
+        0.7087
+      ],
+      "band1_wet_albedo": [
+        0.028,
+        0.0711
+      ],
+      "band2_wet_albedo": [
+        0.0277,
+        0.0707
+      ],
+      "band1_dry_albedo": 0.1004,
+      "band2_dry_albedo": 0.0997,
+      "band2_wets_less_than_band1": false,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": true
+    },
+    "flood_basalt": {
+      "why": "basalt",
+      "spectra": 80,
+      "dry_broadband_level": 0.1,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.2785,
+        0.7088
+      ],
+      "band2_wet_over_dry": [
+        0.2782,
+        0.7087
+      ],
+      "broadband_wet_over_dry": [
+        0.2786,
+        0.7087
+      ],
+      "band1_wet_albedo": [
+        0.028,
+        0.0711
+      ],
+      "band2_wet_albedo": [
+        0.0277,
+        0.0707
+      ],
+      "band1_dry_albedo": 0.1004,
+      "band2_dry_albedo": 0.0997,
+      "band2_wets_less_than_band1": false,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": true
+    },
+    "arc_basalt": {
+      "why": "basalt to basaltic andesite, so mafic and intermediate together",
+      "spectra": 109,
+      "dry_broadband_level": 0.13,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.2924,
+        0.6721
+      ],
+      "band2_wet_over_dry": [
+        0.293,
+        0.6718
+      ],
+      "broadband_wet_over_dry": [
+        0.2929,
+        0.672
+      ],
+      "band1_wet_albedo": [
+        0.0377,
+        0.0866
+      ],
+      "band2_wet_albedo": [
+        0.0383,
+        0.0877
+      ],
+      "band1_dry_albedo": 0.1289,
+      "band2_dry_albedo": 0.1306,
+      "band2_wets_less_than_band1": true,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": true
+    },
+    "arc_andesite": {
+      "why": "andesite to dacite",
+      "spectra": 25,
+      "dry_broadband_level": 0.2,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.3227,
+        0.6397
+      ],
+      "band2_wet_over_dry": [
+        0.3317,
+        0.6408
+      ],
+      "broadband_wet_over_dry": [
+        0.3286,
+        0.6403
+      ],
+      "band1_wet_albedo": [
+        0.0609,
+        0.1207
+      ],
+      "band2_wet_albedo": [
+        0.0687,
+        0.1328
+      ],
+      "band1_dry_albedo": 0.1886,
+      "band2_dry_albedo": 0.2073,
+      "band2_wets_less_than_band1": true,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": false
+    },
+    "rift_bimodal": {
+      "why": "bimodal by definition: basalt and rhyolite, no intermediate term",
+      "spectra": 102,
+      "dry_broadband_level": 0.16,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.3056,
+        0.6513
+      ],
+      "band2_wet_over_dry": [
+        0.3084,
+        0.6528
+      ],
+      "broadband_wet_over_dry": [
+        0.3079,
+        0.6526
+      ],
+      "band1_wet_albedo": [
+        0.0482,
+        0.1027
+      ],
+      "band2_wet_albedo": [
+        0.0498,
+        0.1054
+      ],
+      "band1_dry_albedo": 0.1576,
+      "band2_dry_albedo": 0.1615,
+      "band2_wets_less_than_band1": true,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": true
+    },
+    "granite": {
+      "why": "granite",
+      "spectra": 22,
+      "dry_broadband_level": 0.3,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.3659,
+        0.6348
+      ],
+      "band2_wet_over_dry": [
+        0.4032,
+        0.6474
+      ],
+      "broadband_wet_over_dry": [
+        0.3905,
+        0.6429
+      ],
+      "band1_wet_albedo": [
+        0.0955,
+        0.1657
+      ],
+      "band2_wet_albedo": [
+        0.1311,
+        0.2104
+      ],
+      "band1_dry_albedo": 0.261,
+      "band2_dry_albedo": 0.3251,
+      "band2_wets_less_than_band1": true,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": false
+    },
+    "granodiorite": {
+      "why": "granodiorite sits between granite and diorite",
+      "spectra": 49,
+      "dry_broadband_level": 0.28,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.3647,
+        0.6334
+      ],
+      "band2_wet_over_dry": [
+        0.3801,
+        0.6411
+      ],
+      "broadband_wet_over_dry": [
+        0.3748,
+        0.6383
+      ],
+      "band1_wet_albedo": [
+        0.0956,
+        0.1661
+      ],
+      "band2_wet_albedo": [
+        0.1108,
+        0.1868
+      ],
+      "band1_dry_albedo": 0.2622,
+      "band2_dry_albedo": 0.2914,
+      "band2_wets_less_than_band1": true,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": false
+    },
+    "gneiss": {
+      "why": "gneiss",
+      "spectra": 19,
+      "dry_broadband_level": 0.28,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.3548,
+        0.6325
+      ],
+      "band2_wet_over_dry": [
+        0.3907,
+        0.6461
+      ],
+      "broadband_wet_over_dry": [
+        0.3782,
+        0.6414
+      ],
+      "band1_wet_albedo": [
+        0.0878,
+        0.1566
+      ],
+      "band2_wet_albedo": [
+        0.1176,
+        0.1945
+      ],
+      "band1_dry_albedo": 0.2475,
+      "band2_dry_albedo": 0.3011,
+      "band2_wets_less_than_band1": true,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": false
+    },
+    "schist": {
+      "why": "schist and phyllite, which is what the class is named",
+      "spectra": 27,
+      "dry_broadband_level": 0.22,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.3207,
+        0.6397
+      ],
+      "band2_wet_over_dry": [
+        0.3554,
+        0.6414
+      ],
+      "broadband_wet_over_dry": [
+        0.346,
+        0.6423
+      ],
+      "band1_wet_albedo": [
+        0.06,
+        0.1197
+      ],
+      "band2_wet_albedo": [
+        0.0858,
+        0.1548
+      ],
+      "band1_dry_albedo": 0.187,
+      "band2_dry_albedo": 0.2414,
+      "band2_wets_less_than_band1": true,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": true
+    },
+    "quartzite": {
+      "why": "quartzite",
+      "spectra": 13,
+      "dry_broadband_level": 0.45,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.442,
+        0.6523
+      ],
+      "band2_wet_over_dry": [
+        0.5246,
+        0.6938
+      ],
+      "broadband_wet_over_dry": [
+        0.4971,
+        0.6802
+      ],
+      "band1_wet_albedo": [
+        0.1661,
+        0.2451
+      ],
+      "band2_wet_albedo": [
+        0.2612,
+        0.3454
+      ],
+      "band1_dry_albedo": 0.3757,
+      "band2_dry_albedo": 0.4979,
+      "band2_wets_less_than_band1": true,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": false
+    },
+    "melange": {
+      "why": "block-in-matrix: mafic and cherty blocks in a sheared argillaceous matrix, so shale and slate with a mafic term",
+      "spectra": 102,
+      "dry_broadband_level": 0.18,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.3159,
+        0.6427
+      ],
+      "band2_wet_over_dry": [
+        0.3183,
+        0.6456
+      ],
+      "broadband_wet_over_dry": [
+        0.3182,
+        0.645
+      ],
+      "band1_wet_albedo": [
+        0.0561,
+        0.1141
+      ],
+      "band2_wet_albedo": [
+        0.0578,
+        0.1172
+      ],
+      "band1_dry_albedo": 0.1775,
+      "band2_dry_albedo": 0.1816,
+      "band2_wets_less_than_band1": true,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": true
+    },
+    "shelf_clastic": {
+      "why": "sandstone and shale",
+      "spectra": 37,
+      "dry_broadband_level": 0.3,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.3599,
+        0.6324
+      ],
+      "band2_wet_over_dry": [
+        0.4122,
+        0.655
+      ],
+      "broadband_wet_over_dry": [
+        0.3931,
+        0.6451
+      ],
+      "band1_wet_albedo": [
+        0.0917,
+        0.1612
+      ],
+      "band2_wet_albedo": [
+        0.1358,
+        0.2158
+      ],
+      "band1_dry_albedo": 0.2548,
+      "band2_dry_albedo": 0.3295,
+      "band2_wets_less_than_band1": true,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": false
+    },
+    "carbonate": {
+      "why": "limestone, dolomite and marble",
+      "spectra": 49,
+      "dry_broadband_level": 0.35,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.4026,
+        0.6393
+      ],
+      "band2_wet_over_dry": [
+        0.4295,
+        0.6543
+      ],
+      "broadband_wet_over_dry": [
+        0.4212,
+        0.6499
+      ],
+      "band1_wet_albedo": [
+        0.1314,
+        0.2086
+      ],
+      "band2_wet_albedo": [
+        0.1569,
+        0.2389
+      ],
+      "band1_dry_albedo": 0.3264,
+      "band2_dry_albedo": 0.3652,
+      "band2_wets_less_than_band1": true,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": false
+    },
+    "foreland_clastic": {
+      "why": "molasse and flysch: sandstone, shale, conglomerate",
+      "spectra": 40,
+      "dry_broadband_level": 0.28,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.3522,
+        0.6362
+      ],
+      "band2_wet_over_dry": [
+        0.3956,
+        0.6459
+      ],
+      "broadband_wet_over_dry": [
+        0.3807,
+        0.6425
+      ],
+      "band1_wet_albedo": [
+        0.0819,
+        0.1479
+      ],
+      "band2_wet_albedo": [
+        0.1228,
+        0.2005
+      ],
+      "band1_dry_albedo": 0.2325,
+      "band2_dry_albedo": 0.3105,
+      "band2_wets_less_than_band1": true,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": false
+    },
+    "continental_clastic": {
+      "why": "intracratonic sandstone, siltstone and shale",
+      "spectra": 36,
+      "dry_broadband_level": 0.28,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.3503,
+        0.6331
+      ],
+      "band2_wet_over_dry": [
+        0.3943,
+        0.6471
+      ],
+      "broadband_wet_over_dry": [
+        0.3796,
+        0.642
+      ],
+      "band1_wet_albedo": [
+        0.0833,
+        0.1506
+      ],
+      "band2_wet_albedo": [
+        0.1212,
+        0.1989
+      ],
+      "band1_dry_albedo": 0.2379,
+      "band2_dry_albedo": 0.3073,
+      "band2_wets_less_than_band1": true,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": false
+    },
+    "pelagic": {
+      "why": "abyssal clay and ooze: argillaceous, with a carbonate term for the ooze",
+      "spectra": 46,
+      "dry_broadband_level": 0.25,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.3355,
+        0.6349
+      ],
+      "band2_wet_over_dry": [
+        0.3704,
+        0.6406
+      ],
+      "broadband_wet_over_dry": [
+        0.3594,
+        0.6389
+      ],
+      "band1_wet_albedo": [
+        0.0713,
+        0.1349
+      ],
+      "band2_wet_albedo": [
+        0.1016,
+        0.1758
+      ],
+      "band1_dry_albedo": 0.2124,
+      "band2_dry_albedo": 0.2744,
+      "band2_wets_less_than_band1": true,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": false
+    },
+    "evaporite": {
+      "why": "salt crust. Halite is the mineral the class is named for and the one whose spectrum is featureless through the near infrared; the hydrous sulfate is carried beside it because a real crust is not pure halite and gypsum's structural-water bands run the other way. references/INDEX.md, the Slater 1987 row.",
+      "spectra": 12,
+      "dry_broadband_level": 0.5,
+      "level_source": "vendor/orogen/js/lithology.js ROCK_CLASSES",
+      "band1_wet_over_dry": [
+        0.5341,
+        0.6901
+      ],
+      "band2_wet_over_dry": [
+        0.5239,
+        0.6934
+      ],
+      "broadband_wet_over_dry": [
+        0.5281,
+        0.6922
+      ],
+      "band1_wet_albedo": [
+        0.273,
+        0.3527
+      ],
+      "band2_wet_albedo": [
+        0.2582,
+        0.3417
+      ],
+      "band1_dry_albedo": 0.5111,
+      "band2_dry_albedo": 0.4928,
+      "band2_wets_less_than_band1": false,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": false
+    },
+    "playa_clastic": {
+      "why": "playa mud and fan fill, which is a soil rather than a rock. The same aridisol suborders analysis/playa_albedo.py selects, so the level and the shape describe one material.",
+      "spectra": 9,
+      "dry_broadband_level": 0.23,
+      "level_source": "config model.lithology_albedo_overrides",
+      "band1_wet_over_dry": [
+        0.324,
+        0.6664
+      ],
+      "band2_wet_over_dry": [
+        0.3735,
+        0.6405
+      ],
+      "broadband_wet_over_dry": [
+        0.361,
+        0.6472
+      ],
+      "band1_wet_albedo": [
+        0.0496,
+        0.102
+      ],
+      "band2_wet_albedo": [
+        0.1044,
+        0.179
+      ],
+      "band1_dry_albedo": 0.1531,
+      "band2_dry_albedo": 0.2795,
+      "band2_wets_less_than_band1": true,
+      "darkens": true,
+      "positive": true,
+      "film_arm_above_its_own_interface": true,
+      "interstitial_arm_below_open_water": true
+    }
+  }
+}

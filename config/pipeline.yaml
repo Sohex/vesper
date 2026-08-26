@@ -136,7 +136,7 @@ steps:
     script: exoplasim/scripts/build_surface_albedo.py
     loop: [A, C]
     cost: minutes
-    needs: [lpj_run, rock_albedo_bands, vegetation_albedo]
+    needs: [lpj_run, rock_albedo_bands, soil_albedo_wetting, vegetation_albedo]
     writes: ["exoplasim/inputs/{res_lower}/albedo_report.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0174.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0175.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0176.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0212.sra"]
     gate: >
       the `lpj_run` edge is loop C and is a BACK edge: the first pass of an
@@ -720,6 +720,23 @@ steps:
       lithology table, not on a build, so it sits outside every loop; a new rock
       class in `vendor/orogen/js/lithology.js` makes it raise rather than
       writing that class spectrally flat.
+
+  - id: soil_albedo_wetting
+    script: analysis/soil_albedo_wetting.py
+    cost: minutes
+    needs: [stellar_spectrum, rock_albedo_bands]
+    writes: [analysis/soil_albedo_wetting.json]
+    gate: >
+      the WET endmember per rock class and per band, which `surface_albedo`
+      stages beside the dry pair so the modelled soil albedo can move between
+      them as the modelled skin wets and dries. Two closed-form mechanisms --
+      Lekner and Dorf's water film, Twomey, Bohren and Mergenthaler's
+      interstitial scattering -- applied per wavelength to the same spectra
+      `rock_albedo_bands` reads, so band 2 is closed from band-2 dry data
+      rather than from a broadband ratio. It depends on the star and the
+      lithology table and not on a build, so it sits outside every loop; the
+      two arms are a bracket and never an average, and the run refuses if
+      either arm brightens a class on wetting.
 
   - id: ice_albedo
     script: analysis/ice_albedo.py
