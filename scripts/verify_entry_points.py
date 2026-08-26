@@ -44,9 +44,11 @@ tree has not earned, which is worse than the cost it saves.
 PARALLELISM IS DELIBERATELY MODEST. This host runs several agents at once, so
 this takes a quarter of the logical cores and no more; `--jobs` overrides it.
 The work is subprocesses, so threads carry it and the GIL is not in the way.
-Anything heavier than this takes /tmp/world.lock first -- see CLAUDE.md. This
-does not, because a quarter of the cores for a few seconds is not the kind of
-load that lock exists to serialise.
+Anything heavier than this runs under `scripts/lock_and_run` -- see CLAUDE.md.
+This does not, because a quarter of the cores for a few seconds is not the kind
+of load that lock exists to serialise. It does, however, verify that wrapper:
+`lock_and_run` carries no `.py` extension, so it falls outside the sweep below
+and this is the only gate that starts it.
 
 IT IS NOT THE COMPILE GATE'S SIBLING BY ACCIDENT.
 `exoplasim/scripts/verify_model_compiles.py` is the same shape for the model
@@ -114,6 +116,43 @@ def start(path: Path) -> str:
     return f"{path.relative_to(ROOT)}: {tail}"
 
 
+def lock_wrapper(verbose: bool) -> list[str]:
+    """`scripts/lock_and_run --self-test`, which is the only thing that runs it.
+
+    The wrapper has no `.py` extension, deliberately, because the invocation is
+    a command prefix a caller types. That puts it outside `entry_points()`, so
+    without this it would be the one script in the tree nothing ever starts --
+    and it is the script every expensive run goes through. A lock that has
+    quietly stopped excluding is invisible until two integrations land on the
+    host at once.
+
+    Its own arms are behavioural rather than static: streams and exit status
+    through, a second command excluded until the first finishes, a nested
+    wrapper running instead of deadlocking, a dead wrapper's claim cleared and a
+    hand-rolled one left alone. It runs against a private lock path and never
+    touches `/tmp/world.lock`.
+    """
+    tool = ROOT / "scripts" / "lock_and_run"
+    if not tool.is_file():
+        return ["scripts/lock_and_run is missing, and every expensive run in "
+                "this tree is documented to go through it"]
+    if not os.access(tool, os.X_OK):
+        return ["scripts/lock_and_run is not executable, so the documented "
+                "invocation does not run"]
+    r = subprocess.run([sys.executable, str(tool), "--self-test"],
+                       capture_output=True, text=True, timeout=180, cwd=ROOT,
+                       env=PROBE_ENV)
+    if verbose:
+        for line in r.stdout.splitlines():
+            print(f"  {line}")
+    if r.returncode == 0:
+        return []
+    failed = [l.strip() for l in r.stdout.splitlines() if l.strip().startswith("FAIL")]
+    return [f"scripts/lock_and_run --self-test: {f}" for f in failed] or [
+        "scripts/lock_and_run --self-test failed without naming an arm: "
+        + (r.stderr.strip().splitlines() or ["(no output)"])[-1]]
+
+
 def verify(roots: list[Path], jobs: int, verbose: bool) -> list[str]:
     files = entry_points(roots)
     print(f"{len(files)} entry points, {jobs} at a time")
@@ -139,6 +178,8 @@ def main() -> None:
     roots = [ROOT / r for r in a.roots] if a.roots else SCRIPT_DIRS
     jobs = a.jobs if a.jobs else max(1, (os.cpu_count() or 4) // 4)
     problems = verify(roots, jobs, a.verbose)
+    if any(r.name == "scripts" for r in roots):
+        problems += lock_wrapper(a.verbose)
     for p in problems:
         print(p, file=sys.stderr)
     print(f"{len(problems)} entry points do not start" if problems

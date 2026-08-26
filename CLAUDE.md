@@ -135,21 +135,22 @@ The arguments and the incidents behind these are in
   column alignment. They get copied out.
 - Every run and analysis product records its provenance (config hash, input
   hashes, software versions) in JSON. Keep that up when adding steps.
-- **One host, many agents: take the lock before anything CPU-heavy.** A model
-  run, a build, a profile, a long analysis -- anything using the CPU for more
-  than a moment:
+- **One host, many agents: run anything CPU-heavy under
+  `scripts/lock_and_run`.** A model run, a build, a profile, a long analysis --
+  anything using the CPU for more than a moment:
 
-      until mkdir /tmp/world.lock 2>/dev/null; do sleep 30; done
-      echo "$(date): what you are doing" > /tmp/world.lock/who
-      # ... the heavy work ...
-      rm -rf /tmp/world.lock
+      scripts/lock_and_run -m "what you are doing" python exoplasim/scripts/run_exoplasim.py ...
 
-  `mkdir` not `touch`: it tests and takes atomically, where check-then-act lets
-  two agents both see it free. The lock keeps other AGENTS off the host; it does
-  NOT partition it between your own runs, so two paired arms are `p8` binaries
-  pinned to their own cores and never two `p16` at once. Record the load beside
-  any timing you keep. `docs/src/reference/environment.md` has the argument, the
-  stale-lock recovery, and what a claim-shaped vocabulary cost.
+  One step, because every step a caller can skip has been skipped here and paid
+  for. It waits for the lock, runs the command with its three streams untouched,
+  and releases when the command returns OR when it is killed by anything,
+  `kill -9` included -- so there is no release to forget and no stale lock to
+  recover. Nesting is free: a wrapped command may wrap again without
+  deadlocking. The lock keeps other AGENTS off the host; it does NOT partition
+  it between your own runs, so two paired arms are `p8` binaries pinned to their
+  own cores, never two `p16`, and both go under ONE `lock_and_run`. Record the
+  load beside any timing you keep. `docs/src/reference/environment.md` has the
+  argument and what a claim-shaped vocabulary cost.
 - **A thread team's working set on one die targets 32 MB**, counting one copy
   per thread for anything threadprivate. Above it is a regression even when
   this machine gets faster: 32 MB is CCD1 here and is what a part without

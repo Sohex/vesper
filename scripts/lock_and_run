@@ -1,0 +1,401 @@
+#!/usr/bin/env python3
+"""Run a command holding the one host lock, and release it however the run ends.
+
+    scripts/lock_and_run python exoplasim/scripts/run_exoplasim.py ...
+    scripts/lock_and_run -m "T42 arm B" make -C vendor/exoplasim
+    scripts/lock_and_run --self-test          # the behaviours below, exercised
+
+WHAT IT IS FOR. This project fans work out across many agents on ONE machine
+and several of them run integrations, builds and profiles. Anything that uses
+the CPU for more than a moment runs under this wrapper, which takes the lock,
+runs the command with its streams untouched, and releases the lock when the
+command returns -- or when this process dies, by any signal, including one it
+cannot catch.
+
+WHY IT REPLACED THE THREE-STEP PROTOCOL. The lock used to be spelled out at
+every call site: take a directory, write a description into it, do the work,
+remove the directory. Four steps, three of which an interrupted or forgetful
+caller skips, and each skip has been paid for here. Leaving the directory
+behind held the host against every other agent until a human noticed. Writing
+the description WITHOUT taking the directory put three integrations on
+thirty-two cores at a load of fifty-one and made every wall clock from that
+session unusable. Taking it twice without releasing deadlocked a session
+against itself, silently, because the waiter sleeps and prints nothing. A
+wrapper has one step, so there is nothing to skip.
+
+TWO LOCKS, AND THEY ARE NOT REDUNDANT.
+
+`/tmp/world.lock.flock` is the one that DECIDES. It is an advisory `flock` on a
+file that is never deleted, and the kernel drops it when the last descriptor on
+it closes. That is the whole reason to prefer it: releasing is not an action
+anybody has to remember or survive long enough to perform. `kill -9` releases
+it. A panic releases it. There is no such thing as a stale flock, so there is
+no stale-lock recovery procedure to get wrong.
+
+The descriptor is deliberately INHERITED by the command, so the lock outlives
+this wrapper. Kill the wrapper and the integration it started keeps running --
+orphaned, but still using the machine -- and it keeps holding the lock, which
+is the correct answer and is the one a pid-file scheme gets wrong.
+
+`/tmp/world.lock` is the one that is VISIBLE. It is the directory the old
+protocol used, created while the lock is held and removed on release, carrying
+the same `who` file. It buys two things. Anything still written against the
+documented `until mkdir` loop blocks correctly against this wrapper and is
+blocked correctly by it, in both directions. And `cat /tmp/world.lock/who`
+still answers "who has the machine and since when", which is the question
+actually asked at three in the morning.
+
+A crashed wrapper leaves that directory behind. Its corpse is identifiable
+rather than guessed at: `who` carries a marker line this wrapper writes, and a
+directory bearing the marker can only be a dead wrapper, because a live one
+would still be holding the flock we just acquired. So we clear it and say so. A
+directory WITHOUT the marker is a hand-rolled claim by the old protocol, and
+this wrapper waits for it rather than deciding it is dead.
+
+REENTRANCY. The command runs with `WORLD_LOCK_HELD` in its environment, and a
+wrapper that sees it already set runs straight through without taking anything.
+Nesting is therefore free, which matters because the composition that used to
+deadlock -- a script under the lock calling another script that also takes it
+-- is the natural way to write these.
+
+WHAT IT STILL DOES NOT DO. Holding the lock does not PARTITION the host. It
+keeps other agents off the machine and says nothing about how you divide the
+machine between your own processes, so two paired arms under one `lock_and_run`
+are `p8` binaries pinned to their own cores, never two `p16`.
+`docs/src/reference/environment.md` has the argument.
+"""
+
+import os
+import signal
+import subprocess
+import sys
+import time
+
+FLOCK_PATH = os.environ.get("WORLD_LOCK_FLOCK", "/tmp/world.lock.flock")
+CLAIM_PATH = os.environ.get("WORLD_LOCK_DIR", "/tmp/world.lock")
+POLL_SECONDS = float(os.environ.get("WORLD_LOCK_POLL", "15"))
+HELD_ENV = "WORLD_LOCK_HELD"
+
+# The line that distinguishes a dead wrapper's claim directory from a claim
+# taken by hand. Only this program writes it, and only while holding the flock.
+MARKER = "lock_and_run"
+
+
+def _say(message: str, quiet: bool = False) -> None:
+    """Progress goes to stderr, never to stdout.
+
+    The wrapped command's streams are the point of the wrapper, and a status
+    line on stdout would land in the middle of whatever the command is piped
+    into.
+    """
+    if not quiet:
+        print(f"lock_and_run: {message}", file=sys.stderr, flush=True)
+
+
+def _claim_text(argv: list[str], note: str | None) -> str:
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S %Z")
+    what = note if note else " ".join(argv)
+    return f"{stamp}: {what}\n{MARKER} pid {os.getpid()}\n"
+
+
+def _claim_is_corpse(path: str) -> bool:
+    """Only a DEAD wrapper can own a marked claim directory.
+
+    Called after the flock is held, and that is what makes this sound: a living
+    wrapper holds the flock for as long as its claim directory exists, so if we
+    hold the flock, no living wrapper owns this.
+    """
+    try:
+        with open(os.path.join(path, "who"), encoding="utf-8") as handle:
+            return any(line.startswith(MARKER) for line in handle)
+    except OSError:
+        return False
+
+
+def _take_claim_dir(quiet: bool) -> bool:
+    """Take the visible claim, waiting out a hand-rolled holder.
+
+    Returns whether we created it. The flock is already held here, so the only
+    thing this can wait on is somebody using the old `until mkdir` loop.
+    """
+    waited = False
+    while True:
+        try:
+            os.mkdir(CLAIM_PATH)
+            return True
+        except FileExistsError:
+            pass
+        if _claim_is_corpse(CLAIM_PATH):
+            _say(f"clearing {CLAIM_PATH}, left by a wrapper that died holding "
+                 "it; no live wrapper can own it while we hold the flock",
+                 quiet)
+            _remove_claim_dir()
+            continue
+        if not waited:
+            _say(f"{CLAIM_PATH} is held by hand rather than by a wrapper; "
+                 f"waiting. Its claim reads: {_read_who() or '(no who file)'}",
+                 quiet)
+            waited = True
+        time.sleep(POLL_SECONDS)
+
+
+def _read_who() -> str:
+    try:
+        with open(os.path.join(CLAIM_PATH, "who"), encoding="utf-8") as handle:
+            return handle.read().strip().replace("\n", " | ")
+    except OSError:
+        return ""
+
+
+def _remove_claim_dir() -> None:
+    try:
+        os.unlink(os.path.join(CLAIM_PATH, "who"))
+    except OSError:
+        pass
+    try:
+        os.rmdir(CLAIM_PATH)
+    except OSError:
+        pass
+
+
+def _remove_claim_dir_at(path: str) -> None:
+    """Tidy a claim directory at an arbitrary path; the self-test's cleanup."""
+    try:
+        os.unlink(os.path.join(path, "who"))
+    except OSError:
+        pass
+    try:
+        os.rmdir(path)
+    except OSError:
+        pass
+
+
+def _acquire_flock(quiet: bool) -> int:
+    """Block until the deciding lock is ours, saying so if we have to wait.
+
+    The descriptor is left INHERITABLE on purpose: the command we exec must
+    hold the lock too, so that killing this wrapper does not release a machine
+    the command is still using.
+    """
+    import fcntl
+
+    fd = os.open(FLOCK_PATH, os.O_RDWR | os.O_CREAT, 0o666)
+    os.set_inheritable(fd, True)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return fd
+    except OSError:
+        pass
+    _say(f"waiting for the host lock. Its claim reads: "
+         f"{_read_who() or '(no claim directory)'}", quiet)
+    started = time.time()
+    fcntl.flock(fd, fcntl.LOCK_EX)
+    _say(f"took the host lock after {time.time() - started:.0f}s", quiet)
+    return fd
+
+
+def _run(argv: list[str], fd: int | None) -> int:
+    """Run the command with its three streams inherited, and wait for it.
+
+    stdin, stdout and stderr are not touched at all, so a command under the
+    wrapper behaves exactly as it does without one: it keeps the terminal, its
+    output interleaves in the same order, and a pipe on either side still works.
+    `pass_fds` carries the lock descriptor across the exec and nothing else.
+
+    SIGTERM and SIGHUP are forwarded rather than acted on, and SIGINT is left
+    at its default: a terminal delivers it to the whole foreground group, so the
+    command already has it, and the wrapper's only job afterwards is to keep
+    waiting until the command is actually reaped.
+    """
+    env = dict(os.environ, **{HELD_ENV: FLOCK_PATH})
+    pass_fds = (fd,) if fd is not None else ()
+    proc = subprocess.Popen(argv, env=env, pass_fds=pass_fds, close_fds=True)
+
+    def forward(signum, _frame):
+        if proc.poll() is None:
+            proc.send_signal(signum)
+
+    for sig in (signal.SIGTERM, signal.SIGHUP):
+        try:
+            signal.signal(sig, forward)
+        except (ValueError, OSError):
+            pass
+
+    while True:
+        try:
+            return proc.wait()
+        except KeyboardInterrupt:
+            continue
+
+
+def _status_to_exit(status: int) -> int:
+    """A command killed by a signal exits 128 + N, the way a shell reports it."""
+    return 128 - status if status < 0 else status
+
+
+def main(argv: list[str]) -> int:
+    quiet = False
+    note = None
+    rest = list(argv)
+    while rest and rest[0].startswith("-"):
+        arg = rest.pop(0)
+        if arg == "--":
+            break
+        if arg in ("-h", "--help"):
+            print(__doc__)
+            return 0
+        if arg in ("-q", "--quiet"):
+            quiet = True
+        elif arg in ("-m", "--who"):
+            if not rest:
+                print("lock_and_run: -m wants a description", file=sys.stderr)
+                return 64
+            note = rest.pop(0)
+        elif arg == "--self-test":
+            return self_test()
+        else:
+            print(f"lock_and_run: unknown option {arg}. Put '--' before a "
+                  "command whose own first argument starts with a dash.",
+                  file=sys.stderr)
+            return 64
+    if not rest:
+        print("lock_and_run: give me a command to run under the lock",
+              file=sys.stderr)
+        return 64
+
+    if os.environ.get(HELD_ENV) == FLOCK_PATH:
+        _say("already holding the host lock; running without taking it again",
+             quiet)
+        return _status_to_exit(_run(rest, None))
+
+    fd = _acquire_flock(quiet)
+    took_claim = False
+    try:
+        took_claim = _take_claim_dir(quiet)
+        with open(os.path.join(CLAIM_PATH, "who"), "w",
+                  encoding="utf-8") as handle:
+            handle.write(_claim_text(rest, note))
+        return _status_to_exit(_run(rest, fd))
+    finally:
+        if took_claim:
+            _remove_claim_dir()
+        os.close(fd)
+
+
+def self_test() -> int:
+    """The behaviours the wrapper is trusted for, each with a right answer.
+
+    Runs against a private lock path so it never touches the real one, and
+    every arm asserts something that can fail rather than merely differ.
+    """
+    import tempfile
+    import textwrap
+
+    me = os.path.abspath(__file__)
+    failures = []
+
+    def check(name, condition, detail=""):
+        if condition:
+            print(f"  ok    {name}")
+        else:
+            print(f"  FAIL  {name}  {detail}")
+            failures.append(name)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        env = dict(os.environ)
+        env["WORLD_LOCK_FLOCK"] = os.path.join(tmp, "flock")
+        env["WORLD_LOCK_DIR"] = claim = os.path.join(tmp, "claim")
+        env["WORLD_LOCK_POLL"] = "0.2"
+        env.pop(HELD_ENV, None)
+
+        done = subprocess.run([me, "-q", "sh", "-c", "echo out; echo err >&2"],
+                              env=env, capture_output=True, text=True)
+        check("stdout passes through", done.stdout == "out\n",
+              repr(done.stdout))
+        check("stderr passes through", done.stderr == "err\n",
+              repr(done.stderr))
+        check("exit status passes through", done.returncode == 0)
+        check("the claim directory is released",
+              not os.path.exists(claim))
+
+        done = subprocess.run([me, "-q", "sh", "-c", "exit 7"], env=env)
+        check("a non-zero exit passes through", done.returncode == 7,
+              str(done.returncode))
+
+        done = subprocess.run([me, "-q", "sh", "-c", "kill -TERM $$"], env=env)
+        check("a signalled command reports 128+N", done.returncode == 143,
+              str(done.returncode))
+
+        done = subprocess.run([me, "-q", "cat"], env=env,
+                              input="through\n", capture_output=True,
+                              text=True)
+        check("stdin passes through", done.stdout == "through\n",
+              repr(done.stdout))
+
+        # MUTUAL EXCLUSION, and the control is that the second command cannot
+        # even start until the first has finished. Timestamps rather than a
+        # sleep race: the second's start must follow the first's end.
+        stamps = os.path.join(tmp, "stamps")
+        script = textwrap.dedent(f"""
+            {me} -q sh -c 'echo a-start >> {stamps}; sleep 0.6;
+                           echo a-end >> {stamps}' &
+            sleep 0.2
+            {me} -q sh -c 'echo b-start >> {stamps}' 
+            wait
+        """)
+        subprocess.run(["sh", "-c", script], env=env, check=False)
+        with open(stamps, encoding="utf-8") as handle:
+            order = [line.strip() for line in handle]
+        check("a second command waits for the first",
+              order == ["a-start", "a-end", "b-start"], str(order))
+
+        # REENTRANCY. The composition that used to deadlock: a command under
+        # the lock takes the lock again. It must run, not hang.
+        try:
+            done = subprocess.run(
+                [me, "-q", me, "-q", "sh", "-c", "echo nested"],
+                env=env, capture_output=True, text=True, timeout=20)
+            check("a nested wrapper runs instead of deadlocking",
+                  done.stdout == "nested\n", repr(done.stdout))
+        except subprocess.TimeoutExpired:
+            check("a nested wrapper runs instead of deadlocking", False,
+                  "it deadlocked against the lock its parent holds")
+
+        # A CORPSE IS CLEARED. A marked claim directory with no flock behind it
+        # is a dead wrapper, and must not hold the machine.
+        os.mkdir(claim)
+        with open(os.path.join(claim, "who"), "w", encoding="utf-8") as handle:
+            handle.write(f"stamp: dead\n{MARKER} pid 999999\n")
+        try:
+            done = subprocess.run([me, "sh", "-c", "echo past-corpse"],
+                                  env=env, capture_output=True, text=True,
+                                  timeout=20)
+            check("a dead wrapper's claim is cleared",
+                  done.stdout == "past-corpse\n", repr(done.stdout))
+            check("clearing a corpse is announced", "clearing" in done.stderr,
+                  repr(done.stderr))
+        except subprocess.TimeoutExpired:
+            check("a dead wrapper's claim is cleared", False,
+                  "it waited on a claim no live wrapper could own")
+            check("clearing a corpse is announced", False, "never got there")
+            _remove_claim_dir_at(claim)
+
+        # AND A HAND-ROLLED CLAIM IS NOT. An unmarked directory is somebody
+        # using the documented mkdir protocol, and waiting is the right answer.
+        os.mkdir(claim)
+        with open(os.path.join(claim, "who"), "w", encoding="utf-8") as handle:
+            handle.write("someone doing it by hand\n")
+        try:
+            subprocess.run([me, "-q", "true"], env=env, timeout=3)
+            check("a hand-rolled claim is waited out", False,
+                  "the wrapper walked past it")
+        except subprocess.TimeoutExpired:
+            check("a hand-rolled claim is waited out", True)
+        _remove_claim_dir_at(claim)
+
+    print(f"lock_and_run self-test: {len(failures)} failed")
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

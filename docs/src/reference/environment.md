@@ -189,55 +189,79 @@ flag. That was worth 6% on a stock baseline against itself.
 
 This project fans work out across many agents on ONE machine, and several of
 them run model integrations, builds and profiles. Anything that uses the CPU
-for more than a moment takes a lock first:
+for more than a moment runs under the wrapper:
 
-    until mkdir /tmp/world.lock 2>/dev/null; do sleep 30; done
-    echo "$(date): what you are doing" > /tmp/world.lock/who
-    # ... the heavy work ...
-    rm -rf /tmp/world.lock
+    scripts/lock_and_run -m "what you are doing" python exoplasim/scripts/run_exoplasim.py ...
 
-**`mkdir` rather than `touch`, and the reason is the whole design.** `mkdir`
-fails if the directory exists, so testing and taking are ONE atomic step. The
-obvious spelling -- look for the file, then create it -- is check-then-act, and
-two agents that check in the same moment both find it free and both proceed.
-That is the failure the lock exists to prevent, so it must not be the failure
-the lock is built on.
+It waits for the lock, runs the command, and releases. The command's stdin,
+stdout and stderr are inherited untouched, so a command under the wrapper
+behaves exactly as it does without one and can still be piped on either side.
 
-The lock is a directory OUTSIDE the repository. Each fan-out agent works in its
+**ONE STEP, BECAUSE EVERY STEP A CALLER CAN SKIP HAS BEEN SKIPPED HERE.** The
+lock used to be spelled out at each call site -- take a directory, write a
+description into it, do the work, remove the directory -- and each of the three
+ways to get that wrong cost real work. Leaving the directory behind held the
+host against every other agent until a human noticed. Writing the description
+WITHOUT taking the directory put three integrations on thirty-two cores at a
+load of fifty-one and made every wall clock from that session unusable. Taking
+it twice without releasing deadlocked a session against itself, silently,
+because the waiter sleeps and prints nothing; the tell was a `who` file
+describing a phase that had obviously finished. A wrapper has one step, so
+there is nothing left to skip, and nesting is free rather than fatal: the
+command runs with `WORLD_LOCK_HELD` set and a wrapper that sees it runs
+straight through.
+
+**THE LOCK THAT DECIDES IS AN `flock`, AND THAT IS WHY THERE IS NO STALE-LOCK
+RECOVERY.** `/tmp/world.lock.flock` is a file that is never deleted; the lock
+is the kernel's advisory lock on an open descriptor, and the kernel drops it
+when the last descriptor closes. Releasing is therefore not an action anyone
+has to remember, or survive long enough to perform. `kill -9` releases it. A
+crash releases it. A stale flock does not exist, so there is no procedure for
+clearing one and no judgement call about whether a holder is a corpse.
+
+The descriptor is deliberately INHERITED by the command. Kill the wrapper and
+the integration it started keeps running -- orphaned, but still using the
+machine -- and it keeps holding the lock. That is the right answer and it is
+the one a pid-file scheme gets wrong, because a pid file names the wrapper and
+the wrapper is not the thing using the CPU.
+
+**`/tmp/world.lock` REMAINS, AS THE VISIBLE CLAIM.** The wrapper creates that
+directory while it holds the lock and removes it on release, with the same
+`who` file as before, so `cat /tmp/world.lock/who` still answers "who has the
+machine, and since when". It also keeps the two protocols interoperable in both
+directions: anything still written as `until mkdir /tmp/world.lock` blocks
+against the wrapper and is blocked by it. `mkdir` rather than `touch` is why
+that half works at all -- it tests and takes in ONE atomic step, where the
+obvious spelling, look for the file and then create it, lets two agents that
+check in the same moment both find it free.
+
+A wrapper that is killed leaves that directory behind, and its corpse is
+identified rather than guessed at: `who` carries a marker line only the wrapper
+writes, and a marked directory can only be a dead wrapper, because a live one
+would still hold the flock the reader has just acquired. The wrapper clears it
+and says so. An UNMARKED directory is a claim taken by hand, and the wrapper
+waits for it instead of deciding it is dead.
+
+The lock lives outside the repository because each fan-out agent works in its
 own worktree, so an in-tree path is a different file for every agent and
 coordinates nothing.
 
-The `who` file is what makes a stale lock recoverable. A session that dies
-holding the lock leaves it held forever; `cat /tmp/world.lock/who` says who
-took it and when, so a successor can tell a live holder from a corpse instead of
-guessing. Clear a dead one with `rm -rf` and say that you did.
-
-**THE LOCK IS NOT REENTRANT, AND RELEASING IS NOT OPTIONAL.** `mkdir` protects
-you against other agents and gives you nothing against yourself: take it twice
-without releasing and the second `until mkdir` waits forever on a directory you
-are holding. That deadlock is silent -- the waiter sleeps, no error is printed,
-`who` still names the FIRST claim because the `echo` after the loop never runs,
-and the work simply never starts. It cost a verification run here, and the tell
-was that `who` described a phase that had obviously finished.
-
-So end every phase with `rm -rf /tmp/world.lock` rather than leaving it held
-until the session ends, and read `who` before believing a lock is live: a claim
-naming work that is plainly over is a corpse or a self-deadlock, not a holder.
-Two consequences follow. A HELD LOCK WHOSE `who` DESCRIBES FINISHED WORK IS THE
-SIGNATURE OF THIS BUG, not of a slow neighbour. And writing to `who` without
-having taken the directory is not taking the lock -- doing that put three
-integrations on 32 cores in one wave, at a load of 51, and made every wall clock
-from the session unusable.
+`scripts/lock_and_run --self-test` exercises all of this against a private lock
+path: that the three streams and the exit status pass through, that a second
+command cannot start until the first has finished, that a nested wrapper runs
+instead of deadlocking, that a dead wrapper's claim is cleared and a
+hand-rolled one is not. `scripts/verify_entry_points.py` runs it.
 
 **HOLDING THE LOCK DOES NOT PARTITION THE HOST.** It keeps other AGENTS off the
 machine. It says nothing about how you divide the machine between your own
 processes, and reading it as a reservation is how two 16-thread integrations
 came to be co-scheduled on 32 logical cores under a single claim. Two paired
-arms at once are `p8` binaries pinned to their own cores; two `p16` at once is
-never right. An unpinned pair fights over the same CCDs, which breaks the 32 MB
-per-die target below -- that target is stated per thread TEAM, and two teams on
-one die exceed it silently. Worse, the pair then measures the scheduler as much
-as the model, which is the one thing a paired experiment exists to avoid.
+arms at once are `p8` binaries pinned to their own cores, under ONE
+`lock_and_run`; two `p16` at once is never right. An unpinned pair fights over
+the same CCDs, which breaks the 32 MB per-die target below -- that target is
+stated per thread TEAM, and two teams on one die exceed it silently. Worse, the
+pair then measures the scheduler as much as the model, which is the one thing a
+paired experiment exists to avoid.
 
 **A timing is a measurement of a machine state as much as of a model.** Record
 the load beside any timing worth keeping: one without the machine state it was
@@ -253,8 +277,12 @@ instructions in proportion to how long it waits.
 file, a process-table scan, a load threshold and a worker-count API. The parts
 beyond "do not start heavy work while someone else is running" were not the job,
 and the vocabulary actively misled: a "claim" reads as though it reserves the
-host. Four lines an agent can follow without opening a script are the whole of
-what was needed.
+host, which is the reading that put two 16-thread integrations on one box. What
+it became was four lines an agent could follow without opening a script, and
+what those four lines then cost was a caller executing three of them. The
+wrapper is the same policy at one call: the mechanism may be a script again,
+but the API it exposes is a command prefix and not a set of primitives to
+sequence correctly.
 
 ## The per-die working set targets 32 MB
 
