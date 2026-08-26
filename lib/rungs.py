@@ -289,21 +289,26 @@ COMMISSIONING_EVIDENCE = {
         "verdict": "endured",
         "orbits": 50,
         "run": "run_ec32946bec89",
-        "detail": "The route's first rung. All six criteria met, first passing "
-                  "at 47. Fitted relaxation 6.27 orbits against a derived "
-                  "expectation of 10.12, which is the direction the ceiling "
-                  "argument permits.",
+        "detail": "The route's first rung. ENDURED is the verdict here and it "
+                  "is not the convergence verdict: under the upper-bound "
+                  "criterion form this run MISSES on state storage, 0.0961 "
+                  "plus a standard error of 0.0303 against a threshold of "
+                  "0.12. It met all six under the point-estimate form the "
+                  "criteria carried when it was taken. WORLD-S8N3.",
     },
     ("T21", 30.0): {
         "verdict": "endured",
         "orbits": 35,
         "run": "run_14906cb7b914",
-        "detail": "The route's second rung, seeded from run_ec32946bec89. Four "
-                  "slope criteria and the storage criterion met; the "
-                  "extrapolated offset misses on its half-width rather than "
-                  "its magnitude. Its equilibrium sits about 0.46 K below the "
-                  "dt 45 one at the same resolution. The fitted relaxation is "
-                  "degenerate here and is WORLD-5GQY.",
+        "detail": "The route's second rung, seeded from run_ec32946bec89. "
+                  "Five of six criteria met; the extrapolated offset misses. "
+                  "Its equilibrium sits about 0.46 K below the dt 45 one at "
+                  "the same resolution, which is a timestep-dependent shift at "
+                  "fixed support. This is a SETTLING step rather than a "
+                  "commissioning one and the offset criterion is a "
+                  "commissioning claim nothing between rungs reads: "
+                  "WORLD-NDBQ. Its fitted relaxation is degenerate and "
+                  "supports nothing, WORLD-5GQY.",
     },
     ("T42", 45.0): {
         "verdict": "blew_up",
