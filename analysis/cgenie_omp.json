@@ -694,10 +694,127 @@
       "instructions": 275688145068,
       "task_clock_ms": 37434.61,
       "instructions_per_model_year": 2.757
+    },
+    "omp.eb_go_gs_final.build": {
+      "arm": "omp",
+      "flags": [
+        "-fopenmp"
+      ],
+      "build_seconds": 195.5,
+      "build_ok": true,
+      "case": "eb_go_gs",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/omp.eb_go_gs.exe"
+    },
+    "omp.eb_go_gs_final.t1": {
+      "arm": "omp",
+      "case": "eb_go_gs",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 4.429,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_final.t1",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_final.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_final.t16": {
+      "arm": "omp",
+      "case": "eb_go_gs",
+      "threads": 16,
+      "run_ok": true,
+      "seconds": 6.915,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_final.t16",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_final.t16/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_ac_bg_final.build": {
+      "arm": "omp",
+      "flags": [
+        "-fopenmp"
+      ],
+      "build_seconds": 175.2,
+      "build_ok": true,
+      "case": "eb_go_gs_ac_bg",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/omp.eb_go_gs_ac_bg.exe"
+    },
+    "omp.eb_go_gs_ac_bg_final.t1": {
+      "arm": "omp",
+      "case": "eb_go_gs_ac_bg",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 5.511,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg_final.t1",
+      "vs_base.eb_go_gs_ac_bg_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_ac_bg_pre.t1/biogem/fields_biogem_3d.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg_final.t1/biogem/fields_biogem_3d.nc",
+        "variables": 88,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_ac_bg_final.t16": {
+      "arm": "omp",
+      "case": "eb_go_gs_ac_bg",
+      "threads": 16,
+      "run_ok": true,
+      "seconds": 6.747,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg_final.t16",
+      "vs_base.eb_go_gs_ac_bg_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_ac_bg_pre.t1/biogem/fields_biogem_3d.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg_final.t16/biogem/fields_biogem_3d.nc",
+        "variables": 88,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omppoison.eb_go_gs_final.build": {
+      "arm": "omppoison",
+      "flags": [
+        "-fopenmp",
+        "-finit-real=snan",
+        "-finit-integer=-2147483647"
+      ],
+      "build_seconds": 205.5,
+      "build_ok": true,
+      "case": "eb_go_gs",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/omppoison.eb_go_gs.exe"
+    },
+    "omppoison.eb_go_gs_final.t16": {
+      "arm": "omppoison",
+      "case": "eb_go_gs",
+      "threads": 16,
+      "run_ok": true,
+      "seconds": 7.304,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omppoison.eb_go_gs_final.t16",
+      "vs_base.eb_go_gs_pre.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/base.eb_go_gs_pre.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omppoison.eb_go_gs_final.t16/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
     }
   },
   "provenance": {
-    "repo_head": "c3023d508bf998d605021379af6fb08c3c189bec",
+    "repo_head": "6dcded1b020ac3ee1ad2d3b787cdf020bd9dda5e",
     "repo_dirty": false,
     "fortran": "GNU Fortran (GCC) 16.2.1 20260810",
     "netcdf_c": "netCDF 4.9.3",
@@ -705,19 +822,19 @@
     "netcdf_flibs": "-L/usr/lib -lnetcdff -lnetcdf",
     "host": "yggdrasil",
     "cores": 32,
-    "load_average_at_start": 14.5,
+    "load_average_at_start": 55.98,
     "timing_estimator": "minimum over --repeats, of the model's own `time real` rather than the wrapper's, on a host that runs other work. cGENIE is one serial process and cores were free throughout; cache and memory bandwidth were not exclusively its own. Each run records the load average it finished under.",
     "cpu": "AMD Ryzen 9 7950X3D 16-Core Processor",
     "kernel": "7.1.8-1-cachyos",
     "build_type": "SHIP (user.mak default), gfortran, serial",
     "parallelism": "None available. -fopenmp is commented out in makefile.arc, and every $omp string in goldstein, embm, biogem and genie-main is commented out in column one, so it is not a sentinel: enabling the flag would parallelise nothing. Three live `use omp_lib` statements have no call against them. MPI exists only in genie-plasim, which this project does not use. Cost is one core against simulated years; parallelism is across experiments, not within a run.",
     "code_model": "medium",
-    "make_overrides": "GENIE_ROOT=/home/cfutro/cgenie_z3b/vendor/cgenie RUNTIME_ROOT=/home/cfutro/cgenie_z3b/vendor/cgenie NETCDF_DIR=/usr OUT_DIR=/home/cfutro/cgenie_omp_out -j 1 GENIE_FFLAGS=-mcmodel=medium GENIE_LDFLAGS=-mcmodel=medium",
+    "make_overrides": "GENIE_ROOT=/home/cfutro/cgenie_z3/vendor/cgenie RUNTIME_ROOT=/home/cfutro/cgenie_z3/vendor/cgenie NETCDF_DIR=/usr OUT_DIR=/home/cfutro/cgenie_omp_out -j 1 GENIE_FFLAGS=-mcmodel=medium GENIE_LDFLAGS=-mcmodel=medium",
     "build_command": "cd vendor/cgenie/genie-main && ./genie.job -x -f <config> -o <outdir> -c <cgenie root> -g <cgenie root> -h . -m 'genie.exe GENIE_ROOT=<cgenie root> RUNTIME_ROOT=<cgenie root> NETCDF_DIR=/usr OUT_DIR=<outdir> -j 1'",
     "notes": [
       "The make target genie.exe is passed through -m because the default target also builds nccompare, whose src/c/compare.cpp needs the legacy netCDF C++ header netcdf.hh, absent on this host.",
       "-j 1 is required: the dependency generator genie-main/finc.py is Python 2 and fails under this host's python3, so no .d files are produced and a parallel make races on .mod files."
     ],
-    "cgenie_tree": "/home/cfutro/cgenie_z3b/vendor/cgenie"
+    "cgenie_tree": "/home/cfutro/cgenie_z3/vendor/cgenie"
   }
 }
