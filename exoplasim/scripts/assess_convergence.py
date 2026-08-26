@@ -7,6 +7,13 @@ than to advance the planet -- an I/O verification, a high-cadence wind sample, a
 block on a differently patched binary -- are not evidence about where the run is
 settling. `exoplasim/scripts/segments.py` owns that vocabulary.
 
+`--assess diagnostic` takes the same six criteria over the orbits a run
+declares ARE diagnostics. That is how an A/B arm shows it had settled:
+sequencing.md A3 requires an arm's segments carry that label so no tail
+reaches a climatology, and the label is what hides them from the default
+mode. The verdict it produces is about the experiment and not the planet, so
+it carries its mode in its filename and writes nothing into the run.
+
 EVERY CRITERION IS AN UPPER BOUND: `|statistic| + its standard error <
 threshold`. The argument for that form, and why it was still honest to adopt it
 after runs had been judged under the other one, is recorded in `main` beside the
@@ -231,6 +238,61 @@ DEFAULT_WINDOW_ORBITS = int(np.ceil(window_for_offset_criterion(
 # The consequence for a window: a 10-orbit window is a seventh of a cold
 # start's approach and the whole of a reconvergence, so on the second it is
 # assessing orbits that are still moving by construction.
+def assessment_window(run_dir: Path, n_orbits: int, window: int,
+                      purpose: str) -> tuple[int, int]:
+    """The last `window` orbits of the declared purpose, as inclusive indices.
+
+    HOW AN A/B ARM DEMONSTRATES ITS OWN SETTLING. `production_window` is the
+    default and the only one a verdict about the PLANET may be taken on: it
+    drops a diagnostic tail and refuses a window with a diagnostic hole in it.
+    But sequencing.md A3 requires that the segments of a short A/B be labelled
+    DIAGNOSTICS, and labelling them is then exactly what hides them from the
+    test that would judge whether either arm had settled -- world-u9hq recorded
+    A3's fourth condition as untestable for that reason, and no arm could
+    satisfy both conditions as they stood.
+
+    It is a mode here and not a widening of `production_window` because the two
+    answer different questions. `production` asks where the planet is settling
+    and its answer is the run's own verdict, written into the run's manifest.
+    `diagnostic` asks whether an ARM had settled far enough for its difference
+    against the other arm to mean anything, and that answer is about the
+    experiment rather than the planet: `main` keeps it under its own filename
+    and never writes it into the run, on exactly the terms `--through` is kept
+    out.
+
+    The trailing-drop and interior-hole rules are `production_window`'s, applied
+    to the declared purpose instead: a diagnostic block interrupted by a spin-up
+    segment is no more a trend than the other way round.
+    """
+    if purpose == "production":
+        return production_window(run_dir, n_orbits, window)
+    purposes = orbit_purposes(run_dir, range(n_orbits))
+    admissible = {orbit for orbit, seen in purposes.items() if seen == purpose}
+    end = n_orbits - 1
+    while end >= 0 and end not in admissible:
+        end -= 1
+    if end < 0:
+        raise RuntimeError(
+            f"{run_dir.name} has no orbit any segment declares "
+            f"`{purpose}`. A run whose segments do not say what they were for "
+            f"cannot be assessed as though they had: label the segments, or "
+            f"assess it as production.")
+    start = end - window + 1
+    if start < 0:
+        raise RuntimeError(
+            f"{run_dir.name} has {end + 1} orbits up to the last `{purpose}` "
+            f"one (index {end}), fewer than the {window}-orbit window "
+            f"requested")
+    interior = sorted(o for o in range(start, end + 1) if o not in admissible)
+    if interior:
+        raise RuntimeError(
+            f"orbits {interior} are inside the {window}-orbit window ending at "
+            f"{end} and are not declared `{purpose}`. A window with a hole in "
+            f"it is not a trend; shorten --window, or assess the block before "
+            f"them.")
+    return start, end
+
+
 CONVERGENCE_LENGTHS = {
     "basis": "operational experience across this project's runs, not a "
              "measured distribution; every number here is bracketed by what "
@@ -339,7 +401,8 @@ def main() -> None:
     parser.add_argument("run_dir", type=Path)
     parser.add_argument("--window", type=int, default=DEFAULT_WINDOW_ORBITS,
                         help="orbits in the test window. Counted back from the "
-                             "last PRODUCTION orbit, not the last orbit. The "
+                             "last orbit of the ASSESSED PURPOSE, not the last "
+                             "orbit of the run. The "
                              f"default, {DEFAULT_WINDOW_ORBITS}, is derived: it "
                              "is the shortest window at which the offset "
                              "criterion's statistic has a standard error of a "
@@ -359,6 +422,20 @@ def main() -> None:
                              "into the run's manifest, so a sweep cannot "
                              "overwrite the run's own verdict in either "
                              "place.")
+    parser.add_argument("--assess", choices=("production", "diagnostic"),
+                        default="production",
+                        help="which orbits the verdict is taken over. "
+                             "`production` is the run's own verdict, over "
+                             "orbits its segments declare are the planet's "
+                             "trajectory, and it is what gets written into the "
+                             "run's manifest. `diagnostic` is how an A/B arm "
+                             "demonstrates its own settling: A3 requires an "
+                             "arm's segments be labelled diagnostics so no "
+                             "tail reaches a climatology, and that label is "
+                             "what hides them from the default mode. A "
+                             "diagnostic verdict is about the EXPERIMENT and "
+                             "not the planet -- it carries its mode in its "
+                             "filename and writes nothing into the run.")
     parser.add_argument("--output", type=Path, default=ANALYSIS / "convergence")
     args = parser.parse_args()
     run_dir = args.run_dir.resolve()
@@ -379,7 +456,12 @@ def main() -> None:
     # window on the day CLIM-9 was written. `production_window` drops a
     # diagnostic tail and REFUSES a window with a diagnostic hole in it, because
     # a slope across a gap is not a trend.
-    window_start, window_end = production_window(run_dir, len(files), args.window)
+    #
+    # `--assess diagnostic` takes the same window over the orbits an arm
+    # DECLARES are diagnostics, which is the only way an arm labelled the way
+    # A3 requires can show it had settled. See `assessment_window`.
+    window_start, window_end = assessment_window(
+        run_dir, len(files), args.window, args.assess)
     purposes = orbit_purposes(run_dir, range(len(files)))
     dropped = sorted(o for o in range(window_end + 1, len(files)))
 
@@ -986,6 +1068,18 @@ def main() -> None:
         "window_start_year_index": window_start,
         "window_end_year_index": window_end,
         "orbits_after_window_excluded_as_non_production": dropped,
+        # WHICH ORBITS THIS VERDICT IS ABOUT, by their declared purpose. A
+        # diagnostic verdict is about an A/B arm's settling and not about where
+        # the planet is going, and a reader must be able to tell the two apart
+        # from the report alone rather than from its filename.
+        "assessed_purpose": args.assess,
+        "verdict_is_about": (
+            "the planet's trajectory; this is the run's own verdict"
+            if args.assess == "production" else
+            "the EXPERIMENT: whether the orbits an A/B arm declares as "
+            "diagnostics had settled far enough for a difference against "
+            "another arm to mean anything. It is not the run's verdict and is "
+            "not written into the run's manifest."),
         "segment_purposes": {str(k): v for k, v in sorted(purposes.items())},
         "metrics": metrics,
         "criteria": criteria,
@@ -1037,7 +1131,14 @@ def main() -> None:
     # run's own. Sweeping `--through` to find when a run first converged would
     # otherwise leave the verdict of whichever truncation ran last standing as
     # the run's, which is the same defect one directory up.
+    #
+    # A DIAGNOSTIC ASSESSMENT CARRIES ITS MODE IN THE NAME for the same reason.
+    # It is a verdict about an arm's own settling, taken over orbits the run
+    # declares are not its trajectory, and it must never stand where a reader
+    # looks for the run's verdict.
     suffix = "" if args.through is None else f"_through{args.through:03d}"
+    if args.assess != "production":
+        suffix += f"_{args.assess}"
     report_path = args.output / f"{run_dir.name}_convergence{suffix}.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
@@ -1063,8 +1164,17 @@ def main() -> None:
     # converged left the run recorded as having converged wherever the sweep
     # happened to stop last, which is the exact defect the suffix was added to
     # prevent. The sweep is how the window is priced, so this is not a corner.
+    #
+    # A DIAGNOSTIC ASSESSMENT NEVER TOUCHES IT EITHER, and for a stronger
+    # reason than the truncated one. `status` and `equilibrium_cutoff_year_
+    # index` are claims about where the PLANET has got to, and a diagnostic
+    # segment is by declaration not evidence about that. Writing an arm's own
+    # settling into those fields would relabel a run as equilibrated on orbits
+    # that were excluded from every verdict about it -- which is the failure
+    # the purpose vocabulary exists to prevent, arriving through the tool that
+    # reads it.
     manifest_path = run_dir / "run_manifest.json"
-    if args.through is not None:
+    if args.through is not None or args.assess != "production":
         manifest_path = None
     if manifest_path is not None and manifest_path.is_file():
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -1099,7 +1209,8 @@ def main() -> None:
                    label=f"{w}-orbit test window")
         if dropped:
             ax.axvspan(dropped[0] - 0.5, dropped[-1] + 0.5, color="tab:grey",
-                       alpha=0.18, label="not production; excluded")
+                       alpha=0.18,
+                       label=f"not {args.assess}; excluded")
         if key in {"ntr", "hfns"}:
             ax.axhline(0, color="black", linewidth=0.7)
         ax.set_title(title)
@@ -1108,10 +1219,13 @@ def main() -> None:
         ax.grid(alpha=0.25)
     axes[0, 0].legend(loc="best", fontsize=8)
     fig.suptitle(
-        f"Baseline spin-up convergence: {'PASS' if all(criteria.values()) else 'NOT YET'} "
+        f"{args.assess.capitalize()} convergence: "
+        f"{'PASS' if all(criteria.values()) else 'NOT YET'} "
         f"({len(files)} orbits, {w}-orbit window ending at {window_end})"
     )
-    plot_path = args.output / f"{run_dir.name}_convergence.png"
+    # The plot takes the report's suffix, so a diagnostic verdict cannot
+    # overwrite the figure a reader looks at for the run's own.
+    plot_path = args.output / f"{run_dir.name}_convergence{suffix}.png"
     fig.savefig(plot_path, dpi=180)
     plt.close(fig)
     # One writer for this key. There were two, and this one silently clobbered
@@ -1121,14 +1235,21 @@ def main() -> None:
                "report": str(report_path.resolve()), "orbits": len(files),
                "window_orbits": w, "window_start_year_index": window_start,
                "window_end_year_index": window_end,
+               "assessed_purpose": args.assess,
                "orbits_after_window_excluded_as_non_production": dropped}
 
     # Record the verdict with the run as well as in the analysis directory.
     # Provenance travels with the artifact everywhere else in this project, and a
     # convergence result that lives only in an output folder cannot be found from
     # the run it describes.
+    #
+    # THE RUN'S OWN VERDICT ONLY. `convergence_assessment` is the key every
+    # consumer reads to decide whether a run may be used, so a diagnostic
+    # assessment writing there would answer that question with a verdict about
+    # an experiment. It stays in the analysis directory under its own name.
     manifest_path = args.run_dir / "run_manifest.json"
-    if args.through is None and manifest_path.is_file():
+    if (args.through is None and args.assess == "production"
+            and manifest_path.is_file()):
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         manifest["convergence_assessment"] = payload
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

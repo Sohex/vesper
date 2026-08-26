@@ -1487,28 +1487,45 @@ should not: `derive()` indexes it rather than using `.get`, deliberately, so tha
 a config which has lost the block fails instead of reverting the model to its
 compiled values in silence.
 
-## A3's fourth condition cannot be met on an arm's first segment
+## A3's fourth condition, and how an arm now demonstrates its own settling
 
 A3 requires that "the segments are labelled as diagnostics, so a short A/B tail
-never enters a convergence window or a climatology". `continue_exoplasim.py`
-takes a required `--purpose` and will stamp `diagnostic`. `run_exoplasim.py`
-takes no such flag: every run it prepares gets a first segment labelled `spinup`
-and a manifest carrying `canonical_lineage_eligible: true`, whatever the run is
-for. Measured on the five arms above, each of which is an A/B arm and none of
-which says so.
+never enters a convergence window or a climatology", and world-u9hq recorded the
+condition as UNTESTABLE rather than unmet: `assess_convergence.py` read only
+PRODUCTION orbits, so the label that satisfied A3 was exactly what hid an arm
+from the test that would judge whether it had settled. No arm could satisfy both
+halves, and the h2oswl pair above stood on its paired difference's
+autocorrelation-corrected error instead.
 
-So an arm is self-labelling only from its SECOND segment onward, and its first
-one -- which for a short A/B is the whole of it -- is indistinguishable on the
-manifest from a spin-up meant for the canonical chain. Nothing has been mislabelled
-INTO a climatology yet, because `baseline_climatology` is null and the canonical
-lineage does not exist; the gap is that the guard A3 names is not there to catch
-it when one does.
+Both halves are closed, and they had to be closed together: a guard on the label
+alone would have left every arm unable to show its own settling.
 
-`--binary` already stamps an arm's build tag and sets `canonical_lineage_eligible
-= false`, so the mechanism exists and reaches only arms that carry their own
-executable. A `--purpose` on `run_exoplasim.py` with the same three values
-`continue_exoplasim.py` takes, defaulting to `spinup` so no existing call
-changes, is what closes it.
+`run_exoplasim.py` takes a required `--purpose`, `spinup` or `diagnostic`, with
+NO DEFAULT. A default of `spinup` would leave the failure where it was and
+silent in the direction that matters, because a diagnostic tail carrying the
+default label is indistinguishable later from production orbits. The purpose
+reaches the first segment and the manifest, and `diagnostic` sets
+`canonical_lineage_eligible = false` -- which until now only `--binary` did, so
+an A/B run the way A3 asks for it, as one binary differing by one namelist key,
+was eligible for the canonical lineage on every arm this project has run.
+`continue_exoplasim.py` already refuses a `post_equilibrium_climatology` segment
+on a run carrying false, so the arm cannot acquire climatology orbits later
+either.
+
+`assess_convergence.py --assess diagnostic` takes the same six criteria over the
+orbits a run declares ARE diagnostics, with `production_window`'s own
+trailing-drop and interior-hole rules applied to that purpose instead. The
+verdict it produces is about the EXPERIMENT and not about the planet: whether an
+arm had settled far enough for its difference against another arm to mean
+anything. It carries its mode in its report and plot filenames and writes
+nothing into the run -- not `status`, not `equilibrium_cutoff_year_index`, not
+`convergence_assessment` -- on the terms `--through` is already kept out, and
+for a stronger reason: those fields are claims about where the planet has got
+to, and a diagnostic segment is by declaration not evidence about that.
+
+So an arm's settling is now demonstrable and reported, and it still cannot be
+mistaken for the run's own verdict or promoted into the canonical lineage.
+world-ucww.
 
 ## Measured: the `world-u9hq` h2oswl arms, 2026-08-26
 

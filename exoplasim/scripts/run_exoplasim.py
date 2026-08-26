@@ -3260,6 +3260,34 @@ def main() -> None:
         help="Seed the initial state from an existing MOST_REST file instead of "
              "cold-starting. Only the spin-up path changes, not the equilibrium.",
     )
+    # WHAT THIS RUN IS FOR, DECLARED AND NOT DEFAULTED. world-ucww.
+    #
+    # `continue_exoplasim.py` has taken a required `--purpose` all along and
+    # this script took none, so every run it prepared wrote a first segment
+    # labelled `spinup` and a manifest claiming `canonical_lineage_eligible`,
+    # whatever the run was. sequencing.md A3's fourth condition requires the
+    # segments of a short A/B to be labelled DIAGNOSTICS so a tail never enters
+    # a convergence window or a climatology, and on a short A/B the first
+    # segment is the whole of it: the condition was unmeetable from this script.
+    #
+    # THERE IS NO DEFAULT, on the argument `segments.py` states for the whole
+    # vocabulary: the purpose is declared by the caller and never inferred from
+    # the flags. A default of `spinup` would leave the failure exactly where it
+    # was and silent in the direction that matters, because a mislabelled
+    # diagnostic tail is indistinguishable later from production orbits.
+    parser.add_argument(
+        "--purpose", choices=("spinup", "diagnostic"), default=None,
+        required=True,
+        help="what the orbits this run integrates are FOR. `spinup` carries "
+             "the planet toward equilibrium and belongs in a convergence "
+             "window; `diagnostic` measures the MODEL rather than the planet "
+             "-- an A/B arm, an I/O verification, a high-cadence sample -- and "
+             "is excluded from a convergence window and from a climatology, "
+             "and sets canonical_lineage_eligible = false. "
+             "post_equilibrium_climatology is deliberately NOT offered here: a "
+             "run's first orbits are not at equilibrium, and that purpose "
+             "comes from continue_exoplasim.py on a run assess_convergence.py "
+             "has judged.")
     args = parser.parse_args()
     config_path = args.config.resolve()
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
@@ -3752,13 +3780,26 @@ def main() -> None:
                      "registry's naming carries no precision at all, which is "
                      "why `arm` below is the only statement of an arm's."),
         },
+        # WHAT THIS RUN IS FOR, from --purpose. On the manifest as well as on
+        # every segment, because a reader asking whether a run belongs in the
+        # canonical chain reads the manifest and a run has no segments at all
+        # until it has integrated something. world-ucww.
+        "purpose": args.purpose,
         # An ARM RUN IS NOT PRODUCTION. Set false when the caller named the
         # binary rather than letting the registry's naming resolve it: the
         # executable is then one build_model.py refused to publish, and no
         # climatology built on it belongs to the canonical lineage.
         # `continue_exoplasim.py` refuses a post_equilibrium_climatology
         # segment on a run carrying false here.
-        "canonical_lineage_eligible": exe_provenance.get("arm") is None,
+        #
+        # A DECLARED DIAGNOSTIC IS THE OTHER WAY IN. `--binary` catches an arm
+        # that carries its own executable and reaches nothing else, so an A/B
+        # run as one binary differing by one namelist key -- which is the shape
+        # A3 asks for and the shape `--binary` exists to make unnecessary --
+        # was eligible for the canonical lineage on every arm this project has
+        # run. The two conditions are independent and either one disqualifies.
+        "canonical_lineage_eligible": (exe_provenance.get("arm") is None
+                                       and args.purpose != "diagnostic"),
         "software": {
             "python": platform.python_version(),
             "exoplasim": getattr(exo, "__version__", "3.4.2"),
@@ -3859,11 +3900,15 @@ def main() -> None:
             # default it would be a run whose first block really is
             # accumulations and says so nowhere.
             #
-            # The purpose is `spinup` and is not a parameter: this script
-            # prepares a run and integrates it from a cold start or a seed,
-            # which is the definition of one. Orbits meant to be read as data
-            # come from `continue_exoplasim.py --purpose
-            # post_equilibrium_climatology`, on a run something has assessed.
+            # THE PURPOSE IS THE CALLER'S AND IS REQUIRED. It was `spinup`
+            # unconditionally, on the argument that this script prepares a run
+            # and integrates it from a cold start or a seed; that is true of a
+            # commissioning run and false of an A/B arm, whose whole life is
+            # its first segment and which A3 requires be labelled a diagnostic.
+            # Orbits meant to be read as data still come only from
+            # `continue_exoplasim.py --purpose post_equilibrium_climatology`,
+            # on a run something has assessed, which is why this flag does not
+            # offer that value.
             manifest.setdefault("segments", []).append({
                 "start_year_index": 0,
                 "end_year_index": args.run_years - 1,
@@ -3871,7 +3916,7 @@ def main() -> None:
                 "low_io": bool(args.low_io),
                 "ecological_stream": eco_stream,
                 "high_cadence": False,
-                "purpose": "spinup",
+                "purpose": args.purpose,
                 # WHY A FIRST RECORD IS REFUSABLE, and it is no longer CLIM-31.
                 #
                 # CLIM-31 was the donor's partial accumulation window arriving
