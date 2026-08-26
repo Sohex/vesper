@@ -278,8 +278,15 @@
       real, parameter :: LFUS  = 2.8345e6 - 2.5008e6   ! als - alv, as landmod uses
       real, parameter :: LVAP  = 2.5008e6
       real, parameter :: RHOW  = 1000.0
-      real, parameter :: CAP   = 2.4e6                 ! landmod soilcap
+      real, parameter :: CAP   = 2.4e6                 ! a fixture, not landmod's
       real, parameter :: DZ    = 1.5                   ! the contract's column
+!     CAP IS A FIXTURE AND NOT A MODEL VALUE. `phase_step` takes the
+!     volumetric heat capacity as an argument, so what this check needs is a
+!     positive number the identity can be read against, not whatever the
+!     caller happens to pass. It was landmod's `soilcap` when that was one
+!     scalar; WORLD-JSFM made the model's capacity a function of the column's
+!     own water, and pinning this fixture to a state-dependent quantity would
+!     make a kernel test depend on a soil.
       real :: zliq, zice0, ztem, zliqn, zicen, ztemn
       real :: zbefore, zafter, zmoved, zlat, zdte, zres, zeps, zbound
       integer :: jt
