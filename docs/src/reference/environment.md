@@ -191,12 +191,10 @@ This project fans work out across many agents on ONE machine, and several of
 them run model integrations, builds and profiles. Anything that uses the CPU
 for more than a moment takes a lock first:
 
-```
-until mkdir /tmp/world.lock 2>/dev/null; do sleep 30; done
-echo "$(date): what you are doing" > /tmp/world.lock/who
-# ... the heavy work ...
-rm -rf /tmp/world.lock
-```
+    until mkdir /tmp/world.lock 2>/dev/null; do sleep 30; done
+    echo "$(date): what you are doing" > /tmp/world.lock/who
+    # ... the heavy work ...
+    rm -rf /tmp/world.lock
 
 **`mkdir` rather than `touch`, and the reason is the whole design.** `mkdir`
 fails if the directory exists, so testing and taking are ONE atomic step. The
