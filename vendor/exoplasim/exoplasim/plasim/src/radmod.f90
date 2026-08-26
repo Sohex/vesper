@@ -1074,6 +1074,25 @@
       call mpbcr(solcdec)
       call mpbcr(clgray)
       call mpbcr(dawn)
+!
+!     A NEGATIVE dawn IS REFUSED, because the shortwave reads the beam cosine as
+!     a non-negative number in seven places and would fault rather than warn.
+!     solang zeroes gmu0 and overwrites it only where the cosine exceeds
+!     sin(dawn), so dawn >= 0 is what makes gmu0, and swr's zmu0 with it,
+!     non-negative on every lane. Below zero swr forms zmu0**1.7 for the ECHAM6
+!     ocean albedo, a real power of a negative base, which is the invalid the
+!     declared flag line traps on -- and the two beam-cosine divisors zmu0+0.15
+!     and zmu0+zero would lose their floors on the way. The declared default is
+!     0.0 and nothing in this project writes the key. world-px61.
+!
+      if (dawn < 0.0) then
+       if (mypid == NROOT) then
+        write(nud,*) 'RADMOD_NL dawn is ',dawn
+        write(nud,*) 'dawn is the zenith-angle threshold for night, in degrees,'
+        write(nud,*) 'and the shortwave requires a non-negative beam cosine.'
+       endif
+       call mpabort('dawn must not be negative')
+      endif
       call mpbcr(th2oc)
       call mpbcr(tpofmt)
       call mpbcr(acllwr)
