@@ -71,9 +71,21 @@ point returns, so a reader can see what the answer owes to the preference. That
 is the third of the four dispositions `docs/src/practice/conventions.md` allows
 under "No tuned values".
 
-`cold_extreme_cap` is declared by the caller and starts as None. The purged
-artifact INFERRED it from the anchor's own row, which is a threshold fitted to
-its own answer; this script now refuses to run until it is set. CLIM-30.
+`cold_extreme_cap` is DECLARED, at 0.05, on 2026-08-26 and ahead of the
+re-derivation it constrains. It is a design preference of the same kind as the
+three above it -- the largest share of land this world accepts below the
+cold-extreme threshold -- and nothing in the model or in any run determines it.
+CLIM-30.
+
+It is the one threshold here with a HISTORY of being fitted to its own answer:
+the purged artifact inferred 0.0642 from the anchor's own row, which reproduced
+0.945 from an unconstrained winner of 0.8725. So it does not stand bare. It is
+swept in `THRESHOLD_BRACKET` alongside the two comfort thresholds, and the
+report carries the design flux each bracket point returns, which is what makes
+the answer's debt to the preference readable instead of asserted. `main` still
+refuses on None, so a future caller cannot get back to the inferred state by
+deleting the value; and `cap_the_prior_implies` stays in the report as a
+diagnostic that must never be used as the cap.
 
 THE CANDIDATE RANGE, re-derived because the cloud optics moved under it. The
 range's only job is to contain the winner, and a search that cannot reach its
@@ -168,7 +180,7 @@ DECLARED = {
     "cold_floor_c": -25.0,       # design preference
     "warm_extreme_c": 38.0,      # design preference
     "cold_extreme_c": -40.0,     # design preference
-    "cold_extreme_cap": None,    # declared by the caller; CLIM-30. None refuses
+    "cold_extreme_cap": 0.05,    # design preference, declared 2026-08-26, swept below
     "band_degrees": 10.0,
     "candidates": [round(0.790 + 0.0025 * i, 4) for i in range(125)],
     "anchor_flux": 0.945,
@@ -182,6 +194,13 @@ DECLARED = {
 THRESHOLD_BRACKET = {
     "warm_ceiling_c": [30.0, 31.5, 33.0, 34.5, 36.0],
     "cold_floor_c": [-30.0, -27.5, -25.0, -22.5, -20.0],
+    # The cap is bracketed to a factor of two either side of the declaration and
+    # not to a fixed width in land fraction, because it is a SHARE and the
+    # quantity a reader wants bounded is how much stricter or looser a defensible
+    # alternative could have been. The bottom end is below the 0.0642 the purged
+    # artifact inferred, so the sweep spans the value this declaration replaces
+    # and a reader can see what that inference was worth.
+    "cold_extreme_cap": [0.025, 0.05, 0.10],
 }
 
 
@@ -403,22 +422,30 @@ def main() -> None:
     # What the answer owes to the two comfort preferences, measured rather than
     # asserted: the design flux each bracket point of each threshold returns,
     # the other threshold and the cap held at their declared values.
-    def winner_at(warm_ceiling, cold_floor):
+    def winner_at(warm_ceiling, cold_floor, cap_value):
         best_flux, best_comfort = None, -1.0
         for f in DECLARED["candidates"]:
             warm, cold, _ = projected(f)
             s = score(warm, cold, base["land"], base["area"], warm_ceiling, cold_floor)
-            if s["extreme_cold"] > cap:
+            if s["extreme_cold"] > cap_value:
                 continue
             if s["comfort"] > best_comfort:
                 best_flux, best_comfort = f, s["comfort"]
         return best_flux
 
+    # A bracket point that admits no candidate returns None rather than raising:
+    # the DECLARED cap admitting nothing is a refusal above, but a bracket point
+    # doing so is a result about that point, and reporting it is the whole
+    # purpose of sweeping. A reader must be able to tell "no candidate" from
+    # "the same winner", so the two are not both spelled as a missing row.
     sensitivity_rows = {
-        "warm_ceiling_c": {str(v): winner_at(v, DECLARED["cold_floor_c"])
+        "warm_ceiling_c": {str(v): winner_at(v, DECLARED["cold_floor_c"], cap)
                            for v in THRESHOLD_BRACKET["warm_ceiling_c"]},
-        "cold_floor_c": {str(v): winner_at(DECLARED["warm_ceiling_c"], v)
+        "cold_floor_c": {str(v): winner_at(DECLARED["warm_ceiling_c"], v, cap)
                          for v in THRESHOLD_BRACKET["cold_floor_c"]},
+        "cold_extreme_cap": {str(v): winner_at(DECLARED["warm_ceiling_c"],
+                                               DECLARED["cold_floor_c"], v)
+                             for v in THRESHOLD_BRACKET["cold_extreme_cap"]},
     }
 
     # Reported, never used as the cap: the smallest cold-extreme tolerance under

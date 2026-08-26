@@ -69,6 +69,19 @@ the basin selection thresholds, so they are absent from the basin catalogue and
 carry `basin_index == -1`. The naive union misses exactly those and silently
 floods them. `surface_class` is the only correct source.
 
+**The threshold that decides this is `minAreaKm2`, and it is 1000 km2 -- a
+DECLARED LANDFORM FLOOR, kept.** Measured at 10M regions: the residue outside
+every preserved basin is 1.157e6 km2, 0.364 per cent of land, in 16,406 pieces,
+and the deepest ground in it is -0.513 km against -0.591 km inside a preserved
+basin, so it is ordinary dry basin floor in small pieces rather than shallow
+ground. The AREA is converged and the COUNT is not: four times the region count
+multiplies the pieces by 3.6 and leaves their total area within 10 per cent,
+because every newly resolved depression falls under the same area floor. So no
+finer generation closes this and none is meant to -- the floor is a statement
+about what counts as a landform on this planet, defensible against a 285 km2
+mesh cell, and not a resolution artefact. Quote the 0.364 per cent as the
+declared limit rather than treating it as a gap to be closed.
+
 `surface_class == 2` (`inland_water`) is **empty**, by design rather than
 oversight -- and filling it is now done downstream: `hydrography/scripts/surface_water.py`
 solves lake extent and `build_surface_albedo.py --lakes` carries it into the
