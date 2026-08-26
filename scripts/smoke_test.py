@@ -1486,8 +1486,12 @@ def check_configured_timestep() -> list[str]:
     launched from a generated config rather than from this file and reports
     instead of refusing; `lib/rungs.py:timestep_problems` carries the split.
 
-    THE CONTROL is below and is what makes this a test rather than a
-    description: the same check on T42 at T21's step has to fail.
+    THE CONTROLS are below and are what make this a test rather than a
+    description. There are two because there are two ways to be off the ladder
+    and each has its own right answer: a step above the rung's measured ceiling,
+    and a step the route does not run this rung at even though the rung could
+    take it. The second is the defect above, and it is the one a single
+    ceiling-shaped control would miss.
     """
     import yaml
     sys.path.insert(0, str(ROOT / "lib"))
@@ -1499,14 +1503,21 @@ def check_configured_timestep() -> list[str]:
         return [str(exc)]
     problems = rungs.timestep_problems(rung, active)
 
-    # THE NEGATIVE CONTROL. world-td3's configuration exactly: the rung moved to
-    # T42 and the step left at T21's 45. If this passes, the check above cannot
-    # fail and is worth nothing.
-    if not rungs.timestep_problems("T42", 45.0):
+    # NEGATIVE CONTROL ONE: above the ceiling. T85 is measured to refuse at 60,
+    # so a configuration declaring it has to fail here.
+    if not rungs.timestep_problems("T85", 60.0):
         problems.append(
-            "the timestep check does not refuse T42 at dt 45, which is the "
-            "configuration world-td3 ran and blew up: a check that cannot fail "
+            "the timestep check does not refuse T85 at dt 60, which is above "
+            "the step T85 is measured to refuse at: a check that cannot fail "
             "is not a check")
+    # NEGATIVE CONTROL TWO: below every ceiling and off the route. This is the
+    # defect's own shape -- the step is perfectly safe and simply is not the one
+    # the ladder runs this rung at -- and a ceiling-only check passes it.
+    if not rungs.timestep_problems("T21", 30.0):
+        problems.append(
+            "the timestep check does not refuse T21 at dt 30, which is well "
+            "under T21's ceiling and is not on the route: a check that only "
+            "sees ceilings cannot catch a rung run at another rung's step")
     # And the other direction: the declared route must be accepted, or the
     # control above is passing on a check that refuses everything.
     for rung_ok, dt_ok in rungs.ESCALATION_ROUTE:

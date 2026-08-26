@@ -1879,6 +1879,13 @@ def declare_timestep(config: dict) -> float:
     the DECLARED configuration is judged -- `scripts/check_consistency.py` and
     `scripts/smoke_test.py`, both of which read `config/planet.yaml` itself. A
     refusal here would refuse the measurements the registry is made of.
+
+    IT ALSO PRINTS CAVEATS, which are the other half of what the registry knows.
+    A pair can carry a blow-up that does not BAR it -- the run and its
+    reproducer gone, so the claim has no artifact left to check it against --
+    and that is not the same as a pair nothing has ever tried. Printing it here
+    is what keeps an attempt at the first from looking like an attempt at the
+    second. `lib/rungs.py:commissioning_caveats`.
     """
     timestep, rung = rungs.configured_timestep(config)
     problems = rungs.timestep_problems(rung, timestep)
@@ -1892,6 +1899,8 @@ def declare_timestep(config: dict) -> float:
               "this step is not the escalation the project declared.")
         for problem in problems:
             print(f"  - {problem}")
+    for caveat in rungs.commissioning_caveats(rung, timestep):
+        print(f"timestep CAVEAT: {caveat}")
     return timestep
 
 

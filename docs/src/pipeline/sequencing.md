@@ -412,40 +412,50 @@ decision, not a rung to be discovered: the ladder below is the route to it, and
 the question a comparison between rungs answers is how much the coarser ones
 were wrong by, not which one to stop at.
 
-The route escalates resolution and timestep ALTERNATELY, never together:
+The route escalates resolution and timestep ONE AT A TIME, never together --
+and this route never has to move the timestep at all:
 
 1. **T21 at dt 45.** Converge.
-2. **Reconverge T21 at dt 30** if the conversion needs it.
-3. **Convert to T42, at dt 30.** Converge.
-4. **Convert to T85, at dt 30.** Converge.
-5. **Continue at NLOWIO = 0** with high-cadence orbits for dust.
+2. **Convert to T42, at dt 45.** Converge.
+3. **Convert to T85, at dt 45.** Converge.
+4. **Continue at NLOWIO = 0** with high-cadence orbits for dust.
 
-**There were five steps and there are four, because T42's settling block
-disappeared rather than being skipped.** A settling block exists ONLY to change
-dt before a conversion, so once T85 runs at the step T42 already commissions at,
-there is nothing for one to settle: the conversion happens at constant dt with
-no intervening change. Both remaining rung changes are still at constant dt, so
-the converter's requirement is untouched, and exactly one variable still moves
-per entry -- the route does not alternate rung and step, it moves one of them,
-and two conversions in a row at one step satisfies that.
+**THE ROUTE IS RUN AT ONE STEP THROUGHOUT, AND THAT IS WHAT MAKES IT THREE
+ENTRIES.** dt 45 is at or below the measured ceiling of every rung on it -- T21
+refuses at 150, T42 at 90, T85 at 60 -- so no conversion has a step change in
+front of it, and a settling block exists ONLY to make one. Both settling blocks
+the route used to carry are gone rather than skipped, and the converter's
+requirement is met trivially rather than by construction: every change of rung
+happens at constant dt because nothing ever changes dt.
 
-**T85 at dt 30 rather than 22.5, and the 22.5 rested on nothing about T85.**
-WORLD-37TN's re-taken grid is the first time T85 was probed on any source: it is
-clean at 45 and refuses at 60. The old 22.5 was inherited from the contaminated
-grid, the one in which nothing above T42 appeared to refuse anywhere because the
-master thread overran a 16 MB stack and took SIGSEGV before writing a record,
-which the probe read as a refusal at every step. That artifact is fixed and the
-ceiling moved with it; the route's number had not.
+**IT IS AN ATTEMPT, AND THE FALLBACK IS NAMED.** What the ceilings license is
+that each rung STARTS clean at 45; endurance at 45 is established only for T21,
+over fifty orbits. If a rung will not carry 45 for a commissioning span, the
+route falls back to the four-entry form -- reconverge T21 at 30, then both
+conversions at 30 -- and the fallback is a step change, so it reinstates one
+settling block at T21 and none above it. Running the cheap end of the ladder
+first is what makes attempting it the right order: T21 is where a step that
+cannot be held shows up for the least money.
+
+**T42 at 45 has a blow-up on record and it does not bar the attempt.**
+run_900548ae632e took a SIGFPE in its forty-seventh orbit at 45. The run is
+gone -- not in `exoplasim/runs/`, not a stub under `archive/runs/`, not in any
+`INDEX_AT_DELETION.json` -- so its source sha cannot be read and WORLD-TD3's
+ninety-second reproducer cannot be re-run. What it measured is therefore
+unknown and is certainly not this source, which has since taken the damping
+correction, the `epilog` use-after-free and the batch-2 forcing terms. Refusing
+a step on a profile the model no longer has is failure-modes class 34. So the
+row is carried as evidence that is REPORTED and does not REFUSE:
+`lib/rungs.py` marks it `binds: False` and `run_exoplasim.py` prints it at
+launch. WORLD-TD3's reopen condition is unchanged -- if it recurs, it recurs on
+a run that exists, the row binds again, and the ladder falls back to 30.
 
 **What it saves, in model steps, which needs no clock.** Steps go as 1/dt, so
-T85 at 30 against 22.5 is exactly 25 per cent fewer steps at the most expensive
-rung on the route -- and the vanished settling block is a whole T42 span on top
-of that. 45 would be 50 per cent, and is not taken here: T85 is clean at 45 by
-refusal, but T42 must SETTLE at whatever step T85 commissions at, and T42's only
-endurance evidence at 45 is a run that blew up in its forty-seventh orbit.
-WORLD-TD3 owns that mechanism and the observation is on superseded source, so 45
-is a candidate to be MEASURED rather than a step to be assumed -- the endurance
-arm is what would move C to 45, and refusal alone cannot.
+T85 at 45 against the 22.5 the route once carried is half the steps at the most
+expensive rung, and both vanished settling blocks are whole spans on top of
+that -- one at T21, one at T42. The cost of a settling block grows up the
+ladder, which is why removing the T42 one was worth more than removing the T21
+one.
 
 This chapter DECIDES the route. `lib/rungs.py` carries it in machine-readable
 form as `ESCALATION_ROUTE` and checks itself against the list above, so a
@@ -466,20 +476,17 @@ target as spanning its own. The converter refuses the combination rather than
 taking it, and its self-test walks this route to check that every conversion the
 route asks for is one it accepts. WORLD-FL9C.
 
-**Step 2 is a SETTLING block, not a commissioning verdict, and the two are named
-apart so they cannot be confused.** A commissioning verdict supports a claim
-about this world's climate, and its window is priced so a slope's standard error
-resolves its threshold. Nothing reads the climate of T21 at dt 30. That state
-exists to hand the next conversion a restart that is not mid-transient, and any
-residual drift it leaves is absorbed by the convergence that follows. Applying
-the commissioning standard to it buys a claim nothing consumes, at about four and
-a half times the orbits the purpose needs.
-
-**There used to be a second settling block and it is gone rather than skipped**,
-which is where the cost of a settling block is most visible: it grows up the
-ladder, and the one that vanished was T42 orbits rather than T21's. Raising T85
-to the step T42 already commissions at removed the reason for it, since a
-settling block exists only to change dt before a conversion.
+**THIS ROUTE HAS NO SETTLING BLOCK, and the concept is kept because the
+fallback needs it.** A SETTLING block and a COMMISSIONING verdict are named
+apart so they cannot be confused. A commissioning verdict supports a claim about
+this world's climate, and its window is priced so a slope's standard error
+resolves its threshold. A settling block supports nothing: it exists to hand the
+next conversion a restart that is not mid-transient after a step change, and any
+residual drift it leaves is absorbed by the convergence that follows. Nothing
+reads its climate. Applying the commissioning standard to one buys a claim
+nothing consumes, at about four and a half times the orbits the purpose needs.
+If the fallback to dt 30 is taken, the reconvergence of T21 at 30 is a settling
+block in exactly this sense and is priced as one.
 
 **A settling block is a LENGTH derived from the relaxation time, not a verdict
 on a mean.** A perturbation decays as `exp(-n / tau)`, so the orbits needed for
@@ -495,12 +502,11 @@ repeatedly seen comes from.
 
 **What a settling block does NOT establish**, and this is why it carries its own
 name: that the state is equilibrated, that its climate is the rung's climate, or
-that any mean taken on it carries an interval. Steps 1, 3 and 4 are
+that any mean taken on it carries an interval. Steps 1, 2 and 3 are all
 COMMISSIONING and keep the full standard, because loop A is replayed on each of
-those rungs and the carve verdict is taken on their climatologies. Step 2 is not
-read that way by anything.
+those rungs and the carve verdict is taken on their climatologies.
 
-**A commissioning convergence, at steps 1, 3 and 4, is one convergence window
+**A commissioning convergence, at steps 1, 2 and 3, is one convergence window
 then three-orbit increments until the criteria are met.** The first block is the
 window because the criteria cannot be evaluated on fewer orbits than they are
 taken over; three after, because that is the smallest increment the criteria can
@@ -510,11 +516,14 @@ judge and a longer one overshoots the exit by more than it costs to test again.
 it lands in.
 
 **The timestep at each rung is the highest that rung can carry, not a safety
-margin.** 45, 30 and 22.5 are the intended values and they are PROVISIONAL:
-they rest on `exoplasim/notes/physics-filter-stability.md`, whose grid is
-contaminated four independent ways (WORLD-37TN), so they are the declared
-intent pending its re-measurement and not a measured ceiling. A step that
-merely does not blow up is a stability floor and not a licence.
+margin.** The ceilings are now MEASURED rather than intended: WORLD-37TN's
+re-taken grid has a refusing cell above each of them, at 150 for T21, 90 for
+T42 and 60 for T85, and it is the first grid on which T85 was probed at all. A
+ceiling still bounds the route rather than setting it, and it qualifies a step
+against REFUSAL and against nothing else: 900 steps is about a seventh of an
+orbit at dt 45, so a rung clean on the grid has said nothing about enduring a
+commissioning span. Endurance lives in `COMMISSIONING_EVIDENCE`, and a step
+that merely does not blow up is a stability floor rather than a licence.
 
 Conversion uses CLIM-52's schema-aware converter with support-matched target
 static fields; the result is an initial condition, not a continued equilibrium.

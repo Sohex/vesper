@@ -116,11 +116,13 @@ comparison, and SPAT-8, which was that comparison, closed when T85 was declared
 the operating support rather than a rung to be discovered. Nothing now needs the
 rungs to share a step, so nothing pays for running T42 at 22.5.
 
-The ladder runs the ESCALATION ROUTE instead -- T21 at 45, T42 at 30, T85 at
-22.5, decided in `docs/src/pipeline/sequencing.md` section D and carried in
-machine-readable form by `lib/rungs.py` -- where the step changes so that
-resolution and timestep never move together and every conversion happens
-at constant dt.
+The ladder runs the ESCALATION ROUTE instead, decided in
+`docs/src/pipeline/sequencing.md` section D and carried in machine-readable form
+by `lib/rungs.py:ESCALATION_ROUTE`, which is where its per-rung steps are read
+and not from here. The route's invariant is that resolution and timestep never
+move together, so every conversion happens at constant dt. This paragraph
+carried a copy of the route's three steps and had gone stale against it, which
+is the whole reason a restatement is a pointer now.
 
 **Three quantities, not three answers.** What each rung CAN take, what the route
 RUNS it at, and what a commissioning-length run has SHOWN about a pair are
@@ -164,10 +166,11 @@ the step is halved at T42. A step that conserves worse warms the model, and
 halving it removes about 0.19 W/m2 of spurious heating -- which against this
 model's sensitivity is the right order for 1.6 K.
 
-The practical consequence for the ladder is the one already taken for stability
-reasons: **every rung runs at one step**, dt 22.5, which is what T170 needs.
-Otherwise the ladder measures resolution plus truncation error and reports the
-sum as resolution.
+The practical consequence for the ladder is a constraint on COMPARISON rather
+than a step: two rungs compared at different steps measure resolution plus
+truncation error and report the sum as resolution, so a comparison across rungs
+is readable only where the step is held. Which step the route actually runs is
+`lib/rungs.py:ESCALATION_ROUTE`.
 
 ## A conversion may double the truncation and no more
 

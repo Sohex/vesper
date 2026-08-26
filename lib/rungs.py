@@ -268,17 +268,23 @@ PROBE_CLEAN = "no_refusal_in_steps"
 # authoritative for it and this is the machine-readable restatement, checked
 # against that chapter by `check_timestep_restatements`.
 #
-# In ORDER, and a rung appears more than once on purpose. The route alternates:
-# each entry changes the rung or the step and never both, so exactly one
-# variable moves at a time and a surprise after a conversion is attributable.
-# The invariant that falls out of it -- and the one WORLD-FL9C is about -- is
-# that EVERY CHANGE OF RUNG HAPPENS AT CONSTANT dt. `_check_route()` is where
-# that is a right answer rather than a description.
+# In ORDER. Each entry changes the rung or the step and never both, so exactly
+# one variable moves at a time and a surprise after a conversion is
+# attributable. The invariant that falls out of it -- and the one WORLD-FL9C is
+# about -- is that EVERY CHANGE OF RUNG HAPPENS AT CONSTANT dt. `_check_route()`
+# is where that is a right answer rather than a description.
+#
+# THIS ROUTE NEVER CHANGES THE STEP AT ALL, which is what makes it three entries
+# rather than four. dt 45 is at or below the measured ceiling of every rung on
+# it, so no conversion needs a step change in front of it, and a settling block
+# exists only to make one. It is an ATTEMPT: the route the project runs first,
+# to find out whether the ladder holds at one step, and the fallback if a rung
+# will not take 45 is the four-entry form that reconverges T21 at 30 and runs
+# both conversions there.
 ESCALATION_ROUTE = (
     ("T21", 45.0),
-    ("T21", 30.0),
-    ("T42", 30.0),
-    ("T85", 30.0),
+    ("T42", 45.0),
+    ("T85", 45.0),
 )
 
 # WHAT A COMMISSIONING-LENGTH RUN HAS SHOWN, per (rung, step). The probe grid
@@ -290,6 +296,16 @@ ESCALATION_ROUTE = (
 # `orbits` is the last orbit the run reached. `verdict` is `endured` for a run
 # that reached a commissioning length without failing, `blew_up` for one that
 # died after starting clean.
+#
+# `binds` is whether the row may REFUSE a configuration on the source this tree
+# has now, and it defaults to True: a blow-up bars the pair until something is
+# argued about it. Setting it False takes an argument in the row, and the only
+# argument that works is that the measurement cannot be checked -- the run, its
+# provenance and its reproducer all gone, so there is nothing to re-read and
+# nothing to re-run. A row that does not bind is still EVIDENCE and is still
+# reported: `commissioning_caveats` is where it comes out, and
+# `run_exoplasim.py` prints it at launch, so an attempt at that pair knows what
+# it is attempting.
 COMMISSIONING_EVIDENCE = {
     ("T21", 45.0): {
         "verdict": "endured",
@@ -320,11 +336,28 @@ COMMISSIONING_EVIDENCE = {
         "verdict": "blew_up",
         "orbits": 46,
         "run": "run_900548ae632e",
+        "binds": False,
         "detail": "SIGFPE inside the 47th orbit on a gridpoint at -12.81 K at "
                   "the second level from the top, after 46 orbits of ordinary "
                   "climate with no trend towards it. WORLD-TD3; "
                   "notes/audits/resolution-ladder.md and "
                   "exoplasim/notes/physics-filter-stability.md.",
+        "does_not_bind": "The run is gone and so is everything that could "
+                         "re-check it: run_900548ae632e is not in "
+                         "exoplasim/runs/, not a stub under archive/runs/ and "
+                         "not in any INDEX_AT_DELETION.json, so its source sha "
+                         "cannot be read and the ninety-second reproducer "
+                         "WORLD-TD3 rests on cannot be re-run. What it was "
+                         "measured on is therefore unknown, and is certainly "
+                         "not this source: the damping correction, the epilog "
+                         "use-after-free and the batch-2 forcing terms all "
+                         "landed after it. Refusing a step on a profile the "
+                         "model no longer has is failure-modes class 34, and a "
+                         "claim with no artifact to check it against cannot "
+                         "refuse one. The reopen condition is WORLD-TD3's and "
+                         "is unchanged: if it recurs, this row binds again on "
+                         "a run that exists and the ladder falls back to dt "
+                         "30.",
     },
     ("T42", 30.0): {
         "verdict": "endured",
@@ -463,11 +496,33 @@ def timestep_problems(rung: str, timestep_minutes: float) -> list[str]:
             + f", not at {timestep_minutes} "
               "(docs/src/pipeline/sequencing.md section D).")
     evidence = COMMISSIONING_EVIDENCE.get((key, float(timestep_minutes)))
-    if evidence and evidence["verdict"] == "blew_up":
+    if (evidence and evidence["verdict"] == "blew_up"
+            and evidence.get("binds", True)):
         problems.append(
             f"{key} at dt {timestep_minutes} has been run to commissioning "
             f"length and failed: {evidence['detail']}")
     return problems
+
+
+def commissioning_caveats(rung: str, timestep_minutes: float) -> list[str]:
+    """What is known against this pair that is NOT a reason to refuse it.
+
+    A blow-up whose run no longer exists cannot bar a configuration -- there is
+    no artifact to check the claim against -- but it is still the only endurance
+    evidence the pair has, and dropping it would leave an attempt at that pair
+    looking like an attempt at an untested one. Those are different things and
+    the caller is entitled to know which one it is holding.
+
+    Kept apart from `timestep_problems` because the two have different
+    consequences: a problem refuses, a caveat is printed.
+    """
+    key = str(rung).upper()
+    evidence = COMMISSIONING_EVIDENCE.get((key, float(timestep_minutes)))
+    if not evidence or evidence.get("binds", True):
+        return []
+    return [f"{key} at dt {timestep_minutes} has a blow-up on record that does "
+            f"not bar it. What happened: {evidence['detail']} Why it does not "
+            f"bar the pair: {evidence['does_not_bind']}"]
 
 
 def configured_timestep(config: dict) -> tuple[float, str]:
