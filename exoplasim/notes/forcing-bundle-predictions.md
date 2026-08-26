@@ -1438,7 +1438,7 @@ places and only one is large enough to matter for sign:
 | --- | --- |
 | `energy_fixer` and `energy_diagnostics` off | +0.23 K, and WARMING, so it makes the gap larger rather than smaller. The fixer applies -0.300 W/m2 on the donor and `lib/sensitivity.py` at that run's own planetary albedo of 0.2366 gives 0.778 K per W/m2 |
 | `ncpus` 16 to 8 | none. Thread count is compiled in and changes no physics |
-| four `surface.cryosphere` constants, absent in the donor's config and declared now | unbounded here. They set the modelled sea ice's density, heat capacity and conductivity and the snow fusion enthalpy, and sea ice is where the amplitude is |
+| four `surface.cryosphere` constants, absent in the donor's config and declared now | **negligible, and it is a static check rather than an arm.** Three of the four declare the value `icemod.f90` already compiles -- `CRHOI` 920, `CPI` 2070, `CKAPI` 2.03 -- so declaring them changed nothing the model reads. The fourth, `CLFSN`, moves from the compiled 3.337E5 to the derived 333444.87, which is -0.076 per cent of the modelled snow's melting enthalpy |
 | `surface.land_water_column` from a 1-layer bucket to a 2-layer scheme | unbounded here |
 
 So the measured drift confounds the compiled forcing terms with two config
@@ -1460,13 +1460,19 @@ way is information. What it says is that the next baseline cannot be taken on
 this configuration until the two config changes above are priced, because they
 are the two candidates that are cheap to price and are not yet.
 
-**The cheapest next measurement, and it needs no new tooling.** Both config
-changes are declared in `config/planet.yaml` and both are therefore arm-able the
-way `clwref` was: one arm with the land water column back at the 1-layer bucket
-and one with the four cryosphere constants at the values the donor ran without
-them, each against this same control on this same restart. That is two arms and
-it splits the -12.5 K into the part the config carries and the part the source
-carries, which is as far as the split can go without a control binary.
+**The split needs one arm, not two.** The cryosphere row above is settled by
+reading `icemod.f90` against `config/planet.yaml`, and it is settled at
+essentially zero, so the only config change left that could carry a response of
+this size is the land water column. `run_431ecabed085` is that arm: the 1-layer
+bucket the donor ran, against this same control on this same restart, staging
+`NLANDWCOL = 0`, `DSOILWZ = 1.5` and `DSOILWF = 1` where the control stages
+`NLANDWCOL = 1`, `DSOILWZ = 0.5, 1` and `DSOILWF = 0.333333, 0.666667`.
+
+Whatever that arm does not account for is the model source's, and that is as far
+as the split can go without a control binary. Removing the `cryosphere` block to
+build the second arm does not work and should not: `derive()` indexes it rather
+than using `.get`, deliberately, so that a config which has lost the block fails
+instead of reverting the model to its compiled values in silence.
 
 ## A3's fourth condition cannot be met on an arm's first segment
 
