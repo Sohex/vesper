@@ -175,6 +175,25 @@ predate it and survived the move off a markdown table.
   marker names a location, not an effect, so the two are not interchangeable
   at any count. `pipeline.py` reads no tracker, so nothing recorded in beads
   can change what the pipeline planner reports.
+- **An issue also names the batch it must land in**, as a `batch:<n>` label.
+  Where `step:<id>` says WHERE work lands, `batch:<n>` says WHEN, and the
+  ordering is by BLAST RADIUS under rule 7 rather than by area or priority:
+  batch 1 is a change that makes the build and everything below it worthless,
+  batch 2 the compiled model, batch 3 the instruments that judge a run, then
+  loop A, loop B, loop C and the escalation in the order `sequencing.md` runs
+  them, with a last batch for what gates nothing. The batch is a JUDGEMENT
+  taken by reading the issue, exactly as the carve gate is, and for the same
+  reason: what a change makes worthless is a fact about its own prose. It is
+  re-derivable and it goes stale, so it is an annotation and never an input to
+  a gate. A row blocked by a row in a LATER batch is a loop back-edge and is
+  expected; a batch whose rows are mostly blocked forward is mis-cut.
+- **A row that cannot move without the author carries `needs-decision`**, and
+  `decision-blocks-loop-a` where the answer gates the current pass. That is a
+  different claim from `needs-permission`, which says the design and fixture
+  work may proceed and only the EXECUTION -- a model run, a coupled response
+  case -- waits. Conflating them buries the handful of answers the project is
+  actually stopped on inside the much larger set it is merely not authorised
+  to run.
 - **Regenerating a derived artifact is a STEP, not an issue.** It belongs in
   the ordering in `sequencing.md`, beside the run that consumes it. An issue
   that says "rebuild X before the next run" is tracking state, and state is
