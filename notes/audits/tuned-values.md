@@ -78,7 +78,59 @@ member of it that is not inspectable.
 **Disposition: REPLACEABLE, BLOCKED.** The replacement is a pipeline step that
 already exists, `exoplasim/scripts/derive_design_flux.py`. It is blocked on two
 things and only two: a cap declared in advance, which is `clim-30`, and a
-baseline climatology, which this build does not have. No paper is needed.
+baseline climatology, which this build does not have. No paper is needed. The
+script now REFUSES to run with the cap undeclared, before it reads a field, so
+the block is enforced rather than described.
+
+#### The criteria that replacement rests on, audited one at a time
+
+Re-examined 2026-08-25 under world-bnu6, in the window before the next
+commissioning cycle produces the runs the step reads: a threshold re-examined
+after those runs exist is not a threshold. The trigger was that the shortwave
+cloud optics moved by up to 20.6 K under `world-f9ig` and `world-jgen`, and the
+comfort band is only 58 K wide.
+
+**A radiative change does not reach a threshold stated in degrees.** The band is
+a set of temperatures; changing the radiation changes which stellar flux
+delivers a given temperature field, so it moves the search's RANGE and leaves
+the band where it is. `exoplasim/notes/trace-gas-absorbers.md` section 4 already
+recorded the same mechanism from the other side, of a radiation scheme short of
+greenhouse forcing: it "reaches those thresholds at a higher stellar flux, and
+the search finds it". That is why only one entry in the table below moved.
+
+| criterion | class | disposition |
+| --- | --- | --- |
+| `cold_floor_c` = -25 C | declared design preference, fixed ahead of its runs | KEPT, and declared with a swept bracket |
+| `warm_extreme_c` = 38 C | declared design preference | KEPT |
+| `cold_extreme_c` = -40 C | declared design preference | KEPT |
+| `warm_ceiling_c` = 33 C | REVERSE-ENGINEERED from where the superseded physics put the tropics | RE-DECLARED at the same value, with a swept bracket |
+| `cold_extreme_cap` | REVERSE-ENGINEERED; solved backwards from the answer | refused until declared: `clim-30`, above |
+| candidate range | derived under the superseded optics, and could no longer reach its own answer | re-derived, and an edge winner now refuses |
+
+The warm ceiling is the entry that moved, and not because 33 C stopped being a
+reasonable preference. Its recorded justification was that the anchor flux "puts
+the tropics near +33 C in their warmest month rather than +36", which is a
+number read off the old answer -- the same shape as the cap. The corrected
+optics delete that justification outright rather than shifting it, because at
+the anchor flux the modelled tropics are now several kelvin colder and the
+sentence no longer picks out 33. So the value survives only if it can be stated
+as a preference in its own right, which is what the script now does. A
+re-declaration at the old number is where a tuning would hide, so it takes the
+third of the four dispositions rather than the bare first: declared WITH A
+BRACKET THAT GETS SWEPT, `THRESHOLD_BRACKET` in the script, with the design flux
+each bracket point returns carried in the artifact. That costs no run -- the
+projection is already computed at every candidate -- and it replaces an
+assertion that the answer does not depend on the preference with a measurement
+of how much it does.
+
+The other three thresholds are the opposite case and are worth stating rather
+than leaving inherited. They were fixed in the script's docstring ahead of the
+data, nothing in the model or in any run determines them, and they say what kind
+of world this is meant to be: land is comfortable if its warmest binned month
+averages at most the ceiling and its coldest at least the floor, harsh out to
+the extreme thresholds, uninhabitable beyond. `conventions.md` allows a
+threshold fixed in advance to be a judgement precisely because it was fixed in
+advance, and a design preference does not move when the physics does.
 
 ---
 
