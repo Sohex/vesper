@@ -85,12 +85,13 @@ literal.
 
 That is the derivation the namelist fallback `dz0land` never carried in the model
 source, where its only documentation is the comment "roughness length land": the
-fallback reproduces the `N032` answer, and `N032` is the resolution PlaSim's own
-configuration defaults to. Four reductions of that dataset bracket it -- the `ce`
-reduction at this planet's reference height, the same at Earth's, and the plain
-mean of the length at both -- and the fallback sits inside. The builder reports
-the fallback beside the computed reference on every build, so a reader sees the
-agreement rather than taking it on trust.
+`N032` answer reproduces the fallback to within a tenth, and `N032` is the
+resolution PlaSim's own configuration defaults to. The residual has a direction
+rather than being scatter, because the reduction falls as the reference height
+rises and this planet's lowest model level sits lower than Earth's at the same
+sigma, its gravity being the larger. Both reductions of the dataset are reported,
+in `ce` and in the length, along with the fallback, so a reader sees the
+agreement and its size rather than taking either on trust.
 
 **WHAT REMAINS UNKNOWN IS THE TRANSFER, AND IT IS BRACKETED.** A reference derived
 from the model's Earth dataset is a sound derivation for the wrong planet: this
