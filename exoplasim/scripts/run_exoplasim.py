@@ -470,7 +470,20 @@ def configure_otherargs(derived: dict) -> dict:
     """
     lwc = derived["land_water_column"]
     soil = derived["soil_thermal"]
+    wet = derived["soil_albedo_moisture"]
     return {
+        # PHYS-15, landmod_nl. THE MOISTURE-DEPENDENT SOIL ALBEDO'S SIX KEYS,
+        # all of them and unconditionally, so the namelist in the run directory
+        # says whether the segment's land surface responded to the water under
+        # it and on what mapping. The control arm is NWETSOIL = 0 on the same
+        # binary, which is what makes this an A3 arm rather than a code fork.
+        # They travel together because they are one selection: the endpoints
+        # say what a full and an empty surface layer are and the sigmas say
+        # what shape the mixing takes, so an arm on the switch alone would be
+        # an arm on the switch and whatever the binary compiled.
+        "NWETSOIL@landmod_namelist": str(wet["NWETSOIL"]),
+        **{f"{key}@landmod_namelist": f"{wet[key]:.6g}"
+           for key in SOIL_ALBEDO_MOISTURE_KEYS[1:]},
         # world-5oyp, landmod_nl. THE SOIL HEAT SOLVER'S SIX ENDPOINTS, all of
         # them and unconditionally, so the namelist in the run directory says
         # what the segment's soil was made of. `3aecf4ec` made the column's
@@ -1021,6 +1034,145 @@ for _key, (_declared, _tol) in _contract_soil_thermal().items():
             "contract has been re-derived and the model was not updated with it.")
 
 
+# THE MOISTURE-DEPENDENT SOIL ALBEDO'S SIX KEYS, `landmod_nl`. PHYS-15.
+#
+# `getalb` under `nwetsoil = 1` calls `wetalb`, which reads the degree of
+# saturation of the land column's SURFACE LAYER and mixes the staged dry band
+# pair against a staged saturated one through Sadeghi, Jones and Philpot's
+# Kubelka-Munk form. Six numbers, all of them already `landmod_nl` keys, and
+# written unconditionally on the argument SOIL_THERMAL_KEYS is written on: the
+# control arm is `NWETSOIL = 0` on the same binary, and a key the run directory
+# does not record is a key no artifact can attribute an arm to.
+#
+# THEY TRAVEL AS ONE SELECTION. The switch alone is not the term: the two
+# saturation endpoints say what a full and an empty surface layer are, and the
+# three sigmas say what shape the mixing takes between the ends. An arm that
+# moved the switch and left the endpoints at whatever the binary compiled would
+# be an arm on the switch and the compiled pair together.
+SOIL_ALBEDO_MOISTURE_KEYS = ("NWETSOIL", "SKINSRAD", "SKINSRFC",
+                             "WETSIGMA", "WETSIGMA1", "WETSIGMA2")
+
+# WHERE THE SATURATION ENDPOINTS ARE DECLARED, and it is not this file and not
+# `landmod.f90`. `surface_layer.saturation_mapping` in the land column property
+# contract owns them: `sr_at_air_dry` outright, and the upper endpoint by
+# reference to `thermal.saturation_mapping.sr_at_field_capacity`, which is the
+# same number the soil heat solver's mapping ends at. The two mappings differ in
+# the lower endpoint alone, because the surface layer's capacity is cut from air
+# dry and the layers below it are cut from the wilting point.
+
+
+def _contract_surface_layer() -> dict:
+    """The surface layer's saturation endpoints, as the contract declares them.
+
+    Returned as {NAMELIST KEY: (declared value, absolute tolerance)}, on the
+    same footing `_contract_soil_thermal` returns the six thermal endpoints.
+    The upper endpoint is read through the contract's own reference rather than
+    restated, because the contract states it once and points at it.
+    """
+    decl = yaml.safe_load(LAND_COLUMN_CONTRACT.read_text(encoding="utf-8"))
+    mapping = decl["surface_layer"]["saturation_mapping"]
+    tol = float(decl["thermal"]["saturation_mapping"]["tolerance"])
+    reference = str(mapping["sr_at_field_capacity_from"])
+    node = decl
+    for part in reference.split("."):
+        node = node[part]
+    return {"SKINSRAD": (float(mapping["sr_at_air_dry"]), tol),
+            "SKINSRFC": (float(node), tol)}
+
+
+# THE MODEL'S COMPILED ENDPOINTS AGAINST THE CONTRACT THAT DERIVED THEM, for the
+# same reason the soil thermal block below is checked: the two numbers exist
+# twice, once in `landmod.f90` where `wetalb` reads them and once in the contract
+# where they are DERIVED, and a stale copy of a derived endpoint is a number with
+# no live derivation. Run at import, because a transcription failure here is
+# invisible to every downstream gate.
+for _key, (_declared, _tol) in _contract_surface_layer().items():
+    _compiled = landmod_default(_key.lower())
+    if abs(_compiled - _declared) > _tol:
+        raise RuntimeError(
+            f"landmod.f90 compiles {_key.lower()} = {_compiled:g} and "
+            f"{LAND_COLUMN_CONTRACT} declares {_declared:g}, which is outside "
+            f"the contract's own tolerance of {_tol:g}. The surface layer's "
+            "saturation mapping is DERIVED by the contract and the model "
+            "carries it as a compiled default, so the two are one fact.")
+
+
+def soil_albedo_moisture(config: dict) -> dict:
+    """The six `landmod_nl` keys of the moisture-dependent soil albedo.
+
+    Returns {NAMELIST KEY: value} with every key present, defaults included,
+    the way `soil_thermal` and `land_water_column` do.
+
+    The refusals mirror `landini`'s where it makes them, and add the two it
+    cannot. `nwetsoil = 1` needs `nlandwcol = 1` because the scalar bucket has
+    no surface layer; landini refuses that too, and refusing here costs a config
+    read instead of a launched model. What landini cannot check is that the
+    first water layer IS the contract's surface layer -- it has no access to the
+    declared albedo depth, so a three-layer column cut anywhere else would run
+    and mix on a store that is not the one the endmembers were derived for -- and
+    that the saturated pair is being staged at all, which is a property of
+    `model.land_albedo_source` rather than of anything the model can see before
+    it reads the file.
+    """
+    block = config.get("surface", {}).get("soil_albedo_moisture", {}) or {}
+    enabled = bool(block.get("enabled", False))
+    declared = {
+        "NWETSOIL": 1 if enabled else 0,
+        "SKINSRAD": block.get("saturation_at_empty_layer"),
+        "SKINSRFC": block.get("saturation_at_full_layer"),
+        "WETSIGMA": block.get("shape_sigma_broadband"),
+        "WETSIGMA1": block.get("shape_sigma_band1"),
+        "WETSIGMA2": block.get("shape_sigma_band2"),
+    }
+    out = {"NWETSOIL": int(declared["NWETSOIL"])}
+    for key in SOIL_ALBEDO_MOISTURE_KEYS[1:]:
+        value = declared[key]
+        out[key] = float(landmod_default(key.lower()) if value is None
+                         else value)
+    if out["SKINSRFC"] <= out["SKINSRAD"]:
+        raise ValueError(
+            f"surface.soil_albedo_moisture.saturation_at_full_layer "
+            f"{out['SKINSRFC']:g} is not above saturation_at_empty_layer "
+            f"{out['SKINSRAD']:g}. A full surface layer cannot be drier than an "
+            "empty one, and `landini` refuses the same pair.")
+    for key in ("WETSIGMA", "WETSIGMA1", "WETSIGMA2"):
+        if out[key] <= 0.0:
+            raise ValueError(
+                f"surface.soil_albedo_moisture {key} is {out[key]:g}. It is a "
+                "ratio of two scattering coefficients and is positive; "
+                "`landini` refuses the same value.")
+    if not enabled:
+        return out
+
+    column = config.get("surface", {}).get("land_water_column", {}) or {}
+    if str(column.get("scheme", "bucket")) != "layered":
+        raise ValueError(
+            "surface.soil_albedo_moisture.enabled needs "
+            "surface.land_water_column.scheme: layered. The scalar bucket has "
+            "no surface layer, and the column it does have dries on the wrong "
+            "timescale for an albedo; landmod.f90's landini refuses the same "
+            "combination.")
+    decl = yaml.safe_load(LAND_COLUMN_CONTRACT.read_text(encoding="utf-8"))
+    want = float(decl["surface_layer"]["thickness_m"])
+    thicknesses = [float(v) for v in column.get("layer_thickness_m", [])]
+    if not thicknesses or abs(thicknesses[0] - want) > 1.0e-12:
+        raise ValueError(
+            "surface.soil_albedo_moisture.enabled needs the first water layer "
+            f"to be the contract's surface layer, {want:g} m, and "
+            f"surface.land_water_column.layer_thickness_m starts at "
+            f"{thicknesses[0] if thicknesses else float('nan'):g}. The staged "
+            "endmembers and the saturation mapping are both derived for THAT "
+            "depth; landini cannot make this check, because the declared albedo "
+            "depth lives in the contract and not in the model.")
+    if str(config["model"].get("land_albedo_source", "uniform")) == "uniform":
+        raise ValueError(
+            "surface.soil_albedo_moisture.enabled needs "
+            "model.land_albedo_source set: the saturated pair is written beside "
+            "the dry pair by build_surface_albedo.py, so a uniform land albedo "
+            "stages neither and landini stops on the negative sentinel.")
+    return out
+
+
 def land_water_layer_limit() -> int:
     """`NLSOILWX`, the compiled ceiling on the water column's layer count."""
     text = LANDCOLUMN_SOURCE.read_text(encoding="utf-8", errors="replace")
@@ -1341,6 +1493,8 @@ def derive(config: dict, flux_ratio: float) -> dict:
         # world-5oyp, landmod_nl. The six endpoints the soil heat solver builds
         # the column's capacity and conductivity from. See `soil_thermal`.
         "soil_thermal": soil_thermal(config),
+        # PHYS-15's six keys. See `soil_albedo_moisture`.
+        "soil_albedo_moisture": soil_albedo_moisture(config),
     }
 
 
@@ -1588,6 +1742,16 @@ def geography_tag(config: dict) -> str:
 # from the lithology, so it is supplied when land_albedo_source is not uniform.
 BASE_SURFACE_CODES = {129, 172}
 ALBEDO_SURFACE_CODES = {174, 175, 176, 212}
+# dalbwet, dalbwet1 and dalbwet2, the SATURATED end of the moisture mixing, one
+# code per surface 174, 175 and 176 already carries. PHYS-15. Staged only when
+# `surface.soil_albedo_moisture.enabled`, because at nwetsoil = 0 the model
+# never reads them and staging them would be three files for a field nothing
+# opens. When it IS on, `landini` refuses to start on the negative sentinel
+# rather than mixing toward a number nobody wrote, so the codes are mandatory
+# there in the same way 2290 is mandatory above one water layer. They are read
+# on every start rather than carried through the restart, being a boundary
+# condition and not a state.
+WET_ALBEDO_SURFACE_CODES = {1742, 1750, 1760}
 # dwmax, the soil water bucket whose overflow *is* ExoPlaSim's runoff. Supplied
 # from pedology when asked for; otherwise the uniform namelist default stands.
 SOIL_WATER_SURFACE_CODES = {229}
@@ -1758,6 +1922,8 @@ def intended_surface_codes(config: dict) -> set[int]:
     codes = set(BASE_SURFACE_CODES)
     if str(config["model"].get("land_albedo_source", "uniform")) != "uniform":
         codes |= ALBEDO_SURFACE_CODES
+        if soil_albedo_moisture(config)["NWETSOIL"] == 1:
+            codes |= WET_ALBEDO_SURFACE_CODES
     if str(config["model"].get("soil_water_source", "uniform")) != "uniform":
         codes |= SOIL_WATER_SURFACE_CODES
         if int((config.get("surface", {}).get("land_water_column", {})
@@ -2795,12 +2961,21 @@ def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
             elif code in ROUGHNESS_SURFACE_CODES:
                 builder, setting = ("build_surface_roughness.py",
                                     "model.roughness_source")
+            elif code in WET_ALBEDO_SURFACE_CODES:
+                # A different switch from the dry pair's, so a different
+                # message: the fields come from the same builder, and what
+                # turns them into a requirement is the mixing being armed.
+                builder, setting = ("build_surface_albedo.py",
+                                    "surface.soil_albedo_moisture.enabled")
             else:
                 builder, setting = ("build_surface_albedo.py",
                                     "model.land_albedo_source")
-            fallback = ("none"
-                        if code in DUST_SURFACE_CODES | DUST_EMISSION_SURFACE_CODES
-                        else "uniform")
+            if code in DUST_SURFACE_CODES | DUST_EMISSION_SURFACE_CODES:
+                fallback = "none"
+            elif code in WET_ALBEDO_SURFACE_CODES:
+                fallback = "false"
+            else:
+                fallback = "uniform"
             raise RuntimeError(
                 f"{src} is missing. Run {builder}, or set {setting}: {fallback} "
                 f"to accept ExoPlaSim's namelist default."
@@ -3121,6 +3296,15 @@ def expected_namelist_keys(config: dict) -> dict:
     _soil = soil_thermal(config)
     for _key in SOIL_THERMAL_KEYS:
         want["landmod_namelist"][_key] = float(f"{_soil[_key]:.6g}")
+    # PHYS-15, landmod_nl. THE SOIL ALBEDO'S MOISTURE RESPONSE, unconditionally
+    # and for the soil heat solver's reason: the control arm of this term is
+    # NWETSOIL = 0, so a continuation that dropped the key would return the
+    # segment to the compiled default and produce a control that agrees with
+    # its own arm by accident. The key list is stated here independently of the
+    # staging side, which is the half that must not come from it.
+    _wet = soil_albedo_moisture(config)
+    for _key in SOIL_ALBEDO_MOISTURE_KEYS:
+        want["landmod_namelist"][_key] = float(f"{_wet[_key]:.6g}")
     salinity = config.get("ocean", {}).get("salinity_psu")
     if salinity is not None:
         celsius = freezing_point_k(salinity) - 273.15
