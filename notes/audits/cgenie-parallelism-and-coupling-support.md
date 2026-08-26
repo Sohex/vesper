@@ -662,6 +662,13 @@ Three things, none of which this document does, and each of which can fail.
 
 # 5. The regridding contract
 
+The upscaling half of what follows is BUILT: `lib/gridding.py` carries the two
+grid constructors, `lib/remap.py` the operator, and `analysis/ocean_remap.py`
+the acceptance test against an integral with a known answer.
+`notes/audits/ocean-grid-crossing.md` reports what it measures, including the
+coastline residual this section could only name. What is still a contract and
+not an implementation is which FIELD takes which semantics, which is OCN-10.
+
 Two directions, and they are not one problem. Upscaling the atmosphere's fluxes
 onto the ocean is a conservative reduction with an exact answer. Downscaling the
 ocean's surface state onto the atmosphere invents structure the ocean never
@@ -754,8 +761,11 @@ test suite against it.
 4. **The closure residual is registered in advance and stamped in the artifact.**
    `sum(F_src * A_src * frac_src)` against `sum(F_dst * A_dst)` has a right answer
    and the precedent holds itself to about 1e-9 relative on analytic fields.
-   `lib/gridding.py:transfer_ledger` already emits the shape of this; what it has
-   never been checked against is a field whose integral is known.
+   `lib/remap.py` registers 1e-12 relative, three orders tighter, and
+   `analysis/ocean_remap.py` checks it against `3*sin(lat)^2 - 1`, whose integral
+   over the sphere is analytically zero and which Gauss-Legendre returns as
+   exactly zero. The midpoint construction runs beside it as the control that
+   has to miss the same bar.
 5. **The source cell edges are the ones the model's own quadrature implies, not
    midpoints between centres.** The ocean side is unambiguous: `igrid = 0` puts
    the row boundaries at exact equally spaced values of the sine of latitude and
