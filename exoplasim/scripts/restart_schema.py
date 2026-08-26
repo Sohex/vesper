@@ -40,7 +40,7 @@ from __future__ import annotations
 import functools
 import re
 import struct
-from dataclasses import dataclass
+from dataclasses import dataclass, replace as _replace
 from pathlib import Path
 
 import _paths
@@ -149,8 +149,16 @@ def _split_args(rest: str) -> list[str]:
 
 
 def _dim(token: str):
-    """A dimension as an int where it is a literal, else its symbol."""
+    """A dimension as an int where it is a literal, else its symbol.
+
+    A product of the two -- `NLEV*28`, which is how `adener3d(NHOR,NLEV,28)`
+    reaches `mpputgp` as one gridpoint record -- comes back as a tuple of the
+    factors, and `Geometry.resolve` multiplies them. Anything else stays a
+    single symbol and raises there if no geometry knows it.
+    """
     token = token.strip()
+    if "*" in token:
+        return tuple(_dim(part) for part in token.split("*"))
     return int(token) if token.isdigit() else token.upper()
 
 
@@ -291,6 +299,20 @@ class Policy:
     # minimum makes its minimum zero forever.
     model_reset: str | None = None
     reset_value: float | None = None
+    # WHAT HAPPENS WHEN A RESTART DOES NOT CARRY THIS RECORD, and it is a
+    # decision per record rather than a property of the reader. `required` means
+    # the model stops with the record's name printed, which is the right answer
+    # wherever the alternative is resuming from a state that is not the state --
+    # rule 7 says every run is disposable until the canonical climatology
+    # lineage is declared, so refusing an old restart costs a re-commissioning
+    # and nothing else. `optional` means the model resumes without it, from
+    # `resume_cold`, and is only defensible where what is lost is a partial
+    # accumulation window. `resume_marker` names the version record the read
+    # sits behind where one does. world-t16e; the enumeration and the
+    # per-record argument are in notes/audits/absent-restart-records.md.
+    resume: str = "required"
+    resume_marker: str | None = None
+    resume_cold: str = ""
     why: str = ""
 
 
@@ -394,6 +416,11 @@ POLICY.update(_acc([
     # every time and read only behind accuvers >= 2.0, so a restart that
     # predates them takes outreset rather than a diluted first window.
     "afdsw1", "afdsw2",
+    # world-5qy: PlaSim's 28-term energy decomposition accumulated over the
+    # output window, and the same set resolved per level under nener3d. They
+    # are written only where nenergy and nener3d allocate them, so their
+    # presence is asked for by name rather than promised by accuvers.
+    "adenergy", "adener3d",
     "azmuz", "asigrain", "tempmax", "tempmin",
     "agpi", "aventi", "alaav", "ampoti", "avrmpi", "acapen", "alnb", "achim",
     "aadq", "aammr", "aanrho", "aadmld", "aadt", "aadwatc", "aadsnow", "aadql",
@@ -689,6 +716,192 @@ for _n, _v in (("aecotasmx", -1.0e3), ("aecotsmx", -1.0e3),
             "for the rest of the run on any cell that never reaches it")
 
 
+# ---------------------------------------------------------------------------
+# WHICH RECORDS A RESTART IS ALLOWED NOT TO CARRY. world-t16e.
+# ---------------------------------------------------------------------------
+#
+# `required` is the default and it is the answer for all but the rows below. A
+# record the file does not carry stops the model with its name printed, and that
+# is the right failure wherever resuming would mean integrating from a state
+# that is not the state. It is affordable because of rule 7: no canonical
+# climatology lineage is declared, so every run and every climatology is
+# disposable and the cost of a refused restart is a re-commissioning.
+#
+# `optional` is only ever justified by what is LOST. An accumulator over an
+# output window loses a partial window: the first record after the resume is a
+# mean over fewer timesteps than it declares, and `outreset` makes even that go
+# away by discarding the whole interval. A PROGNOSTIC loses state the cell
+# integrates from, and no reset makes that go away -- which is why `persistt`
+# is on this list as a decision and not as an omission.
+_OPTIONAL = {
+    # The ecological stream, EFOR-2. Nineteen accumulators and their counter
+    # behind one marker; without it the stream's interval starts clean, which
+    # is what a run that predates the stream would have done anyway.
+    **{n: ("ecovers", "ecoreset: the interval starts clean and says so")
+       for n in ("aecotas", "aecots", "aecops", "aecohus", "aecowind",
+                 "aecoswd", "aecoswu", "aecoswn", "aecolwn", "aecolwu",
+                 "aecoczen", "aecopr", "aecoprsn", "aecoprc", "aecoevap",
+                 "aecotasmx", "aecotsmx", "aecotasmn", "aecotsmn")},
+    "naccueco": ("ecovers", "0, with the accumulators it counts"),
+    # WORLD-3QFZ's band split, behind the accumulator-set marker.
+    "afdsw1": ("accuvers", "outreset: the whole output interval is discarded"),
+    "afdsw2": ("accuvers", "outreset: the whole output interval is discarded"),
+    # world-5qy. Not behind accuvers, because accuvers promises a COMPLETE set
+    # and these two are written only where nenergy and nener3d allocate them.
+    # `read_atmos_restart` asks for them with has_restart_array instead, and a
+    # run that wants them and does not find them discards the interval.
+    "adenergy": (None, "outreset: the whole output interval is discarded"),
+    "adener3d": (None, "outreset: the whole output interval is discarded"),
+    # world-onw8's four, through mpgetgp_found. The layered store and the
+    # drainage rebuild from the single-layer fields a pre-LSHY-3 restart has.
+    "dwatcl": (None, "landini rebuilds the layered store from dwatc"),
+    "dsoili": (None, "landini rebuilds the layered store from dwatc"),
+    "ddrain": (None, "zero: no drainage is in flight at the resume"),
+    "adrain": (None, "zero: the drainage output window starts clean"),
+    # The six spectral accumulators and the five accumulated orbital scalars,
+    # read inside the accuvers branch and under a lowered nexcheck. CLIM-2 and
+    # CLIM-5 added them and a restart written before that has no complete set.
+    **{n: ("accuvers", "outreset: the whole output interval is discarded")
+       for n in ("aasosp", "aaspsp", "aastsp", "aasqsp", "aasdsp", "aaszsp",
+                 "aorbnu", "alambm", "azdecl", "ardist", "arasc")},
+    # The stamped geometry, world-4yz. Read under a lowered nexcheck into
+    # locals pre-set to -1, and the mismatch test is written so that an
+    # UNSTAMPED restart passes: an unstamped restart is not a mismatched one.
+    **{n: (None, "-1, and the geometry check treats an unstamped restart as "
+                 "unstamped rather than as wrong")
+       for n in ("nlat", "nlon", "nlev", "nrsp")},
+    # The two version markers themselves, and the fixer's correction, all read
+    # under a lowered nexcheck into a scalar the caller pre-set.
+    "accuvers": (None, "-1.0, which is what makes the marker work"),
+    "ecovers": (None, "-1.0, which is what makes the marker work"),
+    "denergyfix": (None, "0.0, the declared value: that segment starts "
+                         "uncorrected and reconverges in one window"),
+}
+#
+# THE DECISION THAT IS NOT ON THE LIST. `persistt` is glaciermod's snowpack
+# persistence clock and it stays REQUIRED. It is a prognostic, not an
+# accumulator: a cell whose snowpack has stood above `glacelim` for most of
+# `glacpersec` is one step from becoming glacier, and a clock read as zero puts
+# that cell back to the start of the threshold. The loss is bounded by the
+# threshold and is silent, which is the worst pair -- an accumulator's loss is
+# bounded by one output window and shows up in one record. So a restart written
+# before the clock existed is refused, loudly, with the record's name printed,
+# and the answer to it is to re-commission rather than to resume.
+for _n, (_marker, _cold) in _OPTIONAL.items():
+    POLICY[_n] = _replace(POLICY[_n], resume="optional",
+                          resume_marker=_marker, resume_cold=_cold)
+del _n, _marker, _cold
+
+
+# `nexcheck = 0` and `nexcheck = 1` bracket a region where an absent record
+# leaves the caller's variable alone instead of stopping the model.
+_NEXCHECK = re.compile(r"^\s*nexcheck\s*=\s*(?P<v>[01])\s*$", re.IGNORECASE)
+_READ = re.compile(
+    r"""^[^!\n]*?
+        call\s+(?P<fn>get_restart_integer|get_restart_real|get_restart_seed
+                    |get_restart_array|has_restart_array
+                    |mpgetgp_found|mpgetgp|mpgetsp)
+        \s*\(\s*'(?P<name>[A-Za-z0-9_]+)'""",
+    re.IGNORECASE | re.VERBOSE)
+
+
+def read_sites_from_source(src_dir: Path) -> dict:
+    """{record: how the model READS it}, from the call sites themselves.
+
+    Three facts per name, and each of them is what decides whether an absent
+    record stops the model: which readers touch it, whether any read is inside a
+    lowered-`nexcheck` region, and whether anything ever ASKS for it with
+    `has_restart_array`. The write side is `inventory_from_source`; this is the
+    other half, and `check_policy_covers_source` holds the decision table
+    against it.
+    """
+    src_dir = Path(src_dir)
+    out: dict = {}
+    for module in compiled_modules(src_dir.parent):
+        path = src_dir / module
+        if not path.is_file():
+            continue
+        checked = True
+        for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            bare = line.split("!")[0]
+            m = _NEXCHECK.match(bare)
+            if m is not None:
+                checked = m["v"] == "1"
+                continue
+            m = _READ.match(line)
+            if m is None:
+                continue
+            fn, name = m["fn"].lower(), m["name"]
+            site = out.setdefault(name, {"readers": set(), "unchecked": False,
+                                         "asked": False})
+            if fn == "has_restart_array":
+                site["asked"] = True
+                continue
+            site["readers"].add(fn)
+            if not checked and fn.startswith("get_restart_"):
+                site["unchecked"] = True
+    return out
+
+
+def check_resume_policy(src_dir: Path) -> list[str]:
+    """The resume decision per record, held against how the model reads it.
+
+    A CHECK WITH A RIGHT ANSWER IN BOTH DIRECTIONS. A record recorded as
+    `optional` that nothing in the model makes optional is a decision the code
+    does not implement, and a record recorded as `required` that the model
+    already resumes without is a decision nobody took. Either way the table and
+    the source disagree about what happens when a restart is short a record,
+    and that question is only ever answered at the start of the next segment.
+    """
+    inventory = inventory_from_source(src_dir)
+    reads = read_sites_from_source(src_dir)
+    problems = []
+
+    def handled(name: str) -> bool:
+        site = reads.get(name)
+        if site is None:
+            return False
+        if "mpgetgp_found" in site["readers"] or site["unchecked"] or site["asked"]:
+            return True
+        marker = POLICY[name].resume_marker if name in POLICY else None
+        return bool(marker) and marker in POLICY and \
+            POLICY[marker].resume == "optional" and handled(marker)
+
+    for name in sorted(set(POLICY) & set(inventory)):
+        pol = POLICY[name]
+        if pol.resume not in ("required", "optional"):
+            problems.append(
+                f"'{name}' records resume={pol.resume!r}, which is neither "
+                "'required' nor 'optional'")
+            continue
+        if pol.resume_marker and pol.resume_marker not in POLICY:
+            problems.append(
+                f"'{name}' is read behind the marker '{pol.resume_marker}', "
+                "which is not a record this schema knows")
+            continue
+        if name not in reads:
+            if pol.resume == "optional":
+                problems.append(
+                    f"'{name}' is recorded as optional on resume and no call "
+                    "site reads it, so there is nothing for the record's "
+                    "absence to be optional about")
+            continue
+        if pol.resume == "optional" and not handled(name):
+            problems.append(
+                f"'{name}' is recorded as optional on resume and the model "
+                f"reads it with {sorted(reads[name]['readers'])} at nexcheck 1 "
+                "behind no marker this schema knows, so an absent record stops "
+                "the model. Read it through mpgetgp_found, ask for it with "
+                "has_restart_array, put it behind a marker, or record it as "
+                "required.")
+        if pol.resume == "required" and handled(name):
+            problems.append(
+                f"'{name}' is recorded as required on resume and the model "
+                "already resumes without it. Say what it starts from and "
+                "record it as optional, or take the handling back out.")
+    return problems
+
+
 def check_record_limit(src_dir: Path, emittable: int) -> list[str]:
     """`restartmod.nresdim` is above the number of names the model can emit.
 
@@ -728,6 +941,7 @@ def check_policy_covers_source(src_dir: Path) -> list[str]:
     inventory = inventory_from_source(src_dir)
     problems = []
     problems += check_record_limit(src_dir, len(inventory))
+    problems += check_resume_policy(src_dir)
     for name in sorted(set(inventory) - set(POLICY)):
         rec = inventory[name]
         problems.append(
@@ -879,6 +1093,11 @@ class Geometry:
     def resolve(self, token) -> int:
         if isinstance(token, int):
             return token
+        if isinstance(token, tuple):
+            n = 1
+            for part in token:
+                n *= self.resolve(part)
+            return n
         try:
             value = {"NUGP": self.nugp, "NRSP": self.nrsp, "NESP": self.nesp,
                      "NLEV": self.nlev, "NLEP": self.nlep, "NLSOIL": self.nlsoil,

@@ -1132,6 +1132,21 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !        clean window before changing it, which is what the design asks for.
          call put_restart_real('denergyfix',denergyfix)
       endif
+!     THE ENERGY DIAGNOSTICS' PARTIAL WINDOW, world-5qy. `adenergy` and
+!     `adener3d` are extended by `outaccu` every timestep and divided by
+!     `naccuout` in `outgp`, exactly as every other accumulator is, and they were
+!     the only two the restart did not carry. They are carried now: every restart
+!     on disk is written mid-window, so the first output record after each resume
+!     was dividing what had accumulated since the resume by a whole window.
+!
+!     WRITTEN ONLY WHERE THEY ARE ALLOCATED, which `nenergy` and `nener3d`
+!     decide, so the record set follows the switch. That is why the `accuvers`
+!     marker cannot stand for them: it promises a complete set, and a set whose
+!     membership is a namelist question cannot be complete. Their presence is
+!     ASKED on the read side instead, and a resume that wants them and does not
+!     find them discards the partial interval the way a pre-marker restart does.
+      if (nenergy > 0) call mpputgp('adenergy',adenergy,NHOR,28)
+      if (nener3d > 0) call mpputgp('adener3d',adener3d,NHOR,NLEV*28)
 !     Accumulated hurricane indices are gridpoint fields divided by naccuout in
 !     outgp; they were not saved either.
       call mpputgp('agpi'         ,agpi        ,NHOR,1)
@@ -1470,9 +1485,24 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     carries is discarded and naccuout is zeroed to match. Without that the
 !     counter would again outlive the accumulators it counts.
       zaccuvers = -1.0
+      ienerok = 1
       if (mypid == NROOT) then
          nexcheck = 0
          call get_restart_real('accuvers',zaccuvers)
+!        THE TWO ENERGY-DIAGNOSTIC ACCUMULATORS ARE ASKED FOR BY NAME, world-5qy.
+!        `epilog` writes them only where they are allocated, so the marker cannot
+!        promise them and their presence has to be a question. `has_restart_array`
+!        reads nothing and moves no read position, so asking is free and safe at
+!        any nexcheck; the answer travels to the other tasks through mpbci below,
+!        because yresnam is threadprivate and only NROOT has opened the file.
+         if (nenergy > 0) then
+            call has_restart_array('adenergy',ifound)
+            if (ifound == 0) ienerok = 0
+         endif
+         if (nener3d > 0) then
+            call has_restart_array('adener3d',ifound)
+            if (ifound == 0) ienerok = 0
+         endif
          if (zaccuvers >= 2.0) then
             call get_restart_array('aasosp' ,aaso   ,NESP,NESP,   1)
             call get_restart_array('aaspsp' ,aasp   ,NESP,NESP,   1)
@@ -1494,11 +1524,26 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          nexcheck = 1
       endif
       call mpbcr(zaccuvers)
-      if (zaccuvers < 2.0) then
-         call outreset          ! no accumulator set: start the interval clean
-         if (mypid == NROOT) write(nud,*)                                   &
-     &      'Restart predates the accumulator set: partial output interval', &
-     &      ' discarded and naccuout reset to 0'
+      call mpbci(ienerok)
+!     ONE DECISION, TAKEN BEFORE ANY ACCUMULATOR IS READ. `outreset` has to come
+!     first or not at all: the aa* set below used to be read after it, so a
+!     discarded interval put naccuout at zero and then loaded the partial sums
+!     back over it, which is the counter outliving what it counts by the other
+!     route. Everything the interval consists of is now inside one branch.
+      if (zaccuvers < 2.0 .or. ienerok == 0) then
+         call outreset          ! no complete accumulator set: start clean
+         if (mypid == NROOT) then
+            if (zaccuvers < 2.0) then
+               write(nud,*)                                                 &
+     &         'Restart predates the accumulator set: partial output interval', &
+     &         ' discarded and naccuout reset to 0'
+            else
+               write(nud,*)                                                 &
+     &         'Restart predates the energy-diagnostic accumulators and this', &
+     &         ' run has them on: partial output interval discarded and',    &
+     &         ' naccuout reset to 0'
+            endif
+         endif
       else
          call mpgetgp('afdsw1'       ,afdsw1      ,NHOR,1)
          call mpgetgp('afdsw2'       ,afdsw2      ,NHOR,1)
@@ -1510,36 +1555,40 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
          call mpgetgp('acapen'       ,acapen      ,NHOR,1)
          call mpgetgp('alnb'         ,alnb        ,NHOR,1)
          call mpgetgp('achim'        ,achim       ,NHOR,1)
+         call mpgetgp('aadq'        ,aadq    ,NHOR,NLEP)
+         call mpgetgp('aammr'       ,aammr   ,NHOR,NLEP)
+         call mpgetgp('aanrho'      ,aanrho  ,NHOR,NLEP)
+         call mpgetgp('aadmld'      ,aadmld  ,NHOR,1)
+         call mpgetgp('aadt'        ,aadt    ,NHOR,NLEP)
+         call mpgetgp('aadwatc'     ,aadwatc ,NHOR,1)
+         call mpgetgp('aadsnow'     ,aadsnow ,NHOR,1)
+         call mpgetgp('aadql'       ,aadql   ,NHOR,NLEP)
+         call mpgetgp('aadust3'     ,aadust3 ,NHOR,1)
+         call mpgetgp('aadcc'       ,aadcc   ,NHOR,NLEP)
+         call mpgetgp('aadtd5'      ,aadtd5  ,NHOR,1)
+         call mpgetgp('aadls'       ,aadls   ,NHOR,1)
+         call mpgetgp('aadz0'       ,aadz0   ,NHOR,1)
+         call mpgetgp('aadalb'      ,aadalb  ,NHOR,1)
+         call mpgetgp('aadsalb1'    ,aadsalb1,NHOR,1)
+         call mpgetgp('aadsalb2'    ,aadsalb2,NHOR,1)
+         call mpgetgp('aadtsoil'    ,aadtsoil,NHOR,1)
+         call mpgetgp('aadtd2'      ,aadtd2  ,NHOR,1)
+         call mpgetgp('aadtd3'      ,aadtd3  ,NHOR,1)
+         call mpgetgp('aadtd4'      ,aadtd4  ,NHOR,1)
+         call mpgetgp('aadicec'     ,aadicec ,NHOR,1)
+         call mpgetgp('aadiced'     ,aadiced ,NHOR,1)
+         call mpgetgp('aadforest'   ,aadforest   ,NHOR,1)
+         call mpgetgp('aadwmax'     ,aadwmax     ,NHOR,1)
+         call mpgetgp('aadglac'     ,aadglac     ,NHOR,1)
+         call mpgetgp('aadqo3'      ,aadqo3      ,NHOR,NLEV)
+         call mpgetgp('aagroundoro' ,aagroundoro ,NHOR,1)
+         call mpgetgp('aaglacieroro',aaglacieroro,NHOR,1)
+!        The energy diagnostics' own partial window, world-5qy. Present, because
+!        the branch this is in was chosen by asking for them.
+         if (nenergy > 0) call mpgetgp('adenergy',adenergy,NHOR,28)
+         if (nener3d > 0) call mpgetgp('adener3d',adener3d,NHOR,NLEV*28)
       endif
-      call mpgetgp('aadq'        ,aadq    ,NHOR,NLEP)
-      call mpgetgp('aammr'       ,aammr   ,NHOR,NLEP)
-      call mpgetgp('aanrho'      ,aanrho  ,NHOR,NLEP)
-      call mpgetgp('aadmld'      ,aadmld  ,NHOR,1)      
-      call mpgetgp('aadt'        ,aadt    ,NHOR,NLEP)   
-      call mpgetgp('aadwatc'     ,aadwatc ,NHOR,1)     
-      call mpgetgp('aadsnow'     ,aadsnow ,NHOR,1)     
-      call mpgetgp('aadql'       ,aadql   ,NHOR,NLEP)  
-      call mpgetgp('aadust3'     ,aadust3 ,NHOR,1)     
-      call mpgetgp('aadcc'       ,aadcc   ,NHOR,NLEP)  
-      call mpgetgp('aadtd5'      ,aadtd5  ,NHOR,1)      
-      call mpgetgp('aadls'       ,aadls   ,NHOR,1)       
-      call mpgetgp('aadz0'       ,aadz0   ,NHOR,1)       
-      call mpgetgp('aadalb'      ,aadalb  ,NHOR,1)      
-      call mpgetgp('aadsalb1'    ,aadsalb1,NHOR,1)    
-      call mpgetgp('aadsalb2'    ,aadsalb2,NHOR,1)    
-      call mpgetgp('aadtsoil'    ,aadtsoil,NHOR,1)    
-      call mpgetgp('aadtd2'      ,aadtd2  ,NHOR,1)      
-      call mpgetgp('aadtd3'      ,aadtd3  ,NHOR,1)      
-      call mpgetgp('aadtd4'      ,aadtd4  ,NHOR,1)      
-      call mpgetgp('aadicec'     ,aadicec ,NHOR,1)     
-      call mpgetgp('aadiced'     ,aadiced ,NHOR,1)     
-      call mpgetgp('aadforest'   ,aadforest   ,NHOR,1)   
-      call mpgetgp('aadwmax'     ,aadwmax     ,NHOR,1)     
-      call mpgetgp('aadglac'     ,aadglac     ,NHOR,1)     
-      call mpgetgp('aadqo3'      ,aadqo3      ,NHOR,NLEV) 
-      call mpgetgp('aagroundoro' ,aagroundoro ,NHOR,1) 
-      call mpgetgp('aaglacieroro',aaglacieroro,NHOR,1)
-      
+
 
       return
       end subroutine read_atmos_restart
@@ -1649,7 +1698,7 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
                    , neco    , necostep                            &
                    , seed    , nfilter , ngptfilter, nspvfilter          &
                    , landhoskn0, nfilterexp, filterkappa                &
-                   , syncstr , synctime, nrdrag  , frcmod               &
+                   , syncstr , synctime, frcmod                        &
                    , dtep    , dtns    , dtrop   , dttrp                &
                    , tdissd  , tdissz  , tdisst  , tdissq  , tgr        &
                    , psurf   , ptop    , ptop2   , taucool              &
@@ -1660,6 +1709,31 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !
 !     preset namelist parameter according to model set up
 !
+!     A LAYER-COUNT DEFAULT, AND ITS POSITION IS WHAT MAKES IT ONE. `tfrc` is a
+!     per-level array, so a Rayleigh drag profile is a statement about the top
+!     two of however many layers there are and cannot be written without a layer
+!     count; that is what separates this from the NTRU==42 preset world-677x
+!     deleted, where nhdiff was an ABSOLUTE wavenumber whose meaning changed
+!     under the truncation it was keyed to. This runs BEFORE read(11,plasim_nl),
+!     so a caller that declares TFRC wins and a caller that declares none gets a
+!     sponge rather than none. This project declares all ten levels from
+!     model.rayleigh_sponge_rotations on every prepare and every continuation
+!     (run_exoplasim.py:declare_dry_constants, world-aee), so the preset is
+!     overwritten on every run here.
+!
+!     THE TWO NLEV==20 BLOCKS THAT STOOD AFTER THE READ ARE GONE, world-helo,
+!     and `nrdrag` with them: the switch had nothing left to switch. They set
+!     tfrc when nrdrag was 1, and a preset placed after the namelist read is not
+!     a default -- it is a compiled constant wearing a namelist's clothes, and it
+!     would have overwritten a declared TFRC with nothing on disk to show for it,
+!     which verify_staged_namelists cannot catch because the namelist FILE still
+!     holds the declared value. Deleting them is a no-op here (nrdrag's compiled
+!     default was 0 and nothing in this tree set it, nor does any namelist on
+!     disk name the key) and is NOT a no-op for a twenty-layer caller, which is
+!     the same footing as the NSHALLOW deletion: that caller writes the profile
+!     into TFRC in plasim_nl, which is where a per-level friction profile
+!     belongs. The values are recorded in
+!     exoplasim/notes/resolution-tuned-parameters.md section 3.
       if (NLEV==10) then
          tfrc(1)      =  20.0 * day_24hr * frcmod !day_24hr
          tfrc(2)      = 100.0 * day_24hr * frcmod !day_24hr
@@ -1689,19 +1763,14 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 
       open(11,file=plasim_namelist,form='formatted')
       read (11,plasim_nl)
-      
-      if ((NLEV==20) .and. (nrdrag==1) .and. (neqsig.ne.5)) then
-         tfrc(1)      =  20.0 * day_24hr !day_24hr
-         tfrc(2)      =  30.0 * day_24hr
-         tfrc(3)      = 100.0 * day_24hr !day_24hr
-         tfrc(4)      = 100.0 * day_24hr !day_24hr
-         tfrc(5:NLEV) =   0.0 * day_24hr !day_24hr
-      else if ((NLEV==20) .and. (nrdrag==1) .and. (neqsig==5)) then
-         tfrc(1:NLEV-10) = 0.0 * day_24hr
-         tfrc(NLEV-9)  =  20.0 * day_24hr
-         tfrc(NLEV-8)  = 100.0 * day_24hr
-         tfrc(NLEV-7:NLEV) =   0.0 * day_24hr
-      endif
+
+!     NO DEFAULT IS SET BELOW THIS LINE. A preset that wants to be a default goes
+!     ABOVE the read, where the NLEV==10 block is, so a declared value beats it.
+!     What follows resolves declarations that CONTRADICT each other -- aqua and
+!     desert asked for together, vegetation on an aqua planet -- where there is
+!     no consistent state to give the caller both. That is a different thing from
+!     a compiled value replacing one the caller wrote and could have had.
+!     world-helo.
 
       if ((ndesert == 1) .and. (naqua == 1)) then !If both toggled, turn off both
         naqua = 0
@@ -1778,7 +1847,19 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
 !     "n_run_years" and "n_run_months"
 
 !     mpstep <= 0 and ntspd <= 0 triggers automatic
-
+!
+!     A DEFAULT, AND IT STANDS, world-helo. It fires only for a caller that
+!     supplied neither MPSTEP nor NTSPD, so it never overrides a declared step;
+!     this project writes MPSTEP from model.timestep_minutes on every prepare and
+!     every continuation, so nothing here reaches it.
+!
+!     The two hand-picked arms are kept rather than folded into the formula,
+!     which is the change that would look like tidying. At nlat 32 the formula
+!     gives 60 minutes, and 60 is exactly the coarsest step T21 has been MEASURED
+!     to start clean at (lib/rungs.py STABILITY_CEILING_MINUTES): folding the arm
+!     in would hand a caller who declared no timestep the rung's measured ceiling
+!     as its default, with no margin. 45 sits below it. Nothing here says what
+!     the T31 arm's 36 is worth, because T31 is not a rung this project probes.
       if (mpstep <= 0 .and. ntspd <= 0) then
          if (nlat <= 32) then       ! T21
             mpstep = 45

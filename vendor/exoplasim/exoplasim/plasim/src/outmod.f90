@@ -1822,7 +1822,10 @@
 !       * snow depth *
 !       **************
         
-        call writegp(kunit,dsnow,kunit,0)
+!       Code 141, not `kunit`. The unit number stood in the code argument and
+!       happened to be right on unit 141 and wrong on 142, where the snow depth
+!       came out labelled as the snow depth's own unit. world-tsic.
+        call writegp(kunit,dsnow,141,0)
      
       
 !     **********************
@@ -2152,21 +2155,42 @@
 !     *****************************
 !     * Weatherable Precipitation *
 !     *****************************
-        
-      call writegp(kunit,asigrain,319,0)
+!
+!     THE INSTANTANEOUS RATE, NOT `asigrain`. world-tsic.
+      sigrain(:) = 0.
+      where (dls(:) .gt. 0.5)
+        where (dt(:,NLEP) .gt. 273.15)
+          sigrain(:) = (dprc(:) + dprl(:))*8.64e7
+        endwhere
+      endwhere
+      call writegp(kunit,sigrain,319,0)
 
-!     ***********************
-!     * Minimum Temperature *
-!     ***********************
-         
-      call writegp(kunit,tempmin,320,0)
+!     THIS STREAM IS A SAMPLE STREAM, AND THAT IS THE DECISION. world-tsic.
+!
+!     Every field it writes is the model's state at the step it is written on.
+!     It carried three that were not: `asigrain` at 319, and `tempmin` and
+!     `tempmax` at 320 and 321, which `outaccu` extends every timestep and only
+!     `outreset` clears -- and `outreset` runs after `outgp` on the REGULAR
+!     cadence. A high-cadence record therefore covered (nstep mod nafter)
+!     timesteps: a window that changed from record to record and was empty on the
+!     record after a regular write. 319 is written above as the instantaneous
+!     rate `snapshotgp` computes, and the extrema are gone.
+!
+!     THE ALTERNATIVE WAS TO GIVE THE STREAM ITS OWN ACCUMULATION WINDOW, which
+!     is a second accumulator set, a second reset on the high-cadence interval,
+!     and a second pair of restart records for the partial window that interval
+!     straddles. It buys extrema over a burst that lasts hcstartstep to
+!     hcendstep, for a consumer that has not asked: the declared field list for
+!     this stream is the winds DUST-5 wants (world-4vp). The extrema that mean
+!     something are the REGULAR stream's, over the whole output window -- 320 and
+!     321 for the surface temperature and 201 and 202 for the near-surface air
+!     temperature -- and the instantaneous surface temperature this stream does
+!     carry is `ts`, code 139.
+!
+!     Settled before the stream was ever turned on, which is why it cost nothing:
+!     nhcadence and nwritehurricane are both 0 by default, this project does not
+!     set either, and no product carries 319, 320 or 321 from unit 141 or 142.
 
-!     ***********************
-!     * Maximum Temperature *
-!     ***********************
-         
-      call writegp(kunit,tempmax,321,0)
-         
       ! Hurricane quantities
       !Convective Available Potential Energy at the surface
       call writegp(kunit,capen,322,0)
@@ -2396,12 +2420,15 @@
 !     * energy diagnostics if switched on *
 !     **************************************
 !
-!     Not carried across a restart, unlike the aa* arrays above, and that is
-!     deliberate rather than an omission. outreset runs immediately after the
-!     write and a run always ends on an output boundary, so an accumulation
-!     window never straddles a restart; adding restart records would instead
-!     make a rebuilt binary refuse every restart written by the current one,
-!     because get_restart_array stops on a missing name when nexcheck = 1.
+!     CARRIED ACROSS A RESTART like every other accumulator here, world-5qy.
+!     A RUN DOES NOT END ON AN OUTPUT BOUNDARY: every restart this project has
+!     written holds a mid-window naccuout -- 90 of an NSTPW of 160, 134 of 240 --
+!     so the window these two accumulate over straddles the restart exactly as
+!     the rest of the set's does, and leaving them out divided a resumed part
+!     window by a whole one on the first output record after every resume.
+!     `epilog` writes them where they are allocated and `read_atmos_restart`
+!     asks for them by name, so a rebuilt binary does not refuse a restart that
+!     predates them: it discards the partial interval and says so.
 !
       if(nenergy > 0) then
        adenergy(:,:)=0.
