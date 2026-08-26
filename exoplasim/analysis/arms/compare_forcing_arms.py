@@ -60,7 +60,8 @@ def series(run_dir: pathlib.Path) -> dict:
     """Per-orbit global means of the metrics a forcing arm is read on."""
     files = orbit_files(run_dir)
     out = {"orbits": len(files), "tas": [], "ts": [], "toa_net": [],
-           "sea_ice": [], "precip": []}
+           "sea_ice": [], "precip": [], "cloud": [], "toa_sw_out": [],
+           "water_vapour": []}
     weights = None
     for path in files:
         with Dataset(path) as nc:
@@ -80,7 +81,17 @@ def series(run_dir: pathlib.Path) -> dict:
             out["ts"].append(gmean("ts"))
             out["toa_net"].append(gmean("rst") + gmean("rlut"))
             out["sea_ice"].append(gmean("sic"))
-            out["precip"].append(gmean("pr"))
+            # IN MM/DAY, NOT THE MODEL'S OWN UNITS. `pr` is a rate in m/s and a
+            # global mean of it is about 2.5e-8, which every fixed-width format
+            # in this file rendered as 0.0000: a real ten per cent difference
+            # between two arms read as an exact zero. The conversion is here
+            # rather than at the print because the JSON carries these numbers too.
+            out["precip"].append(gmean("pr") * 1000.0 * 86400.0)
+            out["cloud"].append(gmean("clt"))
+            # Negative-up in this model, so a MORE POSITIVE value is LESS
+            # reflection. Checked against the file rather than assumed.
+            out["toa_sw_out"].append(gmean("rsut"))
+            out["water_vapour"].append(gmean("prw"))
     return out
 
 
@@ -98,7 +109,8 @@ def paired(arm: dict, control: dict, forcing_orbits: int, window_start: int = 0)
     n = min(arm["orbits"], control["orbits"])
     result = {"orbits_compared": n, "forcing_window_orbits": min(forcing_orbits, n),
               "measurement_window_starts_at_orbit": window_start}
-    for metric in ("tas", "ts", "toa_net", "sea_ice", "precip"):
+    for metric in ("tas", "ts", "toa_net", "sea_ice", "precip", "cloud",
+                   "toa_sw_out", "water_vapour"):
         a = np.asarray(arm[metric][:n], dtype=float)
         c = np.asarray(control[metric][:n], dtype=float)
         diff = a - c
@@ -198,7 +210,8 @@ def main() -> None:
 
     for label, a in arms.items():
         print(f"\n=== {label}  ({a['run_directory']}, {a['orbits_on_disk']} orbits)")
-        for metric in ("tas", "toa_net", "sea_ice", "precip"):
+        for metric in ("tas", "toa_net", "toa_sw_out", "cloud", "water_vapour",
+                       "sea_ice", "precip"):
             m = a[metric]
             key = [k for k in m if k.startswith("forcing_mean_first_")][0]
             print(f"  {metric:9s} forcing {m[key]:+.4f}  all {m['mean_difference']:+.4f}"

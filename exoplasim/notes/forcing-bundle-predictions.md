@@ -1554,3 +1554,112 @@ make.** Either an A3 arm's segments are production and the convergence criteria
 apply while A3's guard is off, or they are diagnostics and the registered
 condition is replaced by the paired-difference form above. The second is what
 these arms did.
+
+## The bisect: which code path is not doing what it was written to do
+
+A bundle missing its predicted sum by an order of magnitude and reversing sign is
+the shape of a defect rather than of bad estimates, so each term below is treated
+as a suspect implementation until cleared, and a check with a right answer is
+preferred to a run difference wherever one exists. Verdicts are CLEARED,
+DEFECTIVE or UNTESTED at this rung.
+
+**First, the instrument, because a control that cannot reproduce itself would
+make every number here worthless.** `Ct` and `Dt` do not reproduce between
+identical runs. **No number in this note inherits that.** Those two columns exist
+only under `nenergy > 1`, which allocates `zcnow`; every arm in this note has no
+`NENERGY` key in its `plasim_namelist` at all, so `zcnow` is never allocated and
+the decomposition never runs. The model state itself is bit-reproducible on this
+source, shown directly by `run_0730a12ecfbd` and `run_57a43e1fc3f4` writing an
+identical `MOST_REST.00000` from different cores. The instrument is clean for
+every kelvin below.
+
+**The split, measured.**
+
+| term | worth at T21 | how it was established |
+| --- | ---: | --- |
+| `world-trs3`, the derived `gamma` | **about -7 to -8 K** | A/B, `run_af3d2c9a4b05` against the control |
+| `world-py6p`, the land water column | +0.17 +/- 0.07 K | A/B, `run_431ecabed085` |
+| `surface.cryosphere` declared | about 0 | static, against `icemod.f90` |
+| the energy fixer off | +0.23 K | the donor's manifest and `lib/sensitivity.py` |
+| `world-o12h`, `rcritwidth` | exactly 0 | construction, `RCNLATREF` = `NLAT` |
+| `world-2esd`, `th2oc` | 0 | not swept; the config value is unchanged |
+
+### `world-trs3`, the derived Kessler `gamma`: CLEARED, and it is most of the drift
+
+Four checks with right answers, all passed:
+
+- **The formula reproduces the registered offline table** at 0.5, 1, 3, 10 and
+  30 mm/day, to the three digits the table carries, with `GAMPEXP` = 13/20 * 8/9
+  and `zvcoef` = 5.17*sqrt(ga/9.80665) read from the source rather than assumed.
+- **All four re-evaporation sites are structurally identical**: `zgam = gamma`,
+  then the derived form on that site's OWN precipitation flux when `gamma <= 0`,
+  then `AMIN1(..., zpr)` capping removal at the flux available. The two snow
+  sites use `ALS` where the two rain sites use `ALV`.
+- **The override is reached**, and the model says so: `run_af3d2c9a4b05`'s
+  `plasim_diag` prints `precip re-evaporation: CONSTANT gamma 1.0E-002`. That is
+  the first thing this note's own falsifying list says to check.
+- **Every link of the stated mechanism has the predicted sign.** Against the
+  derived default, pinning `gamma` to 0.01 gives +0.298 +/- 0.009 mm/day more
+  precipitation reaching the ground, 0.70 kg/m2 less column water vapour, 0.042
+  +/- 0.003 less cloud cover, and 9.56 +/- 0.33 W/m2 less reflected shortwave.
+  Reversed, that is the derived form moistening the column, growing cloud and
+  reflecting more, which is the chain this note describes.
+
+**So the code is doing what it was written to do, and the prediction is what
+missed.** It predicted the moistening, the cloud increase and the drop in
+precipitation, and priced NONE of them in W/m2 or kelvin: "high cloud fraction
+rises slightly" is +0.042 absolute cover carrying **9.6 W/m2** of extra reflected
+shortwave, about 7.4 K at `lib/sensitivity.py`'s 0.778 K per W/m2. The
+precipitation reduction, 13.5 per cent of the global mean, sits inside the 10 to
+50 per cent the prediction gave for its land counterpart.
+
+The prediction is left exactly as it was written. What it teaches is that a term
+whose stated mechanism runs through cloud needs a radiative number attached to it
+before it lands, not a qualifier.
+
+### `world-jgen` and `world-f9ig`, the band-1 cloud optics: CLEARED as far as this rung allows
+
+- **The Stephens coefficients are self-consistent** with the fits they name:
+  10^0.2633 = 1.8336 and 1.7095*ln10 = 3.9363 for Eq. (10a), 10^0.3492 = 2.2346
+  and 1.6518*ln10 = 3.8034 for Eq. (10b).
+- **The linear continuation is continuous and grounded.** Below `zwfit` = 10 the
+  base of the power is clamped to 10, so `log10` is exactly 1, the power is 1,
+  and what remains is `ztaua_b * zlwp/10`: linear, equal to the fit at 10, zero
+  at zero water. No offset and no domain error.
+- **The offline chain still reproduces the model's own geometry.**
+  `cloud_optical_depth_bracket.py` on `run_57a43e1fc3f4` returns a reconstructed
+  band-1 incident flux of 122.97 W/m2 against the climatology's 122.97, +0.00 per
+  cent, and the bracket is unmoved at +0.73 to +2.00 W/m2.
+- `smoke_test.py` gates the shortwave cloud tables against the papers' tables.
+
+**One thing the registered wording understates.** "Band 2 was getting its own
+equation" reads as though band 2 did not move. It did: its prefactor went from 2
+to 2.2346, its exponent from 3.9 to 3.8034, and the `+1.5` offset left with the
+rest. Over the layers carrying real cloud water that is -0.8 to +4 per cent of
+optical depth, but below 2.5 g/m2 both bands gain 100 to 300 per cent, which is
+the continuation replacing the offset. That is the condition this note's own
+falsifying list names -- a response dominated by the layers under 2.5 g/m2 means
+the continuation is doing more than it should -- and separating it needs the
+control binary nobody kept.
+
+### `world-o12h`, `rcritwidth`: UNTESTED at this rung, not verified as zero
+
+At T21 `RCNLATREF` and `NLAT` are both 32, the derived width is exactly 1, and
+`if(rcritwidth /= 1.)` skips the transform. Measuring zero here is correct and
+expected and is NOT evidence about the path: the unit factor is skipped rather
+than applied, so nothing about the scaling is exercised. **The path is unverified,
+and T21 cannot verify it.** A T42 pair can, and now has a route: `RCRITWIDTH`
+reaches `rainmod_nl` from `config/planet.yaml` as of this batch, so an arm at
+1.0 against the derived 0.7937 is a namelist key rather than a code fork.
+
+### `OCN-22`, the ocean albedo band split: UNTESTED
+
+Compiled in, no namelist reverts it, and its broadband-preservation identity was
+not run. Its own predicted size, -0.02 to -0.13 K, is two orders below the drift,
+so it is not a candidate for what happened; it is simply unmeasured.
+
+### `world-2esd`, `th2oc`: not in the bundle
+
+The config value is unchanged, so the term contributes nothing to the measured
+drift and there is nothing to bisect. It still has no route from config, unlike
+`gamma` and `rcritwidth`, and closing that is the same one-row change.

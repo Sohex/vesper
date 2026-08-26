@@ -1,0 +1,200 @@
+{
+  "provenance": {
+    "generator": "exoplasim/analysis/arms/compare_forcing_arms.py",
+    "git_commit": "edafe26b27d03445f161664da8ca2ecef6986801",
+    "python": "3.14.7"
+  },
+  "instrument": {
+    "control_run": "run_57a43e1fc3f4",
+    "control_orbits": 60,
+    "control_final_tas": 279.9951776412043,
+    "settling_block_orbits_required": [
+      24.528384244034473,
+      53.516474714257036
+    ],
+    "settling_block_bought": 60,
+    "production_span_orbits_required": [
+      84.0,
+      208.6
+    ],
+    "note": "The settling block is what these arms bought. A window whose mean has an interval that covers needs the production span on top of it, and none of these arms has one, so a separation is reported as a trajectory and never as a converged response."
+  },
+  "arms": {
+    "world-trs3: gamma pinned to the literal 0.01, against the derived default": {
+      "run_directory": "run_af3d2c9a4b05",
+      "orbits_on_disk": 6,
+      "absolute_final_tas": 285.6283747887844,
+      "orbits_compared": 6,
+      "forcing_window_orbits": 2,
+      "measurement_window_starts_at_orbit": 0,
+      "tas": {
+        "forcing_mean_first_2_orbits": 0.5774183802428183,
+        "final_orbit_difference": 1.9056338099677532,
+        "mean_difference": 1.2215290883971004,
+        "window_mean": 1.2215290883971004,
+        "window_standard_error": 0.3452651525986858,
+        "window_tau_orbits": 2.1013056823847984,
+        "window_orbits": 6,
+        "paired_scatter": 0.5834232809017883,
+        "tau_orbits": 2.1013056823847984,
+        "standard_error": 0.3452651525986858,
+        "resolved": true,
+        "trajectory": [
+          0.3592175048858053,
+          0.7956192555998314,
+          1.1095390049273988,
+          1.4381829319011672,
+          1.720982023100646,
+          1.9056338099677532
+        ]
+      },
+      "ts": {
+        "forcing_mean_first_2_orbits": 0.42958954952004547,
+        "final_orbit_difference": 1.8237368735781274,
+        "mean_difference": 1.1061585639045102,
+        "window_mean": 1.1061585639045102,
+        "window_standard_error": 0.3576475708998849,
+        "window_tau_orbits": 2.0983872257170777,
+        "window_orbits": 6,
+        "paired_scatter": 0.604767003909126,
+        "tau_orbits": 2.0983872257170777,
+        "standard_error": 0.3576475708998849,
+        "resolved": true,
+        "trajectory": [
+          0.21944523478680367,
+          0.6397338642532873,
+          1.0107166503740928,
+          1.3418640918143865,
+          1.601454668620363,
+          1.8237368735781274
+        ]
+      },
+      "toa_net": {
+        "forcing_mean_first_2_orbits": 3.456855417676877,
+        "final_orbit_difference": 1.0556204486191234,
+        "mean_difference": 1.9825462842445158,
+        "window_mean": 1.9825462842445158,
+        "window_standard_error": 0.6276437371380619,
+        "window_tau_orbits": 1.7513022777459073,
+        "window_orbits": 6,
+        "paired_scatter": 1.1617381962650593,
+        "tau_orbits": 1.7513022777459073,
+        "standard_error": 0.6276437371380619,
+        "resolved": true,
+        "trajectory": [
+          3.620900188157435,
+          3.292810647196319,
+          1.4376811925808681,
+          1.4684125730967708,
+          1.0198526558165781,
+          1.0556204486191234
+        ]
+      },
+      "sea_ice": {
+        "forcing_mean_first_2_orbits": -0.00035040383316245396,
+        "final_orbit_difference": -0.011327669600069215,
+        "mean_difference": -0.005428880417538661,
+        "window_mean": -0.005428880417538661,
+        "window_standard_error": 0.002377589277231547,
+        "window_tau_orbits": 1.7832411220031648,
+        "window_orbits": 6,
+        "paired_scatter": 0.004361214259293224,
+        "tau_orbits": 1.7832411220031648,
+        "standard_error": 0.002377589277231547,
+        "resolved": true,
+        "trajectory": [
+          0.0006310272922755242,
+          -0.0013318349586004322,
+          -0.006165745247435409,
+          -0.007024865698425371,
+          -0.007354194292977068,
+          -0.011327669600069215
+        ]
+      },
+      "precip": {
+        "forcing_mean_first_2_orbits": 0.29316366860827237,
+        "final_orbit_difference": 0.2827304975938367,
+        "mean_difference": 0.2981680155310231,
+        "window_mean": 0.2981680155310231,
+        "window_standard_error": 0.008566668994735405,
+        "window_tau_orbits": 1.0,
+        "window_orbits": 6,
+        "paired_scatter": 0.020983967832423053,
+        "tau_orbits": 1.0,
+        "standard_error": 0.008566668994735405,
+        "resolved": true,
+        "trajectory": [
+          0.28470593507735753,
+          0.3016214021391872,
+          0.33868302289137553,
+          0.28788007827422124,
+          0.2933871572101605,
+          0.2827304975938367
+        ]
+      },
+      "cloud": {
+        "forcing_mean_first_2_orbits": -0.051985585897865894,
+        "final_orbit_difference": -0.03723913501968357,
+        "mean_difference": -0.04207982034707486,
+        "window_mean": -0.04207982034707486,
+        "window_standard_error": 0.003227440382522198,
+        "window_tau_orbits": 1.0,
+        "window_orbits": 6,
+        "paired_scatter": 0.00790558211243234,
+        "tau_orbits": 1.0,
+        "standard_error": 0.003227440382522198,
+        "resolved": true,
+        "trajectory": [
+          -0.05225689784022103,
+          -0.05171427395551076,
+          -0.034012350913469325,
+          -0.037258654156405835,
+          -0.03999761019715864,
+          -0.03723913501968357
+        ]
+      },
+      "toa_sw_out": {
+        "forcing_mean_first_2_orbits": 10.56516745459703,
+        "final_orbit_difference": 9.260662822113332,
+        "mean_difference": 9.55981895178116,
+        "window_mean": 9.55981895178116,
+        "window_standard_error": 0.3342777710262818,
+        "window_tau_orbits": 1.0,
+        "window_orbits": 6,
+        "paired_scatter": 0.8188099713693011,
+        "tau_orbits": 1.0,
+        "standard_error": 0.3342777710262818,
+        "resolved": true,
+        "trajectory": [
+          10.34762561652775,
+          10.782709292666311,
+          8.65908735613435,
+          9.096833597050889,
+          9.21199502619433,
+          9.260662822113332
+        ]
+      },
+      "water_vapour": {
+        "forcing_mean_first_2_orbits": -1.8672438144903012,
+        "final_orbit_difference": 0.2111847420028532,
+        "mean_difference": -0.6993980439211095,
+        "window_mean": -0.6993980439211095,
+        "window_standard_error": 0.5431409515757061,
+        "window_tau_orbits": 1.7851292924197804,
+        "window_orbits": 6,
+        "paired_scatter": 0.9957569259254822,
+        "tau_orbits": 1.7851292924197804,
+        "standard_error": 0.5431409515757061,
+        "resolved": false,
+        "trajectory": [
+          -2.393115906629312,
+          -1.3413717223512904,
+          -0.4571149476492593,
+          -0.3194662974126139,
+          0.10349586851296522,
+          0.2111847420028532
+        ]
+      }
+    }
+  }
+}
