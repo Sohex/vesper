@@ -429,39 +429,100 @@ third of the four this project allows.
 
 ---
 
-### 9. `EXOPLASIM_DZ0LAND_M = 2.0`, the anchor a derived field is rescaled onto
+### 9. `EXOPLASIM_DZ0LAND_M`, the anchor a derived field is rescaled onto. NOT TUNED
 
-`exoplasim/scripts/build_surface_roughness.py:137`, used as the bisection target
-at `:302-313`. `aeolian/config/dust.yaml:152-153` confirms it from the consumer
-side: "its land mean is anchored to 2.0 m so the value ExoPlaSim was tuned
-against does not move."
+`exoplasim/scripts/build_surface_roughness.py`, where it is the model's namelist
+fallback over land and not the bisection target. It has a derivation, it is not a
+tuned value, and this row is here to carry that derivation and the class it puts
+the constant in.
 
-**The decision is inspectable and the anchor is not.** The builder derives a
-per-cell roughness field from this world's own lithology and subgrid relief,
-spanning 0.025 to 11.2 m, and then solves a free coefficient so that the
-area-weighted land mean of that field equals `dz0land`. The argument for doing
-so is recorded (`config-rationale.md:764-766`, "redistributes roughness without
-moving the global value the model was tuned against") and is a legitimate design
-decision. What it anchors ON is a compiled default whose only documentation in
-the model source is the comment "roughness length land", and nothing in this
-tree establishes that 2.0 m is anything but an unexamined number.
+**The derivation is in the vendored model source and is computable.**
+`vendor/exoplasim/exoplasim/plasim/run/` ships PlaSim's own boundary dataset for
+the model's Earth configuration at two rungs, `N032` and `N064`, and it carries
+the roughness in three fields rather than one: code 172 the land mask, code 173
+the total `dz0clim`, code 1730 its topography-only part `dz0climo`. So that
+dataset is built by exactly the decomposition `build_surface_roughness.py`
+computes, a land-cover term and an orographic term in quadrature, and the model's
+own answer for each is readable.
 
-So the tuned value here is not the field and not the decision. It is the target,
-and the step that discards a physically sourced land mean in favour of it.
+Reduce code 173 over that dataset's land in `ce`, the operator the builder argues
+for, and at `N032` the result is the namelist fallback to within a tenth. `N032`
+is the resolution PlaSim's own configuration defaults to, and the residual has a
+direction rather than being scatter: the `ce` reduction falls as the reference
+height rises, and this planet's lowest model level sits lower than Earth's at the
+same sigma because its gravity is larger, so the model's own Earth reduction
+lands below the value computed here. The fallback is a rounding of the model's
+Earth land roughness. It never carried its derivation only because the derivation
+lives in a boundary dataset rather than in the source comment, which reads
+"roughness length land".
 
-**Magnitude.** `opaque-constants.md` finding 7 prices the neighbouring error at
-8.4 times too much land exchange; the anchor itself sets the level of land
-sensible heat and land evaporation, and therefore the carve criterion's
-numerator. `analysis/spatial_reduction_gap.py:376-395` already exists to price
-the ladder half of it: the solved coefficient rises by 1.98 from T21 to T170 to
-hold the mean, so two rungs built with the defaults differ by their terrain AND
-by their calibration.
+**So the class is wrong, and the class is the finding.** This is not a value with
+no derivation. It is a sound derivation for the wrong planet, which is the
+`inherited-earth-constants.md` class in the table at the head of this audit, not
+this one. The distinction is not bookkeeping: a tuned value has nothing to check
+against, and this one has a whole boundary dataset, which is why the check below
+was available at all.
 
-**Disposition: REPLACEABLE NOW.** The field's own area-weighted land mean, taken
-from the lithology roughness map with no rescaling, is a sourced number this
-project already computes. Reporting it beside the anchored one, and running the
-free arm, converts the anchor from an assumption into a bracket. What it needs
-is a decision, not a paper.
+**What the transfer is worth, and what bounds it.** Anchoring this world's land
+mean on Earth's asserts nothing about this world's relief, and there is no way to
+close that from inside this project. But the two planets can be compared on the
+part that is not relief: the Earth dataset's own surface term, recovered from the
+quadrature, and this world's field with the orographic term set to zero, are both
+land-cover roughnesses derived independently of each other. Measured on
+`canonical-10m-base` on 2026-08-26 they agree to within 8% at T21 and 10% at T42,
+while the Earth dataset's cover term barely moves between the two rungs and its
+total falls by nearly half. That is the signature of an orographic term and not a
+land-cover one, and it says the transfer imports a level of subgrid relief rather
+than somebody else's land cover. The comparison could have come out decades
+apart. It did not.
+
+**Magnitude, measured rather than inferred.** The bracket's two ends are not
+close. Measured on `canonical-10m-base` on 2026-08-26, the land-mean exchange
+coefficient is 2.15 times larger on the anchored arm than on the arm with no
+orographic term at T21, and 1.61 times at T42. `ce` is what land sensible heat
+and land evaporation are linear in, so the carve criterion's numerator moves by
+that factor. `opaque-constants.md` finding 7 prices the neighbouring gravity
+error on the same coefficient at 8.4 times land exchange, so the two are the same
+order of consequence.
+
+**The ladder half did not close, and the honest result is that it got no
+better.** The reference is support-dependent: a coarser cell folds more relief
+into its own effective roughness, and the Earth dataset's land mean falls by
+nearly half from `N032` to `N064`. Anchoring each rung on its own reference
+therefore replaces one drift with another. Measured on one build at both shipped
+rungs, the solved coefficient rises by about a fifth from T21 to T42 against a
+fixed target and falls by about two fifths against the rung-matched reference.
+The reference falls faster with the support than this world's relief does, so the
+move reverses the sign of the drift and leaves its size comparable. SPAT-8's
+constraint stands unchanged: a ladder comparison must pass one coefficient to
+every rung. The model ships no dataset above `N064`, and the builder refuses a
+rung it cannot derive a reference for rather than substituting another rung's.
+
+**Disposition: RECLASSIFIED as implicit-Earth, DERIVED in code, and the transfer
+DECLARED AS A BRACKET THAT IS SWEPT. Done.** `earth_reference_land_z0()` computes
+the anchor at build time from the vendored dataset, so a change under
+`vendor/exoplasim` moves it instead of silently disagreeing with it, and nothing
+about it is a literal. `--orographic-arm reference` writes the anchored end and
+`--orographic-arm none` writes the end with no orographic contribution at all;
+every build reports both land means and their `ce` brackets whichever it writes,
+so the anchored value and the field's own value are never seen apart. Two
+refusals were added where there were none: a bisection that ends on a bound of
+its search bracket has not solved anything and says so instead of writing a field
+whose land mean is not the target, and the `ce` inversion is checked as the
+identity it is.
+
+The one thing this leaves open is a decision that belongs to whoever declares the
+canonical climatology lineage, not to this audit: which arm the lineage runs on.
+Both are built and both are reported, so it is answerable from the artifacts.
+
+Elvidge et al. (2019), *Uncertainty in the Representation of Orography in Weather
+and Climate Models and Implications for Parameterized Drag*, JAMES 11,
+`10.1029/2019MS001661`, is what says the free coefficient is genuinely free: the
+subgrid-orography standard deviation enters a drag scheme "multiplied by a
+model-dependent tuning constant", and the resulting zonal-mean orographic surface
+stress differs by a factor of four between operational models of comparable
+resolution. That is the reason the coefficient is solved onto a reference rather
+than sourced, and the reason the reference is bracketed rather than trusted.
 
 ---
 
