@@ -433,7 +433,7 @@ are fits and neither transfers on its authority.
 one number is a DROPPED DEPENDENCE rather than a different fit. Louis's `c`
 varies as `sqrt(z/z0)`, and this world's derived roughness field spans 0.025 to
 11.2 m -- a factor of 450 in `z0` and 21 in `sqrt(z/z0)`, all of it flattened
-into a single constant. That is `world-vm4t`, filed separately, and it is a form
+into a single constant. That is `world-awm5`, filed separately, and it is a form
 question rather than a tuning one.
 
 **The mixing length: this row's proposed derivation is not supported.** 160 m
@@ -832,7 +832,7 @@ filed.
 | 7. `acllwr` | fixed |
 | 8. `th2oc` | `world-2esd` |
 | 9. the `dz0land` anchor | `world-u8ds` |
-| 10. `vdiff_lamm` and the Louis fives | `world-x6q8`; the fives are answered and irreducible, the mixing length waits on Blackadar (1962), and `vdiff_c`'s dropped roughness dependence is `world-vm4t` |
+| 10. `vdiff_lamm` and the Louis fives | `world-x6q8`; the fives are answered and irreducible, the mixing length waits on Blackadar (1962), and `vdiff_c`'s dropped roughness dependence is `world-awm5` |
 | 11. `frac_labile_carbon` | `world-vyvn`; registered, and the primary shows the sourced object is a two-path form rather than a constant |
 | 12. `gamma` | `world-trs3`; the form is derived and in the declaration, and implementing it in `rainmod.f90` is what is left |
 | 13. `zcca`, `zccb`, `rcrit` | `world-o12h`; `world-khn` closed the resolution half by declaring it |
