@@ -495,9 +495,6 @@ export const GLACIAL_WIDENING_FRAC = 0.4;
 export const GLACIAL_TERMINUS_RATIO = 0.3;
 export const GLACIAL_FJORD_ICE_MIN = 0.2;
 export const GLACIAL_POST_SMOOTH = 0.3;
-export const GLACIAL_MID_FLOOD_FRAC = 0.75;
-export const GLACIAL_MID_FLOOD_CARVE = 0.85;
-export const GLACIAL_INITIAL_CARVE = 0.5;
 
 // ── Hydraulic Erosion (terrain-post.js) ──
 // Reference discretisation for the stream-power solve.
@@ -525,6 +522,26 @@ export const HYDRAULIC_REF_RADIUS_KM = 6371;
 
 export const HYDRAULIC_DEPOSIT_FRAC = 0.5;
 export const HYDRAULIC_SLOPE_SENSITIVITY = 50;
+
+// Priority-flood pit resolution. Both floods serve the hydraulic path: they
+// exist so every land cell has a monotonically descending route to a drainage
+// terminal, which is what the stream-power solve assumes and what the drainage
+// network exported downstream is read as. Neither is glacial, and neither is
+// conditioned on glacial erosion having run.
+//
+// INITIAL runs once before the erosion loop and is gated on the hydraulic
+// iteration count. MID runs once inside the loop, at MID_FLOOD_FRAC of
+// totalIters -- and totalIters is the MAXIMUM of the hydraulic, thermal and
+// glacial counts, so the mid-loop flood fires whenever any of the three runs,
+// including a generation with glacial erosion off. That is intended: thermal
+// erosion closes depressions too, and a generation that ends with undrained
+// pits moves the basin catalogue.
+//
+// Each value is the carve strength handed to priorityFloodCarve, the share of
+// the fill deficit taken out of spill points rather than added to pit floors.
+export const HYDRAULIC_INITIAL_CARVE = 0.5;
+export const HYDRAULIC_MID_FLOOD_FRAC = 0.75;
+export const HYDRAULIC_MID_FLOOD_CARVE = 0.85;
 
 // ── Thermal Erosion (terrain-post.js) ──
 export const THERMAL_TRANSFER_FRAC = 0.5;

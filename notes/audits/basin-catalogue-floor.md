@@ -96,8 +96,9 @@ that: the comparison is a selection criterion, so it reaches the catalogue only
 through a generation. The counterfactual table below is what the next one
 carries, measured on this terrain.
 
-The model-unit-to-km curve is quartic above sea level, linear below it, and
-SATURATES at model elevation 1. One threshold is therefore many physical depths.
+The model-unit-to-km curve is quartic above sea level and linear below it, and
+in the form both builds in `source/` were generated with it SATURATED at model
+elevation 1. One threshold is therefore many physical depths.
 Measured over the depressions sitting within 2% of the threshold:
 
 | build | physical depth the threshold demanded, km |
@@ -119,8 +120,11 @@ sit above model elevation 1 has a published physical depth of exactly zero and
 still clears the floor: 2 preserved basins on `precarve-craton` are in that
 state and none on `precarve-craton-10m`. The clamp is not confined to basins:
 0.26% and 0.25% of land by area sits at or above model elevation 1 on the two
-builds, and every cell of it is published at the same `elevation_km`. That last
-figure belongs to whoever owns the relief curve, not to the catalogue.
+builds, and every cell of it is published at the same `elevation_km`. The curve
+now carries a branch above model elevation 1 and no longer saturates, so this is
+a property of the two builds rather than of a later one;
+`notes/audits/relief-curve-domain.md` has the derivation, and it also carries
+what the branch does to selection.
 
 A preserved basin that can impound no water is a SEPARATE fault with a separate
 cause, and the depth floor is not it. `hydrography/data/*/basins.nc` gives

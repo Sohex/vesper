@@ -101,8 +101,10 @@ export const FIELD_META = {
     // Elevation
     // The model's internal elevation is a dimensionless shaping parameter, NOT
     // kilometres — it maps to height through a nonlinear hypsometric curve
-    // (elevToHeightKm), where 0.5 is 1.1 km and 1.0 is 6 km. Anything consuming
-    // real orography wants elevation_km.
+    // (elevToHeightKm), where 0.5 is 1.1 km and 1.0 is 6 km. The parameter is
+    // not bounded by 1 and the curve is linear at 6 km per unit above it, which
+    // is where its shape function's domain ends. Anything consuming real
+    // orography wants elevation_km.
     elevation: M('model units', 'Internal elevation parameter, NOT kilometres. Land maps to height '
         + 'through a nonlinear hypsometric curve; ocean is linear at 10 km per unit. Use '
         + 'elevation_km for physical height. Land is elevation > 0.'),
@@ -940,7 +942,9 @@ export function buildExportBundle(data, opts = {}) {
             seaLevel: 0,
             note: 'The `elevation` field is the model\'s internal shaping parameter, not '
                 + 'kilometres: land maps to height through a nonlinear hypsometric curve where '
-                + '0.5 is ~1.1 km and 1.0 is 6 km, and ocean is linear at 10 km per unit. Use '
+                + '0.5 is ~1.1 km and 1.0 is 6 km, and ocean is linear at 10 km per unit. The '
+                + 'parameter is not bounded by 1; above it the curve is linear at 6 km per unit, '
+                + 'which is where its shape function\'s domain ends. Use '
                 + '`elevation_km` for physical orography. The land/ocean split is elevation > 0 '
                 + 'in either field.',
             gravityScaling: 'elevation_km applies this planet\'s 1/g relief scaling to land '

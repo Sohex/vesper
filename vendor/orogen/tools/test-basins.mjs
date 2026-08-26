@@ -374,6 +374,44 @@ test('the land height branch is an explicit set, not the complement of ocean', (
         'a surface class was added — decide its height branch, do not let it default');
 });
 
+test('the relief curve is strictly increasing over the whole range the model produces', async () => {
+    // The shape function t^4(5-4t) is a Hermite interpolant on [0, 1] and turns
+    // over above it, so the curve used to clamp at 1 and publish a quarter of a
+    // per cent of land at one identical height. A closed basin with both its
+    // sink and its spill in that band then had a depth of exactly zero.
+    // The model's elevation parameter is not bounded by 1 and reaches past 1.4
+    // on the registered builds, so the curve is asserted well beyond that.
+    const { elevToHeightKm, RELIEF_KM_PER_UNIT } = await import('../js/color-map.js');
+
+    let prev = -Infinity;
+    for (let t = 0.001; t <= 2.0; t += 0.001) {
+        const h = elevToHeightKm(t, true);
+        assert.ok(h > prev, `height must increase at elev ${t.toFixed(3)}: ${h} <= ${prev}`);
+        prev = h;
+    }
+
+    // Continuous at the join, and the shape function is exactly 1 there.
+    assert.equal(elevToHeightKm(1, true), RELIEF_KM_PER_UNIT);
+    assert.ok(Math.abs(elevToHeightKm(1 - 1e-9, true) - RELIEF_KM_PER_UNIT) < 1e-6);
+
+    // Above the domain the shape is its own argument, so the branch is the
+    // curve's scale times the parameter and introduces no new constant.
+    for (const t of [1.0, 1.25, 1.5, 1.4280]) {
+        assert.ok(Math.abs(elevToHeightKm(t, true) - RELIEF_KM_PER_UNIT * t) < 1e-9);
+    }
+
+    // Below the join nothing moved: the published shape values are unchanged.
+    assert.ok(Math.abs(elevToHeightKm(0.5, true) - 1.125) < 1e-9);
+    assert.ok(Math.abs(elevToHeightKm(0.75, true) - 3.7968750) < 1e-6);
+
+    // The clamp's own failure mode, asserted so it cannot come back: the raw
+    // polynomial is below the join value everywhere above it, and below sea
+    // level past t = 1.25.
+    const raw = t => RELIEF_KM_PER_UNIT * t * t * t * t * (5 - 4 * t);
+    assert.ok(raw(1.1) < RELIEF_KM_PER_UNIT);
+    assert.ok(raw(1.3) < 0);
+});
+
 test('surface classes use ocean connectivity, not the sign of the elevation', () => {
     const elev = new Float32Array([-1, -0.5, 0.5]);
     const isOpenOcean = new Uint8Array([1, 0, 0]);   // cell 1 is a closed below-sea-level floor
