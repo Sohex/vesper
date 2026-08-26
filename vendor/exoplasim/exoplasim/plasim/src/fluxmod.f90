@@ -44,12 +44,46 @@
 !     not obviously transferable, and it is left at ECHAM's value because
 !     nothing in this project has measured a replacement -- not because 160 m
 !     has been shown to apply here.
+!
+!     THE PRIMARY HAS BEEN READ AND IT SUPPLIES NO REPLACEMENT. Louis (1979),
+!     10.1007/BF00117978, is where the scheme comes from; its eq. 22 is
+!     Blackadar's l = kz/(1 + kz/lambda) and says of lambda only that it is "an
+!     adjustable parameter", taken as 100 m in the paper's own experiments. So
+!     160 m is neither Louis's number nor a derivation of one, and Louis's own
+!     100 m is declared adjustable in the same sentence it appears. Nothing is
+!     sourced by fetching further along this chain. What WOULD supply a rule is
+!     the primary Louis cites, Blackadar (1962), where lambda is set by the
+!     geostrophic wind and the Coriolis parameter rather than declared -- a
+!     relation that carries to another rotation rate, which is what this world
+!     needs and what a length scale of Earth's free troposphere cannot give.
+!     That paper is not held. Do not scale 160 m by this atmosphere's scale
+!     height: nothing in Blackadar's or Louis's form makes lambda proportional
+!     to a scale height, so that is a guess wearing a derivation's clothes.
       real :: vdiff_lamm = 160.  ! asymptotic mixing length (m)
 !
 !     The three Louis stability-function coefficients, cited in mktcoe to ECHAM
 !     REPORT 218, which is a report and not a derivation. None of the three is
 !     separately justified there or here; they are one fitted set and are used
 !     as one.
+!
+!     THEY ARE NOT LOUIS'S SET, which is now checked against Louis (1979)
+!     rather than assumed. Louis fits F = 1 - b*Ri/(1 + c*sqrt(|Ri|)) unstable
+!     (his eq. 14) and F = 1/(1 + b'*Ri)^2 stable (his eq. 15), and chooses
+!     b = 2b' = 9.4 -- not by fitting either, but so that dF/dRi is continuous
+!     across neutrality, which is the one relation in the set that IS derived.
+!     His c is not a constant at all: eq. 20 gives c = C*a^2*b*sqrt(z/z0) with
+!     C* = 7.4 for momentum and 5.3 for heat and moisture, from a free-convection
+!     dimensional argument, and a^2 the neutral drag coefficient. The form here
+!     is ECHAM's re-fit of that scheme with 2b and 3b factors written into the
+!     expressions instead, so b = c = d = 5 corresponds to Louis's b near 10 for
+!     momentum and 15 for heat against his own 9.4 for both.
+!     TWO CONSEQUENCES. Reading the primary cannot replace these three, because
+!     Louis states of his own values that they "are rather uncertain because of
+!     the large scatter in the observations": both sets are fits and neither
+!     transfers on its authority. And vdiff_c being a CONSTANT is a dropped
+!     dependence rather than a different fit -- Louis's c varies as sqrt(z/z0)
+!     and this world's roughness field spans 0.025 to 11.2 m, a factor of 450 in
+!     z0 and 21 in sqrt(z/z0), all of which this single number flattens.
       real :: vdiff_b    = 5.    ! Louis stability function, unstable slope
       real :: vdiff_c    = 5.    ! Louis stability function, unstable denominator
       real :: vdiff_d    = 5.    ! Louis stability function, stable branch

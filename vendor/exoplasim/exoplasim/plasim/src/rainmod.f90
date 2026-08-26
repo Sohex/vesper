@@ -75,6 +75,44 @@
 !     the rung moves makes every cross-rung comparison carry a physics change it
 !     did not ask for. gamma is in rainmod_nl, so a run that wants a different
 !     value declares it.
+!
+!     WHAT IT SHOULD BE IS DERIVABLE AND IT IS NOT A CONSTANT. Kessler (1969),
+!     10.1007/978-1-935704-36-2, gives the rain evaporation rate for a
+!     Marshall-Palmer distribution as dM/dt = k3 * N0^(7/20) * m * M^(13/20) in
+!     g m-3 s-1, with k3 = 1.93e-6 his tabulated evaporation coefficient, N0 the
+!     distribution intercept (1e7 m-4, so N0^(7/20) = 282), m the saturation
+!     deficit in g/m3 and M the rain water content in g/m3. That is his table 4.
+!
+!     Put beside the form actually applied below. The four sites evaporate
+!     gamma*(qsat-q)*dsigma/deltsec2, which per unit area is
+!     gamma * deficit * dz / deltsec2 once dsigma*ps/ga is written as the layer's
+!     air mass. Kessler's rate over the same layer is k3*N0^(7/20)*deficit*M^0.65
+!     * dz. THE LAYER DEPTH CANCELS, and what is left is
+!
+!         gamma = 5.44e-4 * M^0.65 * deltsec2       (M in g/m3)
+!
+!     with M = P/V, P the layer's precipitation flux and V the mean
+!     volume-weighted fall speed, Kessler's 38.8*N0^(-1/8)*M^(1/8) = 5.17*M^0.125
+!     m/s. So gamma is proportional to the timestep, which the note above already
+!     inferred from the form, and it goes as P^0.578, which nothing here carries
+!     at all.
+!
+!     AND IT CARRIES GRAVITY. A raindrop's terminal speed goes as sqrt(ga), so V
+!     rises by sqrt(12.81/9.80665) = 1.143 here, M = P/V falls, and gamma goes as
+!     ga^(-0.289): 0.926 of its Earth value at the same precipitation flux. That
+!     is small, and it is the least of the disagreement.
+!
+!     THE MAGNITUDE. At deltsec2 = 3600 s, which is this project's 30-minute
+!     step doubled, the derived value is 0.039 at 0.5 mm/day of precipitation,
+!     0.10 at 3 mm/day and 0.22 at 10 mm/day. The declared 0.01 is the Kessler
+!     value at 0.048 mm/day, sixty times below a global-mean rate, and it is
+!     below the whole of that span. Using a grid-mean flux understates M and
+!     therefore understates gamma, so those figures are floors.
+!
+!     Left at 0.01 because replacing it is a change of FORM -- the four blocks
+!     below would compute gamma per level from zprl, zprc, zprsl and zprsc,
+!     which they already hold -- and no run on this tree has exercised it.
+!     world-trs3 carries the implementation.
       real :: gamma   = 0.01  ! fraction of the sub-saturation deficit that
                               ! falling precipitation evaporates per timestep
 
