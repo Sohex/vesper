@@ -278,8 +278,7 @@ ESCALATION_ROUTE = (
     ("T21", 45.0),
     ("T21", 30.0),
     ("T42", 30.0),
-    ("T42", 22.5),
-    ("T85", 22.5),
+    ("T85", 30.0),
 )
 
 # WHAT A COMMISSIONING-LENGTH RUN HAS SHOWN, per (rung, step). The probe grid
