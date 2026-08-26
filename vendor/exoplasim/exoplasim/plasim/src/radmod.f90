@@ -70,9 +70,25 @@
       real    :: solcdec = 1.0    ! cos of dec of insolation if ncstsol=1
       real    :: clgray  = -1.0   ! cloud grayness (-1 = computed)
       real    :: th2oc   = 0.024  ! absorption coefficient h2o continuum (lwr)
-      real    :: tswr1   = 0.077  ! tuning of cloud albedo range1
-      real    :: tswr2   = 0.065  ! tuning of cloud back scattering c. range2
-      real    :: tswr3   = 0.0055 ! tuning of cloud s. scattering alb. range2
+!
+!     THE RANGE-2 CLOUD CO-ALBEDO SCALE, and it is the surviving half of what
+!     `tswr3` used to carry. `tswr3` did two jobs at once: it was the
+!     coefficient of an analytic fit to the single-scattering co-albedo, and
+!     this project multiplied it to re-weight that co-albedo for a host star
+!     that is not the Sun. The fit is gone, replaced by Stephens's own tables
+!     below; the re-weighting is not, because the tables are flux-weighted over
+!     range 2 against the SOLAR spectrum exactly as the fit was, and range 2 is
+!     lambda > 0.75 um for either star.
+!
+!     So this multiplies the tabulated co-albedo directly, and it is a ratio
+!     rather than a coefficient: `exoplasim/scripts/cloud_band_weight.py`
+!     derives it as <1 - omega0>_star / <1 - omega0>_sun from liquid water's
+!     k(lambda) through Mie, and the value it produces is unchanged by this
+!     change of carrier because the derivation never mentioned `tswr3`. The
+!     compiled 1.0 is the Sun, so a run that names no host reproduces the
+!     tables as printed. PHYS-11, world-f9ig.
+!
+      real    :: cloudabs = 1.0   ! range-2 cloud co-albedo scale, star over Sun
       real    :: tpofmt  = 1.00   ! tuning of point of mean transmittance
       real    :: acllwr  = 0.100  ! mass absorption coefficient for clouds (lwr)
 !
@@ -413,16 +429,194 @@
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
 !$omp threadprivate(a0o3,a1o3,acl2,acllwr,aco3,aerofile,aeroqlw,aeroqs,aodsp,apart,aqlw,bo3,bscat1,&
-!$omp&  bscat2,ch4,clgray,co2sww,co3,daerod,ddustcol,ddustod,desync,dftd0,dftde1,dftde2,dftu0,&
-!$omp&  dftue1,dftue2,dqo3cl,dusthsc,dustqlw,dustsc,eccf,elwland,elwsea,gdist2,gmu0,gmu1,gsol0,&
-!$omp&  gsolamp,gsolamp2,&
+!$omp&  bscat2,ch4,clgray,cloudabs,co2sww,co3,daerod,ddustcol,ddustod,desync,dftd0,dftde1,dftde2,&
+!$omp&  dftu0,dftue1,dftue2,dqo3cl,dusthsc,dustqlw,dustsc,eccf,elwland,elwsea,gdist2,gmu0,gmu1,&
+!$omp&  gsol0,gsolamp,gsolamp2,&
 !$omp&  gsolperiod,gsolperiod2,gsolphase,gsolphase2,gsolstart,h2oswl,h2osww,iaerint,iyrad,iyrbp,&
 !$omp&  l_aerorad,lambm,lambm0,ldustchk,lstarfile,meananom0r,minwavel,mvelpp,n2o,naerosp,nclouds,&
 !$omp&  ncstsol,ndcycle,ndustrad,necham,necham6,newrsc,nfixed,nlwr,no3,npbroaden,nradice,nrscat,&
 !$omp&  nsimplealbedo,nsol,nsolcycle,nstarfile,nstartemp,nswr,nswrcl,o3scale,o3uvw,o3visw,obliqr,&
 !$omp&  orbnu,qex1,qex2,rasc,rcl1,rcl2,rcoeff,rversion,slowdown,solcdec,solclat,solclatcdec,solsdec,&
 !$omp&  solslat,solslatsdec,ssa1,ssa2,starbbtemp,starfile,starfilehr,th2oc,time4lwr,time4rad,&
-!$omp&  time4swr,toffo3,tpofmt,tswr1,tswr2,tswr3,zcdayf,zdeclf,zmuz,zsolar1,zsolar2,zsolars)
+!$omp&  time4swr,toffo3,tpofmt,zcdayf,zdeclf,zmuz,zsolar1,zsolar2,zsolars)
+
+
+!
+!     STEPHENS'S TABULATED CLOUD OPTICS, AND THE THREE TUNED COEFFICIENTS THEY
+!     REPLACE.
+!
+!     Upstream evaluated three fits of its own for the shortwave cloud optics,
+!     each with a single coefficient it called a tuning, and no source anywhere
+!     said where those coefficients came from:
+!
+!       beta1 = tswr1 sqrt(mu0)                     backscatter, range 1
+!       beta2 = tswr2 sqrt(mu0) / ln(3 + 0.1 tau)   backscatter, range 2
+!       1-om0 = tswr3 mu0^2 ln(1000/tau)            co-albedo,   range 2
+!
+!     Stephens (1978) and Stephens, Ackerman and Smith (1984) publish those
+!     three quantities themselves, on a grid of 12 normal optical depths by 9
+!     zenith cosines, and the 1984 paper p. 689 prescribes bilinear
+!     interpolation in that grid as the way to read them. The arrays below are
+!     the 1984 tables, `swr` interpolates them, and the three coefficients are
+!     gone from this module and from radmod_nl.
+!
+!     WHAT THE 1984 REVISION IS. p. 687, on the 1978 ANALYTIC formulas: "these
+!     formulas contained errors and better results are obtained when the
+!     parameter values are taken directly from the tables provided". Its Table
+!     1(a) replaces the 1978 single-scattering albedo table at 99 of its 108
+!     entries and is monotone in mu0 where the 1978 table was not; Tables 1(b)
+!     and 1(c) are the 1978 backscatter tables with two points each smoothed.
+!     What the revision removes is near-infrared cloud absorption at grazing
+!     incidence.
+!
+!     WHAT THE CHANGE IS WORTH. At the optical depths this model's cloud layers
+!     reach, the fits put beta2 at about half the tabulated value and the
+!     co-albedo at about twice it at high sun. Both push the same way, so the
+!     tabulated range-2 cloud reflectance is up to 0.22 higher and the
+!     top-of-atmosphere balance moves by tens of W m-2, cooling. That is the
+!     size of the disagreement rather than a reason to keep the fits.
+!     `exoplasim/scripts/stephens_tables_vs_fits.py` measures it, checks this
+!     transcription against the two papers' own claims about which of their
+!     tables changed, and checks the arrays below against the same tables, so a
+!     slipped digit here fails a gate instead of moving a climate. world-f9ig.
+!
+!     THE EDGES ARE CLAMPED, and the tables' own range is stated so that the
+!     clamp can be judged. tau_N runs 1 to 500 and mu0 runs 0.1 to 1.
+!
+!     Past tau_N = 500 the clamp is UNREACHABLE. `swr` caps the layer liquid
+!     water path at 1000 g m-2, and Stephens Eqs. (10a) and (10b) put 1000 g m-2
+!     at tau_N 138 in range 1 and 146 in range 2; tau_N = 500 would need about
+!     14000 g m-2.
+!
+!     Below tau_N = 1 the clamp BINDS ROUTINELY -- the thinnest modelled cloud
+!     layers sit near tau_N 0.03 -- and it is inert where it binds. Holding the
+!     tau_N = 1 row holds beta and the co-albedo, not the reflectance: range 1
+!     reflects beta*tau/mu0 / (1 + beta*tau/mu0) and range 2 carries the factor
+!     (exp(t) - 1/exp(t)) with t proportional to tau, so both go to zero with
+!     tau whatever beta is held at. Running the tables' tau dependence off the
+!     bottom of the grid instead is the mistake the inherited cloud optical
+!     depth already made below its own fitted water path, and it would assert
+!     something the papers deny: Stephens et al. (1984) p. 690 state that
+!     reflection below tau_N of about 2 needs a parameterization of its own.
+!
+!     Below mu0 = 0.1 the clamp holds the last tabulated column. That column is
+!     where the 1978 table was non-monotone and is exactly what 1984 revised, so
+!     extrapolating past it would put back the shape the revision removed.
+!     Stephens (1978) p. 2132 states the parameterization is less effective at
+!     low solar elevations; mu0 = 0.1 is an elevation of 5.7 degrees, and the
+!     beam carries mu0 times its normal flux into the column.
+!
+      integer, parameter :: NSWCT = 12  ! tabulated normal optical depths
+      integer, parameter :: NSWCM =  9  ! tabulated zenith cosines
+      real, parameter :: swctau(NSWCT) = (/                             &
+     &   1.,   2.,   5.,  10.,  16.,  25.,  40.,  60.,  80., 100.,      &
+     & 200., 500. /)
+      real, parameter :: swcmu(NSWCM) = (/                              &
+     & 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0 /)
+!
+!     Each source line is one optical depth, mu0 ascending across it, which is
+!     the transpose of the printed tables. Stored (mu0, tau_N) so that the
+!     transposition is done once here rather than on every interpolation.
+!
+
+      real, parameter :: swcb1(NSWCM,NSWCT) = reshape((/                &
+!     Stephens et al. (1984) Table 1(b), p. 688. beta1, range 1.
+     &  0.119600, 0.140700, 0.129500, 0.111100, 0.093200, 0.076900, 0.065700, 0.055700, 0.042100,   & ! tau_N =    1
+     &  0.079400, 0.103400, 0.107700, 0.101700, 0.092400, 0.080300, 0.070800, 0.061500, 0.047200,   & ! tau_N =    2
+     &  0.048300, 0.068000, 0.077600, 0.081200, 0.081500, 0.078200, 0.074400, 0.069200, 0.058200,   & ! tau_N =    5
+     &  0.035900, 0.052700, 0.062600, 0.068500, 0.072300, 0.073300, 0.073700, 0.072600, 0.068200,   & ! tau_N =   10
+     &  0.031000, 0.046500, 0.056400, 0.063100, 0.068000, 0.070700, 0.072800, 0.073800, 0.073400,   & ! tau_N =   16
+     &  0.028100, 0.042700, 0.052600, 0.059800, 0.065300, 0.069100, 0.072300, 0.074400, 0.076800,   & ! tau_N =   25
+     &  0.026100, 0.040200, 0.050100, 0.057500, 0.063600, 0.068000, 0.071900, 0.074900, 0.079100,   & ! tau_N =   40
+     &  0.025100, 0.038900, 0.048800, 0.056300, 0.062700, 0.067400, 0.071700, 0.075200, 0.080500,   & ! tau_N =   60
+     &  0.024600, 0.038200, 0.048100, 0.055800, 0.062200, 0.067200, 0.071700, 0.075400, 0.081200,   & ! tau_N =   80
+     &  0.024100, 0.037600, 0.047500, 0.055300, 0.061900, 0.067000, 0.071700, 0.075700, 0.082000,   & ! tau_N =  100
+     &  0.024100, 0.037400, 0.047300, 0.055200, 0.061900, 0.067200, 0.072100, 0.076300, 0.083100,   & ! tau_N =  200
+     &  0.026200, 0.039200, 0.049400, 0.057600, 0.064700, 0.070300, 0.075500, 0.080000, 0.087400    & ! tau_N =  500
+     & /),(/NSWCM,NSWCT/))
+
+      real, parameter :: swcb2(NSWCM,NSWCT) = reshape((/                &
+!     Stephens et al. (1984) Table 1(c), p. 688. beta2, range 2.
+     &  0.120700, 0.146500, 0.137900, 0.120000, 0.102200, 0.085500, 0.073400, 0.062700, 0.047700,   & ! tau_N =    1
+     &  0.079400, 0.106500, 0.113300, 0.109000, 0.100300, 0.088600, 0.078800, 0.069000, 0.053700,   & ! tau_N =    2
+     &  0.047400, 0.068800, 0.080100, 0.086400, 0.087100, 0.085000, 0.081700, 0.076900, 0.066000,   & ! tau_N =    5
+     &  0.033900, 0.051600, 0.062900, 0.070500, 0.075700, 0.078100, 0.079500, 0.079300, 0.075900,   & ! tau_N =   10
+     &  0.027700, 0.043400, 0.054300, 0.062600, 0.068900, 0.073200, 0.076600, 0.078700, 0.080100,   & ! tau_N =   16
+     &  0.022900, 0.036800, 0.047100, 0.055500, 0.062500, 0.067800, 0.072400, 0.075900, 0.080700,   & ! tau_N =   25
+     &  0.018400, 0.030200, 0.039600, 0.047600, 0.054500, 0.060300, 0.065600, 0.070000, 0.077000,   & ! tau_N =   40
+     &  0.014800, 0.024800, 0.032900, 0.040100, 0.046600, 0.052200, 0.057500, 0.062100, 0.069900,   & ! tau_N =   60
+     &  0.012500, 0.021100, 0.028300, 0.034800, 0.040800, 0.046000, 0.051000, 0.055600, 0.063400,   & ! tau_N =   80
+     &  0.009700, 0.016600, 0.022500, 0.027900, 0.033000, 0.037600, 0.042000, 0.046100, 0.053400,   & ! tau_N =  100
+     &  0.006800, 0.012000, 0.016500, 0.020600, 0.024600, 0.028300, 0.031900, 0.035300, 0.041500,   & ! tau_N =  200
+     &  0.003200, 0.006400, 0.009000, 0.011500, 0.014000, 0.016300, 0.018600, 0.020800, 0.025100    & ! tau_N =  500
+     & /),(/NSWCM,NSWCT/))
+
+      real, parameter :: swcoa(NSWCM,NSWCT) = reshape((/                &
+!     Stephens et al. (1984) Table 1(a), p. 688. 1 - omega0, range 2.
+     &  0.001700, 0.005900, 0.010900, 0.015500, 0.019900, 0.020800, 0.021800, 0.022200, 0.022500,   & ! tau_N =    1
+     &  0.001000, 0.003800, 0.007800, 0.011800, 0.015600, 0.017600, 0.017900, 0.020000, 0.021300,   & ! tau_N =    2
+     &  0.000500, 0.002100, 0.004300, 0.006900, 0.009600, 0.012500, 0.014600, 0.016600, 0.019500,   & ! tau_N =    5
+     &  0.000300, 0.001300, 0.002600, 0.004900, 0.007000, 0.009300, 0.011400, 0.013800, 0.017300,   & ! tau_N =   10
+     &  0.000200, 0.000900, 0.001900, 0.003500, 0.005200, 0.007300, 0.009000, 0.011100, 0.015600,   & ! tau_N =   16
+     &  0.000140, 0.000700, 0.001400, 0.002600, 0.003800, 0.005200, 0.006900, 0.008800, 0.011500,   & ! tau_N =   25
+     &  0.000100, 0.000300, 0.000800, 0.001450, 0.002300, 0.003200, 0.004250, 0.005500, 0.010400,   & ! tau_N =   40
+     &  0.000100, 0.000340, 0.000700, 0.001300, 0.002000, 0.002800, 0.003800, 0.005000, 0.008300,   & ! tau_N =   60
+     &  0.000000, 0.000300, 0.000600, 0.001100, 0.001800, 0.002200, 0.003500, 0.004300, 0.006900,   & ! tau_N =   80
+     &  0.000000, 0.000300, 0.000600, 0.001100, 0.001800, 0.002200, 0.003500, 0.004300, 0.006000,   & ! tau_N =  100
+     &  0.000000, 0.000190, 0.000400, 0.000720, 0.001100, 0.001600, 0.002500, 0.003100, 0.004400,   & ! tau_N =  200
+     &  0.000000, 0.000150, 0.000290, 0.000480, 0.000720, 0.001000, 0.001400, 0.001800, 0.002600    & ! tau_N =  500
+     & /),(/NSWCM,NSWCT/))
+
+      contains
+
+!
+!     THE TABLE LOOKUP. Bilinear in (tau_N, mu0) with both axes clamped to the
+!     tabulated range, per the edge argument above. It is `pure` so that the
+!     three `elemental` wrappers below it can call it, and they are elemental so
+!     that `swr` can evaluate them inside its `where` constructs on whole NHOR
+!     slices without a masked CALL. Total for every argument: the clamp removes
+!     the only unbounded input and there is no divide by anything but a
+!     tabulated interval.
+!
+      pure real function swcintp(ptab,ptau,pmu)
+      real, intent(in) :: ptab(NSWCM,NSWCT)
+      real, intent(in) :: ptau   ! normal optical depth of the layer
+      real, intent(in) :: pmu    ! cosine of the beam's zenith angle
+      integer :: jt, jm, kt, km
+      real :: zt, zm, zft, zfm
+      zt = min(max(ptau,swctau(1)),swctau(NSWCT))
+      zm = min(max(pmu ,swcmu(1) ),swcmu(NSWCM))
+      kt = 1
+      do jt = 2, NSWCT-1
+       if (zt >= swctau(jt)) kt = jt
+      enddo
+      km = 1
+      do jm = 2, NSWCM-1
+       if (zm >= swcmu(jm)) km = jm
+      enddo
+      zft = (zt - swctau(kt)) / (swctau(kt+1) - swctau(kt))
+      zfm = (zm - swcmu(km))  / (swcmu(km+1)  - swcmu(km))
+      swcintp = (1.-zft)*(1.-zfm)*ptab(km  ,kt  )                       &
+     &        +     zft *(1.-zfm)*ptab(km  ,kt+1)                       &
+     &        + (1.-zft)*    zfm *ptab(km+1,kt  )                       &
+     &        +     zft *    zfm *ptab(km+1,kt+1)
+      end function swcintp
+
+      elemental real function swcbet1(ptau,pmu)
+      real, intent(in) :: ptau, pmu
+      swcbet1 = swcintp(swcb1,ptau,pmu)   ! backscattered fraction, range 1
+      end function swcbet1
+
+      elemental real function swcbet2(ptau,pmu)
+      real, intent(in) :: ptau, pmu
+      swcbet2 = swcintp(swcb2,ptau,pmu)   ! backscattered fraction, range 2
+      end function swcbet2
+
+      elemental real function swcoalb(ptau,pmu)
+      real, intent(in) :: ptau, pmu
+      swcoalb = swcintp(swcoa,ptau,pmu)   ! co-albedo 1 - omega0, range 2
+      end function swcoalb
+
 
       end module radmod
 
@@ -928,7 +1122,7 @@
      &               ,o3uvw,o3visw,h2osww,h2oswl,co2sww   &
      &               ,a0o3,a1o3,aco3,bo3,co3,toffo3,o3scale,newrsc,necham,necham6   &
      &               ,nsol,nclouds,nswrcl,nrscat,rcl1,rcl2,acl2,clgray,tpofmt   &
-     &               ,acllwr,tswr1,tswr2,tswr3,th2oc,dawn,starbbtemp,nstartemp  &
+     &               ,acllwr,cloudabs,th2oc,dawn,starbbtemp,nstartemp        &
      &               ,elwland,elwsea                                            &
      &               ,nsimplealbedo,nstarfile,starfile,starfilehr,minwavel      &
      &               ,ndustrad,dustsc,dusthsc,dustqlw,aerofile,aeroqlw          &
@@ -956,9 +1150,7 @@
 !     clgray  : cloud grayness
 !     tpofmt  ! tuning of point of mean (lwr) transmissivity in layer
 !     acllwr  ! mass absorption coefficient for clouds (lwr)
-!     tswr1   ! tuning of cloud albedo range1
-!     tswr2   ! tuning of cloud back scattering c. range2
-!     tswr3   ! tuning of cloud s. scattering alb. range2
+!     cloudabs! scale on the tabulated cloud co-albedo, range 2 (star/Sun)
 !     th2oc   ! absorption coefficient for h2o continuum
 !     elwland : surface longwave emissivity over land (1)
 !     elwsea  : surface longwave emissivity over ocean and sea ice (1)
@@ -974,20 +1166,23 @@
 !
 !     NO TRUNCATION IS A SPECIAL CASE, and the table that made three of them
 !     one never fired. Upstream carried a per-(NTRU, NLEV) shortwave tuning
-!     here -- tswr1, tswr2, tswr3 and th2oc, selected through a flag named
-!     jtune, with branches for T21/T1, T31 and T42 -- and every branch of it
-!     was unreachable at every truncation. Each one reached its coefficients
+!     here -- the three cloud coefficients and th2oc, selected through a flag
+!     named jtune, with branches for T21/T1, T31 and T42 -- and every branch of
+!     it was unreachable at every truncation. Each one reached its coefficients
 !     only when ndcycle was not 1; ndcycle's compiled default is 1 (:205) and
 !     read(11,radmod_nl) is below this point, so ndcycle held its compiled
 !     value whenever the test was made and the flag was always 0. The block
 !     ended by announcing its own failure, on every run at every truncation:
 !     'No radiation setup for this resolution ... you may need to tune'.
 !
-!     What the modelled radiation uses now is what it has always used: the
-!     module defaults at :72-75, and whatever the namelist sets over them.
-!     This project sets TSWR3 from model.cloud_absorption_scale and leaves
-!     tswr1, tswr2 and th2oc at those defaults.
-!     world-ys9, world-677x; exoplasim/notes/resolution-tuned-parameters.md.
+!     The three cloud coefficients the table selected between no longer exist:
+!     `swr` reads Stephens's tables, which carry no resolution dependence and
+!     nothing to tune. th2oc is what is left of that block's reach, and it is
+!     at the module default. This project sets CLOUDABS from
+!     model.cloud_absorption_scale, which is a stellar re-weighting and not a
+!     resolution tuning either.
+!     world-ys9, world-677x, world-f9ig;
+!     exoplasim/notes/resolution-tuned-parameters.md.
 !
 !**   1) read and print version & namelist parameters
 !
@@ -1077,9 +1272,7 @@
       call mpbcr(th2oc)
       call mpbcr(tpofmt)
       call mpbcr(acllwr)
-      call mpbcr(tswr1)
-      call mpbcr(tswr2)
-      call mpbcr(tswr3)
+      call mpbcr(cloudabs)
       call mpbcrn(rcl1,3)
       call mpbcrn(rcl2,3)
       call mpbcrn(acl2,3)
@@ -2285,7 +2478,6 @@
       real :: zwl(NHOR)
       real :: ztau1(NHOR)
       real :: ztau2(NHOR)
-      real :: zlog(NHOR)
       real zb2(NHOR),zom0(NHOR),zuz(NHOR),zun(NHOR),zr(NHOR)
       real zexp(NHOR),zu(NHOR),zb1(NHOR)
 !
@@ -2384,9 +2576,28 @@
 !
       zcs(:) = 1.0 ! Clear sky fraction (1.0 = clear sky)
       zmu00  = 0.5
-      zb3    = tswr1 * SQRT(zmu00) / zmu00
-      zb4    = tswr2 * SQRT(zmu00)
-      zb5    = tswr3 * zmu00 * zmu00
+!
+!     THE DIFFUSE STREAM'S OPTICS ARE NO LONGER HOISTED OUT OF THE LEVEL LOOP.
+!     The three coefficients that used to be precomputed here were the
+!     diffuse-beam values of fits whose only tau dependence was in one
+!     logarithm; Stephens's tabulated beta1, beta2 and co-albedo all depend on
+!     the layer's optical depth as well as on the beam cosine, so both streams
+!     are now interpolated per level, the diffuse one at zmu00. world-f9ig.
+!
+!     THE CO-ALBEDO IS FLOORED WHERE THE EXACT TWO-STREAM SOLUTION STOPS BEING
+!     THE MORE ACCURATE FORM, which is the same threshold and the same argument
+!     as the aerosol optics below use. Table 1(a) reaches exactly zero at
+!     grazing incidence on a thick layer, and the two-stream u-factor divides by
+!     the co-albedo, so the layer has to be recognised as conservative rather
+!     than divided by zero. Above the floor the exact expression's error goes as
+!     machine epsilon over the co-albedo and the conservative limit's as the
+!     co-albedo itself; they cross at SQRT(epsilon). At the floor the two-stream
+!     reflectance reproduces Stephens Eq. (1), beta*tau/mu0 / (1 + beta*tau/mu0),
+!     to 1.4e-5 over every optical depth and beam cosine this model reaches, so
+!     the floor is not a guard that changes an answer. That agreement is checked
+!     by exoplasim/scripts/stephens_tables_vs_fits.py rather than asserted here.
+!
+      zepsc  = SQRT(EPSILON(1.0))
 !
 !     prescribed
 !
@@ -2451,15 +2662,17 @@
 !     masks the ASSIGNMENT rather than the evaluation: a lane with no cloud at
 !     this level is never stored to, so the read takes whatever the stack held.
 !     A lane the mask KEEPS is stored before every read of it, so presetting
-!     cannot move a result the model uses. ztau2 is preset to 1 and not to 0
-!     because 1000/ztau2 is formed on every lane, and zwl to 1 because it is
-!     raised to a non-integer power on every lane. world-5a0.
+!     cannot move a result the model uses. zwl is preset to 1 and not to 0
+!     because it is raised to a non-integer power on every lane. Both optical
+!     depths are preset to zero, which is what no cloud means: the divide by
+!     ztau2 that once required a preset of 1 is gone with the fits, and the
+!     table lookup that replaced it clamps every argument it is given.
+!     world-5a0, world-f9ig.
 !
        zlwp(:) = 0.0
        zwl(:)  = 1.0
        ztau1(:)= 0.0
-       ztau2(:)= 1.0
-       zlog(:) = 0.0
+       ztau2(:)= 0.0
        zb1(:)  = 0.0
        zb2(:)  = 0.0
        zom0(:) = 0.0
@@ -2491,32 +2704,45 @@
          ztau1(:)= ztaua1*zwl(:)**ztaup1*min(1.0,max(0.,zlwp(:))/zwfit)
          ztau2(:)= ztaua2*zwl(:)**ztaup2*min(1.0,max(0.,zlwp(:))/zwfit)
 !
-!     ztau2 IS FLOORED ONLY WHERE IT IS DIVIDED INTO, and the floor is inert.
-!     The optical depth now reaches zero on a layer holding no cloud water, so
-!     1000/ztau2 needs a divisor that cannot be zero. At the floor the layer is
-!     already transparent -- zexp is 1, so the band-2 reflectivity carries the
-!     factor (zexp - 1/zexp) = 0 and the transmissivity is 4u/4u = 1 -- and the
-!     only thing zlog still reaches is zom0, which multiplies nothing that
-!     survives. So the value of the floor cannot move a result; it only keeps
-!     the divide defined. world-jgen.
+!     NOTHING DIVIDES BY THE OPTICAL DEPTH ANY MORE, so it needs no floor.
+!     The fits this block used to evaluate formed 1000/ztau2 inside a logarithm
+!     and had to be kept off zero on a layer holding no cloud water; Stephens's
+!     tables take the optical depth as a table argument and clamp it, and every
+!     other use of ztau1 and ztau2 below multiplies. A layer at zero optical
+!     depth is still transparent by arithmetic rather than by a guard: zexp is
+!     1, so the range-2 reflectivity carries the factor (zexp - 1/zexp) = 0 and
+!     the transmissivity is 4u/4u = 1, and the range-1 reflectivity is
+!     1 - 1/(1+0). world-jgen, world-f9ig.
 !
-         zlog(:) = log(max(1.E-30,1000.0 / max(1.E-10,ztau2(:))))
-         zb2(:)  = zb4 / ALOG(3.+0.1*ztau2(:))
-         zom0(:) = min(0.9999,1.0 - zb5 * zlog(:))
-         zun(:)  = 1.0 - zom0(:)
+!
+!     SCATTERED LIGHT, at the diffuse-beam cosine zmu00. Every quantity is
+!     interpolated from Stephens's tables at this layer's own optical depth in
+!     the band that reads it: beta1 at the range-1 depth, beta2 and the
+!     co-albedo at the range-2 depth. CLOUDABS is the star-over-Sun co-albedo
+!     ratio and is 1 for the Sun.
+!
+         zb1(:)  = swcbet1(ztau1(:),zmu00)
+         zb2(:)  = swcbet2(ztau2(:),zmu00)
+         zun(:)  = max(zepsc,cloudabs*swcoalb(ztau2(:),zmu00))
+         zom0(:) = 1.0 - zun(:)
          zuz(:)  = zun(:) + 2.0 * zb2(:) * zom0(:)
          zu(:)   = SQRT(max(0.,zuz(:)/zun(:)))
          zexp(:) = exp(min(25.0,ztau2(:)*SQRT(max(0.,zuz(:)*zun(:)))/zmu00))
          zr(:)   = (zu(:)+1.)*(zu(:)+1.)*zexp(:)                      &
      &           - (zu(:)-1.)*(zu(:)-1.)/zexp(:)
-         zrcl1s(:,jlev)=1.-1./(1.+zb3*ztau1(:))
+         zrcl1s(:,jlev)=1.-1./(1.+zb1(:)*ztau1(:)/zmu00)
          ztcl2s(:,jlev)=4.*zu(:)/zr(:)
          zrcl2s(:,jlev)=(zu(:)*zu(:)-1.)/zr(:)*(zexp(:)-1./zexp(:))
-
-         zb1(:)  = tswr1*SQRT(max(0.,zmu0(:)))
-         zb2(:)  = tswr2*SQRT(max(0.,zmu0(:)))/ALOG(3.+0.1*ztau2(:))
-         zom0(:) = min(0.9999,1.-tswr3*zmu0(:)*zmu0(:)*zlog(:))
-         zun(:)  = 1.0 - zom0(:)
+!
+!     DIRECT LIGHT, at this cell's own beam cosine. The table lookup clamps mu0
+!     into 0.1 to 1, so the SQRT and the division that used to need guarding on
+!     a night lane are gone from the optics; the division below still carries
+!     one, because it is by the beam cosine itself and not by a clamped copy.
+!
+         zb1(:)  = swcbet1(ztau1(:),zmu0(:))
+         zb2(:)  = swcbet2(ztau2(:),zmu0(:))
+         zun(:)  = max(zepsc,cloudabs*swcoalb(ztau2(:),zmu0(:)))
+         zom0(:) = 1.0 - zun(:)
          zuz(:)  = zun(:) + 2.0 * zb2(:) * zom0(:)
          zu(:)   = SQRT(max(0.,zuz(:)/zun(:)))
          zexp(:) = exp(min(25.0,ztau2(:)*SQRT(max(0.,zuz(:)*zun(:)))/max(1.E-30,zmu0(:))))
