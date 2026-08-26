@@ -46,6 +46,57 @@ than the spread between samples, because the samples differ in mineralogy and
 the preparations do not. `preparation_spread_below_sample_spread` in the output
 is that comparison, class by class, and it was fixed before the first run.
 
+## What the bracket is made of, and what is left in it
+
+The spread between preparations is narrow and the spread between SAMPLES is two
+to four times wider, so the residual uncertainty in the two-band substrate is a
+mineralogy question rather than a laboratory one. The selector is what answers a
+mineralogy question, and until the sample-level rules below existed the selector
+was a whole ECOSTRESS taxon. Reading `lithology.js`'s definition of each class
+against the library's own `Name` and `Description` per spectrum -- which no
+version of this script had consulted -- separates two things that were not
+separate before, and the numbers say which one mattered.
+
+**What the taxon was carrying that is not a rock class at all.** `rock.
+sedimentary.shale` files seven whole-rock chips of a phosphate ORE, plus one
+shale whose description is oolitic collophane, and every class naming shale
+inherits all eight. Removing them is every narrowing worth a decimal place in
+this table -- the rest, granodiorite's 0.033 the largest of them, is noise beside
+it: `melange` 0.848 to 0.493 in bracket width, `pelagic` 1.136 to 0.811,
+`foreland_clastic` 1.056 to 0.804, `shelf_clastic` 1.069 to 0.886,
+`continental_clastic` 1.056 to 0.807. It MOVES the central ratio too, by 0.15 in
+`shelf_clastic` and 0.11 in `continental_clastic`, so it is a correction and not
+only a tightening.
+
+**What a better-matched proxy bought, which was nothing.** `lithology.js`'s
+`basin_clastic` rule is explicit that an intracratonic basin fills with "quieter,
+more mature clastics" where a foreland basin takes an orogen's debris, and
+maturity is mineralogy: it is how much feldspar and lithic debris survives beside
+the quartz. Taking the library's own immature end -- greywacke, arkose, arkosic
+sandstone -- out of `continental_clastic` therefore follows from the class
+definition. It moves the central ratio by 0.001 and widens the bracket from 0.807
+to 0.928. The same holds elsewhere: the per-class rules leave `shelf_clastic` and
+`foreland_clastic` untouched and widen `pelagic` and `melange` slightly, and
+taking the alkaline syenites out of `arc_andesite` widens it from 0.313 to 0.486.
+Those rules stay, because a class's proxy is chosen by what the class IS and a
+rule dropped for widening a bracket would be a tuning with an extra step. What
+they establish is a NEGATIVE result: compositional maturity is not what sets the
+near-infrared slope, and choosing better-matched samples along that axis does not
+narrow the substrate.
+
+**What does set it, and why no rule here can use it.** The library's descriptions
+record iron directly -- ferruginous staining, limonite specks, hematite bands --
+and splitting the sandstone taxon on that record separates 1.444 for the
+iron-stained samples from 1.253 for the rest, with the unstained subset's bracket
+half the width of the whole taxon's. That is the axis, and it is reported as
+`residual_after_selection` rather than used, because `lithology.js` does not say
+which side of it any clastic class sits on. A red bed and a grey quartz arenite
+are both intracratonic clastics, the class definition chooses between them
+nowhere, and five unstained samples is not a population. **So the substrate's
+remaining bracket is not waiting on more spectra or a finer taxonomy: it is
+waiting on a decision about this world's clastic iron that the rock table has not
+made.**
+
 ## Anchoring, and the residual `bio-18` asks for
 
 The model recombines the pair with its own band weights: `radmod.f90` forms
@@ -230,6 +281,105 @@ PROXIES: dict[str, dict] = {
 }
 
 
+# Sample-level selection, BENEATH the taxon.
+#
+# The taxon above is the selector for a whole ECOSTRESS class, and that is as
+# fine as a taxon can cut: `rock.sedimentary.sandstone` runs from a quartz
+# arenite to an arkose, and `rock.igneous.felsic` files a hydrothermally
+# altered tuff beside a granite. The library carries a `Name` and a
+# `Description` per spectrum -- the mineralogy it was logged with, in the
+# library's own words -- and neither was consulted until now.
+#
+# THE RULE IS THE ONE THE TAXON IS CHOSEN BY, applied one level down: a sample
+# stands for a class if its MINERALOGY is the class's, because that is what
+# sets where the absorption features sit and it is the only thing being
+# transferred. Grain size, induration and weathering state are still not
+# grounds -- they are what the preparation axis measures and what the bracket
+# already carries -- so a rhyolite is kept as a proxy for granite and a gabbro
+# for basalt. What comes out is a sample whose MINERALS are not the class's.
+#
+# Every rule below is stated from `lithology.js`'s definition of the class and
+# from the library's own description of the sample, and all of them were fixed
+# before any ratio was recomputed. A rule that named a sample because dropping
+# it tightened the bracket would be a tuning with an extra step.
+#
+# Matched case-insensitively as a regular expression against the header field
+# named in the second element.
+
+# Filed under a taxon whose mineralogy is not the taxon's, so wrong for every
+# class that names that taxon.
+NOT_THE_TAXON = (
+    (r"phosphorite", "Name",
+     "phosphate ore, filed under rock.sedimentary.shale: whole-rock chips of "
+     "the Phosphoria Formation's Meade Peak Member whose spectrum is "
+     "hydroxylapatite, buddingtonite and muscovite. No class here is an ore"),
+    (r"collophane|phosphatic material", "Description",
+     "oolitic collophane, the same apatite mineralogy under the name Shale "
+     "(Phosphatic)"),
+    (r"\baltered volcanic tuff", "Name",
+     "an alteration assemblage rather than a rock class: what the spectrum is "
+     "OF is the alteration. No class here is an alteration halo"),
+    (r"obsidian", "Name",
+     "volcanic glass, which has no mineral assemblage to transfer. The rule "
+     "these proxies are chosen by has nothing to say about an amorphous solid"),
+)
+
+# Wrong for one class, by that class's own definition.
+NOT_THE_CLASS: dict[str, tuple] = {
+    # The basalt assemblage is plagioclase with pyroxene and olivine.
+    # Anorthosite is a plagioclase cumulate, better than nine parts feldspar,
+    # so it is a different rock rather than a coarse one.
+    "morb": ((r"anorthosite", "Name", "plagioclase cumulate, not basalt"),),
+    "oib": ((r"anorthosite", "Name", "plagioclase cumulate, not basalt"),),
+    "flood_basalt": ((r"anorthosite", "Name",
+                      "plagioclase cumulate, not basalt"),),
+    "arc_basalt": ((r"anorthosite", "Name", "plagioclase cumulate, not basalt"),),
+    "rift_bimodal": ((r"anorthosite", "Name",
+                      "plagioclase cumulate, not basalt"),),
+    "melange": ((r"anorthosite", "Name",
+                 "plagioclase cumulate: the mafic blocks in a melange are "
+                 "basalt and gabbro, not an anorthosite body"),),
+    # 'Continental-arc andesite / dacite' and 'Arc-root granodiorite' are
+    # calc-alkaline. A nepheline syenite is silica-undersaturated and carries a
+    # feldspathoid, which is an assemblage neither class has.
+    "arc_andesite": ((r"syenite", "Name",
+                      "alkaline, feldspathoid-bearing where the class is "
+                      "calc-alkaline andesite to dacite"),),
+    "granodiorite": ((r"nepheline syenite", "Name",
+                      "silica-undersaturated and feldspathoid-bearing, which "
+                      "an arc-root granodiorite is not"),),
+    # 'Carbonate platform'. Verde Antique and the serpentine marbles are
+    # serpentinite veined with calcite, and the mineral doing the absorbing is
+    # serpentine.
+    "carbonate": ((r"serpentine marble|verde antique", "Name",
+                   "serpentinite, not a carbonate assemblage"),),
+    # lithology.js's basin_clastic rule is what separates these two: "Foreland
+    # basins sit against an orogen and fill with its debris; intracratonic
+    # basins fill with quieter, more mature clastics." Maturity IS mineralogy
+    # -- it is how much feldspar and lithic debris survives beside the quartz
+    # -- so the immature end of the sandstone taxon belongs to foreland_clastic
+    # and not to continental_clastic. foreland_clastic keeps the whole range,
+    # because molasse and flysch span it.
+    "continental_clastic": (
+        (r"greywacke|arkos", "Name",
+         "the library's own names for the lithic and feldspathic end of the "
+         "sandstone taxon, which is the debris a foreland basin takes and the "
+         "opposite of the mature clastic an intracratonic basin fills with"),),
+    # 'Pelagic ooze / abyssal clay' has no sand fraction by definition, and the
+    # library names the samples that do.
+    "pelagic": ((r"arenaceous", "Name",
+                 "a sand fraction, which an abyssal clay or ooze does not have"),),
+}
+
+
+def sample_verdict(code: str, head: dict) -> str | None:
+    """Why this sample is not a proxy for this class, or None to keep it."""
+    for pattern, field, reason in NOT_THE_TAXON + NOT_THE_CLASS.get(code, ()):
+        if re.search(pattern, head.get(field, ""), re.IGNORECASE):
+            return reason
+    return None
+
+
 def table_albedos() -> dict[str, float]:
     """The broadband level per class, from the table that defines it.
 
@@ -305,17 +455,34 @@ def preparation_of(name: str) -> str:
     return parts[3] if len(parts) > 4 else "unknown"
 
 
-def collect(spec: dict, star_wl, star_flux):
-    """Every qualifying spectrum for one class, as (preparation, b1, b2, broad, g1)."""
-    out = []
+def collect(code: str, spec: dict, star_wl, star_flux):
+    """(taxon rows, selected rows, what the selection dropped) for one class.
+
+    A row is (preparation, b1, b2, broadband, band1 flux share). The taxon rows
+    are every qualifying spectrum the class's ECOSTRESS selectors name; the
+    selected rows are those whose mineralogy is the class's, by
+    `sample_verdict`. Both are returned so that what the narrowing bought is a
+    measurement rather than an assertion.
+    """
+    taxon, kept, dropped = [], [], {}
+
+    def consider(head, row):
+        taxon.append(row)
+        why = sample_verdict(code, head)
+        if why is None:
+            kept.append(row)
+        else:
+            dropped[head.get("Sample No.", "?")] = {
+                "name": head.get("Name", "?"), "why": why}
+
     for pattern in spec.get("eco", ()):
         for path in sorted(glob.glob(str(ECOSTRESS / (pattern + "spectrum.txt")))):
-            _head, arr = read_ecostress(Path(path))
+            head, arr = read_ecostress(Path(path))
             if arr is None:
                 continue
             got = band_integrals(arr[:, 0], arr[:, 1] / 100.0, star_wl, star_flux)
             if got:
-                out.append((preparation_of(Path(path).name), *got))
+                consider(head, (preparation_of(Path(path).name), *got))
     for pattern, mineral in spec.get("eco_named", ()):
         for path in sorted(glob.glob(str(ECOSTRESS / (pattern + "spectrum.txt")))):
             head, arr = read_ecostress(Path(path))
@@ -323,7 +490,7 @@ def collect(spec: dict, star_wl, star_flux):
                 continue
             got = band_integrals(arr[:, 0], arr[:, 1] / 100.0, star_wl, star_flux)
             if got:
-                out.append((preparation_of(Path(path).name), *got))
+                consider(head, (preparation_of(Path(path).name), *got))
     for name in spec.get("poseidon", ()):
         path = POSEIDON / name
         if not path.is_file():
@@ -332,8 +499,106 @@ def collect(spec: dict, star_wl, star_flux):
         order = np.argsort(table[:, 0])
         got = band_integrals(table[order, 0], table[order, 1], star_wl, star_flux)
         if got:
-            out.append(("poseidon", *got))
-    return out
+            consider({"Name": name, "Sample No.": name}, ("poseidon", *got))
+    return taxon, kept, dropped
+
+
+def summarise(rows) -> dict:
+    """The central ratio, the bracket and the two spreads, over one set of rows.
+
+    Called twice per class -- once on the taxon and once on what survives the
+    mineralogy selection -- so the two are computed by the same code and the
+    difference between them is the selection and nothing else.
+    """
+    rho = np.array([b2 / b1 for _p, b1, b2, _br, _g in rows if b1 > 0])
+    preps: dict[str, list[float]] = {}
+    for prep, b1, b2, _br, _g in rows:
+        if b1 > 0:
+            preps.setdefault(prep, []).append(b2 / b1)
+    prep_median = {k: float(np.median(v)) for k, v in sorted(preps.items())}
+    central = float(np.median(rho))
+    # The bracket is measured twice and the wider answer is kept: the spread
+    # between preparations, which is the offset this method claims cancels,
+    # and the 10-90 spread within the class, which is how well one proxy
+    # stands for a lithology at all.
+    lo = min([central, *prep_median.values(), float(np.percentile(rho, 10))])
+    hi = max([central, *prep_median.values(), float(np.percentile(rho, 90))])
+    prep_spread = (max(prep_median.values()) - min(prep_median.values())
+                   if len(prep_median) > 1 else None)
+    sample_spread = float(np.percentile(rho, 90) - np.percentile(rho, 10))
+    return {
+        "spectra": len(rows),
+        "band2_over_band1": round(central, 4),
+        "band2_over_band1_bracket": [round(lo, 4), round(hi, 4)],
+        "by_preparation": {k: round(v, 4) for k, v in prep_median.items()},
+        "preparation_spread": (None if prep_spread is None
+                               else round(prep_spread, 4)),
+        "sample_spread_p10_p90": round(sample_spread, 4),
+        # The method's own prediction: preparation must matter less than
+        # mineralogy, because the ratio is claimed to be a property of the
+        # mineral. Null where the class has only one preparation.
+        "preparation_spread_below_sample_spread": (
+            None if prep_spread is None else bool(prep_spread < sample_spread)),
+        "measured_band1_flux_share": round(
+            float(np.median([g for *_x, g in rows])), 4),
+        # A class standing on fewer than five spectra has a bracket that is
+        # a spread between samples rather than an estimate of one, and is
+        # marked rather than quoted as though it were the latter.
+        "thin": len(rows) < 5,
+    }
+
+
+# The axis the selection above cannot use, measured so that the reason it
+# cannot is a number rather than an opinion. Iron content sets where the
+# near-infrared slope goes, the library records it per sample, and no class
+# definition in `lithology.js` says which side of it a clastic class sits on.
+# This is a DIAGNOSTIC and never a selector: wiring it in would be choosing a
+# mineralogy for the world from the shape of a bracket.
+IRON_IN_DESCRIPTION = r"ferruginous|limonite|hematite|red |reddish|purple|brownstone"
+
+
+def residual_after_selection(star_wl, star_flux) -> dict:
+    """What splitting the sandstone taxon on the library's own record of iron
+    is worth, against what one proxy per taxon is worth."""
+    rows = []
+    for path in sorted(glob.glob(str(ECOSTRESS / "rock.sedimentary.sandstone.*"
+                                     "spectrum.txt"))):
+        head, arr = read_ecostress(Path(path))
+        if arr is None:
+            continue
+        got = band_integrals(arr[:, 0], arr[:, 1] / 100.0, star_wl, star_flux)
+        if got:
+            stained = bool(re.search(
+                IRON_IN_DESCRIPTION,
+                head.get("Name", "") + " " + head.get("Description", ""),
+                re.IGNORECASE))
+            rows.append((stained, (preparation_of(Path(path).name), *got)))
+
+    def side(sel):
+        chosen = [r for stained, r in rows if sel(stained)]
+        if not chosen:
+            return None
+        got = summarise(chosen)
+        lo, hi = got["band2_over_band1_bracket"]
+        return {"spectra": got["spectra"],
+                "band2_over_band1": got["band2_over_band1"],
+                "bracket_width": round(hi - lo, 4)}
+
+    return {
+        "axis": "iron, as the ECOSTRESS description records it: ferruginous "
+                "staining, limonite, hematite, and the colour names that "
+                "follow from them",
+        "taxon": "rock.sedimentary.sandstone",
+        "why_not_a_selector": (
+            "vendor/orogen/js/lithology.js does not say which side of this "
+            "axis any clastic class sits on. A red bed and a grey quartz "
+            "arenite are both intracratonic clastics, and choosing between "
+            "them from the width of the bracket they produce would be a "
+            "tuned value. This is what the remaining bracket is waiting on."),
+        "all": side(lambda _s: True),
+        "iron_stained": side(lambda st: st),
+        "not_iron_stained": side(lambda st: not st),
+    }
 
 
 def main() -> None:
@@ -369,49 +634,37 @@ def main() -> None:
 
     classes: dict[str, dict] = {}
     for code, spec in PROXIES.items():
-        rows = collect(spec, star_wl, star_flux)
-        if not rows:
+        taxon_rows, rows, dropped = collect(code, spec, star_wl, star_flux)
+        if not taxon_rows:
             raise SystemExit(
                 f"no qualifying spectrum for {code!r}. The proxy selectors name "
                 "material that this library does not carry over "
                 f"{WORKING[0]}-{WORKING[1]} um; fix the selector rather than "
                 "dropping the class, which would leave it spectrally flat.")
-        rho = np.array([b2 / b1 for _p, b1, b2, _br, _g in rows if b1 > 0])
-        g1 = float(np.median([g for *_x, g in rows]))
-        preps: dict[str, list[float]] = {}
-        for prep, b1, b2, _br, _g in rows:
-            if b1 > 0:
-                preps.setdefault(prep, []).append(b2 / b1)
-        prep_median = {k: float(np.median(v)) for k, v in sorted(preps.items())}
-        central = float(np.median(rho))
-        # The bracket is measured twice and the wider answer is kept: the spread
-        # between preparations, which is the offset this method claims cancels,
-        # and the 10-90 spread within the class, which is how well one proxy
-        # stands for a lithology at all.
-        lo = min([central, *prep_median.values(), float(np.percentile(rho, 10))])
-        hi = max([central, *prep_median.values(), float(np.percentile(rho, 90))])
-        prep_spread = (max(prep_median.values()) - min(prep_median.values())
-                       if len(prep_median) > 1 else None)
-        sample_spread = float(np.percentile(rho, 90) - np.percentile(rho, 10))
+        if not rows:
+            raise SystemExit(
+                f"the mineralogy selection left {code!r} with no sample at all. "
+                "A rule in NOT_THE_TAXON or NOT_THE_CLASS is excluding the "
+                "class's own rock; fix the rule rather than falling back to the "
+                "taxon, which would hide it.")
+        selected = summarise(rows)
+        taxon = summarise(taxon_rows)
+        blo, bhi = selected["band2_over_band1_bracket"]
+        tlo, thi = taxon["band2_over_band1_bracket"]
         classes[code] = {
             "why": spec["why"],
-            "spectra": len(rows),
-            "band2_over_band1": round(central, 4),
-            "band2_over_band1_bracket": [round(lo, 4), round(hi, 4)],
-            "by_preparation": {k: round(v, 4) for k, v in prep_median.items()},
-            "preparation_spread": (None if prep_spread is None
-                                   else round(prep_spread, 4)),
-            "sample_spread_p10_p90": round(sample_spread, 4),
-            # The method's own prediction: preparation must matter less than
-            # mineralogy, because the ratio is claimed to be a property of the
-            # mineral. Null where the class has only one preparation.
-            "preparation_spread_below_sample_spread": (
-                None if prep_spread is None else bool(prep_spread < sample_spread)),
-            "measured_band1_flux_share": round(g1, 4),
-            # A class standing on fewer than five spectra has a bracket that is
-            # a spread between samples rather than an estimate of one, and is
-            # marked rather than quoted as though it were the latter.
-            "thin": len(rows) < 5,
+            **selected,
+            # What the sample-level selection did, so the narrowing is a
+            # measurement and not a claim. `taxon` is the whole ECOSTRESS
+            # taxon, which is what this table used before the library's own
+            # sample descriptions were read.
+            "excluded_samples": dropped,
+            "taxon": taxon,
+            "bracket_width": round(bhi - blo, 4),
+            "taxon_bracket_width": round(thi - tlo, 4),
+            "bracket_narrowed_by": round((thi - tlo) - (bhi - blo), 4),
+            "central_moved_by": round(
+                selected["band2_over_band1"] - taxon["band2_over_band1"], 4),
         }
 
     # The pair, per class, for whatever broadband level the caller holds. Two
@@ -466,6 +719,15 @@ def main() -> None:
             "spread between samples. Fixed before the first run."),
         "recombination_tolerance": RECOMBINATION_TOLERANCE,
         "residual_flag_threshold_albedo": RESIDUAL_FLAG,
+        "sample_selection": (
+            "Each class's proxy is an ECOSTRESS taxon narrowed to the samples "
+            "whose MINERALOGY is the class's, read from each spectrum's own "
+            "Name and Description against the class definition in "
+            "lithology.js. `taxon` per class is what the whole taxon gives, "
+            "so what the narrowing bought is a measurement. Grain size, "
+            "induration and weathering are not grounds for exclusion: they "
+            "are what the preparation axis measures."),
+        "residual_after_selection": residual_after_selection(star_wl, star_flux),
         "lithology_table": rel(LITHOLOGY_JS),
         "overridden_levels": overridden,
         "classes": report_classes,
@@ -501,6 +763,27 @@ def main() -> None:
              ". The exceptions are " + ", ".join(missed) + ", where the "
              "cancellation this method rests on is weakest, so read their "
              "brackets and not their central values"))
+    narrowed = {k: r["bracket_narrowed_by"] for k, r in report_classes.items()
+                if r["bracket_narrowed_by"] > 0}
+    widened = {k: -r["bracket_narrowed_by"] for k, r in report_classes.items()
+               if r["bracket_narrowed_by"] < 0}
+    print(f"the mineralogy selection dropped "
+          f"{sum(len(r['excluded_samples']) for r in report_classes.values())} "
+          f"class-sample pairs; it narrowed {len(narrowed)} brackets and "
+          f"widened {len(widened)}")
+    if narrowed:
+        best = sorted(narrowed, key=narrowed.get, reverse=True)[:4]
+        print("  narrowed most: "
+              + ", ".join(f"{k} by {narrowed[k]:.3f}" for k in best))
+    if widened:
+        worst = sorted(widened, key=widened.get, reverse=True)[:4]
+        print("  widened: " + ", ".join(f"{k} by {widened[k]:.3f}" for k in worst)
+              + " -- kept, because a proxy is chosen by what the class is")
+    res = report["residual_after_selection"]
+    print(f"  what is left is iron: {res['taxon']} splits "
+          f"{res['iron_stained']['band2_over_band1']:.3f} stained against "
+          f"{res['not_iron_stained']['band2_over_band1']:.3f} unstained, and "
+          "no class definition says which side a clastic class is on")
     print(f"wrote {args.output.relative_to(ROOT)}")
 
 

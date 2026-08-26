@@ -57,6 +57,8 @@
         <!-- ATMOSPHERE MODELS-->
         <model name="embm" type="atmosphere" flagname="flag_ebatmos" state="off"/>
         <model name="plasim" type="atmosphere" flagname="flag_plasimatmos" state="off"/>
+        <!-- not a compiled module: the atmosphere slot filled by a supplied forcing set, so that genie.F advances istep_ocn and calls the surface flux with no atmosphere in this executable -->
+        <model name="fluxatmos" type="atmosphere" flagname="flag_fluxatmos" state="off"/>
         <!-- OCEAN MODELS-->
         <model name="goldstein" type="ocean" flagname="flag_goldsteinocean" state="off"/>
         <model name="goldlite" type="ocean" flagname="flag_goldlite" state="off"/>

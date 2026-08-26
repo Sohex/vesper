@@ -295,6 +295,17 @@ c     *** GOLDSTEIN & PLASIM advance timestep
                endif
             endif 
 c     $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+c     *** GOLDSTEIN driven from a supplied forcing set: advance timestep
+c     The ocean's own step counter is incremented by whichever atmosphere gate
+c     is true, and with none of them true it never advances. This is the third
+c     such gate and it advances it on the same phase the PLASIM one does, so a
+c     driven ocean and a coupled one step identically.
+            if (flag_fluxatmos.and.flag_goldsteinocean) then
+               if(mod(koverall,kocn_loop).eq.0) then
+                  istep_ocn=istep_ocn+1
+               endif
+            endif 
+c     $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 c     *** EMBM atmosphere model
             if (flag_ebatmos) then
                if(mod(koverall,katm_loop).eq.0) then
@@ -399,8 +410,14 @@ c     *** c-GOLDSTEIN sea-ice model
                   if (debug_loop.gt.2) PRINT*,'>>> GOLDICE @ ',
      &                 koverall,ksic_loop
                   istep_sic=istep_sic+1
-                  if(flag_plasimatmos) then
-                    call plasim_surflux_wrapper
+c     The surface flux, on either driven path. surflux_goldstein_seaice takes
+c     the fluxes and the atmosphere's own transfer coefficients as arguments,
+c     so the two callers differ only in what filled them: PLASIM under
+c     flag_plasimatmos, a supplied forcing set under flag_fluxatmos. It carries
+c     the sea-ice surface solve, which is why it sits inside this block and why
+c     the host's sea ice cannot be switched off on a driven path.
+                  if(flag_plasimatmos.or.flag_fluxatmos) then
+                    call surflux_goldstein_seaice_wrapper
                   endif
                   call gold_seaice_wrapper
                   if (debug_loop.gt.2) PRINT*,'<<<'

@@ -811,18 +811,139 @@
         "differing": {},
         "worst_relative": 0.0
       }
+    },
+    "omp.eb_go_gs_e3gp.build": {
+      "arm": "omp",
+      "flags": [
+        "-fopenmp"
+      ],
+      "build_seconds": 94.8,
+      "build_ok": true,
+      "case": "eb_go_gs",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/omp.eb_go_gs.exe"
+    },
+    "omp.eb_go_gs_e3gp.t1": {
+      "arm": "omp",
+      "case": "eb_go_gs",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 2.178,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_e3gp.t1",
+      "vs_shipped": {
+        "reference": "/home/cfutro/cgenie_z3/vendor/cgenie/genie-knowngood/genie_eb_go_gs_knowngood/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_e3gp.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": false,
+        "differing": {
+          "uvel": {
+            "max_abs_diff": 6.855227519661518e-22,
+            "max_rel_to_field_range": 6.855296072622244e-27,
+            "cells_differing": 2
+          }
+        },
+        "worst_relative": 6.855296072622244e-27
+      },
+      "vs_omp.eb_go_gs_final.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_final.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_e3gp.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_e3gp.t16": {
+      "arm": "omp",
+      "case": "eb_go_gs",
+      "threads": 16,
+      "run_ok": true,
+      "seconds": 3.104,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_e3gp.t16",
+      "vs_shipped": {
+        "reference": "/home/cfutro/cgenie_z3/vendor/cgenie/genie-knowngood/genie_eb_go_gs_knowngood/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_e3gp.t16/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": false,
+        "differing": {
+          "uvel": {
+            "max_abs_diff": 6.855227519661518e-22,
+            "max_rel_to_field_range": 6.855296072622244e-27,
+            "cells_differing": 2
+          }
+        },
+        "worst_relative": 6.855296072622244e-27
+      },
+      "vs_omp.eb_go_gs_final.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_final.t1/goldstein/gold_spn_av_0000000020_00.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_e3gp.t16/goldstein/gold_spn_av_0000000020_00.nc",
+        "variables": 28,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
+    },
+    "omp.eb_go_gs_ac_bg_e3gp.build": {
+      "arm": "omp",
+      "flags": [
+        "-fopenmp"
+      ],
+      "build_seconds": 95.3,
+      "build_ok": true,
+      "case": "eb_go_gs_ac_bg",
+      "exe": "/home/cfutro/cgenie_log/omp/exe/omp.eb_go_gs_ac_bg.exe"
+    },
+    "omp.eb_go_gs_ac_bg_e3gp.t1": {
+      "arm": "omp",
+      "case": "eb_go_gs_ac_bg",
+      "threads": 1,
+      "run_ok": true,
+      "seconds": 2.821,
+      "output": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg_e3gp.t1",
+      "vs_shipped": {
+        "reference": "/home/cfutro/cgenie_z3/vendor/cgenie/genie-knowngood/genie_eb_go_gs_ac_bg_knowngood/biogem/fields_biogem_3d.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg_e3gp.t1/biogem/fields_biogem_3d.nc",
+        "variables": 62,
+        "variables_only_in_reference": [],
+        "bit_for_bit": false,
+        "differing": {
+          "bio_fpart_CaCO3_13C": {
+            "max_abs_diff": 2.9802322387695312e-08,
+            "max_rel_to_field_range": 2.989436723892943e-45,
+            "cells_differing": 1
+          },
+          "phys_u": {
+            "max_abs_diff": 1.3952944570700734e-21,
+            "max_rel_to_field_range": 1.3996038417233255e-58,
+            "cells_differing": 2
+          }
+        },
+        "worst_relative": 2.989436723892943e-45
+      },
+      "vs_omp.eb_go_gs_ac_bg_final.t1": {
+        "reference": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg_final.t1/biogem/fields_biogem_3d.nc",
+        "compared": "/home/cfutro/cgenie_log/omp/nc/omp.eb_go_gs_ac_bg_e3gp.t1/biogem/fields_biogem_3d.nc",
+        "variables": 88,
+        "variables_only_in_reference": [],
+        "bit_for_bit": true,
+        "differing": {},
+        "worst_relative": 0.0
+      }
     }
   },
   "provenance": {
-    "repo_head": "6dcded1b020ac3ee1ad2d3b787cdf020bd9dda5e",
-    "repo_dirty": false,
+    "repo_head": "40246dda3da3c8dff809f93507333fdb644e7a61",
+    "repo_dirty": true,
     "fortran": "GNU Fortran (GCC) 16.2.1 20260810",
     "netcdf_c": "netCDF 4.9.3",
     "netcdf_fortran": "4.6.2",
     "netcdf_flibs": "-L/usr/lib -lnetcdff -lnetcdf",
     "host": "yggdrasil",
     "cores": 32,
-    "load_average_at_start": 55.98,
+    "load_average_at_start": 8.69,
     "timing_estimator": "minimum over --repeats, of the model's own `time real` rather than the wrapper's, on a host that runs other work. cGENIE is one serial process and cores were free throughout; cache and memory bandwidth were not exclusively its own. Each run records the load average it finished under.",
     "cpu": "AMD Ryzen 9 7950X3D 16-Core Processor",
     "kernel": "7.1.8-1-cachyos",

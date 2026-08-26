@@ -6,7 +6,7 @@ work on the simulation of it.** Ocean, sea ice, surface flux and wind stress
 name modelled quantities and numerical properties of the adopted offline ocean
 host, not observations of anything.
 
-Established 2026-08-25 on this machine. This is the implementation half of
+Established 2026-08-25 on this machine; sections 1e and 1f 2026-08-26. This is the implementation half of
 OCN-19 and the precondition half of OCN-10, and it follows
 `notes/audits/cgenie-parallelism-and-coupling-support.md`, which profiled the
 component and proposed three changes without making any of them. That note's
@@ -44,11 +44,12 @@ differences and no others.
 
 ---
 
-# 1. Two flux paths, both gated on an atmosphere, and a third routine nothing calls
+# 1. Three flux paths, two of them gated on an atmosphere in this executable
 
 The question this settles is whether an EMBM-free configuration needs a new
 surface-flux path or only a switch. It needs a new path, and less of one than
-the shape of `genie.F` suggests.
+the shape of `genie.F` suggests. The path is now in the tree: `flag_fluxatmos`,
+section 1e, with the supply half open and the seam stated.
 
 ## 1a. What the recipe actually gates
 
@@ -57,8 +58,11 @@ an atmosphere flag:
 
 - `flag_ebatmos .and. flag_goldsteinocean` calls `surflux_wrapper`, which is
   EMBM's `surflux` in `genie-embm`.
-- `flag_plasimatmos` calls `plasim_surflux_wrapper` inside the sea-ice block,
-  which is `surflux_goldstein_seaice` in **`genie-goldsteinseaice`**.
+- `flag_plasimatmos` calls `surflux_goldstein_seaice_wrapper` inside the sea-ice
+  block, which is `surflux_goldstein_seaice` in **`genie-goldsteinseaice`**.
+  That wrapper was named `plasim_surflux_wrapper` while PLASIM was its only
+  caller; `flag_fluxatmos` is its second, and it is named after the routine it
+  wraps rather than after either caller.
 
 `initialise_genie.F` defaults both flags false, and with both false three things
 do not happen: no flux routine runs, so `latent_ocn`, `sensible_ocn`,
@@ -133,6 +137,90 @@ The wind stress rows are where OCN-17's declared `scf` bracket enters. `scf`
 scales the stress linearly in `goldstein.F`, so the ocean's stability ceiling
 inherits that 1-to-3 bracket linearly and what comes out of any stability sweep
 on this path is a bracket rather than a number.
+
+## 1e. What was built, and what the seam is
+
+`flag_fluxatmos`, an atmosphere flag beside `flag_ebatmos` and
+`flag_plasimatmos`, declared in `genie_control.f90`, read from
+`GENIE_CONTROL_NML` in `initialise_genie.F`, and registered as
+`<model name="fluxatmos" type="atmosphere">` in
+`src/xml-config/xml/definition.xml`. The registry entry is what makes the flag
+reachable from a configuration at all: `build_job.xsl` writes one `<param>` into
+the control namelist for every model in `/definition/config`, so a flag with no
+entry there is a variable no configuration can set.
+
+In `genie.F` it does two things and no more. It advances `istep_ocn` on the same
+phase the PLASIM gate does, which is the counter both existing gates own and
+neither shares. And inside the sea-ice block it calls
+`surflux_goldstein_seaice_wrapper`, the same wrapper the PLASIM gate calls, so
+the two paths differ in what filled the coupling fields and in nothing else. A
+second copy of that wrapper for the second caller is what section 2 deleted
+`tstepo_flux_t` for.
+
+**The supply half is not here, and the flag refuses rather than running without
+it.** No routine in this tree fills `insolar_sic`, `netheat_sic`, the transfer
+coefficients or the four wind-stress fields when no atmosphere runs, so a driven
+configuration would integrate an ocean forced by whatever those module arrays
+hold -- zero, from `.bss` -- and write output shaped exactly like a result.
+`initialise_genie.F` therefore stops on `flag_fluxatmos` with a message naming
+the missing supply. Deleting that one block is what turning the path on
+consists of, and OCN-10's forcing reader is what earns the deletion.
+
+A second guard sits above it and is the permanent one: `flag_fluxatmos` beside
+`flag_ebatmos` or `flag_plasimatmos` is refused, because all three are the
+atmosphere slot and `istep_ocn` would advance once per gate that is true. It
+becomes the live guard when the supply guard goes.
+
+**Checked end to end rather than by reading.** A configuration naming
+`fluxatmos` reaches `data_genie` as `flag_fluxatmos=.true.`, and the two guards
+fire on the two cases that reach them: with EMBM also on, the exclusion guard;
+with only `goldstein` and `goldsteinseaice`, the supply guard.
+
+**The acceptance test the change had to pass, and did.** Both shipped regression
+cases are BIT-FOR-BIT what the tree wrote before it: all 28 variables of
+`eb_go_gs`'s GOLDSTEIN year-20 average at one thread and at sixteen, and all 88
+of `eb_go_gs_ac_bg`'s BIOGEM three-dimensional fields. Against the shipped
+`genie-knowngood/` netCDF the same two differences the unedited tree has are
+reproduced and no others: two cells of `uvel` at 7e-27 of the field range, and
+two BIOGEM fields at 3e-45. That is the bar for a change that adds a gate no
+shipped configuration turns on, and the flags default false in
+`initialise_genie.F` for the same reason. Taken at a one-minute load average
+between 8.0 and 8.7 on a shared host; the comparison is bit-for-bit and does not
+move with load, and the wall clocks are not kept.
+
+## 1f. What the path wires, and what state its calibration is in
+
+Stated before the path is wired to anything, which is what world-u9kg asks of
+any adoption decision for a cgenie component.
+
+The path wires two components and adds no third: `genie-goldstein` and
+`genie-goldsteinseaice`. `genie-rokgem`, whose `opt_calibrate_*` family is the
+concentrated instance of the class, is not on it and is not reachable from it.
+Neither wired component declares an `opt_calibrate_*` switch, a calibration
+factor or a reference-pattern file: `grep` for `calibrate` over both source
+trees returns nothing.
+
+What it does carry is one scaling factor and one dropped residual.
+
+**`scf`, and it is declared TUNED by the tree itself.** `ocean.cmn` holds it,
+`ini_gold_nml` reads it, `goldstein.F:199-205` sets `dztau = scf*stressxu_ocn`
+and its three companions, and `definition.xml` ships it at 2.00 with the
+description "scales the wind stress to drive correct gyre strengths. Plausible
+range 1 to 3" and three fitted values beside it -- 1.6674, 1.1841, 1.3005, from
+three different optimisers. So the shipped default is not a measurement and the
+alternatives are fits. It is OCN-17's declared bracket, it enters this path
+linearly through the wind-stress rows of section 1d, and any sweep on this path
+returns a 1-to-3 bracket rather than a number.
+
+**`delta_flux` is computed on this path and read by nothing.**
+`surflux_goldstein_seaice` returns the longwave, sensible, latent and
+evaporative residuals by which its own surface solve fails to conserve, and on
+the PLASIM path `plasim_wrapper` hands them back to the atmosphere's `master`,
+which is what closes the budget. A driven path has no atmosphere to hand them
+to. The residual is therefore produced and dropped, and the energy and moisture
+non-closure it measures is open on this path in a way it is not on the coupled
+one. It is a diagnostic the forcing contract can read, not a correction, and it
+must not become one.
 
 ---
 
