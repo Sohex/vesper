@@ -1083,6 +1083,15 @@
 !     position `get_surf_array` takes on an absent land mask: a field this world
 !     supplies itself is missing because staging failed, never on purpose.
 !
+!     THE REFUSAL IS ON THE CELLS WHOSE CAPACITY IS A FIELD, and that is the
+!     whole of the rule: the split and the capacity are one integral, so a cell
+!     whose `dwmax` is still the namelist `wsmax` has no profile for a split to
+!     be wrong about and the geometric shape is exact for it. A cell whose
+!     `dwmax` came from a soil and whose split did not is the defect this row
+!     names. It also keeps the bootstrap runnable, which the alternative does
+!     not: that run goes out on terrain with no soil at all, so code 229 is
+!     absent by design and a refusal keyed on the split alone would stop it.
+!
 !     RENORMALISED PER CELL, so `sum(dwmax*dsoilwfc)` is `dwmax` to the layer
 !     sum's rounding whatever the writer emitted. The column capacity is the
 !     field the whole pedology loop feeds and a split that did not sum to one
@@ -1113,10 +1122,12 @@
 !      namelist shape. landini has already renormalised that over nlsoilw and
 !      zeroed its tail, so it needs no second pass here.
        if (zsum <= 0.) then
-        if (zsum < 0.) then
-         zmiss = zmiss + 1.
-        else
-         zbad = zbad + 1.
+        if (dls(jhor) > 0.0 .and. dwmax(jhor) /= wsmax) then
+         if (zsum < 0.) then
+          zmiss = zmiss + 1.
+         else
+          zbad = zbad + 1.
+         endif
         endif
         do jlay = 1, NLSOILWX
          dsoilwfc(jhor,jlay) = dsoilwf(jlay)
@@ -1137,22 +1148,22 @@
       if (nlsoilw > 1 .and. zmiss + zbad > 0.) then
        if (mypid == NROOT) then
         write(nud,*)'*** WORLD-VJBZ: nlsoilw = ',nlsoilw,' and ',        &
-     &              nint(zmiss+zbad),' cells carry no capacity split.'
-        write(nud,*)'*** Above one layer the split is a per-cell field,'
-        write(nud,*)'*** surface code 2290, and the namelist dsoilwf is a'
-        write(nud,*)'*** fallback shape rather than the split. Stage it'
-        write(nud,*)'*** with exoplasim/scripts/build_surface_soil_water.py.'
+     &              nint(zmiss+zbad),' land cells carry a per-cell dwmax'
+        write(nud,*)'*** with no capacity split. Above one layer the split'
+        write(nud,*)'*** is a per-cell field, surface code 2290, and the'
+        write(nud,*)'*** namelist dsoilwf is a fallback shape rather than'
+        write(nud,*)'*** the split. Stage it with'
+        write(nud,*)'*** exoplasim/scripts/build_surface_soil_water.py.'
        endif
        stop
       endif
 !
       if (mypid == NROOT) then
-       if (zmiss + zbad == 0.) then
-        write(nud,*)' *** WORLD-VJBZ: the capacity split is a field on',  &
-     &              ' every cell'
+       if (nlsoilw == 1) then
+        write(nud,*)' *** WORLD-VJBZ: one water layer, so the capacity',  &
+     &              ' split is identically one'
        else
-        write(nud,*)' *** WORLD-VJBZ: the capacity split is the namelist',&
-     &              ' shape; at nlsoilw = 1 that is the split exactly'
+        write(nud,*)' *** WORLD-VJBZ: the capacity split is a field'
        endif
       endif
 !

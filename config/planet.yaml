@@ -468,11 +468,12 @@ surface:
   # a property of a layer; the ice comes off the layer's capacity, and that is
   # the whole of the infiltration impedance.
   #
-  # `layer_thickness_m` is inert while `soil_phase` is false, and is the depth
-  # phase is decided at when it is not. The model's soil TEMPERATURE layers
-  # share no boundary with these, so a water layer takes the temperature of
-  # whichever temperature layer contains its midpoint; this value is the column
-  # base `pedology/notes/land-column-property-contract.md` declares.
+  # `layer_thickness_m` does two things. It is the depth phase is decided at
+  # when `soil_phase` is true -- the model's soil TEMPERATURE layers share no
+  # boundary with these, so a water layer takes the temperature of whichever
+  # temperature layer contains its midpoint -- and it is the cut the capacity
+  # split is taken at, which is why the generator refuses a thickness that is
+  # not a whole number of the contract's physical layers.
   #
   # `evaporation_limiter` is the two free axes of
   # beta = min(1, max((theta - theta_low)/(drhsfull - theta_low), 0))**exponent,
@@ -481,9 +482,9 @@ surface:
   # with the knee at a full store; neither is right, which is what a bracket is
   # for. `drhsfull` is the third axis and stays landmod's own.
   #
-  # THE SCHEME IS DECIDED AND THIS KEY DOES NOT CARRY THE DECISION YET, which is
-  # deliberate and is the one place a reader will otherwise misread this block.
-  # LSHY-3 chose LAYERED, because the bucket is a bitwise special case of it --
+  # THE SCHEME IS LAYERED, which is the decision LSHY-3 took, and the geometry
+  # under it is derived rather than chosen.
+  # The bucket is a bitwise special case of layered --
   # `nlandwcol 1` at `nlsoilw 1` with an impermeable base IS the bucket,
   # operation for operation, checked by
   # `exoplasim/scripts/verify_land_column_reduction.sh` -- so choosing layered
@@ -493,10 +494,12 @@ surface:
   # is unreachable on a scalar store, as are WORLD-JSFM's moisture-dependent
   # soil heat, DUST-17's top emitting-layer water and PHYS-15's soil albedo.
   #
-  # The geometry is chosen too, and is not free: `layers: 2` at
+  # The geometry is not free either: `layers: 2` at
   # `layer_thickness_m: [0.5, 1.0]`, which is `pedology/config/
   # land_column_properties.yaml`'s own 500 mm upper and 1000 mm lower grouping
   # and the only two-layer cut at which the two columns share a boundary.
+  # LSHY-5 needs them to share it, because two columns cannot agree about
+  # frozen soil across geometries that do not meet.
   #
   # `layer_capacity_fraction` is a FALLBACK SHAPE and not the split. The split
   # is a per-cell property -- the same integral `dwmax` is, cut at the layer
@@ -507,21 +510,40 @@ surface:
   # code 2290, one record per layer, written by
   # `exoplasim/scripts/build_surface_soil_water.py` from the same per-layer
   # usable shares `dwmax` is the integral of; the key below is what a cell no
-  # field covers takes, which at `layers: 1` is the split exactly. Above one
-  # layer `landmod` refuses to run without the field. WORLD-VJBZ.
+  # field covers takes. Above one layer `landmod` refuses to start if any LAND
+  # cell whose `dwmax` came from the soil has no split, and does not refuse
+  # where `dwmax` is still the namelist scalar, because a capacity with no
+  # profile has nothing for a split to be wrong about. That is what keeps the
+  # bootstrap run -- which goes out on terrain with no soil at all -- runnable
+  # at this geometry. WORLD-VJBZ.
   #
-  # WHAT HOLDS THE FLIP is now the paired arm and nothing else: `nlandwcol` 0
-  # against 1 at the declared geometry, on one build, compared on the land
-  # runoff ratio and on E/R, which `scripts/error_budget.py` records as
-  # amplified into the carve. Until that has been run, `layers: 2` is an
-  # unverified model form on the carve path. The values below therefore stay the
-  # bucket, which at `layers: 1` is what layered reduces to anyway.
+  # WHAT THIS IS WORTH IS NOT MEASURED, and the run that would measure it is a
+  # PAIR rather than a comparison against what is on disk: two arms on one
+  # build, one at `scheme: bucket` and one at the values below, at the same
+  # rung, timestep and orbit count. What it settles is the size of the
+  # model-form difference between one store and a two-layer cascade, read on the
+  # land runoff ratio and on E/R, which `scripts/error_budget.py` records as
+  # amplified into the carve. The bucket arm is an EXACT control and not an
+  # approximation of one, which is what makes the pair worth running: at
+  # `layers: 1` the layered kernel is the bucket operation for operation, so the
+  # two arms differ in the layering alone.
+  #
+  # The values are declared ahead of that pair because nothing is commissioned:
+  # a model form is on this path because it is the one chosen, and the pair
+  # prices it rather than admitting it.
   land_water_column:
-    scheme: bucket
-    layers: 1
+    scheme: layered
+    layers: 2
     lower_boundary: impermeable
-    layer_capacity_fraction: [1.0]
-    layer_thickness_m: [1.5]
+    # THE GEOMETRIC SHAPE, and a FALLBACK rather than the split. It is the
+    # thickness-proportional share a uniform profile gives, so it is derived
+    # from `layer_thickness_m` and is not a number picked to make anything come
+    # out. Every land cell whose capacity came from the soil takes surface code
+    # 2290 instead, and `landmod` refuses to run if one does not; this is what a
+    # cell whose `dwmax` is still the namelist `wsmax` takes, and for such a
+    # cell there is no profile for it to be wrong about.
+    layer_capacity_fraction: [0.333333, 0.666667]
+    layer_thickness_m: [0.5, 1.0]
     soil_phase: false
     evaporation_limiter:
       theta_low: 0.0
