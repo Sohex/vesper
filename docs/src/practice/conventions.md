@@ -23,6 +23,74 @@ all handled.
 Claims are checked against the artifact rather than the documentation.
 Almost every class in [failure modes](failure-modes.md) was found that way.
 
+## No tuned values
+
+**A constant whose only justification is that it was fitted, calibrated or
+adjusted until a comparison came out is not an acceptable input to this world.**
+Replace it with a sourced value, derive it, declare it with a bracket that gets
+swept, or record it as irreducible with the argument for why no sourced form
+exists. Those four are the whole of the disposition space, and "leave it as it
+is" is not in it.
+
+The reason is not tidiness. A tuned value is the one kind of number whose
+derivation cannot be inspected, cannot be checked and cannot be carried to a
+different planet or star, because there is no derivation: the number IS the
+residual of a fit, and the fit was to somewhere else. Every other unsatisfying
+number here has a route back to something. An Earth measurement has provenance
+for the wrong planet, which is a correction to make. A published parameterisation
+has provenance in a paper whose domain can be read and compared against this
+world's. A stability bound has an argument. A threshold fixed in advance is a
+criterion, and it is allowed to be a judgement precisely because it was fixed
+before the result. A tuning has none of that, so nothing downstream of it can
+ever be checked either.
+
+**Know which of the four you are looking at, because the sweep is worthless if
+it reports every number in the tree.** `notes/audits/tuned-values.md` is the
+enumeration and carries the evidence per value;
+`notes/audits/opaque-constants.md` and the implicit-Earth audits are the
+neighbouring classes and are deliberately separate from it.
+
+**A tuning that names itself is still a tuning.** The model source and the
+component configs are now largely honest about which of their constants were
+fitted; several say so in their own declarations, and one says the value was
+"picked out thin air". Labelling is what makes the sweep possible and it is not
+the resolution. The register in `biosphere/config/ntransform.yaml` is the form to
+copy: it names each unsourced constant, states what the paper does and does not
+supply, and its gate refuses on them under `--strict`, so the label has teeth.
+
+**A tuning that no run reaches is a trap, not a non-problem.** Record it with the
+switch that arms it. `oceanmod`'s Earth radius sat dormant under a scheduled A/B
+that would have come back wrong by a factor of 1.44 with nothing in the output to
+say so; the ocean-diffusivity arms that had already run were relabelled after the
+fact. Dormancy changes the priority and not the disposition.
+
+**The cost of removing one is not the output it invalidates.** The canonical
+climatology lineage does not exist, so nothing is commissioned, and a change that
+"would require re-commissioning" costs nothing today: it is simply what the next
+cycle implements. Counting the invalidated runs as a price invents a sunk cost
+and biases every one of these decisions toward keeping the tuned value, which is
+the outcome the rule exists to prevent. This is CLAUDE.md rule 7 applied to a
+place where it is easy to forget.
+
+Two worked examples, one of each verdict, so the line is visible.
+`aeolian/config/dust.yaml` chose Kok (2014) over Marticorena-Bergametti because
+K14 derives the emitted size distribution from fragmentation physics rather than
+fitting it, "so it carries one fewer unconstrained knob. On a synthetic planet
+with no aerosol optical depth observations to tune against, a globally tuned
+constant is worth nothing." That is the refusal, taken at the point where a
+scheme is chosen, which is the cheapest place to take it. Against it,
+`canexch.h`'s `ALPHAA_NLIM` is an ecosystem-level scalar chosen to make simulated
+carbon pools agree with published estimates of Earth's, and there is no
+observation of this world that could replace it: that one is irreducible, it is
+recorded as irreducible, and what is done about it is a bounded sensitivity
+rather than a fix.
+
+Fitting is not the offence; opacity is. `build_vesper_header.py` fits a solstice
+offset by grid search, and it is not a tuned value: it fits against the
+climatology's own declination, reports its rms and maximum residuals into the
+header and the provenance JSON, and re-derives per planet. The test is whether a
+reader can see what was fitted, to what, and how well.
+
 ## Documents and numbers
 
 - **Do not write current values into prose.** `world_state.json` is generated

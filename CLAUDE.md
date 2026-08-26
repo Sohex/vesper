@@ -175,6 +175,14 @@ The arguments and the incidents behind these are in
   not because including it improves a comparison. A correct term that worsens
   an agreement is information -- never a reason to remove the term.
   `docs/src/practice/failure-modes.md` class 16.
+- **No tuned values.** A constant justified only by having been fitted or
+  calibrated until a comparison came out has no inspectable derivation and
+  cannot be carried to another planet. Source it, derive it, declare it with a
+  bracket that gets swept, or record it as irreducible with the argument --
+  those four are the whole disposition space, and a tuning that names itself is
+  still a tuning. Removing one costs NOTHING today: nothing is commissioned, so
+  the invalidated output is not a price (rule 7). `notes/audits/tuned-values.md`
+  is the enumeration; `docs/src/practice/conventions.md` argues it.
 - **Test the implementation against something that can fail, not the outcome
   against something that can only differ.** A check needs a right answer: an
   identity, a conservation law, a quantity the other side already knows. If you
