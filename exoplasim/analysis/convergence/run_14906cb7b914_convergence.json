@@ -54,12 +54,19 @@
     "sea_ice_mean_fraction": 0.005783545064339912,
     "state_storage_w_m2": -0.0744463392715933,
     "state_storage_endpoint_w_m2": -0.04158303072259463,
+    "state_storage_standard_error_w_m2": 0.028942997563980423,
     "surface_storage_w_m2": -0.07280439943639222,
     "reported_toa_minus_storage_w_m2": -0.0632889457808539,
     "temperature_asymptote_k": 292.47526246746713,
     "temperature_asymptote_half_width_k": 0.1443405979606262,
     "temperature_remaining_offset_k": -0.1374870774741563,
-    "relaxation_orbits_fitted": 44017.878518950165,
+    "relaxation_orbits_fitted": null,
+    "relaxation_fit_identifiable": false,
+    "relaxation_fit_verdict": "the fit returned tau = 44017.9 orbits over 23 orbits of data, so the exponential is indistinguishable from a line across the fitted range and tau is not determined by it",
+    "relaxation_fit_raw_tau_orbits": 44017.878518950165,
+    "relaxation_orbits_fitted_lower_bound_orbits": 23.0,
+    "relaxation_orbits_fitted_standard_error": null,
+    "relaxation_fit_span_orbits": 23,
     "relaxation_orbits_expected": 10.099086131610758,
     "planetary_albedo_in_window": 0.2366487456109018,
     "radiative_damping_w_m2_per_k": 1.2857933876529242,
@@ -87,9 +94,11 @@
     "extrapolated_offset_lt_0.15_k": false
   },
   "criteria_provenance": {
+    "form": "|statistic| + its standard error < threshold. A criterion states an upper bound, so a statistic whose interval reaches the threshold fails.",
+    "form_applies_to": "all six criteria, each with its own statistic's standard error. Five tested a point estimate until world-s8n3; the thresholds did not move with the form.",
     "energy_balance_tests": "state storage, not reported top-of-atmosphere net",
     "storage_tolerance_w_m2": 0.12,
-    "storage_tolerance_derivation": "0.15 K offset tolerance / (0.128 K per orbit per W/m2 * 9.9 orbits) = 0.118 W/m2, against an estimator that resolves 0.11 W/m2 on a 10-orbit block. The two meet at 0.12.",
+    "storage_tolerance_derivation": "0.15 K offset tolerance / (0.128 K per orbit per W/m2 * 9.9 orbits) = 0.118 W/m2, rounded to 0.12. The temperature tolerance is the whole of the derivation: the measurability half it was first paired with compared two NESTED blocks rather than taking the estimator's standard error, and what that error actually is at this run's own window is the resolving_power row abs_state_storage.",
     "supersedes": "abs_mean_toa_lt_0.5_w_m2 and abs_mean_surface_lt_0.5_w_m2",
     "why": "The reported TOA net carries a structural offset of -0.573 +/- 0.035 W/m2 across four runs, so the criterion was thresholding a diagnostic rather than the planet. The 0.5 W/m2 it replaces was chosen early, never revisited, and applied to two different quantities. CLIM-7, decided 2026-08-17; the offset itself is CLIM-1 and is still open, which is why both numbers and their difference are recorded."
   },
@@ -100,6 +109,10 @@
     "temperature_residual_scatter_k": 0.118619120446528,
     "temperature_residual_tau_orbits": 4.663661723599201,
     "temperature_residual_lag1": 0.6285587154471213,
+    "storage_residual_scatter_j_m2": 10007441.527348468,
+    "storage_residual_tau_orbits": 7.229874713422545,
+    "storage_residual_lag1": 0.8631017756380226,
+    "storage_tau_span_supports_the_estimate": false,
     "tau_estimated_from_the_window_itself": true,
     "tau_span_supports_the_estimate": false,
     "required_window_is_a_lower_bound": true,
@@ -108,35 +121,58 @@
         "criterion": "abs_temperature_slope",
         "threshold": 0.05,
         "statistic_standard_error": 0.004351776681632194,
+        "statistic_error_source": "the fitted slope's own standard error, with the residual memory in it",
+        "verdict_interval": 0.004351776681632194,
         "resolves": true
       },
       {
         "criterion": "abs_toa_slope",
         "threshold": 0.05,
         "statistic_standard_error": 0.00629678592547934,
+        "statistic_error_source": "the fitted slope's own standard error, with the residual memory in it",
+        "verdict_interval": 0.00629678592547934,
         "resolves": true
       },
       {
         "criterion": "abs_surface_slope",
         "threshold": 0.05,
         "statistic_standard_error": 0.007376639394095537,
+        "statistic_error_source": "the fitted slope's own standard error, with the residual memory in it",
+        "verdict_interval": 0.007376639394095537,
         "resolves": true
       },
       {
         "criterion": "abs_sea_ice_slope",
         "threshold": 0.001,
         "statistic_standard_error": 2.7908393824116897e-05,
+        "statistic_error_source": "the fitted slope's own standard error, with the residual memory in it",
+        "verdict_interval": 2.7908393824116897e-05,
+        "resolves": true
+      },
+      {
+        "criterion": "abs_state_storage",
+        "threshold": 0.12,
+        "statistic_standard_error": 0.028942997563980423,
+        "statistic_error_source": "the standard error of the heat content's fitted slope, in the units the estimator reports",
+        "verdict_interval": 0.028942997563980423,
         "resolves": true
       },
       {
         "criterion": "extrapolated_offset",
         "threshold": 0.15,
         "statistic_standard_error": 0.08789793506667755,
-        "resolves": false
+        "statistic_error_source": "the temperature slope's standard error times the expected relaxation time, counted once for the offset and once for the half width that carries the same product",
+        "verdict_interval": 0.1443405979606262,
+        "resolves": false,
+        "statistic_source": "drift_fallback"
       }
     ],
+    "offset_statistic_source": "drift_fallback",
+    "window_orbits_for_storage_criterion": 27.93419401227884,
+    "window_orbits_for_storage_criterion_if_independent": 14.463296101336011,
     "window_orbits_for_offset_criterion": 50.46893262207652,
     "window_orbits_for_offset_criterion_if_independent": 30.21460491994122,
+    "window_orbits_for_offset_criterion_prices": "the drift fallback form of the criterion; it prices this run's own verdict only where offset_statistic_source is drift_fallback",
     "default_window_orbits": 35
   },
   "convergence_lengths": {
