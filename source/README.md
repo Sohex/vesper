@@ -156,9 +156,16 @@ manifest rather than trusting a figure quoted anywhere.
   bites. Found 2026-08-18 while validating a slope field against an analytic
   ramp: the ramp was built on `z`, the expectation was written in latitude, and
   the estimator was blamed for a 30% error that was entirely in the frame.
-- **`elevation` is not kilometres.** It is the generator's internal shaping
-  parameter (nonlinear hypsometric curve; 0.5 ≈ 1.1 km, 1.0 = 6 km; ocean linear
-  at 10 km/unit). Use `elevation_km` for physical orography.
+- **`elevation` is not kilometres, and it is not bounded by 1.** It is the
+  generator's internal shaping parameter (nonlinear hypsometric curve; 0.5 ≈ 1.1
+  km, 1.0 = 6 km; ocean linear at 10 km/unit). The land curve is the Hermite
+  shape `t^4(5-4t)` on [0,1] and is LINEAR at 6 km per unit above it, because
+  the polynomial turns over past its domain and would fall below sea level by
+  1.25 -- WORLD-34GU replaced the clamp that used to guard against that with a
+  branch, so heights above 1 are now distinct rather than published at one
+  value. The parameter reaches 1.369 and 1.428 on the two registered builds.
+  `notes/audits/relief-curve-domain.md` has the derivation. Use `elevation_km`
+  for physical orography.
 - **Weighting: three area quantities, three questions, and only one of them is
   a grid weight.** `raw/cell_area.bin` is the MESH region's dual area and is the
   right weight for reducing mesh regions onto a grid cell, which is what
