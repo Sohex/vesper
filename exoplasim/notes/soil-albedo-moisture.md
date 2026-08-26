@@ -64,6 +64,17 @@ rather than as a fit; their visible-band fits run 0.042 to 0.528, and the
 direction is known -- a value below one darkens the modelled surface sooner in a
 wetting cycle without moving either end. That is the declared bracket on band 1.
 
+The one FIELD measurement of the shape this project holds sits at the adopted
+arm. Idso et al. (1975) ran four pyranometer experiments over one irrigated loam
+field with concurrent gravimetric sampling at eight depths, and found the albedo
+a linear function of the water content of the top 0.2 cm over 0.00 to 0.18
+volumetric, which on that soil is roughly the lower 0.4 of the saturation range.
+Sadeghi's `sigma = 1` is the LEAST concave member of its family -- the initial
+slope goes as `(r_sat - r_dry)/sigma` -- so a value below one would be more
+concave than Idso measures, not less. The measurement is broadband and the
+bracket is on band 1, so this does not close it; it says which end of it the
+evidence points at.
+
 ## The surface layer, and how its water is conserved
 
 The state the albedo reads is the top water layer of the layered land column,
@@ -73,6 +84,16 @@ read it at their own depth: this row takes a degree of saturation over the
 albedo depth, and DUST-17 takes a gravimetric water content over its emitting
 depth. A near-surface saturation defined in the albedo builder would be the
 second central hydrology DUST-17 exists to prevent.
+
+0.02 m is an UPPER bound on the depth a radiation scheme sees, and the direction
+is stated because it is the direction that understates how fast the modelled
+surface dries. Idso et al. measure that directly: their Figure 5 puts a
+single-valued albedo-against-water relation on the 0-0.2 cm layer and a near-step
+function on 0-10 cm, and their own conclusion names a controlling layer "less
+than 0.2 cm thick". ClimaLand's `albedo_calc_top_thickness` is 0.02 m and this
+project takes the coarser of the two, because the same layer is what DUST-17's
+emitting depth reads and a 0.002 m store in a tipping-bucket cascade empties
+inside one model timestep.
 
 It is TWO changes to the column and only one of them moves water.
 
