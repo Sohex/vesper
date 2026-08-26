@@ -19,8 +19,55 @@
 // preserved no such terrain survived to the export.
 export const SUBSEA_LAND_KM_PER_UNIT = 1.0;
 
+// The land curve's scale: the height it assigns to one full unit of the model's
+// elevation parameter. The whole land branch is RELIEF_KM_PER_UNIT * s(elev),
+// with s the dimensionless shape described below.
+export const RELIEF_KM_PER_UNIT = 6;
+
 /**
  * Model elevation → physical height in km.
+ *
+ * The land branch is RELIEF_KM_PER_UNIT * s(elev), where the shape function
+ *
+ *     s(t) = t⁴(5 − 4t),   s'(t) = 20t³(1 − t)
+ *
+ * is a Hermite interpolant DEFINED ON [0, 1]. s(0) = s'(0) = s''(0) = 0 gives
+ * the extensive flatlands; s(1) = 1 with s'(1) = 0 gives the compressed peaks.
+ * Both are endpoint conditions, so [0, 1] is the shape's domain and says
+ * nothing about how much relief the terrain may have.
+ *
+ * The model's elevation parameter is NOT bounded by 1. `applyFinalShaping`
+ * normalises land by RANK between its own min and max, peak compression is a
+ * power rather than a clamp, and detail noise, warping, erosion and ridge
+ * sharpening all run afterwards. Both registered builds carry land above 1, out
+ * past 1.4 at the higher region count; the measurement is in
+ * notes/audits/relief-curve-domain.md.
+ *
+ * s is not usable there. s'(t) is NEGATIVE above 1, so the polynomial turns
+ * over: it falls back through 6 km, reaches zero at t = 1.25 and goes below sea
+ * level beyond. The old `Math.min(elev, 1)` was a guard against that inversion,
+ * not a physical ceiling on relief, and it published every cell above 1 at one
+ * identical height — a plateau that downstream slope, drainage and hypsometry
+ * all read as real, and which gave a closed basin with both its sink and its
+ * spill above the clamp a depth of exactly zero.
+ *
+ * ABOVE THE DOMAIN THE SHAPE IS REPLACED BY ITS ARGUMENT, s(t) := t, so the
+ * branch is RELIEF_KM_PER_UNIT * elev. That introduces no constant the curve
+ * did not already have: it is continuous at t = 1, where s(1) = 1 already; its
+ * gradient is the curve's own mean gradient across its domain, 6 km per model
+ * unit; and it is strictly increasing for every t, so no two distinct
+ * elevations share a height again.
+ *
+ * What it costs, stated because it is real: the gradient at the join steps from
+ * 0 on the left, which is exactly the peak-compression condition s'(1) = 0, to
+ * 6 km per model unit on the right. That kink is the same shape as the one this
+ * function already carries at sea level, where the land branch arrives with
+ * slope 0 and the ocean branch leaves with 10 km per unit, and it replaces a
+ * gradient of exactly zero across the whole of the terrain it affects.
+ *
+ * The physical ceiling on land relief is a separate thing and lives in
+ * `scaledHeightKm` below, as the 1/g factor out of sigma/(rho*g). It is not
+ * this domain edge, and the two must not be conflated.
  *
  * @param elev   the model's dimensionless elevation parameter
  * @param isLand whether this cell is LAND. Defaults to the elevation-sign test,
@@ -36,9 +83,9 @@ export function elevToHeightKm(elev, isLand) {
         return land ? elev * SUBSEA_LAND_KM_PER_UNIT : elev * 10;
     }
     if (!land) return elev * 10;      // shouldn't happen; keep it total
-    const t = Math.min(elev, 1);
-    const t2 = t * t;
-    return 6 * t2 * t2 * (5 - 4 * t);  // 0→0, 0.25→0.09, 0.5→1.13, 0.75→3.80, 1.0→6
+    if (elev >= 1) return RELIEF_KM_PER_UNIT * elev;   // 1.0→6, 1.25→7.5, 1.5→9
+    const t2 = elev * elev;
+    return RELIEF_KM_PER_UNIT * t2 * t2 * (5 - 4 * elev);  // 0→0, 0.25→0.09, 0.5→1.13, 0.75→3.80, 1.0→6
 }
 
 /**
