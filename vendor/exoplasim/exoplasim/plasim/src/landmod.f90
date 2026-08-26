@@ -267,7 +267,6 @@
       real :: rhosnow  = 330.    ! snow density (kg/m**3)
       real :: soildiff = 1.8     ! heat diffusivity of the soil (W/m/K)
       real :: sicediff = 2.03    ! heat diffusivity of ice      (W/m/K)
-      real :: snowdiff = 0.31    ! heat diffusivity of snow     (W/m/K)
       real :: soilcap  = 2.4E6   ! heat capacity of the soil  (J/m**3/K)
       real :: sicecap  = 2.07E6  ! heat capacity of ice       (J/m**3/K)
 !     snowcap is NOT independent of rhosnow: a snow layer's heat capacity per
@@ -279,13 +278,51 @@
 !     derives it below and it is no longer a namelist key; at the declared
 !     rhosnow it is 330 * 2090 and the value is unchanged. GRAV-8.
 !
-!     snowdiff is density-dependent in the same way and is NOT coupled here:
-!     the conductivity of snow rises steeply with density and choosing which
-!     measured relation to use is a decision with a source, not arithmetic. So
-!     a bracket on rhosnow moves thickness and thermal mass correctly and
-!     leaves conductivity where it stands. WORLD-A9S5.
+!     snowdiff FOLLOWS rhosnow, and the relation has a source. The thermal
+!     conductivity of snow is a steep function of its density, so a namelist
+!     density beside a fixed conductivity was a broken relation: a bracket on
+!     rhosnow moved the pack's thickness and its thermal mass and left the heat
+!     flux through it, which goes as k/z, on a value belonging to some other
+!     snow. landini derives it below and it is no longer a namelist key, which
+!     is the same remedy snowcap got. WORLD-A9S5.
+!
+!     THE RELATION IS FOURTEAU ET AL. (2021)'s, not Sturm et al. (1997)'s, and
+!     the choice is a decision rather than a preference:
+!
+!     - Sturm's is a needle-probe measurement set at -14.6 C. Riche and
+!       Schneebeli (2013) compared the needle probe against a guarded heat flux
+!       plate and against direct numerical simulation on IDENTICAL samples and
+!       concluded the simulation is the most reliable of the three, with the
+!       needle probe biased by up to a quarter either way through the
+!       anisotropy of the pack when inserted horizontally.
+!     - Fourteau's is a direct numerical simulation on tomographic
+!       microstructures that carries the LATENT HEAT transported by water
+!       vapour through the pore space, which is a real term in a pack under a
+!       temperature gradient and which conduction-only computations omit.
+!     - It is stated as a function of the ice VOLUME FRACTION and of
+!       temperature, so it carries the density dependence this needs by
+!       construction rather than by extrapolation.
+!
+!     Evaluated at 263 K, the middle of the five temperatures Fourteau
+!     tabulates. Across the whole 223-273 K span the value moves by a few per
+!     cent at this density, far less than the spread between published
+!     relations, so the temperature is a declaration and not a tuning: making
+!     it a per-cell function would be a change to the snow scheme rather than
+!     to this constant. notes/audits/cryosphere-material-properties.md.
+!
+!     THE MODEL'S SEA ICE TAKES THIS SAME VALUE. icemod's CKAPSN was a second,
+!     compile-time statement of the conductivity of snow, at the same 0.31, and
+!     it now arrives through iceini so the snow on the modelled sea ice and the
+!     snow on the modelled soil cannot be made of different stuff.
       real, parameter :: CPSNOW = 2090. ! specific heat of snow (J/kg/K)
+!     Fourteau's normalising ice density, part of the FIT and not a free
+!     constant of this model: the polynomial is in rho/rhoice and 917 is the
+!     value its coefficients were regressed against. It is NOT icemod's CRHOI,
+!     which is the density of the modelled SEA ice, and the two must not be
+!     deduplicated into one another.
+      real, parameter :: RHOICE_F2021 = 917.
       real :: snowcap  = 0.6897E6! heat capacity of snow      (J/m**3/K)
+      real :: snowdiff = 0.3170  ! heat diffusivity of snow     (W/m/K)
 !
 !     global arrays
 !
@@ -407,6 +444,10 @@
       use snowmaskmod
 
       integer :: ifound(4)
+!     The ice volume fraction the snow conductivity is derived from. Declared
+!     rather than left to implicit typing, and NOT initialised, so it is an
+!     automatic local and every thread computes its own. WORLD-A9S5.
+      real :: zsnowvf
 !
 !     initialize land surface
 !
@@ -419,7 +460,7 @@
      &                ,rnbiocats,nwetsoil,soilcap                       &
      &                ,albforest,forcovmx,forcovmn                      &
      &                ,forhgt,forpai,forext,forint                       &
-     &                ,soildiff,sicediff,snowdiff,sicecap                &
+     &                ,soildiff,sicediff,sicecap                        &
      &                ,rhosnow,roffvel,roffexp,roffpit                  &
      &                ,newsurf,rinifor,nwatcini,dwatcini,dgroundalb     &
      &                ,snowcovz
@@ -618,13 +659,17 @@
       call mpbcr(forcovmn)
       call mpbcr(soildiff)
       call mpbcr(sicediff)
-      call mpbcr(snowdiff)
       call mpbcr(soilcap)
       call mpbcr(sicecap)
       call mpbcr(rhosnow)
 !     Every thread derives its own snow heat capacity from the density it has
 !     just been given, so the two cannot drift apart. GRAV-8.
       snowcap = rhosnow * CPSNOW
+!     And its own conductivity, from the same density. Fourteau et al. (2021)
+!     Eq. (18), the vertical effective thermal conductivity at 263 K, in the
+!     ice volume fraction. WORLD-A9S5; the argument is above the declaration.
+      zsnowvf  = rhosnow / RHOICE_F2021
+      snowdiff = 1.985 * zsnowvf * zsnowvf + 0.073 * zsnowvf + 0.0336
       call mpbcr(roffvel)
       call mpbcr(roffexp)
       call mpbcr(roffpit)

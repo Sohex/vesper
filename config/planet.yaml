@@ -354,6 +354,49 @@ surface:
   # can recalibrate it, and it reaches `icemod_nl` as HLEAD so that a bracket
   # arm can. world-12c.
   sea_ice_lead_closing_m: 0.5
+
+  # MIXED. WHAT THE MODELLED SEA ICE AND ITS SNOW ARE MADE OF. Four constants
+  # of `icemod.f90` that were compile-time parameters, reachable only by a
+  # source edit, each an Earth measurement standing where nothing said it had
+  # been chosen for this world. `run_exoplasim.py` writes all four into
+  # `icemod_nl`; `exoplasim/scripts/ocean_tier_gate.py --strict` is what refused
+  # while they had no source. world-04ok.
+  #
+  # THE THREE SEA-ICE PROPERTIES ARE DECLARED, and DECLARED is the honest label
+  # rather than a weaker form of DETERMINED. The density, the specific heat and
+  # the conductivity of sea ice are all functions of its brine volume, hence of
+  # the ice's own salinity and temperature, and the model carries neither as a
+  # variable -- it has one number per cell, a thickness. So each is a stated
+  # position about what this world's sea ice is, exactly as
+  # `ocean.sea_ice_fusion_j_kg` above already is and for the same reason.
+  # `analysis/ice_properties.json` carries pure ice Ih from IAPWS-06 as the
+  # bound each sits against: 916.72 kg/m3 and 2096.71 J/kg/K at the melting
+  # point, both computed rather than quoted.
+  #
+  # GRAVITY CANCELS. It reaches a material property of ice only through
+  # overburden pressure, and `analysis/ice_properties.py` prices that: under a
+  # column far thicker than this model carries, the density response is parts
+  # per million at 12.81 m/s2 as at 9.81. This world's stronger surface gravity
+  # reaches the cryosphere through the SNOW's density, which is set by
+  # compaction, and through nothing else here. grav-8.
+  #
+  # `notes/audits/cryosphere-material-properties.md` argues each of the four.
+  cryosphere:
+    sea_ice_density_kg_m3: 920.0
+    sea_ice_specific_heat_j_kg_k: 2070.0
+    sea_ice_conductivity_w_m_k: 2.03
+
+    # DERIVED, and the only one of the four that is a pure substance. The
+    # modelled snow is ice Ih plus air with no brine in it, so its melting
+    # enthalpy is ice Ih's and IAPWS-06 gives it: 333444.87 J/kg at the triple
+    # point against IAPWS-95's liquid water on the same reference.
+    # `analysis/ice_properties.py` computes it and checks its implementation
+    # against every entry of the release's own numerical check table first.
+    # The model compiled 3.337e5, which is 0.08 per cent high; this replaces
+    # an unsourced number with a sourced one, which is a correction and not a
+    # tuning. Regenerate rather than editing.
+    snow_fusion_j_kg: 333444.87
+
   glaciers:
     enabled: true
     min_snow_depth_m: 2.0

@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-25T16:21:44+00:00",
+  "generated": "2026-08-26T02:16:34+00:00",
   "declaration": "exoplasim/config/ocean_tier.yaml",
   "tier": "ExoPlaSim slab; vendor/cgenie is a candidate nothing reads",
   "sources": {
@@ -9,15 +9,15 @@
   },
   "findings": [],
   "constants_by_reach": {
-    "namelist": 18,
-    "compile_time": 6,
-    "handed": 3
+    "namelist": 22,
+    "handed": 4
   },
   "handoffs": [
     "melting_point",
     "sea_ice_density",
     "sea_water",
-    "snow_density"
+    "snow_density",
+    "snow_conductivity"
   ],
   "refusals": [
     "ocean_diffusion_needs_a_radius",
@@ -32,42 +32,6 @@
     "cold_start_must_be_declared"
   ],
   "unsourced_earth_constants": [
-    {
-      "name": "CRHOI",
-      "source": "ice",
-      "reach": "compile_time",
-      "bites": "the mass of a metre of modelled ice, everywhere; and with CRHOS the snow-ice flooding threshold.\n"
-    },
-    {
-      "name": "CPI",
-      "source": "ice",
-      "reach": "compile_time",
-      "bites": "the heat capacity of the modelled ice slab in the skin-temperature step."
-    },
-    {
-      "name": "CPSN",
-      "source": "ice",
-      "reach": "compile_time",
-      "bites": "the heat capacity of modelled snow on sea ice."
-    },
-    {
-      "name": "CKAPI",
-      "source": "ice",
-      "reach": "compile_time",
-      "bites": "the conductive flux through the modelled ice, which is what sets the equilibrium thickness at a given surface energy balance.\n"
-    },
-    {
-      "name": "CKAPSN",
-      "source": "ice",
-      "reach": "compile_time",
-      "bites": "the insulating effect of modelled snow on sea ice."
-    },
-    {
-      "name": "CLFSN",
-      "source": "ice",
-      "reach": "compile_time",
-      "bites": "what melting a snowfall into the modelled sea costs."
-    },
     {
       "name": "xmind",
       "source": "ice",

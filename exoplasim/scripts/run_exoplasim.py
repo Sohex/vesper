@@ -509,6 +509,15 @@ def configure_otherargs(derived: dict) -> dict:
         # the arm ran with rather than leaving it to the binary. world-12c.
         "XMAXD@icemod_namelist": f"{derived['sea_ice_max_thickness_m']:.4f}",
         "HLEAD@icemod_namelist": f"{derived['sea_ice_lead_closing_m']:.4f}",
+        # WHAT THE MODELLED SEA ICE AND ITS SNOW ARE MADE OF, icemod_nl. All
+        # four were compile-time parameters that no configuration could reach.
+        # Written unconditionally so the namelist in the run directory records
+        # the material the arm integrated rather than leaving it to the binary,
+        # and so a bracket arm can move them. world-04ok.
+        "CRHOI@icemod_namelist": f"{derived['sea_ice_density_kg_m3']:.2f}",
+        "CPI@icemod_namelist": f"{derived['sea_ice_specific_heat_j_kg_k']:.2f}",
+        "CKAPI@icemod_namelist": f"{derived['sea_ice_conductivity_w_m_k']:.4f}",
+        "CLFSN@icemod_namelist": f"{derived['snow_fusion_j_kg']:.2f}",
         # CLIM-16, oceanmod_nl. Written unconditionally, defaults included, so
         # the namelist in the run directory records what the arm actually ran
         # with instead of leaving it to the binary's compiled value.
@@ -998,6 +1007,21 @@ def derive(config: dict, flux_ratio: float) -> dict:
             config["surface"]["sea_ice_max_thickness_m"]),
         "sea_ice_lead_closing_m": float(
             config["surface"]["sea_ice_lead_closing_m"]),
+        # world-04ok. The material the modelled sea ice and its snow are made
+        # of. The three sea-ice properties are DECLARED, because each is a
+        # function of a brine volume the model does not carry; the snow's
+        # melting enthalpy is DERIVED, because snow has no brine in it and
+        # IAPWS-06 therefore gives it exactly. Indexed rather than `.get`, so a
+        # config that has lost the block fails here instead of silently
+        # reverting the model to its compiled Earth values.
+        "sea_ice_density_kg_m3": float(
+            config["surface"]["cryosphere"]["sea_ice_density_kg_m3"]),
+        "sea_ice_specific_heat_j_kg_k": float(
+            config["surface"]["cryosphere"]["sea_ice_specific_heat_j_kg_k"]),
+        "sea_ice_conductivity_w_m_k": float(
+            config["surface"]["cryosphere"]["sea_ice_conductivity_w_m_k"]),
+        "snow_fusion_j_kg": float(
+            config["surface"]["cryosphere"]["snow_fusion_j_kg"]),
         # CLIM-16. Ocean horizontal heat transport EXISTS; a constant
         # diffusivity is a BOUND on the missing transport rather than the
         # transport, and it is bracketed rather than tuned. NLEV_OCE is 1
@@ -2712,6 +2736,13 @@ def expected_namelist_keys(config: dict) -> dict:
     lead = config.get("surface", {}).get("sea_ice_lead_closing_m")
     if lead is not None:
         want["icemod_namelist"]["HLEAD"] = round(float(lead), 4)
+    cryo = config.get("surface", {}).get("cryosphere")
+    if cryo is not None:
+        for _key, _name, _dp in (("sea_ice_density_kg_m3", "CRHOI", 2),
+                                 ("sea_ice_specific_heat_j_kg_k", "CPI", 2),
+                                 ("sea_ice_conductivity_w_m_k", "CKAPI", 4),
+                                 ("snow_fusion_j_kg", "CLFSN", 2)):
+            want["icemod_namelist"][_name] = round(float(cryo[_key]), _dp)
     if energy_diagnostics_enabled(config):
         want["plasim_namelist"]["NENERGY"] = float(energy_diagnostics_level(config))
     if m.get("conversion_time_level", False):

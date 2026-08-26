@@ -76,7 +76,7 @@ single_declaration:
     quantity: the density of the modelled sea ice, kg/m3
     owner:
       source: ice
-      declaration: "      parameter(CRHOI = 920.)           ! DENSITY OF ICE"
+      declaration: "      real :: CRHOI  = 920.    ! density of the modelled sea ice (kg/m**3)"
     receivers:
       - source: ocean
         declaration: "      real :: CRHOI    = 920.           ! Density of sea ice (kg/m**3)"
@@ -92,7 +92,9 @@ single_declaration:
           CRHOS-CRHOI, from its own.
     why: >
       neither statement was namelist-reachable, so this one splits only under a
-      source edit -- which is what the audit says a port does first.
+      source edit -- which is what the audit says a port does first. icemod's is
+      an icemod_nl key since world-04ok, so the owner is now reachable and the
+      receiver still is not, which is the shape the handoff exists to keep.
 
   - id: sea_water
     quantity: the four numbers salinity reaches the model through
@@ -135,6 +137,37 @@ single_declaration:
       landmod's rhosnow is an namelist key and icemod's was a hardcoded
       parameter used the same way, water equivalent times 1000 over the
       density to reach a physical thickness.
+
+  - id: snow_conductivity
+    quantity: the thermal conductivity of the modelled snow, W/m/K
+    owner:
+      source: sea
+      via: "use landmod, only: rhosnow, snowdiff"
+    receivers:
+      - source: ice
+        declaration: "      real :: ckapsn = 0.3170  ! heat conductivity in the modelled snow (W/(m*K))"
+        assignment: "ckapsn    = psnowdiff"
+        handoff: "call iceini"
+    forbidden:
+      - source: ice
+        form: "parameter(CKAPSN"
+        why: >
+          a second compile-time snow conductivity in icemod. It stood at the
+          same 0.31 landmod declared and was used for the same thing, the
+          conductive resistance of a snow layer as thickness over k, so the snow
+          on the modelled sea ice and the snow on the modelled soil were two
+          statements of one material property that nothing compared.
+      - source: ice
+        form: "parameter(CPSN"
+        why: >
+          the specific heat of snow, which icemod declared and read nowhere. Its
+          return would be a constant reaching no arithmetic; landmod's CPSNOW is
+          the live declaration of that quantity.
+    why: >
+      WORLD-A9S5. landmod DERIVES snowdiff from rhosnow, so the conductivity
+      follows the density that sets it; a second copy in icemod would hold a
+      value belonging to some other snow the moment a bracket moved the
+      density.
 
 # ---------------------------------------------------------------------------
 # THE CONSTANTS. Each `declaration` must be a line the source runs, and `value`
@@ -203,60 +236,85 @@ constants:
 
     - name: CRHOI
       source: ice
-      declaration: "      parameter(CRHOI = 920.)           ! DENSITY OF ICE"
+      declaration: "      real :: CRHOI  = 920.    ! density of the modelled sea ice (kg/m**3)"
       value: 920.0
-      reach: compile_time
-      origin: earth
-      sourced: false
+      reach: namelist
+      namelist: icemod_nl
+      origin: declared
+      sourced: true
+      source_of_value: >
+        config/planet.yaml surface.cryosphere.sea_ice_density_kg_m3, written to
+        icemod_namelist by run_exoplasim.py. DECLARED rather than derived, for
+        the reason CLFI is: the density of sea ice is a function of its brine
+        volume, hence of its own salinity and temperature, and this model
+        carries neither as a variable. analysis/ice_properties.json computes
+        pure ice Ih from IAPWS-06 as the bound it sits against.
       bites: >
         the mass of a metre of modelled ice, everywhere; and with CRHOS the
         snow-ice flooding threshold.
 
     - name: CPI
       source: ice
-      declaration: "      parameter(CPI = 2070.)            ! SPECIFIC HEAT OF ICE (J/(kg*K))"
+      declaration: "      real :: CPI    = 2070.   ! specific heat of the modelled sea ice (J/(kg*K))"
       value: 2070.0
-      reach: compile_time
-      origin: earth
-      sourced: false
+      reach: namelist
+      namelist: icemod_nl
+      origin: declared
+      sourced: true
+      source_of_value: >
+        config/planet.yaml surface.cryosphere.sea_ice_specific_heat_j_kg_k.
+        DECLARED for the same reason as CRHOI: the effective heat capacity of
+        sea ice carries the latent heat of its own internal melting, which is a
+        function of a brine volume this model does not have.
       bites: the heat capacity of the modelled ice slab in the skin-temperature step.
-
-    - name: CPSN
-      source: ice
-      declaration: "      parameter(CPSN = 2090.)           ! SPECIFIC HEAT OF SNOW (J/(kg*K))"
-      value: 2090.0
-      reach: compile_time
-      origin: earth
-      sourced: false
-      bites: the heat capacity of modelled snow on sea ice.
 
     - name: CKAPI
       source: ice
-      declaration: "      parameter(CKAPI = 2.03)           ! HEAT CONDUCTIVITY IN ICE (W/(m*K))"
+      declaration: "      real :: CKAPI  = 2.03    ! heat conductivity in the modelled sea ice (W/(m*K))"
       value: 2.03
-      reach: compile_time
-      origin: earth
-      sourced: false
+      reach: namelist
+      namelist: icemod_nl
+      origin: declared
+      sourced: true
+      source_of_value: >
+        config/planet.yaml surface.cryosphere.sea_ice_conductivity_w_m_k.
+        DECLARED for the same reason as CRHOI: the conductivity of sea ice is
+        pure ice's plus a brine term in the ice's own salinity over its
+        temperature, and the model carries neither.
       bites: >
         the conductive flux through the modelled ice, which is what sets the
         equilibrium thickness at a given surface energy balance.
 
-    - name: CKAPSN
+    - name: ckapsn
       source: ice
-      declaration: "      parameter(CKAPSN = 0.31)          ! HEAT CONDUCTIVITY IN SNOW (W/(m*K))"
-      value: 0.31
-      reach: compile_time
-      origin: earth
-      sourced: false
+      declaration: "      real :: ckapsn = 0.3170  ! heat conductivity in the modelled snow (W/(m*K))"
+      value: 0.3170
+      reach: handed
+      origin: derived
+      sourced: true
+      source_of_value: >
+        landmod's snowdiff, which landini DERIVES from rhosnow through Fourteau
+        et al. (2021)'s vertical effective thermal conductivity of snow at
+        263 K, handed to iceini. WORLD-A9S5. The value below is only what
+        stands until iceini is called.
       bites: the insulating effect of modelled snow on sea ice.
 
     - name: CLFSN
       source: ice
-      declaration: "      parameter(CLFSN = 3.337E5)        ! HEAT OF FUSION OF SNOW (J/kg)"
+      declaration: "      real :: CLFSN  = 3.337E5 ! melting enthalpy of the modelled snow (J/kg)"
       value: 333700.0
-      reach: compile_time
-      origin: earth
-      sourced: false
+      reach: namelist
+      namelist: icemod_nl
+      origin: derived
+      sourced: true
+      source_of_value: >
+        config/planet.yaml surface.cryosphere.snow_fusion_j_kg, which
+        analysis/ice_properties.py computes from IAPWS-06 as the melting
+        enthalpy of ice Ih at the triple point against IAPWS-95's liquid water.
+        The modelled snow is the one substance in this set with no brine in it,
+        so it is the one that is derivable rather than declared. The compiled
+        value below is 0.08 per cent above the sourced one and is only what
+        stands when nothing writes it.
       bites: what melting a snowfall into the modelled sea costs.
 
     - name: tmelt

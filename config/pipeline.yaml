@@ -659,6 +659,32 @@ steps:
     needs: [stellar_spectrum]
     writes: [analysis/ice_albedo.json]
 
+  - id: ice_properties
+    script: analysis/ice_properties.py
+    cost: seconds
+    writes: [analysis/ice_properties.json]
+    gate: >
+      What the modelled sea ice and its snow are MADE of, from IAPWS-06 rather
+      than quoted: the density, specific heat and melting enthalpy of ice Ih
+      over the temperature range the model's ice occupies, and the overburden
+      calculation that shows this world's gravity cancels out of all three. It
+      depends on no build, no run and no star, so it sits outside every loop.
+      The declarations in `config/planet.yaml` under `surface.cryosphere` rest
+      on it. `notes/audits/cryosphere-material-properties.md`
+
+  - id: snow_albedo_grain
+    script: analysis/snow_albedo_grain.py
+    cost: seconds
+    needs: [stellar_spectrum, ice_albedo]
+    writes: [analysis/snow_albedo_grain.json]
+    gate: >
+      A two-band snow albedo on a grain-radius axis for this star, from the
+      three grain-resolved spectra `specblock.f90` compiles and no code path
+      selects among. EXPLORATION: no model term rests on it yet. It is the half
+      a dust darkening coefficient needs in order to mean what its source
+      measured, which is what blocks `dust-14`.
+      `notes/audits/snow-albedo-grain.md`
+
   - id: snow_albedo_zenith
     script: analysis/snow_albedo_zenith.py
     cost: seconds

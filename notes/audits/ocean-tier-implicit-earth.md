@@ -623,30 +623,60 @@ Of the constants of the modelled sea and its ice that the declaration covers,
 the split falls in a different place than it does on the candidate side. The
 sea water quartet, the two sea-ice lengths, the lead scale, the albedo ramp and
 the mixed-layer depth are all namelist keys and this project sets them from
-`config/planet.yaml`. What is not reachable is the **material properties of the
-modelled ice and snow**: density, the two specific heats, the two conductivities
-and the heat of fusion of snow. Those are compile-time and each is an Earth
-measurement standing where nothing says it was chosen. They are what
-`ocean_tier_gate.py --strict` refuses on, together with the namelist keys that
-are reachable but still carry an Earth number with no source.
+`config/planet.yaml`. The **material properties of the modelled ice and snow** were the
+column's whole residue: density, the two specific heats, the two conductivities
+and the heat of fusion of snow, all compile-time, each an Earth measurement
+standing where nothing said it had been chosen. WORLD-04OK and WORLD-A9S5
+settled them and there are no compile-time constants left in the declaration.
+What they turned into is not one thing, and the split is the finding:
 
-The conductivity pair is the sharpest of them. `CKAPI` and `CKAPSN` set the
-conductive flux through the modelled ice and the insulation the snow on it
-provides, which is what fixes the equilibrium thickness at a given surface energy
-balance -- and the peer that runs this configuration reports excessive ice.
+- **Three are DECLARED**, and declared is the honest label. The density, the
+  specific heat and the conductivity of sea ice are each a function of its brine
+  volume, hence of the ice's own salinity and temperature, and the model carries
+  neither as a variable -- it holds one number per cell, a thickness. So each is
+  a stated position, exactly as `CLFI` already was and for the same reason, and
+  `config/planet.yaml` states it while `icemod_nl` carries it.
+- **One is DERIVED.** The melting enthalpy of the modelled snow is the one
+  member of the set that is a pure substance, because snow is ice Ih plus air
+  with no brine in it, so IAPWS-06 gives it exactly.
+  `analysis/ice_properties.py` computes it.
+- **One is HANDED**, and was a duplicate that this section's own A1 class had
+  missed. `CKAPSN` stood at the same 0.31 `landmod` declared as `snowdiff` and
+  was used for the same thing, so the snow on the modelled sea ice and the snow
+  on the modelled soil were two statements of one material property with nothing
+  comparing them. It arrives through `iceini` now, beside the snow density.
+- **One is GONE.** `CPSN`, the specific heat of snow, was declared and read
+  nowhere in the whole vendored tree. Exposing it would have put a knob in
+  `icemod_nl` that reached no arithmetic.
+
+The conductivity pair was the sharpest of them, and it split. `CKAPI` and
+`CKAPSN` set the conductive flux through the modelled ice and the insulation the
+snow on it provides, which is what fixes the equilibrium thickness at a given
+surface energy balance -- and the peer that runs this configuration reports
+excessive ice. `CKAPI` is a declaration this model cannot improve on without an
+ice salinity. `CKAPSN` was the half that could move, and it did: it now follows
+the snow density through a measured relation, so the bracket `rhosnow` was
+exposed for moves the heat flux through the pack as well as its thickness and
+its thermal mass. `notes/audits/cryosphere-material-properties.md` argues each.
 
 ## A4. What this section did NOT establish
 
 - **Nothing was run.** Every statement is against the source. What the slab
   DELIVERS is verified by running the model, in section 11 and in
   `verify_ocean_flux_channel.py`; nothing here repeats that.
-- **No number was changed.** Both duplicated quantities held the same value on
-  both sides and `planet_nl`'s `tmelt` is what the compiled `TMELT` was, so
-  every current configuration integrates identically. What changed is that the
-  values can now move, and move in one place when they do.
-- **The unreachable material properties are inventoried, not bracketed.** What
-  ice and snow on this world are made of is a Vesper decision the models will not
-  raise, and the gate names the six rather than guessing at them.
+- **Two numbers changed, both by replacing an unsourced value with a sourced
+  one.** The duplicated quantities of A1 held the same value on both sides, so
+  that work changed no result. WORLD-04OK and WORLD-A9S5 did: the snow's melting
+  enthalpy moves to IAPWS-06's, which is 0.08 per cent below the compiled value
+  and is not detectable, and the snow's conductivity moves to what Fourteau et
+  al. (2021) give at the declared snow density, which IS detectable and is
+  argued in `notes/audits/cryosphere-material-properties.md`. Everything else in
+  the set is unchanged in value and changed only in reachability.
+- **The material properties are sourced, not bracketed.** Each of the six now
+  has a source and a range of validity; none has a bracket over what this
+  world's ice might instead be. Three of them cannot get one from this model,
+  because the quantity that would set them -- the brine volume -- is not a
+  variable it carries.
 - **`icemod`'s freezing point is still salinity-INDEPENDENT**, which the
   "checked and clean" section above records from the other direction: the
   candidate computes it from the local salinity and the adopted tier takes it as

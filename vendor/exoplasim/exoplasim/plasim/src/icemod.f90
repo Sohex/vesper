@@ -16,13 +16,60 @@
       parameter(NHOR = NLON * NLPP)     ! Horizontal part
       parameter(NROOT = 0)              ! Master node
 !
-                                        ! ALL DENSITIES IN (kg/m**3)
-      parameter(CRHOI = 920.)           ! DENSITY OF ICE
-      parameter(CPI = 2070.)            ! SPECIFIC HEAT OF ICE (J/(kg*K))
-      parameter(CPSN = 2090.)           ! SPECIFIC HEAT OF SNOW (J/(kg*K))
-      parameter(CKAPI = 2.03)           ! HEAT CONDUCTIVITY IN ICE (W/(m*K))
-      parameter(CKAPSN = 0.31)          ! HEAT CONDUCTIVITY IN SNOW (W/(m*K))
-      parameter(CLFSN = 3.337E5)        ! HEAT OF FUSION OF SNOW (J/kg)
+!
+!     WHAT THE MODELLED SEA ICE AND ITS SNOW ARE MADE OF. All four below were
+!     compile-time parameters, reachable only by a source edit, and each was an
+!     Earth measurement standing where nothing said it had been chosen for this
+!     world. They are icemod_nl keys now, at unchanged values, and
+!     config/planet.yaml declares them under `surface.cryosphere` with a source
+!     apiece. WORLD-04OK; notes/audits/cryosphere-material-properties.md has the
+!     argument and analysis/ice_properties.py the arithmetic.
+!
+!     THE THREE SEA-ICE PROPERTIES ARE DECLARED, NOT DERIVED, and for the reason
+!     CLFI below is already declared for: the density, the specific heat and the
+!     conductivity of sea ice are all functions of its brine volume, hence of
+!     the ice's own salinity and temperature, and THIS MODEL CARRIES NEITHER AS
+!     A VARIABLE. It has one number per cell, a thickness. So each of the three
+!     is a stated position about what this world's sea ice is, and IAPWS-06's
+!     pure ice Ih is the bound it sits against rather than a substitute for it.
+!
+!     GRAVITY CANCELS OUT OF ALL THREE. It reaches a material property of ice
+!     only through overburden pressure, and under a column far thicker than this
+!     model carries the density response is parts per million at 12.81 m/s2 as
+!     at 9.81. Where the surface gravity does reach this set is the SNOW's
+!     density, which is set by compaction -- landmod's rhosnow, GRAV-8 -- and
+!     from there the snow conductivity that now follows it.
+!
+      real :: CRHOI  = 920.    ! density of the modelled sea ice (kg/m**3)
+      real :: CPI    = 2070.   ! specific heat of the modelled sea ice (J/(kg*K))
+      real :: CKAPI  = 2.03    ! heat conductivity in the modelled sea ice (W/(m*K))
+!
+!     CLFSN IS THE ONE OF THE FOUR THAT IS A PURE SUBSTANCE. It is the melting
+!     enthalpy of the modelled SNOW, and snow is ice Ih plus air with no brine
+!     in it, so unlike the three above it is derivable: IAPWS-06 gives 333444.87
+!     J/kg at the triple point against IAPWS-95's liquid water. The compiled
+!     value below is 0.08 per cent above that and is kept, because run_exoplasim
+!     writes the sourced number over it and the compiled value is only what
+!     stands when nothing does.
+      real :: CLFSN  = 3.337E5 ! melting enthalpy of the modelled snow (J/kg)
+!
+!     THE SNOW CONDUCTIVITY IS LANDMOD'S, NOT A SECOND COPY. WORLD-A9S5. This
+!     was `parameter(CKAPSN = 0.31)`, the same number landmod declared as
+!     `snowdiff` and used for the same purpose -- the conductive resistance of a
+!     snow layer, `thickness / k` -- so the snow on the modelled sea ice and the
+!     snow on the modelled soil were two statements of one material property
+!     that nothing compared. landmod now DERIVES its value from the snow density
+!     through Fourteau et al. (2021), and `iceini` takes it, so the two cannot
+!     hold different snow and a bracket on the density moves both. The value
+!     below is only what a run with no sea points never reads.
+      real :: ckapsn = 0.3170  ! heat conductivity in the modelled snow (W/(m*K))
+!
+!     CPSN IS GONE. It was `parameter(CPSN = 2090.)`, the specific heat of snow,
+!     and it was READ NOWHERE: a grep of the whole vendored tree finds the
+!     declaration and no use. Deleting it is the fix, because exposing a
+!     constant that reaches no arithmetic would put a knob in icemod_nl that
+!     silently does nothing, and landmod's CPSNOW is the live declaration of the
+!     same quantity. WORLD-04OK.
 !
 !     THE SNOW DENSITY IS LANDMOD'S, NOT A SECOND COPY. GRAV-8. 330 was declared
 !     twice, here as a hardcoded parameter and in landmod as the namelist key
@@ -257,7 +304,8 @@
 
 !     Threads instead of ranks: a thread owns what a rank owned.
 !     Inert without -fopenmp, so the MPI and serial builds are unchanged.
-!$omp threadprivate(cheat,cicemin,clfi,cpme,cps,crhos,crhosn,croff,csnow,ctaux,ctauy,cust3,deglat,&
+!$omp threadprivate(cheat,cicemin,ckapi,ckapsn,clfi,clfsn,cpi,cpme,cps,crhoi,crhos,crhosn,&
+!$omp&  croff,csnow,ctaux,ctauy,cust3,deglat,&
 !$omp&  mpinfo,mypid,myworld,&
 !$omp&  naccuo,naccuout,naout,ncpl_ice_ocean,newsurf,nfluko,ngui,nice,nicec2d,nout,noutput,&
 !$omp&  nperpetual_ice,nprhor,nprint,nproc,nrestart,nseaice,nsnow,nstep,ntskin,ntspd,nud,solar_day,&
@@ -367,7 +415,7 @@
 
       subroutine iceini(kstep,krestart,koutput,kdpy,kgui,pts,psst,pmld  &
      &                 ,picec,piced,psnow,ktspd,psolday,pdeglat         &
-     &                 ,prhosnow,ptmelt                                 &
+     &                 ,prhosnow,psnowdiff,ptmelt                       &
                        ,icemod_namelist,oceanmod_namelist,ice_output    &
                        ,ocean_output)
       use icemod
@@ -384,6 +432,7 @@
       real :: psnow(NHOR)
       real :: pdeglat(NLPP)
       real :: prhosnow
+      real :: psnowdiff             ! landmod's snowdiff, derived from prhosnow
       real :: ptmelt                ! pumamod's melting point, a planet_nl key
       real (kind=8) :: zsi(NLAT)
       real (kind=8) :: zgw(NLAT)
@@ -394,6 +443,7 @@
       namelist/icemod_nl/nout,nfluko,nperpetual_ice,ntspd,nprint,nprhor &
      &               ,nice,nseaice,nsnow,ntskin,ncpl_ice_ocean,taunc   &
      &               ,xmind,xmaxd,thicec,cicemin,TFREEZE,CRHOS,CPS,CLFI  &
+     &               ,CRHOI,CPI,CKAPI,CLFSN                              &
      &               ,tsst_eq,tsst_pol,hice_ini,hlead,newsurf,naout
 !
 !     copy input parameter to icemod
@@ -407,6 +457,11 @@
       deglat(:) = pdeglat(:)
 !     landmod's rhosnow, the one declaration of the snow density. GRAV-8.
       crhosn    = prhosnow
+!     landmod's snowdiff, the one declaration of the snow conductivity, which
+!     landini derived from that same density. WORLD-A9S5. Assigned BEFORE the
+!     namelist is read, like the density above, because it is not an icemod_nl
+!     key: a run that wants different snow moves rhosnow and gets both.
+      ckapsn    = psnowdiff
 !     pumamod's tmelt, the one declaration of the melting point. planet_nl sets
 !     it and plasim.f90 broadcasts it before surfini, so every thread has the
 !     configured value here.
@@ -465,6 +520,13 @@
       call mpbcr(CRHOS)
       call mpbcr(CPS)
       call mpbcr(CLFI)
+!     The four material properties of the modelled ice and its snow, WORLD-04OK.
+!     ckapsn is NOT here: it is landmod's, handed in above and already the same
+!     on every thread because landini derived it on every thread.
+      call mpbcr(CRHOI)
+      call mpbcr(CPI)
+      call mpbcr(CKAPI)
+      call mpbcr(CLFSN)
       call mpbcr(tsst_eq)
       call mpbcr(tsst_pol)
       call mpbcr(hice_ini)

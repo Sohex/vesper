@@ -1,0 +1,62 @@
+{
+  "generated": "2026-08-25",
+  "generator": "analysis/ice_properties.py",
+  "standard": "IAPWS R10-06(2009), the equation of state 2006 for H2O ice Ih",
+  "standard_reference": "references/iapws_2009_revised-release-on-the-equation-of-state-2006-for-h2o-ice-ih.pdf",
+  "check_tolerance": 1e-09,
+  "check_worst_relative": 6.8e-10,
+  "check_states": [
+    "triple point",
+    "normal pressure melting point",
+    "100 K at 100 MPa"
+  ],
+  "validity": "IAPWS-06 is stated valid from 0 K to the melting curve, and to 210 MPa. Every state evaluated here is inside it by a wide margin.",
+  "pure_ice_ih": {
+    "melting_enthalpy_j_kg": 333444.87,
+    "melting_enthalpy_state": "at the triple point, against IAPWS-95's liquid water on the same reference",
+    "density_at_melting_kg_m3": 916.7215,
+    "specific_heat_at_melting_j_kg_k": 2096.7139,
+    "profile_at_normal_pressure": [
+      {
+        "temperature_k": 233.15,
+        "density_kg_m3": 922.2192,
+        "specific_heat_j_kg_k": 1804.5069
+      },
+      {
+        "temperature_k": 243.15,
+        "density_kg_m3": 920.9174,
+        "specific_heat_j_kg_k": 1876.9488
+      },
+      {
+        "temperature_k": 253.15,
+        "density_kg_m3": 919.5652,
+        "specific_heat_j_kg_k": 1949.8319
+      },
+      {
+        "temperature_k": 263.15,
+        "density_kg_m3": 918.1658,
+        "specific_heat_j_kg_k": 2023.0979
+      },
+      {
+        "temperature_k": 268.15,
+        "density_kg_m3": 917.4492,
+        "specific_heat_j_kg_k": 2059.8582
+      },
+      {
+        "temperature_k": 273.16,
+        "density_kg_m3": 916.7204,
+        "specific_heat_j_kg_k": 2096.7691
+      }
+    ]
+  },
+  "gravity": {
+    "gravity_m_s2": 12.81,
+    "column_m": 20.0,
+    "overburden_pa": 235234.1,
+    "isothermal_compressibility_pa": 1.16019e-10,
+    "relative_density_change": 2.73e-05,
+    "earth_relative_density_change": 2.09e-05,
+    "verdict": "the surface gravity CANCELS out of the material properties of the modelled ice. Under a column far thicker than this model carries, the density response to overburden is parts per million, and the specific heat and conductivity responses are smaller still. Gravity reaches this set through the SNOW's density, which is set by compaction, and through nothing else."
+  },
+  "what_is_not_derivable_here": "the density, specific heat and conductivity of SEA ice are functions of brine volume, hence of the ice's own salinity and temperature, and this model carries neither as a variable. icemod.f90 already says so of the heat of fusion. The pure ice Ih values above are the bound those declarations sit against, not substitutes for them."
+}
