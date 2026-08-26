@@ -2273,6 +2273,45 @@ def check_melting_point_follows_the_run() -> list[str]:
     return bad
 
 
+def check_cloud_tables_match_the_papers() -> list[str]:
+    """The shortwave cloud tables in `radmod.f90` are the ones the papers print.
+
+    `swr`'s computed-cloud branch reads Stephens et al. (1984) Tables 1(a),
+    1(b) and 1(c) by bilinear interpolation, 324 entries of Fortran source that
+    nothing else in the tree constrains. A slipped digit in any of them is a
+    silently different cloud: no compile fails, no run refuses, and the model
+    reflects a little more or a little less near infrared for the rest of its
+    life. `exoplasim/scripts/stephens_tables_vs_fits.py` holds an independent
+    transcription of both papers, already checked against the papers' own
+    claims about which of their tables the 1984 revision altered, and reads the
+    model source back against it.
+
+    It also checks the conservative floor `swr` applies to the co-albedo, which
+    is the one place the table can be exactly zero and the two-stream solution
+    divides by it. Both are pure reads: no build, no run, no artifact.
+    """
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    sys.path.insert(0, str(ROOT / "lib"))
+    try:
+        import numpy as np
+        import stephens_tables_vs_fits as tables
+    except ImportError as exc:
+        return [f"exoplasim/scripts/stephens_tables_vs_fits.py does not "
+                f"import: {exc}"]
+    bad = []
+    for what, run in (
+            ("the transcription of the two papers", tables.check_transcription),
+            ("radmod's port of the 1984 tables", tables.check_model_source),
+            ("the co-albedo floor against Stephens Eq. (1)",
+             lambda: tables.check_conservative_floor(
+                 math.sqrt(np.finfo(np.float64).eps)))):
+        try:
+            run()
+        except SystemExit as exc:
+            bad.append(f"{what}: {exc}")
+    return bad
+
+
 def check_run_length_derivation() -> list[str]:
     """A declared run length is derived from a timescale, and from the right one.
 
@@ -2428,6 +2467,8 @@ def main() -> None:
                lambda: check_melting_point_follows_the_run()),
               ("a declared run length is derived from the right timescale",
                lambda: check_run_length_derivation()),
+              ("the model's shortwave cloud tables are the papers' tables",
+               lambda: check_cloud_tables_match_the_papers()),
               ("the tools environment.md names are on this host",
                lambda: check_documented_tools())]
     # Run and REPORT one at a time, rather than evaluating the list and then

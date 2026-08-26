@@ -1,18 +1,21 @@
 #!/usr/bin/env python
-"""Stephens's tuned tables against the analytic fits radmod evaluates instead.
+"""Stephens's tables, the fits they replaced, and the port of them radmod reads.
 
 WORLDBUILDING FRAME. Vesper is a simulated super-Earth. Everything below is a
 property of the model's shortwave scheme or of the papers it is ported from.
 
-WHAT THIS SETTLES. `radmod`'s computed-cloud branch does not read Stephens's
-tuned tables. It evaluates three analytic fits of its own,
+WHAT THIS DOES NOW. `radmod`'s computed-cloud branch reads Stephens et al.
+(1984) Tables 1(a), 1(b) and 1(c) by bilinear interpolation, which is what the
+paper prescribes on p. 689. This script is the check on that port and the
+measurement of what adopting it was worth. It used to evaluate three analytic
+fits of its own,
 
     beta1  = tswr1 sqrt(mu0)
     beta2  = tswr2 sqrt(mu0) / ln(3 + 0.1 tau)
     1-om0  = tswr3 mu0**2 ln(1000/tau)
 
 at tswr1 = 0.077, tswr2 = 0.065 and tswr3 = 0.0055, the last of which this
-project re-weights for a K dwarf through `model.cloud_absorption_scale`. Those
+project re-weighted for a K dwarf through `model.cloud_absorption_scale`. Those
 three are NOT Stephens (1978) Eqs. (11a) and (11b) -- the surface polynomials in
 ln(tau) and mu0 whose coefficients are that paper's Table 1, and which Stephens,
 Ackerman and Smith (1984) p. 687 withdrew as containing errors. They are a
@@ -22,13 +25,24 @@ compared against: 1984 Table 1(a) replaces the 1978 single-scattering albedo
 table outright, and 1984 Tables 1(b) and 1(c) are the 1978 backscatter tables
 with, in the paper's words, only a couple of points smoothed in each.
 
-So the question is not whether radmod evaluates a withdrawn formula. It is how
-far its own fits sit from the tables, and whether that matters at the optical
-depths this model's cloud layers reach.
+So the question was never whether radmod evaluated a withdrawn formula. It was
+how far its own fits sat from the tables at the optical depths this model's
+cloud layers reach, and the answer was far enough to change the climate:
+world-f9ig replaced the fits with the tables on that measurement.
 
-Both tables are transcribed below from the scanned papers, and the transcription
-is checked rather than trusted: the two backscatter tables must agree except at
-a few points, and the two albedo tables must not.
+THREE CHECKS THAT CAN FAIL, all run before any number is printed.
+
+1. The transcription of both papers, against the papers' own claims about which
+   of their tables changed and by how much.
+2. The PORT, against this transcription. `radmod.f90` carries the same tables in
+   Fortran; they are read back and compared entry for entry, so a slipped digit
+   in the model source fails here instead of moving a climate silently.
+3. The conservative floor the model applies to the co-albedo, against the
+   closed-form answer it stands in for. Table 1(a) reaches exactly zero at
+   grazing incidence on a thick layer, and the two-stream u-factor divides by
+   the co-albedo, so `swr` floors it at SQRT(EPSILON(1.0)). At that floor the
+   two-stream reflectance must reproduce Stephens Eq. (1) to better than 1e-4,
+   a bar declared here and below the last digit of any tabulated entry.
 
 Run it as `python exoplasim/scripts/stephens_tables_vs_fits.py`.
 """
@@ -40,11 +54,16 @@ import json
 import math
 
 import numpy as np
+import yaml
 
 import _paths  # noqa: F401  anchors every path on this file and adds lib/
 
 import sensitivity  # noqa: E402
 from paths import rel  # noqa: E402
+
+RADMOD = _paths.MODEL_SRC / "plasim" / "src" / "radmod.f90"
+# The bar on check 3, declared before it was run.
+CONSERVATIVE_TOLERANCE = 1.0e-4
 
 DEFAULT_BRACKET = _paths.ANALYSIS / "cloud_optical_depth_bracket.json"
 DEFAULT_OUT = _paths.ANALYSIS / "stephens_tables_vs_fits.json"
@@ -190,6 +209,101 @@ def check_transcription() -> dict:
     return findings
 
 
+def _fortran_array(name: str, source: str) -> np.ndarray:
+    """One `real, parameter :: name(...) = reshape((/ ... /), ...)` from radmod.
+
+    A text read rather than a compile, for the same reason every other check of
+    the model source here is a text read: this has to run without a build.
+    Continuation markers and trailing comments are stripped, which is the whole
+    of the Fortran this needs to understand.
+    """
+    start = source.find(f":: {name}(")
+    if start < 0:
+        raise SystemExit(f"{rel(RADMOD)} declares no {name}; the model no "
+                         "longer carries the tables this checks")
+    body = source[start:]
+    body = body[body.index("(/") + 2:]
+    body = body[:body.index("/)")]
+    numbers = []
+    for line in body.splitlines():
+        line = line.split("!")[0].replace("&", " ").strip()
+        for token in line.split(","):
+            token = token.strip()
+            if token:
+                numbers.append(float(token))
+    return np.array(numbers, dtype=float)
+
+
+def check_model_source() -> dict:
+    """radmod's tables ARE these tables, and its axes are these axes.
+
+    The model stores them (mu0, tau_N) with mu0 ASCENDING, because that puts one
+    optical depth on one source line; the arrays here are (tau_N, mu0) with mu0
+    descending, as the papers print them. The transpose is part of what is
+    checked: getting it wrong is the one transcription error that would leave
+    every entry present and every value in the wrong place.
+    """
+    if not RADMOD.is_file():
+        raise SystemExit(f"{rel(RADMOD)} is missing")
+    src = RADMOD.read_text(encoding="utf-8", errors="replace")
+    tau = _fortran_array("swctau", src)
+    mu = _fortran_array("swcmu", src)
+    if not np.array_equal(tau, TAU):
+        raise SystemExit(f"radmod's optical depth axis is {tau.tolist()}, not "
+                         f"the papers' {TAU.tolist()}")
+    if not np.array_equal(mu, MU0[::-1]):
+        raise SystemExit(f"radmod's zenith cosine axis is {mu.tolist()}, not "
+                         f"the papers' {MU0[::-1].tolist()}")
+    ported = {}
+    for name, table in (("swcb1", BETA1_1984), ("swcb2", BETA2_1984),
+                        ("swcoa", COALB_1984)):
+        flat = _fortran_array(name, src)
+        if flat.size != table.size:
+            raise SystemExit(f"radmod's {name} has {flat.size} entries, not "
+                             f"{table.size}")
+        got = flat.reshape(len(TAU), len(MU0))[:, ::-1]
+        bad = np.argwhere(np.abs(got - table) > 5e-7)
+        if bad.size:
+            j, k = bad[0]
+            raise SystemExit(
+                f"radmod's {name} disagrees with the paper at {bad.shape[0]} "
+                f"entries; first is tau_N {TAU[j]:g}, mu0 {MU0[k]:g}: model "
+                f"{got[j, k]:.6g}, paper {table[j, k]:.6g}")
+        ported[name] = int(flat.size)
+    return {"radmod": rel(RADMOD), "entries_compared": ported}
+
+
+def check_conservative_floor(floor: float) -> dict:
+    """The model's co-albedo floor stands in for the conservative limit.
+
+    `swr` computes the range-2 layer from Stephens Eqs. (2) and (3), whose
+    u-factor divides by the co-albedo, and Table 1(a) reaches exactly zero. The
+    floor is SQRT(EPSILON(1.0)) in the model's own arithmetic, which is where
+    the exact expression stops being the more accurate form -- its error goes as
+    machine epsilon over the co-albedo and the conservative limit's as the
+    co-albedo itself. What that argument asserts, and what this measures, is
+    that at the floor the two-stream reflectance IS the conservative one, Eq.
+    (1). The bar is declared in this module and is not read off the result.
+    """
+    worst, where = 0.0, None
+    for tau in (0.03, 1.0, 5.0, 20.0, 80.0, 146.0):
+        for mu in MU0:
+            beta = float(interp_table(BETA2_1984, tau, mu))
+            r_two, _ = reflect_absorbing(beta, floor, tau, mu)
+            r_con = reflect_conservative(beta, tau, mu)
+            if abs(r_two - r_con) > worst:
+                worst, where = abs(float(r_two - r_con)), (tau, float(mu))
+    if worst > CONSERVATIVE_TOLERANCE:
+        raise SystemExit(
+            f"at the co-albedo floor the two-stream reflectance departs from "
+            f"Stephens Eq. (1) by {worst:.3g} at tau_N {where[0]:g}, mu0 "
+            f"{where[1]:g}, past the declared {CONSERVATIVE_TOLERANCE:g}; the "
+            "floor is changing an answer rather than defining one")
+    return {"floor": floor, "tolerance": CONSERVATIVE_TOLERANCE,
+            "worst_reflectance_departure": worst,
+            "worst_at": {"tau_n": where[0], "mu0": where[1]}}
+
+
 def fits(tswr1: float, tswr2: float, tswr3: float):
     """radmod's three analytic fits on the tables' own (tau, mu0) grid."""
     tau = TAU[:, None]
@@ -249,24 +363,44 @@ def main() -> None:
     ap.add_argument("--tswr1", type=float, default=0.077)
     ap.add_argument("--tswr2", type=float, default=0.065)
     ap.add_argument("--tswr3", type=float, default=None,
-                    help="default: the run's value, which this project scales "
-                         "for a K dwarf through cloud_absorption_scale")
+                    help="default: the value the fits ran at, which is the "
+                         "compiled 0.0055 times cloud_absorption_scale")
+    ap.add_argument("--coalbedo-scale", type=float, default=None,
+                    help="what CLOUDABS multiplies the TABULATED co-albedo by; "
+                         "default: config/planet.yaml's cloud_absorption_scale")
     ap.add_argument("--out", type=_paths.Path, default=DEFAULT_OUT)
     args = ap.parse_args()
 
     checks = check_transcription()
+    port = check_model_source()
+    # The model's arithmetic is 8-byte: `config/planet.yaml` declares
+    # `-fdefault-real-8` and `verify_model_compiles.py` reproduces that flag
+    # line, so SQRT(EPSILON(1.0)) in `swr` is the double-precision one.
+    floor = check_conservative_floor(math.sqrt(np.finfo(np.float64).eps))
+
+    # THE SCALE IS APPLIED TO BOTH SIDES, and that is what makes the flux
+    # comparison the one the model actually made. `cloud_absorption_scale` is a
+    # star-over-Sun ratio of range-2 flux-weighted co-albedo; it multiplied the
+    # fit's coefficient before and it multiplies the interpolated co-albedo now,
+    # so a comparison that scaled only the fit would be reporting the star's
+    # re-weighting as though it were part of the table adoption.
+    scale = args.coalbedo_scale
+    if scale is None:
+        scale = float(yaml.safe_load(_paths.CONFIG.read_text(
+            encoding="utf-8"))["model"]["cloud_absorption_scale"])
 
     bracket = json.loads(args.bracket.read_text(encoding="utf-8"))
     tswr3 = args.tswr3
     if tswr3 is None:
-        tswr3 = 0.0055 * 1.192  # cloud_absorption_scale, exoplasim/analysis
+        tswr3 = 0.0055 * scale
     beta1_fit, beta2_fit, coalb_fit = fits(args.tswr1, args.tswr2, tswr3)
 
     # Where the fits sit against the tables, over the tables' whole grid.
     grid = {
         "beta1_fit_over_table": (beta1_fit / BETA1_1984).tolist(),
         "beta2_fit_over_table": (beta2_fit / BETA2_1984).tolist(),
-        "coalbedo_fit_over_table_1984": (coalb_fit / np.maximum(1e-6, COALB_1984)).tolist(),
+        "coalbedo_fit_over_table_1984":
+            (coalb_fit / np.maximum(1e-6, scale * COALB_1984)).tolist(),
     }
 
     # Restricted to what this model's layers actually carry. The band-2 optical
@@ -291,8 +425,8 @@ def main() -> None:
             cof = tswr3 * m * m * math.log(1000.0 / max(1e-10, t2))
             b1t = float(interp_table(BETA1_1984, t1, m))
             b2t = float(interp_table(BETA2_1984, t2, m))
-            cot = float(interp_table(COALB_1984, t2, m))
-            co78 = float(interp_table(COALB_1978, t2, m))
+            cot = scale * float(interp_table(COALB_1984, t2, m))
+            co78 = scale * float(interp_table(COALB_1978, t2, m))
             b2_78 = float(interp_table(BETA2_1978, t2, m))
             d_r1 += w * (reflect_conservative(b1t, t1, m)
                          - reflect_conservative(b1f, t1, m))
@@ -339,8 +473,10 @@ def main() -> None:
         "what": "Stephens's tuned tables against radmod's own analytic fits",
         "issue": "world-f9ig",
         "transcription_checks": checks,
+        "model_source_checks": port,
+        "conservative_floor_check": floor,
         "coefficients": {"tswr1": args.tswr1, "tswr2": args.tswr2,
-                         "tswr3": tswr3},
+                         "tswr3": tswr3, "coalbedo_scale": scale},
         "bracket_source": rel(args.bracket),
         "grid_ratios": grid,
         "per_layer": per_layer,
@@ -351,9 +487,13 @@ def main() -> None:
             "bracket_kelvin": [sensitivity.forcing_to_kelvin(lo, alpha),
                                sensitivity.forcing_to_kelvin(hi, alpha)],
         },
-        "settles_it": "nothing here. A T21 pair, and only after world-jgen's "
-                      "own pair has run, because tswr1 was tuned against the "
-                      "optical depth world-jgen corrects",
+        "flux_ratio_that_would_offset_it": [
+            -lo / sensitivity.absorbed_w_m2_per_flux_ratio(alpha),
+            -hi / sensitivity.absorbed_w_m2_per_flux_ratio(alpha)],
+        "settles_it": "a T21 commissioning pair on the adopted scheme. The "
+                      "bracket here is a magnitude bound over a black surface "
+                      "on one layer carrying all of the model's cover, not a "
+                      "prediction of the modelled balance",
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
@@ -362,8 +502,11 @@ def main() -> None:
           f"points, beta2 at {checks['beta2_points_altered']}, "
           f"1-omega at {checks['coalbedo_points_altered']} of "
           f"{checks['coalbedo_points_total']}")
+    print(f"port           radmod's tables agree with the paper at "
+          f"{sum(port['entries_compared'].values())} entries; the co-albedo "
+          f"floor is Eq. (1) to {floor['worst_reflectance_departure']:.2g}")
     print(f"coefficients   tswr1 {args.tswr1} tswr2 {args.tswr2} "
-          f"tswr3 {tswr3:.6g}")
+          f"tswr3 {tswr3:.6g}, co-albedo scale {scale:g} on both sides")
     print("")
     print("  lev  W g/m2   tau1    tau2   dRe1     dRe2     dA2   dA2(84-78)")
     for p in per_layer:
@@ -374,8 +517,8 @@ def main() -> None:
                  p["d_absorptance_band2_table_minus_fit"],
                  p["d_absorptance_band2_1984_minus_1978"]))
     print("")
-    print(f"flux           {lo:+.2f} to {hi:+.2f} W/m2 if the tables replaced "
-          f"the fits, over the layers carrying cloud water")
+    print(f"flux           {lo:+.2f} to {hi:+.2f} W/m2 for the tables over "
+          f"the fits, on the layers carrying cloud water")
     print(f"               {out['flux_w_m2_if_tables_replaced_fits']['bracket_kelvin'][0]:+.2f} "
           f"to {out['flux_w_m2_if_tables_replaced_fits']['bracket_kelvin'][1]:+.2f} K")
     print(f"written        {rel(args.out)}")
