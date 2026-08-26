@@ -70,25 +70,31 @@ carry `basin_index == -1`. The naive union misses exactly those and silently
 floods them. `surface_class` is the only correct source.
 
 **TWO thresholds decide this and they interact.** `selectBasins` keeps a
-depression only if it clears BOTH `minAreaKm2`, a physical floor of 1000 km2,
-and `minCells`, a resolution floor of 12 mesh cells; the manifest publishes
+depression only if it clears BOTH `minAreaKm2`, a declared landform floor, and
+`minCells`, a resolution floor of 12 mesh cells; the manifest publishes
 `effectiveMinAreaKm2 = max(minAreaKm2, minCells * cell)` and `bindingFloor`
-saying which one bound. At `precarve-craton-10m` the mean cell is 73.45 km2, so
-the cell floor stands at 881 km2 and the AREA floor binds -- by 13 per cent.
-At `precarve-craton`, 293.80 km2 a cell, the cell floor is 3,526 km2 and the
-area floor is inert. The two builds sit on opposite sides of that crossover, so
-a statement about which floor governs is a statement about a BUILD.
+naming which one bound. So a statement about which floor governs is a statement
+about a BUILD, and the two builds in `source/` sit on opposite sides of the
+crossover: 293.80 km2 a cell at 2.5M regions puts the cell floor at 3,526 km2,
+and 73.45 km2 at 10M puts it at 881.4.
 
-What the floor costs at 10M: 1.157e6 km2 outside every preserved basin, 0.364
-per cent of land, in 16,406 pieces, and the deepest ground in it is -0.513 km
-against -0.591 km inside a preserved basin -- ordinary dry basin floor in small
-pieces rather than shallow ground. The AREA is converged and the COUNT is not:
-four times the region count multiplies the pieces by 3.6 and leaves their total
-area within 10 per cent, because every newly resolved depression falls under the
-same area floor. So refining the mesh does not close it and is not meant to.
+**`minAreaKm2` is 850 km2** (WORLD-BVL9, 2026-08-26), which is inert at 10M
+regions and binds at 10,369,311 and above -- 3.7 per cent finer. The catalogue
+is therefore resolution-set at today's build and physics-set at any refinement
+of it. Read `bindingFloor` from the manifest rather than assuming either.
 
-**Lowering `minAreaKm2` below 881 km2 at this build changes nothing**, because
-`minCells` takes over there. WORLD-BVL9 is open on where the floor belongs.
+**Builds generated before that change carry the previous 1000 km2 floor**, which
+bound by 13 per cent at 10M, and a selection criterion reaches a catalogue only
+through a generation. What the 850 buys at the next one, measured beforehand in
+`notes/audits/basin-catalogue-floor.md`: about 1,105 more basins and 9.9e5 km2,
+86 per cent of the 1.157e6 km2 that sat outside every preserved basin under the
+old floor -- ordinary dry basin floor in small pieces, its deepest ground at
+-0.513 km against -0.591 km inside a preserved basin.
+
+**Lowering it further does nothing on its own.** Below the cell floor `minCells`
+takes over, and `minCells` is what gives a depression enough cells for
+`basinHypsometry` to build the capacity curve the carve criterion compares fill
+against, so moving it is a trade rather than a tightening.
 
 `surface_class == 2` (`inland_water`) is **empty**, by design rather than
 oversight -- and filling it is now done downstream: `hydrography/scripts/surface_water.py`
@@ -262,8 +268,18 @@ erosion texture at the mesh scale rather than resolving terrain. The endorheic
 basin catalogue CONVERGES there: preserved basins go 3,621, 6,345, 9,419, 9,649
 across 2.5M, 5M, 10M and 25M regions, so the step past 10M adds 2.4% where the
 one before it added 48%, because `minCells` has stopped binding and the declared
-1000 km2 floor governs. And the cost is superlinear: 1,093 s and 9.0 GB at 10M
+area floor governs. And the cost is superlinear: 1,093 s and 9.0 GB at 10M
 against 3,875 s and 21.1 GB at 25M.
+
+**Those four counts were measured under the 1000 km2 floor and the floor is now
+850**, which moves the crossover from 8.81M regions to 10.37M. So at 10M the
+cell floor is once again the binding one and the convergence argument above is
+evidence about the OLD floor: the counts under 850 are higher -- about 1,105
+higher at 10M -- and whether they still converge across the same four region
+counts is not measured. Re-take it from the next generation's catalogues rather
+than carrying these numbers across the change. What does NOT move is the
+mesh argument the paragraph rests on, which is about semivariance and erosion
+texture and has no floor in it.
 
 At 10,000,004 the T42 export with `raw/` takes about eighteen minutes and 9 GB,
 and the four `--no-raw` grids are quicker. The heap has to be raised from the

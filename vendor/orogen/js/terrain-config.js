@@ -558,7 +558,30 @@ export const FLOOD_CARVE_RADIUS_FRAC = 0.3;
 // 2.5M. The cell floor only binds at coarse resolutions, where an area
 // threshold alone would admit three-cell artifacts.
 export const BASIN_MIN_DEPTH_KM = 0.05;      // 50 m below spill at reference gravity — Death Valley is ~1.4 km
-export const BASIN_MIN_AREA_KM2 = 1000;      // Qattara ~19,500; Death Valley playa ~3,000
+// A DECLARED LANDFORM FLOOR, 850 km2, set 2026-08-26 (WORLD-BVL9). Earth
+// analogues for scale: Qattara ~19,500; Death Valley playa ~3,000.
+//
+// It is chosen against the mesh rather than against those analogues. selectBasins
+// requires BOTH this and BASIN_MIN_CELLS, so the floor that actually binds is
+// max(BASIN_MIN_AREA_KM2, BASIN_MIN_CELLS * cell) -- published per build as
+// resolution.effectiveMinAreaKm2 with resolution.bindingFloor naming which. At
+// 10,000,005 regions the cell is 73.45 km2 and twelve of them are 881.4, so 850
+// is INERT at that build and the mesh decides; it binds at 10,369,311 regions
+// and above, which is 3.7 per cent finer. So the catalogue is resolution-set at
+// today's build and physics-set at any refinement of it, and the previous 1000
+// was the reverse: binding by 13 per cent here and never reached again.
+//
+// What the change is worth, measured before it was made
+// (notes/audits/basin-catalogue-floor.md): about 1,105 more basins and 9.9e5
+// km2, which is 86 per cent of the 1.157e6 km2 that sat outside every preserved
+// basin. Do NOT lower it further without lowering BASIN_MIN_CELLS, which does
+// nothing on its own -- and BASIN_MIN_CELLS is what gives a depression enough
+// cells for basinHypsometry to build the capacity curve the carve criterion
+// compares fill against, so that is a trade rather than a tightening.
+//
+// A SELECTION CRITERION: it reaches a catalogue only through a generation, so
+// the builds in source/ are unaffected until the next one.
+export const BASIN_MIN_AREA_KM2 = 850;
 export const BASIN_MIN_CELLS = 12;           // resolution floor, not a size opinion
 export const BASIN_MAX_NEST_DEPTH = 3;       // how deep to recurse for sub-basins
 export const BASIN_HYPSOMETRY_LEVELS = 24;   // samples in the level/area/volume curve
