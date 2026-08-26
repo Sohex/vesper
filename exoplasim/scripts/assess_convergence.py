@@ -277,22 +277,30 @@ def approach_to_equilibrium(orbits: np.ndarray, series: np.ndarray,
     residuals' integrated autocorrelation time, which is the factor that was
     missing.
 
-    Returns (asymptote, half_width, tau_orbits) or (nan, nan, nan) if the series
-    will not support a fit.
+    THE FITTED TAU CARRIES ITS OWN ERROR TOO, and it is returned rather than
+    dropped. It is not an input to any criterion; it is the only measurement of
+    the relaxation time this project has, and the criterion's cheapness rests on
+    the DERIVED time being a ceiling on it. A point estimate cannot test a
+    ceiling -- one fitted value above a derived one is either a falsification or
+    a fit's own noise, and without the error there is no telling which.
+
+    Returns (asymptote, half_width, tau_orbits, tau_standard_error) or four nans
+    if the series will not support a fit.
     """
     mask = orbits >= orbits.max() * fraction
     x, y = orbits[mask], series[mask]
     if x.size < 8:
-        return float("nan"), float("nan"), float("nan")
+        return float("nan"), float("nan"), float("nan"), float("nan")
     model = lambda n, inf, amp, tau: inf - amp * np.exp(-n / tau)
     try:
         popt, pcov = curve_fit(model, x, y,
                                p0=[y[-1], max(y[0] - y[-1], 1e-3), max(x.size / 3, 1.0)],
                                maxfev=40000)
     except Exception:
-        return float("nan"), float("nan"), float("nan")
+        return float("nan"), float("nan"), float("nan"), float("nan")
     inf, tau = float(popt[0]), float(popt[2])
     err = float(np.sqrt(np.diag(pcov))[0]) if np.all(np.isfinite(pcov)) else float("nan")
+    tau_err = float(np.sqrt(np.diag(pcov))[2]) if np.all(np.isfinite(pcov)) else float("nan")
     # `curve_fit` SCALES ITS COVARIANCE AS THOUGH THE RESIDUALS WERE
     # INDEPENDENT. They are not: consecutive orbits of this model carry memory,
     # so the residual variance is spread over fewer independent samples than
@@ -306,12 +314,17 @@ def approach_to_equilibrium(orbits: np.ndarray, series: np.ndarray,
     tau_residual = ac.integrated_time(residual)["tau"]
     if np.isfinite(err):
         err *= float(np.sqrt(tau_residual))
+    # The same correction on the same covariance, for the same reason.
+    if np.isfinite(tau_err):
+        tau_err *= float(np.sqrt(tau_residual))
     # A fit extrapolating beyond its own span is reported as such rather than
     # trusted: widen the interval by how far past the data the asymptote sits.
     if np.isfinite(tau) and tau > 0:
         overshoot = max(0.0, tau / max(x.size, 1))
         err = (err if np.isfinite(err) else abs(inf - y[-1])) * (1.0 + overshoot)
-    return inf, err, tau
+    # The span the fit actually saw, so a consumer can tell a tau shorter than
+    # its own data from one extrapolated past the end of it.
+    return inf, err, tau, tau_err
 
 
 def main() -> None:
@@ -419,10 +432,41 @@ def main() -> None:
     except (Exception, SystemExit) as exc:        # noqa: BLE001 - reported, not raised
         storage_error = f"{type(exc).__name__}: {exc}"
 
+    # THE STORAGE ESTIMATOR'S OWN ERROR, in the units it reports.
+    #
+    # `storage_w_m2_least_squares` is the least-squares slope of the planetary
+    # heat content across the window, divided by the orbit. So its standard
+    # error is the standard error of THAT slope in the same units, with the same
+    # residual memory correction every other slope here carries -- not a
+    # temperature-slope proxy converted through a sensitivity. That is what puts
+    # the threshold and the estimator in one unit, which is the whole of the
+    # convention this row applies: work out what the effect is worth in the
+    # units the instrument reports and compare it with the instrument's own
+    # scatter.
+    #
+    # The series is the one `close_state_energy` fitted, returned rather than
+    # re-summed, so there is one heat content and not two.
+    storage_se = float("nan")
+    storage_scatter = float("nan")
+    storage_memory = {"tau": float("nan"), "reliable": False, "lag1": float("nan")}
+    if storage is not None:
+        total_j = np.asarray(storage["heat_content_total_j_m2"], dtype=float)
+        orbit_seconds = float(storage["orbit_seconds"])
+        n_storage = total_j.size
+        storage_se = slope_standard_error(total_j, n_storage) / orbit_seconds
+        x_storage = np.arange(n_storage, dtype=float)
+        storage_residual = total_j - np.polyval(
+            np.polyfit(x_storage, total_j, 1), x_storage)
+        storage_scatter = (float(np.std(storage_residual, ddof=1))
+                           if n_storage > 2 else float("nan"))
+        if n_storage > 3:
+            storage_memory = ac.integrated_time(storage_residual)
+
     if storage is not None:
         metrics.update({
             "state_storage_w_m2": storage["storage_w_m2_least_squares"],
             "state_storage_endpoint_w_m2": storage["storage_w_m2_endpoint"],
+            "state_storage_standard_error_w_m2": storage_se,
             "surface_storage_w_m2": storage["surface_storage_w_m2"],
             # Recorded, not tested. This is the gap CLIM-1 is open on: the
             # reported TOA net minus what the state actually stores. It is a
@@ -453,7 +497,14 @@ def main() -> None:
     slab_capacity, slab_water = slab_heat_capacity(run_dir)
     tau_expected = relaxation_orbits(year_days, feedback_w_m2_k, slab_capacity)
     orbits_axis = np.arange(len(arrays["ts"]), dtype=float)
-    asymptote, half_width, tau_fit = approach_to_equilibrium(orbits_axis, arrays["ts"])
+    asymptote, half_width, tau_fit, tau_fit_se = approach_to_equilibrium(
+        orbits_axis, arrays["ts"])
+    # How many orbits the fit was taken over. `approach_to_equilibrium` keeps the
+    # last 65 per cent of the series, and a fitted tau longer than the span it
+    # was fitted over is extrapolation rather than a measurement, which is what
+    # decides whether it is evidence about the relaxation time at all.
+    fit_span_orbits = int(np.count_nonzero(
+        orbits_axis >= orbits_axis.max() * 0.35))
     offset = asymptote - metrics["temperature_mean_k"]
 
     # A converged run has no approach left to fit, so the exponential becomes
@@ -489,6 +540,11 @@ def main() -> None:
         "temperature_asymptote_half_width_k": half_width,
         "temperature_remaining_offset_k": offset,
         "relaxation_orbits_fitted": tau_fit,
+        # The fit's own error on tau, autocorrelation-corrected like the
+        # asymptote's. Reported and thresholded by nothing: it is what makes the
+        # derived time's CEILING claim testable rather than a point comparison.
+        "relaxation_orbits_fitted_standard_error": tau_fit_se,
+        "relaxation_fit_span_orbits": fit_span_orbits,
         "relaxation_orbits_expected": tau_expected,
         # What tau_expected was built from, so the fallback offset below can be
         # audited without re-deriving it. lib/sensitivity.py owns the damping.
@@ -557,18 +613,29 @@ def main() -> None:
     #   temperature tolerance rather than inventing a second number is the point:
     #   the two criteria now bound the same thing in two units.
     #
-    #   What is measurable. The storage estimate on a 10-orbit block differs from
-    #   the same run's 20-orbit block by 0.111, 0.115 and 0.116 W/m2 on the three
-    #   runs where both exist. A threshold below about 0.11 is measuring the
-    #   sampling noise of the estimator rather than the planet. That figure was
-    #   taken on 10-orbit blocks and the default window is now wider, so it is a
-    #   CEILING on the estimator's noise here rather than a live floor; the
-    #   binding bound is the temperature-derived one either way and 0.12 stands.
+    #   What is measurable. This half was stated as "the storage estimate on a
+    #   10-orbit block differs from the same run's 20-orbit block by 0.111, 0.115
+    #   and 0.116 W/m2, so a threshold below about 0.11 is measuring the
+    #   estimator". That is not the estimator's standard error: the two blocks
+    #   are nested, so their difference is neither an independent pair nor a
+    #   scatter, and it was taken at a 10-orbit window that is no longer in use.
+    #   The estimator's own standard error is the standard error of the slope it
+    #   fits, in the units it reports, and it is now computed per run and per
+    #   window as `resolving_power` row `abs_state_storage`. Measured 2026-08-25
+    #   on the 35-orbit window of this project's dt-30 run: the heat content's
+    #   residual scatter is 1.09e7 J/m2 with a lag-1 of 0.80, giving 0.030 W/m2
+    #   at 35 orbits, 0.042 at 28 and 0.197 at 10. So the measurable floor is
+    #   3 * 0.030 = 0.090 W/m2 at the window now derived, and was 0.59 W/m2 at
+    #   the 10-orbit window this threshold was first written against.
     #
-    # The two land within 6% of each other, which is the argument for the number
-    # rather than a coincidence to note: below 0.11 is unresolvable, above 0.118
-    # admits more drift than the temperature criterion already forbids. 0.12 is
-    # where they meet, and it is 4x tighter than what it replaces.
+    # THE THRESHOLD IS UNCHANGED AT 0.12 AND THE TEMPERATURE BOUND IS WHAT HOLDS
+    # IT. 0.090 is below 0.118, so the measurable half no longer binds and the
+    # number rests on the offset tolerance alone, which is where it was derived
+    # from and which was fixed before any of this was read. What the correction
+    # changes is not the number but what a reader may conclude from it: at a
+    # 10-orbit window this criterion could not see its own threshold, and the
+    # `resolving_power` row is now what says so per run rather than a sentence
+    # here saying it once.
     STORAGE_TOLERANCE_W_M2 = 0.12
 
     criteria = {
@@ -612,6 +679,16 @@ def main() -> None:
         "temperature_residual_scatter_k": ts_scatter,
         "temperature_residual_tau_orbits": ts_tau,
         "temperature_residual_lag1": ts_memory["lag1"],
+        # The storage estimator's own scatter, in the units it reports. The
+        # temperature block above prices the four slope criteria and the offset;
+        # this one prices the storage criterion, and it is a different series
+        # with a different memory. Reporting the temperature figures alone was
+        # what left the sixth criterion without a row at all.
+        "storage_residual_scatter_j_m2": storage_scatter,
+        "storage_residual_tau_orbits": storage_memory["tau"],
+        "storage_residual_lag1": storage_memory["lag1"],
+        "storage_tau_span_supports_the_estimate": bool(
+            storage_memory.get("reliable", False)),
         # TAU MEASURED INSIDE THE WINDOW IS A LOWER BOUND ON TAU. A span
         # comparable to the correlation time cannot resolve it: on synthetic
         # series with a known answer, a twenty-sample window recovers about
@@ -633,6 +710,14 @@ def main() -> None:
                 "surface_balance_slope_standard_error_w_m2_per_orbit"], 0.05),
             ("abs_sea_ice_slope", metrics[
                 "sea_ice_slope_standard_error_fraction_per_orbit"], 0.001),
+            # THE SIXTH CRITERION HAS A ROW. It had none, so every verdict said
+            # what its window could resolve for five of the six thresholds it
+            # applied and was silent about the one derived most recently -- and
+            # that one's threshold is the one a short window cannot see. When
+            # the closure could not be taken the error is nan and the row
+            # reports `resolves` false, which is the same direction the
+            # criterion itself fails in.
+            ("abs_state_storage", storage_se, STORAGE_TOLERANCE_W_M2),
             # The offset criterion tests a slope multiplied by tau_expected, so
             # its statistic's error is that multiple of the slope's.
             # The statistic is `|offset| + half_width` and both terms carry the
@@ -647,6 +732,36 @@ def main() -> None:
             "criterion": name, "threshold": threshold,
             "statistic_standard_error": statistic_se,
             "resolves": resolves})
+    # EVERY CRITERION HAS A ROW, checked rather than trusted. The storage
+    # criterion had none for as long as it existed, so every verdict stated what
+    # its window could resolve for five of the six thresholds it applied and was
+    # silent about the sixth. A report that is silent about one criterion is not
+    # a weaker report, it is one a reader cannot tell from a complete one.
+    row_names = {row["criterion"] for row in resolving["rows"]}
+    criterion_names = {name.rsplit("_lt_", 1)[0] for name in criteria}
+    if row_names != criterion_names:
+        raise RuntimeError(
+            "resolving_power does not cover every criterion: rows without a "
+            f"criterion {sorted(row_names - criterion_names)}, criteria without "
+            f"a row {sorted(criterion_names - row_names)}")
+
+    # THE WINDOW THE STORAGE CRITERION NEEDS TO RESOLVE ITS OWN THRESHOLD,
+    # in orbits, from the heat content's own scatter and memory. The target is
+    # the threshold divided by RESOLVING_FACTOR, converted from W/m2 into the
+    # J/m2 per orbit the fitted slope is in, so nothing here passes through a
+    # temperature sensitivity.
+    resolving["window_orbits_for_storage_criterion"] = (
+        orbits_for_slope_standard_error(
+            storage_scatter, storage_memory["tau"],
+            STORAGE_TOLERANCE_W_M2 / RESOLVING_FACTOR * float(
+                storage["orbit_seconds"]))
+        if storage is not None else float("nan"))
+    resolving["window_orbits_for_storage_criterion_if_independent"] = (
+        orbits_for_slope_standard_error(
+            storage_scatter, 1.0,
+            STORAGE_TOLERANCE_W_M2 / RESOLVING_FACTOR * float(
+                storage["orbit_seconds"]))
+        if storage is not None else float("nan"))
     resolving["window_orbits_for_offset_criterion"] = window_for_offset_criterion(
         ts_scatter, ts_tau, tau_expected)
     # The same window if the orbits were independent, so the price of the
@@ -673,8 +788,12 @@ def main() -> None:
             "storage_tolerance_w_m2": STORAGE_TOLERANCE_W_M2,
             "storage_tolerance_derivation":
                 "0.15 K offset tolerance / (0.128 K per orbit per W/m2 * 9.9 orbits) "
-                "= 0.118 W/m2, against an estimator that resolves 0.11 W/m2 on a "
-                "10-orbit block. The two meet at 0.12.",
+                "= 0.118 W/m2, rounded to 0.12. The temperature tolerance is the "
+                "whole of the derivation: the measurability half it was first "
+                "paired with compared two NESTED blocks rather than taking the "
+                "estimator's standard error, and what that error actually is at "
+                "this run's own window is the resolving_power row "
+                "abs_state_storage.",
             "supersedes": "abs_mean_toa_lt_0.5_w_m2 and abs_mean_surface_lt_0.5_w_m2",
             "why": "The reported TOA net carries a structural offset of -0.573 "
                    "+/- 0.035 W/m2 across four runs, so the criterion was "

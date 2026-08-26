@@ -104,6 +104,104 @@ the ladder instead of being a number swept once at T21. Where tau had to be
 taken from inside the window, the report says so and the required window is
 labelled a lower bound.
 
+## What the storage criterion needs, in its own units
+
+The storage criterion tests `storage_w_m2_least_squares`, which is the
+least-squares slope of the planetary heat content across the window divided by
+the orbit. So it obeys the same `var(slope) = sigma^2 * tau * 12 / (n (n^2 - 1))`
+as the temperature criteria, with sigma the heat content's residual scatter in
+J/m2 and the threshold converted into J/m2 per orbit by multiplying by the
+orbit. Nothing here passes through a temperature sensitivity, which is the
+point: the threshold and the estimator are put in one unit and compared.
+
+**Measured 2026-08-25 on the dt-30 run's 35-orbit production window.** The heat
+content's residual scatter is 1.09e7 J/m2 with a lag-1 correlation of 0.80 and
+an integrated autocorrelation time of 6.70, the last estimated from inside the
+window and therefore a lower bound. The standard error of the storage slope:
+
+| window | standard error, W/m2 | three times it | resolves 0.12 |
+| ---: | ---: | ---: | --- |
+| 10 | 0.197 | 0.590 | no |
+| 20 | 0.069 | 0.208 | no |
+| 28 | 0.042 | 0.125 | no |
+| 35 | 0.030 | 0.090 | yes |
+| 44 | 0.021 | 0.064 | yes |
+
+**The criterion needs at least 29 orbits and it has 35, so it is a criterion
+now and was a formality before.** At the ten-orbit window this project used
+until the offset criterion's window was derived, the estimator's standard error
+was larger than the threshold itself: a statistic that cannot see its own bar
+passes or fails on its own noise. The window needed is 15.3 orbits if
+consecutive orbits were independent, 28.8 at the tau measured inside the window
+and 31.8 at a tau of 9, and every one of those is a floor for the same reason
+the offset criterion's is. It does not bind the window: the offset criterion
+needs about 38 orbits on the same run, so the window is still set by the
+criterion that bounds the answer rather than a rate.
+
+**One half of the 0.12 threshold's derivation was not what it claimed.** The
+threshold was argued from two bounds that met: 0.118 W/m2 from the offset
+tolerance, and "an estimator that resolves 0.11 W/m2 on a 10-orbit block", the
+second taken as the difference between a run's 10-orbit and 20-orbit storage
+estimates. Those two blocks are NESTED, so their difference is neither an
+independent pair nor a scatter, and the figure is not the estimator's standard
+error in any case; the standard error on a 10-orbit block is 0.197 W/m2, not
+0.11. **The threshold is unchanged at 0.12 and rests on the temperature bound
+alone**, which is where it was derived and which was fixed before any of this
+was read: at the window now in use the measurable floor is 0.090 W/m2, below the
+0.118 the offset tolerance implies, so the measurability half no longer binds.
+`assess_convergence.py` now reports the storage row in `resolving_power` per run
+and per window, which is what says whether a given verdict discriminated instead
+of a sentence in a derivation saying it once.
+
+## The derived relaxation time is not established as a ceiling
+
+The offset criterion's fallback holds the relaxation time FIXED at what the
+modelled mixed layer's heat capacity and the run's own radiative damping imply,
+and holding it fixed is what makes the test cheap. That is conservative only
+while the derived time is a CEILING on the true one: too long a tau inflates the
+remaining offset and can only refuse a run. Three arguments were given for
+expecting a ceiling and all three are arguments.
+
+`exoplasim/scripts/check_relaxation_ceiling.py` takes the comparison the reports
+have been accumulating. An artifact is evidence only when the exponential fit
+was USED rather than the drift fallback, the fitted tau is finite and positive,
+and it is no longer than the span it was fitted over. On an evidence artifact the ceiling is falsified when the fitted tau
+exceeds the derived one by more than the fit's own standard error, and by any
+amount where no such error is recorded. The unbracketed case counts AGAINST the
+ceiling deliberately: the criterion's conservatism rests on the claim, so a
+possible violation that cannot be dismissed is not a pass.
+
+**Measured 2026-08-25 over all seven convergence artifacts. Three are evidence,
+one falsifies, and none discriminates.**
+
+| run | fitted | derived | evidence | verdict |
+| --- | ---: | ---: | --- | --- |
+| 2b20e3324bb0 | 169.13 | 9.883 | no, the drift fallback was taken | |
+| 4182235e9781 | 34.78 | 9.883 | no, longer than the 26 orbits fitted | |
+| 78c22fb1a1bd | -337429 | 9.883 | no, the drift fallback was taken | |
+| 8044646ea7f0 | 13.68 | 9.883 | yes | ceiling falsified by 3.80 orbits, unbracketed |
+| aaa95662e21a | -286755 | 9.883 | no, the drift fallback was taken | |
+| ade7373b4c90 | 6.92 | 10.142 | yes | holds, unbracketed |
+| ec32946bec89 | 6.27 | 10.120 | yes | holds |
+
+**So the ceiling argument does not survive as stated, and it is not refuted
+either.** The one artifact above the derived time is 38 per cent above it and
+carries no error on its fit, so the excess cannot be attributed to the fit's own
+noise or dismissed as it; its derived time is also the pre-correction 9.8833
+built from an uncited density and specific heat pair. The two below it are below
+by about the same margin as the one above is above, which is what a scatter
+looks like rather than a bound. The fitted tau's own error is now recorded, and
+on the one run where it exists it is 3.75 orbits against a 3.85-orbit gap: a
+single run barely separates the two, which is the measurement this question
+needs more of rather than a reason to prefer either answer.
+
+What this does NOT license is treating the derived time as a floor, or widening
+it to cover 13.68. The check accumulates; a run whose approach the fit can grip
+adds a point, and a settled run adds none. Until it has points that
+discriminate, the fallback's remaining offset should be read as an estimate
+rather than the bound its comment claims, and any decision that turns on the
+bound being safe needs the bracket rather than the derived number.
+
 ## Neither run on disk is stationary, and the guard says so
 
 **Measured 2026-08-25.** `stationary_enough` refuses a span whose fitted trend
