@@ -582,9 +582,14 @@ def _fixtures(declaration: dict, sources: dict[str, str]) -> list[dict]:
                               {"source": "ice",
                                "declaration": "      parameter(CRHOI = 917.)"})),
          "duplicate"),
+        # The form here follows icemod's OWNER LINE, which world-04ok changed
+        # from `parameter(CRHOI = 920.)` to a namelist-reachable `real ::`. The
+        # fixture tests that the owner's own line, wrongly listed as forbidden,
+        # is caught -- so it has to name whatever that line currently is, or it
+        # matches nothing and tests nothing.
         ("a second compile-time copy back beside a live handoff",
          mutate(handoff_claim("sea_ice_density", "forbidden",
-                              [{"source": "ice", "form": "parameter(CRHOI",
+                              [{"source": "ice", "form": "real :: CRHOI",
                                 "why": "the owner's own line, which is not a second copy"}])),
          "duplicate"),
         ("a handoff naming no forbidden form",
@@ -601,8 +606,11 @@ def _fixtures(declaration: dict, sources: dict[str, str]) -> list[dict]:
         ("a constant saying nothing about what it changes",
          mutate(constant_claim("CKAPI", "bites", "")),
          "drift"),
+        # `crhosn` rather than CRHOI, which world-04ok made a real icemod_nl key:
+        # a fixture claiming namelist reach has to name a constant the namelist
+        # genuinely does not carry, and crhosn is handed from landmod.
         ("a constant declared reachable through a namelist that does not carry it",
-         mutate(constant_claim("CRHOI", "reach", "namelist")),
+         mutate(constant_claim("crhosn", "reach", "namelist")),
          "reach"),
         ("a namelist key declared compile-time",
          mutate(constant_claim("hlead", "reach", "compile_time")),

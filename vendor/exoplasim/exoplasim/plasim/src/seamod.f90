@@ -95,7 +95,11 @@
 !     set rather than the compiled default. TMELT is pumamod's and travels the
 !     same way for the same reason: it is a planet_nl key, and icemod carried a
 !     second compile-time copy of it that no configuration could reach.
-      use landmod, only: rhosnow
+!     snowdiff travels with it and for the same reason: it is landmod's ONE
+!     declaration of the snow conductivity, derived there from rhosnow, and
+!     icemod carried a second compile-time copy of the same number that no
+!     configuration could reach. WORLD-A9S5.
+      use landmod, only: rhosnow, snowdiff
 !
       real :: zsicf(NHOR) = 0.
 !     Implicitly SAVE, so one copy shared by the whole team.
@@ -138,7 +142,7 @@
 !
       call iceini(n_start_step,nrestart,noutput,m_days_per_year         &
      &     ,ngui,cts,csst,cmld,cicec,ciced,csnow,mtspd,day_24hr,deglat &
-     &     ,rhosnow,TMELT                                              &
+     &     ,rhosnow,snowdiff,TMELT                                     &
      &     ,icemod_namelist,oceanmod_namelist,ice_output,ocean_output)
 !
 !     set puma surface variables
