@@ -300,12 +300,15 @@ high end of the range is not a hard ceiling.
 
 ## PHYS-11: the cloud shortwave constants, bracketed for arms
 
-Seven `radmod_nl` keys tune the cloud optics and none has ever been re-weighted
-for this star: `tswr1` (cloud albedo, range 1), `tswr2` (backscatter, range 2),
-`tswr3` (single-scattering albedo, range 2 -- the absorption-like one),
-`acllwr` (thermal-band mass absorption), and the `rcl1`/`rcl2`/`acl2` triplets
-by cloud level. The band PARTITION is star-aware through `zsolar1`/`zsolar2`;
-what is Earth's is the physics inside each range.
+The cloud optics were stated for the Sun and none of them had ever been
+re-weighted for this star. At the time of the arms that meant seven `radmod_nl`
+keys: three coefficients of `swr`'s own analytic cloud fits, `acllwr`
+(thermal-band mass absorption), and the `rcl1`/`rcl2`/`acl2` triplets by cloud
+level. `world-f9ig` has since deleted the three coefficients and put Stephens et
+al. (1984)'s tables in their place, which are stated for the Sun in the same
+way, so the argument below is unchanged and now applies to the tabulated
+co-albedo. The band PARTITION is star-aware through `zsolar1`/`zsolar2`; what is
+solar is the physics inside each range.
 
 **The sign is not derivable by inspection, which is the argument for arms
 rather than arithmetic.** Two effects oppose. This star puts 0.618 of its flux
@@ -315,12 +318,13 @@ less than in the 2-3 um bands the Sun's range-2 tail reaches. So the honest
 bracket on the absorption-like key is 0.78 to 1.28, spanning both signs of the
 correction.
 
-**The bracket is on `tswr3` alone, and so was the measurement.** `acl2` is read
-only by the prescribed-cloud branch `nswrcl = 0` selects, and every arm in this
-bundle ran `nswrcl = 1`, so the arms that were labelled as moving both keys were
-moving one. The measured slope is unaffected -- what the arms swept was the
-computed branch's single-scattering albedo -- and only the attribution changes.
-clim-68.
+**The bracket is on the range-2 co-albedo alone, and so was the measurement.**
+`acl2` is read only by the prescribed-cloud branch `nswrcl = 0` selects, and
+every arm in this bundle ran `nswrcl = 1`, so the arms that were labelled as
+moving both keys were moving one. The measured slope is unaffected -- what the
+arms swept was the computed branch's single-scattering co-albedo, which is what
+`cloudabs` now scales on the table -- and only the attribution changes.
+clim-68, world-f9ig.
 
 **Predicted magnitude bound: 0 +/- 0.6 K.** Clouds are booked at 12.0 W/m2 of
 Earth's shortwave absorption beside the water vapour term; +/-28% of that is

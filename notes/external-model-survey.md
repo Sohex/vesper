@@ -5374,8 +5374,9 @@ about +2.0 K. `run_exoplasim.py` applied it to two `radmod_nl` keys, `TSWR3` and
 
 **`swr` carries two shortwave cloud schemes and `nswrcl` picks between them.**
 `nswrcl` defaults to 1, which is what every run records, and 1 selects the
-COMPUTED branch: the layer's optics are built from its cloud water path, and its
-single-scattering albedo is `1 - tswr3*mu0^2*log(1000/tau)`. `nswrcl = 0`
+COMPUTED branch: the layer's optics are built from its cloud water path, and at
+the time of this reading its single-scattering albedo was
+`1 - tswr3*mu0^2*log(1000/tau)`. `nswrcl = 0`
 selects a PRESCRIBED branch instead, three sets of albedos and absorptivities
 indexed by third of sigma.
 
@@ -5391,10 +5392,17 @@ and was wrong on both.
 
 So the correction was applied to one of the two keys it was written to, and
 nothing said so. THE MEASUREMENT SURVIVES INTACT: the PHYS-11 arms swept both
-keys under `nswrcl = 1`, so what they measured was `tswr3` alone and the +/-2.6 K
-is `tswr3`'s. What was wrong was the attribution, not the number.
+keys under `nswrcl = 1`, so what they measured was the computed branch's
+co-albedo alone and the +/-2.6 K is the co-albedo's. What was wrong was the
+attribution, not the number.
 
-**Resolved by clim-68 as `tswr3`-only.** Making `acl2` act means `nswrcl = 0`,
+`world-f9ig` has since deleted `tswr3` along with the two backscatter
+coefficients beside it and put Stephens et al. (1984)'s tables in their place.
+The correction now arrives on `CLOUDABS` and multiplies the interpolated
+co-albedo, which is the same quantity in both streams, so this finding holds
+with the carrier renamed.
+
+**Resolved by clim-68 as co-albedo-only.** Making `acl2` act means `nswrcl = 0`,
 which would replace the two-stream layer solution with a lookup that does not see
 the cloud water path at all -- a worse scheme chosen to give a correction
 somewhere to land, which is class 16 backwards. The scaled `ACL2` write is gone,

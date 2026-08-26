@@ -175,22 +175,25 @@ it gets brighter, because the linear continuation returns more optical depth
 than the offset did. The second is much the smaller of the two, and
 `exoplasim/analysis/cloud_optical_depth_bracket.json` carries the layer table.
 
-**`tswr1`, `tswr2` and `tswr3` are not the formulas the 1984 paper withdrew,
-and they sit much further from the tables than those formulas did
-(world-f9ig).** Stephens et al. (1984) p. 687 say of the 1978 analytic
+**`tswr1`, `tswr2` and `tswr3` were not the formulas the 1984 paper withdrew,
+and they sat much further from the tables than those formulas did. world-f9ig
+deleted all three and `swr` now interpolates the 1984 tables.** Stephens et al.
+(1984) p. 687 say of the 1978 analytic
 representations: "Unfortunately, these formulas contained errors and better
 results are obtained when the parameter values are taken directly from the
 tables provided." The formulas they mean are Eqs. (11a) and (11b), surface
 polynomials in ln(tau_N) and mu0 whose coefficients are Table 1 of the 1978
-paper. `radmod` evaluates nothing of that shape. It carries three fits of its
+paper. `radmod` evaluated nothing of that shape. It carried three fits of its
 own, one coefficient each:
 
     beta1  = tswr1 sqrt(mu0)                    tswr1 = 0.077
     beta2  = tswr2 sqrt(mu0) / ln(3 + 0.1 tau)  tswr2 = 0.065
     1-om0  = tswr3 mu0^2 ln(1000/tau)           tswr3 = 0.0055
 
-`radmod`'s own comments call all three tunings of cloud albedo and scattering,
-which is what they are. The 1984 withdrawal therefore does not reach them.
+`radmod`'s own comments called all three tunings of cloud albedo and scattering,
+which is what they were. The 1984 withdrawal therefore did not reach them, and
+what retired them was the size of their disagreement with the tables rather than
+the withdrawal.
 
 What the 1984 paper does change is the reference they should be measured
 against. Its Table 1(a) replaces the 1978 single-scattering albedo table
@@ -211,7 +214,10 @@ tabulated cloud reflects far more in the near infrared than the fitted cloud
 does. `beta1` is the closest of the three, within about 20 per cent over the
 same range. Interpolating the tables in place of the fits is therefore not a
 correction to a port; it is a different shortwave cloud scheme, and its price is
-in the section below.
+in the section below. It is the scheme the model now runs: `swr` interpolates
+Tables 1(a), 1(b) and 1(c) bilinearly, as p. 689 prescribes, with both axes
+clamped to the tabulated range. `smoke_test` reads the Fortran tables back
+against the transcription in `stephens_tables_vs_fits.py` on every invocation.
 
 ### Do this model's cloud water paths sit inside the fitted range
 
@@ -318,15 +324,20 @@ multiple reflection between layers.
 That replaces an earlier hand chain of 0.6 to 3.4 W m-2 and 0.5 to 3.1 K, which
 had no cloud fraction, no overlap and no surface in it.
 
-**world-f9ig, the tuned coefficients against the tables. Bracket: -6.6 to
--27.4 W m-2, -5.4 to -22.3 K, cooling**, on the same cover and insolation and
+**world-f9ig, the tuned coefficients against the tables. Bracket: -6.5 to
+-25.4 W m-2, -5.3 to -20.6 K, cooling**, on the same cover and insolation and
 over a black surface, so it is a magnitude upper bound. Measured 2026-08-25 by
-`exoplasim/scripts/stephens_tables_vs_fits.py`. It is an order of magnitude
-larger than anything else in this document, and that is the finding: the three
-coefficients are not a port of Stephens's tables and cannot be swapped for them
-without re-tuning the model's whole shortwave balance. `cloud_absorption_scale`
-would also have to be re-derived, because it scales a coefficient that would no
-longer exist.
+`exoplasim/scripts/stephens_tables_vs_fits.py`, with `cloud_absorption_scale`
+applied to both sides, which is what the model does. It is an order of magnitude
+larger than anything else in this document, and that is why the tables were
+adopted rather than the coefficients kept: three numbers whose provenance is a
+tuning were standing between the model and a published quantity, and the size of
+the gap is information about the tuning rather than a reason to preserve it. The
+whole shortwave balance moves with them, so the design flux is re-derived on the
+next commissioning cycle. `cloud_absorption_scale` was NOT stranded: it is a
+star-over-Sun ratio of range-2 flux-weighted co-albedo, the tables carry the
+same solar weighting in the denominator, and it now multiplies the interpolated
+co-albedo through the namelist key `cloudabs`.
 
 WHAT SETTLES world-jgen IS A RUN, and the run is nameable: a T21 pair on a
 settled baseline, control against an arm carrying the correction as it now
@@ -335,7 +346,10 @@ the water path below 10 g m-2. `tswr1` is HELD at its inherited value in that
 arm, on purpose: it was tuned against the optical depth being corrected, and an
 arm that moves both reports nothing about either. If the corrected optical depth
 at the inherited tuning makes an agreement worse, that is information about
-`tswr1`, and world-f9ig is where it goes.
+`tswr1`. world-f9ig settled that by deleting it: the band-1 backscatter is now
+interpolated from Table 1(b) at the layer's own range-1 optical depth, so the
+arm's control and its arm no longer share a coefficient that was tuned against
+the quantity being corrected.
 
 ## The bracket
 
@@ -458,14 +472,11 @@ second half of `opaque-constants.md` finding 8 is answered: this model's low
 cloud layers sit inside the range the fit was made over and its high ones sit
 one to three decades below it, in the regime the 1984 revision excludes by name.
 
-Two things the papers cannot settle remain, and each needs a run rather than a
-reading. What the band-1 optical depth correction is actually worth needs the
-T21 pair named above, with `tswr1` held. Whether Stephens's tuned tables should
-replace `tswr1`, `tswr2` and `tswr3` is a scheme decision and not a port
-correction: at the optical depths this model reaches the fits sit a factor of
-two from the tables in the near-infrared backscatter, so adopting them is worth
-tens of W m-2 and would require re-deriving `cloud_absorption_scale` against a
-tabulated single-scattering albedo that no longer has a coefficient to scale.
-That decision has to be taken before any arm is designed, and it can only be
-taken after world-jgen's pair has run, because the same pair is what says
-whether the inherited tuning is still where it should be.
+One thing the papers cannot settle remains, and it needs a run rather than a
+reading: what the two changes together are worth to the modelled balance. Both
+are in the model now, so the pair that settles it is one T21 pair on the current
+source, not two. The scheme question is closed. Stephens's tuned tables replaced
+`tswr1`, `tswr2` and `tswr3` because those three had no derivation anywhere and
+sat a factor of two from published values in the near-infrared backscatter at
+the optical depths this model reaches; a sourced quantity that disagrees with a
+tuned one is the reason to take the sourced one.

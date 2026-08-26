@@ -1222,19 +1222,24 @@ relaxes ice toward `xcliced2`, which is finding 1's CCM3 field, and `addfci`
 `analysis/error_budget.json` carries no-q-flux as a structural term, so this is
 directly on the path of work already planned.
 
-**The resolution-tuned radiation constants are pinned at T21's row by two
-independent mechanisms.** `radmod.f90:968-1030` sets `tswr1`, `tswr2`, `tswr3`
-and `th2oc` per (NTRU, NLEV), and every branch is guarded by
-`if(NDCYCLE==1) jtune=0`. `ndcycle` defaults to 1 (`radmod.f90:205`) and nothing
-sets it, so every branch of that table is dead and the module defaults at
-`radmod.f90:72-75` stand at every rung -- and those defaults ARE the T21/L10 row.
-Second mechanism: `run_exoplasim.py` writes `TSWR3` as a base times
-`cloud_absorption_scale`, hardcoding T21's base. **world-ys9 is OPEN**, and this
-is one of the two findings in this document that is not settled. Correct today at T21. At T42 the model would use `tswr1`
-0.077 against the table's 0.089, `tswr3` 0.0055 against 0.0048, and `th2oc`
-0.024 against 0.0285, so 16 per cent on the longwave water-vapour continuum.
+**The resolution-tuned radiation constants were pinned at T21's row by two
+independent mechanisms, and only `th2oc` is still exposed to either.**
+Upstream's `radini` set `tswr1`, `tswr2`, `tswr3` and `th2oc` per (NTRU, NLEV),
+and every branch was guarded by `if(NDCYCLE==1) jtune=0`. `ndcycle` defaults to
+1 and nothing sets it before the test, so every branch of that table was dead
+and the module defaults stood at every rung -- and those defaults ARE the T21/L10
+row. Second mechanism: `run_exoplasim.py` wrote `TSWR3` as a base times
+`cloud_absorption_scale`, hardcoding T21's base.
+
+`world-f9ig` removes both for the three cloud keys. `tswr1`, `tswr2` and `tswr3`
+no longer exist: `swr` interpolates Stephens et al. (1984)'s tables, which carry
+no resolution dependence, and the harness writes `CLOUDABS`, which is a
+star-over-Sun co-albedo ratio with no resolution base to hardcode. What is left
+of the finding is `th2oc`: at T42 the dead table would have used 0.0285 against
+the module default 0.024, so 16 per cent on the longwave water-vapour continuum.
 `th2oc` is a new member of the cloud-tuning class of
 `inherited-earth-constants.md` finding 2 and is not on the corrected list.
+**world-ys9 is OPEN** on that remainder.
 
 **Berger's Milankovitch series and an Earth day-80.5 equinox.**
 `orb_params` (`radmod.f90:3709-4202`) computes Earth's orbital elements from a
