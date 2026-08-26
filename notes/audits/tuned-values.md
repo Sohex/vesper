@@ -488,100 +488,175 @@ third of the four this project allows.
 
 ---
 
-### 9. `EXOPLASIM_DZ0LAND_M`, the anchor a derived field is rescaled onto. NOT TUNED
+### 9. The land roughness field's orographic term. DERIVED, no free coefficient
 
-`exoplasim/scripts/build_surface_roughness.py`, where it is the model's namelist
-fallback over land and not the bisection target. It has a derivation, it is not a
-tuned value, and this row is here to carry that derivation and the class it puts
-the constant in.
+`exoplasim/scripts/build_surface_roughness.py`. Two constants were in question
+here and neither survives as a tuning: `EXOPLASIM_DZ0LAND_M`, the model's
+namelist fallback over land, and the coefficient that used to be bisected so
+this world's land mean landed on it.
 
-**The derivation is in the vendored model source and is computable.**
-`vendor/exoplasim/exoplasim/plasim/run/` ships PlaSim's own boundary dataset for
-the model's Earth configuration at two rungs, `N032` and `N064`, and it carries
-the roughness in three fields rather than one: code 172 the land mask, code 173
-the total `dz0clim`, code 1730 its topography-only part `dz0climo`. So that
-dataset is built by exactly the decomposition `build_surface_roughness.py`
-computes, a land-cover term and an orographic term in quadrature, and the model's
-own answer for each is readable.
+**The orographic term is now derived from this world's own subgrid slope.** The
+scheme is the one large-scale models use for turbulent orographic form drag, and
+every constant in it is read out of the papers that established it:
 
-Reduce code 173 over that dataset's land in `ce`, the operator the builder argues
-for, and at `N032` the result is the namelist fallback to within a tenth. `N032`
-is the resolution PlaSim's own configuration defaults to, and the residual has a
-direction rather than being scatter: the `ce` reduction falls as the reference
-height rises, and this planet's lowest model level sits lower than Earth's at the
-same sigma because its gravity is larger, so the model's own Earth reduction
-lands below the value computed here. The fallback is a rounding of the model's
-Earth land roughness. It never carried its derivation only because the derivation
-lives in a boundary dataset rather than in the source comment, which reads
-"roughness length land".
+- Wood and Mason (1993) Eq. (33). The effective roughness of hilly ground is the
+  length whose drag coefficient at the pressure scale height equals the SUM of
+  the hills' pressure drag coefficient and the ground's skin friction. The terms
+  add in the drag coefficient. `simba.f90:474` combines its vegetation and
+  topography terms in quadrature in the LENGTH, which is the model's convention
+  and not the one the literature derives, and this field follows the derivation.
+- Beljaars, Brown and Wood (2004) Eq. (6), which is WM93's surface pressure drag
+  with the hills' base area set equal to the domain area for mountainous
+  terrain: `Ca = 2 alpha beta Cmd theta_bar^2`. The form drag is QUADRATIC IN
+  SLOPE, not linear in relief amplitude. Their Eqs. (4) and (5) give the pressure
+  scale height, the inner-layer depth and `alpha`, so none of the three is
+  assumed; `beta = 1` is WM93's Table 1 for the parameter this takes, since
+  packed three-dimensional hills give effective roughnesses of the same order as
+  two-dimensional ones at the same `A/Sd`.
+- Mason (1988). The area-average roughness is the one that reproduces the correct
+  area-mean surface stress, and it is obtained by averaging DRAG COEFFICIENTS at
+  the BLENDING HEIGHT, his Eq. (14) from the scale over which the cover varies.
+- Lettau (1969) as an independent geometric cross-check.
 
-**So the class is wrong, and the class is the finding.** This is not a value with
-no derivation. It is a sound derivation for the wrong planet, which is the
-`inherited-earth-constants.md` class in the table at the head of this audit, not
-this one. The distinction is not bookkeeping: a tuned value has nothing to check
-against, and this one has a whole boundary dataset, which is why the check below
-was available at all.
+**The old coefficient was not merely unsourced; the relation it sat in had the
+wrong dependence.** `z0_oro = coefficient * stdev(elevation)` takes an amplitude
+where the drag takes a slope, so the coefficient had to carry the missing
+horizontal scale. That is why it could not be sourced, and why it drifted with
+the support. Once the slope is used directly, and the mesh supplies it from its
+own plane fit, there is nothing left to solve.
 
-**What the transfer is worth, and what bounds it.** Anchoring this world's land
-mean on Earth's asserts nothing about this world's relief, and there is no way to
-close that from inside this project. But the two planets can be compared on the
-part that is not relief: the Earth dataset's own surface term, recovered from the
-quadrature, and this world's field with the orographic term set to zero, are both
-land-cover roughnesses derived independently of each other. Measured on
-`canonical-10m-base` on 2026-08-26 they agree to within 8% at T21 and 10% at T42,
-while the Earth dataset's cover term barely moves between the two rungs and its
-total falls by nearly half. That is the signature of an orographic term and not a
-land-cover one, and it says the transfer imports a level of subgrid relief rather
-than somebody else's land cover. The comparison could have come out decades
-apart. It did not.
+**The scheme is held to numbers its own papers print, and refuses when it misses
+them.** Beljaars simplifies Eq. (4) to `h_m = 0.1 lambda` with `Cmd = 0.005` and
+fixes `alpha = 12`; solving Eq. (4) at the wavelength those constants belong to
+and evaluating Eq. (5) there returns 12.0 to three figures and `h_m/lambda`
+within a twentieth of the paper's round number. Lettau's own worked orographic
+example, Colorado's peaks at `h* = 1000 m`, `s = 5e6 m^2` and `S = 2e8 m^2`,
+comes back at the 12.5 m he prints. WM93 Eq. (33) with no hills returns the cover
+roughness exactly. A solver that has not converged, or an equation transcribed
+with the wrong power, misses all of these by orders of magnitude.
 
-**Magnitude, measured rather than inferred.** The bracket's two ends are not
-close. Measured on `canonical-10m-base` on 2026-08-26, the land-mean exchange
-coefficient is 2.15 times larger on the anchored arm than on the arm with no
-orographic term at T21, and 1.61 times at T42. `ce` is what land sensible heat
-and land evaporation are linear in, so the carve criterion's numerator moves by
-that factor. `opaque-constants.md` finding 7 prices the neighbouring gravity
-error on the same coefficient at 8.4 times land exchange, so the two are the same
-order of consequence.
+**The declared bracket is on the scheme's two attributions and it is narrow.**
+The wavelength the mesh-resolved slope belongs to, bracketed at one to four mesh
+spacings around a central two, which enters only through logarithms; and the
+turbulence closure, which WM93 measure at two levels for the same pressure force,
+`5.9 theta^2` for the mixing-length closure against `3.48 theta^2` for the
+second-order one. Measured on `canonical-10m-base` on 2026-08-26, the two
+together move the land mean by about 4 per cent at T21 and 4 per cent at T42.
+Both ends are computed on every build whichever is written.
 
-**The ladder half did not close, and the honest result is that it got no
-better.** The reference is support-dependent: a coarser cell folds more relief
-into its own effective roughness, and the Earth dataset's land mean falls by
-nearly half from `N032` to `N064`. Anchoring each rung on its own reference
-therefore replaces one drift with another. Measured on one build at both shipped
-rungs, the solved coefficient rises by about a fifth from T21 to T42 against a
-fixed target and falls by about two fifths against the rung-matched reference.
-The reference falls faster with the support than this world's relief does, so the
-move reverses the sign of the drift and leaves its size comparable. SPAT-8's
-constraint stands unchanged: a ladder comparison must pass one coefficient to
-every rung. The model ships no dataset above `N064`, and the builder refuses a
-rung it cannot derive a reference for rather than substituting another rung's.
+**`EXOPLASIM_DZ0LAND_M` is implicit-Earth, and that is a reason to replace it
+rather than to keep it.** The vendored model ships PlaSim's own boundary dataset
+for the model's Earth configuration at `N032` and `N064`, carrying roughness in
+three fields: code 172 the land mask, code 173 the total `dz0clim`, code 1730 its
+topography-only part `dz0climo`. Reducing code 173 over that dataset's land in
+`ce` returns the effective land roughness the model carries when it is given a
+real map, and at `N032` -- the resolution PlaSim's own configuration defaults to
+-- that reproduces the namelist fallback to within a tenth. So the fallback has a
+derivation and it lives in a boundary dataset rather than in the source comment,
+which reads "roughness length land". `earth_reference_land_z0()` computes it at
+build time so a change under `vendor/exoplasim` moves it, and nothing about it is
+a literal. What it is NOT is a target: a sound derivation for the wrong planet is
+a diagnosis. Solving this world's land mean onto it would report the distance
+between the two planets as zero by construction.
 
-**Disposition: RECLASSIFIED as implicit-Earth, DERIVED in code, and the transfer
-DECLARED AS A BRACKET THAT IS SWEPT. Done.** `earth_reference_land_z0()` computes
-the anchor at build time from the vendored dataset, so a change under
-`vendor/exoplasim` moves it instead of silently disagreeing with it, and nothing
-about it is a literal. `--orographic-arm reference` writes the anchored end and
-`--orographic-arm none` writes the end with no orographic contribution at all;
-every build reports both land means and their `ce` brackets whichever it writes,
-so the anchored value and the field's own value are never seen apart. Two
-refusals were added where there were none: a bisection that ends on a bound of
-its search bracket has not solved anything and says so instead of writing a field
-whose land mean is not the target, and the `ce` inversion is checked as the
-identity it is.
+**The distance, measured rather than asserted.** On `canonical-10m-base` on
+2026-08-26 the derived land mean is 0.40 m at T21 and 0.41 m at T42, against an
+Earth reference of 2.20 m and 1.21 m at the same two rungs: the derived field is
+0.18 and 0.34 of Earth's. The land-mean exchange coefficient is 2.1 times smaller
+at T21 and 1.6 times smaller at T42 than the Earth-anchored field was, and `ce`
+is what land sensible heat and land evaporation are linear in, so the carve
+criterion's numerator moves by that factor.
 
-The one thing this leaves open is a decision that belongs to whoever declares the
-canonical climatology lineage, not to this audit: which arm the lineage runs on.
-Both are built and both are reported, so it is answerable from the artifacts.
+**Where the whole of that gap is, and why it is a limit rather than a bracket.**
+The two planets' LAND COVER roughness is not what separates them: the Earth
+dataset's own cover term, recovered from the quadrature, and this world's cover
+term agree to within a tenth at both shipped rungs, and neither is derived from
+the other. The gap is entirely in the relief term. `Ca` is quadratic in slope and
+slope variance is `integral k^2 F(k) dk`, so it is dominated by the shortest
+wavelength present and the large scales contribute almost nothing. Orogen has a
+measured terrain-information floor near 20 km and produces no relief below it;
+Beljaars' scheme is written for the band BELOW 5 km and reaches it by
+extrapolating a power-law orographic spectrum fitted to United States topography.
+Supplying that band here would be importing Earth's small-scale terrain under a
+derivation's name, so it is not supplied, and the derived roughness is what this
+world's terrain supports.
+
+**The reduction height moved, and Mason is why.** The cell average used to be
+taken at the lowest model level. Mason's Eq. (14) puts the blending height an
+order of magnitude below that on this mesh, and his whole result is that the
+average gives extra weight to high roughnesses occupying small fractions of area
+-- which is exactly the closed-basin case this field exists for, run the other
+way. Measured on `canonical-10m-base` on 2026-08-26, moving the average to the
+blending height raises the cover-only land mean by about a tenth. His procedure
+is insensitive to the exact height and needs only its order, so one height is
+solved for the grid and the per-cell spread is reported.
+
+**Lettau does not agree at this scale, and that is a finding rather than a
+failure.** His `z0 = 0.5 h* s/S` shares no constant with WM93's route and reaches
+a roughness by a different argument, so it is a real check. Applied with one mesh
+region as one roughness element it runs about two orders above the WM93 orographic
+enhancement on this world's land. It grows linearly with the size of the elements
+at fixed slope, where the WM93 form saturates through the logarithmic profile it
+is built on, and the two are within a factor of a few at the kilometre scale the
+operational schemes were built for. The divergence is at the ten-kilometre scale
+this world's terrain floor puts the resolved band at, which is Beljaars' own
+reason for assigning scales above 5 km to gravity-wave and blocking schemes
+rather than to a roughness at all. The builder computes both and reports the
+ratio; it is not gated, and no threshold on it was fixed in advance.
+
+**The ladder half closed, and it closed by the term becoming a property of the
+land.** The old solve was per grid, so two rungs differed by their terrain and by
+their calibration at once and SPAT-8 had to pass one coefficient to every rung.
+The derived orographic term takes the mesh's slope and the mesh's spacing, and
+the grid rung enters only through which regions fall in which cell. Measured on
+`canonical-10m-base` on 2026-08-26 the derived land mean differs between T21 and
+T42 by about 2 per cent, against a factor of 1.8 for the Earth-anchored arm.
+`analysis/spatial_reduction_gap.py`'s recalibration arm now measures that spread
+across the whole ladder, and a derived land mean that moved with the rung would
+say the scheme was still carrying the support inside it.
+
+**A consequence for SPAT-7 that has to travel with this.** The reduction-order
+correction the roughness field carries -- averaging `ce` over a cell's surfaces
+rather than averaging the lengths -- was marginal while the land mean was
+anchored high, because a large orographic term swamped the two-decade contrast
+between barren ground and canopy. It is not marginal against a derived land mean.
+Measured on `canonical-10m-base` on 2026-08-26 at T42, the land-mean `ce` differs
+between the two reduction orders by about a tenth, and the land area on which the
+per-cell difference exceeds the step's own reference-height bracket is about three
+quarters, against a few per cent before. The operator was already the right one;
+what changed is that it now decides a first-order quantity rather than a tail.
+
+**Disposition: DERIVED, with a swept bracket on two attributions and no free
+coefficient. Done.** `--orographic-arm derived` is the default and what a build
+writes. `--orographic-arm reference` rebuilds the Earth-anchored field as a
+DIAGNOSTIC for pricing the change and no climatology lineage may rest on it;
+`--orographic-arm none` writes the cover term alone. Every build reports all
+three land means, both ends of the declared bracket, the Earth comparison and the
+Lettau cross-check. Three refusals stand where there were none: a bisection that
+ends on a bound of its search bracket has not solved anything, the `ce` inversion
+is checked as the identity it is, and every implicitly defined length is checked
+against its own defining equation rather than trusted to a fixed iteration count.
+
+Two things the derived field carries that a reader should see before running on
+it. Its maximum is far above the old field's: WM93's effective roughness reaches
+hundreds of times the cover roughness over steep ground, their own Table 1 runs
+to 300 for periodic two-dimensional ridges, and ECMWF caps at 100 m for the same
+reason. This model's lowest level is lower than that cap, so a handful of cells
+carry a roughness that is a large fraction of the height the model applies it at
+and have no surface layer left to put a logarithmic profile in. `fluxmod.f90`
+forms `ln(z/z0 + 1)`, so nothing diverges. Measured on `canonical-10m-base` on
+2026-08-26 those cells are under a millionth of land area and carry under two
+parts in a hundred thousand of the land-mean exchange coefficient at T42, and
+none at all at T21. The builder reports both fractions and the share of land-mean
+`ce` they carry, and does not gate on them.
 
 Elvidge et al. (2019), *Uncertainty in the Representation of Orography in Weather
 and Climate Models and Implications for Parameterized Drag*, JAMES 11,
-`10.1029/2019MS001661`, is what says the free coefficient is genuinely free: the
-subgrid-orography standard deviation enters a drag scheme "multiplied by a
-model-dependent tuning constant", and the resulting zonal-mean orographic surface
-stress differs by a factor of four between operational models of comparable
-resolution. That is the reason the coefficient is solved onto a reference rather
-than sourced, and the reason the reference is bracketed rather than trusted.
+`10.1029/2019MS001661`, bounds what any of this can buy: zonal-mean orographic
+surface stress differs by a factor of four between operational models of
+comparable resolution. The declared bracket here is well inside that, which says
+the remaining uncertainty is not in the scheme's constants but in the terrain the
+world does not have.
 
 ---
 

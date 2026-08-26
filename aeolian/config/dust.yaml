@@ -147,21 +147,18 @@ drag_partition:
   z0s_bracket_cm: [1.0e-4, 1.0e-3]
   # WHICH ROUGHNESS THE SCHEME IS FED, and it is not the obvious one.
   #
-  # `orogen_T42_surf_0173.sra` is a GRID CELL effective roughness: it carries
-  # subgrid orography measured as the elevation spread among the mesh regions in
-  # a cell, and its land mean is anchored on the effective land roughness of the
-  # model's own Earth boundary dataset at the same rung, which
-  # `build_surface_roughness.py` derives from the vendored model source rather
-  # than declaring. That anchor is a bracket, not a value: its other end sets the
-  # orographic term to zero and writes the roughness this world's lithology and
-  # land cover alone imply, and the two ends differ by more than a factor of two
-  # in the land exchange coefficient. Read the arm and the land mean out of
-  # `roughness_<rung>_report.json` rather than assuming either end.
+  # `orogen_T42_surf_0173.sra` is a GRID CELL effective roughness: a cover term
+  # from this world's own lithology and land cover, combined with an orographic
+  # form drag derived from this world's own subgrid slope through Wood and
+  # Mason (1993) and Beljaars et al. (2004). Nothing in it is solved onto
+  # another planet's land mean. `build_surface_roughness.py` carries the
+  # derivation and its declared bracket; read the arm and the land mean out of
+  # `roughness_<rung>_report.json` rather than assuming either.
   #
-  # MB95 returns zero above a z0 of about 4.4 mm, and the anchored arm of that
-  # field is orders above it over nearly all of the source area, so feeding it
+  # MB95 returns zero above a z0 of about 4.4 mm, and that field is orders
+  # above it over nearly all of the source area, so feeding it
   # in shuts emission off almost everywhere. That is not a result, it is a
-  # category error, and it is one on either arm: MB95 partitions stress between
+  # category error, and it is one at any land mean: MB95 partitions stress between
   # a bed and centimetre-scale roughness ELEMENTS standing on it, and a grid
   # cell's orographic variance is not a roughness element whatever its
   # magnitude. Dust models that use MB95 in a GCM carry a separate aeolian

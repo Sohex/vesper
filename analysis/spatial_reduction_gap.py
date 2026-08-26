@@ -66,10 +66,11 @@ be a preference rather than a criterion:
                           and a bar placed after the result it judges is not a
                           criterion. What was corrected is the bracket, and
                           what the corrections are is fixed below.
-  roughness_recalibration NOT a Jensen gap. The solved orographic coefficient
-                          is a calibration that changes with the support, and
-                          what is reported is how much of a cross-rung
-                          difference belongs to it rather than to the terrain.
+  roughness_recalibration NOT a Jensen gap. The orographic term is DERIVED and
+                          carries no solved coefficient, so a cross-rung
+                          difference in the land-mean roughness is terrain and
+                          aggregation alone; the arm reports the spread across
+                          the ladder, which is the claim that can fail.
   subgrid_slope_support   NOT a Jensen gap. A within-cell elevation spread
                           quoted over the MESH spacing carries a length from
                           the mesh; the arm measures the same cell on this
@@ -156,7 +157,11 @@ from lapse import dry_adiabat_k_per_km, reference_height_m     # noqa: E402
 from build_surface_roughness import (CE_BRACKET_K, DEFAULT_BARE_Z0_M,   # noqa: E402
                                      DEFAULT_CANOPY_Z0_M,
                                      DEFAULT_FOREST_Z0_M,
-                                     EXOPLASIM_DZ0LAND_M, KARMAN)
+                                     EXOPLASIM_DZ0LAND_M, KARMAN,
+                                     RESOLVED_BAND_MULTIPLE,
+                                     effective_length, inner_layer_depth,
+                                     orographic_form_drag,
+                                     pressure_scale_height)
 from build_surface_albedo import MODE_FOREST_FRACTION           # noqa: E402
 
 OUTPUT = PROJECT_ROOT / "analysis" / "spatial_reduction_gap.json"
@@ -238,22 +243,27 @@ def _ce(z0, z_ref: float) -> np.ndarray:
     return KARMAN ** 2 / np.log(z_ref / np.maximum(np.asarray(z0), 1e-6)) ** 2
 
 
-def _solve_k_oro(z0_surf_cell, sigma_m, weight, target: float) -> float:
-    """The orographic coefficient `build_surface_roughness.py` solves for.
+def _derived_z0(z0_cover, slope_variance, spacing_m):
+    """Total roughness from the builder's derived scheme, on given cover values.
 
-    Reproduced here rather than imported because the builder solves it inside
-    `main()`; the bisection is the builder's, on the builder's own quantities.
+    The orographic term is a CELL statistic in both arms of the gap -- subgrid
+    slope has no per-region value at the support this measures -- and the cover
+    roughness is what the two arms disagree about. So the same slope variance
+    and the same spacing are handed to both, and the difference between them is
+    the reduction order and nothing else.
+
+    Every function called here is `build_surface_roughness.py`'s own. The
+    bisection this replaced was the builder's solve reproduced, which is what
+    `failure-modes.md` class 17 forbids and what the derived scheme removed the
+    need for: there is nothing left to solve.
     """
-    lo, hi = 0.0, 1.0
-    for _ in range(200):
-        mid = 0.5 * (lo + hi)
-        trial = float((np.sqrt(z0_surf_cell ** 2 + (mid * sigma_m) ** 2)
-                       * weight).sum() / weight.sum())
-        if trial < target:
-            lo = mid
-        else:
-            hi = mid
-    return 0.5 * (lo + hi)
+    lam = RESOLVED_BAND_MULTIPLE * np.asarray(spacing_m, dtype=np.float64)
+    z0_cover = np.maximum(np.asarray(z0_cover, dtype=np.float64), 1e-6)
+    h_m = pressure_scale_height(lam, z0_cover)
+    l_in = inner_layer_depth(lam, z0_cover)
+    z_m = np.maximum(h_m, lam * np.sqrt(2.0 * slope_variance) / np.pi)
+    ca, cmd, _ = orographic_form_drag(slope_variance, z_m, h_m, l_in, z0_cover)
+    return np.maximum(effective_length(ca + cmd, z_m), z0_cover)
 
 
 def roughness_arm(mesh: Export, cell, ncell, land, area, config) -> dict:
@@ -298,11 +308,23 @@ def roughness_arm(mesh: Export, cell, ncell, land, area, config) -> dict:
     sigma_m = np.sqrt(np.maximum(np.where(have, e2 / np.maximum(w, 1e-30)
                                           - emean ** 2, 0.0), 0.0)) * 1000.0
 
-    k_oro = _solve_k_oro(z0_surf_cell[have], sigma_m[have], w[have],
-                         EXOPLASIM_DZ0LAND_M)
+    # The subgrid slope, and the mesh spacing it belongs to: the two inputs the
+    # derived orographic term takes. Both are cell statistics, both are handed
+    # unchanged to each arm.
+    grad2 = np.tan(np.radians(mesh.local_slope_deg.astype(np.float64))) ** 2
+    t2 = np.bincount(cell[land], weights=area[land] * 0.5 * grad2[land],
+                     minlength=ncell)
+    theta2 = np.where(have, t2 / np.maximum(w, 1e-30), 0.0)
+    spacing_region = 1000.0 * np.sqrt(2.0 / np.sqrt(3.0)) * np.sqrt(area)
+    s1 = np.bincount(cell[land], weights=area[land] * spacing_region[land],
+                     minlength=ncell)
+    spacing = np.where(have, s1 / np.maximum(w, 1e-30), 1.0e4)
 
-    z0_cell = np.sqrt(z0_surf_cell ** 2 + (k_oro * sigma_m) ** 2)
-    z0_region = np.sqrt(z0_surface[land] ** 2 + (k_oro * sigma_m[cell[land]]) ** 2)
+    z0_cell = _derived_z0(np.where(have, z0_surf_cell, DEFAULT_BARE_Z0_M),
+                          theta2, spacing)
+    z0_cell = np.where(have, z0_cell, 0.0)
+    z0_region = _derived_z0(z0_surface[land], theta2[cell[land]],
+                            spacing[cell[land]])
 
     # The instrument, computed FIRST because every arm below is judged against
     # it: the step's own bracket on `ce` at the land-mean roughness, which is
@@ -313,7 +335,13 @@ def roughness_arm(mesh: Export, cell, ncell, land, area, config) -> dict:
                   for t in CE_BRACKET_K]
     instrument = abs(ce_bracket[1] - ce_bracket[0]) / min(ce_bracket)
 
-    out = {"orographic_coefficient_solved": round(k_oro, 6),
+    out = {"derived_land_mean_z0_m": round(
+               float(np.average(z0_cell[have], weights=w[have])), 6),
+           "cover_land_mean_z0_m": round(
+               float(np.average(z0_surf_cell[have], weights=w[have])), 6),
+           "slope_variance_land_median": float(np.median(theta2[have])),
+           "mesh_spacing_m_land_mean": round(
+               float(np.average(spacing[have], weights=w[have])), 1),
            "land_cells": int(have.sum()),
            "subgrid_stdev_m_land_median": round(float(np.median(sigma_m[have])), 2),
            "barren_land_area_fraction": round(
@@ -374,25 +402,47 @@ def roughness_arm(mesh: Export, cell, ncell, land, area, config) -> dict:
 
 
 def recalibration_arm(per_rung: dict, reference: str) -> dict:
-    """What the per-rung solve of the orographic coefficient is worth.
+    """How much of a cross-rung difference in roughness is calibration.
 
-    `build_surface_roughness.py` re-solves the coefficient at every resolution
-    so that the land mean lands on `dz0land`. That is a calibration whose value
-    depends on the support, so a difference between two rungs mixes the terrain
-    with the calibration and finding 8 of the audit cannot be answered from it.
-    This reports the coefficient per rung and the land-mean roughness each rung
-    would carry if the reference rung's coefficient were held fixed instead.
+    It used to be most of it. `build_surface_roughness.py` solved a free
+    orographic coefficient at every resolution so the land mean landed on a
+    reference, so two rungs differed by their terrain and by their calibration
+    at once and finding 8 of the audit could not be answered from them.
+
+    The derived scheme has no coefficient to solve. Its orographic term is a
+    property of the land and of the mesh the land is sampled on, and the grid
+    rung enters only through which mesh regions fall in which cell, so the
+    answer is expected to be flat across the ladder rather than merely
+    comparable. That is the claim this arm now measures, and it can fail: a
+    derived land mean that moved with the rung would say the scheme is still
+    carrying the support inside it.
     """
-    ref = per_rung[reference]["orographic_coefficient_solved"]
+    ref = per_rung[reference]["derived_land_mean_z0_m"]
     rows = {}
     for rung, arm in per_rung.items():
-        k = arm["orographic_coefficient_solved"]
         rows[rung] = {
-            "coefficient_solved": k,
-            "ratio_to_reference": round(k / ref, 6) if ref else None,
+            "aggregate_then_process_land_mean_z0_m": arm["derived_land_mean_z0_m"],
+            "ratio_to_reference": round(arm["derived_land_mean_z0_m"] / ref, 6)
+                                  if ref else None,
+            "cover_land_mean_z0_m": arm["cover_land_mean_z0_m"],
+            "slope_variance_land_median": arm["slope_variance_land_median"],
             "subgrid_stdev_m_land_median": arm["subgrid_stdev_m_land_median"],
         }
-    return {"reference_rung": reference, "target_land_mean_m": EXOPLASIM_DZ0LAND_M,
+    spread = [r["ratio_to_reference"] for r in rows.values()
+              if r["ratio_to_reference"] is not None]
+    return {"reference_rung": reference,
+            "namelist_fallback_m": EXOPLASIM_DZ0LAND_M,
+            "note": "the derived orographic term carries no solved coefficient, "
+                    "so a difference between two rungs is terrain and "
+                    "aggregation alone. The land means here are this arm's "
+                    "AGGREGATE-THEN-PROCESS side -- the cover roughness is a "
+                    "linear mean of lengths, which is the reduction the gap "
+                    "exists to measure against -- so they are not the field's "
+                    "own land mean, which build_surface_roughness.py reduces in "
+                    "ce at the blending height and reports per rung. "
+                    "`namelist_fallback_m` is the model's uniform default over "
+                    "land and is neither a target nor an anchor.",
+            "ratio_spread": round(max(spread) - min(spread), 6) if spread else None,
             "by_rung": rows}
 
 
