@@ -908,6 +908,25 @@
 !
       zsst(:,:)=ysst(:,:)
 !
+!     THE OLD-TEMPERATURE AND FLUX LOCALS ARE PRESET ON EVERY LANE. zold and
+!     zflx are automatic locals with no initialiser and both were written only
+!     inside `where(yls(:) < 1.)` and its narrower relatives, and read under the
+!     same masks: zold by `(zsst(:,1)-zold(:,1))*ymld(:,1)/zcpsdt`, zflx by the
+!     AMAX1 on the statement after the one that writes it. A `where` masks the
+!     ASSIGNMENT and not the evaluation, so on a land lane both were being
+!     arithmetic on whatever the stack held, and the declared
+!     -ffpe-trap=invalid,zero,overflow turns an overflow or a signalling word
+!     there into SIGFPE. world-d016's class.
+!
+!     THE PRESETS ARE INERT ON THE LANES THE MASK KEEPS. A lane with yls < 1
+!     assigns zold before the diffusion diagnostic reads it and assigns zflx at
+!     the head of the block that reads it, and every consumer of either is
+!     itself masked on yls < 1. Copying zsst makes a land lane's diagnosed
+!     diffusion flux exactly zero, since hdiffo leaves zsst alone there; zero is
+!     the flux into ice a land lane carries.
+      zold(:,:)=zsst(:,:)
+      zflx(:)=0.
+!
 !     set some useful bits
 !
       zcpsdt=dtmix/(CRHOS*CPS)
@@ -1129,6 +1148,22 @@
       yifluxr(:)=0.
       zflxm(:)=0.
       ztfreeze(:)=TFREEZE
+!
+!     zflx IS PRESET ON EVERY LANE. It is an automatic local with no initialiser
+!     whose only whole-lane writes are inside `where(zsst(:) > ztfreeze(:) .and.
+!     yiflux(:) > 0. .and. yls(:) < 1.)`, where the AMAX1 on the next statement
+!     reads it back; the element writes above it are each under an `if` that
+!     leaves most lanes untouched. A `where` masks the ASSIGNMENT and not the
+!     evaluation, so a discarded lane was running that AMAX1 and the two
+!     statements after it against whatever the stack held, and the declared
+!     -ffpe-trap turns an overflow or a signalling word there into SIGFPE.
+!     world-d016's class.
+!
+!     THE PRESET IS INERT ON THE LANES THE MASK KEEPS. Both the masked block and
+!     each `if` arm above assign zflx before reading it, and every consumer of it
+!     is inside the arm or the block that wrote it. Zero is the flux correction
+!     a lane with no residual ice flux carries, and it matches zflxm beside it.
+      zflx(:)=0.
 !
 !     use high precesion
 !
@@ -1399,6 +1434,23 @@
       real :: ztold(NLON,NLAT)
 !
       zsst(:,:)=psst(:,:)
+!
+!     zdtdt IS PRESET ON EVERY LANE. It is an automatic local with no
+!     initialiser, written only under `if(zls(jlon,jlat) < 1.)` inside the
+!     sub-step loop and under `where(zls(:,:) < 1.)` after it, and read under
+!     `where(zls(:,:) < 1.) zt(:,:)=zt(:,:)+zdtdt(:,:)*zdelt` and by the mpscgp
+!     that scatters the whole array. A `where` masks the ASSIGNMENT and not the
+!     evaluation, so on a land point that product was formed from whatever the
+!     stack held, and the declared -ffpe-trap turns an overflow or a signalling
+!     word there into SIGFPE. world-d016's class.
+!
+!     THE PRESET IS INERT ON THE LANES THE MASK KEEPS. A point with zls < 1 is
+!     assigned by the jlon/jlat loop on every sub-step before the masked update
+!     reads it, the diffused temperature zt is only ever updated under the same
+!     test, and psst is only ever updated under yls < 1, which is the same land
+!     mask before it was gathered. So the scattered land points of zdtdt reach no
+!     stored temperature. Zero is the tendency a land point has.
+      zdtdt(:,:)=0.
 !
       zdelt=dtmix/real(nsub)
       call mpgagp(zls,yls,1)

@@ -1154,6 +1154,41 @@ def check_diag_writes_are_answered() -> list[str]:
     return [(r.stdout.strip() or r.stderr.strip() or "(no output)")]
 
 
+def check_masked_only_locals_are_answered() -> list[str]:
+    """No procedure local has all its definitions inside a `where`.
+
+    A `where` selects which elements an ASSIGNMENT stores; it does not restrict
+    which elements of a right-hand side the compiler EVALUATES, and a
+    vectorising compilation evaluates all of them. So an automatic local with no
+    initialiser, written only inside a mask and then read, is read on every lane
+    the mask discarded as whatever the stack held -- and the declared
+    `-ffpe-trap=invalid,zero,overflow` turns that into SIGFPE. Where the read
+    sits under a different mask or none, the indeterminate lane is not discarded
+    at all: it is stored.
+
+    THE GAP THIS CLOSES. world-d016 found the class in `tands`, `mktsoil` and
+    `mkdca` while re-deriving the masked-division population, fixed those three,
+    and left the class itself unenumerated. Nothing in the tree could say
+    whether there were others, and the answer was seventeen more in `rainmod`
+    alone.
+
+    `exoplasim/scripts/lint_masked_locals.py` holds the pass, the five
+    directions it over-reports in and the two it cannot see, and the argument
+    for why it is not a rule inside `lint_implicit_save.py`. It is a text parse
+    of `plasim/src`, no build and no run, and it answers twenty reduced fixtures
+    on every invocation before it reports on the tree.
+    """
+    script = ROOT / "exoplasim" / "scripts" / "lint_masked_locals.py"
+    if not script.is_file():
+        return [f"{script.relative_to(ROOT)} is gone, and it is what says "
+                "whether a local's only definition is inside a mask"]
+    r = subprocess.run([sys.executable, str(script)],
+                       capture_output=True, text=True, cwd=ROOT)
+    if r.returncode == 0:
+        return []
+    return [(r.stdout.strip() or r.stderr.strip() or "(no output)")]
+
+
 # Command-line tools `docs/src/reference/environment.md` sends a reader to, mapped
 # to the Arch package shipping each. The package belongs in the failure message
 # because the tool name is usually not the package name: looking for a binary
@@ -2369,6 +2404,8 @@ def main() -> None:
                check_no_dropped_continuation()),
               ("no diagnostics write is reachable by every thread",
                check_diag_writes_are_answered()),
+              ("no model local has all its definitions inside a where",
+               check_masked_only_locals_are_answered()),
               ("no imported module name is rebound",
                check_no_shadowed_imports(files)),
               ("no name is loaded that nothing binds, model Python included",

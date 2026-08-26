@@ -810,8 +810,20 @@
        deallocate(zprf7)
       endif
 !
+!     zsnowold IS PRESET ON EVERY LANE. It is an automatic local with no
+!     initialiser, was written only inside this mask, and is read below under the
+!     same one -- `xsndch(:)=xsndch(:)+(xsnow(:)-zsnowold(:))`. A `where` masks
+!     the ASSIGNMENT and not the evaluation, so on a land lane that difference
+!     was formed against whatever the stack held, and the declared -ffpe-trap
+!     turns an overflow or a signalling word there into SIGFPE. world-d016's
+!     class. zicedold beside it already carries its own preset above.
+!
+!     THE PRESET IS INERT ON THE LANES THE MASK KEEPS. A sea lane assigns
+!     zsnowold here, before anything reads it, and the only read is under the
+!     identical mask. Copying xsnow makes the discarded lane's difference
+!     exactly zero, which is what a lane with no ice column has changed.
+      zsnowold(:)=xsnow(:)
       where(xls(:) < 0.5)
-       zsnowold(:)=xsnow(:)
        zicedold(:)=xiced(:)
       endwhere
 !

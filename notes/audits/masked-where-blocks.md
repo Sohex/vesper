@@ -199,3 +199,79 @@ two reflectances and vanishes when both reach 1 -- so the remainder is a reading
 and not a pattern match.
 
 Until it is done, `--kind intrinsic` is the gate and `--kind divide` reports.
+
+## The local whose only definition is inside a mask, as a class of its own
+
+The nine locals in `tands`, the four in `mktsoil` and the four in `mkdca` were
+found as DIVISORS, and that is an accident of which pass was being run. What
+they share is not division: it is that a procedure declares an array local with
+no initialiser, so its contents on entry are whatever the stack held, writes it
+only inside `where` blocks, and reads it. The mask does not restrict which
+elements of a right-hand side the compiler evaluates, so on every lane the mask
+discarded the read is a read of indeterminate memory -- whether the read is a
+divisor, an intrinsic argument, a factor in a product, or a term in a sum. And
+where the read sits under a DIFFERENT mask than the write, or under none, the
+indeterminate lane is not discarded at all: it is stored.
+
+`exoplasim/scripts/lint_masked_locals.py` is that class enumerated. It reports a
+local when every one of its definitions is inside a `where` construct and
+something reads it, over-reporting in five directions it names and blind in two
+it also names, and it is a separate pass from `lint_implicit_save.py` for a
+reason argued in the module: the two are exact complements, one firing on the
+presence of an initialiser and the other on its absence, and deleting an
+initialiser is `lint_implicit_save`'s remedy and this class's precondition.
+
+### Verification, because a count is a measurement of the pass until it is not
+
+The 133 masked divisions above were a measurement of the parser. So this pass is
+checked against a population whose answer is known before it is believed. Twenty
+reduced fixtures, each right or wrong in a named way, run on every invocation
+and gate the tree pass; they cover the mask, the preset, the dummy argument, the
+initialised local, the element write, the one-line `where`, the one-line `if`,
+the folded continuation and the `elsewhere` arm. The positive control is the
+tree itself before world-d016: scanning `landmod.f90` and `rainmod.f90` at that
+commit's parent returns exactly `tands`'s nine locals, `mktsoil`'s four and
+`mkdca`'s four, and every one of them clears against the fixed source.
+
+### The population, and what it holds
+
+Outside `radmod.f90` the pass reported 24 locals. Seventeen in `rainmod.f90`,
+five in `oceanmod.f90`, one in `icemod.f90`, one in `landmod.f90`.
+
+Twenty-two were defects and are preset. `mkshallow` is the largest and is
+`mktsoil`'s shape written out again: a tridiagonal elimination under
+`where (kshallow(:) > 0)` in which each level reads the previous level's `zebs`
+and `zqn`, so on a lane with no shallow convection the whole recursion ran on
+stack words, and the back-substitution multiplied two of them together. `mklsp`
+formed the Tetens exponent and `ra4d` from an indeterminate `ztn` on every lane
+that was not supersaturated. `kuo`, `mkrain`, `icestep`, `mksst`, `addfc` and
+`hdiffo` are each the shorter shape: a local written at the head of a masked
+block and read two statements later in the same one.
+
+The remedy is a preset on every lane, as in `tands` and `mkdca`, and the value
+is chosen to be what the arithmetic produces on a lane the mask discards: the
+unchanged state where the routine computes a change (`ztn = zt`, `zqn = zq`,
+`zold = zsst`), zero where it computes a difference or a flux. `icestep`'s
+`zsnowold` is the degenerate case -- its masked assignment is a bare copy of
+`xsnow`, so removing the mask IS the preset.
+
+None of them moves a stored value. On every lane its mask keeps, each local is
+assigned before it is read, in the same block and on the same pass, and every
+consumer of every one of them is itself masked on the same test.
+
+Two were safe and carry a row in the pass's `CLASSIFIED` table instead. Both are
+the `where` / `elsewhere` over-report: `mkradv`'s `zrop` is written in both arms
+of a pair whose `elsewhere` is unconditional, so the two arms partition every
+lane, and `hdiffo`'s `zdtx` is written in three index ranges that between them
+cover `0:NLON`, two by such a pair and the third by an unmasked copy.
+
+### What this class still has open
+
+`radmod.f90` holds 56 more, 53 of them in `swr` under `where (losun(:))` and
+three in `lwr`. The whole shortwave two-stream -- the transmissivities, the
+reflectivities, the band absorptions -- is computed into locals that are never
+preset, so on a night lane it runs on the stack. That is the same file, the same
+branch collision and the same issue as the division remainder, world-px61, and
+for the same reason: a row keyed on a name in a file being edited elsewhere is a
+claim about a version that may not survive. The pass reports it separately from
+its gate so the count cannot be mistaken for a clean one.
