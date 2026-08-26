@@ -279,44 +279,49 @@ labelled as one in the config.
 
 ### 5. The carve incision coefficient, and the size floor that sets its target
 
-`hydrography/scripts/export_carve_list.py:319` (`calibrate_coefficient`), with
-the target at `:142-144`: `EARTH_STANDING_BASINS = 15`,
-`EARTH_BAND_LAND_MKM2 = 78.9`, `CALIBRATION_LATITUDE = 35.0`.
+`hydrography/scripts/export_carve_list.py`, `calibrate_coefficient` and
+`sweep_size_floor`, against `EARTH_SIZE_FLOOR_KM2`, `EARTH_STANDING_BY_FLOOR`,
+`EARTH_BAND_LAND_MKM2` and `CALIBRATION_LATITUDE`.
 
 `C` is the leading coefficient in `cut = C * erodibility * slope^n * Q^m`, and
 therefore decides `retain` for every basin in the catalogue, and therefore what
 Orogen carves.
 
-**Admitted twice.** `export_carve_list.py:324-330`: "**Calibrated here rather
-than declared, because the target moves.** The coefficient is whatever leaves as
-many overflowing-but-still-standing basins per unit land as Earth has".
-`hydrography/notes/retain-fraction.md:47-50`: "It is calibrated against Earth
-rather than declared, and the reason is that the relaxation window is undefined
-rather than unmeasured."
+**`C` is IRREDUCIBLE and it is declared as such.** It absorbs a relaxation
+window that `docs/src/reference/no-time-axis.md` establishes cannot exist in a
+generator with no time axis, so no dataset can supply it, and re-solving it
+against this world's own basin population every run is the right treatment of a
+quantity of that shape: a literal would go stale the moment the verdict moved,
+silently, and it did once already. What is durable is the Earth measurement and
+the expected-value argument, not the number.
 
-**This is the borderline case and it lands on the tuned side.** It is re-solved
-against this world's own basin population every run, which is better than a
-carried-over literal. What it is solved AGAINST is an Earth observable
-transplanted whole, and its only justification is that the comparison comes out.
+**The size floor on the Earth sample WAS the undeclared lever, and it is now
+declared and swept.** It sets which lakes the Earth density is a density of, so
+it sets the calibration target, so it sets `C`. It used to be a single value
+defended in a comment as what the mesh resolves, with the file admitting in the
+same breath that counting from 10 km2 instead "gives a density 33 times higher
+and reads as 'carve almost nothing'".
 
-**The larger lever is the size floor, and it is not bracketed.**
-`export_carve_list.py:137-139` says the floor "decides the answer: counting from
-10 km2 instead gives a density 33 times higher and reads as 'carve almost
-nothing'". The floor is 1,000 km2, defended as what the mesh can resolve, but
-the mesh cell is 285 km2 and the median overflowing basin at spill is 7,338 km2,
-so 1,000 sits between the two and is chosen rather than derived.
+`sweep_size_floor` re-solves at every rung of a measured ladder, over a span the
+build derives rather than one chosen -- the median land mesh cell area at the
+bottom, below which a counted Earth lake has no representable counterpart, and
+the median area at spill of the overflowing basins at the top, above which most
+of the population being solved for is outside the class the Earth sample stands
+for. The result goes into the carve list's sidecar under
+`method.calibration.size_floor_sensitivity`, beside the verdict, with the whole
+ladder including the rungs the span excludes.
 
-**Magnitude.** `retain-fraction.md:310-312`: across the Poisson bracket on
-Earth's 15 the marginal class moves by a factor of 1.9. A single verdict change
-moved the solved `C` from 161 to 235.9, outside its own published 128 to 218
-bracket, which is the strongest evidence that this number is a residual rather
-than a property.
+**Magnitude, and it is well clear of the noise.** Measured on
+`precarve-craton-10m`; `hydrography/notes/retain-fraction.md` carries the table.
+Over the derived span the solved `C` moves by a factor of 8.2 and the marginal
+class by a factor of 9.2, against 1.8 for the Poisson error on the Earth count
+at the floor in force. The floor is the larger lever by a factor of about five,
+which is why leaving it in a comment was the defect and reporting it is the fix.
 
-**Disposition: IRREDUCIBLE for `C`; REPLACEABLE NOW for the floor.** `C` absorbs
-a relaxation window that `docs/src/reference/no-time-axis.md` establishes cannot
-exist here, so no dataset can supply it. The size floor is a different matter: a
-sensitivity across the floor, reported beside the verdict, converts a hidden
-33-fold lever into a declared bracket, and that costs one re-run of a script.
+**Disposition: IRREDUCIBLE for `C`, with the floor DECLARED AND SWEPT.** Neither
+is now a tuned value in the sense this audit uses: `C` has the argument for why
+no source can exist, and the floor has a bracket that is reported wherever the
+number it produces is.
 
 ---
 
@@ -879,7 +884,7 @@ filed.
 | 1. `baseline_flux_earth` and the cap solved backwards | `clim-30` |
 | 2. `ALPHAA_NLIM` | `bio-26` |
 | 3, 4. the regolith depth level and its asymptote | `world-qs63`; the degeneracy is gone and the level is bracketed, and `maximum_depth_m` needs a different source than this row named |
-| 5. the carve size floor | `world-7vj6` |
+| 5. the carve size floor | `world-7vj6`; the floor is swept and reported beside the verdict, and `C` is declared irreducible |
 | 6. `eddy_wind_m_s` | `world-9y07` |
 | 7. `acllwr` | fixed |
 | 8. `th2oc` | `world-2esd` |
