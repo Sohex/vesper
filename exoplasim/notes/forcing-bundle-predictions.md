@@ -1767,6 +1767,14 @@ optics reflect and the pre-jgen ones do not**, one-signed, and inside the
 artifact's -6.54 to -25.35 W/m2 bracket. The measured drift of -12.3 K is inside
 its -5.32 to -20.63 K. The bracket was right and nothing read it.
 
+**Do not turn 18.43 W/m2 into kelvin with the static slope.** At
+`lib/sensitivity.py`'s 0.778 K per W/m2 it reads as 14.3 K, and the same
+arithmetic on the gamma arm gave 7 K where the settled arm said 1.89. The
+forcing decays as the two states converge, so the arm's own settled mean is the
+measurement and this number is not. What 18.43 W/m2 establishes is the SIZE and
+the SIGN of the term, which is what the bisect needed: it is the only term in
+the bundle large enough to be the drift, and it is one-signed.
+
 The forcing survives the instrument check the first output bin demands. Bin 0
 of every orbit carries wind and humidity that do not belong with the other
 eleven (`exoplasim/notes/first-output-bin.md`), so the same difference was taken
