@@ -2098,14 +2098,29 @@ plasimversion = "https://github.com/Edilbert/PLASIM/ : 15-Dec-2015"
       call dayseccheck(tdisst,"tdisst")
       call dayseccheck(tdissq,"tdissq")
 
+!     THE DIVISOR IS FLOORED BECAUSE THE MASK DOES NOT PROTECT IT. A `where`
+!     selects which lanes the ASSIGNMENT stores and leaves the compiler free to
+!     evaluate the right-hand side on every lane, and the declared
+!     -ffpe-trap=zero turns a discarded lane into SIGFPE. restim and tfrc are
+!     both `= 0.0` in their plasimmod declarations, so on a run that sets
+!     neither the divisor is zero on EVERY lane and the only reason this has
+!     not fired is that -O2 has not vectorised initpm. world-d016, and the same
+!     mechanism as world-bhs.
+!
+!     THE FLOOR IS A NO-OP ON THE LANES THE MASK KEEPS. dayseccheck above has
+!     already converted both arrays to SECONDS, so a lane the mask keeps holds
+!     a relaxation time of order the timestep or longer; 1.0e-30 s is twenty-five
+!     orders of magnitude below the shortest timestep this model can take. It is
+!     also large enough that the quotient stays finite, which a floor at
+!     tiny() would not be: -ffpe-trap=overflow is declared beside the zero trap.
       where (restim > 0.0)
-         damp = sidereal_day / (TWOPI * restim)
+         damp = sidereal_day / (TWOPI * max(restim,1.0e-30))
       elsewhere
          damp = 0.0
       endwhere
 
       where (tfrc > 0.0)
-          tfrc = sidereal_day / (TWOPI * tfrc)
+          tfrc = sidereal_day / (TWOPI * max(tfrc,1.0e-30))
       elsewhere
           tfrc = 0.0
       endwhere

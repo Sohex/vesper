@@ -559,7 +559,11 @@
       mypart = mypid
 
       if (nproc /= NPRO) then
-         if (mypid == 0) then
+!        NROOT rather than the literal 0 it is: one spelling of the root test
+!        across plasim/src, so lint_diag_writes.py can see every guard on the
+!        shared diagnostics unit. NROOT is parameter(NROOT = 0) in plasimmod,
+!        so the branch taken is unchanged. world-630r.
+         if (mypid == NROOT) then
             write(nud,*)'Compiled for ',NPRO,' threads'
             write(nud,*)'Running on  ',nproc,' threads'
          endif

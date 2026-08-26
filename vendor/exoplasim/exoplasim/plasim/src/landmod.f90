@@ -1158,12 +1158,34 @@
       zhflm(:)=0.
       zztop(:)=dztop
 !
+!     THE SOIL LOCALS ARE PRESET ON EVERY LANE, NOT ONLY ON LAND. Every array
+!     declared above is an automatic local with no initialiser, and every one of
+!     them was written only inside `where(dls(:) > 0.0)`. A `where` masks the
+!     ASSIGNMENT and not the evaluation, so the divisions below -- by
+!     zsoilz1(:), by zctop(:), by snowdiff*zsoilz(:,1)+zdiff(:,1)*zsnowz(:), and
+!     the same set again in mktsoil -- were evaluating on the sea lanes with
+!     INDETERMINATE stack memory as the divisor. Whatever the stack held, zero
+!     and denormal included, the declared -ffpe-trap turns it into SIGFPE.
+!     world-d016, the same mechanism as world-bhs and world-5a0.
+!
+!     THE PRESETS ARE INERT ON THE LANES THE MASK KEEPS. Every one of these is
+!     overwritten inside `where(dls(:) > 0.0)` before anything reads it there,
+!     and every consumer of them outside that mask -- mktsoil included -- is
+!     itself masked on dls(:) > 0.0. So a sea lane's value reaches no stored
+!     result, and what it is chosen to be changes nothing. It is the ice-free
+!     land column rather than zero, because zero would put the divisor back at
+!     the pole this preset exists to move it off.
+      zsnowz(:)=0.
+      zsntop(:)=0.
+      zsoilz1(:)=dsoilz(1)
+      zcap1(:)=soilcap
+      zdiff1(:)=soildiff
+      zctop(:)=soilcap
+!
       do jlev=1,NLSOIL
-       where(dls(:) > 0.0)
-        zcap(:,jlev)=sicecap*dglac(:)+soilcap*(1.-dglac(:))
-        zdiff(:,jlev)=sicediff*dglac(:)+soildiff*(1.-dglac(:))
-        zsoilz(:,jlev)=dsoilz(jlev)
-       endwhere
+       zcap(:,jlev)=sicecap*dglac(:)+soilcap*(1.-dglac(:))
+       zdiff(:,jlev)=sicediff*dglac(:)+soildiff*(1.-dglac(:))
+       zsoilz(:,jlev)=dsoilz(jlev)
       enddo
 !
       where(dsnowz(:) == 0.0) dsnowt(:)=tmelt
@@ -1457,16 +1479,31 @@
 !     a) deep layer elimination (zero flux at bottom)
 !
 
+!     THE ELIMINATION RUNS ON EVERY LANE, AND THE MASK IS KEPT ONLY WHERE THE
+!     ANSWER IS STORED. ztn, zebs, zcap and zdiff are automatic locals with no
+!     initialiser, and every one of them was written only under
+!     `where(dls(:) > 0.0)` -- so on a sea lane the divisors below, zcap+zdiff
+!     and the two that follow it, were INDETERMINATE stack memory. A `where`
+!     masks the assignment and not the evaluation, so the compiler evaluates
+!     them there and the declared -ffpe-trap turns whatever the stack held into
+!     SIGFPE. world-d016, the same mechanism as world-bhs and world-5a0.
+!
+!     Dropping the mask from the local arithmetic is what makes the divisors
+!     defined rather than flooring them: pcap, pdiff and psoilz are positive on
+!     every lane since the caller presets them, so zcap and zdiff are positive,
+!     zdiff*zebs = zdiff/(zcap+zdiff) is below 1, and every divisor in the
+!     recursion stays positive on a sea lane for the same reason it does on a
+!     land one. Nothing changes on the lanes the mask kept: the arithmetic and
+!     its order are unaltered, and dsoilt below is still written under
+!     dls(:) > 0.0, so no sea lane reaches a stored result.
       jlev=NLSOIL
       jlem=NLSOIL-1
-      where(dls(:) > 0.0)
-       zdiff(:,jlem)=2.*pdiff(:,jlev)*pdiff(:,jlem)                     &
-     &              /(pdiff(:,jlev)*psoilz(:,jlem)                      &
-     &               +pdiff(:,jlem)*psoilz(:,jlev))
-       zcap(:,jlev)=pcap(:,jlev)*psoilz(:,jlev)/deltsec
-       zebs(:,jlev)=1./(zcap(:,jlev)+zdiff(:,jlem))
-       ztn(:,jlev)=zcap(:,jlev)*dsoilt(:,jlev)*zebs(:,jlev)
-      endwhere
+      zdiff(:,jlem)=2.*pdiff(:,jlev)*pdiff(:,jlem)                      &
+     &             /(pdiff(:,jlev)*psoilz(:,jlem)                       &
+     &              +pdiff(:,jlem)*psoilz(:,jlev))
+      zcap(:,jlev)=pcap(:,jlev)*psoilz(:,jlev)/deltsec
+      zebs(:,jlev)=1./(zcap(:,jlev)+zdiff(:,jlem))
+      ztn(:,jlev)=zcap(:,jlev)*dsoilt(:,jlev)*zebs(:,jlev)
 
 !
 !     middle layer elimination
@@ -1475,16 +1512,14 @@
       do jlev=NLSOIL-1,2,-1
        jlep=jlev+1
        jlem=jlev-1
-       where(dls(:) > 0.0)
-        zdiff(:,jlem)=2.*pdiff(:,jlev)*pdiff(:,jlem)                    &
-     &                /(pdiff(:,jlev)*psoilz(:,jlem)                    &
-     &                 +pdiff(:,jlem)*psoilz(:,jlev))
-        zcap(:,jlev)=pcap(:,jlev)*psoilz(:,jlev)/deltsec
-        zebs(:,jlev)=1./(zcap(:,jlev)+zdiff(:,jlem)                     &
-     &                  +zdiff(:,jlev)*(1.-zdiff(:,jlev)*zebs(:,jlep)))
-        ztn(:,jlev)=zebs(:,jlev)*(zcap(:,jlev)*dsoilt(:,jlev)           &
-     &                           +zdiff(:,jlev)*ztn(:,jlep))
-       endwhere
+       zdiff(:,jlem)=2.*pdiff(:,jlev)*pdiff(:,jlem)                     &
+     &               /(pdiff(:,jlev)*psoilz(:,jlem)                     &
+     &                +pdiff(:,jlem)*psoilz(:,jlev))
+       zcap(:,jlev)=pcap(:,jlev)*psoilz(:,jlev)/deltsec
+       zebs(:,jlev)=1./(zcap(:,jlev)+zdiff(:,jlem)                      &
+     &                 +zdiff(:,jlev)*(1.-zdiff(:,jlev)*zebs(:,jlep)))
+       ztn(:,jlev)=zebs(:,jlev)*(zcap(:,jlev)*dsoilt(:,jlev)            &
+     &                          +zdiff(:,jlev)*ztn(:,jlep))
       enddo
 
 !
@@ -1493,13 +1528,11 @@
 
        jlev=1
        jlep=2
-       where(dls(:) > 0.0)
-        zcap(:,jlev)=pcap(:,jlev)*psoilz(:,jlev)/deltsec
-        zebs(:,jlev)=1./(zcap(:,jlev)+zdiff(:,jlev)                     &
-     &                               *(1.-zdiff(:,jlev)*zebs(:,jlep)))
-        ztn(:,jlev)=zebs(:,jlev)*(zcap(:,jlev)*dsoilt(:,jlev)           &
-     &                           +zdiff(:,jlev)*ztn(:,jlep)+pftop(:))
-       endwhere
+       zcap(:,jlev)=pcap(:,jlev)*psoilz(:,jlev)/deltsec
+       zebs(:,jlev)=1./(zcap(:,jlev)+zdiff(:,jlev)                      &
+     &                              *(1.-zdiff(:,jlev)*zebs(:,jlep)))
+       ztn(:,jlev)=zebs(:,jlev)*(zcap(:,jlev)*dsoilt(:,jlev)            &
+     &                          +zdiff(:,jlev)*ztn(:,jlep)+pftop(:))
 
 !
 !     back-substitution
@@ -1507,9 +1540,7 @@
 
       do jlev=2,NLSOIL
        jlem=jlev-1
-       where(dls(:) > 0.0)
-        ztn(:,jlev)=ztn(:,jlev)+zebs(:,jlev)*zdiff(:,jlem)*ztn(:,jlem)
-       endwhere
+       ztn(:,jlev)=ztn(:,jlev)+zebs(:,jlev)*zdiff(:,jlem)*ztn(:,jlem)
       enddo
 
 !

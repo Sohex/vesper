@@ -271,6 +271,18 @@ void Soil::init_states() {
 				CH4_gas_yesterday[ly] = 0.0;
 				CH4_diss_yesterday[ly] = 0.0;
 				CH4_gas_vol[ly] = 0.0;
+				// WORLD-BUIT. CH4_vgc and CH4_oxid below are the only members of
+				// the gas set the vendored CNP fork leaves untouched here, so a
+				// freshly constructed Soil held indeterminate memory in both
+				// until Soil::methane wrote them. That write precedes every read
+				// and only over [IDX, NLAYERS), so a read at a shallower index
+				// was reading the allocation. Zero is the DERIVED value, not a
+				// quiet one: CH4_vgc is CH4_gas_vol divided by the layer volume
+				// and CH4_gas_vol is zero on the line above, so zero is what the
+				// writer at soilmethane.cpp would produce from this state.
+				// A declared divergence from the vendored fork, which leaves
+				// both uninitialised.
+				CH4_vgc[ly] = 0.0;
 			}
 
 			CH4[ly] = 0.0;
@@ -278,6 +290,11 @@ void Soil::init_states() {
 			O2[ly] = 0.0;
 			CO2_soil_prod[ly] = 0.0;
 			CH4_prod[ly] = 0.0;
+			// WORLD-BUIT, as CH4_vgc above. CH4_oxid is a daily flux written as
+			// min(CH4, 0.5 * O2), and both of those are zero here, so zero is
+			// the value its writer would produce rather than merely a defined
+			// one.
+			CH4_oxid[ly] = 0.0;
 			CH4_gas[ly] = 0.0;
 			CH4_diss[ly] = 0.0;
 			Frac_air[ly] = 0.0;

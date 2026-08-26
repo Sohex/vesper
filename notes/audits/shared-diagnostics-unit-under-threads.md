@@ -96,3 +96,61 @@ giving the module a dependency on the parallel layer.
 A refusal takes the shape `landini` and the LSHY-3 checks already use: the
 message under `if (mypid == NROOT)`, the `stop` outside it, so every thread
 stops and one copy of the message is written.
+
+## The fourteenth site, which the first pass could not see
+
+Re-deriving the population under a gate found one more, and the reason it was
+missed is a property of the search rather than of the site.
+`hurricanemod`'s `entropy_deficit` ends on
+
+    if (xhi<0) print *,smr,R(NLEP),sms-sme,smo-smb,smrt,R(i600)
+
+A `print` statement writes to unit 6, which is `nud`, so it reaches
+`plasim_diag` exactly as `write(*,...)` does. The first pass enumerated
+`write(nud,...)` and `write(*,...)` and no `print`, so this site was never in
+the 928. `entropy_deficit` is called from `hurricanestep`'s `do jhor=1,NHOR`
+over the thread's own chunk, and `hurricanestep` is called from `plasim.f90`
+with nothing between it and the parallel region, so every thread reached it.
+
+It falls in the second class above: the numbers are the thread's own gridcell,
+so a root guard would silence exactly the cells worth seeing. It is serialised
+with `!$omp critical (nudwrite)` and the thread id goes in the record, matching
+`surflx`'s per-cell reports.
+
+Two more sites were guarded correctly and unreadably.
+
+`mpstart` wrote its thread-count mismatch message under `if (mypid == 0)`.
+`NROOT` is `parameter(NROOT = 0)`, so the branch taken was already the right
+one; the spelling was the only site in `plasim/src` that did not say `NROOT`,
+and it now does. The branch is unchanged.
+
+`calini` writes its calendar summary under `if (kpid == 0)`, where `kpid` is a
+dummy argument. It is not a thread test at all: `prolog` passes -1 and `readnl`
+passes 0, so the block is a print-on-the-second-call flag and is reached from
+`readnl` alone. `readnl` is root-only by caller, so one thread reaches it. That
+is the argument, and it rests on the two call sites rather than on anything
+visible in `calmod`.
+
+## What holds the convention now
+
+`exoplasim/scripts/lint_diag_writes.py` is the two passes above written down,
+and `scripts/smoke_test.py` runs it. It permits four answers and nothing else:
+an enclosing `mypid == NROOT`, an enclosing `npro == 1`, an enclosing
+`!$omp critical`, and an enclosing procedure the call graph shows is reached
+only through those. It reads the boolean structure of a condition at depth zero
+rather than searching its text, because `.and.` binds tighter than `.or.` in
+Fortran and the two need opposite treatment, and it narrows the caller
+population when a branch is pinned to an integer literal through a dummy
+argument, which is how `calini`'s summary is cleared without a table row.
+
+Its exception table is empty. Every write in `plasim/src` today is answered by
+one of the four rules, which is the state worth holding: a table row is an
+argument a future reader has to re-check, and a rule is one the parser checks
+for them.
+
+The pass answers twenty reduced fixtures on every invocation before it reports
+on the tree, because a gate whose only evidence is that the tree is clean
+cannot distinguish a clean tree from a pass that reports nothing. Removing the
+`.and. mypid == NROOT` from `landini`'s LSHY-3 message reports its three
+writes; removing the `!$omp critical` from `surflx` reports its four; an
+unguarded `write(nud,...)` dropped into `surflx` is reported where it stands.
