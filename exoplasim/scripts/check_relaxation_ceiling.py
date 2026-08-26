@@ -26,13 +26,13 @@ THE CHECK, stated as a rule that can fail.
         `temperature_remaining_offset_k` exactly equal to
         `remaining_offset_implied_by_drift_k`. A tau from a fit the assessment
         itself discarded is not a measurement of anything.
-     b. the fitted tau is finite and positive. A converged run leaves the
-        exponential unconstrained and it degenerates to a straight line, which
-        comes back as a huge negative tau.
-     c. the fitted tau is no longer than the span it was fitted over. A time
-        constant longer than the data is an extrapolation past the end of the
-        record, and `approach_to_equilibrium` says so about the asymptote for
-        the same reason.
+     b. the assessment reports the fitted tau as IDENTIFIABLE. Over a span
+        short compared with tau the exponential is indistinguishable from a
+        straight line, so tau is whatever the optimiser drifted to: 44018
+        orbits on one run here and -337429 on another. Reports written since
+        `relaxation_fit_identifiable` existed carry the verdict; older ones are
+        judged by the same rule applied here, which is that the fitted tau must
+        be finite, positive, and no longer than the span it was fitted over.
   2. On an evidence artifact the ceiling HOLDS when tau_fitted <= tau_expected,
      and is FALSIFIED only when tau_fitted exceeds tau_expected by more than the
      fit's own standard error on tau. One fitted value above a derived one is
@@ -85,6 +85,7 @@ def assess(path: Path) -> dict:
     offset = metrics.get("temperature_remaining_offset_k")
     drift_offset = metrics.get("remaining_offset_implied_by_drift_k")
     standard_error = metrics.get("relaxation_orbits_fitted_standard_error")
+    identifiable = metrics.get("relaxation_fit_identifiable")
     span = fit_span_orbits(report)
 
     row = {
@@ -96,8 +97,18 @@ def assess(path: Path) -> dict:
         "relaxation_orbits_fitted_standard_error": standard_error,
         "relaxation_orbits_expected": expected,
         "fit_span_orbits": span,
+        "relaxation_fit_identifiable": identifiable,
     }
 
+    if fitted is None and metrics.get("relaxation_fit_raw_tau_orbits") is not None:
+        # The assessment refused to report a tau. That refusal IS the answer for
+        # this artifact, and reading the raw number past it would be reading the
+        # field the refusal exists to withhold.
+        row.update(evidence=False,
+                   why=metrics.get("relaxation_fit_verdict",
+                                   "the assessment withheld the fitted tau"),
+                   verdict="not evidence")
+        return row
     if fitted is None or expected is None:
         row.update(evidence=False, why="the artifact records no relaxation pair",
                    verdict="not evidence")
@@ -107,6 +118,13 @@ def assess(path: Path) -> dict:
     if fell_back:
         row.update(evidence=False, why="the assessment took the drift fallback, "
                                        "so this tau is from a fit it discarded",
+                   verdict="not evidence")
+        return row
+    if identifiable is False:
+        row.update(evidence=False,
+                   why=metrics.get("relaxation_fit_verdict",
+                                   "the assessment reports the fitted tau as "
+                                   "unidentifiable from its own series"),
                    verdict="not evidence")
         return row
     if not math.isfinite(fitted) or fitted <= 0.0:
@@ -179,9 +197,9 @@ def main() -> None:
         "question": "is relaxation_orbits_expected a ceiling on "
                     "relaxation_orbits_fitted",
         "rule": {
-            "evidence": "the fit was used rather than the drift fallback, the "
-                        "fitted tau is finite and positive, and it is no longer "
-                        "than the span it was fitted over",
+            "evidence": "the fit was used rather than the drift fallback, and "
+                        "the fitted tau is identifiable from its own series: "
+                        "finite, positive, and no longer than the span fitted",
             "falsified": "an evidence artifact whose fitted tau exceeds the "
                          "derived one by more than the fit's own standard error, "
                          "or by any amount where no such error is recorded",

@@ -153,6 +153,42 @@ was read: at the window now in use the measurable floor is 0.090 W/m2, below the
 and per window, which is what says whether a given verdict discriminated instead
 of a sentence in a derivation saying it once.
 
+## The criteria against the size of the effect they have to see
+
+The escalation route's first two rungs give the instrument something to be
+measured against. T21 at dt 45 settled and T21 at dt 30 followed it from that
+restart, so any difference between their equilibria is a timestep-dependent
+shift at fixed resolution, which is what alternating resolution and timestep
+exists to expose.
+
+**Measured 2026-08-26, and it is not yet a measurement of the shift.** The two
+states differ by 0.103 K on the window means, 0.307 K on the fitted asymptotes
+and 0.499 K on the last orbit. They differ that widely because the dt-30 run is
+NOT equilibrated by its own verdict: it passes the four slope criteria and the
+storage criterion at 35 orbits and fails the extrapolated offset, on its
+uncertainty rather than its magnitude. So the shift is bracketed by roughly 0.1
+to 0.5 K and the top of that bracket is contaminated by the approach the run
+has left to make.
+
+**What the criteria can see, in each criterion's own units.** The mixed layer
+drifts 0.128 K per orbit per W/m2 and the derived relaxation time is about ten
+orbits, so a kelvin of remaining approach is worth about 0.79 W/m2 of storage.
+
+| effect | as an offset, against 0.15 K | as storage, against 0.12 W/m2 | against the storage estimator's own 0.030 W/m2 |
+| ---: | ---: | ---: | ---: |
+| 0.10 K | 0.7x | 0.079 W/m2, 0.7x | 2.6x |
+| 0.31 K | 2.0x | 0.243 W/m2, 2.0x | 8.1x |
+| 0.50 K | 3.3x | 0.394 W/m2, 3.3x | 13.1x |
+
+So both criteria can see a shift at the top of that bracket with about the
+factor of three of margin the resolving bar asks for, and NEITHER can see one at
+the bottom of it: a 0.1 K shift sits below both thresholds and is only 2.6 times
+the storage estimator's standard error. That is the honest statement of what
+this instrument settles about a timestep pair. Separating two equilibria is
+`compare_equilibria.py`'s question rather than this one's, and it needs the
+batch-mean interval the section below prices, not a convergence verdict on each
+arm.
+
 ## The derived relaxation time is not established as a ceiling
 
 The offset criterion's fallback holds the relaxation time FIXED at what the
@@ -171,11 +207,26 @@ amount where no such error is recorded. The unbracketed case counts AGAINST the
 ceiling deliberately: the criterion's conservatism rests on the claim, so a
 possible violation that cannot be dismissed is not a pass.
 
-**Measured 2026-08-25 over all seven convergence artifacts. Three are evidence,
+**A FITTED TAU IS ONLY A MEASUREMENT WHERE THE SERIES DETERMINES IT.** Over a
+span short compared with tau, `exp(-n/tau)` is linear in n to within the fit's
+own noise, so the exponential and a straight line are the same curve and tau is
+whatever the optimiser drifted to. Five of the eight reports on disk carry such
+a number, up to 44018 orbits and down to -337429, beside verdicts that were
+correct: the criterion failed closed on the widened half width exactly as
+designed while the artifact went on carrying a plausible-looking field. The
+assessment now reports `relaxation_orbits_fitted` as null in that case, with
+`relaxation_fit_identifiable`, the reason, and the only bound the data supports,
+which is the span itself. The raw number is kept under
+`relaxation_fit_raw_tau_orbits` so a degenerate fit is visible rather than
+silent. No verdict moved: the raw tau still widens the asymptote's interval by
+the overshoot it implies, which is how such a fit refuses through the criterion.
+
+**Measured 2026-08-26 over all eight convergence artifacts. Three are evidence,
 one falsifies, and none discriminates.**
 
 | run | fitted | derived | evidence | verdict |
 | --- | ---: | ---: | --- | --- |
+| 14906cb7b914 | 44018 | 10.099 | no, the drift fallback was taken and the fit is degenerate | |
 | 2b20e3324bb0 | 169.13 | 9.883 | no, the drift fallback was taken | |
 | 4182235e9781 | 34.78 | 9.883 | no, longer than the 26 orbits fitted | |
 | 78c22fb1a1bd | -337429 | 9.883 | no, the drift fallback was taken | |
@@ -183,6 +234,13 @@ one falsifies, and none discriminates.**
 | aaa95662e21a | -286755 | 9.883 | no, the drift fallback was taken | |
 | ade7373b4c90 | 6.92 | 10.142 | yes | holds, unbracketed |
 | ec32946bec89 | 6.27 | 10.120 | yes | holds |
+
+The 44018 of run_14906cb7b914 is excluded twice over and neither exclusion
+depends on its size: the assessment took the drift fallback on that run, so the
+tau is from a fit it had already discarded, and the fit is degenerate by the
+rule above. Read at face value it would refute the ceiling by four orders of
+magnitude; read correctly it is not evidence in either direction, and the
+project's fitted-tau record remains the three rows above.
 
 **So the ceiling argument does not survive as stated, and it is not refuted
 either.** The one artifact above the derived time is 38 per cent above it and

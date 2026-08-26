@@ -505,6 +505,25 @@ def main() -> None:
     # decides whether it is evidence about the relaxation time at all.
     fit_span_orbits = int(np.count_nonzero(
         orbits_axis >= orbits_axis.max() * 0.35))
+    if not np.isfinite(tau_fit):
+        relaxation_fit_identifiable = False
+        relaxation_fit_verdict = "the series would not support a fit at all"
+    elif tau_fit <= 0.0:
+        relaxation_fit_identifiable = False
+        relaxation_fit_verdict = (
+            f"the fit returned tau = {tau_fit:.6g} orbits; a negative time "
+            "constant is the exponential having collapsed to a line")
+    elif tau_fit > fit_span_orbits:
+        relaxation_fit_identifiable = False
+        relaxation_fit_verdict = (
+            f"the fit returned tau = {tau_fit:.6g} orbits over {fit_span_orbits} "
+            "orbits of data, so the exponential is indistinguishable from a "
+            "line across the fitted range and tau is not determined by it")
+    else:
+        relaxation_fit_identifiable = True
+        relaxation_fit_verdict = (
+            f"tau = {tau_fit:.6g} orbits is shorter than the {fit_span_orbits} "
+            "orbits fitted, so the series carries the curvature that fixes it")
     offset = asymptote - metrics["temperature_mean_k"]
 
     # A converged run has no approach left to fit, so the exponential becomes
@@ -539,11 +558,43 @@ def main() -> None:
         "temperature_asymptote_k": asymptote,
         "temperature_asymptote_half_width_k": half_width,
         "temperature_remaining_offset_k": offset,
-        "relaxation_orbits_fitted": tau_fit,
+        # A FITTED TAU IS REPORTED ONLY WHERE THE SERIES DETERMINES IT.
+        #
+        # Over a span short compared with tau, `exp(-n/tau)` is linear in n to
+        # within the fit's own noise, so the exponential and a straight line are
+        # the same curve and tau is whatever the optimiser drifted to. One run
+        # here returned 44018 orbits against a derived 10.10 and another
+        # -337429; those are the fit finding no curvature, not relaxation times,
+        # and the gate that read them failed closed on the half width exactly as
+        # it should while the artifact went on carrying a plausible-looking
+        # field beside the verdict. A later consumer reading it at face value
+        # would conclude the derived time is wrong by four orders of magnitude.
+        #
+        # So the rule, and it is a property of the data rather than of any run:
+        # tau is IDENTIFIABLE from a series only when it is finite, positive and
+        # no longer than the span the fit saw. Otherwise the honest output is a
+        # refusal plus the bound the data supports, which is the span itself:
+        # the series says tau is at least of that order and says nothing more.
+        #
+        # NOTHING NUMERIC CHANGES. `approach_to_equilibrium` still returns the
+        # raw tau and still widens the asymptote's interval by the overshoot it
+        # implies, which is how a fit extrapolating past its own data refuses
+        # through the criterion. This governs the REPORTED field only.
+        "relaxation_orbits_fitted": (
+            tau_fit if relaxation_fit_identifiable else None),
+        "relaxation_fit_identifiable": relaxation_fit_identifiable,
+        "relaxation_fit_verdict": relaxation_fit_verdict,
+        # The number the optimiser returned, named so nobody reads it as a
+        # relaxation time. Kept because a degenerate fit is itself evidence
+        # about the series, and dropping it would hide that the fit ran.
+        "relaxation_fit_raw_tau_orbits": tau_fit,
+        "relaxation_orbits_fitted_lower_bound_orbits": (
+            None if relaxation_fit_identifiable else float(fit_span_orbits)),
         # The fit's own error on tau, autocorrelation-corrected like the
         # asymptote's. Reported and thresholded by nothing: it is what makes the
         # derived time's CEILING claim testable rather than a point comparison.
-        "relaxation_orbits_fitted_standard_error": tau_fit_se,
+        "relaxation_orbits_fitted_standard_error": (
+            tau_fit_se if relaxation_fit_identifiable else None),
         "relaxation_fit_span_orbits": fit_span_orbits,
         "relaxation_orbits_expected": tau_expected,
         # What tau_expected was built from, so the fallback offset below can be
