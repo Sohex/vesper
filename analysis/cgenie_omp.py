@@ -81,12 +81,28 @@ def retarget() -> None:
     cc.MCMODEL = "medium"
 
 
-def export_tree() -> None:
-    """Copy the tracked vendored tree, at its WORKING-TREE state so uncommitted
-    edits are what gets built, out of the repository."""
+def export_tree(rev: str | None = None) -> None:
+    """Copy the tracked vendored tree out of the repository and into WORK_ROOT.
+
+    With no revision it takes the WORKING-TREE state, so uncommitted edits are
+    what gets built. With one it takes that revision, which is how the arm a
+    change is measured against is built from the tree as it stood before it.
+
+    Building in place is not an option: a worktree's ignored build products are
+    symlinks into the shared checkout, so `make` there writes through them."""
     if WORK_ROOT.exists():
         shutil.rmtree(WORK_ROOT)
     WORK_ROOT.mkdir(parents=True)
+    if rev:
+        src = subprocess.Popen(["git", "archive", rev, "vendor/cgenie"],
+                               cwd=PROJECT_ROOT, stdout=subprocess.PIPE)
+        dst = subprocess.Popen(["tar", "-xf", "-", "-C", str(WORK_ROOT)],
+                               stdin=src.stdout)
+        src.stdout.close()
+        src.wait()
+        dst.wait()
+        print(f"exported vendor/cgenie at {rev} to {WORK_ROOT}")
+        return
     names = subprocess.check_output(
         ["git", "ls-files", "-z", "vendor/cgenie"], cwd=PROJECT_ROOT).split(b"\0")
     src = subprocess.Popen(["tar", "--null", "-T", "-", "-cf", "-"],
@@ -99,7 +115,7 @@ def export_tree() -> None:
     src.stdin.close()
     src.wait()
     dst.wait()
-    print(f"exported {len(names)} paths to {WORK_ROOT}")
+    print(f"exported {len(names)} working-tree paths to {WORK_ROOT}")
 
 
 def sh(cmd: list[str], log: Path, cwd: Path, env: dict | None = None) -> int:
@@ -115,98 +131,166 @@ def sh(cmd: list[str], log: Path, cwd: Path, env: dict | None = None) -> int:
 # The EDITS are made in the repository and travel through --export; an arm that
 # names a flag only is a build-flag arm and needs no edit.
 ARMS = {
-    "base": dict(fflags=[], threads=1),
-    "nofnoauto": dict(fflags=["-frecursive"], threads=1),
-    "omp": dict(fflags=["-frecursive", "-fopenmp"], threads=None),
+    # The tree as it stands, with whatever `makefile.arc` chooses.
+    "base": dict(fflags=[]),
+    # THE READ-BEFORE-WRITE DETECTOR, and it is here because dropping
+    # -fno-automatic changes more than where a local LIVES.
+    #
+    # A static local sits in .bss and the loader zeroes it, so a routine that
+    # reads one of its own locals before writing it reads zero on the first
+    # call. An automatic local is whatever was on the stack. That is a
+    # behaviour change no regression test is guaranteed to reach, because the
+    # value it changes is one nothing was supposed to read.
+    #
+    # -finit-real=snan -finit-integer=-2147483647 makes every uninitialised
+    # local a value that cannot pass for a plausible answer, so a read before
+    # write propagates instead of hiding. The test that can FAIL is that this
+    # arm reproduces `base` bit-for-bit: if it does, nothing in the exercised
+    # paths read a local it had not written.
+    "initpoison": dict(fflags=["-finit-real=snan",
+                               "-finit-integer=-2147483647"]),
 }
 
-KNOWNGOOD_REF = ("genie-knowngood/genie_eb_go_gs_knowngood/goldstein/"
-                 "gold_spn_av_0000000020_00.nc")
-KNOWNGOOD_OUT = "goldstein/gold_spn_av_0000000020_00.nc"
+# The regression CASES the acceptance test runs. Each names the shipped
+# configuration, the shipped reference tree, and the netCDF inside both that is
+# compared variable by variable.
+#
+# `eb_go_gs` is the physics: EMBM, GOLDSTEIN and the sea ice. It is the arm
+# every change here touches directly.
+#
+# `eb_go_gs_ac_bg` carries ATCHEM and BIOGEM as well, and it is in the list for
+# one specific reason rather than for coverage: it is the configuration whose
+# per-column arrays in biogem.f90 are what gfortran's own -fmax-stack-var-size
+# warning is about, so it is the case that would fail if -frecursive moved more
+# onto the stack than the stack holds.
+CASES = {
+    "eb_go_gs": dict(
+        config="eb_go_gs_test.xml",
+        expid="genie_eb_go_gs",
+        reference="genie-knowngood/genie_eb_go_gs_knowngood",
+        nc="goldstein/gold_spn_av_0000000020_00.nc",
+        # `goldstein.F:732` writes that annual average only when the namelist
+        # `debug_loop` is true, and it defaults false, which is why `make
+        # testebgogs` runs, writes no reference-shaped output and reports a
+        # failure about its own configuration. Setting it changes no state:
+        # every use of it in `goldstein.F` guards a print, a dump or the
+        # averaging call.
+        debug_loop=True,
+    ),
+    "eb_go_gs_ac_bg": dict(
+        config="eb_go_gs_ac_bg_test.xml",
+        expid="genie_eb_go_gs_ac_bg",
+        reference="genie-knowngood/genie_eb_go_gs_ac_bg_knowngood",
+        nc="biogem/fields_biogem_3d.nc",
+        debug_loop=False,
+    ),
+}
 
 
-def make_args(arm: str, target: str = "") -> str:
+def make_args(target: str = "") -> str:
+    """The make overrides this host needs. `user.mak` expects the tree at
+    ~/cgenie.muffin and netCDF under /usr/local, and neither is true here."""
     parts = [target, f"GENIE_ROOT={CGENIE}", f"RUNTIME_ROOT={CGENIE}",
              f"NETCDF_DIR={cc.NETCDF_DIR}", f"OUT_DIR={OUT_ROOT}", "-j 1"]
-    flags = ["-mcmodel=medium", *ARMS[arm]["fflags"]]
-    parts += [f"GENIE_FFLAGS={' '.join(flags)}",
-              f"GENIE_LDFLAGS={' '.join(flags)}"]
     return " ".join(p for p in parts if p)
 
 
-def knowngood_config() -> Path:
-    """The shipped eb_go_gs regression case with GOLDSTEIN's `debug_loop` on.
+def arm_env(arm: str, threads: int = 1) -> dict:
+    """An arm's compiler flags travel in the ENVIRONMENT, not on make's command
+    line. `genie.job` interpolates its -m argument unquoted, so a make variable
+    whose value contains a space is resplit by the shell and `-finit-real=snan`
+    arrives as make's own `-f init-real=snan`. Make reads an environment
+    variable as a make variable, and `makefile.arc` does not override
+    GENIE_FFLAGS, so the environment is where a multi-flag arm belongs.
 
-    `make testebgogs` cannot answer this on its own: its reference file is an
-    annual average `goldstein.F` writes only under `debug_loop`, which defaults
-    false. Setting it changes no state -- every use of it in `goldstein.F`
-    guards a print, a dump or the averaging call."""
-    src = (cc.CONFIG_DIR / "eb_go_gs_test.xml").read_text()
-    marker = '\t\t<model name="goldstein">\n'
-    assert marker in src, "eb_go_gs_test.xml no longer has a goldstein block"
-    cfg = cc.CONFIG_DIR / "omp_eb_go_gs.xml"
-    cfg.write_text(src.replace(
-        marker, marker + '\t\t\t<param name="debug_loop">.true.</param>\n', 1
-    ).replace('<var name="EXPID">genie_eb_go_gs</var>',
-              f'<var name="EXPID">{cfg.stem}</var>'))
+    -mcmodel=medium is in every arm rather than only where it is needed: the
+    doubled grid's static COMMON is past what the small model can address, and
+    building every arm the same way means two arms differ in the arm and in
+    nothing else."""
+    flags = " ".join(["-mcmodel=medium", *ARMS[arm]["fflags"]])
+    env = dict(os.environ)
+    env["GENIE_FFLAGS"] = flags
+    env["GENIE_LDFLAGS"] = flags
+    env["OMP_NUM_THREADS"] = str(threads)
+    # A thread spinning at a barrier retires instructions in proportion to how
+    # long it waits, so an active wait policy puts the idle threads' spin INTO
+    # the instruction count. Passive is what makes the count comparable across
+    # thread counts.
+    env["OMP_WAIT_POLICY"] = "passive"
+    return env
+
+
+def knowngood_config(case: str) -> Path:
+    """The shipped regression configuration, renamed so its output lands in a
+    directory of this driver's own, and with `debug_loop` turned on where the
+    reference the case compares against is a file only `debug_loop` writes."""
+    spec = CASES[case]
+    src = (cc.CONFIG_DIR / spec["config"]).read_text()
+    cfg = cc.CONFIG_DIR / f"omp_{case}.xml"
+    if spec["debug_loop"]:
+        marker = '\t\t<model name="goldstein">\n'
+        assert marker in src, f"{spec['config']} no longer has a goldstein block"
+        src = src.replace(
+            marker, marker + '\t\t\t<param name="debug_loop">.true.</param>\n', 1)
+    src = src.replace(f'<var name="EXPID">{spec["expid"]}</var>',
+                      f'<var name="EXPID">{cfg.stem}</var>')
+    assert cfg.stem in src, f"{spec['config']} does not set EXPID to {spec['expid']}"
+    cfg.write_text(src)
     return cfg
 
 
-def build(arm: str) -> dict:
-    cfg = knowngood_config()
+def build(arm: str, case: str) -> dict:
+    cfg = knowngood_config(case)
     try:
-        sh(["/usr/bin/make", *make_args(arm).split(), "cleanall"],
-           LOGDIR / f"{arm}.clean.log", cwd=cc.GENIE_MAIN)
+        env = arm_env(arm)
+        sh(["/usr/bin/make", *make_args().split(), "cleanall"],
+           LOGDIR / f"{arm}.{case}.clean.log", cwd=cc.GENIE_MAIN, env=env)
         t0 = time.perf_counter()
         rc = sh(["./genie.job", "-x", "-f", f"configs/{cfg.name}",
                  "-o", str(OUT_ROOT), "-c", str(CGENIE), "-g", str(CGENIE),
-                 "-h", ".", "-m", make_args(arm, target="genie.exe")],
-                LOGDIR / f"{arm}.build.log", cwd=cc.GENIE_MAIN)
+                 "-h", ".", "-m", make_args(target="genie.exe")],
+                LOGDIR / f"{arm}.{case}.build.log", cwd=cc.GENIE_MAIN, env=env)
         built = cc.GENIE_MAIN / "genie.exe"
         out = {"arm": arm, "flags": ARMS[arm]["fflags"],
                "build_seconds": round(time.perf_counter() - t0, 1)}
         if rc != 0 or not built.exists():
             out["build_ok"] = False
-            out["error"] = f"see {LOGDIR / (arm + '.build.log')}"
+            out["error"] = f"see {LOGDIR / (arm + '.' + case + '.build.log')}"
             return out
         stash = LOGDIR / "exe"
         stash.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(built, stash / f"{arm}.exe")
+        shutil.copy2(built, stash / f"{arm}.{case}.exe")
         out["build_ok"] = True
-        out["exe"] = str(stash / f"{arm}.exe")
+        out["case"] = case
+        out["exe"] = str(stash / f"{arm}.{case}.exe")
         return out
     finally:
         cfg.unlink(missing_ok=True)
 
 
-def run_case(arm: str, threads: int, tag: str, perf: bool) -> dict:
+def run_case(arm: str, case: str, threads: int, tag: str) -> dict:
     """Run the regression case from an already-built, stashed executable.
 
     `genie.job -z` means REMAKE=FALSE, so the executable sitting in genie-main
     is the one that runs; the arm's stashed copy is put there first, which is
     what keeps the arms from silently sharing a binary."""
-    exe = LOGDIR / "exe" / f"{arm}.exe"
+    exe = LOGDIR / "exe" / f"{arm}.{case}.exe"
     if not exe.exists():
         return {"run_ok": False, "why": f"no stashed executable for arm {arm}"}
     shutil.copy2(exe, cc.GENIE_MAIN / "genie.exe")
-    cfg = knowngood_config()
-    env = dict(os.environ)
-    env["OMP_NUM_THREADS"] = str(threads)
-    # A thread spinning at a barrier retires instructions in proportion to how
-    # long it waits, so an active wait policy would put the idle threads' spin
-    # INTO the instruction count and make a threaded arm look like it did more
-    # work. Passive is what makes the count comparable across thread counts.
-    env["OMP_WAIT_POLICY"] = "passive"
+    cfg = knowngood_config(case)
+    env = arm_env(arm, threads)
     outdir = OUT_ROOT / cfg.stem
     shutil.rmtree(outdir, ignore_errors=True)
     try:
         rc = sh(["./genie.job", "-z", "-f", f"configs/{cfg.name}",
                  "-o", str(OUT_ROOT), "-c", str(CGENIE), "-g", str(CGENIE),
-                 "-h", ".", "-m", make_args(arm)],
+                 "-h", ".", "-m", make_args()],
                 LOGDIR / f"{tag}.run.log", cwd=cc.GENIE_MAIN, env=env)
         log = LOGDIR / f"{tag}.run.log"
         ok, why = cc.run_ok(log)
-        rec = {"arm": arm, "threads": threads, "run_ok": bool(rc == 0 and ok),
+        rec = {"arm": arm, "case": case, "threads": threads,
+               "run_ok": bool(rc == 0 and ok),
                "seconds": cc.model_seconds(log)}
         if why:
             rec["why"] = why
@@ -216,28 +300,12 @@ def run_case(arm: str, threads: int, tag: str, perf: bool) -> dict:
             shutil.rmtree(keep, ignore_errors=True)
             shutil.copytree(outdir, keep)
             rec["output"] = str(keep)
-        if perf and rec["run_ok"]:
-            rec.update(perf_stat(arm, threads, tag, env))
         return rec
     finally:
         cfg.unlink(missing_ok=True)
 
 
-def perf_stat(arm: str, threads: int, tag: str, env: dict) -> dict:
-    """Retired instructions, COUNTED not sampled, plus the wall clock.
-
-    On a single-threaded process the count is the cost. On a threaded one it is
-    not: it includes whatever the waiting threads retire, which is why the wait
-    policy above is passive and why the wall clock is reported beside it."""
-    outdir = cc.GENIE_MAIN
-    res = subprocess.run(
-        ["perf", "stat", "-e", "instructions,task-clock", "-x,",
-         str(LOGDIR / "exe" / f"{arm}.exe")],
-        cwd=OUT_ROOT / "run", capture_output=True, text=True, check=False, env=env)
-    return {"perf_raw": res.stderr}
-
-
-def compare(ref_dir: Path, got_dir: Path) -> dict:
+def compare(ref_dir: Path, got_dir: Path, nc: str) -> dict:
     """Every float variable in the regression case's GOLDSTEIN annual average,
     compared BIT-FOR-BIT. The bar was fixed before any arm was built: these
     changes are correctness-preserving by construction, so a difference is a
@@ -245,7 +313,7 @@ def compare(ref_dir: Path, got_dir: Path) -> dict:
     import netCDF4  # noqa: PLC0415
     import numpy as np  # noqa: PLC0415
 
-    ref, got = ref_dir / KNOWNGOOD_OUT, got_dir / KNOWNGOOD_OUT
+    ref, got = ref_dir / nc, got_dir / nc
     out = {"reference": str(ref), "compared": str(got)}
     if not ref.exists() or not got.exists():
         out["error"] = "one side is missing"
@@ -279,13 +347,19 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--export", action="store_true",
                     help="refresh the exported tree from the working tree")
+    ap.add_argument("--rev", default=None,
+                    help="export vendor/cgenie at this git revision instead of"
+                         " the working tree, so an arm can be measured against"
+                         " the tree as it stood before a change")
     ap.add_argument("--arm", action="append", default=None, choices=list(ARMS))
+    ap.add_argument("--case", action="append", default=None, choices=list(CASES))
     ap.add_argument("--build", action="store_true")
     ap.add_argument("--run", action="store_true")
     ap.add_argument("--threads", action="append", type=int, default=None)
     ap.add_argument("--tag", default="")
     ap.add_argument("--against", default=None,
-                    help="a tag under the log directory's nc/ to compare with")
+                    help="the name of a directory under the log directory's nc/"
+                         " whose output this run must reproduce")
     ap.add_argument("--shipped", action="store_true",
                     help="compare against genie-knowngood/ rather than an arm")
     ap.add_argument("--out", type=Path,
@@ -305,28 +379,31 @@ def main() -> int:
     results["provenance"]["cgenie_tree"] = str(CGENIE)
 
     if args.export:
-        export_tree()
+        export_tree(args.rev)
     for arm in args.arm or []:
-        if args.build:
-            rec = build(arm)
-            results["cases"][f"{arm}{args.tag}.build"] = rec
-            print(json.dumps(rec, indent=2))
-            if not rec.get("build_ok"):
-                break
-        if args.run:
-            for threads in (args.threads or [1]):
-                tag = f"{arm}{args.tag}.t{threads}"
-                rec = run_case(arm, threads, tag, perf=False)
-                if rec.get("run_ok"):
-                    if args.shipped:
-                        rec["vs_shipped"] = compare(
-                            CGENIE / "genie-knowngood/genie_eb_go_gs_knowngood",
-                            Path(rec["output"]))
-                    if args.against:
-                        rec["vs_" + args.against] = compare(
-                            LOGDIR / "nc" / args.against, Path(rec["output"]))
-                results["cases"][tag] = rec
+        for case in (args.case or ["eb_go_gs"]):
+            spec = CASES[case]
+            if args.build:
+                rec = build(arm, case)
+                results["cases"][f"{arm}.{case}{args.tag}.build"] = rec
                 print(json.dumps(rec, indent=2))
+                if not rec.get("build_ok"):
+                    continue
+            if args.run:
+                for threads in (args.threads or [1]):
+                    tag = f"{arm}.{case}{args.tag}.t{threads}"
+                    rec = run_case(arm, case, threads, tag)
+                    if rec.get("run_ok"):
+                        if args.shipped:
+                            rec["vs_shipped"] = compare(
+                                CGENIE / spec["reference"], Path(rec["output"]),
+                                spec["nc"])
+                        if args.against:
+                            rec["vs_" + args.against] = compare(
+                                LOGDIR / "nc" / args.against,
+                                Path(rec["output"]), spec["nc"])
+                    results["cases"][tag] = rec
+                    print(json.dumps(rec, indent=2))
     args.out.write_text(json.dumps(results, indent=2) + "\n")
     print(f"wrote {args.out}")
     return 0

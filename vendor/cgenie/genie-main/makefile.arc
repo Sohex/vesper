@@ -307,7 +307,6 @@ ifeq ($(F77),pathf90)
 endif
 
 # === GNU 'gfortran' compiler ===
-# need -fno-automatic for the moment..
 ifeq ($(F77),gfortran)
   F77_LD=gfortran
   FLAGR4=
@@ -336,13 +335,35 @@ ifeq ($(F77),gfortran)
   #       or change the code to use an ALLOCATABLE array. 
   #       If the variable is never accessed concurrently, this warning can be ignored, and the variable could also be declared with the SAVE attribute. 
   #       [warning occurs in biogem.f90]
-###  F90FLAGS += -frecursive
   ifeq ($(BUILD),SHIP)
     FFLAGS += -O2
     FFLAGS += -O3 
     FFLAGS += -funroll-loops 
     FFLAGS += -msse
-    FFLAGS += -fno-automatic
+    # -frecursive, NOT -fno-automatic, and the difference is a correctness
+    # one rather than a preference.
+    #
+    # -fno-automatic moves every procedure-body local into STATIC storage,
+    # which is one variable for the whole process. Inside an OpenMP region
+    # such a variable is shared between the threads unless it is named in a
+    # private clause, gfortran ACCEPTS private on it rather than rejecting
+    # it, and the whole combination draws exactly one diagnostic for the
+    # translation unit -- "Flag '-fno-automatic' overwrites '-frecursive'
+    # implied by '-fopenmp'" -- which names no variable. The wrong answers
+    # that come of a missed name are finite, plausible and dependent on the
+    # thread count.
+    #
+    # -frecursive implies an unlimited -fmax-stack-var-size, so the same
+    # locals go on the stack where each thread has its own. It costs stack,
+    # not correctness: every DATA and every save statement in
+    # genie-goldstein, genie-embm and genie-goldsteinseaice is EXPLICIT and
+    # sits in a driver, a diagnostic or a netCDF writer rather than in a
+    # per-cell kernel, and a routine that declares its persistence keeps it
+    # under either flag.
+    #
+    # A thread's stack is OMP_STACKSIZE and the master's is the shell's
+    # limit; genie.job sets both.
+    FFLAGS += -frecursive
   endif
   ifeq ($(BUILD),DEBUG)
     FFLAGS += -g -ffpe-trap=zero,overflow,invalid -O0 -Wall -fbounds-check
@@ -375,7 +396,9 @@ ifeq ($(F77),gfortran)
     FFLAGS += -fbacktrace
     #FFLAGS += -fconserve-stack
     FFLAGS += -fstack-check
-    FFLAGS += -fno-automatic
+    # Same reason as the SHIP block above: static locals are shared across
+    # threads and no diagnostic names them.
+    FFLAGS += -frecursive
   endif
 endif
 
@@ -388,7 +411,10 @@ ifeq ($(F77),gfc.exe)
   F77FLAGS += -x f77-cpp-input -ffixed-line-length-80
   F90FLAGS += -x f95-cpp-input -ffree-line-length-none
   FFLAGS += -Wall -Wtabs
-  FFLAGS +=  -fno-automatic
+  # gfortran under a different name, so the SHIP block's argument applies
+  # unchanged. This host has no gfc, so the flag is reasoned rather than
+  # tested here.
+  FFLAGS +=  -frecursive
   LDFLAGS += -static
   ifeq ($(BUILD),SHIP)
     FFLAGS += -O2
