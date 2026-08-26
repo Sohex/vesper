@@ -292,7 +292,7 @@ def regolith_depth(intensity: np.ndarray, relief_m: np.ndarray,
 
     Replaced by a saturating form:
 
-        depth = maximum_depth * P / (P + erosion_weight * E)
+        depth = maximum_depth * P / (P + E)
 
     Bounded at both ends by construction and monotone in the right directions.
     As erosion vanishes the profile approaches `maximum_depth`, which is the
@@ -310,12 +310,16 @@ def regolith_depth(intensity: np.ndarray, relief_m: np.ndarray,
     # ceiling.
     moisture = (np.maximum(runoff_mm_yr, 0.0) / weathering_ref
                 + params["dry_erosion_baseline"])
-    erosion = (erodibility
-               * np.maximum(relief_m, 0.0) / params["erosion_reference_relief_m"]
+    # ONE coefficient. `erosion_weight` and `erosion_reference_relief_m` used to
+    # be two keys carrying one degree of freedom, since the law reads only their
+    # ratio; `pedogenesis.yaml` has the argument and the sourced bracket.
+    erosion = (params["erosion_coefficient_per_relief_m"]
+               * erodibility
+               * np.maximum(relief_m, 0.0)
                * moisture)
     production = np.maximum(intensity, 1e-9)
     depth = (params["maximum_depth_m"] * production
-             / (production + params["erosion_weight"] * erosion))
+             / (production + erosion))
     return np.clip(depth, params["minimum_depth_m"], params["maximum_depth_m"])
 
 
@@ -845,7 +849,7 @@ def main() -> None:
                          "area-averaged. lib/gridding.py owns the reduction "
                          "operators and this file calls one rather than "
                          "reimplementing it."),
-            "law": ("depth = maximum_depth * P / (P + erosion_weight * E), with "
+            "law": ("depth = maximum_depth * P / (P + E), with "
                     "E proportional to the region's erodibility"),
             "population": "surface_class == LAND",
             "subgrid_input": "erodibility, from the export's substrate class",

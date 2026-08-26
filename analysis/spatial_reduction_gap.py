@@ -167,7 +167,7 @@ OUTPUT = PROJECT_ROOT / "analysis" / "spatial_reduction_gap.json"
 INTENSITY_SWEEP = (0.02, 0.2, 1.0, 2.0, 6.0)
 DUNNE_SCATTER = 1.35        # S_y.x = 0.13 log units, pedogenesis.yaml
 
-# The regolith arm's one free ratio, `erosion_weight * E / P`, swept over the
+# The regolith arm's one free ratio, `E / P`, swept over the
 # decades the saturating depth law can reach: at 0.01 the profile sits at its
 # ceiling and at 100 it is scraped to bare rock, so the sweep spans the whole
 # range of the law rather than a guess at this world's climate.
@@ -515,7 +515,7 @@ def regolith_arm(mesh: Export, cell, ncell, land, area, pedo) -> dict:
     `build_soil.py` area-mixes every rock class's erodibility inside a cell and
     then applies
 
-        depth = maximum_depth * P / (P + erosion_weight * E),  E ~ erodibility
+        depth = maximum_depth * P / (P + E),  E ~ erodibility
 
     which is convex in the erodibility, so the mean of the depths is above the
     depth at the mean. Erodibility is a per-region property of the rock the
@@ -524,7 +524,7 @@ def regolith_arm(mesh: Export, cell, ncell, land, area, pedo) -> dict:
 
     Everything the law needs except the erodibility collapses into ONE ratio,
 
-        rho = erosion_weight * E(cell mean erodibility) / P
+        rho = E(cell mean erodibility) / P
 
     so no climatology is needed to size this: the arm sweeps `rho` over the
     decades the law can reach and reports the gap in metres at each. `rho` is

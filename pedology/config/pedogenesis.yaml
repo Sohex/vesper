@@ -305,14 +305,17 @@ texture:
 # ---------------------------------------------------------------------------
 # Steady-state regolith thickness, production against erosion.
 #
-#   depth = maximum_depth_m * P / (P + erosion_weight * E)
+#   depth = maximum_depth_m * P / (P + E)
 #
 # This was Heimsath's exponential production function, whose steady state is
 # h = h_star * ln(P0 / E). That form diverges as erosion approaches zero and runs
 # to minus infinity as it grows, so both ends needed clipping, and a quarter of
 # this world's land sat on each clip. The cause is dynamic range: spanning 0 to
-# 5 m through a logarithm at Heimsath's h_star of 0.5 m requires P/E to cover a
-# factor of 22,000, which nothing in these inputs does.
+# 5 m through a logarithm at Heimsath's measured h_star of 0.435 m requires P/E
+# to cover a factor of about 100,000, which nothing in these inputs does. The
+# discarded form is still what sets the LEVEL of the surviving one, because it
+# is the form an absolute production rate and an absolute denudation rate can be
+# read into; see the bracket on `erosion_coefficient_per_relief_m` below.
 #
 # The saturating form is bounded at both ends by construction. As erosion
 # vanishes the profile approaches maximum_depth_m, which says a weathering front
@@ -539,25 +542,70 @@ andisol:
 
 
 regolith:
-  # Asymptote, not a clip: the depth to which weathering can reach at all.
+  # Asymptote, not a clip: the depth to which weathering can reach at all, and
+  # NOT a steady-state thickness. Neither paper under the coefficient below
+  # bears on it, and that is a statement about the quantity rather than a gap in
+  # those two: Heimsath's production function has no asymptote, running to
+  # infinity as erosion vanishes, and Portenga and Bierman measure denudation
+  # rather than the depth a weathering front reaches. A production function
+  # integrates to a steady-state depth against an erosion rate; it does not
+  # integrate to a maximum reach. What would settle this is a measured
+  # depth-to-bedrock distribution -- Shangguan, Hengl, Mendes de Jesus, Yuan and
+  # Dai (2017), 10.1002/2016MS000686, is the global product -- and it is not
+  # held here. Until then this is a declared prefactor: every cell's depth and
+  # therefore the land-mean plant-available water capacity scale with it
+  # exactly.
   maximum_depth_m: 5.0
   minimum_depth_m: 0.02
-  # Erosion's weight against production, and the one free scale parameter in the
-  # depth model. There is no measurement of this world's soils to fit, so it is
-  # calibrated against a declared Earth-analogue target: 1.5 puts the land-mean
-  # regolith at 1.04 m, median 0.66 m, 95th percentile 3.24 m, with 0.0% of land
-  # on the floor and 0.5% on the ceiling.
+  # ONE COEFFICIENT, NOT TWO. Erosion entered the depth law through a weight of
+  # 1.5 against production and a reference relief of 200 m, and the two were
+  # exactly degenerate: the law reads them only as the ratio, so halving the
+  # relief was identical to doubling the weight. One degree of freedom was
+  # carried in two keys of which only one was labelled free, and the other's
+  # comment described a normalisation ("E near 1 at Earth-like mean land
+  # conditions") that nothing established. They are one key here. The value is
+  # 1.5 / 200 and the law is unchanged.
   #
-  # That is a calibration against a stated target, not a tuning to make a
-  # downstream result land, and the distinction matters: the target is a soil
-  # thickness, chosen before looking at what it does to productivity or runoff.
-  # The resulting plant-available water capacity, 133 mm as a land mean, happens
-  # to fall in the middle of Earth's typical 100-200 mm root zone, which is a
-  # check rather than an input.
-  erosion_weight: 1.5
-  # Erosion is proportional to Orogen erodibility, local relief and moisture.
-  # Normalised so Earth-like mean land conditions give E near 1.
-  erosion_reference_relief_m: 200.0
+  #   erosion = erosion_coefficient_per_relief_m
+  #             * erodibility * max(relief_m, 0) * moisture
+  #
+  # THE FORM IS SOURCED AND THE LEVEL IS BRACKETED, which are two separate
+  # statements.
+  #
+  # The form: Portenga and Bierman (2011), the standardised global cosmogenic
+  # 10Be compilation, find mean basin SLOPE the strongest single control on
+  # drainage-basin denudation, the top regressor in nearly every climatic,
+  # lithologic and tectonic subpopulation and the strongest bivariate
+  # relationship globally. `relief_m` here is the height spread across a cell's
+  # neighbours, so at fixed mesh spacing it is a slope, and erosion rising with
+  # it is that result and not an assumption. The same compilation is why nothing
+  # in this block keys on lithology beyond `erodibility`: outcrop denudation
+  # separates by rock type over a factor of 2.3 (sedimentary 20 +/- 2.0,
+  # metamorphic 11 +/- 1.4, igneous 8.7 +/- 1.0 m/Myr) while drainage-basin
+  # denudation does not separate by lithology at all in their ANOVA.
+  #
+  # The level: BRACKET, not a value, and do not tune within it. A soil-mantled
+  # hillslope at steady state has production equal to erosion, so Heimsath et
+  # al. (1997)'s measured production function inverts to h = 0.435 m *
+  # ln(77 / E) with E in m/Myr, and Portenga and Bierman supply E. Their
+  # drainage-basin median of 54 m/Myr gives 0.15 m; their outcrop mean of 12
+  # gives 0.81 m and outcrop median of 5.4 gives 1.16 m; their slowest
+  # subpopulation, polar outcrops at 3.9, gives 1.30 m. Their basin MEAN of 218
+  # and their arid-basin mean of 100 both exceed Heimsath's maximum production
+  # rate of 77 m/Myr, where the balance has no solution and no soil is possible.
+  # So the pair does NOT close on one number: it brackets the land-mean regolith
+  # at 0.15 to 1.30 m and identifies a regime with no steady state in it. The
+  # width is real -- Heimsath's 77 m/Myr is one greywacke site, and Portenga and
+  # Bierman's basins cover 2.3% of Earth's land with a stated bias toward
+  # accessible tectonically active terrain -- and it is not narrowable from
+  # these two papers.
+  #
+  # The declared value puts the land-mean regolith at 1.04 m, inside the bracket
+  # and in its upper third, which is the branch reached by outcrop denudation
+  # rather than by basin denudation. Report the spread where a result turns on
+  # it. `regolith_depth_bracket_m` below is what a sweep runs over.
+  erosion_coefficient_per_relief_m: 0.0075
+  regolith_depth_bracket_m: [0.15, 1.30]
   # Denudation that does not need runoff: wind, dry ravel, freeze-thaw creep,
   # rare events. Without it, erosion is exactly zero wherever P - E is zero, and
   # depth pins to the ceiling across the whole arid fraction of the planet, which
