@@ -446,9 +446,9 @@ model:
   # one. Every dry arm in world-bxr and world-0ov began from whatever restart was
   # to hand; a commissioned T21 baseline is cheap enough to keep current and is
   # what those investigations should have been reading.
-  resolution: T21
-  latitudes: 32
-  longitudes: 64
+  resolution: T42
+  latitudes: 64
+  longitudes: 128
   layers: 10
   # THE VERTICAL GRID AND THE MODEL TOP, declared rather than inherited from a
   # library subclass. Both reached the model from `Earthlike.configure`'s own
