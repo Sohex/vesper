@@ -293,6 +293,72 @@ def audit_runs(rep: "Report", runs: Path, runner) -> None:
     except Exception as exc:
         rep.add(WARN, "runs vs the namelists they staged", f"not checked: {exc}")
 
+    # -- a sentinel-selected constant against the number the model derived --
+    #
+    # world-et25. Three keys select a FORM rather than carrying a value:
+    # `vdiff_lamm`, `gamma` and `rcritwidth` each derive when the namelist gives
+    # a negative sentinel. So for those three the namelist records only that the
+    # model chose, and a run whose record stops there cannot say what it
+    # integrated -- two runs at different rotation rates or different rungs
+    # carry the same `-1` and integrated different constants, and an arm on such
+    # a constant would have to be a code fork.
+    #
+    # `run_exoplasim.py` reads each one back out of the model's own
+    # initialisation print and stamps it under `derived_model_constants`. This
+    # is the read-back: a run that staged one of the three and recorded no value
+    # for it FAILS, and where the run staged a DECLARED literal the recorded
+    # value must be that literal, which is a right answer the model already
+    # knows. A run that never started has no print to read and is not counted.
+    try:
+        unrecorded, disagreed, seen = [], [], 0
+        for manifest in manifests:
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            run = manifest.parent
+            if not any(run.glob("MOST_DIAG.*")):
+                continue
+            recorded = data.get("derived_model_constants") or {}
+            for fname, key, _marker, name, _units in runner.DERIVED_CONSTANT_ECHOES:
+                try:
+                    staged = float(runner.namelist_value(run / fname, key)
+                                   .rstrip(",").strip())
+                except (KeyError, FileNotFoundError, ValueError, OSError):
+                    # The run predates the route for this key entirely. That is
+                    # the "namelist keys the runs never recorded" warning above
+                    # and a different defect from this one.
+                    continue
+                seen += 1
+                entry = recorded.get(name)
+                if entry is None:
+                    unrecorded.append(f"{run.name}: {key} = {staged:g}")
+                    continue
+                value = float(entry["value"])
+                if staged < 0.0:
+                    if value <= 0.0:
+                        disagreed.append(
+                            f"{run.name}: {key} staged at its sentinel and the "
+                            f"recorded {name} is {value:g}, which is not a "
+                            f"constant the model can have derived")
+                elif abs(value - staged) > 1e-6 * max(1.0, abs(staged)):
+                    disagreed.append(
+                        f"{run.name}: {key} = {staged:g} was declared and the "
+                        f"model echoed {value:g}. The model did not read the "
+                        f"key the run staged")
+        if unrecorded or disagreed:
+            rep.add(FAIL, "runs vs the constants the model derived",
+                    "; ".join((unrecorded + disagreed)[:4])
+                    + (f" (+{len(unrecorded) + len(disagreed) - 4} more)"
+                       if len(unrecorded) + len(disagreed) > 4 else "")
+                    + " -- a sentinel says the model chose the number, so a run "
+                      "that cannot state which number it chose is one nothing "
+                      "can reconstruct or build an arm against")
+        else:
+            rep.add(OK, "runs vs the constants the model derived",
+                    f"{seen} sentinel-selected keys across the runs that have "
+                    f"started, each with the value the model printed for it")
+    except Exception as exc:
+        rep.add(WARN, "runs vs the constants the model derived",
+                f"not checked: {exc}")
+
     # -- a run against the hyperdiffusion its manifest declares --------------
     #
     # world-e6m, and the narrowest of the three: it does not go through the
@@ -597,6 +663,7 @@ def self_test() -> int:
     NAMELISTS, HYPERDIFF, SURFACE = ("runs vs the namelists they staged",
                                      "runs vs the hyperdiffusion they declare",
                                      "runs vs the surface fields they staged")
+    DERIVED = "runs vs the constants the model derived"
 
     def build_fixture(root: Path) -> Path:
         """A run directory that agrees with its own manifest in every way."""
@@ -633,6 +700,20 @@ def self_test() -> int:
             sra.write_text(f"self-test surface field {code}\n", encoding="ascii")
             hashes[str(code)] = sha256_of(sra)
         hd = model["hyperdiffusion"]
+        # A RUN THAT STARTED. The derived-constant gate reads the model's own
+        # initialisation print, so a fixture with no diag would be skipped by it
+        # and every case below would pass on a check that never ran. The stamp
+        # is what `run_exoplasim.py` writes: for each of the three keys the
+        # fixture staged at a sentinel, a positive constant the model derived.
+        (run / "MOST_DIAG.00000").write_text("self-test diag\n", encoding="ascii")
+        derived = {}
+        for fname, key, _marker, name, units in runner.DERIVED_CONSTANT_ECHOES:
+            staged = float(want[fname][key])
+            derived[name] = {
+                "value": 200.5476 if staged < 0 else staged,
+                "branch": "derived" if staged < 0 else "declared",
+                "namelist_key": f"{key}@{fname}",
+                "namelist_value": staged, "units": units}
         (run / "run_manifest.json").write_text(json.dumps({
             "run_id": "run_selftest",
             "physical": {"resolution": rung, "layers": int(model["layers"])},
@@ -649,6 +730,7 @@ def self_test() -> int:
                 "timescales_days": hd["timescales_days"][rung],
             },
             "surface_field_sha256": hashes,
+            "derived_model_constants": derived,
         }, indent=1) + "\n", encoding="utf-8")
         return run
 
@@ -685,14 +767,15 @@ def self_test() -> int:
     HD_KEYS = ("NHDIFF", "NDEL", "TDISSD", "TDISSZ", "TDISST", "TDISSQ")
 
     green = verdicts()
-    case("a run that agrees with itself passes all three",
+    case("a run that agrees with itself passes all four",
          {check: status for check, (status, _) in green.items()},
-         {NAMELISTS: OK, HYPERDIFF: OK, SURFACE: OK},
+         {NAMELISTS: OK, HYPERDIFF: OK, SURFACE: OK, DERIVED: OK},
          "otherwise every case below would pass on a gate that only ever fails")
     case("and the fixture is a run the gates actually read",
-         [green[check][1].split()[0] for check in (NAMELISTS, HYPERDIFF, SURFACE)],
-         ["1", "1", "1"],
-         "an empty runs directory would report three OKs as well")
+         [green[check][1].split()[0] for check in (NAMELISTS, HYPERDIFF, SURFACE)]
+         + [green[DERIVED][1].split()[0] != "0"],
+         ["1", "1", "1", True],
+         "an empty runs directory would report four OKs as well")
 
     case("a staged key with the wrong value fails",
          verdicts(lambda run, root: (run / "plasim_namelist").write_text(
@@ -728,6 +811,34 @@ def self_test() -> int:
     case("and it is reported rather than passed over",
          predated["namelist keys the runs never recorded"][0], WARN,
          "otherwise the case above would be indistinguishable from not looking")
+
+    def unstamped_constant(run, root):
+        path = run / "run_manifest.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["derived_model_constants"].pop("asymptotic_mixing_length_m")
+        path.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
+    case("a run that staged a sentinel and recorded no derived value fails",
+         verdicts(unstamped_constant)[DERIVED][0], FAIL,
+         "the namelist says the model chose the number and nothing says which")
+
+    def wrong_constant(run, root):
+        path = run / "run_manifest.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["derived_model_constants"]["asymptotic_mixing_length_m"].update(
+            {"branch": "declared", "namelist_value": 160.0, "value": 200.5476})
+        path.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
+        (run / "fluxmod_namelist").write_text(
+            (run / "fluxmod_namelist").read_text(encoding="ascii")
+            .replace("VDIFF_LAMM = -1", "VDIFF_LAMM = 160"), encoding="ascii")
+    case("a declared literal the model did not echo back fails",
+         verdicts(wrong_constant)[DERIVED][0], FAIL,
+         "the key was staged and the model integrated something else")
+
+    def never_started(run, root):
+        (run / "MOST_DIAG.00000").unlink()
+    case("a run that never started is not judged on a print it has not made",
+         verdicts(never_started)[DERIVED][1].split()[0], "0",
+         "a prepared run has no initialisation print to read")
 
     def no_damping(run, root):
         for key in HD_KEYS:

@@ -801,6 +801,63 @@ def landmod_default(name: str) -> float:
     return _fortran_default(LANDMOD_SOURCE, name)
 
 
+# THE WORD FOR "THE MODEL DERIVES IT". world-et25.
+#
+# `vdiff_lamm`, `gamma` and `rcritwidth` each select between a DERIVED form and
+# a declared literal, and the model makes that selection on the SIGN of the key:
+# negative derives. So a config that wanted the derived form used to say nothing
+# at all, and the selection was made by a `.get()` default in this script
+# reading a sentinel out of the model source. Nothing in `config/planet.yaml`
+# said which form the run integrated, and a reader looking for it found silence.
+#
+# The three are now declared, and declared BY NAME rather than by the sentinel's
+# number, on the argument LAND_WATER_SCHEMES is built on: `-1` in a config file
+# reads as a magnitude and is not one, and transcribing the model's sentinel
+# would put back exactly the copy `_fortran_default` exists to remove. The
+# DERIVED NUMBER is not declared here at all, and cannot honestly be: two of the
+# three are functions of things `config/planet.yaml` already states -- the
+# rotation rate and the grid -- so a number here would be a second, silently
+# staleable statement of a derivation the model owns, and the third derives a
+# FIELD that has no scalar to state. Where the derived number IS recorded is the
+# run's manifest, read back from the model's own print; see
+# `read_derived_constants`.
+DERIVE_WORD = "derived"
+
+
+def selected_constant(config: dict, config_key: str, model_default,
+                      namelist_key: str) -> float:
+    """A constant that selects between the model's derived form and a literal.
+
+    Returns the number written to the namelist: the model's compiled sentinel
+    for `derived`, and the declared value otherwise. Both refusals below are
+    right answers the model already knows, so both can fail.
+    """
+    value = config["model"].get(config_key, DERIVE_WORD)
+    if isinstance(value, str):
+        if value != DERIVE_WORD:
+            raise ValueError(
+                f"model.{config_key} is {value!r}. The only word it takes is "
+                f"{DERIVE_WORD!r}, which selects the form the model derives; "
+                "anything else is the constant itself, as a number.")
+        sentinel = float(model_default())
+        if sentinel >= 0.0:
+            raise ValueError(
+                f"model.{config_key} says {DERIVE_WORD!r} and the model "
+                f"compiles {namelist_key} = {sentinel:g}, which is not a "
+                "sentinel: the derive branch is selected by a NEGATIVE value. "
+                "The word no longer reaches the form it names, so a config "
+                "asking for the derived form would silently declare a literal.")
+        return sentinel
+    number = float(value)
+    if number < 0.0:
+        raise ValueError(
+            f"model.{config_key} is {number:g}. A negative number IS the "
+            f"model's derive sentinel, and a config that means the derived "
+            f"form says so with the word {DERIVE_WORD!r}; a number here is the "
+            "constant as declared, and every one of these three is positive.")
+    return number
+
+
 def rainmod_default(name: str) -> float:
     """A scalar `rainmod_nl` default."""
     return _fortran_default(RAINMOD_SOURCE, name)
@@ -1250,18 +1307,18 @@ def derive(config: dict, flux_ratio: float) -> dict:
         # `exoplasim/notes/forcing-bundle-predictions.md` measures, and until
         # now it was the one term in that bundle with a control and no way to
         # reach it.
-        "precip_reevaporation_gamma": float(
-            config["model"].get("precip_reevaporation_gamma",
-                                rainmod_default("gamma"))),
+        "precip_reevaporation_gamma": selected_constant(
+            config, "precip_reevaporation_gamma",
+            lambda: rainmod_default("gamma"), "GAMMA"),
         # world-o12h, rainmod_nl. The subgrid humidity width. NEGATIVE is the
         # sentinel and the default, deriving `(RCNLATREF/NLAT)^(1/3)` from the
         # grid; a POSITIVE value is used as the factor directly, and 1.0 is the
         # identity. At T21 the derived value IS 1.0, so the two agree there by
         # construction and the path is untestable at this rung rather than
         # verified at it.
-        "cloud_fraction_subgrid_width": float(
-            config["model"].get("cloud_fraction_subgrid_width",
-                                rainmod_default("rcritwidth"))),
+        "cloud_fraction_subgrid_width": selected_constant(
+            config, "cloud_fraction_subgrid_width",
+            lambda: rainmod_default("rcritwidth"), "RCRITWIDTH"),
         # world-80ia, fluxmod_nl. The asymptotic mixing length of the
         # boundary-layer scheme, in metres. NEGATIVE is the sentinel and the
         # default: `fluxini` then derives it as `160 * (OMEGA_EARTH/ww)` from
@@ -1274,9 +1331,9 @@ def derive(config: dict, flux_ratio: float) -> dict:
         # that no registered prediction covers: it sets turbulent exchange over
         # land and ocean alike, it moved by 25 per cent, and without a key the
         # only control was a code fork.
-        "asymptotic_mixing_length_m": float(
-            config["model"].get("asymptotic_mixing_length_m",
-                                fluxmod_default("vdiff_lamm"))),
+        "asymptotic_mixing_length_m": selected_constant(
+            config, "asymptotic_mixing_length_m",
+            lambda: fluxmod_default("vdiff_lamm"), "VDIFF_LAMM"),
         # world-py6p, landmod_nl. The eight keys of the land liquid water
         # column: which of LSHY-3's registered hypotheses runs, its evaporation
         # limiter, and LSHY-5's soil phase. See `land_water_column`.
@@ -1814,6 +1871,101 @@ def declare_cold_start_seed(model, config: dict, is_cold: bool) -> None:
     model._edit_namelist("plasim_namelist", "SEED", str(seed))
     print(f"cold start: SEED = {seed} (declared; without it initrandom takes "
           f"the system clock and the run is unreproducible)")
+
+
+# THE THREE KEYS THAT SELECT A FORM RATHER THAN CARRYING A VALUE. world-et25.
+#
+# `vdiff_lamm`, `gamma` and `rcritwidth` each take a compiled sentinel meaning
+# "derive it", and each derives from something the model owns: `vdiff_lamm` from
+# this world's rotation rate, `rcritwidth` from the grid's own NLAT, and `gamma`
+# per cell and per level from Kessler's rain evaporation, through a fall-speed
+# coefficient that carries this planet's gravity.
+#
+# SO THE NAMELIST RECORDS THE SELECTION AND NOT THE NUMBER. A run whose
+# `fluxmod_namelist` says `VDIFF_LAMM = -1` did not integrate minus one metre;
+# it integrated whatever `fluxini` computed, and the manifest is what a later
+# reader reconstructs the run from. Two runs at different rotation rates or
+# different rungs carry the same sentinel and integrated different constants.
+#
+# THE VALUE IS READ BACK FROM THE MODEL'S OWN ECHO rather than recomputed here,
+# for `read_applied_energy_fix`'s reason: a Python copy of `160*(OMEGA_EARTH/ww)`
+# is a transcription of a model formula and is free to disagree with it, whereas
+# the print cannot. `gamma`'s derived form is a FIELD and has no scalar to
+# record, so what travels for it is the one scalar its derivation turns on.
+#
+# Each entry is (marker on the line, manifest key, what the number is).
+DERIVED_CONSTANT_ECHOES = (
+    ("fluxmod_namelist", "VDIFF_LAMM", "asymptotic mixing length",
+     "asymptotic_mixing_length_m",
+     "metres; fluxini's 160*(OMEGA_EARTH/ww) from Blackadar (1962) eq. 25 "
+     "when the namelist gave a sentinel, the declared length otherwise"),
+    ("rainmod_namelist", "RCRITWIDTH", "subgrid humidity width factor",
+     "cloud_fraction_subgrid_width",
+     "dimensionless; rainini's (RCNLATREF/NLAT)^(1/3) when the namelist gave a "
+     "sentinel, the declared factor otherwise"),
+    ("rainmod_namelist", "GAMMA", "precip re-evaporation",
+     "precip_reevaporation_fall_speed_coefficient_m_s",
+     "m/s; rainini's 5.17*sqrt(ga/9.80665), the drop fall-speed coefficient "
+     "the derived per-cell gamma turns on and the whole of what this world's "
+     "gravity changes in it. Under a declared constant gamma the model prints "
+     "that constant instead and `branch` says so"),
+)
+
+
+def read_derived_constants(run_dir: Path) -> dict:
+    """What the model DERIVED for each sentinel-selected constant, from its diag.
+
+    Returns {manifest key: {"value": float, "branch": str, "namelist_value":
+    float}}. Raises when a key the run staged at its sentinel produced no echo:
+    the sentinel says the model chose the number, so a run that cannot say which
+    number it chose is a run no later reader can reconstruct, and that is the
+    whole of world-et25.
+
+    The FIRST diag is read, not the last. These are initialisation prints and a
+    resume's diag does not repeat all of them.
+    """
+    diags = sorted(run_dir.glob("MOST_DIAG.*"))
+    if not diags:
+        raise RuntimeError(
+            f"{run_dir} has no MOST_DIAG to read the derived constants from. "
+            "The model prints what it derived for each sentinel-selected key, "
+            "and without that print the run's record states a sentinel where a "
+            "number was integrated.")
+    lines = diags[0].read_text(errors="replace").splitlines()
+    out: dict[str, dict] = {}
+    for fname, key, marker, name, units in DERIVED_CONSTANT_ECHOES:
+        try:
+            staged = float(namelist_value(run_dir / fname, key).rstrip(",").strip())
+        except (KeyError, FileNotFoundError, ValueError):
+            # The run did not stage the key at all, so it is not this run's
+            # sentinel to resolve. `check_consistency.py` reports a key with no
+            # namelist route separately, and that is a different defect.
+            continue
+        echoed = None
+        branch = "derived" if staged < 0 else "declared"
+        for line in lines:
+            if marker not in line:
+                continue
+            for token in reversed(line.replace("*", " ").split()):
+                try:
+                    echoed = float(token.replace("D", "e").replace("d", "e"))
+                except ValueError:
+                    continue
+                break
+            if echoed is not None:
+                break
+        if echoed is None:
+            raise RuntimeError(
+                f"{run_dir.name} staged {key} = {staged:g} and its diag never "
+                f"printed '{marker}'. At a sentinel the model chooses the "
+                f"number and the namelist records only that it chose; a run "
+                f"whose record cannot state the number it integrated is one "
+                f"nothing can reconstruct or build an arm against. "
+                f"world-et25.")
+        out[name] = {"value": echoed, "branch": branch,
+                     "namelist_key": f"{key}@{fname}",
+                     "namelist_value": staged, "units": units}
+    return out
 
 
 def read_applied_energy_fix(run_dir: Path) -> dict | None:
@@ -2927,17 +3079,20 @@ def expected_namelist_keys(config: dict) -> dict:
     # argument: each selects between a derived form and a literal, so a
     # continuation that dropped one would silently return the segment to the
     # derived branch and no artifact would say it had.
-    gamma = float(m.get("precip_reevaporation_gamma", rainmod_default("gamma")))
+    gamma = selected_constant(config, "precip_reevaporation_gamma",
+                              lambda: rainmod_default("gamma"), "GAMMA")
     want["rainmod_namelist"]["GAMMA"] = float(f"{gamma:.6g}")
-    rcritwidth = float(m.get("cloud_fraction_subgrid_width",
-                             rainmod_default("rcritwidth")))
+    rcritwidth = selected_constant(config, "cloud_fraction_subgrid_width",
+                                   lambda: rainmod_default("rcritwidth"),
+                                   "RCRITWIDTH")
     want["rainmod_namelist"]["RCRITWIDTH"] = float(f"{rcritwidth:.6g}")
     # world-80ia, fluxmod_nl, unconditional on the same argument: the
     # asymptotic mixing length selects between a rotation-derived value and a
     # declared literal, so a continuation that dropped it would return the
     # segment to the derived branch with nothing in the run directory saying so.
-    lamm = float(m.get("asymptotic_mixing_length_m",
-                       fluxmod_default("vdiff_lamm")))
+    lamm = selected_constant(config, "asymptotic_mixing_length_m",
+                             lambda: fluxmod_default("vdiff_lamm"),
+                             "VDIFF_LAMM")
     want["fluxmod_namelist"]["VDIFF_LAMM"] = float(f"{lamm:.6g}")
     # world-py6p, landmod_nl. THE LAND COLUMN, all eight, unconditionally.
     # `land_water_column` is shared with the staging side the way
@@ -3872,6 +4027,16 @@ def main() -> None:
         try:
             model.run(years=args.run_years, crashifbroken=True, clean=True)
             manifest["output_validation"] = validate_outputs(run_dir)
+            # WHAT THE MODEL DERIVED, on the manifest. world-et25. Three keys
+            # select a FORM rather than carrying a value, and the namelist
+            # therefore records the selection and not the number that was
+            # integrated. Read from the model's own print, and a run that
+            # staged a sentinel and printed nothing refuses here rather than
+            # recording a sentinel where a constant belongs.
+            manifest["derived_model_constants"] = read_derived_constants(run_dir)
+            for _name, _rec in manifest["derived_model_constants"].items():
+                print(f"{_name}: {_rec['value']:g} ({_rec['branch']}, from "
+                      f"{_rec['namelist_key']} = {_rec['namelist_value']:g})")
             manifest["status"] = (
                 "smoke_complete" if args.run_years == 1 else "run_complete"
             )

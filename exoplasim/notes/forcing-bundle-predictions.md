@@ -1948,6 +1948,17 @@ is a namelist key rather than a code fork. The model says which branch it took:
 `run_5373310a7b9f`'s `plasim_diag` prints `asymptotic mixing length (m)
 160.0000` against the control's `200.5476`.
 
+AND THE NUMBER IS ON THE MANIFEST, which is what a bundle needs rather than a
+diag a reader has to know to open. `vdiff_lamm`, `gamma` and `rcritwidth` are
+the three keys the model reads on their SIGN, deriving when it is negative, so
+for those three the namelist records the selection and not the value: two runs
+at different rotation rates or different rungs stage the same `-1` and
+integrated different constants. `config/planet.yaml` declares the selection by
+name, `derived`, and `run_exoplasim.py` reads the model's own initialisation
+print back into `derived_model_constants` on the run manifest.
+`check_consistency.py` refuses a run that staged a sentinel and recorded no
+value, and refuses a declared literal the model did not echo back. world-et25.
+
 **Measured, on the declared window.** `run_5373310a7b9f` against
 `run_c9c24d438a94`, both 25 orbits, difference over orbits 15 to 24:
 **-0.153 +/- 0.062 K**, with the standard error from `lib/autocorrelation.py`

@@ -484,6 +484,18 @@ SURFACE_UNREAD_MODEL_KEYS = {
         # Traced the same way, `grep -c cloud_water_reference_kg_m3`
         # returning 0 in each of the four.
         "model.cloud_water_reference_kg_m3",
+        # world-et25. The three constants that select between a form the
+        # model derives and a declared literal: rainmod_nl's GAMMA and
+        # RCRITWIDTH and fluxmod_nl's VDIFF_LAMM. All three are run-script
+        # keys for the same reason clwref above is, and they arrived in the
+        # config as declarations rather than as new numbers -- the value the
+        # model integrates has not moved. Traced the same way,
+        # `grep -c precip_reevaporation_gamma`,
+        # `grep -c cloud_fraction_subgrid_width` and
+        # `grep -c asymptotic_mixing_length_m` each returning 0 in all four.
+        "model.precip_reevaporation_gamma",
+        "model.cloud_fraction_subgrid_width",
+        "model.asymptotic_mixing_length_m",
         "model.land_longwave_emissivity", "model.sea_longwave_emissivity",
         "model.ozone_height_m", "model.ozone_spread_m",
         "model.energy_fixer",
@@ -532,6 +544,18 @@ SURFACE_UNREAD_MODEL_KEYS = {
         # Traced the same way, `grep -c cloud_water_reference_kg_m3`
         # returning 0 in each of the four.
         "model.cloud_water_reference_kg_m3",
+        # world-et25. The three constants that select between a form the
+        # model derives and a declared literal: rainmod_nl's GAMMA and
+        # RCRITWIDTH and fluxmod_nl's VDIFF_LAMM. All three are run-script
+        # keys for the same reason clwref above is, and they arrived in the
+        # config as declarations rather than as new numbers -- the value the
+        # model integrates has not moved. Traced the same way,
+        # `grep -c precip_reevaporation_gamma`,
+        # `grep -c cloud_fraction_subgrid_width` and
+        # `grep -c asymptotic_mixing_length_m` each returning 0 in all four.
+        "model.precip_reevaporation_gamma",
+        "model.cloud_fraction_subgrid_width",
+        "model.asymptotic_mixing_length_m",
         "model.land_longwave_emissivity", "model.sea_longwave_emissivity",
         "model.ozone_height_m", "model.ozone_spread_m",
         "model.energy_fixer",
@@ -581,6 +605,18 @@ SURFACE_UNREAD_MODEL_KEYS = {
         # Traced the same way, `grep -c cloud_water_reference_kg_m3`
         # returning 0 in each of the four.
         "model.cloud_water_reference_kg_m3",
+        # world-et25. The three constants that select between a form the
+        # model derives and a declared literal: rainmod_nl's GAMMA and
+        # RCRITWIDTH and fluxmod_nl's VDIFF_LAMM. All three are run-script
+        # keys for the same reason clwref above is, and they arrived in the
+        # config as declarations rather than as new numbers -- the value the
+        # model integrates has not moved. Traced the same way,
+        # `grep -c precip_reevaporation_gamma`,
+        # `grep -c cloud_fraction_subgrid_width` and
+        # `grep -c asymptotic_mixing_length_m` each returning 0 in all four.
+        "model.precip_reevaporation_gamma",
+        "model.cloud_fraction_subgrid_width",
+        "model.asymptotic_mixing_length_m",
         "model.land_longwave_emissivity", "model.sea_longwave_emissivity",
         "model.ozone_height_m", "model.ozone_spread_m",
         "model.energy_fixer",
@@ -625,6 +661,18 @@ SURFACE_UNREAD_MODEL_KEYS = {
         # Traced the same way, `grep -c cloud_water_reference_kg_m3`
         # returning 0 in each of the four.
         "model.cloud_water_reference_kg_m3",
+        # world-et25. The three constants that select between a form the
+        # model derives and a declared literal: rainmod_nl's GAMMA and
+        # RCRITWIDTH and fluxmod_nl's VDIFF_LAMM. All three are run-script
+        # keys for the same reason clwref above is, and they arrived in the
+        # config as declarations rather than as new numbers -- the value the
+        # model integrates has not moved. Traced the same way,
+        # `grep -c precip_reevaporation_gamma`,
+        # `grep -c cloud_fraction_subgrid_width` and
+        # `grep -c asymptotic_mixing_length_m` each returning 0 in all four.
+        "model.precip_reevaporation_gamma",
+        "model.cloud_fraction_subgrid_width",
+        "model.asymptotic_mixing_length_m",
         "model.land_longwave_emissivity", "model.sea_longwave_emissivity",
         "model.ozone_height_m", "model.ozone_spread_m",
         "model.energy_fixer",

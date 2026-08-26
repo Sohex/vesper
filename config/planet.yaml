@@ -1009,6 +1009,50 @@ model:
   # result; what it changes is that the arms can be run and that the run's
   # namelist records which point it integrated. world-n1nu.
   cloud_water_reference_kg_m3: 0.00021
+  # THREE CONSTANTS THAT SELECT A FORM RATHER THAN CARRYING A VALUE, and they
+  # are declared together because settling them apart is how they came to
+  # differ. Each is a `rainmod_nl` or `fluxmod_nl` key the model reads on its
+  # SIGN: negative selects a form the model derives, and a positive number is
+  # the constant as declared. `derived` is the word for the first and is the
+  # setting here for all three.
+  #
+  # THE DERIVED NUMBER IS NOT STATED HERE, and that is the decision rather than
+  # an omission. Two of the three are functions of things this file already
+  # declares -- `asymptotic_mixing_length_m` of the rotation rate, and
+  # `cloud_fraction_subgrid_width` of the grid -- so a number here would be a
+  # second statement of a derivation the model owns, silently staleable against
+  # it and against a change of rung; and `precip_reevaporation_gamma` derives a
+  # FIELD, per cell and per level, which has no scalar to state at all. Writing
+  # the model's sentinel here instead would put back the transcription
+  # `run_exoplasim.py` reads the compiled defaults to avoid.
+  #
+  # WHERE THE NUMBER IS RECORDED IS THE RUN, on its manifest, under
+  # `derived_model_constants`, read back from the model's own initialisation
+  # print. That is what a later reader reconstructs a run from, and it is what
+  # makes two runs that derived different constants distinguishable in the
+  # record. `check_consistency.py` refuses a run that staged a sentinel and
+  # recorded no derived value. world-et25.
+  #
+  # `precip_reevaporation_gamma`: the fraction of a layer's sub-saturation
+  # deficit that falling precipitation evaporates per timestep, derived per cell
+  # from Kessler (1969) through a drop fall-speed coefficient that carries this
+  # planet's gravity. A positive value restores the pre-derivation literal at
+  # all four re-evaporation sites, and that is the control arm. world-trs3.
+  precip_reevaporation_gamma: derived
+  # `cloud_fraction_subgrid_width`: the factor the subgrid humidity width is
+  # narrowed by, derived as `(RCNLATREF/NLAT)^(1/3)` from the grid so a rung
+  # change does not silently change the cloud fraction the same humidity
+  # produces. At T21 the derived value is exactly 1 and the transform is skipped
+  # rather than applied, so this rung is bit-identical by construction and the
+  # path is untestable HERE rather than verified here. world-o12h.
+  cloud_fraction_subgrid_width: derived
+  # `asymptotic_mixing_length_m`: the single length that sets free-tropospheric
+  # vertical diffusivity through `zmixm = lamm*k*z/(lamm + k*z)`, over land and
+  # ocean alike. Derived as `160 * (OMEGA_EARTH/ww)` from Blackadar (1962)
+  # eq. 25, which makes it proportional to G/f and so inverse in Omega; ECHAM's
+  # 160 m is a fit to Earth's free troposphere at Earth's rotation. Declaring
+  # 160.0 restores that anchor and is the control arm. world-80ia.
+  asymptotic_mixing_length_m: derived
   # SURFACE LONGWAVE EMISSIVITY. `radmod.f90`'s `lwr` builds a per-cell `zeps`
   # from these two, one for the land fraction of a cell and one for the rest.
   #
