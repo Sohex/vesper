@@ -1,13 +1,13 @@
 {
-  "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
-  "generated": "2026-08-26T00:19:50.358559+00:00",
+  "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
+  "generated": "2026-08-26T19:19:40.806870+00:00",
   "mesh": {
-    "export_root": "/home/cfutro/docs/world/source/precarve-craton-10m/exoplasim-T42",
-    "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
-    "terrain_build": "precarve-craton-10m",
-    "terrain_build_note": "2026-08 resolution reference at 4x the region count: measurement artifact for the resolution audit, all five grids, ice mask not yet fixed",
-    "catalogue_hash": "e84e619dfc4dca6fab7a301144fdc964c1dcb7e73592f591c3b07dd6a6e73c5e",
-    "catalogue_known": false,
+    "export_root": "/home/cfutro/docs/world/source/canonical-10m-base/exoplasim-T42",
+    "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
+    "terrain_build": "canonical-10m-base",
+    "terrain_build_note": "2026-08 first pass at 10M without ice: --glacial 0, basin floor 850, all five ladder grids plus grid-512x256, pre-carve",
+    "catalogue_hash": "35c922c3b481af4bf7b814a6719e05969db0223b9a01895beef01cf200a73b28",
+    "catalogue_known": true,
     "drainage_hypothesis": {
       "preserveListGiven": 0,
       "carveListGiven": 0,
@@ -20,14 +20,14 @@
     "planet_radius_km": 7645.2,
     "surface_area_km2": 734492839.5500951
   },
-  "grid": "/home/cfutro/docs/world/source/precarve-craton-10m/exoplasim-T21",
+  "grid": "/home/cfutro/docs/world/source/canonical-10m-base/exoplasim-T21",
   "resolution": "T21",
   "method": "Area-weighted land fraction per cell from the native mesh, thresholded; topography is the land-area-weighted mean elevation over land regions only.",
   "land_definition": "surface_class == land (subaerial)",
   "land_threshold": 0.5,
   "gravity_m_s2": 12.81,
   "land_fraction_gauss_weighted": 0.4276915732398812,
-  "mesh_land_fraction": 0.43284162878990173,
+  "mesh_land_fraction": 0.4328412413597107,
   "land_cells": 1019,
   "cells_below_mesh_resolution": 0,
   "coastline_ledger": {
@@ -35,44 +35,44 @@
       "why": "a threshold is a DECISION and cannot be taken against one rule's cost alone; these are the alternatives priced in the same terms. Nothing here changes what this builder writes.",
       "as_configured": {
         "land_cells": 1019,
-        "model_land_area_relative": -0.011434242448875365,
-        "below_datum_land_dropped": 0.06438233458199567,
-        "land_dropped_of_mesh_land": 0.1157830752694625,
-        "water_promoted_of_model_land": 0.10555578323801171,
-        "land_volume_closure_relative": 0.02232143697199433
+        "model_land_area_relative": -0.011433416604240798,
+        "below_datum_land_dropped": 0.06441069545094394,
+        "land_dropped_of_mesh_land": 0.1157824972143338,
+        "water_promoted_of_model_land": 0.10555594571247862,
+        "land_volume_closure_relative": 0.022141378670118835
       },
       "area_conserving": {
         "threshold": 0.4911753694371712,
         "land_cells": 1029,
-        "model_land_area_relative": -0.00013042969116894287,
-        "below_datum_land_dropped": 0.06044870136199476,
-        "land_dropped_of_mesh_land": 0.11019936607011152,
-        "water_promoted_of_model_land": 0.11008329450904844,
-        "land_volume_closure_relative": 0.03190477472644738
+        "model_land_area_relative": -0.00012959440336579586,
+        "below_datum_land_dropped": 0.060479151995737196,
+        "land_dropped_of_mesh_land": 0.11019878335037023,
+        "water_promoted_of_model_land": 0.11008345514669482,
+        "land_volume_closure_relative": 0.03172833007778331
       },
       "exempt_below_datum_share_any": {
         "land_cells": 1405,
-        "model_land_area_relative": 0.46781839688187077,
+        "model_land_area_relative": 0.46781962309260905,
         "below_datum_land_dropped": 0.0,
-        "land_dropped_of_mesh_land": 0.005889062489724854,
-        "water_promoted_of_model_land": 0.32272892912223083,
-        "land_volume_closure_relative": 0.4066408005437509
+        "land_dropped_of_mesh_land": 0.0058890674094286,
+        "water_promoted_of_model_land": 0.3227294982635276,
+        "land_volume_closure_relative": 0.40522624813428665
       },
       "exempt_below_datum_share_0.10": {
         "land_cells": 1021,
-        "model_land_area_relative": -0.008965491668916803,
-        "below_datum_land_dropped": 0.06019921954693215,
-        "land_dropped_of_mesh_land": 0.11483241831448895,
-        "water_promoted_of_model_land": 0.10682466226514538,
-        "land_volume_closure_relative": 0.022378285226061237
+        "model_land_area_relative": -0.008964663761895753,
+        "below_datum_land_dropped": 0.060231722966733854,
+        "land_dropped_of_mesh_land": 0.11483183946518452,
+        "water_promoted_of_model_land": 0.10682482433487464,
+        "land_volume_closure_relative": 0.022193968992185762
       },
       "exempt_below_datum_share_0.25": {
         "land_cells": 1019,
-        "model_land_area_relative": -0.011434242448875365,
-        "below_datum_land_dropped": 0.06438233458199567,
-        "land_dropped_of_mesh_land": 0.1157830752694625,
-        "water_promoted_of_model_land": 0.10555578323801171,
-        "land_volume_closure_relative": 0.02232143697199433
+        "model_land_area_relative": -0.011433416604240798,
+        "below_datum_land_dropped": 0.06441069545094394,
+        "land_dropped_of_mesh_land": 0.1157824972143338,
+        "water_promoted_of_model_land": 0.10555594571247862,
+        "land_volume_closure_relative": 0.022141378670118835
       }
     },
     "why": "the model's mask is binary at oceanmod.f90:256 whatever this builder writes; this is the size of the rounding, in both signs, not a proposal to change it",
@@ -84,22 +84,22 @@
     "class_partition_max_residual": 0.0,
     "partial_land_cells": 1053,
     "partial_land_cell_area_fraction": 0.5549737091519708,
-    "mesh_land_area": 318136980.5317639,
+    "mesh_land_area": 318136714.761382,
     "model_land_area": 314499325.1644106,
-    "net_land_area_relative": -0.011434242448875332,
+    "net_land_area_relative": -0.011433416604240765,
     "land_dropped_to_ocean": {
-      "area": 36834877.962908745,
-      "of_mesh_land": 0.1157830752694625,
-      "below_datum_area": 1568320.5247203112,
-      "of_mesh_land_below_datum": 0.06438233458199567
+      "area": 36834663.29063702,
+      "of_mesh_land": 0.1157824972143338,
+      "below_datum_area": 1570566.7176257372,
+      "of_mesh_land_below_datum": 0.06441069545094394
     },
     "water_promoted_to_land": {
-      "ocean_area": 33197222.595555484,
+      "ocean_area": 33197273.693665683,
       "inland_water_area": 0.0,
-      "of_model_land": 0.10555578323801171
+      "of_model_land": 0.10555594571247862
     },
     "wholly_terrestrial_cells_sent_to_ocean": 0,
-    "land_volume_closure_relative": 0.02232143697199433,
+    "land_volume_closure_relative": 0.022141378670118835,
     "transfer": {
       "regions_offered": 10000005,
       "cells": 2048,
@@ -110,10 +110,10 @@
     }
   },
   "elevation_m": {
-    "min": -29.86749203766376,
-    "max": 2513.04870907386,
-    "mean": 302.2221568417596,
-    "cells_below_sea_level": 91
+    "min": -28.277871228700214,
+    "max": 2675.0776384601672,
+    "mean": 328.97956834550064,
+    "cells_below_sea_level": 49
   },
   "codes": [
     172,
@@ -122,7 +122,7 @@
   "generator": "exoplasim/scripts/build_boundary_conditions.py",
   "source_config": {
     "schema_version": 1,
-    "source_build": "precarve-craton-10m",
+    "source_build": "canonical-10m-base",
     "baseline_climatology": null,
     "planet": {
       "radius_earth": 1.2,
@@ -183,6 +183,12 @@
       "sea_ice": true,
       "sea_ice_max_thickness_m": -1.0,
       "sea_ice_lead_closing_m": 0.5,
+      "cryosphere": {
+        "sea_ice_density_kg_m3": 920.0,
+        "sea_ice_specific_heat_j_kg_k": 2070.0,
+        "sea_ice_conductivity_w_m_k": 2.03,
+        "snow_fusion_j_kg": 333444.87
+      },
       "glaciers": {
         "enabled": true,
         "min_snow_depth_m": 2.0,
@@ -191,14 +197,16 @@
         "persistence_orbits": 1.0
       },
       "land_water_column": {
-        "scheme": "bucket",
-        "layers": 1,
+        "scheme": "layered",
+        "layers": 2,
         "lower_boundary": "impermeable",
         "layer_capacity_fraction": [
-          1.0
+          0.333333,
+          0.666667
         ],
         "layer_thickness_m": [
-          1.5
+          0.5,
+          1.0
         ],
         "soil_phase": false,
         "evaporation_limiter": {
@@ -239,7 +247,7 @@
         "profile": "production"
       },
       "ncpus": 16,
-      "timestep_minutes": 30.0,
+      "timestep_minutes": 45.0,
       "physics_filter": "gp|exp|sp",
       "filter_kappa": 8.0,
       "filter_power": 16,
@@ -379,6 +387,6 @@
       "alignment_recurrence_earth_years": 314
     }
   },
-  "config_sha256": "5ab8c97d4d36f6c7f0b1610648e6b8abf3a5d338458f310fb996b3b584b1769c",
-  "git_commit": "4038c12e10834da1c9441229f6abbc2ff5d39d8b"
+  "config_sha256": "bbaf4fb96e6bdc602f038fbcab375aca86ff4a7efb8468f1f49ba16644a4708e",
+  "git_commit": "b02a294f2354b308a622ac609687854f8c990935"
 }
