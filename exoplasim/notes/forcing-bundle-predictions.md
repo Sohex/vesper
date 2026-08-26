@@ -1351,10 +1351,18 @@ exactly, so a control arm and a bundle arm can share a binary:
   `tswr1` to `tswr3` deleted in favour of Stephens et al. (1984) Tables 1(a) to
   1(c). This section says it plainly: a control on the pre-`world-jgen` tau
   relation against an arm on the current source measures the pair. That is TWO
-  BINARIES, which A3 forbids because it confounds the term with the rebuild.
-  **No pre-batch-2 binary was preserved** -- the only saved set is
-  `prerebuild_binaries_2026-08-18`, eight days and many source changes earlier
-  -- so the control arm cannot be reconstructed from a saved executable either.
+  BINARIES, which A3 admits only where the term IS compiled, as here, and the
+  confound it warns about is bounded by measurement rather than by argument: the
+  control built for this reverts one file and 37 of the 38 objects come out
+  bit-identical to the shipped binary's.
+  **A control executable was preserved all along.** `install_run_executable`
+  copies the binary into the run directory, so `run_14906cb7b914` still holds
+  `most_plasim_t21_l10_p16.x` at the sha its `INDEX.json` entry names, and
+  `strings` finds `tswr3` in it and `cloudabs` not at all: the donor is
+  pre-world-f9ig, which is what puts the cloud optics inside the drift window.
+  A preserved binary wants the staging of its own date, so it controls a
+  matching namelist rather than the current one, which is why the arm run here
+  was built from source instead.
 - **`OCN-22`, the open-ocean albedo's band split.** Its own section already says
   it is not an arm and that there is no namelist number to move. Its two
   bit-identity conditions, `nsimplealbedo` and `necham = necham6 = 0`, are
@@ -1588,27 +1596,24 @@ every kelvin below.
 | the energy fixer off | +0.23 K | the donor's manifest and `lib/sensitivity.py` |
 | `world-o12h`, `rcritwidth` | exactly 0 | construction, `RCNLATREF` = `NLAT` |
 | `world-2esd`, `th2oc` | 0 | not swept; the config value is unchanged |
-| **residual, unattributed** | **about -10.8 K** | by difference |
+| `world-f9ig` with `world-jgen`, the cloud optics | **-10.01 +/- 0.07 K** | A/B on a source-built control binary, `run_a2b1bd1e859f`, 25 orbits |
+| `world-80ia`, `vdiff_lamm` | -0.15 +/- 0.06 K, not resolved | A/B, `run_5373310a7b9f`, 25 orbits |
+| **residual, unattributed** | **-0.65 K** | by difference |
 
-**The control has settled, so the total is not a lower bound any more.** Its last
-ten orbits of sixty sit at 279.96 K against the donor's last at 292.26, flat to
-0.1 K, so the drift is **-12.3 K** and equilibrated. The rows above sum to
--1.89 + 0.17 + 0.23 = -1.49 K of accounted change, the two config rows being
-WARMING and so making the cooling smaller rather than larger, which leaves
--12.3 + 1.49 = **-10.8 K unattributed**.
+**The control has settled, so the total is not a lower bound.** Its last ten
+orbits of sixty sit at 279.96 K against the donor's last at 292.26, flat to
+0.1 K, so the drift is **-12.3 K** and equilibrated. The namelist-revertible
+rows above sum to -1.89 + 0.17 + 0.23 = -1.49 K, the two config rows being
+WARMING and so making the cooling smaller rather than larger, which left about
+-10.8 K for the compiled-in half.
 
-That residual has nowhere to live except the compiled-in half of the bundle,
-which is `world-jgen` with `world-f9ig` and `OCN-22` -- and those are exactly the
-two terms with no namelist that reverts them and no preserved binary to control
-against. It is worse than a bare residual, because both were predicted to WARM:
-+0.59 to +1.63 K for the band-1 optics and -0.02 to -0.13 K for the ocean band
-split. Crediting the predicted warming puts the unexplained cooling at -11.4 to
--12.4 K.
-
-**So the bisect is not finished, and it cannot be finished on this tree.** What
-would finish it is one binary per rung preserved at each source change that lands
-a compiled-in forcing term, which costs nothing at the time and is the whole
-difference between a bundle that can be bisected and this one.
+**That residual is `world-f9ig`**, and the section "The bisect finishes" below
+measures it at **-10.01 +/- 0.07 K**: reverting the shortwave cloud optics to
+their pre-jgen form on a binary that differs in one object file returns
++18.43 W/m2 of top-of-atmosphere shortwave from the first orbit and +10.01 K at
+equilibrium, on the same restart. The bracket for it was already in the tree, in
+`exoplasim/analysis/stephens_tables_vs_fits.json`, at -25.35 to -6.54 W/m2 and
+-20.63 to -5.32 K. What is left over after it is -0.65 K.
 
 ### `world-trs3`, the derived Kessler `gamma`: CLEARED, and worth a seventh of the drift
 
@@ -1658,7 +1663,7 @@ radiative channel: "high cloud fraction rises slightly" is +0.024 of cover worth
 has. A term whose stated mechanism runs through cloud needs a radiative number
 attached before it lands, not a qualifier.
 
-### `world-jgen` and `world-f9ig`, the band-1 cloud optics: CLEARED as far as this rung allows
+### `world-jgen` and `world-f9ig`, the cloud optics: CLEARED, and world-f9ig is the drift
 
 - **The Stephens coefficients are self-consistent** with the fits they name:
   10^0.2633 = 1.8336 and 1.7095*ln10 = 3.9363 for Eq. (10a), 10^0.3492 = 2.2346
@@ -1679,9 +1684,11 @@ to 2.2346, its exponent from 3.9 to 3.8034, and the `+1.5` offset left with the
 rest. Over the layers carrying real cloud water that is -0.8 to +4 per cent of
 optical depth, but below 2.5 g/m2 both bands gain 100 to 300 per cent, which is
 the continuation replacing the offset. That is the condition this note's own
-falsifying list names -- a response dominated by the layers under 2.5 g/m2 means
-the continuation is doing more than it should -- and separating it needs the
-control binary nobody kept.
+falsifying list names, and it is now separated: a source-built control binary
+puts the two commits together at +18.43 W/m2, and the pair already on disk
+(`run_d35b554cab2a` against `run_57cecaa8391b`, both binaries pre-f9ig) puts
+world-jgen's tau relation alone at 0.13 K. The optical depth is tenths of a
+kelvin; the TABLES are the term. "The bisect finishes" below has both.
 
 ### `world-o12h`, `rcritwidth`: UNTESTED at this rung, not verified as zero
 
@@ -1693,14 +1700,325 @@ and T21 cannot verify it.** A T42 pair can, and now has a route: `RCRITWIDTH`
 reaches `rainmod_nl` from `config/planet.yaml` as of this batch, so an arm at
 1.0 against the derived 0.7937 is a namelist key rather than a code fork.
 
-### `OCN-22`, the ocean albedo band split: UNTESTED
+### `OCN-22`, the ocean albedo band split: CLEARED by its own identity
 
-Compiled in, no namelist reverts it, and its broadband-preservation identity was
-not run. Its own predicted size, -0.02 to -0.13 K, is two orders below the drift,
-so it is not a candidate for what happened; it is simply unmeasured.
+Compiled in, and no namelist reverts it, but the identity it is built on is
+checkable without a run and it holds. `swr` forms
+`zoalbb = zsolars(1)*doceanalb(1) + zsolars(2)*doceanalb(2)` and then applies
+`zofrc_b = doceanalb(b)/zoalbb` to a zenith fit that is the same in both bands,
+so the flux-weighted broadband is `sum_b zsolars(b)*zofrc_b = zoalbb/zoalbb`,
+exactly 1, and the split moves the band-1 and band-2 albedos apart without
+moving what the two together absorb.
+
+On the model's own numbers, out of `run_c9c24d438a94`'s `plasim_diag`: ocean
+albedo 0.0755700 below 0.75 um and 0.0636681 above, overall 0.0682190. Those
+three fix the band-1 flux share at 0.382372 and band 2 at 0.617628, which is the
+0.6176 this note's PHYS-11 section derives independently, and the reconstruction
+`z1*zofrc1 + z2*zofrc2` returns 1.000000000000. Its predicted size, -0.02 to
+-0.13 K, is two orders below the drift, and it is not a candidate for it.
 
 ### `world-2esd`, `th2oc`: not in the bundle
 
 The config value is unchanged, so the term contributes nothing to the measured
 drift and there is nothing to bisect. It still has no route from config, unlike
 `gamma` and `rcritwidth`, and closing that is the same one-row change.
+
+## The bisect finishes: the residual is world-f9ig, and the tree had already priced it
+
+2026-08-26, T21. The section above left about -10.8 K unattributed and said it
+had nowhere to live except the compiled-in half of the bundle. It lives in one
+term of that half: `world-f9ig` (c8debdc1), which replaced `tswr1`, `tswr2` and
+`tswr3` with Stephens, Ackerman and Smith (1984) Tables 1(a) to 1(c).
+
+**The number was in the tree before the bundle ran.**
+`exoplasim/analysis/stephens_tables_vs_fits.json` prices exactly this swap at
+**-25.35 to -6.54 W/m2** over the layers carrying cloud water, which it converts
+to **-20.63 to -5.32 K**, and its own `settles_it` field names the experiment
+that would close it: "a T21 commissioning pair on the adopted scheme".
+
+The bundle registered **+0.59 to +1.63 K of warming** for "world-jgen and
+world-f9ig" jointly. That figure comes from
+`exoplasim/analysis/cloud_optical_depth_bracket.json`, which prices the OPTICAL
+DEPTH swap alone -- world-jgen -- and the tables artifact names it as its own
+`bracket_source`. So one of the two halves was carried into the bundle at its
+full weight and the other, an order of magnitude larger and of the opposite
+sign, was not carried at all. The bundle then measured -12.3 K, went looking for
+the term among its five registered predictions, and could not find it there,
+because the term that explains it had a bracket in the same directory and no
+prediction row.
+
+**The prediction's own falsifier fired, and it is the sign one.** It registered
+"a correct band-1 tau is smaller than the one it replaces over every layer
+carrying real cloud water, so the arm must warm. A cooler arm is wrong outright,
+not a small result." The arm reverting the change is WARMER, which is the same
+statement: on one restart the current source sits 7.6 K below the pre-jgen
+control by orbit 6 and is still separating, and it reflects 18.4 W/m2 more
+shortwave from the first orbit. The sign argument is sound about the band-1
+optical depth and says
+nothing about the backscatter fraction, which is the larger term in the same two
+commits and runs the other way: this is what it costs to size a prediction
+covering two changes from a bracket that prices one of them.
+
+**Measured: the T21 pair the artifact asked for.** A control and two arms
+branched from `run_14906cb7b914`'s `MOST_REST.00034`, all at T21 on `p8`, each
+arm differing from the control by exactly one thing. The control is
+`run_c9c24d438a94`, on `config/planet.yaml` as it stands. Orbit 0 is the same
+initial state integrated by two executables, so the top-of-atmosphere difference
+over it is the FORCING and not a response.
+
+| arm | run | what it reverts | d rst | d rsut | d rss | d ts, orbit 0 |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| P | `run_a2b1bd1e859f` | world-jgen and world-f9ig in `swr` | **+18.43** | +18.43 | +12.55 | +1.56 |
+| V | `run_5373310a7b9f` | `vdiff_lamm` to 160 m | -0.05 | -0.05 | -0.16 | -0.05 |
+
+Fluxes in W/m2, arm minus control. **+18.43 W/m2 of shortwave the current cloud
+optics reflect and the pre-jgen ones do not**, one-signed, and inside the
+artifact's -6.54 to -25.35 W/m2 bracket. The measured drift of -12.3 K is inside
+its -5.32 to -20.63 K. The bracket was right and nothing read it.
+
+**The modelled sea ice separates the forcing from its amplifier.** Over the same
+first six orbits the control's sea-ice fraction runs 0.0097, 0.0154, 0.0216,
+0.0283, 0.0349, 0.0414 and reaches 0.074 by orbit 18, thirteen times the donor's
+0.0058. Arm P's runs 0.0078, 0.0088, 0.0102, 0.0101, 0.0102, 0.0110 and stays
+there. So the drift is not the shortwave forcing alone: the forcing cools the
+modelled ocean, the ice-albedo feedback takes it the rest of the way, and
+reverting the cloud optics stops both. That is why the section above reported
+sea ice carrying most of the amplitude without being able to say what started it.
+
+**This forcing PERSISTS, where `gamma`'s decayed.** Over the arm's first six
+orbits the top-of-atmosphere shortwave difference runs 18.43, 17.41, 16.11,
+16.50, 17.20, 16.82 W/m2 while the surface separation grows 1.56, 3.19, 4.47,
+5.63, 6.46, 7.24 K. Cloud cover between the arms moves by 0.015 over the same
+span. That is the signature of a change in the cloud's OPTICAL PROPERTIES rather
+than in how much cloud there is: `gamma`'s forcing fell from 10.4 to 6.9 W/m2 as
+its cloud difference shrank, and this one has no cloud difference to shrink. So
+the sublinearity that made `gamma` worth 1.89 K instead of 7 does not apply here,
+and the separation should run to the order the damping allows.
+
+**Settled, and the budget closes.** All three arms reached 25 orbits. Over the
+declared window, orbits 15 to 24:
+
+| arm | run | window mean `ts` | TOA net |
+| --- | --- | ---: | ---: |
+| control | `run_c9c24d438a94` | 280.137 K | -0.525 W/m2 |
+| pre-jgen, pre-f9ig | `run_a2b1bd1e859f` | 290.144 K | -0.319 W/m2 |
+| `vdiff_lamm` = 160 | `run_5373310a7b9f` | 279.984 K | -0.513 W/m2 |
+
+**Reverting the cloud optics is worth +10.01 +/- 0.07 K**, resolved at 136 to 1
+against the criterion fixed before the run, with the window flat to 0.2 K and
+both arms' top-of-atmosphere imbalance inside 0.53 W/m2. The prediction
+registered before the arm ran was +5 to +13 K; the measurement sits in it.
+
+So the bundle's kelvin budget against the donor's 292.26 K:
+
+| term | K |
+| --- | ---: |
+| `world-f9ig` with `world-jgen`, the cloud optics | **-10.01** |
+| `world-trs3`, the derived `gamma` | -1.89 |
+| the land water column | +0.17 |
+| the energy fixer off | +0.23 |
+| `vdiff_lamm`, not resolved from zero | -0.15 |
+| **accounted** | **-11.65** |
+| **measured drift** | **-12.30** |
+| **residual** | **-0.65** |
+
+The residual was -10.8 K before this section and is -0.65 K after it, which is
+five per cent of the drift and inside what the remaining unpriced terms --
+`OCN-22` at -0.02 to -0.13 K, the soil heat solver, and the arms' own scatter --
+can carry between them.
+
+**Do not turn 18.43 W/m2 into kelvin with the static slope.** At
+`lib/sensitivity.py`'s 0.778 K per W/m2 it reads as 14.3 K, and the same
+arithmetic on the gamma arm gave 7 K where the settled arm said 1.89. The
+forcing decays as the two states converge, so the arm's own settled mean is the
+measurement and this number is not. What 18.43 W/m2 establishes is the SIZE and
+the SIGN of the term, which is what the bisect needed: it is the only term in
+the bundle large enough to be the drift, and it is one-signed.
+
+The forcing survives the instrument check the first output bin demands. Bin 0
+of every orbit carries wind and humidity that do not belong with the other
+eleven (`exoplasim/notes/first-output-bin.md`), so the same difference was taken
+over bins 1 to 11 alone: +18.63 W/m2 against +18.43 over all twelve, a one per
+cent move on a term of eighteen.
+
+The control binary is `t21_l10_p8_production_radmod_pre_jgen_pre_f9ig`. **37 of
+its 38 objects are bit-identical to the shipped binary's and only
+`radmod.f90.o` differs**, so A3's objection that two binaries confound the term
+with the rebuild is bounded here to one translation unit rather than argued
+away, and this project's builds are reproducible enough to say so by
+measurement.
+
+**The mechanism is the backscatter fraction, not the optical depth.** At
+mu0 = 0.5, at the configured co-albedo scale of 1.192:
+
+| LWP, g/m2 | tau2 fit | tau2 table | beta2 fit | beta2 table | R2 fit | R2 table |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 5 | 0.89 | 1.12 | 0.0407 | 0.1020 | 0.066 | 0.174 |
+| 50 | 16.27 | 16.78 | 0.0300 | 0.0683 | 0.414 | 0.602 |
+| 100 | 30.24 | 31.20 | 0.0256 | 0.0592 | 0.473 | 0.675 |
+| 1000 | 145.27 | 145.84 | 0.0160 | 0.0291 | 0.538 | 0.706 |
+
+The optical depths barely move: 30.2 against 31.2 at 100 g/m2. What moves is
+`zb2`. The fit `tswr2*sqrt(mu0)/ln(3+0.1*tau)` returns 0.0256 where Table 1(c)
+returns 0.0592, a ratio that runs 1.8 to 2.6 across the whole water-path range,
+and band-2 layer reflectance rises with it from 0.47 to 0.67 while
+transmissivity roughly halves. Band 2 carries 0.6176 of this star's flux.
+
+**The artifact's own per-layer split says the same thing.** Its
+`per_layer_band2` runs to -23.7 W/m2 on the layers carrying the most cloud water
+where `per_layer_band1` reaches only -1.5, so more than nine tenths of the term
+is in band 2. Band 1 is where the optical depth changed most and band 2 is where
+the backscatter table landed, which is the same conclusion the layer optics above
+reach from the coefficients rather than from the fluxes.
+
+The pair already on disk agrees from the other side. `run_d35b554cab2a` against
+`run_57cecaa8391b` is namelist-identical with both binaries pre-f9ig and differs
+only in world-jgen's tau relation: 0.13 K. The tau relation is worth tenths of a
+kelvin; the tables are worth the rest.
+
+**The implementation is not defective, and that is the point.** The checks with
+right answers all pass, and most of them were already written:
+`stephens_tables_vs_fits.py` compares `radmod`'s tables against the papers entry
+for entry -- 324 entries agree -- and shows the conservative co-albedo floor
+reproducing Stephens Eq. (1) to 1.4e-5. Two more checked here:
+
+- **The granularity is consistent to about a tenth.** Stephens tabulates against
+  the CLOUD's normal optical depth and `swr` evaluates per LAYER, then adds. A
+  cloud of tau_N = 30 split across 5 layers and added returns a band-2 column
+  reflectance of 0.603 against 0.670 read once at tau_N = 30, a ratio of 0.90
+  and in the CONSERVATIVE direction. The per-layer application is not
+  manufacturing reflectance, which is the defect it was checked for.
+- **`ww` reaches `fluxini` on every thread.** `readnl` sets it under
+  `mypid == NROOT`; `prolog` broadcasts it at plasim.f90:387, before `fluxini`
+  at 537. So the rotation-derived mixing length is not a division by a
+  zero-initialised threadprivate on the seven non-root threads of a `p8` run.
+
+So the code does what it was written to do. A tuned coefficient was carrying
+about half the published backscatter and the model's previous climate rested on
+it. Removing the tuning is the no-tuned-values convention working as intended,
+and the cooling it exposes is information rather than grounds for putting the
+tuning back.
+
+**What this changes about how a bundle is scored.** Every registered prediction
+in this note cites the artifact it came from. The one that missed by an order of
+magnitude cited an artifact that prices a different term, and nothing compared
+the prediction's cited source against the set of changes the prediction claimed
+to cover. A prediction covering two commits needs a bracket for each of them.
+
+## `vdiff_lamm`: a sixth bundle term, real and small
+
+`44050c1e` made the asymptotic mixing length rotation-derived, so `fluxini`
+computes `160 * (OMEGA_EARTH/ww)` = 200.5 m against the 160 m ECHAM anchors at
+Earth's: +25.3% in a first-order boundary-layer parameter, over land and ocean
+alike. No registered prediction covered it. `world-awm5` closed as "no numeric
+and no form change", which is true of `vdiff_c` and not of the mixing-length
+half delivered in the same commit.
+
+**The prediction for it is RETROSPECTIVE and is marked so here**, because a
+prediction written after the change shipped is not the same object as one
+written before it and treating the two alike is worse than having neither. What
+was fixed before the arm ran, and only that: the term is MATERIAL if the settled
+pair separates by more than 1.0 K, and no sign was predicted, because a longer
+asymptotic length raises free-tropospheric exchange and lowers the near-surface
+gradient and which way that moves the global mean depends on the cloud and ice
+response. The zero hypothesis under test was world-awm5's closing claim, "no
+numeric and no form change".
+
+It has a route now. `VDIFF_LAMM` reaches `fluxmod_nl` from
+`model.asymptotic_mixing_length_m`, written unconditionally by
+`configure_otherargs` and checked by `expected_namelist_keys`, so a control arm
+is a namelist key rather than a code fork. The model says which branch it took:
+`run_5373310a7b9f`'s `plasim_diag` prints `asymptotic mixing length (m)
+160.0000` against the control's `200.5476`.
+
+**Measured, on the declared window.** `run_5373310a7b9f` against
+`run_c9c24d438a94`, both 25 orbits, difference over orbits 15 to 24:
+**-0.153 +/- 0.062 K**, with the standard error from `lib/autocorrelation.py`
+over the paired difference. The criterion fixed before the run was
+`|diff| > 2*sqrt(2)*max(SEM)`, which is 0.176 K here, so the term is **NOT
+RESOLVED FROM ZERO** at this length and is reported as such rather than as a
+result. The materiality threshold registered with it was 1.0 K and the arm is an
+order below that either way.
+
+Its forcing is **-0.05 W/m2** in top-of-atmosphere shortwave and -0.29 W/m2 net,
+against the cloud optics' +18.43. The mixing length moves far less than its
+asymptote does, because `zmixm = lambda*k*z/(lambda + k*z)` saturates: at the
+lowest model level, about 331 m, it is 79.7 m against 72.4 m, a tenth, rising to
+a quarter high in the column where `k*z` dominates.
+
+## Every run directory keeps the binary it integrated with
+
+The bisect above was declared unfinishable because "no pre-batch-2 binary was
+preserved -- the only saved set is `prerebuild_binaries_2026-08-18`". That is
+not so, and the refutation is one `ls`. `install_run_executable` copies the
+executable into the run directory, so `run_14906cb7b914` still holds
+`most_plasim_t21_l10_p16.x` at sha `b81efd05675b67d8`, which is the sha its
+`INDEX.json` entry names. Every historical run carries its own control.
+
+That binary settles what the drift window contains, from the executable rather
+than from a namelist: `strings` finds `tswr3` in it three times and `cloudabs`
+not at all, so the donor was integrated PRE-world-f9ig and the cloud optics
+rewrite is inside the window even though c8debdc1 is an ancestor of the commit
+batch 2 starts at.
+
+A preserved binary is not drop-in runnable against today's staging -- the donor's
+would refuse `CLOUDABS` and want `TSWR3` -- so it is a control for a matching
+namelist rather than for the current one. The source-built control used above is
+the cleaner instrument for a single term, because it differs in one object file
+instead of in every change between two dates. What is wrong is only the claim
+that nothing was kept.
+
+## A seventh term with no route: the soil heat solver's moisture dependence
+
+`3aecf4ec` made the land soil heat solver read the soil water the model already
+carries, interpolating conductivity and heat capacity between a dry and a
+saturated endpoint instead of holding one pair. `landmod.f90` declares them:
+
+    soildifdry = 0.2088   soildifsat = 1.4332   W/m/K
+    soilcapdry = 1.1111E6 soilcapsat = 2.9689E6 J/m3/K
+
+A factor of 6.9 in conductivity and 2.7 in capacity across the wetness range, on
+every land cell, and it is inside the batch-2 window: the donor predates it.
+
+**All six keys are already in `landmod_nl`**, so the model can be told to run the
+old behaviour -- setting a dry endpoint equal to its saturated partner makes the
+column constant and the solver bitwise what it was. What is missing is the route:
+`run_exoplasim.py` writes none of them, `expected_namelist_keys` does not cover
+them, and the arms above staged none, so every run since the commit has
+integrated the compiled pair and no artifact says which pair that was.
+
+**UNTESTED, and cheaply testable.** It is the same one-row change that gave
+`vdiff_lamm` a control, and until it exists the term cannot enter a bundle sum
+even though it is live in every run. Its size is not bounded here and should not
+be guessed: the ground heat flux is near zero in the annual mean, which argues
+for a small effect on the mean and says nothing about the seasonal amplitude or
+about when a land cell first holds snow.
+
+## Measured: the star weight on its new carrier, `CLOUDABS`, 2026-08-26
+
+`run_a61f97a32b45` against the same control `run_c9c24d438a94`, same restart,
+same binary, differing in `CLOUDABS` alone: 1.0 against the configured 1.192.
+Over orbits 15 to 24, **-1.373 +/- 0.033 K**, resolved at 41 to 1. So this
+star's co-albedo correction is worth **+1.37 K of warming** as configured.
+
+**This is NOT part of the drift**, and the reason matters. The donor staged
+`TSWR3 = 0.006556`, which is the compiled 0.0055 times the same 1.192, so the
+star correction was already in the donor and did not change across the window.
+What changed is the CARRIER, and that is the `world-f9ig` term measured above.
+
+**The prediction registered before this arm ran was 1.4 to 2.6 K of cooling, and
+the measurement falls just outside it**, by 0.03 K at the near edge. It was
+built from PHYS-11's own arms, which measured -2.63 K at scale 0.78 and +2.53 K
+at 1.28 for a slope of 10.3 K per unit scale, and 0.192 of that is 2.0 K. The
+implied slope here is 1.373/0.192 = **7.15 K per unit scale**, thirty per cent
+below it.
+
+**The weight transfers and its kelvin worth does not.** `cloud_band_weight.py`
+derives 1.192 as a ratio of flux-weighted co-albedos, and a ratio is carrier
+independent, which is why `world-f9ig` was right to move it from `TSWR3` to
+`CLOUDABS` unchanged. What is carrier DEPENDENT is the base it multiplies:
+Table 1(a)'s co-albedo is not `tswr3*mu0^2*ln(1000/tau)`, so the same 19.2 per
+cent lands on a different number and buys a different number of kelvin. A slope
+measured on one carrier is not a prediction for the same key on another, and
+PHYS-11's 10.3 K per unit scale should be quoted against the fits it was taken
+on rather than against the tables.

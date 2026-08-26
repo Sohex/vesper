@@ -614,6 +614,13 @@ def configure_otherargs(derived: dict) -> dict:
             f"{derived['precip_reevaporation_gamma']:.6g}",
         "RCRITWIDTH@rainmod_namelist":
             f"{derived['cloud_fraction_subgrid_width']:.6g}",
+        # world-80ia, fluxmod_nl. Written unconditionally, the compiled
+        # sentinel included, on the same argument GAMMA above is written on: it
+        # selects between a DERIVED length and a literal, and a run directory
+        # that does not record which one it used cannot be attributed to
+        # either. Negative means derive.
+        "VDIFF_LAMM@fluxmod_namelist":
+            f"{derived['asymptotic_mixing_length_m']:.6g}",
         # world-py6p, landmod_nl. THE LAND COLUMN, all eight keys and
         # unconditionally, so the namelist in the run directory says which
         # scheme the segment integrated. They travel together because they are
@@ -756,6 +763,7 @@ if abs(freezing_point_k(_REFERENCE_SALINITY) - _REFERENCE_TFREEZE) > 0.01:
 LANDMOD_SOURCE = MODEL_SRC / "plasim" / "src" / "landmod.f90"
 LANDCOLUMN_SOURCE = MODEL_SRC / "plasim" / "src" / "landcolumn.f90"
 RAINMOD_SOURCE = MODEL_SRC / "plasim" / "src" / "rainmod.f90"
+FLUXMOD_SOURCE = MODEL_SRC / "plasim" / "src" / "fluxmod.f90"
 
 
 def _fortran_default(source: Path, name: str) -> float:
@@ -784,6 +792,11 @@ def landmod_default(name: str) -> float:
 def rainmod_default(name: str) -> float:
     """A scalar `rainmod_nl` default."""
     return _fortran_default(RAINMOD_SOURCE, name)
+
+
+def fluxmod_default(name: str) -> float:
+    """A scalar `fluxmod_nl` default."""
+    return _fortran_default(FLUXMOD_SOURCE, name)
 
 
 # THE LAND LIQUID WATER COLUMN, `landmod_nl`. LSHY-3 and LSHY-5.
@@ -1115,6 +1128,21 @@ def derive(config: dict, flux_ratio: float) -> dict:
         "cloud_fraction_subgrid_width": float(
             config["model"].get("cloud_fraction_subgrid_width",
                                 rainmod_default("rcritwidth"))),
+        # world-80ia, fluxmod_nl. The asymptotic mixing length of the
+        # boundary-layer scheme, in metres. NEGATIVE is the sentinel and the
+        # default: `fluxini` then derives it as `160 * (OMEGA_EARTH/ww)` from
+        # Blackadar (1962) eq. 25, which at this world's rotation is 200.5 m
+        # against the 160 m ECHAM anchors at Earth's; a POSITIVE value is the
+        # length as declared and 160 restores the pre-derivation constant.
+        # Read out of fluxmod.f90 for the same reason `gamma` is, so a config
+        # that says nothing reproduces the compiled sentinel exactly. The route
+        # exists because this is a SIXTH term in the batch-2 forcing bundle
+        # that no registered prediction covers: it sets turbulent exchange over
+        # land and ocean alike, it moved by 25 per cent, and without a key the
+        # only control was a code fork.
+        "asymptotic_mixing_length_m": float(
+            config["model"].get("asymptotic_mixing_length_m",
+                                fluxmod_default("vdiff_lamm"))),
         # world-py6p, landmod_nl. The eight keys of the land liquid water
         # column: which of LSHY-3's registered hypotheses runs, its evaporation
         # limiter, and LSHY-5's soil phase. See `land_water_column`.
@@ -2681,7 +2709,8 @@ def expected_namelist_keys(config: dict) -> dict:
     want: dict = {"radmod_namelist": {}, "icemod_namelist": {}, "plasim_namelist": {},
                   "planet_namelist": {}, "landmod_namelist": {},
                   "glacier_namelist": {}, "oceanmod_namelist": {},
-                  "rainmod_namelist": {}, "hurricane_namelist": {}}
+                  "rainmod_namelist": {}, "hurricane_namelist": {},
+                  "fluxmod_namelist": {}}
     # CLIM-54 and CLIM-55, unconditional and not derived from a config key.
     # `declare_storm_diagnostics` says why both halves of hurricanemod are off;
     # they are checked here so that off is a state this project asserts rather
@@ -2766,6 +2795,13 @@ def expected_namelist_keys(config: dict) -> dict:
     rcritwidth = float(m.get("cloud_fraction_subgrid_width",
                              rainmod_default("rcritwidth")))
     want["rainmod_namelist"]["RCRITWIDTH"] = float(f"{rcritwidth:.6g}")
+    # world-80ia, fluxmod_nl, unconditional on the same argument: the
+    # asymptotic mixing length selects between a rotation-derived value and a
+    # declared literal, so a continuation that dropped it would return the
+    # segment to the derived branch with nothing in the run directory saying so.
+    lamm = float(m.get("asymptotic_mixing_length_m",
+                       fluxmod_default("vdiff_lamm")))
+    want["fluxmod_namelist"]["VDIFF_LAMM"] = float(f"{lamm:.6g}")
     # world-py6p, landmod_nl. THE LAND COLUMN, all eight, unconditionally.
     # `land_water_column` is shared with the staging side the way
     # `freezing_point_k` is: it maps the CONFIG to a value and knows nothing
