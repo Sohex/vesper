@@ -825,21 +825,18 @@ fact to state rather than one to avoid.
 
 # 6. What this did NOT establish
 
-- **Nothing here is an implementation and nothing here is an adoption.** No
-  OpenMP directive was written, no file under `vendor/cgenie` was edited, and the
-  tree still has no consumer, no pipeline row and no step. The one compiler flag
-  that moves is the code model, applied to both grids equally so it cancels out
-  of the comparison.
-- **Amdahl's law is an upper bound and no threaded build exists to measure
-  against it.** Load imbalance across a land-sea mask, memory bandwidth, false
-  sharing on the COMMON blocks, and the cost of the halo recomputation section 3c
-  proposes are all unpriced. The bound says what is not achievable; it does not
-  say what is.
-- **The EMBM-free configuration section 4a's budget rests on has not been built
-  or run.** `genie.F` offers exactly two surface-flux paths for GOLDSTEIN and each
-  is gated on an atmosphere module being in the recipe; the second is the right
-  shape and that is a reading of the recipe, not a demonstration. Until it exists,
-  section 4a is arithmetic over measured pieces rather than a measurement.
+- **Nothing here is an implementation.** Everything above is a reading of the
+  source and a profile of the tree as it stood. What happened when sections 2d,
+  3a and 3c were acted on is
+  `notes/audits/cgenie-embm-free-path-and-threading.md`, which also settles the
+  surface-flux path question section 4a left open. The tree still has no
+  consumer, no pipeline row and no step.
+- **Amdahl's law is an upper bound and the threaded build measures against it
+  rather than reaching it.** Load imbalance across a land-sea mask, memory
+  bandwidth, false sharing on the COMMON blocks, and the cost of the row
+  recomputation section 3c proposes are all in the measured number and none is
+  separated out in it. The bound says what is not achievable; it does not say
+  what is.
 - **The ocean's own stability limit has not been measured without EMBM.** The
   cost note's sweep had EMBM live throughout, and its statement that the ocean
   could carry two to three times the timestep EMBM permits was read off

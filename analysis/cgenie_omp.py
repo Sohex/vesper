@@ -149,6 +149,13 @@ ARMS = {
     # paths read a local it had not written.
     "initpoison": dict(fflags=["-finit-real=snan",
                                "-finit-integer=-2147483647"]),
+    # The tree compiled SERIALLY now that makefile.arc carries -fopenmp:
+    # the !$OMP sentinels go back to being comments. This is the arm that
+    # separates what the source changes cost from what the threads buy.
+    "serial": dict(fflags=["-fno-openmp"]),
+    # The tree compiled serially AND with the storage class it had before,
+    # so an instruction count against `serial` prices -frecursive alone.
+    "serialstatic": dict(fflags=["-fno-openmp", "-fno-automatic"]),
     # The threaded build. Without -fopenmp the !$OMP sentinels are comments,
     # so `base` is the same source compiled serially -- which is what makes
     # "the restructuring alone changed nothing" a separate, answerable
@@ -316,6 +323,89 @@ def run_case(arm: str, case: str, threads: int, tag: str) -> dict:
         cfg.unlink(missing_ok=True)
 
 
+# The COST case. The regression cases above answer whether an arm is
+# correct; neither answers what it costs, because both are twenty timesteps
+# and dominated by startup. This is the audit's own arm: the shipped
+# worjh2 topography at 36 x 36 x 16, run the length the audit ran it, so a
+# before and an after here are comparable with the shares in
+# `notes/audits/cgenie-parallelism-and-coupling-support.md` section 2c.
+COST_CASE = "worjh2_36x36x16"
+
+
+def cost_config(years: int, nyear: int, maxisles: int) -> Path:
+    case = dict(cc.CASES[COST_CASE], mcmodel="medium")
+    cfg = cc.CONFIG_DIR / f"omp_cost_{COST_CASE}.xml"
+    cc.write_config(cfg, case, years, nyear, maxisles, ndta=case.get("ndta", 5))
+    return cfg
+
+
+def cost_run(arm: str, threads: int, tag: str, years: int, nyear: int,
+             maxisles: int, build_it: bool) -> dict:
+    """Build and run the cost case, counting retired instructions.
+
+    `perf stat -e instructions` COUNTS rather than samples, so on a
+    single-threaded process it is exact and needs no correction for host
+    load: it is a property of the binary and its input. On a THREADED
+    process it is not a cost, because a thread waiting at a barrier retires
+    instructions in proportion to how long it waits. OMP_WAIT_POLICY is
+    passive in `arm_env` for exactly that reason, and the wall clock and the
+    load average are recorded beside the count rather than in place of it,
+    so a reader can see what the machine was doing."""
+    env = arm_env(arm, threads)
+    cfg = cost_config(years, nyear, maxisles)
+    rec = {"arm": arm, "threads": threads, "case": COST_CASE,
+           "years": years, "nyear": nyear, "tree": str(CGENIE)}
+    try:
+        if build_it:
+            sh(["/usr/bin/make", *make_args().split(), "cleanall"],
+               LOGDIR / f"{tag}.clean.log", cwd=cc.GENIE_MAIN, env=env)
+            rc = sh(["./genie.job", "-x", "-f", f"configs/{cfg.name}",
+                     "-o", str(OUT_ROOT), "-c", str(CGENIE), "-g", str(CGENIE),
+                     "-h", ".", "-m", make_args(target="genie.exe")],
+                    LOGDIR / f"{tag}.build.log", cwd=cc.GENIE_MAIN, env=env)
+            if rc != 0 or not (cc.GENIE_MAIN / "genie.exe").exists():
+                rec["error"] = f"build failed, see {LOGDIR / (tag + '.build.log')}"
+                return rec
+        # Lay the run directory out once with genie.job, then run the
+        # executable under perf inside it, so perf sees the model and not
+        # the xsltproc configuration around it.
+        rc = sh(["./genie.job", "-z", "-f", f"configs/{cfg.name}",
+                 "-o", str(OUT_ROOT), "-c", str(CGENIE), "-g", str(CGENIE),
+                 "-h", ".", "-m", make_args()],
+                LOGDIR / f"{tag}.setup.log", cwd=cc.GENIE_MAIN, env=env)
+        ok, why = cc.run_ok(LOGDIR / f"{tag}.setup.log")
+        if not ok:
+            rec["error"] = why or f"setup run exit {rc}"
+            return rec
+        rundir = OUT_ROOT / cfg.stem
+        rec["load_before"] = cc.loadavg()
+        t0 = time.perf_counter()
+        res = subprocess.run(
+            ["perf", "stat", "-e", "instructions,task-clock", "-x,",
+             "./genie.exe"],
+            cwd=rundir, capture_output=True, text=True, check=False, env=env)
+        rec["wall_seconds"] = round(time.perf_counter() - t0, 2)
+        rec["load_after"] = cc.loadavg()
+        (LOGDIR / f"{tag}.perf.log").write_text(res.stdout + "\n--- perf ---\n"
+                                                + res.stderr)
+        if "Shutdown complete; home time" not in res.stdout:
+            rec["error"] = "the run under perf did not reach the shutdown banner"
+            return rec
+        for line in res.stderr.split("\n"):
+            parts = line.split(",")
+            if len(parts) > 2 and parts[2] == "instructions":
+                rec["instructions"] = int(parts[0])
+            if len(parts) > 2 and parts[2] == "task-clock":
+                rec["task_clock_ms"] = float(parts[0])
+        if "instructions" in rec:
+            rec["instructions_per_model_year"] = round(
+                rec["instructions"] / years / 1e9, 3)
+        shutil.rmtree(rundir, ignore_errors=True)
+        return rec
+    finally:
+        cfg.unlink(missing_ok=True)
+
+
 def compare(ref_dir: Path, got_dir: Path, nc: str) -> dict:
     """Every float variable in the regression case's GOLDSTEIN annual average,
     compared BIT-FOR-BIT. The bar was fixed before any arm was built: these
@@ -373,6 +463,11 @@ def main() -> int:
                          " whose output this run must reproduce")
     ap.add_argument("--shipped", action="store_true",
                     help="compare against genie-knowngood/ rather than an arm")
+    ap.add_argument("--cost", action="store_true",
+                    help="build and run the cost case under perf stat")
+    ap.add_argument("--years", type=int, default=100)
+    ap.add_argument("--nyear", type=int, default=100)
+    ap.add_argument("--maxisles", type=int, default=20)
     ap.add_argument("--out", type=Path,
                     default=PROJECT_ROOT / "analysis" / "cgenie_omp.json")
     args = ap.parse_args()
@@ -391,6 +486,19 @@ def main() -> int:
 
     if args.export:
         export_tree(args.rev)
+    if args.cost:
+        for arm in args.arm or ["base"]:
+            first = True
+            for threads in (args.threads or [1]):
+                tag = f"cost.{arm}{args.tag}.t{threads}"
+                rec = cost_run(arm, threads, tag, args.years, args.nyear,
+                               args.maxisles, build_it=first)
+                first = False
+                results["cases"][tag] = rec
+                print(json.dumps(rec, indent=2))
+        args.out.write_text(json.dumps(results, indent=2) + "\n")
+        print(f"wrote {args.out}")
+        return 0
     for arm in args.arm or []:
         for case in (args.case or ["eb_go_gs"]):
             spec = CASES[case]
