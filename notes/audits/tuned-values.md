@@ -401,21 +401,31 @@ all, so this term is the entire continuum contribution to the modelled longwave.
 shortwave counterpart; it does not ask where 0.024 came from.
 
 **Magnitude.** The whole term is `1 - exp(-0.024 w)` on the pressure-weighted
-column path `w` in g/cm2, so setting `th2oc` to zero, which the surrounding
-`if(th2oc > 0.)` supports, removes between 0.012 and 0.058 of broadband
-absorptance over a column path of 0.5 to 2.5 g/cm2. Against a clear-sky
-greenhouse trapping of order 150 W/m2 that brackets the term at roughly 2 to
-9 W/m2, hence 2 to 7 K by `lib/sensitivity.py`. The bracket is wide because the
-path is not measurable without a baseline climatology; what is not in doubt is
-that the term is first-order and the coefficient is a residual.
+column path `w` in g/cm2. THE PATH RANGE THIS ROW USED WAS TOO NARROW: it said
+0.5 to 2.5 g/cm2, and the model's own paths run 0.04 to 6.08 with a mean of
+2.23, so the term is larger than this row stated at the wet end. Setting `th2oc`
+to zero, which the surrounding `if(th2oc > 0.)` supports, removes 0.052 of
+broadband absorptance at the mean path and 0.136 at the maximum, which through
+`lib/sensitivity.py` is roughly 5 to 12 K end to end -- above the 2 to 7 K this
+row first carried.
 
-**Disposition: REPLACEABLE, SOURCE NEEDED, and the source is the one this
-project already knows it lacks.** `references/INDEX.md` records that Mlawer et
-al. (2012), `10.1098/rsta.2011.0295`, read, "does not supply an evaluable
-continuum": the coefficients ship as data with LBLRTM. So the route is a
-correlated-k or line-by-line calculation with MT_CKD on this path, which is the
-same bundle `exoplasim/notes/corrk-cross-check.md` says the project does not
-have and which also blocks `h2o_sw_level`'s bracket. The two open together.
+**AND THE INHERITED VALUE IS HALF ITS OWN CEILING.** The term stands in for the
+window, so it cannot add more absorptance than the window's Planck share, which
+over 250 to 300 K at the largest path caps `th2oc` at 0.038 to 0.050. At 0.024
+it already claims more than half the whole window. That ceiling is derived from
+what the term IS rather than fitted, which is what makes the bracket below a
+construction rather than a guess.
+
+**Disposition: DECLARED BRACKET, SWEPT.** `[0.0, 0.038]`, with the arms run end
+to end and the static conversion's high lean stated beside them. Sourcing it is
+not available and the evidence says so: `references/INDEX.md` records that
+Mlawer et al. (2012), `10.1098/rsta.2011.0295`, read, "does not supply an
+evaluable continuum" -- the coefficients ship as data with LBLRTM. The route to
+a VALUE is a correlated-k or line-by-line calculation with MT_CKD on this path,
+which is the same bundle `exoplasim/notes/corrk-cross-check.md` says the project
+does not have and which also blocks `h2o_sw_level`'s bracket; the two open
+together. Until then a swept bracket is the honest disposition, and it is the
+third of the four this project allows.
 
 ---
 
