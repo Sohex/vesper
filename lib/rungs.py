@@ -285,6 +285,26 @@ ESCALATION_ROUTE = (
 # that reached a commissioning length without failing, `blew_up` for one that
 # died after starting clean.
 COMMISSIONING_EVIDENCE = {
+    ("T21", 45.0): {
+        "verdict": "endured",
+        "orbits": 50,
+        "run": "run_ec32946bec89",
+        "detail": "The route's first rung. All six criteria met, first passing "
+                  "at 47. Fitted relaxation 6.27 orbits against a derived "
+                  "expectation of 10.12, which is the direction the ceiling "
+                  "argument permits.",
+    },
+    ("T21", 30.0): {
+        "verdict": "endured",
+        "orbits": 35,
+        "run": "run_14906cb7b914",
+        "detail": "The route's second rung, seeded from run_ec32946bec89. Four "
+                  "slope criteria and the storage criterion met; the "
+                  "extrapolated offset misses on its half-width rather than "
+                  "its magnitude. Its equilibrium sits about 0.46 K below the "
+                  "dt 45 one at the same resolution. The fitted relaxation is "
+                  "degenerate here and is WORLD-5GQY.",
+    },
     ("T42", 45.0): {
         "verdict": "blew_up",
         "orbits": 46,
