@@ -615,6 +615,40 @@ def main():
           f"{int(periodic['seasonal'].sum())} basins carry a publishable season, "
           f"{n_refused} refused for not closing")
 
+    # DOES THE WATER CLOSE, which is not the same question as whether the cycle
+    # repeats. A basin's storage can return to where it started every year while
+    # the integration quietly creates or destroys water inside the year, and
+    # `closed` cannot see that. The residual is read against the throughput
+    # rather than reported bare: a km3 means nothing without the km3 that passed
+    # through the basin it came off.
+    live_basin = basins.has_impoundment
+    throughput = periodic["annual_throughput_km3"]
+    scale = np.maximum(np.maximum(basins.capacity_km3, np.abs(throughput)), 1e-30)
+    # Named for what they are and NOT `per_bin` and `per_year`: `per_year` is
+    # already the seconds in this world's year in this function, and shadowing
+    # it here divided every basin's overflow by a residual.
+    bin_residual_rel = np.abs(periodic["bin_balance_residual_km3"]).max(axis=0) / scale
+    year_residual_rel = np.abs(periodic["annual_water_residual_km3"]) / scale
+    water_balance = {
+        "declared_tolerance_relative": lb.BALANCE_RELATIVE,
+        "worst_bin_residual_relative": float(bin_residual_rel[live_basin].max()),
+        "worst_annual_residual_relative": float(year_residual_rel[live_basin].max()),
+        "set_residual_relative": float(
+            np.abs(periodic["annual_water_residual_km3"]).sum()
+            / max(throughput.sum(), 1e-30)),
+        "annual_throughput_km3": float(throughput.sum()),
+        "read_against": ("the larger of the basin's own capacity and what passed "
+                         "through it in the year"),
+    }
+    print(f"  water closes to {water_balance['worst_annual_residual_relative']:.2g} "
+          f"per basin and {water_balance['set_residual_relative']:.2g} over the set, "
+          f"against a declared {lb.BALANCE_RELATIVE:g}")
+    if max(water_balance["worst_bin_residual_relative"],
+           water_balance["worst_annual_residual_relative"]) > lb.BALANCE_RELATIVE:
+        raise SystemExit(
+            "the lake balance does not conserve water to the tolerance declared "
+            "in lake_balance.BALANCE_RELATIVE; do not use this")
+
     wet = paint_lakes(terminal, filled_km, area, solution["area_km2"])
     lake_depth = np.where(wet, level[np.maximum(terminal, 0)] - filled_km, 0.0)
 
@@ -780,6 +814,12 @@ def main():
             "basins_with_published_season": int(periodic["seasonal"].sum()),
             "seasonal_area_km2_at_peak": float(periodic["area_km2"].max(axis=0).sum()),
             "seasonal_area_km2_at_trough": float(periodic["area_km2"].min(axis=0).sum()),
+            # THE WATER BALANCE, and it is a measurement rather than a claim.
+            # `closed` says the cycle repeats; this says the cycle conserves,
+            # which is a different question and the one an integrator can fail
+            # silently. Read against what passed through the basins, because a
+            # residual is only small relative to something.
+            "water_balance": water_balance,
             # THE CROSSING, per region rather than per basin. world-9iy5. The
             # areas above are what the solve holds; these are what a
             # classification can partition, and they are smaller because a
