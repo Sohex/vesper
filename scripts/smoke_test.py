@@ -608,6 +608,63 @@ def check_io_step_measurement() -> list[str]:
     return bad
 
 
+
+def check_no_write_through_a_symlink() -> list[str]:
+    """`sra.py:write_sra` refuses to write a staged field through a link.
+
+    THE LIVE HAZARD. `link_worktree.py` links `exoplasim/inputs/<rung>/` entry
+    by entry so a worktree can READ the staged fields to prepare a run, and the
+    four builders that write that directory resolve their default output to it.
+    So a generator run in a worktree writes STRAIGHT THROUGH into the main
+    checkout and replaces the fields a commissioning run there is reading. One
+    agent queued exactly that rebuild and cancelled it before it took the lock.
+
+    Class 17: every case has a right answer, and the refusals are paired with
+    the positive proving an ordinary write still works. Temp directories only;
+    it touches no staged field.
+    """
+    import tempfile
+    import numpy as _np
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    from sra import write_sra
+
+    bad = []
+    field = _np.zeros((4, 8))
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        donor = tmp / "main"
+        donor.mkdir()
+        (donor / "f.sra").write_text("donor", encoding="ascii")
+
+        try:
+            write_sra(tmp / "plain.sra", 174, field)
+        except SystemExit as exc:
+            bad.append(f"an ordinary path was refused: {exc}")
+
+        link = tmp / "linked.sra"
+        link.symlink_to(donor / "f.sra")
+        try:
+            write_sra(link, 174, field)
+            bad.append("a symlinked file was written through")
+        except SystemExit:
+            pass
+
+        linked_dir = tmp / "inputs"
+        linked_dir.symlink_to(donor, target_is_directory=True)
+        try:
+            write_sra(linked_dir / "g.sra", 174, field)
+            bad.append("a path under a symlinked directory was written through")
+        except SystemExit:
+            pass
+
+        # The point of the guard: the donor is untouched by either refusal.
+        if (donor / "f.sra").read_text(encoding="ascii") != "donor":
+            bad.append("the donor file was modified despite the refusal")
+        if (donor / "g.sra").exists():
+            bad.append("a file was created in the donor directory")
+    return bad
+
+
 def check_production_window() -> list[str]:
     """`segments.py:production_window` picks the window a declaration implies.
 
@@ -3352,6 +3409,8 @@ def main() -> None:
                lambda: check_staged_surface_build_guard()),
               ("the convergence window follows the declared purposes",
                lambda: check_production_window()),
+        ("a staged field is never written through a symlink",
+               lambda: check_no_write_through_a_symlink()),
         ("a verdict window is refused across an I/O-regime change",
                lambda: check_io_regime_window()),
         ("the I/O step at a join is measured against the offset criterion",
