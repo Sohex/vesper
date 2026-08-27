@@ -60,7 +60,7 @@ from build_dust import advect_to_steady_state, flag_anomalous_bins, settling_vel
 from builds import grid_export, mesh_export
 from gridding import land_fraction_of_class
 from orogen import Export
-from paths import climatology_path, rel
+from paths import bootstrap_climatology_path, rel
 from aerosol_deposition import write_deposition
 from sea_salt_optics import band_average, growth, read_index_table, read_size_table
 
@@ -117,7 +117,10 @@ def sulfur_flux_kg_per_year(cfg: dict, outgassing_over_earth: float,
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--climatology", type=Path, default=None)
+    ap.add_argument("--climatology", type=Path, default=None,
+                    help="defaults to the configured bootstrap_climatology, "
+                         "which is what the volcanic_sulfate step declares it "
+                         "needs")
     ap.add_argument("--config", type=Path, default=CONFIG)
     ap.add_argument("--sulfate-config", type=Path, default=SULFATE_CONFIG)
     ap.add_argument("--weathering", type=Path, default=WEATHERING)
@@ -138,7 +141,11 @@ def main() -> None:
     # raises KeyError before producing anything, which is what it did.
     cfg["_planet_radius_earth"] = config["planet"]["radius_earth"]
     gravity = float(config["planet"]["gravity_m_s2"])
-    clim_path = args.climatology or climatology_path()
+    # THE BOOTSTRAP, not the baseline. `volcanic_sulfate` declares
+    # `needs: bootstrap_climatology` in config/pipeline.yaml, on the same terms
+    # as its two sibling aerosol steps: the burden is a field the baseline run
+    # is run ON.
+    clim_path = args.climatology or bootstrap_climatology_path()
 
     if not args.weathering.is_file():
         raise SystemExit(

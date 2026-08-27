@@ -1,8 +1,13 @@
 """Path helpers shared across components, and the guards on the climatology.
 
-`rel` exists because of a specific recurring bug; `climatology_path` is the one
-resolver for the product every downstream component is driven from, and
-`require_clean_io` and `require_configured_grid` are what it must survive.
+`rel` exists because of a specific recurring bug. There are TWO climatology
+resolvers because there are two climatologies: `bootstrap_climatology_path` for
+the run on terrain-only surface fields, which the derived fields are built FROM,
+and `climatology_path` for the baseline run on those fields once they exist.
+`config/pipeline.yaml` says which of the two each step needs, and
+`scripts/smoke_test.py:check_climatology_needs_match_call_sites` holds the call
+sites to it. `require_clean_io` and `require_configured_grid` are what both must
+survive.
 
 `Path.relative_to` RAISES when the path is not under the given root. Every script
 here prints "wrote <path>" relative to the project root, and that print happens
@@ -210,15 +215,22 @@ def require_clean_io(climatology: Path) -> None:
             "exoplasim/notes/first-output-bin.md.")
 
 
-def snapshot_climatology_path(name: str | None = None,
-                              root: Path | None = None) -> Path:
-    """The instantaneous-sample product beside the configured climatology.
+def snapshot_beside(regular: Path) -> Path:
+    """The instantaneous-sample product beside a given regular climatology.
 
     Still produced and still useful -- it carries orbital phase, which the binned
     product does not -- but no longer a workaround for anything. See
     `require_clean_io`.
+
+    IT TAKES THE REGULAR PRODUCT RATHER THAN RESOLVING ONE. This resolved the
+    baseline itself, which made it wrong twice over. `build_dust.py` and
+    `build_sea_salt.py` are its only callers and both are `bootstrap_climatology`
+    steps, so the snapshot it handed them came from the other run; and a caller
+    passing `--climatology` got its regular field overridden and its wind tail
+    still read from the configured one, which is half an escape hatch. Both
+    callers now pass the regular product they actually resolved, so the pair
+    cannot come from two different runs and one flag moves both.
     """
-    regular = climatology_path(name, root=root)
     snapshot = regular.with_name(
         regular.name.replace("_regular_climatology.nc", "_snapshot_climatology.nc"))
     if not snapshot.is_file():

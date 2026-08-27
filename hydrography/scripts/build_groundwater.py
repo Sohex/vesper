@@ -47,7 +47,7 @@ import groundwater as gw  # noqa: E402
 import lake_balance as lb  # noqa: E402
 import surface_water as sw  # noqa: E402
 from orogen import LAND, Export  # noqa: E402
-from paths import rel  # noqa: E402
+from paths import bootstrap_climatology_path, rel  # noqa: E402
 
 import builds  # noqa: E402
 import orbit  # noqa: E402
@@ -268,7 +268,9 @@ def main() -> int:
     ap.add_argument("--data", type=Path, default=None,
                     help="hydrography products for this build; defaults to "
                          "data/<source_build>/")
-    ap.add_argument("--climatology", type=Path, default=None)
+    ap.add_argument("--climatology", type=Path, default=None,
+                    help="regular climatology to take the recharge from; "
+                         "defaults to the configured bootstrap_climatology")
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--sigma", type=float, default=0.0,
                     help="shift every hydrolithology by this many of its own "
@@ -326,17 +328,22 @@ def main() -> int:
 
     data = args.data if args.data is not None else builds.component_data(
         "hydrography", config, strict=True)
+    # THE BOOTSTRAP, not the baseline. `groundwater` declares
+    # `needs: bootstrap_climatology` in config/pipeline.yaml, and it takes the
+    # same recharge field `surface_water.py` runs the lakes on, so the two have
+    # to be forced by the same run or the surface and subsurface halves of one
+    # water balance come from two different climates. Resolved through
+    # `lib/paths.py` rather than out of the config here: that is the one copy,
+    # and it carries `require_configured_grid`, which a hand-rolled read of the
+    # config key does not.
     if args.climatology is not None:
         clim = args.climatology.resolve()
     else:
-        declared = config.get("baseline_climatology")
-        if not declared:
-            raise SystemExit(
-                "config/planet.yaml has no `baseline_climatology`. Name one "
-                "there or pass --climatology; there is deliberately no fallback.")
-        clim = (PROJECT_ROOT / declared).resolve()
+        clim = bootstrap_climatology_path(root=PROJECT_ROOT).resolve()
         if not clim.is_file():
-            raise SystemExit(f"config names {declared}, which does not exist")
+            raise SystemExit(
+                f"config/planet.yaml names {rel(clim)} as the bootstrap "
+                "climatology and it does not exist")
 
     build = builds.build_root(config)
     export = Export(builds.mesh_export(config))
@@ -802,7 +809,7 @@ def main() -> int:
     with Dataset(out, "w") as ds:
         ds.createDimension("region", export.n_regions)
         ds.createDimension("basin", basins.n)
-        ds.title = "Steady-state water table under the baseline climatology"
+        ds.title = f"Steady-state water table under {clim.stem}"
         ds.terrain_hash = export.terrain_hash
         ds.setncattr("vesper_source_build", build.name)
         ds.forcing = rel(clim)

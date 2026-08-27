@@ -25,9 +25,19 @@ candidate means, scored on a warm-season comfort band. Concretely here:
   in the band, with the global mean moving along `lib/sensitivity.py`'s
   canonical slope. Bracket between two points, never extrapolate from one --
   the doctrine 5b itself was written under.
-- The 0.91 source contributes `tas` only: its spin-up ran the cheap I/O
-  regime, whose historical first-record defect touched wind and humidity, so
-  humidity comes solely from the clean baseline climatology.
+- The bracket run contributes `tas` only: a spin-up under the cheap I/O
+  regime carries the historical first-record defect in wind and humidity, so
+  humidity comes solely from the clean climatology.
+
+BOTH POINTS ARE ON THE VEGETATED BRANCH and neither is a baseline. What the
+method needs is two converged climatologies at two fluxes with the same
+`model.land_albedo_source`; having soil and lakes is a different property and
+not one it reads. So the first point is the BOOTSTRAP climatology, and the
+ordering is bootstrap run, bootstrap climatology, bracket run, design flux,
+adopt the flux, derived surface fields, baseline run. Reading the baseline here
+would have been circular -- the baseline is the run on the full surface fields
+and it still has to run at some flux, so requiring it first means buying it at
+a provisional number and buying it again at the derived one.
 
 WHICH HALF A RADIATION CHANGE REACHES, because the shortwave cloud optics have
 just moved the modelled climate by up to 20.6 K and the two halves of this
@@ -171,7 +181,7 @@ from _paths import ANALYSIS, CONFIG, RUNS  # noqa: F401  (puts lib/ on sys.path)
 
 import climatology  # noqa: E402
 import sensitivity  # noqa: E402
-from paths import climatology_path, rel  # noqa: E402
+from paths import bootstrap_climatology_path, rel  # noqa: E402
 
 LATENT_OVER_CP = 2.501e6 / 1004.9   # K per unit specific humidity, plasim's constants
 
@@ -282,8 +292,15 @@ def score(warm_c: np.ndarray, cold_c: np.ndarray, land: np.ndarray,
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--bracket-run", default="run_bfa3f5269660",
-                    help="run supplying the second flux point's tas tail")
+    ap.add_argument("--bracket-run", required=True,
+                    help="run id supplying the second flux point's tas tail, "
+                         "e.g. run_1a2b3c4d5e6f. REQUIRED, and there is no "
+                         "default because there cannot be one: runs are named "
+                         "by UUID, so any default is the id of one historical "
+                         "run and nothing else. `exoplasim/runs/INDEX.json` "
+                         "says what exists; the `bracket_run` step in "
+                         "config/pipeline.yaml says what makes a run usable "
+                         "here")
     ap.add_argument("--tail-orbits", type=int, default=10)
     ap.add_argument("--output", type=Path, default=ANALYSIS / "design_flux.json")
     args = ap.parse_args()
@@ -311,12 +328,38 @@ def main() -> None:
                              "reach from either side")
 
     cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
-    base_path = climatology_path()
+    # THE BOOTSTRAP, not the baseline. What this needs is two converged
+    # climatologies ON THE VEGETATED BRANCH, which is a statement about
+    # `model.land_albedo_source` and not about having soil and lakes; the
+    # bootstrap already runs vegetated. Requiring a baseline here was circular:
+    # the design flux IS the mean flux target, and a baseline run is by this
+    # project's vocabulary the run on the full surface fields, which still has
+    # to be run at SOME flux. That ordering buys the expensive run at a
+    # provisional number and then buys it again at the right one.
+    base_path = bootstrap_climatology_path()
     base = seasonal_fields(base_path)
     f0 = float(cfg["orbit"]["baseline_flux_earth"])
 
     run_dir = RUNS / args.bracket_run
+    if not run_dir.is_dir():
+        raise SystemExit(
+            f"{rel(run_dir)} does not exist. --bracket-run names a run by its "
+            "UUID; ask exoplasim/runs/INDEX.json what is on disk. A run whose "
+            "payload has been archived to identity cannot supply a tas tail.")
     manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
+    # THE BRANCH IS CHECKED, because the whole argument for reading the
+    # bootstrap rather than the baseline is that both points are vegetated. A
+    # bare-rock bracket point would make the projection a comparison between two
+    # different worlds and the script would not notice.
+    branch = manifest.get("source_config", {}).get("model", {}).get(
+        "land_albedo_source")
+    if branch != "vegetated":
+        raise SystemExit(
+            f"{args.bracket_run} ran with model.land_albedo_source = {branch!r}. "
+            "The design flux is defined on the VEGETATED branch and both flux "
+            "points have to be on it: the bare-rock arm is a BOUND, not a "
+            "world, and projecting between the two measures the albedo "
+            "difference rather than the flux difference.")
     f1 = float(manifest.get("stellar_flux_ratio",
                manifest.get("derived_parameters", {}).get("stellar_flux_ratio_earth")))
     last = max(int(p.stem.split(".")[1]) for p in run_dir.glob("MOST.[0-9]*.nc"))
@@ -462,9 +505,13 @@ def main() -> None:
         "declared": DECLARED,
         "threshold_bracket": THRESHOLD_BRACKET,
         "sources": {
-            "baseline": {"path": str(base_path), "flux": f0},
+            "bootstrap": {"path": rel(base_path), "flux": f0,
+                          "note": "the terrain-only branch's climatology; the "
+                                  "design flux is derived BEFORE the baseline "
+                                  "run it will be run at"},
             "bracket": {"run": args.bracket_run, "flux": f1,
                         "tail_orbits": orbits,
+                        "land_albedo_source": branch,
                         "note": "tas only; its spin-up I/O regime historically "
                                 "corrupted wind and humidity, so humidity comes "
                                 "from the clean climatology alone"},
@@ -515,7 +562,7 @@ def main() -> None:
         },
     }
     args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(f"sources: {f0} (baseline) and {f1} ({args.bracket_run}), "
+    print(f"sources: {f0} ({base_path.stem}) and {f1} ({args.bracket_run}), "
           f"span {d_global:.2f} K")
     print(f"candidates {edges[0]} to {edges[1]}, cold-extreme cap {cap}")
     print(f"design flux: dry {win_dry_capped}  equivalent {win_te_capped}  "
