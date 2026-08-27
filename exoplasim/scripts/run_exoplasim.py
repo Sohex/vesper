@@ -1908,6 +1908,49 @@ def conversion_surface_reason(report: dict, config: dict) -> str | None:
     return None
 
 
+def refuse_a_staged_field_the_config_ignores(config: dict, inputs_dir) -> None:
+    """A more determined field on disk that the run is configured not to read.
+
+    THE FAILURE THIS CATCHES is a baseline that is not one. `soil_water_source`
+    is `uniform` for the bootstrap and `pedology` for the baseline, and the flip
+    between them is a config edit nothing enforces. Skip it and the run stages
+    ExoPlaSim's uniform bucket while a pedology field sits beside it unread --
+    on this build that is 0.5 m against a land mean of 0.113, so the run is
+    four times wetter than the world it claims to be, and every number below it
+    inherits that silently. Nothing about the run looks wrong: a uniform bucket
+    is a legitimate configuration and the bootstrap needs it.
+
+    So the test is not "is the config valid" but "is there something better on
+    disk that this config declines to read". That is
+    `docs/src/pipeline/loops.md`'s invariant made enforceable: the loop moves
+    from the least determined state to the most determined, and a run reads the
+    best available input rather than the first available one.
+
+    It REPORTS rather than refusing when the field is absent, because a first
+    pass has no pedology soil water and the bootstrap is correct to run without
+    it. It refuses only when the better field EXISTS and the config turns away
+    from it, which is a state no correct commissioning passes through.
+    """
+    from pathlib import Path
+    source = str(config["model"].get("soil_water_source", "uniform"))
+    if source != "uniform":
+        return                                  # already reading the better field
+    staged = sorted(Path(inputs_dir).glob("*surf_0229.sra"))
+    if not staged:
+        return                                  # first pass: nothing better exists
+    raise SystemExit(
+        "model.soil_water_source is `uniform` and a pedology soil water field is "
+        f"already staged at {staged[0].name}.\n"
+        "  A bootstrap runs at `uniform` because no such field exists yet. One "
+        "does, so this run would stage ExoPlaSim's uniform bucket and leave a "
+        "field built from this world's own soil unread.\n"
+        "  Set model.soil_water_source: pedology for the baseline, or move the "
+        "staged field aside if you deliberately want another bootstrap. "
+        "docs/src/pipeline/loops.md: a run reads the best available input, not "
+        "the first available one."
+    )
+
+
 def intended_surface_codes(config: dict) -> set[int]:
     """Which surface fields this run supplies rather than leaving at defaults.
 
@@ -2946,6 +2989,11 @@ def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
     landmap or topomap is given and then writes back only those two
     (`__init__.py:2938`). Anything staged before that call is silently deleted.
     """
+    # Before staging anything: refuse a run that declines a better field which
+    # is already on disk. See the function for why this is a refusal and not a
+    # warning, and why it is silent on a first pass.
+    refuse_a_staged_field_the_config_ignores(
+        config, INPUTS / str(config["model"]["resolution"]).lower())
     staged = []
     for code in sorted(intended_surface_codes(config) - BASE_SURFACE_CODES):
         src = surface_sra(config, code)
