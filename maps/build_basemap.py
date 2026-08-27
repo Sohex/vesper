@@ -1,14 +1,17 @@
 """Render a natural-colour equirectangular base map of Vesper.
 
-Terrain comes from the native 2.5M-region mesh of the active build (nearest
-region per pixel, so coastlines and closed-basin floors stay sharp). Colour
+Terrain comes from the native mesh of the active build (nearest region per
+pixel, so coastlines and closed-basin floors stay sharp). Colour
 comes from the baseline ExoPlaSim climatology: land is tinted by its biome
 class, ocean by depth, ice and snow by the warmest-month surface temperature
-corrected to the high-resolution orography with a dry lapse rate.
+corrected from the climatology's own orography to the high-resolution one at
+the environmental lapse rate `lib/lapse.py` measures from that same file.
 
-The colour is illustrative. The biome field is T42 (128x64) and was computed on
-the pre-carve terrain, so it is a plausible tint over the current geography
-rather than a result about it.
+The colour is illustrative. The biome field is on the climate grid of whichever
+climatology is read, which is coarser than the mesh by orders of magnitude, and
+was computed on the pre-carve terrain; so it is a plausible tint over the
+geography being drawn rather than a result about it. The provenance sidecar
+names the grid, read from the climatology rather than assumed.
 
 Lakes and rivers are the exception: those come from the water balance solved in
 hydrography/, on this terrain, and are a result rather than a tint.
@@ -78,10 +81,24 @@ def _classification() -> Path:
                                             "_classification.nc"))
 
 
+def _grid_label() -> str:
+    """The climate grid of the product actually read, as `LONxLAT`.
+
+    Read from the file rather than named, for the reason the label above is:
+    this string is emitted into `basemap_provenance.json` and inherited by every
+    frame, so a hardcoded rung is a wrong number written INTO an artifact rather
+    than merely into a comment. The rung the maps are drawn from moves with the
+    escalation route, and nothing here would have learned it.
+    """
+    with nc.Dataset(_climatology()) as ds:
+        return f"{ds.dimensions['lon'].size}x{ds.dimensions['lat'].size}"
+
+
 def _caveat() -> str:
     """What a reader must know about the tint, taken from the product read."""
     label = _climatology().name.replace("_regular_climatology.nc", "")
-    caveat = (f"biome and temperature fields are T42 and come from the "
+    caveat = (f"biome and temperature fields are on the {_grid_label()} climate "
+              f"grid and come from the "
               f"`{label}` climatology; the tint is illustrative, not a result")
     if label.startswith("bootstrap"):
         caveat += (". A bootstrap climatology is the FIRST run on the build, on "
@@ -185,9 +202,9 @@ def raw(src, name, dtype):
 
 
 def upsample(field, smooth=True):
-    """T42 climate field (64x128, south-to-north) onto the render grid.
+    """A climate field (lat x lon, south-to-north) onto the render grid.
 
-    Bilinear, then a Gaussian of about half a T42 cell. Without the blur the
+    Bilinear, then a Gaussian of about half a climate cell. Without the blur the
     later clipped blends (ice, sea ice) plateau along straight bilinear
     contours and the map grows visible 128x64 polygons.
     """
@@ -228,7 +245,7 @@ def upsample(field, smooth=True):
 
 
 def polar_smooth(field, lat_deg):
-    """Smooth a T42 field along longitude, harder towards the poles.
+    """Smooth a climate field along longitude, harder towards the poles.
 
     128 cells run round a latitude circle whatever its size, so near the pole
     they hold detail finer than the model can carry. Reprojected onto anything
@@ -248,7 +265,7 @@ def polar_smooth(field, lat_deg):
 def fill_ocean_gaps(field, land):
     """Extend land values across the sea by nearest land cell.
 
-    Coastal pixels of the render grid sit inside T42 cells that are mostly
+    Coastal pixels of the render grid sit inside climate cells that are mostly
     ocean, so interpolating a land field against its raw zeros over water puts
     an ice sheet on every coast. Fill first, interpolate second.
     """
@@ -420,7 +437,7 @@ def main():
     lrgb = land_rgb.copy()
 
     # Bare rock takes over on steep high ground; the biome tint is a lowland
-    # statement and the T42 grid cannot see a mountain.
+    # statement and the climate grid cannot see a mountain.
     rock_frac = np.clip((elev - 1.8) / 2.2, 0, 1)[..., None]
     lrgb = lrgb * (1 - 0.75 * rock_frac) + ROCK_RGB * (0.75 * rock_frac)
 

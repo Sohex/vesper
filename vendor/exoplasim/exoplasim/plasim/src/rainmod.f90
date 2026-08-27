@@ -102,12 +102,20 @@
 !     ga^(-0.289): 0.926 of its Earth value at the same precipitation flux. That
 !     is small, and it is the least of the disagreement.
 !
-!     THE MAGNITUDE. At deltsec2 = 3600 s, which is this project's 30-minute
-!     step doubled, the derived value is 0.039 at 0.5 mm/day of precipitation,
-!     0.10 at 3 mm/day and 0.22 at 10 mm/day. The declared 0.01 is the Kessler
-!     value at 0.048 mm/day, sixty times below a global-mean rate, and it is
-!     below the whole of that span. Using a grid-mean flux understates M and
-!     therefore understates gamma, so those figures are floors.
+!     THE MAGNITUDE, stated PER UNIT OF deltsec2 so that it does not move with
+!     the timestep. gamma is linear in deltsec2 -- the form above says so -- and
+!     an earlier version of this comment stated it at a step this project had
+!     stopped running, which left all three magnitudes two thirds of what the
+!     model integrates. gamma/deltsec2 is 9.9e-6 s-1 at 0.5 mm/day of
+!     precipitation, 2.8e-5 s-1 at 3 mm/day and 5.6e-5 s-1 at 10 mm/day.
+!     deltsec2 is twice the model timestep, and the timestep is
+!     config/planet.yaml's `timestep_minutes`, which is the only place this
+!     project declares one; at the step declared there the derived gamma spans
+!     roughly 0.05 to 0.3 across that range of rates. The declared 0.01 is the
+!     Kessler value at a precipitation rate two orders below a global-mean one,
+!     and it is below the whole of that span at every step on the escalation
+!     route. Using a grid-mean flux understates M and therefore understates
+!     gamma, so those figures are floors.
 !
 !     THE DERIVED FORM IS WHAT THE FOUR SITES NOW INTEGRATE. Substituting
 !     M = P/V and Kessler's own fall speed into the expression above collapses

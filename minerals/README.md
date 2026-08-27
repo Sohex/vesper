@@ -30,9 +30,12 @@ to prevent.
 ## Two constraints, and they are the point
 
 **This is a field, not deposits.** A porphyry system is one to two kilometres
-against a 15.19 km mesh cell; a vein is under a hundredth of one. An individual
-body is invisible at every resolution this pipeline runs at, so placing one would
-invent detail the grid cannot hold. Discrete deposits belong with the downscaling
+against a mesh cell several times that; a vein is orders below one. An
+individual body is invisible at every resolution this pipeline runs at, so
+placing one would invent detail the grid cannot hold. The mesh spacing follows
+the build's region count, so it moves with the generation:
+`analysis/orogen_resolution.py` derives it and
+`analysis/orogen_resolution.json` carries it per build. Discrete deposits belong with the downscaling
 pass -- the same place glacial overdeepening goes, for the same reason. This
 field is that pass's input.
 
@@ -67,9 +70,11 @@ crustal continuum from 15-20 km to the surface, epizonal under 6 km, mesozonal
 present, it decides which class is exposed. The same erosion that removes a
 porphyry brings a mesozonal gold system to surface. Orogen tracks it through
 `cover_thickness` and `erosionDelta`, which is why porphyry prospectivity here
-rejects most of the arc belt rather than accepting all of it -- 59.5% of it is
+rejects most of the arc belt rather than accepting all of it: much of it is
 stripped to its granodiorite root, and the porphyry level went with the section
-above.
+above. The share is a lithology census over the export and moves with every
+generation, so `world_state.json`'s `lithology_land_fractions` is where it
+lives.
 
 **Porphyry is split by arc type**, and the split is what the literature supports
 rather than a weighting. Cooke et al. (2005) show the two metal associations have

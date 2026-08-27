@@ -941,10 +941,13 @@ export function computeFinalTerrainDrainage(mesh, r_elevation, r_isOcean, termin
     //
     // Raw steepest descent on a finished terrain strands every cell that drains
     // into a local pit: erosion creates pits after the last conditioning pass,
-    // and their catchments resolve to no terminal at all. On a real planet that
-    // was 63% of the land, so a catchment measured this way counted less than
-    // half its true area — while being documented as the area to integrate
-    // precipitation over. Filling first routes through pits to their spill
+    // and their catchments resolve to no terminal at all. On a finished terrain
+    // that is most of the land, so a catchment measured this way counts a
+    // fraction of its true area — while being documented as the area to
+    // integrate precipitation over. The share is a property of the generated
+    // terrain and moves with it; the consumer measures it per build, into
+    // `hydrography/data/<build>/hydrography_report.json` under
+    // `drainage.endorheic_fraction_of_land`. Filling first routes through pits to their spill
     // points, which is what a drop of water actually does. Pass {raw:true} for
     // the unrouted measure.
     const drainTo = new Int32Array(numRegions).fill(-1);

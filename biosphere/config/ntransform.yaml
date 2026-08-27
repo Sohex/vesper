@@ -131,11 +131,15 @@ mainline_divergences:
         describes the curve in WFPS while reading something else, and
         nitrification and denitrification in the same file already read wfps(0).
       worth: >
-        On the current Vesper soil map a gridcell at 0.50 WFPS got an anaerobic
-        share anywhere from 0.071 to 0.874 on texture alone, where the curve asks
-        for 0.500 everywhere; the median cell's aerobic share was 1.65 times what
-        the curve asks at 0.50 WFPS. The largest single control the operator has
-        on gaseous loss was a function of sand and clay.
+        A gridcell at 0.50 WFPS got an anaerobic share spanning most of the
+        unit interval on texture alone, where the curve asks for 0.500
+        everywhere, and the median cell's aerobic share was well over what the
+        curve asks at 0.50 WFPS. The largest single control the operator has on
+        gaseous loss was a function of sand and clay. The spread and the median
+        are measured against a named soil map in
+        `biosphere/notes/soil-nitrogen-transformation-parameterisation.md`,
+        which is where they belong: they move with the map and this file has no
+        way to learn it.
     - id: nitrification_argument
       owner: world-i2ch
       verdict: keep
@@ -154,9 +158,14 @@ mainline_divergences:
       worth: >
         The optimum of a WFPS curve was landing at a texture-dependent wetness.
         It also changes what part of the curve a gridcell can reach: wfps(0) is
-        bounded above by field capacity over saturation, a median of 0.81 on the
-        current soil map, so a gridcell reaches the optimum only near field
-        capacity and sits on the rising limb the rest of the time.
+        bounded above by field capacity over saturation, whose median is
+        comfortably below 1, so a gridcell reaches the optimum only near field
+        capacity and sits on the rising limb the rest of the time. The median and
+        the map it was taken over are in
+        `biosphere/notes/soil-nitrogen-transformation-parameterisation.md`; it is
+        not restated here, because it is a property of whichever soil map
+        `pedology/scripts/build_soil.py` last wrote and this file would not learn
+        that it moved.
     - id: nitrification_wet_limb
       owner: world-i2ch
       verdict: keep
@@ -370,10 +379,13 @@ instruction_parameters:
 #                 AVAILABLE capacity, refused outside [0,1] by
 #                 Soil::get_soil_water. So each gridcell sees only the window
 #                 from its wilting point over saturation to its field capacity
-#                 over saturation. On the current Vesper soil map that window
-#                 runs from 0.171-0.665 at the dry end to 0.573-0.948 at the
-#                 wet end, and 2032 of 4105 gridcells are above 0.40 even at
-#                 wilting point, which is where denitrification switches on.
+#                 over saturation. That window, and the share of gridcells whose
+#                 dry end already sits above the 0.40 where denitrification
+#                 switches on, are a property of the soil map and are measured in
+#                 `biosphere/notes/soil-nitrogen-transformation-parameterisation.md`
+#                 against the map named there. They are not restated here: the
+#                 map is rewritten per build and at whatever rung the ladder is
+#                 on, and a figure copied into this file has no way to learn it.
 #                 The missing quantity is water above field capacity.
 #   soil_ph       the range pedology's build_soil.py clips its pH field to,
 #                 `pedology/config/pedogenesis.yaml` ph.minimum and ph.maximum.
@@ -930,8 +942,8 @@ calibration:
         texture-dependent wetness. It now reads Soil::wfps(0), as every other
         moisture response in the operator does. What that costs in reach is
         declared under the wfps domain above: wfps(0) tops out at field
-        capacity over saturation, a median of 0.81 on the current soil map, so
-        a gridcell reaches the optimum only near field capacity and sits on the
+        capacity over saturation, whose median is below the optimum, so a
+        gridcell reaches the optimum only near field capacity and sits on the
         rising limb the rest of the time. Since the wet limb is gone, nothing
         past the optimum is out of reach any more.
 
@@ -1014,10 +1026,12 @@ calibration:
         substrate_partition's aerobic share GROWS as the soil dries, so the
         moist-soil end is the one it should sit near.
         Evaluated at the water-filled pore space each of those potentials maps to
-        on each of the current soil map's 4105 gridcells, this limb gives a
-        median 0.526 at -0.5 MPa against their 0.510, and a median 0.364 at
-        wilting point against their 0.333, inside the bracket and near its
-        moist-soil end. THREE LIMITS ON CITING IT. It is one soil, so the bracket
+        on every gridcell of the soil map, this limb's medians at -0.5 MPa and at
+        wilting point sit inside the bracket and near its moist-soil end. The
+        medians, and the map and rung they were taken over, are in
+        `biosphere/notes/soil-nitrogen-transformation-parameterisation.md`; the
+        VERDICT is that they fall inside the bracket, and that is what this file
+        carries. THREE LIMITS ON CITING IT. It is one soil, so the bracket
         is between two treatments of the same silt loam and not between soils;
         stark1995's own discussion says the relationship "will undoubtedly change
         for different soil types and microbial communities" and that diffusional
@@ -1168,7 +1182,8 @@ calibration:
         all. Xu-Ri and Prentice (2008) has no such switch: table 9's rates fall
         with the moisture response and with substrate availability and never
         turn off. Weier et al. (1993) measured at 60, 75 and 90 per cent WFPS
-        only and says nothing about the dry end. On the current Vesper soil map
-        2032 of 4105 gridcells are above 0.4 WFPS even at wilting point, so on
-        half the map the switch never closes and on the rest it decides whether
-        denitrification happens at all.
+        only and says nothing about the dry end. About half the gridcells of the
+        soil map are above 0.4 WFPS even at wilting point, so on that half the
+        switch never closes and on the rest it decides whether denitrification
+        happens at all. The count and the map it was taken over are in
+        `biosphere/notes/soil-nitrogen-transformation-parameterisation.md`.
