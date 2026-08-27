@@ -29,9 +29,9 @@ represents. `docs/src/reference/config-rationale.md` states this exactly, for oz
 > it represents, and applying them unchanged to a K dwarf puts solar band weights
 > on a non-solar spectrum.
 
-The ozone terms were re-weighted accordingly: `ozone_uv_weight: 0.335` measured
-from Segura et al. (2003), `ozone_visible_weight: 0.914` computed from the k25v
-spectrum. **The water vapour term was not, and neither was CO2.** The
+The ozone terms were re-weighted accordingly: `ozone_uv_weight` measured from
+Segura et al. (2003), `ozone_visible_weight` computed from the k25v spectrum by
+`lib/stellar.py:ozone_visible_weight`. **The water vapour term was not, and neither was CO2.** The
 `radmod_nl` namelist carries `o3uvw` and `o3visw` and has no equivalent for
 either; `th2oc` is the LONGWAVE continuum coefficient and is a different thing.
 

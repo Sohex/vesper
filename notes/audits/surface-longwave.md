@@ -108,9 +108,11 @@ answer is the weaker of the two.
 
 ### The measurement
 
-`analysis/emissivity_contrast.py`, run on the active build at T21 against the
-bootstrap climatology (a bootstrap is not a baseline; what is taken from it is
-a flux scale, not a state), measured on 2026-08-25:
+`analysis/emissivity_contrast.py`, run at T21 on `precarve-craton-10m` against
+the bootstrap climatology (a bootstrap is not a baseline; what is taken from it
+is a flux scale, not a state), measured on 2026-08-25. The land mean is an area
+weighting over ONE BUILD'S land, so this table is that build's and
+`analysis/land_emissivity.json` is the configured build's:
 
 | Quantity | Value |
 | --- | --- |

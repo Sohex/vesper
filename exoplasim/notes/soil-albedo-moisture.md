@@ -338,8 +338,8 @@ costs a config read instead of a launched model.
 1. **`nlandwcol = 1` with the three-layer surface cut.**
    `config/planet.yaml`'s `surface.land_water_column` declares `layers: 3` at
    `layer_thickness_m: [0.02, 0.48, 1.0]`, which is the geometry `surface_layer`
-   declares, and `layer_capacity_fraction` follows the thicknesses because it is
-   the depth share a uniform profile gives. The scalar bucket is refused
+   declares, and `DSOILWF` is derived from those thicknesses at the point the
+   namelist is written because it is the depth share a uniform profile gives. The scalar bucket is refused
    outright: it has no surface layer, and the column it does have dries on the
    wrong timescale for an albedo. `landini` refuses the bucket; what it cannot
    check is that the first water layer IS the declared albedo depth, because

@@ -854,12 +854,12 @@ there by `verify_staged_namelists`, because a continuation that drops them
 silently returns the modelled surface to the compiled literal -- which for the
 land is now a blackbody rather than the value this file carries.
 
-## `ozone_height_m` and `ozone_spread_m`
+## The ozone profile's two lengths, `BO3` and `CO3`
 
-```
-ozone_height_m: 15311.8
-ozone_spread_m: 3828.0
-```
+This file states neither. `run_exoplasim.py:ozone_profile_lengths_m` reads
+upstream's own compiled `bo3` and `co3` out of `radmod.f90` and scales both by
+`lib/lapse.py:pressure_length_ratio_to_earth`, so the two halves of the
+derivation are read where they live and the product is written down nowhere.
 
 `mko3` places its synthetic ozone profile with a logistic in geometric height,
 centred at `BO3` with width `CO3`, both in metres. It builds the height
@@ -872,7 +872,8 @@ Height is the wrong invariant. The modelled photochemical maximum is set by
 pressure-like conditions, ultraviolet optical depth and three-body
 recombination density, so pressure is what to hold fixed, and holding it means
 scaling both by `(gascon/ga)` over Earth's own -- the same factor the heights
-already carry. Doing so reproduces Earth's own layer-by-layer share of the
+already carry. That ratio moves with the declared composition and gravity, so a
+number in this file would be a copy that could not learn either had changed. Doing so reproduces Earth's own layer-by-layer share of the
 ozone column on this world's sigma levels to machine precision, which is the
 form of the claim that could have failed;
 `exoplasim/notes/ozone.md` carries the recursion and the numbers.

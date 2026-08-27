@@ -320,8 +320,8 @@ REMOVED_CONFIG_KEYS = {
             "appears in no Python source in the tree."),
     },
     "surface.land_water_column.layer_capacity_fraction": {
-        "removed_by": "world-frz2",
-        "owner": "world-frz2",
+        "removed_by": "world-6nla",
+        "owner": "world-6nla",
         "values": ([0.013333, 0.32, 0.666667], [0.333333, 0.666667], [1.0]),
         "moved_to": ("exoplasim/scripts/run_exoplasim.py",),
         "moved_to_note": "the fallback capacity shape is now derived from "
@@ -339,8 +339,8 @@ REMOVED_CONFIG_KEYS = {
             "thicknesses and left the shape behind."),
     },
     "model.cold_start_profile.lapse_rate_k_per_m": {
-        "removed_by": "world-frz2",
-        "owner": "world-frz2",
+        "removed_by": "world-6nla",
+        "owner": "world-6nla",
         "values": (0.008489,),
         "moved_to": ("lib/lapse.py", "exoplasim/scripts/run_exoplasim.py"),
         "moved_to_note": "the cold start's lapse rate is now derived by "
@@ -358,8 +358,8 @@ REMOVED_CONFIG_KEYS = {
             "could not learn the composition had moved."),
     },
     "model.cold_start_profile.tropopause_height_m": {
-        "removed_by": "world-frz2",
-        "owner": "world-frz2",
+        "removed_by": "world-6nla",
+        "owner": "world-6nla",
         "values": (9220.0,),
         "moved_to": ("lib/lapse.py", "exoplasim/scripts/run_exoplasim.py"),
         "moved_to_note": "the cold start's tropopause height is now derived by "
@@ -376,8 +376,8 @@ REMOVED_CONFIG_KEYS = {
             "temperature the configuration no longer carries."),
     },
     "model.ozone_height_m": {
-        "removed_by": "world-frz2",
-        "owner": "world-frz2",
+        "removed_by": "world-6nla",
+        "owner": "world-6nla",
         "values": (15311.8,),
         "moved_to": ("exoplasim/scripts/run_exoplasim.py",),
         "moved_to_note": "BO3 is now derived by "
@@ -395,8 +395,8 @@ REMOVED_CONFIG_KEYS = {
             "had moved."),
     },
     "model.ozone_spread_m": {
-        "removed_by": "world-frz2",
-        "owner": "world-frz2",
+        "removed_by": "world-6nla",
+        "owner": "world-6nla",
         "values": (3828.0,),
         "moved_to": ("exoplasim/scripts/run_exoplasim.py",),
         "moved_to_note": "CO3 is now derived by "

@@ -110,22 +110,20 @@ on the `NEQSIG = 4` grid every run is on. Run on Earth's `gascon` and `ga` with
 `tgr` 288, `ALR` 0.0065 and `dtrop` 12000 it returns **248.45 K**, which
 identifies where the inherited 250.0 comes from and is what makes the rule the
 right one rather than a plausible one. Run on this atmosphere's `gascon` 287.017
-and `ga` 12.81 with the cold-start profile `world-wmw` declares -- 289.03 K,
-8.489 K/km, 9220 m -- it returns **249.35 K**.
+and `ga` 12.81 with the cold-start profile `config/planet.yaml` declares it
+returns a value about seven kelvin lower, which is roughly what this world's
+converged surface temperature sits below Earth's: `t0` is a column-mean
+temperature and the vertical mass distribution is fixed by the sigma set, so the
+column moves with its own endpoints.
 
-The two agree to 0.65 K, 0.26 per cent, so the sink moves by 0.002 W/m2 on a
-sink of 0.79. The agreement is not a coincidence and it is worth stating why:
-the vertical mass distribution is fixed by the sigma set, this world's surface
-temperature is within a kelvin of Earth's, and its tropopause temperature is
-within a kelvin of Earth's because the lapse rate and the tropopause height were
-scaled by the same atmosphere's constants. `t0` is a column-mean temperature,
-and this column has Earth's endpoints on Earth's mass distribution.
-
-What changes is not the number but its standing: `t0` is declared at 249.4 in
-`config/planet.yaml` with the rule above, so it moves when the profile does.
-Re-derive it from the baseline climatology's own mass-weighted mean once the
-canonical climatology lineage exists; the cold-start profile is the best
-estimate available before there is one.
+What changed is the standing rather than the size of the number. `t0` is
+declared in `config/planet.yaml` with the rule above, and
+`lib/lapse.py:semi_implicit_reference_temperature_k` reproduces `plasim.f90`'s
+`setzt` line for line so `scripts/check_consistency.py` can run the rule rather
+than describe it: the declaration now moves when the cold-start profile does,
+and refuses when it has not. Re-derive it from the baseline climatology's own
+mass-weighted mean once the canonical climatology lineage exists; the cold-start
+profile is the best estimate available before there is one.
 
 ## 4. The transform-equivalence gate certifies a filter the model stopped using
 

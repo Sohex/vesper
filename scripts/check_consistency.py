@@ -1570,7 +1570,7 @@ def check_water_path_currency(rep: "Report", config: dict) -> None:
     and their report cannot be regenerated while `baseline_climatology` is null,
     so moving this one alone would leave the three quoted at two different
     paths. What settles it is a baseline climatology on the configured build,
-    at which point all three move together. world-frz3.
+    at which point all three move together. world-wtt3.
     """
     label = "the shortwave water path against the best available climatology"
     try:
@@ -1606,7 +1606,7 @@ def check_water_path_currency(rep: "Report", config: dict) -> None:
                 f"on a baseline that no longer exists; it is not moved alone "
                 f"because h2o_sw_weight and co2_sw_weight are quoted at the "
                 f"same path and cannot be regenerated without a baseline. "
-                f"world-frz3")
+                f"world-wtt3")
     except Exception as exc:                       # noqa: BLE001 - reported
         rep.add(WARN, label, f"not checked: {exc}")
 
