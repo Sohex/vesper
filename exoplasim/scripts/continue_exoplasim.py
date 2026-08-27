@@ -147,6 +147,16 @@ def year_diagnostics(path: Path) -> dict:
 # the guard checks both halves of that declaration before it excuses anything.
 # world-51wj.
 INERT_CONFIG_KEYS = {
+    # PROSE CARRIED INSIDE THE YAML. A resume reads nothing out of a `note`;
+    # `run_stellar_cycle.py` takes only `period_earth_years` and
+    # `amplitude_flux_peak_to_peak` out of `stellar_cycle.components`. Both keys
+    # were already traced and declared inert for the BIOSPHERE consumer, whose
+    # entry says this check "used to fail on" a comment edit -- and the lesson
+    # was applied to one consumer only, so editing the same two notes blocked a
+    # resume today. `inert` is per consumer by design, so the repair is to trace
+    # them here too rather than to share a list.
+    "stellar_cycle.components.medium.note",
+    "stellar_cycle.components.long.note",
     "star.spectral_type",     # a label; the model gets effective_temperature_k
                               # and the spectrum file, not this. THE ENTRY IS
                               # CORRECT ABOUT THE KEY AND WRONG ABOUT THE
