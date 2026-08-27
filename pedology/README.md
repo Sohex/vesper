@@ -234,6 +234,25 @@ LPJ-GUESS takes the states and the shares through its driver file. Neither
 derives a retention curve of its own any more: `soilinput.cpp`'s Cosby
 inversion and `vesperinput.cpp`'s regolith rescaling are gone.
 
+**The saturation mapping's endpoints are WRITTEN by this script and not typed
+into the contract.** They are the medians of two distributions the contract
+emits per cell, so they move with every soil rebuild, and a hand-typed copy of a
+moving median goes on describing the previous build's soil while the check that
+recomputes it is the only thing that knows. Run
+
+```
+python pedology/scripts/land_column_properties.py --update-declaration
+```
+
+after a soil rebuild: it re-derives the four numbers into
+`config/land_column_properties.yaml` and lists every other place the pair is
+restated, marking each as agreeing, stale or unset. A stale one is refused by
+its own enforcer -- `run_exoplasim.py` at import for `landmod.f90`'s compiled
+`landmod_nl` defaults, `scripts/check_consistency.py` for `config/planet.yaml`
+-- and updating `landmod.f90` means a binary rebuild under rule 4. Unset is a
+legitimate state and one copy of the number instead of two: `run_exoplasim.py`
+writes the key at the compiled default, which is itself held to this contract.
+
 The report still computes what each of those produced, because the cost of a
 removal is only legible against the number it removed. It reports pedology's
 own endmember `awc` and the shipped Cosby derivation on the same cells and in
