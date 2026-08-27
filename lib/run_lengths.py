@@ -99,7 +99,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 # `exoplasim/scripts/assess_convergence.py` sizes its default window on the TOP
 # of this bracket and states no number of its own, so this is the one statement
 # of the memory time in the tree.
-TAU_MEMORY_ORBITS_BRACKET = (1.89, 2.45)
+TAU_MEMORY_ORBITS_BRACKET = (1.89, 3.21)
 
 # WHERE THE BOUND WAS ANCHORED, so that "the bound still holds" can be told from
 # "the bound was never re-examined". Those two look identical in a declared
@@ -130,10 +130,10 @@ TAU_MEMORY_ORBITS_BRACKET = (1.89, 2.45)
 # on a drifting series is supposed to look like, and the check reports the
 # headroom rather than treating it either as agreement or as a defect.
 MEMORY_BRACKET_ANCHOR = {
-    "run": "run_76e441e0a761",
-    "artifact": "exoplasim/analysis/convergence/run_76e441e0a761_convergence.json",
+    "run": "run_8ff97d5e189a",
+    "artifact": "exoplasim/analysis/convergence/run_8ff97d5e189a_convergence.json",
     "node": ("resolving_power", "temperature_residual_tau_orbits"),
-    "observation": 2.442874832379452,
+    "observation": 3.2013904538922717,
     "why_below": "the anchor is the CARVED build's bootstrap, forty clean "
                  "orbits at one I/O regime, and it reads AT the top of this "
                  "bracket rather than below it. The top moved 2.22 to 2.45 to "

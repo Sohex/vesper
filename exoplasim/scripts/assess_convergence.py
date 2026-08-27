@@ -380,10 +380,10 @@ CONVERGENCE_BOUND_ANCHOR = {
     # Moved off `run_432e5e46adef` when `source_build` moved: that run is on a
     # superseded terrain, and an anchor whose artifact describes another world
     # cannot say whether a bound still holds on this one.
-    "run": "run_76e441e0a761",
+    "run": "run_8ff97d5e189a",
     "artifact": "exoplasim/analysis/convergence/"
-                "run_76e441e0a761_convergence.json",
-    "orbit_scatter_k": 0.10168570009767304,
+                "run_8ff97d5e189a_convergence.json",
+    "orbit_scatter_k": 0.08580507897713036,
 }
 CONVERGENCE_REPORTS = "exoplasim/analysis/convergence"
 

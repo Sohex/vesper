@@ -162,3 +162,40 @@ rule the same move would have taken the span from 44 to 49 at every rung.
 Both anchors moved with `source_build`: they were on `run_432e5e46adef`, whose
 terrain no longer exists, and an anchor whose artifact describes another world
 cannot say whether a bound still holds on this one.
+
+## What forty orbits bought on the carved baseline
+
+The carved build's baseline failed its offset criterion at 44 clean orbits and
+passed at 84. The four numbers that moved say what was happening, and it was
+not what the first read suggested:
+
+| | 44 clean orbits | 84 clean orbits |
+| --- | --- | --- |
+| remaining offset, K | 0.1509 | 0.0725 |
+| temperature slope, K/orbit | +0.0035 | -0.0025 |
+| asymptote half-width, K | 0.3038 | 0.0491 |
+| settled-window scatter, K | 0.12835 | 0.08581 |
+| relaxation, fitted | 40.3 orbits | not identifiable |
+
+**The relaxation was the approach itself.** At 44 orbits the fit returned 40.3
+across the I/O join and 29.2 within the clean block, with a half-width of
+1.92 K on the asymptote -- an asymptote not determined at all. At 84 the
+exponential is no longer identifiable, which is what a settled run looks like:
+there is no approach left to fit. The long relaxation was the run still
+arriving, not a property of the carved world.
+
+**And the scatter FELL, which refutes the reading it was about to license.**
+0.128 to 0.086. The first figure was a residual trend inside the window rather
+than variability, so the carved world is not noisier than the base -- it was
+still moving. The scatter bound was very nearly raised to cover it, on a run
+whose own verdict said it was unfinished; what stopped that is
+`report_is_settled_production`'s third condition, added the same hour for
+exactly this case.
+
+**The memory time does move, and this one counts.** 3.2014 orbits on a
+converged run at a supported estimate, so the bracket's top goes 2.45 to 3.21
+and both anchors move to this report. Under the retired rule that would have
+taken the production span from 49 orbits to 64 at every rung; it now moves the
+a-priori default window from 42 to 46 and nothing else, because the span is
+priced from each run's own criteria.
+
