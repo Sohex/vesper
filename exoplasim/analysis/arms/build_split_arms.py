@@ -14,9 +14,11 @@ control on the same restart, and that splits the drift into the part config
 carries and the part the source carries. It is as far as the split can go without
 a control binary, which was not preserved.
 
-These two edit the `surface` block rather than `model`, which is why they are
-here and not in `build_arm_config.py`: that one exists for A3 arms, where both
-sides differ by a namelist key and nothing else.
+These two are NOT A3 arms, which is why they are here and not in
+`build_arm_config.py`: an A3 arm differs from its control by a namelist key and
+nothing else, and one of these removes a whole config block so that the arm
+carries no `surface.cryosphere` at all. `build_arm_config.py --set` reaches keys
+outside `model` and is what an A3 arm on a `surface` key uses.
 """
 import pathlib
 import re
