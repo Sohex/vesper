@@ -131,6 +131,54 @@ worst annual residual 4.93e-16 relative, and the set closes to 2.2e-15 against
 76,502 km3/yr passing through it. `surface_water.py` writes that block into
 `surface_water_report.json` and refuses the result if it misses.
 
+## A third defect the gap between the two solves exposed
+
+With the integrator fixed, the annual equilibrium solve returned 42,984,393 km2
+of lake and the periodic cycle mean returned 31,392,752 km2, a 27% gap between
+two answers about the same basins. Separating it:
+
+| | lake area |
+| --- | --- |
+| equilibrium on the forcing the annual solve was reading | 42,984,393 km2 |
+| equilibrium on the bin mean of the per-bin forcing | 31,300,753 km2 |
+| the periodic cycle mean | 31,392,752 km2 |
+
+So 11,683,640 km2 of it was the FORCING and 92,000 km2 was the storage response
+to a forcing that varies. The two solves were being run on two different
+forcings.
+
+**The annual solve was evaluating Penman once on annual-mean air.** Penman is
+nonlinear in the air it reads, so one evaluation on a mean over a cycle it
+varies within is not the mean of the evaluations. That is exactly why
+`penman_open_water` already integrates the DIURNAL cycle rather than reading a
+daily mean, and the seasonal cycle is the same argument at a longer period.
+`config/land_water_ledger.yaml` holds `open_water_evaporation` at
+`interval_floor: climatology_bin` for it, and the annual read was against that
+standing decision rather than a simplification anyone had chosen. Over the basin
+sinks the bin mean of the per-bin evaluation is 1.170x the single annual
+evaluation.
+
+`surface_water.py` now forces both solves with the bin-weighted mean of the
+per-bin evaporation, so they are two questions about one forcing, and writes the
+ratio into `surface_water_report.json` as
+`open_water_evaporation.bin_mean_over_annual_evaluation`. Lake extent on
+`canonical-10m-base` under the bootstrap climatology moves from 5.84% of the
+planet to 4.25%.
+
+**`carve_verdict.py` still has it, and it is not this file's to fix.** Its
+`main()` reads every field through `annual_mean` and calls
+`reference_level_air(args.climatology)` with no bin index, so the aridity index
+the carve verdict is decided on carries the same understated open-water
+evaporation. The direction matters: a basin is carved when
+`(E - P) / runoff <= catchment / area_at_spill - 1`, so understating `E`
+understates the left-hand side and carves MORE basins than the forcing supports.
+The machinery to fix it is already in that file -- `reference_level_air` and
+`climate_fields` both take a bin index, and `bin_weights` is already imported --
+so the decision procedure is: evaluate Penman per bin, take the bin-weighted
+mean, and re-run the verdict; what settles whether it changes the carve list is
+comparing the two verdicts basin by basin, which is a run of that script and not
+a judgement.
+
 ## What this does not settle
 
 The cascade's timing inside a bin. An upstream basin's overflow is delivered to

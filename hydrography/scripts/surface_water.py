@@ -563,27 +563,25 @@ def main():
     per_year = year_days * SECONDS_PER_DAY
     to_km_per_year = per_year / 1000.0
 
-    print(f"solving lake levels ({year_days:.1f}-day year)")
-    solution = lb.solve(
-        basins,
-        catchment_runoff * to_km_per_year,
-        lake_evap * to_km_per_year,
-        lake_precip * to_km_per_year,
-    )
-    if not solution["converged"]:
-        raise SystemExit("the overflow cascade did not converge; do not use this")
-
-    level = solution["level_km"]
     area = export.cell_area.astype(np.float64)
 
-    # --- the seasonal cycle, as a periodic steady state -------------------
-    # WORLD-15I0. The annual solve above answers where a basin settles if the
-    # forcing never changes; this integrates the same balance through the
-    # climatology's own bins and asks for the YEAR to close on itself. The lake
-    # terms are re-evaluated per bin because a surface flux has no storage
-    # between bins; the catchment term is the annual one in every bin, for the
-    # reason `climate_fields` gives where it computes it.
-    print("solving the periodic steady state")
+    # --- the lake forcing, per climatology bin ----------------------------
+    # THE LAKE TERMS ARE READ PER BIN AND THE ANNUAL SOLVE READS THEIR MEAN, so
+    # the two solves below answer two questions about ONE forcing rather than
+    # answering them on two. `land_water_ledger.yaml` puts
+    # `open_water_evaporation` at `interval_floor: climatology_bin` and the
+    # reason it gives is Jensen: Penman is nonlinear in the air it reads, which
+    # is why it already integrates the DIURNAL cycle instead of reading a daily
+    # mean, and the seasonal cycle is the same argument at a longer period.
+    # Reading the annual mean of the air and evaluating Penman once on it
+    # understates open-water evaporation over this catalogue by 17%, and lake
+    # extent is what that lands on. The bin-weighted mean of the per-bin
+    # evaporation is reported beside the single annual evaluation so the size of
+    # that is on the artifact rather than only in a note.
+    #
+    # The CATCHMENT term stays annual and is not averaged from bins, for the
+    # separate reason `climate_fields` gives where it computes it.
+    print("reading the lake terms per climatology bin")
     with Dataset(_CLIM_FILE) as _ds:
         bin_weights = climatology.bin_weights(np.asarray(_ds["time"][:]))
     nbin = bin_weights.size
@@ -600,8 +598,33 @@ def main():
                                         sinks, export, f_lsm, config)
         season_precip[k] = p_k * to_km_per_year
         season_evap[k] = e_k * to_km_per_year
+    bin_share = bin_weights / bin_weights.sum()
+    mean_evap = (bin_share[:, None] * season_evap).sum(0)
+    mean_precip = (bin_share[:, None] * season_precip).sum(0)
+    jensen = float(mean_evap.sum() / max((lake_evap * to_km_per_year).sum(), 1e-30))
+    print(f"  open-water evaporation over the basin sinks is {jensen:.3f}x what "
+          "one evaluation on the annual-mean air gives")
+
+    print(f"solving lake levels ({year_days:.1f}-day year)")
+    solution = lb.solve(
+        basins,
+        catchment_runoff * to_km_per_year,
+        mean_evap,
+        mean_precip,
+    )
+    if not solution["converged"]:
+        raise SystemExit("the overflow cascade did not converge; do not use this")
+
+    level = solution["level_km"]
+
+    # --- the seasonal cycle, as a periodic steady state -------------------
+    # WORLD-15I0. The annual solve above answers where a basin settles if the
+    # forcing never changes; this integrates the same balance through the
+    # climatology's own bins and asks for the YEAR to close on itself.
+    #
     # Bin lengths in the SAME year the fluxes are per, which here is Vesper's,
     # so the normalised weights are already that. See solve_periodic.
+    print("solving the periodic steady state")
     periodic = lb.solve_periodic(
         basins,
         np.tile(catchment_runoff * to_km_per_year, (nbin, 1)),
@@ -856,6 +879,18 @@ def main():
                 np.average(model_evap, weights=area_weight_sea) * SECONDS_PER_DAY * 1000),
             "validation": ("ratio over ocean cells, which already are open water; "
                            "the only place the estimate can be checked"),
+            # THE SEASONAL JENSEN TERM, and it is the reason the solves below
+            # are forced with the bin mean rather than with one evaluation on
+            # annual-mean air. Penman is nonlinear in the air it reads, so a
+            # single evaluation on a mean over a cycle it varies within is not
+            # the mean of the evaluations; that is why it already integrates the
+            # diurnal cycle, and the seasonal cycle is the same argument at a
+            # longer period. land_water_ledger.yaml holds open_water_evaporation
+            # at interval_floor: climatology_bin for it.
+            "bin_mean_over_annual_evaluation": jensen,
+            "what_the_lake_solves_are_forced_with": (
+                "the bin-weighted mean of the per-bin evaluation, over the "
+                "basin sinks; the annual-mean evaluation is not used"),
         },
         "lakes": {
             "basins_holding_water": int(basins.n - solution["dry"].sum()),
