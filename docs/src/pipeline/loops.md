@@ -246,13 +246,23 @@ artifact.
 derived value somebody wrote down, and every quantity that stayed right was one
 inside a loop:
 
-| quantity | what it was derived from | what re-ran when that moved |
-| --- | --- | --- |
-| `sr_at_wilting_point`, `sr_at_field_capacity` | a median of a distribution the land column contract emits | nothing. The soil was rebuilt on re-sourced pedogenesis and the declaration sat still |
-| `eddy_wind_m_s` | one run's eddy statistics | nothing. It sets hyperdiffusion at every rung, and the model has since taken new cloud optics, a derived roughness and a 1.699x shorter damping |
-| `NOMINAL_TAU_ORBITS`, `NOMINAL_ORBIT_SCATTER_K` | a measured memory time and scatter | nothing. Both were wrong by about a factor of two, and they size every commissioning run |
-| the roughness span in `fluxmod.f90` | the staged roughness field | nothing. A magnitude argument computed from a field it no longer described |
-| `baseline_flux_earth` | the comfort scoring over two runs | the flux is re-derived on every new terrain, and it is the one on this list that behaved |
+| quantity | what it was derived from | what re-ran when that moved | what does now |
+| --- | --- | --- | --- |
+| `sr_at_wilting_point`, `sr_at_field_capacity` | a median of a distribution the land column contract emits | nothing. The soil was rebuilt on re-sourced pedogenesis and the declaration sat still | the contract re-derives it and refuses at its own declared tolerance. This is the check that CAUGHT the class |
+| `eddy_wind_m_s` | one run's eddy statistics | nothing. It sets hyperdiffusion at every rung, and the model has since taken new cloud optics, a derived roughness and a 1.699x shorter damping | the config's own bracket must cover the spread of every measurement under `exoplasim/analysis/eddy-wind/`, and an empty set refuses |
+| `NOMINAL_TAU_ORBITS`, `NOMINAL_ORBIT_SCATTER_K` | a measured memory time and scatter | nothing. Both were wrong by about a factor of two, and they size every commissioning run | both are bound-tested against every convergence report and ANCHOR-tested against the report each was taken beside, so a reading that moves refuses even when the bound still holds |
+| the roughness span in `fluxmod.f90` | the staged roughness field | nothing. A magnitude argument computed from a field it no longer described | the argument states no span; it is read from the staged field |
+| `baseline_flux_earth` | the comfort scoring over two runs | the flux is re-derived on every new terrain, and it is the one on this list that behaved | unchanged, and it is the shape the others were brought to |
+
+**A producer named without its arguments is the same defect.** The
+flux-to-kelvin bracket in `lib/sensitivity.py` named the run and the convergence
+report for each of its two arms, which looks like disposition two and is not:
+the asymptote is a property of the WINDOW as much as of the run, and the window
+was nowhere in the declaration. When a rule change moved one arm's default
+assessment onto a different block of orbits, the file under that name became a
+reading of something else and the slope silently moved 1.7 per cent. Ask of a
+re-derivation not only which producer runs but which arguments it runs with, and
+declare those too.
 
 **The two dispositions, and a declared constant with neither is a drift with a
 timer on it.** Either the consumer READS THE EMITTED VALUE, so there is nothing

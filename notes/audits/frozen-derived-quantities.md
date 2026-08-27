@@ -115,7 +115,7 @@ This is the cheapest disposition available and it is the one to reach for first.
 | the declaration | what re-derives it | where the check fires |
 | --- | --- | --- |
 | `pedology/config/land_column_properties.yaml` `thermal.saturation_mapping` and `thermal.endpoints` | `pedology/scripts/land_column_properties.py`, from the states the contract itself emits | the same script, at the declared `tolerance` |
-| `lib/sensitivity.py` `SLOPE_K_PER_FLUX_RATIO` and `SLOPE_BRACKET_RUNS` | `sensitivity.verify()`, reading the named runs' asymptotes out of their convergence reports AND requiring those runs to be in the live index and on config's `source_build` | `check_consistency.py`, twice: once on the declaration and once on the currency check's own ability to fail |
+| `lib/sensitivity.py` `SLOPE_K_PER_FLUX_RATIO` and `SLOPE_BRACKET_RUNS` | `sensitivity.verify()`, reading the named runs' asymptotes out of their convergence reports AND requiring those runs to be in the live index, on config's `source_build`, and read over the window and I/O regime each arm declares | `check_consistency.py`, three times: on the declaration, on the currency check's own ability to fail, and on the arms being one window and one instrument |
 | `config/planet.yaml` `h2o_sw_weight`, `co2_sw_weight`, `h2o_sw_level`, `cloud_absorption_scale` | `exoplasim/scripts/shortwave_band_weights.py` and `cloud_band_weight.py`, into named JSON | `check_consistency.py`, at the tolerance the config's own written precision implies |
 | `config/planet.yaml` `model.hyperdiffusion.timescales_days` | the rule `pi*a/(NTRU*eddy_wind)` | `check_consistency.py` |
 | `lib/rungs.py` `STABILITY_CEILING_MINUTES` | `check_stability_ceilings()`, from `exoplasim/analysis/stability_probe.json` | `check_consistency.py` and `smoke_test.py` |
@@ -177,37 +177,60 @@ to a baseline run; tiers 4 and 5 are not.
 ### Tier 1: it sizes every run on the ladder
 
 These decide how many orbits get bought and when a run is declared finished. An
-error is multiplied by every rung of the resolution ladder.
+error is multiplied by every rung of the resolution ladder. **Every row here has
+been dispositioned**; the table records which disposition each took and what
+moved.
 
-| quantity | where | what computes it | check |
+| quantity | where | disposition | what moved |
 | --- | --- | --- | --- |
-| `NOMINAL_TAU_ORBITS`, `NOMINAL_ORBIT_SCATTER_K` | `exoplasim/scripts/assess_convergence.py` | `lib/autocorrelation.py` over a run's per-orbit mean surface temperature; each run's convergence artifact carries the result | none |
-| `NOMINAL_RELAXATION_ORBITS` | `exoplasim/scripts/assess_convergence.py` | `relaxation_orbits()` in the same file, from the run's slab capacity and `lib/sensitivity.py`'s feedback | none |
-| `TAU_MEMORY_ORBITS_BRACKET` | `lib/run_lengths.py` | the same autocorrelation reading; a second statement of `NOMINAL_TAU_ORBITS` at a different precision | `smoke_test.py` checks only that it is an ordered pair of positive times |
-| `TAU_RELAXATION_ORBITS_BRACKET` | `lib/run_lengths.py` | `exoplasim/scripts/check_relaxation_ceiling.py`, which writes `relaxation_ceiling.json` beside the convergence reports | none |
-| `COMMISSIONING_EVIDENCE` orbit counts and verdicts | `lib/rungs.py` | the runs themselves, through `exoplasim/runs/INDEX.json` and `archive/runs/*/INDEX_ENTRY.json` | `_check_ceilings()` and `_check_route()` validate the rungs and the ordering; nothing re-reads an orbit count or a verdict |
-| `FIT_TAIL_FRACTION` | `exoplasim/scripts/check_relaxation_ceiling.py`, restated twice more in `assess_convergence.py` | one algorithm parameter, stated three times, the restatement declaring itself as one | none |
+| `NOMINAL_TAU_ORBITS`, `NOMINAL_ORBIT_SCATTER_K` | `exoplasim/scripts/assess_convergence.py` | two. `check_convergence_bounds` bound-tests both against every convergence report on disk, and ANCHOR-tests them against the report each was taken beside, so "the bound still holds" can be told from "nobody has looked since the series moved" | the tau nominal states no number of its own any more and reads the top of `lib/run_lengths.py`'s bracket; the scatter went 0.091 to 0.092. See the I/O-regime note below for why the scatter moved at all |
+| `NOMINAL_RELAXATION_ORBITS` | `exoplasim/scripts/assess_convergence.py` | two, in the same check. Every report derives its own relaxation time and the nominal has to bound them | nothing. It was already restored to 11.8, the top of what the reports derive; it had stood at 10.0 while reports read up to 11.75 |
+| `TAU_MEMORY_ORBITS_BRACKET` | `lib/run_lengths.py` | two, and it is now the ONE statement of the memory time in the tree. `check_memory_bracket` refuses on three separate conditions: the anchor artifact gone, the anchor moved, or any report reading above the top | 4.2-10.43 to 1.89-2.22, measured rather than assumed, which took the production span from 84-209 orbits to 44 |
+| `TAU_RELAXATION_ORBITS_BRACKET` | `lib/run_lengths.py` | two. Read from `check_relaxation_ceiling.py`'s artifact, which was the cleanest instance in the audit: producer, consumer and comment all present, and the artifact simply not on disk | the wire between them is no longer a human |
+| `COMMISSIONING_EVIDENCE` orbit counts and verdicts | `lib/rungs.py` | two. `check_commissioning_evidence` re-reads every row from its run record | one row was found to rest on a run that is gone with its provenance and its reproducer, and now carries `binds: False`: the blow-up it records is REPORTED as a caveat rather than refusing a configuration on evidence nothing can reproduce |
+| `FIT_TAIL_FRACTION` | `exoplasim/scripts/assess_convergence.py` | one. Stated once; `check_relaxation_ceiling.py` calls `fit_span_orbits` rather than reconstructing the mask | nothing. Three statements of one algorithm parameter became one |
 
-**The convergence constants and the window they size are circular.** The declared
-scatter and memory time produce `DEFAULT_WINDOW_ORBITS`; a run is assessed over
-that window; the assessment reports the scatter and memory time IT measured; and
-nothing carries that back. The artifact makes the loop visible:
+**The circularity is broken, and what the artifact reports has moved a long
+way.** The declared scatter and memory time produce `DEFAULT_WINDOW_ORBITS`; a
+run is assessed over that window; the assessment reports the scatter and memory
+time IT measured. Nothing carried that back, so the loop could not close. It
+closes now through the anchors, and the readings the anchors hold are these:
 
 | quantity | declared in `assess_convergence.py` | `run_432e5e46adef_convergence.json` reports |
 | --- | --- | --- |
-| orbit scatter, K | 0.091 | 0.08333 |
-| memory time, orbits | 2.2 | 1.7146 |
-| window, orbits | 35, derived from the two above | 35, inherited from that same derivation |
+| orbit scatter, K | 0.092 | 0.09103 |
+| memory time, orbits | 2.22, read from `lib/run_lengths.py` | 1.0 |
+| window, orbits | 37, derived from the two above | 12, which is every clean-I/O orbit the run has |
 
-Both differences run in the direction the constants' own comment predicts, since
-both were taken as upper bounds on a series that still drifts. That is the point:
-a number can be right, be labelled a bound, and still have no way to learn it
-moved.
+**The window and the scatter both moved for a reason the audit did not
+anticipate, and it is worth stating here because it changes what a bound MEANS.**
+A verdict window may no longer span the change of I/O regime at orbit 70:
+PlaSim's low-I/O accumulation and the clean stream are two instruments, and a
+memory time fitted across the join between them came back at 9.08 orbits against
+2.00 and 1.00 fitted on each side, entirely on a +0.168 K step.
+`docs/src/practice/failure-modes.md` class 36 has the argument. Two consequences
+land in this tier:
 
-**`TAU_RELAXATION_ORBITS_BRACKET` is the cleanest instance in the audit.** The
-producer exists, the consumer exists, the comment names the producer, and
-`exoplasim/analysis/convergence/relaxation_ceiling.json` is not on disk. The wire
-between them is a human.
+- The accumulating regime averages over the output interval and so SUPPRESSES
+  per-orbit variance. The clean stream is therefore the noisier instrument, and
+  a scatter bound taken across the join is not conservative for the clean block.
+  That is the opposite of what a longer window suggests.
+- The reported memory time of 1.0 does NOT collapse the bracket. At twelve
+  samples the standard error on a lag-1 is about 0.29, so the clean block's
+  0.076 sits inside one and a half of the 0.43 the mixed window read. Twelve
+  orbits cannot tell a memory of 1 from one of 2.2. About thirty clean orbits
+  would resolve it on one instrument; `world-k8vv` is that measurement.
+
+**The window is part of a measurement, and leaving it out cost this tier's
+neighbour.** `lib/sensitivity.py`'s flux-to-kelvin bracket named the run and the
+report file for each arm and not the window. When the I/O-regime refusal moved
+the cold arm's default assessment onto the clean block, the file under that name
+became a reading of different orbits, and `verify()` recomputed the slope from an
+unmatched pair -- a clean-instrument asymptote differenced against a low-I/O one,
+since the warm arm has no clean orbits at all. It went 159.7 to 157.0 and nothing
+objected. Both arms now declare their window and their regime and the check
+refuses either mismatch. A producer named without its arguments is the same
+defect as a number with no producer.
 
 **This tier is why the class is worth a name.** The predecessors of the
 convergence constants were wrong by about a factor of two, and by a factor of
