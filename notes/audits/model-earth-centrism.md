@@ -577,10 +577,12 @@ ultraviolet optical depth and three-body recombination density -- not by
 geometric altitude, so holding the height fixed is the wrong invariant. Holding
 pressure fixed means `bo3` about 15300 and `co3` about 3830.
 
-**Closed by world-ayx, at the pressure-equivalent values.**
-`config/planet.yaml` declares `ozone_height_m: 15311.8` and
-`ozone_spread_m: 3828.0`, and `run_exoplasim.py` writes them as `BO3` and `CO3`
-into `radmod_namelist` directly, with `expected_namelist_keys` covering both.
+**Closed by world-ayx, at the pressure-equivalent values.** No configuration
+file states either length: `run_exoplasim.py:ozone_profile_lengths_m` reads
+upstream's own `bo3` and `co3` out of `radmod.f90`, scales both by
+`lib/lapse.py:pressure_length_ratio_to_earth`, and writes them as `BO3` and
+`CO3` into `radmod_namelist` directly, with `expected_namelist_keys` covering
+both.
 That route was chosen over `configure(ozone=dict)` deliberately: the library
 path at `__init__.py:2416-2419` writes `BO3`/`CO3` only when `ozone` is a dict,
 and `run_exoplasim.py` passes `ozone=bool(atmosphere["ozone"])`, so the boolean

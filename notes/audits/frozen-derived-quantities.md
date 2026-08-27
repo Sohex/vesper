@@ -216,32 +216,44 @@ tree objected.
 
 ### Tier 2: it reaches the model's namelist or a staged surface field
 
-Each is written into a run's namelist or into a `.sra` the model integrates. An
-error is in the physics from the first timestep.
+Each is written into a run's namelist or into a `.sra` the model integrates, so
+an error is in the physics from the first timestep. **Every row here has been
+dispositioned**; the table records which disposition each took and what moved.
 
-| quantity | where | what computes it | check | stale |
-| --- | --- | --- | --- | --- |
-| `eddy_wind_m_s` | `config/planet.yaml` | `exoplasim/scripts/measure_eddy_wind.py`, into `exoplasim/analysis/eddy-wind/*.json` | the `timescales_days` table derived FROM it is held to the rule; the wind itself is compared with nothing | no |
-| `cold_start_profile.surface_temperature_k` | `config/planet.yaml` | the fitted asymptote of `run_524fbed77a9a`, through `exoplasim/runs/INDEX.json` | none on this copy | no |
-| `cold_start_profile.lapse_rate_k_per_m` | `config/planet.yaml` | `lib/lapse.py:dry_adiabat_k_per_km` from the declared composition and gravity, times the declared fraction of neutrality | none | no |
-| `cold_start_profile.tropopause_height_m` | `config/planet.yaml` | the same gas properties, and the surface temperature two lines above it | none | no |
-| `semi_implicit_reference_temperature_k` | `config/planet.yaml` | its own comment states the rule: the `dsigma`-weighted mean of the `setzt` profile over the model's ten sigma levels | none, and no artifact emits it | no |
-| `land_longwave_emissivity` | `config/planet.yaml` | `analysis/rock_emissivity.py` per class, area-weighted over the build's land by `analysis/emissivity_contrast.py` | none | YES |
-| `vegetation_albedo`, its bracket and bands, `tree_albedo`, `grass_albedo`, their brackets | `config/planet.yaml` | `analysis/vegetation_albedo.py`, into `analysis/vegetation_albedo.json`, under the same key names | none | no |
-| `lithology_albedo_overrides.playa_clastic.albedo` | `config/planet.yaml` | `analysis/playa_albedo.py` | the sibling `replaces` key guards the INPUT; nothing guards the output | no |
-| `ozone_height_m`, `ozone_spread_m` | `config/planet.yaml` | upstream's two lengths times `gascon/ga` over Earth's, from `lib/lapse.py:gas_properties` and the declared gravity | none | no |
-| `ozone_visible_weight` | `config/planet.yaml` | unresolved; see the ambiguities | none | unknown |
-| `snow_fusion_j_kg` | `config/planet.yaml` | `analysis/ice_properties.py` from IAPWS-06, into `analysis/ice_properties.json` | none on the config copy; the script does hold the COMPILED Fortran literals to what it computes | no |
-| `surface.land_water_column.layer_capacity_fraction` | `config/planet.yaml` | `layer_thickness_m` on the line below it, over the column base | `run_exoplasim.py` checks length and positivity only | no |
-| `CORRK_PATH_CM`, `CORRK_RATIO_TO_EQ21` | `exoplasim/scripts/shortwave_band_weights.py` | the baseline climatology's water path, and `corrk_cross_check.py`'s absorptance at it | none, and the gate above them is circular | no |
-| `DEFAULT_CO2_PLANET`, `DEFAULT_CO2_EARTH`, `DEFAULT_WATER_CM` | `exoplasim/scripts/corrk_cross_check.py` | the paths `shortwave_band_weights.py` evaluates at; the comment says to recompute them there rather than trust these | none | no |
-| `SIGMA_LOWEST` | `lib/lapse.py`, restated in `hydrography/scripts/carve_verdict.py` | the model's level construction at ten layers; a climatology's `lev` axis carries it | none | no |
-| `thermal.saturation_mapping.sr_at_wilting_point`, `sr_at_field_capacity` | `pedology/config/land_column_properties.yaml`, restated in `config/planet.yaml` and in `landmod.f90` | `pedology/scripts/land_column_properties.py` | THE CHECK EXISTS, and is what caught this one | no, and the drift it caught is what this class is named after |
-| `thermal.constants`: the two glacier-ice and two snow thermal values | `pedology/config/land_column_properties.yaml` | `analysis/ice_properties.py`, from `rhoglac` and `rhosnow` | the script holds the COMPILED Fortran literals and never opens this yaml, so this is a fourth restatement outside the loop | no |
+| quantity | where | disposition | what moved |
+| --- | --- | --- | --- |
+| `eddy_wind_m_s` | `config/planet.yaml` | two. The producer is a SET rather than an artifact -- one verdict per run under `exoplasim/analysis/eddy-wind/` -- so `check_consistency.py` requires the declaration's own +/-5 per cent bracket to cover the spread of every measurement on disk, and refuses an empty set | nothing. Five measurements span 10.05 to 10.18 m/s inside a declared 10.09. All five are on `precarve-craton-10m` and the check reports that rather than refusing it, because the configuration already states that the sweep which closes the bracket is the next run's own re-measurement |
+| `cold_start_profile.surface_temperature_k` | `config/planet.yaml` | two. `check_cold_start_currency` asks `sensitivity.verify`'s two questions: does the declaration match the run it is taken from, and is that run still live and on the configured build at the declared baseline flux | 289.03 to 279.68 K. The run it named, `run_524fbed77a9a`, is T42 on `precarve-craton` and survives only as archived identity; `run_432e5e46adef` is the configured build's own converged run at that flux |
+| `cold_start_profile.lapse_rate_k_per_m` | `config/planet.yaml` | one. `lib/lapse.py:cold_start_lapse_rate_k_per_m` measures the share of neutrality Earth's standard 6.5 K/km is of Earth's own dry adiabat and applies it to this planet's | 0.008489 to 0.0084911 K/m, which is the rounding the literal carried. The config states the surface temperature and nothing else |
+| `cold_start_profile.tropopause_height_m` | `config/planet.yaml` | one. `lib/lapse.py:cold_start_tropopause_height_m` scales upstream's own 12 km by this atmosphere's R T / g over Earth's, so it moves with the surface temperature | 9220 to 8920 m, almost all of it the surface temperature above |
+| `semi_implicit_reference_temperature_k` | `config/planet.yaml` | two. `lib/lapse.py:semi_implicit_reference_temperature_k` reproduces `plasim.f90:setzt` line for line and mass-weights it over a sigma grid built from `model.layers` and `model.model_top_hpa`, so the rule is RUN rather than described | 249.4 to 241.28 K, following the cold start. On Earth's constants and Earth's ISA profile the same rule returns 248.45, which is where upstream's inherited 250.0 comes from; this world is now 3.5 per cent under it, worth 0.03 W/m2 on a core sink of 0.79 |
+| `land_longwave_emissivity` | `config/planet.yaml` | two, and STAMPED. `analysis/emissivity_contrast.py --land-mean` writes `analysis/land_emissivity.json` with the terrain hash, and the check refuses an artifact whose terrain is not the configured build's rather than comparing numbers alone | 0.9357 to 0.9350. See below |
+| `vegetation_albedo`, its bracket and bands, `tree_albedo`, `grass_albedo`, their brackets | `config/planet.yaml` | two. Seven rows in the table, and the comparison grew an element-wise arm because four of them are brackets and a bracket's two ends go stale separately | nothing |
+| `lithology_albedo_overrides.playa_clastic.albedo` | `config/planet.yaml` | two, after building the producer: `analysis/playa_albedo.py` printed and wrote no artifact, so there was nothing to hold it against | nothing. The reconciliation gives 0.2303 against a declared 0.23 |
+| `ozone_height_m`, `ozone_spread_m` | `config/planet.yaml` | one. `run_exoplasim.py:ozone_profile_lengths_m` reads upstream's own `bo3` and `co3` out of `radmod.f90` and scales them by `lib/lapse.py:pressure_length_ratio_to_earth` | BO3 15311.8 to 15309.7, CO3 3828.0 to 3827.4. The literals carried an Earth gravity of 9.81 where the standard is 9.80665 |
+| `ozone_visible_weight` | `config/planet.yaml` | two, after resolving it. `lib/stellar.py:ozone_visible_weight` is the derivation: the Chappuis band's share of this star's flux over its share of a nominal solar Planck curve on the same grid | 0.914 to 0.908. See below |
+| `snow_fusion_j_kg` | `config/planet.yaml` | two, one row | nothing |
+| `surface.land_water_column.layer_capacity_fraction` | `config/planet.yaml` | one. `run_exoplasim.py` derives `DSOILWF` from `layer_thickness_m` on the line that used to sit below it | nothing. The shares round to the same six figures |
+| `CORRK_PATH_CM`, `CORRK_RATIO_TO_EQ21` | `exoplasim/scripts/shortwave_band_weights.py` | BLOCKED on the number, closed on the detection. `check_water_path_currency` measures the path from the best available climatology and reports the distance, which the circular gate could not | nothing yet. The declared 2.7891 cm against 2.0017 on the bootstrap. world-wtt3; see below |
+| `DEFAULT_CO2_PLANET`, `DEFAULT_CO2_EARTH`, `DEFAULT_WATER_CM` | `exoplasim/scripts/corrk_cross_check.py` | one. All three come from `shortwave_band_weights.py` now: the water path IS `CORRK_PATH_CM`, and the two CO2 amounts are its `co2_column_atmos_cm` times its `pressure_reduction` times its magnification | nothing measurable. The Earth amount goes 298.5466 to 298.5460 |
+| `SIGMA_LOWEST` | `lib/lapse.py`, restated in `hydrography/scripts/carve_verdict.py` | one. The copy is deleted; see below | nothing |
+| `thermal.saturation_mapping.sr_at_wilting_point`, `sr_at_field_capacity` | `pedology/config/land_column_properties.yaml`, restated in `config/planet.yaml` and in `landmod.f90` | none taken. THE CHECK ALREADY EXISTS and is what caught this class; it is in this table as the positive control | nothing |
+| `thermal.constants`: the two glacier-ice and two snow thermal values | `pedology/config/land_column_properties.yaml` | two. `analysis/ice_properties.py` now emits the snow heat capacity as well, and `check_land_column_thermal_constants` brings the contract's copy inside the loop the script already ran against the compiled Fortran literals | the glacier ice heat capacity, 1.719635e+6 to 1.719633e+6 |
+
+**The sweep's `stale` column understated this tier by three.** It marked one row
+YES and the rest no, and dispositioning them found two more that had already
+drifted and one that had not been recognised as derived at all:
+`cold_start_profile.surface_temperature_k` by 9.35 K, `ozone_visible_weight` by
+0.006, and the land column contract's glacier ice heat capacity in the last
+figure it writes. None of the three was detectable by reading the declaration.
+Two needed the producer to be re-run, and the third needed the question "what
+derives this" to be answered before the question "is it current" could be asked
+at all. That is the class working as advertised rather than a defect in the
+sweep: the test is about the PATH BACK, and a value with no path back cannot be
+told from a current one by looking at it.
 
 **`land_longwave_emissivity` was computed on a build the registry refuses.** The
-declared value reproduces the mesh land mean of `precarve-craton-10m` exactly.
-The active build gives a different one, and nothing said so:
+declared value reproduced the mesh land mean of `precarve-craton-10m` exactly:
 
 | build | terrain hash | mesh land-mean emissivity |
 | --- | --- | --- |
@@ -249,14 +261,32 @@ The active build gives a different one, and nothing said so:
 | `canonical-10m-base`, the configured build | `20046729` | 0.9350 |
 
 The drift is far inside what the surface energy balance can distinguish: the
-audit that sized this key measured the whole per-cell field as worth under half a
-watt against a criterion of 1.4. The physics has not moved. What has moved is a
-number declared to four decimals, by more than ten times what its own written
-precision allows. The blast radius is not this drift but the next one: the key is
-DEFINED as an area weighting over the build's land, so every terrain change moves
-it. `analysis/emissivity_contrast.json` also still records the declared scalar as
-the blackbody value this key replaced, so the artifact predates the key it would
-be checked against.
+audit that sized this key measured the whole per-cell field as worth well under
+the 1.4 W/m2 criterion. The physics had not moved. What had moved was a number
+declared to four decimals, by more than ten times what its own written precision
+allows. The blast radius was never that drift but the next one, because the key
+is DEFINED as an area weighting over the build's land and every terrain change
+moves it. So the repair is not the retyping: `analysis/land_emissivity.json` is
+a new artifact carrying that weighting and the terrain hash it was taken on, and
+the check refuses when the hash is not the configured build's. It is separate
+from `emissivity_contrast.json` because the LAND MEAN needs no climatology at
+all -- it is a property of the mesh and of `rock_emissivity.json`, so it is
+answerable on any tree that has the build -- while the question of whether a
+per-cell FIELD beats that scalar is priced in the model's own surface longwave
+loss and does need one.
+
+**`ozone_visible_weight` was resolved and was stale, and the mechanism is the
+one this class is about.** The audit's ambiguities section could not tell whether
+it was derived at all. It is: the commit that introduced it re-weighted Lacis
+and Hansen's three ozone terms for a non-solar host by each term's band share,
+and recorded the Chappuis arithmetic as 0.3358 over 0.3673. Both halves
+reproduce -- the denominator from a nominal solar Planck curve, the numerator
+from `k25v_hr.dat` -- but only against the spectrum file AS IT WAS THEN. Two days
+later SPEC-3 replaced the converter's point sample with a flux-conserving rebin
+and regenerated that file, moving the band-1 share it had read high. Every other
+spectrum-derived number was re-derived; this one was not, and nothing objected
+because `build_stellar_spectrum.py` rewrites the file in place. The band share on
+the file as it stands is 0.3341, and the weight is 0.908.
 
 **The shortwave gate is circular with respect to a frozen quantity upstream of
 it, and this failure mode belongs in the class definition.**
@@ -271,11 +301,38 @@ that regenerates its own reference from the frozen value is not a check on that
 value. `H2O_CONTINUUM_FRACTION` beside it is correctly out of the class: declared
 from published numbers, papers cited, arithmetic in the note.
 
-**`SIGMA_LOWEST` is declared twice, one import apart.**
-`hydrography/scripts/carve_verdict.py` imports `reference_height_m` from
-`lib/lapse.py` and then passes its own copy of the constant into it. Both agree
-with the model's `lev` axis today. Both are properties of the layer count, and
-this project compiles one executable per layer count.
+That row stays, because it does catch the retyping.
+`check_consistency.py:check_water_path_currency` is what asks the other
+question: it re-derives the effective water path from the best available
+climatology, which is the first non-circular reference this quantity has had.
+The declared 2.7891 cm was measured on a baseline that no longer exists; the
+bootstrap of the configured build gives 2.0017, and the difference is what a
+global mean nine kelvin colder does to a water column.
+
+**The number is not moved, and the reason is measured rather than preferred.**
+`h2o_sw_weight` and `co2_sw_weight` are quoted at the SAME path, and
+`shortwave_band_weights.py`'s full report cannot be written while
+`baseline_climatology` is null, because its prediction blocks open a climatology
+and have no Earth fallback by design. Moving one of the three would leave them
+quoted at two different paths, which is worse than one stale path. What the whole
+disagreement is worth is knowable without running anything, because
+`corrk_cross_check.py` takes the path as an argument: the Eq. 21 ratio is
+1.127590 at 2.7891 cm and 1.125937 at 2.0017, which is 0.15 per cent, and
+`h2o_sw_level` 1.163 against 1.161 -- two units in the last place
+`config/planet.yaml` writes. A baseline climatology on the configured build
+settles it and moves all three together. world-wtt3.
+
+**`SIGMA_LOWEST` was declared twice, one import apart.**
+`hydrography/scripts/carve_verdict.py` imported `reference_height_m` from
+`lib/lapse.py` and passed its own copy of the constant into it. Both are
+properties of the layer count, and this project compiles one executable per
+layer count, so the copy is deleted and the import carries it. The declaration
+that remains is no longer bare either: `lib/lapse.py:sigma_levels` builds the
+model's own half-level construction from `model.layers` and `model.model_top_hpa`
+-- reproducing the run's `lev` axis to four parts in ten million -- and
+`check_sigma_lowest` refuses when the two disagree. That construction is what
+`semi_implicit_reference_temperature_k` is mass-weighted over, so one derivation
+serves both.
 
 ### Tier 3: it decides the carve list
 
@@ -521,7 +578,7 @@ nothing compares the two, and the repair rests on a reader following the citatio
 
 ## Where a frozen quantity could not be told from a decision
 
-Eight cases where the boundary genuinely does not resolve from the text. Each is
+Seven cases where the boundary genuinely does not resolve from the text. Each is
 a finding in its own right, because an unstated disposition is what lets a value
 be read either way by whoever needs it to be.
 
@@ -537,40 +594,35 @@ be read either way by whoever needs it to be.
    be declared BECAUSE mass, luminosity and effective temperature already fix it,
    which treats this as an input. If it was itself derived off-tree, it is
    frozen.
-3. **`config/planet.yaml`'s `ozone_visible_weight`.** Its sibling
-   `ozone_uv_weight` is cleanly paper-sourced with the arithmetic shown in
-   `exoplasim/notes/ozone.md`. The visible weight has no equivalent derivation in
-   that note or in any script, which does not rule out its being computed from
-   the `k25v` spectrum that `build_stellar_spectrum.py` rewrites in place.
-4. **`hydrography/scripts/earth_calibration.py`'s `ET_MAX_MM_YR`.**
+3. **`hydrography/scripts/earth_calibration.py`'s `ET_MAX_MM_YR`.**
    `hydrography/config/groundwater.yaml` declares the corresponding Vesper-side
    value as a COMPUTATION, which `build_groundwater.py` honours by reading an
    evaporation grid. On the Earth harness there is no field to read and a flat
    rate stands in. That reads as a decision that impersonates a derived quantity,
    and it is separately duplicated as a bare literal at two of its three uses.
-5. **`biosphere/scripts/build_lpj_driver.py`'s `SOIL_CODE_BY_ROCK`.** Documented
+4. **`biosphere/scripts/build_lpj_driver.py`'s `SOIL_CODE_BY_ROCK`.** Documented
    as the judgement fallback for when no soil map is given, which makes it a
    decision. But `pedology/config/pedogenesis.yaml` carries a per-lithology parent
    texture table and `build_soil.py` computes an evolved texture per cell, so the
    same physical claim is encoded twice in two currencies with nothing tying
    them. Duplicated judgement rather than frozen derivation, and it fails the
    same way.
-6. **`pedology/config/land_column_properties.yaml`'s `column_base_m`.** Declared
+5. **`pedology/config/land_column_properties.yaml`'s `column_base_m`.** Declared
    three times across two components, and the pedology comment asserts that it
    matches the ledger's copy. Nothing verifies that assertion. A duplicated
    decision, not a frozen derivation, with the same failure mode.
-7. **`vendor/orogen/js/basins.js`'s comparison land share.** The sentence says "on
+6. **`vendor/orogen/js/basins.js`'s comparison land share.** The sentence says "on
    a real planet", which is ambiguous between Earth (a paper-sourced comparison,
    out of the class) and this build's finished terrain (a measurement, in it).
    Nothing else in the file disambiguates it.
-8. **`docs/src/pipeline/state.md`'s two glacier magnitudes.** Both cite
+7. **`docs/src/pipeline/state.md`'s two glacier magnitudes.** Both cite
    `notes/glacier-rough-pass.md`, which is the mitigated form the roughness-span
    case was repaired into, and both are magnitudes the paragraph's argument needs.
    They read as exempt. The grid-cell width in the same section does not: it is
    derived geometry restated in prose, and it is stated for a rung that is not
    the declared operating support.
 
-A ninth, recorded separately because it is a different question: `maps/` and
+An eighth, recorded separately because it is a different question: `maps/` and
 `docs/src/reference/economic-minerals.md` both carry dated A/B measurement tables
 that read correctly as historical records but live outside `notes/`, where the
 convention puts dated records. That is a filing question, not a freezing one, and

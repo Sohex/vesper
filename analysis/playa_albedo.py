@@ -81,7 +81,10 @@ from __future__ import annotations
 
 import argparse
 import glob
+import hashlib
+import json
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -89,6 +92,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 ECOSTRESS = ROOT / "references" / "ecospeclib-all"
 SPECTRUM = ROOT / "exoplasim" / "inputs" / "stellarspectra" / "k25v_hr.dat"
+REPORT = ROOT / "analysis" / "playa_albedo.json"
 
 H, C, KB = 6.626e-34, 2.998e8, 1.381e-23
 SUN_TEFF = 5772.0
@@ -103,6 +107,17 @@ POST_BAND = (0.3, 2.8)          # the band their pyranometer integrated over
 # taxonomy of soil science.
 PLAYA_SUBORDERS = ("salorthid", "gypsiorthid", "calciorthid", "camborthid",
                    "haplargid")
+
+
+def rel_to_root(path: Path) -> str:
+    try:
+        return str(Path(path).resolve().relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
+def sha256_of(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 def planck(microns: np.ndarray, teff: float) -> np.ndarray:
@@ -141,6 +156,12 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--spectrum", type=Path, default=SPECTRUM)
     ap.add_argument("--library", type=Path, default=ECOSTRESS)
+    ap.add_argument("--json", type=Path, default=REPORT,
+                    help="where the reconciled albedo is written. "
+                         "`model.lithology_albedo_overrides.playa_clastic."
+                         "albedo` is held against this file, so a run that "
+                         "prints and writes nothing leaves the configured "
+                         "override with nothing to be wrong against")
     args = ap.parse_args()
     if not args.library.is_dir():
         raise SystemExit(
@@ -195,6 +216,36 @@ def main() -> None:
     print()
     for suborder, sun, k25v, name in sorted(playa, key=lambda r: -r[1]):
         print(f"    {sun:.3f} sun  {k25v:.3f} K2.5V  {suborder:12s} {name[:44]}")
+
+    report = {
+        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generator": "analysis/playa_albedo.py",
+        "quantity": "model.lithology_albedo_overrides.playa_clastic.albedo: "
+                    "Post et al. (2000)'s all-soils field level, corrected by "
+                    "how much brighter saline desert soils are than the soil "
+                    "population in ECOSTRESS, re-weighted to this star. The "
+                    "DRY endmember; the wet one is soil_albedo_wetting.py.",
+        "spectrum": rel_to_root(args.spectrum),
+        "spectrum_sha256": sha256_of(args.spectrum),
+        "library": rel_to_root(args.library),
+        "post_field_mean": POST_MEAN,
+        "post_band_um": list(POST_BAND),
+        "soil_spectra_used": len(rows),
+        "playa_suborders": list(PLAYA_SUBORDERS),
+        "playa_spectra_used": len(playa),
+        "ecostress_soil_population_mean_sun": round(float(sun_all.mean()), 4),
+        "ecostress_playa_mean_sun": round(float(sun_playa.mean()), 4),
+        "material_ratio": round(ratio, 4),
+        "star_over_sun": round(star_gain, 4),
+        "laboratory_over_field": round(float(sun_all.mean()) / POST_MEAN, 3),
+        "laboratory_over_field_note":
+            "the preparation offset, which cancels inside `material_ratio` and "
+            "never enters the answer",
+        "reconciled_albedo": round(reconciled, 4),
+        "generator_table_value": 0.190,
+    }
+    args.json.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(f"\nwrote {args.json}")
 
 
 if __name__ == "__main__":

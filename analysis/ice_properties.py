@@ -873,6 +873,13 @@ def main() -> None:
                    "how far under it the other limit sits.",
         "declared_density_kg_m3": rhosnow,
         "declared_conductivity_w_m_k": snowdiff,
+        # `landini` derives it as `rhosnow * CPSNOW`, so it FOLLOWS the density
+        # and is not independent of it. Emitted here because
+        # `pedology/config/land_column_properties.yaml` restates all four of
+        # these thermal constants and had no producer to be held against.
+        "declared_heat_capacity_j_m3_k": round(
+            rhosnow * declared_parameter(LANDMOD, "CPSNOW"), 1),
+        "declared_specific_heat_j_kg_k": declared_parameter(LANDMOD, "CPSNOW"),
         "slow_arm_residual_sd_w_m_k": CALONNE_2011_RESIDUAL_SD,
         "per_density": bracket,
         "instrument_versus_effect": "the bracket is wider than the scatter of "

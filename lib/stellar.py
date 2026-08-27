@@ -421,6 +421,55 @@ def cross_section_ratio(name: str | None = None,
     return zcross / z1
 
 
+SOLAR_EFFECTIVE_TEMPERATURE_K = 5772.0
+"""IAU 2015 Resolution B3 nominal solar effective temperature."""
+
+OZONE_CHAPPUIS_BAND_UM = (0.44, 0.75)
+"""Where Lacis and Hansen's visible ozone absorptance takes its flux from.
+
+Their Eq. 8 gives ozone's visible absorption as a fraction of TOTAL INCIDENT
+SOLAR flux, so the term carries the Sun's share of flux in the Chappuis band
+inside it. On a non-solar host that share is wrong and the functional form,
+which encodes ozone's cross-section shape, is not.
+"""
+
+
+def _band_share(wavelength_m: np.ndarray, flux: np.ndarray,
+                lo_um: float, hi_um: float) -> float:
+    """A band's share of a spectrum's whole integrated flux, edges interpolated.
+
+    Interpolated rather than snapped to the nearest sample: the file's grid is
+    logarithmic, so a snapped edge moves the band by a fraction of a percent and
+    that is the size of the quantity this is used for.
+    """
+    um = np.asarray(wavelength_m, dtype=float) * 1.0e6
+    inside = um[(um > lo_um) & (um < hi_um)]
+    edges = np.concatenate([[lo_um], inside, [hi_um]])
+    return float(np.trapezoid(np.interp(edges, um, flux), edges)
+                 / np.trapezoid(flux, um))
+
+
+def ozone_visible_weight(name: str | None = None) -> float:
+    """`o3visw`: the Chappuis band's flux share here over the Sun's.
+
+    DERIVED FROM THE SPECTRUM FILE THE MODEL READS, which is the whole reason it
+    is a function and not a number: `build_stellar_spectrum.py` rewrites that
+    file in place, and a resampling that moves the band-1 share moves this with
+    it. The declared weight went stale exactly that way once, when the converter
+    replaced a point sample with a flux-conserving rebin.
+
+    The solar reference is a Planck curve at the nominal solar effective
+    temperature, integrated on the SAME grid, so the comparison is a difference
+    between two spectra rather than between two integrations.
+    """
+    wavelength, flux = read_hires(spectrum_paths(name)[1])
+    lo, hi = OZONE_CHAPPUIS_BAND_UM
+    star = _band_share(wavelength, flux, lo, hi)
+    sun = _band_share(wavelength, _planck(wavelength, SOLAR_EFFECTIVE_TEMPERATURE_K),
+                      lo, hi)
+    return star / sun
+
+
 def band1_fraction(name: str | None = None) -> float:
     """The canonical band-1 share for this world's star.
 

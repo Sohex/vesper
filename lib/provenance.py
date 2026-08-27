@@ -319,6 +319,94 @@ REMOVED_CONFIG_KEYS = {
             "resume path ever asked the configuration for this key: its name "
             "appears in no Python source in the tree."),
     },
+    "surface.land_water_column.layer_capacity_fraction": {
+        "removed_by": "world-6nla",
+        "owner": "world-6nla",
+        "values": ([0.013333, 0.32, 0.666667], [0.333333, 0.666667], [1.0]),
+        "moved_to": ("exoplasim/scripts/run_exoplasim.py",),
+        "moved_to_note": "the fallback capacity shape is now derived from "
+                         "`layer_thickness_m` in run_exoplasim.py",
+        "settles": (
+            "ONE LINE OF ARITHMETIC ON THE NEXT LINE. The key was the "
+            "thickness-proportional share a uniform profile gives, each entry "
+            "of `layer_thickness_m` over the column's total, and `landini` "
+            "renormalises whatever it is given, so only the SHAPE reached the "
+            "model. `run_exoplasim.py` now computes that shape from the "
+            "thicknesses and writes the same `DSOILWF` at the same six "
+            "significant digits, which reproduces every value recorded above "
+            "exactly at the thicknesses that produced them. What the removal "
+            "ends is the case that already happened: the surface cut moved the "
+            "thicknesses and left the shape behind."),
+    },
+    "model.cold_start_profile.lapse_rate_k_per_m": {
+        "removed_by": "world-6nla",
+        "owner": "world-6nla",
+        "values": (0.008489,),
+        "moved_to": ("lib/lapse.py", "exoplasim/scripts/run_exoplasim.py"),
+        "moved_to_note": "the cold start's lapse rate is now derived by "
+                         "lib/lapse.py:cold_start_lapse_rate_k_per_m",
+        "settles": (
+            "A FRACTION OF THIS ATMOSPHERE'S OWN DRY ADIABAT, and the fraction "
+            "is what transfers rather than the rate: Earth's standard "
+            "6.5 K/km is a fixed share of Earth's g/cp, and the same share of "
+            "this planet's g/cp is what the key held. Both sides of that are "
+            "already declared here -- the composition and the gravity -- so "
+            "the key was a second statement of a derivation the configuration "
+            "already determines. `run_exoplasim.py` writes `ALR` from it and "
+            "records what it wrote on the run manifest, so a reader still "
+            "finds the number a run integrated; what is gone is the copy that "
+            "could not learn the composition had moved."),
+    },
+    "model.cold_start_profile.tropopause_height_m": {
+        "removed_by": "world-6nla",
+        "owner": "world-6nla",
+        "values": (9220.0,),
+        "moved_to": ("lib/lapse.py", "exoplasim/scripts/run_exoplasim.py"),
+        "moved_to_note": "the cold start's tropopause height is now derived by "
+                         "lib/lapse.py:cold_start_tropopause_height_m",
+        "settles": (
+            "A FIXED NUMBER OF PRESSURE SCALE HEIGHTS, which is the invariant "
+            "the place a profile turns isothermal has to hold across a change "
+            "of atmosphere. The key was upstream's 12 km scaled by this "
+            "atmosphere's R T / g over Earth's, so it is a function of the "
+            "cold start's SURFACE TEMPERATURE and of the composition and "
+            "gravity -- all three declared here, and the surface temperature "
+            "one line above where the key used to sit. It went stale exactly "
+            "that way: the value recorded above was computed at a surface "
+            "temperature the configuration no longer carries."),
+    },
+    "model.ozone_height_m": {
+        "removed_by": "world-6nla",
+        "owner": "world-6nla",
+        "values": (15311.8,),
+        "moved_to": ("exoplasim/scripts/run_exoplasim.py",),
+        "moved_to_note": "BO3 is now derived by "
+                         "run_exoplasim.py:ozone_profile_lengths_m",
+        "settles": (
+            "UPSTREAM'S OWN COMPILED LENGTH, SCALED. `radmod.f90` declares "
+            "`bo3` and `mko3` places the ozone profile against it as a "
+            "geometric height fitted to Earth; what has to be held across a "
+            "change of atmosphere is the PRESSURE that height corresponds to, "
+            "so the key was `bo3` times this atmosphere's (R/g) over Earth's. "
+            "Both halves are readable -- the length out of the model source, "
+            "the ratio out of `lib/lapse.py` on the declared composition and "
+            "gravity -- so the key was a transcription of a product of two "
+            "things the tree already holds, and it could not learn that either "
+            "had moved."),
+    },
+    "model.ozone_spread_m": {
+        "removed_by": "world-6nla",
+        "owner": "world-6nla",
+        "values": (3828.0,),
+        "moved_to": ("exoplasim/scripts/run_exoplasim.py",),
+        "moved_to_note": "CO3 is now derived by "
+                         "run_exoplasim.py:ozone_profile_lengths_m",
+        "settles": (
+            "The same statement as `model.ozone_height_m` about `radmod.f90`'s "
+            "`co3`: the second of the two lengths `mko3` places the ozone "
+            "profile against, scaled by the same ratio for the same reason, "
+            "and derived beside it in one function so the two cannot part."),
+    },
 }
 
 
@@ -498,7 +586,6 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.cloud_fraction_subgrid_width",
         "model.asymptotic_mixing_length_m",
         "model.land_longwave_emissivity", "model.sea_longwave_emissivity",
-        "model.ozone_height_m", "model.ozone_spread_m",
         "model.energy_fixer",
         "model.conversion_time_level",
         "model.dealias_conversion",
@@ -558,7 +645,6 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.cloud_fraction_subgrid_width",
         "model.asymptotic_mixing_length_m",
         "model.land_longwave_emissivity", "model.sea_longwave_emissivity",
-        "model.ozone_height_m", "model.ozone_spread_m",
         "model.energy_fixer",
         "model.conversion_time_level",
         "model.dealias_conversion",
@@ -628,7 +714,6 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.cloud_fraction_subgrid_width",
         "model.asymptotic_mixing_length_m",
         "model.land_longwave_emissivity", "model.sea_longwave_emissivity",
-        "model.ozone_height_m", "model.ozone_spread_m",
         "model.energy_fixer",
         "model.conversion_time_level",
         "model.dealias_conversion",
@@ -684,7 +769,6 @@ SURFACE_UNREAD_MODEL_KEYS = {
         "model.cloud_fraction_subgrid_width",
         "model.asymptotic_mixing_length_m",
         "model.land_longwave_emissivity", "model.sea_longwave_emissivity",
-        "model.ozone_height_m", "model.ozone_spread_m",
         "model.energy_fixer",
         "model.conversion_time_level",
         "model.dealias_conversion",

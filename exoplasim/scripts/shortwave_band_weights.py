@@ -699,7 +699,8 @@ def co2_volume_mixing_ratio(config: dict) -> tuple[float, float]:
     return float(partials["pCO2_bar"]) / total_bar, total_bar * 1.0e5
 
 
-def pressure_reduction(config: dict) -> tuple[float, str]:
+def pressure_reduction(config: dict,
+                       climatology: Path | None = None) -> tuple[float, str]:
     """sum(dsigma * sigma) on the model's own grid, the amount's pressure scaling.
 
     `swr` does not evaluate the absorptance at the true column. It reduces each
@@ -709,10 +710,17 @@ def pressure_reduction(config: dict) -> tuple[float, str]:
     well-mixed gas that reduction is sum(dsigma * sigma) over the column, close
     to a half, and the CO2 term has to use it or it would be the one absorber in
     the scheme evaluated on a different kind of amount from the others.
+
+    THE SIGMA GRID IS A GRID PROPERTY and not a climate state, so any run's
+    climatology answers it identically: `climatology` lets a caller that has one
+    but no baseline pass it, which is what `corrk_cross_check.py` does to derive
+    the amounts it quotes rather than carrying them as literals.
     """
-    named = config.get("baseline_climatology")
+    named = climatology or config.get("baseline_climatology")
     if named:
-        path = Path(CONFIG).resolve().parents[1] / named
+        path = Path(named)
+        if not path.is_absolute():
+            path = Path(CONFIG).resolve().parents[1] / named
         if path.is_file():
             import netCDF4
 
@@ -721,7 +729,7 @@ def pressure_reduction(config: dict) -> tuple[float, str]:
                 sigma_half = np.asarray(data.variables["levp"][:])
             dsigma = np.diff(sigma_half)
             if len(dsigma) == len(sigma):
-                return float((dsigma * sigma).sum()), f"the model's own sigma grid, from {named}"
+                return float((dsigma * sigma).sum()), f"the model's own sigma grid, from {Path(named).name}"
     return 0.5, "the well-mixed limit, because no baseline climatology is named"
 
 

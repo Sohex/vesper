@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-27T08:19:13.614405+00:00",
-  "git_commit": "78831d175b271676c4c9599b2c179d1b3cdf672f",
+  "generated": "2026-08-27T11:31:34.464226+00:00",
+  "git_commit": "d4528a06ef95a6b41cee37efbf7dfffd16933b73",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in the `bd` issue tracker.",
   "planet": {
@@ -138,11 +138,9 @@
         }
       },
       "cold_start_profile": {
-        "surface_temperature_k": 289.03,
-        "lapse_rate_k_per_m": 0.008489,
-        "tropopause_height_m": 9220.0
+        "surface_temperature_k": 279.68
       },
-      "semi_implicit_reference_temperature_k": 249.4,
+      "semi_implicit_reference_temperature_k": 241.28,
       "rayleigh_sponge_rotations": [
         20.0,
         100.0,
@@ -165,13 +163,11 @@
       "precip_reevaporation_gamma": "derived",
       "cloud_fraction_subgrid_width": "derived",
       "asymptotic_mixing_length_m": "derived",
-      "land_longwave_emissivity": 0.9357,
+      "land_longwave_emissivity": 0.935,
       "sea_longwave_emissivity": 0.98,
       "ozone_scale": 0.794,
-      "ozone_height_m": 15311.8,
-      "ozone_spread_m": 3828.0,
       "ozone_uv_weight": 0.335,
-      "ozone_visible_weight": 0.914,
+      "ozone_visible_weight": 0.908,
       "h2o_sw_weight": 1.346,
       "h2o_sw_level": 1.163,
       "h2o_sw_level_bracket": [
@@ -238,11 +234,6 @@
         "scheme": "layered",
         "layers": 3,
         "lower_boundary": "impermeable",
-        "layer_capacity_fraction": [
-          0.013333,
-          0.32,
-          0.666667
-        ],
         "layer_thickness_m": [
           0.02,
           0.48,
@@ -257,7 +248,7 @@
       "soil_albedo_moisture": {
         "enabled": true,
         "saturation_at_empty_layer": 0.0,
-        "saturation_at_full_layer": 0.7877,
+        "saturation_at_full_layer": 0.7642,
         "shape_sigma_broadband": 1.0,
         "shape_sigma_band1": 1.0,
         "shape_sigma_band2": 1.0
@@ -272,12 +263,12 @@
         "medium": {
           "period_earth_years": 11.0,
           "amplitude_flux_peak_to_peak": 0.025,
-          "note": "The lived rhythm. Damped about 0.83, so roughly 3.1 K peak-to-peak, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow.\n"
+          "note": "The lived rhythm. Damped about 0.83, so amplitude times damping times `lib/sensitivity.py`'s slope, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow. The kelvin figure is NOT restated here: it is a product of a slope that is re-derived per model, and the two numbers that stood here before reproduced at a slope retired two measurements ago.\n"
         },
         "long": {
           "period_earth_years": 57.0,
           "amplitude_flux_peak_to_peak": 0.035,
-          "note": "The geomorphic driver. Essentially undamped at 0.99, roughly 5.2 K peak-to-peak, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+          "note": "The geomorphic driver. Essentially undamped at 0.99, so amplitude times damping times the same slope, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
         }
       },
       "total_amplitude_flux_peak_to_peak": 0.06,
@@ -337,7 +328,7 @@
   "climate_runs": [
     {
       "run_id": "run_432e5e46adef",
-      "status": "climatology_complete",
+      "status": "equilibrated_for_worldbuilding",
       "orbits_complete": 82,
       "flux_earth": 0.945,
       "cycle": null,
@@ -346,7 +337,7 @@
       "source_build": "canonical-10m-base",
       "glaciers": true,
       "converged": true,
-      "mean_surface_temperature_k": 279.6821346509985
+      "mean_surface_temperature_k": 279.8802086331803
     },
     {
       "run_id": "run_b45380e61f90",
@@ -429,26 +420,26 @@
     "carve_verdict": {
       "bounds": {
         "penman": {
-          "basins_carved": 3944,
-          "endorheic_land_km2": 155507417.86268285,
-          "lake_area_km2": 6860650.721209522,
+          "basins_carved": 3943,
+          "endorheic_land_km2": 155554170.50624517,
+          "lake_area_km2": 6875274.387789214,
           "dry_survivors": 2512,
-          "wet_survivors": 2316,
+          "wet_survivors": 2317,
           "basins_without_runoff": 2512,
-          "lake_area_fraction_of_planet": 0.009340663859176535,
+          "lake_area_fraction_of_planet": 0.009360573742285333,
           "solver_converged": true,
-          "median_aridity_index": -0.7921607615238894
+          "median_aridity_index": -0.7919886537779555
         },
         "penman_annual": {
           "basins_carved": 4772,
           "endorheic_land_km2": 120113780.1541132,
-          "lake_area_km2": 8240244.422316756,
+          "lake_area_km2": 8239921.144436775,
           "dry_survivors": 2512,
           "wet_survivors": 2061,
           "basins_without_runoff": 2512,
-          "lake_area_fraction_of_planet": 0.011218958141735215,
+          "lake_area_fraction_of_planet": 0.011218518004183732,
           "solver_converged": true,
-          "median_aridity_index": -1.1356366063221663
+          "median_aridity_index": -1.1355831639532894
         },
         "wet": {
           "basins_carved": 6260,
@@ -468,15 +459,15 @@
           "penman_annual",
           "wet"
         ],
-        "carve_under_both": 3944,
+        "carve_under_both": 3943,
         "survive_under_both": 2512,
-        "disputed": 2316,
+        "disputed": 2317,
         "note": "`both` and `neither` are unanimity over every bound in `bounds_agreed_over`, which is three since the interval became a bracket: the two ends of it and the wet estimator. The names are kept for their readers"
       },
       "penman_ocean_validation": {
-        "penman_mm_per_day": 2.0189,
+        "penman_mm_per_day": 2.019,
         "model_mm_per_day": 1.7698,
-        "ratio": 1.1407,
+        "ratio": 1.1408,
         "ocean_cells": 1029,
         "note": "Ocean cells are already open water, so this is a direct check."
       }

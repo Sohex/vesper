@@ -618,8 +618,10 @@ def configure_otherargs(derived: dict) -> dict:
         # also rewrites A0O3, A1O3, ACO3 and TOFFO3 from the dict, which would
         # make four more Earth constants into transcriptions in this file. These
         # two are the only ones the gravity argument reaches.
-        "BO3@radmod_namelist": f"{derived['ozone_height_m']:.6g}",
-        "CO3@radmod_namelist": f"{derived['ozone_spread_m']:.6g}",
+        "BO3@radmod_namelist":
+            f"{derived['ozone_profile_lengths_m']['BO3']:.6g}",
+        "CO3@radmod_namelist":
+            f"{derived['ozone_profile_lengths_m']['CO3']:.6g}",
         # world-n1nu, rainmod_nl. Written unconditionally, the compiled value
         # included, for the reason NHDIFF and XMAXD are: `clwref` sets the
         # cloud water path that both the shortwave optical depth and the
@@ -789,6 +791,7 @@ LANDMOD_SOURCE = MODEL_SRC / "plasim" / "src" / "landmod.f90"
 LANDCOLUMN_SOURCE = MODEL_SRC / "plasim" / "src" / "landcolumn.f90"
 RAINMOD_SOURCE = MODEL_SRC / "plasim" / "src" / "rainmod.f90"
 FLUXMOD_SOURCE = MODEL_SRC / "plasim" / "src" / "fluxmod.f90"
+RADMOD_SOURCE = MODEL_SRC / "plasim" / "src" / "radmod.f90"
 
 
 def _fortran_default(source: Path, name: str) -> float:
@@ -879,6 +882,34 @@ def rainmod_default(name: str) -> float:
 def fluxmod_default(name: str) -> float:
     """A scalar `fluxmod_nl` default."""
     return _fortran_default(FLUXMOD_SOURCE, name)
+
+
+def radmod_default(name: str) -> float:
+    """A scalar `radmod_nl` default."""
+    return _fortran_default(RADMOD_SOURCE, name)
+
+
+def ozone_profile_lengths_m(config: dict) -> dict:
+    """`BO3` and `CO3`: upstream's own lengths, scaled to hold a PRESSURE.
+
+    world-ayx. `mko3` places the ozone profile against two lengths in metres
+    that upstream fitted to Earth, after building its height coordinate
+    hypsometrically from the model's own gascon and ga. The photochemical
+    maximum is set by pressure-like conditions rather than by geometric
+    altitude, so what has to be held across a change of atmosphere is the
+    PRESSURE the profile sits at, and that is upstream's length times this
+    atmosphere's (R/g) over Earth's.
+
+    Both halves are READ rather than written down: the lengths out of
+    `radmod.f90`, the ratio out of `lib/lapse.py` on the declared composition
+    and gravity. `config/planet.yaml` states neither, because a number there
+    would be a second statement of a derivation that moves whenever the
+    composition, the gravity or upstream's fit does.
+    """
+    import lapse
+    ratio = lapse.pressure_length_ratio_to_earth(config)
+    return {"BO3": radmod_default("bo3") * ratio,
+            "CO3": radmod_default("co3") * ratio}
 
 
 # THE LAND LIQUID WATER COLUMN, `landmod_nl`. LSHY-3 and LSHY-5.
@@ -1243,23 +1274,23 @@ def land_water_column(config: dict) -> dict:
             f"surface.land_water_column.layers {layers} is outside 1 to "
             f"{limit}, which is landcolumn.f90's NLSOILWX")
 
-    fractions = [float(v) for v in block.get(
-        "layer_capacity_fraction", landmod_default_array("dsoilwf")[:layers])]
     thicknesses = [float(v) for v in block.get(
         "layer_thickness_m", landmod_default_array("dsoilwz")[:layers])]
-    for name, values in (("layer_capacity_fraction", fractions),
-                         ("layer_thickness_m", thicknesses)):
-        if len(values) != layers:
-            raise ValueError(
-                f"surface.land_water_column.{name} has {len(values)} entries "
-                f"and layers is {layers}. The model reads the first `nlsoilw` "
-                "entries of an array whose tail is compiled zeros, so a short "
-                "list runs with a zero rather than failing.")
-    if any(v < 0.0 for v in fractions) or sum(fractions) <= 0.0:
+    if len(thicknesses) != layers:
         raise ValueError(
-            "surface.land_water_column.layer_capacity_fraction must be "
-            "non-negative and must not sum to zero; landini renormalises it to "
-            "sum to one, so it is a SHAPE and its scale carries nothing.")
+            f"surface.land_water_column.layer_thickness_m has "
+            f"{len(thicknesses)} entries and layers is {layers}. The model "
+            "reads the first `nlsoilw` entries of an array whose tail is "
+            "compiled zeros, so a short list runs with a zero rather than "
+            "failing.")
+    # `DSOILWF` IS DERIVED FROM THE THICKNESSES and is declared nowhere. It is
+    # the fallback shape a cell with no staged split takes: the share a UNIFORM
+    # profile gives, each layer's thickness over the column's total. Config
+    # carried it as its own list until the surface cut moved the thicknesses
+    # under it, which is one line of arithmetic on the line above going stale in
+    # silence. `landini` renormalises it, so it is a shape and its scale carries
+    # nothing; the normalisation here is what makes the manifest record a share.
+    total_depth = sum(thicknesses)
     if any(v <= 0.0 for v in thicknesses):
         raise ValueError(
             "surface.land_water_column.layer_thickness_m must be positive: it "
@@ -1271,7 +1302,7 @@ def land_water_column(config: dict) -> dict:
         "NLANDWCOL": LAND_WATER_SCHEMES[scheme],
         "NLSOILW": layers,
         "NLANDWDRAIN": LAND_WATER_LOWER_BOUNDARIES[boundary],
-        "DSOILWF": fractions,
+        "DSOILWF": [round(v / total_depth, 6) for v in thicknesses],
         "DSOILWZ": thicknesses,
         "NLANDWPHASE": int(phase),
         "DRHSLOW": float(limiter.get("theta_low", landmod_default("drhslow"))),
@@ -1437,8 +1468,10 @@ def derive(config: dict, flux_ratio: float) -> dict:
             config["model"].get("sea_longwave_emissivity", 0.98)),
         # world-ayx. Defaults are radmod.f90's own, so a config that says
         # nothing keeps upstream's fixed geometric placement.
-        "ozone_height_m": float(config["model"].get("ozone_height_m", 20000.0)),
-        "ozone_spread_m": float(config["model"].get("ozone_spread_m", 5000.0)),
+        # world-ayx. DERIVED, and stated in no configuration file: upstream's
+        # own compiled lengths scaled to hold the pressure the ozone profile
+        # sits at. See `ozone_profile_lengths_m`.
+        "ozone_profile_lengths_m": ozone_profile_lengths_m(config),
         # world-n1nu, rainmod_nl. rho_l0, the CCM3 reference in-cloud liquid
         # water density `mkclouds` anchors its exponential cloud water profile
         # on. DECLARED at CCM3's own value and read out of rainmod.f90 rather
@@ -2594,23 +2627,32 @@ def declare_dry_constants(model, config: dict) -> dict:
     # runtime and there is no reason to hand it an exponent it has to read back.
     tfrc = ",".join(f"{x * rotation_s:.4f}" for x in sponge)
 
+    # DERIVED, not read. The configuration states the cold start's SURFACE
+    # TEMPERATURE and nothing else, because the lapse rate is a fixed fraction
+    # of this atmosphere's own dry adiabat and the tropopause is a fixed number
+    # of its own pressure scale heights, so both move with that temperature and
+    # with the declared composition and gravity. `lib/lapse.py` owns both rules
+    # and the manifest below records what they returned, which is where a
+    # reader looks for the profile a run integrated.
+    surface_k = float(profile["surface_temperature_k"])
+    alr = lapse.cold_start_lapse_rate_k_per_m(config)
+    dtrop = lapse.cold_start_tropopause_height_m(surface_k, config)
+
     model._edit_namelist("planet_namelist", "AKAP", f"{akap:.8g}")
-    model._edit_namelist("planet_namelist", "ALR",
-                         f"{float(profile['lapse_rate_k_per_m']):.8g}")
-    model._edit_namelist("plasim_namelist", "TGR",
-                         f"{float(profile['surface_temperature_k']):.8g}")
-    model._edit_namelist("plasim_namelist", "DTROP",
-                         f"{float(profile['tropopause_height_m']):.8g}")
+    model._edit_namelist("planet_namelist", "ALR", f"{alr:.8g}")
+    model._edit_namelist("plasim_namelist", "TGR", f"{surface_k:.8g}")
+    model._edit_namelist("plasim_namelist", "DTROP", f"{dtrop:.8g}")
     model._edit_namelist("plasim_namelist", "T0", f"{layers}*{t0:.8g}")
     model._edit_namelist("plasim_namelist", "TFRC", tfrc)
     print(f"dry constants: akap={akap:.6f} (cp={cp:.2f} J/kg/K beside gascon "
           f"{configured:.4f}), t0={t0:g} K, cold start "
-          f"{profile['surface_temperature_k']:g} K / "
-          f"{float(profile['lapse_rate_k_per_m']) * 1000:g} K/km / "
-          f"{profile['tropopause_height_m']:g} m, "
+          f"{surface_k:g} K / {alr * 1000:g} K/km / {dtrop:.6g} m, "
           f"sponge {sponge[:2]} rotations")
     return {"akap": akap, "cp_j_kg_k": cp, "gascon_j_kg_k": configured,
-            "t0_k": t0, "cold_start_profile": dict(profile),
+            "t0_k": t0,
+            "cold_start_profile": {"surface_temperature_k": surface_k,
+                                   "lapse_rate_k_per_m": alr,
+                                   "tropopause_height_m": dtrop},
             "rayleigh_sponge_rotations": sponge,
             "rayleigh_sponge_seconds": [x * rotation_s for x in sponge]}
 
@@ -3245,9 +3287,11 @@ def expected_namelist_keys(config: dict) -> dict:
         m.get("land_longwave_emissivity", 1.0))
     want["radmod_namelist"]["ELWSEA"] = float(
         m.get("sea_longwave_emissivity", 0.98))
-    # world-ayx, and unconditional for the same reason.
-    want["radmod_namelist"]["BO3"] = float(m.get("ozone_height_m", 20000.0))
-    want["radmod_namelist"]["CO3"] = float(m.get("ozone_spread_m", 5000.0))
+    # world-ayx, and unconditional for the same reason. Derived rather than
+    # read: config states no ozone profile lengths, because they are upstream's
+    # own compiled ones scaled to hold a PRESSURE rather than a height.
+    for _key, _length in ozone_profile_lengths_m(config).items():
+        want["radmod_namelist"][_key] = float(f"{_length:.6g}")
     # world-nfh, the per-band canopy albedo, and PHYS-11's cloud absorption
     # scale. Both are written unconditionally by `configure_otherargs`, so both
     # are checked unconditionally: ALBFOREST is per band and dropping it reverts
@@ -3418,11 +3462,18 @@ def expected_namelist_keys(config: dict) -> dict:
         gas_constant, cp = lapse.gas_properties(config)
         # Formatted the way `declare_dry_constants` writes it, so the comparison
         # is against the value the namelist can hold and not against one more
-        # digit than it carries.
+        # digit than it carries. ALR and DTROP go through the same derivation
+        # the writer uses rather than a config key, because there is no config
+        # key: both are functions of the surface temperature and of the
+        # composition and gravity, and a second statement of either here would
+        # be the thing this gate exists to catch.
+        surface = float(profile["surface_temperature_k"])
         want["planet_namelist"]["AKAP"] = float(f"{gas_constant / cp:.8g}")
-        want["planet_namelist"]["ALR"] = float(profile["lapse_rate_k_per_m"])
-        want["plasim_namelist"]["TGR"] = float(profile["surface_temperature_k"])
-        want["plasim_namelist"]["DTROP"] = float(profile["tropopause_height_m"])
+        want["planet_namelist"]["ALR"] = float(
+            f"{lapse.cold_start_lapse_rate_k_per_m(config):.8g}")
+        want["plasim_namelist"]["TGR"] = float(f"{surface:.8g}")
+        want["plasim_namelist"]["DTROP"] = float(
+            f"{lapse.cold_start_tropopause_height_m(surface, config):.8g}")
     # THE FILTER AND THE HYPERDIFFUSION, the two sets world-8bs found missing
     # from every continuation. They fail in opposite ways and both are silent.
     # `configure()` writes FILTERKAPPA and NFILTEREXP unconditionally from its

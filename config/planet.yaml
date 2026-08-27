@@ -590,16 +590,20 @@ surface:
     scheme: layered
     layers: 3
     lower_boundary: impermeable
-    # THE GEOMETRIC SHAPE, and a FALLBACK rather than the split. It is the
-    # thickness-proportional share a uniform profile gives -- each thickness
-    # over the column's 1.5 m -- so it is DERIVED from `layer_thickness_m` and
-    # is not a number picked to make anything come out. It moves when the
-    # thicknesses do, which is why it moved with the surface cut. `landini`
-    # renormalises it to sum to one, so it is a shape and its scale carries
-    # nothing. Every land cell whose capacity came from the soil takes surface
-    # code 2290 instead, and `landmod` refuses to run if one does not; this is
-    # what a cell whose `dwmax` is still the namelist `wsmax` takes, and for
-    # such a cell there is no profile for it to be wrong about.
+    # THE GEOMETRIC SHAPE IS DERIVED FROM THE LINE BELOW and is stated nowhere:
+    # it is the thickness-proportional share a uniform profile gives, each
+    # thickness over the column's total, computed by `run_exoplasim.py` from
+    # `layer_thickness_m` and written into the namelist as `dsoilwf`. Writing it
+    # here would be one line of arithmetic on the next line, silently staleable
+    # against it, and it went stale exactly that way once when the surface cut
+    # moved the thicknesses. `landini` renormalises it to sum to one, so it is a
+    # shape and its scale carries nothing.
+    #
+    # IT IS A FALLBACK rather than the split. Every land cell whose capacity
+    # came from the soil takes surface code 2290 instead, and `landmod` refuses
+    # to run if one does not; this is what a cell whose `dwmax` is still the
+    # namelist `wsmax` takes, and for such a cell there is no profile for it to
+    # be wrong about.
     #
     # A uniform profile is also the only state in which this shape and the
     # staged split AGREE at the surface layer, and they disagree there by
@@ -608,7 +612,6 @@ surface:
     # the surface layer's true share is larger than its depth share by the
     # sub-wilting water. A cell that falls back to this shape has no soil, so it
     # has no air-dry floor to be wrong about either.
-    layer_capacity_fraction: [0.013333, 0.32, 0.666667]
     layer_thickness_m: [0.02, 0.48, 1.0]
     soil_phase: false
     evaporation_limiter:
@@ -964,42 +967,57 @@ model:
   # because the resolution ladder's stability boundary was measured ENTIRELY on
   # cold starts, which makes this transient the ceiling that boundary sits
   # under.
+  #
+  # ONLY THE SURFACE TEMPERATURE IS STATED. The lapse rate and the tropopause
+  # height are DERIVED at use by `lib/lapse.py:cold_start_lapse_rate_k_per_m`
+  # and `cold_start_tropopause_height_m`, written into the namelist by
+  # `run_exoplasim.py` and recorded on the run manifest, because both are
+  # functions of the surface temperature above and of the composition and
+  # gravity this file already declares. A number here would be a second
+  # statement of a derivation that moves when any of those do -- and it moved:
+  # the two literals this replaces were computed at a surface temperature that
+  # is no longer the one on this line.
   cold_start_profile:
     # This model's own converged global-mean surface temperature at the declared
-    # baseline flux: `lib/sensitivity.py` SLOPE_BRACKET_RUNS, warm arm, flux
-    # ratio 0.945, run_524fbed77a9a. Re-derive when the canonical climatology
-    # lineage is declared.
-    surface_temperature_k: 289.03
-    # The same fraction of the DRY ADIABAT that Earth's standard 6.5 K/km is of
-    # Earth's: 0.666 of g/cp. This atmosphere's g/cp is 12.75 K/km against
-    # Earth's 9.76, from the composition below through `lib/lapse.py`, so a
-    # profile that keeps the Earth NUMBER keeps neither the stratification nor
-    # the fraction of neutrality it was chosen at. Not `lib/lapse.py`'s measured
-    # environmental rate: that reads a climatology, and a cold start is what
-    # runs before there is one.
-    lapse_rate_k_per_m: 0.008489
-    # Earth's 12 km is 1.42 pressure scale heights at its own R, T and g. This
-    # atmosphere's scale height is 0.768 of Earth's, so the same number of scale
-    # heights is 9.22 km. What this fixes is where the profile turns isothermal,
-    # and a fixed geometric height would put that turn at a different pressure.
-    tropopause_height_m: 9220.0
-  # DERIVED, 2026-08-24, from `cold_start_profile` above. The semi-implicit
-  # scheme's reference temperature, isothermal on every level, and the thing the
+    # `orbit.baseline_flux_earth`, taken from the fitted asymptote of
+    # run_432e5e46adef, which is on the configured build and in the live run
+    # index. `check_consistency.py` re-reads that asymptote and refuses a run
+    # that has left the index or moved off the configured build, which is what
+    # the previous declaration had done: it named a T42 run on `precarve-craton`
+    # that survives only as archived identity, and it stood 9.20 K above what
+    # this model settles at.
+    #
+    # `lib/sensitivity.py`'s cold endpoint reads 279.6805 K on the SAME RUN and
+    # neither is stale. That bracket is read over orbits 37-69, the tail of the
+    # run's low-I/O block, because its warm endpoint has no clean-I/O orbits at
+    # all and a difference has to be taken on one instrument; this is the run's
+    # own production verdict, over the twelve clean orbits after the join. The
+    # two instruments disagree by about 0.17 K.
+    # `docs/src/practice/failure-modes.md` class 36.
+    surface_temperature_k: 279.83
+  # DERIVED from `cold_start_profile` above. The semi-implicit scheme's
+  # reference temperature, isothermal on every level, and the thing the
   # reference geopotential `Phi0_k = sum_j g(j,k) t0` is built out of -- so the
   # adiabatic conversion defect world-0ov measures, and the fixer world-mzy
   # applies against it, are both proportional to it. It also sets the explicit
   # gravity-wave timestep limit `nconvtime` refuses above.
   #
-  # THE DERIVATION, and it is checkable: the mass-weighted mean of the
-  # `setzt` profile over the model's own ten sigma levels, weights `dsigma`.
+  # THE DERIVATION IS RUN RATHER THAN DESCRIBED: the mass-weighted mean of the
+  # `setzt` profile over the model's own sigma levels, weights `dsigma`, in
+  # `lib/lapse.py:semi_implicit_reference_temperature_k`, which reproduces
+  # `plasim.f90:setzt` line for line. `check_consistency.py` holds this literal
+  # to it at the precision written here. It stays a literal rather than a
+  # sentinel because it is what the namelist records the run integrated with.
+  #
   # Run on Earth's constants and Earth's ISA profile that rule returns 248.4 K,
-  # which is where ExoPlaSim's inherited 250.0 comes from; run on this
-  # atmosphere's constants and the profile above it returns 249.4. The two agree
-  # to 0.65 K, so this is a NULL RESULT and is recorded as one: the core energy
-  # sink scales with `t0` and moves by 0.26% under it, which is 0.002 W/m2 on a
-  # sink of 0.79. Declaring it is what stops the sink resting on a number nobody
-  # chose. world-bmf.
-  semi_implicit_reference_temperature_k: 249.4
+  # which is where ExoPlaSim's inherited 250.0 comes from. On this atmosphere's
+  # constants and the cold start above it returns the value below, 3.5% under
+  # upstream's number: the core energy sink scales with `t0`, so that is
+  # 0.03 W/m2 on a sink of 0.79 and still far inside what the surface energy
+  # balance resolves. What declaring it buys is that the sink no longer rests
+  # on a number nobody chose, and that it MOVES when the cold start does.
+  # world-bmf.
+  semi_implicit_reference_temperature_k: 241.41
   # DECLARED, 2026-08-24, and in ROTATIONS. Rayleigh drag on the top model
   # levels, `TFRC`, one entry per level from the top down and zero for no drag.
   # ExoPlaSim applies 20 and 100 to the top two unconditionally at NLEV 10 --
@@ -1168,11 +1186,19 @@ model:
   # THE LAND VALUE IS DERIVED, and `analysis/rock_emissivity.py` is the
   # derivation: one minus the directional-hemispherical reflectance of the
   # ECOSTRESS spectra, Planck-weighted, per Orogen rock class, area-weighted
-  # over this build's land. Its preparation arms -- every class at its solid
-  # samples, and every class at its particulate ones -- are 0.9191 and 0.9524,
-  # and they are the bracket to run rather than a guessed one. A blackbody land
-  # surface is what this replaces, and it was worth several W/m2 of one-signed
-  # overstated emission over every land cell.
+  # over this build's land. `analysis/emissivity_contrast.py --land-mean` does
+  # that weighting and writes `analysis/land_emissivity.json`, which carries
+  # the terrain hash and the two preparation arms -- every class at its solid
+  # samples, and every class at its particulate ones -- and they are the
+  # bracket to run rather than a guessed one. A blackbody land surface is what
+  # this replaces, and it was worth several W/m2 of one-signed overstated
+  # emission over every land cell.
+  #
+  # THE WEIGHTING IS OVER ONE BUILD'S LAND, so every terrain change moves it
+  # and this literal has to be re-derived on the configured build with it. It
+  # once carried the mean of a build the registry refuses, and
+  # `check_consistency.py` now refuses an artifact whose terrain hash is not
+  # the configured build's rather than comparing numbers alone.
   #
   # ONE SCALAR IS ENOUGH, and that is measured rather than assumed.
   # `analysis/emissivity_contrast.py` asks what a per-cell field out of the
@@ -1187,24 +1213,27 @@ model:
   # The sea value is still declared rather than derived: sea water is 0.985 to
   # 0.99 in the thermal window, so 0.98 is slightly low, and the bracket to run
   # an arm over is 0.98 to 0.99.
-  land_longwave_emissivity: 0.9357
+  land_longwave_emissivity: 0.9350
   sea_longwave_emissivity: 0.98
   ozone_scale: 0.794
-  # WHERE THE OZONE SITS, and it is a pressure, not an altitude. `mko3` builds
-  # its height coordinate hypsometrically from the model's own gascon and ga,
-  # correctly, and then places the profile against BO3 and CO3, which upstream
-  # carries as fixed geometric lengths in metres fitted to Earth. This planet's
-  # scale height is 0.7656 of Earth's, so upstream's 20 km is 3.6 scale heights
+  # WHERE THE OZONE SITS IS DERIVED AND STATED NOWHERE HERE, and it is a
+  # pressure, not an altitude. `mko3` builds its height coordinate
+  # hypsometrically from the model's own gascon and ga, correctly, and then
+  # places the profile against BO3 and CO3, which upstream carries as fixed
+  # geometric lengths in metres fitted to Earth. This planet's scale height is
+  # about three quarters of Earth's, so upstream's 20 km is 3.6 scale heights
   # here against 2.7 on Earth and the whole profile is pushed to the top of the
   # model.
   #
   # The modelled photochemical maximum is set by pressure-like conditions --
   # ultraviolet optical depth and three-body recombination density -- not by
-  # geometric altitude, so pressure is the invariant to hold. These are
-  # upstream's 20000 and 5000 scaled by (gascon/ga) over Earth's own, which is
-  # the same factor the heights they are compared against already carry. The
-  # ratio is 0.765592 at gascon 287.017, from the declared composition, and the
-  # gravity above.
+  # geometric altitude, so pressure is the invariant to hold. So BO3 and CO3
+  # are upstream's own compiled lengths scaled by (gascon/ga) over Earth's own,
+  # which is the same factor the heights they are compared against already
+  # carry. `run_exoplasim.py` reads the two lengths out of `radmod.f90` and the
+  # ratio out of `lib/lapse.py:pressure_length_ratio_to_earth`, so a number
+  # here would be a second statement of a derivation that moves with the
+  # declared composition and gravity, and there is none.
   #
   # Holding it exactly reproduces Earth's own layer-by-layer share of the ozone
   # column on this world's sigma levels, to machine precision, which is the
@@ -1212,10 +1241,27 @@ model:
   # This corrects a REDISTRIBUTION, not the column -- `ozone_scale` is the
   # column -- so the budget effect is small and the top-layer heating rate is
   # where it shows.
-  ozone_height_m: 15311.8
-  ozone_spread_m: 3828.0
+  #
+  # THE TWO BAND WEIGHTS. Lacis and Hansen's ozone absorptance is a fraction of
+  # TOTAL INCIDENT SOLAR flux, so each of its three terms carries the Sun's
+  # share of flux in the band it represents inside it, and on this host that
+  # share is wrong while the functional form, which encodes ozone's
+  # cross-section shape, is not.
+  #
+  # `ozone_uv_weight` is Segura et al. (2003) Table 2's incoming ultraviolet at
+  # the planet for a K2V host over the Sun's, at equal total insolation, summing
+  # UV-C, UV-B and the 315-350 nm part of UV-A. Paper-sourced, and
+  # exoplasim/notes/ozone.md carries the arithmetic and the argument that this
+  # star is the active K2V that paper describes.
+  #
+  # `ozone_visible_weight` is DERIVED from the spectrum file the model reads:
+  # the Chappuis band's share of this star's flux over its share of a nominal
+  # solar Planck curve on the same grid. `lib/stellar.py:ozone_visible_weight`
+  # is the derivation and `check_consistency.py` holds this literal to it,
+  # because `build_stellar_spectrum.py` rewrites that file in place and this
+  # weight went stale the last time it did.
   ozone_uv_weight: 0.335
-  ozone_visible_weight: 0.914
+  ozone_visible_weight: 0.908
   # The Lacis and Hansen shortwave gas absorptances are fractions of SOLAR flux,
   # so every one of them has to be re-weighted for a K2.5V host. These two are
   # the water vapour and CO2 halves, beside the ozone weights above.

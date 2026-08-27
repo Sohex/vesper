@@ -440,10 +440,10 @@ def main() -> None:
     # The geometric split is the one a uniform profile gives: thickness over
     # column depth. It is what a cell with no soil takes, and what every land
     # cell would take if `dsoilwf` were the only route -- so it is also the
-    # baseline the spread below is reported against. It is `config/planet.yaml`'s
-    # `layer_capacity_fraction` by the same arithmetic, and on a cell that HAS a
-    # soil it is wrong at the surface layer by construction, because it cuts by
-    # depth where the surface layer's capacity is cut from air dry.
+    # baseline the spread below is reported against. It is `DSOILWF` by the same
+    # arithmetic on the same thicknesses, and on a cell that HAS a soil it is
+    # wrong at the surface layer by construction, because it cuts by depth where
+    # the surface layer's capacity is cut from air dry.
     geometric = np.array(thicknesses, dtype=float)
     geometric = geometric / geometric.sum()
 
