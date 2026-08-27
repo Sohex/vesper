@@ -316,6 +316,17 @@ ESCALATION_ROUTE = (
 # reported: `commissioning_caveats` is where it comes out, and
 # `run_exoplasim.py` prints it at launch, so an attempt at that pair knows what
 # it is attempting.
+#
+# `record_gone` is a DIFFERENT question from `binds` and the two are kept apart
+# because they have different consequences. `binds` is about whether a verdict
+# may refuse a configuration; `record_gone` is about whether the row's own
+# numbers can be re-read at all. Every row here is a measurement copied out of a
+# run, so `check_commissioning_evidence` re-reads each one from the run records
+# and refuses when the copy and the record disagree. A row whose run is in no
+# record cannot be re-read in either direction -- it can neither be confirmed
+# nor caught drifting -- and it must SAY SO, in `record_gone`, naming what was
+# searched. Silence there is the failure the check exists for: an orbit count
+# and a verdict that permit a route step, resting on a run nothing carries.
 COMMISSIONING_EVIDENCE = {
     ("T21", 45.0): {
         "verdict": "endured",
@@ -347,6 +358,13 @@ COMMISSIONING_EVIDENCE = {
         "orbits": 46,
         "run": "run_900548ae632e",
         "binds": False,
+        "record_gone": "run_900548ae632e is in no run record: not in "
+                       "exoplasim/runs/INDEX.json, not a stub under "
+                       "archive/runs/, and not in any INDEX_AT_DELETION.json. "
+                       "`does_not_bind` below argues what follows from that; "
+                       "this states the search, which is what makes the row "
+                       "re-readable as unre-readable rather than merely "
+                       "silent.",
         "detail": "SIGFPE inside the 47th orbit on a gridpoint at -12.81 K at "
                   "the second level from the top, after 46 orbits of ordinary "
                   "climate with no trend towards it. WORLD-TD3; "
@@ -377,8 +395,151 @@ COMMISSIONING_EVIDENCE = {
                   "CONVERT cleanly to T85 across a change of step, which is "
                   "WORLD-FL9C and is a property of the conversion rather than "
                   "of this run.",
+        "record_gone": "run_1d39fef9bfc2 is in no run record: not in "
+                       "exoplasim/runs/INDEX.json, not a stub under "
+                       "archive/runs/, and not in "
+                       "archive/runs/_bulk_2026-08-24/INDEX_AT_DELETION.json. "
+                       "The orbit count and the verdict above therefore cannot "
+                       "be re-read. What survives of the run corroborates the "
+                       "PAIR and not the length: "
+                       "exoplasim/analysis/filter_dt_pair.json carries its "
+                       "namelist with MPSTEP 30.0 at T42, and "
+                       "exoplasim/analysis/ladder/run_1d39fef9bfc2__vs__run_42aaf441b10b.json "
+                       "compares a window ending at orbit 84. Neither is a run "
+                       "record and neither reports orbits on disk, so this row "
+                       "is evidence that cannot be checked rather than evidence "
+                       "that has been.",
     },
 }
+
+
+# WHERE A ROW'S NUMBERS ARE RE-READ FROM. Three shapes, one question: what did
+# the run actually reach. `INDEX.json` carries the runs on disk, an
+# `INDEX_ENTRY.json` stub carries one whose payload was deleted, and an
+# `INDEX_AT_DELETION.json` carries a batch of them. All three are the same
+# record written by `exoplasim/scripts/index_runs.py`, so one reader serves.
+RUN_RECORDS = ("exoplasim/runs/INDEX.json",
+               "archive/runs/*/INDEX_ENTRY.json",
+               "archive/runs/*/INDEX_AT_DELETION.json")
+
+# THE INDEX'S OWN WORDS FOR A RUN THAT DID NOT COMPLETE. `prepared` is
+# deliberately not here: a prepared run never started, which is neither a
+# blow-up nor endurance. A blew_up row whose run carries a status outside this
+# set is a refusal, and the right refusal: the index has gained a word the
+# ladder was never told about, and guessing which side of the verdict it falls
+# on is how a blow-up gets read as endurance.
+FAILED_STATUSES = frozenset({"failed", "crashed"})
+
+
+def _run_records(root) -> dict:
+    """Every run record on this tree, by run id. Empty when there are none."""
+    import json
+    from pathlib import Path
+
+    base = Path(root)
+    records: dict[str, dict] = {}
+    for pattern in RUN_RECORDS:
+        paths = ([base / pattern] if "*" not in pattern
+                 else sorted(base.glob(pattern)))
+        for path in paths:
+            if not path.is_file():
+                continue
+            try:
+                loaded = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:                                 # noqa: BLE001
+                continue
+            entries = loaded.get("runs", [loaded]) if isinstance(loaded, dict) \
+                else loaded
+            for entry in entries if isinstance(entries, list) else []:
+                if isinstance(entry, dict) and entry.get("run_id"):
+                    records.setdefault(str(entry["run_id"]), entry)
+    return records
+
+
+def check_commissioning_evidence(root) -> list[str]:
+    """Every `COMMISSIONING_EVIDENCE` row against the run record it came from.
+
+    A CHECK WITH A RIGHT ANSWER, and the right answer is the run record's, not
+    this table's: the orbit count a run reached and the rung it ran at are facts
+    `index_runs.py` writes and this table copies. What the check settles per row:
+
+      RE-READABLE    the run is in a record, or the row says it is not and names
+                     what was searched. A row that can be re-read must not claim
+                     it cannot, and a row that cannot must not stay silent about
+                     it -- silence reads exactly like a checked row.
+      ORBITS         the declared count is the count the record carries.
+      RUNG           the row's key rung is the resolution the run ran at. A row
+                     filed under the wrong rung licenses the wrong pair.
+      VERDICT        `blew_up` needs a status the index calls failed, `endured`
+                     needs one it does not.
+
+    What it does NOT settle, said so nobody reads more into a pass: the STEP.
+    A run record carries no timestep, so the dt half of each key rests on the
+    row's own provenance. `exoplasim/runs/INDEX.json` gaining a timestep field
+    is what would close that, and until it does a pass here is about the rung
+    and the length.
+
+    Returns the empty list when they agree, and an empty list when this tree has
+    no run records at all: a worktree without them is not a disagreement.
+    """
+    records = _run_records(root)
+    if not records:
+        return []
+
+    problems = []
+    for (rung, dt), row in sorted(COMMISSIONING_EVIDENCE.items()):
+        where = f"{rung} at dt {dt}"
+        run = row.get("run")
+        if not run:
+            problems.append(f"the commissioning row for {where} names no run, "
+                            "so its orbit count and verdict rest on nothing")
+            continue
+        record = records.get(run)
+        if record is None:
+            if not str(row.get("record_gone", "")).strip():
+                problems.append(
+                    f"the commissioning row for {where} cites {run}, which is "
+                    "in no run record on this tree, and the row does not say "
+                    "so. Its orbit count and its verdict cannot be re-read, "
+                    "and a row nothing can check looks exactly like one that "
+                    "has been: give it a `record_gone` naming what was "
+                    "searched, or cite a run that is on record.")
+            continue
+        if str(row.get("record_gone", "")).strip():
+            problems.append(
+                f"the commissioning row for {where} says {run}'s record is "
+                "gone and it is on record. Re-read the row from it and drop "
+                "`record_gone`.")
+        declared, on_disk = row.get("orbits"), record.get("orbits_on_disk")
+        if on_disk is not None and declared != on_disk:
+            problems.append(
+                f"the commissioning row for {where} declares {declared} orbits "
+                f"and the run record for {run} carries {on_disk}. The record is "
+                "what the run reached.")
+        resolution = record.get("physical", {}).get("resolution")
+        if resolution is not None and str(resolution).upper() != rung:
+            problems.append(
+                f"the commissioning row for {where} cites {run}, which the run "
+                f"record says ran at {resolution}. A row filed under the wrong "
+                "rung licenses the wrong pair.")
+        status = str(record.get("status", ""))
+        verdict = row.get("verdict")
+        if verdict == "blew_up" and status not in FAILED_STATUSES:
+            problems.append(
+                f"the commissioning row for {where} records a blow-up and the "
+                f"run record for {run} says {status!r}, which is not one of "
+                f"{sorted(FAILED_STATUSES)}. Either the verdict is wrong or the "
+                "index has a word for a failed run that this module has not "
+                "been told about.")
+        if verdict == "endured" and status in FAILED_STATUSES:
+            problems.append(
+                f"the commissioning row for {where} records endurance and the "
+                f"run record for {run} says {status!r}")
+        if verdict not in ("endured", "blew_up"):
+            problems.append(
+                f"the commissioning row for {where} carries a verdict of "
+                f"{verdict!r}; the two verdicts are `endured` and `blew_up`")
+    return problems
 
 
 def _check_ceilings() -> None:

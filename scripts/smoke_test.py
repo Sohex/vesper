@@ -149,6 +149,7 @@ import argparse
 import ast
 import builtins
 import importlib.util
+import inspect
 import math
 from pathlib import Path
 import re
@@ -2657,8 +2658,19 @@ def check_run_length_derivation() -> list[str]:
         bad.append("the production span is not the declared multiple of tau")
     if run_lengths.commissioning_orbits(11.0, 3.0) != 11.0 + run_lengths.production_span_orbits(3.0):
         bad.append("a commissioning length is not its approach plus its span")
+    # The relaxation bracket is READ rather than declared, so its absence is a
+    # refusal from the module itself. A gate reports that as a failed check and
+    # not as a traceback: a check that dies looks like a broken gate rather than
+    # a tree that is missing an artifact it needs.
+    try:
+        relaxation = run_lengths.tau_relaxation_orbits_bracket(ROOT)
+    except RuntimeError as exc:
+        bad.append(str(exc))
+        relaxation = None
     for name, bracket in (("memory", run_lengths.TAU_MEMORY_ORBITS_BRACKET),
-                          ("relaxation", run_lengths.TAU_RELAXATION_ORBITS_BRACKET)):
+                          ("relaxation", relaxation)):
+        if bracket is None:
+            continue
         low, high = bracket
         if not 0 < low <= high:
             bad.append(f"the {name}-time bracket {bracket} is not an ordered "
@@ -2666,11 +2678,427 @@ def check_run_length_derivation() -> list[str]:
     # THE DERIVED LENGTHS MUST STILL LAND ON THE EXPERIENCE. A reconvergence has
     # repeatedly taken ten to twenty orbits after a step change worth about half
     # a kelvin, and the settling bracket for that perturbation has to cover it.
-    low, high = run_lengths.settling_bracket(0.5)
-    if not (low <= 20.0 and high >= 10.0):
-        bad.append(f"a 0.5 K step settles in {low:.1f} to {high:.1f} orbits by "
-                   "derivation, which no longer overlaps the ten to twenty this "
-                   "project has repeatedly seen")
+    if relaxation is not None:
+        low, high = run_lengths.settling_bracket(0.5, root=ROOT)
+        if not (low <= 20.0 and high >= 10.0):
+            bad.append(f"a 0.5 K step settles in {low:.1f} to {high:.1f} orbits "
+                       "by derivation, which no longer overlaps the ten to "
+                       "twenty this project has repeatedly seen")
+    return bad
+
+
+def _convergence_report(scatter: float, tau: float, relaxation: float,
+                        purpose: str = "production",
+                        tau_resolved: bool = True) -> dict:
+    """The parts of a convergence report the two bound checks read."""
+    return {
+        "assessed_purpose": purpose,
+        "resolving_power": {
+            "temperature_residual_scatter_k": scatter,
+            "temperature_residual_tau_orbits": tau,
+            "tau_span_supports_the_estimate": tau_resolved,
+        },
+        "metrics": {"relaxation_orbits_expected": relaxation},
+    }
+
+
+def _convergence_tree(tmp: str, reports: dict) -> Path:
+    """A repository root carrying nothing but convergence reports."""
+    import json as _json
+    root = Path(tmp)
+    directory = root / "exoplasim" / "analysis" / "convergence"
+    directory.mkdir(parents=True, exist_ok=True)
+    for name, report in reports.items():
+        (directory / name).write_text(_json.dumps(report), encoding="utf-8")
+    return root
+
+
+def check_convergence_bounds_are_re_read() -> list[str]:
+    """The window's nominal inputs are held to the reports they must bound.
+
+    `notes/audits/frozen-derived-quantities.md` tier 1: the scatter and the
+    memory time size every commissioning run on the ladder, and nothing carried
+    a measurement back to them. They are UPPER BOUNDS on a series that still
+    drifts, so a report reading BELOW them is the expected state and is not the
+    defect -- the defect was that nothing could tell that state from a bound
+    nobody had looked at since the series moved.
+
+    Class 17: every case has a right answer, and every refusal is paired with
+    the positive that proves the setup was real. The anchor cases are the ones
+    the audit asks for, because they are what separates "still holds" from
+    "never re-examined"; the bound cases are what a real falsification looks
+    like. Synthetic reports in a temp directory; the live tree is checked last.
+    """
+    import tempfile
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    sys.path.insert(0, str(ROOT / "lib"))
+    try:
+        import assess_convergence
+        import run_lengths
+    except ImportError as exc:
+        return [f"assess_convergence.py or lib/run_lengths.py does not import: {exc}"]
+
+    bad = []
+    anchor_name = Path(assess_convergence.CONVERGENCE_BOUND_ANCHOR["artifact"]).name
+    anchor_scatter = assess_convergence.CONVERGENCE_BOUND_ANCHOR["orbit_scatter_k"]
+    anchor_tau = run_lengths.MEMORY_BRACKET_ANCHOR["observation"]
+    tau_top = max(run_lengths.TAU_MEMORY_ORBITS_BRACKET)
+    scatter_top = assess_convergence.NOMINAL_ORBIT_SCATTER_K
+    relaxation_top = assess_convergence.NOMINAL_RELAXATION_ORBITS
+
+    def anchor(**overrides):
+        report = _convergence_report(anchor_scatter, anchor_tau,
+                                     relaxation_top - 1.0)
+        report["resolving_power"].update(overrides)
+        return report
+
+    def case(name, root, want_scatter_problem, want_tau_problem):
+        got = assess_convergence.check_convergence_bounds(root)
+        if bool(got) != bool(want_scatter_problem):
+            bad.append(f"{name}: check_convergence_bounds returned {got!r}, "
+                       f"expected {'a refusal' if want_scatter_problem else 'no problem'}")
+        got = run_lengths.check_memory_bracket(root)
+        if bool(got) != bool(want_tau_problem):
+            bad.append(f"{name}: check_memory_bracket returned {got!r}, "
+                       f"expected {'a refusal' if want_tau_problem else 'no problem'}")
+
+    # THE POSITIVE THAT PROVES THE SETUP. The anchor reads exactly what was
+    # recorded and every bound has headroom, so the refusals below are caused by
+    # what each case changes and not by the fixture merely existing.
+    with tempfile.TemporaryDirectory() as tmp:
+        case("an anchor reading what was recorded passes",
+             _convergence_tree(tmp, {anchor_name: anchor()}), False, False)
+
+    # THE ANCHOR IS GONE: no report at all. Both bounds are unexamined, and an
+    # unexamined bound is not a held one.
+    with tempfile.TemporaryDirectory() as tmp:
+        case("a missing anchor is a refusal",
+             _convergence_tree(tmp, {}), True, True)
+
+    # THE ANCHOR HAS MOVED: the run was extended or re-assessed. This is the arm
+    # that closes the circle the audit named -- a longer series changes the
+    # reading, and the reading refuses the declaration derived from the old one.
+    with tempfile.TemporaryDirectory() as tmp:
+        case("a moved anchor scatter is a refusal",
+             _convergence_tree(tmp, {anchor_name: anchor(
+                 temperature_residual_scatter_k=anchor_scatter * 0.5)}),
+             True, False)
+    with tempfile.TemporaryDirectory() as tmp:
+        case("a moved anchor memory time is a refusal",
+             _convergence_tree(tmp, {anchor_name: anchor(
+                 temperature_residual_tau_orbits=anchor_tau * 0.5)}),
+             False, True)
+
+    # A READING BELOW THE BOUND IS NOT A DEFECT, which is the case the audit is
+    # explicit about: both declared values are upper bounds on a drifting
+    # series, so a smaller measurement is what they predict.
+    with tempfile.TemporaryDirectory() as tmp:
+        case("a second report reading well below both bounds passes",
+             _convergence_tree(tmp, {
+                 anchor_name: anchor(),
+                 "run_0000_convergence.json": _convergence_report(
+                     scatter_top * 0.1, tau_top * 0.1, 1.0)}),
+             False, False)
+
+    # THE BOUND IS VIOLATED. A settled production report above either bound is
+    # the bound being wrong rather than old.
+    with tempfile.TemporaryDirectory() as tmp:
+        case("a settled report above the scatter bound is a refusal",
+             _convergence_tree(tmp, {
+                 anchor_name: anchor(),
+                 "run_0000_convergence.json": _convergence_report(
+                     scatter_top * 1.1, tau_top * 0.5, 1.0)}),
+             True, False)
+    with tempfile.TemporaryDirectory() as tmp:
+        case("a settled report above the memory bound is a refusal",
+             _convergence_tree(tmp, {
+                 anchor_name: anchor(),
+                 "run_0000_convergence.json": _convergence_report(
+                     scatter_top * 0.5, tau_top * 1.1, 1.0)}),
+             False, True)
+    with tempfile.TemporaryDirectory() as tmp:
+        case("a report deriving more relaxation than the window is sized on "
+             "is a refusal",
+             _convergence_tree(tmp, {
+                 anchor_name: anchor(),
+                 "run_0000_convergence.json": _convergence_report(
+                     scatter_top * 0.5, tau_top * 0.5, relaxation_top * 1.1)}),
+             True, False)
+
+    # THE FILTERS ARE REAL, and each is proved by the same numbers passing on one
+    # side of it and refusing on the other. A diagnostic report prices an A/B
+    # arm's perturbed orbits; a report whose window cannot fix its own tau says
+    # so. Neither is a reading of the settled trajectory.
+    for label, kwargs in (("a diagnostic report", {"purpose": "diagnostic"}),
+                          ("a report whose window cannot fix its own tau",
+                           {"tau_resolved": False})):
+        with tempfile.TemporaryDirectory() as tmp:
+            case(f"{label} above both bounds is not a refusal",
+                 _convergence_tree(tmp, {
+                     anchor_name: anchor(),
+                     "run_0000_convergence.json": _convergence_report(
+                         scatter_top * 2.0, tau_top * 2.0, 1.0, **kwargs)}),
+                 False, False)
+        with tempfile.TemporaryDirectory() as tmp:
+            case(f"the same numbers in a settled production report ARE a "
+                 f"refusal, against {label}",
+                 _convergence_tree(tmp, {
+                     anchor_name: anchor(),
+                     "run_0000_convergence.json": _convergence_report(
+                         scatter_top * 2.0, tau_top * 2.0, 1.0)}),
+                 True, True)
+
+    # A REPORT WITH NO PURPOSE FIELD predates the field. It is production unless
+    # its filename says otherwise, and both readings are proved here.
+    with tempfile.TemporaryDirectory() as tmp:
+        old = _convergence_report(scatter_top * 2.0, tau_top * 2.0, 1.0)
+        del old["assessed_purpose"]
+        case("an old report with no purpose field is read as production",
+             _convergence_tree(tmp, {anchor_name: anchor(),
+                                     "run_0000_convergence.json": old}),
+             True, True)
+    with tempfile.TemporaryDirectory() as tmp:
+        old = _convergence_report(scatter_top * 2.0, tau_top * 2.0, 1.0)
+        del old["assessed_purpose"]
+        case("an old report named diagnostic is read as one",
+             _convergence_tree(tmp, {
+                 anchor_name: anchor(),
+                 "run_0000_convergence_diagnostic.json": old}),
+             False, False)
+
+    # AND THE LIVE TREE. Everything above proves the instrument; this is what it
+    # says about the declarations actually in force.
+    bad.extend(assess_convergence.check_convergence_bounds(ROOT))
+    bad.extend(run_lengths.check_memory_bracket(ROOT))
+    return bad
+
+
+def check_relaxation_bracket_is_read() -> list[str]:
+    """The relaxation-time bracket is READ from its producer, never declared.
+
+    `notes/audits/frozen-derived-quantities.md` tier 1 calls this the cleanest
+    instance in the audit: the producer existed, the consumer existed, and the
+    wire between them was a human. So the test is that there is no number to
+    freeze -- `lib/run_lengths.py` refuses rather than falling back when the
+    artifact is absent or malformed, and takes whatever a present one says.
+    """
+    import json as _json
+    import tempfile
+    sys.path.insert(0, str(ROOT / "lib"))
+    try:
+        import run_lengths
+    except ImportError as exc:
+        return [f"lib/run_lengths.py does not import: {exc}"]
+
+    bad = []
+    relative = run_lengths.RELAXATION_CEILING_ARTIFACT
+
+    def tree(tmp: str, payload) -> Path:
+        root = Path(tmp)
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if payload is not None:
+            path.write_text(_json.dumps(payload), encoding="utf-8")
+        return root
+
+    def refuses(name, root) -> None:
+        try:
+            run_lengths.tau_relaxation_orbits_bracket(root)
+        except RuntimeError:
+            return
+        bad.append(f"{name}: expected a refusal and got a bracket")
+
+    # The positive: an artifact carrying a bracket IS the bracket, to the digit.
+    with tempfile.TemporaryDirectory() as tmp:
+        root = tree(tmp, {"fitted_bracket_orbits": [3.25, 17.5]})
+        got = run_lengths.tau_relaxation_orbits_bracket(root)
+        if got != (3.25, 17.5):
+            bad.append(f"the emitted bracket [3.25, 17.5] was read as {got!r}")
+        settling = run_lengths.settling_bracket(math.e * run_lengths.SETTLING_RESIDUAL_K,
+                                                root=root)
+        # Closed form: at a perturbation e times the residual a settling block
+        # is exactly one tau, so the settling bracket IS the tau bracket.
+        if settling != (3.25, 17.5):
+            bad.append("a settling block for a perturbation of e times the "
+                       f"residual should be the tau bracket itself; got {settling!r}")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        refuses("no artifact is a refusal, not a default", tree(tmp, None))
+    with tempfile.TemporaryDirectory() as tmp:
+        refuses("an artifact with no bracket is a refusal",
+                tree(tmp, {"verdict": "untested", "fitted_bracket_orbits": None}))
+    with tempfile.TemporaryDirectory() as tmp:
+        refuses("a disordered bracket is a refusal",
+                tree(tmp, {"fitted_bracket_orbits": [17.5, 3.25]}))
+    with tempfile.TemporaryDirectory() as tmp:
+        refuses("a non-positive bracket is a refusal",
+                tree(tmp, {"fitted_bracket_orbits": [0.0, 3.25]}))
+
+    # AND THE PRODUCER STILL EMITS ONE THIS TREE CAN READ. A bracket nobody can
+    # read is the frozen state with the number deleted, so the absence of the
+    # artifact is reported as a failed check rather than raised through the gate.
+    try:
+        low, high = run_lengths.tau_relaxation_orbits_bracket(ROOT)
+    except RuntimeError as exc:
+        bad.append(str(exc))
+    else:
+        if not 0 < low <= high:
+            bad.append(f"this tree emits a relaxation bracket of ({low}, {high})")
+    return bad
+
+
+def check_fit_tail_fraction_is_stated_once() -> list[str]:
+    """The exponential fit's tail fraction is one statement, not three.
+
+    THE TEST THAT CAN FAIL: move the constant, and every consumer must move with
+    it. A copy is exactly what would not -- that is what a copy is -- so the
+    span the assessment records, the span `check_relaxation_ceiling.py`
+    reconstructs for an artifact too old to carry one, and the fit's own mask
+    are all driven from the one name and read back.
+    """
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    try:
+        import assess_convergence
+        import check_relaxation_ceiling
+    except ImportError as exc:
+        return [f"assess_convergence.py or check_relaxation_ceiling.py does "
+                f"not import: {exc}"]
+
+    bad = []
+    if check_relaxation_ceiling.FIT_TAIL_FRACTION is not assess_convergence.FIT_TAIL_FRACTION:
+        bad.append("check_relaxation_ceiling.py carries its own tail fraction "
+                   "rather than the assessment's")
+    # A default is bound once, at definition, so a constant spelled as one is a
+    # snapshot that cannot follow the name it was copied from.
+    default = inspect.signature(
+        assess_convergence.approach_to_equilibrium).parameters["fraction"].default
+    if default is not None:
+        bad.append(f"approach_to_equilibrium's fraction defaults to {default!r}, "
+                   "which snapshots the constant at definition")
+
+    original = assess_convergence.FIT_TAIL_FRACTION
+    try:
+        # Closed form at both settings: orbits are 0..n-1, the mask is
+        # `orbit >= (n-1) * fraction`, so a hundred orbits keep 65 at 0.35 and
+        # 50 at 0.5. Both are counted rather than one, so a consumer frozen at
+        # the original value fails the second and not the first.
+        for fraction, want in ((0.35, 65), (0.5, 50)):
+            assess_convergence.FIT_TAIL_FRACTION = fraction
+            got = assess_convergence.fit_span_orbits(100)
+            if got != want:
+                bad.append(f"at a tail fraction of {fraction} the fit sees "
+                           f"{got} of 100 orbits, not {want}")
+            got = check_relaxation_ceiling.recorded_or_reconstructed_span(
+                {"completed_orbits": 100})
+            if got != want:
+                bad.append(f"at a tail fraction of {fraction} "
+                           f"check_relaxation_ceiling.py reconstructs a span of "
+                           f"{got} orbits, not {want}; it is not reading the "
+                           "assessment's constant")
+    finally:
+        assess_convergence.FIT_TAIL_FRACTION = original
+    # A RECORDED SPAN IS TAKEN AS RECORDED and not reconstructed, which is what
+    # lets an artifact written at another fraction still be read correctly.
+    got = check_relaxation_ceiling.recorded_or_reconstructed_span(
+        {"completed_orbits": 100, "metrics": {"relaxation_fit_span_orbits": 7}})
+    if got != 7:
+        bad.append(f"a recorded fit span of 7 orbits was reconstructed as {got}")
+    return bad
+
+
+def check_commissioning_evidence_is_re_read() -> list[str]:
+    """Every commissioning row is re-read from the run record it was copied from.
+
+    `notes/audits/frozen-derived-quantities.md` tier 1: `_check_ceilings` and
+    `_check_route` validate the rungs and the ordering, and nothing re-read an
+    orbit count or a verdict. The counts permit a route step, so a phantom row
+    licenses an advance on evidence nothing can check.
+
+    Class 17: the record is the right answer and the table is the copy. Every
+    refusal below is paired with the positive that proves the fixture was real,
+    and the table is substituted rather than the check reimplemented, so what is
+    tested is the function the gate calls.
+    """
+    import json as _json
+    import tempfile
+    sys.path.insert(0, str(ROOT / "lib"))
+    try:
+        import rungs
+    except ImportError as exc:
+        return [f"lib/rungs.py does not import: {exc}"]
+
+    bad = []
+
+    def tree(tmp: str, entries: list) -> Path:
+        root = Path(tmp)
+        path = root / "exoplasim" / "runs" / "INDEX.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(_json.dumps({"runs": entries}), encoding="utf-8")
+        return root
+
+    def record(run, orbits, resolution="T21", status="quasi_equilibrated"):
+        return {"run_id": run, "orbits_on_disk": orbits, "status": status,
+                "physical": {"resolution": resolution}}
+
+    def case(name, table, entries, want_problem) -> None:
+        original = rungs.COMMISSIONING_EVIDENCE
+        with tempfile.TemporaryDirectory() as tmp:
+            rungs.COMMISSIONING_EVIDENCE = table
+            try:
+                got = rungs.check_commissioning_evidence(tree(tmp, entries))
+            finally:
+                rungs.COMMISSIONING_EVIDENCE = original
+        if bool(got) != bool(want_problem):
+            bad.append(f"{name}: got {got!r}, expected "
+                       f"{'a refusal' if want_problem else 'no problem'}")
+
+    row = {"verdict": "endured", "orbits": 50, "run": "run_aaaaaaaaaaaa"}
+    table = {("T21", 45.0): row}
+
+    case("a row matching its record passes",
+         table, [record("run_aaaaaaaaaaaa", 50)], False)
+    case("an orbit count the record contradicts is a refusal",
+         table, [record("run_aaaaaaaaaaaa", 49)], True)
+    case("a row filed under a rung the record contradicts is a refusal",
+         table, [record("run_aaaaaaaaaaaa", 50, resolution="T42")], True)
+    case("endurance on a run the record calls failed is a refusal",
+         table, [record("run_aaaaaaaaaaaa", 50, status="failed")], True)
+    case("a row whose run is in no record and does not say so is a refusal",
+         table, [record("run_zzzzzzzzzzzz", 50)], True)
+    case("the same row saying its record is gone passes",
+         {("T21", 45.0): dict(row, record_gone="searched every index; absent")},
+         [record("run_zzzzzzzzzzzz", 50)], False)
+    case("a row claiming its record is gone while it is there is a refusal",
+         {("T21", 45.0): dict(row, record_gone="searched every index; absent")},
+         [record("run_aaaaaaaaaaaa", 50)], True)
+    case("a row that names no run is a refusal",
+         {("T21", 45.0): {"verdict": "endured", "orbits": 50}},
+         [record("run_aaaaaaaaaaaa", 50)], True)
+
+    blew = {"verdict": "blew_up", "orbits": 46, "run": "run_aaaaaaaaaaaa"}
+    case("a blow-up on a run the record calls failed passes",
+         {("T21", 45.0): blew},
+         [record("run_aaaaaaaaaaaa", 46, status="failed")], False)
+    case("a blow-up on a run the record calls equilibrated is a refusal",
+         {("T21", 45.0): blew},
+         [record("run_aaaaaaaaaaaa", 46, status="quasi_equilibrated")], True)
+    case("a verdict that is neither of the two is a refusal",
+         {("T21", 45.0): dict(row, verdict="settled")},
+         [record("run_aaaaaaaaaaaa", 50)], True)
+
+    # A TREE WITH NO RUN RECORDS AT ALL is not a disagreement, the same rule
+    # `check_stability_ceilings` applies to an absent probe grid.
+    original = rungs.COMMISSIONING_EVIDENCE
+    with tempfile.TemporaryDirectory() as tmp:
+        rungs.COMMISSIONING_EVIDENCE = table
+        try:
+            got = rungs.check_commissioning_evidence(Path(tmp))
+        finally:
+            rungs.COMMISSIONING_EVIDENCE = original
+    if got:
+        bad.append(f"a tree with no run records was read as a disagreement: {got!r}")
+
+    bad.extend(rungs.check_commissioning_evidence(ROOT))
     return bad
 
 
@@ -2856,6 +3284,14 @@ def main() -> None:
                lambda: check_melting_point_follows_the_run()),
               ("a declared run length is derived from the right timescale",
                lambda: check_run_length_derivation()),
+              ("the window's nominal inputs still bound the reports",
+               lambda: check_convergence_bounds_are_re_read()),
+              ("the relaxation bracket is read from its producer",
+               lambda: check_relaxation_bracket_is_read()),
+              ("the fit's tail fraction is stated once",
+               lambda: check_fit_tail_fraction_is_stated_once()),
+              ("every commissioning row is re-read from its run record",
+               lambda: check_commissioning_evidence_is_re_read()),
               ("the model's shortwave cloud tables are the papers' tables",
                lambda: check_cloud_tables_match_the_papers()),
               ("the tools environment.md names are on this host",
