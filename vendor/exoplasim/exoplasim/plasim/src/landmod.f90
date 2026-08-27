@@ -352,8 +352,8 @@
       real :: soildifsat = 1.4332   ! soil conductivity, saturated(W/m/K)
       real :: soilcapdry = 1.1111E6 ! soil heat capacity, dry   (J/m**3/K)
       real :: soilcapsat = 2.9689E6 ! soil heat capacity, saturated
-      real :: soilsrwp   = 0.3760   ! degree of saturation at an empty store
-      real :: soilsrfc   = 0.7642   ! degree of saturation at a full store
+      real :: soilsrwp   = 0.3636   ! degree of saturation at an empty store
+      real :: soilsrfc   = 0.7543   ! degree of saturation at a full store
 !     THE SURFACE LAYER'S OWN MAPPING, for `nwetsoil`. It differs from the pair
 !     above in the LOWER endpoint and only there: the surface layer's capacity
 !     is cut from air dry and the layers beneath it are cut from the wilting
@@ -364,7 +364,7 @@
 !     surface layer and the staged dry albedo are the same state and the mixing
 !     has no level shift at its dry end.
       real :: skinsrad   = 0.0      ! saturation at an empty surface layer
-      real :: skinsrfc   = 0.7642   ! saturation at a full surface layer
+      real :: skinsrfc   = 0.7543   ! saturation at a full surface layer
 !     Sadeghi, Jones and Philpot's shape parameter, one per staged albedo
 !     field. It is the ratio of the dry soil's scattering coefficient to the
 !     saturated soil's, so it is one where the water's own scattering is

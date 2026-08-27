@@ -1,7 +1,7 @@
 {
-  "generated": "2026-08-25T15:22:02+00:00",
+  "generated": "2026-08-27T18:44:16+00:00",
   "declaration": "hydrography/config/land_water_ledger.yaml",
-  "declaration_sha256": "8f88a728106c18e8a7c46642ea749783f7ac6cd9158f73e4d9201a1d705b9d9e",
+  "declaration_sha256": "729a32717efb693389698128c2a8261f7929fcff3b4c85083c150c1085c42f49",
   "version": 1,
   "units": {
     "mass": "kg_h2o",
@@ -289,7 +289,8 @@
     {
       "absence": "soil_water_above_field_capacity",
       "owner": "lshy-1",
-      "what": "LPJ-GUESS's `wcont` is a fraction of AVAILABLE capacity, refused outside [0, 1], so the wettest state the column can represent is field capacity. Water between field capacity and saturation has nowhere to sit."
+      "what": "LPJ-GUESS's `wcont` is a fraction of AVAILABLE capacity, refused outside [0, 1], so the wettest state the column can represent is field capacity. Water between field capacity and saturation has nowhere to sit.",
+      "how_far_it_bites": "The distribution of that ratio is a property of the build's own soil column and moves with every soil rebuild, so no number for it is stated here. Take it from the land column contract's shipped states, `lib/builds.py:land_column_states`, as `theta_fc / theta_s`. This field carried a median, a minimum and a count over 4105 cells: that is `precarve-craton` at T42 under the SUPERSEDED Earth-suction derivation, two builds and one derivation behind the configured column, and nothing here could learn either had moved."
     },
     {
       "absence": "canopy_store_in_the_climate_column",
@@ -343,7 +344,7 @@
       "landmod.f90 soilini and the floor itself: the store enters every step at or above zero, which restart_schema.py carries as the lower bound on dwatc and dwatcl"
     ],
     "swept_cases": 27952428,
-    "cases_with_the_limit_binding": 537264,
+    "cases_with_the_limit_binding": 536718,
     "cases_with_the_snowpack_exhausted": 1965203,
     "worst_created_m_per_cell_step": 2.7755575615628914e-17,
     "worst_created_kg_per_cell_step": 0.015375722341084246,
@@ -366,16 +367,16 @@
     },
     "orbit_ceiling_kg": 63753.595257604255,
     "orbit_ceiling_basis": "every land cell of the configured build, at every timestep of one orbit, at the worst crossing the sweep found. Nothing can reach it: the floor is touched at all only where the cap binds",
-    "land_soil_water_stock_kg": 5.357486623574394e+16,
-    "orbit_ceiling_over_stock": 1.1899907500855186e-12,
+    "land_soil_water_stock_kg": 3.439825263251308e+16,
+    "orbit_ceiling_over_stock": 1.8533963320376523e-12,
     "land_cells": 1019,
     "steps_per_orbit": 7312,
-    "land_column_states": "pedology/data/precarve-craton-10m/land_column_states_T21.txt",
+    "land_column_states": "pedology/data/canonical-10m-carve1/land_column_states_T21.txt",
     "falsification_arms": [
       {
         "arm": "evaporation_limit_removed",
         "why_it_matters": "fluxmod's cap of the withdrawal at the store divided by the timestep is what empties the store exactly rather than past empty",
-        "worst_created_m": 0.08555220627991214,
+        "worst_created_m": 0.08555218256223365,
         "reached_macroscopic": true
       },
       {

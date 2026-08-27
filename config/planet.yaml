@@ -87,7 +87,7 @@ baseline_climatology: null
 #
 # Resolved by `lib/paths.py:bootstrap_climatology_path`, with the same
 # no-fallback rule and the same grid guard.
-bootstrap_climatology: null
+bootstrap_climatology: exoplasim/analysis/climatology/bootstrap_regular_climatology.nc
 
 # DETERMINED. Radius and gravity are Orogen's and canonical; mass follows from
 # gravity as mass_earth = (g/g_earth) * radius_earth^2, and derive() raises if
@@ -671,7 +671,7 @@ surface:
   soil_albedo_moisture:
     enabled: true
     saturation_at_empty_layer: 0.0
-    saturation_at_full_layer: 0.7642
+    saturation_at_full_layer: 0.7543
     shape_sigma_broadband: 1.0
     shape_sigma_band1: 1.0
     shape_sigma_band2: 1.0
