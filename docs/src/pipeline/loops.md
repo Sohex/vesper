@@ -201,3 +201,50 @@ breached and the finished terrain no longer holds the impoundment the
 criterion is about. `hydrography/scripts/carve_overshoot.py` is the
 comparison; it refuses a re-evaluation that does not cover every applied carve
 rather than scoring an unknown as a zero.
+
+## The finalizer: individually converged is not jointly converged
+
+**A sequence of loops that each reached their own exit is not the same thing as
+a system at a joint fixed point, and nothing in the ladder establishes the
+second.** The loops are nested and D declares that it advances only after
+"replaying A, B and C" on the new support, which is what would make the final
+state a joint fixed point. In practice that replay is not bought: the cost
+argument the ladder is run under puts the bulk of the work at T21 and the
+minimum sufficient at the rungs above it, so the final state has terrain carved
+at T21, soil and vegetation converged at T21, and a climate merely SETTLED at
+T85. Each loop exited. None of them exited against the others' final state.
+
+That is a defensible trade and it is not a defect. What is a defect is leaving
+it unmeasured, because the failure is silent: every artifact is a real artifact
+of a real world, and a verdict taken on a coarser climate looks exactly like one
+taken on the finer.
+
+**So the finalizer is a VERIFICATION rather than another iteration.** At the
+final state, re-evaluate each loop's own exit predicate and record whether it
+still holds:
+
+| loop | what the finalizer re-evaluates |
+| --- | --- |
+| A | the carve intersection. Re-take the verdict at the two bounding climates on the operating support's baseline climatology, and require the intersection to be the set that was actually carved |
+| B | `pedology/config/pedogenesis.yaml`'s criteria, against the soil the final state carries |
+| C | its exit already IS a re-take -- the verdict on modelled vegetation, and whether basins flip. The finalizer generalises it to the operating support rather than the support it was first taken on |
+| D | the route's own invariants: the operating support is reached, and every rung change happened at constant dt |
+
+**Why verification and not one more turn of each loop.** Another iteration pays
+for the three couplings that had already closed and does not say which one had
+not. Verification costs a fraction -- no new climate run, because the operating
+support's baseline already exists, and the two steps it does need,
+`surface_water` and `dust_forcing` at that support, are minutes -- and it
+localises the failure to a named loop.
+
+**What it can and cannot do.** It DETECTS non-closure and cannot repair it. A
+failure on A at the operating support means re-entering loop A there, which is
+the expensive thing the ladder's cost argument exists to avoid. The finalizer's
+value is that it turns that cost into a measured decision rather than a
+discovery, and that a passing run is EVIDENCE of a joint fixed point instead of
+an assumption inherited from the nesting.
+
+**It runs once, after the ladder, and it is not a loop itself.** Nothing
+iterates on its verdict automatically: a failure names a loop and the decision
+to re-enter is the author's, because re-entering A at the operating support is a
+commissioning-scale purchase.
