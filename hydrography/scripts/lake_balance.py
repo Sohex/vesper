@@ -211,13 +211,14 @@ PERIODIC_CLOSURE_RELATIVE = 1e-3
 PERIODIC_CLOSURE_FLOOR_KM3 = 1e-6
 # Years of the cycle to iterate before a basin that has not closed is refused.
 PERIODIC_MAX_YEARS = 400
-# No sub-step may move a basin by more than this share of its capacity. Sets the
-# integration error, not the answer.
-PERIODIC_MAX_STEP_FRACTION = 0.02
-# Share of the explicit scheme's own stability limit a sub-step may take. Below
-# 2 by the stability bound; 0.5 leaves margin for the slope changing inside the
-# step, which it does at every break in a hypsometric curve.
-PERIODIC_STABILITY_MARGIN = 0.5
+
+# THERE IS NO STEP SIZE HERE, AND THAT IS THE POINT. Within one time bin the
+# forcing is constant and the hypsometric curve is piecewise linear, so
+# `dV/dt = S - D A(V)` is a LINEAR ordinary differential equation on every
+# segment of the curve, and `_integrate_bin` walks the segments solving each in
+# closed form. Nothing is discretised, so there is no accuracy fraction and no
+# stability margin to choose; both used to stand here and both were numbers
+# picked to be small rather than derived from anything.
 
 # A basin HAS a seasonal cycle worth publishing when both hold. The fraction is
 # a statement about the basin; the area floor is a statement about the
@@ -225,6 +226,245 @@ PERIODIC_STABILITY_MARGIN = 0.5
 # comes off a curve built from mesh cells and a swing smaller than one cell is
 # below what the curve can express.
 SEASONAL_AMPLITUDE_MIN_FRACTION = 0.10
+
+
+# ---------------------------------------------------------------------------
+# The exact bin integrator
+# ---------------------------------------------------------------------------
+# `phi1`, `phi2` and `psi` are the three entire functions the closed-form step
+# is written in. Each is a ratio that is 0/0 at the origin, so each has a series
+# branch, and the branch point is where the direct form starts losing digits to
+# cancellation rather than where the ratio is undefined.
+
+
+def _phi1(x):
+    """(e^x - 1) / x, and 1 at x = 0."""
+    x = np.asarray(x, dtype=float)
+    small = np.abs(x) < 1e-8
+    xs = np.where(small, 1.0, x)
+    return np.where(small, 1.0 + x / 2.0 + x * x / 6.0, np.expm1(xs) / xs)
+
+
+def _phi2(x):
+    """(e^x - 1 - x) / x^2, and 1/2 at x = 0.
+
+    The direct form cancels the leading `x` out of `expm1`, so it loses about
+    `-log10|x|` digits; below 1e-4 the four-term series is good to 1e-19.
+    """
+    x = np.asarray(x, dtype=float)
+    small = np.abs(x) < 1e-4
+    xs = np.where(small, 1.0, x)
+    series = 0.5 + x / 6.0 + x * x / 24.0 + x * x * x / 120.0
+    return np.where(small, series, (np.expm1(xs) - xs) / (xs * xs))
+
+
+def _psi(z):
+    """-log(1 - z) / z, and 1 at z = 0. Defined for z < 1."""
+    z = np.asarray(z, dtype=float)
+    small = np.abs(z) < 1e-8
+    zs = np.where(small, 1.0, z)
+    return np.where(small, 1.0 + z / 2.0 + z * z / 3.0, -np.log1p(-zs) / zs)
+
+
+def _sub_mesh_area(supply_km3_per_year, demand_km_per_year, area_at_zero_km2):
+    """The lake a basin holding NO STORAGE still has, and why it is not zero.
+
+    A hypsometric curve is built from mesh cells, so its first level already
+    carries a whole cell of surface: `basins.nc` gives every basin a positive
+    area at zero volume, up to a couple of hundred km2. A basin whose supply
+    cannot fill that first cell therefore has a lake the curve cannot express,
+    somewhere between nothing and one cell, and reading the curve's own first
+    area for it charges open-water evaporation over water that is not there.
+    Over this catalogue that is a tenth of a percent of everything arriving,
+    destroyed rather than evaporated.
+
+    What the balance can say without the curve is the whole of the answer: with
+    no storage to draw down, the lake is exactly the area whose evaporative
+    demand consumes the supply, `S / D`, and it is below one cell by the same
+    condition that put the basin here. This is the same area `solve()` returns
+    at the bottom of the curve, which reads `supply / demand` with no floor
+    under it, so the two solves agree at the dry end instead of differing by a
+    mesh cell.
+    """
+    with np.errstate(divide="ignore", invalid="ignore"):
+        d = np.asarray(demand_km_per_year, dtype=float)
+        return np.where(d > 0,
+                        np.clip(np.asarray(supply_km3_per_year, dtype=float)
+                                / np.where(d > 0, d, 1.0), 0.0, area_at_zero_km2),
+                        area_at_zero_km2)
+
+
+def _integrate_bin(vcurve, acurve, capacity, volume_km3, supply_km3_per_year,
+                   demand_km_per_year, span_years):
+    """Integrate one basin-storage balance across one time bin, in closed form.
+
+    THE BALANCE. Over a bin the forcing does not change, so with `S` the volume
+    arriving per year and `D` the net depth leaving per year over open water,
+
+        dV/dt = S - D A(V)
+
+    and `A(V)` is the basin's hypsometric curve, which `basins.nc` publishes as
+    a piecewise linear function of volume. On one segment of that curve the
+    right-hand side is LINEAR IN V, so the equation is a linear ODE and its
+    solution is an exponential. This walks the segments the basin crosses and
+    solves each one exactly. No step size is chosen anywhere: what is computed
+    per segment is the TIME THE BASIN TAKES TO CROSS IT, and the bin ends inside
+    whichever segment the remaining time runs out in.
+
+    WHY THAT IS NOT AN OPTIMISATION. An explicit step has to be short enough to
+    be stable against `D dA/dV`, and short enough that a basin taking a large
+    throughflow does not move far in one step; on this terrain the second bound
+    goes to zero for a small reservoir on a big river, because the bound is set
+    by the RATE while the basin, pinned at its spill, does not move at all. The
+    closed form has neither bound, and it charges the correct open-water demand
+    while the basin is spilling instead of the demand at the level it started
+    the step from.
+
+    THE WORK IS BOUNDED BY THE CURVE. `A` is non-decreasing in `V`, so the
+    right-hand side is monotone in `V`, so within a bin the storage moves in one
+    direction only and crosses each of the curve's levels at most once. The
+    iteration limit is therefore the curve's own length and cannot be tuned: if
+    it is ever reached, either a curve is not monotone or a step made no
+    progress, and both are defects rather than a bin that needed more steps.
+
+    `vcurve` and `acurve` are `(nrows, nlevels)`, volume-ascending, and the
+    remaining arguments are `(nrows,)` except `span_years`. Returns
+    `(volume_end, overflow_km3, volume_integral, area_integral, area_end)`, the
+    two integrals being over the bin, in km3 yr and km2 yr. A basin at its
+    capacity with water still arriving holds there and the surplus goes to
+    `overflow_km3`; a basin at zero with water still leaving holds there, with
+    the lake `_sub_mesh_area` gives it rather than the curve's own first cell.
+    """
+    v = np.array(volume_km3, dtype=float)
+    n, m = vcurve.shape
+    span = float(span_years)
+    overflow = np.zeros(n)
+    int_v = np.zeros(n)
+    int_a = np.zeros(n)
+    todo = np.full(n, span)
+    active = np.flatnonzero(todo > 0)
+
+    for _ in range(m + 2):
+        if active.size == 0:
+            break
+        vc, ac = vcurve[active], acurve[active]
+        rows = np.arange(active.size)
+        vi, ti = v[active], todo[active]
+        s_i, d_i = supply_km3_per_year[active], demand_km_per_year[active]
+        cap_i = capacity[active]
+
+        # The level the basin sits at, and the area there. Continuous at a
+        # level boundary, so which side it is read from does not matter.
+        count_lt = (vc < vi[:, None]).sum(1)
+        count_le = (vc <= vi[:, None]).sum(1)
+        j = np.clip(count_le - 1, 0, m - 2)
+        j0, j1 = vc[rows, j], vc[rows, j + 1]
+        a0, a1 = ac[rows, j], ac[rows, j + 1]
+        width = j1 - j0
+        frac = np.where(width > 0, (vi - j0) / np.where(width > 0, width, 1.0), 0.0)
+        a_here = a0 + np.clip(frac, 0.0, 1.0) * (a1 - a0)
+        rate = s_i - d_i * a_here
+
+        # Three states that hold for the rest of the bin, because the rate at
+        # them cannot change while the basin does not move: spilling at
+        # capacity, dry at zero, and sitting on a fixed point.
+        spilling = (rate > 0) & (vi >= cap_i)
+        drying = (rate < 0) & (vi <= vc[rows, 0])
+        done = spilling | drying | (rate == 0)
+        if done.any():
+            w = active[done]
+            hold = ti[done]
+            int_v[w] += vi[done] * hold
+            int_a[w] += np.where(drying[done], _sub_mesh_area(s_i, d_i, ac[:, 0])[done],
+                                 a_here[done]) * hold
+            overflow[w] += np.where(spilling[done], rate[done], 0.0) * hold
+            todo[w] = 0.0
+
+        move = ~done
+        if not move.any():
+            active = active[todo[active] > 0]
+            continue
+
+        # The next level in the direction of travel, taken STRICTLY so a
+        # repeated volume in the curve cannot stall the walk.
+        up = rate > 0
+        ib = np.where(up, np.clip(count_le, 1, m - 1), np.clip(count_lt - 1, 0, m - 2))
+        v_edge = vc[rows, ib]
+        js = np.where(up, ib - 1, ib)
+        e0, e1 = vc[rows, js], vc[rows, js + 1]
+        b0, b1 = ac[rows, js], ac[rows, js + 1]
+        ewidth = e1 - e0
+        slope = np.where(ewidth > 0, (b1 - b0) / np.where(ewidth > 0, ewidth, 1.0), 0.0)
+
+        # The relaxation rate on this segment, and the time to cross it. `z` is
+        # how much of the way to the segment's own fixed point the far edge is:
+        # at or past it the edge is never reached and the bin ends inside.
+        lam = d_i * slope
+        edge = v_edge - vi
+        with np.errstate(divide="ignore", invalid="ignore"):
+            safe_rate = np.where(rate != 0, rate, 1.0)
+            z = np.where(rate != 0, lam * edge / safe_rate, 0.0)
+            reachable = (z < 1.0) & (edge != 0)
+            cross = np.where(reachable,
+                             (edge / safe_rate) * _psi(np.where(reachable, z, 0.0)),
+                             np.inf)
+        step = np.where(move, np.minimum(cross, ti), 0.0)
+        x = -lam * step
+        reached = move & (cross <= ti)
+
+        # TWO FORMS OF ONE ANSWER, and which is used is a conditioning choice
+        # rather than an approximation. Written as a displacement from where the
+        # storage started, the step subtracts two nearly equal numbers once the
+        # basin has relaxed most of the way to the segment's fixed point, which
+        # is the stiff case and so the normal one here. Written as a
+        # displacement from that fixed point it does not, and the fixed point
+        # itself comes off the segment's own coefficients rather than off the
+        # current volume, so it carries no cancellation into the step either.
+        relaxing = (np.abs(x) >= 1.0) & (slope != 0) & (d_i != 0)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            safe_slope = np.where(relaxing, slope, 1.0)
+            safe_d = np.where(relaxing, d_i, 1.0)
+            a_star = np.where(relaxing, s_i / safe_d, 0.0)
+            v_star = np.where(relaxing, e0 + (a_star - b0) / safe_slope, 0.0)
+        p1 = _phi1(x)
+        p2 = _phi2(x)
+        decay = np.exp(np.where(relaxing, x, 0.0))
+        v_free = np.where(relaxing, v_star + (vi - v_star) * decay,
+                          vi + rate * step * p1)
+        v_new = np.where(reached, v_edge, v_free)
+        dv_int = np.where(relaxing, step * (v_star + (vi - v_star) * p1),
+                          vi * step + rate * step * step * p2)
+        da_int = np.where(relaxing, step * (a_star + (a_here - a_star) * p1),
+                          a_here * step + slope * rate * step * step * p2)
+        w = active[move]
+        int_v[w] += dv_int[move]
+        int_a[w] += da_int[move]
+        v[w] = np.clip(v_new[move], 0.0, cap_i[move])
+        todo[w] = ti[move] - step[move]
+        active = active[todo[active] > 0]
+    else:
+        if active.size:
+            raise RuntimeError(
+                f"{active.size} basins did not cross their hypsometric curve in "
+                f"{m + 2} segment steps. The storage moves one way within a bin "
+                "and each level is crossed at most once, so this means a curve "
+                "whose volume is not ascending or a step that made no progress, "
+                "not a bin that needed a finer integration")
+
+    # The area the bin ENDS at, by the same rule the integral used, so the
+    # sampled area and the time-mean area cannot disagree about a basin that
+    # holds nothing.
+    idx = np.clip((vcurve < v[:, None]).sum(1) - 1, 0, m - 2)
+    rows = np.arange(n)
+    c0, c1 = vcurve[rows, idx], vcurve[rows, idx + 1]
+    d0, d1 = acurve[rows, idx], acurve[rows, idx + 1]
+    cw = c1 - c0
+    cf = np.where(cw > 0, (v - c0) / np.where(cw > 0, cw, 1.0), 0.0)
+    area_end = np.where(
+        v > 0.0,
+        d0 + np.clip(cf, 0.0, 1.0) * (d1 - d0),
+        _sub_mesh_area(supply_km3_per_year, demand_km_per_year, acurve[:, 0]))
+    return v, overflow, int_v, int_a, area_end
 
 
 def solve_periodic(
@@ -273,14 +513,27 @@ def solve_periodic(
     refused too, and `closed` says which. A caller that reads the arrays without
     reading `closed` is reading a transient.
 
-    WHAT IS PUBLISHED. Per basin and per bin, the area, level and volume; and
-    per basin, the peak-to-trough area range, that range as a fraction of the
-    annual mean area, the residence time, and `seasonal` -- whether both
+    WHAT IS PUBLISHED. Per basin and per bin, the area, level and volume AT THE
+    END OF THE BIN, and separately the bin's own TIME MEAN of area and volume;
+    and per basin, the peak-to-trough area range, that range as a fraction of
+    the cycle-mean area, the residence time, and `seasonal` -- whether both
     published-cycle criteria hold. The honest product is a per-basin amplitude
     carried by the low-capacity basins, not a claim that every preserved basin
     has a season: a deep terminal lake holds years of supply and its surface
     barely moves inside one, while a shallow playa's area is almost all
     seasonal.
+
+    THE END-OF-BIN AND TIME-MEAN AREAS ARE DIFFERENT QUANTITIES and neither is
+    the other rounded. A basin whose storage turns over inside a bin can sit at
+    its capacity for most of the bin and end it far below, so the peak-to-trough
+    range is taken on the samples the per-bin arrays publish, while everything
+    that has to conserve water -- the cycle mean, the residence time, the annual
+    balance -- is taken on the time mean.
+
+    THE WATER BALANCE TRAVELS WITH THE ANSWER, per bin and per year, as
+    `bin_balance_residual_km3` and `annual_water_residual_km3`. They are
+    diagnostics rather than criteria: `closed` is still what says whether a
+    basin may be read.
     """
     r = np.atleast_2d(np.asarray(runoff_km_per_year, dtype=float))
     e = np.atleast_2d(np.asarray(lake_evaporation_km_per_year, dtype=float))
@@ -298,40 +551,24 @@ def solve_periodic(
 
     capacity = basins.capacity_km3
     live = basins.has_impoundment
-    cap_safe = np.where(live, capacity, 1.0)
     catchment = basins.catchment_km2
 
-    def area_and_slope(vol, rows=None):
-        """Invert each basin's volume-to-area curve, and give its local slope.
-
-        Both curves are monotone. Vectorised over basins rather than looped:
-        this is evaluated once per sub-step per bin per cycle, so a Python loop
-        over the catalogue here is the whole cost of the routine. `rows`
-        restricts it to a subset, which is what the sub-stepping uses once most
-        basins have finished their bin.
-
-        `dA/dV` comes back because the integrator needs it. It is what makes the
-        balance stiff: a basin whose floor is flat gains a hundred mesh cells of
-        surface over one level of the curve, and an explicit step taken without
-        reference to that slope oscillates across it instead of settling on it.
-        """
-        vcurve = basins.volume_km3 if rows is None else basins.volume_km3[rows]
-        acurve = basins.area_km2 if rows is None else basins.area_km2[rows]
-        m = vcurve.shape[1]
-        idx = np.clip((vcurve < vol[:, None]).sum(1) - 1, 0, m - 2)
-        r_ = np.arange(vcurve.shape[0])
-        v0, v1 = vcurve[r_, idx], vcurve[r_, idx + 1]
-        a0, a1 = acurve[r_, idx], acurve[r_, idx + 1]
-        span = v1 - v0
-        good = span > 0
-        frac = np.where(good, (vol - v0) / np.where(good, span, 1.0), 0.0)
-        out = a0 + np.clip(frac, 0.0, 1.0) * (a1 - a0)
-        slope = np.where(good, (a1 - a0) / np.where(good, span, 1.0), 0.0)
-        keep = live if rows is None else live[rows]
-        return np.where(keep, out, 0.0), np.where(keep, slope, 0.0)
-
-    def area_of(vol, rows=None):
-        return area_and_slope(vol, rows)[0]
+    # THE BALANCE IS LINEAR IN THE LAKE'S AREA, and the integrator below is
+    # built on that. Runoff is generated over the DRY catchment, so the supply
+    # term is `r (C - A)` and folds into `S = r C` against `D = r + E - P` only
+    # while the lake is no larger than the catchment it sits in. That is a
+    # property of the catalogue rather than of the climate -- a catchment is
+    # defined to contain its own basin floor -- so a violation is a defect in
+    # `basins.nc` and is refused here rather than linearised away.
+    over = live & (basins.area_at_spill_km2 > catchment)
+    if np.any(over):
+        b = int(np.flatnonzero(over)[np.argmax(
+            (basins.area_at_spill_km2 - catchment)[over])])
+        raise ValueError(
+            f"{int(over.sum())} basins have more area at spill than catchment, "
+            f"worst basin {b} at {basins.area_at_spill_km2[b]:,.1f} km2 against "
+            f"{catchment[b]:,.1f} km2. A catchment contains its own basin floor, "
+            "so this is a defect in the basin catalogue")
 
     if initial_volume_km3 is None:
         # Seeded from the annual-mean equilibrium, which is the fixed point a
@@ -354,57 +591,49 @@ def solve_periodic(
     area_t = np.zeros((nbin, n))
     vol_t = np.zeros((nbin, n))
     overflow_t = np.zeros((nbin, n))    # km3 leaving over the sill, per bin
+    mean_area_t = np.zeros((nbin, n))   # time-mean over the bin, not its end
+    mean_vol_t = np.zeros((nbin, n))
+    residual_t = np.zeros((nbin, n))    # the bin's own water balance, km3
     closed = np.zeros(n, dtype=bool)
     years = 0
 
+    # The integration runs on the live subset only, and its curves are lifted
+    # out of the cycle loop because they do not change.
+    rows_live = np.flatnonzero(live)
+    vcurve_live = basins.volume_km3[rows_live]
+    acurve_live = basins.area_km2[rows_live]
+    cap_live = capacity[rows_live]
+    catch_live = catchment[rows_live]
+
+    cycle_start = vol0
     for years in range(1, max_years + 1):
+        cycle_start = vol0
         vol = vol0.copy()
         overflow_t[:] = 0.0
         for k in range(nbin):
-            target = dt_bin[k]
-            todo = np.where(live, target, 0.0)
-            # Per-basin adaptive sub-stepping, on the ACTIVE subset. A global
-            # step would let one fast-emptying playa set the step for every deep
-            # lake in the set; carrying the finished basins through the arrays
-            # anyway would cost the same as never having finished them.
-            rows = np.flatnonzero(todo > 0)
-            for _ in range(256):
-                if rows.size == 0:
-                    break
-                v = vol[rows]
-                a, slope = area_and_slope(v, rows)
-                rate = (r[k, rows] * np.maximum(catchment[rows] - a, 0.0)
-                        + (pcp[k, rows] - e[k, rows]) * a + inflow[k, rows])
-                big = np.abs(rate)
-                with np.errstate(divide="ignore", invalid="ignore"):
-                    limit = np.where(big > 0,
-                                     PERIODIC_MAX_STEP_FRACTION * cap_safe[rows] / big,
-                                     np.inf)
-                    # The stability bound, and it is what the accuracy bound
-                    # above cannot supply. Writing the balance as
-                    # dV/dt = S - D*A(V) with D = runoff + E - P, the local
-                    # relaxation rate is D * dA/dV, and an explicit step longer
-                    # than 2/(D dA/dV) alternates about the fixed point instead
-                    # of approaching it. On this terrain that is not an edge
-                    # case: a basin with a flat floor takes a hundred mesh cells
-                    # of surface in one level of its curve, and the alternation
-                    # reads out as a seasonal area swing under a forcing that
-                    # has no season at all.
-                    lam = (r[k, rows] + e[k, rows] - pcp[k, rows]) * slope
-                    stable = np.where(lam > 0,
-                                      PERIODIC_STABILITY_MARGIN / np.where(lam > 0, lam, 1.0),
-                                      np.inf)
-                step = np.minimum(todo[rows], np.minimum(limit, stable))
-                raw = v + rate * step
-                overflow_t[k, rows] += np.maximum(raw - capacity[rows], 0.0)
-                vol[rows] = np.clip(raw, 0.0, capacity[rows])
-                todo[rows] = todo[rows] - step
-                rows = rows[todo[rows] > 0]
-            else:
-                raise RuntimeError(
-                    f"bin {k} did not integrate in 256 sub-steps; the step limit "
-                    "or the hypsometric curve is degenerate")
-            area_t[k] = area_of(vol)
+            # S and D of the balance dV/dt = S - D A(V), constant across the
+            # bin because the forcing is. Runoff is generated over the DRY
+            # catchment, so the lake's own footprint comes out of the supply
+            # and into the demand; the guard above is what licenses writing it
+            # this way rather than clamping C - A at every evaluation.
+            supply = r[k, rows_live] * catch_live + inflow[k, rows_live]
+            demand = r[k, rows_live] + e[k, rows_live] - pcp[k, rows_live]
+            v_end, ovf, iv, ia, a_end = _integrate_bin(
+                vcurve_live, acurve_live, cap_live, vol[rows_live],
+                supply, demand, dt_bin[k])
+            # The bin's own water balance, and the two sides of it are computed
+            # by different closed forms rather than by one from the other: the
+            # storage change comes out of the exponential step and the loss out
+            # of the exponential's integral. `_selftest` puts a tolerance on it.
+            residual_t[k, rows_live] = (
+                (v_end - vol[rows_live])
+                - (supply * dt_bin[k] - demand * ia - ovf))
+            vol[rows_live] = v_end
+            overflow_t[k, rows_live] = ovf
+            mean_vol_t[k, rows_live] = iv / dt_bin[k]
+            mean_area_t[k, rows_live] = ia / dt_bin[k]
+            area_t[k] = 0.0
+            area_t[k, rows_live] = a_end
             vol_t[k] = vol
 
         received = np.zeros((nbin, n))
@@ -439,18 +668,33 @@ def solve_periodic(
         vol0 = vol
         inflow = received
 
-    mean_area = (area_t * dt_bin[:, None]).sum(0) / dt_bin.sum()
+    # The cycle means are TIME means, from the integrator's own exact integral
+    # over each bin, not the bin-end samples averaged. The two differ by the
+    # curvature the storage has inside a bin, which is exactly what a basin
+    # whose residence time is short compared with a bin is made of.
+    mean_area = (mean_area_t * dt_bin[:, None]).sum(0) / dt_bin.sum()
+    mean_volume = (mean_vol_t * dt_bin[:, None]).sum(0) / dt_bin.sum()
     swing = area_t.max(axis=0) - area_t.min(axis=0)
     with np.errstate(divide="ignore", invalid="ignore"):
         amplitude = np.where(mean_area > 0, swing / mean_area, 0.0)
     seasonal = (closed & (amplitude >= SEASONAL_AMPLITUDE_MIN_FRACTION)
                 & (swing >= float(area_resolution_km2)))
 
-    annual_inflow = ((r * np.maximum(catchment - area_t, 0.0) + inflow)
+    annual_inflow = ((r * np.maximum(catchment - mean_area_t, 0.0) + inflow)
                      * dt_bin[:, None]).sum(0)
-    mean_volume = (vol_t * dt_bin[:, None]).sum(0) / dt_bin.sum()
     with np.errstate(divide="ignore", invalid="ignore"):
         residence = np.where(annual_inflow > 0, mean_volume / annual_inflow, np.inf)
+
+    # The year's own water balance per basin: what arrived less what left less
+    # what the storage gained. Zero to arithmetic on a closed cycle, and the
+    # scale to read it against is what passed through, so both are returned.
+    annual_supply = ((r * np.maximum(catchment - mean_area_t, 0.0)
+                      + pcp * mean_area_t + inflow) * dt_bin[:, None]).sum(0)
+    annual_loss = (e * mean_area_t * dt_bin[:, None]).sum(0)
+    annual_overflow = overflow_t.sum(0)
+    storage_change = vol - cycle_start
+    water_residual = np.where(
+        live, annual_supply - annual_loss - annual_overflow - storage_change, 0.0)
 
     level_t = np.zeros((nbin, n))
     m = basins.area_km2.shape[1]
@@ -467,8 +711,17 @@ def solve_periodic(
         "level_km": level_t,
         "volume_km3": vol_t,
         "overflow_km3": overflow_t,
+        "mean_area_by_bin_km2": mean_area_t,
+        "mean_volume_by_bin_km3": mean_vol_t,
         "mean_area_km2": mean_area,
         "mean_volume_km3": mean_volume,
+        # The conservation evidence, per basin: the bin's own balance residual
+        # from the integrator's two closed forms, and the year's balance from
+        # the published trajectory. Both are km3, and `annual_throughput_km3`
+        # is the scale to read them against.
+        "bin_balance_residual_km3": residual_t,
+        "annual_water_residual_km3": water_residual,
+        "annual_throughput_km3": annual_supply,
         "area_swing_km2": swing,
         "seasonal_amplitude": amplitude,
         "residence_time_years": residence,
@@ -557,23 +810,84 @@ def _synthetic(n_basins=6, levels=64, *, staircase=False) -> BasinSet:
     return b
 
 
+# The tolerances the integrator is judged on, DECLARED BEFORE IT WAS RUN. Each
+# is a distance from an answer that is known independently, so each is set by
+# what double precision can carry over the work involved and not by what came
+# out. They are unrelated to PERIODIC_CLOSURE_RELATIVE, which is a physical
+# statement about a cycle repeating.
+#
+# The closed form on one segment of a curve is the exponential itself, so it is
+# right to the last few bits: 1e-13 leaves room for the handful of roundings
+# between the two expressions and nothing else.
+EXACTNESS_RELATIVE = 1e-13
+# The bin's own water balance is two closed forms of the same integral, one for
+# the storage change and one for the loss. Over at most one pass of a 128-level
+# curve that is a few hundred roundings against the largest term in the balance.
+BALANCE_RELATIVE = 1e-10
+# An independent stiff integrator, at four orders tighter than this on its own
+# tolerance, so what is being measured is this solver rather than the reference.
+# Read against the basin's CAPACITY, which is the scale a lake volume has.
+REFERENCE_TOLERANCE = 1e-6
+REFERENCE_RTOL = 1e-10
+REFERENCE_ATOL_KM3 = 1e-14
+
+
+def _reference_bin(vcurve, acurve, capacity, v0, supply, demand, span_years):
+    """One basin, one bin, by an independent stiff integrator.
+
+    Radau on the same balance, with the hypsometric curve read through
+    `np.interp` rather than through anything in this module. It exists to
+    disagree with `_integrate_bin`, so it shares no code with it; the price is
+    that it takes one basin at a time and cannot be what the solver uses.
+
+    Returns the volume at the end of the bin. Water above capacity spills, so
+    the area is held at the spill area there and the surplus is not carried.
+    """
+    from scipy.integrate import solve_ivp
+
+    def rhs(_t, y):
+        v = min(max(float(y[0]), 0.0), float(capacity))
+        a = float(np.interp(v, vcurve, acurve))
+        rate = supply - demand * a
+        if y[0] >= capacity and rate > 0:
+            return [0.0]
+        if y[0] <= 0.0 and rate < 0:
+            return [0.0]
+        return [rate]
+
+    sol = solve_ivp(rhs, (0.0, float(span_years)), [float(v0)], method="Radau",
+                    rtol=REFERENCE_RTOL, atol=REFERENCE_ATOL_KM3, dense_output=False)
+    if not sol.success:
+        raise RuntimeError(f"the reference integrator failed: {sol.message}")
+    return float(np.clip(sol.y[0, -1], 0.0, capacity))
+
+
 def _selftest() -> int:
     """Checks with right answers, not outcomes that could only differ.
 
     Every one of these can fail. Three are identities the periodic solve must
     satisfy against the equilibrium solve it generalises, one is a monotonicity
-    that a solver reading the wrong forcing would break, and one is the fixture
-    that caught the integrator: a flat basin floor makes the balance stiff, and
-    an explicit step taken without reference to the local slope alternates
-    across it and reports a season under a forcing that has none.
+    that a solver reading the wrong forcing would break, and the rest are on the
+    bin integrator: the closed form against the exponential it claims to be, the
+    water balance against itself, an independent stiff integrator against the
+    two shapes of terrain that break a stepped one, and the throughflow case
+    where a small reservoir sits on a large river.
     """
     problems: list[str] = []
     n_checks = 0
 
-    def check(name: str, ok: bool, detail: str = "") -> None:
+    def check(name: str, ok: bool, detail: str = "", margin: str = "") -> None:
+        """`margin` is printed whether the check passes or not.
+
+        A numeric check that only reports itself when it fails cannot be read
+        for how much room it had, and the room is what says whether the next
+        change to the integrator is safe.
+        """
         nonlocal n_checks
         n_checks += 1
-        print(f"[{'  ok  ' if ok else ' FAIL '}] {name}{'' if ok else ': ' + detail}")
+        tail = f" [{margin}]" if margin else ""
+        print(f"[{'  ok  ' if ok else ' FAIL '}] {name}{tail}"
+              f"{'' if ok else ': ' + detail}")
         if not ok:
             problems.append(name)
 
@@ -654,6 +968,147 @@ def _selftest() -> int:
           bool(per["refused_no_impoundment"][0]) and not bool(per["closed"][0])
           and not bool(per["seasonal"][0]),
           "it was integrated")
+
+    # ---------------------------------------------------------------------
+    # The bin integrator, against answers that do not come from it
+    # ---------------------------------------------------------------------
+
+    # ON ONE SEGMENT THE BALANCE IS A LINEAR ODE AND ITS ANSWER IS THE
+    # EXPONENTIAL. A curve of two levels is exactly one segment, so the whole
+    # bin has a closed form written out here from the coefficients rather than
+    # from anything the module does. Nothing about stiffness is at issue: this
+    # is whether the algebra is the algebra.
+    v_top, a_top = 4.0, 200.0
+    vcurve = np.array([[0.0, v_top]])
+    acurve = np.array([[0.0, a_top]])
+    cap = np.array([v_top])
+    slope = a_top / v_top
+    exact_worst = 0.0
+    for S, D, v0, h in ((3.0, 0.05, 0.5, 0.25), (0.4, 0.4, 3.0, 0.08),
+                        (12.0, 2.0, 0.1, 0.02), (0.05, 0.9, 2.0, 0.5)):
+        lam = D * slope
+        vstar = S / (D * slope)
+        want = vstar + (v0 - vstar) * np.exp(-lam * h)
+        want = min(max(want, 0.0), v_top)
+        got, _, _, _, _ = _integrate_bin(vcurve, acurve, cap, np.array([v0]),
+                                      np.array([S]), np.array([D]), h)
+        exact_worst = max(exact_worst, abs(got[0] - want) / max(abs(want), 1e-30))
+    check("on one segment the closed form is the exponential it claims to be",
+          exact_worst < EXACTNESS_RELATIVE,
+          f"worst relative difference {exact_worst:.3g} against {EXACTNESS_RELATIVE:g}",
+          f"{exact_worst:.2g} of {EXACTNESS_RELATIVE:g}")
+
+    # A SMALL RESERVOIR ON A LARGE RIVER, which is the case that broke the
+    # stepped integrator: the storage does not move at all while a throughflow
+    # many times its capacity passes over the sill each bin. The answers are
+    # arithmetic -- the volume stays at capacity and the overflow is the
+    # surplus over the whole bin at the spill area's own demand.
+    S, D, h = 900.0, 0.02, 0.1
+    got, ovf, iv, ia, _ = _integrate_bin(vcurve, acurve, cap, np.array([v_top]),
+                                      np.array([S]), np.array([D]), h)
+    want_ovf = (S - D * a_top) * h
+    check("a basin pinned at its spill passes its throughflow in one step",
+          abs(got[0] - v_top) < EXACTNESS_RELATIVE * v_top
+          and abs(ovf[0] - want_ovf) < EXACTNESS_RELATIVE * want_ovf
+          and abs(ia[0] - a_top * h) < EXACTNESS_RELATIVE * a_top * h,
+          f"volume {got[0]:.12g} against {v_top}, overflow {ovf[0]:.12g} "
+          f"against {want_ovf:.12g}",
+          f"throughflow {S * h / cap[0]:.0f}x capacity in the bin")
+
+    # AGAINST AN INDEPENDENT STIFF INTEGRATOR, on the two shapes of terrain
+    # that break a stepped one: a flat basin floor, where the area runs away
+    # with the volume, and a basin whose whole capacity turns over inside a bin.
+    # Every case here is one an explicit scheme has to sub-step and this one
+    # does not, so a shortcut that was only approximately right would show.
+    fix = _synthetic(n_basins=6, staircase=True)
+    worst_ref = 0.0
+    worst_case = None
+    cases = []
+    for bi in range(fix.n):
+        capb = float(fix.capacity_km3[bi])
+        for supply_mult in (0.2, 1.0, 5.0, 60.0):
+            for demand in (2e-4, 9e-4, 4e-3):
+                cases.append((bi, capb * supply_mult / 0.1, demand,
+                              0.35 * capb, 0.1))
+    for bi, S, D, v0, h in cases:
+        got, _, _, _, _ = _integrate_bin(
+            fix.volume_km3[bi:bi + 1], fix.area_km2[bi:bi + 1],
+            fix.capacity_km3[bi:bi + 1], np.array([v0]),
+            np.array([S]), np.array([D]), h)
+        want = _reference_bin(fix.volume_km3[bi], fix.area_km2[bi],
+                              fix.capacity_km3[bi], v0, S, D, h)
+        rel = abs(got[0] - want) / float(fix.capacity_km3[bi])
+        if rel > worst_ref:
+            worst_ref, worst_case = rel, (bi, S, D, v0)
+    check(f"a stiff bin agrees with an independent integrator over {len(cases)} cases",
+          worst_ref < REFERENCE_TOLERANCE,
+          f"worst {worst_ref:.3g} of capacity against {REFERENCE_TOLERANCE:g}, "
+          f"at basin {worst_case}",
+          f"{worst_ref:.2g} of capacity, against {REFERENCE_TOLERANCE:g}")
+
+    # THE BIN'S WATER BALANCE, over a real cycle rather than a single bin. The
+    # storage change comes out of the exponential and the loss out of the
+    # exponential's integral, so this is two closed forms of one integral
+    # against each other and it can disagree.
+    b = _synthetic(n_basins=8, staircase=True)
+    e = 900e-6 * (1.0 + 0.7 * phase) * np.ones((1, b.n))
+    per = solve_periodic(b, np.full((nbin, b.n), 60e-6), e,
+                         np.full((nbin, b.n), 60e-6), dt, area_resolution_km2=1.0)
+    scale = np.maximum(b.capacity_km3, np.abs(per["annual_throughput_km3"]))
+    rel_bin = float((np.abs(per["bin_balance_residual_km3"]).max(axis=0)
+                     / np.maximum(scale, 1e-30)).max())
+    check("every bin's water balance closes on itself",
+          rel_bin < BALANCE_RELATIVE,
+          f"worst relative residual {rel_bin:.3g} against {BALANCE_RELATIVE:g}",
+          f"{rel_bin:.2g} of {BALANCE_RELATIVE:g}")
+
+    # AND THE YEAR'S. On a closed cycle the storage returns to where it started,
+    # so what arrived over the year has to equal what evaporated plus what went
+    # over the sill, per basin and summed over the set.
+    rel_year = float((np.abs(per["annual_water_residual_km3"])
+                      / np.maximum(scale, 1e-30)).max())
+    total = float(np.abs(per["annual_water_residual_km3"]).sum()
+                  / max(per["annual_throughput_km3"].sum(), 1e-30))
+    check("the year's water closes, per basin and over the set",
+          bool(per["all_closed"]) and rel_year < BALANCE_RELATIVE
+          and total < BALANCE_RELATIVE,
+          f"per basin {rel_year:.3g}, over the set {total:.3g}, "
+          f"against {BALANCE_RELATIVE:g}",
+          f"per basin {rel_year:.2g}, over the set {total:.2g}, "
+          f"against {BALANCE_RELATIVE:g}")
+
+    # A BASIN TOO DRY TO FILL ONE MESH CELL. Every hypsometric curve in this
+    # project carries a whole cell of surface at zero volume, so a basin whose
+    # supply cannot fill that cell has a lake the curve cannot express and the
+    # curve's own first area is not it. The two things that must hold are that
+    # the water still closes and that the periodic solve gives the same area as
+    # the equilibrium solve, which reads supply over demand with no floor under
+    # it. Reading the curve instead fails both, by one mesh cell per basin.
+    b = _synthetic(n_basins=6)
+    b.area_km2 = b.area_km2 + 150.0        # a cell of surface at zero volume
+    b.volume_km3 = np.concatenate(
+        [np.zeros((b.n, 1)),
+         np.cumsum(0.5 * (b.area_km2[:, 1:] + b.area_km2[:, :-1])
+                   * np.diff(b.level_km, axis=1), axis=1)], axis=1)
+    b.capacity_km3 = b.volume_km3[:, -1].copy()
+    b.area_at_spill_km2 = b.area_km2[:, -1].copy()
+    r_dry = np.full((nbin, b.n), 2e-7)     # far too little to fill one cell
+    e_dry = np.full((nbin, b.n), 2000e-6)
+    p_dry = np.full((nbin, b.n), 2e-7)
+    eq = solve(b, r_dry[0], e_dry[0], p_dry[0])
+    per = solve_periodic(b, r_dry, e_dry, p_dry, dt, area_resolution_km2=1.0)
+    scale = np.maximum(b.capacity_km3, np.abs(per["annual_throughput_km3"]))
+    dry_bal = float((np.abs(per["annual_water_residual_km3"])
+                     / np.maximum(scale, 1e-30)).max())
+    dry_area = float(np.abs(per["mean_area_km2"] - eq["area_km2"]).max()
+                     / max(eq["area_km2"].max(), 1e-30))
+    check("a basin below one mesh cell of lake conserves water and matches solve()",
+          bool((per["volume_km3"] <= 0).all()) and dry_bal < BALANCE_RELATIVE
+          and dry_area < 1e-12,
+          f"balance {dry_bal:.3g}, area difference {dry_area:.3g}",
+          f"balance {dry_bal:.2g}, area {dry_area:.2g}, "
+          f"lake {per['mean_area_km2'].max():.3g} km2 under a "
+          f"{b.area_km2[0, 0]:.0f} km2 first cell")
 
     print(f"\n{n_checks} checks, {len(problems)} failed")
     return 1 if problems else 0
