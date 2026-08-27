@@ -1,0 +1,79 @@
+{
+  "generated": "2026-08-27T07:43:28.380200+00:00",
+  "what": "each pipeline loop's OWN exit predicate, re-evaluated against the final state. docs/src/pipeline/loops.md, the finalizer.",
+  "not_a_loop": "nothing iterates on this verdict. A failure names a loop and the decision to re-enter it is the author's.",
+  "operating_support": "T85",
+  "status": "not evaluable",
+  "loops": [
+    {
+      "loop": "A",
+      "predicate": "carve the INTERSECTION of the verdicts taken at the two bounding climates; re-taken on the operating support's baseline climatology, that intersection is the set that was actually carved",
+      "status": "not evaluable",
+      "detail": "no applied carve list at hydrography/data/canonical-10m-base/carve_list.json. Loop A has not exited on this lineage, so there is no carved set to hold a re-take against.",
+      "compared": {
+        "operating_support": "T85",
+        "applied_carve_list": "hydrography/data/canonical-10m-base/carve_list.json",
+        "retaken_carve_list": "hydrography/analysis/carve_list_final.json",
+        "warm_vegetated_arm": null,
+        "cold_bare_rock_arm": null
+      }
+    },
+    {
+      "loop": "B",
+      "predicate": "the criteria in pedology/config/pedogenesis.yaml: land-mean soil organic carbon within soil_carbon_relative_tolerance, the share of land cells whose clay moved within texture_cells_moved_tolerance, and the iteration count within maximum_iterations",
+      "status": "not evaluable",
+      "detail": "no soil at pedology/data/canonical-10m-base/soilmap_T85.txt. Loop B's criteria are about the soil the final state carries and there is none.",
+      "compared": {
+        "operating_support": "T85",
+        "soil_support": "T21",
+        "final_soil": "pedology/data/canonical-10m-base/soilmap_T85.txt",
+        "previous_soil": "",
+        "iteration": null,
+        "criteria": {
+          "soil_carbon_relative_tolerance": 0.02,
+          "texture_cells_moved_tolerance": 0.05,
+          "maximum_iterations": 6,
+          "clay_move_threshold": 0.02,
+          "clay_move_threshold_source": "the comment above texture_cells_moved_tolerance in pedology/config/pedogenesis.yaml; it carries no key"
+        }
+      }
+    },
+    {
+      "loop": "C",
+      "predicate": "re-take the verdict on MODELLED vegetation; if basins flip, re-enter A. Generalised to the operating support rather than the support the verdict was first taken on",
+      "status": "not evaluable",
+      "detail": "no verdict at hydrography/analysis/carve_verdict.json to hold the re-take against, so nothing can be said to have flipped",
+      "compared": {
+        "operating_support": "T85",
+        "verdict_loop_a_used": "hydrography/analysis/carve_verdict.json",
+        "verdict_on_modelled_vegetation": "hydrography/analysis/carve_verdict_modelled.json",
+        "assumed_biosphere_arm": null,
+        "modelled_biosphere_arm": null
+      }
+    },
+    {
+      "loop": "D",
+      "predicate": "the route's own invariants: the operating support is reached, and every change of rung happened at constant dt",
+      "status": "not evaluable",
+      "detail": "no run chain: there is no baseline climatology naming a run, so nothing says which supports were walked",
+      "compared": {
+        "operating_support": "T85",
+        "declared_route": [
+          [
+            "T21",
+            45.0
+          ],
+          [
+            "T42",
+            45.0
+          ],
+          [
+            "T85",
+            45.0
+          ]
+        ],
+        "chain": []
+      }
+    }
+  ]
+}
