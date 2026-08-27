@@ -2159,10 +2159,11 @@ derives the saturated endmember per rock class and per band from Lekner and Dorf
 (1988) and Twomey, Bohren and Mergenthaler (1986) applied per wavelength, and it
 prices this term and nothing else. `build_surface_albedo.py` integrates it to the
 land-mean pair it writes into `albedo_report.json:wetting`, quoted in
-`exoplasim/notes/soil-albedo-moisture.md` and measured 2026-08-26 at T21: land
-mean 0.261450 dry against 0.105609 saturated. The saturation mapping the model
-reads is `pedology/analysis/land_column_properties_report.json`'s
-`surface_layer.saturation_endpoints`, 0.0 at an empty layer and 0.7877 at a full
+`exoplasim/notes/soil-albedo-moisture.md` and measured 2026-08-27 at T21 on the
+vegetated field with lakes: land mean 0.170772 dry against 0.140616 saturated.
+The saturation mapping the model reads is
+`pedology/analysis/land_column_properties_report.json`'s
+`surface_layer.saturation_endpoints`, 0.0 at an empty layer and 0.7642 at a full
 one. Neither is a number this entry chose.
 
 **THE FLUX-TO-KELVIN ROUTE, stated because a surface albedo is not a planetary
@@ -2186,6 +2187,42 @@ bracket are unchanged, so the whole amendment is one multiplication by
 The ceiling was registered at +9.0 K bracketed +4.5 to +18.0, and the material
 threshold at f above 0.0526.
 
+**AMENDED AGAIN 2026-08-27, AND THIS ONE MOVES THE ARTIFACT.** Two things moved
+under this entry and neither is the term's physics; both are visible only because
+the entry states which artifact each number came from.
+
+- **The staged field became the VEGETATED baseline with lakes composited in.**
+  The entry was priced on a bare-rock field whose land mean was 0.261450 dry
+  against 0.105609 saturated. The field a run now reads is 0.170772 against
+  0.140616. A canopy is not a wetting surface and open water is not one either,
+  so `build_surface_albedo.py` gives the covered and lake fractions of a cell the
+  same value at both ends and only the bare fraction wets; the endmember swing
+  falls from 0.155841 to 0.030156, a factor of 5.2, and the whole factor is
+  cover.
+- **`skinsrfc` went from 0.7877 to 0.7642** when the saturation mapping was
+  derived from the emitted states instead of typed. Every `Sr` column below was
+  computed at the old endpoint.
+
+The table below is repriced on the field now staged, per cell through Sadeghi
+Eq (13) and then land meaned; `wetting.at_full_surface_layer` in
+`albedo_report.json` carries its last row so it does not have to be re-derived
+again.
+
+**THE CEILING IS NOW +1.25 K at attenuation 0.5, bracketed +0.62 to +2.49**, and
+the material threshold at 1.0 K moves from f above 0.0677 to **f above 0.756**.
+
+**THE CONSEQUENCE IS THAT THE REGISTERED BAR NO LONGER DISCRIMINATES IN `tas`,
+and that is the finding rather than a caveat.** The resolution bar fixed below is
+two root two times the larger standard error of a 25-orbit paired difference,
+which on the held arms is 0.56 to 0.75 K in global-mean `tas` and puts the bar at
+1.6 to 2.1 K. The ceiling sits below its own bar, and the ceiling is a state the
+cascade cannot hold. So a paired arm reporting "not resolved" in `tas` would be
+reporting its own scatter and would say nothing about this term. The `alb`
+measurement below is unaffected and is now the test rather than the corroboration:
+it is set by the boundary condition and the saturation the cascade hands it, not
+by the circulation. What a temperature separation is still good for is the SIGN,
+which is hard, and the upper bound: anything above +2.5 K is not this term.
+
 **THE SIGN IS HARD AND IT IS ONE-SIGNED.** Every non-refused region's saturated
 field is darker than its dry field, `build_surface_albedo.py` refuses to write a
 field where that fails, and `wet_soil_albedo` is monotone in the saturation. So
@@ -2194,10 +2231,10 @@ over land can only RISE. A resolved cooling is an implementation fault, not a
 small result.
 
 **THE CEILING, WHICH IS NOT THE PREDICTION.** A permanently full surface layer
-maps to 0.7877 and not to 1, so the staged saturated endmember is an endpoint the
-mixing approaches and never reaches. Mixed on the land-mean pair that is a
-land-mean albedo fall of 0.140804 against the 0.155841 endmember swing, worth
-+7.1 K at attenuation 0.5 and +3.6 to +14.3 across the declared factor of two.
+maps to 0.7642 and not to 1, so the staged saturated endmember is an endpoint the
+mixing approaches and never reaches. Mixed per cell and then land meaned that is
+a land-mean albedo fall of 0.024633 against the 0.030156 endmember swing, worth
++1.25 K at attenuation 0.5 and +0.62 to +2.49 across the declared factor of two.
 That is a state the model cannot hold and it is registered as a bound, not an
 estimate. It is also far outside the regime `SLOPE_K_PER_FLUX_RATIO` was measured
 in, which is itself the finding: this term cannot be settled by prediction.
@@ -2205,24 +2242,24 @@ in, which is itself the finding: this term cannot be settled by prediction.
 **WHAT IS PRICED EXACTLY: the term per unit wetness.** `f` is the surface
 layer's liquid store as a fraction of its own capacity, land-area and time
 meaned; `Sr` is `skinsrad + f*(skinsrfc - skinsrad)`; the albedo is the
-Kubelka-Munk mixing at `wetsigma = 1` on the land-mean pair.
+Kubelka-Munk mixing at `wetsigma = 1`, taken per cell and then land meaned.
 
 | f | Sr | land-mean albedo | fall | K at 0.25 | K at 0.5 | K at 1.0 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0.02 | 0.0158 | 0.255267 | 0.006183 | +0.16 | +0.31 | +0.63 |
-| 0.05 | 0.0394 | 0.246556 | 0.014894 | +0.38 | +0.75 | +1.51 |
-| 0.10 | 0.0788 | 0.233360 | 0.028090 | +0.71 | +1.42 | +2.84 |
-| 0.15 | 0.1182 | 0.221574 | 0.039876 | +1.01 | +2.02 | +4.04 |
-| 0.25 | 0.1969 | 0.201383 | 0.060067 | +1.52 | +3.04 | +6.08 |
-| 0.50 | 0.3938 | 0.164381 | 0.097069 | +2.46 | +4.91 | +9.83 |
-| 1.00 | 0.7877 | 0.120646 | 0.140804 | +3.56 | +7.13 | +14.26 |
+| 0.02 | 0.0153 | 0.170111 | 0.000660 | +0.02 | +0.03 | +0.07 |
+| 0.05 | 0.0382 | 0.169141 | 0.001631 | +0.04 | +0.08 | +0.17 |
+| 0.10 | 0.0764 | 0.167575 | 0.003197 | +0.08 | +0.16 | +0.32 |
+| 0.15 | 0.1146 | 0.166066 | 0.004705 | +0.12 | +0.24 | +0.48 |
+| 0.25 | 0.1910 | 0.163203 | 0.007569 | +0.19 | +0.38 | +0.77 |
+| 0.50 | 0.3821 | 0.156775 | 0.013997 | +0.35 | +0.71 | +1.42 |
+| 1.00 | 0.7642 | 0.146138 | 0.024633 | +0.62 | +1.25 | +2.49 |
 
 The curve is strongly CONCAVE, which is the half of Sadeghi, Jones and Philpot
-that matters here: a skin at a tenth of its capacity has already given up a fifth
-of the swing, where a linear mix in the albedo would give a tenth. Evaluating the
-mixing at the mean rather than meaning it over the distribution OVERSTATES the
-fall, because the fall is concave in the saturation, so every row is an upper
-bound at its own `f`.
+that matters here: a skin at a tenth of its capacity has already given up an
+eighth of the swing, where a linear mix in the albedo would give a tenth.
+Evaluating the mixing at the mean `f` rather than meaning it over the
+distribution of `f` OVERSTATES the fall, because the fall is concave in the
+saturation, so every row is an upper bound at its own `f`.
 
 **THE ONE QUANTITY NO HELD ARTIFACT PRICES, and it is `f`.** Three reasons, and
 each is a property of the tree rather than an opinion.
@@ -2248,16 +2285,17 @@ magnitude faster.
 **REGISTERED, AND IT IS A THRESHOLD RATHER THAN A VALUE.**
 
 - **Top-of-atmosphere forcing: POSITIVE, and its entry in the bundle sum is
-  `+7.1 K times f_eff` with `f_eff` unmeasured.** The bundle sum cannot be closed
+  `+1.25 K times f_eff` with `f_eff` unmeasured.** The bundle sum cannot be closed
   on this term until the arm measures it, and that is stated rather than papered
   over with a mid-range number.
-- **The term is MATERIAL at the 1.0 K threshold, the one `vdiff_lamm` and
-  `world-5oyp` were registered against, as soon as `f` exceeds 0.0677** --
-  equivalently as soon as the armed arm's land-mean `alb` over snow-free land
-  falls by more than 0.0198. The zero hypothesis under test is that the pair does
-  not separate, and the prediction is that it FAILS. A separation below 1 K would
-  be the surprising outcome and would mean the modelled skin is essentially never
-  wet, which is a statement about the cascade rather than about the albedo.
+- **The term reaches the 1.0 K threshold, the one `vdiff_lamm` and `world-5oyp`
+  were registered against, only once `f` exceeds 0.756** -- equivalently once the
+  armed arm's land-mean `alb` over snow-free land falls by more than 0.0198,
+  which on this field is nearly the whole ceiling. The zero hypothesis under test
+  is that the pair does not separate in `tas`, and the prediction is now that it
+  HOLDS: the term is real and one-signed and its temperature consequence is
+  inside the instrument's own scatter. What the arm is bought for is the `alb`
+  fall and the `f` that produced it, not a temperature.
 - **The realised fall is measured directly and needs no saturation diagnostic.**
   Both arms write `alb`; its land mean over the same orbits IS the fall, and the
   row of the table it lands on converts it. That measurement is what turns this
@@ -2278,7 +2316,7 @@ only where `|diff| > 2*sqrt(2)*max(SEM)`. The same bar `vdiff_lamm` and
   brighten any region and the mixing is monotone, so either is an implementation
   fault. The first thing to check is that the arm read codes 1742, 1750 and 1760
   rather than the sentinel, which `landini` prints.
-- A land-mean `alb` fall above 0.140804. That is the permanently-saturated
+- A land-mean `alb` fall above 0.024633. That is the permanently-saturated
   ceiling and the surface layer caps at field capacity, so exceeding it means the
   fill fraction is not being clipped to one or `dsoilwfc` is not the capacity the
   cascade fills.
@@ -2289,9 +2327,9 @@ only where `|diff| > 2*sqrt(2)*max(SEM)`. The same bar `vdiff_lamm` and
   mixing is checked bitwise against Sadeghi Eq (13) over 400 random quadruples in
   `analysis/soil_albedo_wetting.json:model_mixing`, so a disagreement is in the
   saturation the model hands it, not in the curve.
-- A separation resolved above the ceiling row, +7.1 K at attenuation 0.5. The
+- A separation resolved above the ceiling row, +1.25 K at attenuation 0.5. The
   attenuation is declared to a factor of two and the ceiling is a bound on the
-  albedo, so anything above +14.3 K is not this term.
+  albedo, so anything above +2.5 K is not this term.
 
 ## PHYS-15, the second of two commits: `dwmax` from `evaporable_mm`
 

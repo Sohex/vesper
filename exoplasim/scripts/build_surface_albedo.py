@@ -157,6 +157,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from netCDF4 import Dataset
@@ -326,6 +327,99 @@ def _rock_id(mesh_dir: Path, code: str) -> int:
         if r["code"] == code:
             return int(r["id"])
     raise KeyError(f"no rock class {code!r} in {mesh_dir}")
+
+
+LAND_COLUMN_CONTRACT = (PROJECT_ROOT / "pedology" / "config"
+                        / "land_column_properties.yaml")
+
+
+def _configured_column(config: dict) -> dict:
+    """The land water column the run is configured with, beside the albedo depth.
+
+    Three facts and one comparison, all READ. The mixing staged here needs the
+    model's first water layer to BE the depth `land_column_properties.yaml`
+    declares the albedo consumer reads at, because `landmod` has no access to
+    that contract and cannot check it: `run_exoplasim.py` refuses a three-layer
+    column cut anywhere else, and this is what makes the state visible in the
+    report a reader has in front of them rather than only in a refusal they
+    have to provoke.
+
+    `agrees` is the comparison and not a gate. The gate is at the run; a
+    surface build is legitimately made before the column is cut, and saying so
+    is more use than refusing.
+    """
+    column = (config.get("surface", {}) or {}).get("land_water_column", {}) or {}
+    moisture = (config.get("surface", {}) or {}).get("soil_albedo_moisture", {}) or {}
+    thicknesses = column.get("layer_thickness_m")
+    contract = yaml.safe_load(LAND_COLUMN_CONTRACT.read_text(encoding="utf-8"))
+    albedo_depth = float(contract["surface_layer"]["consumers"]["albedo"]["depth_m"])
+    first = float(thicknesses[0]) if thicknesses else None
+    return {
+        "scheme": column.get("scheme"),
+        # The thickness list IS the layer count, so the count is not emitted
+        # beside it. Whether the config's own declared count agrees with the
+        # list is `run_exoplasim.py`'s refusal and not this report's claim.
+        "layer_thickness_m": thicknesses,
+        "albedo_depth_m": albedo_depth,
+        "albedo_depth_source": "pedology/config/land_column_properties.yaml "
+                               "surface_layer.consumers.albedo.depth_m",
+        "first_layer_is_the_albedo_depth": (
+            first is not None and abs(first - albedo_depth) <= 1.0e-9),
+        "soil_albedo_moisture_enabled": bool(moisture.get("enabled", False)),
+    }
+
+
+def _full_layer_fall(config: dict, dry_fields: dict, wet_fields: dict,
+                     gmean) -> dict:
+    """What the mixing is worth at a PERMANENTLY FULL surface layer.
+
+    The staged saturated pair is the endmember at a degree of saturation of
+    one, and the modelled surface layer caps at field capacity, so the model
+    never reaches it. The bound the term can actually be judged against is the
+    mixing evaluated at `saturation_at_full_layer`, which is where a skin
+    sitting at its capacity everywhere and always would put it. That is the
+    number an arm's land-mean `alb` difference is compared with and the number
+    `scripts/error_budget.py` prices, and neither should have to re-derive it
+    from the two endmembers in a document.
+
+    PER CELL AND THEN MEANED, never the other way round. The mixing is concave
+    in the albedo pair, so mixing two land means and meaning the mixing of the
+    pairs are different numbers, and only the second is what the model does.
+
+    THE MIXING IS `analysis/soil_albedo_wetting.py`'s and is not restated here.
+    That module holds Sadeghi Eq (13), reproduces the papers it comes from, and
+    is checked bitwise against the compiled `wet_soil_albedo`; a second copy
+    would be free to agree with neither.
+    """
+    sys.path.insert(0, str(PROJECT_ROOT / "analysis"))
+    from soil_albedo_wetting import sadeghi_mix
+
+    moisture = (config.get("surface", {}) or {}).get("soil_albedo_moisture", {}) or {}
+    saturation = float(moisture["saturation_at_full_layer"])
+    sigma = {
+        1742: float(moisture.get("shape_sigma_broadband", 1.0)),
+        1750: float(moisture.get("shape_sigma_band1", 1.0)),
+        1760: float(moisture.get("shape_sigma_band2", 1.0)),
+    }
+    out = {
+        "saturation": saturation,
+        "saturation_source": "config/planet.yaml "
+                             "surface.soil_albedo_moisture.saturation_at_full_layer",
+        "note": "the land-mean albedo at a surface layer permanently at its "
+                "own capacity, mixed per cell through Sadeghi Eq (13) and then "
+                "meaned. A BOUND on the realised term and not an estimate of "
+                "it: the realised fall is this times how wet the modelled skin "
+                "is over the orbit, and it acts only where the surface is "
+                "snow-free, ice-free land, so the realised area is below the "
+                "land fraction and one-signed downward.",
+    }
+    for code, dry_code, name in ((1742, 174, "broadband"), (1750, 175, "band1"),
+                                 (1760, 176, "band2")):
+        mixed = gmean(sadeghi_mix(dry_fields[dry_code], wet_fields[code],
+                                  saturation, sigma[code]))
+        out[f"{name}_land_mean"] = mixed
+        out[f"{name}_fall"] = gmean(dry_fields[dry_code]) - mixed
+    return out
 
 
 def band_shapes(rho: np.ndarray, z1: float, z2: float):
@@ -1047,13 +1141,15 @@ def main() -> None:
             "short-wave infrared; their visible-band fits run 0.042 to 0.528, "
             "and a value below one darkens the modelled surface sooner in a "
             "wetting cycle without moving its ends",
-            "THE SURFACE LAYER IS NOT YET WHAT THE RUN CONFIGURES. "
-            "`config/planet.yaml`'s `surface.land_water_column` still declares "
-            "the two-layer 0.5 and 1.0 m cut; the mixing needs the "
-            "three-layer "
-            "0.02/0.48/1.0 cut the contract declares, and `nwetsoil` refuses "
-            "until it has it",
         ],
+        # WHAT THE RUN ACTUALLY CONFIGURES, read rather than asserted. This
+        # used to be a sentence in the list above claiming the column was
+        # still cut at 0.5 and 1.0 m, and it stayed there after the cut moved:
+        # a report that states what a config SAYS goes stale the moment the
+        # config does, and nothing re-runs to catch it. Emitting the column
+        # instead puts the comparison in front of the reader, who can see the
+        # surface cut against the albedo depth the contract declares.
+        "configured_land_water_column": _configured_column(config),
         "argument": "exoplasim/notes/soil-albedo-moisture.md",
         "ceiling_note":
             "the most the darkening branch could be worth, as a land-mean albedo "
@@ -1303,6 +1399,8 @@ def main() -> None:
         wetting_report["broadband_land_mean_saturated"] = gmean(wet_fields[1742])
         wetting_report["broadband_land_mean_dry"] = final_mean
         wetting_report["codes"] = list(WET_ALBEDO_CODES)
+        wetting_report["at_full_surface_layer"] = _full_layer_fall(
+            config, band_fields, wet_fields, gmean)
         for code in WET_ALBEDO_CODES:
             path = output / f"orogen_{resolution}_surf_{code:04d}.sra"
             write_sra(path, code, wet_fields[code])
