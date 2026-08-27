@@ -1080,6 +1080,9 @@ def _check_chosen_flux_cannot_launder(rep) -> None:
                 f"else refuses")
 
 
+_MISSING = object()
+
+
 def _config_node(config: dict, dotted: str):
     """The value at a dotted path in the configuration, or `_MISSING`."""
     node = config
@@ -1088,9 +1091,6 @@ def _config_node(config: dict, dotted: str):
             return _MISSING
         node = node[step]
     return node
-
-
-_MISSING = object()
 
 
 def _written_tolerance(value) -> float:
@@ -1402,6 +1402,14 @@ def check_land_column_thermal_constants(rep: "Report") -> None:
         rep.add(WARN, label, f"not checked: {exc}")
 
 
+# The run `model.cold_start_profile.surface_temperature_k` is measured on. Named
+# here rather than in `config/planet.yaml` for the reason `lib/sensitivity.py`
+# names its bracket runs in code: a run id inside a YAML comment is reachable by
+# a reader and by nothing else, and what makes this a check is that something
+# opens the run index.
+COLD_START_RUN = "run_432e5e46adef"
+
+
 def check_cold_start_currency(rep: "Report", config: dict) -> None:
     """The cold start's surface temperature against the run it is taken from.
 
@@ -1466,14 +1474,6 @@ def check_cold_start_currency(rep: "Report", config: dict) -> None:
                 f"on {want_build} at flux ratio {want_flux:g}")
     except Exception as exc:                       # noqa: BLE001 - reported
         rep.add(WARN, label, f"not checked: {exc}")
-
-
-# The run `model.cold_start_profile.surface_temperature_k` is measured on. Named
-# here rather than in `config/planet.yaml` for the reason `lib/sensitivity.py`
-# names its bracket runs in code: a run id inside a YAML comment is reachable by
-# a reader and by nothing else, and what makes this a check is that something
-# opens the run index.
-COLD_START_RUN = "run_432e5e46adef"
 
 
 def check_eddy_wind(rep: "Report", config: dict) -> None:
