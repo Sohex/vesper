@@ -1,12 +1,12 @@
 {
   "provenance": {
     "generator": "exoplasim/analysis/arms/land_seasonal_range.py",
-    "git_commit": "876e3c096e41eb9dee7364a38f8c599630acf9ba",
+    "git_commit": "80034fbb844ff8a8dd47eb57e365c3d3d4ee69d3",
     "python": "3.14.7"
   },
   "control": {
-    "run": "run_9f38542964c6",
-    "orbits": 25,
+    "run": "run_8f75d23c0730",
+    "orbits": 50,
     "land_cells": 1019,
     "land_mean_range_k_per_orbit": [
       28.79593485635446,
@@ -33,20 +33,45 @@
       38.400293205594025,
       38.28656318765734,
       38.36319127667935,
-      38.12973722804172
+      38.12973722804172,
+      38.256697114445366,
+      39.26671709078819,
+      38.202006940164345,
+      38.035394529885615,
+      38.942012403363485,
+      38.885643488260186,
+      38.7160475308839,
+      39.1235275483961,
+      38.533404648018134,
+      39.14108319181216,
+      39.15416342649316,
+      38.30228412397399,
+      38.85155237449928,
+      38.670872793377036,
+      38.73091670821302,
+      38.69081030209858,
+      38.59002633863075,
+      39.4203686678778,
+      38.58437355934922,
+      38.73740766552439,
+      38.88470919775259,
+      38.74846852208383,
+      38.84676918692842,
+      39.25229928324683,
+      38.18592714100494
     ],
-    "window_starts_at_orbit": 15,
-    "window_land_mean_range_k": 38.169822606464066,
-    "window_scatter_k": 0.2823377446816248,
+    "window_starts_at_orbit": 40,
+    "window_land_mean_range_k": 38.79411598644973,
+    "window_scatter_k": 0.34714927541578583,
     "window_orbits": 10,
-    "window_mean": 38.169822606464066,
-    "window_scatter": 0.2823377446816248,
+    "window_mean": 38.79411598644973,
+    "window_scatter": 0.34714927541578583,
     "window_tau_orbits": 1.0,
-    "window_standard_error": 0.08928303426290259
+    "window_standard_error": 0.10977823983909796
   },
   "arm": {
-    "run": "run_9d51e560469f",
-    "orbits": 25,
+    "run": "run_ae5aaf479f57",
+    "orbits": 50,
     "land_mean_range_k_per_orbit": [
       30.960301471117567,
       32.202705081507794,
@@ -72,58 +97,83 @@
       41.14878703375081,
       41.77949493042336,
       41.41593810379658,
-      41.72385867479255
+      41.72385867479255,
+      41.27415989400199,
+      41.53490622276353,
+      41.709337021721254,
+      41.24311219628221,
+      41.28515620731923,
+      41.84931028300398,
+      42.01099548947021,
+      41.87916900544656,
+      41.5508339529061,
+      41.779529524791236,
+      41.468622988071246,
+      42.16195769724954,
+      41.77168248089892,
+      41.22913974471352,
+      41.37434177628978,
+      41.80951384814272,
+      41.59608541992178,
+      41.59283435706167,
+      41.82350099925808,
+      41.545211306117615,
+      41.32868959182192,
+      41.73804887394282,
+      41.029349821395044,
+      41.069908216372596,
+      42.0397497599818
     ],
-    "window_land_mean_range_k": 41.206314357369024,
+    "window_land_mean_range_k": 41.55728921940161,
     "difference_k": {
       "orbits": 10,
-      "mean": 3.0364917509049554,
-      "scatter": 0.4610056387602453,
+      "mean": 2.76317323295187,
+      "scatter": 0.6088874158993717,
       "tau_orbits": 1.0,
-      "standard_error": 0.14578278326631777
+      "standard_error": 0.1925471072856236
     },
-    "resolution_bar_k": 0.4123359785114482,
+    "resolution_bar_k": 0.5446054610380726,
     "resolved": true,
-    "fractional_change_of_land_mean_range": 0.0795521577925995,
-    "land_cells_whose_range_falls": 112,
+    "fractional_change_of_land_mean_range": 0.07122660647601853,
+    "land_cells_whose_range_falls": 157,
     "land_cells": 1019,
     "per_cell_fractional_change": {
-      "p05": -0.03954649266992565,
-      "median": 0.09445140773446098,
-      "p95": 0.1652084027007475,
-      "min": -0.2781022081106355,
-      "max": 0.41649659593841976
+      "p05": -0.054820688369907035,
+      "median": 0.08677483904159089,
+      "p95": 0.15199653220164933,
+      "min": -0.1540131636772997,
+      "max": 0.5219069216219526
     },
     "wetness_correlation": {
       "cells": 1019,
-      "pearson_r_frac_change_vs_deficit": 0.3892012233298549,
-      "spearman_r_frac_change_vs_deficit": 0.44777032522146243,
+      "pearson_r_frac_change_vs_deficit": 0.45197169190501185,
+      "spearman_r_frac_change_vs_deficit": 0.4854084993468034,
       "degree_of_saturation": {
-        "min": 0.00034036202407350727,
-        "median": 0.04456451108292943,
-        "max": 0.9983799070119858
+        "min": 0.0006067667940059722,
+        "median": 0.03278629147114014,
+        "max": 0.9980657378832498
       }
     },
     "soil_temperature_levels": {
       "tsod": {
-        "control_land_mean_amplitude_k": 0.29958427689012024,
-        "arm_land_mean_amplitude_k": 0.2912576930797747,
-        "land_mean_phase_bin_shift": -1.8484891429124233
+        "control_land_mean_amplitude_k": 0.22150208043686387,
+        "arm_land_mean_amplitude_k": 0.10546913814084447,
+        "land_mean_phase_bin_shift": -0.6906827010049119
       },
       "tso2": {
-        "control_land_mean_amplitude_k": 25.151476250050226,
-        "arm_land_mean_amplitude_k": 24.620508762783615,
-        "land_mean_phase_bin_shift": 0.04491136075173385
+        "control_land_mean_amplitude_k": 25.572303243428756,
+        "arm_land_mean_amplitude_k": 24.895408554813184,
+        "land_mean_phase_bin_shift": -0.009442454271510867
       },
       "tso3": {
-        "control_land_mean_amplitude_k": 13.396662299473183,
-        "arm_land_mean_amplitude_k": 11.189511867266818,
-        "land_mean_phase_bin_shift": 0.41382075457771644
+        "control_land_mean_amplitude_k": 13.615376009036298,
+        "arm_land_mean_amplitude_k": 11.320036848244683,
+        "land_mean_phase_bin_shift": 0.3410696108318664
       },
       "tso4": {
-        "control_land_mean_amplitude_k": 3.1088970804833824,
-        "arm_land_mean_amplitude_k": 1.8913344956829143,
-        "land_mean_phase_bin_shift": -1.4226545791908976
+        "control_land_mean_amplitude_k": 3.1624882752437786,
+        "arm_land_mean_amplitude_k": 1.891149128141223,
+        "land_mean_phase_bin_shift": -0.7026359744385945
       }
     }
   }

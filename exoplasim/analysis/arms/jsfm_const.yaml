@@ -808,7 +808,7 @@ model:
       # already compares against.
       poisoned: ["-fcheck=all", "-finit-real=snan", "-Og"]
     profile: production
-  ncpus: 16
+  ncpus: 8
   # THE ACTIVE STEP, and the only timestep this file carries. What each rung
   # CAN take and what the escalation route RUNS it at are two further
   # quantities, and all three used to be called "the timestep at rung X":
