@@ -2331,6 +2331,125 @@ only where `|diff| > 2*sqrt(2)*max(SEM)`. The same bar `vdiff_lamm` and
   attenuation is declared to a factor of two and the ceiling is a bound on the
   albedo, so anything above +2.5 K is not this term.
 
+## PHYS-15's arm: what the paired `NWETSOIL` set will measure
+
+Written 2026-08-27, BEFORE the arms were queued and before either had run. It
+prices ONE experiment: `run_893e276ee029/MOST_REST.00209` seeded into two runs on
+one binary, twenty-five orbits each, differing in `NWETSOIL` alone.
+
+**THIS ONE IS NOT A THRESHOLD, because `f` is no longer unmeasured.** The two
+entries above registered `+1.25 K times f_eff` and said no held artifact prices
+`f`. That was true of the output streams and false of the RESTART:
+`landmod.f90:1553` writes `dwatcl` with `mpputgp`, so every one of this run's 210
+per-orbit restarts carries the surface layer's liquid store, and `dwmax` and
+`dsoilwfc` are carried beside it. `dwatcl(:,1)` over `dwmax * dsoilwfc(:,1)` is
+`wetalb`'s own arithmetic, so this is the model's `f` and not a reconstruction of
+it. Measured over the settled block, restarts 180 to 209:
+
+| quantity | value |
+| --- | --- |
+| `f`, land-area mean | 0.3283, sd 0.0146 across the thirty |
+| `f`, land median | 0.0096 |
+| `f`, land p90 | 0.9997 |
+| share of land above `f` = 0.5 | 0.319 |
+
+**`f` IS BIMODAL, and that is the finding rather than a detail.** A third of the
+land carries a saturated skin and most of the rest is at air dry; there is very
+little in between. So the mixing must be evaluated per cell and meaned, never at
+the mean `f`, and the gap between the two is at its widest here: the fall at
+`f` = 0.3283 is 0.0098 and the mean of the per-cell falls is 0.006745, a factor
+of 1.45. Every kelvin below is on the second.
+
+**REGISTERED: the land-mean `alb` difference will fall between 0.00378 and
+0.00675, and the arms will not separate in `tas`.** The two ends are the same
+per-cell calculation masked and unmasked by what covers the ground. The
+background fall is 0.006745; on 0.7673 of the land, area weighted, `dalb` equals
+the mixed background to 2e-4 and the term reaches the surface undiminished,
+which puts the masked figure at 0.003780. Snow and glacier ice override the
+background after `getalb` has mixed it, so the truth is at or below the unmasked
+end, and the mask is a blend rather than a switch, so it is at or above the
+masked end.
+
+| | land-mean `alb` fall | K at 0.25 | K at 0.5 | K at 1.0 |
+| --- | --- | --- | --- | --- |
+| unmasked, the upper end | 0.006745 | +0.17 | +0.34 | +0.68 |
+| snow and ice masked, the lower end | 0.003780 | +0.10 | +0.19 | +0.38 |
+
+**THE INSTRUMENT, AND WHY THE TEST IS `alb` AND NOT `tas`.** A twenty-five-orbit
+paired difference in global-mean `tas` carries a standard error of 0.56 to 0.75 K
+on the arms this project has run, so the bar of two root two times the larger is
+1.6 to 2.1 K. The prediction above is +0.19 to +0.34 K. **The pair cannot
+separate in temperature and a null there means nothing**, which is fixed in
+advance rather than discovered afterwards. The `alb` difference has no such
+problem: its own inter-orbit scatter on the donor is 0.00039 against a signal of
+0.0038, and pairing removes the common mode, so it is resolved many times over.
+
+**What would mean wrong:**
+
+- A land-mean `alb` difference outside 0.00378 to 0.00675. Both ends come from
+  the donor's own restarts and the staged pair, so a miss means `f` moved when
+  the arms diverged -- which is a real effect, the brighter arm being cooler and
+  its skin wetter, and is what the width is for. Outside it by more than the
+  0.00039 inter-orbit scatter is a disagreement about the mechanism.
+- Any `alb` difference of the other sign, anywhere on land. The mixing is
+  monotone and every non-refused region's saturated field is darker.
+- `evaporite` cells differing between the arms at all. The class is staged wet
+  equal to dry.
+- A `tas` separation resolved above the bar. At +0.34 K predicted and a bar of
+  1.6 K, a resolved temperature difference is not this term.
+- The `NWETSOIL = 0` arm's land-mean `alb` differing from the staged dry field's
+  0.170772 by more than the snow and ice it carries. That arm has no mixing at
+  all, so its background IS the staged field.
+
+**THE COST, stated because it is a lock.** Two twenty-five-orbit T21 runs at
+`dt` 45, eight threads each, pinned to their own dies and run concurrently under
+one host lock: about six minutes of wall time and twelve of model time.
+
+### MEASURED 2026-08-27, and one half of it was wrong
+
+`run_a1c35075747c` at `NWETSOIL = 1` against `run_598eb57c5a34` at 0, one binary
+and one seed, orbits 15 to 24.
+
+**The `alb` half is right.** The land-mean fall is 0.006397, inside the
+registered 0.003780 to 0.006745 and near its upper end, resolved at 5.7 times the
+arms' own bar. The wet arm's background fall, recovered from its own `dwatcl`,
+is 0.006709 against the 0.006745 predicted from the donor's: half a percent.
+Every per-cell claim holds -- no land cell's background brightens, worst 5.3e-16,
+and the twenty-three cells staged wet equal to dry move by 4.2e-16.
+
+The bracket was too wide at the bottom, and the reason is a fault in this entry's
+reasoning rather than in the model. The lower end assumed snow and glacier ice
+take the term entirely where they hide the background, costing 44 per cent. The
+measured cost is 4.6 per cent, because a snow-covered cell has a frozen skin, ice
+comes off the layer's capacity in the cascade, and the model already reads it as
+dry -- so it was contributing nothing for the mask to take. The mask and the
+wetting are ANTI-CORRELATED, and treating the mask as a switch applied to a mean
+cannot see that.
+
+**The `tas` half is wrong, and it is the more useful half.** This entry
+registered that the arms could not separate in temperature and that a resolved
+difference would not be this term. They separated: +0.1972 K, with `ts` agreeing
+at +0.2013, resolved at 2.3 times the bar.
+
+The bar was imported and should not have been. It came from arms seeded from a
+thirty-seven-orbit control still relaxing, whose paired `tas` standard error over
+twenty-five orbits is 0.56 to 0.75 K. These arms are seeded from a 210-orbit
+equilibrated state and their standard errors are 0.017 and 0.031 K, twenty times
+smaller at the same run length. **A paired arm's power is set by how settled its
+DONOR is at least as much as by how long the arms run**, so a bar measured in one
+regime is not a bar in another. Every A3 entry in this file that quotes the 1.6
+to 2.1 K figure against a well-settled donor is understating its instrument the
+same way.
+
+**What the separation buys.** A fall of 0.006397 reaches +0.1972 K only at an
+attenuation of 0.3045, against the 0.5 `scripts/error_budget.py` declares while
+saying the honest claim is a factor of two. That is the first MEASUREMENT this
+project has of that factor, it lands inside the declared bracket at the low end,
+and it puts this term's forcing at 0.287 W/m2 rather than 0.471. One term is not
+the budget and the attenuation is a property of the atmosphere above the surface
+rather than of the surface, so it is one point; world-ckbt carries what would
+make it more.
+
 ## PHYS-15, the second of two commits: `dwmax` from `evaporable_mm`
 
 Written 2026-08-26, before the edit. It prices ONE commit: the one that makes

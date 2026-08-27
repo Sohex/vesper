@@ -24,6 +24,7 @@ from _paths import CONFIG, INPUTS, MODEL_SRC, PROJECT_ROOT, RUNS
 import build_model
 import rebuild_binaries
 import reset_restart_accumulators
+import restart_surface
 import rungs
 
 
@@ -1816,6 +1817,22 @@ DUST_SURFACE_CODES = {1811}
 # arrangement is designed to produce rather than avoid.
 DUST_EMISSION_SURFACE_CODES = {1801, 1802, 1803}
 
+# THE CODES A RESTART CANNOT FREEZE, and the reason the donor guard below has to
+# know them. `landini` takes dwmax, dz0clim and all three dalbcl bands from the
+# restart when `nrestart > 0`, which is why changing one of those under a
+# `--restart-from` is a change the run would silently discard. These are the
+# ones that behaviour is NOT true of: the model rereads them from the `.sra` at
+# every start, restart included, so neither their presence nor their content can
+# be carried in a restart and neither can be discarded by one.
+#
+# READ FROM `restart_surface.REREAD_EVERY_START` rather than restated, because
+# that register is where the claim is already made and CHECKED IN THE FORTRAN
+# with its line citations -- `radmod.f90:1285` and `aeromod.f90:326-328` for the
+# dust fields, `landmod.f90:833-835` for the saturated albedo pair, each of them
+# outside any `nrestart` test. A second list here would be free to disagree with
+# it, and the whole content of this set is that claim.
+REREAD_SURFACE_CODES = frozenset(restart_surface.REREAD_EVERY_START)
+
 # PlaSim's own 28-term energy decomposition, denergy(NHOR,28), written to these
 # codes when nenergy > 0. Turned on to name the gap between the top of the
 # atmosphere and the surface; it closed to 0.02 W/m2 and so ruled itself out, and
@@ -1928,16 +1945,69 @@ def conversion_surface_reason(report: dict, config: dict) -> str | None:
                 "target template, so nothing can say which surface the "
                 "converted state froze")
     now = intended_surface_codes(config)
-    transparent = DUST_SURFACE_CODES
+    # The same exemption and the same reason as `donor_surface_reason`: a code
+    # the model rereads at every start is one no restart, converted or not, can
+    # freeze.
+    transparent = REREAD_SURFACE_CODES
     was = {int(c) for c in hashes}
     if (was - transparent) != (now - transparent):
         return (f"the template staged codes {sorted(was)} and this run stages "
                 f"{sorted(now)}")
-    changed = [c for c in sorted(now)
+    changed = [c for c in sorted(now - transparent)
                if surface_sra(config, c).is_file()
                and hashes.get(str(c)) != file_sha256(surface_sra(config, c))]
     if changed:
         return f"content changed for code(s) {changed} since the template"
+    return None
+
+
+def donor_surface_reason(src: dict, config: dict) -> str | None:
+    """Why a donor run's surface disqualifies it as a `--restart-from` seed.
+
+    THE FAILURE THIS CATCHES. A restart FREEZES the fields `landini` reads only
+    on a cold start -- `dwmax`, `dz0clim` and all three `dalbcl` bands come out
+    of the restart when `nrestart > 0`, inside `landmod.f90:979`'s
+    `if (nrestart == 0)` block on the other branch. So restaging any of them and
+    then seeding from a donor gives a run that silently discards the new field
+    and reproduces its parent, with nothing in the output saying so.
+
+    WHAT IT MUST NOT CATCH is a code the model REREADS at every start.
+    `REREAD_SURFACE_CODES` is exactly that set, and for those the guard's own
+    premise is false in both directions: their presence cannot be frozen,
+    because the model looks for the file rather than the restart record, and
+    their content cannot be either. Refusing on one costs a cold start for
+    nothing. It used to exempt `DUST_SURFACE_CODES` alone, and by hand: the
+    interactive dust source map and the saturated albedo pair are read the same
+    way and were not on the list, so turning `nwetsoil` off against a donor that
+    staged the pair refused on "codes differ" over three files the arm never
+    opens and the donor never carried.
+
+    Exempt from the CONTENT test for the same reason and not by extension. A
+    reread field's content reaching the model is what the reread IS: the run
+    integrates the file now on disk, so a change to it is picked up rather than
+    discarded, which is the opposite of what this guard exists to prevent.
+    Restaging one is an ordinary forcing change and seeding from an equilibrium
+    is what that is for.
+
+    Returns None when the donor is acceptable, else the reason, so a caller can
+    print it under an override rather than parsing an exception.
+    """
+    was = set((src.get("surface_fields") or {}).get("from_file") or [])
+    now = intended_surface_codes(config)
+    transparent = REREAD_SURFACE_CODES
+    if (was - transparent) != (now - transparent):
+        return f"codes differ: {sorted(was)} then, {sorted(now)} now"
+    # Same codes, possibly different content.
+    old_h = src.get("surface_field_sha256") or {}
+    changed = [c for c in sorted(now - transparent)
+               if surface_sra(config, c).is_file()
+               and old_h.get(str(c)) not in
+               (None, file_sha256(surface_sra(config, c)))]
+    if changed:
+        return f"content changed for code(s) {changed}"
+    if not old_h:
+        return ("the source run recorded no surface field hashes, so content "
+                "changes cannot be ruled out")
     return None
 
 
@@ -3944,35 +4014,7 @@ def main() -> None:
                 "with convert_restart.py, which writes the report this needs.")
         if src_manifest.is_file():
             src = json.loads(src_manifest.read_text(encoding="utf-8"))
-            was = set((src.get("surface_fields") or {}).get("from_file") or [])
-            now = intended_surface_codes(config)
-            reason = None
-            # The guard above is about fields landmod reads only on a cold
-            # start. It does not apply to every surface field, and refusing a
-            # restart for one it does not apply to costs a cold start for no
-            # reason. `radini` reads the dust field with `mpsurfgp` outside any
-            # `nrestart` test, where landmod's block is inside `if (nrestart ==
-            # 0)`, so a restarted run picks it up. Adding or removing dust is
-            # therefore a forcing change and an ordinary perturbation
-            # experiment, which is exactly what seeding from an equilibrium is
-            # for. The exemption is stated per code rather than assumed for the
-            # class: anything else added here must be checked the same way,
-            # in the Fortran and not from the name.
-            transparent = DUST_SURFACE_CODES
-            if (was - transparent) != (now - transparent):
-                reason = (f"codes differ: {sorted(was)} then, {sorted(now)} now")
-            else:
-                # Same codes, possibly different content.
-                old_h = src.get("surface_field_sha256") or {}
-                changed = [c for c in sorted(now)
-                           if surface_sra(config, c).is_file()
-                           and old_h.get(str(c)) not in
-                           (None, file_sha256(surface_sra(config, c)))]
-                if changed:
-                    reason = f"content changed for code(s) {changed}"
-                elif not old_h:
-                    reason = ("the source run recorded no surface field hashes, "
-                              "so content changes cannot be ruled out")
+            reason = donor_surface_reason(src, config)
             if reason and args.superseded_surface_ok:
                 # Deliberately overridden. The guard protects the CANONICAL
                 # chain: a spin-up seeded this way would silently discard the

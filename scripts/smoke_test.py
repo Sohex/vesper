@@ -917,6 +917,108 @@ def check_input_stamp_guard() -> list[str]:
     return bad
 
 
+def check_donor_surface_guard() -> list[str]:
+    """`--restart-from` refuses a frozen surface and admits a reread one.
+
+    THE TWO ERRORS THIS SITS BETWEEN. Too loose and a run seeded from a donor
+    silently discards a restaged `dwmax` or `dalbcl` and reproduces its parent,
+    because `landini` takes those from the restart when `nrestart > 0`. Too
+    strict and it refuses over a code the model REREADS from the `.sra` at every
+    start, which a restart cannot freeze in either direction -- and that costs a
+    cold start for nothing. PHYS-15's paired arm is the case that found the
+    second: `nwetsoil = 0` drops codes 1742, 1750 and 1760 from the staged set,
+    so the arm refused on "codes differ" against a donor that staged them, over
+    three files it never opens and the donor never carried.
+
+    Driven against the REAL config and the real staged files, with synthesised
+    donor manifests, so the code sets are the ones a run would actually stage
+    rather than a fixture's idea of them. Every negative is paired with the
+    positive proving the manifest was otherwise acceptable.
+    """
+    import copy
+    import yaml
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    import run_exoplasim as rx
+    import restart_surface
+
+    config = yaml.safe_load(
+        (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    codes = rx.intended_surface_codes(config)
+    reread = set(rx.REREAD_SURFACE_CODES)
+    frozen = sorted(codes - reread)
+    staged_reread = sorted(codes & reread)
+    if not frozen:
+        return ["this config stages no restart-frozen surface code, so the "
+                "refusing half of the guard has no sample"]
+
+    def manifest(from_file, hashes=None):
+        present = [c for c in from_file if rx.surface_sra(config, c).is_file()]
+        h = {str(c): rx.file_sha256(rx.surface_sra(config, c)) for c in present}
+        h.update(hashes or {})
+        return {"surface_fields": {"from_file": sorted(from_file)},
+                "surface_field_sha256": h}
+
+    bad = []
+
+    # POSITIVE. A donor staging exactly what this run stages is acceptable.
+    why = rx.donor_surface_reason(manifest(codes), config)
+    if why is not None:
+        bad.append(f"a matching donor was refused: {why}")
+
+    # NEGATIVE. A donor missing a restart-FROZEN code is refused, because the
+    # run would inherit the donor's field and discard the staged one.
+    if rx.donor_surface_reason(manifest(set(codes) - {frozen[0]}), config) is None:
+        bad.append(f"a donor missing frozen code {frozen[0]} was accepted")
+
+    # NEGATIVE. A frozen code whose CONTENT moved is refused.
+    if rx.donor_surface_reason(
+            manifest(codes, {str(frozen[0]): "0" * 64}), config) is None:
+        bad.append(f"a donor whose frozen code {frozen[0]} changed content "
+                   "was accepted")
+
+    # NEGATIVE. No hashes at all: content changes cannot be ruled out.
+    if rx.donor_surface_reason(
+            {"surface_fields": {"from_file": sorted(codes)}}, config) is None:
+        bad.append("a donor recording no surface hashes was accepted")
+
+    # THE REPAIR, BOTH DIRECTIONS. A reread code is transparent: the model looks
+    # for the file at every start rather than for a restart record, so neither
+    # its presence nor its content can be frozen into one.
+    if staged_reread:
+        code = staged_reread[0]
+        why = rx.donor_surface_reason(manifest(set(codes) - {code}), config)
+        if why is not None:
+            bad.append(f"a donor that did not stage reread code {code} was "
+                       f"refused: {why}")
+        why = rx.donor_surface_reason(manifest(codes, {str(code): "0" * 64}),
+                                      config)
+        if why is not None:
+            bad.append(f"a donor whose reread code {code} changed content was "
+                       f"refused: {why}")
+        # And the arm that found it: the same donor against a config that turns
+        # the moisture term off, which drops all three codes from the set.
+        off = copy.deepcopy(config)
+        off["surface"]["soil_albedo_moisture"]["enabled"] = False
+        dropped = codes - rx.intended_surface_codes(off)
+        if dropped != set(rx.WET_ALBEDO_SURFACE_CODES):
+            bad.append(f"turning the moisture term off dropped {sorted(dropped)}, "
+                       "not the saturated albedo pair")
+        why = rx.donor_surface_reason(manifest(codes), off)
+        if why is not None:
+            bad.append("the nwetsoil = 0 arm was refused against a donor that "
+                       f"staged the pair: {why}")
+
+    # THE CLAIM THE EXEMPTION RESTS ON, checked where it is made rather than
+    # trusted: every reread code must be one `restart_surface` registers as
+    # never reaching a restart.
+    stray = sorted(reread - set(restart_surface.REREAD_EVERY_START))
+    if stray:
+        bad.append(f"codes {stray} are exempted from the donor guard without "
+                   "restart_surface.REREAD_EVERY_START saying the model rereads "
+                   "them")
+    return bad
+
+
 def check_staged_surface_build_guard() -> list[str]:
     """A staged surface field from another build is refused at the read.
 
@@ -3468,6 +3570,8 @@ def main() -> None:
                lambda: check_input_stamp_guard()),
               ("a staged surface field from another build is refused",
                lambda: check_staged_surface_build_guard()),
+              ("a donor restart is refused for a frozen field, not a reread one",
+               lambda: check_donor_surface_guard()),
               ("the convergence window follows the declared purposes",
                lambda: check_production_window()),
         ("the production span comes from the run's own criteria",
