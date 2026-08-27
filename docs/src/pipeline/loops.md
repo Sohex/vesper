@@ -257,10 +257,21 @@ still holds:
 
 **Why verification and not one more turn of each loop.** Another iteration pays
 for the three couplings that had already closed and does not say which one had
-not. Verification costs a fraction -- no new climate run, because the operating
-support's baseline already exists, and the two steps it does need,
-`surface_water` and `dust_forcing` at that support, are minutes -- and it
-localises the failure to a named loop.
+not. Verification localises the failure to a named loop, and for B, C and D it
+is cheap: no new climate run, because the operating support's baseline already
+exists.
+
+**A IS NOT CHEAP AND THIS SECTION FIRST CLAIMED IT WAS.** Loop A's exit is the
+intersection of the verdicts taken at the TWO BOUNDING CLIMATES, and the second
+of those is `endmember_bootstrap_run` plus `endmember_baseline_run`, both
+`cost: hours`, neither of which exists at the operating support. So re-taking
+A's predicate there costs a pair of runs rather than minutes. The loop whose
+non-closure is the most expensive to REPAIR is also the only one expensive to
+DETECT, and that is the opposite of the ordering a cheap verification would
+want. `scripts/verify_joint_convergence.py` reports A as NOT EVALUABLE until
+those runs exist rather than substituting the single climate it does have,
+because a bounding pair with one arm missing is not the construction loop A
+exits on.
 
 **What it can and cannot do.** It DETECTS non-closure and cannot repair it. A
 failure on A at the operating support means re-entering loop A there, which is
@@ -268,6 +279,13 @@ the expensive thing the ladder's cost argument exists to avoid. The finalizer's
 value is that it turns that cost into a measured decision rather than a
 discovery, and that a passing run is EVIDENCE of a joint fixed point instead of
 an assumption inherited from the nesting.
+
+**It is `scripts/verify_joint_convergence.py`**, registered in
+`config/pipeline.yaml`'s `checks` block. It reports NOT EVALUABLE as a third
+verdict distinct from pass and fail, exits 2 when nothing failed and something
+could not be tested, and never substitutes a coarser artifact for the operating
+support's: a finalizer that passes on what it could not test is the failure it
+exists to prevent.
 
 **It runs once, after the ladder, and it is not a loop itself.** Nothing
 iterates on its verdict automatically: a failure names a loop and the decision
