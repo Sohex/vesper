@@ -563,27 +563,25 @@ def main():
     per_year = year_days * SECONDS_PER_DAY
     to_km_per_year = per_year / 1000.0
 
-    print(f"solving lake levels ({year_days:.1f}-day year)")
-    solution = lb.solve(
-        basins,
-        catchment_runoff * to_km_per_year,
-        lake_evap * to_km_per_year,
-        lake_precip * to_km_per_year,
-    )
-    if not solution["converged"]:
-        raise SystemExit("the overflow cascade did not converge; do not use this")
-
-    level = solution["level_km"]
     area = export.cell_area.astype(np.float64)
 
-    # --- the seasonal cycle, as a periodic steady state -------------------
-    # WORLD-15I0. The annual solve above answers where a basin settles if the
-    # forcing never changes; this integrates the same balance through the
-    # climatology's own bins and asks for the YEAR to close on itself. The lake
-    # terms are re-evaluated per bin because a surface flux has no storage
-    # between bins; the catchment term is the annual one in every bin, for the
-    # reason `climate_fields` gives where it computes it.
-    print("solving the periodic steady state")
+    # --- the lake forcing, per climatology bin ----------------------------
+    # THE LAKE TERMS ARE READ PER BIN AND THE ANNUAL SOLVE READS THEIR MEAN, so
+    # the two solves below answer two questions about ONE forcing rather than
+    # answering them on two. `land_water_ledger.yaml` puts
+    # `open_water_evaporation` at `interval_floor: climatology_bin` and the
+    # reason it gives is Jensen: Penman is nonlinear in the air it reads, which
+    # is why it already integrates the DIURNAL cycle instead of reading a daily
+    # mean, and the seasonal cycle is the same argument at a longer period.
+    # Reading the annual mean of the air and evaluating Penman once on it
+    # understates open-water evaporation over this catalogue by 17%, and lake
+    # extent is what that lands on. The bin-weighted mean of the per-bin
+    # evaporation is reported beside the single annual evaluation so the size of
+    # that is on the artifact rather than only in a note.
+    #
+    # The CATCHMENT term stays annual and is not averaged from bins, for the
+    # separate reason `climate_fields` gives where it computes it.
+    print("reading the lake terms per climatology bin")
     with Dataset(_CLIM_FILE) as _ds:
         bin_weights = climatology.bin_weights(np.asarray(_ds["time"][:]))
     nbin = bin_weights.size
@@ -600,8 +598,33 @@ def main():
                                         sinks, export, f_lsm, config)
         season_precip[k] = p_k * to_km_per_year
         season_evap[k] = e_k * to_km_per_year
+    bin_share = bin_weights / bin_weights.sum()
+    mean_evap = (bin_share[:, None] * season_evap).sum(0)
+    mean_precip = (bin_share[:, None] * season_precip).sum(0)
+    jensen = float(mean_evap.sum() / max((lake_evap * to_km_per_year).sum(), 1e-30))
+    print(f"  open-water evaporation over the basin sinks is {jensen:.3f}x what "
+          "one evaluation on the annual-mean air gives")
+
+    print(f"solving lake levels ({year_days:.1f}-day year)")
+    solution = lb.solve(
+        basins,
+        catchment_runoff * to_km_per_year,
+        mean_evap,
+        mean_precip,
+    )
+    if not solution["converged"]:
+        raise SystemExit("the overflow cascade did not converge; do not use this")
+
+    level = solution["level_km"]
+
+    # --- the seasonal cycle, as a periodic steady state -------------------
+    # WORLD-15I0. The annual solve above answers where a basin settles if the
+    # forcing never changes; this integrates the same balance through the
+    # climatology's own bins and asks for the YEAR to close on itself.
+    #
     # Bin lengths in the SAME year the fluxes are per, which here is Vesper's,
     # so the normalised weights are already that. See solve_periodic.
+    print("solving the periodic steady state")
     periodic = lb.solve_periodic(
         basins,
         np.tile(catchment_runoff * to_km_per_year, (nbin, 1)),
@@ -614,6 +637,40 @@ def main():
     print(f"  closed in {periodic['cycles']} cycles; "
           f"{int(periodic['seasonal'].sum())} basins carry a publishable season, "
           f"{n_refused} refused for not closing")
+
+    # DOES THE WATER CLOSE, which is not the same question as whether the cycle
+    # repeats. A basin's storage can return to where it started every year while
+    # the integration quietly creates or destroys water inside the year, and
+    # `closed` cannot see that. The residual is read against the throughput
+    # rather than reported bare: a km3 means nothing without the km3 that passed
+    # through the basin it came off.
+    live_basin = basins.has_impoundment
+    throughput = periodic["annual_throughput_km3"]
+    scale = np.maximum(np.maximum(basins.capacity_km3, np.abs(throughput)), 1e-30)
+    # Named for what they are and NOT `per_bin` and `per_year`: `per_year` is
+    # already the seconds in this world's year in this function, and shadowing
+    # it here divided every basin's overflow by a residual.
+    bin_residual_rel = np.abs(periodic["bin_balance_residual_km3"]).max(axis=0) / scale
+    year_residual_rel = np.abs(periodic["annual_water_residual_km3"]) / scale
+    water_balance = {
+        "declared_tolerance_relative": lb.BALANCE_RELATIVE,
+        "worst_bin_residual_relative": float(bin_residual_rel[live_basin].max()),
+        "worst_annual_residual_relative": float(year_residual_rel[live_basin].max()),
+        "set_residual_relative": float(
+            np.abs(periodic["annual_water_residual_km3"]).sum()
+            / max(throughput.sum(), 1e-30)),
+        "annual_throughput_km3": float(throughput.sum()),
+        "read_against": ("the larger of the basin's own capacity and what passed "
+                         "through it in the year"),
+    }
+    print(f"  water closes to {water_balance['worst_annual_residual_relative']:.2g} "
+          f"per basin and {water_balance['set_residual_relative']:.2g} over the set, "
+          f"against a declared {lb.BALANCE_RELATIVE:g}")
+    if max(water_balance["worst_bin_residual_relative"],
+           water_balance["worst_annual_residual_relative"]) > lb.BALANCE_RELATIVE:
+        raise SystemExit(
+            "the lake balance does not conserve water to the tolerance declared "
+            "in lake_balance.BALANCE_RELATIVE; do not use this")
 
     wet = paint_lakes(terminal, filled_km, area, solution["area_km2"])
     lake_depth = np.where(wet, level[np.maximum(terminal, 0)] - filled_km, 0.0)
@@ -780,6 +837,12 @@ def main():
             "basins_with_published_season": int(periodic["seasonal"].sum()),
             "seasonal_area_km2_at_peak": float(periodic["area_km2"].max(axis=0).sum()),
             "seasonal_area_km2_at_trough": float(periodic["area_km2"].min(axis=0).sum()),
+            # THE WATER BALANCE, and it is a measurement rather than a claim.
+            # `closed` says the cycle repeats; this says the cycle conserves,
+            # which is a different question and the one an integrator can fail
+            # silently. Read against what passed through the basins, because a
+            # residual is only small relative to something.
+            "water_balance": water_balance,
             # THE CROSSING, per region rather than per basin. world-9iy5. The
             # areas above are what the solve holds; these are what a
             # classification can partition, and they are smaller because a
@@ -816,6 +879,18 @@ def main():
                 np.average(model_evap, weights=area_weight_sea) * SECONDS_PER_DAY * 1000),
             "validation": ("ratio over ocean cells, which already are open water; "
                            "the only place the estimate can be checked"),
+            # THE SEASONAL JENSEN TERM, and it is the reason the solves below
+            # are forced with the bin mean rather than with one evaluation on
+            # annual-mean air. Penman is nonlinear in the air it reads, so a
+            # single evaluation on a mean over a cycle it varies within is not
+            # the mean of the evaluations; that is why it already integrates the
+            # diurnal cycle, and the seasonal cycle is the same argument at a
+            # longer period. land_water_ledger.yaml holds open_water_evaporation
+            # at interval_floor: climatology_bin for it.
+            "bin_mean_over_annual_evaluation": jensen,
+            "what_the_lake_solves_are_forced_with": (
+                "the bin-weighted mean of the per-bin evaluation, over the "
+                "basin sinks; the annual-mean evaluation is not used"),
         },
         "lakes": {
             "basins_holding_water": int(basins.n - solution["dry"].sum()),

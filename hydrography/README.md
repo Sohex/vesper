@@ -150,13 +150,46 @@ tolerance in its own volume is refused rather than reported, and closure
 propagates down the spill cascade, because a basin whose own volume repeats
 while its upstream supply does not is riding a transient.
 
+**The bin is solved, not stepped, and there is no step size anywhere in it.**
+The forcing does not change inside a time bin and a hypsometric curve is
+piecewise linear, so `dV/dt = S - D A(V)` is a LINEAR ordinary differential
+equation on every segment of the curve; `_integrate_bin` walks the segments a
+basin crosses and solves each in closed form, computing the time to cross a
+segment rather than choosing a step. The work is bounded by the curve rather
+than by a limit: `A` is non-decreasing in `V`, so within a bin the storage moves
+one way and crosses each level at most once. What that buys is a basin whose
+whole capacity turns over inside a bin, and a small reservoir taking a
+throughflow many times its capacity while pinned at its spill and not moving at
+all; a stepped scheme has to resolve both and the second is unbounded, because
+the requirement grows with the overflow cascade rather than being a property of
+the terrain. `hydrography/notes/lake-balance-integration.md` carries the
+measurement and the argument.
+
+**A basin holding no storage still has a lake, and it is not the curve's first
+area.** Every curve here is built from mesh cells, so its first level already
+carries a whole cell of surface. A basin whose supply cannot fill that cell has
+a lake below what the curve can express, and the balance is the whole of what
+can be said about it: the area whose evaporative demand consumes the supply.
+That is what `solve()` has always returned at the bottom of its curve, so the
+two solves agree there.
+
+**The water balance travels with the answer.** `closed` says the cycle repeats;
+it cannot say the cycle CONSERVES, and an integrator can create or destroy water
+inside a year whose storage returns to where it started. The residual is
+published per bin and per year, read against what passed through the basin, and
+`surface_water.py` refuses a result that misses the declared tolerance.
+
 Bin lengths are absolute and IN THE SAME YEAR THE FLUXES ARE PER. A fixed point
 does not care how long a year is, so a caller mixing two year units gets a wrong
 amplitude and a clean closure; the selftest carries a check that is sensitive to
 it, because the closure test cannot be.
 
 What is published per basin is the AMPLITUDE, not a headline: the peak-to-trough
-area, that swing as a share of the mean, and the residence time that sets it. A
+area over the bin-end samples, that swing as a share of the cycle mean, and the
+residence time that sets it. The cycle mean is the integrator's own exact time
+integral rather than the bin-end samples averaged, because everything that has
+to conserve water is taken on the time mean and the range is taken on the
+samples; the two are different quantities and neither is the other rounded. A
 deep terminal lake holds years of supply and its surface barely moves inside one
 year, while a shallow playa's area is almost all seasonal, so a single number
 over the catalogue would be a statement about the deep end and nothing else. A
