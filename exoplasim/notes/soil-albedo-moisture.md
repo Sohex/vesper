@@ -3,7 +3,7 @@
 *A worldbuilding project. Everything below is about the simulated planet Vesper
 and the models that produce it: the ExoPlaSim climate column, the land water
 column under it, and the albedo boundary condition this project stages into
-them. Measured on 2026-08-26 against `canonical-10m-base` at T21.*
+them. Measured on 2026-08-27 against `canonical-10m-base` at T21.*
 
 Wet ground is darker than dry ground, and until now the modelled land surface
 kept one albedo through every wetting and drying cycle the land column
@@ -124,17 +124,17 @@ capacity gains that layer's sub-wilting water. Measured on this build:
 
 | quantity | median | p10 to p90 |
 | --- | --- | --- |
-| surface layer capacity | 6.87 mm | 6.09 to 7.65 |
-| sub-wilting increment | 3.57 mm | 2.81 to 4.52 |
-| `awc_mm`, what LPJ-GUESS reads | 175.0 mm | 46.6 to 242.5 |
-| `evaporable_mm`, what ExoPlaSim would install as `dwmax` | 178.5 mm | 49.9 to 246.0 |
-| increment over `awc_mm` | 0.0225 | 0.0137 to 0.0747 |
+| surface layer capacity | 6.29 mm | 3.27 to 7.34 |
+| sub-wilting increment | 2.97 mm | 1.62 to 4.18 |
+| `awc_mm`, what LPJ-GUESS reads | 48.7 mm | 22.8 to 215.6 |
+| `evaporable_mm`, what ExoPlaSim installs as `dwmax` | 51.6 mm | 24.4 to 219.6 |
+| increment over `awc_mm` | 0.0581 | 0.0181 to 0.0949 |
 
 The two capacity columns are two quantities and not one number written twice: a
 root cannot reach the water between air dry and the wilting point and a bare
 drying surface can. `surface_layer_report` checks the identity that defines them
 -- `evaporable_mm - awc_mm` equals the surface layer's increment, cell by cell,
-to 2.8e-14 mm -- so the column gained exactly the water the surface layer can
+to 2.3e-14 mm -- so the column gained exactly the water the surface layer can
 now reach and not a millimetre more. The layers beneath keep their
 plant-available semantics unchanged, which is why `soilsrwp` and `soilsrfc`
 still describe them and the soil heat solver still reads a layer it understands.
@@ -146,7 +146,7 @@ level shift at its dry end. That was the objection that closed this row before,
 and it is answered by the column rather than by a coefficient. The cost is
 bounded and one-signed: a real soil holds adsorbed water at the ambient
 humidity, so the layer can give up at most `0.02 * theta_ad` more water than it
-should, which is under the 3.57 mm increment. The alternative -- evaluating air
+should, which is under the 2.97 mm increment. The alternative -- evaluating air
 dry through this contract's own retention closure at the Kelvin potential of a
 declared humidity, near -160 MPa -- is registered and not adopted: it is a
 hundredfold extrapolation past the wilting point, far outside the suctions Cosby
@@ -284,23 +284,74 @@ and fan fill are a soil.
 beside them.
 
 **What the staged pair is worth.** The land-mean albedo of the two fields now
-written:
+written, measured on 2026-08-27 against the VEGETATED staged field with lakes
+composited in, which is the field a run reads:
 
 | quantity | value |
 | --- | --- |
-| land mean, dry | 0.261450 |
-| land mean, saturated, band 1 | 0.084953 |
-| land mean, saturated, band 2 | 0.118397 |
-| land mean, saturated, broadband | 0.105609 |
-| the swing the mixing spans | 0.155841 |
+| land mean, dry | 0.170772 |
+| land mean, saturated endmember, band 1 | 0.071698 |
+| land mean, saturated endmember, band 2 | 0.183283 |
+| land mean, saturated endmember, broadband | 0.140616 |
+| the swing between the two staged ends | 0.030156 |
 
-For scale, the bare-against-vegetated gap this project brackets over the whole
-simulated planet is 0.069381, and `build_surface_albedo.py` argues that gap is 15
+**The endmember swing is not the term, and on this field the difference is most
+of it.** The staged saturated pair is the endmember at a degree of saturation of
+one; the modelled surface layer caps at field capacity, which maps to 0.7642, so
+the mixing approaches that end and never touches it. Evaluating the mixing there,
+per cell and then land-meaned because it is concave and the two orders do not
+commute:
+
+| quantity | value |
+| --- | --- |
+| land mean at a full surface layer, broadband | 0.146138 |
+| the fall, broadband | 0.024633 |
+| the fall, band 1 | 0.017506 |
+| the fall, band 2 | 0.029103 |
+
+`albedo_report.json`'s `wetting.at_full_surface_layer` carries all four and
+recomputes them per build, so nothing downstream re-derives them from the two
+endmembers.
+
+**Which surface the term acts on is what sets its size, and the field moved.**
+The wetting maps act on SOIL. A canopy is not a wetting surface and open water is
+not one either, so `build_surface_albedo.py` gives the covered fraction of a cell
+and its lake fraction the same value at both ends and only the bare fraction
+wets. On a bare-rock staged field the term was worth a swing of 0.155841; on the
+vegetated field with lakes it is worth 0.030156, a factor of 5.2 smaller, and the
+whole of that factor is cover. For scale, the bare-against-vegetated gap this
+project brackets is 0.069381, and `build_surface_albedo.py` argues that gap is 15
 to 19 W/m2 in absorbed flux against 21 W/m2 for the entire 0.85-to-0.95 stellar
-sweep that produced a 33 K range. The wetting swing is more than twice it. That
-is a CEILING on the term and not an estimate: the realised term is the swing
-times how wet the modelled skin is and how much of the land it covers, and the
-surface layer never reaches field capacity everywhere at once.
+sweep that produced a 33 K range. The wetting fall at a full surface layer is
+about a third of it.
+
+**In kelvin, and against the instrument that would have to see it.** Through
+`scripts/error_budget.py:albedo_to_kelvin` at the land fraction the build
+manifest gives by surface class, 0.432841, and the attenuation that file declares
+for itself to a factor of two:
+
+| f, the skin's fill fraction | fall | K at 0.25 | K at 0.5 | K at 1.0 |
+| --- | --- | --- | --- | --- |
+| 0.05 | 0.001631 | +0.04 | +0.08 | +0.17 |
+| 0.15 | 0.004705 | +0.12 | +0.24 | +0.48 |
+| 0.50 | 0.013997 | +0.35 | +0.71 | +1.42 |
+| 1.00 | 0.024633 | +0.62 | +1.25 | +2.49 |
+
+The last row is a permanently saturated skin everywhere at once, which the
+cascade cannot hold, and it is +1.25 K at the declared central attenuation. **The
+paired-arm instrument cannot see that in temperature.** A 25-orbit paired
+difference in global-mean `tas` carries a standard error of 0.56 to 0.75 K on the
+held arms, so the bar the arms are reported under, two root two times the larger
+standard error, is 1.6 to 2.1 K. The ceiling sits below its own bar: at
+attenuation 0.5 the term reaches 1.0 K only once the skin sits above 0.756 of its
+capacity in the land-area and time mean, and no state the cascade can hold does
+that. The measurement that DOES resolve it is the land-mean `alb` difference,
+which both arms write and which is set by the boundary condition rather than by
+the circulation; a temperature separation is a consequence to look for and not
+the test. `docs/src/practice/failure-modes.md` class 34 is the rule this is an
+instance of, and the direction is the useful one: the term is real, one-signed
+and small, and an arm that reported "not resolved" in `tas` would be reporting
+its own scatter.
 
 **The hard ceiling, both bands, all classes.** Retained from the declaration and
 still checked before anything is written: a fully INUNDATED modelled surface

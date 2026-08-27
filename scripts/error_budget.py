@@ -302,8 +302,8 @@ def albedo_report_path(config) -> Path:
 def albedo_items(config) -> list[tuple[str, float, str]]:
     """(label, land-mean albedo delta, note) for the albedo half of the budget.
 
-    Two of these are MEASURED by `build_surface_albedo.py` and are read from the
-    report it writes rather than transcribed. They were literals until 2026-08-18
+    Three of these are MEASURED by `build_surface_albedo.py` and are read from
+    the report it writes rather than transcribed. They were literals until 2026-08-18
     and both had gone stale against the generator: the lakes item was -0.0139
     against a measured -0.0229, understated by 64%, and the biosphere item paired
     a bare-rock mean of 0.276 that no longer existed with a vegetated one that
@@ -341,7 +341,24 @@ def albedo_items(config) -> list[tuple[str, float, str]]:
             f"{ALBEDO_REPORT} has no lakes block, so it was built without "
             "--lakes and the lake item cannot be read from it."
         )
-    return [
+    # The wetting item is CONDITIONAL on the saturated pair having been staged.
+    # `--flat-bands` writes no pair for the mixing to run between, and a report
+    # from before PHYS-15 armed carries no `at_full_surface_layer`; in both
+    # cases the term is genuinely not in the field this budget prices, so it is
+    # omitted rather than entered at zero. A zero row would read as "measured
+    # and negligible", which is a different claim.
+    wetting = []
+    full = (report.get("wetting") or {}).get("at_full_surface_layer")
+    if full:
+        wetting = [
+            ("soil wetting, dry to a full surface layer",
+             float(full["broadband_fall"]),
+             "PHYS-15, and a BOUND rather than a range: the fall at a surface "
+             "layer permanently at its own capacity, which the tipping-bucket "
+             "cascade cannot hold. Read from the same report; what refining it "
+             "buys is the measurement of how wet the modelled skin actually "
+             "is, since the term is this bound times that fraction.")]
+    return wetting + [
         ("biosphere: bare rock vs vegetated",
          -(float(ends["bare_rock"]) - float(ends["vegetated"])),
          "the assumption LPJ-GUESS exists to replace. Measured: "
