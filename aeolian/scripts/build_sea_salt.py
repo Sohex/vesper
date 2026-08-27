@@ -68,7 +68,7 @@ from _paths import ANALYSIS, CONFIG, PROJECT_ROOT  # noqa: E402
 import climatology  # noqa: E402  from lib/, via _paths
 from build_dust import advect_to_steady_state, flag_anomalous_bins, settling_velocity
 from build_dust import weibull_shape_from_samples
-from paths import climatology_path, rel, snapshot_climatology_path
+from paths import bootstrap_climatology_path, rel, snapshot_beside
 
 sys.path.insert(0, str(PROJECT_ROOT / "exoplasim" / "scripts"))
 # The two-stream expression and the upscatter fraction are imported, not
@@ -153,7 +153,10 @@ def annual_mean(field, weights):
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--climatology", type=Path, default=None)
+    ap.add_argument("--climatology", type=Path, default=None,
+                    help="defaults to the configured bootstrap_climatology, "
+                         "which is what the sea_salt step declares it needs. "
+                         "It moves the wind tail with it")
     ap.add_argument("--config", type=Path, default=CONFIG)
     ap.add_argument("--sea-salt-config", type=Path, default=SEA_SALT_CONFIG)
     ap.add_argument("--optics", type=Path, default=OPTICS)
@@ -177,7 +180,10 @@ def main() -> None:
     # raises KeyError before producing anything, which is what it did.
     cfg["_planet_radius_earth"] = config["planet"]["radius_earth"]
     gravity = float(config["planet"]["gravity_m_s2"])
-    clim_path = args.climatology or climatology_path()
+    # THE BOOTSTRAP, not the baseline. `sea_salt` declares
+    # `needs: bootstrap_climatology` in config/pipeline.yaml, and the sea-salt
+    # burden is one of the aerosol fields the baseline run is run ON.
+    clim_path = args.climatology or bootstrap_climatology_path()
     if not args.optics.is_file():
         raise SystemExit(f"{args.optics} missing; run "
                          f"aeolian/scripts/sea_salt_optics.py first")
@@ -264,7 +270,10 @@ def main() -> None:
         u10, z0_sea = u10_from_level(spd_a, z_level, cfg, gravity)
 
         # Weibull shape over OCEAN, fitted the way dust fits it over erodible land.
-        samples = args.gust_samples or snapshot_climatology_path()
+        # Beside the regular product this run resolved, so the wind tail and
+        # the binned fields cannot come from two different climatologies and
+        # `--climatology` moves both.
+        samples = args.gust_samples or snapshot_beside(clim_path)
         fit = weibull_shape_from_samples(samples, ocean)
         k_fit, n_samples = fit if fit else (None, 0)
         k = k_fit if k_fit else cfg["subgrid_wind"]["weibull_shape"]

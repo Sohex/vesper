@@ -1932,6 +1932,93 @@ def check_requested_codes_are_produced() -> list[str]:
     return problems
 
 
+# The two steps whose script deliberately resolves NEITHER climatology, and what
+# names the file instead. Both take it from the caller, which is a legitimate
+# third answer and not a gap: the drift this guards against is a script that
+# silently resolves the OTHER one. A new entry here is a decision that has to be
+# argued, which is the point of writing it down rather than inferring it.
+CLIMATOLOGY_FROM_THE_CALLER = {
+    "analyze_climatology": "--label is required and both product names derive "
+                           "from it; a fixed default here reported 280.9 K for "
+                           "a 293.8 K world",
+    "ice_mask": "--climatology is required=True",
+}
+
+
+def check_climatology_needs_match_call_sites() -> list[str]:
+    """Each step resolves the climatology `config/pipeline.yaml` says it needs.
+
+    THERE ARE TWO CLIMATOLOGIES AND THE GRAPH HAS ALWAYS SAID WHICH IS WHICH.
+    The bootstrap is the run on terrain-only surface fields and exists to
+    produce the climate the derived fields are built FROM; the baseline is the
+    run on those fields once they exist. `config/planet.yaml` carried ONE key,
+    so `lib/paths.py:climatology_path` returned the same file to all eleven
+    steps and the distinction reached nothing -- a step wanting the bootstrap
+    read an artifact that cannot exist on a first pass, and on a later pass read
+    a climate produced by the very fields it was supposed to be producing.
+
+    The property is static and exact: a step declaring `needs:
+    bootstrap_climatology` calls `bootstrap_climatology_path` and never
+    `climatology_path`, and a step declaring `needs: baseline_climatology` calls
+    `climatology_path` and never `bootstrap_climatology_path`. Calling both is a
+    failure either way, because then the step reads two worlds.
+
+    WHAT IT DOES NOT COVER, said here so nobody reads it as more: a step that
+    declares neither key and reads a climatology anyway is invisible to this,
+    because the graph does not state which one it wants. Adding a key to those
+    steps is what would make them checkable.
+    """
+    import yaml
+    graph = yaml.safe_load(
+        (ROOT / "config" / "pipeline.yaml").read_text(encoding="utf-8"))
+    wanted = {"bootstrap_climatology": "bootstrap_climatology_path",
+              "baseline_climatology": "climatology_path"}
+    problems = []
+    for step in graph.get("steps") or []:
+        needs = [n for n in (step.get("needs") or []) if n in wanted]
+        if not needs:
+            continue
+        step_id = step["id"]
+        if len(needs) > 1:
+            problems.append(
+                f"step {step_id} needs both climatologies; they are two "
+                f"artifacts and a step reading both reads two worlds")
+            continue
+        script = ROOT / str(step["script"])
+        if not script.is_file():
+            continue                    # check_registered_paths_exist owns this
+        try:
+            tree = ast.parse(script.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue                    # check_modules_parse owns this
+        called = set()
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            f = node.func
+            name = f.id if isinstance(f, ast.Name) else (
+                f.attr if isinstance(f, ast.Attribute) else None)
+            if name in wanted.values():
+                called.add(name)
+        right = wanted[needs[0]]
+        wrong = {v for v in wanted.values() if v != right} & called
+        if wrong:
+            other = next(k for k, v in wanted.items() if v in wrong)
+            problems.append(
+                f"step {step_id} declares `needs: {needs[0]}` and "
+                f"{step['script']} calls {wrong.pop()}(), which resolves "
+                f"{other}. The bootstrap and the baseline are different "
+                f"artifacts, not two versions of one")
+        elif not called and step_id not in CLIMATOLOGY_FROM_THE_CALLER:
+            problems.append(
+                f"step {step_id} declares `needs: {needs[0]}` and "
+                f"{step['script']} resolves no climatology at all. Call "
+                f"{right}() from lib/paths.py, or take the path from the "
+                f"caller and say so in CLIMATOLOGY_FROM_THE_CALLER with the "
+                f"argument")
+    return problems
+
+
 def check_no_shadowed_imports(files: list[Path]) -> list[str]:
     """A name bound by `import X` is never rebound to something else.
 
@@ -2551,6 +2638,8 @@ def main() -> None:
                lambda: check_diag_writes_are_answered()),
               ("no model local has all its definitions inside a where",
                lambda: check_masked_only_locals_are_answered()),
+              ("each step resolves the climatology its needs declare",
+               lambda: check_climatology_needs_match_call_sites()),
               ("no imported module name is rebound",
                lambda: check_no_shadowed_imports(files)),
               ("no name is loaded that nothing binds, model Python included",

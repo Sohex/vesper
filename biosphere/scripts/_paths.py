@@ -32,16 +32,37 @@ if str(LIB) not in sys.path:
 
 
 def climatology_path(name: str | None = None) -> Path:
-    """The climatology this component is driven from.
+    """The BASELINE climatology: the run on the full surface fields.
 
     Delegates to `lib/paths.py`, which is the one copy. This module
-    kept its own, and so did biosphere, `surface_water.py` and two
+    kept its own, and so did pedology, `surface_water.py` and two
     exoplasim builders; they did not stay in step, and three of them
     were still naming the superseded `climatology_s096` when a
     baseline re-run ran them for the first time in months.
+
+    NOT every step in this component wants it. `config/pipeline.yaml`
+    names one of the two climatologies per step; `build_lpj_driver.py`
+    takes this one and `build_vesper_header.py` takes the other resolver
+    below.
     """
     import sys as _sys
     if str(PROJECT_ROOT / "lib") not in _sys.path:
         _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
     from paths import climatology_path as _resolve
     return _resolve(name, root=PROJECT_ROOT)
+
+
+def bootstrap_climatology_path() -> Path:
+    """The BOOTSTRAP climatology: the run on terrain-only surface fields.
+
+    `build_vesper_header.py` fits the LPJ-GUESS calendar's declination phase
+    against a climatology, and the phase is a property of the orbit rather
+    than of the surface, so the earlier of the two is the one that exists
+    when the header is written. Delegates to `lib/paths.py` on the same
+    terms as the resolver above.
+    """
+    import sys as _sys
+    if str(PROJECT_ROOT / "lib") not in _sys.path:
+        _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
+    from paths import bootstrap_climatology_path as _resolve
+    return _resolve(root=PROJECT_ROOT)

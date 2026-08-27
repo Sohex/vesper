@@ -281,10 +281,26 @@ steps:
   - id: design_flux
     script: exoplasim/scripts/derive_design_flux.py
     cost: minutes
-    needs: [baseline_climatology, bracket_run]
+    needs: [bootstrap_climatology, bracket_run]
     writes: [exoplasim/analysis/design_flux.json]
     gate: >
-      the flux is re-derived on every new terrain (`docs/src/pipeline/state.md`
+      THE BOOTSTRAP CLIMATOLOGY AND NOT THE BASELINE, because requiring the
+      baseline made this circular. The design flux IS the mean flux target, and
+      a baseline run is by this project's vocabulary the run on the full surface
+      fields -- which still has to be run at SOME flux. Ordering the baseline
+      first therefore means buying hours of model time at a provisional number
+      and buying them again at the derived one. What the method needs is two
+      converged climatologies ON THE VEGETATED BRANCH, which is a statement
+      about model.land_albedo_source and not about having soil and lakes, and
+      the bootstrap already runs vegetated; the script refuses a bracket run
+      whose manifest says otherwise. The corrected order is bootstrap_run,
+      bootstrap_climatology, bracket_run, design_flux, adopt the flux into
+      config/planet.yaml, derived surface fields, baseline_run --
+      `check_consistency.py` is what says the adoption happened.
+      --bracket-run is REQUIRED and has no default: runs are named by UUID
+      (rule 6), so a default is the id of one historical run and nothing else,
+      and the one that used to sit here named a run archived to identity.
+      Beyond that, the flux is re-derived on every new terrain (`docs/src/pipeline/state.md`
       section 5b and `docs/src/pipeline/sequencing.md` loop C), and the
       thresholds are declared in the script before it runs, never fitted to the
       answer. The cap on extreme-cold land fraction must be DECLARED in advance
@@ -624,8 +640,16 @@ steps:
     script: exoplasim/scripts/build_surface_soil_water.py
     loop: A
     cost: minutes
-    needs: [land_column_properties]
+    needs: [bootstrap_climatology, land_column_properties]
     writes: ["exoplasim/inputs/{res_lower}/orogen_{res}_surf_0229_provenance.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0229.sra"]
+    gate: >
+      NEEDS THE BOOTSTRAP CLIMATOLOGY, settled by the graph rather than by
+      judgment: this writes a staged `.sra` surface field, and a staged surface
+      field is an INPUT to the baseline run. Reading the baseline here would
+      build an input to a run out of that run's own output, and on a first pass
+      there is no baseline at all.
+      The climatology supplies the grid and the land mask, so they match the
+      soil map exactly.
 
   - id: dust
     script: aeolian/scripts/build_dust.py
@@ -672,17 +696,31 @@ steps:
     script: exoplasim/scripts/build_surface_dust.py
     loop: A
     cost: minutes
-    needs: [dust, dust_aerofile]
+    needs: [bootstrap_climatology, dust, dust_aerofile]
     writes: ["exoplasim/inputs/{res_lower}/orogen_{res}_surf_1811_provenance.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1811.sra"]
-    gate: only when model.dust_source is set; a no-op at ndustrad = 0
+    gate: >
+      NEEDS THE BOOTSTRAP CLIMATOLOGY, settled by the graph rather than by
+      judgment: this writes a staged `.sra` surface field, and a staged surface
+      field is an INPUT to the baseline run. Reading the baseline here would
+      build an input to a run out of that run's own output, and on a first pass
+      there is no baseline at all.
+      The climatology supplies the grid and the mean surface temperature.
+      Runs only when model.dust_source is set; a no-op at ndustrad = 0.
 
   - id: dust_source_fields
     script: aeolian/scripts/build_dust_source_fields.py
     loop: A
     cost: minutes
-    needs: [dust, surface_water, soil]
+    needs: [bootstrap_climatology, dust, surface_water, soil]
     writes: ["exoplasim/inputs/{res_lower}/orogen_{res}_surf_1801_provenance.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1801.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1802.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1803.sra"]
-    gate: only when model.dust_emission is set; a no-op at ldustemit = 0
+    gate: >
+      NEEDS THE BOOTSTRAP CLIMATOLOGY, settled by the graph rather than by
+      judgment: this writes a staged `.sra` surface field, and a staged surface
+      field is an INPUT to the baseline run. Reading the baseline here would
+      build an input to a run out of that run's own output, and on a first pass
+      there is no baseline at all.
+      The climatology supplies the grid. Runs only when model.dust_emission is
+      set; a no-op at ldustemit = 0.
 
   - id: dust_forcing
     script: exoplasim/scripts/dust_forcing.py
@@ -896,7 +934,7 @@ steps:
     script: exoplasim/scripts/run_exoplasim.py
     loop: A
     cost: hours
-    needs: [surface_water, surface_albedo, surface_soil_water, rebuild_binaries, ocean_tier_gate]
+    needs: [design_flux, surface_water, surface_albedo, surface_soil_water, rebuild_binaries, ocean_tier_gate]
     writes: []
     presence: by_index
     gate: >
@@ -904,6 +942,14 @@ steps:
       and not a typed number. This is the run downstream components read a
       climatology from, so the production span is what its interval is bought
       with.
+      IT NEEDS design_flux, and that edge is the expensive half of the
+      circularity the design_flux step describes. Without it the graph permits
+      buying this run -- hours, and the one every downstream component reads --
+      at the provisional orbit.baseline_flux_earth and then buying it again once
+      the flux is derived. The edge says the ARTIFACT exists; adopting its
+      winner into config/planet.yaml is a separate human act, because the flux
+      fixes the semi-major axis and that orbit is compiled into LPJ-GUESS.
+      `check_consistency.py` is what refuses to let the two drift apart.
 
   - id: stellar_cycle_run
     script: exoplasim/scripts/run_stellar_cycle.py

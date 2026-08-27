@@ -40,14 +40,14 @@ from _paths import ANALYSIS, DATA, PROJECT_ROOT  # noqa: E402
 import carve_verdict as cv  # noqa: E402
 import lake_balance as lb  # noqa: E402
 from orogen import LAND, Export  # noqa: E402
-from paths import rel  # noqa: E402
+from paths import bootstrap_climatology_path, rel  # noqa: E402
 from provenance import staged_surface_field  # noqa: E402
 
 import builds  # noqa: E402
 import climatology  # noqa: E402
 import gridding  # noqa: E402
 
-# Set by main(), from config.baseline_climatology or --climatology. There is
+# Set by main(), from config.bootstrap_climatology or --climatology. There is
 # no module-level default on purpose; see the note in main().
 _CLIM_FILE = None
 SECONDS_PER_DAY = 86400.0
@@ -102,7 +102,7 @@ def climate_fields(config, bin_index=None):
     if clim is None:
         raise RuntimeError(
             "no climatology resolved; main() sets it from "
-            "config.baseline_climatology or --climatology")
+            "config.bootstrap_climatology or --climatology")
     with Dataset(clim) as ds:
         if bin_index is None:
             def take(name):
@@ -483,7 +483,8 @@ def main():
                     help="hydrography products for this build; defaults to "
                          "data/<source_build>/ when it exists")
     ap.add_argument("--climatology", type=Path, default=None,
-                    help="baseline_regular_climatology.nc to force the lakes with")
+                    help="regular climatology to force the lakes with; defaults "
+                         "to the configured bootstrap_climatology")
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--selftest", action="store_true",
                     help="run the basin-to-region crossing's identity checks; "
@@ -503,27 +504,28 @@ def main():
         # per-build file is missing is the same trap one level down -- it turns
         # a missing input into a silent read of a terrain nobody chose.
         _DATA = builds.component_data("hydrography", _cfg, strict=True)
-    # The climatology comes from the config, or from --climatology, and there is
-    # deliberately no fallback. This script used to default to a module constant
-    # pointing at `climatology_s096`: pre-carve terrain, the superseded k2
-    # spectrum, and the surface the antipodal carve verdict was taken from. That
-    # is the hardcoded default `config.baseline_climatology` exists to replace,
-    # and it was replaced in pedology and biosphere while this file kept its own
-    # copy of it. A missing climatology raises; a stale one returns a plausible
-    # number from the wrong world.
+    # THE BOOTSTRAP, not the baseline. `surface_water` declares
+    # `needs: bootstrap_climatology` in config/pipeline.yaml, and the order is
+    # why: the lakes are one of the surface fields the baseline run is run ON,
+    # so forcing them with the baseline forces them with a climate their own
+    # extent produced, and on a first pass no baseline exists to read.
+    #
+    # Resolved through `lib/paths.py` rather than out of the config here. This
+    # file kept a private copy of the resolution, which is how it came to still
+    # name `climatology_s096` -- pre-carve terrain under the superseded k2
+    # spectrum -- months after pedology and biosphere had moved. The shared
+    # resolver also carries `require_configured_grid`, which a hand-rolled read
+    # of the config key does not.
     if args.climatology is not None:
         # Resolve before storing: the provenance write takes relative_to
         # PROJECT_ROOT, which raises on a path given relative to the cwd.
         clim_path = args.climatology.resolve()
     else:
-        declared = _cfg.get("baseline_climatology")
-        if not declared:
-            raise SystemExit(
-                "config/planet.yaml has no `baseline_climatology`. Name one "
-                "there or pass --climatology; there is deliberately no fallback.")
-        clim_path = (PROJECT_ROOT / declared).resolve()
+        clim_path = bootstrap_climatology_path(root=PROJECT_ROOT).resolve()
         if not clim_path.is_file():
-            raise SystemExit(f"config names {declared}, which does not exist")
+            raise SystemExit(
+                f"config/planet.yaml names {rel(clim_path)} as the bootstrap "
+                "climatology and it does not exist")
     _CLIM_FILE = clim_path
 
     build = builds.build_root()
@@ -655,9 +657,9 @@ def main():
         ds.createDimension("basin", basins.n)
         ds.createDimension("time_bin", nbin)
         # Named from the forcing rather than asserted. A bootstrap run's numbers
-        # are NOT the baseline, `climatology_path` hands over whichever the
-        # config names, and stamping "baseline" on a bootstrap-forced lake set
-        # is how a limit comes to be quoted as a state.
+        # are NOT the baseline, `--climatology` can point this anywhere, and
+        # stamping "baseline" on a bootstrap-forced lake set is how a limit
+        # comes to be quoted as a state.
         ds.title = f"Lakes and rivers under {_CLIM_FILE.stem}"
         ds.terrain_hash = export.terrain_hash
         ds.setncattr("vesper_source_build", build.name)
@@ -751,7 +753,7 @@ def main():
         "forcing_sha256": sha256(_CLIM_FILE),
         "orbital_year_days": year_days,
         "runoff_source": {
-            "field": "P-E from the baseline climatology, not mrro",
+            "field": "P-E from the forcing climatology, not mrro",
             "why": ("the run's global water budget closes to 0.03% of the mean "
                     "and the land surplus matches the sea deficit, but mrro "
                     "accounts for only 15% of that surplus"),

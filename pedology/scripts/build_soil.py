@@ -39,7 +39,7 @@ import numpy as np
 import yaml
 
 from _paths import (ANALYSIS, CONFIG, COMPONENT_ROOT, DATA, PEDOGENESIS,
-                    PROJECT_ROOT, climatology_path)
+                    PROJECT_ROOT, bootstrap_climatology_path)
 
 import climatology as climatology_lib  # noqa: E402  from lib/, via _paths.
 # Aliased because `climatology` is a local Path in main(); see build_surface_classes.py.
@@ -514,7 +514,12 @@ def main() -> None:
     # paths from the file location rather than the cwd, so a `--climatology`
     # given relative to wherever the caller stood has to be made absolute before
     # anything opens it.
-    climatology = (args.climatology or climatology_path()).resolve()
+    # THE BOOTSTRAP, not the baseline. `soil` declares
+    # `needs: bootstrap_climatology` in config/pipeline.yaml, and it has to:
+    # the soil map is one of the surface fields the baseline run is run ON, so
+    # a soil map built from the baseline is built from a climate its own output
+    # produced, and on a first pass there is no baseline to read at all.
+    climatology = (args.climatology or bootstrap_climatology_path()).resolve()
     if not climatology.is_file():
         raise SystemExit(f"{climatology} does not exist")
     # Deliberate, not assumed: this soil map pairs a climatology with a

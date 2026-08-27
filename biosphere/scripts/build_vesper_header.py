@@ -32,7 +32,8 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-from _paths import CONFIG, GENERATED, GUESS_SOURCE, PROJECT_ROOT, climatology_path
+from _paths import (CONFIG, GENERATED, GUESS_SOURCE, PROJECT_ROOT,
+                    bootstrap_climatology_path)
 from paths import rel  # noqa: E402
 
 import orbit  # lib/orbit.py, the single source of truth for the year length
@@ -270,7 +271,9 @@ const double VESPER_FRADPAR = {constants['fradpar']:.6f};
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--climatology", type=Path, default=None,
-                        help="climatology NetCDF to fit the declination phase against")
+                        help="climatology NetCDF to fit the declination phase "
+                             "against; defaults to the configured "
+                             "bootstrap_climatology")
     parser.add_argument("--par-window", type=float, nargs=2, default=PAR_WINDOW_UM,
                         metavar=("LO_UM", "HI_UM"),
                         help="photosystem window in microns (default 0.40 0.75; see PAR_WINDOW_UM)")
@@ -286,7 +289,13 @@ def main() -> None:
     year_length = orbit.model_year_days(config)
     rotation_hours = float(config["planet"]["rotation_hours"])
 
-    climatology = args.climatology or climatology_path()
+    # THE BOOTSTRAP, not the baseline. `vesper_header` declares
+    # `needs: bootstrap_climatology` in config/pipeline.yaml. The header is
+    # compiled into LPJ-GUESS, LPJ-GUESS runs before the baseline, and what is
+    # read from the climatology here is the phase of the solar declination --
+    # a property of the orbit rather than of the surface, so the earlier of the
+    # two runs answers it as well as the later one and exists when this runs.
+    climatology = args.climatology or bootstrap_climatology_path()
     if not climatology.is_file():
         raise SystemExit(
             f"{climatology} does not exist, so the declination phase cannot be "

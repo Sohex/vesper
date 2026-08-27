@@ -89,7 +89,7 @@ import climatology  # noqa: E402  from lib/, via _paths
 from builds import component_data, grid_export, mesh_export, resolution_of, soilmap
 from gridding import land_fraction_of_class, region_cells
 from orogen import LAND, Export
-from paths import climatology_path, rel, require_clean_io, snapshot_climatology_path
+from paths import bootstrap_climatology_path, rel, require_clean_io, snapshot_beside
 from provenance import require_build
 from surface_classes import cover_mask
 
@@ -564,7 +564,8 @@ def main() -> None:
     ap.add_argument("--config", type=Path, default=CONFIG)
     ap.add_argument("--dust-config", type=Path, default=DUST_CONFIG)
     ap.add_argument("--climatology", type=Path, default=None,
-                    help="defaults to the configured baseline_climatology")
+                    help="defaults to the configured bootstrap_climatology, "
+                         "which is what the dust step declares it needs")
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--surface-classes", type=Path, default=None,
                     help="pedology/analysis/surface_classes.nc. Given, desert "
@@ -600,7 +601,12 @@ def main() -> None:
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     cfg = yaml.safe_load(args.dust_config.read_text(encoding="utf-8"))
     cfg["_planet_radius_earth"] = config["planet"]["radius_earth"]
-    clim_path = args.climatology or climatology_path()
+    # THE BOOTSTRAP, not the baseline. `dust` declares
+    # `needs: bootstrap_climatology` in config/pipeline.yaml: the deposited dust
+    # is staged as a surface field the baseline run is run ON, so emitting it
+    # from the baseline would drive it with a climate its own product made, and
+    # on a first pass there is no baseline at all.
+    clim_path = args.climatology or bootstrap_climatology_path()
     output = args.output or (ANALYSIS / f"dust_{args.variant}.json")
 
     # Cross-component reads are checked, not assumed. lib/provenance.py says why.
@@ -724,7 +730,10 @@ def main() -> None:
             "                            an emission 40x low. Deliberate only.\n"
             "There is no default because the two answers differ by a factor of "
             "40 and\nthe wrong one looks exactly like the right one.")
-    gust_source = args.gust_samples or snapshot_climatology_path()
+    # Beside the regular product THIS run resolved, so the wind tail and the
+    # binned fields always come from the same climatology and `--climatology`
+    # moves both.
+    gust_source = args.gust_samples or snapshot_beside(clim_path)
     fitted = weibull_shape_from_samples(gust_source, erodible > 0.05)
     k_measured, k_samples = fitted if fitted else (None, 0)
     if k_measured is not None:

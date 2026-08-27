@@ -69,7 +69,7 @@ import yaml
 
 from _paths import ANALYSIS, CONFIG, DUST_CONFIG, PROJECT_ROOT  # noqa: E402
 from builds import component_data, grid_export, resolution_of, soilmap  # noqa: E402
-from paths import climatology_path, rel  # noqa: E402
+from paths import bootstrap_climatology_path, rel  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(PROJECT_ROOT / "exoplasim" / "scripts"))
@@ -411,7 +411,8 @@ def main() -> None:
     ap.add_argument("--dust-config", type=Path, default=DUST_CONFIG)
     ap.add_argument("--baseline-report", type=Path, default=BASELINE)
     ap.add_argument("--climatology", type=Path, default=None,
-                    help="supplies the grid; defaults to baseline_climatology")
+                    help="supplies the grid; defaults to the configured "
+                         "bootstrap_climatology")
     ap.add_argument("--z0", default="central", choices=("low", "central", "high"),
                     help="which end of the aeolian roughness bracket to write")
     ap.add_argument("--surface-classes", type=Path, default=None,
@@ -432,8 +433,13 @@ def main() -> None:
 
     from netCDF4 import Dataset
 
+    # THE BOOTSTRAP, not the baseline, and this one is settled by the graph
+    # rather than by judgment: this step writes a staged `.sra` surface field,
+    # and a staged surface field is an INPUT to the baseline run. Reading the
+    # baseline climatology here would mean building an input to a run out of
+    # that run's own output, and on a first pass there is no baseline at all.
     if args.climatology is None:
-        args.climatology = climatology_path()
+        args.climatology = bootstrap_climatology_path()
     model = config["model"]
     nlat, nlon = int(model["latitudes"]), int(model["longitudes"])
     resolution = resolution_of(grid_export(config))

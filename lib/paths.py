@@ -1,8 +1,13 @@
 """Path helpers shared across components, and the guards on the climatology.
 
-`rel` exists because of a specific recurring bug; `climatology_path` is the one
-resolver for the product every downstream component is driven from, and
-`require_clean_io` and `require_configured_grid` are what it must survive.
+`rel` exists because of a specific recurring bug. There are TWO climatology
+resolvers because there are two climatologies: `bootstrap_climatology_path` for
+the run on terrain-only surface fields, which the derived fields are built FROM,
+and `climatology_path` for the baseline run on those fields once they exist.
+`config/pipeline.yaml` says which of the two each step needs, and
+`scripts/smoke_test.py:check_climatology_needs_match_call_sites` holds the call
+sites to it. `require_clean_io` and `require_configured_grid` are what both must
+survive.
 
 `Path.relative_to` RAISES when the path is not under the given root. Every script
 here prints "wrote <path>" relative to the project root, and that print happens
@@ -46,14 +51,15 @@ def rel(path: Path | str, root: Path | None = None) -> str:
 def bootstrap_climatology_path(root: Path | None = None) -> Path:
     """The climatology taken on TERRAIN-ONLY surface fields.
 
-    A SECOND KEY BECAUSE THERE ARE TWO CLIMATOLOGIES AND SEVEN STEPS WANT THE
-    OTHER ONE. `config/pipeline.yaml` already distinguishes them -- `surface_water`,
-    `groundwater`, `soil`, `dust`, `sea_salt`, `volcanic_sulfate` and
-    `vesper_header` all declare `needs: bootstrap_climatology` -- while
-    `carve_verdict`, `ice_mask`, `lpj_driver` and `error_budget` declare
-    `baseline_climatology`. Config carried one key for both, so every one of
-    those eleven resolved to the same file and the graph's distinction reached
-    nothing.
+    A SECOND KEY BECAUSE THERE ARE TWO CLIMATOLOGIES AND THE GRAPH HAS ALWAYS
+    SAID WHICH IS WHICH. `config/pipeline.yaml` is the register of which steps
+    declare `needs: bootstrap_climatology` and which declare
+    `baseline_climatology`; it is not restated here, because a list in two
+    places is a list that goes out of step. Config carried one key for both, so
+    every one of those steps resolved to the same file and the graph's
+    distinction reached nothing.
+    `scripts/smoke_test.py:check_climatology_needs_match_call_sites` is what
+    holds each step's script to its own declaration.
 
     THE ORDER IS WHY IT MATTERS. The bootstrap exists to produce the climatology
     the derived surface fields are built FROM, and the baseline is the run on
@@ -210,15 +216,31 @@ def require_clean_io(climatology: Path) -> None:
             "exoplasim/notes/first-output-bin.md.")
 
 
-def snapshot_climatology_path(name: str | None = None,
-                              root: Path | None = None) -> Path:
-    """The instantaneous-sample product beside the configured climatology.
+def snapshot_beside(regular: Path) -> Path:
+    """The instantaneous-sample product beside a given regular climatology.
 
     Still produced and still useful -- it carries orbital phase, which the binned
     product does not -- but no longer a workaround for anything. See
     `require_clean_io`.
+
+    IT TAKES THE REGULAR PRODUCT RATHER THAN RESOLVING ONE. This resolved the
+    baseline itself, which made it wrong twice over. `build_dust.py` and
+    `build_sea_salt.py` are its only callers and both are `bootstrap_climatology`
+    steps, so the snapshot it handed them came from the other run; and a caller
+    passing `--climatology` got its regular field overridden and its wind tail
+    still read from the configured one, which is half an escape hatch. Both
+    callers now pass the regular product they actually resolved, so the pair
+    cannot come from two different runs and one flag moves both.
     """
-    regular = climatology_path(name, root=root)
+    if "_regular_climatology.nc" not in regular.name:
+        # Without this the substitution is a no-op and the "snapshot" returned
+        # is the binned product itself, which is exactly the field the caller
+        # asked for a snapshot INSTEAD of: a 12-bin mean has averaged away the
+        # wind tail the fit is measuring.
+        raise SystemExit(
+            f"{rel(regular)} is not named `<label>_regular_climatology.nc`, so "
+            "the snapshot beside it cannot be derived from its name. Name the "
+            "sample file explicitly.")
     snapshot = regular.with_name(
         regular.name.replace("_regular_climatology.nc", "_snapshot_climatology.nc"))
     if not snapshot.is_file():
