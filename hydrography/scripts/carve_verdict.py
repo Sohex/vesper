@@ -63,7 +63,7 @@ import numpy as np
 import yaml
 
 from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT  # noqa: F401
-from builds import component_data, grid_export
+from builds import component_data, mesh_export
 from climatology import annual_mean as weighted_annual_mean, bin_weights
 from gridding import (coupling_cells, coupling_ocean_fraction, coupling_path,
                       require_index_alignment)
@@ -777,7 +777,13 @@ def main() -> None:
     # violation of CLAUDE.md rule 2: correct today, and silently a percentage of
     # a different planet the day `radius_earth` moves, exactly as the 189.6145-day
     # year was.
-    planet = Export(grid_export(config)).surface_area_km2
+    # THE MESH CARRIER, not the configured rung's export. A sphere is a
+    # property of the BUILD and every export of it carries the same
+    # `surfaceAreaKm2`, but only the carrier has the `raw/` mesh `Export`
+    # refuses to open without, so asking the rung for it raised on any build
+    # whose configured rung is not the one the mesh happens to sit under.
+    # `builds.mesh_export` IDENTIFIES the carrier rather than naming it.
+    planet = Export(mesh_export(config)).surface_area_km2
 
     print(f"{'bound':>10} {'carve':>7} {'survive':>8} {'dry':>6} {'with lake':>10} "
           f"{'lake % planet':>14}")
