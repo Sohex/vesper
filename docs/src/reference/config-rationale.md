@@ -303,7 +303,7 @@ orbit:
 
 MIXED. `earth_solar_constant_w_m2` is a physical constant and
 `sweep_flux_earth` is a sweep specification; both are DETERMINED.
-`baseline_flux_earth` is PROVISIONAL, and `longitude_vernal_equinox_degrees` is
+`baseline_flux_earth` is CHOSEN, and `longitude_vernal_equinox_degrees` is
 DECLARED. Each is argued below.
 
 ## `baseline_flux_earth`
@@ -312,17 +312,28 @@ DECLARED. Each is argued below.
 baseline_flux_earth: 0.945
 ```
 
-PROVISIONAL, 2026-08-19. Chosen from the habitability-by-latitude derivation
-of `docs/src/pipeline/state.md` section 5b, codified as
-`derive_design_flux.py` (step `design_flux`), which declares its thresholds in
-advance. The extreme-cold cap it needs is not yet declared ahead of the run
-(CLIM-30), and `docs/src/pipeline/sequencing.md` loop C re-derives
-the flux on every new terrain.
+CHOSEN. The habitability-by-latitude derivation of
+`docs/src/pipeline/state.md` section 5b is codified as `derive_design_flux.py`
+(step `design_flux`), which declares its thresholds in advance. It has been RUN
+on this terrain and it REFUSES: four land bands have a negative warmest-bin
+response between the two measured flux points, so the per-band projection has
+nothing to scale by. That refusal is not one another run lifts, because the
+sign is a property of how this world's seasons respond rather than of where the
+two points sit, so a design decision is what settles the number.
 
-It keeps its value rather than being cleared, because it is an INPUT and not a
-result: it fixes the semi-major axis below, and that orbit is compiled into
-LPJ-GUESS. What survives the deletion is the FINDING rather than the artifact,
-and that is the part the decision rests on:
+The record is `exoplasim/analysis/design_flux.json` with `basis: chosen`,
+written by the same script and only after it caught its own refusal. It carries
+the refusal with the offending bands, the finding the choice rests on in
+`notes/audits/design-flux-two-point-response.md`, and what would reopen the
+derivation: a projection method that can represent a band whose seasonal range
+contracts with warming. `scripts/check_consistency.py` refuses a chosen record
+short of any of those, and `docs/src/pipeline/sequencing.md` loop C re-derives
+the flux on every new terrain, so the choice is re-affirmed per terrain rather
+than inherited.
+
+It is an INPUT and not a result: it fixes the semi-major axis below, and that
+orbit is compiled into LPJ-GUESS. What the flux and the biosphere share is a
+FINDING rather than an artifact, and that is the part the decision rests on:
 
 The flux and the biosphere are one choice, not two. The vegetated and
 bare-rock windows for the design band DO NOT OVERLAP, so this flux is
