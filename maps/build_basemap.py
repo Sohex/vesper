@@ -178,10 +178,37 @@ def pixel_directions():
 
 
 def region_index(src):
-    """Nearest mesh region for each pixel. Cached; the query is the slow part."""
-    cache = BUILD_DIR / f"region_index_{WIDTH}x{HEIGHT}.npy"
-    if cache.exists():
-        return np.load(cache)
+    """Nearest mesh region for each pixel. Cached; the query is the slow part.
+
+    THE CACHE KEY IS THE MESH AND NOT ONLY THE RESOLUTION. It was
+    `region_index_{WIDTH}x{HEIGHT}.npy` and returned unconditionally when the
+    file existed, so a build change silently reused another build's answer: the
+    first map of `canonical-10m-carve1` was drawn through an index built six
+    days earlier on `precarve-craton`, addressing 2,500,001 regions of a
+    10,000,005-region mesh. Every pixel read the wrong region. It did not look
+    like noise -- both meshes cover the same sphere from the same seed, so the
+    result was a plausible world with a radial smear at the antimeridian, which
+    is the kind of wrong that gets shipped.
+
+    The region COUNT keys the file, because that is what makes two of these
+    incompatible, and the terrain hash goes in a sidecar and is refused on
+    mismatch: two builds at the same region count are different meshes if
+    anything upstream of the mesh moved. Belt and braces on purpose -- this is
+    an artifact whose wrongness is invisible in its own output.
+    """
+    manifest = json.loads((src / "manifest.json").read_text(encoding="utf-8"))
+    regions = int(manifest["numRegions"])
+    terrain = str(manifest.get("hashes", {}).get("finalElevation", ""))
+    cache = BUILD_DIR / f"region_index_{WIDTH}x{HEIGHT}_n{regions}.npy"
+    stamp = cache.with_suffix(".json")
+    if cache.exists() and stamp.exists():
+        recorded = json.loads(stamp.read_text(encoding="utf-8"))
+        if (recorded.get("numRegions") == regions
+                and recorded.get("finalElevation") == terrain):
+            idx = np.load(cache)
+            if int(idx.max()) < regions:
+                return idx
+        print(f"  cached index is for another mesh; rebuilding")
     xyz = np.stack(
         [np.fromfile(src / f"raw/{c}.bin", dtype=np.float32) for c in "xyz"], axis=1
     ).astype(np.float64)
@@ -194,6 +221,9 @@ def region_index(src):
     idx = idx.reshape(HEIGHT, WIDTH).astype(np.int32)
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
     np.save(cache, idx)
+    stamp.write_text(json.dumps(
+        {"numRegions": regions, "finalElevation": terrain,
+         "width": WIDTH, "height": HEIGHT}, indent=2) + "\n", encoding="utf-8")
     return idx
 
 
