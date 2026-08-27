@@ -164,6 +164,37 @@ range. The last of those was a reported flag in the artifact and is now a
 refusal, because the range is derived and an edge winner means the derivation
 was wrong.
 
+A FLUX THAT WAS CHOSEN, and why it is recorded by THIS script. Some of the
+refusals above are about the inputs -- a missing run, a bare-rock bracket point,
+a bracket too weak to project across -- and each is fixed by supplying what is
+missing. One of them is not: a band whose warmest-bin response to warming is
+NEGATIVE has nothing for the per-band projection to scale by, and the sign is a
+property of how this world's seasons respond rather than of where the two flux
+points sit, so a third point does not fix it. The instrument has looked at the
+evidence and cannot answer. On that ground alone the flux may be CHOSEN, and
+`--chosen` records the choice.
+
+    --chosen FLUX --evidence notes/audits/<the finding>.md
+
+WHAT MAKES THAT A RECORD AND NOT A RUBBER STAMP. `--chosen` runs the whole
+derivation first and writes nothing unless it REFUSES, on a ground declared in
+`CHOOSABLE_REFUSALS` below and nowhere else. A derivation that answers is
+adopted, not overridden: the mode refuses and says to take the winner. A
+derivation that refuses on a missing input refuses here too, because the fix is
+to supply the input. So a choice cannot be reached by pointing the script at an
+absent run, by narrowing the bracket, or by disliking the answer, and the
+refusal the record carries is the exception the run actually raised rather than
+a sentence someone typed.
+
+The record carries the three things a later reader needs and a number alone does
+not give them: WHY the derivation refused, as the verbatim refusal with the
+bands that caused it; WHAT the choice rests on, as a path under `notes/` whose
+content is hashed into the record; and WHAT WOULD REOPEN IT, which is declared
+against the refusal in this file and is not the caller's to write. `basis` is
+`derived` or `chosen` on every artifact this script writes, so nothing reading
+one has to infer which it is holding, and `scripts/check_consistency.py` refuses
+a chosen record that is missing any of the three.
+
 Writes `exoplasim/analysis/design_flux.json`. Registered as step
 `design_flux`.
 """
@@ -215,6 +246,52 @@ THRESHOLD_BRACKET = {
     # artifact inferred, so the sweep spans the value this declaration replaces
     # and a reader can see what that inference was worth.
     "cold_extreme_cap": [0.025, 0.05, 0.10],
+}
+
+
+class Refusal(SystemExit):
+    """A guard that fired on the EVIDENCE rather than on a missing input.
+
+    A `SystemExit` subclass, so it reaches a command line exactly as every other
+    refusal in this script does and the message is the same message. What the
+    type adds is that `--chosen` can tell the two classes apart: a missing run
+    or a bare-rock bracket point is fixed by supplying what is missing and is
+    never grounds for choosing a flux, while a guard that has read the fields
+    and found the method inapplicable to this world is.
+    """
+
+    def __init__(self, key: str, message: str, context: dict | None = None):
+        super().__init__(message)
+        self.key = key
+        self.context = context or {}
+
+
+# THE REFUSALS A CHOSEN FLUX MAY STAND ON, and what would reopen each. Declared
+# here, ahead of any run, for the same reason the thresholds are: the question
+# "is this refusal one a choice can rest on" must not be answered by whoever is
+# looking at the answer they wanted. Membership is the whole test -- `--chosen`
+# writes nothing for a refusal outside this dict, and adding one is an edit to
+# this file with the argument beside it.
+#
+# THE TEST FOR MEMBERSHIP IS WHETHER MORE INPUT WOULD ANSWER. A bracket that
+# spans too little global mean, an absent run, a point on the wrong land-albedo
+# branch: each is a refusal the project can BUY its way out of, and choosing a
+# flux instead of buying it is laundering. A refusal that no run at any flux
+# would lift is a statement about the method against this world, and a design
+# decision is then the only thing left that can settle the number.
+#
+# The value is the reopen condition, which travels into the record. It is stated
+# here rather than taken from the caller because it is a property of the guard:
+# the caller supplies the evidence for the number, never the terms on which the
+# derivation could resume.
+CHOOSABLE_REFUSALS = {
+    "band_amplification_sign":
+        "a projection method that can represent a band whose seasonal range "
+        "CONTRACTS with warming. The per-band amplification is a ratio to the "
+        "global mean change and is undefined in sign for such a band, so what "
+        "reopens the derivation is a different projection and not another flux "
+        "point: the sign is a property of this world's seasonal response, and "
+        "every run at every flux would show it",
 }
 
 
@@ -339,21 +416,14 @@ def score(warm_c: np.ndarray, cold_c: np.ndarray, land: np.ndarray,
     }
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--bracket-run", required=True,
-                    help="run id supplying the second flux point's tas tail, "
-                         "e.g. run_1a2b3c4d5e6f. REQUIRED, and there is no "
-                         "default because there cannot be one: runs are named "
-                         "by UUID, so any default is the id of one historical "
-                         "run and nothing else. `exoplasim/runs/INDEX.json` "
-                         "says what exists; the `bracket_run` step in "
-                         "config/pipeline.yaml says what makes a run usable "
-                         "here")
-    ap.add_argument("--tail-orbits", type=int, default=10)
-    ap.add_argument("--output", type=Path, default=ANALYSIS / "design_flux.json")
-    args = ap.parse_args()
+def derive(bracket_run: str, tail_orbits: int = 10) -> dict:
+    """The derivation, or the refusal that says it cannot be made on this world.
 
+    Returns the report with `basis` set to `derived`. Raises `Refusal` when a
+    guard fires on the FIELDS -- the class of refusal a chosen flux may stand on
+    -- and a plain `SystemExit` when a declaration is wrong or an input is
+    missing, which is the class that is fixed by supplying what is missing.
+    """
     # Refuse before a single field is read, so nothing about these can be
     # contaminated by what the data turns out to say.
     cap = DECLARED["cold_extreme_cap"]
@@ -403,7 +473,7 @@ def main() -> None:
     base = seasonal_fields(base_path)
     f0 = float(cfg["orbit"]["baseline_flux_earth"])
 
-    run_dir = RUNS / args.bracket_run
+    run_dir = RUNS / bracket_run
     if not run_dir.is_dir():
         raise SystemExit(
             f"{rel(run_dir)} does not exist. --bracket-run names a run by its "
@@ -417,7 +487,7 @@ def main() -> None:
     branch = manifest_branch(manifest)
     if branch != "vegetated":
         raise SystemExit(
-            f"{args.bracket_run} ran with model.land_albedo_source = {branch!r}. "
+            f"{bracket_run} ran with model.land_albedo_source = {branch!r}. "
             "The design flux is defined on the VEGETATED branch and both flux "
             "points have to be on it: the bare-rock arm is a BOUND, not a "
             "world, and projecting between the two measures the albedo "
@@ -425,7 +495,7 @@ def main() -> None:
     f1 = float(manifest.get("stellar_flux_ratio",
                manifest.get("derived_parameters", {}).get("stellar_flux_ratio_earth")))
     last = max(int(p.stem.split(".")[1]) for p in run_dir.glob("MOST.[0-9]*.nc"))
-    orbits = list(range(last - args.tail_orbits + 1, last + 1))
+    orbits = list(range(last - tail_orbits + 1, last + 1))
     other = seasonal_fields(tail_mean_fields(run_dir, orbits))
 
     d_global = base["annual_global"] - other["annual_global"]
@@ -452,9 +522,25 @@ def main() -> None:
             entry[f"{season}_c_at_{f0}"] = round(t_base - 273.15, 2)
             entry[f"amp_{season}"] = round(amp[season][b], 3)
         band_rows.append(entry)
-    if any(r.get("amp_warm", 1) <= 0 for r in band_rows):
-        raise SystemExit("a band's warm-season amplification is not positive; "
-                         "the projection cannot be trusted")
+    negative = [r for r in band_rows if r.get("amp_warm", 1) <= 0]
+    if negative:
+        raise Refusal(
+            "band_amplification_sign",
+            "a band's warm-season amplification is not positive; the "
+            "projection cannot be trusted. "
+            + "; ".join(f"{r['band']} amp_warm {r['amp_warm']}"
+                        for r in negative),
+            {"bands_with_non_positive_warm_amplification": negative,
+             "all_bands": band_rows,
+             "sources": {
+                 "base": {"path": rel(base_path), "flux": f0,
+                          "climatology_stage": base_stage,
+                          "land_albedo_source": base_branch},
+                 "bracket": {"run": bracket_run, "flux": f1,
+                             "tail_orbits": orbits,
+                             "land_albedo_source": branch},
+                 "global_mean_span_k": round(d_global, 3),
+                 "slope_k_per_unit_flux": sensitivity.SLOPE_K_PER_FLUX_RATIO}})
 
     slope = sensitivity.SLOPE_K_PER_FLUX_RATIO
     amp_warm_cells = amp["warm"][bands][:, None]
@@ -562,6 +648,10 @@ def main() -> None:
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(),
+        # DERIVED OR CHOSEN, on every artifact this script writes. A consumer
+        # must never have to infer which of the two it is holding, and
+        # `check_consistency.py` refuses an artifact that does not say.
+        "basis": "derived",
         "generator": "exoplasim/scripts/derive_design_flux.py",
         "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "declared": DECLARED,
@@ -577,7 +667,7 @@ def main() -> None:
                              "branch; the design flux can be derived before a "
                              "baseline run exists and is re-derived on one "
                              "once it does"},
-            "bracket": {"run": args.bracket_run, "flux": f1,
+            "bracket": {"run": bracket_run, "flux": f1,
                         "tail_orbits": orbits,
                         "land_albedo_source": branch,
                         "note": "tas only; its spin-up I/O regime historically "
@@ -629,16 +719,162 @@ def main() -> None:
                     "as one.",
         },
     }
+    return report
+
+
+def chosen_record(flux: float, evidence: Path, bracket_run: str,
+                  tail_orbits: int = 10) -> dict:
+    """The record of a flux that was CHOSEN because the derivation refused.
+
+    Runs the derivation first and writes nothing unless it raises a `Refusal`
+    whose key is in `CHOOSABLE_REFUSALS`. Three things therefore cannot happen.
+    A derivation that ANSWERS cannot be overridden -- its winner is the flux and
+    this raises. A refusal about a missing or unsuitable INPUT cannot be
+    converted into a choice, because the fix is to supply the input. And the
+    refusal in the record is the exception the run actually raised, with the
+    bands that caused it, rather than a sentence someone typed.
+
+    The caller supplies the number and the evidence for it. The reopen condition
+    is NOT the caller's: it is declared against the refusal in this file,
+    because it is a property of the guard rather than of the decision.
+    """
+    if flux not in DECLARED["candidates"]:
+        raise SystemExit(
+            f"the chosen flux {flux} is not one of this derivation's "
+            f"candidates, {DECLARED['candidates'][0]} to "
+            f"{DECLARED['candidates'][-1]} in steps of 0.0025. A chosen flux "
+            "still has to sit inside the search space the refusal was taken "
+            "in; outside it the record cites an argument it is not part of")
+    if not evidence.is_file() or not evidence.read_bytes().strip():
+        raise SystemExit(
+            f"--evidence {evidence} is not a file with content in it. A chosen "
+            "flux rests on a finding that a later reader can go and read, and "
+            "the record carries the path and the hash of what was read")
+    if "notes" not in evidence.resolve().parts:
+        raise SystemExit(
+            f"--evidence {evidence} is not under a `notes/` directory. A "
+            "finding with its evidence lives there; a chosen flux that cites "
+            "anything else is citing a document that is not one")
+
+    # Bound outside the handler because Python deletes the `as` name when the
+    # except block ends, and the record is built from what was caught.
+    caught: Refusal | None = None
+    try:
+        derived = derive(bracket_run, tail_orbits)
+    except Refusal as refusal:
+        caught = refusal
+        if refusal.key not in CHOOSABLE_REFUSALS:
+            raise SystemExit(
+                f"the derivation refused at {refusal.key!r}, which is not a "
+                f"ground a chosen flux may stand on. The choosable refusals "
+                f"are {sorted(CHOOSABLE_REFUSALS)}, and what makes a refusal "
+                f"one of them is that no run at any flux would lift it. This "
+                f"one is: {refusal}") from refusal
+    else:
+        raise SystemExit(
+            f"the derivation ANSWERED: {derived['design_flux']}. A flux is "
+            "chosen when the instrument refuses, never when it disagrees, so "
+            "there is nothing to record here. Adopt the derived winner into "
+            "config/planet.yaml, or change a declared threshold in this file "
+            "and say why")
+
+    return {
+        "generated": datetime.now(timezone.utc).isoformat(),
+        "basis": "chosen",
+        "generator": "exoplasim/scripts/derive_design_flux.py",
+        "generator_sha256": hashlib.sha256(
+            Path(__file__).read_bytes()).hexdigest(),
+        "design_flux": flux,
+        "chosen": {
+            "flux": flux,
+            "refused_at": caught.key,
+            "refusal": str(caught),
+            "reopens_when": CHOOSABLE_REFUSALS[caught.key],
+            "evidence": rel(evidence),
+            "evidence_sha256": hashlib.sha256(
+                evidence.read_bytes()).hexdigest(),
+            "measured": caught.context,
+            "note": "the derivation was RUN and refused; this record exists "
+                    "because it did. `refusal` is the exception it raised and "
+                    "`measured` is what it had read when it raised. Re-run "
+                    "this script without --chosen to reproduce it",
+        },
+        "declared": DECLARED,
+        "threshold_bracket": THRESHOLD_BRACKET,
+        "design_flux_equivalent": None,
+        "winner_dry_uncapped": None,
+        "winner_equivalent_uncapped": None,
+    }
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--bracket-run", required=True,
+                    help="run id supplying the second flux point's tas tail, "
+                         "e.g. run_1a2b3c4d5e6f. REQUIRED, and there is no "
+                         "default because there cannot be one: runs are named "
+                         "by UUID, so any default is the id of one historical "
+                         "run and nothing else. `exoplasim/runs/INDEX.json` "
+                         "says what exists; the `bracket_run` step in "
+                         "config/pipeline.yaml says what makes a run usable "
+                         "here")
+    ap.add_argument("--tail-orbits", type=int, default=10)
+    ap.add_argument("--output", type=Path, default=ANALYSIS / "design_flux.json")
+    ap.add_argument("--chosen", type=float, default=None,
+                    help="record a flux that was CHOSEN rather than derived. "
+                         "The derivation is run first and this writes nothing "
+                         "unless it refuses on a ground listed in "
+                         "CHOOSABLE_REFUSALS; a derivation that answers is "
+                         "adopted, not overridden. Requires --evidence")
+    ap.add_argument("--evidence", type=Path, default=None,
+                    help="the finding under notes/ a chosen flux rests on. Its "
+                         "path and hash go into the record")
+    args = ap.parse_args()
+
+    if args.chosen is None:
+        if args.evidence is not None:
+            raise SystemExit(
+                "--evidence is only meaningful with --chosen. A derived flux "
+                "carries its own evidence: the two climatologies, the declared "
+                "thresholds and the candidate table are all in the report")
+        report = derive(args.bracket_run, args.tail_orbits)
+    else:
+        if args.evidence is None:
+            raise SystemExit(
+                "--chosen requires --evidence. A number with no argument "
+                "beside it is the thing this mode exists to prevent, not the "
+                "thing it exists to write")
+        report = chosen_record(args.chosen, args.evidence, args.bracket_run,
+                               args.tail_orbits)
+
     args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(f"sources: {f0} ({base_path.stem}) and {f1} ({args.bracket_run}), "
-          f"span {d_global:.2f} K")
-    print(f"candidates {edges[0]} to {edges[1]}, cold-extreme cap {cap}")
-    print(f"design flux: dry {win_dry_capped}  equivalent {win_te_capped}  "
-          f"(uncapped: dry {win_dry}, equivalent {win_te})")
+    if report["basis"] == "chosen":
+        chosen = report["chosen"]
+        print(f"basis: CHOSEN, not derived. design flux {report['design_flux']}")
+        print(f"the derivation refused at {chosen['refused_at']}: "
+              f"{chosen['refusal']}")
+        print(f"evidence: {chosen['evidence']}")
+        print(f"reopens when: {chosen['reopens_when']}")
+        print(f"wrote {rel(args.output)}")
+        return
+
+    edges = (DECLARED["candidates"][0], DECLARED["candidates"][-1])
+    src = report["sources"]
+    print(f"sources: {src['base']['flux']} ({src['base']['path']}) and "
+          f"{src['bracket']['flux']} ({src['bracket']['run']}), "
+          f"span {src['global_mean_span_k']:.2f} K")
+    print(f"candidates {edges[0]} to {edges[1]}, cold-extreme cap "
+          f"{DECLARED['cold_extreme_cap']}")
+    print(f"design flux: dry {report['design_flux']}  equivalent "
+          f"{report['design_flux_equivalent']}  (uncapped: dry "
+          f"{report['winner_dry_uncapped']}, equivalent "
+          f"{report['winner_equivalent_uncapped']})")
     print(f"recorded prior {DECLARED['anchor_flux']}, distance "
-          f"{win_dry_capped - DECLARED['anchor_flux']:+.4f}")
-    print(f"warm-ceiling bracket: {sensitivity_rows['warm_ceiling_c']}")
-    print(f"cold-floor bracket:   {sensitivity_rows['cold_floor_c']}")
+          f"{report['against_the_recorded_prior']['distance']:+.4f}")
+    print(f"warm-ceiling bracket: "
+          f"{report['threshold_sensitivity']['warm_ceiling_c']}")
+    print(f"cold-floor bracket:   "
+          f"{report['threshold_sensitivity']['cold_floor_c']}")
     print(f"wrote {rel(args.output)}")
 
 

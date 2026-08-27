@@ -64,6 +64,17 @@ buy hours of baseline run at the old number. No `design_flux.json` at all is the
 legitimate provisional state and warns; a winner that differs from the
 configured value refuses.
 
+**A design flux that was CHOSEN rather than derived.** The artifact says which
+of the two it is and this refuses one that does not, because a flux the
+derivation returned and a flux a person picked because the derivation refused
+are different kinds of number. A chosen one must carry the ground the derivation
+refused on, the finding it rests on and what would reopen it, and the ground has
+to be one `derive_design_flux.py` itself declares choosable -- that list is read
+from the generator, never restated here. The two laundering paths are checked
+against a stubbed derivation rather than argued: a derivation that ANSWERS
+cannot be overridden, and a refusal outside the declared set cannot be converted
+into a choice.
+
 **What the runs on disk actually integrated.** Three cases over run directories,
 in `audit_runs`. The staged namelists against the config and the manifest each
 run carries, the staged namelists against the hyperdiffusion block the manifest
@@ -923,6 +934,147 @@ def self_test() -> int:
     return 1 if failures else 0
 
 
+# ---------------------------------------------------------------------------
+# A DESIGN FLUX THAT WAS CHOSEN
+#
+# `derive_design_flux.py` refuses on this world: four land bands have a NEGATIVE
+# warmest-bin response between the two measured flux points, so the per-band
+# projection has nothing to scale by, and the guard is right. A refusal no run
+# at any flux would lift leaves a design decision as the only thing that can
+# settle the number, so the script records the choice INSTEAD of the derivation,
+# on the one ground it declares as choosable, and only after running the
+# derivation and catching the refusal.
+#
+# WHAT THIS GATE IS FOR, and what it deliberately is not. It cannot re-run the
+# derivation -- that reads a climatology and ten orbits of model output, and it
+# is the recorder's job to prove the refusal was real. What it can do is refuse
+# a record that carries a number without an argument: the ground the derivation
+# refused on, the finding the choice rests on, and what would reopen it are all
+# required, and the ground has to be one the generator itself declares choosable
+# rather than a phrase invented for the record. That list is READ from the
+# generator rather than restated here, because two copies of it would be free to
+# disagree and the copy in this file would be the one nobody edits.
+def _check_chosen_flux(rep, design: Path, record: dict) -> None:
+    """Refuse a chosen design flux that does not carry its argument."""
+    label = "the design flux was CHOSEN, not derived"
+    chosen = record.get("chosen")
+    if not isinstance(chosen, dict):
+        rep.add(FAIL, label,
+                f"{rel(design)} says basis `chosen` and carries no `chosen` "
+                f"block. The block is where the argument lives; without it the "
+                f"artifact is a number asserting it was decided")
+        return
+
+    missing = [k for k in ("refused_at", "refusal", "reopens_when", "evidence")
+               if not str(chosen.get(k) or "").strip()]
+    if missing:
+        rep.add(FAIL, label,
+                f"{rel(design)} is missing {', '.join(missing)}. A chosen flux "
+                f"records WHY the derivation refused, WHAT the choice rests on "
+                f"and WHAT would reopen it; a record short of any of the three "
+                f"cannot be audited by the reader who inherits the number")
+        return
+
+    scripts_dir = str(ROOT / "exoplasim" / "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.append(scripts_dir)
+    try:
+        import derive_design_flux
+        choosable = dict(derive_design_flux.CHOOSABLE_REFUSALS)
+    except Exception as exc:
+        rep.add(FAIL, label,
+                f"exoplasim/scripts/derive_design_flux.py does not offer "
+                f"CHOOSABLE_REFUSALS: {exc}. The grounds a chosen flux may "
+                f"stand on are the generator's to declare and this check reads "
+                f"them from it")
+        return
+
+    ground = str(chosen["refused_at"])
+    if ground not in choosable:
+        rep.add(FAIL, label,
+                f"{rel(design)} says the derivation refused at {ground!r}, "
+                f"which derive_design_flux.py does not declare as a ground a "
+                f"choice may stand on. Its choosable refusals are "
+                f"{sorted(choosable)}, and what puts a refusal in that set is "
+                f"that no run at any flux would lift it")
+        return
+
+    evidence = ROOT / str(chosen["evidence"])
+    if not evidence.is_file():
+        rep.add(FAIL, label,
+                f"{rel(design)} rests on {chosen['evidence']}, which is not on "
+                f"disk. The finding a chosen flux cites has to be readable by "
+                f"whoever inherits the number")
+        return
+
+    rep.add(OK, label,
+            f"{record['design_flux']} chosen on {ground}, evidence "
+            f"{chosen['evidence']}; reopens on {choosable[ground][:64]}...")
+
+
+# THE RECORDER'S OWN REFUSALS, run against a stubbed derivation so the two ways
+# a chosen flux could launder a derivation are checked rather than argued. The
+# check is here for the reason the build-activation cases below are: a guard
+# nothing exercises is a guard nobody knows still works, and both of these are
+# cheap -- they replace the expensive half with a stub and never read a field.
+def _check_chosen_flux_cannot_launder(rep) -> None:
+    label = "a chosen flux cannot replace a derivation that would answer"
+    scripts_dir = str(ROOT / "exoplasim" / "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.append(scripts_dir)
+    try:
+        import derive_design_flux as ddf
+    except Exception as exc:
+        rep.add(FAIL, label, f"derive_design_flux.py does not import: {exc}")
+        return
+
+    evidence = ROOT / "notes" / "audits"
+    candidates = sorted(evidence.glob("*.md"))
+    if not candidates:
+        rep.add(WARN, label, "no note under notes/audits/ to cite in the stub")
+        return
+    flux = ddf.DECLARED["anchor_flux"]
+
+    def with_derive(stub):
+        real = ddf.derive
+        ddf.derive = stub
+        try:
+            ddf.chosen_record(flux, candidates[0], "run_stub")
+        except SystemExit as exc:
+            return str(exc)
+        except Exception as exc:                      # pragma: no cover
+            return f"raised {type(exc).__name__}: {exc}"
+        finally:
+            ddf.derive = real
+        return None
+
+    answered = with_derive(lambda *a, **k: {"design_flux": flux,
+                                            "basis": "derived"})
+    if answered is None:
+        rep.add(FAIL, label,
+                "chosen_record wrote a record for a derivation that ANSWERED. "
+                "A flux is chosen when the instrument refuses, never when it "
+                "disagrees, and this is the laundering path")
+    else:
+        rep.add(OK, label, "a derivation that answers is adopted, not overridden")
+
+    def unlisted(*a, **k):
+        raise ddf.Refusal("not-a-declared-ground", "stub refusal")
+
+    unlisted_result = with_derive(unlisted)
+    label2 = "a chosen flux cannot stand on an undeclared refusal"
+    if unlisted_result is None:
+        rep.add(FAIL, label2,
+                "chosen_record wrote a record for a refusal that "
+                "CHOOSABLE_REFUSALS does not list. Membership is the whole "
+                "test that separates a refusal no run would lift from one that "
+                "is fixed by supplying an input")
+    else:
+        rep.add(OK, label2,
+                f"{len(ddf.CHOOSABLE_REFUSALS)} declared ground(s); anything "
+                f"else refuses")
+
+
 def main() -> int:
     import argparse
     parser = argparse.ArgumentParser(
@@ -1135,23 +1287,42 @@ def main() -> int:
                 f"the flux on every new terrain")
     else:
         try:
-            derived_flux = float(json.loads(
-                design.read_text(encoding="utf-8"))["design_flux"])
+            record = json.loads(design.read_text(encoding="utf-8"))
+            derived_flux = float(record["design_flux"])
         except Exception as exc:
             rep.add(FAIL, "configured flux vs the derived one",
                     f"{rel(design)} does not carry a readable `design_flux`: {exc}")
         else:
+            # DERIVED OR CHOSEN, AND THE ARTIFACT HAS TO SAY WHICH. A flux the
+            # derivation returned and a flux a person picked because the
+            # derivation refused are two different kinds of number, and every
+            # consumer that reads this file is entitled to know which one it is
+            # holding without going and reading a note. An artifact with no
+            # `basis` is one written before this distinction existed or by hand,
+            # and both are refused rather than assumed to be the derived case.
+            basis = record.get("basis")
+            if basis not in ("derived", "chosen"):
+                rep.add(FAIL, "configured flux vs the derived one",
+                        f"{rel(design)} carries basis {basis!r}. Every artifact "
+                        f"derive_design_flux.py writes says `derived` or "
+                        f"`chosen`; a number without one of those is a flux "
+                        f"whose standing nothing reading it can establish")
+            elif basis == "chosen":
+                _check_chosen_flux(rep, design, record)
+
             if abs(derived_flux - configured) < 1e-9:
                 rep.add(OK, "configured flux vs the derived one",
-                        f"{configured}, adopted")
+                        f"{configured}, adopted, basis {basis}")
             else:
                 rep.add(FAIL, "configured flux vs the derived one",
-                        f"{rel(design)} derived {derived_flux} and "
-                        f"config/planet.yaml runs at {configured}. Adopt it, or "
-                        f"re-derive on this terrain; a baseline run bought at "
-                        f"the unadopted number is hours spent on a world "
-                        f"nothing intended, and the flux fixes a semi-major "
-                        f"axis compiled into LPJ-GUESS")
+                        f"{rel(design)} carries {derived_flux} (basis {basis}) "
+                        f"and config/planet.yaml runs at {configured}. Adopt "
+                        f"it, or re-derive on this terrain; a baseline run "
+                        f"bought at the unadopted number is hours spent on a "
+                        f"world nothing intended, and the flux fixes a "
+                        f"semi-major axis compiled into LPJ-GUESS")
+
+    _check_chosen_flux_cannot_launder(rep)
 
     # -- the stellar band split, and everything carrying a copy of it -------
     #
