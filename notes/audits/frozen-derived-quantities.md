@@ -162,8 +162,11 @@ ambiguous sentence recorded below.
 | `vendor/` fork comments | 6 | 0 |
 | `docs/src/` | 8 | 0 |
 
-Twelve are DEMONSTRABLY STALE against the artifact that produces them today. The
-rest currently agree, which the test says nothing about.
+Eleven are DEMONSTRABLY STALE against the artifact that produces them today. The
+rest currently agree, which the test says nothing about. A twelfth, the land
+column contract's saturation mapping, was stale when the sweep began and is the
+one instance that was repaired while it ran -- because it is the one that has a
+check.
 
 ## Ranked by blast radius
 
@@ -233,7 +236,7 @@ error is in the physics from the first timestep.
 | `CORRK_PATH_CM`, `CORRK_RATIO_TO_EQ21` | `exoplasim/scripts/shortwave_band_weights.py` | the baseline climatology's water path, and `corrk_cross_check.py`'s absorptance at it | none, and the gate above them is circular | no |
 | `DEFAULT_CO2_PLANET`, `DEFAULT_CO2_EARTH`, `DEFAULT_WATER_CM` | `exoplasim/scripts/corrk_cross_check.py` | the paths `shortwave_band_weights.py` evaluates at; the comment says to recompute them there rather than trust these | none | no |
 | `SIGMA_LOWEST` | `lib/lapse.py`, restated in `hydrography/scripts/carve_verdict.py` | the model's level construction at ten layers; a climatology's `lev` axis carries it | none | no |
-| `thermal.saturation_mapping.sr_at_wilting_point`, `sr_at_field_capacity` | `pedology/config/land_column_properties.yaml`, restated in `config/planet.yaml` and in `landmod.f90` | `pedology/scripts/land_column_properties.py` | THE CHECK EXISTS, and is what caught this one | YES |
+| `thermal.saturation_mapping.sr_at_wilting_point`, `sr_at_field_capacity` | `pedology/config/land_column_properties.yaml`, restated in `config/planet.yaml` and in `landmod.f90` | `pedology/scripts/land_column_properties.py` | THE CHECK EXISTS, and is what caught this one | no, and the drift it caught is what this class is named after |
 | `thermal.constants`: the two glacier-ice and two snow thermal values | `pedology/config/land_column_properties.yaml` | `analysis/ice_properties.py`, from `rhoglac` and `rhosnow` | the script holds the COMPILED Fortran literals and never opens this yaml, so this is a fourth restatement outside the loop | no |
 
 **`land_longwave_emissivity` was computed on a build the registry refuses.** The
@@ -552,7 +555,9 @@ The tree's discipline is real and uneven. It contains fifteen worked instances o
 a declaration held to its own derivation by a check that fires, several of them
 written specifically to close this class of defect, and three configuration
 blocks that refuse to state a number at all. It also contains sixty-four places
-where a computed number was written down with no path back, twelve of which have
+where a computed number was written down with no path back, eleven of which have
 already drifted, one of them by a third in reader-facing prose about the planet's
 climate. Every frozen instance sits within a few lines of code of the machinery
-that would close it, and in five cases within the same file.
+that would close it, and in five cases within the same file. The one drift that
+was caught and repaired rather than integrated is the one whose declaration had a
+check on it, which is the whole of the argument for the second disposition.
