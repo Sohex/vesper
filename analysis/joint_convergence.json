@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-27T07:43:28.380200+00:00",
+  "generated": "2026-08-27T07:48:58.712015+00:00",
   "what": "each pipeline loop's OWN exit predicate, re-evaluated against the final state. docs/src/pipeline/loops.md, the finalizer.",
   "not_a_loop": "nothing iterates on this verdict. A failure names a loop and the decision to re-enter it is the author's.",
   "operating_support": "T85",

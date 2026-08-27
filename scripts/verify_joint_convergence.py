@@ -312,6 +312,22 @@ def sidecar_ids(sidecar: dict) -> set[str]:
     return {str(row["id"]) for row in sidecar.get("basins") or []}
 
 
+def carried_ids(sidecar: dict) -> set[str]:
+    """Basins held at retain 0 from an earlier pass rather than decided here.
+
+    Their verdict is NOT re-decidable: an earlier pass breached the rim, so the
+    current build has no impoundment to measure a catchment-to-spill-area ratio
+    against and the entry exists only to keep the loop monotone.
+    `export_carve_list.py` says so where it carries them forward and
+    `carve_overshoot.py` says so again. They are dropped from both sides of a
+    comparison rather than scored, on the same reasoning that refuses an
+    incomplete re-evaluation: an undecidable basin did not agree, it was never
+    asked.
+    """
+    return {str(row["id"]) for row in sidecar.get("basins") or []
+            if row.get("carried_from_previous_pass")}
+
+
 def read_soilmap(path: Path) -> dict | None:
     """A soilmap as {(lon, lat): {column: value}}, keyed by position.
 
@@ -412,17 +428,20 @@ def loop_a(applied: dict | None, retaken: dict | None, support: str,
             "moves only the climate, so a differing terrain means it measured "
             "the next pass instead of this one.")
 
-    applied_set = carved_ids(applied)
+    carried = carried_ids(applied) | carried_ids(retaken)
+    applied_set = carved_ids(applied) - carried
     warm, cold = arms
+    warm, cold = warm - carried, cold - carried
     intersection = warm & cold
-    present = sidecar_ids(retaken)
+    present = sidecar_ids(retaken) - carried
     compared["counts"] = {
         "applied_carved": len(applied_set),
         "cut_by_warm_vegetated_arm": len(warm),
         "cut_by_cold_bare_rock_arm": len(cold),
         "intersection": len(intersection),
-        "retaken_carved": len(carved_ids(retaken)),
+        "retaken_carved": len(carved_ids(retaken) - carried),
         "retaken_basins": len(present),
+        "carried_from_an_earlier_pass_and_not_re_decidable": len(carried),
     }
 
     uncovered = sorted(applied_set - present)
@@ -439,7 +458,7 @@ def loop_a(applied: dict | None, retaken: dict | None, support: str,
     # what both carve" generalised to a fractional rim. If that is no longer
     # what the file holds, then nothing below is a test of loop A's exit -- it
     # is a test of some other set that the file happens to call carved.
-    own = carved_ids(retaken)
+    own = carved_ids(retaken) - carried
     not_intersection = sorted((own ^ intersection))
     if not_intersection:
         return Verdict(
@@ -924,7 +943,7 @@ def write_report(verdicts: list[Verdict], path: Path, root: Path = ROOT) -> None
 # ---------------------------------------------------------------------------
 
 def _carve_list(rows, terrain="t0", climatology="clim.nc",
-                endmember="clim_cold.nc", single=False):
+                endmember="clim_cold.nc", single=False, carried=()):
     """A carve list sidecar, in the shape `export_carve_list.py` writes.
 
     `rows` is (id, retain, warm_retain, cold_retain). The three retains are
@@ -944,7 +963,9 @@ def _carve_list(rows, terrain="t0", climatology="clim.nc",
                                                   else "marginal"),
              "retain_warm_vegetated_arm": None if single else w,
              "retain_cold_bare_rock_arm": None if single else c}
-            for i, r, w, c in rows],
+            for i, r, w, c in rows]
+        + [{"id": i, "verdict": "carve", "retain": 0.0,
+            "carried_from_previous_pass": True} for i in carried],
     }
 
 
@@ -1010,6 +1031,17 @@ def self_test() -> int:
     case("A fails an applied set the re-taken intersection does not contain",
          loop_a(applied_extra, agreeing, support, warm, cold).status, FAIL,
          "b2 was carved and the re-take's intersection is b1 alone")
+
+    # A carried-forward entry has no arm retains and no impoundment left to
+    # re-decide, so it must not read as a carve outside the intersection. This
+    # case fails the moment it is scored instead of dropped.
+    case("A passes with a carried-forward carve on both sides",
+         loop_a(_carve_list([("b1", 0.0, 0.0, 0.0), ("b2", 1.0, 0.0, 1.0),
+                             ("b3", 1.0, 1.0, 1.0)], carried=("b9",)),
+                _carve_list([("b1", 0.0, 0.0, 0.0), ("b2", 1.0, 0.0, 1.0),
+                             ("b3", 1.0, 1.0, 1.0)], carried=("b9",)),
+                support, warm, cold).status, PASS,
+         "b9 is not re-decidable and is dropped from both sides")
 
     case("A refuses a re-take at a coarser support",
          loop_a(applied_ok, agreeing, support, _arm("T21", "vegetated"),
