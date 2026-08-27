@@ -235,6 +235,11 @@ depending on it and superseding it costs the whole downstream chain.
 So what has to survive is the recipe, not the export. This is it:
 
 ```bash
+# ONE invocation, one generation, six grids. The flags before the first --grid
+# describe the PLANET and are global; each --grid opens an output target and the
+# export options after it belong to that target alone, which is how T42 keeps
+# raw/ while the rest do not.
+#
 # The planet code carries the seed and every terrain slider. It does NOT carry
 # radius, gravity, or lithology strength, so those three are passed explicitly
 # and are the ones to check against config/planet.yaml.
@@ -242,23 +247,30 @@ So what has to survive is the recipe, not the export. This is it:
 # --basin-min-area is passed for a DIFFERENT reason: the code DOES carry a basin
 # slider, and it outranks terrain-config.js unless a basin flag is given. Its
 # ladder has no 850 rung, so the fork's floor can only be stated here. The
-# exporter now refuses rather than silently taking the code's 1000; see below.
+# exporter refuses rather than silently taking the code's 1000; see below.
 cd vendor/orogen
-COMMON="--code 01eshm059lt0b9mpgro2y83t \
-        --radius 7645.2 --gravity 12.81 \
-        --lithology-strength 0.682 --regions 10000004 \
-        --basin-min-area 850 \
-        --netcdf --quiet"
-
-node --max-old-space-size=32000 tools/export-planet.mjs $COMMON \
-     --grid T42 --out ../../source/<build>/exoplasim-T42          # only this one keeps raw/
-for G in T21 T85 T127 T170; do
-  node --max-old-space-size=32000 tools/export-planet.mjs $COMMON \
-       --grid $G --no-raw --out ../../source/<build>/exoplasim-$G
-done
-node --max-old-space-size=32000 tools/export-planet.mjs $COMMON \
-     --grid 512x256 --no-raw --out ../../source/<build>/grid-512x256
+node --max-old-space-size=32000 tools/export-planet.mjs \
+    --code 01eshm059lt0b9mpgro2y83t \
+    --radius 7645.2 --gravity 12.81 \
+    --lithology-strength 0.682 --regions 10000004 \
+    --basin-min-area 850 \
+    --netcdf --quiet \
+    --grid T42     --out ../../source/<build>/exoplasim-T42 \
+    --grid T21     --out ../../source/<build>/exoplasim-T21  --no-raw \
+    --grid T85     --out ../../source/<build>/exoplasim-T85  --no-raw \
+    --grid T127    --out ../../source/<build>/exoplasim-T127 --no-raw \
+    --grid T170    --out ../../source/<build>/exoplasim-T170 --no-raw \
+    --grid 512x256 --out ../../source/<build>/grid-512x256   --no-raw
 ```
+
+**One invocation, because the grid does not decide the terrain.** Six exports of
+one build used to run six generations of the same planet, and generation is
+almost all of what an export costs: over the six-grid run of 2026-08-26 the grid
+that also wrote a 4.6 GB `raw/` payload was the FASTEST of the six, so writing
+the export is the small remainder. Every target of one invocation therefore
+carries the same `manifest.hashes.finalElevation` by construction rather than by
+repetition, and `--ice-mask` and `--preserve-basins`, which are consumed at
+generation, shape the single terrain all six are written from.
 
 **The ladder is T21/T42/T85/T127/T170**, and it is the same list as
 `exoplasim/scripts/rebuild_binaries.py`'s `MATRIX` on purpose: a truncation with
@@ -294,10 +306,16 @@ than carrying these numbers across the change. What does NOT move is the
 mesh argument the paragraph rests on, which is about semivariance and erosion
 texture and has no floor in it.
 
-At 10,000,004 the T42 export with `raw/` takes about eighteen minutes and 9 GB,
-and the four `--no-raw` grids are quicker. The heap has to be raised from the
-14336 the 2.5M build used. Then register the terrain hash in `lib/orogen.py` and
-point `source_build` at it.
+At 10,000,004 the six-grid build ran in 2h23m as six generations, each export
+between 22 and 26 minutes and about 9 GB. As one generation it is bounded below
+by 33 minutes -- six exports at total T with a shared generation G cost T - 5G,
+and G cannot exceed the fastest single export -- and the measured split at
+250,001 regions, where generation is 91 per cent of an export, puts it near 45.
+The heap stays at 32000: the bundle for one target is released before the next
+is built, so the peak is the mesh plus the largest single target, which measured
+20 per cent above a per-grid invocation's peak at 250,001 regions rather than
+six times it. Then register the terrain hash in `lib/orogen.py` and point
+`source_build` at it.
 
 Add `--preserve-basins FILE` to apply a carve list; without it the build is
 pre-carve, which is what a first pass on new geography wants.

@@ -498,3 +498,98 @@ test('malformed codes are rejected rather than mis-decoded', () => {
 test('encoding an out-of-range value throws instead of silently wrapping', () => {
     assert.throws(() => encodePlanetCode(...CODE_ARGS, 99, 0), /outside its slider range/);
 });
+
+// ── One generation, every grid ───────────────────────────────────────────
+
+/**
+ * A build is identified by manifest.hashes.finalElevation, and every grid of one
+ * build has to carry the same one. The exporter takes more than one --grid so
+ * that a build pays for its generation once instead of once per grid; the whole
+ * claim of that path is that the exports it writes are the ones the per-grid
+ * invocations would have written.
+ *
+ * So this compares the two trees byte for byte rather than comparing the hash,
+ * which would pass on a matching terrain with a mis-gridded field, and it counts
+ * the "Generated in" lines, which is the only direct evidence that the saving is
+ * real rather than that the second generation was fast.
+ */
+test('one invocation, many grids: same bytes as one invocation per grid', async () => {
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const run = promisify(execFile);
+
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'orogen-multigrid-'));
+    try {
+        const COMMON = ['--seed', '4242', '--regions', '8000', '--radius', '7645.2',
+                        '--gravity', '12.81', '--lithology-strength', '0.682',
+                        '--basin-min-area', '850', '--netcdf'];
+        const one = (...extra) => run(process.execPath,
+            ['tools/export-planet.mjs', ...COMMON, ...extra], { cwd: process.cwd(),
+                maxBuffer: 64 * 1024 * 1024 });
+
+        const oldT21 = await one('--grid', 'T21', '--out', path.join(root, 'old/T21'));
+        const oldUni = await one('--grid', '32x16', '--no-raw', '--out', path.join(root, 'old/uni'));
+        const both = await one(
+            '--grid', 'T21', '--out', path.join(root, 'new/T21'),
+            '--grid', '32x16', '--out', path.join(root, 'new/uni'), '--no-raw');
+
+        const generations = (out) => (out.stdout.match(/^Generated in /gm) || []).length;
+        assert.equal(generations(oldT21), 1);
+        assert.equal(generations(oldUni), 1);
+        assert.equal(generations(both), 1,
+            'two grids in one invocation must generate the planet exactly once');
+
+        const walk = (dir, base = dir, into = []) => {
+            for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+                const full = path.join(dir, e.name);
+                if (e.isDirectory()) walk(full, base, into);
+                else into.push(path.relative(base, full));
+            }
+            return into.sort();
+        };
+        for (const which of ['T21', 'uni']) {
+            const a = path.join(root, 'old', which), b = path.join(root, 'new', which);
+            assert.deepEqual(walk(a), walk(b), `${which}: different files written`);
+            for (const rel of walk(a)) {
+                assert.ok(fs.readFileSync(path.join(a, rel)).equals(fs.readFileSync(path.join(b, rel))),
+                    `${which}/${rel} differs between the per-grid and the multi-grid path`);
+            }
+        }
+
+        // The per-grid options have to survive, or the recipe cannot keep raw/
+        // on one grid and drop it on the rest.
+        assert.ok(fs.existsSync(path.join(root, 'new/T21/raw')), 'T21 lost its raw/ payload');
+        assert.ok(!fs.existsSync(path.join(root, 'new/uni/raw')), '--no-raw did not bind to its own target');
+
+        const hashOf = (d) => JSON.parse(
+            fs.readFileSync(path.join(root, d, 'manifest.json'), 'utf8')).hashes.finalElevation;
+        const terrain = hashOf('old/T21');
+        for (const d of ['old/uni', 'new/T21', 'new/uni']) {
+            assert.equal(hashOf(d), terrain, `${d} carries a different terrain hash`);
+        }
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+    }
+});
+
+test('more than one grid may not share an output directory', async () => {
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const run = promisify(execFile);
+    // A shared directory is a WRONG export rather than a failed one: the two
+    // targets overwrite each other field by field and the manifest describes
+    // whichever ran last. Refuse before generating.
+    await assert.rejects(
+        run(process.execPath, ['tools/export-planet.mjs', '--seed', '1', '--regions', '2000',
+            '--out', '/tmp/orogen-should-not-exist', '--grid', 'T21', '--grid', 'T42'],
+            { cwd: process.cwd() }),
+        /both write to/);
+    await assert.rejects(
+        run(process.execPath, ['tools/export-planet.mjs', '--seed', '1', '--regions', '2000',
+            '--grid', 'T21', '--out', '/tmp/orogen-should-not-exist', '--grid', 'T42'],
+            { cwd: process.cwd() }),
+        /has no --out/);
+});

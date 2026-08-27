@@ -30,6 +30,11 @@ node tools/export-planet.mjs --seed 12345 --regions 250000 --grid 1024x512 --net
 node tools/export-planet.mjs --seed 12345 --grid 128x64 --no-climate \
     --only geometry,elevation --netcdf
 
+# Several grids of ONE planet, generated once
+node tools/export-planet.mjs --seed 12345 --netcdf \
+    --grid T42 --out out/T42 \
+    --grid T21 --out out/T21 --no-raw
+
 # See what fields exist
 node tools/export-planet.mjs --list-fields
 
@@ -512,6 +517,42 @@ first reports the global mean a spectral model takes -- they differ by 22% in
 the polar row at every truncation and that does not shrink with resolution.
 `grid/grid_cell_area.bin` is the quadrature partition in km², so it and
 `gauss_weights.bin` are one fact: `grid_cell_area = R² × Δlon × gauss_weight`.
+
+## Many grids, one generation
+
+`--grid` repeats, and the reason to repeat it is cost. Generation is most of the
+wall clock of an export and gridding is a small remainder: on a six-grid build
+the grid that also wrote a 4.6 GB `raw/` payload was the *fastest* of the six.
+The grid has no say in what the terrain is, so one invocation generates the
+planet once and writes every requested grid from it.
+
+```bash
+node tools/export-planet.mjs --seed 12345 --netcdf \
+    --grid T42    --out out/T42 \
+    --grid T21    --out out/T21 --no-raw \
+    --grid 512x256 --out out/uniform --no-raw
+```
+
+Each `--grid` opens a target and needs its own `--out`; two targets sharing a
+directory is refused before generation, because they would overwrite each other
+field by field and leave a manifest describing whichever ran last.
+
+**The export options bind to the target the `--grid` before them opened.** Those
+are `--out`, `--raw`, `--no-raw`, `--no-grid`, `--no-subgrid`, `--grid-method`,
+`--only`, `--netcdf` and `--zip`. Given before the first `--grid` they set the
+default every target is created from, which is why `--netcdf` above applies to
+all three and `--no-raw` only to the two it follows. Everything else describes
+the PLANET and is global by construction, so the targets of one invocation carry
+the same `manifest.hashes.finalElevation` -- there is only one generation for
+them to disagree about.
+
+`--ice-mask` and `--preserve-basins` are consumed AT GENERATION and are
+therefore global too: they shape the single terrain every target is written
+from.
+
+Memory: the bundle for one target is built, written and released before the next
+is built, so the peak is the mesh plus the largest single target rather than the
+sum of them.
 
 ## Sub-grid orography
 
