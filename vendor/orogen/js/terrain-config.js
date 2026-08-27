@@ -225,8 +225,11 @@ export const BACK_ARC_SUBDUCT_THRESH = 0.50;
 // arc-related land share: 80 km gives 3.0% and 105 km gives 3.9% against GLiM's
 // 3.1%. So the width is pinned by physics and validated against Earth, and
 // whatever land fraction it produces on another planet is a consequence of that
-// planet's boundary length rather than a target. On this world, with 4.8x
-// Earth's convergent boundary, it yields 8-9% of land.
+// planet's boundary length rather than a target. What it yields on this world is
+// therefore an OUTPUT of the generation and not a property of this file: both
+// the convergent boundary length and the arc land share move with every
+// generation, and `world_state.json`'s `lithology_land_fractions` is where the
+// share for a build lives.
 //
 // The dip range varies the gap between margins; the MEAN is then renormalised
 // back onto ARC_MEAN_GAP_KM so the mapping's shape redistributes arcs without

@@ -267,9 +267,13 @@
 !        sets aeromod's, so the transport used the radius that was asked for
 !        while the radiation kept the 50 nm photochemical-haze default. At
 !        fixed number density the optical depth goes as apart squared, so the
-!        shortwave aerosol came out (50e-9/apart)**2 of intent -- 1/385 at the
-!        optical effective radius of this world's dust and 1/1948 at the
-!        burden-matched one. Hand the value across; radini broadcasts it,
+!        shortwave aerosol came out (50e-9/apart)**2 of intent. `apart` is a
+!        namelist key, so the ratio is whatever a run declares and the closed
+!        form above is the whole of it: it is about 1/385 at an apart near
+!        1.0e-6 m, the optical effective radius of this world's dust, and about
+!        1/1948 at the burden-matched 2.2e-6 m. Neither radius is stated as
+!        current -- they are the two the defect was sized against, and the
+!        aerosol size a run integrates is the one in its own namelist. Hand the value across; radini broadcasts it,
 !        which is why this can sit inside the NROOT block. The two variables
 !        stay separate because radmod cannot use aeromod: aeromod already uses
 !        radmod, so the other direction is a circular use. Compile order is not
