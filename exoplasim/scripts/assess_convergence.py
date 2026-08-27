@@ -252,6 +252,15 @@ def slab_heat_capacity(run_dir: Path) -> tuple[float, dict]:
 # a colder arm is a noisier one. Both arms are settled: the cold one passes all
 # six criteria and RESOLVES all six, which the vegetated bootstrap does not.
 #
+# NOT RAISED TO THE CARVED BASELINE'S 0.128, and the reason is the third
+# condition in `report_is_settled_production`: that run fails its own offset
+# criterion with 0.15 K still to go, so its window is not a settled one and
+# its scatter is a reading of a planet still moving. When it converges its
+# scatter counts and this bound follows it. The carve did drain the world --
+# lakes from 4.25 per cent of the planet to 1.31, the endorheic share of land
+# from 74 to 51 -- so a noisier planet is expected; it has to be measured on a
+# settled run rather than a relaxing one.
+#
 # The bound therefore has to cover the noisiest world this project judges and
 # not the most comfortable, per the asymmetry argued above: a nominal below
 # what a run reads under-sizes the window that run is judged in, and a nominal

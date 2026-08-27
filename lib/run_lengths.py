@@ -171,11 +171,32 @@ CONVERGENCE_REPORTS = "exoplasim/analysis/convergence"
 
 
 def report_is_settled_production(name: str, report: dict) -> bool:
-    """Is this convergence report a reading of the settled trajectory?"""
+    """Is this convergence report a reading of the settled trajectory?
+
+    THREE CONDITIONS, and the third was missing. The window has to be the
+    run's own trajectory rather than a diagnostic, the span has to support the
+    memory-time estimate it carries, and THE RUN HAS TO HAVE CONVERGED.
+
+    The third is not a formality. A run still approaching its asymptote
+    carries a residual trend, a residual trend pushes every lag correlation
+    UP, and the memory time read off it is therefore an upper bound on a
+    quantity the run does not yet have. The carved build's baseline is the
+    case: it fails `extrapolated_offset` with 0.15 K still to go and reads tau
+    3.14 against a bracket topping out at 2.45. Admitting that reading would
+    raise a bound on every rung of the ladder on the strength of a run whose
+    own verdict says it is not finished.
+
+    The run's verdict is the discriminator and it already exists, so this
+    reads it rather than inventing a second test. A report predating the field
+    is admitted, because refusing every older report would empty the bound.
+    """
     purpose = report.get("assessed_purpose")
     if purpose is None:
         purpose = "diagnostic" if "diagnostic" in name else "production"
     if purpose != "production":
+        return False
+    settled = report.get("sufficiently_equilibrated_for_worldbuilding")
+    if settled is False:
         return False
     return bool(report.get("resolving_power", {})
                 .get("tau_span_supports_the_estimate", False))
@@ -378,16 +399,48 @@ def production_span_from_report(report: dict) -> tuple[float, bool, str]:
     resolving = report.get("resolving_power") or {}
     wanted = {key: float(resolving[key]) for key in _REQUIRED_WINDOW_KEYS
               if isinstance(resolving.get(key), (int, float))}
+    # THE OFFSET ROW CARRIES A QUALIFIER AND IT HAS TO BE READ. Its own
+    # `..._prices` field says it prices the run's verdict ONLY where
+    # `offset_statistic_source` is `drift_fallback`. On the exponential-fit
+    # path the statistic is the FIT's half width and the number here is
+    # computed from the expected relaxation time instead, so the two are
+    # unrelated -- on the carved baseline they read 42.8 orbits against a
+    # statistic six times its target, a factor of four and a half apart.
+    #
+    # Taking the number without its qualifier is how a rule that reads an
+    # artifact goes wrong: the artifact was not lying, it was annotated, and
+    # the annotation was ignored. Dropped rather than corrected, because the
+    # window the fit path needs is not derivable from what this block carries.
+    source = resolving.get("offset_statistic_source")
+    if source is not None and source != "drift_fallback":
+        wanted.pop("window_orbits_for_offset_criterion", None)
+        unpriced = source
     if not wanted:
+        if source is not None and source != "drift_fallback":
+            raise RuntimeError(
+                f"the offset criterion's window is priced for the drift "
+                f"fallback and this run's statistic is `{source}`, so the "
+                f"number does not price its verdict; nothing else in the "
+                f"resolving_power block does either. The span cannot be read "
+                f"off this report. What settles it is a run whose offset "
+                f"statistic IS the drift fallback -- one settled enough that "
+                f"the exponential has no approach left to fit.")
         raise RuntimeError(
             "the report carries none of "
             f"{list(_REQUIRED_WINDOW_KEYS)} in its resolving_power block, so "
             "it cannot say how many orbits its own criteria need. It predates "
             "the block; re-run assess_convergence.py on the run.")
     which = max(wanted, key=wanted.__getitem__)
-    return (wanted[which],
-            bool(resolving.get("required_window_is_a_lower_bound", True)),
-            which)
+    # DROPPING A CRITERION MAKES THE ANSWER A FLOOR, whatever the report says
+    # about tau. What is left is the span the PRICEABLE criteria need, and the
+    # one that was dropped may need more -- on the carved baseline it is the
+    # criterion the run actually fails. A caller that took this as sufficient
+    # would buy the orbits the storage criterion wants and still not have a
+    # converged run.
+    floor = bool(resolving.get("required_window_is_a_lower_bound", True))
+    if source is not None and source != "drift_fallback":
+        floor = True
+    return (wanted[which], floor, which)
 
 
 def commissioning_orbits(approach_orbits: float,

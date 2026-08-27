@@ -763,6 +763,26 @@ def check_production_span_is_self_limiting() -> list[str]:
     got = rl.production_span_from_report(report(10.0, 30.0, False))
     if got != (30.0, False, "window_orbits_for_offset_criterion"):
         bad.append(f"the binding criterion: got {got!r}")
+
+    # THE OFFSET ROW'S QUALIFIER. Its own `..._prices` field says it prices the
+    # verdict only where `offset_statistic_source` is the drift fallback; on the
+    # exponential-fit path the statistic is the FIT's half width and this number
+    # is computed from the expected relaxation instead. Taking it anyway read
+    # 42.8 orbits on a run whose statistic was six times its target.
+    fit = report(10.0, 30.0, False)
+    fit["resolving_power"]["offset_statistic_source"] = "exponential_fit"
+    got = rl.production_span_from_report(fit)
+    if got[2] != "window_orbits_for_storage_criterion":
+        bad.append(f"the offset row was used on the fit path: got {got!r}")
+    if got[1] is not True:
+        bad.append("dropping a criterion did not make the answer a floor, so a "
+                   "caller would take the remaining criteria as sufficient")
+    # And the drift fallback keeps it, or the qualifier would just disable the
+    # row rather than reading it.
+    drift = report(10.0, 30.0, False)
+    drift["resolving_power"]["offset_statistic_source"] = "drift_fallback"
+    if rl.production_span_from_report(drift)[2] != "window_orbits_for_offset_criterion":
+        bad.append("the offset row was dropped on the drift-fallback path too")
     got = rl.production_span_from_report(report(40.0, 30.0, False))
     if got[0] != 40.0 or got[2] != "window_orbits_for_storage_criterion":
         bad.append(f"the other criterion binding: got {got!r}")
