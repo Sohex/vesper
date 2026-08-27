@@ -615,6 +615,39 @@ def main():
     if not solution["converged"]:
         raise SystemExit("the overflow cascade did not converge; do not use this")
 
+    # THE OTHER END OF THE INTERVAL BRACKET, solved and reported rather than
+    # carried as a caveat. `cv._INTERVAL_BRACKET` has the argument: the bin mean
+    # is the limit for a lake with no heat storage and the annual evaluation the
+    # limit for one deep enough to hold its temperature through the year, and
+    # what sits between is the lake's own depth, which this project has no term
+    # for. The carve verdict carves the intersection over both ends because its
+    # product is an instruction that changes the terrain; lake extent is output,
+    # so what is owed here is the SIZE of the spread on the artifact.
+    solution_annual = lb.solve(
+        basins,
+        catchment_runoff * to_km_per_year,
+        lake_evap * to_km_per_year,
+        lake_precip * to_km_per_year,
+    )
+    interval_bracket = {
+        "solved_area_km2_bin_mean": float(solution["area_km2"].sum()),
+        "solved_area_km2_annual_evaluation": float(solution_annual["area_km2"].sum()),
+        "annual_evaporation_converged": bool(solution_annual["converged"]),
+        "what_it_is": cv._INTERVAL_BRACKET["what_is_bracketed"],
+        "missing_term": cv._INTERVAL_BRACKET["missing_term"],
+        "which_end_is_used_here": ("the bin mean, matching the carve verdict's "
+                                   "primary bound. The spread is the number to "
+                                   "read, not a second answer"),
+    }
+    interval_bracket["spread_as_share_of_bin_mean"] = float(
+        abs(interval_bracket["solved_area_km2_annual_evaluation"]
+            - interval_bracket["solved_area_km2_bin_mean"])
+        / max(interval_bracket["solved_area_km2_bin_mean"], 1e-30))
+    print(f"  the evaporation interval brackets lake area at "
+          f"{interval_bracket['solved_area_km2_bin_mean']:,.0f} to "
+          f"{interval_bracket['solved_area_km2_annual_evaluation']:,.0f} km2 "
+          f"({interval_bracket['spread_as_share_of_bin_mean'] * 100:.0f}% spread)")
+
     level = solution["level_km"]
 
     # --- the seasonal cycle, as a periodic steady state -------------------
@@ -892,6 +925,7 @@ def main():
                 "the bin-weighted mean of the per-bin evaluation, over the "
                 "basin sinks; the annual-mean evaluation is not used"),
         },
+        "evaporation_interval_bracket": interval_bracket,
         "lakes": {
             "basins_holding_water": int(basins.n - solution["dry"].sum()),
             "basins_at_spill": int(solution["fills_to_spill"].sum()),

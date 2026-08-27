@@ -49,6 +49,15 @@
     "bin_mean_over_annual_evaluation": 1.169574938504723,
     "what_the_lake_solves_are_forced_with": "the bin-weighted mean of the per-bin evaluation, over the basin sinks; the annual-mean evaluation is not used"
   },
+  "evaporation_interval_bracket": {
+    "solved_area_km2_bin_mean": 31300752.681776296,
+    "solved_area_km2_annual_evaluation": 42984392.881444976,
+    "annual_evaporation_converged": true,
+    "what_it_is": "the interval the open-water evaporation estimate is evaluated over, which is not the same question as which estimator to use",
+    "missing_term": "seasonal heat storage in the water body, which needs a lake depth and a mixed-layer model this project does not have. Declared rather than estimated",
+    "which_end_is_used_here": "the bin mean, matching the carve verdict's primary bound. The spread is the number to read, not a second answer",
+    "spread_as_share_of_bin_mean": 0.373270263448682
+  },
   "lakes": {
     "basins_holding_water": 6816,
     "basins_at_spill": 4166,
@@ -73,5 +82,5 @@
     "build": "canonical-10m-base",
     "declared_cross_build": null
   },
-  "git_commit": "fd40a8d891ab3f694799dfc8336eb5dbaaa5bd54"
+  "git_commit": "b253202594a81ea663c0e80f471eca6042b144db"
 }

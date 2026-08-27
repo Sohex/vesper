@@ -63,13 +63,14 @@ import numpy as np
 import yaml
 
 from _paths import ANALYSIS, CONFIG, DATA, PROJECT_ROOT  # noqa: F401
-from builds import component_data, grid_export
+from builds import component_data, mesh_export
 from climatology import annual_mean as weighted_annual_mean, bin_weights
 from gridding import (coupling_cells, coupling_ocean_fraction, coupling_path,
                       require_index_alignment)
 from orbit import orbital_year_days
 from orogen import Export
-from paths import climatology_path, rel, require_clean_io
+from paths import (climatology_path, rel, require_clean_io,
+                   require_configured_grid)
 from provenance import staged_surface_field
 from lake_balance import BasinSet, carve_verdict, solve
 from lapse import reference_height_m
@@ -294,6 +295,123 @@ def penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
     aerodynamic = (rho * CP_AIR / r_a) * np.maximum(es_a - e_air, 0.0) / gamma
     latent = (delta * rn + gamma * aerodynamic) / (delta + gamma)
     return np.maximum(latent, 0.0) / (lam * 1000.0)   # W/m2 -> m/s of water
+
+
+# THE INTERVAL THE OPEN-WATER ESTIMATE IS EVALUATED OVER IS A BRACKET, NOT A
+# SETTING, and this is the argument. Two real effects push opposite ways and
+# neither can be dropped, so the verdict is taken where they agree.
+#
+# PER BIN IS RIGHT BECAUSE OF RECTIFICATION. Penman clamps net radiation and the
+# vapour pressure deficit at zero, because a lake does not evaporate a negative
+# amount in a month when it is dark. Averaging the air over a year first
+# cancels a real summer against a winter that never physically happens: over
+# this climatology the bin mean of `max(net_radiation, 0)` is 86.4 W/m2 over
+# land against 77.0 at the annual mean, and 684 of 1,019 land cells go negative
+# in some bin while staying positive in the annual mean. `land_water_ledger.yaml`
+# holds `open_water_evaporation` at `interval_floor: climatology_bin` for this.
+#
+# ANNUAL IS RIGHT BECAUSE PENMAN CARRIES NO HEAT STORAGE. It closes the surface
+# energy budget instant by instant, so it charges water in the bright season for
+# energy that actually went into the water column and comes back out in the dark
+# one. That term integrates to zero over a periodic year and to nothing like
+# zero over a bin.
+#
+# THE OCEAN MEASURES THE SECOND EFFECT, because it is the one surface whose
+# evaporation the model already computes with the true storage in it. Per bin,
+# Penman over ocean runs 1.43-1.46x the model in the three brightest bins and
+# 0.89-0.96x in the two dimmest -- the exact signature of a missing storage term
+# -- and lands 14.1% high on the annual total. One evaluation on annual-mean air
+# lands 4.8% low. An ocean stores far more heat than any lake, so that 14.1% is
+# an UPPER bound on the bias for a lake, and a shallow playa carries almost none
+# of it.
+#
+# SO NEITHER END IS THE ANSWER AND THE SPREAD IS NOT NOISE: it is the depth of
+# the water body, which is a term this project does not have. The ends are
+# interpretable -- the annual evaluation is the limit for a lake deep enough to
+# hold its temperature through the year, the bin mean the limit for one with no
+# heat capacity at all -- so they bracket rather than disagree, and the carve
+# list is the intersection. `hydrography/notes/carve-verdict-interval.md` carries
+# the measurement.
+_INTERVAL_BRACKET = {
+    "what_is_bracketed": ("the interval the open-water evaporation estimate is "
+                          "evaluated over, which is not the same question as "
+                          "which estimator to use"),
+    "upper_end": ("the bin mean of the per-bin evaluation. Right for a water "
+                  "body with no heat storage, because Penman's zero clamps are "
+                  "a real rectification that an annual mean cancels away"),
+    "lower_end": ("one evaluation on annual-mean air. Right for a water body "
+                  "deep enough to hold its temperature through the year, "
+                  "because Penman carries no heat storage term and that term "
+                  "integrates to zero only over a whole cycle"),
+    "missing_term": ("seasonal heat storage in the water body, which needs a "
+                     "lake depth and a mixed-layer model this project does not "
+                     "have. Declared rather than estimated"),
+    "ocean_check": ("per bin, Penman over ocean runs 1.43-1.46x the model's own "
+                    "evaporation in the brightest bins and 0.89-0.96x in the "
+                    "dimmest, and 14.1% high on the annual total, against 4.8% "
+                    "low for the annual evaluation. An ocean stores more heat "
+                    "than any lake, so that is an upper bound on the bias"),
+    "how_it_is_used": ("the carve list is the intersection over both ends and "
+                       "the wet bound. A basin carved in error loses a "
+                       "depression from the terrain everything else is built "
+                       "on; one left uncarved can be carved next cycle"),
+}
+
+
+def bin_mean_open_water(climatology, land_albedo, gravity, *, cfg=None,
+                        drss=None, drls=None, column_relative_humidity=None):
+    """Open-water evaporation, as the BIN MEAN OF THE PER-BIN EVALUATION.
+
+    **Not `penman_open_water` on annual-mean air, and the difference is not
+    small.** Penman is nonlinear in everything it reads -- saturation vapour
+    pressure is exponential in temperature, and the aerodynamic term is a
+    product of wind with a deficit -- so one evaluation on a mean over a cycle
+    the air varies within is not the mean of the evaluations. That is already
+    the argument for `diurnal_range`: the function integrates the DAY rather
+    than reading a daily mean, for exactly this reason. The seasonal cycle is
+    the same argument at a longer period and it was not being applied.
+
+    `hydrography/config/land_water_ledger.yaml` holds `open_water_evaporation`
+    at `interval_floor: climatology_bin`, so the annual evaluation was against
+    a standing decision rather than a simplification anyone had chosen.
+
+    WHAT THIS COSTS A CARVE VERDICT, which is why it is worth the loop. A basin
+    carves when `(E - P) / runoff <= catchment / area_at_spill - 1`, and the
+    right-hand side is pure geometry that does not move. Understating `E`
+    understates the left-hand side, so it carves MORE basins than the forcing
+    supports -- and the carve list is the instruction Orogen consumes, so an
+    understated `E` is a world with fewer closed basins than its own water
+    balance implies.
+
+    The bin weights are `lib/climatology.py`'s and sum to one, so applying this
+    loop to a quantity that is LINEAR in the air would return exactly what
+    `annual_mean` returns. `_selftest` checks that identity, which is what
+    separates a real Jensen term from a weighting mistake.
+
+    `drss` and `drls` are an annual dust forcing and are added to every bin
+    unchanged: the dust product carries no season, and inventing one here would
+    be a term computed from a quantity that cannot carry it.
+    """
+    with Dataset(climatology) as ds:
+        weights = bin_weights(np.asarray(ds["time"][:]))
+    total = None
+    for k in range(int(weights.size)):
+        t_air, q_air, wind, p_air = reference_level_air(climatology, k)
+        with Dataset(climatology) as ds:
+            rss = np.asarray(ds["rss"][k], dtype=float)
+            rls = np.asarray(ds["rls"][k], dtype=float)
+            diurnal = (np.asarray(ds["maxt"][k], dtype=float)
+                       - np.asarray(ds["mint"][k], dtype=float))
+        if drss is not None:
+            rss = rss + drss
+            rls = rls + drls
+        e_k = penman_open_water(
+            t_air, q_air, wind, p_air, rss, rls, land_albedo, gravity,
+            diurnal_range=diurnal,
+            column_relative_humidity=column_relative_humidity, cfg=cfg)
+        contribution = weights[k] * e_k
+        total = contribution if total is None else total + contribution
+    return total
 
 
 def validate_over_ocean(penman, evap, lsm) -> dict:
@@ -526,6 +644,14 @@ def main() -> None:
         args.basins = _build_data / "basins.nc"
     if args.climatology is None:
         args.climatology = climatology_path()
+    # THE RUNG GUARD RUNS WHATEVER THE CLIMATOLOGY CAME FROM. It used to be
+    # reached only through `climatology_path()`, which is called only when
+    # `--climatology` is ABSENT -- so every re-take, every arm of a bracket and
+    # every sensitivity, which all pass the flag, skipped it. The rung appears
+    # nowhere in a climatology's name, so nothing else would have caught a T85
+    # file driving a T21 configuration, and the sidecar would have recorded the
+    # configured rung beside it with nothing contradicting itself.
+    require_configured_grid(args.climatology, config)
     basins = BasinSet(args.basins)
     # Ids come from the same file as the verdicts. See _basin_ids.
     basin_ids = _basin_ids(args.basins)
@@ -543,6 +669,9 @@ def main() -> None:
     t_air, q_air, wind, p_air = reference_level_air(args.climatology)
 
     dust_note = None
+    # Held so the per-bin evaluation can add the same increment to every bin.
+    # The dust product carries no season, so it is not given one here.
+    dust_drss = dust_drls = None
     if args.dust_forcing is not None:
         with Dataset(args.dust_forcing) as ds:
             drss = np.asarray(ds["drss"][:])
@@ -553,6 +682,7 @@ def main() -> None:
                 f"{rss.shape}; they must share a grid")
         rss = rss + drss
         rls = rls + drls
+        dust_drss, dust_drls = drss, drls
         dust_note = {"file": str(args.dust_forcing),
                      "mean_drss_w_m2": float(drss.mean()),
                      "mean_drls_w_m2": float(drls.mean())}
@@ -573,8 +703,33 @@ def main() -> None:
     land_albedo = read_sra_field(PROJECT_ROOT / staged_albedo["path"],
                                  *p_air.shape)
     gravity = float(config["planet"]["gravity_m_s2"])
-    penman = penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
-                               gravity, diurnal_range=diurnal, cfg=config)
+    # THE BIN MEAN OF THE PER-BIN EVALUATION, not one evaluation on annual-mean
+    # air. See `bin_mean_open_water`: Penman is nonlinear in the air it reads,
+    # which is why it already integrates the DIURNAL cycle, and the seasonal
+    # cycle is the same argument at a longer period. The ratio between the two
+    # goes on the artifact rather than into prose, because it is the size of a
+    # term that decides which basins carve.
+    penman = bin_mean_open_water(args.climatology, land_albedo, gravity,
+                                 cfg=config, drss=dust_drss, drls=dust_drls)
+    penman_annual_evaluation = penman_open_water(
+        t_air, q_air, wind, p_air, rss, rls, land_albedo, gravity,
+        diurnal_range=diurnal, cfg=config)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        seasonal_jensen = {
+            "bin_mean_over_annual_evaluation": float(
+                np.mean(penman) / max(float(np.mean(penman_annual_evaluation)), 1e-30)),
+            "over_land": float(
+                np.mean(penman[lsm > 0.5])
+                / max(float(np.mean(penman_annual_evaluation[lsm > 0.5])), 1e-30)),
+            "what_is_used": ("the bin mean; the annual evaluation is reported "
+                             "for its size and is not used"),
+            "why": ("Penman is nonlinear in the air it reads, so one evaluation "
+                    "on a mean over a cycle the air varies within is not the "
+                    "mean of the evaluations. land_water_ledger.yaml holds "
+                    "open_water_evaporation at interval_floor: climatology_bin"),
+        }
+    print(f"  open-water evaporation is {seasonal_jensen['over_land']:.3f}x over land "
+          "what one evaluation on annual-mean air gives")
     ocean_validation = validate_over_ocean(penman, evap, lsm)
     # The sub-grid dry column, bracketed rather than applied. A lake moistens
     # the air over itself and the cell mean does not know it; how much is a
@@ -583,9 +738,10 @@ def main() -> None:
     land = lsm > 0.5
     dry_column_bracket = {
         f"rh_floor_{int(rh * 100)}": round(float(np.mean(
-            penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
-                              gravity, diurnal_range=diurnal,
-                              column_relative_humidity=rh, cfg=config)[land])) * 86400.0 * 1000.0, 4)
+            bin_mean_open_water(args.climatology, land_albedo, gravity,
+                                cfg=config, drss=dust_drss, drls=dust_drls,
+                                column_relative_humidity=rh)[land]))
+            * 86400.0 * 1000.0, 4)
         for rh in (0.7, 0.8, 0.9)}
     dry_column_bracket["as_computed"] = round(
         float(np.mean(penman[land])) * 86400.0 * 1000.0, 4)
@@ -627,7 +783,8 @@ def main() -> None:
     # rather than the water arriving at our sink. `mrro` is kept in the field set
     # so the two remain comparable in the report.
     fields = {"pr": pr, "evap": evap,
-              "penman": penman, "mrro": mrro, "runoff": pr - evap, "lsm": lsm}
+              "penman": penman, "penman_annual": penman_annual_evaluation,
+              "mrro": mrro, "runoff": pr - evap, "lsm": lsm}
     require_index_alignment(args.coupling, lsm)
     means, catch_area = basin_means(args.coupling, fields, n)
 
@@ -711,7 +868,15 @@ def main() -> None:
     catchment_total_km2 = float(np.nansum(np.where(np.isnan(signed), 0.0, catch_area)))
 
     results = {}
-    for label, e_field in (("penman", "penman"), ("wet", "evap")):
+    # THREE BOUNDS, AND THE THIRD IS AN INTERVAL RATHER THAN A CLIMATE.
+    # `penman` is the bin mean of the per-bin evaluation and `penman_annual` is
+    # one evaluation on annual-mean air; `wet` is the model's own
+    # moisture-limited land evaporation, a different estimator and always the
+    # second bound. `_INTERVAL_BRACKET` says why the first two are the ends of a
+    # bracket rather than a right answer and a wrong one.
+    for label, e_field in (("penman", "penman"),
+                           ("penman_annual", "penman_annual"),
+                           ("wet", "evap")):
         evapo = means[e_field] * to_km_per_year
         with np.errstate(divide="ignore", invalid="ignore"):
             index = np.where(runoff > 0, (evapo - precip) / runoff, np.inf)
@@ -766,9 +931,18 @@ def main() -> None:
 
     crit = basins.catchment_km2 / np.maximum(basins.area_at_spill_km2, 1e-9) - 1.0
     penman_carve = results["penman"]["carve"]
-    both = penman_carve & results["wet"]["carve"]
-    neither = ~penman_carve & ~results["wet"]["carve"]
+    # CARVE ONLY WHAT EVERY BOUND CARVES. The rule was already the intersection
+    # of the two evaporation estimators; the interval bracket joins it on the
+    # same footing, so a basin is carved only where the verdict does not turn on
+    # which end of the bracket its own heat storage puts it at. Which way to
+    # break a tie is decided by what it costs to be wrong: a basin carved in
+    # error has had its depression taken out of the terrain everything else is
+    # built on, and a basin left uncarved is still there to carve next cycle.
+    all_bounds = [results[k]["carve"] for k in ("penman", "penman_annual", "wet")]
+    both = np.logical_and.reduce(all_bounds)
+    neither = ~np.logical_or.reduce(all_bounds)
     disputed = ~(both | neither)
+    interval_disputed = results["penman"]["carve"] ^ results["penman_annual"]["carve"]
     # From the export, not a literal and not recomputed from the config. Every
     # area this divides -- catchment, area at spill, solved lake -- was measured
     # by Orogen on Orogen's sphere, so the denominator has to be the same
@@ -777,20 +951,27 @@ def main() -> None:
     # violation of CLAUDE.md rule 2: correct today, and silently a percentage of
     # a different planet the day `radius_earth` moves, exactly as the 189.6145-day
     # year was.
-    planet = Export(grid_export(config)).surface_area_km2
+    # THE MESH CARRIER, not the configured rung's export. A sphere is a
+    # property of the BUILD and every export of it carries the same
+    # `surfaceAreaKm2`, but only the carrier has the `raw/` mesh `Export`
+    # refuses to open without, so asking the rung for it raised on any build
+    # whose configured rung is not the one the mesh happens to sit under.
+    # `builds.mesh_export` IDENTIFIES the carrier rather than naming it.
+    planet = Export(mesh_export(config)).surface_area_km2
 
     print(f"{'bound':>10} {'carve':>7} {'survive':>8} {'dry':>6} {'with lake':>10} "
           f"{'lake % planet':>14}")
-    for label in ("penman", "wet"):
+    for label in ("penman", "penman_annual", "wet"):
         r = results[label]
         print(f"{label:>10} {int(r['carve'].sum()):7d} {int((~r['carve']).sum()):8d} "
               f"{r['dry_survivors']:6d} {r['wet_survivors']:10d} "
               f"{r['lake_area_km2'].sum()/planet*100:13.3f}%")
-    print(f"\n  carve under Penman        : {int(penman_carve.sum()):5d}  <- primary")
-    print(f"  carve under both estimates: {int(both.sum()):5d}")
-    print(f"  survive under both        : {int(neither.sum()):5d}")
-    print(f"  sensitive to the estimate : {int(disputed.sum()):5d} "
+    print(f"\n  carve under every bound    : {int(both.sum()):5d}  <- the carve list")
+    print(f"  survive under every bound  : {int(neither.sum()):5d}")
+    print(f"  sensitive to the estimate  : {int(disputed.sum()):5d} "
           f"({disputed.sum()/n*100:.1f}%)")
+    print(f"  moved by the interval alone: {int(interval_disputed.sum()):5d} "
+          f"({interval_disputed.sum()/n*100:.1f}%)")
     print(f"\n  median critical index (geometry): {np.median(crit):.2f}")
 
     payload = {
@@ -895,6 +1076,11 @@ def main() -> None:
                 args.climatology, year_s),
         },
         "penman_ocean_validation": ocean_validation,
+        # THE SEASONAL JENSEN TERM. The size of the difference between the
+        # estimate this verdict is taken on and the one it used to be taken on,
+        # on the artifact rather than in a note, because it is the term that
+        # decides which basins carve.
+        "penman_seasonal_jensen": seasonal_jensen,
         # What was done to the climatology before the verdict was taken. Null
         # under both keys means the run's own numbers, unperturbed.
         "perturbations": {
@@ -931,10 +1117,28 @@ def main() -> None:
             } for label, r in results.items()
         },
         "agreement": {
+            # "both" is now EVERY bound, not two. The keys keep their names
+            # because `scripts/world_state.py` reads them, and a key that
+            # changes meaning under a stable name has to say so where it is
+            # read rather than only where it is written.
+            "bounds_agreed_over": sorted(results),
             "carve_under_both": int(both.sum()),
             "survive_under_both": int(neither.sum()),
             "disputed": int(disputed.sum()),
+            "note": ("`both` and `neither` are unanimity over every bound in "
+                     "`bounds_agreed_over`, which is three since the interval "
+                     "became a bracket: the two ends of it and the wet "
+                     "estimator. The names are kept for their readers"),
         },
+        "interval_bracket": dict(_INTERVAL_BRACKET, **{
+            "carve_under_bin_mean": int(results["penman"]["carve"].sum()),
+            "carve_under_annual_evaluation": int(
+                results["penman_annual"]["carve"].sum()),
+            "basins_the_interval_alone_moves": int(interval_disputed.sum()),
+            "bin_mean_carves_a_subset_of_annual": bool(
+                not (results["penman"]["carve"]
+                     & ~results["penman_annual"]["carve"]).any()),
+        }),
         "carve_list_robust": [bid for bid, flag in zip(basin_ids, both, strict=True) if flag],
         "carve_list_penman": [bid for bid, flag in zip(basin_ids, penman_carve, strict=True) if flag],
     }

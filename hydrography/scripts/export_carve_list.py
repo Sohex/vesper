@@ -112,7 +112,7 @@ from _paths import CONFIG, DATA, PROJECT_ROOT  # noqa: F401
 import climatology  # noqa: E402  from lib/, put on sys.path by _paths
 from builds import component_data
 from orbit import orbital_year_days
-from paths import climatology_path, rel
+from paths import climatology_path, rel, require_configured_grid
 from provenance import staged_surface_field
 from orogen import Export, LAND
 from lake_balance import BasinSet
@@ -679,7 +679,7 @@ def sill_erodibility(basins_path: Path, terrain_hash: str) -> np.ndarray:
 # applies it and `main` records it in the sidecar, and those must be one number.
 TOLERANCE = 0.25
 
-def climate_terms(clim_path, args, config, basins):
+def climate_terms(clim_path, args, config, basins, *, interval="bin_mean"):
     """Everything the carve criterion reads from ONE climate.
 
     Factored out of `main` because `docs/src/pipeline/loops.md` evaluates this same
@@ -696,13 +696,19 @@ def climate_terms(clim_path, args, config, basins):
     and the two verdicts would no longer be comparable. `main` calibrates once
     on the primary arm and applies that coefficient to both.
     """
-    with Dataset(args.climatology) as ds:
+    # `clim_path`, NOT `args.climatology`. This function exists to be run once
+    # per arm of the bracket and it read the primary climatology both times, so
+    # the cold arm was the warm arm and the two-climate bracket was one climate
+    # compared with itself. What that produces is not an error: it is a bracket
+    # reporting zero width, which reads as the arms agreeing completely. `main`
+    # now refuses two arms that come out bit-identical.
+    with Dataset(clim_path) as ds:
         am = cv.annual_mean
         pr, evap, mrro = am(ds, "pr"), -am(ds, "evap"), am(ds, "mrro")
         rss, rls = am(ds, "rss"), am(ds, "rls")
         diurnal = am(ds, "maxt") - am(ds, "mint")
         lsm = am(ds, "lsm")
-    t_air, q_air, wind, p_air = cv.reference_level_air(args.climatology)
+    t_air, q_air, wind, p_air = cv.reference_level_air(clim_path)
 
     # Through the one door, not by rebuilding the path from `model.resolution`:
     # that path is keyed by the RUNG alone and `surface_albedo` rewrites it per
@@ -712,9 +718,27 @@ def climate_terms(clim_path, args, config, basins):
     staged_albedo = staged_surface_field(174, config, for_build=args.for_build)
     land_albedo = cv.read_sra_field(PROJECT_ROOT / staged_albedo["path"],
                                     *p_air.shape)
-    penman_raw = cv.penman_open_water(
-        t_air, q_air, wind, p_air, rss, rls, land_albedo,
-        float(config["planet"]["gravity_m_s2"]), diurnal_range=diurnal)
+    # ONE ESTIMATOR WITH carve_verdict.py, evaluated over the interval this arm
+    # was asked for. `cv._INTERVAL_BRACKET` carries the argument for why the
+    # interval is a bracket: Penman's zero clamps are a real rectification an
+    # annual mean cancels away, and against that Penman carries no heat storage
+    # so per bin it charges the bright season for energy the water column gave
+    # back in the dark one. Two hand-written evaluations of one criterion are
+    # two formulations that can disagree, which is this function's whole reason
+    # for existing, so it calls what carve_verdict.py calls rather than
+    # rebuilding it.
+    gravity = float(config["planet"]["gravity_m_s2"])
+    if interval == "bin_mean":
+        penman_raw = cv.bin_mean_open_water(clim_path, land_albedo, gravity,
+                                            cfg=config)
+    elif interval == "annual":
+        penman_raw = cv.penman_open_water(
+            t_air, q_air, wind, p_air, rss, rls, land_albedo, gravity,
+            diurnal_range=diurnal, cfg=config)
+    else:
+        raise ValueError(
+            f"interval {interval!r} is neither 'bin_mean' nor 'annual'; those "
+            "are the two ends of cv._INTERVAL_BRACKET and there is no third")
     # Computed here rather than quoted. The sidecar carried a hardcoded 1.017
     # for a day after `carve_verdict.py` started computing this, which is the
     # same defect one file over: a validation that cannot move is not one.
@@ -813,6 +837,7 @@ def climate_terms(clim_path, args, config, basins):
         margin = np.where(e_pen > 0, (e_pen - e_balance) / np.where(e_pen > 0, e_pen, 1.0), 1.0)
     retain_margin = np.where(carved, 0.0, np.clip(margin / TOLERANCE, 0.0, 1.0))
     return {"staged_background_albedo": staged_albedo,
+            "interval": interval,
             "mrro": mrro, "means": means, "year_s": year_s, "crit": crit, "runoff": runoff, "precip": precip, "idx_pen": idx_pen, "idx_wet": idx_wet, "q_pen": q_pen, "q_wet": q_wet, "carved": carved, "overflows_wet": overflows_wet, "disputed": disputed, "e_pen": e_pen, "e_wet": e_wet, "margin": margin, "retain_margin": retain_margin, "ocean_validation": ocean_validation, "penman_error_pct": penman_error_pct}
 def _selftest() -> int:
     """The basis conversion, against identities rather than against outcomes.
@@ -1072,6 +1097,18 @@ def main() -> None:
         args.out_json = _bd / "carve_list.json"
     if args.climatology is None:
         args.climatology = climatology_path()
+    # THE RUNG GUARD RUNS WHATEVER THE CLIMATOLOGY CAME FROM. It used to be
+    # reached only through `climatology_path()`, which is called only when
+    # `--climatology` is ABSENT -- so every re-take, every arm of a bracket and
+    # every sensitivity, which all pass the flag, skipped it. The rung appears
+    # nowhere in a climatology's name, so nothing else would have caught a T85
+    # file driving a T21 configuration, and the sidecar would have recorded the
+    # configured rung beside it with nothing contradicting itself.
+    require_configured_grid(args.climatology, config)
+    if args.endmember_climatology is not None:
+        # The cold arm is a climatology like any other, and an arm on the wrong
+        # grid is a bracket whose ends are not comparable.
+        require_configured_grid(args.endmember_climatology, config)
 
     basins = BasinSet(args.basins)
     resolution = str(config["model"]["resolution"]).upper()
@@ -1163,6 +1200,46 @@ def main() -> None:
     # list: Orogen cannot spend it.
     retain_finished = np.maximum(retain_incision_finished, retain_margin)
 
+    # THE INTERVAL BRACKET, folded in by the same idiom as the arms below and
+    # for the same reason. `cv._INTERVAL_BRACKET` carries the argument: the bin
+    # mean is the limit for a lake with no heat storage and the annual
+    # evaluation the limit for one deep enough to hold its temperature through
+    # the year, and the spread between them is the water body's depth, which
+    # this project has no term for. So the rim stands wherever EITHER end would
+    # leave it standing.
+    #
+    # This is not the arm bracket. The arms vary the CLIMATE and this varies the
+    # interval one climate is read over; a basin can be bracketed by one and not
+    # the other, and merging them would put two uncertainties under one name.
+    #
+    # Same coefficient, for the reason the arm block gives: it is calibrated
+    # against Earth from the discharge field, so letting each end calibrate its
+    # own would move the yardstick with the estimate.
+    interval_annual = climate_terms(args.climatology, args, config, basins,
+                                    interval="annual")
+    retain_incision_annual = incision_retain(
+        interval_annual["q_pen"], year_s, basins.depth_at_spill_m, sill_ero,
+        coefficient, slope=slope)
+    retain_interval_annual = np.maximum(
+        to_natural_relief_basis(retain_incision_annual, retained_fraction)[0],
+        interval_annual["retain_margin"])
+    cut_bin_mean = retain <= 0.0
+    cut_annual = retain_interval_annual <= 0.0
+    retain = np.maximum(retain, retain_interval_annual)
+    retain_finished = np.maximum(
+        retain_finished,
+        np.maximum(retain_incision_annual, interval_annual["retain_margin"]))
+    n_interval_both = int((cut_bin_mean & cut_annual).sum())
+    n_interval_either = int((cut_bin_mean | cut_annual).sum())
+    n_interval_split = n_interval_either - n_interval_both
+    interval_width = 100.0 * n_interval_split / max(n_interval_either, 1)
+    print(f"interval bracket  bin mean cuts {int(cut_bin_mean.sum())}, "
+          f"annual evaluation cuts {int(cut_annual.sum())}")
+    print(f"                  BOTH {n_interval_both}, either {n_interval_either}, "
+          f"disagreement {n_interval_split} ({interval_width:.1f}% of the union)")
+    print("                  the spread is the water body's heat storage, which "
+          "has no term here; the rim stands where either end leaves it standing")
+
     # THE INTERSECTION, and it is the same idiom one line up: taking the larger
     # retain keeps the rim wherever EITHER climate would have kept it, which is
     # exactly "carve only what both carve" generalised to a fractional rim. A
@@ -1184,6 +1261,19 @@ def main() -> None:
     if args.endmember_climatology is not None:
         endmember = climate_terms(args.endmember_climatology, args, config,
                                   basins)
+        # THE ARMS MUST ACTUALLY DIFFER. `climate_terms` took a climatology
+        # path and read `args.climatology` regardless, so both arms were the
+        # primary and the bracket reported zero width -- which reads as the two
+        # bounding climates agreeing rather than as never having been asked.
+        # Two different files that produce a bit-identical discharge field are
+        # not a bracket, whatever the cause.
+        if np.array_equal(endmember["q_pen"], primary["q_pen"]):
+            raise SystemExit(
+                f"the endmember arm ({args.endmember_climatology}) produced a "
+                f"discharge field bit-identical to the primary arm "
+                f"({args.climatology}). Two bounding climates that agree to the "
+                "last bit have not been evaluated on two climates, and a "
+                "bracket of zero width would be reported as agreement")
         retain_endmember_incision_finished = incision_retain(
             endmember["q_pen"], year_s, basins.depth_at_spill_m, sill_ero,
             coefficient, slope=slope)
