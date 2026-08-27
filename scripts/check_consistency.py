@@ -2303,6 +2303,27 @@ def main() -> int:
         rep.add(WARN, "the slope's currency check can fail",
                 f"not checked: {exc}")
 
+    # -- and it can tell one window and one instrument from another ---------
+    #
+    # A third row for a third question. The currency check asks whether the
+    # runs still exist on the active build; this asks whether the two arms are
+    # readings of the same thing. A run has more than one admissible window and
+    # the two I/O regimes disagree by about 0.17 K, so a bracket that names
+    # only the run and the report file can be re-pointed at a different
+    # measurement without any of the other rows noticing. It was.
+    try:
+        import sensitivity
+        sensitivity.test_window_and_regime_refuse_an_unmatched_pair()
+        rep.add(OK, "the slope's arms are one window and one instrument",
+                "both endpoints are read over orbits 37-69 of their own "
+                "low-I/O block, and swapping either refuses")
+    except AssertionError as exc:
+        rep.add(FAIL, "the slope's arms are one window and one instrument",
+                str(exc))
+    except Exception as exc:
+        rep.add(WARN, "the slope's arms are one window and one instrument",
+                f"not checked: {exc}")
+
     # -- config's derived radiation scalings against the artifacts that made --
     #    them
     #

@@ -84,6 +84,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import copy
 import math
 from pathlib import Path
 
@@ -166,14 +167,35 @@ SLOPE_SPREAD_K_PER_FLUX_RATIO = (155.3, 160.6)
 # fitted asymptote of its temperature series is a property of the series either
 # way, and its six criteria are recorded here because that is what makes it
 # usable as an endpoint at all.
+#
+# `window` AND `io_regime` ARE PART OF THE MEASUREMENT, and leaving them out
+# once cost this number. A run has more than one admissible window, and the
+# asymptote is different in each: the cold endpoint reads 279.6805 K over
+# orbits 37-69 and 279.8296 K over the twelve clean-I/O orbits after them, a
+# difference of 0.15 K that moves this slope by 2.7. Naming only the run and
+# the report file left the window as an argument nobody recorded, so when the
+# default assessment moved to the clean block -- which it had to, once a verdict
+# window was forbidden from spanning the I/O join -- the file under that name
+# quietly became a reading of a different window, and `verify()` recomputed the
+# slope from an unmatched pair without noticing.
+#
+# THE ARMS OF A DIFFERENCE HAVE TO BE READ ON ONE INSTRUMENT AND ONE WINDOW.
+# PlaSim's low-I/O accumulation and the clean stream disagree by about 0.17 K on
+# this run, which is 2 per cent of the 8.8 K chord and the whole of that 2.7.
+# Both endpoints are therefore read over orbits 37-69 of their own 70-orbit
+# low-I/O block, the same indices on both, and `_verify_bracket` refuses when a
+# report's window is not the one recorded here or when the two arms differ in
+# regime. `docs/src/practice/failure-modes.md` class 36.
 SLOPE_BRACKET_RUNS = {
     "cold": {"run_id": "run_432e5e46adef", "flux_ratio": 0.945,
              "asymptote_k": 279.6805, "asymptote_half_width_k": 0.0203,
-             "report": "run_432e5e46adef_convergence.json",
+             "report": "run_432e5e46adef_convergence_through070.json",
+             "window": (37, 69), "io_regime": "low_io",
              "status": "equilibrated_for_worldbuilding"},
     "warm": {"run_id": "run_b45380e61f90", "flux_ratio": 1.000,
              "asymptote_k": 288.4654, "asymptote_half_width_k": 0.0465,
              "report": "run_b45380e61f90_convergence_diagnostic.json",
+             "window": (37, 69), "io_regime": "low_io",
              "status": "equilibrated_for_worldbuilding"},
 }
 # The propagated half-width, 0.92, rounded up. A recomputation that moves further
@@ -413,7 +435,7 @@ def _verify_bracket(bracket: dict, slope: float, spread: tuple[float, float],
     except Exception as exc:                       # noqa: BLE001 - reported, not raised
         return [f"the active build could not be resolved: {exc}"]
 
-    problems, points, half_widths = [], {}, {}
+    problems, points, half_widths, regimes = [], {}, {}, {}
     for role, want in bracket.items():
         run_id = want["run_id"]
         entry = live.get(run_id)
@@ -448,6 +470,23 @@ def _verify_bracket(bracket: dict, slope: float, spread: tuple[float, float],
         if not report.get("sufficiently_equilibrated_for_worldbuilding"):
             problems.append(f"{run_id} no longer passes every convergence "
                             f"criterion: {report.get('failed_criteria')}")
+        # THE WINDOW IS PART OF THE MEASUREMENT. A run has more than one
+        # admissible window and the asymptote differs between them, so a report
+        # that has been re-taken over a different one is a reading of something
+        # else under the same filename. That is what happened here once: see the
+        # comment on SLOPE_BRACKET_RUNS.
+        want_window = want.get("window")
+        if want_window is not None:
+            got = (report.get("window_start_year_index"),
+                   report.get("window_end_year_index"))
+            if tuple(got) != tuple(want_window):
+                problems.append(
+                    f"{run_id} was measured over orbits "
+                    f"{want_window[0]}-{want_window[1]} and its report now "
+                    f"covers {got[0]}-{got[1]}; the asymptote is a property of "
+                    f"the window, so re-take it over the recorded one or "
+                    f"re-derive the whole bracket")
+            regimes[role] = want.get("io_regime")
         metrics = report.get("metrics") or {}
         asymptote = metrics.get("temperature_asymptote_k")
         if asymptote is None:
@@ -459,8 +498,18 @@ def _verify_bracket(bracket: dict, slope: float, spread: tuple[float, float],
         # The index carries its own copy for a production assessment. Where it
         # does, the two records have to agree: a re-assessment that reached one
         # and not the other is exactly the drift this file is guarding.
+        #
+        # ONLY WHERE THIS ARM READS THE RUN'S OWN DEFAULT REPORT. An arm that
+        # names a differently-scoped assessment -- the warm endpoint's
+        # diagnostic one, the cold endpoint's low-I/O block -- is deliberately
+        # reading a window the index does not describe, and requiring those to
+        # agree would demand that two windows return one asymptote, which is
+        # the same error this bracket was just repaired for.
+        default_report = f"{run_id}_convergence.json"
         indexed = (entry.get("convergence_metrics") or {}).get(
             "temperature_asymptote_k")
+        if want["report"] != default_report:
+            indexed = None
         if indexed is not None and abs(indexed - asymptote) > 1e-6:
             problems.append(f"{run_id} reports asymptote {asymptote:.4f} K in "
                             f"its convergence report and {indexed:.4f} K in the "
@@ -474,6 +523,17 @@ def _verify_bracket(bracket: dict, slope: float, spread: tuple[float, float],
                 problems.append(
                     f"{run_id} asymptote half-width is {half:.4f} K, not the "
                     f"{declared_half:.4f} recorded here")
+
+    # ONE INSTRUMENT ON BOTH ARMS. The two I/O regimes disagree by about 0.17 K
+    # on this model, which is 2 per cent of the chord, so a difference taken
+    # across them measures the instrument as much as the flux.
+    if len(regimes) == 2 and len(set(regimes.values())) != 1:
+        problems.append(
+            "the two endpoints are declared on different I/O regimes ("
+            + ", ".join(f"{role}: {regime}" for role, regime
+                        in sorted(regimes.items()))
+            + "); a difference across a change of instrument is not a flux "
+              "response, so both arms have to be read on one of them")
 
     if len(points) == 2:
         (fc, tc), (fw, tw) = points["cold"], points["warm"]
@@ -534,6 +594,54 @@ def test_currency_refuses_a_superseded_measurement(
                 f"run on a build that is not active. verify() cannot tell a "
                 f"superseded measurement from a current one.")
 
+
+
+def test_window_and_regime_refuse_an_unmatched_pair(
+        cfg: dict | None = None) -> None:
+    """The window and I/O-regime guards must both be able to return no.
+
+    Named refusals rather than differences, and each is driven by the exact
+    substitution that once passed silently:
+
+    THE WINDOW. Point the cold endpoint at the run's own default report. That
+    file describes the SAME RUN and is a perfectly good assessment, which is
+    why the swap went unnoticed -- it just covers the twelve clean-I/O orbits
+    rather than the 37-69 the bracket was measured over, and the asymptote is
+    0.15 K higher there. Nothing but the window guard distinguishes the two.
+
+    THE REGIME. Relabel one arm and leave everything else alone, so the refusal
+    can only come from the declared instruments differing.
+    """
+    swapped = copy.deepcopy(SLOPE_BRACKET_RUNS)
+    swapped["cold"]["report"] = f"{swapped['cold']['run_id']}_convergence.json"
+    problems = _verify_bracket(swapped, SLOPE_K_PER_FLUX_RATIO,
+                               SLOPE_SPREAD_K_PER_FLUX_RATIO,
+                               SLOPE_TOLERANCE_K_PER_FLUX_RATIO,
+                               SLOPE_GEOGRAPHY, cfg)
+    if not any("covers" in problem for problem in problems):
+        raise AssertionError(
+            "the cold endpoint's report was swapped for an assessment of a "
+            "different window and the bracket accepted it. The asymptote is a "
+            "property of the window, so nothing else in verify() can catch "
+            f"this: {problems}")
+
+    relabelled = copy.deepcopy(SLOPE_BRACKET_RUNS)
+    relabelled["cold"]["io_regime"] = "clean_io"
+    problems = _verify_bracket(relabelled, SLOPE_K_PER_FLUX_RATIO,
+                               SLOPE_SPREAD_K_PER_FLUX_RATIO,
+                               SLOPE_TOLERANCE_K_PER_FLUX_RATIO,
+                               SLOPE_GEOGRAPHY, cfg)
+    if not any("I/O regimes" in problem for problem in problems):
+        raise AssertionError(
+            "the two endpoints were declared on different I/O regimes and the "
+            f"bracket accepted it: {problems}")
+
+    # The paired positive, so a refusal that fires on everything is not read as
+    # this guard working: the declaration as it stands passes both.
+    problems = verify(cfg)
+    if problems:
+        raise AssertionError(
+            f"the declared bracket does not pass its own guards: {problems}")
 
 def provenance(cfg: dict | None = None) -> dict:
     """The conversion and where every number in it came from, for an artifact."""
