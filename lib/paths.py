@@ -51,14 +51,15 @@ def rel(path: Path | str, root: Path | None = None) -> str:
 def bootstrap_climatology_path(root: Path | None = None) -> Path:
     """The climatology taken on TERRAIN-ONLY surface fields.
 
-    A SECOND KEY BECAUSE THERE ARE TWO CLIMATOLOGIES AND SEVEN STEPS WANT THE
-    OTHER ONE. `config/pipeline.yaml` already distinguishes them -- `surface_water`,
-    `groundwater`, `soil`, `dust`, `sea_salt`, `volcanic_sulfate` and
-    `vesper_header` all declare `needs: bootstrap_climatology` -- while
-    `carve_verdict`, `ice_mask`, `lpj_driver` and `error_budget` declare
-    `baseline_climatology`. Config carried one key for both, so every one of
-    those eleven resolved to the same file and the graph's distinction reached
-    nothing.
+    A SECOND KEY BECAUSE THERE ARE TWO CLIMATOLOGIES AND THE GRAPH HAS ALWAYS
+    SAID WHICH IS WHICH. `config/pipeline.yaml` is the register of which steps
+    declare `needs: bootstrap_climatology` and which declare
+    `baseline_climatology`; it is not restated here, because a list in two
+    places is a list that goes out of step. Config carried one key for both, so
+    every one of those steps resolved to the same file and the graph's
+    distinction reached nothing.
+    `scripts/smoke_test.py:check_climatology_needs_match_call_sites` is what
+    holds each step's script to its own declaration.
 
     THE ORDER IS WHY IT MATTERS. The bootstrap exists to produce the climatology
     the derived surface fields are built FROM, and the baseline is the run on
