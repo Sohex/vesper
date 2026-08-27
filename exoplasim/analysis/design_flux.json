@@ -1,8 +1,8 @@
 {
-  "generated": "2026-08-27T10:06:13.806516+00:00",
+  "generated": "2026-08-27T10:17:11.337702+00:00",
   "basis": "chosen",
   "generator": "exoplasim/scripts/derive_design_flux.py",
-  "generator_sha256": "84e04362cf4a9e60a76e09721bc45567a1d8fb81d5fd6640d3f6fbe1aa5f7031",
+  "generator_sha256": "ae0c00f2447a227a130d5e1d37c6a8653d490ace1e8de55e0ab6f7fb45ffa62b",
   "design_flux": 0.945,
   "chosen": {
     "flux": 0.945,
@@ -10,7 +10,7 @@
     "refusal": "a band's warm-season amplification is not positive; the projection cannot be trusted. -80 to -70 amp_warm -0.004; -70 to -60 amp_warm -0.173; +60 to +70 amp_warm -0.361; +70 to +80 amp_warm -0.3",
     "reopens_when": "a projection method that can represent a band whose seasonal range CONTRACTS with warming. The per-band amplification is a ratio to the global mean change and is undefined in sign for such a band, so what reopens the derivation is a different projection and not another flux point: the sign is a property of this world's seasonal response, and every run at every flux would show it",
     "evidence": "notes/audits/design-flux-two-point-response.md",
-    "evidence_sha256": "e94ea0c6180565babb43b20af14599f041355c5f23a55210a49c7f01ea2fc7ac",
+    "evidence_sha256": "2b7cbd5e3a1e5a23483823ce0c2c80e2bf8bd6543695628edd9d40b4f1a737a8",
     "measured": {
       "bands_with_non_positive_warm_amplification": [
         {
@@ -208,6 +208,11 @@
     "cold_extreme_cap": 0.05,
     "band_degrees": 10.0,
     "candidates": [
+      0.7775,
+      0.78,
+      0.7825,
+      0.785,
+      0.7875,
       0.79,
       0.7925,
       0.795,
@@ -332,7 +337,11 @@
       1.0925,
       1.095,
       1.0975,
-      1.1
+      1.1,
+      1.1025,
+      1.105,
+      1.1075,
+      1.11
     ],
     "anchor_flux": 0.945,
     "te_pin_flux": 0.945

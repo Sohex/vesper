@@ -116,18 +116,25 @@ makes the construction falsifiable rather than merely generous.
   correction pushes the other way and is currently unquantified: its artifact
   was computed under the deleted band-1 fit and is worthless, not stale
   (world-sii1).
-- CEILING 1.100. The highest the winner can sit is the superseded-physics
-  winner under the inferred cap, 0.945, plus the whole of the offset bound,
-  which is 1.047. The margin above that is 0.053, or 10.7 K at
-  `lib/sensitivity.py`'s slope and twice the width of the harsh-warm band. It
+- CEILING. The highest the winner can sit is the superseded-physics winner
+  under the inferred cap, 0.945, plus the whole of the offset bound, which is
+  1.047. The margin above that is declared as TWICE THE WIDTH OF THE HARSH-WARM
+  BAND, 10 K, and the flux offset follows from `lib/sensitivity.py`'s slope. It
   covers a declared cap stricter than the inferred one, which moves the winner
   up, and the terrain moving between builds.
-- FLOOR 0.790. The lowest the winner can sit is the superseded-physics
-  UNCONSTRAINED winner, 0.8725, which the corrected optics can only push up.
-  The margin below that is 0.0825, or 16.7 K, which clears the 15 K width of the
-  harsh-cold band even at unit cold-season amplification, and 5b records the
-  winter amplification as several times the summer's. It covers world-jgen's
+- FLOOR. The lowest the winner can sit is the superseded-physics UNCONSTRAINED
+  winner, 0.8725, which the corrected optics can only push up. The margin below
+  that is declared as THE WHOLE WIDTH OF THE HARSH-COLD BAND, 15 K, at unit
+  cold-season amplification -- and 5b records the winter amplification as
+  several times the summer's, so that is conservative. It covers world-jgen's
   opposing warming and each carve iteration darkening and warming the world.
+- BOTH MARGINS ARE KELVIN AND THE FLUX ENDS ARE DERIVED FROM THEM, because the
+  argument for each is made against a band width in degrees. They were once two
+  flux literals, and when the slope was re-derived from 202.0 to 159.7 the
+  floor's margin silently fell to 13.2 K against the 15 K band it claims to
+  clear, while the ceiling's fell to 1.7 times a width it claims to double.
+  Neither raised. A range that stops meaning what it says is exactly the
+  failure the construction below is meant to make impossible.
 - STEP 0.0025, unchanged. Half a kelvin of global mean, finer than anything the
   projection resolves, so the winner is limited by the criteria and not by the
   grid.
@@ -220,6 +227,41 @@ from paths import best_available_climatology, rel  # noqa: E402
 
 LATENT_OVER_CP = 2.501e6 / 1004.9   # K per unit specific humidity, plasim's constants
 
+# The two ends the candidate range is built from, in the units their argument
+# is made in. `CEILING_ANCHOR` is the superseded-physics winner under the
+# inferred cap plus the whole of the Stephens offset bound; `FLOOR_ANCHOR` is
+# the superseded-physics UNCONSTRAINED winner, which the corrected optics can
+# only push up. Both are FLUX because both are where a winner was observed.
+CEILING_ANCHOR_FLUX = 1.047
+FLOOR_ANCHOR_FLUX = 0.8725
+
+# The margins, in KELVIN, which is the unit the docstring argues them in. The
+# harsh bands are 33 to 38 C and -25 to -40 C, so 5 K and 15 K wide.
+CEILING_MARGIN_K = 10.0      # twice the harsh-warm band
+FLOOR_MARGIN_K = 15.0        # the whole harsh-cold band, at unit amplification
+CANDIDATE_STEP = 0.0025      # half a kelvin of global mean, finer than the projection resolves
+
+
+def _candidate_grid() -> list[float]:
+    """The flux grid the winner is searched over, from the kelvin margins.
+
+    Rounded OUTWARD to the step so a slope change can only widen the range,
+    never narrow it below what the margins ask for. A range that is too wide
+    costs arithmetic on candidates that cannot win; one that is too narrow
+    returns its own edge, silently, which is the failure this construction
+    exists to remove.
+    """
+    import math
+    import sensitivity                                  # noqa: E402
+    slope = sensitivity.SLOPE_K_PER_FLUX_RATIO
+    lo = FLOOR_ANCHOR_FLUX - FLOOR_MARGIN_K / slope
+    hi = CEILING_ANCHOR_FLUX + CEILING_MARGIN_K / slope
+    lo = math.floor(lo / CANDIDATE_STEP) * CANDIDATE_STEP
+    hi = math.ceil(hi / CANDIDATE_STEP) * CANDIDATE_STEP
+    n = int(round((hi - lo) / CANDIDATE_STEP)) + 1
+    return [round(lo + CANDIDATE_STEP * i, 4) for i in range(n)]
+
+
 DECLARED = {
     "warm_ceiling_c": 33.0,      # design preference, re-declared, swept below
     "cold_floor_c": -25.0,       # design preference
@@ -227,7 +269,19 @@ DECLARED = {
     "cold_extreme_c": -40.0,     # design preference
     "cold_extreme_cap": 0.05,    # design preference, declared 2026-08-26, swept below
     "band_degrees": 10.0,
-    "candidates": [round(0.790 + 0.0025 * i, 4) for i in range(125)],
+    # THE CANDIDATE RANGE IS DERIVED, not declared, and the docstring above
+    # says why in kelvin rather than in flux. Its two margins are stated
+    # against the BAND WIDTHS -- the ceiling clears twice the harsh-warm band,
+    # the floor clears the whole harsh-cold band -- so the decision is a
+    # temperature and the flux offset is that temperature over the slope.
+    #
+    # It was written as two flux literals and both arguments broke silently
+    # when `lib/sensitivity.py`'s slope was re-derived from 202.0 to 159.7: the
+    # floor's margin fell to 13.2 K against a 15 K band it claims to clear, and
+    # the ceiling's to 1.7 times a width it claims to double. Neither failed.
+    # The range simply stopped meaning what it said, which is the whole of
+    # `docs/src/pipeline/loops.md`'s corollary in one line.
+    "candidates": _candidate_grid(),
     "anchor_flux": 0.945,
     "te_pin_flux": 0.945,
 }

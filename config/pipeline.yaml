@@ -313,10 +313,14 @@ steps:
     gate: >
       the SECOND flux point, on the vegetated branch, which is the only branch
       the design flux is defined against. It has to span more than 5 K of global
-      mean against the other point or derive_design_flux refuses it, which at
-      about 202 K per unit flux means the two fluxes differ by roughly 0.025 or
-      more -- a point chosen close to the first satisfies "two converged runs"
-      and fails the span check. Independent of the other point, so the two can
+      mean against the other point or derive_design_flux refuses it, and the
+      flux separation that implies is 5 K divided by `lib/sensitivity.py`'s
+      slope rather than a number restated here -- a point chosen close to the
+      first satisfies "two converged runs" and fails the span check. The
+      separation this rule asked for was computed once at a slope since
+      retired, and it asked for less than a fifth too little, which is how a
+      restated conversion goes wrong: it does not fail, it quietly admits a
+      bracket that is too narrow. Independent of the other point, so the two can
       run concurrently
 
   - id: design_flux

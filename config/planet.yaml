@@ -1364,16 +1364,20 @@ stellar_cycle:
       period_earth_years: 11.0        # 22 local years, ~6.4 per lifetime
       amplitude_flux_peak_to_peak: 0.025
       note: >
-        The lived rhythm. Damped about 0.83, so roughly 3.1 K peak-to-peak,
-        some thirty times Earth's solar-cycle signal and the dominant climatic
-        fact of any individual life. Fast enough to be planned around, too fast
-        for ice to follow.
+        The lived rhythm. Damped about 0.83, so amplitude times damping times
+        `lib/sensitivity.py`'s slope, some thirty times Earth's solar-cycle
+        signal and the dominant climatic fact of any individual life. Fast
+        enough to be planned around, too fast for ice to follow. The kelvin
+        figure is NOT restated here: it is a product of a slope that is
+        re-derived per model, and the two numbers that stood here before
+        reproduced at a slope retired two measurements ago.
     long:
       period_earth_years: 57.0        # 114 local years, ~1.2 per lifetime
       amplitude_flux_peak_to_peak: 0.035
       note: >
-        The geomorphic driver. Essentially undamped at 0.99, roughly 5.2 K
-        peak-to-peak, slow enough that glaciers equilibrate rather than merely
-        breathing. Each grand minimum is a distinct historical era.
+        The geomorphic driver. Essentially undamped at 0.99, so amplitude
+        times damping times the same slope, slow enough that glaciers
+        equilibrate rather than merely breathing. Each grand minimum is a
+        distinct historical era.
   total_amplitude_flux_peak_to_peak: 0.060
   alignment_recurrence_earth_years: 314
