@@ -47,13 +47,13 @@ schema_version: 1
 # moves (rule 7); `python scripts/pipeline.py --purge orogen` is what says what.
 source_build: canonical-10m-base
 
-# DECLARED ABSENT. Null means no baseline is named, and `climatology_path()`
-# raises rather than falling back. That is the designed state and not a gap: a
-# stale default returns a plausible number from the wrong world, which is worse
-# than an error. There is no climatology on this build -- every run was archived
-# to identity and deleted -- so nothing downstream may read one until a
-# commissioning produces one. Repoint this at the REGULAR climatology of the
-# baseline run when it exists, not at the bootstrap's.
+# DECLARED. The REGULAR climatology of the baseline run, `run_893e276ee029`,
+# over its 140 clean-I/O orbits. `climatology_path()` raises rather than falling
+# back when this is null, which is the designed state before a commissioning
+# produces one: a stale default returns a plausible number from the wrong world,
+# which is worse than an error. Repoint it at the baseline's regular
+# climatology and never at the bootstrap's; `best_available_climatology` is what
+# a step reads when either will do, and it names the stage it chose.
 baseline_climatology: exoplasim/analysis/climatology/baseline_regular_climatology.nc
 
 # THE OTHER CLIMATOLOGY, and it is a different artifact rather than an earlier

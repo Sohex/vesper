@@ -1,0 +1,13 @@
+{
+  "numRegions": 10000005,
+  "seed": 16236323,
+  "regionsRequested": 10000004,
+  "sourceBuild": "/home/cfutro/docs/world/source/canonical-10m-base/exoplasim-T42",
+  "terrainHash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
+  "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+  "criterion": "warmest-bin surface temperature, lapse-corrected to the mesh region's own elevation, below freezing",
+  "marginK": 0.0,
+  "lapseKPerKmWarmest": 8.430261425345707,
+  "glaciatedRegions": 313790,
+  "generator": "analysis/ice_mask_freezing_height.py"
+}

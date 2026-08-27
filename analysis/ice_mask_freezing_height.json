@@ -1,29 +1,19 @@
 {
-  "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
-  "mesh_export": "source/precarve-craton-10m/exoplasim-T42",
-  "grid_export": "source/precarve-craton-10m/exoplasim-T21",
-  "source_build": "precarve-craton-10m",
-  "lapse_k_per_km_warmest": 6.519809361748822,
+  "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+  "mesh_export": "source/canonical-10m-base/exoplasim-T42",
+  "grid_export": "source/canonical-10m-base/exoplasim-T21",
+  "source_build": "canonical-10m-base",
+  "lapse_k_per_km_warmest": 8.430261425345707,
   "grid_cells_with_glac": 0,
-  "uncorrected_land_below_freezing": 0.0,
-  "corrected_land_below_freezing": 0.009672341724143633,
+  "uncorrected_land_below_freezing": 0.012932207049404032,
+  "corrected_land_below_freezing": 0.07160574700677852,
   "by_margin_k": {
-    "0": 0.009672341724143633,
-    "-5": 0.0032258849823228347,
-    "-10": 0.001059878653138722
+    "0": 0.07160574700677852,
+    "-5": 0.04047156788245453,
+    "-10": 0.019241328166455088
   },
-  "subgrid_peak_excess_km": {
-    "mean": 2.2514161807154234,
-    "median": 1.1391041544350242,
-    "p90": 3.855997897729372,
-    "max": 4.399372482819192,
-    "weighting": "land area, over cells that hold land",
-    "population": "surface_class == LAND inside each cell",
-    "source": "hydrography/data/precarve-craton-10m/support_exoplasim-T21.nc",
-    "source_build": "precarve-craton-10m"
-  },
-  "temperature_the_grid_never_sees_k": {
-    "mean": 14.678804292221196,
-    "p90": 25.14037119249974
+  "mask": {
+    "path": "source/canonical-10m-base/ice_mask_baseline.txt",
+    "margin_k": 0.0
   }
 }
