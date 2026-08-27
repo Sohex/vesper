@@ -357,6 +357,49 @@ to 19 W/m2 in absorbed flux against 21 W/m2 for the entire 0.85-to-0.95 stellar
 sweep that produced a 33 K range. The wetting fall at a full surface layer is
 about a third of it.
 
+## How wet the modelled skin actually is
+
+The ceiling above is the swing times how wet the skin is, and that fraction is
+readable. `landmod.f90:1553` writes `dwatcl` into the restart with `mpputgp`, and
+`dwmax` and `dsoilwfc` are carried beside it, so `dwatcl(:,1)` over
+`dwmax * dsoilwfc(:,1)` is `wetalb`'s own arithmetic recovered from the file
+rather than a reconstruction of it. Every orbit of a run leaves one restart, so a
+run is also a sample of `f`. Measured over the settled block of a 210-orbit
+`nwetsoil = 1` run on this build, restarts 180 to 209:
+
+| quantity | value |
+| --- | --- |
+| `f`, land-area mean | 0.3283, sd 0.0146 across the thirty |
+| `f`, land median | 0.0096 |
+| `f`, land p90 | 0.9997 |
+| share of land above `f` = 0.5 | 0.319 |
+
+**`f` IS BIMODAL, and that is the finding rather than a detail.** About a third
+of the modelled land carries a skin at its capacity and most of the rest is at
+air dry; very little sits between. That is what a 0.02 m store in a
+tipping-bucket cascade does -- it fills on the first rain and empties in about a
+day -- and it is the shape a mean hides completely.
+
+**So the mixing is evaluated per cell and then meaned, and the two orders differ
+most here.** The fall at the mean `f` of 0.3283 is 0.0098; the mean of the
+per-cell falls is 0.006745, a factor of 1.45 smaller. The concavity penalty is at
+its largest against a distribution with its mass at the two ends, which is
+exactly this one. Every figure below is the second.
+
+**And the term reaches the surface over three quarters of the land.** Snow and
+glacier ice override the background pair after `getalb` has mixed it. On 0.7673
+of the land, area weighted, the model's own `dalb` equals the mixed background to
+2e-4, so the term arrives undiminished there and is blended away elsewhere. That
+puts the realised background fall between 0.003780 and 0.006745: the lower figure
+treats the mask as a switch and the upper ignores it, and the mask is a blend, so
+the truth is between them.
+
+The same two paths agree on the level as well as the difference. The land-mean
+`alb` the output stream writes over that block is 0.229733 and the land-mean
+`dalb` in the restarts over the same orbits is 0.229337 -- a snapshot at one
+orbital phase against a mean over the orbit, differing by less than either one's
+inter-orbit scatter.
+
 **In kelvin, and against the instrument that would have to see it.** Through
 `scripts/error_budget.py:albedo_to_kelvin` at the land fraction the build
 manifest gives by surface class, 0.432841, and the attenuation that file declares
