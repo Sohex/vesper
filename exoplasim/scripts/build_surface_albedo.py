@@ -575,6 +575,13 @@ def main() -> None:
     for rid, (w1, w2) in rock_wet.items():
         region_wet1[rock == rid] = w1
         region_wet2[rock == rid] = w2
+    # WHAT THE GROUND IS MADE OF AFTER THE REPAINTS, which is not what Orogen
+    # called it. The derived evaporite split turns geometric salt that is not
+    # ephemeral into playa and ephemeral ground into salt crust whatever it
+    # started as, and a solved lake covers whatever lies under it. Every one of
+    # those moves the wetting ratio, so the class the refusal is asserted about
+    # has to move with them: `rock` is the geometry and this is the material.
+    region_material = rock.copy()
     veg_json = json.loads(VEGETATION_BANDS.read_text(encoding="utf-8"))
     canopy_rho = float(veg_json["band2_over_band1"])
     cover_rho = {k: float(v) for k, v in veg_json["cover_band_ratio"].items()}
@@ -740,11 +747,14 @@ def main() -> None:
                 region_albedo[geo_salt & ~ephemeral] = playa_a
                 region_rho[geo_salt & ~ephemeral] = rock_ratio[
                     _rock_id(mesh.root, "playa_clastic")]
+                region_material[geo_salt & ~ephemeral] = _rock_id(
+                    mesh.root, "playa_clastic")
                 pw1, pw2 = rock_wet[_rock_id(mesh.root, "playa_clastic")]
                 region_wet1[geo_salt & ~ephemeral] = pw1
                 region_wet2[geo_salt & ~ephemeral] = pw2
                 region_albedo[ephemeral] = salt_a
                 region_rho[ephemeral] = rock_ratio[evaporite_id]
+                region_material[ephemeral] = evaporite_id
                 # Salt crust, which the moisture term refuses: the sign is
                 # disputed on this class and the refusal follows the material
                 # through the derived split, not the geometric one.
@@ -783,6 +793,7 @@ def main() -> None:
         before = float(np.average(region_albedo[is_land], weights=area_r[is_land]))
         region_albedo[paint_water] = water_albedo_value
         region_rho[paint_water] = rock_ratio[_rock_id(mesh.root, "water")]
+        region_material[paint_water] = _rock_id(mesh.root, "water")
         ww1, ww2 = rock_wet[_rock_id(mesh.root, "water")]
         region_wet1[paint_water] = ww1
         region_wet2[paint_water] = ww2
@@ -1244,11 +1255,20 @@ def main() -> None:
                        if any(r["code"] == code for r in json.loads(
                            (mesh.root / "manifest.json").read_text(
                                encoding="utf-8"))["lithology"]["rockClasses"])]
-        refused_regions = np.isin(rock, refused_ids) & is_land
+        refused_regions = np.isin(region_material, refused_ids) & is_land
         # The refusal at the MATERIAL level, which is where it is declared and
         # the only place it is always testable: a T21 cell need not be made
         # entirely of one class, so the cell-level check below can have no
         # sample, and this one cannot.
+        #
+        # `region_material` AND NOT `rock`, which is the geometry. Reading the
+        # geometric class made this refuse the first field ever built with
+        # lakes: the derived evaporite split had turned non-ephemeral
+        # geometric salt into PLAYA, which is a class that wets and is
+        # correctly given a ratio, while the check still asked whether
+        # evaporite carried one. The refusal is about what the ground is made
+        # of after every repaint, which is the only thing the staged field
+        # describes.
         if refused_regions.any():
             off = float(max(np.abs(region_wet1[refused_regions] - 1.0).max(),
                             np.abs(region_wet2[refused_regions] - 1.0).max()))
