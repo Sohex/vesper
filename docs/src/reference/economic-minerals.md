@@ -14,7 +14,7 @@ sets erosion, which sets terrain; it sets bare-rock albedo, which ExoPlaSim
 integrates; it sets soil texture and pH through pedology; and it maps to Meybeck
 solutes for the weathering fluxes. Anything entering it enters the climate path.
 
-An ore body is the wrong scale for that. A mesh cell is 15.19 km across; a
+An ore body is the wrong scale for that. A mesh cell is kilometres across; a
 porphyry system is one to a few kilometres, a vein is metres. Making "copper" a
 rock class would paint a whole cell with ore properties on the strength of a
 deposit occupying a fraction of a percent of it, and the planet's energy balance
@@ -365,9 +365,11 @@ carbonatite-hosted rare earths along with it.
 individual deposits.**
 
 The reason is resolution, and it is the same reason glacial erosion is deferred
-in `notes/audits/orogen-gravity.md`. A mesh cell is about 15 km across. A porphyry
-system is one to two kilometres, 0.07 to 0.13 of a cell; a vein or lode is tens
-to hundreds of metres, under a hundredth of one. A discrete deposit is invisible
+in `notes/audits/orogen-gravity.md`. A porphyry system is one to two kilometres,
+a fraction of a mesh cell; a vein or lode is tens to hundreds of metres, orders
+below one. The cell width follows the build's region count and moves with every
+generation, so it is not stated here: `analysis/orogen_resolution.py` derives it
+and `analysis/orogen_resolution.json` carries it per build. A discrete deposit is invisible
 at every resolution this pipeline currently runs at, so placing one here would be
 inventing detail the grid cannot hold and then carrying it as though it were
 resolved.

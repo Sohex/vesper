@@ -953,9 +953,12 @@ changed value, so the bootstrap has to be
 finished before it moves. `docs/src/pipeline/sequencing.md` loop A has the order.
 
 It has to be `pedology` BEFORE the run whose climatology the verdict uses,
-not merely before the verdict: land-mean dwmax is 0.151 m against the uniform
-0.5 m bucket, which changes evaporation, which changes P - E, which is the
-numerator of the carve criterion.
+not merely before the verdict: the land-mean derived bucket depth is several
+times shallower than the uniform 0.5 m one it replaces, which changes
+evaporation, which changes P - E, which is the numerator of the carve criterion.
+The depth is a property of the soil map, so it moves with the build and the
+rung; `exoplasim/scripts/build_surface_soil_water.py` writes it as
+`land_mean_capacity_m` onto the provenance sidecar beside the staged field.
 
 ## `land_albedo_source`
 

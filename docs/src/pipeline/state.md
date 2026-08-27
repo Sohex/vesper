@@ -71,14 +71,17 @@ in the script rather than a number in the artifact.
 finding.** Cooling is close to useless for making them: summer amplification
 is nearly flat with latitude while winter amplification is several times
 larger, so cooling buys brutal winters and barely touches the summers that
-control ablation. Freezing a polar summer needs about 19 K of global cooling,
-which would put polar winter near uninhabitable.
+control ablation. The global cooling that would freeze a polar summer is far
+more than this world could take without the polar winter becoming
+uninhabitable, and that gap is the finding rather than either number.
 
 Glaciers come from relief instead. Summits a kilometre or so above their grid
 cell sit at freezing in summer, so every band poleward of 30 degrees has peaks
-below freezing year round, and the equilibrium line moves roughly 700 m of
-elevation over the stellar cycle, so they advance and retreat visibly on a
-generational rhythm.
+below freezing year round, and the equilibrium line moves by hundreds of metres
+of elevation over the stellar cycle, so they advance and retreat visibly on a
+generational rhythm. The excursion is the stellar cycle's amplitude through
+`lib/sensitivity.py`'s slope over the lapse rate, and no artifact in the tree
+carries it: the sub-grid pass below is what would.
 
 **The poles are the worst place for glaciers on this world**, which inverts
 the terrestrial intuition and does so from first principles. At this world's
@@ -102,8 +105,8 @@ measured the curvature must not be quoted as conversion factors.
 
 One thing here is NOT settled and must not be carried as though it were. The
 glacier result is unmodelled: the GCM reports `glac = 0` everywhere because it
-cannot see a mountain peak inside a 300 km cell, so the question is entirely
-sub-grid. `notes/glacier-rough-pass.md` does the sub-grid integration
+cannot see a mountain peak inside a cell hundreds of kilometres across at every
+rung on the escalation route, so the question is entirely sub-grid. `notes/glacier-rough-pass.md` does the sub-grid integration
 and **confirms the mechanism** -- the area-weighted mean glacier latitude sits
 in the mid-latitudes in every case and falls as the world cools, because
 relief rather than latitude sets where ice survives -- but it remains a rough
