@@ -115,7 +115,7 @@ names. `snapshot.py` takes `--climatology` and passes it through.
 ## What the colour means
 
 Terrain is real: elevation, land mask, lithology and endorheic flags come from
-the active build's native 2.5M-region mesh, one nearest region per pixel, so
+the active build's native mesh, one nearest region per pixel, so
 coastlines and dry closed-basin floors are exact. Land and sea are taken from
 `surface_class`, never from `land_mask`, so the sub-sea-level basin floors stay
 land.
@@ -127,12 +127,16 @@ Colour is illustrative:
   one being drawn -- which is the usual case early in a cycle -- it is a
   plausible tint over the geography rather than a result about it, and the map
   says so in its own provenance block.
-- Bare rock takes over above about 1.8 km, since a T42 cell cannot see a
-  mountain.
+- Bare rock takes over above about 1.8 km, since a climate-grid cell cannot see
+  a mountain.
 - Evaporite crust and playa fill are painted from `substrate_class`, which is why
   the closed basins read pale.
 - Permanent snow is where the warmest month falls below freezing after a
-  6.5 K/km correction from the T42 orography to the mesh orography. There is no
+  lapse-rate correction from the climatology's own orography to the mesh
+  orography. The rate is `lib/lapse.py:environmental_lapse_k_per_km`,
+  measured at call time from the same climatology the tint comes from and
+  in its warm season, so it is this world's rate and not Earth's. There is
+  no
   glacier model behind it; `glac` is zero everywhere in the baseline run.
 - Sea ice is the annual-mean fraction.
 - Relief is a hillshade of the mesh elevation, sun from the north-west, with
