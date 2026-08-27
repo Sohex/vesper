@@ -1306,3 +1306,60 @@ TEXTUAL, with the same blind spot `SURFACE_UNREAD_MODEL_KEYS` records: a key
 reached through a helper that takes the whole configuration and looks the name up
 by construction would not be found. The written argument is the other half of the
 evidence, and a removal declared without one is a refusal waived on nothing.
+
+
+## 36. One series, two instruments, and the join read as signal
+
+A statistic fitted across a change of instrument measures the change, not the
+planet. Nothing is out of range and nothing is noisy: both halves are good
+readings, and the estimator has no way to know they were taken with different
+equipment.
+
+The simulated instance is the I/O regime. PlaSim's low-I/O accumulation writes
+interval accumulations where the clean stream writes instantaneous samples, and
+a run that spins up under one and settles under the other has a STEP at the
+join. On the bootstrap of `canonical-10m-base` that step is +0.168 K in the
+per-orbit mean surface temperature. Fitted across the whole 82 orbits the
+integrated autocorrelation time came back at 9.08; fitted on each side of the
+join it is 2.00 and 1.00. The step is not memory, but an autocorrelation cannot
+tell the difference between a level shift and a correlation that persists across
+it, and neither can any estimator that sees only the series.
+
+The consequence was not a wrong plot. The memory time sizes the convergence
+window and prices the production span at every rung of the resolution ladder, so
+a tau inflated ninefold buys orbits nobody needs -- at the top of the ladder, days
+of them.
+
+**Two instruments differ in more than level, and the second difference hides
+behind the first.** The accumulating regime averages over the output interval,
+which SUPPRESSES per-orbit variance. So the clean stream is the noisier
+instrument: the same run reads a settled scatter of 0.0910 K across the join and
+0.09103 K on the clean block alone. A bound taken on the mixed window is
+therefore not conservative for the clean one, which is the opposite of what
+"more data" suggests.
+
+**The fix is a refusal at the window, not a correction to the statistic.** There
+is no correction: removing the step requires knowing its size, and its size is
+what the contaminated fit was being asked for. `segments.py:production_window`
+refuses a verdict window that spans a join, on the same terms as its refusal of
+a window with a diagnostic hole in it -- no rule for which side to keep is better
+than the caller saying which orbits they meant. What that costs is honest: the
+bootstrap has twelve clean orbits and its offset criterion needs twenty-four, so
+the verdict is under-powered and the report says which criteria do not resolve.
+
+**Where a span across the join is unavoidable, MEASURE the step against the
+criterion it would decide.** The relaxation fit needs the approach, and on this
+project every approach is low-I/O while every settled tail is clean, so refusing
+outright would make the relaxation time unavailable on every run that has one to
+measure. Instead `assess_convergence.py` measures the step and compares it with
+the offset criterion's own 0.15 K tolerance. At 0.168 K the fit cannot decide
+that criterion whatever it returns, and it is reported unidentifiable with the
+number that makes it so; a step well below the tolerance leaves the fit standing.
+That is class 34's arithmetic applied to a join rather than to a noise floor.
+
+**The general form.** Anything that changes what a series MEANS partway through
+-- an output regime, a binary, a namelist key, a grid -- makes one series into two,
+and every statistic that assumes one series is then measuring the seam. Class 22
+is the same event seen from the segment side and class 35 from the
+configuration's; what is specific here is that the join produces no error and no
+missing data, only a number of the ordinary size.
