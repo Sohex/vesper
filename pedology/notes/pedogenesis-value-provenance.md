@@ -125,50 +125,71 @@ replacing a parameterisation is a larger change than the one this note is the
 evidence for, and because a form with a parent-independent acid end is a
 different model of leaching and not a retuning of this one.
 
-### The alkaline end is derivable, and is derived
+### The alkaline end is derivable, and is derived at run time
 
-Slessarev's Methods give the calcite equilibrium as a quartic in the hydrogen
-ion activity for a solution exposed to calcite and open to an atmosphere at
-partial pressure `p`:
+`pedology/scripts/carbonate_ph.py` implements the equilibrium. `build_soil.py`
+calls it on every run, `pedogenesis.yaml` states no pH for anything the
+equilibrium decides, and a number written back into those keys is refused rather
+than used. That is the whole disposition: the alkaline end is not a value this
+project holds, it is a function of `config/planet.yaml`'s `pCO2_bar`, and the
+only place it appears as a number is on `soil_report.json` under
+`carbonate_system_ph`, beside the soil map it was used to build.
 
-    0 = H^4 * 2Ks/(K1 K2 KH p) + H^3 - H (K1 KH p + Kw) - 2 K1 K2 KH p
+The equation and its constants are in that module's docstring. Two things about
+it belong here rather than there, because both are findings about the source.
 
-with `Ks` the calcite solubility product, `Kw` the dissociation constant of
-water, `K1` and `K2` the first and second dissociation constants of carbonic
-acid, and `KH` Henry's constant for CO2. At 25 C the constants are
-`log10 KH = -1.468`, `log10 K1 = -6.352`, `log10 K2 = -10.329`,
-`log10 Ks = -8.48` and `Kw = 1e-14`.
+**The equation as PRINTED in the paper is not the equation.** Its last two terms
+are set as `- H Kw K1 KH p - K1 K2 KH p`: the hydroxide and bicarbonate terms
+have been run together into a product where the charge balance has a sum, and
+the two charges a carbonate ion carries have been dropped. Writing the charge
+balance out recovers both. The first loss is worth half a pH unit and the
+implementation's test rejects it outright; the second is worth 0.0012 pH at the
+paper's own pressure, which no test at the paper's published precision can see,
+so the factor of two rests on the arithmetic and is recorded here as resting on
+it.
 
-**The check that could have failed and did not.** Slessarev state pH 8.2 at
-their laboratory partial pressure of 3.45e-4 atm, and 8.3 for the older
-measurements made before 1977 at lower atmospheric CO2. Solving the equation
-above at 3.45e-4 atm returns 8.236, and at the 3.30e-4 atm of 1977 air it
-returns 8.248. Both round to what the paper prints, so the transcription of the
-equation and the choice of constants are the paper's and not something
-plausible-looking assembled beside it.
+**The paper's second figure is not a second test point.** Slessarev state pH 8.2
+at their laboratory partial pressure of 3.45e-4 atm, and the implementation
+returns 8.236 there, which is the check: both halves of it are the paper's. They
+also say the expected pH is 8.3 for measurements made before 1977, and state no
+pressure for that at all. An earlier version of this note supplied 3.30e-4 atm
+for it, got 8.248, and recorded that both figures "round to what the paper
+prints". They do not: 8.248 rounds to 8.2. What the remark does constrain, at
+the one decimal it is printed to, is that the solved pH crosses 8.25 somewhere
+in the ambient CO2 of the decade before 1977, and the implementation puts that
+crossing at 3.281e-4 atm, 328 ppmv. That is checkable, it can fail, and it is
+what the module checks. A test whose input is chosen after the answer is not a
+test, and the 3.30e-4 was chosen that way.
 
-Evaluated at Vesper's declared pCO2 rather than Earth's, the same equation
-gives the values the config now carries:
+Evaluated at Vesper's declared pCO2 rather than Earth's, the same equation gives
 
 | condition | pH |
 | --- | --- |
-| water and atmospheric CO2 alone, no alkalinity | 5.59 |
-| calcite equilibrium, open to the atmosphere | 8.16 |
-| calcite equilibrium at ten times atmospheric, soil air | 7.50 |
-| calcite equilibrium at a hundred times atmospheric, soil air | 6.83 |
+| water and atmospheric CO2 alone, no alkalinity | 5.586 |
+| calcite equilibrium, open to the atmosphere | 8.163 |
+| calcite equilibrium at ten times atmospheric, soil air | 7.498 |
+| calcite equilibrium at a hundred times atmospheric, soil air | 6.832 |
+
+*Measured on 2026-08-27, at `pCO2_bar` 0.00045. They are here as a record of what
+the equilibrium returned on that day and not as a value anything reads; the
+generator is the only statement of them that a consumer sees.*
 
 The `carbonate` parent entry takes the atmospheric value, because that is the
 condition a laboratory pH is measured under and the one Slessarev's 8.2 is
 stated at, and this number is compared against measured pH. The soil-air arm is
-the low end of its bracket: a field pH on carbonate reads below the declared
-one.
+the low end of its bracket: a field pH on carbonate reads below the open-air
+one, and the ten-to-a-hundred-fold enrichment that says how far below is a
+declared bracket on soil respiration rather than a measurement on this world.
 
 The same two atmospheric values bracket every silicate parent, from both sides
 and for a stated reason. A soil solution supplied with base cations sits above
 water in equilibrium with the atmosphere and nothing else, and below the point
 where calcite precipitates and takes the buffering over. What remains declared
 inside that bracket is the ORDER and the SPACING of the four silicate entries;
-no source here sizes that contrast.
+no source here sizes that contrast. The bracket is now enforced rather than
+described: `carbonate_ph.resolve` refuses a run whose declared silicate parents
+have fallen outside it, which is the failure a change of `pCO2_bar` would
+otherwise cause silently.
 
 Because the derivation runs on this world's pCO2 and not on a number read off
 Earth, it travels to another planet, which is the reason for deriving it rather
@@ -186,12 +207,14 @@ reason is the clip rather than a preference: a steeper slope drives the felsic
 and metamorphic parents onto `ph.minimum` across the wet fraction of land,
 which is the railing the regolith block was rewritten to remove.
 
-`endorheic_alkalinity_bonus` has to carry a calcite-buffered soil at 8.16 into
-the range a closed basin reaches. Helvaci (2019) lists lake water at pH 8.5 to
-11 among the conditions the Turkish borate deposits form under, which is the
-one measured closed-basin range this project holds. That gives 0.34 to 2.84. It
-is lake water in one depositional setting and not a soil, so it bounds the
-entry and does not set it.
+`endorheic_alkalinity_bonus` has to carry a calcite-buffered soil into the range
+a closed basin reaches. Helvaci (2019) lists lake water at pH 8.5 to 11 among
+the conditions the Turkish borate deposits form under, which is the one measured
+closed-basin range this project holds. Helvaci's range minus the derived
+carbonate pH is the bracket, so the bracket is derived too and is emitted
+alongside it rather than written into the config. It is lake water in one
+depositional setting and not a soil, so it bounds the entry and does not set
+it.
 
 ## 4. The two texture entries, and one near-degeneracy
 

@@ -50,6 +50,8 @@ import orbit
 from gridding import land_fraction_of_class
 from orogen import Export, LAND
 
+import carbonate_ph
+
 # Coordinate precision shared with biosphere/scripts/build_lpj_driver.py.
 # LPJ-GUESS keys its soil map on an exactly-compared pair of doubles, so both
 # files must round identically or every lookup misses.
@@ -675,7 +677,14 @@ def main() -> None:
     moved = texture["clay"] * fines_loss
     texture["clay"] = texture["clay"] - moved
     texture["sand"] = texture["sand"] + moved
-    ph = soil_ph(fractions, runoff, endorheic, pedo["ph"],
+    # The alkaline end of the pH block is a function of ONE input,
+    # `config/planet.yaml`'s `pCO2_bar`, through the calcite equilibrium
+    # `carbonate_ph.py` solves. The config states no number for it; this fills
+    # the sentinels, refuses a restatement, and refuses a declared silicate
+    # parent that has fallen outside the derived bracket.
+    ph_params, ph_derivation = carbonate_ph.resolve(
+        pedo["ph"], config["atmosphere"]["pCO2_bar"])
+    ph = soil_ph(fractions, runoff, endorheic, ph_params,
                  pedo["weathering"]["reference_runoff_mm_per_earth_year"])
 
     # Andisols. Volcanism as a process rather than a composition: see the
@@ -827,6 +836,11 @@ def main() -> None:
         "land_cells": int(len(rows)),
         "moisture_variable": selector,
         "runoff_source": pedo["weathering"].get("runoff_source", "p_minus_e"),
+        # The pH values pedogenesis.yaml deliberately does not state, recorded
+        # where they were used rather than written back into the config. Every
+        # one of them is a function of `pCO2_bar` alone, so this block is what
+        # a reader checks a soil map's pH against.
+        "carbonate_system_ph": ph_derivation,
         "andisols": {
             "note": ("Andic properties need ONGOING ejecta supply and enough "
                      "leaching to weather glass to allophane rather than "

@@ -791,20 +791,20 @@ ph:
   # pH of a fresh, unleached soil on each rock category.
   #
   # DERIVED BRACKET on the silicate entries, from the carbonate system at this
-  # planet's declared pCO2 (`config/planet.yaml` is the source of that number
-  # and nothing here restates it). A soil solution supplied with base cations
-  # sits above water in equilibrium with the atmosphere and nothing else, and
-  # below the point where calcite precipitates and takes the buffering over:
+  # planet's declared pCO2. `config/planet.yaml` is the source of that number
+  # and nothing here restates it -- INCLUDING one function application removed,
+  # which is what a pH written here would be. A soil solution supplied with base
+  # cations sits above water in equilibrium with the atmosphere and nothing
+  # else, and below the point where calcite precipitates and takes the buffering
+  # over. Both ends come out of one equilibrium, Slessarev's Methods eq. (6) in
+  # the four dissociation constants and the calcite solubility.
   #
-  #   5.59  water and atmospheric CO2 alone, no alkalinity
-  #   8.16  calcite equilibrium, open to the atmosphere
-  #
-  # Both ends come out of the same equilibrium, Slessarev's Methods eq. (6) in
-  # the four dissociation constants and the calcite solubility, and the
-  # implementation reproduces their published 8.2 at their stated laboratory
-  # pCO2 before being evaluated at this world's. The bracket therefore travels
-  # to another planet, which is the point of deriving it instead of taking a
-  # value measured on Earth.
+  # `pedology/scripts/carbonate_ph.py` IS that equilibrium. It reproduces the
+  # paper's published pH at the paper's stated laboratory pCO2 before it is
+  # evaluated at this world's, `build_soil.py` calls it on every run, and the
+  # keys below are the string `derived` so that nothing here can drift from it.
+  # The bracket therefore travels to another planet, which is the point of
+  # deriving it instead of taking a value measured on Earth.
   #
   # WHAT IS STILL DECLARED is the ORDER and the SPACING inside that bracket.
   # Mafic above clastic above metamorphic above felsic is a contrast this file
@@ -814,18 +814,27 @@ ph:
     igneous_felsic: 6.4
     metamorphic: 6.6
     sedimentary_clastic: 6.8
-    # DERIVED, not declared: calcite equilibrium at this world's pCO2, open to
-    # the atmosphere. That is the condition a laboratory pH is measured under
-    # and the one Slessarev's 8.2 is stated at, so it is the condition to put
-    # a number that gets compared against measured pH on. Soil air runs ten to
-    # a hundred times atmospheric and the same equilibrium gives 7.50 and 6.83
-    # there, so a field pH on carbonate reads below this.
-    carbonate: 8.16
+    # DERIVED, and therefore stated as no number at all: the calcite
+    # equilibrium at this world's pCO2, open to the atmosphere. That is the
+    # condition a laboratory pH is measured under and the one Slessarev's 8.2
+    # is stated at, so it is the condition to put a number that gets compared
+    # against measured pH on. Soil air runs above atmospheric, and the same
+    # equilibrium at that enrichment is the low end of `parent_bracket_carbonate`
+    # below, so a field pH on carbonate reads under this one.
+    #
+    # `pedology/scripts/carbonate_ph.py` fills it, and REFUSES a number here.
+    carbonate: derived
     # Above the calcite buffer, because sodium carbonate rather than calcite
     # sets it.
     evaporite: 8.8
-  parent_bracket_silicate: [5.59, 8.16]
-  parent_bracket_carbonate: [6.83, 8.16]
+  # Both DERIVED by `pedology/scripts/carbonate_ph.py` from the same
+  # equilibrium: the silicate bracket runs from water with no alkalinity to
+  # calcite open to the atmosphere, the carbonate one from calcite at the top
+  # of the declared soil-air CO2 enrichment to the same atmospheric value. The
+  # four silicate entries above are checked against the first of them on every
+  # run, because a change of pCO2 moves the bracket without moving them.
+  parent_bracket_silicate: derived
+  parent_bracket_carbonate: derived
   # Bracketed by what a closed basin reaches. Helvaci (2019) lists lake water
   # at pH 8.5 to 11 among the conditions the Turkish borate deposits form
   # under, which is the one measured closed-basin range this project holds. It
@@ -858,10 +867,12 @@ ph:
   # Added where drainage is closed and salts accumulate.
   #
   # BRACKET from the carbonate entry above: the bonus has to carry a
-  # calcite-buffered soil at 8.16 into the range a closed basin reaches, which
-  # is Helvaci's 8.5 to 11. Do not tune within it.
+  # calcite-buffered soil into the range a closed basin reaches, which is
+  # Helvaci's 8.5 to 11. That is Helvaci's range minus the derived carbonate
+  # pH, so it is DERIVED too and moves with pCO2. The value inside it is
+  # declared. Do not tune within the bracket.
   endorheic_alkalinity_bonus: 0.8
-  endorheic_alkalinity_bonus_bracket: [0.34, 2.84]
+  endorheic_alkalinity_bonus_bracket: derived
 
 # ---------------------------------------------------------------------------
 # Organic matter, the loop closure
