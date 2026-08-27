@@ -118,3 +118,43 @@ window is 0.0024. A move from 0.945 to 0.930 buys 0.0034, a ratio to the
 standard error of 1.41 against the 2.8 a paired comparison needs. There is no
 optimum to find inside that range on this evidence, and everything below 0.945
 is extrapolated past the measured pair in any case.
+
+## The soil built on this climate, and one thing the climate is missing
+
+*Measured 2026-08-27 on `canonical-10m-base` against `precarve-craton-10m`. The
+two builds differ in terrain AND in pedogenesis values, so this is not a
+single-variable comparison and is not read as one.*
+
+| | precarve-craton-10m | canonical-10m-base |
+| --- | ---: | ---: |
+| soil depth, median | 0.876 m | 0.203 m |
+| AWC, median | 112.80 mm | 25.09 mm |
+| AWC, p90 | 306.98 mm | 174.50 mm |
+
+The land is BIMODAL rather than uniformly thin. The top quartile carries 1.454 m
+of regolith and 151.66 mm of plant-available water, which is ordinary ground; the
+bottom quartile carries 0.050 m and 10.07 mm, which is bare rock, and 28.9 per
+cent of land sits at or below 0.10 m.
+
+**Most of the move is a sourced change and stands.** WORLD-9CTM replaced
+`dry_erosion_baseline`, an unsourced 0.15, with 0.85 derived from Portenga and
+Bierman's arid-to-global denudation ratio of 0.459: the moisture term is
+`runoff/reference + b`, so at zero runoff the term IS `b`, and `b/(1+b)` returns
+their ratio exactly. Arid erosion therefore rose by 5.67x and depth goes as its
+reciprocal. The observed median thinning of 4.3x is what that implies for a cell
+carrying some runoff, and `maximum_depth_m` rising 5.0 to 6.70 pushes the other
+way by 34 per cent and loses. Physics is not a knob: the term is better sourced
+than what it replaced and a harsher world is the information.
+
+**What is NOT settled is the climate the arid tail is evaluated against.**
+`build_soil.py` takes its runoff from the bootstrap climatology, and a bootstrap
+is terrain-only by definition, so it carries no lakes on any iteration. The
+ceiling on what that omits is `area_at_spill_fraction_of_planet` at 0.0821: at
+most 8.2 per cent of the planet as inland open water, sitting under the 74.4 per
+cent of land that drains internally, which is where the thin soil is. The actual
+figure is `surface_water.py`'s to compute.
+
+The reason this reads as an oversight rather than a separation is inside the
+graph: `soil` needs `lpj_run`, which needs `lpj_driver`, which needs
+`baseline_climatology`. So one step already takes its VEGETATION from a
+lake-bearing climate while taking its RUNOFF from a lake-free one.
