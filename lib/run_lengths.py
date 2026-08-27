@@ -49,14 +49,31 @@ from __future__ import annotations
 
 import math
 
-# THE MEMORY TIME, BRACKETED. Both ends are measured and both have a source in
-# exoplasim/notes/convergence-lengths.md.
-#   4.2   (1+r)/(1-r) at the lag-1 of 0.615 measured on the 85-orbit T21 pair,
-#         which is the AR(1) reading of the model's variability.
-#   10.43 the fast-plus-slow mixture that section stands the slower branch up
-#         with, deliberately not AR(1), because a model with a slow component
-#         has a longer memory than its lag-1 admits.
-TAU_MEMORY_ORBITS_BRACKET = (4.2, 10.43)
+# THE MEMORY TIME, MEASURED 2026-08-26 on run_432e5e46adef and no longer
+# inferred. Both ends are readings of the same series: the per-orbit
+# area-weighted mean surface temperature of the bootstrap, reduced by Geyer's
+# initial monotone positive sequence over five candidate windows starting at
+# orbits 25, 30, 35, 40 and 45. They returned 2.22, 1.89, 2.00, 2.07 and 2.11,
+# every one reliable with a span over ten tau, and the bracket is their range.
+#
+# BOTH ENDS ARE UPPER BOUNDS. `autocorrelation.stationary_enough` refused all
+# five windows: the run still drifts 0.003 to 0.007 K per orbit, and a residual
+# trend pushes every lag correlation up. A flatter series returns a smaller tau,
+# never a larger one, so the production span this multiplies is bounded above.
+#
+# WHAT IT REPLACED, and why that pair was not wrong when it was written. It was
+# 4.2 to 10.43: an AR(1) reading of a lag-1 of 0.615 on the 85-orbit T21 pair,
+# and a fast-plus-slow mixture standing up a slower branch. Both were inferences
+# from a model this tree no longer has -- since then the Stephens cloud tables,
+# a derived orographic roughness and a hyperdiffusion 1.699x shorter have all
+# landed, and the last damps the model faster, which is where a shorter memory
+# would come from. The bootstrap reads a lag-1 of 0.39 to 0.49 against that
+# 0.615.
+#
+# THE CONSEQUENCE IS THE WHOLE LADDER'S COST. The production span is twenty
+# times this, so the old pair asked for 84 to 209 orbits at every commissioning
+# rung and this one asks for 38 to 44.
+TAU_MEMORY_ORBITS_BRACKET = (1.89, 2.22)
 
 # THE RELAXATION TIME, BRACKETED BY THE FITS THAT ARE EVIDENCE. The three
 # convergence artifacts whose exponential fit is usable and identifiable report

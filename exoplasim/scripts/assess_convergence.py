@@ -193,8 +193,28 @@ def slab_heat_capacity(run_dir: Path) -> tuple[float, dict]:
 # have needed anyway. `exoplasim/notes/convergence-lengths.md` carries the
 # bracket; every assessment reports the window ITS OWN run would need, which is
 # what follows the resolution up the ladder.
-NOMINAL_ORBIT_SCATTER_K = 0.07     # the T21 baseline's stationary spread, world-omn
-NOMINAL_TAU_ORBITS = 4.2           # (1+r)/(1-r) at r = 0.615, world-yj9o
+# MEASURED 2026-08-26 on run_432e5e46adef, the bootstrap of canonical-10m-base,
+# replacing an assumed pair that had drifted a long way from this model. The
+# scatter is the spread over the settled window; tau is the integrated
+# autocorrelation time of the per-orbit area-weighted mean surface temperature,
+# by Geyer's initial monotone positive sequence over five candidate windows,
+# which returned 1.89, 2.00, 2.07, 2.11 and 2.22 and were reliable on every one.
+# The largest is carried, because `stationary_enough` refused all five -- the run
+# still drifts about 0.003 to 0.007 K per orbit -- and a residual trend pushes
+# every lag correlation UP, so each of those is an upper bound on the truth.
+#
+# WHAT MOVED, and it is not a correction of the old measurement. The 4.2 was
+# (1+r)/(1-r) at a lag-1 of 0.615 measured on a different model: this tree has
+# since taken the Stephens cloud tables, a derived orographic roughness and a
+# hyperdiffusion 1.699x shorter, and the last of those damps the model faster,
+# which is the mechanism a shorter memory would come from. This run reads a
+# lag-1 of 0.39 to 0.49.
+#
+# WHY IT MATTERS HERE: the window this file derives goes as tau, and so does
+# `lib/run_lengths.py`'s production span. At 4.2 the span was 84 orbits and at
+# 10.43 it was 209, which is a ladder nobody can afford. At 2.2 it is 44.
+NOMINAL_ORBIT_SCATTER_K = 0.091    # settled-window spread, run_432e5e46adef
+NOMINAL_TAU_ORBITS = 2.2           # measured, and an upper bound; see above
 NOMINAL_RELAXATION_ORBITS = 10.0   # this planet's slab; each run reports its own
 # The same 0.15 K and the same factor of three the criteria use, restated here
 # only because the default has to exist before `main` runs. `main` asserts they
