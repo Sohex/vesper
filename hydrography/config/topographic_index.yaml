@@ -153,8 +153,9 @@ closure:
 # makes the attribution exact rather than argued.
 #
 # THE BAR: on the Australian depth-consistent bores, the area under the ROC
-# curve for "observed water table within 1 m of the surface" must exceed
-# 0.573, which is what the model's cell-mean depth reaches on its own. Repeated
+# curve for "observed water table within 1 m of the surface" must exceed what
+# the model's cell-mean depth reaches on its own, which the harness measures
+# rather than this file recording. Repeated
 # on the United States bores labelled unconfined, where the depth field has a
 # regime it works in. Both arms of `f_grad_bracket_per_m`, reported separately.
 #
@@ -171,9 +172,9 @@ closure:
 # `CLAUDE.md` requires an effect to be weighed against its instrument's scatter
 # before the number is believed.
 # WHAT SUPPORT THE SCORE IS TAKEN AT, and it has to be declared because the
-# quantity being scored does not live where the number in `bar_auc` was
-# measured. 0.573 is the model DEPTH's discrimination per bore against the
-# mesh region the bore falls in, `groundwater-et-sink.md`. `f_sat` lives at a
+# quantity being scored does not live where the bar is measured. The bar is the
+# model DEPTH's discrimination per bore against the mesh region the bore falls
+# in, `groundwater-et-sink.md`. `f_sat` lives at a
 # climate-grid cell, so scoring it needs a cell population, and the Earth
 # harness has no climate-grid export to take one from. The support declared
 # here is equal-angle boxes at the configured model grid's own row and column
@@ -195,23 +196,22 @@ closure:
 score:
   observation_sets: [australia_depth_consistent, us_unconfined]
   metric: auc_water_table_within_1m
-  bar_auc: 0.573
-  # THE BAR IS A DERIVED QUANTITY AND NOT A THRESHOLD, and the difference is
-  # what the two keys below are for. It is the model depth's OWN discrimination
-  # per bore against the mesh region the bore falls in, measured on the region
-  # named here and recorded in `hydrography/notes/groundwater-et-sink.md`. It is
-  # used AS a criterion, and as a criterion it is fixed before the results it
-  # judges and does not move for them -- but the quantity it is a measurement OF
-  # moves whenever the depth solution, the mesh or the bore selection moves, and
-  # a bar that no longer reproduces is no longer the depth's discrimination.
-  # `earth_calibration.py` already recomputes it on every score and prints it
-  # beside this value; the tolerance is what makes that a check rather than a
-  # printout. It is the bar's own written precision and not a number chosen to
-  # make today's value pass. A refusal here does NOT mean edit this number: it
-  # means the bar and the harness are measuring different things, and which one
-  # the next verdict rests on is a decision, taken before the next score.
-  bar_auc_measured_on: aus
-  bar_auc_reproduction_tolerance: 0.0005
+  # DERIVED, and therefore stated as no number at all. The bar is the model
+  # DEPTH's own discrimination per bore against the mesh region the bore falls
+  # in, and `earth_calibration.py` already computes exactly that statistic on
+  # every run and prints it beside the bar. A literal here is a copy of a
+  # quantity the harness recomputes: it was 0.573, the harness reaches 0.5759 on
+  # the Australian bores, and nothing compared the two.
+  #
+  # WHAT WAS FIXED BEFORE THE FRACTION WAS SCORED IS THE RULE, NOT THE NUMBER,
+  # and the rule is unchanged: beat the depth's own discrimination at the
+  # support the depth's discrimination is measured on. `also_beat` beside it is
+  # already a live comparator recomputed each run, at the other support; making
+  # this one live too is the same shape, not a new liberty. The registration and
+  # the value it was registered at are dated in
+  # `hydrography/notes/groundwater-et-sink.md` and `subgrid-water-table.md`,
+  # where a historical measurement belongs.
+  bar_auc: derived
   harness: hydrography/scripts/earth_calibration.py
   unit_of_score: bore
   support: model_grid_equal_angle_boxes

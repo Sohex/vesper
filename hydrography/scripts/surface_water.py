@@ -144,7 +144,8 @@ def climate_fields(config, bin_index=None):
                                     *p_air.shape)
     evaporation = cv.penman_open_water(
         t_air, q_air, wind, p_air, rss, rls, land_albedo,
-        float(config["planet"]["gravity_m_s2"]), diurnal_range=diurnal)
+        float(config["planet"]["gravity_m_s2"]), diurnal_range=diurnal,
+        cfg=config)
     # No floor at the land rate, for the reason `carve_verdict.py` sets out at
     # length: land here is 6.4x aerodynamically rougher than water, so a lake
     # evaporating less than the wet ground around it is physical rather than a

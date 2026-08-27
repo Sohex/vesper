@@ -50,6 +50,8 @@ import orbit
 from gridding import land_fraction_of_class
 from orogen import Export, LAND
 
+import carbonate_ph
+
 # Coordinate precision shared with biosphere/scripts/build_lpj_driver.py.
 # LPJ-GUESS keys its soil map on an exactly-compared pair of doubles, so both
 # files must round identically or every lookup misses.
@@ -675,7 +677,14 @@ def main() -> None:
     moved = texture["clay"] * fines_loss
     texture["clay"] = texture["clay"] - moved
     texture["sand"] = texture["sand"] + moved
-    ph = soil_ph(fractions, runoff, endorheic, pedo["ph"],
+    # The alkaline end of the pH block is a function of ONE input,
+    # `config/planet.yaml`'s `pCO2_bar`, through the calcite equilibrium
+    # `carbonate_ph.py` solves. The config states no number for it; this fills
+    # the sentinels, refuses a restatement, and refuses a declared silicate
+    # parent that has fallen outside the derived bracket.
+    ph_params, ph_derivation = carbonate_ph.resolve(
+        pedo["ph"], config["atmosphere"]["pCO2_bar"])
+    ph = soil_ph(fractions, runoff, endorheic, ph_params,
                  pedo["weathering"]["reference_runoff_mm_per_earth_year"])
 
     # Andisols. Volcanism as a process rather than a composition: see the
@@ -827,6 +836,11 @@ def main() -> None:
         "land_cells": int(len(rows)),
         "moisture_variable": selector,
         "runoff_source": pedo["weathering"].get("runoff_source", "p_minus_e"),
+        # The pH values pedogenesis.yaml deliberately does not state, recorded
+        # where they were used rather than written back into the config. Every
+        # one of them is a function of `pCO2_bar` alone, so this block is what
+        # a reader checks a soil map's pH against.
+        "carbonate_system_ph": ph_derivation,
         "andisols": {
             "note": ("Andic properties need ONGOING ejecta supply and enough "
                      "leaching to weather glass to allophane rather than "
@@ -953,6 +967,27 @@ def main() -> None:
     ANALYSIS.mkdir(parents=True, exist_ok=True)
     report_path = ANALYSIS / "soil_report.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n")
+
+    # THE LEVEL THE REGOLITH PAIR IS JOINTLY CONSTRAINED TO, checked against
+    # what the pair just produced. `pedogenesis.yaml` states the constraint --
+    # `clay_yield`'s prefactor and `erosion_coefficient_per_relief_m`'s level
+    # brack the land MEAN, not either key -- and nothing enforced it, so the
+    # config carried a land mean of 1.04 m as its justification while the
+    # generator emitted a different one. A bracket with no check is where an
+    # argument goes stale without the number it defends going wrong.
+    low, high = (float(v) for v in pedo["regolith"]["regolith_depth_bracket_m"])
+    land_mean_depth = report["land_means"]["regolith_depth_m"]
+    if not low <= land_mean_depth <= high:
+        raise SystemExit(
+            f"the land-mean regolith depth is {land_mean_depth:.4f} m, outside "
+            f"regolith_depth_bracket_m [{low}, {high}]. That bracket is "
+            "Heimsath's production function inverted against Portenga and "
+            "Bierman's denudation rates and is not narrowable from those two "
+            "papers, so a mean outside it is a statement no source here "
+            "supports. `clay_yield` and `erosion_coefficient_per_relief_m` set "
+            "it jointly; sweep the pair, not one of them. "
+            f"Written to {rel(report_path)} before this check so the state that "
+            "failed is inspectable.")
 
     means = report["land_means"]
     print(f"land cells          {len(rows)}")

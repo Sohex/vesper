@@ -301,8 +301,11 @@ uncertainty and is stated rather than hidden. Across it the marginal count ran
 **Those numbers are the calibration of that day's verdict and are not the
 coefficient in use.** The candidate count and the standing count both move with
 the climate, so `export_carve_list.py` re-solves this on every run from the Earth
-inputs -- 15 basins over 78.9 Mkm2 within 35 degrees -- against this world's own
-land area in the same band. What is durable here is the Earth measurement and the
+inputs -- 15 standing lakes over the land the HydroBASINS level 5 polygons cover
+within 35 degrees, both measured by `--measure-earth-floors` -- against this
+world's own land area in the same band. The denominator was 78.9 Mkm2 here and
+in the script, which is not what those polygons cover; it is 77.05, and the
+script now refuses when the two disagree. What is durable here is the Earth measurement and the
 argument; the coefficient is a derived value and belongs in the sidecar with the
 rest of them.
 

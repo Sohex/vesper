@@ -55,6 +55,7 @@ endorheic basins are. It is recorded here so the approach is not tried again.
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 from pathlib import Path
 
@@ -73,15 +74,21 @@ from paths import (climatology_path, rel, require_clean_io,
                    require_configured_grid)
 from provenance import staged_surface_field
 from lake_balance import BasinSet, carve_verdict, solve
-from lapse import reference_height_m
+from lapse import gas_properties, reference_height_m
 
 DRHSFULL = 0.4          # landmod.f90: wetness reaches 1 above this fraction
 WSMAX_EARTH = 0.5       # landmod.f90 default field capacity, metres
 
-# Penman constants. Gas constant and gravity are this planet's, from the run
-# namelist and config; the rest are properties of water and air.
-GASCON = 287.017        # J/kg/K, from the model's own PLANET_NL
-CP_AIR = 1005.0         # J/kg/K
+# Penman constants. Gravity is this planet's, from config; the rest are
+# properties of water.
+#
+# THE DRY AIR CONSTANTS ARE NOT HERE. `lib/lapse.gas_properties` derives R and
+# cp from the declared composition, which is the same derivation the model runs
+# at start-up and writes into every run's `planet_namelist`. This file carried
+# `GASCON = 287.017` and `CP_AIR = 1005.0` instead: one a rounding of that
+# derivation and one Earth's textbook figure, neither with any way to learn the
+# composition had moved. `reference_height_m` three lines below already reached
+# the same module for the same R.
 KARMAN = 0.4
 # Quadrature points around one diurnal cycle. 24 is far more than the smoothness
 # of a sinusoid needs; the cost is nothing and it removes the point count as a
@@ -91,8 +98,37 @@ DIURNAL_POINTS = 24
 VDIFF_B = VDIFF_D = 5.0
 STABILITY_ITERATIONS = 5
 Z0_WATER = 1.5e-4       # m, open-water roughness length
-WATER_ALBEDO = 0.06     # the export's own value for the water rock class
 SIGMA_LOWEST = 0.9828   # lowest model level
+
+
+def _resolved_config(cfg):
+    """The configured planet, whether or not the caller carried it.
+
+    Every constant `penman_open_water` derives -- the dry air constants, the
+    reference height, water's albedo -- comes from one config, so it is resolved
+    once at the top rather than three times with three chances to disagree.
+    """
+    return cfg if cfg is not None else yaml.safe_load(
+        CONFIG.read_text(encoding="utf-8"))
+
+
+@functools.lru_cache(maxsize=4)
+def _water_albedo(mesh_dir: str) -> float:
+    rock_classes = Export(Path(mesh_dir)).manifest["lithology"]["rockClasses"]
+    return float(next(r["albedo"] for r in rock_classes if r["code"] == "water"))
+
+
+def water_albedo(cfg) -> float:
+    """Open water's albedo, from the export's own rock-class legend.
+
+    It was `WATER_ALBEDO = 0.06` here, with a comment saying where it came from
+    and no way of reading it back. The legend is `vendor/orogen/js/lithology.js`
+    compiled into every export's `manifest.json`, so an upstream change to the
+    water class moves the export and leaves a copy in this file untouched --
+    and it enters the net radiation of every Penman evaluation the carve
+    verdict rests on. `build_surface_albedo.py` already reads it this way.
+    """
+    return _water_albedo(str(mesh_export(cfg)))
 
 
 def saturation_vapour_pressure(temp_k):
@@ -227,7 +263,9 @@ def penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
             delta += e * 17.625 * 243.04 / (t - 30.11) ** 2
         es_a /= DIURNAL_POINTS
         delta /= DIURNAL_POINTS
-    gamma = CP_AIR * p_air / (0.622 * lam)
+    cfg = _resolved_config(cfg)
+    _r_dry, cp_air = gas_properties(cfg)
+    gamma = cp_air * p_air / (0.622 * lam)
     e_air = q_air * p_air / (0.622 + 0.378 * q_air)
     if column_relative_humidity is not None:
         # The bracket, not a correction. See the docstring.
@@ -236,7 +274,7 @@ def penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
     # Shortwave reaching the surface, backed out of the net and the albedo the
     # run was actually given, then re-absorbed at water's albedo.
     sw_down = rss / np.maximum(1.0 - land_albedo, 1e-3)
-    net_radiation = (1.0 - WATER_ALBEDO) * sw_down + rls
+    net_radiation = (1.0 - water_albedo(cfg)) * sw_down + rls
 
     # ONE derivation of the height the transfer coefficient is taken over.
     # `exoplasim/scripts/build_surface_roughness.py` needs the same z_ref and
@@ -245,7 +283,7 @@ def penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
     # composition rather than being retyped from the run namelist.
     z_ref = reference_height_m(t_air, cfg, SIGMA_LOWEST)
     ce_neutral = KARMAN ** 2 / np.log(np.maximum(z_ref, 1.0) / Z0_WATER) ** 2
-    rho = p_air / (GASCON * t_air)
+    rho = p_air / (_r_dry * t_air)
     u = np.maximum(wind, 0.1)
 
     # STABILITY. The surface layer over a lake is stratified, that stratification
@@ -275,9 +313,9 @@ def penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
     ce = ce_neutral
     for _ in range(STABILITY_ITERATIONS):
         r_a = 1.0 / np.maximum(ce * u, 1e-6)
-        aerodynamic = (rho * CP_AIR / r_a) * np.maximum(es_a - e_air, 0.0) / gamma
+        aerodynamic = (rho * cp_air / r_a) * np.maximum(es_a - e_air, 0.0) / gamma
         latent = (delta * rn + gamma * aerodynamic) / (delta + gamma)
-        t_surface = t_air + r_a * (rn - latent) / (rho * CP_AIR)
+        t_surface = t_air + r_a * (rn - latent) / (rho * cp_air)
         # Virtual temperature difference, surface minus air; positive is unstable.
         d_theta_v = t_surface * (1.0 + 0.6078 * q_air) - t_air
         ri = np.clip(-gravity * z_ref * d_theta_v / (u ** 2 * t_air), -5.0, 5.0)
@@ -292,7 +330,7 @@ def penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
         ce = ce_neutral * np.clip(f_h, 0.05, 20.0)
 
     r_a = 1.0 / np.maximum(ce * u, 1e-6)
-    aerodynamic = (rho * CP_AIR / r_a) * np.maximum(es_a - e_air, 0.0) / gamma
+    aerodynamic = (rho * cp_air / r_a) * np.maximum(es_a - e_air, 0.0) / gamma
     latent = (delta * rn + gamma * aerodynamic) / (delta + gamma)
     return np.maximum(latent, 0.0) / (lam * 1000.0)   # W/m2 -> m/s of water
 

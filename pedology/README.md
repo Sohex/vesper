@@ -19,7 +19,16 @@ python pedology/scripts/weathering_fluxes.py                   # CO2 and silica
 python pedology/scripts/brine_paths.py                         # the chemical divide
 python pedology/scripts/build_surface_classes.py               # needs brine_paths
 python pedology/scripts/land_column_properties.py              # the hydraulic property contract
+python pedology/scripts/carbonate_ph.py                        # the calcite equilibrium, validated
 ```
+
+`carbonate_ph.py` is the alkaline end of the soil pH block. It solves Slessarev
+et al. (2016) Methods eq. (6) at this world's `pCO2_bar`, validating against the
+pH they publish at the pressure they state before it is evaluated anywhere else.
+`pedogenesis.yaml` therefore states no number for the calcite-buffered parent pH
+or for the brackets that hang off it; `build_soil.py` fills them from this module
+on every run, refuses a number written back into those keys, and refuses a
+declared silicate parent that has fallen outside the derived bracket.
 
 Writes `data/<source_build>/soilmap.txt`, which is LPJ-GUESS's own `SoilInput`
 format, and `analysis/soil_report.json`. The soil map is per build, because

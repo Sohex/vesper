@@ -43,6 +43,7 @@ The contract is `hydrography/notes/land-water-ledger.md`.
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import json
 import sys
@@ -52,6 +53,7 @@ from pathlib import Path
 import yaml
 
 from _paths import ANALYSIS, PROJECT_ROOT  # noqa: F401  (adds lib/ to sys.path)
+from lapse import gas_properties
 
 COMPONENT_ROOT = Path(__file__).resolve().parents[1]
 DECLARATION = COMPONENT_ROOT / "config" / "land_water_ledger.yaml"
@@ -728,11 +730,20 @@ def run_graph_mutations(path: Path = DECLARATION) -> tuple[list[dict], list[str]
 # produce a crossing many orders larger. A sweep that cannot report a crossing
 # is not evidence that there is none.
 
-# The model's dry gas constant is derived from the declared composition at run
-# time; this is the value config/planet.yaml records that derivation at. The
-# bound is insensitive to it: it enters the limit and the flux at the same
-# place and cancels.
-DRY_GAS_CONSTANT_J_KG_K = 287.017
+@functools.lru_cache(maxsize=1)
+def dry_gas_constant() -> float:
+    """The model's dry gas constant, J/kg/K, from the declared composition.
+
+    `lib/lapse.gas_properties` runs the same arithmetic the model runs at
+    start-up and writes into every run's `planet_namelist`. This file carried
+    `DRY_GAS_CONSTANT_J_KG_K = 287.017` instead: a rounding of that derivation
+    with no way to learn the composition had moved. The bound below is
+    insensitive to the value, because it enters the limit and the flux at the
+    same place and cancels -- which is a reason not to worry about the number
+    and no reason at all to keep a copy of it.
+    """
+    return gas_properties()[0]
+
 
 # `landmod.f90`'s wetness knee: the fraction of capacity above which the land
 # column evaporates at the potential rate.
@@ -814,7 +825,7 @@ def _sweep(deltsec: float, ga: float, limiter: bool = True,
         if not snow_is_subset:
             dprs = dprs + dprl + dprc
 
-        zkonst1 = ga * deltsec2 / (DRY_GAS_CONSTANT_J_KG_K * dsigma)
+        zkonst1 = ga * deltsec2 / (dry_gas_constant() * dsigma)
         zkonst2 = dsigma / deltsec2 / ga
         # The store, placed against the withdrawal the unlimited solve takes.
         zk_full = zkonst1 * dtransh / ts
@@ -1022,8 +1033,15 @@ def build_report(decl: dict) -> dict:
         "shadow_copies": shadow_copies(decl),
         "interval_refusals": interval_refusals(decl),
         "undeclared_terms": [{"term": t, "owner": o} for t, o in undeclared_terms(decl)],
+        # `how_far_it_bites` is optional and carries the POINTER to whatever
+        # artifact says how much of the build an absence covers, in place of a
+        # number the declaration would have to keep up to date. It reaches the
+        # report because a pointer nobody is shown is not a pointer.
         "absences": [{"absence": name, "owner": body.get("owner"),
-                      "what": " ".join(body["what"].split())}
+                      "what": " ".join(body["what"].split()),
+                      **({"how_far_it_bites":
+                          " ".join(body["how_far_it_bites"].split())}
+                         if body.get("how_far_it_bites") else {})}
                      for name, body in decl["absences"].items()],
         "bucket_floor_bound": floor,
     }
