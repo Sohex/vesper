@@ -1352,7 +1352,7 @@ model:
   # 0.4 * dwmax through its driest bin, which needs per-cell seasonal P and E
   # over the lake cells and therefore a baseline climatology. world-kvr.
   lake_dwmax_m: 0.2
-  land_albedo_source: vegetated
+  land_albedo_source: lithology
   # DERIVED 2026-08-19 by analysis/vegetation_albedo.py, which reproduces
   # notes/audits/inherited-earth-constants.md finding 1. The Earth-Sun canopy
   # endmember 0.15 re-weighted to this star on 553 ECOSTRESS leaf spectra by

@@ -2150,6 +2150,16 @@ from -- and differing in `SOILDIFDRY`, `SOILDIFSAT`, `SOILCAPDRY` and
 rather than hidden: this term is measured at a later operating point than the
 five terms above it, and a sum that adds them is adding two operating points.
 
+Both arms also carry `land_albedo_source: lithology` where the base config
+declares `vegetated`, because that is the mode the albedo staged in this tree
+was built in and `refuse_an_albedo_field_the_config_misdeclares` stops a run
+whose declaration and staged bytes disagree. Neither arm reads those fields:
+`--superseded-surface-ok` discards the staged surface and `landini` takes all
+three albedo bands from the restart, so the key decides what is copied into the
+run directory and what the manifest records, and it is identical on both sides.
+The pair still differs by four `landmod_nl` keys and nothing else, which
+`expected_namelist_keys` is checked on before either arm is launched.
+
 One further prediction follows from the settling above and is registered with
 the rest: **`jsfm_const` starts at its own equilibrium and `jsfm_interp` does
 not.** The donor ran the retired constant pair, so the constant arm's land-mean
