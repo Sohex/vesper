@@ -133,7 +133,8 @@ KM3_PER_YEAR_TO_M3_PER_S = 1e9
 # The Earth calibration, which fixes the coefficient. Measured from HydroLAKES
 # v1.0 joined to HydroBASINS level 5: natural lakes (`Lake_type == 1`) deeper
 # than 5 m whose pour point sits in a basin with `ENDO == 0`, within 35 degrees
-# of the equator, over 78.9 Mkm2 of Earth land in that band. `ENDO == 0` selects
+# of the equator, over the land those same level 5 polygons cover in that band.
+# `ENDO == 0` selects
 # a sill a river actually crosses; the latitude cut keeps out sills that were
 # under an ice sheet 20,000 years ago and have had no time to be cut at all.
 #
@@ -164,7 +165,29 @@ EARTH_STANDING_BY_FLOOR = {          # measured 2026-08-26, see measure_earth_fl
     10000.0: 2,
 }
 EARTH_STANDING_BASINS = EARTH_STANDING_BY_FLOOR[EARTH_SIZE_FLOOR_KM2]
-EARTH_BAND_LAND_MKM2 = 78.9
+# THE DENOMINATOR OF THAT DENSITY, AND IT HAS TO BE THE SAME EARTH AS THE
+# NUMERATOR. The count above is lakes whose pour point falls inside a
+# HydroBASINS level 5 polygon, so the land it is a density over is the land
+# those polygons cover -- summed `SUB_AREA` over the level 5 basins in the band.
+# Any other land area makes this a ratio of two different Earths, in the same
+# way that a response measured on one build over an amplification measured on
+# another is a sensitivity of neither.
+#
+# It was 78.9 with no producer anywhere in this tree, while the numerator beside
+# it had `measure_earth_floors`. `measure_earth_band_land_mkm2` is now that
+# producer, `--measure-earth-floors` runs both in one pass over the same
+# shapefiles, and it REFUSES when this constant disagrees with what it measures.
+# The 78.9 is not what these polygons cover.
+#
+# Assignment is by each polygon's representative point, and the alternative --
+# each polygon's `SUB_AREA` scaled by the share of it inside the band -- agrees
+# to 0.06%, so the band edge is not what decides this number. Against the
+# Poisson error on a count of 15, 25.8%, the 2.4% between the old figure and
+# this one is a tenth of the acknowledged uncertainty; it is corrected because
+# the denominator has to be the numerator's Earth, not because it is large.
+EARTH_BAND_LAND_MKM2 = 77.05
+# Written to two decimals, so a unit in the last place is what agreement means.
+EARTH_BAND_LAND_TOLERANCE_MKM2 = 0.005
 CALIBRATION_LATITUDE = 35.0
 COEFFICIENT_SEARCH = (1.0, 1.0e5)   # m per (m3/s)^0.5, the bisection bracket
 # The statistics guard on a rung of that ladder, fixed before the sweep ran. A
@@ -601,12 +624,24 @@ def measure_earth_floors(reference: Path, floors=None) -> dict:
         sel, crs="EPSG:4326",
         geometry=gpd.points_from_xy(sel.Pour_long, sel.Pour_lat))
     basins = gpd.GeoDataFrame(
-        pd.concat([pyogrio.read_dataframe(p, columns=["ENDO"])
+        pd.concat([pyogrio.read_dataframe(p, columns=["ENDO", "SUB_AREA"])
                    for p in basin_paths], ignore_index=True),
         geometry="geometry", crs="EPSG:4326")
     joined = gpd.sjoin(points, basins[["ENDO", "geometry"]], how="left",
                        predicate="within").drop_duplicates(subset="Hylak_id")
     area = joined[joined.ENDO == 0].Lake_area.values
+
+    # The denominator, from the SAME polygons, in the same pass. Measuring the
+    # numerator without it is what left `EARTH_BAND_LAND_MKM2` with no producer.
+    band = measure_earth_band_land_mkm2(basins)
+    declared = EARTH_BAND_LAND_MKM2
+    if abs(band["band_land_mkm2"] - declared) > EARTH_BAND_LAND_TOLERANCE_MKM2:
+        raise SystemExit(
+            f"EARTH_BAND_LAND_MKM2 is {declared} and these polygons cover "
+            f"{band['band_land_mkm2']:.3f} Mkm2 within "
+            f"{CALIBRATION_LATITUDE:g} degrees. The count above is a density "
+            "over exactly this land, so the two move together or the density "
+            "is a ratio of two different Earths. Update the constant.")
     return {
         "selection": "HydroLAKES v1.0 Lake_type == 1, Depth_avg > 5 m, "
             f"|Pour_lat| < {CALIBRATION_LATITUDE:g} deg, pour point inside a "
@@ -614,6 +649,42 @@ def measure_earth_floors(reference: Path, floors=None) -> dict:
             "each floor on Lake_area.",
         "unmatched_pour_points": int(joined.ENDO.isna().sum()),
         "counts": {float(f): int((area > f).sum()) for f in floors},
+        "band_land": band,
+    }
+
+
+def measure_earth_band_land_mkm2(basins) -> dict:
+    """Land the HydroBASINS level 5 polygons cover within the calibration band.
+
+    The denominator of the standing-lake density, measured from the polygons the
+    numerator's lakes are assigned to, so the two are one Earth. `SUB_AREA` is
+    HydroBASINS' own area for each level 5 basin, in km2.
+
+    Assignment is by each polygon's REPRESENTATIVE POINT rather than by clipping
+    it at the band edge, because clipping in a geographic CRS weights a degree
+    of longitude equally at every latitude and the areas it returns are not
+    areas. The two answers agree to 0.06% here, which is what says the band edge
+    does not decide this number; if they ever stop agreeing, the clip is the one
+    to distrust and a projected re-clip is the repair.
+    """
+    import numpy as np_          # noqa: PLC0415  local, like geopandas above
+    if "SUB_AREA" not in basins.columns:
+        raise SystemExit(
+            "the HydroBASINS level 5 frame carries no SUB_AREA column, so the "
+            "band land cannot be measured from the polygons the lakes were "
+            "assigned to. Read the shapefiles with SUB_AREA included.")
+    latitude = basins.geometry.representative_point().y.to_numpy()
+    sub_area = basins.SUB_AREA.to_numpy(dtype=float)
+    inside = np_.abs(latitude) < CALIBRATION_LATITUDE
+    return {
+        "band_land_mkm2": float(sub_area[inside].sum()) / 1.0e6,
+        "global_land_mkm2": float(sub_area.sum()) / 1.0e6,
+        "polygons_in_band": int(inside.sum()),
+        "polygons": int(sub_area.size),
+        "assignment": "each level 5 polygon's representative point, against "
+                      f"|lat| < {CALIBRATION_LATITUDE:g} deg",
+        "note": "HydroBASINS omits Antarctica, which is outside this band and "
+                "so cannot reach the sum.",
     }
 
 
@@ -1081,6 +1152,11 @@ def main() -> None:
             note = "" if drift is None or drift == count else f"   # was {drift}"
             print(f"    {floor}: {count},{note}")
         print("}")
+        band = measured["band_land"]
+        print(f"EARTH_BAND_LAND_MKM2 = {band['band_land_mkm2']:.4g}   "
+              f"({band['polygons_in_band']:,} of {band['polygons']:,} level 5 "
+              f"polygons, {band['global_land_mkm2']:.4g} Mkm2 globally)")
+        print(f"  {band['assignment']}")
         raise SystemExit(0)
 
     _bd = component_data("hydrography", strict=True)
