@@ -235,6 +235,18 @@ REREAD_EVERY_START = {
     1801: "dsrcw",
     1802: "ddrage",
     1803: "dwpr",
+    # The saturated soil albedo pair, PHYS-15. `landmod.f90:833-835` reads these
+    # through `mpsurfgp` on every start and says why in its own comment: the
+    # saturated endmember is a BOUNDARY CONDITION and not a state, so it cannot
+    # drift, a run cannot have changed it, and carrying it would be three more
+    # restart records for a field the surface file already holds. The dry pair
+    # beside it, 174/175/176, IS carried, which is the distinction this entry
+    # records. `landmod.f90:836` aborts when the field is absent under
+    # nwetsoil = 1, so a resume with nothing staged stops rather than mixing
+    # toward the sentinel.
+    1742: "dalbwet",
+    1750: "dalbwet1",
+    1760: "dalbwet2",
 }
 
 # Fields SIMBA owns once coupled vegetation is on: `simba.f90:484,487` assigns
