@@ -205,6 +205,7 @@ SUPERSEDED_BRACKET_RUNS = {
              "status": "equilibrated_for_worldbuilding"},
 }
 SUPERSEDED_SLOPE_K_PER_FLUX_RATIO = 202.0
+SUPERSEDED_SPREAD_K_PER_FLUX_RATIO = (201.0, 204.0)
 SUPERSEDED_GEOGRAPHY = "3a17c498"
 
 
@@ -397,8 +398,9 @@ def active_build(cfg: dict | None = None) -> str:
     return name
 
 
-def _verify_bracket(bracket: dict, slope: float, tolerance: float,
-                    geography: str, cfg: dict | None = None) -> list[str]:
+def _verify_bracket(bracket: dict, slope: float, spread: tuple[float, float],
+                    tolerance: float, geography: str,
+                    cfg: dict | None = None) -> list[str]:
     """The whole check, over any declaration. `verify()` passes this file's.
 
     Taking the declaration as an argument is what makes the currency checks
@@ -482,7 +484,7 @@ def _verify_bracket(bracket: dict, slope: float, tolerance: float,
                 f"against the declared {slope}")
         if len(half_widths) == 2:
             floor = math.hypot(*half_widths.values()) / abs(fw - fc)
-            lo, hi = SLOPE_SPREAD_K_PER_FLUX_RATIO
+            lo, hi = spread
             if hi - lo < 2.0 * floor:
                 problems.append(
                     f"the declared spread {lo}-{hi} is narrower than the "
@@ -502,6 +504,7 @@ def verify(cfg: dict | None = None) -> list[str]:
     the runs it names -- and are those runs on the world this tree describes now?
     """
     return _verify_bracket(SLOPE_BRACKET_RUNS, SLOPE_K_PER_FLUX_RATIO,
+                           SLOPE_SPREAD_K_PER_FLUX_RATIO,
                            SLOPE_TOLERANCE_K_PER_FLUX_RATIO, SLOPE_GEOGRAPHY,
                            cfg)
 
@@ -520,6 +523,7 @@ def test_currency_refuses_a_superseded_measurement(
     """
     problems = _verify_bracket(SUPERSEDED_BRACKET_RUNS,
                                SUPERSEDED_SLOPE_K_PER_FLUX_RATIO,
+                               SUPERSEDED_SPREAD_K_PER_FLUX_RATIO,
                                SLOPE_TOLERANCE_K_PER_FLUX_RATIO,
                                SUPERSEDED_GEOGRAPHY, cfg)
     for want in SUPERSEDED_BRACKET_RUNS.values():
