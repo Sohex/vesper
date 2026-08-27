@@ -332,6 +332,19 @@ commute:
 recomputes them per build, so nothing downstream re-derives them from the two
 endmembers.
 
+**The recombination identity holds at both ENDS and not in between, and the size
+of that is worth knowing before it is found.** `build_surface_albedo.py` checks
+`z1*175 + z2*176 == 174` on both staged pairs before writing, but `wetalb` mixes
+all three fields independently and the mixing is nonlinear, so the broadband
+field and the recombined band pair separate as soon as the skin is wet. At a full
+surface layer they differ by 3.5e-5 in the land mean, 0.024633 against 0.024668.
+Under `NSIMPLEALBEDO = 0` the radiation uses the PAIR and `dalbclim` is the
+diagnostic, so an arm reading the modelled `alb` is reading the smaller of the
+two. The gap is 0.14 percent of the term and is reported rather than corrected:
+forcing the identity through the mixing would mean mixing two fields and deriving
+the third, which makes the broadband diagnostic a different quantity from the
+staged broadband endmember at every saturation but zero.
+
 **Which surface the term acts on is what sets its size, and the field moved.**
 The wetting maps act on SOIL. A canopy is not a wetting surface and open water is
 not one either, so `build_surface_albedo.py` gives the covered fraction of a cell
