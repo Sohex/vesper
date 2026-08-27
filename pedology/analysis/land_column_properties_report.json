@@ -1,10 +1,10 @@
 {
-  "generated": "2026-08-26T20:55:58+00:00",
+  "generated": "2026-08-27T09:02:51+00:00",
   "declaration": "pedology/config/land_column_properties.yaml",
-  "declaration_sha256": "b533874e8f886a1a93a3b2d3281f229cd75586eb3885aa42f2323de226f8a2c8",
+  "declaration_sha256": "8ed64a8380f91f1248cf62c86846e188ba04a7a675b387c2fb94637d93dc3884",
   "version": 2,
-  "soil_map": "pedology/data/precarve-craton-10m/soilmap_T21.txt",
-  "soil_map_sha256": "92f74f2878f2ad9ad3b6536c352fc53476f1ae88d144d9355c41a48a68b3d97f",
+  "soil_map": "pedology/data/canonical-10m-base/soilmap_T21.txt",
+  "soil_map_sha256": "4e350183b8b2e3f853b72d176aede0ebba53decb095378bca3d539e56daab7c5",
   "units": {
     "depth": "m",
     "volumetric_water": "m3_per_m3",
@@ -116,37 +116,37 @@
   "consumer_comparison": {
     "cells": 1019,
     "pedology_awc_mm": {
-      "p10": 24.64,
-      "median": 112.8,
-      "p90": 306.976,
-      "mean": 141.9548773307164
+      "p10": 10.0,
+      "median": 25.09,
+      "p90": 174.502,
+      "mean": 55.34457311089303
     },
     "lpj_guess_derived_mm": {
-      "p10": 50.27411061216563,
-      "median": 188.44023493845538,
-      "p90": 261.8762377871362,
-      "mean": 168.62631748295664
+      "p10": 24.656257817952532,
+      "median": 52.57683259077287,
+      "p90": 231.28670725334044,
+      "mean": 90.92437690173641
     },
     "exoplasim_dwmax_m": {
-      "p10": 0.024640000000000002,
-      "median": 0.1128,
-      "p90": 0.306976,
-      "mean": 0.14195487733071638
+      "p10": 0.01,
+      "median": 0.02509,
+      "p90": 0.174502,
+      "mean": 0.05534457311089304
     },
     "exoplasim_source": "what dwmax WAS: the pedology awc column converted mm to m. It is now the emitted states file's awc_mm column on the same terms",
     "lpj_over_pedology_ratio": {
-      "p10": 0.8115693153664719,
-      "median": 1.585333209998233,
-      "p90": 2.396934757393269,
-      "mean": 1.5920278132324568
+      "p10": 1.4388714815947319,
+      "median": 2.0862952923282587,
+      "p90": 2.8159722728679086,
+      "mean": 2.118697561206026
     },
     "absolute_difference_mm": {
-      "p10": 20.677569788245314,
-      "median": 54.69946699662705,
-      "p90": 92.95681909885587,
-      "mean": 60.68204572201268
+      "p10": 14.013274229406095,
+      "median": 26.58845120185587,
+      "p90": 72.22611467794653,
+      "mean": 35.905932828872594
     },
-    "pearson_correlation": 0.7974429932532883,
+    "pearson_correlation": 0.9633512988558772,
     "reading": "The two fields correlate because both start from related texture and depth. They are not the same capacity: one is a declared endmember mixture with additive organic and allophane terms, the other is a Cosby retention inversion with no andic term and no bulk density. That is the disagreement the adopted case ended.",
     "soil_carbon_is_zero": true,
     "soil_carbon_note": "the checked-in map carries zero soil carbon everywhere, so the organic mixing paths of both derivations are inactive and the divergence reported here is the MINERAL one alone"
@@ -155,8 +155,8 @@
     "criterion": "1.58 * sand + 0.63 * clay < 0.17 is where the air-entry clamp binds; unclamped the inversion returns a field capacity above saturation there",
     "criterion_bound": 0.17,
     "cells_inside": 0,
-    "closest_cell_criterion": 0.531251,
-    "minimum_saturation_headroom_volumetric": 0.028981006578013058,
+    "closest_cell_criterion": 0.527996,
+    "minimum_saturation_headroom_volumetric": 0.03037338047250593,
     "any_field_capacity_above_saturation": false,
     "any_wilting_point_above_field_capacity": false,
     "clamp_changes_any_cell": false,
@@ -170,16 +170,16 @@
     "vesper_field_capacity_suction_pa": 12810.0,
     "suction_ratio": 1.3062564688247262,
     "field_capacity_ratio": {
-      "p10": 0.9574861726827385,
-      "median": 0.9643103366427856,
-      "p90": 0.9714247182340893,
-      "mean": 0.9643797534509273
+      "p10": 0.9542902138757989,
+      "median": 0.9612121535715559,
+      "p90": 0.9693303353972178,
+      "mean": 0.9617680417733191
     },
     "available_capacity_ratio": {
-      "p10": 0.9242462234512332,
-      "median": 0.9283284266532594,
-      "p90": 0.9324268764491801,
-      "mean": 0.9283225545392976
+      "p10": 0.9222839685697722,
+      "median": 0.9264933437290889,
+      "p90": 0.9312370970050236,
+      "mean": 0.926765578403487
     },
     "direction": "down, on every cell. Stronger gravity drains a column to a drier state at equilibrium; the wilting point is a plant pressure and does not move, so plant-available water falls.",
     "applied_by_any_consumer": true,
@@ -191,22 +191,22 @@
     "field_capacity_head_cm_earth_frame": 130.62564688247264,
     "available_ratio_to_shipped": {
       "earth_equivalent_frame": {
-        "p10": 0.9241999048146052,
-        "median": 0.9282811568804187,
-        "p90": 0.9323787511319086,
-        "mean": 0.92827531605953
+        "p10": 0.9222381374291829,
+        "median": 0.9264464903207987,
+        "p90": 0.9311892087467221,
+        "mean": 0.9267186987891647
       },
       "vesper_frame": {
-        "p10": 0.9241999048146052,
-        "median": 0.9282811568804187,
-        "p90": 0.9323787511319086,
-        "mean": 0.92827531605953
+        "p10": 0.9222381374291829,
+        "median": 0.9264464903207986,
+        "p90": 0.9311892087467221,
+        "mean": 0.9267186987891647
       },
       "frame_mixed_wilting_only": {
-        "p10": 0.9598054626837454,
-        "median": 0.9626373602010727,
-        "p90": 0.9652357717348282,
-        "mean": 0.9625738942939454
+        "p10": 0.9606520860663416,
+        "median": 0.9638314360450195,
+        "p90": 0.966412653130007,
+        "mean": 0.9635723229133959
       }
     },
     "frames_agree_max_abs_volumetric": 5.551115123125783e-17,
@@ -222,33 +222,33 @@
       "name": "closure_at_vesper_suction",
       "what": "the contract's named closure at the suction its own potential convention declares, rho_w * g * L at this planet's gravity. The closure is named and field capacity is declared as a drainage equilibrium over a declared length, so this is the contract read literally and no part of it is a new choice",
       "central_case_mm": {
-        "p10": 46.60616843927622,
-        "median": 175.0326956700348,
-        "p90": 242.5189767650578,
-        "mean": 156.48121366577058
+        "p10": 22.797936951976368,
+        "median": 48.738168383804144,
+        "p90": 215.55094041094662,
+        "mean": 84.27839076743994
       },
       "exoplasim_dwmax": {
-        "median_mm_before": 112.8,
-        "median_mm_after": 175.0326956700348,
-        "land_mean_mm_before": 141.9548773307164,
-        "land_mean_mm_after": 156.48121366577058,
+        "median_mm_before": 25.09,
+        "median_mm_after": 48.738168383804144,
+        "land_mean_mm_before": 55.34457311089303,
+        "land_mean_mm_after": 84.27839076743994,
         "ratio": {
-          "p10": 0.751433869047188,
-          "median": 1.469442254580146,
-          "p90": 2.2168522801828208,
-          "mean": 1.4764647365740542
+          "p10": 1.3331679511633772,
+          "median": 1.9326706466180181,
+          "p90": 2.6086159862127163,
+          "mean": 1.961837644050699
         }
       },
       "lpj_guess_capacity": {
-        "median_mm_before": 188.44023493845538,
-        "median_mm_after": 175.0326956700348,
-        "land_mean_mm_before": 168.62631748295664,
-        "land_mean_mm_after": 156.48121366577058,
+        "median_mm_before": 52.57683259077287,
+        "median_mm_after": 48.738168383804144,
+        "land_mean_mm_before": 90.92437690173641,
+        "land_mean_mm_after": 84.27839076743994,
         "ratio": {
-          "p10": 0.9236351604107755,
-          "median": 0.9276693282798849,
-          "p90": 0.9317151871764042,
-          "mean": 0.9276622107861527
+          "p10": 0.9216945904442336,
+          "median": 0.9258563461406056,
+          "p90": 0.9305411558909353,
+          "mean": 0.9261237018754767
         }
       },
       "deleted": "pedology's endmember volumetric capacities, its additive organic term and its allophane term as the source of any consumer's capacity; soilinput.cpp's get_mineral Cosby inversion; and vesperinput.cpp's apply_regolith_depth rescaling, whose rule is now layer_usable_fraction here",
@@ -259,28 +259,28 @@
       "closure_at_earth_suction": {
         "what": "the same closure evaluated at Cosby's own field-capacity suction, which is the pressure the shipped LPJ-GUESS code used. Not adopted: it reads the contract's closure and ignores the contract's potential convention, which declares field capacity as a drainage equilibrium and therefore at this world's gravity",
         "central_case_mm": {
-          "p10": 50.27411061216563,
-          "median": 188.44023493845538,
-          "p90": 261.8762377871362,
-          "mean": 168.62631748295664
+          "p10": 24.656257817952532,
+          "median": 52.57683259077287,
+          "p90": 231.28670725334044,
+          "mean": 90.92437690173641
         },
         "would_have_moved_exoplasim": {
-          "median_mm_before": 112.8,
-          "median_mm_after": 188.44023493845538,
-          "land_mean_mm_before": 141.9548773307164,
-          "land_mean_mm_after": 168.62631748295664,
+          "median_mm_before": 25.09,
+          "median_mm_after": 52.57683259077287,
+          "land_mean_mm_before": 55.34457311089303,
+          "land_mean_mm_after": 90.92437690173641,
           "ratio": {
-            "p10": 0.8115693153664719,
-            "median": 1.585333209998233,
-            "p90": 2.396934757393269,
-            "mean": 1.5920278132324568
+            "p10": 1.4388714815947319,
+            "median": 2.0862952923282587,
+            "p90": 2.8159722728679086,
+            "mean": 2.118697561206026
           }
         },
         "would_have_moved_lpj_guess": {
-          "median_mm_before": 188.44023493845538,
-          "median_mm_after": 188.44023493845538,
-          "land_mean_mm_before": 168.62631748295664,
-          "land_mean_mm_after": 168.62631748295664,
+          "median_mm_before": 52.57683259077287,
+          "median_mm_after": 52.57683259077287,
+          "land_mean_mm_before": 90.92437690173641,
+          "land_mean_mm_after": 90.92437690173641,
           "ratio": {
             "p10": 1.0,
             "median": 1.0,
@@ -292,16 +292,16 @@
       "pedology_endmember_mixture": {
         "what": "pedology's declared endmember volumetric capacities with its additive organic and allophane terms. Not adopted, and not a symmetric option: it is not a retention curve at all -- no saturation, no air entry, no exponent -- so taking it would have replaced the contract's named closure and left saturation and matric potential with nowhere to come from",
         "central_case_mm": {
-          "p10": 24.64,
-          "median": 112.8,
-          "p90": 306.976,
-          "mean": 141.9548773307164
+          "p10": 10.0,
+          "median": 25.09,
+          "p90": 174.502,
+          "mean": 55.34457311089303
         },
         "would_have_moved_exoplasim": {
-          "median_mm_before": 112.8,
-          "median_mm_after": 112.8,
-          "land_mean_mm_before": 141.9548773307164,
-          "land_mean_mm_after": 141.9548773307164,
+          "median_mm_before": 25.09,
+          "median_mm_after": 25.09,
+          "land_mean_mm_before": 55.34457311089303,
+          "land_mean_mm_after": 55.34457311089303,
           "ratio": {
             "p10": 1.0,
             "median": 1.0,
@@ -310,15 +310,15 @@
           }
         },
         "would_have_moved_lpj_guess": {
-          "median_mm_before": 188.44023493845538,
-          "median_mm_after": 112.8,
-          "land_mean_mm_before": 168.62631748295664,
-          "land_mean_mm_after": 141.9548773307164,
+          "median_mm_before": 52.57683259077287,
+          "median_mm_after": 25.09,
+          "land_mean_mm_before": 90.92437690173641,
+          "land_mean_mm_after": 55.34457311089303,
           "ratio": {
-            "p10": 0.41719965486670907,
-            "median": 0.630782218963996,
-            "p90": 1.232182570669175,
-            "mean": 0.737872190535359
+            "p10": 0.35511713296415426,
+            "median": 0.4793185335159446,
+            "p90": 0.6949909293735506,
+            "mean": 0.5071331655502344
           }
         }
       }
@@ -326,18 +326,18 @@
     "andic_term_mm": {
       "p10": 0.0,
       "median": 0.0,
-      "p90": 5.8791456000000055,
-      "mean": 2.1382052414131496
+      "p90": 0.6726864000000027,
+      "mean": 1.3271911736997057
     },
-    "andic_cells": 433,
+    "andic_cells": 306,
     "andic_share_of_pedology_awc": {
       "p10": 0.0,
       "median": 0.0,
-      "p90": 0.025265182938939285,
-      "mean": 0.008587703106098691
+      "p90": 0.006090659228517693,
+      "mean": 0.006717409645100451
     },
     "andic_is_not_the_disagreement": "the allophane term LPJ-GUESS has no equivalent of contributes a median of nothing and a p90 of a few per cent of pedology's capacity, against a median absolute gap between the two derivations of tens of millimetres. What separated them is that the declared endmember capacities and the Cosby retention inversion are different numbers for the same texture, not that one carries a material the other does not. The adopted closure carries no allophane term either, so the andic hydraulic effect is now a DECLARED absence rather than a disagreement between two consumers",
-    "median_absolute_gap_mm": 54.69946699662705,
+    "median_absolute_gap_mm": 26.58845120185587,
     "not_measurable_here": "the change in land runoff ratio and in E over R. Both need a paired baseline, pedology/scripts/probe_runoff_response.py needs a climatology to back-solve potential evaporation from, and config/planet.yaml declares baseline_climatology null. On this build the capacity change is costed and its climate consequence is not available at all",
     "not_execution_verified": "nothing on the LPJ-GUESS side. It does not build on this tree until a baseline climatology exists, so every LPJ number here is a transcription of the vendored source evaluated offline",
     "owner": "world-of6n"
@@ -351,147 +351,147 @@
     "is_an_envelope": "low and high are the per-cell extremes over the corners of the one-sigma box in b, log Psi_s and Theta_s. Cosby reports the three residual spreads separately and no correlation between them, so this is a bound on what the spread can be worth and not a percentile of a distribution. A correlation, if it were published, could only narrow it.",
     "within_class_sd": {
       "b": {
-        "p10": 2.3503423999999997,
-        "median": 2.750936,
-        "p90": 3.3065744,
-        "mean": 2.8030219470068696
+        "p10": 2.2041440000000003,
+        "median": 2.5693400000000004,
+        "p90": 3.2255576,
+        "mean": 2.649445040235525
       },
       "log_psi_s": {
-        "p10": 0.660102,
-        "median": 0.669728,
-        "p90": 0.6930676,
-        "mean": 0.6737714661432778
+        "p10": 0.6588539999999999,
+        "median": 0.6657519999999999,
+        "p90": 0.6860968,
+        "mean": 0.6697466398429833
       },
       "theta_s_volumetric": {
-        "p10": 0.04841125000000001,
-        "median": 0.05710805000000001,
-        "p90": 0.06245451000000001,
-        "mean": 0.05607281526005888
+        "p10": 0.05163496000000001,
+        "median": 0.059900350000000005,
+        "p90": 0.06429131,
+        "mean": 0.05839406368989205
       },
       "b_relative_to_central": {
-        "p10": 0.35621903274427913,
-        "median": 0.37543891601980606,
-        "p90": 0.3834490182022929,
-        "mean": 0.3725970833961095
+        "p10": 0.36039489662022406,
+        "median": 0.380150108218674,
+        "p90": 0.3866648627322607,
+        "mean": 0.3775224269006517
       },
       "theta_s_relative_to_central": {
-        "p10": 0.1079803029510476,
-        "median": 0.1303066480176143,
-        "p90": 0.1461773839360152,
-        "mean": 0.12834254874265205
+        "p10": 0.11419568142634878,
+        "median": 0.13789647430741578,
+        "p90": 0.15221190111526425,
+        "mean": 0.13463600920709723
       }
     },
     "awc_mm": {
       "central": {
-        "p10": 46.60616843927622,
-        "median": 175.0326956700348,
-        "p90": 242.5189767650578,
-        "mean": 156.48121366577058
+        "p10": 22.797936951976368,
+        "median": 48.738168383804144,
+        "p90": 215.55094041094662,
+        "mean": 84.27839076743994
       },
       "low": {
-        "p10": 29.017727889923794,
-        "median": 109.47546937967405,
-        "p90": 152.41496148864576,
-        "mean": 98.26480178680458
+        "p10": 14.19521925180833,
+        "median": 29.15339023347207,
+        "p90": 138.869026589875,
+        "mean": 52.11964399543696
       },
       "high": {
-        "p10": 87.16232162052378,
-        "median": 320.47282298074236,
-        "p90": 446.5961448458284,
-        "mean": 285.48351360757937
+        "p10": 41.93077175381282,
+        "median": 90.97186428248185,
+        "p90": 384.04587346885154,
+        "mean": 154.29203555808306
       },
       "low_over_central": {
-        "p10": 0.6176891335807518,
-        "median": 0.6278488392358162,
-        "p90": 0.6443332357581185,
-        "mean": 0.6262510589005945
+        "p10": 0.5719827899580056,
+        "median": 0.622877103553673,
+        "p90": 0.6389688971068438,
+        "mean": 0.6148821192440396
       },
       "high_over_central": {
-        "p10": 1.7454092533655627,
-        "median": 1.8496044960664495,
-        "p90": 1.8715079682337474,
-        "mean": 1.830133605097381
+        "p10": 1.7664882410109841,
+        "median": 1.8620204433896324,
+        "p90": 1.8787130796042064,
+        "mean": 1.8451552323375362
       }
     },
     "states": {
       "theta_s": {
         "central": {
-          "p10": 0.42582152000000006,
-          "median": 0.4373141,
-          "p90": 0.45157842,
-          "mean": 0.4379315025515211
+          "p10": 0.4216999600000001,
+          "median": 0.4342603,
+          "p90": 0.44812396000000004,
+          "mean": 0.43475915466143283
         },
         "low": {
-          "p10": 0.36386373000000005,
-          "median": 0.38023619999999997,
-          "p90": 0.40362033,
-          "mean": 0.3818586872914622
+          "p10": 0.35778582000000003,
+          "median": 0.37435995,
+          "p90": 0.39787251,
+          "mean": 0.3763650909715407
         },
         "high": {
-          "p10": 0.48659343,
-          "median": 0.4937583,
-          "p90": 0.50194801,
-          "mean": 0.49400431781158
+          "p10": 0.48453340000000006,
+          "median": 0.4931063,
+          "p90": 0.50194893,
+          "mean": 0.4931532183513248
         }
       },
       "theta_fc": {
         "central": {
-          "p10": 0.30798056008542174,
-          "median": 0.34459794522295956,
-          "p90": 0.3876546938740018,
-          "mean": 0.34560390802380503
+          "p10": 0.2928988375140498,
+          "median": 0.33201056402649504,
+          "p90": 0.37689235689571826,
+          "mean": 0.33396302396916566
         },
         "low": {
-          "p10": 0.143891044104635,
-          "median": 0.186237260261936,
-          "p90": 0.23896363136532714,
-          "mean": 0.1893170943911477
+          "p10": 0.1277373004276801,
+          "median": 0.16806852372966344,
+          "p90": 0.23279261693978223,
+          "mean": 0.17421739148781362
         },
         "high": {
-          "p10": 0.4620429145342902,
-          "median": 0.48400801331999094,
-          "p90": 0.5015528702488912,
-          "mean": 0.4826066035119457
+          "p10": 0.4525942417474434,
+          "median": 0.4785406743057973,
+          "p90": 0.5007718259587841,
+          "mean": 0.47753263884630187
         }
       },
       "theta_wp": {
         "central": {
-          "p10": 0.14163808325896943,
-          "median": 0.18007169043757007,
-          "p90": 0.2258210278373463,
-          "mean": 0.18260736318423335
+          "p10": 0.126588608105535,
+          "median": 0.16301384751301481,
+          "p90": 0.2222685969692815,
+          "mean": 0.1686974831804006
         },
         "low": {
-          "p10": 0.040743176435279665,
-          "median": 0.06589028055012695,
-          "p90": 0.10487918050284133,
-          "mean": 0.07018433072674465
+          "p10": 0.032666432347406404,
+          "median": 0.053449404477895895,
+          "p90": 0.09715566384765822,
+          "mean": 0.060045952738491705
         },
         "high": {
-          "p10": 0.2634868334158634,
-          "median": 0.30156775861472374,
-          "p90": 0.34507746543767653,
-          "mean": 0.3024862165909206
+          "p10": 0.24778303631399162,
+          "median": 0.2862267312482658,
+          "p90": 0.336786402078382,
+          "mean": 0.28959222131717266
         }
       },
       "b": {
         "central": {
-          "p10": 6.14965,
-          "median": 7.3514,
-          "p90": 9.215300000000001,
-          "mean": 7.555019273797841
+          "p10": 5.710194,
+          "median": 6.753399999999999,
+          "p90": 8.576788,
+          "mean": 7.051437968596663
         },
         "low": {
-          "p10": 3.7909716,
-          "median": 4.594111999999999,
-          "p90": 5.909593199999998,
-          "mean": 4.751997326790971
+          "p10": 3.5148688000000003,
+          "median": 4.172772,
+          "p90": 5.4246924,
+          "mean": 4.401992928361139
         },
         "high": {
-          "p10": 8.5101032,
-          "median": 10.106876,
-          "p90": 12.537530000000002,
-          "mean": 10.358041220804711
+          "p10": 7.9226848,
+          "median": 9.324662,
+          "p90": 11.797454,
+          "mean": 9.700883008832188
         }
       }
     },
@@ -503,22 +503,22 @@
     "installed_note": "the emitted states are the central case and every consumer installs that. A case is a states file away: `contract_states` takes the deviates and nothing downstream of it knows which case it read.",
     "against_the_gravity_shift": {
       "gravity_move_in_awc": {
-        "p10": 0.06762124886809125,
-        "median": 0.07171884311958121,
-        "p90": 0.07580009518539474,
-        "mean": 0.07172468394047005
+        "p10": 0.06881079125327796,
+        "median": 0.07355350967920093,
+        "p90": 0.07776186257081714,
+        "mean": 0.07328130121083529
       },
       "case_move_in_awc": {
-        "p10": 0.7454092533655626,
-        "median": 0.8496044960664495,
-        "p90": 0.8715079682337474,
-        "mean": 0.830133605097381
+        "p10": 0.766488241010984,
+        "median": 0.8620204433896324,
+        "p90": 0.8787130796042065,
+        "mean": 0.8451552323375362
       },
       "case_over_gravity": {
-        "p10": 10.819009964361445,
-        "median": 11.707081570821817,
-        "p90": 12.075266387102882,
-        "mean": 11.570063829710005
+        "p10": 10.800631694695525,
+        "median": 11.630724178724964,
+        "p90": 12.098273525664995,
+        "mean": 11.540082981683284
       },
       "cells_where_the_case_move_is_smaller": 0,
       "note": "the gravity shift is one-signed and moves every cell the same way, so it does not average out over the map; this spread is a scatter and does. They are not interchangeable and the comparison is of magnitude only."
@@ -572,15 +572,15 @@
     }
   ],
   "thermal_reduction": {
-    "sr_at_wilting_point": 0.41142418334383235,
-    "sr_at_field_capacity": 0.7876778918625867,
+    "sr_at_wilting_point": 0.37599680234835553,
+    "sr_at_field_capacity": 0.7642302588363786,
     "sr_at_wilting_point_p5_p95": [
-      0.3088626476346498,
-      0.5410039889564962
+      0.2781456181241189,
+      0.5134183825053579
     ],
     "sr_at_field_capacity_p5_p95": [
-      0.6994445194582215,
-      0.8625852352535783
+      0.6670202258444856,
+      0.8593677616433609
     ],
     "median_bulk_density_kg_m3": 1500.0,
     "dry_conductivity_w_m_k": 0.20883157483391948,
@@ -588,11 +588,11 @@
     "dry_heat_capacity_j_m3_k": 1111111.1111111112,
     "saturated_heat_capacity_j_m3_k": 2968888.888888889,
     "thermal_inertia_j_m2_k_s05": {
-      "empty_store": 1342.5,
-      "full_store": 1833.9,
+      "empty_store": 1285.4,
+      "full_store": 1807.1,
       "air_dry": 489.7,
       "saturated": 2062.8,
-      "store_range_factor": 1.366,
+      "store_range_factor": 1.406,
       "full_sweep_factor": 4.212
     }
   },
@@ -600,45 +600,45 @@
     "thickness_m": 0.02,
     "air_dry_water_content": 0.0,
     "capacity_mm": {
-      "p10": 6.090850491264947,
-      "median": 6.865391195461729,
-      "p90": 7.647231251891739,
-      "mean": 6.8614446108039635
+      "p10": 3.2740277282185177,
+      "median": 6.288451430818136,
+      "p90": 7.338309003387218,
+      "mean": 5.826518331676209
     },
     "sub_wilting_increment_mm": {
-      "p10": 2.806687358774785,
-      "median": 3.5701858044719925,
-      "p90": 4.516420556746926,
-      "mean": 3.6241311326828867
+      "p10": 1.6208019458713707,
+      "median": 2.9725452230324914,
+      "p90": 4.179347865949917,
+      "mean": 2.9249227323581164
     },
     "awc_mm": {
-      "p10": 46.60616843927622,
-      "median": 175.0326956700348,
-      "p90": 242.5189767650578,
-      "mean": 156.48121366577058
+      "p10": 22.797936951976368,
+      "median": 48.738168383804144,
+      "p90": 215.55094041094662,
+      "mean": 84.27839076743994
     },
     "evaporable_mm": {
-      "p10": 49.936667378799136,
-      "median": 178.54038698267902,
-      "p90": 246.03287130917712,
-      "mean": 160.10534479845347
+      "p10": 24.397149178082447,
+      "median": 51.634645827641236,
+      "p90": 219.59353008292578,
+      "mean": 87.20331349979804
     },
     "increment_over_awc": {
-      "p10": 0.013701721079203597,
-      "median": 0.022519825196927877,
-      "p90": 0.07466810808377744,
-      "mean": 0.034029109957797114
+      "p10": 0.018079188748254846,
+      "median": 0.05806037850246997,
+      "p90": 0.09488606882793948,
+      "mean": 0.055660348316989454
     },
     "air_dry_overdraw_mm": {
       "what": "the water the surface layer can give up that a real soil would hold by adsorption at the ambient humidity. `air_dry_water_content` is declared zero, so the overdraw is the sub-wilting increment times theta_ad over theta_wp, an unknown fraction under one; the BOUND and its direction are what is known",
       "bounded_by_mm": {
-        "p10": 2.806687358774785,
-        "median": 3.5701858044719925,
-        "p90": 4.516420556746926,
-        "mean": 3.6241311326828867
+        "p10": 1.6208019458713707,
+        "median": 2.9725452230324914,
+        "p90": 4.179347865949917,
+        "mean": 2.9249227323581164
       }
     },
-    "identity_residual_mm": 2.842170943040401e-14,
+    "identity_residual_mm": 2.3092638912203256e-14,
     "split_invariance": {
       "what": "the column total and the runoff under a two-layer and a three-layer partition of the same total capacity, driven by one flux sequence through landcolumn.f90's own cascade",
       "steps": 4096,
@@ -650,7 +650,7 @@
     },
     "saturation_endpoints": {
       "sr_at_air_dry": 0.0,
-      "sr_at_field_capacity": 0.7877,
+      "sr_at_field_capacity": 0.7642,
       "note": "the surface layer's own mapping. It differs from the thermal one in the lower endpoint only, because its capacity is cut from air dry and the layers below it are cut from the wilting point."
     },
     "consumers": {
@@ -667,5 +667,56 @@
         "note": "The emitting depth is DUST-17's and is not this contract's to set. What is settled here is that whatever depth it declares is a reading off this profile: `aeolian/config/dust.yaml` states the gravimetric conversion once and reaches the model as the single namelist constant `dustwcv`, and the surface layer is what that conversion applies to. Until DUST-17 lands, that file's `moisture.soil_depth_m` is 0.5 and the two rows are reading different depths off the same column, which is legal and is why the depth is a per-consumer field here.\n"
       }
     }
-  }
+  },
+  "restatements": [
+    {
+      "where": "vendor/exoplasim/exoplasim/plasim/src/landmod.f90",
+      "key": "soilsrwp",
+      "declared": 0.376,
+      "states": 0.376,
+      "enforced_by": "exoplasim/scripts/run_exoplasim.py, at import",
+      "status": "agrees"
+    },
+    {
+      "where": "vendor/exoplasim/exoplasim/plasim/src/landmod.f90",
+      "key": "soilsrfc",
+      "declared": 0.7642,
+      "states": 0.7642,
+      "enforced_by": "exoplasim/scripts/run_exoplasim.py, at import",
+      "status": "agrees"
+    },
+    {
+      "where": "vendor/exoplasim/exoplasim/plasim/src/landmod.f90",
+      "key": "skinsrfc",
+      "declared": 0.7642,
+      "states": 0.7642,
+      "enforced_by": "exoplasim/scripts/run_exoplasim.py, at import",
+      "status": "agrees"
+    },
+    {
+      "where": "config/planet.yaml",
+      "key": "surface.soil_albedo_moisture.saturation_at_full_layer",
+      "declared": 0.7642,
+      "states": 0.7642,
+      "enforced_by": "scripts/check_consistency.py",
+      "status": "agrees"
+    },
+    {
+      "where": "config/planet.yaml",
+      "key": "surface.soil_thermal.saturation_at_empty_store",
+      "declared": 0.376,
+      "states": null,
+      "enforced_by": "scripts/check_consistency.py",
+      "status": "unset"
+    },
+    {
+      "where": "config/planet.yaml",
+      "key": "surface.soil_thermal.saturation_at_full_store",
+      "declared": 0.7642,
+      "states": null,
+      "enforced_by": "scripts/check_consistency.py",
+      "status": "unset"
+    }
+  ],
+  "declaration_written": []
 }

@@ -46,6 +46,15 @@ since the loop is only monotone if an already-carved basin stays carved.
 **Config internal consistency.** Gravity against mass, and the declared orbit
 against the flux it is derived from.
 
+**The configured soil saturation endpoints against the contract that derives
+them.** `pedology/config/land_column_properties.yaml` derives the degree of
+saturation at an empty and a full store as medians over the build's own land
+cells, so they move with every soil rebuild. `run_exoplasim.py` already refuses
+when `landmod.f90`'s compiled defaults drift from that contract; nothing refused
+when `config/planet.yaml` did, and that is the copy the armed moisture-dependent
+soil albedo reads. A key the config leaves unset is written at the compiled
+default and is passed, because unset is one copy of the number instead of two.
+
 **The configured flux against the DERIVED one.** `config/pipeline.yaml` makes
 `baseline_run` need `design_flux`, but that edge only says the artifact exists:
 adopting its winner into `config/planet.yaml` is a separate human act, because
@@ -1015,6 +1024,84 @@ def main() -> int:
                     f"{Path(declared).name} is on {got}, config names {build}")
         else:
             rep.add(OK, label, f"on {build}")
+
+    # -- the configured soil saturation endpoints against the contract -------
+    #
+    # `pedology/config/land_column_properties.yaml` DERIVES the degree of
+    # saturation at an empty and a full store as medians over the build's own
+    # land cells, and `pedology/scripts/land_column_properties.py` refuses when
+    # they stop being that statistic. A run reaches those numbers through copies:
+    # `landmod.f90` carries them as compiled `landmod_nl` defaults, and
+    # `config/planet.yaml` restates the surface layer's pair because the
+    # moisture-dependent soil albedo is an ARM and an arm's endpoints have to be
+    # declared where the arm is. `run_exoplasim.py` refuses at import when the
+    # compiled defaults drift from the contract. Nothing refused when the CONFIG
+    # did, and that is the copy an armed term reads.
+    #
+    # WHY THIS IS THE TIER FOR IT. The medians move with every soil rebuild,
+    # which is every turn of loop A, so this is exactly a "do the artifacts
+    # agree" question about a derived quantity, and what it protects is the run
+    # that comes after it: a stale upper endpoint means the modelled albedo
+    # mixing reaches its wet end at a saturation the soil no longer has.
+    #
+    # AN UNSET KEY IS NOT A FAILURE. `run_exoplasim.py` writes each of these
+    # keys into `landmod_nl` whatever the config says; a key the config leaves
+    # out is written at `landmod.f90`'s compiled default, which that script
+    # already holds to the contract. Unset is one copy of the number instead of
+    # two.
+    contract_path = (ROOT / "pedology" / "config"
+                     / "land_column_properties.yaml")
+    label = "configured soil saturation vs the land column contract"
+    if not contract_path.is_file():
+        rep.add(FAIL, label, f"{rel(contract_path)} does not exist")
+    else:
+        contract = yaml.safe_load(contract_path.read_text(encoding="utf-8"))
+        mapping = contract["thermal"]["saturation_mapping"]
+        tol = float(mapping["tolerance"])
+        surface_map = contract["surface_layer"]["saturation_mapping"]
+        node = contract
+        for part in str(surface_map["sr_at_field_capacity_from"]).split("."):
+            node = node[part]
+        wanted = {
+            ("soil_albedo_moisture", "saturation_at_empty_layer"):
+                (float(surface_map["sr_at_air_dry"]),
+                 "surface_layer.saturation_mapping.sr_at_air_dry"),
+            ("soil_albedo_moisture", "saturation_at_full_layer"):
+                (float(node), str(surface_map["sr_at_field_capacity_from"])),
+            ("soil_thermal", "saturation_at_empty_store"):
+                (float(mapping["sr_at_wilting_point"]),
+                 "thermal.saturation_mapping.sr_at_wilting_point"),
+            ("soil_thermal", "saturation_at_full_store"):
+                (float(mapping["sr_at_field_capacity"]),
+                 "thermal.saturation_mapping.sr_at_field_capacity"),
+        }
+        surface_cfg = config.get("surface", {}) or {}
+        agreed, unset = [], []
+        for (block_name, key), (declared, source) in sorted(wanted.items()):
+            stated = (surface_cfg.get(block_name, {}) or {}).get(key)
+            if stated is None:
+                unset.append(f"surface.{block_name}.{key}")
+            elif abs(float(stated) - declared) > tol:
+                rep.add(FAIL, label,
+                        f"config/planet.yaml surface.{block_name}.{key} is "
+                        f"{float(stated):g} and {rel(contract_path)} derives "
+                        f"{declared:g} at {source}, outside the contract's own "
+                        f"tolerance of {tol:g}. The endpoint is a median over "
+                        f"this build's land cells and the soil has been rebuilt "
+                        f"under it; re-derive with "
+                        f"`pedology/scripts/land_column_properties.py "
+                        f"--update-declaration` and carry the new value into "
+                        f"every restatement it names")
+            else:
+                agreed.append(f"surface.{block_name}.{key}")
+        if agreed:
+            rep.add(OK, label, f"{len(agreed)} declared and agreeing: "
+                               f"{', '.join(agreed)}")
+        if unset:
+            rep.add(OK, label, f"{len(unset)} unset, so written at "
+                               f"landmod.f90's compiled default, which "
+                               f"run_exoplasim.py holds to the same contract: "
+                               f"{', '.join(unset)}")
 
     # -- the configured flux is the DERIVED flux -----------------------------
     #

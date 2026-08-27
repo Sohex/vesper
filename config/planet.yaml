@@ -623,12 +623,18 @@ surface:
   # carries the argument and the one class the staged field refuses.
   #
   # THE TWO SATURATION ENDPOINTS ARE READ, NOT CHOSEN. They are the contract's
-  # `surface_layer.saturation_mapping`, and `run_exoplasim.py` checks both this
-  # block and `landmod.f90`'s compiled defaults against it at the contract's own
-  # tolerance, the way it already checks the soil heat solver's six. They differ
-  # from `surface.soil_thermal`'s pair in the LOWER endpoint alone, because the
-  # surface layer's capacity is cut from air dry and the layers below it are cut
-  # from the wilting point.
+  # `surface_layer.saturation_mapping`. `run_exoplasim.py` checks `landmod.f90`'s
+  # compiled defaults against it at the contract's own tolerance, the way it
+  # already checks the soil heat solver's six, and `scripts/check_consistency.py`
+  # checks THIS block against it. The upper endpoint differs from the soil heat
+  # solver's pair in the LOWER endpoint alone, because the surface layer's
+  # capacity is cut from air dry and the layers below it are cut from the
+  # wilting point.
+  #
+  # The upper endpoint is a MEDIAN over the build's own land cells, so it moves
+  # with every soil rebuild. `pedology/scripts/land_column_properties.py
+  # --update-declaration` re-derives the contract's copy and names this key as
+  # one of the restatements that then has to follow it.
   #
   # `shape_sigma` IS A LIMIT AND NOT A FIT. It is the ratio of the dry soil's
   # scattering coefficient to the saturated soil's, and it is one where the
@@ -642,7 +648,7 @@ surface:
   soil_albedo_moisture:
     enabled: true
     saturation_at_empty_layer: 0.0
-    saturation_at_full_layer: 0.7877
+    saturation_at_full_layer: 0.7642
     shape_sigma_broadband: 1.0
     shape_sigma_band1: 1.0
     shape_sigma_band2: 1.0
