@@ -1,9 +1,16 @@
 {
-  "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
-  "generated": "2026-08-27T09:24:02+00:00",
+  "climatology": "exoplasim/analysis/climatology/endmember_regular_climatology.nc",
+  "generated": "2026-08-27T12:31:34+00:00",
   "code": 229,
   "field": "dwmax, maximum soil water capacity, metres",
-  "lakes": null,
+  "lakes": {
+    "source": "hydrography/data/canonical-10m-base/surface_water_endmember.nc",
+    "lake_dwmax_m": 0.2,
+    "mean_lake_fraction_of_land_cells": 0.07665780481776671,
+    "land_mean_dwmax_before_m": 0.0872,
+    "land_mean_dwmax_after_m": 0.09305,
+    "ceiling": "annual lake evaporation is still capped by local precipitation; river water never re-enters dwatc"
+  },
   "capacity_split": {
     "code": 2290,
     "field": "dsoilwfc, the capacity of each land water layer as a fraction of dwmax, per cell",
@@ -42,7 +49,7 @@
       "at_the_geometric_value": 0.0
     },
     "derivation": "the per-layer usable shares the land column property contract emits, cut onto the declared water column by overlap depth and multiplied by the volumetric range each layer's capacity is taken over. The same array the capacity column is the integral of, so the split and the capacity are one arithmetic rather than two that agree, and `capacity_identity_residual_mm` is the check.",
-    "lakes": null,
+    "lakes": "the lake blend moves dwmax and not the split: the lake fraction of a cell has no soil profile, so its share of the bucket is cut on the surrounding column's shape. The split is a property of the soil column and this is the limit of it.",
     "output": "exoplasim/inputs/t21/orogen_T21_surf_2290.sra",
     "output_sha256": "887d3070c95ff6ade01f29485319069347441be68371fc253810c3b4200d3656"
   },
@@ -50,24 +57,24 @@
   "land_column_states_sha256": "9c071a9ae0fe5bf6145ef3be2ada294ec28ff28060b839e92408d90419638287",
   "capacity_column": "evaporable_mm",
   "capacity_source": "the land column property contract's evaporable_mm column, selected by whether the declared water column carries the contract's surface layer at its top. This script converts mm to m and installs it; it derives no capacity of its own. `awc_mm` is LPJ-GUESS's and is not what this installs when a surface layer is present.",
-  "config_sha256": "b1664cde8a2a496e93dfd79dc8cc8f14b7364521db954c4a9320b1010dbfa3a3",
+  "config_sha256": "538846f23e2adfd56aba943be6ad61219dc5b531796adbb541cd7247dc8ccece",
   "resolution": "T21",
   "land_cells": 1019,
   "land_cells_matched": 1019,
   "land_cells_without_soil_left_at_default": 0,
-  "land_mean_capacity_m": 0.11258552434853197,
+  "land_mean_capacity_m": 0.11741079885333325,
   "exoplasim_uniform_default_m": 0.5,
   "why_this_matters": "landmod.f90 computes runoff as the overflow of this bucket, so a uniform default makes runoff a namelist property rather than a soil property; the model's low land runoff ratio is the symptom.",
   "enabled_by": "model.soil_water_source in config/planet.yaml (currently set to pedology). Changing the key is a configuration change continue_exoplasim.py refuses to resume across, so moving it blocks runs in flight.",
   "output": "exoplasim/inputs/t21/orogen_T21_surf_0229.sra",
-  "output_sha256": "e3faccc60e92505c0ea5ac3be8660de6ed4f950871dfd7251470d12509e909e4",
-  "git_commit": "0b20a08143d5687dc88f9af1cb1ed3e23b8a5292",
+  "output_sha256": "60df5a29cea9f61bb41b62e73f0aa3353b8bafe8dd467a0eaf43513b8f0b1e98",
+  "git_commit": "85e1b8bffff649a576fe197547627504ebbc709d",
   "generator": "exoplasim/scripts/build_surface_soil_water.py",
   "source_config": {
     "schema_version": 1,
     "source_build": "canonical-10m-base",
     "baseline_climatology": null,
-    "bootstrap_climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+    "bootstrap_climatology": null,
     "planet": {
       "radius_earth": 1.2,
       "gravity_m_s2": 12.81,
@@ -144,11 +151,6 @@
         "scheme": "layered",
         "layers": 3,
         "lower_boundary": "impermeable",
-        "layer_capacity_fraction": [
-          0.013333,
-          0.32,
-          0.666667
-        ],
         "layer_thickness_m": [
           0.02,
           0.48,
@@ -249,11 +251,9 @@
         }
       },
       "cold_start_profile": {
-        "surface_temperature_k": 289.03,
-        "lapse_rate_k_per_m": 0.008489,
-        "tropopause_height_m": 9220.0
+        "surface_temperature_k": 279.83
       },
-      "semi_implicit_reference_temperature_k": 249.4,
+      "semi_implicit_reference_temperature_k": 241.41,
       "rayleigh_sponge_rotations": [
         20.0,
         100.0,
@@ -276,13 +276,11 @@
       "precip_reevaporation_gamma": "derived",
       "cloud_fraction_subgrid_width": "derived",
       "asymptotic_mixing_length_m": "derived",
-      "land_longwave_emissivity": 0.9357,
+      "land_longwave_emissivity": 0.935,
       "sea_longwave_emissivity": 0.98,
       "ozone_scale": 0.794,
-      "ozone_height_m": 15311.8,
-      "ozone_spread_m": 3828.0,
       "ozone_uv_weight": 0.335,
-      "ozone_visible_weight": 0.914,
+      "ozone_visible_weight": 0.908,
       "h2o_sw_weight": 1.346,
       "h2o_sw_level": 1.163,
       "h2o_sw_level_bracket": [
@@ -293,7 +291,7 @@
       "roughness_source": "lithology",
       "soil_water_source": "uniform",
       "lake_dwmax_m": 0.2,
-      "land_albedo_source": "vegetated",
+      "land_albedo_source": "lithology",
       "vegetation_albedo": 0.165,
       "vegetation_albedo_bracket": [
         0.15,
@@ -332,12 +330,12 @@
         "medium": {
           "period_earth_years": 11.0,
           "amplitude_flux_peak_to_peak": 0.025,
-          "note": "The lived rhythm. Damped about 0.83, so roughly 3.1 K peak-to-peak, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow.\n"
+          "note": "The lived rhythm. Damped about 0.83, so amplitude times damping times `lib/sensitivity.py`'s slope, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow. The kelvin figure is NOT restated here: it is a product of a slope that is re-derived per model, and the two numbers that stood here before reproduced at a slope retired two measurements ago.\n"
         },
         "long": {
           "period_earth_years": 57.0,
           "amplitude_flux_peak_to_peak": 0.035,
-          "note": "The geomorphic driver. Essentially undamped at 0.99, roughly 5.2 K peak-to-peak, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+          "note": "The geomorphic driver. Essentially undamped at 0.99, so amplitude times damping times the same slope, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
         }
       },
       "total_amplitude_flux_peak_to_peak": 0.06,
@@ -346,6 +344,7 @@
   },
   "source_inputs": {
     "pedology/data/canonical-10m-base/land_column_states_T21.txt": "9c071a9ae0fe5bf6145ef3be2ada294ec28ff28060b839e92408d90419638287",
-    "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc": "16c4b30f5c52eb91b878ca74d62fdb472c9693f342699ecf3feb99b650df0e8e"
+    "exoplasim/analysis/climatology/endmember_regular_climatology.nc": "be52fae201a4c16798957c97c002a672a145486cd0d24ec8a901ef281f764137",
+    "hydrography/data/canonical-10m-base/surface_water_endmember.nc": "82789e17b7ae9695b3fce4393d34013bb0546fb1216241e70417311176736d9f"
   }
 }

@@ -84,7 +84,7 @@ baseline_climatology: null
 # vegetated arm's. Its bootstrap writes
 # exoplasim/analysis/climatology/endmember_regular_climatology.nc and
 # this key names it from then on.
-bootstrap_climatology: null
+bootstrap_climatology: exoplasim/analysis/climatology/endmember_regular_climatology.nc
 
 # DETERMINED. Radius and gravity are Orogen's and canonical; mass follows from
 # gravity as mass_earth = (g/g_earth) * radius_earth^2, and derive() raises if
@@ -1333,7 +1333,7 @@ model:
   # UNIFORM FOR THE BOOTSTRAP, pedology for the baseline, and the flip goes
   # between them. With `pedology` set, run_exoplasim requires surface code 229 --
   # the one field the bootstrap exists to make possible. docs/src/pipeline/sequencing.md.
-  soil_water_source: uniform
+  soil_water_source: pedology
   # DECLARED. The bucket depth `build_surface_soil_water.py --lakes` writes over
   # the lake fraction of a land cell, metres of water, surface code 0229.
   #

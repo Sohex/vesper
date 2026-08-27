@@ -1,5 +1,5 @@
 {
-  "mode": "vegetated",
+  "mode": "lithology",
   "mesh": "/home/cfutro/docs/world/source/canonical-10m-base/exoplasim-T42",
   "grid": "/home/cfutro/docs/world/source/canonical-10m-base/exoplasim-T21",
   "resolution": "T21",
@@ -13,9 +13,9 @@
     1750,
     1760
   ],
-  "forest_fraction_value": 0.5,
+  "forest_fraction_value": 0.0,
   "vegetation": null,
-  "forest_fraction_land_mean": 0.35339680719051003,
+  "forest_fraction_land_mean": 0.0,
   "lithology_albedo_overrides": {
     "playa_clastic": {
       "rock_id": 19,
@@ -24,16 +24,7 @@
       "regions": 1115655
     }
   },
-  "vegetation_albedo": {
-    "value": 0.165,
-    "source": "config model.vegetation_albedo",
-    "derivation": "analysis/vegetation_albedo.json",
-    "band_ratio": 3.0052,
-    "bands_175_176": [
-      0.07371,
-      0.22152
-    ]
-  },
+  "vegetation_albedo": null,
   "bands": {
     "split": true,
     "band_flux_fractions": [
@@ -43,11 +34,11 @@
     "band_flux_source": "lib/stellar.band_fractions",
     "rock_band_ratios": "analysis/rock_albedo_bands.json",
     "canopy_band_ratios": "analysis/vegetation_albedo.json",
-    "recombination_worst_residual": 1.8596235662471372e-15,
+    "recombination_worst_residual": 2.275957200481571e-15,
     "recombination_tolerance": 1e-05,
     "note": "z1*175 + z2*176 == 174 over the whole grid, checked before writing. The .sra format rounds at %12.5f, so the tolerance is twice that quantum and not tighter.",
-    "band1_land_mean": 0.10625558282490186,
-    "band2_land_mean": 0.24379490365494286
+    "band1_land_mean": 0.20330192467458508,
+    "band2_land_mean": 0.2632714488005676
   },
   "barren_rock_classes": [
     "evaporite",
@@ -55,11 +46,10 @@
   ],
   "forest_note": "dforest blends snow albedo between forested and unforested endpoints, so it has to agree with the background albedo assumption. ExoPlaSim's default is a uniform 0.5.",
   "land_mean_bare_rock": 0.24942152886996136,
-  "land_mean_written": 0.19120371935144498,
+  "land_mean_written": 0.24034078230556663,
   "endmembers": {
     "note": "land-mean albedo of the two surface endmembers, on the overridden rock table and before lakes. Their difference is what the biosphere is worth; pair only these two.",
-    "bare_rock": 0.25973946667628456,
-    "vegetated": 0.19035835022902675
+    "bare_rock": 0.25973946667628456
   },
   "moisture_dependence": {
     "state": "staged",
@@ -126,23 +116,43 @@
     },
     "held_pair_bracket_passes": true,
     "band2_liquid_absorption_direction": "both arms are UPPER bounds on the wet endmember in band 2: neither carries the liquid's own absorption, and a wetted surface can only be darker for it",
-    "refused_regions": 112098,
+    "refused_regions": 387906,
     "cells_entirely_refused_material": 0,
-    "band1_land_mean_saturated": 0.07878389385575654,
-    "band2_land_mean_saturated": 0.19732516817918513,
-    "broadband_land_mean_saturated": 0.15199830479283294,
-    "broadband_land_mean_dry": 0.19120371935144498,
+    "band1_land_mean_saturated": 0.07710760565890404,
+    "band2_land_mean_saturated": 0.10603735955762511,
+    "broadband_land_mean_saturated": 0.09497543188515571,
+    "broadband_land_mean_dry": 0.24034078230556663,
     "codes": [
       1742,
       1750,
       1760
     ]
   },
-  "lakes": null,
-  "derived_evaporite": null,
+  "lakes": {
+    "source": "hydrography/data/canonical-10m-base/surface_water_endmember.nc",
+    "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
+    "lake_regions": 387906,
+    "lake_fraction_of_land": 0.09099040528203438,
+    "water_albedo": 0.06,
+    "land_mean_albedo_before": 0.25356,
+    "land_mean_albedo_after": 0.239246,
+    "delta": -0.014314
+  },
+  "derived_evaporite": {
+    "method": "salt crust = regions whose solved lake depth is at or below the local annual evaporation depth, so they dry within one orbit",
+    "climatology": "exoplasim/analysis/climatology/endmember_regular_climatology.nc",
+    "orbital_year_seconds": 15794043.122719022,
+    "geometric_salt_fraction_of_land": 0.025646872516781074,
+    "derived_salt_fraction_of_land": 0.006698815843627747,
+    "salt_albedo": 0.5,
+    "playa_albedo": 0.19,
+    "land_mean_albedo_before": 0.259739,
+    "land_mean_albedo_after": 0.25356,
+    "delta": -0.00618
+  },
   "exoplasim_default_albland": 0.22,
-  "land_min": 0.16499999999999942,
-  "land_max": 0.29300583337387126,
+  "land_min": 0.10000000149011606,
+  "land_max": 0.39241052488204403,
   "files": [
     "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_1742.sra",
     "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_1750.sra",
@@ -158,6 +168,7 @@
     "schema_version": 1,
     "source_build": "canonical-10m-base",
     "baseline_climatology": null,
+    "bootstrap_climatology": null,
     "planet": {
       "radius_earth": 1.2,
       "gravity_m_s2": 12.81,
@@ -234,11 +245,6 @@
         "scheme": "layered",
         "layers": 3,
         "lower_boundary": "impermeable",
-        "layer_capacity_fraction": [
-          0.013333,
-          0.32,
-          0.666667
-        ],
         "layer_thickness_m": [
           0.02,
           0.48,
@@ -253,7 +259,7 @@
       "soil_albedo_moisture": {
         "enabled": true,
         "saturation_at_empty_layer": 0.0,
-        "saturation_at_full_layer": 0.7877,
+        "saturation_at_full_layer": 0.7642,
         "shape_sigma_broadband": 1.0,
         "shape_sigma_band1": 1.0,
         "shape_sigma_band2": 1.0
@@ -339,11 +345,9 @@
         }
       },
       "cold_start_profile": {
-        "surface_temperature_k": 289.03,
-        "lapse_rate_k_per_m": 0.008489,
-        "tropopause_height_m": 9220.0
+        "surface_temperature_k": 279.83
       },
-      "semi_implicit_reference_temperature_k": 249.4,
+      "semi_implicit_reference_temperature_k": 241.41,
       "rayleigh_sponge_rotations": [
         20.0,
         100.0,
@@ -366,13 +370,11 @@
       "precip_reevaporation_gamma": "derived",
       "cloud_fraction_subgrid_width": "derived",
       "asymptotic_mixing_length_m": "derived",
-      "land_longwave_emissivity": 0.9357,
+      "land_longwave_emissivity": 0.935,
       "sea_longwave_emissivity": 0.98,
       "ozone_scale": 0.794,
-      "ozone_height_m": 15311.8,
-      "ozone_spread_m": 3828.0,
       "ozone_uv_weight": 0.335,
-      "ozone_visible_weight": 0.914,
+      "ozone_visible_weight": 0.908,
       "h2o_sw_weight": 1.346,
       "h2o_sw_level": 1.163,
       "h2o_sw_level_bracket": [
@@ -383,7 +385,7 @@
       "roughness_source": "lithology",
       "soil_water_source": "uniform",
       "lake_dwmax_m": 0.2,
-      "land_albedo_source": "vegetated",
+      "land_albedo_source": "lithology",
       "vegetation_albedo": 0.165,
       "vegetation_albedo_bracket": [
         0.15,
@@ -422,23 +424,25 @@
         "medium": {
           "period_earth_years": 11.0,
           "amplitude_flux_peak_to_peak": 0.025,
-          "note": "The lived rhythm. Damped about 0.83, so roughly 3.1 K peak-to-peak, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow.\n"
+          "note": "The lived rhythm. Damped about 0.83, so amplitude times damping times `lib/sensitivity.py`'s slope, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow. The kelvin figure is NOT restated here: it is a product of a slope that is re-derived per model, and the two numbers that stood here before reproduced at a slope retired two measurements ago.\n"
         },
         "long": {
           "period_earth_years": 57.0,
           "amplitude_flux_peak_to_peak": 0.035,
-          "note": "The geomorphic driver. Essentially undamped at 0.99, roughly 5.2 K peak-to-peak, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+          "note": "The geomorphic driver. Essentially undamped at 0.99, so amplitude times damping times the same slope, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
         }
       },
       "total_amplitude_flux_peak_to_peak": 0.06,
       "alignment_recurrence_earth_years": 314
     }
   },
-  "config_sha256": "5226668c1b193c141e74101eaf0f88d9fc246f207696e62e58be7a37d146fba8",
-  "git_commit": "601d55aa3bf1e2d8faff657db9b03be88361a5eb",
+  "config_sha256": "538846f23e2adfd56aba943be6ad61219dc5b531796adbb541cd7247dc8ccece",
+  "git_commit": "85e1b8bffff649a576fe197547627504ebbc709d",
   "source_inputs": {
     "analysis/rock_albedo_bands.json": "6232e5a11cf2d7d851aad6e01ba3ae306354f618081d11ea6a76917a70efa213",
     "analysis/vegetation_albedo.json": "f6a970ca470dbbfa2d75a11a3767d57f66ee48cf8da66815d0f3b601851463bf",
-    "analysis/soil_albedo_wetting.json": "a10ef0fc93db43a026c166b9eb96fded66ffd009c1f70d7d5563c3f909e08999"
+    "analysis/soil_albedo_wetting.json": "a10ef0fc93db43a026c166b9eb96fded66ffd009c1f70d7d5563c3f909e08999",
+    "hydrography/data/canonical-10m-base/surface_water_endmember.nc": "82789e17b7ae9695b3fce4393d34013bb0546fb1216241e70417311176736d9f",
+    "exoplasim/analysis/climatology/endmember_regular_climatology.nc": "be52fae201a4c16798957c97c002a672a145486cd0d24ec8a901ef281f764137"
   }
 }
