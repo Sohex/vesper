@@ -69,7 +69,8 @@ from gridding import (coupling_cells, coupling_ocean_fraction, coupling_path,
                       require_index_alignment)
 from orbit import orbital_year_days
 from orogen import Export
-from paths import climatology_path, rel, require_clean_io
+from paths import (climatology_path, rel, require_clean_io,
+                   require_configured_grid)
 from provenance import staged_surface_field
 from lake_balance import BasinSet, carve_verdict, solve
 from lapse import reference_height_m
@@ -643,6 +644,14 @@ def main() -> None:
         args.basins = _build_data / "basins.nc"
     if args.climatology is None:
         args.climatology = climatology_path()
+    # THE RUNG GUARD RUNS WHATEVER THE CLIMATOLOGY CAME FROM. It used to be
+    # reached only through `climatology_path()`, which is called only when
+    # `--climatology` is ABSENT -- so every re-take, every arm of a bracket and
+    # every sensitivity, which all pass the flag, skipped it. The rung appears
+    # nowhere in a climatology's name, so nothing else would have caught a T85
+    # file driving a T21 configuration, and the sidecar would have recorded the
+    # configured rung beside it with nothing contradicting itself.
+    require_configured_grid(args.climatology, config)
     basins = BasinSet(args.basins)
     # Ids come from the same file as the verdicts. See _basin_ids.
     basin_ids = _basin_ids(args.basins)
