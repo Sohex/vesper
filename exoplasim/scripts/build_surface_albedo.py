@@ -356,7 +356,9 @@ def _configured_column(config: dict) -> dict:
     first = float(thicknesses[0]) if thicknesses else None
     return {
         "scheme": column.get("scheme"),
-        "layers": column.get("layers"),
+        # The thickness list IS the layer count, so the count is not emitted
+        # beside it. Whether the config's own declared count agrees with the
+        # list is `run_exoplasim.py`'s refusal and not this report's claim.
         "layer_thickness_m": thicknesses,
         "albedo_depth_m": albedo_depth,
         "albedo_depth_source": "pedology/config/land_column_properties.yaml "
