@@ -107,3 +107,36 @@ So the span is not set by the mean's interval on this world. It is set by the
 SLOPE's, which `assess_convergence.py` sizes separately and which does keep
 tightening with the window. Pricing the span through tau prices it through the
 one statistic that has already converged.
+
+## What replaced it
+
+`lib/run_lengths.py:production_span_from_report` is the operative rule wherever
+a run exists. It reads the orbits the run's OWN criteria ask for out of the
+resolving-power block `assess_convergence.py` already writes, takes the binding
+one, and carries out whether that number is a floor rather than an answer.
+
+The two rules priced against each other on every run on disk:
+
+| run | its own criteria ask | 20 tau asks | binding | floor |
+| --- | --- | --- | --- | --- |
+| `run_432e5e46adef` vegetated bootstrap | 23.4 | 20.0 | offset | no |
+| `run_e0c431cf67e2` bare-rock bootstrap | 31.5 | 36.4 | offset | no |
+| `run_58f467b0872d` bare-rock baseline | 49.0 | 109.9 | offset | YES |
+| `run_893e276ee029` vegetated baseline | 28.1 | 29.3 | offset | no |
+
+The offset criterion binds on every one, which is the answer to what the span is
+FOR on this world: it is set by the slope's standard error and not by the mean's.
+Where the two rules agree, the run's tau happened to be measured on a window
+close to the span it implies. Where they diverge by a factor of two, the tau was
+taken on a window that could not carry it -- and that row is the one the rule
+labels a floor, which is what makes the divergence readable rather than silent.
+
+**The floor is carried out rather than resolved.** A tau estimated inside the
+window it sizes is a lower bound on tau, so the span it implies is a lower bound
+too. What a caller does about that is a decision -- buy the orbits and re-read,
+or report the number as a bound -- and a rule that silently rounded a floor into
+an answer would fail in the one direction that costs a wrong verdict rather than
+a wasted afternoon.
+
+`production_span_orbits` stays for the case where no run exists yet, with the
+measurement above written above it so nobody reaches for it in preference.

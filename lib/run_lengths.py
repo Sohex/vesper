@@ -306,8 +306,75 @@ SETTLING_RESIDUAL_K = 0.15
 
 
 def production_span_orbits(tau_memory_orbits: float) -> float:
-    """Orbits of production a window mean's interval needs before it covers."""
+    """The A-PRIORI span, for pricing a run that does not exist yet.
+
+    IT OVERBUYS ON THIS WORLD AND THE MEASUREMENT SAYS BY HOW MUCH. The
+    coverage criterion behind the multiple is sound and was taken on synthetic
+    series whose answer is known in closed form; what it assumes is a tau that
+    is a property of the PROCESS. This model's is a property of the WINDOW:
+    measured on 140 clean orbits of `run_893e276ee029` it reads 1.00 at 20
+    orbits, 1.35 at 40, 1.90 at 60 and 6.30 at 140, every one a supported
+    estimate, while the lag-1 correlation stays between 0.27 and 0.52. So the
+    rule does not close -- at 60 orbits it asks for 38 and at 140 for 126 --
+    and each span bought raises the tau that prices the next.
+
+    `production_span_from_report` is the operative rule wherever a run exists,
+    and this stays for the case where none does.
+    `exoplasim/notes/memory-time-and-the-production-span.md` has the tables.
+    """
     return PRODUCTION_SPAN_TAU_MULTIPLE * float(tau_memory_orbits)
+
+
+# The keys `assess_convergence.py` writes for "orbits THIS criterion needs".
+# Named rather than pattern-matched over the block: `_if_independent` is the
+# same number with the memory taken out and `_prices` is prose, and a rule that
+# swept the block by prefix would take both.
+_REQUIRED_WINDOW_KEYS = (
+    "window_orbits_for_storage_criterion",
+    "window_orbits_for_offset_criterion",
+)
+
+
+def production_span_from_report(report: dict) -> tuple[float, bool, str]:
+    """The orbits a run's OWN statistics say its criteria need.
+
+    Returns `(orbits, is_a_floor, which)`: the span, whether it is a lower
+    bound rather than an answer, and the criterion that set it.
+
+    THIS IS THE OPERATIVE RULE AND `production_span_orbits` IS NOT. A span
+    priced through tau is priced through the standard error of a MEAN, and on
+    this world that error has already converged: it is 0.0201 K at twenty
+    orbits and 0.0255 at a hundred and forty, while the independent expectation
+    halves. Seven times the orbits buy no better a mean, against criteria that
+    discriminate at 0.15 K. What still tightens with the window is the SLOPE's
+    error, which is what these keys are computed from, so reading them prices
+    the span through the statistic that has not converged instead of the one
+    that has.
+
+    IT IS SELF-LIMITING, which is the property the tau route lacks. Each key is
+    computed from the run's own scatter and its own memory time over its own
+    window, so a run that has bought enough says so and a run that has not
+    names the number it is short of.
+
+    `is_a_floor` carries `required_window_is_a_lower_bound` through unchanged:
+    a tau estimated inside the window it sizes is a lower bound on tau, so the
+    span is a FLOOR until a span long enough to carry the estimate exists. A
+    caller that treats a floor as an answer buys too few orbits, which is the
+    one direction this must not fail in silently.
+    """
+    resolving = report.get("resolving_power") or {}
+    wanted = {key: float(resolving[key]) for key in _REQUIRED_WINDOW_KEYS
+              if isinstance(resolving.get(key), (int, float))}
+    if not wanted:
+        raise RuntimeError(
+            "the report carries none of "
+            f"{list(_REQUIRED_WINDOW_KEYS)} in its resolving_power block, so "
+            "it cannot say how many orbits its own criteria need. It predates "
+            "the block; re-run assess_convergence.py on the run.")
+    which = max(wanted, key=wanted.__getitem__)
+    return (wanted[which],
+            bool(resolving.get("required_window_is_a_lower_bound", True)),
+            which)
 
 
 def commissioning_orbits(approach_orbits: float,
@@ -320,6 +387,19 @@ def commissioning_orbits(approach_orbits: float,
     the caller has to state which approach it means.
     """
     return float(approach_orbits) + production_span_orbits(tau_memory_orbits)
+
+
+def commissioning_orbits_from_report(approach_orbits: float,
+                                     report: dict) -> tuple[float, bool, str]:
+    """The approach, then the span the run's own criteria ask for.
+
+    The report-based sibling of `commissioning_orbits`, and the one to use
+    wherever a run exists. Carries the floor flag out with it rather than
+    resolving it here, because what a caller does about a floor is a decision:
+    buy the orbits and re-read, or say the number is a lower bound.
+    """
+    span, is_a_floor, which = production_span_from_report(report)
+    return float(approach_orbits) + span, is_a_floor, which
 
 
 def commissioning_bracket(approach_orbits: float) -> tuple[float, float]:

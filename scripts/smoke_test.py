@@ -609,6 +609,67 @@ def check_io_step_measurement() -> list[str]:
 
 
 
+
+def check_production_span_is_self_limiting() -> list[str]:
+    """The span comes from the run's own criteria, not from twenty tau.
+
+    THE MEASUREMENT THIS REPLACES A RULE WITH. Tau on this model is a property
+    of the WINDOW rather than of the process -- 1.00 at twenty orbits, 6.30 at
+    a hundred and forty on one clean block, every reading supported -- so a
+    span of twenty tau never closes: each span bought raises the tau that
+    prices the next. The standard error of the mean it exists to correct has
+    already converged, 0.0201 K at twenty orbits against 0.0255 at a hundred
+    and forty. `exoplasim/notes/memory-time-and-the-production-span.md`.
+
+    Class 17: each case has a right answer and each is driven by a synthetic
+    report, so it tests the rule and not today's runs.
+    """
+    sys.path.insert(0, str(ROOT / "lib"))
+    import run_lengths as rl
+
+    bad = []
+
+    def report(storage, offset, floor):
+        return {"resolving_power": {
+            "window_orbits_for_storage_criterion": storage,
+            "window_orbits_for_offset_criterion": offset,
+            # The same numbers with the memory taken out, which must NOT be
+            # read: a rule that swept the block by prefix would take them and
+            # under-buy by exactly the memory correction.
+            "window_orbits_for_storage_criterion_if_independent": 1.0,
+            "window_orbits_for_offset_criterion_if_independent": 1.0,
+            "window_orbits_for_offset_criterion_prices": "prose, not a number",
+            "required_window_is_a_lower_bound": floor}}
+
+    got = rl.production_span_from_report(report(10.0, 30.0, False))
+    if got != (30.0, False, "window_orbits_for_offset_criterion"):
+        bad.append(f"the binding criterion: got {got!r}")
+    got = rl.production_span_from_report(report(40.0, 30.0, False))
+    if got[0] != 40.0 or got[2] != "window_orbits_for_storage_criterion":
+        bad.append(f"the other criterion binding: got {got!r}")
+    if rl.production_span_from_report(report(10.0, 30.0, True))[1] is not True:
+        bad.append("a lower-bound span was not reported as a floor")
+
+    # A report predating the block cannot answer, and must say so rather than
+    # returning a number: buying too few orbits is the one direction this must
+    # not fail silently in.
+    try:
+        rl.production_span_from_report({"resolving_power": {}})
+        bad.append("a report with no required-window keys returned a span")
+    except RuntimeError:
+        pass
+
+    total, floor, _ = rl.commissioning_orbits_from_report(70.0, report(10.0, 30.0, False))
+    if total != 100.0 or floor is not False:
+        bad.append(f"the approach is not added: got {(total, floor)!r}")
+
+    # The a-priori rule still exists and still means twenty tau, so the two can
+    # be compared and the note's claim that it overbuys stays checkable.
+    if rl.production_span_orbits(6.3) != 20.0 * 6.3:
+        bad.append("production_span_orbits is no longer twenty tau")
+    return bad
+
+
 def check_no_write_through_a_symlink() -> list[str]:
     """`sra.py:write_sra` refuses to write a staged field through a link.
 
@@ -3409,6 +3470,8 @@ def main() -> None:
                lambda: check_staged_surface_build_guard()),
               ("the convergence window follows the declared purposes",
                lambda: check_production_window()),
+        ("the production span comes from the run's own criteria",
+               lambda: check_production_span_is_self_limiting()),
         ("a staged field is never written through a symlink",
                lambda: check_no_write_through_a_symlink()),
         ("a verdict window is refused across an I/O-regime change",
