@@ -2167,6 +2167,112 @@ range should be flat from its first orbit while the interpolating arm climbs the
 way `run_c9c24d438a94` did. A constant arm that also climbs would mean the
 climb is not this term's.
 
+### The extension, and its window declared before it runs
+
+Written 2026-08-27, after the first 25 orbits and BEFORE the extension. The
+registered window's number stands as reported below and is not revised by
+anything here.
+
+The paired difference over the declared window is still TRENDING: the arms'
+land-mean seasonal range separation rises at +0.093 +/- 0.043 K per orbit over
+orbits 15 to 24 and +0.040 +/- 0.017 over 5 to 24, so the window mean is a
+LOWER BOUND on the settled separation rather than the separation. Neither arm
+passes `assess_convergence.py --assess diagnostic` at a 10-orbit window either,
+and both fail the same four criteria, which is what a pair relaxing together
+from one restart looks like. That is a length problem and not a pairing problem:
+the soil temperature column reaches 12.4 m at a diffusivity near 3e-7 m2/s, so
+its own relaxation is of order thirty orbits and a 25-orbit arm cannot have
+finished it.
+
+**Both arms are extended by 25 orbits, to 50, one `diagnostic` segment each at
+low I/O so the run is one instrument throughout, and the extension's window is
+orbits 40 to 49.** The bar is the one already registered: the difference is
+RESOLVED only where `|diff| > 2*sqrt(2)*max(SEM)` with the standard error from
+`lib/autocorrelation.py` over the paired difference, and the same slope test is
+applied to the new window. If the separation is still trending at 50 orbits the
+result is reported as a lower bound again, not extrapolated to an asymptote.
+
+## Measured: the world-5oyp soil thermal pair, 2026-08-27
+
+`run_9d51e560469f` (the shipped interpolation) against `run_9f38542964c6` (the
+retired constant column at 1.8 W/m/K and 2.4e6 J/m3/K), both 25 orbits at T21 on
+`most_plasim_t21_l10_p8.x` sha `98b423ce`, both branched from
+`run_14906cb7b914`'s `MOST_REST.00034`, both one `diagnostic` segment at low I/O
+so each arm is one instrument end to end. Their namelists differ in `SOILDIFDRY`,
+`SOILDIFSAT`, `SOILCAPDRY` and `SOILCAPSAT` and in no other key. Read over the
+declared window, orbits 15 to 24.
+
+**THE AMPLITUDE IS RESOLVED AND IT IS THE SIGN PREDICTED.** The land-area-
+weighted seasonal range of `ts` is 38.17 K in the constant arm and 41.21 K in the
+interpolating one: **+3.036 +/- 0.146 K, resolved at 7.4 to 1** against the
+registered `2*sqrt(2)*max(SEM)` bar of 0.412 K. The per-cell change has a median
+of +9.4 per cent, a p95 of +16.5 and a maximum of +41.7.
+
+**AND IT IS BELOW THE REGISTERED BRACKET.** +7.96 per cent on the land mean
+against a registered +13 to +55, which is the "wrong" row that says the store is
+not reaching the interval the contract declares. That is NOT what happened: both
+arms staged `SOILSRWP` 0.376 and `SOILSRFC` 0.7642, the contract's own values,
+and the arms' median degree of saturation is 0.045, which is the dry end of the
+map where the registered effect is LARGEST. Two things account for the gap
+instead.
+
+The first is the inversion. `amplitude ~ 1/inertia` holds for a semi-infinite
+column under a PRESCRIBED periodic surface flux, and the modelled surface flux is
+not prescribed: a larger swing in `ts` raises the outgoing longwave and the
+turbulent fluxes that leave the surface, which damps the swing that produced
+them. A prediction sized on the column alone is an upper bound on what a coupled
+surface does, and the ratio here is about a factor of five.
+
+The second is length, and it is measured rather than asserted: the separation is
+still growing at **+0.093 +/- 0.043 K per orbit** across the declared window, so
++3.036 K is a lower bound. Neither arm passes `assess_convergence.py --assess
+diagnostic` at a 10-orbit window, and both fail the same four criteria, which is
+a pair relaxing together rather than a pair disagreeing.
+
+**THE MOISTURE DEPENDENCE IS DOING WHAT IT WAS WRITTEN TO DO.** The per-cell
+fractional change in seasonal range correlates with the cell's soil water
+DEFICIT at Pearson +0.389 and Spearman +0.448. The same statistic on a pair that
+differs by one unrelated namelist key -- `run_5373310a7b9f` against
+`run_c9c24d438a94` -- is -0.17, so the correlation is this term's and not the
+instrument's.
+
+**THE DEEP COLUMN CONFIRMS THE DIFFUSIVITY.** The seasonal amplitude of the
+model's third soil temperature layer falls from 13.40 K to 11.19 K and the fourth
+from 3.11 K to 1.89 K, and the fourth layer's maximum arrives 1.42 output bins
+earlier. A lower diffusivity shortens the seasonal penetration depth and the
+phase lag together, and both move that way.
+
+**THE GLOBAL MEAN IS NOT RESOLVED, WHICH IS WHAT WAS REGISTERED, AND ITS SIGN IS
+NOT.** Over the window `ts` separates by -0.004 +/- 0.055 K and `tas` by
++0.142 +/- 0.069 K, neither clearing its own bar; top-of-atmosphere net is
++0.106 +/- 0.108 W/m2 and the first three orbits give +0.088 W/m2, both
+consistent with the registered EXACT ZERO, so **the term's entry in the bundle
+sum stays 0.00 W/m2 and it is now measured rather than argued.** Nothing
+approaches the 1.0 K materiality threshold. What the registered prediction got
+wrong is the sign it assigned to the unresolved part: it named the snow line as
+the one one-signed feedback and predicted cooling, and the modelled sea-ice
+fraction falls by 0.0062 +/- 0.0007, which IS resolved and is a warming
+direction, with `tas` leaning the same way.
+
+**Two of the registered falsifiers fired and neither is an implementation
+fault.** The seasonal range falls on 112 of 1019 land cells, against a row that
+called any fall a fault; on the unrelated pair above 579 of 1019 fall, so 11 per
+cent is the tail of a strongly one-signed distribution and not a reversal. The
+row is too strict for a coupled surface, where a cell's range is set by its own
+energy balance and not by its column alone. And the magnitude fell below the
+bracket, for the two reasons above.
+
+**The supplementary prediction registered with the bar is FALSIFIED.** The
+constant arm was predicted to start at its own equilibrium because the donor ran
+the same constant pair; its land-mean range climbs from 28.80 K to 38.13 K
+instead. The donor ran the scalar bucket land water column, `NLANDWCOL = 0` at
+one layer, and both arms run the declared three-layer column, so both relax from
+the same non-equilibrium state. The climb belongs to the land water column and
+not to this term, which is exactly why the paired form is what reads the term.
+
+Numbers from `exoplasim/analysis/arms/world_5oyp_land_seasonal_range.json` and
+`exoplasim/analysis/arms/world_5oyp_arms.json`.
+
 ## Measured: the star weight on its new carrier, `CLOUDABS`, 2026-08-26
 
 `run_a61f97a32b45` against the same control `run_c9c24d438a94`, same restart,
