@@ -401,14 +401,14 @@ LH74_FIT_RANGE_CM = (0.01, 10.0)
 # by the same definition with only the absorption data differing. The two must
 # not drift apart in silence: a change to the band set, to the spectra or to that
 # note's table has to show up somewhere, and this is where.
-CORRK_PATH_CM = 2.7891
+CORRK_PATH_CM = 2.1128
 # Six digits because `H2O_SW_LEVEL` below MULTIPLIES this and then rounds to the
 # three decimals `config/planet.yaml` writes, so the fourth digit reaches the
 # third of the key. `exoplasim/notes/corrk-cross-check.md` quotes it as 1.127
 # because that is all the comparison it appears in can resolve; this is
 # `corrk_cross_check.py`'s own absorptance at CORRK_PATH_CM over Eq. 21 at the
 # same amount, and running that script reproduces it.
-CORRK_RATIO_TO_EQ21 = 1.127592
+CORRK_RATIO_TO_EQ21 = 1.126163
 # Howard's own +/-3% is the tolerance because it is the only stated accuracy
 # either side of the comparison carries. Fixed before the comparison was made.
 CORRK_AGREEMENT = HOWARD_BAND_ABSORPTION_ACCURACY

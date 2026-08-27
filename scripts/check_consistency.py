@@ -1600,13 +1600,25 @@ def check_water_path_currency(rep: "Report", config: dict) -> None:
         here = (float((column * weights).sum() / weights.sum())
                 * swbw.WATER_MAGNIFICATION)
         declared = swbw.CORRK_PATH_CM
-        rep.add(WARN if abs(here - declared) > 0.05 * declared else OK, label,
-                f"declared {declared:g} cm against {here:.4f} on "
-                f"{rel(best.path)} ({best.stage}). The declaration was measured "
-                f"on a baseline that no longer exists; it is not moved alone "
-                f"because h2o_sw_weight and co2_sw_weight are quoted at the "
-                f"same path and cannot be regenerated without a baseline. "
-                f"world-wtt3")
+        # THE TWO BRANCHES SAY DIFFERENT THINGS, because a stale path and a
+        # current one are different states and one message for both reported
+        # the reason for a refusal on a row that had passed.
+        drifted = abs(here - declared) > 0.05 * declared
+        where = f"{rel(best.path)} ({best.stage})"
+        if drifted:
+            rep.add(WARN, label,
+                    f"declared {declared:g} cm against {here:.4f} on {where}. "
+                    f"The declaration was measured on a climatology this tree "
+                    f"no longer holds, and it is not moved ALONE: "
+                    f"h2o_sw_weight, co2_sw_weight and h2o_sw_level are all "
+                    f"quoted at this path, so they move together or three "
+                    f"constants end up standing at two different paths. "
+                    f"world-wtt3")
+        else:
+            rep.add(OK, label,
+                    f"{declared:g} cm, reproduced to {here:.4f} on {where}. "
+                    f"h2o_sw_weight, co2_sw_weight and h2o_sw_level are all "
+                    f"quoted here and moved with it")
     except Exception as exc:                       # noqa: BLE001 - reported
         rep.add(WARN, label, f"not checked: {exc}")
 

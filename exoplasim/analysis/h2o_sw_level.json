@@ -1,21 +1,21 @@
 {
-  "generated": "2026-08-26T00:35:34+00:00",
+  "generated": "2026-08-27T15:50:06+00:00",
   "generator": "exoplasim/scripts/shortwave_band_weights.py --level",
   "key": "model.h2o_sw_level",
-  "value": 1.1625473519999998,
+  "value": 1.1610740529999999,
   "bracket": [
-    1.129283388,
-    1.20652344
+    1.1278522445,
+    1.20499441
   ],
-  "value_rounded_for_config": 1.163,
+  "value_rounded_for_config": 1.161,
   "bracket_rounded_for_config": [
-    1.129,
-    1.207
+    1.128,
+    1.205
   ],
   "inputs": {
     "correlated_k_over_eq21": {
-      "value": 1.127592,
-      "water_cm": 2.7891,
+      "value": 1.126163,
+      "water_cm": 2.1128,
       "status": "DECLARED",
       "source": "exoplasim/notes/corrk-cross-check.md, HITRAN2020 through the LMD Generic PCM correlated-k tables at a homogeneous 760 mm Hg path; reproduced by exoplasim/scripts/corrk_cross_check.py, whose tables live outside this repository. Gated inside this script against the Howard reconstruction to +/-3%"
     },

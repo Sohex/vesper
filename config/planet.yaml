@@ -54,7 +54,7 @@ source_build: canonical-10m-base
 # to identity and deleted -- so nothing downstream may read one until a
 # commissioning produces one. Repoint this at the REGULAR climatology of the
 # baseline run when it exists, not at the bootstrap's.
-baseline_climatology: null
+baseline_climatology: exoplasim/analysis/climatology/baseline_regular_climatology.nc
 
 # THE OTHER CLIMATOLOGY, and it is a different artifact rather than an earlier
 # version of the one above. This is the run on TERRAIN-ONLY surface fields, and
@@ -1277,7 +1277,7 @@ model:
   # with stellar_spectrum: k25v and not without it. They have the SAME SIGN and
   # compound. Arguments in exoplasim/notes/shortwave-water-vapour.md and
   # exoplasim/notes/shortwave-co2.md.
-  h2o_sw_weight: 1.346
+  h2o_sw_weight: 1.351
   # A LEVEL correction to the same water vapour term, and a SEPARATE decision
   # from the weight above. `h2o_sw_weight` is a star-over-Sun ratio, so an error
   # in the absolute level of Lacis and Hansen Eq. 21 divides straight out of it
@@ -1309,8 +1309,8 @@ model:
   # continuum fraction because it is bounded from published numbers rather than
   # computed here. Regenerating that artifact needs neither a climatology nor a
   # spectrum, so this key is checkable on any tree.
-  h2o_sw_level: 1.163
-  h2o_sw_level_bracket: [1.129, 1.206]
+  h2o_sw_level: 1.161
+  h2o_sw_level_bracket: [1.128, 1.205]
   co2_sw_weight: 1.510
   roughness_source: lithology
   # BOOTSTRAP: uniform. Soil water capacity comes from the pedology soil map as
