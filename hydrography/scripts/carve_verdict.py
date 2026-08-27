@@ -1117,9 +1117,18 @@ def main() -> None:
             } for label, r in results.items()
         },
         "agreement": {
+            # "both" is now EVERY bound, not two. The keys keep their names
+            # because `scripts/world_state.py` reads them, and a key that
+            # changes meaning under a stable name has to say so where it is
+            # read rather than only where it is written.
+            "bounds_agreed_over": sorted(results),
             "carve_under_both": int(both.sum()),
             "survive_under_both": int(neither.sum()),
             "disputed": int(disputed.sum()),
+            "note": ("`both` and `neither` are unanimity over every bound in "
+                     "`bounds_agreed_over`, which is three since the interval "
+                     "became a bracket: the two ends of it and the wet "
+                     "estimator. The names are kept for their readers"),
         },
         "interval_bracket": dict(_INTERVAL_BRACKET, **{
             "carve_under_bin_mean": int(results["penman"]["carve"].sum()),
