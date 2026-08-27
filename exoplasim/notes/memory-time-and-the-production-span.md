@@ -140,3 +140,25 @@ a wasted afternoon.
 
 `production_span_orbits` stays for the case where no run exists yet, with the
 measurement above written above it so nobody reaches for it in preference.
+
+## The bracket after the carve, and why it is allowed to move
+
+`canonical-10m-carve1`'s bootstrap reads tau 2.4429 over forty clean orbits at
+one I/O regime, a supported estimate, and that is above the 2.22 the bracket
+topped out at. The bracket's ends are UPPER BOUNDS, so a supported reading past
+one is the bound being wrong rather than merely old, and the top moved to 2.45.
+
+**That is not chasing the number up the table above.** Those readings are the
+same run measured over different window lengths, and raising a bound to cover
+the longest one would never terminate. This is a different run, measured at a
+length runs are actually bought at, reading past the bound. The bracket is a
+bound on what has been READ at the lengths this project buys, and it says so.
+
+What makes it affordable to be honest about is that the bracket no longer
+prices the production span. It sizes `DEFAULT_WINDOW_ORBITS` and nothing else,
+so 2.22 to 2.45 moves the a-priori window from 41 orbits to 42. Under the old
+rule the same move would have taken the span from 44 to 49 at every rung.
+
+Both anchors moved with `source_build`: they were on `run_432e5e46adef`, whose
+terrain no longer exists, and an anchor whose artifact describes another world
+cannot say whether a bound still holds on this one.

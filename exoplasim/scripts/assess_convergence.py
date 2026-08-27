@@ -367,10 +367,14 @@ def io_step_at_join(series, run_dir: Path, first: int, last: int,
 # refuses -- not because the bound is wrong but because it is now unexamined,
 # which is the whole state the audit found and could not distinguish.
 CONVERGENCE_BOUND_ANCHOR = {
-    "run": "run_432e5e46adef",
+    # THE CARVED BUILD'S BOOTSTRAP, forty clean orbits at one I/O regime.
+    # Moved off `run_432e5e46adef` when `source_build` moved: that run is on a
+    # superseded terrain, and an anchor whose artifact describes another world
+    # cannot say whether a bound still holds on this one.
+    "run": "run_76e441e0a761",
     "artifact": "exoplasim/analysis/convergence/"
-                "run_432e5e46adef_convergence.json",
-    "orbit_scatter_k": 0.09103088646658508,
+                "run_76e441e0a761_convergence.json",
+    "orbit_scatter_k": 0.10168570009767304,
 }
 CONVERGENCE_REPORTS = "exoplasim/analysis/convergence"
 

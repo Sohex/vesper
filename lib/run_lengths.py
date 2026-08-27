@@ -99,7 +99,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 # `exoplasim/scripts/assess_convergence.py` sizes its default window on the TOP
 # of this bracket and states no number of its own, so this is the one statement
 # of the memory time in the tree.
-TAU_MEMORY_ORBITS_BRACKET = (1.89, 2.22)
+TAU_MEMORY_ORBITS_BRACKET = (1.89, 2.45)
 
 # WHERE THE BOUND WAS ANCHORED, so that "the bound still holds" can be told from
 # "the bound was never re-examined". Those two look identical in a declared
@@ -130,23 +130,25 @@ TAU_MEMORY_ORBITS_BRACKET = (1.89, 2.22)
 # on a drifting series is supposed to look like, and the check reports the
 # headroom rather than treating it either as agreement or as a defect.
 MEMORY_BRACKET_ANCHOR = {
-    "run": "run_432e5e46adef",
-    "artifact": "exoplasim/analysis/convergence/run_432e5e46adef_convergence.json",
+    "run": "run_76e441e0a761",
+    "artifact": "exoplasim/analysis/convergence/run_76e441e0a761_convergence.json",
     "node": ("resolving_power", "temperature_residual_tau_orbits"),
-    "observation": 1.0,
-    "why_below": "the report now reads the CLEAN-I/O block alone, twelve "
-                 "orbits, because a verdict window may no longer span the "
-                 "change of I/O regime at orbit 70. On those twelve the lag-1 "
-                 "correlation is 0.076 and the estimator returns its floor of "
-                 "1.0. THAT IS NOT A MEASUREMENT THAT COLLAPSES THIS BRACKET: "
-                 "the standard error on a lag-1 at twelve samples is about "
-                 "0.29, so 0.076 sits within one and a half of the 0.43 the "
-                 "mixed window read, and twelve orbits cannot tell a memory of "
-                 "1 from one of 2.2. The bracket stands on the sweep, which is "
-                 "an upper bound for the reason above it, and the clean block "
-                 "is what would collapse it once it is long enough to resolve "
-                 "one. That is the measurement to buy: about thirty clean "
-                 "orbits, against the twelve on disk.",
+    "observation": 2.442874832379452,
+    "why_below": "the anchor is the CARVED build's bootstrap, forty clean "
+                 "orbits at one I/O regime, and it reads AT the top of this "
+                 "bracket rather than below it. The top moved 2.22 to 2.45 to "
+                 "cover it, which is what an upper bound does when a supported "
+                 "reading passes it. WHAT THE BRACKET IS NOT: a property of "
+                 "the process. Tau on this model grows with the window it is "
+                 "measured on -- 1.00 at twenty orbits and 6.30 at a hundred "
+                 "and forty on one clean block, every reading supported -- so "
+                 "this is a bound on what has been READ at the lengths runs "
+                 "are actually bought at, and chasing it upward with longer "
+                 "windows would never terminate. That is why it no longer "
+                 "prices the production span: `production_span_from_report` "
+                 "does, from the run's own criteria, and this sizes only the "
+                 "a-priori default window. "
+                 "exoplasim/notes/memory-time-and-the-production-span.md.",
 }
 
 # WHAT COUNTS AS A READING OF THE SETTLED VARIABILITY, applied to every
@@ -355,6 +357,17 @@ def production_span_from_report(report: dict) -> tuple[float, bool, str]:
     computed from the run's own scatter and its own memory time over its own
     window, so a run that has bought enough says so and a run that has not
     names the number it is short of.
+
+    THEN ASSESS AT WHAT YOU BOUGHT, with `--window`. A block bought to this
+    number can be SHORTER than `assess_convergence.py`'s default window, which
+    is sized on the nominal bounds because it has to exist before any run is
+    opened. The default then asks for orbits the block does not have, and
+    `segments.py` refuses -- correctly, and it names the number to pass. That
+    refusal is the two rules disagreeing, not a defect in either: the nominal
+    is what to use when nothing is known about the run, and this is what to use
+    once something is. Buying `max(this, DEFAULT_WINDOW_ORBITS)` avoids the
+    friction and costs the difference in orbits, which is minutes at T21 and
+    is not at T85.
 
     `is_a_floor` carries `required_window_is_a_lower_bound` through unchanged:
     a tau estimated inside the window it sizes is a lower bound on tau, so the
