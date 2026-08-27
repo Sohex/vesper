@@ -134,15 +134,48 @@ BANDS = [
          surfaces=("proximal alluvial fan",)),
 ]
 
-# Area-weighted share of `playa_clastic` in each band, per build. The CONFIGURED
-# build is `precarve-craton-10m` and its column is the central weighting; the
-# 2.5M column is the support dependence. Both are COMPOSITION and survive the
-# carve, unlike the class's area share, which is not used here.
+# Area-weighted share of `playa_clastic` in each band, per build, measured on the
+# raw mesh by `notes/audits/orogen-lithology.md`. These are COMPOSITION and
+# survive the carve, unlike the class's area share, which is not used here.
+#
+# THEY ARE MEASUREMENTS AND THEY MOVE WITH THE TERRAIN, so which build is
+# configured is not written here: it is read from `config/planet.yaml` at run
+# time and this file must carry a column for it. Without that check the script
+# derives a roughness from whichever build was configured when the table was
+# last edited, writes it into `playa_roughness_mix.json`, and nothing says the
+# mixture describes different terrain than the one `config/dust.yaml` is
+# consumed on.
 BAND_SHARES = {
     "precarve-craton": [0.6379, 0.3058, 0.0563],
     "precarve-craton-10m": [0.5328, 0.3731, 0.0940],
 }
-CONFIGURED_BUILD = "precarve-craton-10m"
+
+
+def configured_build() -> str:
+    """The build `config/planet.yaml` names, refusing if no column measures it.
+
+    A refusal here is not a defect in this script: it says the band shares have
+    not been re-taken on the terrain the mixture is about to be consumed on.
+    Re-take them the way `notes/audits/orogen-lithology.md` did -- steepest
+    descent on `elevation_km`, area-weighted over `playa_clastic` -- and add the
+    column.
+    """
+    import yaml
+    cfg = yaml.safe_load(
+        (PROJECT_ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    build = str(cfg["source_build"])
+    if build not in BAND_SHARES:
+        raise SystemExit(
+            f"config/planet.yaml configures source_build {build!r} and "
+            f"BAND_SHARES has no column for it (it has "
+            f"{', '.join(sorted(BAND_SHARES))}).\n"
+            "The band shares are an area-weighted measurement over the raw "
+            "mesh, so they are a property of the terrain and cannot be carried "
+            "across a generation. Re-take them on this build the way "
+            "notes/audits/orogen-lithology.md did and add the column; this "
+            "refuses rather than mixing one build's landform composition into "
+            "a roughness another build's dust run will consume.")
+    return build
 
 # --- the within-class spread, from the same table -----------------------------
 #
@@ -244,6 +277,8 @@ def main() -> None:
     low_z0 = [m["z0_min_m"] for m in members]
     high_z0 = [m["z0_max_m"] for m in members]
 
+    configured = configured_build()
+
     per_build = {}
     for build, shares in BAND_SHARES.items():
         per_build[build] = {
@@ -253,12 +288,12 @@ def main() -> None:
             "endmembers_at_their_maximum_m": mix(shares, high_z0),
         }
 
-    central = per_build[CONFIGURED_BUILD]["central_m"]
+    central = per_build[configured]["central_m"]
     # The bracket is the endmember-range mix on the configured build, widened by
     # the support dependence if the other build's central falls outside it.
-    lo = min(per_build[CONFIGURED_BUILD]["endmembers_at_their_minimum_m"],
+    lo = min(per_build[configured]["endmembers_at_their_minimum_m"],
              *(b["central_m"] for b in per_build.values()))
-    hi = max(per_build[CONFIGURED_BUILD]["endmembers_at_their_maximum_m"],
+    hi = max(per_build[configured]["endmembers_at_their_maximum_m"],
              *(b["central_m"] for b in per_build.values()))
 
     prediction_held = hi > PREDICTED_HIGH_END_EXCEEDS_M
@@ -283,7 +318,7 @@ def main() -> None:
         "endmembers": members,
         "within_class_z0": within_class_sigma_g(),
         "by_build": per_build,
-        "configured_build": CONFIGURED_BUILD,
+        "configured_build": configured,
         "result": {
             "z0_m": central,
             "bracket_m": [lo, hi],
@@ -318,7 +353,7 @@ def main() -> None:
               f"({m['z0_min_m']:.3e} to {m['z0_max_m']:.3e})")
     print("\nthe mix, per build:")
     for build, b in per_build.items():
-        mark = "  <- configured" if build == CONFIGURED_BUILD else ""
+        mark = "  <- configured" if build == configured else ""
         print(f"  {build:22s} shares {b['band_shares']}  "
               f"central {b['central_m']:.3e} m{mark}")
     print(f"\nplaya_clastic z0 {central:.3e} m, bracket "

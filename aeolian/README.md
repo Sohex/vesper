@@ -32,12 +32,14 @@ consuming it.
 
 **Transport now converges, and the reason it did not is worth recording.** It
 was neither a CFL violation nor a cycle nor a missing sink. The explicit step is
-CFL-limited by the convergence of the longitude grid at the poles, which gave a
-14 km cell and a 597 s step, so 4000 iterations covered 27.6 days -- against a
-relaxation time of 1351 days for the 0.5 um bin where nothing rains. The
-integration was being stopped at 2% of the way. A declared polar `cos(lat)`
-floor of 0.2 relaxes the step to 6029 s and the iteration cap is now 40000; all
-cases report converged.
+CFL-limited by the convergence of the longitude grid at the poles, so the polar
+rows set the step for the whole globe, while the finest bin relaxes on a
+timescale of years where nothing rains: the integration was being stopped a few
+per cent of the way and reporting not-converged, correctly. A declared polar
+`cos(lat)` floor relaxes the step and the iteration cap was raised; all cases
+now report converged. The floor, the cap and the arithmetic behind both are in
+`config/dust.yaml` under `transport`, and the cell width and step they imply
+move with the rung, so they are not restated here.
 
 ### What it says now, with the wind tail measured and gravity in the threshold
 
@@ -55,13 +57,16 @@ several times on emission and by more than ten on optical depth. This is a dusty
 world.
 
 **Both of the large corrections went in opposite directions and neither cancelled
-the other.** Measuring the wind tail raised emission by a factor of 40, because a Weibull
-fitted to 32 snapshots 5.7 days apart is too narrow and biases the shape high:
-DUST-5 fitted 4.600 that way against 2.012 from 1,463 three-hourly samples of the
-same run.
-Putting this world's gravity into the saltation threshold then cut it 30%, a
-6.9% change in the threshold amplified by the same u* nonlinearity working the
-other way. The threshold correction is the fourth root of the gravity ratio and
+the other.** Measuring the wind tail raised emission by more than an order of
+magnitude, because a Weibull fitted to snapshots days apart is too narrow and
+biases the shape high: snapshots resolve synoptic variance and not sub-daily
+variance, so a shape fitted to them is an upper bound and the emission a lower
+one. The shape actually used, the sample count and the file it was fitted from
+are all in `dust_baseline.json` under `subgrid_wind`, which is where
+`build_dust_source_fields.py:measured_weibull_shape` reads it and refuses if it
+is absent. Putting this world's gravity into the saltation threshold then cut
+emission back, a few per cent on the threshold amplified by the same u*
+nonlinearity working the other way. The threshold correction is the fourth root of the gravity ratio and
 not the square root; `aeolian/config/dust.yaml` carries the derivation.
 
 The roughness bracket is the only large uncertainty left and it no longer spans
@@ -94,9 +99,11 @@ from `substrate_class`, which is consolidated lithology plus closed-basin fill,
 so the only unconsolidated material is the fill; weights the two barren classes
 separately, because a cemented salt crust is not a silicate soil and Kok's
 fragmentation theory does not describe halite cement; removes standing water
-from the solved lake extent; and removes snow. It gives **16.1% of land** as
-bare erodible ground against a playa fraction of 23.9%, and the difference is
-lakes and crust rather than an assumption.
+from the solved lake extent; and removes snow. The bare erodible share of land
+it gives is well below the `playa_clastic` share of land it starts from, and the
+difference is lakes and crust rather than an assumption. Both are per build:
+`dust_baseline.json` carries `source_map.erodible_fraction_of_land` and
+`world_state.json` carries `lithology_land_fractions`.
 
 **The physics is grounded rather than recited.** Every constant traces to a
 fetched primary source, listed in `config/dust.yaml` with what it is worth:
@@ -118,11 +125,17 @@ Earth analogues suggest. That is in `settling_velocity` rather than in a comment
    fit from the snapshot climatology instead. The two answers differ by a factor
    of 40, and an optional argument whose absence means do the wrong thing is
    `docs/src/practice/failure-modes.md` class 2. DUST-15.
-2. **The aeolian roughness of the erodible surface**, bracketed 3e-6 to 1e-3 m,
-   worth a factor of 40 in emission across that range. The grid-cell roughness
-   field is deliberately NOT used: its median over source cells is 0.49 m, and
-   feeding a 15 km orographic variance to a scheme built for centimetre-scale
-   roughness elements returns zero emission everywhere. Sheltering of a patch by
+2. **The aeolian roughness of the erodible surface**, bracketed per lithology
+   in `config/dust.yaml` under `aeolian_z0_by_class_m` and worth the emission
+   factor `dust_intensity_levers.json` reports as
+   `pattern_vs_intensity.emission_bracket_factor`. Neither the ends nor the
+   factor is restated here: the ends move whenever the mixture behind a class is
+   re-derived, and the factor is measured against whichever ends are declared.
+   The grid-cell roughness field is deliberately NOT used: its median over
+   source cells is orders of magnitude above a roughness element, because it is
+   a kilometric orographic variance, and feeding that to a scheme built for
+   centimetre-scale elements returns zero emission everywhere. The roughness
+   reports under `exoplasim/inputs/` carry that field's own statistics. Sheltering of a patch by
    the terrain around it is therefore not represented, which biases emission up.
    **The bracket belongs to ONE class.** Holding `evaporite` at its centre and
    sweeping `playa_clastic` across its own range reproduces almost the whole
@@ -144,8 +157,9 @@ Earth analogues suggest. That is in `settling_velocity` rather than in a comment
    crust cementation. Declared suppression, not measured efficiency.
 4. **Vegetation cover**, which is not modelled at all. Non-barren land is
    assumed to carry a canopy and not emit, following the project's existing
-   declared position, which is generous on a world whose median land runoff is a
-   few mm per Earth year. `--variant arid_bare_ground` brackets it, and that
+   declared position, which is generous on a world whose median land runoff is
+   a few mm per Earth year -- `config/dust.yaml` carries that figure with the
+   build it was measured on, and no artifact in the tree re-derives it. `--variant arid_bare_ground` brackets it, and that
    variant turns out to be worth under a fifth on emission at every roughness
    arm, one-signed. That is why the in-model arm's inability to express it is a
    declared gap and not a defect; world-4qem.
