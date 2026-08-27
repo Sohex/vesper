@@ -931,7 +931,7 @@ model:
     # yet measured: these runs were damped with the PREVIOUS value, so the
     # sweep that closes the bracket is the next run's own re-measurement.
     # Re-measure if the climate moves materially.
-    eddy_wind_m_s: 10.09
+    eddy_wind_m_s: 9.838
     # Shape, applied as a FRACTION so confinement is the same at every rung.
     # T42's alpha and cutoff, which the confinement table shows is well confined;
     # a choice within the family the requirement allows, not a unique derivation.
@@ -948,11 +948,11 @@ model:
     # and checked against it by scripts/check_consistency.py. Regenerate rather
     # than edit.
     timescales_days:
-      T21: {divergence: 0.2624, vorticity: 1.3119, temperature: 3.3231, humidity: 0.4369}
-      T42: {divergence: 0.1312, vorticity: 0.6560, temperature: 1.6616, humidity: 0.2184}
-      T85: {divergence: 0.0648, vorticity: 0.3241, temperature: 0.8210, humidity: 0.1079}
-      T127: {divergence: 0.0434, vorticity: 0.2169, temperature: 0.5495, humidity: 0.0722}
-      T170: {divergence: 0.0324, vorticity: 0.1621, temperature: 0.4105, humidity: 0.0540}
+      T21: {divergence: 0.2691, vorticity: 1.3455, temperature: 3.4082, humidity: 0.4481}
+      T42: {divergence: 0.1346, vorticity: 0.6728, temperature: 1.7042, humidity: 0.2240}
+      T85: {divergence: 0.0665, vorticity: 0.3324, temperature: 0.8420, humidity: 0.1107}
+      T127: {divergence: 0.0445, vorticity: 0.2225, temperature: 0.5636, humidity: 0.0741}
+      T170: {divergence: 0.0333, vorticity: 0.1663, temperature: 0.4212, humidity: 0.0554}
   # DERIVED, 2026-08-24. The COLD START's initial temperature profile, which
   # `setzt` builds from a surface temperature, a lapse rate and a tropopause
   # height and which `initfd` reaches only when `nrestart` is 0. Until this

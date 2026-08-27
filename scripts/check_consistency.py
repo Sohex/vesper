@@ -1535,13 +1535,30 @@ def check_eddy_wind(rep: "Report", config: dict) -> None:
                 f"re-derive the aggregate")
         if unreadable:
             problems.append(f"unreadable: {', '.join(unreadable)}")
+        # WHICH MEASUREMENTS ARE ON THE CONFIGURED BUILD, counted rather than
+        # asserted. This said "every measurement is on <superseded>" and kept
+        # saying it after one was taken on the configured build, which is the
+        # difference between a declaration awaiting its own re-measurement and
+        # one that has had it. The wind is derived FROM the damping it sets, so
+        # a measurement on a run damped with the declared value is the second
+        # iterate and is what closes the loop; one on a run damped with an
+        # earlier value is not.
         note = ""
-        stale = {b for b in builds_seen if b and b != config["source_build"]}
-        if stale:
-            note = (f"; every measurement is on {', '.join(sorted(stale))} and "
-                    f"the configured build is {config['source_build']}, which "
-                    f"the declaration accounts for: the sweep that closes the "
-                    f"bracket is the next run's own re-measurement")
+        current = config["source_build"]
+        stale = sorted(b for b in builds_seen if b and b != current)
+        on_build = sum(1 for b in builds_seen if b == current)
+        if stale and not on_build:
+            note = (f"; every measurement is on {', '.join(stale)} against a "
+                    f"configured {current}, so this declaration is a FIRST "
+                    f"ITERATE: the sweep that closes the bracket is the next "
+                    f"run's own re-measurement")
+        elif stale:
+            note = (f"; {on_build} of them on the configured {current} and the "
+                    f"rest on {', '.join(stale)}. The loop is closed: a "
+                    f"measurement taken on a run damped with the declared "
+                    f"value is the second iterate")
+        else:
+            note = f"; all on the configured {current}"
         rep.add(FAIL if problems else OK, label,
                 "; ".join(problems) if problems else
                 f"{len(measured)} measurement(s) span {low:.4g} to {high:.4g} "
