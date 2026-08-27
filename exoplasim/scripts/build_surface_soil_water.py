@@ -77,7 +77,7 @@ import numpy as np
 import yaml
 
 from _paths import CONFIG, INPUTS, PROJECT_ROOT  # noqa: E402  (puts lib/ on sys.path)
-from paths import climatology_path, rel, require_configured_grid  # noqa: E402
+from paths import bootstrap_climatology_path, rel, require_configured_grid  # noqa: E402
 from provenance import config_stamp  # noqa: E402
 from sra import write_sra
 
@@ -242,13 +242,13 @@ def main() -> None:
                         help="the land column property contract's emitted "
                              "per-cell states; defaults to the configured "
                              "build's")
-    # Resolved from config.baseline_climatology, not hardcoded. The default
+    # Resolved from config.bootstrap_climatology, not hardcoded. The default
     # here named `climatology_s096` until 2026-08-17: pre-carve terrain under
-    # the superseded k2 spectrum. See lib/paths.py:climatology_path.
+    # the superseded k2 spectrum. See lib/paths.py.
     parser.add_argument("--climatology", type=Path, default=None,
                         help="supplies the grid and the land mask, so they match "
                              "the soil map exactly; defaults to the configured "
-                             "baseline_climatology")
+                             "bootstrap_climatology")
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--lakes", type=Path, default=None,
                         help="surface_water.nc; raises dwmax on the lake fraction "
@@ -259,8 +259,13 @@ def main() -> None:
                              "model.lake_dwmax_m, which is required when "
                              "--lakes is given")
     args = parser.parse_args()
+    # THE BOOTSTRAP, not the baseline, and this one is settled by the graph
+    # rather than by judgment: this step writes a staged `.sra` surface field,
+    # and a staged surface field is an INPUT to the baseline run. Reading the
+    # baseline climatology here would mean building an input to a run out of
+    # that run's own output, and on a first pass there is no baseline at all.
     if args.climatology is None:
-        args.climatology = climatology_path()
+        args.climatology = bootstrap_climatology_path()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     model = config["model"]
@@ -309,7 +314,7 @@ def main() -> None:
         lat = np.asarray(data["lat"][:], dtype=float)
         lon = np.asarray(data["lon"][:], dtype=float)
         land = np.asarray(data["lsm"][0], dtype=float) > 0.5
-    # The same guard `climatology_path` applies, called explicitly because
+    # The same guard the resolver applies, called explicitly because
     # `--climatology` can hand this an arbitrary file that never went through
     # the resolver. One expression, in lib/paths.py.
     require_configured_grid(args.climatology, config)

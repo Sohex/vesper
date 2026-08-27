@@ -640,8 +640,16 @@ steps:
     script: exoplasim/scripts/build_surface_soil_water.py
     loop: A
     cost: minutes
-    needs: [land_column_properties]
+    needs: [bootstrap_climatology, land_column_properties]
     writes: ["exoplasim/inputs/{res_lower}/orogen_{res}_surf_0229_provenance.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0229.sra"]
+    gate: >
+      NEEDS THE BOOTSTRAP CLIMATOLOGY, settled by the graph rather than by
+      judgment: this writes a staged `.sra` surface field, and a staged surface
+      field is an INPUT to the baseline run. Reading the baseline here would
+      build an input to a run out of that run's own output, and on a first pass
+      there is no baseline at all.
+      The climatology supplies the grid and the land mask, so they match the
+      soil map exactly.
 
   - id: dust
     script: aeolian/scripts/build_dust.py
@@ -688,17 +696,31 @@ steps:
     script: exoplasim/scripts/build_surface_dust.py
     loop: A
     cost: minutes
-    needs: [dust, dust_aerofile]
+    needs: [bootstrap_climatology, dust, dust_aerofile]
     writes: ["exoplasim/inputs/{res_lower}/orogen_{res}_surf_1811_provenance.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1811.sra"]
-    gate: only when model.dust_source is set; a no-op at ndustrad = 0
+    gate: >
+      NEEDS THE BOOTSTRAP CLIMATOLOGY, settled by the graph rather than by
+      judgment: this writes a staged `.sra` surface field, and a staged surface
+      field is an INPUT to the baseline run. Reading the baseline here would
+      build an input to a run out of that run's own output, and on a first pass
+      there is no baseline at all.
+      The climatology supplies the grid and the mean surface temperature.
+      Runs only when model.dust_source is set; a no-op at ndustrad = 0.
 
   - id: dust_source_fields
     script: aeolian/scripts/build_dust_source_fields.py
     loop: A
     cost: minutes
-    needs: [dust, surface_water, soil]
+    needs: [bootstrap_climatology, dust, surface_water, soil]
     writes: ["exoplasim/inputs/{res_lower}/orogen_{res}_surf_1801_provenance.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1801.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1802.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1803.sra"]
-    gate: only when model.dust_emission is set; a no-op at ldustemit = 0
+    gate: >
+      NEEDS THE BOOTSTRAP CLIMATOLOGY, settled by the graph rather than by
+      judgment: this writes a staged `.sra` surface field, and a staged surface
+      field is an INPUT to the baseline run. Reading the baseline here would
+      build an input to a run out of that run's own output, and on a first pass
+      there is no baseline at all.
+      The climatology supplies the grid. Runs only when model.dust_emission is
+      set; a no-op at ldustemit = 0.
 
   - id: dust_forcing
     script: exoplasim/scripts/dust_forcing.py

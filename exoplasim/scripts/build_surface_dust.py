@@ -61,7 +61,7 @@ import yaml
 
 from _paths import CONFIG, INPUTS, PROJECT_ROOT  # noqa: E402  (puts lib/ on sys.path)
 import climatology  # noqa: E402  from lib/, put on sys.path by _paths
-from paths import climatology_path, rel, require_configured_grid  # noqa: E402
+from paths import bootstrap_climatology_path, rel, require_configured_grid  # noqa: E402
 from provenance import input_stamp
 from sra import write_sra
 
@@ -139,14 +139,20 @@ def main() -> None:
     ap.add_argument("--variant", default="central", choices=("low", "central", "high"),
                     help="shelter bracket end; `central` is the one the run uses")
     ap.add_argument("--climatology", type=Path, default=None,
-                    help="supplies the grid; defaults to baseline_climatology")
+                    help="supplies the grid and the mean surface temperature; "
+                         "defaults to the configured bootstrap_climatology")
     ap.add_argument("--optics", type=Path, default=OPTICS)
     ap.add_argument("--aerofile", type=Path, default=AEROFILE)
     ap.add_argument("--dust-config", type=Path, default=DUST_CFG)
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args()
+    # THE BOOTSTRAP, not the baseline, and this one is settled by the graph
+    # rather than by judgment: this step writes a staged `.sra` surface field,
+    # and a staged surface field is an INPUT to the baseline run. Reading the
+    # baseline climatology here would mean building an input to a run out of
+    # that run's own output, and on a first pass there is no baseline at all.
     if args.climatology is None:
-        args.climatology = climatology_path()
+        args.climatology = bootstrap_climatology_path()
 
     import netCDF4 as nc
 
@@ -214,7 +220,7 @@ def main() -> None:
             climatology.annual_mean_of(ds, "ts"),
             weights=np.broadcast_to(np.cos(np.deg2rad(lat))[:, None],
                                     (len(lat), len(lon)))))
-    # The same guard `climatology_path` applies, called explicitly because
+    # The same guard the resolver applies, called explicitly because
     # `--climatology` can hand this an arbitrary file that never went through
     # the resolver. One expression, in lib/paths.py.
     require_configured_grid(args.climatology, config)

@@ -709,9 +709,13 @@ SURFACE_UNREAD_MODEL_KEYS = {
 # skips a whole subtree and deserves to be read rather than computed.
 _SURFACE_BLOCKS = {
     # build_surface_albedo.py mentions `orbit` (baseline_flux_earth) and
-    # `baseline_climatology`, so neither is inert for it.
+    # `baseline_climatology`, so neither is inert for it. `bootstrap_climatology`
+    # does not appear in it at all: the script calls no resolver, takes the file
+    # from --climatology so it can run before any climatology exists, and the
+    # one it must be given is the baseline the LPJ-GUESS driver was built from.
     "surface_albedo": frozenset({
         "star", "atmosphere", "radiation", "surface", "ocean", "stellar_cycle",
+        "bootstrap_climatology",
     }),
     # build_surface_roughness.py mentions no block but `model`.
     "surface_roughness": frozenset({
