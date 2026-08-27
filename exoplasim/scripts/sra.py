@@ -74,3 +74,31 @@ def read_sra(path: Path, nlat: int, nlon: int) -> np.ndarray:
             f"{path}: {values.size} values, expected {nlat * nlon} for "
             f"{nlat}x{nlon}")
     return values.reshape(nlat, nlon)
+
+
+def read_sra_records(path: Path, nlat: int, nlon: int) -> np.ndarray:
+    """Every record in a multi-record `.sra`, as (records, nlat, nlon).
+
+    `read_sra` above asserts a single record, which is right for the fields
+    that have one and is why a multi-record file fails it loudly rather than
+    reshaping into nonsense. The layered soil-water capacity split is written
+    one record per water layer, so it needs this.
+
+    The record length is derived from the grid and the file's own line count
+    rather than from a declared layer count, so a file with a different number
+    of layers than the caller expected is a size error here and not a silent
+    truncation.
+    """
+    lines = path.read_text(encoding="ascii").splitlines()
+    per_record = 1 + -(-(nlat * nlon) // 8)
+    if len(lines) % per_record:
+        raise ValueError(
+            f"{path}: {len(lines)} lines is not a whole number of "
+            f"{per_record}-line records for {nlat}x{nlon}")
+    records = len(lines) // per_record
+    out = np.empty((records, nlat, nlon))
+    for r in range(records):
+        block = lines[r * per_record + 1:(r + 1) * per_record]
+        out[r] = np.array(" ".join(block).split(),
+                          dtype=np.float64).reshape(nlat, nlon)
+    return out

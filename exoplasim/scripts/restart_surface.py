@@ -182,7 +182,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import MODEL_SRC, PROJECT_ROOT, RUNS  # noqa: E402
 from paths import rel  # noqa: E402  from lib/, put on sys.path by _paths
 import restart_format  # noqa: E402
-from sra import read_sra  # noqa: E402
+from sra import read_sra, read_sra_records  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -205,6 +205,21 @@ class SurfaceRestartField:
     months: int = 1
     binarise: bool = False
     binds: str = ""
+    # `layered` marks a field whose `.sra` carries ONE RECORD PER WATER LAYER
+    # rather than one record the model repeats. Its second restart dimension is
+    # the compiled maximum `NLSOILWX` and not the runtime layer count, and
+    # `landmod.f90:1322-1348` renormalises the runtime layers per cell and
+    # zeroes the tail, so neither `months` nor `binarise` describes it and it
+    # needs its own expectation. Read from the source rather than declared, so
+    # a recompile at a different maximum cannot leave this behind.
+    layered: bool = False
+    # ZERO MEANS EXACT, and every field COPIED into the restart is compared
+    # exactly, which is the point: a copy that lost a bit is a broken copy. A
+    # field the model ARITHMETICALLY transforms cannot be held to that, because
+    # this module reproduces the arithmetic rather than the bytes and two
+    # orders of the same sum differ in the last place. Where one is set it is
+    # derived from the operation, never from the disagreement observed.
+    tolerance: float = 0.0
 
 
 # Every code `intended_surface_codes` can return, with the restart record it
@@ -222,6 +237,20 @@ SURFACE_RESTART_FIELDS = {
         SurfaceRestartField(176, "dalbcl2", months=14),
         SurfaceRestartField(212, "dforest"),
         SurfaceRestartField(229, "dwmax"),
+        # The capacity split, WORLD-VJBZ. It IS carried: `landmod.f90:1560`
+        # writes it with `mpputgp` and `:1212` reads it back with
+        # `mpgetgp_found`, so it is not a re-read-every-start field. `months`
+        # is filled from the compiled `NLSOILWX` at use, not here.
+        # 1e-15 AND NOT EXACT, derived rather than fitted: the model divides
+        # each layer by the cell's own layer sum, so this module's
+        # reproduction differs from the model's in the order of a three-term
+        # sum and one quotient. That is at most four units in the last place,
+        # and the values are shares bounded by one, so 4 * 2.2e-16 = 8.9e-16 is
+        # the arithmetic bound and 1e-15 is it rounded up. Nothing else in this
+        # table carries a tolerance, because nothing else is recomputed. The
+        # worst disagreement on the first run ever to stage this field was
+        # 2.2e-16, one unit in the last place, on 214 of 16384 values.
+        SurfaceRestartField(2290, "dsoilwfc", layered=True, tolerance=1.0e-15),
     )
 }
 
@@ -288,6 +317,53 @@ def not_comparable(oroscale: float) -> dict[int, str]:
             "staged file is not its right answer. Scaled exactly once, as "
             "world-6qee settled; the record is well defined, it is the .sra "
             "that is not the thing to compare it with")
+    return out
+
+
+def water_layer_maximum(source: Path | None = None) -> int:
+    """`NLSOILWX` as `landcolumn.f90` declares it.
+
+    The layered split's restart record is dimensioned on the COMPILED maximum
+    and not on the namelist's runtime layer count, so a check that assumed the
+    runtime count would read the wrong number of bytes and report a layout
+    change that had not happened. Parsed rather than copied, for the reason
+    every other constant in this tree is: a recompile at a different maximum
+    has to move this with it.
+    """
+    path = source or (MODEL_SRC / "plasim" / "src" / "landcolumn.f90")
+    match = re.search(r"integer\s*,\s*parameter\s*::\s*NLSOILWX\s*=\s*(\d+)",
+                      path.read_text(encoding="latin-1"), re.IGNORECASE)
+    if match is None:
+        raise RuntimeError(
+            f"{path} declares no NLSOILWX parameter; the parse is wrong and "
+            "the layered split cannot be checked against the restart.")
+    return int(match.group(1))
+
+
+def expected_layered_field(staged: np.ndarray, nlsoilw: int,
+                           nlsoilwx: int) -> np.ndarray:
+    """What `landmod.f90` leaves in `dsoilwfc` after reading a staged split.
+
+    Its own two rules, and nothing else: the runtime layers are renormalised
+    PER CELL so the shares sum to one whatever the writer emitted -- `.sra` is
+    written at `%12.5f`, so a split that was exact on the way out is off by up
+    to 1e-5 on the way in -- and layers above the runtime count are zeroed. A
+    cell whose shares sum to zero or carry a negative takes the namelist shape
+    instead; that branch is not reproduced here because it fires only where the
+    staged field is absent or malformed, which is a different failure and one
+    the writer's own checks refuse first.
+    """
+    flat = np.asarray(staged, dtype=np.float64).reshape(staged.shape[0], -1)
+    if flat.shape[0] != nlsoilw:
+        raise RuntimeError(
+            f"the staged split carries {flat.shape[0]} records and the run's "
+            f"namelist says NLSOILW = {nlsoilw}. One of them is describing a "
+            "different column, and the restart cannot be compared until they "
+            "agree.")
+    out = np.zeros((nlsoilwx, flat.shape[1]), dtype=np.float64)
+    total = flat.sum(axis=0)
+    usable = total > 0.0
+    out[:nlsoilw, usable] = flat[:, usable] / total[usable]
     return out
 
 
@@ -511,8 +587,19 @@ def verify_restart_surface_fields(run_dir: Path, restart: Path, codes: set[int],
 
         nlat, nlon = _grid_from(staged)
         ncells = nlat * nlon
-        from_file = expected_field(field, read_sra(staged, nlat, nlon))
-        got = restart_field(records[field.record], field.months, ncells)
+        if field.layered:
+            # The runtime layer count is the run's own namelist and the second
+            # restart dimension is the compiled maximum. Both are read rather
+            # than declared, so a rebuild at another maximum or a run at
+            # another layer count moves this check instead of breaking it.
+            nlsoilw = namelist_int(run_dir, "landmod_namelist", "NLSOILW", 1)
+            depth = water_layer_maximum()
+            from_file = expected_layered_field(
+                read_sra_records(staged, nlat, nlon), nlsoilw, depth)
+        else:
+            depth = field.months
+            from_file = expected_field(field, read_sra(staged, nlat, nlon))
+        got = restart_field(records[field.record], depth, ncells)
 
         if override:
             if field.record not in seed_records:
@@ -523,14 +610,16 @@ def verify_restart_surface_fields(run_dir: Path, restart: Path, codes: set[int],
                 verdicts.append({"code": code, "verdict": "seed_record_missing",
                                  "record": field.record})
                 continue
-            want = restart_field(seed_records[field.record], field.months, ncells)
+            want = restart_field(seed_records[field.record], depth, ncells)
             reference = "seed"
         else:
             want = from_file
             reference = "staged"
 
-        differing = int((want != got).sum())
-        row = {"code": code, "record": field.record, "months": field.months,
+        differing = int((np.abs(want - got) > field.tolerance).sum()
+                        if field.tolerance else (want != got).sum())
+        row = {"code": code, "record": field.record, "months": depth,
+               "tolerance": field.tolerance,
                "cells": ncells, "reference": reference, "differing": differing,
                "binarised": field.binarise}
         if differing:
