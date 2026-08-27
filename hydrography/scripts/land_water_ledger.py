@@ -1033,8 +1033,15 @@ def build_report(decl: dict) -> dict:
         "shadow_copies": shadow_copies(decl),
         "interval_refusals": interval_refusals(decl),
         "undeclared_terms": [{"term": t, "owner": o} for t, o in undeclared_terms(decl)],
+        # `how_far_it_bites` is optional and carries the POINTER to whatever
+        # artifact says how much of the build an absence covers, in place of a
+        # number the declaration would have to keep up to date. It reaches the
+        # report because a pointer nobody is shown is not a pointer.
         "absences": [{"absence": name, "owner": body.get("owner"),
-                      "what": " ".join(body["what"].split())}
+                      "what": " ".join(body["what"].split()),
+                      **({"how_far_it_bites":
+                          " ".join(body["how_far_it_bites"].split())}
+                         if body.get("how_far_it_bites") else {})}
                      for name, body in decl["absences"].items()],
         "bucket_floor_bound": floor,
     }

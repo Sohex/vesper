@@ -623,12 +623,20 @@ absences:
       Water between field capacity and saturation has nowhere to sit.
     unrepresentable: >
       Water-filled pore space derived from `wcont` tops out at the ratio of
-      field capacity to saturation: a median of 0.813 across the checked-in
-      soil map, as low as 0.573, and 164 of 4105 cells that can never reach
-      0.70 WFPS at all. Every process keyed on WFPS therefore has a ceiling
-      that is a property of the texture rather than of the weather, and
-      saturated or near-saturated soil -- which is what a quarter of this land
-      is, being playa clastic -- is a state the column cannot enter.
+      field capacity to saturation, cell by cell. Every process keyed on WFPS
+      therefore has a ceiling that is a property of the texture rather than of
+      the weather, and saturated or near-saturated soil is a state the column
+      cannot enter over the share of land whose ratio sits below the threshold
+      that process uses.
+    how_far_it_bites: >
+      The distribution of that ratio is a property of the build's own soil
+      column and moves with every soil rebuild, so no number for it is stated
+      here. Take it from the land column contract's shipped states,
+      `lib/builds.py:land_column_states`, as `theta_fc / theta_s`. This field
+      carried a median, a minimum and a count over 4105 cells: that is
+      `precarve-craton` at T42 under the SUPERSEDED Earth-suction derivation,
+      two builds and one derivation behind the configured column, and nothing
+      here could learn either had moved.
     owner: lshy-1
   canopy_store_in_the_climate_column:
     what: ExoPlaSim's land column has no interception store.
