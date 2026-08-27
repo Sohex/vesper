@@ -1,7 +1,7 @@
 {
   "source_build": "canonical-10m-base",
   "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
-  "forcing": "/home/cfutro/docs/world/exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "forcing": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
   "forcing_sha256": "16c4b30f5c52eb91b878ca74d62fdb472c9693f342699ecf3feb99b650df0e8e",
   "orbital_year_days": 182.80142503147016,
   "runoff_source": {
@@ -82,5 +82,5 @@
     "build": "canonical-10m-base",
     "declared_cross_build": null
   },
-  "git_commit": "b253202594a81ea663c0e80f471eca6042b144db"
+  "git_commit": "108ab48a3745e55b1d578c5781b1d2055c525ff5"
 }

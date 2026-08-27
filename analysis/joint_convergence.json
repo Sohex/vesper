@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-27T07:48:58.712015+00:00",
+  "generated": "2026-08-27T08:43:40.349014+00:00",
   "what": "each pipeline loop's OWN exit predicate, re-evaluated against the final state. docs/src/pipeline/loops.md, the finalizer.",
   "not_a_loop": "nothing iterates on this verdict. A failure names a loop and the decision to re-enter it is the author's.",
   "operating_support": "T85",
@@ -42,12 +42,18 @@
       "loop": "C",
       "predicate": "re-take the verdict on MODELLED vegetation; if basins flip, re-enter A. Generalised to the operating support rather than the support the verdict was first taken on",
       "status": "not evaluable",
-      "detail": "no verdict at hydrography/analysis/carve_verdict.json to hold the re-take against, so nothing can be said to have flipped",
+      "detail": "no verdict on modelled vegetation at hydrography/analysis/carve_verdict_modelled.json. Produce one with hydrography/scripts/carve_verdict.py against a baseline climatology whose run staged surface albedo in `modelled` mode, which needs an LPJ-GUESS run at the operating support.",
       "compared": {
         "operating_support": "T85",
         "verdict_loop_a_used": "hydrography/analysis/carve_verdict.json",
         "verdict_on_modelled_vegetation": "hydrography/analysis/carve_verdict_modelled.json",
-        "assumed_biosphere_arm": null,
+        "assumed_biosphere_arm": {
+          "path": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+          "exists": true,
+          "rung": "T21",
+          "run_id": "run_432e5e46adef",
+          "land_albedo_source": "vegetated"
+        },
         "modelled_biosphere_arm": null
       }
     },
