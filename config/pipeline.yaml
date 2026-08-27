@@ -354,7 +354,19 @@ steps:
       fitted to its own answer is what CLIM-30 exists to undo. The script
       refuses on an undeclared cap before it reads a field, and refuses again if
       the winner lands on either end of the candidate range, because a search
-      that cannot reach its own answer returns an edge rather than a result
+      that cannot reach its own answer returns an edge rather than a result.
+      THE ARTIFACT CAN ALSO RECORD A FLUX THAT WAS CHOSEN, and it is this step
+      and this script that write it, because a second generator for one artifact
+      would be a route around the derivation by construction. Every artifact
+      carries `basis`, `derived` or `chosen`. A chosen one is written by
+      `--chosen FLUX --evidence notes/...` and ONLY after the script has run the
+      whole derivation and caught a refusal whose ground it declares in
+      CHOOSABLE_REFUSALS: a derivation that answers is adopted rather than
+      overridden, and a refusal about a missing or unsuitable input is fixed by
+      supplying the input. The record carries the refusal, the finding, and what
+      would reopen the derivation, and `check_consistency.py` refuses one short
+      of any of the three. What makes a refusal choosable is that no run at any
+      flux would lift it
 
   - id: analyze_climatology
     script: exoplasim/scripts/analyze_climatology.py

@@ -338,8 +338,9 @@
 !
 !     WHAT THE STORE CAN REACH IS A FINDING AND NOT A CAVEAT. Because an empty
 !     store is the wilting point rather than a dry soil, the inertia this route
-!     can span is about a factor of 1.37 between an empty and a full column,
-!     against 4.2 for the full sweep from air dry to saturated. The dry playa
+!     can span between an empty and a full column is a small part of the full
+!     sweep from air dry to saturated; the contract emits both factors per build
+!     and they move with the soil map. The dry playa
 !     and salt-crust surfaces sit below the wilting point, so they are not
 !     reachable by this route however the endpoints are set; representing them
 !     needs a thin surface layer that dries below it, which is a change to the
@@ -351,8 +352,8 @@
       real :: soildifsat = 1.4332   ! soil conductivity, saturated(W/m/K)
       real :: soilcapdry = 1.1111E6 ! soil heat capacity, dry   (J/m**3/K)
       real :: soilcapsat = 2.9689E6 ! soil heat capacity, saturated
-      real :: soilsrwp   = 0.4114   ! degree of saturation at an empty store
-      real :: soilsrfc   = 0.7877   ! degree of saturation at a full store
+      real :: soilsrwp   = 0.3760   ! degree of saturation at an empty store
+      real :: soilsrfc   = 0.7642   ! degree of saturation at a full store
 !     THE SURFACE LAYER'S OWN MAPPING, for `nwetsoil`. It differs from the pair
 !     above in the LOWER endpoint and only there: the surface layer's capacity
 !     is cut from air dry and the layers beneath it are cut from the wilting
@@ -363,7 +364,7 @@
 !     surface layer and the staged dry albedo are the same state and the mixing
 !     has no level shift at its dry end.
       real :: skinsrad   = 0.0      ! saturation at an empty surface layer
-      real :: skinsrfc   = 0.7877   ! saturation at a full surface layer
+      real :: skinsrfc   = 0.7642   ! saturation at a full surface layer
 !     Sadeghi, Jones and Philpot's shape parameter, one per staged albedo
 !     field. It is the ratio of the dry soil's scattering coefficient to the
 !     saturated soil's, so it is one where the water's own scattering is

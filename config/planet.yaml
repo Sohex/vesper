@@ -142,18 +142,26 @@ star:
 # MIXED, and the mixture is the point. `earth_solar_constant_w_m2` is a physical
 # constant and `sweep_flux_earth` is a sweep specification; both are DETERMINED.
 #
-# `baseline_flux_earth` is PROVISIONAL, and carried DETERMINED until 2026-08-19.
-# What stands behind it is the habitability-by-latitude derivation of
-# docs/src/pipeline/state.md section 5b, and notes/audits/inherited-earth-constants.md finding 5 establishes that
-# that derivation has no script, no analysis product, no row in
-# config/pipeline.yaml and no recorded threshold, and does not name the runs it
-# was projected across. Those runs are now deleted, so it is not reproducible
-# even in principle from this tree. CLIM-24. Section 6 requires the
-# flux to be RE-DERIVED on every new terrain in any case, so it is scheduled to
-# move rather than merely unsupported.
+# `baseline_flux_earth` is CHOSEN. The derivation is
+# `exoplasim/scripts/derive_design_flux.py`; it has been RUN on this terrain and
+# it REFUSES. Four land bands have a NEGATIVE warmest-bin response between the
+# two measured flux points, so the per-band projection has nothing to scale by,
+# and no further run lifts that: the sign is a property of how this world's
+# seasons respond and not of where the two points sit. A refusal no run at any
+# flux would lift leaves a design decision as the only thing that can settle the
+# number.
 #
-# It keeps its value rather than being cleared, because it is an INPUT and not a
-# result: it fixes the semi-major axis, and that orbit is compiled into
+# The record is `exoplasim/analysis/design_flux.json` with `basis: chosen`,
+# written by the same script and only after it caught its own refusal. It
+# carries the refusal with the offending bands, the finding the choice rests on
+# in `notes/audits/design-flux-two-point-response.md`, and what would reopen the
+# derivation. `scripts/check_consistency.py` refuses a chosen record short of
+# any of those, and refuses this value if it drifts from the record's.
+# docs/src/pipeline/sequencing.md loop C re-derives the flux on every new
+# terrain, so the choice is re-affirmed per terrain and not inherited.
+#
+# It is an INPUT and not a result: it fixes the semi-major axis, and that orbit
+# is compiled into
 # LPJ-GUESS. What the flux and the biosphere share is a FINDING rather than an
 # artifact, and findings about mechanisms survive a regeneration -- bare rock and
 # a vegetated surface reach a given design mean at non-overlapping fluxes, so
@@ -168,9 +176,12 @@ star:
 # reach. `exoplasim/analysis/stephens_tables_vs_fits.json` brackets that at a
 # flux ratio of +0.026 to +0.102 to offset, over a black surface and with all
 # the model's cover on one layer, so it is a magnitude bound rather than an
-# estimate and the upper end is not reachable. Whatever it turns out to be, this
-# number is not it, and `derive_design_flux.py` cannot be re-run until a
-# commissioning pair exists on the current model source.
+# estimate and the upper end is not reachable. This value predates that change
+# and its original justification was reverse-engineered from where the
+# superseded physics put the tropics, which world-f9ig destroyed. It
+# nevertheless sits on the comfort plateau measured under the corrected optics.
+# That is two independent things arriving at one number and is not the first
+# justification having been right after all.
 orbit:
   earth_solar_constant_w_m2: 1361.0
   baseline_flux_earth: 0.945
@@ -623,12 +634,18 @@ surface:
   # carries the argument and the one class the staged field refuses.
   #
   # THE TWO SATURATION ENDPOINTS ARE READ, NOT CHOSEN. They are the contract's
-  # `surface_layer.saturation_mapping`, and `run_exoplasim.py` checks both this
-  # block and `landmod.f90`'s compiled defaults against it at the contract's own
-  # tolerance, the way it already checks the soil heat solver's six. They differ
-  # from `surface.soil_thermal`'s pair in the LOWER endpoint alone, because the
-  # surface layer's capacity is cut from air dry and the layers below it are cut
-  # from the wilting point.
+  # `surface_layer.saturation_mapping`. `run_exoplasim.py` checks `landmod.f90`'s
+  # compiled defaults against it at the contract's own tolerance, the way it
+  # already checks the soil heat solver's six, and `scripts/check_consistency.py`
+  # checks THIS block against it. The upper endpoint differs from the soil heat
+  # solver's pair in the LOWER endpoint alone, because the surface layer's
+  # capacity is cut from air dry and the layers below it are cut from the
+  # wilting point.
+  #
+  # The upper endpoint is a MEDIAN over the build's own land cells, so it moves
+  # with every soil rebuild. `pedology/scripts/land_column_properties.py
+  # --update-declaration` re-derives the contract's copy and names this key as
+  # one of the restatements that then has to follow it.
   #
   # `shape_sigma` IS A LIMIT AND NOT A FIT. It is the ratio of the dry soil's
   # scattering coefficient to the saturated soil's, and it is one where the
@@ -642,7 +659,7 @@ surface:
   soil_albedo_moisture:
     enabled: true
     saturation_at_empty_layer: 0.0
-    saturation_at_full_layer: 0.7877
+    saturation_at_full_layer: 0.7642
     shape_sigma_broadband: 1.0
     shape_sigma_band1: 1.0
     shape_sigma_band2: 1.0

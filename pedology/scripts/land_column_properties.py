@@ -9,6 +9,10 @@ properties it is described by.
     python pedology/scripts/land_column_properties.py            # check, emit, report
     python pedology/scripts/land_column_properties.py --strict   # exit 1 while any property is undeclared
     python pedology/scripts/land_column_properties.py --no-emit  # check and report only
+    python pedology/scripts/land_column_properties.py --update-declaration
+                                        # write the derived saturation mapping
+                                        # back into the contract, then report
+                                        # every restatement of it that is stale
 
 This module is the enforcement for `pedology/config/land_column_properties.yaml`
 AND the one implementation of the states it declares. It does five things, and
@@ -54,6 +58,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -66,6 +71,14 @@ from _paths import ANALYSIS, CONFIG, PROJECT_ROOT  # noqa: F401  (adds lib/ to s
 COMPONENT_ROOT = Path(__file__).resolve().parents[1]
 DECLARATION = COMPONENT_ROOT / "config" / "land_column_properties.yaml"
 REPORT = ANALYSIS / "land_column_properties_report.json"
+
+# THE FILE THAT RESTATES THE SATURATION MAPPING IN COMPILED FORM. Read here,
+# never written: `scan_restatements` says which copies of the declared pair have
+# gone stale, and each copy has its own enforcer -- `run_exoplasim.py` refuses at
+# import when landmod's compiled defaults disagree with this contract, and
+# `scripts/check_consistency.py` refuses when the project config does.
+LANDMOD_SOURCE = (PROJECT_ROOT / "vendor" / "exoplasim" / "exoplasim"
+                  / "plasim" / "src" / "landmod.f90")
 
 UNDECLARED = "undeclared"
 
@@ -598,6 +611,170 @@ def frame_consistency(soil: dict[str, np.ndarray], decl: dict,
         "defects": defects,
         "owner": "world-slpa, subsumed into world-of6n",
     }
+
+
+# ---------------------------------------------------------------------------
+# THE DERIVED SCALARS, AND WHO WRITES THEM
+#
+# `thermal.saturation_mapping`'s four numbers are the median and the spread of a
+# distribution this contract emits per cell, so they move whenever the soil map
+# is rebuilt, which is every turn of loop A. Typed by hand they drift silently
+# in one direction: the declaration goes on describing the previous build's soil
+# while `check_thermal_against_states` is the only thing that knows. So they are
+# WRITTEN from the same measurement that check makes, by `--update-declaration`,
+# and the check is what proves the declaration is that measurement rather than a
+# number someone chose.
+#
+# WHY THE CONTRACT STILL DECLARES THEM RATHER THAN ONLY EMITTING THEM. The
+# consumer is a Fortran namelist. `landmod_nl` takes scalars; a run RECORDS the
+# pair it integrated, which is what makes the soil heat solver's endpoints an
+# arm rather than a compiled accident; and `landmod.f90` carries the same pair as
+# a compiled default so a run that declares nothing reproduces it. A namelist
+# writer that reached into this report instead would make a run's arm depend on
+# whichever soil report happened to be on disk, unnamespaced and unstamped. What
+# changes here is not that the scalar stops being declared. It is that nobody
+# types it.
+#
+# THE THERMAL ENDPOINTS ARE NOT IN THIS SET and are a different class. They are
+# evaluated at a DECLARED column -- `endpoints.evaluated_at`'s bulk density and
+# quartz fraction -- so they move only when that column is re-declared, and the
+# check that the declared column is still the soil map's median is separate and
+# is the one that fires when it stops being.
+DERIVED_MAPPING_SCALARS = ("sr_at_wilting_point", "sr_at_field_capacity")
+DERIVED_MAPPING_PAIRS = ("sr_at_wilting_point_p5_p95",
+                         "sr_at_field_capacity_p5_p95")
+
+
+def _rewrite_key(text: str, key: str, rendered: str) -> tuple[str, str | None]:
+    """Replace one `key: value` line in the declaration, keeping its indent.
+
+    Line-targeted rather than a YAML round trip because the declaration is
+    mostly argument: a dump would lose every comment in it, and the comments are
+    the part a reader needs.
+    """
+    pattern = re.compile(rf"^(?P<indent>[ \t]*){re.escape(key)}:[ \t]*"
+                         r"(?P<old>[^\n#]*?)[ \t]*$", re.MULTILINE)
+    found = pattern.findall(text)
+    if len(found) != 1:
+        raise SystemExit(
+            f"{DECLARATION.name} states `{key}:` {len(found)} times and this "
+            "rewrite needs exactly one. The declaration has been restructured "
+            "and `--update-declaration` has to be restructured with it.")
+    match = pattern.search(text)
+    old = match.group("old")
+    if old == rendered:
+        return text, None
+    return (text[:match.start()] + match.group("indent") + key + ": " + rendered
+            + text[match.end():], f"{key}: {old} -> {rendered}")
+
+
+def update_declaration(measured: dict) -> list[str]:
+    """Write the derived saturation mapping into the declaration.
+
+    Returns one line per number that moved, empty when the declaration already
+    states the measurement. Writes the file only when something moved.
+    """
+    text = DECLARATION.read_text(encoding="utf-8")
+    changed: list[str] = []
+    for key in DERIVED_MAPPING_SCALARS:
+        text, note = _rewrite_key(text, key, f"{measured[key]:.4f}")
+        if note:
+            changed.append(note)
+    for key in DERIVED_MAPPING_PAIRS:
+        low, high = measured[key]
+        text, note = _rewrite_key(text, key, f"[{low:.4f}, {high:.4f}]")
+        if note:
+            changed.append(note)
+    if changed:
+        DECLARATION.write_text(text, encoding="utf-8")
+    return changed
+
+
+def _fortran_default(name: str) -> float | None:
+    """One `real :: name = value` default out of `landmod.f90`, or None."""
+    if not LANDMOD_SOURCE.is_file():
+        return None
+    text = LANDMOD_SOURCE.read_text(encoding="utf-8", errors="replace")
+    m = re.search(rf"^[ \t]*real[ \t]*::[ \t]*{name}[ \t]*=[ \t]*"
+                  r"([-+0-9.eEdD]+)", text, re.IGNORECASE | re.MULTILINE)
+    if not m:
+        return None
+    return float(m.group(1).replace("d", "e").replace("D", "e"))
+
+
+def scan_restatements(decl: dict, config: dict) -> list[dict]:
+    """Every other place the declared saturation endpoints are written.
+
+    The declaration is one number and a run reaches it through copies: two
+    `landmod_nl` compiled defaults for the soil heat solver, one more for the
+    surface layer the moisture-dependent albedo mixes on, and the project config
+    keys `run_exoplasim.py` writes into the namelist. Each row says what that
+    copy states and what the contract says it should, so a rebuild that moves the
+    median produces the work list instead of leaving it to be found.
+
+    Compared against the DECLARATION and not against the measurement, because
+    that is the fact they restate; that the declaration IS the measurement is
+    `check_thermal_against_states`'s job and is checked separately.
+    """
+    mapping = decl["thermal"]["saturation_mapping"]
+    tol = float(mapping["tolerance"])
+    wp = float(mapping["sr_at_wilting_point"])
+    fc = float(mapping["sr_at_field_capacity"])
+    surface = decl["surface_layer"]["saturation_mapping"]
+    node = decl
+    for part in str(surface["sr_at_field_capacity_from"]).split("."):
+        node = node[part]
+    skin_fc = float(node)
+
+    surf_cfg = config.get("surface", {}) or {}
+    thermal_cfg = surf_cfg.get("soil_thermal", {}) or {}
+    albedo_cfg = surf_cfg.get("soil_albedo_moisture", {}) or {}
+
+    def stated(block: dict, key: str) -> float | None:
+        value = block.get(key)
+        return None if value is None else float(value)
+
+    landmod = "vendor/exoplasim/exoplasim/plasim/src/landmod.f90"
+    by_import = "exoplasim/scripts/run_exoplasim.py, at import"
+    by_gate = "scripts/check_consistency.py"
+    rows = [
+        {"where": landmod, "key": "soilsrwp", "declared": wp,
+         "states": _fortran_default("soilsrwp"), "enforced_by": by_import},
+        {"where": landmod, "key": "soilsrfc", "declared": fc,
+         "states": _fortran_default("soilsrfc"), "enforced_by": by_import},
+        {"where": landmod, "key": "skinsrfc", "declared": skin_fc,
+         "states": _fortran_default("skinsrfc"), "enforced_by": by_import},
+        {"where": "config/planet.yaml",
+         "key": "surface.soil_albedo_moisture.saturation_at_full_layer",
+         "declared": skin_fc,
+         "states": stated(albedo_cfg, "saturation_at_full_layer"),
+         "enforced_by": by_gate},
+        {"where": "config/planet.yaml",
+         "key": "surface.soil_thermal.saturation_at_empty_store",
+         "declared": wp,
+         "states": stated(thermal_cfg, "saturation_at_empty_store"),
+         "enforced_by": by_gate},
+        {"where": "config/planet.yaml",
+         "key": "surface.soil_thermal.saturation_at_full_store",
+         "declared": fc,
+         "states": stated(thermal_cfg, "saturation_at_full_store"),
+         "enforced_by": by_gate},
+    ]
+    for row in rows:
+        if row["states"] is None:
+            # UNSET IS A LEGITIMATE STATE AND NOT A GAP. `run_exoplasim.py`
+            # writes every one of these keys into `landmod_nl` whatever the
+            # config says; a key the config leaves out is written at
+            # `landmod.f90`'s compiled default, which is itself a row above and
+            # is checked against this contract. So an unset key is one copy of
+            # the number instead of two, and adding the key would add a
+            # restatement rather than remove one.
+            row["status"] = "unset"
+        elif abs(row["states"] - row["declared"]) > tol:
+            row["status"] = "stale"
+        else:
+            row["status"] = "agrees"
+    return rows
 
 
 # ---------------------------------------------------------------------------
@@ -1536,7 +1713,8 @@ def surface_layer_report(decl: dict, soil: dict[str, np.ndarray],
     }, bad
 
 
-def build_report(decl: dict, soil_map: Path, gravity_m_s2: float,
+def build_report(decl: dict, config: dict, soil_map: Path,
+                 gravity_m_s2: float,
                  states_path: Path | None = None) -> dict:
     soil = read_soil_map(soil_map)
     failures = check_declaration(decl)
@@ -1574,6 +1752,7 @@ def build_report(decl: dict, soil_map: Path, gravity_m_s2: float,
         "undeclared_properties": undeclared_properties(decl),
         "thermal_reduction": thermal_measured,
         "surface_layer": surface,
+        "restatements": scan_restatements(decl, config),
     }
 
 
@@ -1590,6 +1769,11 @@ def main(argv: list[str] | None = None) -> int:
                         help="check and report only. The states file is what "
                              "ExoPlaSim and LPJ-GUESS install, so not writing "
                              "it leaves whatever is on disk in place")
+    parser.add_argument("--update-declaration", action="store_true",
+                        help="write the derived saturation mapping into "
+                             "pedology/config/land_column_properties.yaml from "
+                             "this build's own states, instead of refusing "
+                             "because a hand-typed copy of it has drifted")
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)
 
@@ -1606,8 +1790,15 @@ def main(argv: list[str] | None = None) -> int:
                          "pedology/scripts/build_soil.py.")
 
     decl = load()
-    report = build_report(decl, args.soil_map, gravity,
+    written: list[str] = []
+    if args.update_declaration:
+        measured, _ = check_thermal_against_states(
+            decl, read_soil_map(args.soil_map), gravity)
+        written = update_declaration(measured)
+        decl = load()
+    report = build_report(decl, config, args.soil_map, gravity,
                           None if args.no_emit else args.states)
+    report["declaration_written"] = written
     REPORT.parent.mkdir(parents=True, exist_ok=True)
     REPORT.write_text(json.dumps(report, indent=2, sort_keys=False) + "\n",
                       encoding="utf-8")
@@ -1725,6 +1916,27 @@ def main(argv: list[str] | None = None) -> int:
               f"{ti['full_sweep_factor']:.3f}")
         print(f"    an empty store is the WILTING POINT, not a dry soil, so the "
               f"store cannot reach the dry end")
+
+        if written:
+            print(f"\n  wrote the derived saturation mapping into "
+                  f"{DECLARATION.relative_to(PROJECT_ROOT)}")
+            for line in written:
+                print(f"    {line}")
+        print(f"\n  the declared mapping is restated in {len(report['restatements'])} "
+              "places, each with its own enforcer")
+        for row in report["restatements"]:
+            states = "-" if row["states"] is None else f"{row['states']:.4f}"
+            print(f"    {row['status']:<7} {row['where']}  {row['key']} "
+                  f"= {states} against {row['declared']:.4f}")
+        stale = [row for row in report["restatements"]
+                 if row["status"] == "stale"]
+        if stale:
+            print("    a stale restatement is refused by the enforcer named "
+                  "against it, not here; update it in the same commit")
+        if any(row["status"] == "unset" for row in report["restatements"]):
+            print("    unset is one copy instead of two: the namelist key is "
+                  "written at landmod.f90's compiled default, which is a row "
+                  "above and is checked against this contract")
 
         print(f"\n  {len(report['undeclared_properties'])} properties undeclared; "
               "the contract is defined and is not complete")

@@ -629,21 +629,30 @@ thermal:
       reduction rather than a number picked. `land_column_properties.py`
       recomputes both from the emitted states and refuses when they drift from
       what is written here.
-    sr_at_wilting_point: 0.4114
-    sr_at_field_capacity: 0.7877
-    sr_at_wilting_point_p5_p95: [0.3089, 0.5410]
-    sr_at_field_capacity_p5_p95: [0.6994, 0.8626]
+
+      NOBODY TYPES THEM. The four numbers below are the median and the spread of
+      a distribution that moves with every soil rebuild, which is every turn of
+      loop A, so `land_column_properties.py --update-declaration` writes them
+      from the same measurement the refusal is made on. That is what keeps a
+      declared constant from quietly describing the previous build's soil while
+      the check is the only thing that knows. It also prints every other place
+      the pair is restated and which of them the rebuild has left stale.
+    sr_at_wilting_point: 0.3760
+    sr_at_field_capacity: 0.7642
+    sr_at_wilting_point_p5_p95: [0.2781, 0.5134]
+    sr_at_field_capacity_p5_p95: [0.6670, 0.8594]
     tolerance: 0.002
     what_this_bounds: >
       THE LAYERS THIS MAPPING DESCRIBES CANNOT REACH A DRY SOIL, and that is the
-      finding rather than a caveat. An empty store is the wilting point, which on
-      this build is a degree of saturation near 0.41, so a thermal inertia driven
-      by the store spans about a factor of 1.37 between an empty and a full
-      column. The full saturation sweep from air dry to saturated is a factor of
-      4.91. The difference is water held below the wilting point, which the soil
-      physically carries and these layers' capacity does not represent, and it is
-      why the dry playa and salt-crust surfaces cannot be given their own inertia
-      by this route however the endpoints are set.
+      finding rather than a caveat. An empty store is the wilting point, well
+      above air dry, so the thermal inertia a store-driven column can span is a
+      small part of the full air-dry-to-saturated sweep; both factors are
+      emitted per build under `thermal_reduction.thermal_inertia_j_m2_k_s05` in
+      the report, and they move whenever the soil does. The difference is water
+      held below the wilting point, which the soil physically carries and these
+      layers' capacity does not represent, and it is why the dry playa and
+      salt-crust surfaces cannot be given their own inertia by this route
+      however the endpoints are set.
 
       `surface_layer` is the thin layer that DOES dry below the wilting point,
       and it carries its own mapping for that reason. What it does not yet reach
