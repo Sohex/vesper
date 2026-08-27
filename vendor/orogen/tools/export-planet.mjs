@@ -7,12 +7,17 @@
  * that used to stay inside assignElevation — as flat binaries with a JSON
  * manifest, and optionally as NetCDF for direct ingestion downstream.
  *
+ * --grid repeats. Generation dominates the cost of an export and the grid has
+ * no say in it, so one invocation generates the planet once and writes every
+ * requested grid from it.
+ *
  * Requires: npm i delaunator
  *
  * Usage:
  *   node tools/export-planet.mjs --out out/world-01
  *   node tools/export-planet.mjs --seed 12345 --regions 250000 --grid 1024x512 --netcdf
  *   node tools/export-planet.mjs --grid 128x64 --grid-method mean --only elevation,plates,tectonics
+ *   node tools/export-planet.mjs --grid T42 --out a --grid T21 --out b --no-raw
  *   node tools/export-planet.mjs --list-fields
  *
  * Run with --help for the full option list.
@@ -68,7 +73,8 @@ const DEFAULTS = {
 const HELP = `
 Headless World Orogen generation + data export.
 
-  --out DIR              output directory (default: out/planet-<seed>)
+  --out DIR              output directory (default: out/planet-<seed>).
+                         One per --grid; see the note there.
   --code STR             planet code; supplies seed and every slider. Any explicit
                          flag given alongside it wins. Codes predating the basin and
                          rock-contrast sliders decode with both OFF, which is what
@@ -129,10 +135,22 @@ Headless World Orogen generation + data export.
   --grid T42             spectral truncation instead: T21 T31 T42 T63 T85 T106 T127 T170.
                          Emits Gauss-Legendre latitudes directly, skipping the lossy
                          equirect intermediate a spectral model would otherwise need.
+                         REPEATABLE, and the reason to repeat it is cost: generation
+                         dominates an export, so one invocation generates the planet
+                         ONCE and writes every grid from it. Each --grid opens a target
+                         and needs its own --out.
+                         The EXPORT options -- --out, --raw, --no-raw, --no-grid,
+                         --no-subgrid, --grid-method, --only, --netcdf, --zip -- bind to
+                         the target the --grid before them opened; given before the
+                         first --grid they set the default every target is created
+                         from. Everything else describes the PLANET and is global, so
+                         the targets of one invocation share a terrain hash by
+                         construction.
   --no-subgrid           skip the sub-grid orography statistics
   --grid-method M        'mean' (area-weighted) or 'nearest' (default: mean)
   --no-grid              skip the gridded output
   --no-raw               skip the per-region output
+  --raw                  keep it, against a --no-raw default (per target)
   --no-climate           skip wind/ocean/precipitation/temperature/Koppen entirely
   --only G1,G2           limit to field groups: ${Object.keys(FIELD_GROUPS).join(', ')}
   --netcdf               additionally write planet.nc (gridded fields, CF-ish)
@@ -183,18 +201,30 @@ function readIceMask(file) {
 }
 
 function parseArgs(argv) {
+    // ONE export target: a grid, where it is written, and how. Everything
+    // outside this object describes the planet, and the planet is generated once
+    // however many targets there are.
+    const newTarget = () => ({
+        out: null,
+        gridWidth: 1024, gridHeight: 512, gridType: 'uniform', gridTruncation: null,
+        gridMethod: 'mean', grid: true, raw: true, subgrid: true,
+        only: null, netcdf: false, zip: false,
+    });
     const a = {
-        out: null, seed: null, ...DEFAULTS,
-        gridWidth: 1024, gridHeight: 512, gridMethod: 'mean',
-        grid: true, raw: true, climate: true,
-        only: null, netcdf: false, zip: false, listFields: false, quiet: false,
+        seed: null, ...DEFAULTS,
+        climate: true, listFields: false, quiet: false,
         preserveBasins: true, preserveBasin: [], waterLevels: {}, listBasins: false,
         lithology: true, lithologyStrength: undefined, listRocks: false,
         preserveBasinList: null, carveBasinList: null,
-        gridType: 'uniform', gridTruncation: null, subgrid: true, planet: {},
-        iceMask: null,
+        planet: {}, iceMask: null,
         code: null, _explicit: new Set(),
+        targets: [], targetDefaults: newTarget(),
     };
+    // An export option belongs to the target the last --grid opened; before the
+    // first --grid it sets the default later targets are created from. That is
+    // the whole of the ordering rule, and it is what lets one invocation say
+    // "T42 keeps raw/, the rest do not" without repeating the generation flags.
+    const tgt = () => (a.targets.length ? a.targets[a.targets.length - 1] : a.targetDefaults);
     const num = (v, flag) => {
         const n = Number(v);
         if (!Number.isFinite(n)) throw new Error(`${flag} expects a number, got "${v}"`);
@@ -205,7 +235,7 @@ function parseArgs(argv) {
         a._explicit.add(f);
         switch (f) {
             case '--help': case '-h': console.log(HELP); process.exit(0); break;
-            case '--out': a.out = argv[++i]; break;
+            case '--out': tgt().out = argv[++i]; break;
             case '--code': a.code = argv[++i]; break;
             case '--seed': a.seed = num(argv[++i], f); break;
             case '--regions': case '--n': a.regions = num(argv[++i], f); break;
@@ -225,19 +255,21 @@ function parseArgs(argv) {
             case '--precip-offset': a.precipitationOffset = num(argv[++i], f); break;
             case '--grid': {
                 const spec = argv[++i];
-                const t = spectralGrid(spec);
-                if (t) {
-                    a.gridWidth = t.width; a.gridHeight = t.height;
-                    a.gridType = 'gaussian'; a.gridTruncation = t.truncation;
-                    break;
+                const t = { ...a.targetDefaults };
+                const sp = spectralGrid(spec);
+                if (sp) {
+                    t.gridWidth = sp.width; t.gridHeight = sp.height;
+                    t.gridType = 'gaussian'; t.gridTruncation = sp.truncation;
+                } else {
+                    const m = /^(\d+)x(\d+)$/.exec(spec);
+                    if (!m) throw new Error(`--grid expects WxH or a truncation like T42, got "${spec}"`);
+                    t.gridWidth = +m[1]; t.gridHeight = +m[2];
+                    t.gridType = 'uniform'; t.gridTruncation = null;
                 }
-                const m = /^(\d+)x(\d+)$/.exec(spec);
-                if (!m) throw new Error(`--grid expects WxH or a truncation like T42, got "${spec}"`);
-                a.gridWidth = +m[1]; a.gridHeight = +m[2];
-                a.gridType = 'uniform'; a.gridTruncation = null;
+                a.targets.push(t);
                 break;
             }
-            case '--no-subgrid': a.subgrid = false; break;
+            case '--no-subgrid': tgt().subgrid = false; break;
             case '--planet': a.planet.name = argv[++i]; break;
             case '--radius': a.planet.radiusKm = num(argv[++i], f); break;
             case '--gravity': a.planet.gravityMS2 = num(argv[++i], f); break;
@@ -251,13 +283,14 @@ function parseArgs(argv) {
             case '--obliquity': a.planet.obliquityDeg = num(argv[++i], f); break;
             case '--eccentricity': a.planet.eccentricity = num(argv[++i], f); break;
             case '--solar-constant': a.planet.solarConstantWM2 = num(argv[++i], f); break;
-            case '--grid-method': a.gridMethod = argv[++i]; break;
-            case '--no-grid': a.grid = false; break;
-            case '--no-raw': a.raw = false; break;
+            case '--grid-method': tgt().gridMethod = argv[++i]; break;
+            case '--no-grid': tgt().grid = false; break;
+            case '--no-raw': tgt().raw = false; break;
+            case '--raw': tgt().raw = true; break;
             case '--no-climate': a.climate = false; break;
-            case '--only': a.only = argv[++i].split(',').map(s => s.trim()).filter(Boolean); break;
-            case '--netcdf': a.netcdf = true; break;
-            case '--zip': a.zip = true; break;
+            case '--only': tgt().only = argv[++i].split(',').map(s => s.trim()).filter(Boolean); break;
+            case '--netcdf': tgt().netcdf = true; break;
+            case '--zip': tgt().zip = true; break;
             case '--list-fields': a.listFields = true; break;
             case '--no-basins': a.preserveBasins = false; break;
             case '--list-basins': a.listBasins = true; break;
@@ -285,15 +318,41 @@ function parseArgs(argv) {
             default: throw new Error(`Unknown option: ${f} (try --help)`);
         }
     }
-    if (a.gridMethod !== 'mean' && a.gridMethod !== 'nearest') {
-        throw new Error(`--grid-method must be 'mean' or 'nearest'`);
+    // No --grid at all is one target on the default grid, which is what this
+    // tool has always done.
+    if (!a.targets.length) a.targets.push(a.targetDefaults);
+    const byOut = new Map();
+    for (const t of a.targets) {
+        const where = a.targets.length > 1 ? ` for --grid ${gridLabel(t)}` : '';
+        if (t.gridMethod !== 'mean' && t.gridMethod !== 'nearest') {
+            throw new Error(`--grid-method must be 'mean' or 'nearest'`);
+        }
+        if (t.only) {
+            const bad = t.only.filter(g => !FIELD_GROUPS[g]);
+            if (bad.length) throw new Error(`Unknown field group(s): ${bad.join(', ')}. Valid: ${Object.keys(FIELD_GROUPS).join(', ')}`);
+        }
+        if (!t.raw && !t.grid) throw new Error(`Nothing to export${where}: --no-raw and --no-grid together`);
+        if (a.targets.length === 1) continue;
+        // One directory per grid. Letting two targets share a path would have
+        // them overwrite each other field by field and leave a manifest
+        // describing whichever ran last: a wrong export, not a failed one.
+        if (!t.out) {
+            throw new Error(`--grid ${gridLabel(t)} has no --out. With more than one --grid `
+                + 'each target needs its own output directory.');
+        }
+        const key = path.resolve(t.out);
+        if (byOut.has(key)) {
+            throw new Error(`--grid ${gridLabel(t)} and --grid ${byOut.get(key)} both write to `
+                + `${t.out}. One output directory per grid.`);
+        }
+        byOut.set(key, gridLabel(t));
     }
-    if (a.only) {
-        const bad = a.only.filter(g => !FIELD_GROUPS[g]);
-        if (bad.length) throw new Error(`Unknown field group(s): ${bad.join(', ')}. Valid: ${Object.keys(FIELD_GROUPS).join(', ')}`);
-    }
-    if (!a.raw && !a.grid) throw new Error('Nothing to export: --no-raw and --no-grid together');
     return a;
+}
+
+/** How a target names itself in a message: its truncation, or WxH. */
+function gridLabel(t) {
+    return t.gridTruncation ?? `${t.gridWidth}x${t.gridHeight}`;
 }
 
 /** A NetCDF variable name has to be a valid identifier. */
@@ -302,9 +361,9 @@ function ncName(name) {
     return /^[A-Za-z_]/.test(s) ? s : `v_${s}`;
 }
 
-function writeNetCDFFile(outDir, manifest, args, files) {
-    const { gridWidth: W, gridHeight: H } = args;
-    const coords = gridCoords(W, H, args.gridType);
+function writeNetCDFFile(outDir, manifest, target, files) {
+    const { gridWidth: W, gridHeight: H } = target;
+    const coords = gridCoords(W, H, target.gridType);
     const byPath = new Map(files.map(f => [f.name, f.bytes]));
 
     const variables = [
@@ -487,7 +546,7 @@ async function main() {
     }
 
     const seed = args.seed ?? Math.floor(Math.random() * 16777216);
-    const outDir = args.out ?? path.join('out', `planet-${args.code || seed}`);
+    const defaultOut = path.join('out', `planet-${args.code || seed}`);
     const log = args.quiet ? () => {} : (...m) => console.log(...m);
 
     // The simulation modules log diagnostics to console.log unconditionally.
@@ -580,50 +639,62 @@ async function main() {
         return;
     }
 
-    // buildExportBundle reads the same shape state.curData has, plus the extras
-    // the pipeline keeps: plateTable, superPlateData, tectonics.
-    const { files, manifest } = buildExportBundle(ctx, {
-        raw: args.raw,
-        grid: args.grid,
-        gridWidth: args.gridWidth,
-        gridHeight: args.gridHeight,
-        gridMethod: args.gridMethod,
-        gridType: args.gridType,
-        gridTruncation: args.gridTruncation,
-        subgridOrography: args.subgrid,
-        groups: args.only,
-        onProgress: (frac, label) => log(`  [${String(Math.round(frac * 100)).padStart(3)}%] ${label}`),
-    });
+    // ONE generation, every target. buildExportBundle only READS ctx: it builds
+    // a fresh manifest and a fresh file list per call and writes nothing back,
+    // so gridding cannot feed into the terrain and every target of one
+    // invocation carries the same manifest.hashes.finalElevation by
+    // construction rather than by luck. The bundle for one target is released
+    // before the next is built, so the peak is the mesh plus one target.
+    const multi = args.targets.length > 1;
+    for (const target of args.targets) {
+        const outDir = target.out ?? defaultOut;
+        if (multi) log(`\n── ${gridLabel(target)} → ${outDir}`);
 
-    fs.mkdirSync(outDir, { recursive: true });
-    let total = 0;
+        // buildExportBundle reads the same shape state.curData has, plus the extras
+        // the pipeline keeps: plateTable, superPlateData, tectonics.
+        const { files, manifest } = buildExportBundle(ctx, {
+            raw: target.raw,
+            grid: target.grid,
+            gridWidth: target.gridWidth,
+            gridHeight: target.gridHeight,
+            gridMethod: target.gridMethod,
+            gridType: target.gridType,
+            gridTruncation: target.gridTruncation,
+            subgridOrography: target.subgrid,
+            groups: target.only,
+            onProgress: (frac, label) => log(`  [${String(Math.round(frac * 100)).padStart(3)}%] ${label}`),
+        });
 
-    if (args.zip) {
-        const zip = zipStore(files);
-        fs.writeFileSync(path.join(outDir, 'planet.zip'), zip);
-        total = zip.length;
-        log(`\nWrote ${path.join(outDir, 'planet.zip')} — ${humanBytes(total)}, ${files.length} entries`);
-    } else {
-        for (const f of files) {
-            const dest = path.join(outDir, f.name);
-            fs.mkdirSync(path.dirname(dest), { recursive: true });
-            fs.writeFileSync(dest, f.bytes);
-            total += f.bytes.length;
-        }
-        log(`\nWrote ${files.length} files to ${outDir} — ${humanBytes(total)}`);
-    }
+        fs.mkdirSync(outDir, { recursive: true });
+        let total = 0;
 
-    if (args.netcdf) {
-        if (!args.grid) {
-            console.warn('  --netcdf ignored: NetCDF output is gridded and --no-grid was set');
+        if (target.zip) {
+            const zip = zipStore(files);
+            fs.writeFileSync(path.join(outDir, 'planet.zip'), zip);
+            total = zip.length;
+            log(`\nWrote ${path.join(outDir, 'planet.zip')} — ${humanBytes(total)}, ${files.length} entries`);
         } else {
-            const n = writeNetCDFFile(outDir, manifest, args, files);
-            log(`Wrote ${path.join(outDir, 'planet.nc')} — ${humanBytes(n)}`);
+            for (const f of files) {
+                const dest = path.join(outDir, f.name);
+                fs.mkdirSync(path.dirname(dest), { recursive: true });
+                fs.writeFileSync(dest, f.bytes);
+                total += f.bytes.length;
+            }
+            log(`\nWrote ${files.length} files to ${outDir} — ${humanBytes(total)}`);
         }
-    }
 
-    const nFields = (manifest.grid ?? manifest.raw).fields.length;
-    log(`${nFields} fields exported. Field catalogue and units are in manifest.json.`);
+        if (target.netcdf) {
+            if (!target.grid) {
+                console.warn('  --netcdf ignored: NetCDF output is gridded and --no-grid was set');
+            } else {
+                const n = writeNetCDFFile(outDir, manifest, target, files);
+                log(`Wrote ${path.join(outDir, 'planet.nc')} — ${humanBytes(n)}`);
+            }
+        }
+
+        const nFields = (manifest.grid ?? manifest.raw).fields.length;
+        log(`${nFields} fields exported. Field catalogue and units are in manifest.json.`);
+    }
 }
 
 main().catch(err => {
