@@ -1077,6 +1077,12 @@ def predict(config: dict, weight: float, absorber: str = "h2o", co2_fit: dict | 
             "kelvin_per_w_m2": k_per_w,
             "mean_surface_temperature_k": warming,
             "precipitation_mm_yr_full_compensation": d_precip_full,
+            # INVARIANT to the slope, and written this way because it is the
+            # quantity rather than the arithmetic that is meant. `central_warming`
+            # is the same forcing times `slope / absorbed`, so the slope cancels
+            # and this reduces to the TOA change over absorbed flux per unit flux
+            # ratio. It is the one number in this report that does NOT move when
+            # `lib/sensitivity.py` is re-measured; every kelvin above does.
             "flux_ratio_to_restore_the_design_mean": -central_warming / sensitivity.SLOPE_K_PER_FLUX_RATIO,
         },
     }

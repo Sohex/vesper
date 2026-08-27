@@ -16,6 +16,21 @@ bisected only if the two disagree. Numbers here are recomputable:
 `exoplasim/scripts/predict_ocean_terms.py` for the two ocean terms, and the
 sources cited per row for the rest.
 
+**AMENDED 2026-08-27: EVERY KELVIN IN THIS FILE THAT CAME THROUGH
+`lib/sensitivity.py` FELL BY 21 PER CENT, AND THE AMENDMENT IS VISIBLE BECAUSE
+THESE ARE REGISTERED PREDICTIONS.** The slope moved from 202.0 to 159.7 K per
+unit flux ratio: the bracket 202.0 was measured on is two deleted runs on a
+superseded build, and 159.7 is the same measurement re-taken on
+`canonical-10m-base`. No W/m2 in this file moved and no arm was re-run. What
+changed is one multiplication, applied everywhere the conversion appears, so a
+row's flux column and its kelvin column no longer stand in the ratio a reader
+who remembers the old figure expects. **No verdict flips**: every A/B verdict in
+this file is taken on W/m2 against a W/m2 resolution floor, and the two entries
+whose material thresholds ARE in kelvin -- the wet soil albedo ceiling and its
+`f` threshold -- carry the amendment in their own entry.
+Kelvin measured directly from a run's own settled mean is NOT in this class and
+did not move; the arms' own answers stand as they were.
+
 ## CLIM-16: ocean horizontal heat diffusion, `nhdiff` and `hdiffk`
 
 `oceanmod.f90` reads both keys in `oceanmod_nl`, broadcasts them, and acts on
@@ -270,9 +285,9 @@ climatology:
 
 | salinity, psu | TFREEZE, K | newly freezing, fraction of planet | absorbed shortwave | global mean |
 | --- | ---: | ---: | ---: | ---: |
-| 30 | 271.5121 | 0.00062 | -0.05 to -0.08 W/m2 | -0.04 to -0.07 K |
-| 25 | 271.7916 | 0.00190 | -0.15 to -0.24 W/m2 | -0.13 to -0.22 K |
-| 20 | 272.0668 | 0.00322 | -0.26 to -0.41 W/m2 | -0.23 to -0.36 K |
+| 30 | 271.5121 | 0.00062 | -0.05 to -0.08 W/m2 | -0.03 to -0.06 K |
+| 25 | 271.7916 | 0.00190 | -0.15 to -0.24 W/m2 | -0.10 to -0.17 K |
+| 20 | 272.0668 | 0.00322 | -0.26 to -0.41 W/m2 | -0.18 to -0.28 K |
 
 The current seasonal-freezing ocean is 0.0489 of the planet and the annual-mean
 ice fraction 0.016, so the fresh end adds about a fifth to the existing ice,
@@ -326,10 +341,10 @@ arms swept was the computed branch's single-scattering co-albedo, which is what
 `cloudabs` now scales on the table -- and only the attribution changes.
 clim-68, world-f9ig.
 
-**Predicted magnitude bound: 0 +/- 0.6 K.** Clouds are booked at 12.0 W/m2 of
+**Predicted magnitude bound: 0 +/- 0.5 K.** Clouds are booked at 12.0 W/m2 of
 Earth's shortwave absorption beside the water vapour term; +/-28% of that is
 +/-3.4 W/m2 atmospheric, and at the same atmospheric-to-TOA ratio the water
-vapour calibration row exhibits (0.19), +/-0.65 W/m2 TOA, +/-0.54 K. After
+vapour calibration row exhibits (0.19), +/-0.65 W/m2 TOA, +/-0.44 K. After
 PHYS-9 this is the softest entry in the bundle and the second place to bisect.
 
 `acllwr` was in the task's list because it was untraced Earth tuning, not
@@ -379,17 +394,17 @@ the column below.** Two terms then oppose each other:
 
 - **The top-of-atmosphere loss.** The newly penetrating beam meets the
   reflectance of everything under it, so absorbed shortwave falls by roughly
-  that flux times the planetary albedo, 0.30 to 0.46 W/m2, which is **-0.25 to
-  -0.39 K** on `lib/sensitivity.py`'s conversion at albedo 0.30.
+  that flux times the planetary albedo, 0.30 to 0.46 W/m2, which is **-0.20 to
+  -0.31 K** on `lib/sensitivity.py`'s conversion at albedo 0.30.
 - **The redistribution gain, which is why this is worth running.** `PTOP` is
   5000 Pa and the profile's `bo3` is 20 km, so the ozone maximum sits AT the
   model top and `dqo3(:,1)` carries everything above it. The absorption removed
   is therefore heating of the topmost layer, which radiates efficiently to space
   and is weakly coupled to the surface. Moving it into the troposphere and the
   surface makes it count for surface temperature where it largely did not. The
-  ceiling, if all of it landed and were retained, is **+0.84 to +1.29 K**.
+  ceiling, if all of it landed and were retained, is **+0.67 to +1.01 K**.
 
-**Prediction: warming, +0.2 to +0.9 K in the global mean.** The sign is assigned
+**Prediction: warming, +0.2 to +0.7 K in the global mean.** The sign is assigned
 because the ceiling exceeds the loss across the whole magnification bracket; the
 magnitude is soft, because how much of the redistributed flux is retained rather
 than reflected is exactly what the ten-layer column decides and is not
@@ -418,9 +433,9 @@ That makes the leading prediction exact rather than estimated. At 50 m, with
 the model's own sea water -- `oceanmod.f90`'s CRHOS 1030 kg/m3 and CPS 4180
 J/kg/K, as `close_state_energy.py` reads them -- the slab holds 2.153e8 J/m2/K.
 The orbital year is 1.579e7 s, so the annual forcing frequency is 3.978e-7 s-1
-and `omega C` is **85.6 W/m2/K**, against a radiative damping of **1.18
+and `omega C` is **85.6 W/m2/K**, against a radiative damping of **1.49
 W/m2/K** taken from `lib/sensitivity.py`'s canonical slope at a planetary
-albedo of 0.30. The ratio is 73: this slab is
+albedo of 0.30. The ratio is 57: this slab is
 deep in the inertia-dominated regime, which the config's own note reaches
 qualitatively when it says this world's half-length year damps seasonality about
 twice as hard as Earth's ocean does.
@@ -433,9 +448,9 @@ Two consequences follow with no free parameters:
 | 50 m | 1.00x |
 | 100 m | 0.50x |
 
-- **Amplitude goes as 1/depth to within 1.5%**, because the damping term is 69
+- **Amplitude goes as 1/depth to within 1.5%**, because the damping term is 55
   times smaller than the inertia term and enters only in quadrature.
-- **The phase lag is 89.2 degrees**, essentially a quarter of the orbit, and it
+- **The phase lag is 89.0 degrees**, essentially a quarter of the orbit, and it
   barely moves with depth for the same reason.
 
 **Prediction for the annual global mean: 0.000 K, by construction.** A heat
@@ -486,9 +501,9 @@ high layers, where the modelled water path is one to two orders of magnitude
 smaller. The larger arm cools the simulated global mean and the smaller one
 warms it.
 
-**Predicted magnitude: both arms beyond 2 K, plausibly 5 to 10 K**, from a
+**Predicted magnitude: both arms beyond 2 K, plausibly 4 to 8 K**, from a
 modelled low-cloud band-1 reflectance moving about 0.09 absolute against
-PHYS-11's measured 3.2 W/m2 per 2.6 K. The bound is wide on purpose: the
+PHYS-11's measured 3.2 W/m2 per 2.0 K. The bound is wide on purpose: the
 offline estimate that priced PHYS-11 was falsified by a factor of five, in the
 direction of the model responding more than the estimate allowed. If a term
 this size is confirmed it is the largest lever in this model's radiation, ahead
@@ -508,15 +523,15 @@ predictions were soft.
 
 | term | change | prediction, global mean | source |
 | --- | --- | ---: | --- |
-| PHYS-9 | `h2oswl` 1.127 | +1.25 K (+1.4 W/m2 TOA, +7.4 W/m2 atmospheric) | scaled from the table in `exoplasim/notes/corrk-cross-check.md`; arithmetic below |
+| PHYS-9 | `h2oswl` 1.127 | +0.99 K (+1.4 W/m2 TOA, +7.4 W/m2 atmospheric) | scaled from the table in `exoplasim/notes/corrk-cross-check.md`; arithmetic below |
 | PHYS-10 | line-list CO2 coefficients | about -0.03 K | the same table's CO2 row prices -7.5%; the landed fit is -6.7% at the planet path |
 | CLIM-16 | `nhdiff = 1`, `hdiffk = 1000`, meaning 1000 m2/s since `world-mll` | 0.00 W/m2 global by construction; +0.03 to +0.12 K via the ice edge | this note |
 | CLIM-17 | `TFREEZE` from declared salinity | 0.000 K | this note |
-| SPEC-1 | model reads `k25v` | 0.00 to +0.03 K | `analysis/error_budget.json`, measured on the warm state; the A/B re-measures it |
-| SPEC-5 | `vegetation_albedo` 0.165, bands [0.075, 0.225] | -0.64 K, bracket 0 to -0.90 | `analysis/vegetation_albedo.json`; +0.0105 on composited land mean at 0.61 K per 0.01. One-signed toward a cooler simulated mean |
-| PHYS-11 | cloud absorption arms, bracket [0.78, 1.28] | 0 +/- 0.6 K, sign unassigned | this note; arms only, nothing enabled in the baseline config |
+| SPEC-1 | model reads `k25v` | 0.00 to +0.02 K | `analysis/error_budget.json`, measured on the warm state; the A/B re-measures it |
+| SPEC-5 | `vegetation_albedo` 0.165, bands [0.075, 0.225] | -0.51 K, bracket 0 to -0.71 | `analysis/vegetation_albedo.json`; +0.0105 on composited land mean at 0.48 K per 0.01. One-signed toward a cooler simulated mean |
+| PHYS-11 | cloud absorption arms, bracket [0.78, 1.28] | 0 +/- 0.5 K, sign unassigned | this note; arms only, nothing enabled in the baseline config |
 | DUST-11 | prescribed dust arm | separate note | `aeolian/notes/prescribed-dust-run.md` |
-| CLIM-32 | ozone arms, `O3SCALE` 0.794 -> 0.500 | +0.2 to +0.9 K, warming | this note; arms only, `ozone_scale` unchanged in the baseline config |
+| CLIM-32 | ozone arms, `O3SCALE` 0.794 -> 0.500 | +0.2 to +0.7 K, warming | this note; arms only, `ozone_scale` unchanged in the baseline config |
 | CLIM-33 | mixed layer arms, 25 m and 100 m | 0.000 K annual mean by construction | this note; arms only, `mixed_layer_depth_m` unchanged in the baseline config |
 | world-ofn | `clwhsc` derived from `gascon` and `ga` | sign not assigned; see below | `notes/audits/model-earth-centrism.md` finding 5 |
 | world-8h6 | cloud water reference arms, bracket a factor of two either side | beyond 2 K each arm, plausibly 5 to 10 K; larger arm cools | `exoplasim/notes/cloud-water-reference.md`; arms only, `clwref` unchanged in the baseline config |
@@ -553,15 +568,15 @@ error this project documents: the term is linear in the PRODUCT
 `h2osww * h2oswl`. The product moves from 1.3456 to 1.3456 x 1.127 = 1.5165,
 a shift of +0.1709 in the same units as the corrk note's calibration row,
 which prices a shift of 0.0185 at 0.80 W/m2 atmospheric, 0.15 W/m2 TOA and
-0.135 K. Scaling by 9.24: +7.4 W/m2 atmospheric absorption, +1.4 W/m2 TOA,
-+1.25 K. The caveat is the scaling itself: the row's sensitivities come from
+0.107 K. Scaling by 9.24: +7.4 W/m2 atmospheric absorption, +1.4 W/m2 TOA,
++0.99 K. The caveat is the scaling itself: the row's sensitivities come from
 `exoplasim/notes/shortwave-water-vapour.md` and are being stretched ninefold,
 so this is the softest prediction in the table and the first place to bisect
 if the sum misses.
 
 **Consequence to plan for, corrected 2026-08-20:** the central sum shifts the
-simulated temperature at every candidate flux by about +0.6 K, which is 0.3% of
-a flux ratio on the canonical 202 K per unit flux. Read that as a shift in the
+simulated temperature at every candidate flux by about +0.6 K, which is 0.4% of
+a flux ratio on the canonical 159.7 K per unit flux. Read that as a shift in the
 T(f) the re-derivation is SCORED AGAINST, not as a correction to a standing
 luminosity. There is no standing value to correct: `design_flux` has not been
 re-derived on this terrain, and CLIM-30 records that the 0.945 on the books is
@@ -593,17 +608,17 @@ runs 0.03 to 0.65 W/m2, median 0.19, so a two-orbit arm-minus-control
 difference resolves at roughly **0.5 W/m2** taking the worst spread. Four of
 the seven terms sit at or under that and are reported as unresolved rather than
 as small. Kelvin uses `lib/sensitivity.py` at the measured planetary albedo
-0.2534, giving 0.795 K per W/m2 of TOA forcing.
+0.2534, giving 0.629 K per W/m2 of TOA forcing.
 
 | arm | d ASR W/m2 | as K | d sea ice | verdict |
 | --- | ---: | ---: | ---: | --- |
-| `o3_050` CLIM-32 | -1.312 | -1.04 | -0.0001 | resolved, **prediction falsified** |
-| `cld_078` PHYS-11 | -3.304 | -2.63 | +0.0004 | resolved, **prediction falsified** |
-| `cld_128` PHYS-11 | +3.178 | +2.53 | -0.0015 | resolved, **prediction falsified** |
-| `mld_025` CLIM-33 | -0.428 | -0.34 | +0.0053 | ice path confirmed |
-| `sal_30` CLIM-35 | -0.474 | -0.38 | +0.0000 | UNRESOLVED, no ice change to carry it |
-| `sal_20` CLIM-35 | -0.105 | -0.08 | +0.0016 | area confirmed, flux unresolved |
-| `mld_100` CLIM-33 | -0.177 | -0.14 | -0.0040 | unresolved |
+| `o3_050` CLIM-32 | -1.312 | -0.82 | -0.0001 | resolved, **prediction falsified** |
+| `cld_078` PHYS-11 | -3.304 | -2.08 | +0.0004 | resolved, **prediction falsified** |
+| `cld_128` PHYS-11 | +3.178 | +2.00 | -0.0015 | resolved, **prediction falsified** |
+| `mld_025` CLIM-33 | -0.428 | -0.27 | +0.0053 | ice path confirmed |
+| `sal_30` CLIM-35 | -0.474 | -0.30 | +0.0000 | UNRESOLVED, no ice change to carry it |
+| `sal_20` CLIM-35 | -0.105 | -0.07 | +0.0016 | area confirmed, flux unresolved |
+| `mld_100` CLIM-33 | -0.177 | -0.11 | -0.0040 | unresolved |
 | `hdiff_on` CLIM-16 | -0.024 | -0.02 | -0.0001 | confirmed at zero |
 
 ### CLIM-16 confirmed
@@ -719,7 +734,7 @@ would repeat on any absorber placed where scattering dominates: dust and sea
 salt both qualify.
 
 **Corrected bound.** +/-3.4 W/m2 atmospheric at a ratio near 0.95 gives +/-3.2
-W/m2 at the top of atmosphere, +/-2.6 K. That is what was measured. The
+W/m2 at the top of atmosphere, +/-2.0 K. That is what was measured. The
 prediction was recoverable from its own inputs the moment the ratio was
 questioned.
 
@@ -795,7 +810,7 @@ on nothing else. Using the share as the weight would have double-counted a
 correction the model already makes.
 
 **Adopted at 1.192** in `config/planet.yaml`. On the arms' own measured slope,
-12.96 W/m2 per unit scale, that is **+2.49 W/m2 and about +2.0 K** -- larger
+12.96 W/m2 per unit scale, that is **+2.49 W/m2 and about +1.6 K** -- larger
 than the whole bundle sum, and one-signed. The flux re-derivation must follow
 it rather than precede it.
 
@@ -1289,11 +1304,11 @@ re-derives both ends and the path they rest on.
 argument `world-u9hq` makes: a single end against the inherited value sits too
 close to the convergence criteria's own slack to be attributed. End to end is
 0.081 of broadband absorptance at the mean path, which against a clear-sky
-greenhouse trapping of order 150 W/m2 is roughly 12 W/m2 and roughly 10 K by
+greenhouse trapping of order 150 W/m2 is roughly 12 W/m2 and roughly 8 K by
 `lib/sensitivity.py`. **That conversion is static and leans high**: it carries no
 lapse-rate response and no water vapour feedback, both of which a run has and
 both of which damp it. The prediction carried into the arms is therefore an
-ORDER, 5 to 12 K end to end, and its purpose is to establish that the term is
+ORDER, 4 to 9 K end to end, and its purpose is to establish that the term is
 first-order rather than to predict the number.
 
 **What would mean wrong, in the A/B:**
@@ -1445,7 +1460,7 @@ places and only one is large enough to matter for sign:
 
 | difference | worth |
 | --- | --- |
-| `energy_fixer` and `energy_diagnostics` off | +0.23 K, and WARMING, so it makes the gap larger rather than smaller. The fixer applies -0.300 W/m2 on the donor and `lib/sensitivity.py` at that run's own planetary albedo of 0.2366 gives 0.778 K per W/m2 |
+| `energy_fixer` and `energy_diagnostics` off | +0.18 K, and WARMING, so it makes the gap larger rather than smaller. The fixer applies -0.300 W/m2 on the donor and `lib/sensitivity.py` at that run's own planetary albedo of 0.2366 gives 0.615 K per W/m2 |
 | `ncpus` 16 to 8 | none. Thread count is compiled in and changes no physics |
 | four `surface.cryosphere` constants, absent in the donor's config and declared now | **negligible, and it is a static check rather than an arm.** Three of the four declare the value `icemod.f90` already compiles -- `CRHOI` 920, `CPI` 2070, `CKAPI` 2.03 -- so declaring them changed nothing the model reads. The fourth, `CLFSN`, moves from the compiled 3.337E5 to the derived 333444.87, which is -0.076 per cent of the modelled snow's melting enthalpy |
 | `surface.land_water_column` from a 1-layer bucket to a 2-layer scheme | unbounded here |
@@ -1610,12 +1625,12 @@ every kelvin below.
 | `world-trs3`, the derived `gamma` | **-1.89 +/- 0.08 K** | A/B, `run_af3d2c9a4b05`, 25 orbits, TOA closed |
 | `world-py6p`, the land water column | +0.17 +/- 0.07 K | A/B, `run_431ecabed085`, 20 orbits, TOA -0.14 +/- 0.13 |
 | `surface.cryosphere` declared | about 0 | static, against `icemod.f90` |
-| the energy fixer off | +0.23 K | the donor's manifest and `lib/sensitivity.py` |
+| the energy fixer off | +0.18 K | the donor's manifest and `lib/sensitivity.py` |
 | `world-o12h`, `rcritwidth` | exactly 0 | construction, `RCNLATREF` = `NLAT` |
 | `world-2esd`, `th2oc` | 0 | not swept; the config value is unchanged |
 | `world-f9ig` with `world-jgen`, the cloud optics | **-10.01 +/- 0.07 K** | A/B on a source-built control binary, `run_a2b1bd1e859f`, 25 orbits |
 | `world-80ia`, `vdiff_lamm` | -0.15 +/- 0.06 K, not resolved | A/B, `run_5373310a7b9f`, 25 orbits |
-| **residual, unattributed** | **-0.65 K** | by difference |
+| **residual, unattributed** | **-0.60 K** | by difference |
 
 **The control has settled, so the total is not a lower bound.** Its last ten
 orbits of sixty sit at 279.96 K against the donor's last at 292.26, flat to
@@ -1664,8 +1679,8 @@ for: the equilibrium is reached by MOISTENING until the sub-cloud deficit falls,
 not by the evaporated flux scaling with `gamma`.
 
 **DO NOT CONVERT THE FORCING THROUGH THE STATIC SLOPE HERE.** 9.2 W/m2 at
-`lib/sensitivity.py`'s 0.778 K per W/m2 is about 7 K, and the arm's own answer is
-1.89. The slope is local, the forcing is not constant while the state responds,
+`lib/sensitivity.py`'s 0.615 K per W/m2 is about 5.7 K, and the arm's own answer
+is 1.89. The slope is local, the forcing is not constant while the state responds,
 and the arm closes its own budget; the run's mean is the measurement and the
 conversion is not. This is `docs/src/practice/failure-modes.md` class 34 from the
 inside, and it was made once on this arm at ten orbits before the arm had settled.
@@ -1791,7 +1806,7 @@ over it is the FORCING and not a response.
 Fluxes in W/m2, arm minus control. **+18.43 W/m2 of shortwave the current cloud
 optics reflect and the pre-jgen ones do not**, one-signed, and inside the
 artifact's -6.54 to -25.35 W/m2 bracket. The measured drift of -12.3 K is inside
-its -5.32 to -20.63 K. The bracket was right and nothing read it.
+its -4.21 to -16.31 K. The bracket was right and nothing read it.
 
 **The modelled sea ice separates the forcing from its amplifier.** Over the same
 first six orbits the control's sea-ice fraction runs 0.0097, 0.0154, 0.0216,
@@ -1833,20 +1848,20 @@ So the bundle's kelvin budget against the donor's 292.26 K:
 | `world-f9ig` with `world-jgen`, the cloud optics | **-10.01** |
 | `world-trs3`, the derived `gamma` | -1.89 |
 | the land water column | +0.17 |
-| the energy fixer off | +0.23 |
+| the energy fixer off | +0.18 |
 | `vdiff_lamm`, not resolved from zero | -0.15 |
-| **accounted** | **-11.65** |
+| **accounted** | **-11.70** |
 | **measured drift** | **-12.30** |
-| **residual** | **-0.65** |
+| **residual** | **-0.60** |
 
-The residual was -10.8 K before this section and is -0.65 K after it, which is
+The residual was -10.8 K before this section and is -0.60 K after it, which is
 five per cent of the drift and inside what the remaining unpriced terms --
 `OCN-22` at -0.02 to -0.13 K, the soil heat solver, and the arms' own scatter --
 can carry between them.
 
 **Do not turn 18.43 W/m2 into kelvin with the static slope.** At
-`lib/sensitivity.py`'s 0.778 K per W/m2 it reads as 14.3 K, and the same
-arithmetic on the gamma arm gave 7 K where the settled arm said 1.89. The
+`lib/sensitivity.py`'s 0.615 K per W/m2 it reads as 11.3 K, and the same
+arithmetic on the gamma arm gave 5.7 K where the settled arm said 1.89. The
 forcing decays as the two states converge, so the arm's own settled mean is the
 measurement and this number is not. What 18.43 W/m2 establishes is the SIZE and
 the SIGN of the term, which is what the bisect needed: it is the only term in
@@ -2160,6 +2175,17 @@ two that file declares for itself. The planetary albedo is 0.3173, taken from
 `sensitivity.planetary_albedo_from_fluxes`, because `config/planet.yaml`'s
 `baseline_climatology` is null and this build has no climatology to read.
 
+**AMENDED 2026-08-27, AND THE AMENDMENT IS VISIBLE BECAUSE THE PREDICTION IS
+REGISTERED.** Every kelvin below fell by 21 per cent and no threshold in the
+prediction is unaffected. Nothing about this term's own artifacts moved: what
+moved is `lib/sensitivity.py`'s slope, from 202.0 to 159.7 K per unit flux ratio,
+because the bracket it was measured on was two deleted runs on a superseded
+build. The albedo fall, the mixing curve, the land fraction and the attenuation
+bracket are unchanged, so the whole amendment is one multiplication by
+159.7/202.0 in the kelvin columns and its consequence for the two thresholds.
+The ceiling was registered at +9.0 K bracketed +4.5 to +18.0, and the material
+threshold at f above 0.0526.
+
 **THE SIGN IS HARD AND IT IS ONE-SIGNED.** Every non-refused region's saturated
 field is darker than its dry field, `build_surface_albedo.py` refuses to write a
 field where that fails, and `wet_soil_albedo` is monotone in the saturation. So
@@ -2171,7 +2197,7 @@ small result.
 maps to 0.7877 and not to 1, so the staged saturated endmember is an endpoint the
 mixing approaches and never reaches. Mixed on the land-mean pair that is a
 land-mean albedo fall of 0.140804 against the 0.155841 endmember swing, worth
-+9.0 K at attenuation 0.5 and +4.5 to +18.0 across the declared factor of two.
++7.1 K at attenuation 0.5 and +3.6 to +14.3 across the declared factor of two.
 That is a state the model cannot hold and it is registered as a bound, not an
 estimate. It is also far outside the regime `SLOPE_K_PER_FLUX_RATIO` was measured
 in, which is itself the finding: this term cannot be settled by prediction.
@@ -2183,13 +2209,13 @@ Kubelka-Munk mixing at `wetsigma = 1` on the land-mean pair.
 
 | f | Sr | land-mean albedo | fall | K at 0.25 | K at 0.5 | K at 1.0 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0.02 | 0.0158 | 0.255267 | 0.006183 | +0.20 | +0.40 | +0.79 |
-| 0.05 | 0.0394 | 0.246556 | 0.014894 | +0.48 | +0.95 | +1.91 |
-| 0.10 | 0.0788 | 0.233360 | 0.028090 | +0.90 | +1.80 | +3.60 |
-| 0.15 | 0.1182 | 0.221574 | 0.039876 | +1.28 | +2.55 | +5.11 |
-| 0.25 | 0.1969 | 0.201383 | 0.060067 | +1.92 | +3.85 | +7.69 |
-| 0.50 | 0.3938 | 0.164381 | 0.097069 | +3.11 | +6.22 | +12.43 |
-| 1.00 | 0.7877 | 0.120646 | 0.140804 | +4.51 | +9.02 | +18.03 |
+| 0.02 | 0.0158 | 0.255267 | 0.006183 | +0.16 | +0.31 | +0.63 |
+| 0.05 | 0.0394 | 0.246556 | 0.014894 | +0.38 | +0.75 | +1.51 |
+| 0.10 | 0.0788 | 0.233360 | 0.028090 | +0.71 | +1.42 | +2.84 |
+| 0.15 | 0.1182 | 0.221574 | 0.039876 | +1.01 | +2.02 | +4.04 |
+| 0.25 | 0.1969 | 0.201383 | 0.060067 | +1.52 | +3.04 | +6.08 |
+| 0.50 | 0.3938 | 0.164381 | 0.097069 | +2.46 | +4.91 | +9.83 |
+| 1.00 | 0.7877 | 0.120646 | 0.140804 | +3.56 | +7.13 | +14.26 |
 
 The curve is strongly CONCAVE, which is the half of Sadeghi, Jones and Philpot
 that matters here: a skin at a tenth of its capacity has already given up a fifth
@@ -2222,13 +2248,13 @@ magnitude faster.
 **REGISTERED, AND IT IS A THRESHOLD RATHER THAN A VALUE.**
 
 - **Top-of-atmosphere forcing: POSITIVE, and its entry in the bundle sum is
-  `+9.0 K times f_eff` with `f_eff` unmeasured.** The bundle sum cannot be closed
+  `+7.1 K times f_eff` with `f_eff` unmeasured.** The bundle sum cannot be closed
   on this term until the arm measures it, and that is stated rather than papered
   over with a mid-range number.
 - **The term is MATERIAL at the 1.0 K threshold, the one `vdiff_lamm` and
-  `world-5oyp` were registered against, as soon as `f` exceeds 0.0526** --
+  `world-5oyp` were registered against, as soon as `f` exceeds 0.0677** --
   equivalently as soon as the armed arm's land-mean `alb` over snow-free land
-  falls by more than 0.0156. The zero hypothesis under test is that the pair does
+  falls by more than 0.0198. The zero hypothesis under test is that the pair does
   not separate, and the prediction is that it FAILS. A separation below 1 K would
   be the surprising outcome and would mean the modelled skin is essentially never
   wet, which is a statement about the cascade rather than about the albedo.
@@ -2263,9 +2289,9 @@ only where `|diff| > 2*sqrt(2)*max(SEM)`. The same bar `vdiff_lamm` and
   mixing is checked bitwise against Sadeghi Eq (13) over 400 random quadruples in
   `analysis/soil_albedo_wetting.json:model_mixing`, so a disagreement is in the
   saturation the model hands it, not in the curve.
-- A separation resolved above the ceiling row, +9.0 K at attenuation 0.5. The
+- A separation resolved above the ceiling row, +7.1 K at attenuation 0.5. The
   attenuation is declared to a factor of two and the ceiling is a bound on the
-  albedo, so anything above +18.0 K is not this term.
+  albedo, so anything above +14.3 K is not this term.
 
 ## PHYS-15, the second of two commits: `dwmax` from `evaporable_mm`
 

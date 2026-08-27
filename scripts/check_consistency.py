@@ -85,11 +85,16 @@ at prepare and continue time, so a run already on disk was invisible: the T21 ru
 the project's numbers rest on records a hyperdiffusion block its namelist does not
 carry, and a person reading run directories is what found it.
 
-**The flux-to-kelvin slope against the runs it was measured on.** `lib/sensitivity.py`
-declares one sensitivity for the whole project. Its predecessor was called
-FALLBACK_SLOPE, nothing ever fell back to it, and it survived two terrain changes
-and a resolution change while three incompatible values accumulated around it.
-This recomputes the declared slope from the run index every time.
+**The flux-to-kelvin slope against the runs it was measured on, and against the
+build those runs are ON.** `lib/sensitivity.py` declares one sensitivity for the
+whole project. Its predecessor was called FALLBACK_SLOPE, nothing ever fell back
+to it, and it survived two terrain changes and a resolution change while three
+incompatible values accumulated around it. This recomputes the declared slope
+from the runs it names every time -- and, because recomputing agreed with itself
+for a whole build after both named runs were deleted, it also asks whether those
+runs are in the LIVE index and on the active `source_build`. The self-test beside
+it drives the same checks with the superseded declaration and requires them to
+fire, so the currency half is exercised rather than assumed.
 
 **Generated biosphere inputs against the config values they were derived from.**
 Parsed values, not a hash of `config/planet.yaml`, because a file hash reports an
@@ -2268,7 +2273,8 @@ def main() -> int:
     except Exception as exc:
         rep.add(WARN, "cycle executable", f"not checked: {exc}")
 
-    # -- the flux-to-kelvin slope still matches the runs it was measured on ---
+    # -- the flux-to-kelvin slope still matches the runs it was measured on, --
+    #    and those runs are still on the world this tree describes
     try:
         import sensitivity
         sensitivity.test_identity()
@@ -2276,9 +2282,26 @@ def main() -> int:
         rep.add(FAIL if stale else OK, "flux-to-kelvin slope",
                 "; ".join(stale) if stale else
                 f"{sensitivity.SLOPE_K_PER_FLUX_RATIO} K per unit flux ratio, "
-                f"reproduced from the runs lib/sensitivity.py names")
+                f"reproduced from the runs lib/sensitivity.py names, both live "
+                f"on {sensitivity.active_build()}")
     except Exception as exc:
         rep.add(WARN, "flux-to-kelvin slope", f"not checked: {exc}")
+
+    # -- and the currency check can still tell a superseded bracket apart ----
+    #
+    # Separate row because it is a different question. The one above asks
+    # whether the declaration is current; this asks whether the instrument that
+    # answers that can return no. It failed silently for a whole build.
+    try:
+        import sensitivity
+        sensitivity.test_currency_refuses_a_superseded_measurement()
+        rep.add(OK, "the slope's currency check can fail",
+                "the superseded bracket's two deleted runs are both refused")
+    except AssertionError as exc:
+        rep.add(FAIL, "the slope's currency check can fail", str(exc))
+    except Exception as exc:
+        rep.add(WARN, "the slope's currency check can fail",
+                f"not checked: {exc}")
 
     # -- config's derived radiation scalings against the artifacts that made --
     #    them

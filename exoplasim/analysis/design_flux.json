@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-27T09:11:23.949500+00:00",
+  "generated": "2026-08-27T10:06:13.806516+00:00",
   "basis": "chosen",
   "generator": "exoplasim/scripts/derive_design_flux.py",
   "generator_sha256": "84e04362cf4a9e60a76e09721bc45567a1d8fb81d5fd6640d3f6fbe1aa5f7031",
@@ -195,7 +195,7 @@
           "land_albedo_source": "vegetated"
         },
         "global_mean_span_k": -8.532,
-        "slope_k_per_unit_flux": 202.0
+        "slope_k_per_unit_flux": 159.7
       }
     },
     "note": "the derivation was RUN and refused; this record exists because it did. `refusal` is the exception it raised and `measured` is what it had read when it raised. Re-run this script without --chosen to reproduce it"

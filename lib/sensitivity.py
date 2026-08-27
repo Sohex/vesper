@@ -3,19 +3,56 @@
 Anything that turns a radiative quantity into a temperature reads this module.
 Three sensitivities were in simultaneous use and they are not interchangeable:
 one measured at T21 on a superseded terrain across a bracket that no longer
-contains the baseline, one measured at T42 on this build, and one taken from a
-stellar sweep that crosses the ice transition. They differ by a factor of 2.2,
-and the error budget's ranking is computed with whichever one the caller picked.
+contains the baseline, one measured at T42 on a superseded build, and one taken
+from a stellar sweep that crosses the ice transition. They differ by a factor of
+2.2, and the error budget's ranking is computed with whichever one the caller
+picked.
 
 Two things are settled here, and they are separate errors.
 
 ## 1. The slope
 
-`SLOPE_K_PER_FLUX_RATIO` is dT/df at the baseline flux, where f is the stellar
-constant in Earth units. It is a LOCAL slope, bracketed between two converged
-points that span the baseline, and it must not be used outside the regime it was
-measured in. `verify()` recomputes it from the run index and complains if the
-runs it names have moved.
+`SLOPE_K_PER_FLUX_RATIO` is dT/df near the baseline flux, where f is the stellar
+constant in Earth units. It is a LOCAL slope, measured across two converged
+points on the ACTIVE build, and it must not be used outside the regime it was
+measured in.
+
+## WHAT RE-RUNS WHEN THIS CHANGES
+
+The corollary in `docs/src/pipeline/loops.md`, asked of this file. Nothing here
+drives a model run; what a change to the slope makes worthless is a list of
+generated artifacts and one register of predictions, and it is the whole list:
+
+    scripts/error_budget.py                      -> analysis/error_budget.json
+    exoplasim/scripts/derive_design_flux.py      -> exoplasim/analysis/design_flux.json
+    exoplasim/scripts/shortwave_band_weights.py  -> exoplasim/analysis/shortwave_band_weights.json
+    exoplasim/scripts/cloud_optical_depth_bracket.py
+                                                 -> exoplasim/analysis/cloud_optical_depth_bracket.json
+    exoplasim/scripts/stephens_tables_vs_fits.py -> exoplasim/analysis/stephens_tables_vs_fits.json
+    analysis/snow_albedo_zenith.py               -> analysis/snow_albedo_zenith.json
+    exoplasim/scripts/predict_ocean_terms.py     -> prints; no artifact
+    exoplasim/notes/forcing-bundle-predictions.md   every kelvin registered
+                                                 through the conversion
+
+A registered prediction that changes silently is worse than one that was wrong,
+so an entry in that register is amended IN PLACE and the amendment says it moved.
+
+## What `verify()` is for, and what it could not do
+
+It recomputes the declared slope from the runs it names. That is a check on
+INTERNAL CONSISTENCY. It was not a check on CURRENCY, and the difference cost the
+whole measurement: both runs of the previous bracket were deleted, survived only
+as archived identity under `archive/runs/`, and carried a build that is no longer
+`config/planet.yaml`'s `source_build`. `verify()` read their archived numbers,
+reproduced the constant they had produced, and agreed with itself for as long as
+nobody asked which world it was describing.
+
+So the currency checks are the load-bearing half. Each bracket run must be in the
+LIVE `exoplasim/runs/INDEX.json` rather than only in the archive, and must carry
+the `source_build` config names now, resolved through `lib/orogen.py`'s registry.
+`test_currency_refuses_a_superseded_measurement()` drives those checks against
+the superseded declaration and asserts they fire, so the failure is exercised
+rather than asserted.
 
 ## 2. The denominator
 
@@ -60,54 +97,116 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CONFIG = PROJECT_ROOT / "config" / "planet.yaml"
 RUN_INDEX = PROJECT_ROOT / "exoplasim" / "runs" / "INDEX.json"
 ARCHIVED_RUNS = PROJECT_ROOT / "archive" / "runs"
+CONVERGENCE_REPORTS = PROJECT_ROOT / "exoplasim" / "analysis" / "convergence"
 
 # --------------------------------------------------------------------------
-# The slope. Measured 2026-08-17, on the active build.
+# The slope. Measured 2026-08-27, on the active build.
 # --------------------------------------------------------------------------
 #
-# Two T42 runs on `precarve-craton`, same executable, same config hash, same
-# geography hash, bracketing downward from the baseline flux:
+# Two T21 runs on `canonical-10m-base`, same executable sha, same staged surface
+# fields, and configs that differ in nothing but the flux the run was given:
 #
-#     f = 0.910   run_bfa3f5269660   fitted asymptote 281.968 K
-#     f = 0.945   run_524fbed77a9a   fitted asymptote 289.030 K
+#     f = 0.945   run_432e5e46adef   fitted asymptote 279.6805 K +/- 0.0203
+#     f = 1.000   run_b45380e61f90   fitted asymptote 288.4654 K +/- 0.0465
 #
-# giving 201.8 K per unit flux ratio. Run means rather than asymptotes give
-# 202.1, so the fit contributes nothing to the uncertainty.
+# giving 159.7 K per unit flux ratio. Both pass all six convergence criteria.
 #
-# Corroborated on a DIFFERENT terrain, which is the check that could have
-# failed: three T42 points on the superseded `precarve-zoned-g1281` at 0.9125,
-# 0.945 and 0.968 give a chord of 201.3 across the pair that spans the baseline,
-# and 203.4 from the derivative at 0.945 of a quadratic through all three. Five
-# estimates, two terrains, span 201 to 204. The declared value is the middle of
-# that and the spread is 1.5%, which is far inside the factor of two the error
-# budget claims for itself.
+# THE ASYMPTOTES ARE THE DECLARED ESTIMATOR and `verify()` recomputes exactly
+# this secant, so the tolerance only has to absorb a re-assessment moving a fit
+# inside its own stated uncertainty. The two half-widths propagate to
+# sqrt(0.0203^2 + 0.0465^2) / 0.055 = 0.92 K per unit flux ratio, which is the
+# floor any spread can honestly claim and is what the tolerance is rounded from.
 #
-# THIS REPLACES 150.2, which was measured at T21 on `precarve-zoned-g1281`
-# between f = 0.95 and f = 1.00. That bracket does not contain the 0.945
-# baseline, so it violated the rule its own comment stated. It is 26% low.
+# THE SPREAD IS THE ENVELOPE OF THE ESTIMATORS ON THIS BUILD, because it is
+# wider than that floor and the estimators disagree by more than either fit:
+#
+#     159.7   the two fitted asymptotes                      DECLARED
+#     159.2   the two settled-window means
+#     158.2   the last ten orbits of each assessed window
+#     155.3   the bootstrap climatology of the 0.945 run against the last ten
+#             orbits of the 1.000 run, which is what `derive_design_flux.py`
+#             reads and what `notes/audits/design-flux-two-point-response.md`
+#             measures as an 8.54 K span
+#
+# The low end is the lowest of those; the high end is the declared value plus the
+# propagated half-width, since no estimator sits above it. The 4 K width is the
+# 0.945 run's last twelve orbits -- the ones its climatology was cut from, added
+# after its assessment -- sitting about 0.2 K above its own fitted asymptote.
+#
+# THE BASELINE IS THE COLD ENDPOINT, NOT INSIDE THE BRACKET. This is a forward
+# secant anchored at the design flux and it is honest about that. It is not the
+# defect that retired 150.2: that bracket ran 0.95 to 1.00 and excluded 0.945
+# entirely, so it described a regime the baseline was not in. What localises this
+# one is a converged run BELOW 0.945 on this build, which loop A's flux
+# re-bracket produces anyway.
+#
+# THIS IS A CHORD ACROSS 8.8 K AND IT CARRIES SEA-ICE RETREAT. The modelled sea
+# ice mean fraction falls from 0.0799 to 0.0252 between the endpoints, so the
+# ice-albedo feedback over that retreat is inside the number rather than outside
+# it. Stated because it is the obvious explanation to reach for and it is the
+# wrong one: the superseded 202.0 was measured across a pair whose ice barely
+# moved and it is the HIGHER value, so the difference between the two is the
+# build and the model source, not the ice.
+#
+# THIS REPLACES 202.0, measured at T42 on `precarve-craton` between f = 0.910 and
+# f = 0.945. That build is superseded, both of its runs have been deleted, and
+# the model source has moved under it. It is 26% high against this measurement.
 #
 # THIS IS NOT the stellar sweep's sensitivity. The 0.85-to-0.95 sweep spans 21
-# W/m2 absorbed and 33 K, which is 330 K per unit flux ratio: 1.6x this, because
-# it crosses the ice transition and this does not. Do not use one for the other.
-SLOPE_K_PER_FLUX_RATIO = 202.0
-SLOPE_SPREAD_K_PER_FLUX_RATIO = (201.0, 204.0)
+# W/m2 absorbed and 33 K, which is 330 K per unit flux ratio: 2.1x this, because
+# it crosses the ice transition proper. Do not use one for the other.
+SLOPE_K_PER_FLUX_RATIO = 159.7
+SLOPE_SPREAD_K_PER_FLUX_RATIO = (155.3, 160.6)
 
+# `report` is the file the asymptote is READ FROM, named rather than derived: a
+# diagnostic assessment carries its mode in its filename and must never stand
+# where a reader looks for a run's own verdict, so naming it is what keeps the
+# two apart. The warm endpoint's orbits are all declared diagnostic, so its
+# report is about the experiment and not about the planet's trajectory; the
+# fitted asymptote of its temperature series is a property of the series either
+# way, and its six criteria are recorded here because that is what makes it
+# usable as an endpoint at all.
 SLOPE_BRACKET_RUNS = {
-    "cold": {"run_id": "run_bfa3f5269660", "flux_ratio": 0.910,
-             "asymptote_k": 281.968, "status": "quasi_equilibrated"},
-    "warm": {"run_id": "run_524fbed77a9a", "flux_ratio": 0.945,
-             "asymptote_k": 289.030, "status": "equilibrated_for_worldbuilding"},
+    "cold": {"run_id": "run_432e5e46adef", "flux_ratio": 0.945,
+             "asymptote_k": 279.6805, "asymptote_half_width_k": 0.0203,
+             "report": "run_432e5e46adef_convergence.json",
+             "status": "equilibrated_for_worldbuilding"},
+    "warm": {"run_id": "run_b45380e61f90", "flux_ratio": 1.000,
+             "asymptote_k": 288.4654, "asymptote_half_width_k": 0.0465,
+             "report": "run_b45380e61f90_convergence_diagnostic.json",
+             "status": "equilibrated_for_worldbuilding"},
 }
-SLOPE_TOLERANCE_K_PER_FLUX_RATIO = 3.0
+# The propagated half-width, 0.92, rounded up. A recomputation that moves further
+# than the two fits' own stated uncertainty is a real change and not fit noise.
+SLOPE_TOLERANCE_K_PER_FLUX_RATIO = 1.0
 
-# The bracket sits on geography 3a17c498, one surface revision behind the
-# geography the baseline climatology was run on. The surface change is worth
-# +0.80 K at fixed flux and does not cross the ice transition -- sea ice moves
-# 1.8% to 1.5% -- so it moves the intercept and not the slope. Stated because
-# pairing the 0.910 run against the CURRENT baseline run instead would give 224
-# K per unit flux ratio, and that number is a surface change wearing a slope's
-# units.
-SLOPE_GEOGRAPHY = "3a17c498"
+# Both endpoints stage the same surface fields, which is what makes their
+# difference a flux response rather than a surface change wearing a slope's
+# units. Those fields are TERRAIN-ONLY: `config/planet.yaml`'s
+# `baseline_climatology` is null and this build has no baseline, so the bootstrap
+# surface is the most determined state that exists here and the slope is measured
+# on it. It moves when the baseline surface exists, and this declaration is what
+# has to be re-derived then.
+SLOPE_GEOGRAPHY = "ecb13b14"
+
+# The declaration this replaced, kept as a FIXTURE and not as a record: it is
+# what `test_currency_refuses_a_superseded_measurement()` drives the currency
+# checks with. Both runs are deleted and survive only under `archive/runs/`, and
+# `precarve-craton` is not the active build, so every currency check has to fire
+# on it. The numbers are the archived entries' own and reproduce 201.8.
+SUPERSEDED_BRACKET_RUNS = {
+    "cold": {"run_id": "run_bfa3f5269660", "flux_ratio": 0.910,
+             "asymptote_k": 281.968, "asymptote_half_width_k": None,
+             "report": "run_bfa3f5269660_convergence.json",
+             "status": "quasi_equilibrated"},
+    "warm": {"run_id": "run_524fbed77a9a", "flux_ratio": 0.945,
+             "asymptote_k": 289.030, "asymptote_half_width_k": None,
+             "report": "run_524fbed77a9a_convergence.json",
+             "status": "equilibrated_for_worldbuilding"},
+}
+SUPERSEDED_SLOPE_K_PER_FLUX_RATIO = 202.0
+SUPERSEDED_SPREAD_K_PER_FLUX_RATIO = (201.0, 204.0)
+SUPERSEDED_GEOGRAPHY = "3a17c498"
 
 
 def config(cfg: dict | None = None) -> dict:
@@ -254,58 +353,186 @@ def test_identity(alpha: float = 0.3, cfg: dict | None = None) -> None:
         raise AssertionError(f"albedo route {a} != forcing route {b}")
 
 
-def _index_entries() -> list[dict]:
-    entries = []
-    if RUN_INDEX.is_file():
-        entries += json.loads(RUN_INDEX.read_text(encoding="utf-8"))["runs"]
+def _live_entries() -> dict[str, dict]:
+    """The runs that still EXIST, keyed by id. Empty if there is no index."""
+    if not RUN_INDEX.is_file():
+        return {}
+    runs = json.loads(RUN_INDEX.read_text(encoding="utf-8"))["runs"]
+    return {e.get("run_id"): e for e in runs}
+
+
+def _archived_entries() -> dict[str, dict]:
+    """The runs that survive only as IDENTITY, keyed by id.
+
+    Kept separate from the live index rather than merged into it. Merging them is
+    what let a bracket measured on two deleted runs go on reproducing its own
+    constant: an archived entry is a record of what a run WAS, and reading a
+    measurement out of one says nothing about the world the tree describes now.
+    """
+    entries = {}
     if ARCHIVED_RUNS.is_dir():
         for p in sorted(ARCHIVED_RUNS.glob("*/INDEX_ENTRY.json")):
-            entries.append(json.loads(p.read_text(encoding="utf-8")))
+            e = json.loads(p.read_text(encoding="utf-8"))
+            entries.setdefault(e.get("run_id"), e)
     return entries
 
 
-def verify() -> list[str]:
-    """Recompute the declared slope from the runs it names. Empty means agreed.
+def _report_metrics(name: str) -> dict | None:
+    """The metrics block of one named convergence report, or None if absent."""
+    path = CONVERGENCE_REPORTS / name
+    if not path.is_file():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
 
-    The point is that `SLOPE_K_PER_FLUX_RATIO` stops being a literal somebody has
-    to remember to update. The runs are named, their temperatures are read from
-    the index rather than from this file, and a run that is re-run, extended or
-    re-assessed moves the recomputed value and trips this. The predecessor
-    constant was called FALLBACK_SLOPE and nothing ever fell back to it or
-    checked it against anything for two terrains.
+
+def active_build(cfg: dict | None = None) -> str:
+    """The build `config/planet.yaml` names, refusing one the registry refuses."""
+    import orogen  # local: the registry is only needed for the currency check
+
+    name = str(config(cfg)["source_build"])
+    refusal = orogen.activation_refusal(name=name)
+    if refusal:
+        raise RuntimeError(
+            f"config names source_build {name!r}, which lib/orogen.py refuses: "
+            f"{refusal}")
+    return name
+
+
+def _verify_bracket(bracket: dict, slope: float, spread: tuple[float, float],
+                    tolerance: float, geography: str,
+                    cfg: dict | None = None) -> list[str]:
+    """The whole check, over any declaration. `verify()` passes this file's.
+
+    Taking the declaration as an argument is what makes the currency checks
+    testable: `test_currency_refuses_a_superseded_measurement()` hands it the
+    superseded one and asserts the refusals come back.
     """
-    by_id = {e.get("run_id"): e for e in _index_entries()}
-    problems, points = [], {}
-    for role, want in SLOPE_BRACKET_RUNS.items():
-        entry = by_id.get(want["run_id"])
+    live, archived = _live_entries(), _archived_entries()
+    try:
+        build = active_build(cfg)
+    except Exception as exc:                       # noqa: BLE001 - reported, not raised
+        return [f"the active build could not be resolved: {exc}"]
+
+    problems, points, half_widths = [], {}, {}
+    for role, want in bracket.items():
+        run_id = want["run_id"]
+        entry = live.get(run_id)
         if entry is None:
-            problems.append(f"{role} run {want['run_id']} is not in any run index")
+            if run_id in archived:
+                was = archived[run_id].get("source_build")
+                problems.append(
+                    f"{role} run {run_id} survives only as archived identity, on "
+                    f"build {was}; the measurement it carries is superseded and "
+                    f"cannot be recomputed")
+            else:
+                problems.append(f"{role} run {run_id} is in no run index at all")
             continue
+        on = entry.get("source_build")
+        if on != build:
+            problems.append(f"{run_id} was run on build {on}, not the active "
+                            f"{build}")
         flux = float(entry.get("physical", {}).get("flux_ratio", float("nan")))
         if not math.isclose(flux, want["flux_ratio"], abs_tol=1e-9):
-            problems.append(f"{want['run_id']} is at flux {flux}, "
+            problems.append(f"{run_id} is at flux {flux}, "
                             f"not the {want['flux_ratio']} recorded here")
         geo = entry.get("physical", {}).get("geography")
-        if geo != SLOPE_GEOGRAPHY:
-            problems.append(f"{want['run_id']} is on geography {geo}, "
-                            f"not the {SLOPE_GEOGRAPHY} the bracket was measured on")
-        metrics = entry.get("convergence_metrics") or {}
+        if geo != geography:
+            problems.append(f"{run_id} is on geography {geo}, "
+                            f"not the {geography} the bracket was measured on")
+
+        report = _report_metrics(want["report"])
+        if report is None:
+            problems.append(f"{run_id} has no convergence report at "
+                            f"{rel(CONVERGENCE_REPORTS / want['report'])}")
+            continue
+        if not report.get("sufficiently_equilibrated_for_worldbuilding"):
+            problems.append(f"{run_id} no longer passes every convergence "
+                            f"criterion: {report.get('failed_criteria')}")
+        metrics = report.get("metrics") or {}
         asymptote = metrics.get("temperature_asymptote_k")
         if asymptote is None:
-            problems.append(f"{want['run_id']} has no fitted asymptote")
+            problems.append(f"{run_id} has no fitted asymptote")
             continue
         if abs(asymptote - want["asymptote_k"]) > 0.05:
-            problems.append(f"{want['run_id']} asymptote is {asymptote:.3f} K, "
-                            f"not the {want['asymptote_k']:.3f} recorded here")
+            problems.append(f"{run_id} asymptote is {asymptote:.4f} K, "
+                            f"not the {want['asymptote_k']:.4f} recorded here")
+        # The index carries its own copy for a production assessment. Where it
+        # does, the two records have to agree: a re-assessment that reached one
+        # and not the other is exactly the drift this file is guarding.
+        indexed = (entry.get("convergence_metrics") or {}).get(
+            "temperature_asymptote_k")
+        if indexed is not None and abs(indexed - asymptote) > 1e-6:
+            problems.append(f"{run_id} reports asymptote {asymptote:.4f} K in "
+                            f"its convergence report and {indexed:.4f} K in the "
+                            f"run index")
         points[role] = (flux, asymptote)
+        half = metrics.get("temperature_asymptote_half_width_k")
+        if half is not None:
+            half_widths[role] = float(half)
+            declared_half = want.get("asymptote_half_width_k")
+            if declared_half is not None and abs(half - declared_half) > 0.005:
+                problems.append(
+                    f"{run_id} asymptote half-width is {half:.4f} K, not the "
+                    f"{declared_half:.4f} recorded here")
+
     if len(points) == 2:
         (fc, tc), (fw, tw) = points["cold"], points["warm"]
         measured = (tw - tc) / (fw - fc)
-        if abs(measured - SLOPE_K_PER_FLUX_RATIO) > SLOPE_TOLERANCE_K_PER_FLUX_RATIO:
+        if abs(measured - slope) > tolerance:
             problems.append(
                 f"the bracket now measures {measured:.1f} K per unit flux ratio "
-                f"against the declared {SLOPE_K_PER_FLUX_RATIO}")
+                f"against the declared {slope}")
+        if len(half_widths) == 2:
+            floor = math.hypot(*half_widths.values()) / abs(fw - fc)
+            lo, hi = spread
+            if hi - lo < 2.0 * floor:
+                problems.append(
+                    f"the declared spread {lo}-{hi} is narrower than the "
+                    f"{2 * floor:.2f} K per unit flux ratio the two fits' own "
+                    f"uncertainties propagate to")
+            if not lo <= measured <= hi:
+                problems.append(
+                    f"the bracket measures {measured:.1f} K per unit flux ratio, "
+                    f"outside the declared spread {lo}-{hi}")
     return problems
+
+
+def verify(cfg: dict | None = None) -> list[str]:
+    """Recompute the declared slope, and check it is CURRENT. Empty means agreed.
+
+    Two questions, and only the first was ever asked. Does the declaration match
+    the runs it names -- and are those runs on the world this tree describes now?
+    """
+    return _verify_bracket(SLOPE_BRACKET_RUNS, SLOPE_K_PER_FLUX_RATIO,
+                           SLOPE_SPREAD_K_PER_FLUX_RATIO,
+                           SLOPE_TOLERANCE_K_PER_FLUX_RATIO, SLOPE_GEOGRAPHY,
+                           cfg)
+
+
+def test_currency_refuses_a_superseded_measurement(
+        cfg: dict | None = None) -> None:
+    """Drive the currency checks with the superseded declaration; they must fire.
+
+    This is the test the check exists for, and it can fail: it asserts a named
+    refusal rather than a difference. `SUPERSEDED_BRACKET_RUNS` names two runs
+    that were deleted and archived, on a build that is not the active one, and
+    the arithmetic between their archived asymptotes still reproduces 202.0
+    exactly. A `verify()` that reads archived identity therefore passes on them,
+    which is what it did. Anything that lets those two runs through again turns
+    this red.
+    """
+    problems = _verify_bracket(SUPERSEDED_BRACKET_RUNS,
+                               SUPERSEDED_SLOPE_K_PER_FLUX_RATIO,
+                               SUPERSEDED_SPREAD_K_PER_FLUX_RATIO,
+                               SLOPE_TOLERANCE_K_PER_FLUX_RATIO,
+                               SUPERSEDED_GEOGRAPHY, cfg)
+    for want in SUPERSEDED_BRACKET_RUNS.values():
+        run_id = want["run_id"]
+        if not any(run_id in p for p in problems):
+            raise AssertionError(
+                f"the currency check passed {run_id}, which is deleted and was "
+                f"run on a build that is not active. verify() cannot tell a "
+                f"superseded measurement from a current one.")
 
 
 def provenance(cfg: dict | None = None) -> dict:
@@ -317,12 +544,18 @@ def provenance(cfg: dict | None = None) -> dict:
         "module": "lib/sensitivity.py",
         "slope_k_per_flux_ratio": SLOPE_K_PER_FLUX_RATIO,
         "slope_spread_k_per_flux_ratio": list(SLOPE_SPREAD_K_PER_FLUX_RATIO),
+        "slope_tolerance_k_per_flux_ratio": SLOPE_TOLERANCE_K_PER_FLUX_RATIO,
         "slope_bracket_runs": SLOPE_BRACKET_RUNS,
         "slope_geography": SLOPE_GEOGRAPHY,
-        "slope_regime": "local to the baseline flux, on the low-ice branch. The "
+        "slope_source_build": config(cfg)["source_build"],
+        "slope_regime": "a forward secant from the baseline flux to 0.055 above "
+                        "it, on the low-ice branch and carrying the sea-ice "
+                        "retreat over that interval. The baseline is the cold "
+                        "endpoint rather than inside the bracket; a converged run "
+                        "below it on this build is what localises the slope. The "
                         "0.85-to-0.95 stellar sweep gives 330 K per unit flux "
-                        "ratio because it crosses the ice transition; that value "
-                        "is not interchangeable with this one.",
+                        "ratio because it crosses the ice transition proper; that "
+                        "value is not interchangeable with this one.",
         "planetary_albedo": round(alpha, 5),
         "planetary_albedo_source": alpha_src,
         "incident_w_m2_per_flux_ratio": round(incident_w_m2_per_flux_ratio(cfg), 3),
@@ -348,6 +581,7 @@ def main() -> None:
                     "named in config/planet.yaml.").parse_args()
     cfg = config()
     test_identity()
+    test_currency_refuses_a_superseded_measurement(cfg)
     p = provenance(cfg)
     alpha = p["planetary_albedo"]
     print(f"slope          {SLOPE_K_PER_FLUX_RATIO} K per unit flux ratio "
@@ -356,8 +590,8 @@ def main() -> None:
     print(f"incident       {p['incident_w_m2_per_flux_ratio']} W/m2 per unit flux ratio")
     print(f"absorbed       {p['absorbed_w_m2_per_flux_ratio']} W/m2 per unit flux ratio")
     print(f"conversion     {p['kelvin_per_w_m2_absorbed']} K per W/m2 absorbed")
-    problems = verify()
-    print("\nverify: " + ("agrees with the run index"
+    problems = verify(cfg)
+    print("\nverify: " + ("current, and agrees with the runs it names"
                           if not problems else "; ".join(problems)))
 
 
