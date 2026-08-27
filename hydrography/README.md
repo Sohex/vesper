@@ -267,6 +267,28 @@ a Priestley-Taylor estimate at alpha 1.26. The run's own ratio is computed by
 here, because every prose copy of it in this repository was a copy of a hardcoded
 constant.
 
+**THE INTERVAL PENMAN IS EVALUATED OVER IS A BRACKET, NOT A SETTING**, and both
+ends are carried. Penman is nonlinear in everything it reads, which is already
+why it integrates the DIURNAL cycle rather than reading a daily mean, so
+evaluating it once on annual-mean air is not the same as evaluating it per
+climatology bin and averaging. Two real effects then push opposite ways. Its
+zero clamps are a genuine rectification -- a lake does not evaporate a negative
+amount in a dark month -- and an annual mean cancels a real summer against a
+winter that never happens. Against that, Penman carries no heat storage, so per
+bin it charges the water for bright-season energy that went into the column and
+came back out in the dark one, a term that integrates to zero only over a whole
+cycle. The ocean measures the second, being the one surface whose evaporation
+the model computes with the true storage in it, and it says the per-bin estimate
+is high there while the annual one is low.
+
+So the ends are interpretable rather than rival: the annual evaluation is the
+limit for a lake deep enough to hold its temperature through the year, the bin
+mean the limit for one with no heat capacity, and the spread is the water body's
+own depth, which this project has no term for. Both are bounds, and the carve
+list is their intersection, exactly as it already was for the two evaporation
+estimators. `hydrography/notes/carve-verdict-interval.md` carries the
+measurement and the numbers.
+
 
 **Penman is NOT floored at the model's land rate.** It was, on the reasoning that
 a saturated surface cannot evaporate less than the moisture-limited ground beside
@@ -913,6 +935,10 @@ The decision variable is climate-free per basin and is stored as
     (E - P) / runoff  <=  catchment / area_at_spill - 1
 
 so the index is pure geometry and the climate supplies one number per basin.
+That is also what fixes the SIGN of any change to the evaporation estimate
+without measuring it: the right-hand side does not move, so raising `E` can only
+take basins out of the carve set. A correction that raises `E` and carves more
+has gone in backwards.
 Median here is 3.03 on the carved terrain, meaning the typical basin overflows
 unless evaporative demand over open water exceeds about three times the runoff
 depth. Earth's
