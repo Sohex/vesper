@@ -436,10 +436,26 @@ the same binary rather than a code fork. The two saturation endpoints are
 checked against `surface_layer.saturation_mapping` on both sides, this config
 block and `landmod.f90`'s compiled defaults, at the contract's own tolerance.
 
-The saturated fields staged are the interstitial arm. Sweeping the bracket is
-`--wetting-arm lekner` and a second surface build; the two arms differ by
-roughly a factor of two in the wetting ratio, which is the largest declared
-uncertainty this term carries.
+The saturated fields staged are the interstitial arm, and `--wetting-arm lekner`
+with a second surface build gives the other. **The bracket is the largest
+uncertainty this term declares and it is bounded without that build.** The film
+arm darkens every one of the 38 class-band pairs by between 0.4036 and 0.6652 of
+what the interstitial arm darkens them by, median 0.5632, so scaling the staged
+gap by that range brackets the film arm's field cell by cell:
+
+| arm | endmember swing | fall at a full layer | K at attenuation 0.5 |
+| --- | --- | --- | --- |
+| interstitial, staged | 0.030156 | 0.024633 | +1.25 |
+| film, at the weakest-darkening class | 0.020059 | 0.016016 | +0.81 |
+| film, at the median class | 0.016984 | 0.013468 | +0.68 |
+| film, at the strongest-darkening class | 0.012171 | 0.009549 | +0.48 |
+
+The whole bracket runs +0.48 to +1.25 K, and its far end is the ceiling. Every
+value in it is under the paired-arm resolution bar, so the choice of arm cannot
+be settled by a run either: what the second build would buy is the exact number
+inside a bracket that is already narrower than the instrument. The exact figure
+is `--wetting-arm lekner --output <scratch>`, which writes nothing the model
+reads.
 
 `exoplasim/notes/forcing-bundle-predictions.md` carries what arming it is
 predicted to be worth, registered before the edits and split into the two
