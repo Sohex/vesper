@@ -170,7 +170,13 @@ OUTPUT = PROJECT_ROOT / "analysis" / "spatial_reduction_gap.json"
 # `pedogenesis.yaml` declares for W itself, so the sweep covers every value the
 # law can return rather than a guess at this world's climate.
 INTENSITY_SWEEP = (0.02, 0.2, 1.0, 2.0, 6.0)
-DUNNE_SCATTER = 1.35        # S_y.x = 0.13 log units, pedogenesis.yaml
+# Dunne's own regression standard error about the runoff fit, S_y.x, in log
+# units. Paper-sourced, so nothing on this tree computes it; `pedogenesis.yaml`
+# quotes the same figure and its antilog. The ANTILOG is arithmetic and is done
+# here rather than restated, so this file carries one statement of the source
+# number and none of the conversion.
+DUNNE_SCATTER_LOG_UNITS = 0.13     # S_y.x, pedogenesis.yaml
+DUNNE_SCATTER = 10.0 ** DUNNE_SCATTER_LOG_UNITS
 
 # The regolith arm's one free ratio, `E / P`, swept over the
 # decades the saturating depth law can reach: at 0.01 the profile sits at its
