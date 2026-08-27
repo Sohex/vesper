@@ -2255,8 +2255,10 @@ in this file.
 fractional change in seasonal range correlates with the cell's soil water DEFICIT
 at Pearson +0.45 and Spearman +0.49 over orbits 40 to 49. The same statistic on a
 pair differing by one unrelated namelist key -- `run_5373310a7b9f` against
-`run_c9c24d438a94` -- is -0.17, so the correlation belongs to this term and not
-to the instrument.
+`run_c9c24d438a94`, `world_5oyp_null_pair.json` -- is -0.17, so the correlation
+belongs to this term and not to the instrument. That pair is the null for the
+other per-cell row too: its land-mean range difference is -0.8 per cent and is
+NOT resolved, and 579 of its 1019 land cells fall.
 
 **THE DEEP COLUMN CONFIRMS THE DIFFUSIVITY.** The seasonal amplitude of the
 model's third soil temperature layer falls and the fourth falls further, and the
@@ -2290,8 +2292,8 @@ prediction said it would be.
 **One registered falsifier fired and is not an implementation fault.** The
 seasonal range falls on 157 of 1019 land cells over the extension window, against
 a row that called any fall a fault. On the unrelated pair above 579 of 1019 fall,
-so 15 per cent is the tail of a strongly one-signed distribution rather than a
-reversal, and the row is too strict for a coupled surface where a cell's range is
+so 15 per cent is the tail of a strongly one-signed distribution rather than the
+half a null pair gives, and the row is too strict for a coupled surface where a cell's range is
 set by its own energy balance and not by its column alone.
 
 **The supplementary prediction registered with the resolution bar is FALSIFIED.**
