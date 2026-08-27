@@ -82,10 +82,12 @@ sys.path.insert(0, str(ROOT / "lib"))
 from builds import grid_export, mesh_export  # noqa: E402
 from gridding import cell_fraction, cell_mean, region_cells  # noqa: E402
 from orogen import Export, LAND  # noqa: E402
+from paths import best_available_climatology, rel  # noqa: E402
 
 CONFIG = ROOT / "config" / "planet.yaml"
 DERIVATION = ROOT / "analysis" / "rock_emissivity.json"
 REPORT = ROOT / "analysis" / "emissivity_contrast.json"
+LAND_MEAN_REPORT = ROOT / "analysis" / "land_emissivity.json"
 
 # THE CRITERION. Fixed before any spectrum was read. See the module docstring:
 # the model's own dry adiabatic energy sink is 0.6 to 1.4 W/m2 and the surface
@@ -93,21 +95,132 @@ REPORT = ROOT / "analysis" / "emissivity_contrast.json"
 THRESHOLD_W_M2 = 1.4
 
 
+def class_emissivity(mesh: Export, values: dict) -> np.ndarray:
+    """The per-class emissivity mapped onto the mesh's cells, NaN off the table."""
+    rock = mesh.field("substrate_class").astype(int)
+    codes = [r["code"] for r in mesh.manifest["lithology"]["rockClasses"]]
+    out = np.full(rock.shape, np.nan)
+    for index, code in enumerate(codes):
+        if code in values:
+            out[rock == index] = values[code]
+    # RULE 1: land is surface_class, never land_mask.
+    is_land = mesh.surface_class == LAND
+    if np.isnan(out[is_land]).any():
+        missing = sorted({codes[i] for i in np.unique(rock[is_land])} - set(values))
+        raise SystemExit(f"no emissivity for rock class(es) {missing}; add them "
+                         "to SELECTORS in analysis/rock_emissivity.py")
+    return out
+
+
+def write_land_mean(args, config: dict, derivation: dict) -> None:
+    """The scalar `model.land_longwave_emissivity` IS, and nothing else.
+
+    NO CLIMATOLOGY IS INVOLVED and that is worth saying, because the contrast
+    computation below needs one and the two answers are easy to confuse. The
+    land mean is the area weighting of the per-class emissivity over the mesh's
+    own land cells: a property of the mesh and of `rock_emissivity.json` alone,
+    so it is re-derivable on any tree that has the build, before any run exists.
+    What needs a climatology is the question of whether the FIELD is worth
+    carrying over that scalar, because that is priced in the model's own surface
+    longwave loss.
+
+    The report carries the terrain hash because this number is DEFINED as a
+    weighting over one build's land, so every terrain change moves it. A check
+    that compared only the number would pass an artifact computed on a build the
+    tree no longer points at, which is how the configured scalar came to carry
+    another terrain's mean.
+    """
+    mesh = Export(args.mesh or mesh_export(config))
+    values = {code: float(entry["emissivity"])
+              for code, entry in derivation["classes"].items()}
+    is_land = mesh.surface_class == LAND
+    area = mesh.cell_area.astype(np.float64)[is_land]
+    eps = class_emissivity(mesh, values)[is_land]
+
+    def weighted(table: dict) -> float:
+        per_cell = class_emissivity(
+            mesh, {code: float(v) for code, v in table.items()})[is_land]
+        return float((per_cell * area).sum() / area.sum())
+
+    # The preparation arms, which are the bracket to run rather than a guessed
+    # one: every class at its solid samples, and every class at its particulate
+    # ones. Read from the same derivation so the bracket moves with it.
+    arms, arm_gaps = {}, {}
+    for arm in ("solid", "particulate"):
+        table, missing = {}, []
+        for code, entry in derivation["classes"].items():
+            side = entry.get(arm) or {}
+            if isinstance(side.get("mean"), (int, float)):
+                table[code] = side["mean"]
+            else:
+                # A class with no samples of that preparation keeps its adopted
+                # value: the arm is a bound on the PREPARATION and a class the
+                # library has never measured that way cannot be moved by it.
+                table[code] = entry["emissivity"]
+                missing.append(code)
+        arms[arm] = round(weighted(table), 4)
+        if missing:
+            arm_gaps[arm] = sorted(missing)
+
+    report = {
+        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generator": "analysis/emissivity_contrast.py --land-mean",
+        "quantity": "model.land_longwave_emissivity: the area-weighted mean of "
+                    "the per-rock-class thermal emissivity over this build's "
+                    "land, on the mesh. No climatology enters it.",
+        "terrain_hash": mesh.terrain_hash,
+        "source_build": config["source_build"],
+        "derivation": rel(args.derivation),
+        "land_mean": round(float((eps * area).sum() / area.sum()), 6),
+        "preparation_arms": arms,
+        "preparation_arm_classes_without_samples": arm_gaps,
+        "land_cells": int(is_land.sum()),
+    }
+    args.json.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(f"land-mean emissivity {report['land_mean']:.6f} on "
+          f"{config['source_build']} ({mesh.terrain_hash[:8]}), "
+          f"{report['land_cells']} land cells")
+    if arms:
+        print(f"  preparation arms {arms}")
+    print(f"wrote {args.json}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--config", type=Path, default=CONFIG)
     ap.add_argument("--derivation", type=Path, default=DERIVATION)
-    ap.add_argument("--climatology", type=Path, required=True,
+    ap.add_argument("--climatology", type=Path, default=None,
                     help="a climatology carrying rls (surface net longwave, "
                          "code 177) and lsm, on the grid the config names. "
-                         "Required and never defaulted: the loss scale is a "
-                         "property of one run on one terrain")
+                         "Defaults to the best available, which is the "
+                         "baseline when config names one and the bootstrap "
+                         "when it does not. Not read at all by --land-mean")
+    ap.add_argument("--land-mean", action="store_true",
+                    help="write only the land-mean scalar, which needs no "
+                         "climatology, and stop")
     ap.add_argument("--mesh", type=Path, default=None)
     ap.add_argument("--grid", type=Path, default=None)
-    ap.add_argument("--json", type=Path, default=REPORT)
+    ap.add_argument("--json", type=Path, default=None)
     args = ap.parse_args()
+    args.json = args.json or (LAND_MEAN_REPORT if args.land_mean else REPORT)
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
+    if args.land_mean:
+        write_land_mean(args, config,
+                        json.loads(args.derivation.read_text(encoding="utf-8")))
+        return
+    # THE BEST AVAILABLE, not the first available. What a per-cell field is
+    # worth is priced in the model's own surface longwave loss, so it is a
+    # property of one run's climate state and there is no Earth fallback for it;
+    # the resolver returns the baseline when the configuration names one and the
+    # bootstrap when it does not, and says which, so the report records the
+    # stage the verdict rests on rather than leaving it to the caller's memory.
+    args.climatology, clim_stage = best_available_climatology(args.climatology)
+    if not args.climatology.is_file():
+        raise SystemExit(
+            f"{args.climatology} is not on disk. The contrast needs a "
+            "climatology carrying rls and lsm; --land-mean writes the scalar "
+            "and needs none.")
     derivation = json.loads(args.derivation.read_text(encoding="utf-8"))
     values = {code: float(entry["emissivity"])
               for code, entry in derivation["classes"].items()}
@@ -118,18 +231,8 @@ def main() -> None:
     # RULE 1: land is surface_class, never land_mask.
     is_land = mesh.surface_class == LAND
     area = mesh.cell_area.astype(np.float64)
-    rock = mesh.field("substrate_class").astype(int)
     endorheic = mesh.field("is_endorheic").astype(bool)
-    codes = [r["code"] for r in mesh.manifest["lithology"]["rockClasses"]]
-
-    eps_region = np.full(rock.shape, np.nan)
-    for index, code in enumerate(codes):
-        if code in values:
-            eps_region[rock == index] = values[code]
-    if np.isnan(eps_region[is_land]).any():
-        missing = sorted({codes[i] for i in np.unique(rock[is_land])} - set(values))
-        raise SystemExit(f"no emissivity for rock class(es) {missing}; add them "
-                         "to SELECTORS in analysis/rock_emissivity.py")
+    eps_region = class_emissivity(mesh, values)
 
     # RULE 3: the mesh reaches the grid by INDEX. No longitude is compared.
     cells, nlat, nlon = region_cells(mesh, grid_dir)
@@ -198,6 +301,7 @@ def main() -> None:
         "terrain_hash": mesh.terrain_hash,
         "grid": [int(nlat), int(nlon)],
         "climatology": clim_label,
+        "climatology_stage": clim_stage,
         "surface_longwave_loss_land_mean_w_m2": round(loss_mean, 2),
         "emissivity": {
             "lithology_land_mean": round(eps_mean, 4),

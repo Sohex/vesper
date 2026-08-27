@@ -40,7 +40,6 @@ def build_bucket(out: pathlib.Path) -> None:
     replacements = {
         "    scheme:": "    scheme: bucket\n",
         "    layers:": "    layers: 1\n",
-        "    layer_capacity_fraction:": "    layer_capacity_fraction: [1.0]\n",
         "    layer_thickness_m:": "    layer_thickness_m: [1.5]\n",
     }
     for i in range(start + 1, end):
@@ -53,7 +52,7 @@ def build_bucket(out: pathlib.Path) -> None:
     assert got["scheme"] == "bucket" and got["layers"] == 1, got
     assert got["layer_thickness_m"] == [1.5], got
     print("bucket arm:", {k: got[k] for k in
-                          ("scheme", "layers", "layer_capacity_fraction", "layer_thickness_m")})
+                          ("scheme", "layers", "layer_thickness_m")})
 
 
 def build_no_cryosphere(out: pathlib.Path) -> None:

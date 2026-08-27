@@ -1080,6 +1080,537 @@ def _check_chosen_flux_cannot_launder(rep) -> None:
                 f"else refuses")
 
 
+def _config_node(config: dict, dotted: str):
+    """The value at a dotted path in the configuration, or `_MISSING`."""
+    node = config
+    for step in dotted.split("."):
+        if not isinstance(node, dict) or step not in node:
+            return _MISSING
+        node = node[step]
+    return node
+
+
+_MISSING = object()
+
+
+def _written_tolerance(value) -> float:
+    """Half a unit in the last place the declaration actually wrote.
+
+    Arithmetic on the written precision, not a number picked to make today's
+    values pass: a declaration carrying three decimals cannot honestly differ
+    from its generator by more than half of the third.
+
+    Exponent form is read the same way rather than as an integer: `1.719635e+6`
+    carries six decimals on a mantissa scaled by a million, so its last place is
+    a whole unit and not a tenth. A YAML file that writes a large derived
+    quantity that way would otherwise get a tolerance a million times tighter
+    than what it wrote.
+    """
+    written = str(value)
+    mantissa, _, exponent = written.lower().partition("e")
+    places = len(mantissa.split(".")[1]) if "." in mantissa else 0
+    shift = int(exponent) if exponent else 0
+    return 0.5 * 10.0 ** (shift - places)
+
+
+def check_derived_config_values(rep: "Report", config: dict) -> None:
+    """Every DERIVED literal in `config/planet.yaml` against the artifact behind it.
+
+    Each row is a value some generator computes, prints, and a human retypes
+    into the configuration. That route has no check on it, and it has already
+    drifted repeatedly -- the CO2 shortwave fit in the model source, the dust
+    notes against the albedos the code now reads, and
+    `model.land_longwave_emissivity` against a build the registry refuses.
+    `notes/audits/frozen-derived-quantities.md` is the enumeration.
+
+    Compared to the FULL-PRECISION value in the artifact at the tolerance the
+    configuration's own rounding implies, element by element for the rows that
+    are lists: a bracket is two numbers and either of them can go stale on its
+    own.
+
+    A row may also require the artifact to be STAMPED with the configured
+    build. That is not decoration on those rows: `land_longwave_emissivity` is
+    DEFINED as an area weighting over the build's land, so every terrain change
+    moves it, and a row that compared only numbers would pass an artifact
+    computed on a build this tree no longer points at -- which is exactly how
+    that key came to carry another terrain's mean.
+
+    The generator is named in each row so a failure says what to re-run.
+    """
+    try:
+        analysis = ROOT / "analysis"
+        sw = ROOT / "exoplasim" / "analysis" / "shortwave_band_weights.json"
+        cloud = ROOT / "exoplasim" / "analysis" / "cloud_band_weight.json"
+        # `h2o_sw_level` is read out of its OWN artifact and not out of
+        # `shortwave_band_weights.json`, although that report carries the same
+        # node. The full report cannot be written while `baseline_climatology`
+        # is null -- its prediction blocks open a climatology and have no Earth
+        # fallback by design -- so a row pointed at it would turn a stale
+        # derived artifact into a failing gate. `--level` writes the artifact
+        # below from two declared constants and needs no climatology, no
+        # spectrum and no network, so this row can be regenerated whenever it
+        # fails. It catches a retyping error into config and it CANNOT catch
+        # the climatology moving under `CORRK_PATH_CM`, the water path the
+        # ratio it is built from was evaluated at; `check_water_path_currency`
+        # below is what asks that question.
+        level = ROOT / "exoplasim" / "analysis" / "h2o_sw_level.json"
+        veg = analysis / "vegetation_albedo.json"
+        ice = analysis / "ice_properties.json"
+        rows = [
+            ("model.h2o_sw_weight", sw, ("h2o", "weight"), False,
+             "exoplasim/scripts/shortwave_band_weights.py"),
+            ("model.co2_sw_weight", sw, ("co2", "weight"), False,
+             "exoplasim/scripts/shortwave_band_weights.py"),
+            ("model.h2o_sw_level", level, ("value",), False,
+             "exoplasim/scripts/shortwave_band_weights.py --level"),
+            ("model.cloud_absorption_scale", cloud, ("weight", "central"), False,
+             "exoplasim/scripts/cloud_band_weight.py"),
+            ("model.vegetation_albedo", veg, ("vegetation_albedo",), False,
+             "analysis/vegetation_albedo.py"),
+            ("model.vegetation_albedo_bracket", veg,
+             ("vegetation_albedo_bracket",), False, "analysis/vegetation_albedo.py"),
+            ("model.vegetation_albedo_bands", veg,
+             ("vegetation_albedo_bands",), False, "analysis/vegetation_albedo.py"),
+            ("model.tree_albedo", veg, ("cover_albedo", "tree"), False,
+             "analysis/vegetation_albedo.py"),
+            ("model.tree_albedo_bracket", veg, ("cover_albedo_bracket", "tree"),
+             False, "analysis/vegetation_albedo.py"),
+            ("model.grass_albedo", veg, ("cover_albedo", "grass"), False,
+             "analysis/vegetation_albedo.py"),
+            ("model.grass_albedo_bracket", veg, ("cover_albedo_bracket", "grass"),
+             False, "analysis/vegetation_albedo.py"),
+            ("surface.cryosphere.snow_fusion_j_kg", ice,
+             ("pure_ice_ih", "melting_enthalpy_j_kg"), False,
+             "analysis/ice_properties.py"),
+            ("model.lithology_albedo_overrides.playa_clastic.albedo",
+             analysis / "playa_albedo.json", ("reconciled_albedo",), False,
+             "analysis/playa_albedo.py"),
+            # STAMPED, because this one is an area weighting over the build's
+            # land and moves with every terrain.
+            ("model.land_longwave_emissivity", analysis / "land_emissivity.json",
+             ("land_mean",), True, "analysis/emissivity_contrast.py --land-mean"),
+        ]
+        import provenance
+        build = provenance.active_build(config)
+        want_hash = builds.terrain_hash(config)
+        problems, checked = [], []
+        for key, path, where, stamped, generator in rows:
+            declared = _config_node(config, key)
+            if declared is _MISSING:
+                problems.append(f"{key} is not in config/planet.yaml")
+                continue
+            if not path.is_file():
+                problems.append(f"{key}: {rel(path)} is missing; run {generator}")
+                continue
+            report = json.loads(path.read_text(encoding="utf-8"))
+            # Walked with a guard rather than bare indexing: a missing node
+            # would otherwise raise into this block's own except and downgrade
+            # every OTHER comparison here to a warning, which is the one failure
+            # mode a consistency check must not have.
+            node, missing = report, False
+            for step in where:
+                if not isinstance(node, dict) or step not in node:
+                    problems.append(
+                        f"{key}: {rel(path)} has no {'.'.join(where)}; it "
+                        f"predates the node, so re-run {generator}")
+                    missing = True
+                    break
+                node = node[step]
+            if missing:
+                continue
+            if stamped:
+                got = report.get("terrain_hash")
+                if got != want_hash:
+                    problems.append(
+                        f"{key}: {rel(path)} carries terrain "
+                        f"{str(got)[:8]} and the configured build {build} is "
+                        f"{str(want_hash)[:8]}. This key is an area weighting "
+                        f"over the build's land, so the artifact describes "
+                        f"another terrain: re-run {generator}")
+                    continue
+            declared_list = isinstance(declared, (list, tuple))
+            node_list = isinstance(node, (list, tuple))
+            if declared_list != node_list:
+                problems.append(
+                    f"{key} is {'a list' if declared_list else 'a scalar'} in "
+                    f"config and {'a list' if node_list else 'a scalar'} in "
+                    f"{rel(path)}; the two do not describe the same quantity")
+                continue
+            pairs = (list(zip(declared, node)) if declared_list
+                     else [(declared, node)])
+            if declared_list and len(declared) != len(node):
+                problems.append(
+                    f"{key} has {len(declared)} entries in config and "
+                    f"{len(node)} in {rel(path)}: re-run {generator}")
+                continue
+            bad = []
+            for index, (mine, theirs) in enumerate(pairs):
+                tol = _written_tolerance(mine)
+                if abs(float(mine) - float(theirs)) > tol:
+                    where_at = f"[{index}]" if declared_list else ""
+                    bad.append(f"{where_at}{float(mine):g} against "
+                               f"{float(theirs):.6g} (tolerance {tol:g})")
+            if bad:
+                problems.append(
+                    f"{key}: {'; '.join(bad)} in {rel(path)} "
+                    f"({'.'.join(where)}), past what its own written precision "
+                    f"allows: re-run {generator} or retype it")
+            else:
+                checked.append(key.split(".", 1)[-1])
+        rep.add(FAIL if problems else OK,
+                "derived config values match their artifacts",
+                "; ".join(problems) if problems else
+                f"{len(checked)} compared: {', '.join(checked)}")
+    except Exception as exc:
+        rep.add(WARN, "derived config values match their artifacts",
+                f"not checked: {exc}")
+
+
+def check_derived_config_rules(rep: "Report", config: dict) -> None:
+    """Derived config literals whose producer is a RULE rather than an artifact.
+
+    Same class as `check_derived_config_values` and the same two dispositions
+    behind it; what differs is that nothing writes these to disk, so the
+    re-derivation is the rule itself, stated once, here. Each is compared at the
+    tolerance the configuration's own written precision implies.
+    """
+    import lapse
+    import stellar
+
+    model = config.get("model", {})
+    problems, checked = [], []
+
+    # `semi_implicit_reference_temperature_k`. The mass-weighted mean of the
+    # `setzt` profile over the model's own sigma levels, weights dsigma, which
+    # is what `plasim.f90` builds T0 from. The rule is what the config comment
+    # states; running it here is what stops the core's adiabatic conversion
+    # defect resting on a number nobody re-derives.
+    try:
+        declared = float(model["semi_implicit_reference_temperature_k"])
+        derived = lapse.semi_implicit_reference_temperature_k(config)
+        tol = _written_tolerance(model["semi_implicit_reference_temperature_k"])
+        if abs(declared - derived) > tol:
+            problems.append(
+                f"semi_implicit_reference_temperature_k is {declared:g} in "
+                f"config and the dsigma-weighted setzt profile gives "
+                f"{derived:.4f}, past the {tol:g} its own precision allows")
+        else:
+            checked.append(f"t0 {declared:g} K")
+    except Exception as exc:                       # noqa: BLE001 - reported
+        problems.append(f"semi_implicit_reference_temperature_k not checked: {exc}")
+
+    # `ozone_visible_weight`. The Chappuis band's share of this star's flux over
+    # its share of the Sun's, on the spectrum file the model reads. The spectrum
+    # is rewritten in place by `build_stellar_spectrum.py`, and this weight went
+    # stale the last time it was: a resampling that moved the band-1 share moved
+    # this with it and nothing said so.
+    try:
+        declared = float(model["ozone_visible_weight"])
+        derived = stellar.ozone_visible_weight()
+        tol = _written_tolerance(model["ozone_visible_weight"])
+        if abs(declared - derived) > tol:
+            problems.append(
+                f"ozone_visible_weight is {declared:g} in config and the "
+                f"configured spectrum gives {derived:.4f} over the Chappuis "
+                f"band, past the {tol:g} its own precision allows: re-derive "
+                f"it with lib/stellar.py:ozone_visible_weight")
+        else:
+            checked.append(f"o3visw {declared:g}")
+    except Exception as exc:                       # noqa: BLE001 - reported
+        problems.append(f"ozone_visible_weight not checked: {exc}")
+
+    rep.add(FAIL if problems else OK,
+            "derived config values match the rules that produce them",
+            "; ".join(problems) if problems else
+            f"{len(checked)} re-derived: {', '.join(checked)}")
+
+
+def _written_token(path: Path, key: str) -> str | None:
+    """The literal a YAML file wrote for `key`, so its precision can be read.
+
+    `str(value)` cannot answer this: YAML parses `1.719635e+6` and `0.9350` into
+    floats whose `repr` has lost the form they were written in, and the form is
+    exactly what says how far a declaration may honestly sit from its generator.
+    """
+    import re
+    match = re.search(rf"^\s*{re.escape(key)}\s*:\s*([-+0-9.eE]+)\s*$",
+                      path.read_text(encoding="utf-8"), re.MULTILINE)
+    return match.group(1) if match else None
+
+
+def check_land_column_thermal_constants(rep: "Report") -> None:
+    """The land column contract's four cryosphere thermal constants against
+    `analysis/ice_properties.py`, which is what produces them.
+
+    All four are properties of a DENSITY the model compiles -- the glacier pair
+    of `rhoglac`, the snow pair of `rhosnow` -- and `ice_properties.py` already
+    holds the compiled Fortran literals to what it computes. It never opens this
+    yaml, so the contract's copy was a fourth restatement sitting outside that
+    loop: a bracket on either density would have moved the model and the
+    derivation together and left the contract behind.
+    """
+    contract = ROOT / "pedology" / "config" / "land_column_properties.yaml"
+    artifact = ROOT / "analysis" / "ice_properties.json"
+    rows = [
+        ("glacier_ice_heat_capacity_j_m3_k", ("glacial_ice", "heat_capacity_j_m3_k")),
+        ("glacier_ice_thermal_conductivity_w_m_k",
+         ("glacial_ice", "conductivity_w_m_k")),
+        ("snow_heat_capacity_j_m3_k",
+         ("snow_conductivity_bracket", "declared_heat_capacity_j_m3_k")),
+        ("snow_thermal_conductivity_w_m_k",
+         ("snow_conductivity_bracket", "declared_conductivity_w_m_k")),
+    ]
+    label = "the land column contract's cryosphere thermal constants"
+    try:
+        if not artifact.is_file():
+            rep.add(FAIL, label,
+                    f"{rel(artifact)} is missing; run analysis/ice_properties.py")
+            return
+        declared = (yaml.safe_load(contract.read_text(encoding="utf-8"))
+                    ["thermal"]["constants"])
+        report = json.loads(artifact.read_text(encoding="utf-8"))
+        problems, checked = [], []
+        for key, where in rows:
+            if key not in declared:
+                problems.append(f"{key} is not in {rel(contract)}")
+                continue
+            node = report
+            for step in where:
+                if not isinstance(node, dict) or step not in node:
+                    node = None
+                    break
+                node = node[step]
+            if node is None:
+                problems.append(
+                    f"{key}: {rel(artifact)} has no {'.'.join(where)}; it "
+                    f"predates the node, so re-run analysis/ice_properties.py")
+                continue
+            token = _written_token(contract, key) or str(declared[key])
+            tol = _written_tolerance(token)
+            if abs(float(declared[key]) - float(node)) > tol:
+                problems.append(
+                    f"{key} is {token} in {rel(contract)} and {float(node):.7g} "
+                    f"in {rel(artifact)}, past the {tol:g} its own written "
+                    f"precision allows: re-run analysis/ice_properties.py and "
+                    f"retype it")
+            else:
+                checked.append(key)
+        rep.add(FAIL if problems else OK, label,
+                "; ".join(problems) if problems else
+                f"{len(checked)} compared against {rel(artifact)}")
+    except Exception as exc:                       # noqa: BLE001 - reported
+        rep.add(WARN, label, f"not checked: {exc}")
+
+
+def check_cold_start_currency(rep: "Report", config: dict) -> None:
+    """The cold start's surface temperature against the run it is taken from.
+
+    `model.cold_start_profile.surface_temperature_k` is this model's own
+    converged global-mean surface temperature at the declared baseline flux, so
+    it is a MEASUREMENT and it can go stale in two ways at once: the number can
+    move, and the run it was taken from can leave the tree. Both have happened
+    to it. The check therefore asks the same two questions
+    `lib/sensitivity.py:verify` asks of the slope -- does the declaration match
+    the run it names, and is that run still on the world this tree describes --
+    and it names the run here rather than in the configuration because a run id
+    in a YAML comment is not reachable by anything.
+    """
+    label = "the cold start's surface temperature is current"
+    try:
+        import sensitivity
+        want_build = config["source_build"]
+        want_flux = float(config["orbit"]["baseline_flux_earth"])
+        declared = config["model"]["cold_start_profile"]["surface_temperature_k"]
+        live = sensitivity._live_entries()
+        archived = sensitivity._archived_entries()
+        entry = live.get(COLD_START_RUN)
+        problems = []
+        if entry is None:
+            where = ("survives only as archived identity, on build "
+                     f"{archived[COLD_START_RUN].get('source_build')}"
+                     if COLD_START_RUN in archived else "is in no run index at all")
+            rep.add(FAIL, label,
+                    f"{COLD_START_RUN} {where}; the temperature it carries "
+                    f"cannot be recomputed, so re-derive this declaration "
+                    f"against a live run on {want_build}")
+            return
+        on = entry.get("source_build")
+        if on != want_build:
+            problems.append(f"{COLD_START_RUN} was run on build {on}, not the "
+                            f"configured {want_build}")
+        flux = float(entry.get("physical", {}).get("flux_ratio", float("nan")))
+        if not math.isclose(flux, want_flux, abs_tol=1e-9):
+            problems.append(f"{COLD_START_RUN} is at flux ratio {flux}, not the "
+                            f"declared orbit.baseline_flux_earth {want_flux}")
+        report = sensitivity._report_metrics(f"{COLD_START_RUN}_convergence.json")
+        if report is None:
+            problems.append(f"{COLD_START_RUN} has no convergence report")
+        else:
+            if not report.get("sufficiently_equilibrated_for_worldbuilding"):
+                problems.append(
+                    f"{COLD_START_RUN} no longer passes every convergence "
+                    f"criterion: {report.get('failed_criteria')}")
+            asymptote = (report.get("metrics") or {}).get("temperature_asymptote_k")
+            if asymptote is None:
+                problems.append(f"{COLD_START_RUN} has no fitted asymptote")
+            else:
+                tol = _written_tolerance(declared)
+                if abs(float(declared) - float(asymptote)) > tol:
+                    problems.append(
+                        f"the declared {float(declared):g} K is not "
+                        f"{COLD_START_RUN}'s fitted asymptote {asymptote:.4f} K, "
+                        f"past the {tol:g} its own precision allows")
+        rep.add(FAIL if problems else OK, label,
+                "; ".join(problems) if problems else
+                f"{float(declared):g} K is {COLD_START_RUN}'s fitted asymptote, "
+                f"on {want_build} at flux ratio {want_flux:g}")
+    except Exception as exc:                       # noqa: BLE001 - reported
+        rep.add(WARN, label, f"not checked: {exc}")
+
+
+# The run `model.cold_start_profile.surface_temperature_k` is measured on. Named
+# here rather than in `config/planet.yaml` for the reason `lib/sensitivity.py`
+# names its bracket runs in code: a run id inside a YAML comment is reachable by
+# a reader and by nothing else, and what makes this a check is that something
+# opens the run index.
+COLD_START_RUN = "run_432e5e46adef"
+
+
+def check_eddy_wind(rep: "Report", config: dict) -> None:
+    """`model.hyperdiffusion.eddy_wind_m_s` against every run that measured it.
+
+    THE PRODUCER IS A SET AND NOT AN ARTIFACT, which is what makes this row
+    different from the ones above. `measure_eddy_wind.py` writes one verdict per
+    run under `exoplasim/analysis/eddy-wind/`, and the declared wind is an
+    aggregate over them with a declared bracket around it. So the honest check
+    is not equality with any one file: it is that the declaration still sits
+    inside the spread of the measurements that exist, and that the set has not
+    emptied out from under it.
+
+    The bracket is the configuration's own and is not recomputed here. A
+    tolerance derived from today's files would move whenever a run was added,
+    which is a criterion chosen after the result it judges.
+
+    THE BUILD IS REPORTED AND IS NOT A REFUSAL. Every measurement on disk is on
+    a build that is not the configured one, and the configuration says in full
+    why that is not a defect to fix by re-running: these runs were damped with
+    the PREVIOUS value, so the sweep that closes the bracket is the next run's
+    own re-measurement rather than a re-measurement of these.
+    """
+    label = "the declared eddy wind sits inside its own measurements"
+    try:
+        declared = float(config["model"]["hyperdiffusion"]["eddy_wind_m_s"])
+        bracket = 0.05          # the +/- 5 per cent the configuration declares
+        directory = ROOT / "exoplasim" / "analysis" / "eddy-wind"
+        files = sorted(directory.glob("*.json")) if directory.is_dir() else []
+        if not files:
+            rep.add(FAIL, label,
+                    f"{rel(directory)} holds no measurement at all, so the "
+                    f"declared {declared:g} m/s has nothing behind it; run "
+                    f"exoplasim/scripts/measure_eddy_wind.py")
+            return
+        measured, builds_seen, unreadable = {}, set(), []
+        for path in files:
+            try:
+                report = json.loads(path.read_text(encoding="utf-8"))
+                measured[path.stem] = float(
+                    report["measured"]["eddy_wind_m_s"])
+                builds_seen.add(report.get("source_build")
+                                or (report.get("run") or {}).get("source_build"))
+            except Exception:                      # noqa: BLE001 - reported
+                unreadable.append(path.name)
+        if not measured:
+            rep.add(FAIL, label,
+                    f"none of the {len(files)} file(s) in {rel(directory)} "
+                    f"carries measured.eddy_wind_m_s: {', '.join(unreadable)}")
+            return
+        low, high = min(measured.values()), max(measured.values())
+        problems = []
+        if not (declared * (1 - bracket) <= low
+                and high <= declared * (1 + bracket)):
+            problems.append(
+                f"the {len(measured)} measurement(s) span {low:.4g} to "
+                f"{high:.4g} m/s and the declared {declared:g} carries a "
+                f"+/-{bracket:.0%} bracket, which does not cover them: "
+                f"re-derive the aggregate")
+        if unreadable:
+            problems.append(f"unreadable: {', '.join(unreadable)}")
+        note = ""
+        stale = {b for b in builds_seen if b and b != config["source_build"]}
+        if stale:
+            note = (f"; every measurement is on {', '.join(sorted(stale))} and "
+                    f"the configured build is {config['source_build']}, which "
+                    f"the declaration accounts for: the sweep that closes the "
+                    f"bracket is the next run's own re-measurement")
+        rep.add(FAIL if problems else OK, label,
+                "; ".join(problems) if problems else
+                f"{len(measured)} measurement(s) span {low:.4g} to {high:.4g} "
+                f"m/s, inside {declared:g} +/-{bracket:.0%}{note}")
+    except Exception as exc:                       # noqa: BLE001 - reported
+        rep.add(WARN, label, f"not checked: {exc}")
+
+
+def check_water_path_currency(rep: "Report", config: dict) -> None:
+    """`CORRK_PATH_CM` against the water path the best available climatology has.
+
+    THE SHORTWAVE GATE ABOVE CANNOT ASK THIS. `h2o_sw_level.json` is written by
+    `shortwave_band_weights.py --level` from `CORRK_RATIO_TO_EQ21` and
+    `H2O_CONTINUUM_FRACTION` and from nothing else, so the row that holds
+    `model.h2o_sw_level` against it regenerates its own reference from the
+    frozen value: it catches a retyping error into the configuration and it
+    cannot catch the climatology moving under the PATH the ratio was evaluated
+    at. A check that regenerates its own reference from the frozen value is not
+    a check on that value.
+
+    This is what asks. `CORRK_PATH_CM` is the model's own effective water path,
+    magnified, and it was measured on a baseline climatology that no longer
+    exists; the best available climatology in this tree is what can be measured
+    now. Reported rather than refused, and the reason is measured rather than
+    preferred: `h2o_sw_weight` and `co2_sw_weight` are quoted at the SAME path
+    and their report cannot be regenerated while `baseline_climatology` is null,
+    so moving this one alone would leave the three quoted at two different
+    paths. What settles it is a baseline climatology on the configured build,
+    at which point all three move together. world-frz3.
+    """
+    label = "the shortwave water path against the best available climatology"
+    try:
+        sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+        import shortwave_band_weights as swbw
+        from paths import best_available_climatology
+
+        best = best_available_climatology()
+        if not best.path.is_file():
+            rep.add(WARN, label, f"{rel(best.path)} is not on disk")
+            return
+        with Dataset(best.path) as data:
+            hus = np.asarray(data.variables["hus"][:])
+            air_t = np.asarray(data.variables["ta"][:])
+            surface_p = np.asarray(data.variables["ps"][:]) * 100.0
+            sigma = np.asarray(data.variables["lev"][:])
+            sigma_half = np.asarray(data.variables["levp"][:])
+            lat = np.asarray(data.variables["lat"][:])
+        gravity = float(config["planet"]["gravity_m_s2"])
+        dsigma = np.diff(sigma_half)
+        column = np.zeros_like(surface_p)
+        for k in range(len(sigma)):
+            column += (0.1 * dsigma[k] * hus[:, k] * surface_p / gravity
+                       * np.sqrt(273.0 / air_t[:, k])
+                       * sigma[k] * surface_p / 1.0e5)
+        weights = np.cos(np.deg2rad(lat))[None, :, None] * np.ones_like(column)
+        here = (float((column * weights).sum() / weights.sum())
+                * swbw.WATER_MAGNIFICATION)
+        declared = swbw.CORRK_PATH_CM
+        rep.add(WARN if abs(here - declared) > 0.05 * declared else OK, label,
+                f"declared {declared:g} cm against {here:.4f} on "
+                f"{rel(best.path)} ({best.stage}). The declaration was measured "
+                f"on a baseline that no longer exists; it is not moved alone "
+                f"because h2o_sw_weight and co2_sw_weight are quoted at the "
+                f"same path and cannot be regenerated without a baseline. "
+                f"world-frz3")
+    except Exception as exc:                       # noqa: BLE001 - reported
+        rep.add(WARN, label, f"not checked: {exc}")
+
+
 def main() -> int:
     import argparse
     parser = argparse.ArgumentParser(
@@ -2303,88 +2834,12 @@ def main() -> int:
         rep.add(WARN, "the slope's currency check can fail",
                 f"not checked: {exc}")
 
-    # -- config's derived radiation scalings against the artifacts that made --
-    #    them
-    #
-    # Each of these is DERIVED: a generator computes it, prints it, and a human
-    # retypes it into `config/planet.yaml`. That route has no check on it, and
-    # it has already drifted twice elsewhere -- the CO2 shortwave fit in the
-    # model source, and the dust notes against the albedos the code now reads.
-    #
-    # Compared to the FULL-PRECISION value in the artifact, at the tolerance the
-    # config's own rounding implies: config carries three decimals, so half a
-    # unit in the last place is the largest disagreement that can be honest
-    # rounding, and anything beyond it is drift. That bound is arithmetic on the
-    # written precision, not a number picked to make today's values pass.
-    #
-    # The generator is named in each row so a failure says what to re-run.
-    try:
-        model = config["model"]
-        sw = ROOT / "exoplasim" / "analysis" / "shortwave_band_weights.json"
-        cloud = ROOT / "exoplasim" / "analysis" / "cloud_band_weight.json"
-        # `h2o_sw_level` is read out of its OWN artifact and not out of
-        # `shortwave_band_weights.json`, although that report carries the same
-        # node. The full report cannot be written while `baseline_climatology`
-        # is null -- its prediction blocks open a climatology and have no Earth
-        # fallback by design -- so a row pointed at it would turn a stale
-        # derived artifact into a failing gate. `--level` writes the artifact
-        # below from two declared constants and needs no climatology, no
-        # spectrum and no network, so this row can be regenerated whenever it
-        # fails. world-o3t1.
-        level = ROOT / "exoplasim" / "analysis" / "h2o_sw_level.json"
-        rows = [
-            ("h2o_sw_weight", sw, ("h2o", "weight"),
-             "exoplasim/scripts/shortwave_band_weights.py"),
-            ("co2_sw_weight", sw, ("co2", "weight"),
-             "exoplasim/scripts/shortwave_band_weights.py"),
-            ("h2o_sw_level", level, ("value",),
-             "exoplasim/scripts/shortwave_band_weights.py --level"),
-            ("cloud_absorption_scale", cloud, ("weight", "central"),
-             "exoplasim/scripts/cloud_band_weight.py"),
-        ]
-        problems, checked = [], []
-        for key, path, where, generator in rows:
-            if key not in model:
-                problems.append(f"{key} is not in config/planet.yaml")
-                continue
-            if not path.is_file():
-                problems.append(f"{key}: {rel(path)} is missing; run {generator}")
-                continue
-            node = json.loads(path.read_text(encoding="utf-8"))
-            # Walked with a guard rather than bare indexing: a missing node
-            # would otherwise raise into this block's own except and downgrade
-            # every OTHER comparison here to a warning, which is the one failure
-            # mode a consistency check must not have.
-            missing = False
-            for step in where:
-                if not isinstance(node, dict) or step not in node:
-                    problems.append(
-                        f"{key}: {rel(path)} has no {'.'.join(where)}; it "
-                        f"predates the node, so re-run {generator}")
-                    missing = True
-                    break
-                node = node[step]
-            if missing:
-                continue
-            declared = float(model[key])
-            # Half a unit in the last decimal place the config actually wrote.
-            written = str(model[key])
-            places = len(written.split(".")[1]) if "." in written else 0
-            tol = 0.5 * 10.0 ** (-places)
-            if abs(declared - float(node)) > tol:
-                problems.append(
-                    f"{key} is {declared:g} in config but {float(node):.6g} in "
-                    f"{rel(path)} ({'.'.join(where)}), past the {tol:g} its own "
-                    f"{places} decimals allow: re-run {generator} or retype it")
-            else:
-                checked.append(f"{key} {declared:g}")
-        rep.add(FAIL if problems else OK,
-                "derived radiation scalings match their artifacts",
-                "; ".join(problems) if problems else
-                f"{len(checked)} compared: {', '.join(checked)}")
-    except Exception as exc:
-        rep.add(WARN, "derived radiation scalings match their artifacts",
-                f"not checked: {exc}")
+    check_derived_config_values(rep, config)
+    check_derived_config_rules(rep, config)
+    check_land_column_thermal_constants(rep)
+    check_cold_start_currency(rep, config)
+    check_eddy_wind(rep, config)
+    check_water_path_currency(rep, config)
     rep.show()
     return 1 if rep.failed else 0
 

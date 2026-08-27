@@ -905,6 +905,51 @@ steps:
       bracket, and `model.land_longwave_emissivity` is its land-area-weighted
       mean. `notes/audits/surface-longwave.md` is the finding.
 
+  - id: land_emissivity
+    script: analysis/emissivity_contrast.py
+    loop: A
+    cost: seconds
+    needs: [rock_emissivity]
+    writes: [analysis/land_emissivity.json]
+    gate: >
+      `model.land_longwave_emissivity` itself, written by
+      `analysis/emissivity_contrast.py --land-mean`: the area weighting of
+      `rock_emissivity`'s per-class values over this build's own land, on the
+      mesh. It is in loop A because it is a weighting over ONE BUILD'S LAND and
+      every terrain change moves it; it needs no climatology and no run, so it
+      is answerable the moment a build exists. `check_consistency.py` refuses an
+      artifact whose terrain hash is not the configured build's.
+      `notes/audits/surface-longwave.md` is the finding.
+
+  - id: emissivity_contrast
+    script: analysis/emissivity_contrast.py
+    loop: A
+    cost: seconds
+    needs: [bootstrap_climatology, land_emissivity]
+    writes: [analysis/emissivity_contrast.json]
+    gate: >
+      Whether a PER-CELL land emissivity is worth carrying over the scalar
+      `land_emissivity` produces. A different question from the scalar and it
+      needs a climatology, because what a field buys is priced in the model's
+      own surface longwave loss. The criterion is fixed in the script, in the
+      units the surface energy balance reports, and the answer is the weaker of
+      two out-of-band bounds. `notes/audits/surface-longwave.md`
+
+  - id: playa_albedo
+    script: analysis/playa_albedo.py
+    cost: minutes
+    needs: [stellar_spectrum]
+    writes: [analysis/playa_albedo.json]
+    gate: >
+      `model.lithology_albedo_overrides.playa_clastic.albedo`: Post et al.
+      (2000)'s all-soils field level corrected by how much brighter saline
+      desert soils are than the ECOSTRESS soil population, measured in one
+      library so the laboratory-over-field offset cancels, and re-weighted to
+      this star. Playa mud is about a quarter of this world's land and the
+      largest single lever on its energy balance. It depends on the star and the
+      library and not on a build, so it sits outside every loop.
+      `notes/audits/orogen-lithology.md` is the argument.
+
   - id: soil_thermal_inertia
     script: analysis/soil_thermal_inertia.py
     cost: seconds

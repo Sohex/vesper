@@ -74,7 +74,7 @@ from paths import (climatology_path, rel, require_clean_io,
                    require_configured_grid)
 from provenance import staged_surface_field
 from lake_balance import BasinSet, carve_verdict, solve
-from lapse import gas_properties, reference_height_m
+from lapse import SIGMA_LOWEST, gas_properties, reference_height_m
 
 DRHSFULL = 0.4          # landmod.f90: wetness reaches 1 above this fraction
 WSMAX_EARTH = 0.5       # landmod.f90 default field capacity, metres
@@ -98,7 +98,6 @@ DIURNAL_POINTS = 24
 VDIFF_B = VDIFF_D = 5.0
 STABILITY_ITERATIONS = 5
 Z0_WATER = 1.5e-4       # m, open-water roughness length
-SIGMA_LOWEST = 0.9828   # lowest model level
 
 
 def _resolved_config(cfg):
@@ -281,7 +280,7 @@ def penman_open_water(t_air, q_air, wind, p_air, rss, rls, land_albedo,
     # carried the EARTH-gravity answer as a literal instead; the expression is
     # now `lib/lapse.py:reference_height_m`, whose R comes from the configured
     # composition rather than being retyped from the run namelist.
-    z_ref = reference_height_m(t_air, cfg, SIGMA_LOWEST)
+    z_ref = reference_height_m(t_air, cfg)
     ce_neutral = KARMAN ** 2 / np.log(np.maximum(z_ref, 1.0) / Z0_WATER) ** 2
     rho = p_air / (_r_dry * t_air)
     u = np.maximum(wind, 0.1)

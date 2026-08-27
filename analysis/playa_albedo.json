@@ -1,0 +1,30 @@
+{
+  "generated": "2026-08-27T11:11:40+00:00",
+  "generator": "analysis/playa_albedo.py",
+  "quantity": "model.lithology_albedo_overrides.playa_clastic.albedo: Post et al. (2000)'s all-soils field level, corrected by how much brighter saline desert soils are than the soil population in ECOSTRESS, re-weighted to this star. The DRY endmember; the wet one is soil_albedo_wetting.py.",
+  "spectrum": "exoplasim/inputs/stellarspectra/k25v_hr.dat",
+  "spectrum_sha256": "50729d2432316108c45332eac45e6d36e7b6f7fd0c34c854bfc822533119cb51",
+  "library": "/home/cfutro/docs/world/.claude/worktrees/agent-aadd413b7c5e0f629/references/ecospeclib-all",
+  "post_field_mean": 0.189,
+  "post_band_um": [
+    0.3,
+    2.8
+  ],
+  "soil_spectra_used": 69,
+  "playa_suborders": [
+    "salorthid",
+    "gypsiorthid",
+    "calciorthid",
+    "camborthid",
+    "haplargid"
+  ],
+  "playa_spectra_used": 9,
+  "ecostress_soil_population_mean_sun": 0.289,
+  "ecostress_playa_mean_sun": 0.3298,
+  "material_ratio": 1.141,
+  "star_over_sun": 1.0678,
+  "laboratory_over_field": 1.529,
+  "laboratory_over_field_note": "the preparation offset, which cancels inside `material_ratio` and never enters the answer",
+  "reconciled_albedo": 0.2303,
+  "generator_table_value": 0.19
+}

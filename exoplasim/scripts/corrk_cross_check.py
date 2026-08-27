@@ -70,8 +70,13 @@ from pathlib import Path
 import numpy as np
 
 from _paths import ANALYSIS
-from shortwave_band_weights import (CO2_BANDS, CO2_FIT_RANGE, Spectrum, blend,
-                                    co2_closed_form, radmod_co2_fit, SOLAR_TEFF)
+from shortwave_band_weights import (CO2_BANDS, CO2_FIT_RANGE, CONFIG,
+                                    CORRK_PATH_CM, EARTH_GRAVITY,
+                                    EARTH_SURFACE_PRESSURE_PA, Spectrum, blend,
+                                    co2_closed_form, co2_column_atmos_cm,
+                                    co2_volume_mixing_ratio, pressure_reduction,
+                                    radmod_co2_fit, SOLAR_TEFF,
+                                    WATER_MAGNIFICATION)
 
 # The Generic PCM bundle, outside this repo and read-only.
 CORRK = Path.home() / "git" / "generic_pcm" / "LMDZ.GENERIC" / "datagcm" / "corrk_data"
@@ -84,12 +89,41 @@ H2O_PER_PRCM = 3.3428e22      # molecules cm-2 in one precipitable cm
 P_STANDARD_MBAR = 1013.25     # the 760 mm Hg the Howard fits are stated at
 DRY = 1e-8                    # the tables' lowest H2O mixing ratio
 
-# The paths `shortwave_band_weights.py` evaluates its absorptances at, so the two
-# calculations are quoted at the same amount. Recompute them there rather than
-# trusting these if the climatology moves; they are arguments, not state.
-DEFAULT_CO2_PLANET = 225.5626   # atmos-cm, column * pressure reduction * zbetta
-DEFAULT_CO2_EARTH = 298.5466    # the same at Earth's gravity
-DEFAULT_WATER_CM = 2.7891       # precipitable cm, magnified by zbetta
+# The paths `shortwave_band_weights.py` evaluates its absorptances at, DERIVED
+# from that module rather than transcribed, so the two calculations cannot come
+# to be quoted at different amounts.
+#
+# The water path is its `CORRK_PATH_CM` exactly, which is the whole point: the
+# ratio that module declares is this script's absorptance at that path over
+# Eq. 21 at the same one, and a second literal here would let the two part.
+DEFAULT_WATER_CM = CORRK_PATH_CM
+# The two CO2 amounts are the true column at each gravity, reduced to standard
+# pressure and magnified, which is `co2_column_atmos_cm * pressure_reduction *
+# WATER_MAGNIFICATION` and nothing else. The pressure reduction is a sum over
+# the model's SIGMA GRID, which is a grid property rather than a climate state,
+# so the bootstrap climatology answers it exactly as a baseline would; with
+# neither on disk the module's own well-mixed limit stands and the amounts move
+# by 0.03%, which is far under anything this comparison resolves.
+def _co2_amounts() -> tuple[float, float]:
+    import yaml
+    from paths import bootstrap_climatology_path
+
+    config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+    try:
+        grid = bootstrap_climatology_path()
+    except Exception:                       # noqa: BLE001 - the fallback is the module's
+        grid = None
+    reduction, _source = pressure_reduction(
+        config, grid if grid is not None and Path(grid).is_file() else None)
+    vmr, surface_pa = co2_volume_mixing_ratio(config)
+    gravity = float(config["planet"]["gravity_m_s2"])
+    scale = reduction * WATER_MAGNIFICATION
+    return (co2_column_atmos_cm(vmr, surface_pa, gravity) * scale,
+            co2_column_atmos_cm(vmr, EARTH_SURFACE_PRESSURE_PA,
+                                EARTH_GRAVITY) * scale)
+
+
+DEFAULT_CO2_PLANET, DEFAULT_CO2_EARTH = _co2_amounts()
 DEFAULT_WATER_VMR = 1e-2        # broadening partner fraction; --checks scans it
 DEFAULT_TEMPERATURE = 290.0     # Howard's laboratory was room temperature
 EARTH_MEAN_INSOLATION = 1361.0 / 4.0
