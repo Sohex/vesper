@@ -236,17 +236,27 @@ def slab_heat_capacity(run_dir: Path) -> tuple[float, dict]:
 # the report a bound was taken beside changes at all. The second is what tells
 # "the bound still holds" from "the bound was never re-examined".
 
-# THE SETTLED-WINDOW SPREAD, taken on run_432e5e46adef's own detrended residual.
+# THE SETTLED-WINDOW SPREAD, and it is a bound over EVERY report rather than a
+# reading of one run. Two things have raised it, in order:
 #
-# 0.092 AND NOT 0.091, because the window it is read on is now the clean-I/O
-# block alone and the clean stream is the noisier instrument: PlaSim's low-I/O
+# 0.091 to 0.092, because the window it is read on became the clean-I/O block
+# alone and the clean stream is the noisier instrument: PlaSim's low-I/O
 # accumulation averages over the output interval, which suppresses per-orbit
-# variance, so a window that reached back across the join read 0.0910 where the
-# twelve clean orbits read 0.09103. The bound goes to the top of what the
-# reports derive, per the asymmetry argued above -- a nominal below what a run
-# reads under-sizes the window that run is judged in, and a nominal above only
-# buys orbits.
-NOMINAL_ORBIT_SCATTER_K = 0.092
+# variance, so a window reaching back across the join read 0.0910 where the
+# twelve clean orbits read 0.09103.
+#
+# 0.092 to 0.106, on the intersection bracket's COLD arm, which reads 0.10577
+# over thirty-seven clean orbits. That arm is bare rock, three kelvin colder,
+# and carries a mean sea ice fraction of 0.108 against the vegetated arm's
+# 0.080 -- and sea ice is where this model's interannual variability lives, so
+# a colder arm is a noisier one. Both arms are settled: the cold one passes all
+# six criteria and RESOLVES all six, which the vegetated bootstrap does not.
+#
+# The bound therefore has to cover the noisiest world this project judges and
+# not the most comfortable, per the asymmetry argued above: a nominal below
+# what a run reads under-sizes the window that run is judged in, and a nominal
+# above only buys orbits.
+NOMINAL_ORBIT_SCATTER_K = 0.106
 
 # THE MEMORY TIME STATES NO NUMBER HERE. `lib/run_lengths.py` declares the
 # bracket, with the sweep it came from and the anchor that re-examines it, and

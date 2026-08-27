@@ -185,8 +185,14 @@ steps:
       exists, and the mode this project should end up in is --mode modelled
       --vegetation <run>/fpc.out, which raises without it. One artifact, one
       row, so the mode is the state of albedo_report.json rather than a second
-      step. Adopting modelled requires the flux to be re-derived: the two land
-      endmembers are 15-19 W/m2 apart in absorbed flux (`docs/src/pipeline/sequencing.md` A3).
+      step. Adopting modelled requires the flux to be re-derived, and the size
+      of that is BOUNDED rather than known: `modelled` is brighter than
+      `vegetated` because it leaves the deserts bare, so it sits strictly
+      inside the lithology-to-vegetated span, and the endmember bracket
+      measures that whole span at 4.40 W/m2 absorbed at TOA and 2.924 K
+      (`docs/src/pipeline/sequencing.md` A3). That is 7 steps of the design
+      flux candidate grid, so the re-derivation is real; it is not the largest
+      forcing this project varies, being a fifth of the stellar sweep's.
 
       1742, 1750 and 1760 are the SATURATED end of the moisture mixing, one per
       surface 174, 175 and 176 already carries, and this step writes them from

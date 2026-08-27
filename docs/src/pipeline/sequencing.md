@@ -306,14 +306,24 @@ bundle is not ready to check. WORLD-SJJA and WORLD-5OYP are the two that were
 found this way, and the bisect that found them cost a full paired 25-orbit set
 that the sum check exists to avoid buying.
 
-**A budgeting fact.** `build_surface_albedo.py`
-has a `modelled` mode that takes tree cover from an LPJ-GUESS `fpc.out`
-instead of asserting a uniform vegetated endmember, and it is the mode this
-project should end up in. The two land-albedo endmembers are as far apart in
-absorbed flux as the largest sweep this project varies on purpose, so adopting
-it is a forcing change of the first rank and **it requires the flux to be
-re-derived**. That is a cost to budget for, and it is the same cost whether or
-not a carve shares the iteration. The corollary is the answer to "when does
+**A budgeting fact, and it is bounded rather than known.**
+`build_surface_albedo.py` has a `modelled` mode that takes tree cover from an
+LPJ-GUESS `fpc.out` instead of asserting a uniform vegetated endmember, and it
+is the mode this project should end up in. **Adopting it requires the flux to
+be re-derived.** The size of the change is bounded from above by the whole
+lithology-to-vegetated span, because `modelled` leaves the deserts bare and is
+therefore brighter than `vegetated` and darker than bare rock; the endmember
+bracket measures that span on `canonical-10m-base` at T21, matched window and
+matched I/O regime on both arms, at 4.40 W/m2 absorbed at the top of the
+atmosphere and 2.924 K in global-mean surface temperature.
+
+That is about seven steps of the design flux candidate grid, so the
+re-derivation is not optional. It is NOT the largest forcing this project
+varies on purpose: the stellar sweep from 0.85 to 0.95 spans 21 W/m2 absorbed
+and 33 K, so the endmember span is a fifth of it in flux and a tenth in
+kelvin. The cost to budget for is a re-derivation, not a re-ranking of what
+dominates this world's energy balance, and it is the same cost whether or not
+a carve shares the iteration. The corollary is the answer to "when does
 the biosphere run": not before the carve, because its driver is built from a
 climatology and a soil the carve replaces; after the re-baseline, on final
 terrain, where its output can be adopted deliberately in the iteration after
