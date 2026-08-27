@@ -62,15 +62,19 @@ baseline_climatology: null
 # dust, sea salt, the biosphere calendar -- are built FROM. The baseline is the
 # run on those fields once they exist.
 #
-# TWO KEYS BECAUSE ELEVEN STEPS ALREADY ASK FOR ONE OR THE OTHER.
-# config/pipeline.yaml declares `needs: bootstrap_climatology` on surface_water,
-# groundwater, soil, dust, sea_salt, volcanic_sulfate and vesper_header, and
-# `needs: baseline_climatology` on carve_verdict, ice_mask, lpj_driver and
-# error_budget. Config carried one key, so `lib/paths.py:climatology_path`
-# returned the same file to all eleven and the graph's distinction reached
-# nothing. A step that wants the bootstrap and reads the baseline asks for an
-# artifact that cannot exist on a first pass, and on a later pass reads a
-# climate made by the fields it is supposed to be making.
+# TWO KEYS BECAUSE THE GRAPH ALREADY ASKS FOR ONE OR THE OTHER, per step.
+# `config/pipeline.yaml` is where that is declared and this comment does not
+# restate the list: it was written naming seven bootstrap steps and was wrong
+# within the hour, because three more were found declaring NEITHER key and were
+# invisible for exactly that reason.
+#
+# Config carried one key, so `lib/paths.py:climatology_path` returned the same
+# file to every step and the graph's distinction reached nothing. A step that
+# wants the bootstrap and reads the baseline asks for an artifact that cannot
+# exist on a first pass, and on a later pass reads a climate made by the fields
+# it is supposed to be making. `scripts/smoke_test.py` now checks each step's
+# declared need against the resolver its script calls, so the mapping cannot
+# drift again and no enumeration here has to be maintained.
 #
 # Resolved by `lib/paths.py:bootstrap_climatology_path`, with the same
 # no-fallback rule and the same grid guard.
