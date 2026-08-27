@@ -169,15 +169,18 @@ INERT_CONFIG_KEYS = {
                               # excused nothing; `provenance.unknown_inert_keys`
                               # is the check that now says so.
     "schema_version",         # bookkeeping
-    # Which climatology DOWNSTREAM components read. Nothing on the run or resume
-    # path touches it: only the surface-field builders do, and what they produce
-    # is guarded by `surface_field_report`'s presence check on every resume;
-    # content is not compared (the per-code sha comparison runs only on the
-    # --restart-from prepare path). Leaving it here blocked a resume
-    # for the entirely expected act of naming the baseline the run itself
+    # Which climatology DOWNSTREAM components read. BOTH keys, because there are
+    # two climatologies: the bootstrap is the run on terrain-only surface fields
+    # and the baseline is the run on those fields. Nothing on the run or resume
+    # path touches either: only the surface-field builders do, and what they
+    # produce is guarded by `surface_field_report`'s presence check on every
+    # resume; content is not compared (the per-code sha comparison runs only on
+    # the --restart-from prepare path). Leaving either here blocks a resume for
+    # the entirely expected act of naming the climatology the run itself
     # produced, which is a false positive that trains people to reach for a
     # bypass.
     "baseline_climatology",
+    "bootstrap_climatology",
     # The cartographic declaration. `lib/provenance.py` carries the trace and
     # the argument; repeated here because this guard is a deliberate explicit
     # allowlist rather than an import of someone else's, and because the run

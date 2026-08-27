@@ -162,11 +162,12 @@ def config_drift(recorded: dict, current: dict,
     differ between the two places that ask it.
 
     `inert` is per CONSUMER and is deliberately not shared, because reachability
-    is a property of the consumer, not of the key. `baseline_climatology` cannot
-    change a run in flight and is inert for a resume; it names the climatology
-    `build_vesper_header.py` fits the solstice offset against, so it is not inert
-    for the biosphere. A shared list would have to be the intersection, and the
-    intersection is the one nobody checks.
+    is a property of the consumer, not of the key. Neither climatology key can
+    change a run in flight, so both are inert for a resume; `bootstrap_climatology`
+    names the climatology `build_vesper_header.py` fits the solstice offset
+    against and `baseline_climatology` names the one `build_lpj_driver.py` reads,
+    so neither is inert for the biosphere. A shared list would have to be the
+    intersection, and the intersection is the one nobody checks.
 
     A key earns a place in an `inert` set only by being traced to nothing, and
     the trace belongs in a comment beside it. `unknown_inert_keys` is the check
@@ -716,6 +717,7 @@ _SURFACE_BLOCKS = {
     "surface_roughness": frozenset({
         "planet", "star", "orbit", "atmosphere", "radiation", "surface",
         "ocean", "stellar_cycle", "baseline_climatology",
+        "bootstrap_climatology",
     }),
     # build_surface_soil_water.py mentions planet, surface, ocean and
     # baseline_climatology. `surface` and `ocean` are almost certainly substring
@@ -728,7 +730,7 @@ _SURFACE_BLOCKS = {
     # build_boundary_conditions.py mentions `planet`, so it is not inert there.
     "boundary_conditions": frozenset({
         "star", "orbit", "atmosphere", "radiation", "surface", "ocean",
-        "stellar_cycle", "baseline_climatology",
+        "stellar_cycle", "baseline_climatology", "bootstrap_climatology",
     }),
 }
 
