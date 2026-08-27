@@ -982,12 +982,15 @@ def main() -> int:
     # consumers now check at the point of reading; this is the same check
     # applied once, ahead of an expensive run.
     #
-    # BOTH KEYS, because there are two climatologies and eleven steps ask for
-    # one or the other. The bootstrap is the run on terrain-only surface fields
-    # and is what `surface_water`, `groundwater`, `soil`, `dust`, `sea_salt`,
-    # `volcanic_sulfate`, `vesper_header` and `design_flux` are driven from; the
-    # baseline is the run on those fields once they exist. A stale one of either
-    # is the same defect and neither is checked by the other.
+    # BOTH KEYS, because there are two climatologies and the graph asks for one
+    # or the other per step. The bootstrap is the run on terrain-only surface
+    # fields and is what a step's `needs` edge requires to EXIST; the baseline
+    # is the run on those fields once they exist, and a state-dependent step
+    # READS it once it is named, through
+    # `lib/paths.py:best_available_climatology`. No list of steps here: the
+    # register is `config/pipeline.yaml` and a copy of it drifts. A stale one of
+    # either climatology is the same defect and neither is checked by the
+    # other.
     sys.path.insert(0, str(ROOT / "lib"))
     from provenance import artifact_build
     for key, label in (("bootstrap_climatology", "bootstrap climatology"),

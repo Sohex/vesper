@@ -259,11 +259,15 @@ def main() -> None:
                              "model.lake_dwmax_m, which is required when "
                              "--lakes is given")
     args = parser.parse_args()
-    # THE BOOTSTRAP, not the baseline, and this one is settled by the graph
-    # rather than by judgment: this step writes a staged `.sra` surface field,
-    # and a staged surface field is an INPUT to the baseline run. Reading the
-    # baseline climatology here would mean building an input to a run out of
-    # that run's own output, and on a first pass there is no baseline at all.
+    # THE BOOTSTRAP, and this one is a NO-OP rather than a preference. What
+    # this takes from the climatology is the grid and the boundary land mask,
+    # and nothing else: the water capacity itself comes from the land column
+    # states, which pedology weathered under a climate of their own. The grid
+    # and the mask are identical at either stage of determination, so a
+    # baseline would tell this step nothing the bootstrap does not, and
+    # resolving one would make the step newly unrunnable on a first pass for
+    # no gain. `lib/paths.py:best_available_climatology` says where the
+    # invariant does and does not bite.
     if args.climatology is None:
         args.climatology = bootstrap_climatology_path()
 

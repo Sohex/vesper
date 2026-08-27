@@ -89,7 +89,7 @@ import climatology  # noqa: E402  from lib/, via _paths
 from builds import component_data, grid_export, mesh_export, resolution_of, soilmap
 from gridding import land_fraction_of_class, region_cells
 from orogen import LAND, Export
-from paths import bootstrap_climatology_path, rel, require_clean_io, snapshot_beside
+from paths import best_available_climatology, rel, require_clean_io, snapshot_beside
 from provenance import require_build
 from surface_classes import cover_mask
 
@@ -601,12 +601,17 @@ def main() -> None:
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     cfg = yaml.safe_load(args.dust_config.read_text(encoding="utf-8"))
     cfg["_planet_radius_earth"] = config["planet"]["radius_earth"]
-    # THE BOOTSTRAP, not the baseline. `dust` declares
-    # `needs: bootstrap_climatology` in config/pipeline.yaml: the deposited dust
-    # is staged as a surface field the baseline run is run ON, so emitting it
-    # from the baseline would drive it with a climate its own product made, and
-    # on a first pass there is no baseline at all.
-    clim_path = args.climatology or bootstrap_climatology_path()
+    # THE BEST AVAILABLE, which is the baseline once one is named and the
+    # bootstrap before that. Emission goes as friction velocity cubed above a
+    # threshold and is gated by soil moisture, snow and precipitation, so every
+    # driver here is the climate STATE and the two stages do not agree on any
+    # of them. The `needs: bootstrap_climatology` edge in config/pipeline.yaml
+    # is unchanged and states the other thing: the bootstrap must EXIST, which
+    # is what makes the first pass runnable. That the deposited dust is staged
+    # for a later run is ITERATION, not circularity -- the dust the model sees
+    # is the dust the previous climate produced, which is the standing
+    # description of this chain in docs/src/pipeline/loops.md.
+    clim_path, clim_stage = best_available_climatology(args.climatology)
     output = args.output or (ANALYSIS / f"dust_{args.variant}.json")
 
     # Cross-component reads are checked, not assumed. lib/provenance.py says why.
@@ -839,6 +844,8 @@ def main() -> None:
         "source_build": config.get("source_build"),
         "terrain_hash": terrain,
         "climatology": rel(clim_path),
+        # WHICH STAGE this dust was emitted from. lib/paths.py.
+        "climatology_stage": clim_stage,
         "climatology_sha256": sha256(clim_path),
         "config_sha256": sha256(args.config),
         "dust_config_sha256": sha256(args.dust_config),
@@ -931,6 +938,7 @@ def main() -> None:
         # would otherwise be silently inherited from a superseded terrain.
         ds.setncattr("vesper_source_build", str(config.get("source_build")))
         ds.climatology = rel(clim_path)
+        ds.climatology_stage = clim_stage
         ds.variant = args.variant
         for name, data in (("lat", lat), ("lon", lon)):
             v = ds.createVariable(name, "f8", (name,))

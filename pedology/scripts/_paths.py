@@ -34,8 +34,8 @@ def climatology_path(name: str | None = None) -> Path:
     baseline re-run ran them for the first time in months.
 
     NOT every step in this component wants it. `config/pipeline.yaml`
-    names one of the two climatologies per step; `build_soil.py` is a
-    `bootstrap_climatology` step and takes the other resolver below.
+    names one of the two climatologies per step, and a step that needs the
+    bootstrap to EXIST reads through `best_available_climatology` below.
     """
     import sys as _sys
     if str(PROJECT_ROOT / "lib") not in _sys.path:
@@ -47,8 +47,8 @@ def climatology_path(name: str | None = None) -> Path:
 def bootstrap_climatology_path() -> Path:
     """The BOOTSTRAP climatology: the run on terrain-only surface fields.
 
-    The soil map is built FROM it, so it cannot be built from the baseline:
-    the baseline is the run on the surface fields the soil map is one of.
+    For a quantity that does not depend on the climate state. Where the answer
+    does depend on it, `best_available_climatology` below is the resolver.
     Delegates to `lib/paths.py` on the same terms as the resolver above.
     """
     import sys as _sys
@@ -56,6 +56,23 @@ def bootstrap_climatology_path() -> Path:
         _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
     from paths import bootstrap_climatology_path as _resolve
     return _resolve(root=PROJECT_ROOT)
+
+
+def best_available_climatology(override: Path | None = None):
+    """The most determined climatology that exists, WITH its stage.
+
+    Soil texture and the weathering fluxes are functions of temperature and
+    runoff, so on a pass where a baseline exists the bootstrap is no longer
+    the best available, only the earliest. Returns `(path, stage)`; the stage
+    goes into the product's provenance record. `lib/paths.py` carries the
+    argument, including why this is not the fallback the no-fallback rule
+    forbids.
+    """
+    import sys as _sys
+    if str(PROJECT_ROOT / "lib") not in _sys.path:
+        _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
+    from paths import best_available_climatology as _resolve
+    return _resolve(override, root=PROJECT_ROOT)
 
 
 WEATHERING_SCHEMES = COMPONENT_ROOT / "config" / "weathering_schemes.yaml"

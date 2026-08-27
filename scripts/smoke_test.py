@@ -1945,8 +1945,21 @@ CLIMATOLOGY_FROM_THE_CALLER = {
 }
 
 
+RESOLVERS = {"bootstrap_climatology_path", "climatology_path",
+             "best_available_climatology"}
+
+# Which resolvers each declared need permits. The need is what must EXIST; the
+# resolver is what the step READS, and the two are different statements, which
+# is why one need admits two resolvers and the other admits one.
+PERMITTED_RESOLVERS = {
+    "bootstrap_climatology": {"bootstrap_climatology_path",
+                              "best_available_climatology"},
+    "baseline_climatology": {"climatology_path"},
+}
+
+
 def check_climatology_needs_match_call_sites() -> list[str]:
-    """Each step resolves the climatology `config/pipeline.yaml` says it needs.
+    """Each step resolves a climatology `config/pipeline.yaml` permits it.
 
     THERE ARE TWO CLIMATOLOGIES AND THE GRAPH HAS ALWAYS SAID WHICH IS WHICH.
     The bootstrap is the run on terrain-only surface fields and exists to
@@ -1954,14 +1967,32 @@ def check_climatology_needs_match_call_sites() -> list[str]:
     run on those fields once they exist. `config/planet.yaml` carried ONE key,
     so `lib/paths.py:climatology_path` returned the same file to all eleven
     steps and the distinction reached nothing -- a step wanting the bootstrap
-    read an artifact that cannot exist on a first pass, and on a later pass read
-    a climate produced by the very fields it was supposed to be producing.
+    read an artifact that cannot exist on a first pass.
 
-    The property is static and exact: a step declaring `needs:
-    bootstrap_climatology` calls `bootstrap_climatology_path` and never
-    `climatology_path`, and a step declaring `needs: baseline_climatology` calls
-    `climatology_path` and never `bootstrap_climatology_path`. Calling both is a
-    failure either way, because then the step reads two worlds.
+    THE EDGE AND THE READ ARE DIFFERENT STATEMENTS, and that is why a
+    `bootstrap_climatology` step has two permitted resolvers. The edge says
+    which artifact must EXIST before the step can run, and for these steps it is
+    the bootstrap: they run on a first pass, when no baseline exists at all.
+    What the step should READ is decided by whether its answer depends on the
+    climate STATE. Where it does, `best_available_climatology` returns the
+    baseline once one is named and the bootstrap before that, and says which --
+    a step pinned to the bootstrap forever is right on the first pass and
+    holding the loop back on every pass after. Where the answer depends only on
+    the model calendar or the grid, `bootstrap_climatology_path` is right and a
+    best-available call would make the step newly need a baseline for nothing.
+
+    A `baseline_climatology` step still gets exactly one resolver:
+    `climatology_path`. Its edge already says a baseline must exist, so there is
+    no earlier stage for it to prefer and nothing to choose between.
+
+    Calling more than one resolver in one script is a failure whatever the
+    declaration, because then the step reads two stages of the world at once.
+
+    THE STAMP IS PART OF THE PROPERTY. A script that calls
+    `best_available_climatology` must also write `climatology_stage` into what
+    it produces: the choice between stages is defensible because it is recorded,
+    so an unstamped product would leave a reader unable to tell a first-pass
+    artifact from a later one. `lib/paths.py` carries that argument in full.
 
     WHAT IT DOES NOT COVER, said here so nobody reads it as more: a step that
     declares neither key and reads a climatology anyway is invisible to this,
@@ -1971,11 +2002,10 @@ def check_climatology_needs_match_call_sites() -> list[str]:
     import yaml
     graph = yaml.safe_load(
         (ROOT / "config" / "pipeline.yaml").read_text(encoding="utf-8"))
-    wanted = {"bootstrap_climatology": "bootstrap_climatology_path",
-              "baseline_climatology": "climatology_path"}
     problems = []
     for step in graph.get("steps") or []:
-        needs = [n for n in (step.get("needs") or []) if n in wanted]
+        needs = [n for n in (step.get("needs") or [])
+                 if n in PERMITTED_RESOLVERS]
         if not needs:
             continue
         step_id = step["id"]
@@ -1987,8 +2017,9 @@ def check_climatology_needs_match_call_sites() -> list[str]:
         script = ROOT / str(step["script"])
         if not script.is_file():
             continue                    # check_registered_paths_exist owns this
+        source = script.read_text(encoding="utf-8")
         try:
-            tree = ast.parse(script.read_text(encoding="utf-8"))
+            tree = ast.parse(source)
         except SyntaxError:
             continue                    # check_modules_parse owns this
         called = set()
@@ -1998,24 +2029,167 @@ def check_climatology_needs_match_call_sites() -> list[str]:
             f = node.func
             name = f.id if isinstance(f, ast.Name) else (
                 f.attr if isinstance(f, ast.Attribute) else None)
-            if name in wanted.values():
+            if name in RESOLVERS:
                 called.add(name)
-        right = wanted[needs[0]]
-        wrong = {v for v in wanted.values() if v != right} & called
+        permitted = PERMITTED_RESOLVERS[needs[0]]
+        wrong = called - permitted
         if wrong:
-            other = next(k for k, v in wanted.items() if v in wrong)
             problems.append(
                 f"step {step_id} declares `needs: {needs[0]}` and "
-                f"{step['script']} calls {wrong.pop()}(), which resolves "
-                f"{other}. The bootstrap and the baseline are different "
-                f"artifacts, not two versions of one")
+                f"{step['script']} calls {sorted(wrong)[0]}(), which is not "
+                f"one of {sorted(permitted)}. The bootstrap and the baseline "
+                f"are different artifacts, not two versions of one")
+        elif len(called) > 1:
+            problems.append(
+                f"step {step_id}'s {step['script']} calls {sorted(called)}. "
+                f"One script resolves ONE climatology, or the step reads two "
+                f"stages of the world at once")
         elif not called and step_id not in CLIMATOLOGY_FROM_THE_CALLER:
             problems.append(
                 f"step {step_id} declares `needs: {needs[0]}` and "
-                f"{step['script']} resolves no climatology at all. Call "
-                f"{right}() from lib/paths.py, or take the path from the "
-                f"caller and say so in CLIMATOLOGY_FROM_THE_CALLER with the "
-                f"argument")
+                f"{step['script']} resolves no climatology at all. Call one of "
+                f"{sorted(permitted)} from lib/paths.py, or take the path from "
+                f"the caller and say so in CLIMATOLOGY_FROM_THE_CALLER with "
+                f"the argument")
+        if "best_available_climatology" in called:
+            problems.extend(stamp_problems(step_id, step["script"], tree))
+    return problems
+
+
+def stamp_problems(step_id: str, script: str, tree: ast.AST) -> list[str]:
+    """The stage the resolver returned is the stage the product records.
+
+    Stronger than "the key is present", and that is the point: a script that
+    stamps the string `bootstrap` or a variable from somewhere else satisfies
+    presence and tells the reader something false. The property is a
+    pass-through -- the second element of what `best_available_climatology`
+    returned has to be what a `climatology_stage` entry is set to somewhere in
+    the script. One such entry is enough; several products may carry the value
+    on from the first.
+    """
+    stage_names = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        call = node.value
+        if not isinstance(call, ast.Call):
+            continue
+        f = call.func
+        name = f.id if isinstance(f, ast.Name) else (
+            f.attr if isinstance(f, ast.Attribute) else None)
+        if name != "best_available_climatology":
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Tuple) and len(target.elts) == 2 \
+                    and isinstance(target.elts[1], ast.Name):
+                stage_names.add(target.elts[1].id)
+    if not stage_names:
+        return [f"step {step_id}'s {script} calls "
+                f"best_available_climatology() without unpacking the stage it "
+                f"returns. It returns `(path, stage)` and the stage is not "
+                f"optional: it is what the product records"]
+    stamped = False
+    for node in ast.walk(tree):
+        value = None
+        if isinstance(node, ast.Dict):
+            for key, val in zip(node.keys, node.values):
+                if isinstance(key, ast.Constant) \
+                        and key.value == "climatology_stage":
+                    value = val
+                    if any(isinstance(n, ast.Name) and n.id in stage_names
+                           for n in ast.walk(value)):
+                        stamped = True
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Attribute) \
+                        and target.attr == "climatology_stage":
+                    if any(isinstance(n, ast.Name) and n.id in stage_names
+                           for n in ast.walk(node.value)):
+                        stamped = True
+    if stamped:
+        return []
+    return [f"step {step_id}'s {script} reads the best available climatology "
+            f"and never records {sorted(stage_names)[0]} as "
+            f"`climatology_stage`. The choice between the two stages is "
+            f"defensible because it is stamped; a product carrying no stage, "
+            f"or a stage that is not the one resolved, cannot be told from a "
+            f"first-pass one"]
+
+
+def check_best_available_climatology_resolves_by_stage() -> list[str]:
+    """The best-available resolver returns the right stage in all three cases.
+
+    THREE RIGHT ANSWERS, not three things that merely differ. With a baseline
+    named it must return the baseline and say `baseline`; with the baseline
+    null it must return the bootstrap and say `bootstrap`; with NEITHER named
+    it must raise rather than guess. The third is the one that makes this not a
+    fallback: a fallback has somewhere to go when it runs out of inputs, and
+    this has nowhere.
+
+    Driven against a synthetic config root rather than the project's own, so
+    the check states the property instead of restating today's
+    `config/planet.yaml`. The paths need not exist: the resolver chooses on
+    what config DECLARES, which is itself part of the property -- choosing on
+    what happens to be on disk is exactly the silent degradation the no-fallback
+    rule is about.
+    """
+    import tempfile
+    sys.path.insert(0, str(ROOT / "lib"))
+    import paths as paths_lib
+
+    cases = [
+        ("baseline named", "baseline_climatology: a/base.nc\n"
+                           "bootstrap_climatology: a/boot.nc\n",
+         "a/base.nc", "baseline"),
+        ("baseline null", "baseline_climatology: null\n"
+                          "bootstrap_climatology: a/boot.nc\n",
+         "a/boot.nc", "bootstrap"),
+    ]
+    problems = []
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "config").mkdir()
+        cfg = root / "config" / "planet.yaml"
+        for label, text, want_path, want_stage in cases:
+            cfg.write_text(text, encoding="utf-8")
+            try:
+                got = paths_lib.best_available_climatology(root=root)
+            except SystemExit as exc:
+                problems.append(
+                    f"best_available_climatology raised with {label}: {exc}")
+                continue
+            if got.path != root / want_path:
+                problems.append(
+                    f"with {label} the resolver returned {got.path}, not "
+                    f"{root / want_path}")
+            if got.stage != want_stage:
+                problems.append(
+                    f"with {label} the resolver reported stage "
+                    f"{got.stage!r}, not {want_stage!r}")
+        # NEITHER NAMED. Raising is the answer; returning anything at all here
+        # would be the resolver inventing a world.
+        cfg.write_text("baseline_climatology: null\n"
+                       "bootstrap_climatology: null\n", encoding="utf-8")
+        try:
+            got = paths_lib.best_available_climatology(root=root)
+        except SystemExit:
+            pass
+        else:
+            problems.append(
+                f"with neither climatology named the resolver returned "
+                f"{got.path} at stage {got.stage!r} instead of raising. That "
+                f"is the fallback the no-fallback rule forbids")
+        # An override is labelled by comparison, not assumed to be either.
+        cfg.write_text("baseline_climatology: a/base.nc\n"
+                       "bootstrap_climatology: a/boot.nc\n", encoding="utf-8")
+        for given, want_stage in ((root / "a" / "base.nc", "baseline"),
+                                  (root / "a" / "boot.nc", "bootstrap"),
+                                  (root / "a" / "elsewhere.nc", "unnamed")):
+            got = paths_lib.best_available_climatology(given, root=root)
+            if got.stage != want_stage:
+                problems.append(
+                    f"--climatology {given.name} was labelled {got.stage!r}, "
+                    f"not {want_stage!r}")
     return problems
 
 
@@ -2638,8 +2812,10 @@ def main() -> None:
                lambda: check_diag_writes_are_answered()),
               ("no model local has all its definitions inside a where",
                lambda: check_masked_only_locals_are_answered()),
-              ("each step resolves the climatology its needs declare",
+              ("each step resolves a climatology its needs permit",
                lambda: check_climatology_needs_match_call_sites()),
+              ("the best-available resolver names the stage it returned",
+               lambda: check_best_available_climatology_resolves_by_stage()),
               ("no imported module name is rebound",
                lambda: check_no_shadowed_imports(files)),
               ("no name is loaded that nothing binds, model Python included",

@@ -31,14 +31,39 @@ climatology would tell it nothing the bootstrap does not. Reading the earlier
 artifact there is not a violation; it is the same answer.
 
 **The case that established this** is in `notes/audits/design-flux-two-point-response.md`.
-`build_soil.py` takes its runoff from the bootstrap climatology, which is
+`build_soil.py` took its runoff from the bootstrap climatology, which is
 terrain-only by definition and therefore carries no lakes on any iteration,
-while the same step takes its vegetation from `lpj_run`, which reaches the
+while the same step took its vegetation from `lpj_run`, which reaches the
 baseline climatology through `lpj_driver`. One step, two stages of one world,
-and the split was a leftover rather than a decision. What it costs is the arid
+and the split was a leftover rather than a decision. What it cost is the arid
 tail of the soil: at most 8.2 per cent of this planet is inland open water, it
 sits under the 74.4 per cent of land that drains internally, and that is exactly
 where the thin soil is.
+
+**How the invariant is enforced.** `lib/paths.py:best_available_climatology` is
+the resolver a state-dependent step calls: it returns the baseline once
+`config/planet.yaml` names one and the bootstrap before that, and it returns
+WHICH, so the stage reaches the product's provenance as `climatology_stage` and
+a first-pass artifact is tellable from a later one without re-deriving it. The
+graph edge does not move with it. A step still declares `needs:
+bootstrap_climatology` in `config/pipeline.yaml`, because that edge says which
+artifact must EXIST before the step can run and the bootstrap is the one that
+must: these steps run on a first pass, when no baseline exists at all. The edge
+is the ordering constraint and the resolver is what the step READS, and
+`scripts/smoke_test.py:check_climatology_needs_match_call_sites` holds each step
+to the resolvers its declaration permits.
+
+**This is not the silent fallback the no-fallback rule forbids**, and the
+difference is not a matter of degree. That rule exists because a fallback
+returns a plausible number computed from a DIFFERENT WORLD instead of an error:
+the resolver default it replaced named pre-carve terrain under a superseded
+spectrum. The bootstrap and the baseline are the SAME world at two stages of
+determination, on one build and one terrain hash, checked by `require_build` at
+every call site. Three things keep it that way and all three are load-bearing:
+the choice is made on what config DECLARES rather than on what happens to be on
+disk, so a named baseline that is missing raises instead of degrading quietly;
+the choice is stamped on the product; and with neither key named the resolver
+raises rather than reaching for a third option.
 
 
 Four quantities are pairwise coupled: drainage with climate, climate with
