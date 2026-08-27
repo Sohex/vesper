@@ -43,6 +43,46 @@ def rel(path: Path | str, root: Path | None = None) -> str:
         return str(p)
 
 
+def bootstrap_climatology_path(root: Path | None = None) -> Path:
+    """The climatology taken on TERRAIN-ONLY surface fields.
+
+    A SECOND KEY BECAUSE THERE ARE TWO CLIMATOLOGIES AND SEVEN STEPS WANT THE
+    OTHER ONE. `config/pipeline.yaml` already distinguishes them -- `surface_water`,
+    `groundwater`, `soil`, `dust`, `sea_salt`, `volcanic_sulfate` and
+    `vesper_header` all declare `needs: bootstrap_climatology` -- while
+    `carve_verdict`, `ice_mask`, `lpj_driver` and `error_budget` declare
+    `baseline_climatology`. Config carried one key for both, so every one of
+    those eleven resolved to the same file and the graph's distinction reached
+    nothing.
+
+    THE ORDER IS WHY IT MATTERS. The bootstrap exists to produce the climatology
+    the derived surface fields are built FROM, and the baseline is the run on
+    those fields. A step that needs the bootstrap and reads the baseline is
+    asking for an artifact that does not exist yet on a first pass, and on a
+    later pass it silently reads a climate produced by the fields it is
+    supposed to be producing.
+
+    Same no-fallback rule as `climatology_path`, and for the same reason: a
+    fallback returns a plausible number from a different world instead of an
+    error. Same grid guard, applied here so callers inherit it.
+    """
+    import yaml
+    project = Path(root) if root is not None else Path(__file__).resolve().parents[1]
+    config = yaml.safe_load(
+        (project / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    declared = config.get("bootstrap_climatology")
+    if not declared:
+        raise SystemExit(
+            "config/planet.yaml has no `bootstrap_climatology`. Name one there "
+            "or pass --climatology; there is deliberately no fallback. This is "
+            "the TERRAIN-ONLY climatology the derived surface fields are built "
+            "from, and it is not `baseline_climatology`.")
+    path = project / declared
+    if path.is_file():
+        require_configured_grid(path, config)
+    return path
+
+
 def climatology_path(name: str | None = None, root: Path | None = None) -> Path:
     """The climatology every downstream component is driven from.
 

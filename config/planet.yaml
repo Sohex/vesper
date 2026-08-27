@@ -56,6 +56,26 @@ source_build: canonical-10m-base
 # baseline run when it exists, not at the bootstrap's.
 baseline_climatology: null
 
+# THE OTHER CLIMATOLOGY, and it is a different artifact rather than an earlier
+# version of the one above. This is the run on TERRAIN-ONLY surface fields, and
+# it exists to produce the climate the derived fields -- lakes, soil, soil water,
+# dust, sea salt, the biosphere calendar -- are built FROM. The baseline is the
+# run on those fields once they exist.
+#
+# TWO KEYS BECAUSE ELEVEN STEPS ALREADY ASK FOR ONE OR THE OTHER.
+# config/pipeline.yaml declares `needs: bootstrap_climatology` on surface_water,
+# groundwater, soil, dust, sea_salt, volcanic_sulfate and vesper_header, and
+# `needs: baseline_climatology` on carve_verdict, ice_mask, lpj_driver and
+# error_budget. Config carried one key, so `lib/paths.py:climatology_path`
+# returned the same file to all eleven and the graph's distinction reached
+# nothing. A step that wants the bootstrap and reads the baseline asks for an
+# artifact that cannot exist on a first pass, and on a later pass reads a
+# climate made by the fields it is supposed to be making.
+#
+# Resolved by `lib/paths.py:bootstrap_climatology_path`, with the same
+# no-fallback rule and the same grid guard.
+bootstrap_climatology: exoplasim/analysis/climatology/bootstrap_regular_climatology.nc
+
 # DETERMINED. Radius and gravity are Orogen's and canonical; mass follows from
 # gravity as mass_earth = (g/g_earth) * radius_earth^2, and derive() raises if
 # these two disagree.
