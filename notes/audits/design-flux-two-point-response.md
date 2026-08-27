@@ -86,3 +86,35 @@ declared value was measured before the Stephens cloud tables, the derived
 orographic roughness and the 1.699x shorter hyperdiffusion landed. The
 comparison here is a ten-orbit tail mean rather than that module's own
 instrument, so it is a flag for re-measurement and not a replacement value.
+
+## The derivation does not run, and 0.945 stands by decision
+
+`derive_design_flux.py` refuses on these two points: "a band's warm-season
+amplification is not positive; the projection cannot be trusted". Four bands
+have a negative warmest-bin response -- 70 to 80 S, 60 to 70 S, 60 to 70 N and
+70 to 80 N -- so the per-band projection has nothing to scale by. The guard is
+right and the refusal is the correct behaviour. A third flux point does not fix
+it: the sign is a property of how this world's seasons respond and not of where
+the two points sit.
+
+So the flux was CHOSEN and not derived. `orbit.baseline_flux_earth` stays at
+0.945, and the world it gives was judged acceptable on the two points measured:
+a comfort score of 0.657, the best available anywhere in the projected range, a
+warmest-bin land mean of 23.0 C and a coldest-bin land mean of -13.8 C. The
+cold-extreme share of 0.262 is a consequence of 32 degrees of obliquity rather
+than of the flux, and reaching the declared cap costs more than it buys.
+
+A COINCIDENCE WORTH RECORDING AS ONE. The 0.945 anchor's original justification
+was reverse-engineered from where the superseded physics put the tropics, and
+WORLD-F9IG destroyed that justification outright. The number nevertheless sits
+on the comfort plateau under the corrected optics. That is two independent
+things arriving at one value, and it should not be read as the first
+justification having been right after all.
+
+The plateau is flat and the measurement cannot resolve movement across it: the
+projected comfort score reads 0.6611 at 0.920, 0.6605 at 0.930, 0.6600 at 0.940
+and 0.6571 at 0.945, while the score's own standard error over the settled
+window is 0.0024. A move from 0.945 to 0.930 buys 0.0034, a ratio to the
+standard error of 1.41 against the 2.8 a paired comparison needs. There is no
+optimum to find inside that range on this evidence, and everything below 0.945
+is extrapolated past the measured pair in any case.
