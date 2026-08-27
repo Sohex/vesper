@@ -279,9 +279,21 @@ Five things make that A/B trustworthy, and none is optional:
   what the no-op-until-enabled convention is for. Two binaries would confound
   the term with the rebuild, and the low-I/O patch changes the restart layout,
   so arms built either side of it cannot share a restart at all.
-- **Both arms branch from ONE restart.** Run-to-run spread on a converged pair
-  is larger than several of the terms being tested; a shared initial condition
-  turns the comparison into a paired one.
+- **Both arms branch from ONE restart, and the restart has to be SETTLED.**
+  Run-to-run spread on a converged pair is larger than several of the terms
+  being tested; a shared initial condition turns the comparison into a paired
+  one. The second half of that is newer and was measured rather than reasoned:
+  **a paired arm's power is set by how settled its donor is at least as much as
+  by how long it runs.** The 1.6 to 2.1 K resolution bar this protocol quoted
+  for a 25-orbit difference in global-mean temperature came from arms seeded
+  from a 37-orbit control that was still relaxing. Seeded instead from a
+  settled 210-orbit baseline, two arms of the same length carry standard errors
+  of 0.017 and 0.031 K -- so that bar understated the instrument by more than a
+  factor of twenty, and a term rejected against it was rejected against the
+  donor's transient and not against the noise.
+  A bar quoted from another pair therefore has to name the donor it was taken
+  on, and an arm that finds itself unable to resolve a term should ask whether
+  its restart or its length is the reason before it buys orbits.
 - **The segments are labelled as diagnostics**, so a short A/B tail never
   enters a convergence window or a climatology.
 

@@ -1363,3 +1363,44 @@ and every statistic that assumes one series is then measuring the seam. Class 22
 is the same event seen from the segment side and class 35 from the
 configuration's; what is specific here is that the join produces no error and no
 missing data, only a number of the ordinary size.
+
+
+## 37. A resolution bar inherited from a pair that was still relaxing
+
+A/B arms are judged against a bar: the difference has to clear some multiple of
+the pair's own scatter or the term is not resolved. The bar is expensive to
+measure, so it gets quoted from an earlier pair -- and it travels without the
+one fact that set it.
+
+**The instance.** This project's A3 protocol carried a bar of 1.6 to 2.1 K for a
+25-orbit difference in global-mean surface temperature. It was honest arithmetic
+on real arms. Those arms were seeded from a 37-orbit control that had not
+settled, so most of what the bar measured was the donor's remaining transient
+walking both arms around together. Two arms of the SAME LENGTH seeded from a
+settled 210-orbit baseline carry standard errors of 0.017 and 0.031 K. The
+inherited bar overstated the noise by more than a factor of twenty.
+
+What that costs is not a wrong number, it is a wrong REFUSAL. A term measured
+against the inherited bar and found unresolvable is recorded as too small to
+see, and the record reads the same whether the term is small or the instrument
+was blunt. Two predictions in this project were written to say the arm could not
+resolve them in temperature; one of them then separated at 2.3 times its real
+bar on the first pair seeded from a settled donor.
+
+**The general form.** A paired experiment's power has two inputs and only one of
+them is the obvious one: how long the arms run, and how settled the state they
+branched from was. The second dominates whenever the donor's residual drift is
+larger than the term. A bar is therefore a property of a PAIR, not of a length,
+and quoting one without naming its donor is quoting half a measurement.
+
+**What to do with it.** State the donor beside any bar. Before buying orbits to
+resolve a term, ask whether the restart or the length is what is limiting --
+those have different fixes and only one of them is expensive. And when a term
+comes back unresolvable, treat that as a claim about the instrument until the
+donor is known to be settled.
+
+Class 34 is the neighbouring error and it is not this one: there the instrument
+is too blunt for the effect, here the instrument is fine and its calibration was
+taken under conditions that no longer hold. Class 32 is closer still -- a value
+characterised from where it is declared rather than from where it is used --
+but the quantity here is not a value, it is a threshold.
