@@ -575,3 +575,47 @@ shorten every span on the ladder.
 A settling length establishes only that a restart is not mid-transient. It does
 not establish equilibrium, a rung's climate, or an interval on any mean taken
 over it.
+
+## The 82-orbit tau is a step, not a memory
+
+*Measured 2026-08-27 on `run_432e5e46adef`, whose 70 low-I/O orbits were
+followed by a 12-orbit clean-I/O segment for the climatology.*
+
+Fitting the whole 82-orbit series returns a memory time of 9.08 orbits, four
+times the declared bound, on a fit the estimator itself marks unreliable.
+Fitting each I/O regime separately returns something else entirely:
+
+| block | drift, K/orbit | lag-1 | tau | reliable | stationary |
+| --- | ---: | ---: | ---: | --- | --- |
+| low-I/O, orbits 35 to 69 | +0.0037 | 0.440 | 2.00 | yes | no |
+| clean-I/O, orbits 70 to 81 | -0.0049 | -0.080 | 1.00 | yes | YES |
+| across the join | +0.0065 | 0.715 | 9.08 | NO | no |
+
+**There is a step of +0.1616 K at the regime change**, and a step is a perfect
+long correlation. It is what lifts the lag-1 from 0.440 to 0.715 and the memory
+time from 2.00 to 9.08; the series has not grown a slow component, it has
+acquired a discontinuity.
+
+The step is not a defect in the run. A low-I/O orbit holds interval
+ACCUMULATIONS and a clean-I/O orbit holds instantaneous samples, so the two
+blocks report different quantities and a mean taken across them is a mean of two
+measurements. `exoplasim/notes/first-output-bin.md` is where that difference is
+argued.
+
+**Within each regime the run is settled**, and the clean block is the better
+evidence: it drifts NEGATIVELY, its lag-1 is indistinguishable from zero, and it
+is the only block in this run that passes `autocorrelation.stationary_enough`
+outright. Twelve orbits supports a memory time up to 1.2 under the
+ten-tau reliability rule, so what it establishes is an upper bound of about 1.2
+rather than a value.
+
+**What this costs the ladder, which is the reason it was chased.** The production
+span is twenty times the memory time. At the mixed reading it would be 180
+orbits at every commissioning rung; at the low-I/O reading 40; at the clean-I/O
+bound 24. The mixed reading is the one that would have been adopted by a fit over
+"the whole run", and it is wrong by the width of the cost argument.
+
+**The operational rule that follows: never fit a memory time across a change of
+I/O regime.** The regimes are declared per segment and a run carries both by
+design, since the cheap regime is what a spin-up is bought in and the clean one
+is what a climatology is read from.
