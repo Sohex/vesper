@@ -575,8 +575,8 @@ so this is the softest prediction in the table and the first place to bisect
 if the sum misses.
 
 **Consequence to plan for, corrected 2026-08-20:** the central sum shifts the
-simulated temperature at every candidate flux by about +0.6 K, which is 0.3% of
-a flux ratio on the canonical 202 K per unit flux. Read that as a shift in the
+simulated temperature at every candidate flux by about +0.6 K, which is 0.4% of
+a flux ratio on the canonical 159.7 K per unit flux. Read that as a shift in the
 T(f) the re-derivation is SCORED AGAINST, not as a correction to a standing
 luminosity. There is no standing value to correct: `design_flux` has not been
 re-derived on this terrain, and CLIM-30 records that the 0.945 on the books is

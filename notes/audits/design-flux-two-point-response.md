@@ -80,12 +80,18 @@ where its threshold sits, and it is the one this measurement raises.
 
 ## An unrelated finding: the flux-to-kelvin slope
 
-The two points imply 155.4 K per unit flux ratio. `lib/sensitivity.py` declares
-about 202. Both runs are converged, so this is not a spin-up artefact, and the
-declared value was measured before the Stephens cloud tables, the derived
-orographic roughness and the 1.699x shorter hyperdiffusion landed. The
-comparison here is a ten-orbit tail mean rather than that module's own
-instrument, so it is a flag for re-measurement and not a replacement value.
+The two points imply 155.4 K per unit flux ratio, on a ten-orbit tail mean of
+each. `lib/sensitivity.py` declared about 202 when this was measured, from a
+bracket taken before the Stephens cloud tables, the derived orographic roughness
+and the 1.699x shorter hyperdiffusion landed -- and on two runs that have since
+been deleted, on a build that is no longer active.
+
+**That flag was taken up the same day and the module now declares 159.7**, from
+these same two runs through its own instrument, the fitted asymptotes, rather
+than through the tail means above. The 4 K between the two estimators is the
+0.945 run's last twelve orbits sitting above its own asymptote, and it is inside
+the spread the module declares. The measurement in this note is the corroboration
+and not the declaration.
 
 ## The derivation does not run, and 0.945 stands by decision
 

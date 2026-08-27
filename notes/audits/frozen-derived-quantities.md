@@ -115,7 +115,7 @@ This is the cheapest disposition available and it is the one to reach for first.
 | the declaration | what re-derives it | where the check fires |
 | --- | --- | --- |
 | `pedology/config/land_column_properties.yaml` `thermal.saturation_mapping` and `thermal.endpoints` | `pedology/scripts/land_column_properties.py`, from the states the contract itself emits | the same script, at the declared `tolerance` |
-| `lib/sensitivity.py` `SLOPE_K_PER_FLUX_RATIO` and `SLOPE_BRACKET_RUNS` | `sensitivity.verify()`, reading the named runs' asymptotes out of `exoplasim/runs/INDEX.json` | `check_consistency.py`, and `scripts/error_budget.py` |
+| `lib/sensitivity.py` `SLOPE_K_PER_FLUX_RATIO` and `SLOPE_BRACKET_RUNS` | `sensitivity.verify()`, reading the named runs' asymptotes out of their convergence reports AND requiring those runs to be in the live index and on config's `source_build` | `check_consistency.py`, twice: once on the declaration and once on the currency check's own ability to fail |
 | `config/planet.yaml` `h2o_sw_weight`, `co2_sw_weight`, `h2o_sw_level`, `cloud_absorption_scale` | `exoplasim/scripts/shortwave_band_weights.py` and `cloud_band_weight.py`, into named JSON | `check_consistency.py`, at the tolerance the config's own written precision implies |
 | `config/planet.yaml` `model.hyperdiffusion.timescales_days` | the rule `pi*a/(NTRU*eddy_wind)` | `check_consistency.py` |
 | `lib/rungs.py` `STABILITY_CEILING_MINUTES` | `check_stability_ceilings()`, from `exoplasim/analysis/stability_probe.json` | `check_consistency.py` and `smoke_test.py` |
@@ -284,7 +284,7 @@ output that cannot be revised by re-running something.
 
 | quantity | where | what computes it | check | stale |
 | --- | --- | --- | --- | --- |
-| `HYDROLOGICAL_RESPONSE_PER_KELVIN` | `scripts/error_budget.py` | a secant between two converged fluxes sharing a surface on this build, over the last ten orbits of each | none; unlike `SLOPE_BRACKET_RUNS` the runs are not even named | unknown, the runs being unnamed |
+| `HYDROLOGICAL_RESPONSE_PER_KELVIN` | `scripts/error_budget.py` | a secant between two converged fluxes sharing a surface, over the last ten orbits of each. `notes/audits/hydrological-sensitivity.md` names them: `run_bfa3f5269660` and `run_524fbed77a9a` | none. Nothing in the code names the runs, so nothing can ask whether they still exist | YES. Both runs are deleted and were on `precarve-craton`, which is the same pair that carried the superseded flux-to-kelvin slope |
 | `GASCON` | `hydrography/scripts/carve_verdict.py`, restated in `land_water_ledger.py` | the model, from the declared composition; runs record it on their energy artifacts | none | no |
 | `WATER_ALBEDO` | `hydrography/scripts/carve_verdict.py` | the export's own water rock class | none | no |
 | `EARTH_BAND_LAND_MKM2` | `hydrography/scripts/export_carve_list.py` | nothing in this tree; the companion numerator HAS a re-derivation function beside it and this denominator has none | none | unknown |
@@ -407,6 +407,7 @@ measurement is none of those.
 | quantity | where | what computes it | stale |
 | --- | --- | --- | --- |
 | the two stellar-cycle temperature ranges | `config/planet.yaml` `stellar_cycle` notes | the declared amplitudes and damping factors through `lib/sensitivity.py`'s slope | YES |
+| the flux-to-kelvin slope, restated six times | `config/pipeline.yaml`'s `bracket_run` gate, `exoplasim/notes/parameter-decisions.md` twice, `exoplasim/notes/trace-gas-absorbers.md`, `exoplasim/notes/shortwave-water-vapour.md`, `exoplasim/notes/corrk-cross-check.md` | `lib/sensitivity.py`, which DOES re-derive and refuse on its own copy | YES. The pipeline gate is the one that bites: it converts the declared 5 K span into a minimum flux separation and states the answer for a slope the module has retired |
 | the inland-water and internally-draining land shares | `docs/src/pipeline/loops.md` | `hydrography/scripts/build_hydrography.py`, through `world_state.json` | no |
 | the endorheic share and the unpreserved pit count | `hydrography/scripts/drainage.py` module docstring | the same producer | YES |
 | the erodible and playa land shares | `aeolian/README.md` | `aeolian/scripts/build_dust.py` into `dust_baseline.json`, and `world_state.json`'s `lithology_land_fractions` | YES |
@@ -440,17 +441,28 @@ measurement is none of those.
 dates exactly when they froze.** Each is amplitude times damping times the
 flux-to-kelvin slope:
 
-| component | declared amplitude | declared damping | at the superseded slope 150.2 | at the live slope 202.0 | the note says |
+| component | declared amplitude | declared damping | at the slope the note froze against, 150.2 | at the live slope, 159.7 | the note says |
 | --- | --- | --- | --- | --- | --- |
-| medium | 0.025 | 0.83 | 3.12 K | 4.19 K | 3.1 K |
-| long | 0.035 | 0.99 | 5.20 K | 7.00 K | 5.2 K |
+| medium | 0.025 | 0.83 | 3.12 K | 3.31 K | 3.1 K |
+| long | 0.035 | 0.99 | 5.20 K | 5.53 K | 5.2 K |
 
-`lib/sensitivity.py` records the superseded slope, why it was wrong -- its
-measurement bracket did not contain the baseline flux -- and that it is 26 per
-cent low. `sensitivity.verify()` re-derives the live slope from the run index on
-every `check_consistency.py` invocation and currently passes. These two sentences
-learned nothing when the slope moved, and they are what a reader quotes for what
-this world's stellar cycle is worth over a life.
+The ranges reproduce at 150.2 to the digit each states, which dates them exactly:
+they were written against a slope `lib/sensitivity.py` has since retired twice.
+Nothing in `config/planet.yaml` learned either time, and these two sentences are
+what a reader quotes for what this world's stellar cycle is worth over a life.
+
+**The audit caught the slope itself frozen, which is the instructive part.** At
+the time of this sweep `lib/sensitivity.py` declared 202.0 and
+`sensitivity.verify()` reproduced it on every `check_consistency.py` invocation,
+so it was filed under disposition two as a declaration inside a loop. It was not:
+both runs it named had been deleted, survived only as archived identity, and
+carried a build that is not `config/planet.yaml`'s `source_build`. The
+re-derivation on `canonical-10m-base` gives 159.7. **A re-derivation check is not
+a currency check**, and the difference is invisible from inside the file that
+recomputes: the arithmetic agreed with itself for a whole build. `verify()` now
+also requires the runs it names to be in the live index and on the active build,
+and a self-test drives those checks with the superseded declaration to prove they
+can return no.
 
 **`loops.md` carries two frozen measurements about two hundred lines above its own
 statement of the rule.** Both are rounded `world_state.json` values. The paragraph
