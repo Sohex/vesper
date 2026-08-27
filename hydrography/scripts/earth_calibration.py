@@ -1198,6 +1198,11 @@ def stage_fsat(tag: Path, edge_km: float, region: str, confinement: str | None,
     mesh region it falls in, and the cell-mean depth's AUC AT THIS SUPPORT. The
     second is there because a coarser support moves an AUC on its own, so
     clearing the first alone would not show the terrain half had done anything.
+
+    THE BAR IS ALSO RE-DERIVED HERE AND REFUSED ON. It is a measurement, not
+    only a criterion, so it can stop describing the thing it measures; this
+    recomputes it on the region it was measured on and refuses when the two
+    disagree by more than the tolerance the config declares.
     """
     import pandas as pd
 
@@ -1217,6 +1222,8 @@ def stage_fsat(tag: Path, edge_km: float, region: str, confinement: str | None,
             "area-weighted mean index; a region COUNT share is a different "
             "quantity and is not available here.")
     bar = float(sc["bar_auc"])
+    bar_region = str(sc["bar_auc_measured_on"])
+    bar_repro_tol = float(sc["bar_auc_reproduction_tolerance"])
     tol = float(sc["attribution_identity_tolerance"])
     min_regions = int(sc["min_regions_per_cell"])
     f_grads = [float(v) for v in cfg["closure"]["f_grad_bracket_per_m"]]
@@ -1291,6 +1298,23 @@ def stage_fsat(tag: Path, edge_km: float, region: str, confinement: str | None,
     # because reproducing it is what says the harness is wired to the same
     # quantity the bar came from.
     auc_region_depth = _auc(-depth[bore_region][use], label_all[use])
+    # ...and REFUSED on, not merely printed. Reproducing the bar is the only
+    # thing that says this harness still measures the quantity the bar is a
+    # measurement of; without the refusal the declaration has no way to learn
+    # that the depth solution, the mesh or the bore selection moved under it.
+    # Only on the region the bar was measured on -- elsewhere the same statistic
+    # is a different population and is expected to differ.
+    if region == bar_region and abs(auc_region_depth - bar) > bar_repro_tol:
+        raise SystemExit(
+            f"score.bar_auc {bar:.4f} no longer reproduces on {bar_region}: the "
+            f"depth's AUC per bore against its mesh region is "
+            f"{auc_region_depth:.4f}, a difference of "
+            f"{abs(auc_region_depth - bar):.4f} against a declared reproduction "
+            f"tolerance of {bar_repro_tol:g}.\n"
+            "The bar IS this statistic, so the two cannot disagree and both be "
+            "right. Do not edit the bar to match: a criterion moved to fit the "
+            "run it judges is not a criterion. Settle which quantity the next "
+            "verdict rests on, and declare it before the next score.")
 
     out = {
         "issue": "GW-26",
@@ -1316,7 +1340,8 @@ def stage_fsat(tag: Path, edge_km: float, region: str, confinement: str | None,
     print(f"  f_sat score: {offered:,} bores on conducting land, base rate "
           f"{out['base_rate_all_bores']:.1%}")
     print(f"    AUC of the depth at the mesh region  {auc_region_depth:.4f}   "
-          f"(the bar {bar:.3f} was measured here)")
+          f"(the bar {bar:.3f} was measured here"
+          f"{', and is held to this' if region == bar_region else ''})")
 
     verdicts = []
     for arm, a in per_arm.items():

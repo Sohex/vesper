@@ -196,6 +196,22 @@ score:
   observation_sets: [australia_depth_consistent, us_unconfined]
   metric: auc_water_table_within_1m
   bar_auc: 0.573
+  # THE BAR IS A DERIVED QUANTITY AND NOT A THRESHOLD, and the difference is
+  # what the two keys below are for. It is the model depth's OWN discrimination
+  # per bore against the mesh region the bore falls in, measured on the region
+  # named here and recorded in `hydrography/notes/groundwater-et-sink.md`. It is
+  # used AS a criterion, and as a criterion it is fixed before the results it
+  # judges and does not move for them -- but the quantity it is a measurement OF
+  # moves whenever the depth solution, the mesh or the bore selection moves, and
+  # a bar that no longer reproduces is no longer the depth's discrimination.
+  # `earth_calibration.py` already recomputes it on every score and prints it
+  # beside this value; the tolerance is what makes that a check rather than a
+  # printout. It is the bar's own written precision and not a number chosen to
+  # make today's value pass. A refusal here does NOT mean edit this number: it
+  # means the bar and the harness are measuring different things, and which one
+  # the next verdict rests on is a decision, taken before the next score.
+  bar_auc_measured_on: aus
+  bar_auc_reproduction_tolerance: 0.0005
   harness: hydrography/scripts/earth_calibration.py
   unit_of_score: bore
   support: model_grid_equal_angle_boxes

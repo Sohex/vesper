@@ -2,10 +2,15 @@
 
 World Orogen exports `drain_to` as raw steepest descent and flags every chain
 that ends in neither the ocean nor a preserved basin sink with
-`drainage_terminal == -2`. On this planet that is 63% of the land, draining into
-220,649 unpreserved pits, most of them a single mesh cell of noise. That is not
-an oversight: routing water is a hydrology decision and the exporter leaves it
-here, the same way it leaves lake levels alone.
+`drainage_terminal == -2`. On this planet that is most of the land, draining
+into unpreserved pits numbered in the hundreds of thousands, most of them a
+single mesh cell of noise. Both figures are properties of the terrain and move
+with every generation, so this module does not state them: the share and the
+count for a build are in `hydrography/data/<build>/hydrography_report.json` as
+`drainage.endorheic_fraction_of_land` and `drainage.pits_filled`, written by the
+run of this module that produced them. That the exporter leaves the routing here
+is not an oversight: routing water is a hydrology decision, the same way lake
+levels are.
 
 This module resolves it with a priority flood (Barnes, Lehman & Mulla 2014),
 which fills those pits while keeping the preserved basins as genuine terminals.
