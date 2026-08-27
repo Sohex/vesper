@@ -1,9 +1,9 @@
 {
   "mode": "vegetated",
-  "mesh": "/home/cfutro/docs/world/source/canonical-10m-base/exoplasim-T42",
-  "grid": "/home/cfutro/docs/world/source/canonical-10m-base/exoplasim-T21",
+  "mesh": "/home/cfutro/docs/world/source/canonical-10m-carve1/exoplasim-T42",
+  "grid": "/home/cfutro/docs/world/source/canonical-10m-carve1/exoplasim-T21",
   "resolution": "T21",
-  "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
+  "terrain_hash": "4884dc8a6120bf5661f0e6fefbbf8d6bc30c78d7d2f1de6ce5a6c93073ff5afe",
   "codes": [
     174,
     175,
@@ -15,13 +15,13 @@
   ],
   "forest_fraction_value": 0.5,
   "vegetation": null,
-  "forest_fraction_land_mean": 0.34434174330804473,
+  "forest_fraction_land_mean": 0.41513888827363976,
   "lithology_albedo_overrides": {
     "playa_clastic": {
       "rock_id": 19,
       "albedo": 0.23,
       "exported_albedo": 0.1899999976158142,
-      "regions": 1115655
+      "regions": 646812
     }
   },
   "vegetation_albedo": {
@@ -43,23 +43,23 @@
     "band_flux_source": "lib/stellar.band_fractions",
     "rock_band_ratios": "analysis/rock_albedo_bands.json",
     "canopy_band_ratios": "analysis/vegetation_albedo.json",
-    "recombination_worst_residual": 1.8596235662471372e-15,
+    "recombination_worst_residual": 1.6375789613221059e-15,
     "recombination_tolerance": 1e-05,
     "note": "z1*175 + z2*176 == 174 over the whole grid, checked before writing. The .sra format rounds at %12.5f, so the tolerance is twice that quantum and not tighter.",
-    "band1_land_mean": 0.09107442787930026,
-    "band2_land_mean": 0.21406868083260697
+    "band1_land_mean": 0.09255286593405941,
+    "band2_land_mean": 0.23441446749724054
   },
   "barren_rock_classes": [
     "evaporite",
     "playa_clastic"
   ],
   "forest_note": "dforest blends snow albedo between forested and unforested endpoints, so it has to agree with the background albedo assumption. ExoPlaSim's default is a uniform 0.5.",
-  "land_mean_bare_rock": 0.24942152886996136,
-  "land_mean_written": 0.1670391231301119,
+  "land_mean_bare_rock": 0.255175346233792,
+  "land_mean_written": 0.18017056409293425,
   "endmembers": {
     "note": "land-mean albedo of the two surface endmembers, on the overridden rock table and before lakes. Their difference is what the biosphere is worth; pair only these two.",
-    "bare_rock": 0.25973946667628456,
-    "vegetated": 0.19035835022902675
+    "bare_rock": 0.2611580015485735,
+    "vegetated": 0.17969442999682791
   },
   "moisture_dependence": {
     "state": "staged",
@@ -86,7 +86,7 @@
     "argument": "exoplasim/notes/soil-albedo-moisture.md",
     "ceiling_note": "the most the darkening branch could be worth, as a land-mean albedo delta, which is the unit scripts/error_budget.py consumes. A CEILING and not an estimate: the realised term is this times a wet-area fraction and a wetting efficiency, neither of which is known here. It bounds a FULLY INUNDATED surface, which is a different quantity from the saturated endmember staged in 1742, 1750 and 1760: the modelled surface layer caps at field capacity and never reaches it",
     "open_water_albedo": 0.06,
-    "ceiling_land_mean": 0.199739,
+    "ceiling_land_mean": 0.201158,
     "ceiling_min_region": 0.04,
     "ceiling_max_region": 0.44,
     "band1_wetting": {
@@ -95,10 +95,10 @@
         0.5,
         0.764
       ],
-      "substrate_band1_land_mean": 0.218108,
+      "substrate_band1_land_mean": 0.223787,
       "broadband_delta_if_all_land_wet": [
-        0.019682,
-        0.041699
+        0.020194,
+        0.042785
       ],
       "band2_flux_fraction_with_no_bracket": 0.617628,
       "note": "band 1 only, and a FULLY wetted simulated land surface, which no state here can say the area of. Luminous reflectance is eye-weighted over 0.38-0.77 um and band 1 is flat to 0.75 um, so the ratio is transferred across two weightings; Penndorf puts +/-25 percent on the natural variation. Band 2 has no measurement, and it is the band liquid water absorbs in. Taken on the substrate's own spectrum, so under --flat-bands it describes the material and not the flat pair staged."
@@ -110,15 +110,15 @@
         0.489
       ],
       "class": "evaporite",
-      "share_of_land": 0.025647,
+      "share_of_land": 0.014844,
       "dry_level": 0.5,
       "per_cell_delta_if_wet": [
         0.2555,
         0.34
       ],
       "land_mean_contribution_if_wet": [
-        0.006553,
-        0.00872
+        0.003793,
+        0.005047
       ],
       "note": "covers BOTH bands, unlike band1_wetting, and one class. The sign is disputed for this class on interannual timescales; this bracket is the water film, not the state of the crust between floods."
     }
@@ -137,12 +137,12 @@
     },
     "held_pair_bracket_passes": true,
     "band2_liquid_absorption_direction": "both arms are UPPER bounds on the wet endmember in band 2: neither carries the liquid's own absorption, and a wetted surface can only be darker for it",
-    "refused_regions": 509520,
+    "refused_regions": 64723,
     "cells_entirely_refused_material": 0,
-    "band1_land_mean_saturated": 0.07200356086281119,
-    "band2_land_mean_saturated": 0.18180935573086493,
-    "broadband_land_mean_saturated": 0.13982269503887335,
-    "broadband_land_mean_dry": 0.1670391231301119,
+    "band1_land_mean_saturated": 0.07665188549991145,
+    "band2_land_mean_saturated": 0.2075171640438576,
+    "broadband_land_mean_saturated": 0.15747794659463174,
+    "broadband_land_mean_dry": 0.18017056409293425,
     "codes": [
       1742,
       1750,
@@ -152,39 +152,19 @@
       "saturation": 0.7642,
       "saturation_source": "config/planet.yaml surface.soil_albedo_moisture.saturation_at_full_layer",
       "note": "the land-mean albedo at a surface layer permanently at its own capacity, mixed per cell through Sadeghi Eq (13) and then meaned. A BOUND on the realised term and not an estimate of it: the realised fall is this times how wet the modelled skin is over the orbit, and it acts only where the surface is snow-free, ice-free land, so the realised area is below the land fraction and one-signed downward.",
-      "broadband_land_mean": 0.14487203630197107,
-      "broadband_fall": 0.022167086828140836,
-      "band1_land_mean": 0.07533965381976797,
-      "band1_fall": 0.01573477405953229,
-      "band2_land_mean": 0.18787264095989684,
-      "band2_fall": 0.02619603987271013
+      "broadband_land_mean": 0.16165510662307508,
+      "broadband_fall": 0.018515457469859165,
+      "band1_land_mean": 0.07941997165490537,
+      "band1_fall": 0.01313289427915404,
+      "band2_land_mean": 0.21253061328822895,
+      "band2_fall": 0.021883854209011594
     }
   },
-  "lakes": {
-    "source": "hydrography/data/canonical-10m-base/surface_water.nc",
-    "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
-    "lake_regions": 509520,
-    "lake_fraction_of_land": 0.1196223409581515,
-    "water_albedo": 0.06,
-    "land_mean_albedo_before": 0.184497,
-    "land_mean_albedo_after": 0.167092,
-    "delta": -0.017405
-  },
-  "derived_evaporite": {
-    "method": "salt crust = regions whose solved lake depth is at or below the local annual evaporation depth, so they dry within one orbit",
-    "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
-    "orbital_year_seconds": 15794043.122719022,
-    "geometric_salt_fraction_of_land": 0.025646872516781074,
-    "derived_salt_fraction_of_land": 0.007403054593155466,
-    "salt_albedo": 0.5,
-    "playa_albedo": 0.19,
-    "land_mean_albedo_before": 0.190358,
-    "land_mean_albedo_after": 0.184497,
-    "delta": -0.005861
-  },
+  "lakes": null,
+  "derived_evaporite": null,
   "exoplasim_default_albland": 0.22,
-  "land_min": 0.07628785522123654,
-  "land_max": 0.2854076018580102,
+  "land_min": 0.16499999999999895,
+  "land_max": 0.2621907030952124,
   "files": [
     "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_1742.sra",
     "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_1750.sra",
@@ -198,9 +178,9 @@
   "generator": "exoplasim/scripts/build_surface_albedo.py",
   "source_config": {
     "schema_version": 1,
-    "source_build": "canonical-10m-base",
-    "baseline_climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
-    "bootstrap_climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+    "source_build": "canonical-10m-carve1",
+    "baseline_climatology": null,
+    "bootstrap_climatology": null,
     "planet": {
       "radius_earth": 1.2,
       "gravity_m_s2": 12.81,
@@ -415,7 +395,7 @@
       ],
       "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
-      "soil_water_source": "pedology",
+      "soil_water_source": "uniform",
       "lake_dwmax_m": 0.2,
       "land_albedo_source": "vegetated",
       "vegetation_albedo": 0.165,
@@ -468,13 +448,11 @@
       "alignment_recurrence_earth_years": 314
     }
   },
-  "config_sha256": "9bfc642b6d5054892d5c0e51d737a1ee7727df75c2b2bbc798ab62dad475d286",
-  "git_commit": "8543d7ab29a2d0d0163727b01ae88e056ec8d37b",
+  "config_sha256": "fb6cf89d686524b83e8d769e7617e26a502eaf08478f941c89d796f44e32facb",
+  "git_commit": "fd80827ef4d9588c585ca77b24c2d6a8c55991df",
   "source_inputs": {
     "analysis/rock_albedo_bands.json": "6232e5a11cf2d7d851aad6e01ba3ae306354f618081d11ea6a76917a70efa213",
     "analysis/vegetation_albedo.json": "f6a970ca470dbbfa2d75a11a3767d57f66ee48cf8da66815d0f3b601851463bf",
-    "analysis/soil_albedo_wetting.json": "a10ef0fc93db43a026c166b9eb96fded66ffd009c1f70d7d5563c3f909e08999",
-    "hydrography/data/canonical-10m-base/surface_water.nc": "12214a78cd5b81109f0ee5ec880bc738317ef1d8757ffe98ca8d3d54ba668576",
-    "exoplasim/analysis/climatology/baseline_regular_climatology.nc": "0d62aa8c815c2f75111d849e5b388bf6922c0359f2c4478d5de307c6c3c576f1"
+    "analysis/soil_albedo_wetting.json": "a10ef0fc93db43a026c166b9eb96fded66ffd009c1f70d7d5563c3f909e08999"
   }
 }

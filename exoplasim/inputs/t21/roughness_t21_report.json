@@ -1,8 +1,8 @@
 {
-  "generated": "2026-08-26T21:20:04+00:00",
+  "generated": "2026-08-27T17:48:13+00:00",
   "code": 173,
   "field": "dz0clim, total aerodynamic roughness length, metres",
-  "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
+  "terrain_hash": "4884dc8a6120bf5661f0e6fefbbf8d6bc30c78d7d2f1de6ce5a6c93073ff5afe",
   "replaces_uniform": 2.0,
   "surface_z0_m": {
     "bare": 0.003,
@@ -13,14 +13,14 @@
   "anchor": {
     "arm": "derived",
     "target_land_mean_m": null,
-    "unrescaled_land_mean_m": 0.37512,
+    "unrescaled_land_mean_m": 0.478,
     "unrescaled_ce_bracket": [
-      0.004785,
-      0.00502
+      0.005213,
+      0.00548
     ],
     "written_ce_bracket": [
-      0.004905,
-      0.005148
+      0.005327,
+      0.005603
     ],
     "earth_reference": {
       "rung": "T21",
@@ -40,7 +40,7 @@
       "land_max_m": 46.8217,
       "namelist_fallback_m": 2.0
     },
-    "cover_roughness_ratio_to_earth": 1.1862,
+    "cover_roughness_ratio_to_earth": 1.5115,
     "note": "the derived land mean is what this world's own subgrid slope gives through WM93 Eq (33) and Beljaars Eq (6); the Earth reference beside it is the effective land roughness of PlaSim's own boundary dataset, code 173 reduced over its land in ce, and is a COMPARISON rather than a target. The namelist fallback dz0land is reported inside earth_reference and is a rounding of that reference."
   },
   "derived_orographic": {
@@ -51,10 +51,10 @@
       "Mason (1988), 10.1002/qj.49711448007",
       "Lettau (1969), 10.1175/1520-0450(1969)008<0828:NOARPE>2.0.CO;2"
     ],
-    "land_mean_m": 0.40265,
+    "land_mean_m": 0.50728,
     "ce_bracket": [
-      0.004905,
-      0.005148
+      0.005327,
+      0.005603
     ],
     "written": true,
     "shape_factor_beta": 1.0,
@@ -67,8 +67,8 @@
           4.0
         ],
         "land_mean_m": [
-          0.39983,
-          0.4058
+          0.50432,
+          0.51059
         ]
       },
       "closure": {
@@ -81,23 +81,23 @@
           5.9
         ],
         "land_mean_m": [
-          0.39095,
-          0.40265
+          0.49491,
+          0.50728
         ]
       }
     },
     "slope_variance_per_direction": {
-      "median": 0.0003460750724995677,
-      "p95": 0.004399917515103133,
-      "max": 0.02755164725263159
+      "median": 0.00032234656515426946,
+      "p95": 0.004068616229802938,
+      "max": 0.02751981565047163
     },
     "form_drag_over_skin_friction": {
-      "median": 0.008391595175064786,
-      "p95": 0.1058614281854703,
-      "max": 0.6599770401503606
+      "median": 0.007864964421186685,
+      "p95": 0.09801842681084197,
+      "max": 0.6592145403119972
     },
-    "shear_parameter_alpha_median": 12.129,
-    "pressure_scale_height_m_median": 1709.6,
+    "shear_parameter_alpha_median": 12.047,
+    "pressure_scale_height_m_median": 1730.2,
     "mesh_spacing_m": 9848.7,
     "capped_land_area_fraction": 0.0,
     "above_scale_separation": {
@@ -120,8 +120,8 @@
     },
     "lettau_cross_check": {
       "relation": "Lettau (1969) Eq (1), z0 = 0.5 h* s/S, one mesh region as one roughness element",
-      "orographic_land_mean_m": 3.06658,
-      "ratio_to_wm93_enhancement": 111.393
+      "orographic_land_mean_m": 2.74746,
+      "ratio_to_wm93_enhancement": 93.816
     },
     "terrain_information_floor_note": "the derived value is what this world's terrain supports. Orogen's measured terrain-information floor is near 20 km and Beljaars' turbulent orographic form drag lives below 5 km, so the band that dominates slope variance on Earth is absent here rather than unmeasured."
   },
@@ -130,8 +130,8 @@
     "relation": "z0_oro = coefficient * stdev(elevation) within the cell. SUPERSEDED by derived_orographic: the drag is quadratic in slope, not linear in relief amplitude, so this coefficient was carrying the missing horizontal scale. Retained for the reference and fixed-coefficient arms, which exist to price the change.",
     "subgrid_stdev_m": {
       "min": 0.0,
-      "median": 153.57,
-      "max": 2056.74
+      "median": 145.01,
+      "max": 1984.57
     },
     "mesh_regions_per_land_cell_median": 1980,
     "coefficient_was_solved": true
@@ -141,17 +141,17 @@
     "law": "ce = karman^2 / ln(z_ref / z0)^2",
     "population": "surface_class == land",
     "reference_height_anchor_m": 113.96,
-    "blending_height_m": 27.291,
+    "blending_height_m": 29.509,
     "blending_height_source": "Mason (1988) Eq (14), l_b ln(l_b/z0)^2 = 2 karman^2 L_c with L_c = mesh spacing / 2pi. The average of drag coefficients that reproduces the correct area-mean surface stress is taken at it, not at the lowest model level.",
     "land_mean_m_over_reference_air_bracket": [
-      0.40265,
-      0.40265
+      0.50728,
+      0.50728
     ],
     "jensen_gap_in_ce_relative": {
-      "min": -0.5381535442465122,
-      "median": -0.06368991977230172,
-      "max": 3.092693004161212e-15,
-      "land_area_weighted_mean": -0.11269688576425457
+      "min": -0.5388283297037603,
+      "median": -0.015977540637896987,
+      "max": 4.188560212133653e-15,
+      "land_area_weighted_mean": -0.06432451789975396
     },
     "transfer": {
       "regions_offered": 4328732,
@@ -162,9 +162,9 @@
       "closure_residual_relative": 0.0
     }
   },
-  "land_mean_m": 0.40265,
+  "land_mean_m": 0.50728,
   "land_min_m": 0.003,
-  "land_max_m": 3.5865,
+  "land_max_m": 3.5815,
   "exchange_coefficient": {
     "note": "ce = k^2 / ln(z_ref / z0)^2, the quantity roughness acts through. z_ref is lib/lapse.py:reference_height_m at this planet's gravity; each value is [low, high] over reference_air_k, across which z_ref is linear.",
     "karman": 0.4,
@@ -181,20 +181,21 @@
       0.010141
     ],
     "this_field_land_max": [
-      0.012879,
-      0.013939
+      0.012869,
+      0.013928
     ],
     "this_field_land_min": [
       0.001421,
       0.001458
     ]
   },
-  "file": "/home/cfutro/docs/world/.claude/worktrees/agent-a96b5cb5708e2caa2/exoplasim/inputs/t21/orogen_T21_surf_0173.sra",
+  "file": "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_0173.sra",
   "generator": "exoplasim/scripts/build_surface_roughness.py",
   "source_config": {
     "schema_version": 1,
-    "source_build": "canonical-10m-base",
+    "source_build": "canonical-10m-carve1",
     "baseline_climatology": null,
+    "bootstrap_climatology": null,
     "planet": {
       "radius_earth": 1.2,
       "gravity_m_s2": 12.81,
@@ -269,14 +270,11 @@
       },
       "land_water_column": {
         "scheme": "layered",
-        "layers": 2,
+        "layers": 3,
         "lower_boundary": "impermeable",
-        "layer_capacity_fraction": [
-          0.333333,
-          0.666667
-        ],
         "layer_thickness_m": [
-          0.5,
+          0.02,
+          0.48,
           1.0
         ],
         "soil_phase": false,
@@ -284,6 +282,14 @@
           "theta_low": 0.0,
           "exponent": 1
         }
+      },
+      "soil_albedo_moisture": {
+        "enabled": true,
+        "saturation_at_empty_layer": 0.0,
+        "saturation_at_full_layer": 0.7642,
+        "shape_sigma_broadband": 1.0,
+        "shape_sigma_band1": 1.0,
+        "shape_sigma_band2": 1.0
       }
     },
     "model": {
@@ -324,7 +330,7 @@
       "filter_power": 16,
       "cold_start_seed": 88888888,
       "hyperdiffusion": {
-        "eddy_wind_m_s": 10.09,
+        "eddy_wind_m_s": 9.838,
         "order_alpha": 4,
         "cutoff_fraction": 0.381,
         "ratios_to_vorticity": {
@@ -334,43 +340,41 @@
         },
         "timescales_days": {
           "T21": {
-            "divergence": 0.2624,
-            "vorticity": 1.3119,
-            "temperature": 3.3231,
-            "humidity": 0.4369
+            "divergence": 0.2691,
+            "vorticity": 1.3455,
+            "temperature": 3.4082,
+            "humidity": 0.4481
           },
           "T42": {
-            "divergence": 0.1312,
-            "vorticity": 0.656,
-            "temperature": 1.6616,
-            "humidity": 0.2184
+            "divergence": 0.1346,
+            "vorticity": 0.6728,
+            "temperature": 1.7042,
+            "humidity": 0.224
           },
           "T85": {
-            "divergence": 0.0648,
-            "vorticity": 0.3241,
-            "temperature": 0.821,
-            "humidity": 0.1079
+            "divergence": 0.0665,
+            "vorticity": 0.3324,
+            "temperature": 0.842,
+            "humidity": 0.1107
           },
           "T127": {
-            "divergence": 0.0434,
-            "vorticity": 0.2169,
-            "temperature": 0.5495,
-            "humidity": 0.0722
+            "divergence": 0.0445,
+            "vorticity": 0.2225,
+            "temperature": 0.5636,
+            "humidity": 0.0741
           },
           "T170": {
-            "divergence": 0.0324,
-            "vorticity": 0.1621,
-            "temperature": 0.4105,
-            "humidity": 0.054
+            "divergence": 0.0333,
+            "vorticity": 0.1663,
+            "temperature": 0.4212,
+            "humidity": 0.0554
           }
         }
       },
       "cold_start_profile": {
-        "surface_temperature_k": 289.03,
-        "lapse_rate_k_per_m": 0.008489,
-        "tropopause_height_m": 9220.0
+        "surface_temperature_k": 279.83
       },
-      "semi_implicit_reference_temperature_k": 249.4,
+      "semi_implicit_reference_temperature_k": 241.41,
       "rayleigh_sponge_rotations": [
         20.0,
         100.0,
@@ -393,18 +397,16 @@
       "precip_reevaporation_gamma": "derived",
       "cloud_fraction_subgrid_width": "derived",
       "asymptotic_mixing_length_m": "derived",
-      "land_longwave_emissivity": 0.9357,
+      "land_longwave_emissivity": 0.935,
       "sea_longwave_emissivity": 0.98,
       "ozone_scale": 0.794,
-      "ozone_height_m": 15311.8,
-      "ozone_spread_m": 3828.0,
       "ozone_uv_weight": 0.335,
-      "ozone_visible_weight": 0.914,
-      "h2o_sw_weight": 1.346,
-      "h2o_sw_level": 1.163,
+      "ozone_visible_weight": 0.908,
+      "h2o_sw_weight": 1.351,
+      "h2o_sw_level": 1.161,
       "h2o_sw_level_bracket": [
-        1.129,
-        1.206
+        1.128,
+        1.205
       ],
       "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
@@ -449,18 +451,18 @@
         "medium": {
           "period_earth_years": 11.0,
           "amplitude_flux_peak_to_peak": 0.025,
-          "note": "The lived rhythm. Damped about 0.83, so roughly 3.1 K peak-to-peak, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow.\n"
+          "note": "The lived rhythm. Damped about 0.83, so amplitude times damping times `lib/sensitivity.py`'s slope, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow. The kelvin figure is NOT restated here: it is a product of a slope that is re-derived per model, and the two numbers that stood here before reproduced at a slope retired two measurements ago.\n"
         },
         "long": {
           "period_earth_years": 57.0,
           "amplitude_flux_peak_to_peak": 0.035,
-          "note": "The geomorphic driver. Essentially undamped at 0.99, roughly 5.2 K peak-to-peak, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+          "note": "The geomorphic driver. Essentially undamped at 0.99, so amplitude times damping times the same slope, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
         }
       },
       "total_amplitude_flux_peak_to_peak": 0.06,
       "alignment_recurrence_earth_years": 314
     }
   },
-  "config_sha256": "2267d895d516efc9925a9333607449f689a8c01b9d99d9e2b76ae5b4e3989093",
-  "git_commit": "e0ca0485ba64810c960b60193569c9ddc7aea04e"
+  "config_sha256": "fb6cf89d686524b83e8d769e7617e26a502eaf08478f941c89d796f44e32facb",
+  "git_commit": "fd80827ef4d9588c585ca77b24c2d6a8c55991df"
 }

@@ -1595,7 +1595,20 @@ def check_water_path_currency(rep: "Report", config: dict) -> None:
         import shortwave_band_weights as swbw
         from paths import best_available_climatology
 
-        best = best_available_climatology()
+        # NO CLIMATOLOGY IS A STATE, NOT AN ERROR, and it is the state every
+        # fresh build starts in. `best_available_climatology` raises SystemExit
+        # to stop a step reading a plausible number from the wrong world, which
+        # is right for a step and wrong for a gate: SystemExit is a
+        # BaseException, so the `except Exception` below cannot catch it and
+        # one unresolvable check took the whole report down with it. Caught
+        # here, where the answer is that there is nothing to compare against
+        # yet rather than that something disagrees.
+        try:
+            best = best_available_climatology()
+        except SystemExit as exc:
+            rep.add(WARN, label,
+                    f"not checkable yet: {str(exc).splitlines()[0]}")
+            return
         if not best.path.is_file():
             rep.add(WARN, label, f"{rel(best.path)} is not on disk")
             return
