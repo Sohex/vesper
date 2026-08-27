@@ -231,6 +231,14 @@ One line each; the argument and the recorded incidents are in
   place rather than slowly, and silently, because what it reads is a real
   artifact of a real world. `docs/src/pipeline/loops.md` has the argument and
   the case that established it.
+- **And every field update belongs to a loop: a derived quantity written down
+  somewhere is an update that cannot propagate.** Ask of any number, WHAT
+  RE-RUNS WHEN THIS CHANGES; if nothing does, it is frozen and it will drift
+  from what it describes without anything objecting. Two dispositions only --
+  the consumer reads the emitted value, or the declaration sits inside a loop
+  that re-derives it and a check fires when the two disagree. A DECISION is not
+  in this class: a preference or a declared threshold is an input and is meant
+  to stay put.
 
 ## Vocabulary
 

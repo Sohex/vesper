@@ -227,6 +227,48 @@ criterion is about. `hydrography/scripts/carve_overshoot.py` is the
 comparison; it refuses a re-evaluation that does not cover every applied carve
 rather than scoring an unknown as a zero.
 
+## The corollary: a field update has to be able to carry
+
+The invariant above says every run reads the BEST AVAILABLE input. That is
+necessary and it is not sufficient, because reading the best available field is
+worth nothing if updating that field turns nothing. So the corollary:
+
+**EVERY FIELD UPDATE BELONGS TO A LOOP, and a derived quantity written down
+somewhere is an update that cannot propagate.**
+
+The test is one question, asked of any quantity: WHAT RE-RUNS WHEN THIS CHANGES?
+If the answer is nothing, the quantity is frozen, and it will drift from the
+thing it describes without anything objecting -- silently, because a stale
+number is a perfectly ordinary number and the artifact carrying it is a real
+artifact.
+
+**This project's own record is the argument.** Every quantity that drifted was a
+derived value somebody wrote down, and every quantity that stayed right was one
+inside a loop:
+
+| quantity | what it was derived from | what re-ran when that moved |
+| --- | --- | --- |
+| `sr_at_wilting_point`, `sr_at_field_capacity` | a median of a distribution the land column contract emits | nothing. The soil was rebuilt on re-sourced pedogenesis and the declaration sat still |
+| `eddy_wind_m_s` | one run's eddy statistics | nothing. It sets hyperdiffusion at every rung, and the model has since taken new cloud optics, a derived roughness and a 1.699x shorter damping |
+| `NOMINAL_TAU_ORBITS`, `NOMINAL_ORBIT_SCATTER_K` | a measured memory time and scatter | nothing. Both were wrong by about a factor of two, and they size every commissioning run |
+| the roughness span in `fluxmod.f90` | the staged roughness field | nothing. A magnitude argument computed from a field it no longer described |
+| `baseline_flux_earth` | the comfort scoring over two runs | the flux is re-derived on every new terrain, and it is the one on this list that behaved |
+
+**The two dispositions, and a declared constant with neither is a drift with a
+timer on it.** Either the consumer READS THE EMITTED VALUE, so there is nothing
+to freeze; or the declaration lives INSIDE A LOOP that re-derives it, with a
+check that fires when the declaration and the derivation disagree. The land
+column contract has the second and that is the only reason its drift was caught
+rather than integrated.
+
+**What this does NOT say.** A DECISION is not a derived quantity. A design
+preference, a declared threshold, a bracket chosen ahead of the runs it judges
+-- those are inputs and they are supposed to be written down and to stay put. The
+class this is about is a quantity that some other artifact computes, copied into
+a place that has no way to learn that it moved. `docs/src/practice/conventions.md`
+already forbids writing current values into prose for the same reason; this is
+that rule applied to code and config rather than to sentences.
+
 ## The finalizer: individually converged is not jointly converged
 
 **A sequence of loops that each reached their own exit is not the same thing as
