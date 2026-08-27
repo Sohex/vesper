@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Is a per-cell land emissivity worth carrying, or is a scalar enough?
 
-    python analysis/emissivity_contrast.py --climatology <file>
+    python analysis/emissivity_contrast.py --land-mean   # the scalar
+    python analysis/emissivity_contrast.py                # is a field worth it
 
 Worldbuilding. Vesper is an invented planet; every number below is a property
 of the simulated land surface or of the model that radiates from it.
@@ -31,7 +32,9 @@ gets built for the wrong reason:
 
 **The mean.** What one scalar at the lithology-weighted land mean is worth
 against whatever scalar is declared. This is a property of the NUMBER, and a
-field is not needed to fix it.
+field is not needed to fix it. `--land-mean` writes that scalar and its terrain
+hash to `analysis/land_emissivity.json` and reads NO climatology, because the
+mean is an area weighting over the mesh's own land and nothing else.
 
 **The contrast.** What the field is worth OVER a scalar already set to the
 field's own land mean. This is the only thing a per-cell field buys, and it is
