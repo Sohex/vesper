@@ -1,14 +1,14 @@
 {
-  "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
-  "generated": "2026-08-27T13:19:46+00:00",
+  "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+  "generated": "2026-08-27T16:04:40+00:00",
   "code": 229,
   "field": "dwmax, maximum soil water capacity, metres",
   "lakes": {
     "source": "hydrography/data/canonical-10m-base/surface_water.nc",
     "lake_dwmax_m": 0.2,
-    "mean_lake_fraction_of_land_cells": 0.08021508037596106,
+    "mean_lake_fraction_of_land_cells": 0.1156558531936716,
     "land_mean_dwmax_before_m": 0.0872,
-    "land_mean_dwmax_after_m": 0.09304,
+    "land_mean_dwmax_after_m": 0.09897,
     "ceiling": "annual lake evaporation is still capped by local precipitation; river water never re-enters dwatc"
   },
   "capacity_split": {
@@ -57,23 +57,23 @@
   "land_column_states_sha256": "9c071a9ae0fe5bf6145ef3be2ada294ec28ff28060b839e92408d90419638287",
   "capacity_column": "evaporable_mm",
   "capacity_source": "the land column property contract's evaporable_mm column, selected by whether the declared water column carries the contract's surface layer at its top. This script converts mm to m and installs it; it derives no capacity of its own. `awc_mm` is LPJ-GUESS's and is not what this installs when a surface layer is present.",
-  "config_sha256": "538846f23e2adfd56aba943be6ad61219dc5b531796adbb541cd7247dc8ccece",
+  "config_sha256": "9bfc642b6d5054892d5c0e51d737a1ee7727df75c2b2bbc798ab62dad475d286",
   "resolution": "T21",
   "land_cells": 1019,
   "land_cells_matched": 1019,
   "land_cells_without_soil_left_at_default": 0,
-  "land_mean_capacity_m": 0.11798314376245495,
+  "land_mean_capacity_m": 0.12155277354113993,
   "exoplasim_uniform_default_m": 0.5,
   "why_this_matters": "landmod.f90 computes runoff as the overflow of this bucket, so a uniform default makes runoff a namelist property rather than a soil property; the model's low land runoff ratio is the symptom.",
   "enabled_by": "model.soil_water_source in config/planet.yaml (currently set to pedology). Changing the key is a configuration change continue_exoplasim.py refuses to resume across, so moving it blocks runs in flight.",
   "output": "exoplasim/inputs/t21/orogen_T21_surf_0229.sra",
-  "output_sha256": "3721a365a013d6b633ecbb3bfeb0272cb63f57924e45036b1b3b4e9768c883a4",
-  "git_commit": "f577d48014459ccd4cdfe8a34dda642d2b269b23",
+  "output_sha256": "f99933827537e572e93b201e68e9f45f30d2ebe165e31199d6cf283803eaedae",
+  "git_commit": "8543d7ab29a2d0d0163727b01ae88e056ec8d37b",
   "generator": "exoplasim/scripts/build_surface_soil_water.py",
   "source_config": {
     "schema_version": 1,
     "source_build": "canonical-10m-base",
-    "baseline_climatology": null,
+    "baseline_climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
     "bootstrap_climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
     "planet": {
       "radius_earth": 1.2,
@@ -209,7 +209,7 @@
       "filter_power": 16,
       "cold_start_seed": 88888888,
       "hyperdiffusion": {
-        "eddy_wind_m_s": 10.09,
+        "eddy_wind_m_s": 9.838,
         "order_alpha": 4,
         "cutoff_fraction": 0.381,
         "ratios_to_vorticity": {
@@ -219,34 +219,34 @@
         },
         "timescales_days": {
           "T21": {
-            "divergence": 0.2624,
-            "vorticity": 1.3119,
-            "temperature": 3.3231,
-            "humidity": 0.4369
+            "divergence": 0.2691,
+            "vorticity": 1.3455,
+            "temperature": 3.4082,
+            "humidity": 0.4481
           },
           "T42": {
-            "divergence": 0.1312,
-            "vorticity": 0.656,
-            "temperature": 1.6616,
-            "humidity": 0.2184
+            "divergence": 0.1346,
+            "vorticity": 0.6728,
+            "temperature": 1.7042,
+            "humidity": 0.224
           },
           "T85": {
-            "divergence": 0.0648,
-            "vorticity": 0.3241,
-            "temperature": 0.821,
-            "humidity": 0.1079
+            "divergence": 0.0665,
+            "vorticity": 0.3324,
+            "temperature": 0.842,
+            "humidity": 0.1107
           },
           "T127": {
-            "divergence": 0.0434,
-            "vorticity": 0.2169,
-            "temperature": 0.5495,
-            "humidity": 0.0722
+            "divergence": 0.0445,
+            "vorticity": 0.2225,
+            "temperature": 0.5636,
+            "humidity": 0.0741
           },
           "T170": {
-            "divergence": 0.0324,
-            "vorticity": 0.1621,
-            "temperature": 0.4105,
-            "humidity": 0.054
+            "divergence": 0.0333,
+            "vorticity": 0.1663,
+            "temperature": 0.4212,
+            "humidity": 0.0554
           }
         }
       },
@@ -281,15 +281,15 @@
       "ozone_scale": 0.794,
       "ozone_uv_weight": 0.335,
       "ozone_visible_weight": 0.908,
-      "h2o_sw_weight": 1.346,
-      "h2o_sw_level": 1.163,
+      "h2o_sw_weight": 1.351,
+      "h2o_sw_level": 1.161,
       "h2o_sw_level_bracket": [
-        1.129,
-        1.206
+        1.128,
+        1.205
       ],
       "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
-      "soil_water_source": "uniform",
+      "soil_water_source": "pedology",
       "lake_dwmax_m": 0.2,
       "land_albedo_source": "vegetated",
       "vegetation_albedo": 0.165,
@@ -344,7 +344,7 @@
   },
   "source_inputs": {
     "pedology/data/canonical-10m-base/land_column_states_T21.txt": "9c071a9ae0fe5bf6145ef3be2ada294ec28ff28060b839e92408d90419638287",
-    "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc": "16c4b30f5c52eb91b878ca74d62fdb472c9693f342699ecf3feb99b650df0e8e",
-    "hydrography/data/canonical-10m-base/surface_water.nc": "c9afdd1380abc80ce3da48cdf4db5116bc97dc5a9902db17733b71731bac2db4"
+    "exoplasim/analysis/climatology/baseline_regular_climatology.nc": "0d62aa8c815c2f75111d849e5b388bf6922c0359f2c4478d5de307c6c3c576f1",
+    "hydrography/data/canonical-10m-base/surface_water.nc": "12214a78cd5b81109f0ee5ec880bc738317ef1d8757ffe98ca8d3d54ba668576"
   }
 }

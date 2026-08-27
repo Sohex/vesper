@@ -1,18 +1,18 @@
 {
   "source_build": "canonical-10m-base",
   "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
-  "forcing": "exoplasim/analysis/climatology/endmember_regular_climatology.nc",
-  "forcing_sha256": "be52fae201a4c16798957c97c002a672a145486cd0d24ec8a901ef281f764137",
+  "forcing": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+  "forcing_sha256": "0d62aa8c815c2f75111d849e5b388bf6922c0359f2c4478d5de307c6c3c576f1",
   "orbital_year_days": 182.80142503147016,
   "runoff_source": {
     "field": "P-E from the forcing climatology, not mrro",
     "why": "the run's global water budget closes to 0.03% of the mean and the land surplus matches the sea deficit, but mrro accounts for only 15% of that surplus",
-    "land_mean_p_minus_e_mm_per_day": 0.4407341300584002,
-    "land_mean_mrro_mm_per_day": 0.06201483328659075
+    "land_mean_p_minus_e_mm_per_day": 0.5089944529893623,
+    "land_mean_mrro_mm_per_day": 0.07373624200785991
   },
   "periodic_steady_state": {
     "time_bins": 12,
-    "cycles_to_close": 30,
+    "cycles_to_close": 22,
     "closure_relative_to_capacity": 0.001,
     "closure_floor_km3": 1e-06,
     "amplitude_publication_threshold": 0.1,
@@ -20,67 +20,67 @@
     "basins_closed": 8739,
     "basins_refused_not_closed": 0,
     "basins_refused_no_impoundment": 33,
-    "basins_with_published_season": 1147,
-    "seasonal_area_km2_at_peak": 29664845.97398743,
-    "seasonal_area_km2_at_trough": 28604334.08878601,
+    "basins_with_published_season": 657,
+    "seasonal_area_km2_at_peak": 38550869.455739334,
+    "seasonal_area_km2_at_trough": 37392638.85366679,
     "water_balance": {
       "declared_tolerance_relative": 1e-10,
-      "worst_bin_residual_relative": 1.0986749502287711e-16,
-      "worst_annual_residual_relative": 5.908892349551116e-16,
-      "set_residual_relative": 1.9343097669343486e-15,
-      "annual_throughput_km3": 72158.50136910772,
+      "worst_bin_residual_relative": 1.205658410349935e-16,
+      "worst_annual_residual_relative": 4.640778839086353e-16,
+      "set_residual_relative": 2.8018044654987596e-15,
+      "annual_throughput_km3": 80450.9710860824,
       "read_against": "the larger of the basin's own capacity and what passed through it in the year"
     },
     "regions_with_a_decided_cycle": 3221076,
-    "regions_under_water_in_every_bin": 381768,
-    "regions_under_water_in_some_bins": 15341,
-    "painted_seasonal_area_km2": 1138995.190147996,
-    "painted_permanent_area_km2": 28476490.135789514,
+    "regions_under_water_in_every_bin": 497747,
+    "regions_under_water_in_some_bins": 16729,
+    "painted_seasonal_area_km2": 1270904.8514186144,
+    "painted_permanent_area_km2": 37162458.95150268,
     "crossing_note": "closed-basin lake area only. A floodplain's inundated area needs a height-above-nearest-drainage distribution and a routing model that do not exist here, and a seasonally saturated soil is a water content rather than an area. Neither is merged into this.",
     "what_carries_a_season": "residence time, and the product is per basin because of it: a deep terminal lake holds years of supply and its surface barely moves inside one, while a shallow playa's area is almost all seasonal",
     "omission": "the catchment's delivery is flat through the cycle. Only the lake's own surface fluxes carry a season here; land_water_ledger.yaml declares that as seasonal_phase_of_catchment_delivery"
   },
   "open_water_evaporation": {
     "method": "Penman combination, water albedo and roughness, NOT floored at the model's land rate; shared with carve_verdict.py",
-    "global_mean_mm_per_day": 2.0475309250179614,
-    "ocean_mean_mm_per_day": 1.9243719232079717,
-    "model_ocean_mean_mm_per_day": 2.016361134319629,
+    "global_mean_mm_per_day": 2.197651697102112,
+    "ocean_mean_mm_per_day": 2.152594435977915,
+    "model_ocean_mean_mm_per_day": 2.207337008898667,
     "validation": "ratio over ocean cells, which already are open water; the only place the estimate can be checked",
-    "bin_mean_over_annual_evaluation": 1.1956281997515066,
+    "bin_mean_over_annual_evaluation": 1.158604314365972,
     "what_the_lake_solves_are_forced_with": "the bin-weighted mean of the per-bin evaluation, over the basin sinks; the annual-mean evaluation is not used"
   },
   "evaporation_interval_bracket": {
-    "solved_area_km2_bin_mean": 29016862.25504677,
-    "solved_area_km2_annual_evaluation": 42210451.695710674,
+    "solved_area_km2_bin_mean": 38194521.550710455,
+    "solved_area_km2_annual_evaluation": 47216662.93088501,
     "annual_evaporation_converged": true,
     "what_it_is": "the interval the open-water evaporation estimate is evaluated over, which is not the same question as which estimator to use",
     "missing_term": "seasonal heat storage in the water body, which needs a lake depth and a mixed-layer model this project does not have. Declared rather than estimated",
     "which_end_is_used_here": "the bin mean, matching the carve verdict's primary bound. The spread is the number to read, not a second answer",
-    "spread_as_share_of_bin_mean": 0.4546869790640166
+    "spread_as_share_of_bin_mean": 0.23621558835855438
   },
   "lakes": {
-    "basins_holding_water": 6989,
-    "basins_at_spill": 3930,
-    "solved_area_km2": 29016862.25504677,
-    "painted_area_km2": 28947388.611233115,
-    "planet_fraction": 0.03938440108619658,
-    "total_volume_km3": 3627475.4301422527
+    "basins_holding_water": 8246,
+    "basins_at_spill": 4602,
+    "solved_area_km2": 38194521.550710455,
+    "painted_area_km2": 38056258.564492226,
+    "planet_fraction": 0.05177748401672208,
+    "total_volume_km3": 4431877.698182561
   },
   "rivers": {
-    "max_discharge_m3_s": 145682.63337351894,
-    "basins_whose_outflow_was_routed": 3930,
-    "overflow_routed_m3_s": 3766539.4833563976,
-    "regions_above_1000_m3_s": 27245,
-    "land_runoff_km3_per_year": 25607.87962335879,
-    "land_runoff_m3_s": 1621363.1572604107
+    "max_discharge_m3_s": 149017.7816898707,
+    "basins_whose_outflow_was_routed": 4602,
+    "overflow_routed_m3_s": 3984894.4056297676,
+    "regions_above_1000_m3_s": 30987,
+    "land_runoff_km3_per_year": 29107.85556193194,
+    "land_runoff_m3_s": 1842964.1691975375
   },
   "staged_background_albedo": {
     "code": 174,
     "path": "exoplasim/inputs/t21/orogen_T21_surf_0174.sra",
-    "sha256": "3e9144cc937fc5c3c0bba758e8abb583125efcbc175ae308f19f1a855e791ddc",
+    "sha256": "5d3cc30a491ff723efbaabf1828efedcab918233f6b0999bcfe89b39691a00c9",
     "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
     "build": "canonical-10m-base",
     "declared_cross_build": null
   },
-  "git_commit": "85e1b8bffff649a576fe197547627504ebbc709d"
+  "git_commit": "8543d7ab29a2d0d0163727b01ae88e056ec8d37b"
 }
