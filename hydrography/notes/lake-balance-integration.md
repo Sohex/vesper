@@ -128,7 +128,13 @@ was declared first and refused to pass.
 On `canonical-10m-base` under the bootstrap climatology, all 8,739 live basins
 close their year in 33 cycles, the worst per-bin residual is 1.09e-16 and the
 worst annual residual 4.93e-16 relative, and the set closes to 2.2e-15 against
-76,502 km3/yr passing through it. `surface_water.py` writes that block into
+76,502 km3/yr passing through it.
+
+The loop bound has its own margin, and unlike the limit it replaces it cannot be
+eaten by the cascade. The curves carry 128 levels, so the bound is 130 segment
+steps; over the 396 bin integrations a full solve performs, the worst bin used
+8. The old limit was 256 sub-steps and the worst bin was already using 192 by
+the fifth cycle and still climbing. `surface_water.py` writes that block into
 `surface_water_report.json` and refuses the result if it misses.
 
 ## A third defect the gap between the two solves exposed
