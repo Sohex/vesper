@@ -2405,6 +2405,51 @@ problem: its own inter-orbit scatter on the donor is 0.00039 against a signal of
 `dt` 45, eight threads each, pinned to their own dies and run concurrently under
 one host lock: about six minutes of wall time and twelve of model time.
 
+### MEASURED 2026-08-27, and one half of it was wrong
+
+`run_a1c35075747c` at `NWETSOIL = 1` against `run_598eb57c5a34` at 0, one binary
+and one seed, orbits 15 to 24.
+
+**The `alb` half is right.** The land-mean fall is 0.006397, inside the
+registered 0.003780 to 0.006745 and near its upper end, resolved at 5.7 times the
+arms' own bar. The wet arm's background fall, recovered from its own `dwatcl`,
+is 0.006709 against the 0.006745 predicted from the donor's: half a percent.
+Every per-cell claim holds -- no land cell's background brightens, worst 5.3e-16,
+and the twenty-three cells staged wet equal to dry move by 4.2e-16.
+
+The bracket was too wide at the bottom, and the reason is a fault in this entry's
+reasoning rather than in the model. The lower end assumed snow and glacier ice
+take the term entirely where they hide the background, costing 44 per cent. The
+measured cost is 4.6 per cent, because a snow-covered cell has a frozen skin, ice
+comes off the layer's capacity in the cascade, and the model already reads it as
+dry -- so it was contributing nothing for the mask to take. The mask and the
+wetting are ANTI-CORRELATED, and treating the mask as a switch applied to a mean
+cannot see that.
+
+**The `tas` half is wrong, and it is the more useful half.** This entry
+registered that the arms could not separate in temperature and that a resolved
+difference would not be this term. They separated: +0.1972 K, with `ts` agreeing
+at +0.2013, resolved at 2.3 times the bar.
+
+The bar was imported and should not have been. It came from arms seeded from a
+thirty-seven-orbit control still relaxing, whose paired `tas` standard error over
+twenty-five orbits is 0.56 to 0.75 K. These arms are seeded from a 210-orbit
+equilibrated state and their standard errors are 0.017 and 0.031 K, twenty times
+smaller at the same run length. **A paired arm's power is set by how settled its
+DONOR is at least as much as by how long the arms run**, so a bar measured in one
+regime is not a bar in another. Every A3 entry in this file that quotes the 1.6
+to 2.1 K figure against a well-settled donor is understating its instrument the
+same way.
+
+**What the separation buys.** A fall of 0.006397 reaches +0.1972 K only at an
+attenuation of 0.3045, against the 0.5 `scripts/error_budget.py` declares while
+saying the honest claim is a factor of two. That is the first MEASUREMENT this
+project has of that factor, it lands inside the declared bracket at the low end,
+and it puts this term's forcing at 0.287 W/m2 rather than 0.471. One term is not
+the budget and the attenuation is a property of the atmosphere above the surface
+rather than of the surface, so it is one point; world-ckbt carries what would
+make it more.
+
 ## PHYS-15, the second of two commits: `dwmax` from `evaporable_mm`
 
 Written 2026-08-26, before the edit. It prices ONE commit: the one that makes

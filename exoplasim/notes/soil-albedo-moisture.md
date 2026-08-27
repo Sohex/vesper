@@ -259,6 +259,101 @@ correction needs an absolute scattering coefficient for the dry soil, which
 nothing in this tree carries, or a wet-and-dry reflectance spectrum pair measured
 on one sample. `references/INDEX.md` names the one that would do it.
 
+## What the paired arm measured
+
+Two twenty-five-orbit runs seeded from `run_893e276ee029/MOST_REST.00209`, a
+210-orbit equilibrated state on this build. One binary, md5-identical in both run
+directories; one seed, md5-identical; `landmod_namelist` differing in one line,
+`NWETSOIL = 1` in `run_a1c35075747c` against `0` in `run_598eb57c5a34`. The wet
+arm's `landini` printed the PHYS-15 banner at 0.0 to 0.7642 with both shape
+sigmas at one, so it read the staged pair rather than stopping on the sentinel;
+the dry arm printed nothing. Both segments are `diagnostic` at one I/O regime,
+and both pass every diagnostic settling criterion. Measured over orbits 15 to 24.
+
+| quantity | value |
+| --- | --- |
+| land-mean `alb`, `NWETSOIL = 1` | 0.230051 |
+| land-mean `alb`, `NWETSOIL = 0` | 0.236448 |
+| **the fall** | **0.006397** |
+| paired scatter across the ten orbits | 0.001226 |
+| the bar, two root two times the larger arm's own standard error | 0.001115 |
+| resolved | yes, at 5.7 times the bar |
+
+**The registered bracket was 0.003780 to 0.006745 and the measurement is inside
+it**, close to the upper end. Both ends were computed from the donor's own
+restarts before either arm ran.
+
+**The background half of the prediction is exact.** The wet arm's own restarts
+give a background fall of 0.006709, against 0.006745 predicted from the donor's:
+agreement to half a percent, on a quantity derived from `dwatcl` and the staged
+pair through Sadeghi Eq (13). So the mixing does in the running model exactly
+what the offline derivation says.
+
+**THE MASK COSTS ALMOST NOTHING, AND THE REASON IS PHYSICAL.** The lower end of
+the bracket assumed that where snow or glacier ice hides the background the term
+is lost entirely, which would have cost 44 per cent of it. The measured cost is
+the difference between the background fall and the realised one, 0.006709 against
+0.006397, which is 4.6 per cent. **The masking and the wetting are
+anti-correlated**: a snow-covered cell has a frozen skin, ice comes off the
+layer's capacity in the cascade, and the model already reads it as dry, so it was
+contributing nothing to the fall for the mask to take away. Treating the mask as
+a switch on the mean is what made the lower end far too low; the fault is in that
+reasoning and not in the model.
+
+**`f` barely moves between the arms**, so the term is very nearly linear in it:
+0.3313 in the wet arm against 0.3257 in the dry, both with a per-orbit spread near
+0.017. The albedo feedback on the skin's own wetness is inside the noise at
+twenty-five orbits.
+
+**In the units the budget consumes**, at the land fraction the build manifest
+gives by surface class and the attenuation `scripts/error_budget.py` declares for
+itself to a factor of two:
+
+| | value |
+| --- | --- |
+| top-of-atmosphere forcing at attenuation 0.5 | 0.471 W/m2 |
+| kelvin at attenuation 0.25 / 0.5 / 1.0 | +0.16 / +0.32 / +0.65 |
+
+For scale, the dust radiative item this project prices is 0.34 to 0.61 W/m2, so
+the modelled soil's wetting is the same size as its dust.
+
+**The claims that could have failed, tested where they are made.** Monotonicity
+and the `evaporite` refusal are claims about the BACKGROUND the mixing produces,
+not about `alb`, which carries snow that diverges chaotically between the arms.
+On the wet arm's own background over the window: the worst brightening of any
+land cell against the staged dry field is 5.3e-16, and the worst move on the
+twenty-three cells staged wet equal to dry is 4.2e-16. Both are zero in double
+precision, so no cell brightens and the refusal survives into the running model.
+
+## The temperature separated, and the prediction said it would not
+
+`tas` came out +0.1972 K warmer in the wet arm, against a bar of 0.0874 K taken
+from these arms' own standard errors. It is resolved at 2.3 times the bar, and
+`ts` agrees at +0.2013 K. **The registered prediction said the pair could not
+separate in temperature, and that was wrong.**
+
+The error is worth more than the result. The bar was imported from the arms this
+project had already run, whose paired `tas` standard error over twenty-five
+orbits is 0.56 to 0.75 K, giving 1.6 to 2.1 K. These arms' standard errors are
+0.017 and 0.031 K, twenty times smaller, and the run length is the same. **What
+differs is the donor.** The earlier arms were seeded from a thirty-seven-orbit
+control still relaxing, so each arm carried a trend and the paired difference
+inherited its scatter; these are seeded from a 210-orbit equilibrated state, so
+each arm is stationary and the difference is nearly pure signal. The instrument's
+power is set by how settled the DONOR is at least as much as by how long the arms
+run, and quoting a bar measured on one regime against an experiment in another
+understates the instrument by a factor of twenty.
+
+**And the separation measures something the budget only brackets.** A land-mean
+`alb` fall of 0.006397 reaches +0.1972 K only at an attenuation of 0.3045.
+`scripts/error_budget.py` declares `DEFAULT_ATTENUATION = 0.5` and says in its own
+words that the honest claim is a factor of two rather than a number. This is a
+measurement of it on one term, and it lands inside that bracket at the low end:
+the forcing is 0.287 W/m2 rather than the 0.471 the declared value gives. One
+term is not the budget, and the attenuation is a property of what sits above the
+surface rather than of the surface, so this is one point and not a replacement --
+but it is the first point this project has.
+
 ## The sign is disputed on salt crust, and the class is refused
 
 The three salt-crust sources do not agree, and the disagreement is not noise.
