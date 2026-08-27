@@ -2115,6 +2115,48 @@ result.
   zero-forcing argument is not what the model is doing, and it must be bisected
   rather than folded into the bundle.
 
+### The bar sized against the instrument, and the pair the arm is bought as
+
+Written 2026-08-27, BEFORE either arm was launched and against
+`run_c9c24d438a94`, which is the bundle's control and is not either arm.
+`exoplasim/analysis/arms/land_seasonal_range.py` reports its land-area-weighted
+seasonal `ts` range at **40.37 K over orbits 15 to 24, with an orbit-to-orbit
+scatter of 0.433 K and an autocorrelation-corrected standard error of 0.137 K at
+tau = 1.0 orbits**. The registered +13 to +55 per cent is worth 4.5 to 19 K on a
+constant-column range of that order, so the effect is twelve to fifty times the
+0.39 K bar that standard error implies, and the amplitude half of this
+prediction is comfortably inside what the instrument resolves. The global-mean
+half is registered as unresolved and nothing here changes that.
+
+The same series carries the settling. That run's land-mean range rises from
+31.99 K in its first orbit to 40.03 K by orbit 15 and is flat within its own
+scatter after it, so orbits 0 to 14 are the settling block and 15 to 24 is the
+window, which is the split the prediction already declared. The rise is itself
+the term: `run_c9c24d438a94` branched from a donor integrated BEFORE `3aecf4ec`,
+so it is an interpolating arm relaxing away from a constant-column initial
+state, with no control beside it.
+
+**BOTH ARMS ARE RUN FRESH, and that is a departure from measuring against
+`run_c9c24d438a94` directly.** A3's first condition is one binary, and that
+control was integrated at executable sha `37026652`, which predates both this
+term's namelist route and PHYS-15's six `landmod_nl` keys; today's
+`most_plasim_t21_l10_p8.x` is `98b423ce` and the two cannot be one binary.
+Reusing it would confound the soil thermal pair with every source and config
+change between the two dates, which is the confound the paired form exists to
+remove. So `jsfm_interp` and `jsfm_const` are both new, on one binary, from
+`run_14906cb7b914`'s `MOST_REST.00034` -- the restart the whole bundle branched
+from -- and differing in `SOILDIFDRY`, `SOILDIFSAT`, `SOILCAPDRY` and
+`SOILCAPSAT` and in nothing else. The consequence for the bundle is stated
+rather than hidden: this term is measured at a later operating point than the
+five terms above it, and a sum that adds them is adding two operating points.
+
+One further prediction follows from the settling above and is registered with
+the rest: **`jsfm_const` starts at its own equilibrium and `jsfm_interp` does
+not.** The donor ran the retired constant pair, so the constant arm's land-mean
+range should be flat from its first orbit while the interpolating arm climbs the
+way `run_c9c24d438a94` did. A constant arm that also climbs would mean the
+climb is not this term's.
+
 ## Measured: the star weight on its new carrier, `CLOUDABS`, 2026-08-26
 
 `run_a61f97a32b45` against the same control `run_c9c24d438a94`, same restart,
