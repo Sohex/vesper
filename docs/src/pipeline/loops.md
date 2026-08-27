@@ -1,5 +1,46 @@
 # 4. Why this is not a straight line
 
+## What the loop is FOR, which decides what each pass may read
+
+**Bootstrapping and looping are the process of moving from the least determined
+state to the most determined one.** That is not a description of the diagram; it
+is the invariant every step is held to. A step reads the MOST DETERMINED input
+available to it at the point it runs, and not the one its first pass happened to
+have.
+
+The corollary is what catches defects: an input pinned to an earlier stage's
+artifact, when a later and better determined one exists, is holding the loop
+back. It does not converge more slowly -- it converges to the wrong place, and
+it does so silently, because the artifact it reads is a real artifact of a real
+world and nothing about it looks wrong.
+
+**The first pass is where this is confused with an ordering constraint, and the
+two are different.** A derived field is an INPUT to the baseline run, so on the
+first pass through a build there is nothing better than the bootstrap and the
+bootstrap is correctly what it reads. That is a statement about what EXISTS, not
+about what the step wants. On the second pass a baseline exists, and a step
+still reading the bootstrap is no longer choosing the best available -- it is
+choosing the first available.
+
+**Where the invariant does NOT bite**, said so it is not applied by reflex: a
+quantity that depends on the model calendar or on geometry rather than on the
+climate STATE is equally determined at either stage.
+`biosphere/scripts/build_vesper_header.py` fits a solstice offset against solar
+declination, and the phase is a property of the calendar, so a baseline
+climatology would tell it nothing the bootstrap does not. Reading the earlier
+artifact there is not a violation; it is the same answer.
+
+**The case that established this** is in `notes/audits/design-flux-two-point-response.md`.
+`build_soil.py` takes its runoff from the bootstrap climatology, which is
+terrain-only by definition and therefore carries no lakes on any iteration,
+while the same step takes its vegetation from `lpj_run`, which reaches the
+baseline climatology through `lpj_driver`. One step, two stages of one world,
+and the split was a leftover rather than a decision. What it costs is the arid
+tail of the soil: at most 8.2 per cent of this planet is inland open water, it
+sits under the 74.4 per cent of land that drains internally, and that is exactly
+where the thin soil is.
+
+
 Four quantities are pairwise coupled: drainage with climate, climate with
 the biosphere, and soil with the biosphere. The biosphere does not reach
 drainage directly -- the channel that would couple them, transpiration, is

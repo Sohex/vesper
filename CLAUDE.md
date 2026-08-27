@@ -224,6 +224,13 @@ One line each; the argument and the recorded incidents are in
   thing as it is", the question is mis-framed.
 - Stale derived artifacts are the resting state of the tree, not a work list;
   regenerate when a step you are running needs them, and otherwise leave them.
+- **The loop moves from the least determined state to the most determined, so a
+  step reads the BEST available input and not the first available one.** On a
+  first pass the bootstrap is genuinely the best there is; on a later one it is
+  merely the earliest. A step pinned to an earlier stage converges to the wrong
+  place rather than slowly, and silently, because what it reads is a real
+  artifact of a real world. `docs/src/pipeline/loops.md` has the argument and
+  the case that established it.
 
 ## Vocabulary
 
