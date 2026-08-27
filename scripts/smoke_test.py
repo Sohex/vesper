@@ -3067,7 +3067,7 @@ def check_commissioning_evidence_is_re_read() -> list[str]:
          table, [record("run_zzzzzzzzzzzz", 50)], True)
     case("the same row saying its record is gone passes",
          {("T21", 45.0): dict(row, record_gone="searched every index; absent")},
-         [record("run_zzzzzzzzzzzz", 50)], True is False)
+         [record("run_zzzzzzzzzzzz", 50)], False)
     case("a row claiming its record is gone while it is there is a refusal",
          {("T21", 45.0): dict(row, record_gone="searched every index; absent")},
          [record("run_aaaaaaaaaaaa", 50)], True)
