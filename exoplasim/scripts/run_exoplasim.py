@@ -1963,6 +1963,17 @@ def refuse_a_staged_field_the_config_ignores(config: dict, inputs_dir) -> None:
     pass has no pedology soil water and the bootstrap is correct to run without
     it. It refuses only when the better field EXISTS and the config turns away
     from it, which is a state no correct commissioning passes through.
+
+    AND ONLY WHEN THE FIELD IS THIS RUN'S OWN LINEAGE. The staged field records
+    the climatology it was weathered under; a run declares its own in
+    `bootstrap_climatology`. Where those differ the field belongs to another
+    arm, and reading it is the opposite of the invariant rather than an
+    instance of it: the cold end of loop A's intersection bracket exists to be
+    a self-consistent bare-rock world, so inheriting the vegetated arm's soil
+    water would couple the two arms and narrow the bracket by construction --
+    which is how that exit predicate already reported 0.0 per cent once. An arm
+    whose own climatology does not exist yet declares `bootstrap_climatology:
+    null` and passes here, which is the honest state and not an exemption.
     """
     from pathlib import Path
     source = str(config["model"].get("soil_water_source", "uniform"))
@@ -1971,6 +1982,18 @@ def refuse_a_staged_field_the_config_ignores(config: dict, inputs_dir) -> None:
     staged = sorted(Path(inputs_dir).glob("*surf_0229.sra"))
     if not staged:
         return                                  # first pass: nothing better exists
+    sidecar = staged[0].with_name(staged[0].stem + "_provenance.json")
+    built_under = None
+    if sidecar.is_file():
+        built_under = json.loads(
+            sidecar.read_text(encoding="utf-8")).get("climatology")
+    declared = config.get("bootstrap_climatology")
+    if built_under is not None and str(built_under) != str(declared):
+        print(f"  {staged[0].name} was weathered under {built_under} and this "
+              f"run declares {declared!r}, so it belongs to another lineage "
+              f"and is NOT staged. This run's own soil water comes from its "
+              f"own climatology.")
+        return
     raise SystemExit(
         "model.soil_water_source is `uniform` and a pedology soil water field is "
         f"already staged at {staged[0].name}.\n"
