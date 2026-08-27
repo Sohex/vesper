@@ -280,62 +280,69 @@ this project compiles one executable per layer count.
 ### Tier 3: it decides the carve list
 
 Loop A's verdict leaves the project and changes the terrain, so it is the one
-output that cannot be revised by re-running something.
+output that cannot be revised by re-running something. **Every row here has been
+dispositioned**; the table records which disposition each took and what moved.
 
-| quantity | where | what computes it | check | stale |
-| --- | --- | --- | --- | --- |
-| `HYDROLOGICAL_RESPONSE_PER_KELVIN` | `scripts/error_budget.py` | a secant between two converged fluxes sharing a surface on this build, over the last ten orbits of each | none; unlike `SLOPE_BRACKET_RUNS` the runs are not even named | unknown, the runs being unnamed |
-| `GASCON` | `hydrography/scripts/carve_verdict.py`, restated in `land_water_ledger.py` | the model, from the declared composition; runs record it on their energy artifacts | none | no |
-| `WATER_ALBEDO` | `hydrography/scripts/carve_verdict.py` | the export's own water rock class | none | no |
-| `EARTH_BAND_LAND_MKM2` | `hydrography/scripts/export_carve_list.py` | nothing in this tree; the companion numerator HAS a re-derivation function beside it and this denominator has none | none | unknown |
-| `VESPER_CELL_KM2` | `hydrography/scripts/earth_calibration.py` | planet radius and region count, both carried in `hydrography/data/*/hydrography_report.json` | none | no |
-| `score.bar_auc` | `hydrography/config/topographic_index.yaml` | `hydrography/scripts/earth_calibration.py`, as the AUC of the model depth per bore against its mesh region | re-derived and PRINTED beside the declared value; the gate then compares a different statistic | YES |
-| `ph.parent_by_category.carbonate`, both `parent_bracket_*` ends | `pedology/config/pedogenesis.yaml` | Slessarev's carbonate-system quartic at this world's `pCO2_bar`; the derivation exists only as prose in `pedology/notes/pedogenesis-value-provenance.md` | none | no |
-| `endorheic_alkalinity_bonus_bracket` | `pedology/config/pedogenesis.yaml` | the carbonate pH above, subtracted from a published range | none | follows the row above |
-| the land-mean regolith depth that justifies `erosion_coefficient_per_relief_m` | `pedology/config/pedogenesis.yaml` | `pedology/scripts/build_soil.py`, into `pedology/analysis/soil_report.json` | none | YES |
-| `clay_conversion_bracket` low end | `pedology/config/pedogenesis.yaml` | one over the maximum weathering intensity over the sixteen type localities, from `pedology/analysis/earth_validation.json` | none | no |
-| the theta_fc/theta_s statistics and the cell count they are taken over | `hydrography/config/land_water_ledger.yaml`, restated three times in `biosphere/config/ntransform.yaml` | `pedology/scripts/land_column_properties.py` over the build's soil map | none; `ntransform_gate.py` never opens a soil map, while `mineral_reactivity_gate.py` beside it does | YES |
-
-**The carbonate pH is the sharpest of these because the file says the opposite.**
-`pedogenesis.yaml` states that `config/planet.yaml` owns `pCO2_bar` and that
-nothing there restates it. The declared pH IS that restatement, one function
-application removed, and `build_soil.py` consumes it on every run. No
-implementation of the quartic exists anywhere in the tree, so the derivation
-cannot be re-run even by hand without transcribing it out of the note.
-
-**`bar_auc` has already drifted and the project noticed.**
-`hydrography/notes/subgrid-water-table.md` records the re-derived Australian
-figure beside the declared bar. `earth_calibration.py` recomputes that statistic
-and prints it next to the bar with the words "the bar was measured here", and
-then compares a DIFFERENT statistic against the bar at the gate. This is the good
-disposition with the refusal missing, which is the most instructive shape in the
-audit: the re-derivation is already paid for.
-
-**The regolith depth is stale in its ARGUMENT rather than in its value.**
-
-| quantity | quoted in `pedogenesis.yaml` as the justification | `pedology/analysis/soil_report.json` `land_means` |
-| --- | --- | --- |
-| land-mean regolith depth, m | 1.04 | 0.6979 |
-| the declared bracket, m | [0.15, 1.30] | unchanged |
-
-The coefficient may well still be right. Its stated reason is not: the mean sits
-in the bracket's lower half rather than its upper third, and the branch
-attribution that follows no longer holds. A frozen quantity can invalidate an
-argument without invalidating the number the argument defends, and that is the
-harder case to see.
-
-**`ntransform.yaml` describes the wrong soil map by a factor of four.** Three of
-its comments justify a parameterisation choice on the distribution over "the
-current soil map's" cells:
-
-| quantity | quoted in `ntransform.yaml` | the map it describes | the configured build's map |
+| quantity | where | disposition | what moved |
 | --- | --- | --- | --- |
-| gridcells | 4105 | `precarve-craton` at T42 | 1019, `canonical-10m-base` at T21 |
+| `HYDROLOGICAL_RESPONSE_PER_KELVIN` | `scripts/error_budget.py` | two, partly. `HYDROLOGICAL_RESPONSE_SECANT` names the runs, the window and the build, and `verify_hydrological_response` re-reads the temperatures from the run index | nothing numeric. The pairing now REFUSES: the secant is on `precarve-craton` and the water balance it multiplies is on the configured build, so the carve columns report as unavailable |
+| `GASCON`, `CP_AIR` | `hydrography/scripts/carve_verdict.py`, `land_water_ledger.py` | one. Both come from `lib/lapse.gas_properties` on the declared composition | the carve list, 3944 to 3943 basins. R was right to 4.5e-7; the difference is cp, Earth's textbook 1005.0 against this atmosphere's 1004.897 |
+| `WATER_ALBEDO` | `hydrography/scripts/carve_verdict.py` | one. Read from the configured mesh's own rock-class legend | nothing; the export carries 0.06 exactly |
+| `EARTH_BAND_LAND_MKM2` | `hydrography/scripts/export_carve_list.py` | two. `measure_earth_band_land_mkm2` sums the same level 5 polygons the numerator's lakes are assigned to, in the same pass, and refuses on disagreement | 78.9 to 77.05 Mkm2. Standing target +2.4%, incision coefficient -7.6%, carve list 3964 to 3959 with five becoming marginal |
+| `VESPER_CELL_KM2` | `hydrography/scripts/earth_calibration.py` | deleted. Nothing read it and it was four times too large, built on `precarve-craton`'s region count | nothing |
+| `score.bar_auc` | `hydrography/config/topographic_index.yaml` | one. The harness's own `auc_depth_at_mesh_region` IS the bar; a number in the config is refused | 0.573 to 0.5759 on the Australian bores. No verdict moves either way |
+| `ph.parent_by_category.carbonate`, both `parent_bracket_*`, `endorheic_alkalinity_bonus_bracket` | `pedology/config/pedogenesis.yaml` | one. `pedology/scripts/carbonate_ph.py` solves Slessarev's eq. (6) at this world's `pCO2_bar`; `build_soil.py` fills the sentinels and refuses a literal | 8.16 to 8.1628, the bar-to-atmosphere conversion. Land-mean soil pH +0.0001 |
+| the land-mean regolith depth that justifies `erosion_coefficient_per_relief_m` | `pedology/config/pedogenesis.yaml` | one for the argument, two for the constraint. The config states no mean; `build_soil.py` reads its own `land_means.regolith_depth_m` back against `regolith_depth_bracket_m` and refuses outside it | nothing. 0.6979 m sits inside [0.15, 1.30]; what was wrong was the branch attribution, not the coefficient |
+| `clay_conversion_bracket` low end | `pedology/config/pedogenesis.yaml` | two. `validate_against_earth.py` re-derives one over the wettest locality's W from the sites it fetched and refuses beyond the config's own written precision | nothing. The localities imply 0.2930 against a declared 0.29 |
+| the theta_fc/theta_s statistics and their cell count | `hydrography/config/land_water_ledger.yaml` | one. The declaration points at `lib/builds.py:land_column_states` instead of copying a distribution | the numbers are gone from the config. They described `precarve-craton` at T42 under the superseded Earth-suction derivation: median 0.813 against a shipped 0.7642, and 164 of 4105 cells against 115 of 1019 |
 
-Every median and count derived from it is on that support. The same figures are
-also carried in two dated notes under `biosphere/notes/`, which is correct: those
-say when they were measured. The config comments say "current", which is what
-puts them in the class.
+**The carbonate pH was the sharpest and it moved the least.**
+`pedogenesis.yaml` stated that `config/planet.yaml` owns `pCO2_bar` and that
+nothing there restates it, while the declared pH WAS that restatement one
+function application removed. No implementation of the quartic existed anywhere,
+so the derivation could not be re-run even by hand. It exists now and it
+reproduces the pH the paper publishes at the pressure the paper states before it
+is evaluated here.
+
+Two findings about the source came out of implementing it. The equation as
+PRINTED in the paper is not the charge balance -- its hydroxide and bicarbonate
+terms are run together into a product and carbonate's factor of two is dropped
+-- and solving it as printed gives 8.76 against a published 8.2, so the test
+rejects it. The factor of two is worth 0.0012 pH at that pressure, which no test
+at the published precision can see, so it rests on the arithmetic and says so.
+And the paper's 8.3 for pre-1977 air states no pressure, so it is not a second
+test point; an earlier version of `pedogenesis-value-provenance.md` supplied
+3.30e-4 atm for it and recorded that both figures "round to what the paper
+prints", which is wrong -- 8.248 rounds to 8.2. What the remark does constrain is
+where the solved pH crosses 8.25, and that is what is checked.
+
+**`bar_auc` was the most instructive shape and it cost nothing to close.** The
+re-derivation was already computed, already printed beside the declared value
+with the words "the bar was measured here", and compared to nothing. What was
+declared before the first score is the RULE -- beat the depth's own
+discrimination at the depth's own support -- and `also_beat` beside it was
+already a live comparator recomputed each run. Making this one live is the shape
+the file already had, not a threshold moved after seeing a result.
+
+**The band denominator is the row where the correction is largest and the
+argument is not about size.** 78.9 Mkm2 had no producer anywhere in the tree
+while the numerator beside it had `measure_earth_floors`. The count is lakes
+assigned to HydroBASINS level 5 polygons, so the land it is a density over is
+the land those polygons cover, and 78.9 is not that. Against the Poisson error
+on a count of 15, 25.8%, the 2.4% correction is a tenth of the acknowledged
+uncertainty; it is made because the denominator has to be the numerator's Earth.
+
+**`HYDROLOGICAL_RESPONSE_PER_KELVIN` is the row where honesty was the whole
+answer.** Its producer does not exist and half its input is gone: the kelvin is
+re-derivable from the window means the run index carries, and the two fractional
+responses need per-orbit `pr` and `evap` from raw output that has been archived.
+No artifact in the tree holds them, so
+`notes/audits/hydrological-sensitivity.md` is where those two numbers exist and
+its recipe runs against the NEXT converged pair rather than against that one.
+The check that bites is not the missing input, though: the secant is on
+`precarve-craton` and the amplification it multiplies is on the configured
+build, and a response measured under one land mean does not compose with an
+amplification measured under another.
 
 ### Tier 4: it prices, ranks, schedules, or feeds a component nothing yet reads
 
