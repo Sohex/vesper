@@ -145,3 +145,19 @@ a comparison of two different worlds.
 and it carries a different geography digest because the lakes are composited
 into its albedo. A secant across it would vary the surface and the flux
 together.
+
+**The recipe above has nothing left to read on this tree.** Both runs have been
+archived: `archive/runs/run_bfa3f5269660/` and `archive/runs/run_524fbed77a9a/`
+carry the namelists, the manifest and the index entry, and the `MOST.*.nc` the
+land means were taken from are deleted. The KELVIN survives that, because each
+index entry's `temperature_mean_k` is the ten-orbit window mean this note
+divided by, and `scripts/error_budget.py:verify_hydrological_response` re-reads
+both. The two fractional responses do not survive it: they need per-orbit `pr`
+and `evap` and there is no artifact anywhere in this tree that carries them.
+
+So this note is where those two numbers exist, and the recipe is what runs
+against the NEXT pair rather than against this one. That pair is what loop A's
+flux re-bracket produces on whatever build is configured, which is also what
+finding 1 requires -- the response must be measured under the same land mean the
+amplification is, and two builds are two land means. `error_budget.py` refuses
+the pairing and reports its carve columns as unavailable until that holds.

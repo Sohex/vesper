@@ -112,17 +112,18 @@ DEFAULT_ATTENUATION = 0.5
 # derivation and its evidence are in `notes/audits/hydrological-sensitivity.md`.
 #
 # `precipitation` and `land_evaporation` are MEASURED, as a secant between the
-# two converged fluxes that share a surface on this build, over the last ten
-# orbits of each. No run was bought for them. They are a secant across about
-# seven kelvin rather than a local slope, and design intent forbids reusing a
-# sensitivity measured in one regime in another, so the converged points loop
-# A's flux re-bracket produces are what localises them. That is a step, not a
-# task.
+# two converged fluxes that share a surface, over the last ten orbits of each.
+# No run was bought for them. They are a secant across about seven kelvin rather
+# than a local slope, and design intent forbids reusing a sensitivity measured
+# in one regime in another, so the converged points loop A's flux re-bracket
+# produces are what localises them. That is a step, not a task.
 #
 # They must be measured with the SAME land mean `land_water_balance` uses, since
 # the two are multiplied together: Gaussian quadrature weights, land from
 # `lsm > 0.5`, annualised to Earth years. A response measured under a different
-# land mean does not compose with an amplification measured under this one.
+# land mean does not compose with an amplification measured under this one, and
+# that is what `verify_hydrological_response` below tests: it is a statement
+# about which BUILD each side sits on, not a style note.
 #
 # `lake_evaporation` is a BRACKET, because the Penman open-water response has
 # not been measured on this world and the project's convention is to bracket
@@ -144,6 +145,118 @@ HYDROLOGICAL_RESPONSE_PER_KELVIN = {
     "land_evaporation": 0.0242,
     "lake_evaporation": (0.0242, 0.067),
 }
+
+# WHERE THE TWO MEASURED CHANNELS CAME FROM, named so that something can check
+# them. They were three bare floats: `lib/sensitivity.py`'s slope sits beside
+# them, names its runs and re-reads their asymptotes, and this -- the conversion
+# that decides the CARVE LIST, the one output that leaves the project and cannot
+# be revised by re-running anything -- named nothing at all.
+#
+# The temperatures below are the ten-orbit window means each run's own index
+# entry carries, so the kelvin the secant is divided by is re-derived rather
+# than trusted. The fractional responses are NOT re-derivable: they need
+# per-orbit `pr` and `evap` from the raw output, and both runs have been
+# archived, so the numerator of this secant has no surviving input anywhere in
+# this tree. The recipe in `notes/audits/hydrological-sensitivity.md` section 6
+# is complete and has nothing left to read.
+#
+# THAT IS THE HONEST STATE OF THIS QUANTITY. What re-measures it is named below
+# and is not a task: loop A's flux re-bracket puts two converged points on
+# whatever build is configured, and the same recipe runs on those. Until it
+# does, `verify_hydrological_response` refuses the pairing and every column
+# priced through it reports as unavailable rather than reporting a number whose
+# provenance is a deleted directory.
+HYDROLOGICAL_RESPONSE_SECANT = {
+    "cold": {"run_id": "run_bfa3f5269660", "flux_ratio": 0.910,
+             "window_mean_k": 281.9216},
+    "warm": {"run_id": "run_524fbed77a9a", "flux_ratio": 0.945,
+             "window_mean_k": 288.9964},
+    "window_orbits": 10,
+    "delta_t_k": 7.0748,
+    "source_build": "precarve-craton",
+    "geography": "3a17c498",
+    "resolution": "T42",
+    "measured": "2026-08-18",
+    "land_mean": "Gaussian quadrature weights, land from lsm > 0.5, annualised "
+                 "to Earth years; the same mean land_water_balance takes",
+    "re_measured_by": "the secant across loop A's flux re-bracket on the "
+                      "configured build, by the recipe in "
+                      "notes/audits/hydrological-sensitivity.md section 6",
+}
+# The window means are declared to four decimals, so a unit in the last place is
+# what agreement can mean. Fixed on that precision, not on today's residual.
+SECANT_TEMPERATURE_TOLERANCE_K = 0.0001
+
+
+def verify_hydrological_response(config) -> list[str]:
+    """Re-derive what survives of the carve conversion. Empty means it holds.
+
+    Three questions, in the order that decides whether the answer is usable.
+
+    1. Do the two runs still exist, at the flux and geography recorded, with the
+       window means the secant was divided by? Re-read rather than trusted.
+    2. Is the secant's kelvin still the declared one? An extended, re-run or
+       re-assessed run moves it and trips this.
+    3. **Does the response sit on the build the amplification sits on?** This is
+       the one that bites today. `land_water_balance` takes P, E and runoff from
+       the CONFIGURED build's baseline climatology, and the response is
+       multiplied through it. The rule this module's own docstring states is
+       that a response measured under one land mean does not compose with an
+       amplification measured under another, and two builds are two land means:
+       one world's amplification scaled by another world's sensitivity, with
+       nothing about the product looking wrong.
+    """
+    # `sensitivity` owns run lookup and already merges the live index with the
+    # archived entries. Reading the index a second time here would be the same
+    # class of defect this function exists to close, so it is not done.
+    by_id = {e.get("run_id"): e for e in sensitivity._index_entries()}
+    problems, means = [], {}
+    configured = config.get("source_build")
+    for role in ("cold", "warm"):
+        want = HYDROLOGICAL_RESPONSE_SECANT[role]
+        entry = by_id.get(want["run_id"])
+        if entry is None:
+            problems.append(f"the {role} secant run {want['run_id']} is in no "
+                            "run index, live or archived")
+            continue
+        physical = entry.get("physical", {})
+        flux = physical.get("flux_ratio")
+        if flux is None or abs(float(flux) - want["flux_ratio"]) > 1e-9:
+            problems.append(f"{want['run_id']} is at flux {flux}, not the "
+                            f"{want['flux_ratio']} the secant was taken across")
+        geography = physical.get("geography")
+        if geography != HYDROLOGICAL_RESPONSE_SECANT["geography"]:
+            problems.append(
+                f"{want['run_id']} is on geography {geography}, not the "
+                f"{HYDROLOGICAL_RESPONSE_SECANT['geography']} the secant was "
+                "measured on, so the two ends no longer share a surface")
+        build = entry.get("source_build")
+        if build != configured:
+            problems.append(
+                f"{want['run_id']} is on build {build!r} and the water balance "
+                f"it multiplies is on {configured!r}. The response and the "
+                "amplification are then two different worlds and the product is "
+                "a sensitivity of neither. Re-measure by "
+                + HYDROLOGICAL_RESPONSE_SECANT["re_measured_by"])
+        recorded = (entry.get("convergence_metrics") or {}).get("temperature_mean_k")
+        if recorded is None:
+            problems.append(f"{want['run_id']} carries no window-mean temperature")
+            continue
+        if abs(recorded - want["window_mean_k"]) > SECANT_TEMPERATURE_TOLERANCE_K:
+            problems.append(
+                f"{want['run_id']} now reports a window mean of "
+                f"{recorded:.4f} K against the {want['window_mean_k']:.4f} the "
+                "secant was divided by")
+        means[role] = recorded
+    if len(means) == 2:
+        delta = means["warm"] - means["cold"]
+        declared = HYDROLOGICAL_RESPONSE_SECANT["delta_t_k"]
+        if abs(delta - declared) > 2 * SECANT_TEMPERATURE_TOLERANCE_K:
+            problems.append(
+                f"the secant now spans {delta:.4f} K against the declared "
+                f"{declared:.4f}, so every fractional response divided by it "
+                "has moved")
+    return problems
 
 # Perturbation sizes the basin response is tabulated at. Both signs, because the
 # criterion is a threshold and the basin population is not symmetric about it.
@@ -725,7 +838,15 @@ def main() -> None:
     water = land_water_balance(config)
     basins, basin_baseline, overflowing = basin_response(config)
 
+    # The carve columns exist only while the conversion into them holds. When
+    # it does not, they report as unavailable with the reason on the artifact:
+    # a kelvin priced into basins through a response measured on another world
+    # is a number, and a number is what makes it dangerous.
+    carve_problems = verify_hydrological_response(config)
+
     def carve(kelvin):
+        if carve_problems:
+            return None, None
         return per_item_carve_currency(kelvin, water, basin_baseline, overflowing)
 
     def carve_columns(runoff_pct, basin_range):
@@ -757,6 +878,11 @@ def main() -> None:
           f"attenuation {DEFAULT_ATTENUATION}")
     if problems:
         print("SENSITIVITY DISAGREES WITH THE RUN INDEX: " + "; ".join(problems))
+    if carve_problems:
+        print("CARVE CURRENCY UNAVAILABLE, so every runoff and basin column "
+              "below reads --:")
+        for problem in carve_problems:
+            print(f"  {problem}")
     print()
     print(f"{'item':38} {'d(alb)':>8} {'K naive':>8} {'K':>7} "
           f"{'runoff':>8} {'basins':>16}")
@@ -805,13 +931,21 @@ def main() -> None:
         print("  " + f"{label:20}" + "".join(f"{v:+8d}" for v in table.values()))
     h = HYDROLOGICAL_RESPONSE_PER_KELVIN
     lo, hi = h["lake_evaporation"]
-    print(f"\nper kelvin: land P {h['precipitation']:+.2%}, land E "
-          f"{h['land_evaporation']:+.2%}, lake E {lo:+.2%} to {hi:+.2%} "
-          f"(bracketed), so runoff {runoff_per_kelvin(water):+.2f}%.")
-    print(f"  NOT {water['d_runoff_per_d_precipitation'] * h['precipitation'] * 100:+.2f}%: "
-          "the amplification applies to the precipitation channel alone, and "
-          "a kelvin also raises land evaporation, slightly faster. The two "
-          "amplified terms nearly cancel.")
+    if carve_problems:
+        print(f"\nper kelvin: NOT REPORTED. The measured channels come from "
+              f"{HYDROLOGICAL_RESPONSE_SECANT['cold']['run_id']} and "
+              f"{HYDROLOGICAL_RESPONSE_SECANT['warm']['run_id']} on build "
+              f"{HYDROLOGICAL_RESPONSE_SECANT['source_build']}, and the "
+              "conversion does not hold here. Re-measure by "
+              + HYDROLOGICAL_RESPONSE_SECANT["re_measured_by"] + ".")
+    else:
+        print(f"\nper kelvin: land P {h['precipitation']:+.2%}, land E "
+              f"{h['land_evaporation']:+.2%}, lake E {lo:+.2%} to {hi:+.2%} "
+              f"(bracketed), so runoff {runoff_per_kelvin(water):+.2f}%.")
+        print(f"  NOT {water['d_runoff_per_d_precipitation'] * h['precipitation'] * 100:+.2f}%: "
+              "the amplification applies to the precipitation channel alone, and "
+              "a kelvin also raises land evaporation, slightly faster. The two "
+              "amplified terms nearly cancel.")
 
     print("\nRefine an input when its plausible range exceeds the effect of the")
     print("thing you last refined. Everything under a kelvin here is below the")
@@ -853,6 +987,20 @@ def main() -> None:
             "hydrological_response_per_kelvin":
                 {k: (list(v) if isinstance(v, tuple) else v)
                  for k, v in HYDROLOGICAL_RESPONSE_PER_KELVIN.items()},
+            "hydrological_response_secant":
+                {k: (dict(v) if isinstance(v, dict) else v)
+                 for k, v in HYDROLOGICAL_RESPONSE_SECANT.items()},
+            "hydrological_response_verify":
+                carve_problems or "the named runs still carry the temperatures "
+                                  "this secant was divided by, and they sit on "
+                                  "the build the water balance sits on",
+            "hydrological_response_is_re_derivable":
+                "the KELVIN is, from the window means in the run index. The two "
+                "fractional responses are NOT: they need per-orbit pr and evap "
+                "from raw output that has been archived, so the numerator of "
+                "this secant has no surviving input. "
+                + HYDROLOGICAL_RESPONSE_SECANT["re_measured_by"]
+                + " is what restores it.",
             "hydrological_response_note":
                 "Fractional change in each land-mean quantity per kelvin of "
                 "global-mean surface temperature. Precipitation and land "
@@ -861,7 +1009,8 @@ def main() -> None:
                 "rate and high end the 6.7 %/K convexity of saturation vapour "
                 "pressure, because the Penman response has not been measured "
                 "here. See notes/audits/hydrological-sensitivity.md.",
-            "runoff_percent_per_kelvin": round(runoff_per_kelvin(water), 2),
+            "runoff_percent_per_kelvin":
+                None if carve_problems else round(runoff_per_kelvin(water), 2),
             "runoff_percent_per_kelvin_note":
                 "The number the second currency turns on, and the one most "
                 "easily got wrong. It is NOT d_runoff_per_d_precipitation times "
