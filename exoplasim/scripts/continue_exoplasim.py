@@ -372,6 +372,33 @@ def main() -> None:
     # stores, not the file's bytes. Hashing the raw file makes an edited comment
     # indistinguishable from an edited parameter, which blocks a legitimate
     # resume and says nothing about why. This reports the offending keys.
+    # THE THREAD COUNT IS ADOPTED FROM THE MANIFEST, NOT COMPARED WITH IT.
+    # `run_exoplasim.py --ncpus N` writes N into the loaded config before the
+    # manifest is stamped, so the manifest carries N while the config FILE
+    # still declares whatever it declares, and the comparison below then
+    # refuses a run it should extend -- with no flag able to say otherwise,
+    # which left such a run unresumable at all. It cost a re-run of a paired
+    # soil-thermal experiment. world-q4gh.
+    #
+    # ADOPTION AND NOT AN EXEMPTION, because the count is not free to differ.
+    # A continuation has to integrate on the same executable as the segment
+    # before it -- the run directory holds exactly one, and ExoPlaSim compiles
+    # one per (resolution, layers, threads) -- so a config declaring 16 against
+    # a manifest of 8 must resolve the p8 binary. Merely dropping the key from
+    # the comparison would let it resolve a p16 binary into a run whose earlier
+    # orbits are p8, which is worse than the refusal it replaces. The value is
+    # taken from the manifest INTO the config so that everything downstream,
+    # the binary resolver included, reads one number.
+    manifest_ncpus = (manifest.get("source_config", {})
+                      .get("model", {}).get("ncpus"))
+    if manifest_ncpus is not None and \
+            config["model"].get("ncpus") != manifest_ncpus:
+        print(f"  adopting ncpus = {manifest_ncpus} from the run manifest, "
+              f"against config's {config['model'].get('ncpus')}: a "
+              f"continuation integrates on the executable the run already "
+              f"holds. world-q4gh.")
+        config["model"]["ncpus"] = manifest_ncpus
+
     drift = config_drift(manifest["source_config"], config,
                          INERT_CONFIG_KEYS)
     if drift:

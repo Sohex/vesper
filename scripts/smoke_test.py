@@ -610,6 +610,52 @@ def check_io_step_measurement() -> list[str]:
 
 
 
+
+def check_resume_adopts_the_manifest_thread_count() -> list[str]:
+    """A continuation takes `ncpus` from the run, not from the config file.
+
+    `run_exoplasim.py --ncpus N` writes N into the loaded config before the
+    manifest is stamped, so the manifest carries N and the config FILE still
+    declares whatever it declares. Comparing them refused a run that should
+    have been extended, with no flag able to say otherwise, and cost a re-run
+    of a paired soil-thermal experiment. world-q4gh.
+
+    ADOPTION AND NOT AN EXEMPTION: a continuation integrates on the executable
+    the run directory already holds, and ExoPlaSim compiles one per
+    (resolution, layers, threads), so a config declaring 16 against a manifest
+    of 8 must resolve the p8 binary. Dropping the key from the comparison
+    instead would resolve a p16 binary into a run whose earlier orbits are p8.
+
+    The check reads the source rather than driving `main`, because driving it
+    needs a run directory, a binary and a restart. Class 17 is satisfied by the
+    third case: the ADOPTION direction is what is asserted, not merely that the
+    key is mentioned.
+    """
+    src = (ROOT / "exoplasim" / "scripts" / "continue_exoplasim.py").read_text(
+        encoding="utf-8")
+    bad = []
+    if "manifest_ncpus" not in src:
+        bad.append("continue_exoplasim.py does not read the manifest's ncpus, "
+                   "so a run prepared with --ncpus cannot be resumed at all")
+        return bad
+    adopt = src.index("manifest_ncpus")
+    drift = src.index("drift = config_drift(")
+    if adopt > drift:
+        bad.append("the thread count is adopted AFTER the drift comparison, "
+                   "so the comparison still refuses the run it should extend")
+    # The direction: the manifest's value goes INTO the config, never the
+    # other way, or the binary resolver reads a count the run does not have.
+    if 'config["model"]["ncpus"] = manifest_ncpus' not in src:
+        bad.append("the manifest's thread count is not written into the "
+                   "config, so the binary resolver can still read the file's")
+    if "INERT_CONFIG_KEYS" in src and '"ncpus"' in src.split(
+            "INERT_CONFIG_KEYS")[1][:400]:
+        bad.append("ncpus looks like it was added to INERT_CONFIG_KEYS; that "
+                   "waives the check instead of adopting the value, and lets a "
+                   "p16 binary resolve into a run whose orbits are p8")
+    return bad
+
+
 def check_production_span_is_self_limiting() -> list[str]:
     """The span comes from the run's own criteria, not from twenty tau.
 
@@ -3574,6 +3620,8 @@ def main() -> None:
                lambda: check_donor_surface_guard()),
               ("the convergence window follows the declared purposes",
                lambda: check_production_window()),
+        ("a resume adopts the run's own thread count",
+               lambda: check_resume_adopts_the_manifest_thread_count()),
         ("the production span comes from the run's own criteria",
                lambda: check_production_span_is_self_limiting()),
         ("a staged field is never written through a symlink",
