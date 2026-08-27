@@ -1,6 +1,6 @@
 {
   "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
-  "coupling": "/home/cfutro/docs/world/.claude/worktrees/agent-a3f502c51afe5b4d1/hydrography/data/canonical-10m-base/coupling_exoplasim-T21.nc",
+  "coupling": "/home/cfutro/docs/world/.claude/worktrees/agent-a2580015c76c5a16d/hydrography/data/canonical-10m-base/coupling_exoplasim-T21.nc",
   "staged_background_albedo": {
     "code": 174,
     "path": "exoplasim/inputs/t21/orogen_T21_surf_0174.sra",
@@ -26,15 +26,15 @@
       "km3_per_earth_year": {
         "unclamped": 37403.0,
         "clamped": 40343.4,
-        "retained_by_surviving_basins": 786.2,
-        "delivered_to_overflowing_basins": 39557.2
+        "retained_by_surviving_basins": 790.2,
+        "delivered_to_overflowing_basins": 39553.2
       },
-      "lake_net_evaporation_km3_per_earth_year": -6669.6,
-      "spill_to_ocean_km3_per_earth_year": 37167.5,
+      "lake_net_evaporation_km3_per_earth_year": -6669.0,
+      "spill_to_ocean_km3_per_earth_year": 37166.9,
       "runoff_over_lake_footprint_km3_per_earth_year": 9845.5,
       "identity": "inflow(clamped) = lake net evaporation + runoff generated over the lake footprint + spill to ocean, at steady state. The middle term is there because a basin's catchment includes its own bed, so the solver's demand carries it; the three close the budget and that is what makes the integral usable.",
       "moisture_source": "THE TERM THE CLIMATE MODEL LACKS is lake_minus_model_evaporation, not the net evaporation above: what the atmosphere gains from a lake is its evaporation against what the model already evaporates on that ground. It is signed, and on this world the sign is not obvious, because land roughness puts the model's own evaporation above Penman on most land cells. notes/audits/unpriced-terms.md.",
-      "lake_minus_model_evaporation_km3_per_earth_year": 3142.6,
+      "lake_minus_model_evaporation_km3_per_earth_year": 3143.2,
       "retention": "the split is under the PENMAN bound and moves with the verdict. Retention is the moisture source the model has no way to return to the atmosphere over land: a surviving basin's inflow leaves as evaporation, and in ExoPlaSim it leaves as runoff to the sea instead. notes/audits/unpriced-terms.md finding 1.",
       "mm_per_earth_year_over_catchment": {
         "unclamped": 157.939,
@@ -57,15 +57,15 @@
     }
   },
   "penman_ocean_validation": {
-    "penman_mm_per_day": 2.0189,
+    "penman_mm_per_day": 2.019,
     "model_mm_per_day": 1.7698,
-    "ratio": 1.1407,
+    "ratio": 1.1408,
     "ocean_cells": 1029,
     "note": "Ocean cells are already open water, so this is a direct check."
   },
   "penman_seasonal_jensen": {
-    "bin_mean_over_annual_evaluation": 1.3654358820885804,
-    "over_land": 1.5693778267614522,
+    "bin_mean_over_annual_evaluation": 1.3654318279725002,
+    "over_land": 1.5693684024503487,
     "what_is_used": "the bin mean; the annual evaluation is reported for its size and is not used",
     "why": "Penman is nonlinear in the air it reads, so one evaluation on a mean over a cycle the air varies within is not the mean of the evaluations. land_water_ledger.yaml holds open_water_evaporation at interval_floor: climatology_bin"
   },
@@ -75,7 +75,7 @@
     "note": "A perturbed verdict is a SENSITIVITY. The verdict on a climate that contains dust is the one taken on that climate's own climatology, and the two must not be added."
   },
   "penman_dry_column_bracket_mm_per_day": {
-    "rh_floor_70": 2.1449,
+    "rh_floor_70": 2.145,
     "rh_floor_80": 2.0729,
     "rh_floor_90": 1.9596,
     "as_computed": 2.1921
@@ -87,26 +87,26 @@
   },
   "bounds": {
     "penman": {
-      "basins_carved": 3944,
-      "endorheic_land_km2": 155507417.86268285,
-      "lake_area_km2": 6860650.721209522,
+      "basins_carved": 3943,
+      "endorheic_land_km2": 155554170.50624517,
+      "lake_area_km2": 6875274.387789214,
       "dry_survivors": 2512,
-      "wet_survivors": 2316,
+      "wet_survivors": 2317,
       "basins_without_runoff": 2512,
-      "lake_area_fraction_of_planet": 0.009340663859176535,
+      "lake_area_fraction_of_planet": 0.009360573742285333,
       "solver_converged": true,
-      "median_aridity_index": -0.7921607615238894
+      "median_aridity_index": -0.7919886537779555
     },
     "penman_annual": {
       "basins_carved": 4772,
       "endorheic_land_km2": 120113780.1541132,
-      "lake_area_km2": 8240244.422316756,
+      "lake_area_km2": 8239921.144436775,
       "dry_survivors": 2512,
       "wet_survivors": 2061,
       "basins_without_runoff": 2512,
-      "lake_area_fraction_of_planet": 0.011218958141735215,
+      "lake_area_fraction_of_planet": 0.011218518004183732,
       "solver_converged": true,
-      "median_aridity_index": -1.1356366063221663
+      "median_aridity_index": -1.1355831639532894
     },
     "wet": {
       "basins_carved": 6260,
@@ -126,9 +126,9 @@
       "penman_annual",
       "wet"
     ],
-    "carve_under_both": 3944,
+    "carve_under_both": 3943,
     "survive_under_both": 2512,
-    "disputed": 2316,
+    "disputed": 2317,
     "note": "`both` and `neither` are unanimity over every bound in `bounds_agreed_over`, which is three since the interval became a bracket: the two ends of it and the wet estimator. The names are kept for their readers"
   },
   "interval_bracket": {
@@ -138,9 +138,9 @@
     "missing_term": "seasonal heat storage in the water body, which needs a lake depth and a mixed-layer model this project does not have. Declared rather than estimated",
     "ocean_check": "per bin, Penman over ocean runs 1.43-1.46x the model's own evaporation in the brightest bins and 0.89-0.96x in the dimmest, and 14.1% high on the annual total, against 4.8% low for the annual evaluation. An ocean stores more heat than any lake, so that is an upper bound on the bias",
     "how_it_is_used": "the carve list is the intersection over both ends and the wet bound. A basin carved in error loses a depression from the terrain everything else is built on; one left uncarved can be carved next cycle",
-    "carve_under_bin_mean": 3944,
+    "carve_under_bin_mean": 3943,
     "carve_under_annual_evaluation": 4772,
-    "basins_the_interval_alone_moves": 828,
+    "basins_the_interval_alone_moves": 829,
     "bin_mean_carves_a_subset_of_annual": true
   },
   "carve_list_robust": [
@@ -520,7 +520,6 @@
     "orogen-basin-r5l6ry-os7gzh",
     "orogen-basin-r5taqq-11qogba",
     "orogen-basin-r4u653-hmxuf6",
-    "orogen-basin-r5dmog-uw65x9",
     "orogen-basin-r4egar-1j62n3s",
     "orogen-basin-rbpmr-1oij7lh",
     "orogen-basin-r5rfxh-19n7fvi",
@@ -4466,7 +4465,6 @@
     "orogen-basin-r5l6ry-os7gzh",
     "orogen-basin-r5taqq-11qogba",
     "orogen-basin-r4u653-hmxuf6",
-    "orogen-basin-r5dmog-uw65x9",
     "orogen-basin-r4egar-1j62n3s",
     "orogen-basin-rbpmr-1oij7lh",
     "orogen-basin-r5rfxh-19n7fvi",

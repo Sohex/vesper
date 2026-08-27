@@ -97,7 +97,6 @@ REGIONS = {
 REFERENCE = ROOT / "hydrography" / "data" / "reference"
 SITES = ROOT / "hydrography" / "data" / "earth_validation" / "aus_wtd_sites.csv"
 EARTH_R_KM = 6371.0
-VESPER_CELL_KM2 = 4 * np.pi * 7645.2 ** 2 / 2_500_001     # the 15.19 km baseline
 OROGEN_SEED = 16236323
 # The split seed for the benchmark, fixed so its number is a number and not a
 # draw. Its predecessor was quoted in four documents and reproduced by nothing.
