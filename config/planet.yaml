@@ -34,18 +34,24 @@ schema_version: 1
 
 # DETERMINED. lib/orogen.py is the registry: it holds the hash, the note, and
 # what superseded what.
-# CHANGED 2026-08-26 to the first generation taken to be COMMISSIONED rather
-# than measured. `precarve-craton` is 15.19 km mean edge and `precarve-craton-10m`
-# is 7.60 km at about 10M regions, which fully samples what Orogen resolves; this
-# keeps that support and drops the two things that made its predecessor a
-# measurement artifact. It carries `--glacial 0`, so the ice is an honest null
-# awaiting the mask rather than the Earth-calibrated latitude ramp PHYS-13
-# refuses, and it is the first export selected at the declared 850 km2 basin
-# floor -- the planet code's slider had been silently winning at 1000.
+# CHANGED 2026-08-27 to the FIRST CARVED build, which is the first turn of loop
+# A this project has completed. `canonical-10m-base` was generated with neither
+# of the generation's two inputs -- `--glacial 0` for an honest null and no
+# carve list -- because both come from a climatology only a build can produce.
+# It was commissioned to a baseline; that baseline supplied both, and this is
+# the regeneration.
+#
+# It carries 4115 basins cut and 60 notched at their saddles out of a catalogue
+# of 8772, where the cut set is the INTERSECTION of two bounding climates rather
+# than one climate's verdict, and ice placed from the baseline's freezing height
+# rather than the latitude ramp PHYS-13 refuses. The basin catalogue hash is
+# byte-identical to its predecessor's, so a verdict computed against either
+# still refers to the same basins.
+#
 # `lib/orogen.py` registers it with no refusal, which is what says it may be
 # pointed at. Everything below a build is worthless rather than stale when this
 # moves (rule 7); `python scripts/pipeline.py --purge orogen` is what says what.
-source_build: canonical-10m-base
+source_build: canonical-10m-carve1
 
 # DECLARED. The REGULAR climatology of the baseline run, `run_893e276ee029`,
 # over its 140 clean-I/O orbits. `climatology_path()` raises rather than falling

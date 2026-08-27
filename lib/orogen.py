@@ -246,6 +246,29 @@ _KNOWN_TERRAIN_HASHES = {
         {"name": "canonical-10m-base", "note":
          "2026-08 first pass at 10M without ice: --glacial 0, basin floor 850, "
          "all five ladder grids plus grid-512x256, pre-carve"},
+    # The SECOND pass, and the first this project has taken with both of the
+    # generation's inputs supplied. `canonical-10m-base` was commissioned to a
+    # baseline; that climatology produced the carve list and the ice mask; both
+    # are consumed AT GENERATION, which is why this is a new build and not an
+    # alteration of the one above.
+    #
+    # WHAT MOVED AND WHAT DID NOT, from the two manifests' hash blocks:
+    # `preConditioningElevation` and `preErosionElevation` are BYTE-IDENTICAL to
+    # the build above, which is what the seed and region count being unchanged
+    # requires. `finalElevation`, `basinsPreserved`, `basinMembership`,
+    # `surfaceRock` and `erodibility` all moved, because the carve and the ice
+    # are erosion-loop inputs and the loop exposes different rock.
+    #
+    # `--glacial 0.3` and NOT the 0.8 the pre-carve builds carried. With the
+    # mask supplying placement, the slider does only the erosion-rate half of
+    # the job it used to do, and 0.8 was chosen for the half it no longer does.
+    # It is undeclared either way and world-sr77 carries that, deferred.
+    "4884dc8a6120bf5661f0e6fefbbf8d6bc30c78d7d2f1de6ce5a6c93073ff5afe":
+        {"name": "canonical-10m-carve1", "note":
+         "2026-08 second pass at 10M: the first carve, 4115 basins cut and 60 "
+         "notched at their saddles out of a catalogue of 8772, with ice placed "
+         "from the baseline climatology's freezing height rather than the "
+         "latitude ramp -- --ice-mask, --glacial 0.3, basin floor 850"},
 }
 
 # Basin ids are computed on the pre-conditioning surface, so they survive a
@@ -268,9 +291,20 @@ _KNOWN_CATALOGUE_HASHES = {
     # 73.449 km2 cell is 881.39 km2, above the declared 850, so the area floor
     # does not bind at this region count. `source/README.md` put that crossover
     # at 10.37M regions before the build was taken.
+    # SHARED BY canonical-10m-base AND canonical-10m-carve1, byte-identical
+    # across the carve, which is this key's whole purpose demonstrated rather
+    # than asserted. The ids are computed on the pre-conditioning surface, so a
+    # carve iteration cannot move them, and the two builds' manifests carry the
+    # same `preConditioningElevation` hash as well. A verdict computed against
+    # this catalogue therefore still refers to these basins on either build.
+    #
+    # `preserved` is NOT part of this hash and differs between them: 8772 on
+    # the base, where no preserve list was given, and 4657 on carve1, where the
+    # list carved 4115 and notched 60 more. The catalogue is what was selected;
+    # the preserved set is what survived a water balance.
     "35c922c3b481af4bf7b814a6719e05969db0223b9a01895beef01cf200a73b28":
-        "2026-08 catalogue on canonical-10m-base, 8772 preserved at the 850 "
-        "floor, minCells binding",
+        "2026-08 catalogue at the 850 floor with minCells binding, 8772 "
+        "selected, shared by canonical-10m-base and canonical-10m-carve1",
 }
 
 # The registry is keyed by hash because the hash is the identity, but config and
