@@ -231,6 +231,15 @@ def snapshot_beside(regular: Path) -> Path:
     callers now pass the regular product they actually resolved, so the pair
     cannot come from two different runs and one flag moves both.
     """
+    if "_regular_climatology.nc" not in regular.name:
+        # Without this the substitution is a no-op and the "snapshot" returned
+        # is the binned product itself, which is exactly the field the caller
+        # asked for a snapshot INSTEAD of: a 12-bin mean has averaged away the
+        # wind tail the fit is measuring.
+        raise SystemExit(
+            f"{rel(regular)} is not named `<label>_regular_climatology.nc`, so "
+            "the snapshot beside it cannot be derived from its name. Name the "
+            "sample file explicitly.")
     snapshot = regular.with_name(
         regular.name.replace("_regular_climatology.nc", "_snapshot_climatology.nc"))
     if not snapshot.is_file():
