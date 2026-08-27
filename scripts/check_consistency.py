@@ -46,6 +46,15 @@ since the loop is only monotone if an already-carved basin stays carved.
 **Config internal consistency.** Gravity against mass, and the declared orbit
 against the flux it is derived from.
 
+**The configured flux against the DERIVED one.** `config/pipeline.yaml` makes
+`baseline_run` need `design_flux`, but that edge only says the artifact exists:
+adopting its winner into `config/planet.yaml` is a separate human act, because
+the flux fixes the semi-major axis and that orbit is compiled into LPJ-GUESS. So
+the edge alone leaves the failure available -- derive a flux, do not adopt it,
+buy hours of baseline run at the old number. No `design_flux.json` at all is the
+legitimate provisional state and warns; a winner that differs from the
+configured value refuses.
+
 **What the runs on disk actually integrated.** Three cases over run directories,
 in `audit_runs`. The staged namelists against the config and the manifest each
 run carries, the staged namelists against the hyperdiffusion block the manifest
@@ -964,7 +973,7 @@ def main() -> int:
     if build:
         rep.add(*activation_row(build, want))
 
-    # -- the named baseline climatology belongs to the active build ----------
+    # -- both named climatologies belong to the active build -----------------
     #
     # A climatology is the most widely shared artifact here: pedology,
     # hydrography and the biosphere all read one. It has the same grid, the
@@ -972,28 +981,87 @@ def main() -> int:
     # superseded one produces a plausible number rather than an error. The
     # consumers now check at the point of reading; this is the same check
     # applied once, ahead of an expensive run.
-    declared = config.get("baseline_climatology")
-    if not declared:
-        rep.add(WARN, "baseline climatology",
-                "none named in config; anything needing a climate will raise")
-    else:
+    #
+    # BOTH KEYS, because there are two climatologies and eleven steps ask for
+    # one or the other. The bootstrap is the run on terrain-only surface fields
+    # and is what `surface_water`, `groundwater`, `soil`, `dust`, `sea_salt`,
+    # `volcanic_sulfate`, `vesper_header` and `design_flux` are driven from; the
+    # baseline is the run on those fields once they exist. A stale one of either
+    # is the same defect and neither is checked by the other.
+    sys.path.insert(0, str(ROOT / "lib"))
+    from provenance import artifact_build
+    for key, label in (("bootstrap_climatology", "bootstrap climatology"),
+                       ("baseline_climatology", "baseline climatology")):
+        declared = config.get(key)
+        if not declared:
+            rep.add(WARN, label,
+                    f"none named in config; anything needing {key} will raise")
+            continue
         clim = ROOT / declared
         if not clim.is_file():
-            rep.add(FAIL, "baseline climatology",
+            rep.add(FAIL, label,
                     f"config names {declared}, which does not exist")
+            continue
+        got = artifact_build(clim)
+        if got is None:
+            rep.add(WARN, label,
+                    f"{Path(declared).name} carries no build identity; it "
+                    f"predates the stamping in build_climatology.py")
+        elif got != build:
+            rep.add(FAIL, label,
+                    f"{Path(declared).name} is on {got}, config names {build}")
         else:
-            sys.path.insert(0, str(ROOT / "lib"))
-            from provenance import artifact_build
-            got = artifact_build(clim)
-            if got is None:
-                rep.add(WARN, "baseline climatology",
-                        f"{Path(declared).name} carries no build identity; it "
-                        f"predates the stamping in build_climatology.py")
-            elif got != build:
-                rep.add(FAIL, "baseline climatology",
-                        f"{Path(declared).name} is on {got}, config names {build}")
+            rep.add(OK, label, f"on {build}")
+
+    # -- the configured flux is the DERIVED flux -----------------------------
+    #
+    # `config/pipeline.yaml` makes `baseline_run` need `design_flux`, and that
+    # edge only says the ARTIFACT exists. Adopting its winner into
+    # `config/planet.yaml` is a separate human act, because the flux fixes the
+    # semi-major axis and that orbit is compiled into LPJ-GUESS. So the edge
+    # alone leaves the whole failure available: derive a flux, do not adopt it,
+    # buy hours of baseline run at the old number, and every artifact below it
+    # describes a world nothing intended.
+    #
+    # WHY THIS IS THE TIER FOR IT. It is a static read of two files, so it could
+    # sit in `smoke_test.py`; it reads a GENERATED artifact, so it belongs where
+    # the artifact comparisons are, and this is what runs before an expensive
+    # run, which is the thing being protected.
+    #
+    # NO ARTIFACT IS NOT A FAILURE. A provisional flux with no design_flux.json
+    # on disk is the legitimate current state of this tree: the derivation has
+    # not been run on this terrain yet, and refusing it would refuse the
+    # commissioning that produces the artifact. A design_flux.json whose winner
+    # DIFFERS from the configured value is the state to refuse, and the window
+    # between writing the artifact and adopting its number is one edit rather
+    # than a resting state. An exploratory derivation writes elsewhere with
+    # --output; the registered path carries the answer.
+    design = ROOT / "exoplasim" / "analysis" / "design_flux.json"
+    configured = float(config["orbit"]["baseline_flux_earth"])
+    if not design.is_file():
+        rep.add(WARN, "configured flux vs the derived one",
+                f"{configured} is PROVISIONAL: {rel(design)} does not exist, so "
+                f"no derivation has been run on this terrain. Loop C re-derives "
+                f"the flux on every new terrain")
+    else:
+        try:
+            derived_flux = float(json.loads(
+                design.read_text(encoding="utf-8"))["design_flux"])
+        except Exception as exc:
+            rep.add(FAIL, "configured flux vs the derived one",
+                    f"{rel(design)} does not carry a readable `design_flux`: {exc}")
+        else:
+            if abs(derived_flux - configured) < 1e-9:
+                rep.add(OK, "configured flux vs the derived one",
+                        f"{configured}, adopted")
             else:
-                rep.add(OK, "baseline climatology", f"on {build}")
+                rep.add(FAIL, "configured flux vs the derived one",
+                        f"{rel(design)} derived {derived_flux} and "
+                        f"config/planet.yaml runs at {configured}. Adopt it, or "
+                        f"re-derive on this terrain; a baseline run bought at "
+                        f"the unadopted number is hours spent on a world "
+                        f"nothing intended, and the flux fixes a semi-major "
+                        f"axis compiled into LPJ-GUESS")
 
     # -- the stellar band split, and everything carrying a copy of it -------
     #
