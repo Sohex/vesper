@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -58,6 +59,12 @@ from segments import orbit_purposes, production_window
 # CLAUDE.md names lib/sensitivity.py as the one flux-to-kelvin conversion, and
 # the radiative damping this file relaxes at is that conversion inverted.
 from sensitivity import planetary_albedo_from_fluxes, radiative_damping_w_m2_per_k
+# lib/run_lengths.py owns the two timescales a run is bought in. The memory time
+# this file sizes its window on is the same quantity, so it is read from there
+# rather than restated: a window derived from one number and a span derived from
+# another statement of it is two ladders.
+import run_lengths
+
 
 
 def output_files(run_dir: Path) -> list[Path]:
@@ -213,9 +220,42 @@ def slab_heat_capacity(run_dir: Path) -> tuple[float, dict]:
 # WHY IT MATTERS HERE: the window this file derives goes as tau, and so does
 # `lib/run_lengths.py`'s production span. At 4.2 the span was 84 orbits and at
 # 10.43 it was 209, which is a ladder nobody can afford. At 2.2 it is 44.
-NOMINAL_ORBIT_SCATTER_K = 0.091    # settled-window spread, run_432e5e46adef
-NOMINAL_TAU_ORBITS = 2.2           # measured, and an upper bound; see above
-NOMINAL_RELAXATION_ORBITS = 10.0   # this planet's slab; each run reports its own
+# ALL THREE ARE UPPER BOUNDS AND THE CHECK BELOW HOLDS THEM TO IT. The window
+# grows with each of them -- as `scatter^(2/3)`, as `tau^(1/3)` and as
+# `relaxation^(1/3)` -- so a nominal BELOW what a run reads under-sizes the
+# window that run is judged in, and the criterion then discriminates less than
+# it claims. A nominal above only buys orbits. That asymmetry is the whole
+# reason these are bounds rather than best estimates, and it is what makes
+# "the artifact reads lower" a pass and "the artifact reads higher" a failure.
+#
+# `check_convergence_bounds` is what re-reads them. It is not a comparison of
+# each number with the run it was taken on -- that comparison is the circle the
+# audit named, since the run was assessed over the window these produced. It is
+# a bound test against every report on disk, plus an ANCHOR test that fires when
+# the report a bound was taken beside changes at all. The second is what tells
+# "the bound still holds" from "the bound was never re-examined".
+
+# THE SETTLED-WINDOW SPREAD, taken on run_432e5e46adef's own detrended residual.
+NOMINAL_ORBIT_SCATTER_K = 0.091
+
+# THE MEMORY TIME STATES NO NUMBER HERE. `lib/run_lengths.py` declares the
+# bracket, with the sweep it came from and the anchor that re-examines it, and
+# the window is sized on the TOP of that bracket: the window has to be long
+# enough for the longest memory the bracket admits, and sizing on the bottom
+# would buy a window the model's own variability can outrun.
+NOMINAL_TAU_ORBITS = max(run_lengths.TAU_MEMORY_ORBITS_BRACKET)
+
+# THE RELAXATION TIME THE WINDOW IS SIZED ON, bounding what `relaxation_orbits`
+# below returns on a real run. It is DERIVED per run, from the modelled mixed
+# layer's heat capacity and that run's own radiative damping, so it moves with
+# the run's albedo; the nominal exists only because the default window has to be
+# a number before any run is opened.
+#
+# It was 10.0 and every recent report derived MORE than that, up to 11.75, so
+# the default window was sized on a relaxation time no run had. The bound is
+# restored here at the top of what the reports derive, to the precision that set
+# supports, and `check_convergence_bounds` refuses if a report goes above it.
+NOMINAL_RELAXATION_ORBITS = 11.8
 # The same 0.15 K and the same factor of three the criteria use, restated here
 # only because the default has to exist before `main` runs. `main` asserts they
 # agree, so the two cannot drift.
@@ -238,6 +278,148 @@ def window_for_offset_criterion(scatter: float, tau: float,
 
 DEFAULT_WINDOW_ORBITS = int(np.ceil(window_for_offset_criterion(
     NOMINAL_ORBIT_SCATTER_K, NOMINAL_TAU_ORBITS, NOMINAL_RELAXATION_ORBITS)))
+
+
+# HOW MUCH OF THE SERIES THE EXPONENTIAL FIT SEES. A DECISION and not a measured
+# quantity: the head of a cold start is not on the exponential the fit is for,
+# and dropping a third of it is where the fit stops being pulled by the part of
+# the approach it does not model. Stated ONCE, here, because it was stated three
+# times -- this default, a literal beside the span it implies, and a copy in
+# `check_relaxation_ceiling.py` reconstructing the span from it -- and three
+# statements of one algorithm parameter is three chances for two of them to
+# agree while the third does not.
+FIT_TAIL_FRACTION = 0.35
+
+
+def fit_span_orbits(total_orbits: int) -> int:
+    """How many orbits `approach_to_equilibrium` sees on a series this long.
+
+    The ONE implementation of the fit's span. `check_relaxation_ceiling.py`
+    reconstructs the span of artifacts written before it was recorded in them,
+    and calls this rather than reimplementing the mask.
+    """
+    n = int(total_orbits)
+    if n <= 0:
+        return 0
+    axis = np.arange(n, dtype=float)
+    return int(np.count_nonzero(axis >= axis.max() * FIT_TAIL_FRACTION))
+
+
+# THE REPORT EACH DECLARED BOUND WAS TAKEN BESIDE, recorded so that a bound
+# nobody has looked at can be told from one that has been looked at and held.
+# The scatter was read off this run's settled window; the relaxation time is
+# derived by every report and needs no single anchor, so it has none.
+#
+# If the run is extended or re-assessed this observation moves, and the check
+# refuses -- not because the bound is wrong but because it is now unexamined,
+# which is the whole state the audit found and could not distinguish.
+CONVERGENCE_BOUND_ANCHOR = {
+    "run": "run_432e5e46adef",
+    "artifact": "exoplasim/analysis/convergence/"
+                "run_432e5e46adef_convergence.json",
+    "orbit_scatter_k": 0.08333227083609156,
+}
+CONVERGENCE_REPORTS = "exoplasim/analysis/convergence"
+
+
+def check_convergence_bounds(root) -> list[str]:
+    """The window's three nominal inputs against the reports they must bound.
+
+    A CHECK WITH A RIGHT ANSWER in each arm, and the arms answer different
+    questions:
+
+      IDENTITY   `NOMINAL_TAU_ORBITS` is the top of `lib/run_lengths.py`'s
+                 memory bracket and not a second number that happens to match.
+      ANCHOR     the report the scatter was read off is on disk and still reads
+                 what was recorded. Either failure means the bound is
+                 unexamined, which is not the same as its holding.
+      BOUND      no report reads a scatter above the declared scatter, and none
+                 derives a relaxation time above the declared one. A report
+                 BELOW is the expected state of an upper bound and is not a
+                 finding.
+
+    The scatter is tested only against reports that read the SETTLED
+    trajectory, by `run_lengths.report_is_settled_production`: a diagnostic
+    arm's scatter is the experiment's, and a window too short to fix its own tau
+    is an instrument below its own scatter. The relaxation time is tested
+    against every report, because it is derived from the modelled mixed layer
+    and the run's own albedo rather than measured on a window, so a diagnostic
+    report's value is as much a property of this model as any other's.
+
+    Takes the repository root, and returns the empty list when the bounds hold.
+    """
+    base = Path(root)
+    problems: list[str] = []
+
+    top = max(run_lengths.TAU_MEMORY_ORBITS_BRACKET)
+    if NOMINAL_TAU_ORBITS != top:
+        problems.append(
+            f"the window is sized on a memory time of {NOMINAL_TAU_ORBITS} "
+            f"orbits and lib/run_lengths.py's bracket tops out at {top}. The "
+            "window and the production span are bought in one number and this "
+            "file states none of its own.")
+
+    anchor = base / CONVERGENCE_BOUND_ANCHOR["artifact"]
+    if not anchor.is_file():
+        problems.append(
+            f"the orbit scatter of {NOMINAL_ORBIT_SCATTER_K} K was read off "
+            f"{CONVERGENCE_BOUND_ANCHOR['artifact']}, which is not on disk. "
+            "Nothing can say whether the bound still holds, which is not the "
+            "same as its holding: re-take it on a run that exists and record "
+            "the new anchor.")
+    else:
+        report = json.loads(anchor.read_text(encoding="utf-8"))
+        read = report.get("resolving_power", {}).get(
+            "temperature_residual_scatter_k")
+        recorded = CONVERGENCE_BOUND_ANCHOR["orbit_scatter_k"]
+        if not isinstance(read, (int, float)):
+            problems.append(
+                f"{CONVERGENCE_BOUND_ANCHOR['artifact']} no longer reports "
+                "resolving_power.temperature_residual_scatter_k, so the "
+                "declared orbit scatter has nothing to be re-examined against")
+        elif not math.isclose(float(read), recorded, rel_tol=1e-12):
+            problems.append(
+                f"the orbit scatter was anchored to {recorded} K on "
+                f"{CONVERGENCE_BOUND_ANCHOR['run']} and that report now reads "
+                f"{float(read)} K. The window this bound sizes was derived "
+                "before that reading changed, so it is unexamined rather than "
+                "wrong: re-take the scatter and record the new anchor.")
+
+    derived_seen = False
+    for path in sorted((base / CONVERGENCE_REPORTS).glob("*_convergence*.json")):
+        try:
+            report = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:                                     # noqa: BLE001
+            continue
+        expected = report.get("metrics", {}).get("relaxation_orbits_expected")
+        if isinstance(expected, (int, float)) and np.isfinite(expected):
+            derived_seen = True
+            if float(expected) > NOMINAL_RELAXATION_ORBITS:
+                problems.append(
+                    f"{path.name} derives a relaxation time of "
+                    f"{float(expected):.4f} orbits and the window is sized on "
+                    f"{NOMINAL_RELAXATION_ORBITS}. The window grows as the cube "
+                    "root of this time, so a nominal below what a run derives "
+                    "under-sizes the window that run is judged in.")
+        if not run_lengths.report_is_settled_production(path.name, report):
+            continue
+        scatter = report.get("resolving_power", {}).get(
+            "temperature_residual_scatter_k")
+        if not isinstance(scatter, (int, float)) or not np.isfinite(scatter):
+            continue
+        if float(scatter) > NOMINAL_ORBIT_SCATTER_K:
+            problems.append(
+                f"{path.name} reads an orbit scatter of {float(scatter):.5f} K "
+                f"on its settled production window and the window is sized on "
+                f"{NOMINAL_ORBIT_SCATTER_K} K. The window grows as the two "
+                "thirds power of the scatter, so this is the bound being wrong "
+                "rather than merely old.")
+    if not derived_seen:
+        problems.append(
+            f"no report under {CONVERGENCE_REPORTS} derives a relaxation time, "
+            f"so the declared {NOMINAL_RELAXATION_ORBITS} orbits bounds "
+            "nothing that can be read. The bound is unexamined.")
+    return problems
 
 
 # HOW LONG A RUN TAKES TO GET HERE, AS OPERATIONAL EXPERIENCE. These are what
@@ -344,7 +526,7 @@ def relaxation_orbits(orbital_year_days: float, feedback_w_m2_k: float,
 
 
 def approach_to_equilibrium(orbits: np.ndarray, series: np.ndarray,
-                            fraction: float = 0.35):
+                            fraction: float | None = None):
     """Fit T(n) = T_inf - A exp(-n/tau) and return the asymptote with an interval.
 
     A drift rate is not a distance. An exponential approach at rate `d` with time
@@ -376,6 +558,11 @@ def approach_to_equilibrium(orbits: np.ndarray, series: np.ndarray,
     Returns (asymptote, half_width, tau_orbits, tau_standard_error) or four nans
     if the series will not support a fit.
     """
+    # `None` and not the constant as a default: a default is bound once, at
+    # definition, so a constant spelled there is a SNAPSHOT of it and moving the
+    # constant would leave this reading the old value. That is the same defect
+    # in miniature as the three copies the constant replaced.
+    fraction = FIT_TAIL_FRACTION if fraction is None else float(fraction)
     mask = orbits >= orbits.max() * fraction
     x, y = orbits[mask], series[mask]
     if x.size < 8:
@@ -608,12 +795,11 @@ def main() -> None:
     orbits_axis = np.arange(len(arrays["ts"]), dtype=float)
     asymptote, half_width, tau_fit, tau_fit_se = approach_to_equilibrium(
         orbits_axis, arrays["ts"])
-    # How many orbits the fit was taken over. `approach_to_equilibrium` keeps the
-    # last 65 per cent of the series, and a fitted tau longer than the span it
-    # was fitted over is extrapolation rather than a measurement, which is what
-    # decides whether it is evidence about the relaxation time at all.
-    fit_span_orbits = int(np.count_nonzero(
-        orbits_axis >= orbits_axis.max() * 0.35))
+    # How many orbits the fit was taken over, from the one function that knows.
+    # A fitted tau longer than the span it was fitted over is extrapolation
+    # rather than a measurement, which is what decides whether it is evidence
+    # about the relaxation time at all.
+    fit_span = fit_span_orbits(len(orbits_axis))
     if not np.isfinite(tau_fit):
         relaxation_fit_identifiable = False
         relaxation_fit_verdict = "the series would not support a fit at all"
@@ -622,16 +808,16 @@ def main() -> None:
         relaxation_fit_verdict = (
             f"the fit returned tau = {tau_fit:.6g} orbits; a negative time "
             "constant is the exponential having collapsed to a line")
-    elif tau_fit > fit_span_orbits:
+    elif tau_fit > fit_span:
         relaxation_fit_identifiable = False
         relaxation_fit_verdict = (
-            f"the fit returned tau = {tau_fit:.6g} orbits over {fit_span_orbits} "
+            f"the fit returned tau = {tau_fit:.6g} orbits over {fit_span} "
             "orbits of data, so the exponential is indistinguishable from a "
             "line across the fitted range and tau is not determined by it")
     else:
         relaxation_fit_identifiable = True
         relaxation_fit_verdict = (
-            f"tau = {tau_fit:.6g} orbits is shorter than the {fit_span_orbits} "
+            f"tau = {tau_fit:.6g} orbits is shorter than the {fit_span} "
             "orbits fitted, so the series carries the curvature that fixes it")
     offset = asymptote - metrics["temperature_mean_k"]
 
@@ -739,13 +925,13 @@ def main() -> None:
         # about the series, and dropping it would hide that the fit ran.
         "relaxation_fit_raw_tau_orbits": tau_fit,
         "relaxation_orbits_fitted_lower_bound_orbits": (
-            None if relaxation_fit_identifiable else float(fit_span_orbits)),
+            None if relaxation_fit_identifiable else float(fit_span)),
         # The fit's own error on tau, autocorrelation-corrected like the
         # asymptote's. Reported and thresholded by nothing: it is what makes the
         # derived time's CEILING claim testable rather than a point comparison.
         "relaxation_orbits_fitted_standard_error": (
             tau_fit_se if relaxation_fit_identifiable else None),
-        "relaxation_fit_span_orbits": fit_span_orbits,
+        "relaxation_fit_span_orbits": fit_span,
         "relaxation_orbits_expected": tau_expected,
         # What tau_expected was built from, so the fallback offset below can be
         # audited without re-deriving it. lib/sensitivity.py owns the damping.

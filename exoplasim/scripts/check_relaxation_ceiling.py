@@ -42,6 +42,21 @@ THE CHECK, stated as a rule that can fail.
   3. The ceiling SURVIVES when no evidence artifact falsifies it. It is
      UNTESTED, not confirmed, when no artifact is evidence.
 
+  4. The EVIDENCE ROWS ARE ALSO THE BRACKET. The same rule that decides what
+     may test the ceiling decides what may bound the relaxation time, because
+     it is one question -- which fits are measurements of it -- and answering it
+     twice is how the two answers drift apart. `fitted_bracket_orbits` is the
+     range of the evidence rows' fitted taus, and `lib/run_lengths.py` reads it
+     rather than declaring a bracket of its own.
+
+     A fit whose own standard error is comparable to the value does NOT drop out
+     of the bracket. It cannot settle whether the ceiling holds, which is what
+     `discriminates` says, and it is still this project's best reading of how
+     fast this model returns: dropping it would narrow the bracket on the
+     strength of the reading being uncertain, which is backwards. The bracket is
+     what a settling block is bought in, so a wide one costs orbits and a
+     falsely narrow one costs a transient in a climatology.
+
 WHAT A FALSIFICATION WOULD COST is in `exoplasim/notes/convergence-lengths.md`:
 the criterion would need a bracket over the relaxation time, and the record
 length it needs grows with the top of that bracket.
@@ -55,26 +70,23 @@ import math
 from pathlib import Path
 
 from _paths import ANALYSIS
+# THE FIT'S TAIL FRACTION IS STATED ONCE, in the assessment that owns the fit,
+# and the span is RECONSTRUCTED BY THE ASSESSMENT'S OWN FUNCTION rather than by
+# a second implementation of it here. This script reads artifacts written before
+# the span was recorded in them, so it has to reconstruct the span the way the
+# assessment did; calling the assessment IS that, and a copy of the number was
+# only ever an approximation of it.
+from assess_convergence import FIT_TAIL_FRACTION, fit_span_orbits
 
-# `approach_to_equilibrium` fits the last 65 per cent of the series. Restated
-# here rather than imported because this script reads ARTIFACTS, including ones
-# written before the span was recorded in them, and has to reconstruct it the
-# same way the assessment did.
-FIT_TAIL_FRACTION = 0.35
 
-
-def fit_span_orbits(report: dict) -> int:
+def recorded_or_reconstructed_span(report: dict) -> int:
     """How many orbits the exponential fit saw, recorded or reconstructed."""
     recorded = report.get("metrics", {}).get("relaxation_fit_span_orbits")
     if recorded is not None:
         return int(recorded)
     end = report.get("window_end_year_index")
     n = int(end) + 1 if end is not None else int(report.get("completed_orbits", 0))
-    if n <= 0:
-        return 0
-    # orbits are 0 .. n-1 and the mask is `orbit >= (n-1) * 0.35`.
-    cut = (n - 1) * FIT_TAIL_FRACTION
-    return sum(1 for orbit in range(n) if orbit >= cut)
+    return fit_span_orbits(n)
 
 
 def assess(path: Path) -> dict:
@@ -86,7 +98,7 @@ def assess(path: Path) -> dict:
     drift_offset = metrics.get("remaining_offset_implied_by_drift_k")
     standard_error = metrics.get("relaxation_orbits_fitted_standard_error")
     identifiable = metrics.get("relaxation_fit_identifiable")
-    span = fit_span_orbits(report)
+    span = recorded_or_reconstructed_span(report)
 
     row = {
         "artifact": path.name,
@@ -192,6 +204,14 @@ def main() -> None:
     else:
         verdict = "survives"
 
+    # THE BRACKET OVER THE RELAXATION TIME, emitted from the same evidence rows
+    # rather than from a second reading of them. `lib/run_lengths.py` reads this
+    # and declares nothing; where there is no evidence there is no bracket, and
+    # a null here makes a settling length refuse rather than quietly take a
+    # default nobody measured.
+    fits = sorted(row["relaxation_orbits_fitted"] for row in evidence)
+    bracket = [fits[0], fits[-1]] if fits else None
+
     result = {
         "generator": "exoplasim/scripts/check_relaxation_ceiling.py",
         "question": "is relaxation_orbits_expected a ceiling on "
@@ -210,6 +230,12 @@ def main() -> None:
         "evidence_artifacts": len(evidence),
         "artifacts_that_discriminate": len(discriminating),
         "verdict": verdict,
+        "fitted_bracket_orbits": bracket,
+        "fitted_bracket_rule": "the range of the fitted relaxation times over "
+                               "the evidence artifacts, which are the rows this "
+                               "file's own evidence rule admits. Read by "
+                               "lib/run_lengths.py:tau_relaxation_orbits_bracket",
+        "fitted_bracket_from": [row["run"] for row in evidence],
         "rows": rows,
     }
     output = args.output or (args.convergence_dir / "relaxation_ceiling.json")

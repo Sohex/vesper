@@ -307,44 +307,118 @@ which is the span itself. The raw number is kept under
 silent. No verdict moved: the raw tau still widens the asymptote's interval by
 the overshoot it implies, which is how such a fit refuses through the criterion.
 
-**Measured 2026-08-26 over all eight convergence artifacts. Three are evidence,
-one falsifies, and none discriminates.**
+**The comparison is an artifact and not a table here.**
+`exoplasim/analysis/convergence/relaxation_ceiling.json` carries every row, the
+rule each was judged by, and the verdict over the set; the generator rewrites it
+from the convergence reports and nothing else, so it costs nothing to re-take
+and it moves the moment a report does. A table of rows in this note would be a
+second copy of it with no way to learn that the first had changed, which is the
+defect `notes/audits/frozen-derived-quantities.md` names and the reason
+`lib/run_lengths.py` reads the artifact rather than declaring a bracket.
 
-| run | fitted | derived | evidence | verdict |
-| --- | ---: | ---: | --- | --- |
-| 14906cb7b914 | 44018 | 10.099 | no, the drift fallback was taken and the fit is degenerate | |
-| 2b20e3324bb0 | 169.13 | 9.883 | no, the drift fallback was taken | |
-| 4182235e9781 | 34.78 | 9.883 | no, longer than the 26 orbits fitted | |
-| 78c22fb1a1bd | -337429 | 9.883 | no, the drift fallback was taken | |
-| 8044646ea7f0 | 13.68 | 9.883 | yes | ceiling falsified by 3.80 orbits, unbracketed |
-| aaa95662e21a | -286755 | 9.883 | no, the drift fallback was taken | |
-| ade7373b4c90 | 6.92 | 10.142 | yes | holds, unbracketed |
-| ec32946bec89 | 6.27 | 10.120 | yes | holds |
+**A fitted tau is only a measurement where the series determines it.** Over a
+span short compared with tau, `exp(-n/tau)` is linear in n to within the fit's
+own noise, so the exponential and a straight line are the same curve and tau is
+whatever the optimiser drifted to. Several reports carry such a number, up to
+tens of thousands of orbits and negative on two runs, beside verdicts that were
+correct: the criterion failed closed on the widened half width exactly as
+designed while the artifact went on carrying a plausible-looking field. The
+assessment now reports `relaxation_orbits_fitted` as null in that case, with
+`relaxation_fit_identifiable`, the reason, and the only bound the data supports,
+which is the span itself. The raw number is kept under
+`relaxation_fit_raw_tau_orbits` so a degenerate fit is visible rather than
+silent. No verdict moved: the raw tau still widens the asymptote's interval by
+the overshoot it implies, which is how such a fit refuses through the criterion.
 
-The 44018 of run_14906cb7b914 is excluded twice over and neither exclusion
-depends on its size: the assessment took the drift fallback on that run, so the
-tau is from a fit it had already discarded, and the fit is degenerate by the
-rule above. Read at face value it would refute the ceiling by four orders of
-magnitude; read correctly it is not evidence in either direction, and the
-project's fitted-tau record remains the three rows above.
+A degenerate fit is excluded twice over on some runs, and neither exclusion
+depends on its size: the assessment took the drift fallback, so the tau is from
+a fit it had already discarded, and the fit is degenerate by the rule above.
+Read at face value the largest of them would refute the ceiling by four orders
+of magnitude; read correctly it is not evidence in either direction.
 
-**So the ceiling argument does not survive as stated, and it is not refuted
-either.** The one artifact above the derived time is 38 per cent above it and
-carries no error on its fit, so the excess cannot be attributed to the fit's own
-noise or dismissed as it; its derived time is also the pre-correction 9.8833
-built from an uncited density and specific heat pair. The two below it are below
-by about the same margin as the one above is above, which is what a scatter
-looks like rather than a bound. The fitted tau's own error is now recorded, and
-on the one run where it exists it is 3.75 orbits against a 3.85-orbit gap: a
-single run barely separates the two, which is the measurement this question
-needs more of rather than a reason to prefer either answer.
+**The ceiling argument does not survive as stated, and it is not refuted
+either.** The artifact's verdict is what says which, and it is falsified today
+by one artifact whose fit records no standard error: its excess over the derived
+time cannot be attributed to the fit's own noise or dismissed as it, and its
+derived time is the pre-correction figure built from an uncited density and
+specific heat pair. The evidence rows sit on both sides of their derived times
+by comparable margins, which is what a scatter looks like rather than a bound,
+and the fitted tau's own error is comparable to the gap on every row that
+records one. A single run barely separates the two, which is the measurement
+this question needs more of rather than a reason to prefer either answer.
 
 What this does NOT license is treating the derived time as a floor, or widening
-it to cover 13.68. The check accumulates; a run whose approach the fit can grip
-adds a point, and a settled run adds none. Until it has points that
+it to cover the largest fit. The check accumulates; a run whose approach the fit
+can grip adds a point, and a settled run adds none. Until it has points that
 discriminate, the fallback's remaining offset should be read as an estimate
 rather than the bound its comment claims, and any decision that turns on the
 bound being safe needs the bracket rather than the derived number.
+
+**The bracket and the ceiling are one question and are answered once.** The rows
+that may test the ceiling are the rows that may bound the relaxation time --
+both ask which fits are measurements of it -- so the generator emits
+`fitted_bracket_orbits` over the same evidence rows, and `lib/run_lengths.py`
+reads that rather than carrying a pair of its own. A fit whose standard error is
+comparable to its value stays in the bracket: it cannot settle whether the
+ceiling holds, which is what the row's `discriminates` field says, and it is
+still a reading of how fast this model returns. Dropping it would narrow the
+bracket because the reading is uncertain, which is backwards, and the bracket is
+what a settling block is bought in.
+
+## The memory sweep re-taken on a longer series, 2026-08-27
+
+**Measured on `run_432e5e46adef` at 82 orbits**, by the rule the declaration was
+taken under and unchanged: the per-orbit area-weighted mean surface temperature,
+reduced by Geyer's initial monotone positive sequence over five candidate windows
+starting at orbits 25, 30, 35, 40 and 45 and running to the end of the series.
+The rule reproduces the declared bracket exactly on the first 70 orbits, which is
+what makes the two rows below comparable rather than two different measurements.
+
+| window starts at | 70-orbit series | | 82-orbit series | |
+| ---: | ---: | ---: | ---: | ---: |
+| | tau, orbits | lag-1 | tau, orbits | lag-1 |
+| 25 | 2.2488 | 0.4696 | 7.8112 | 0.6670 |
+| 30 | 1.8959 | 0.3767 | 8.5242 | 0.6639 |
+| 35 | 1.9627 | 0.3988 | 8.3389 | 0.6782 |
+| 40 | 2.0317 | 0.4241 | 7.7124 | 0.6791 |
+| 45 | 2.1942 | 0.4920 | 6.9178 | 0.6862 |
+
+**Every window of the 70-orbit series is reliable by
+`autocorrelation.integrated_time`'s own span rule and none of the 82-orbit
+series is**, the spans there being under ten tau at the larger value. So the
+longer series does not simply replace the shorter one: it returns numbers its
+own estimator declines to stand behind, and the declaration's admission rule was
+that every window be reliable.
+
+**The drift GREW rather than decayed.** Over the same five windows it went from
+-0.0001 to +0.0068 K per orbit on the 70-orbit series and from +0.0032 to
++0.0087 on the 82-orbit one, and the lag-1 correlation went from about 0.4 to
+about 0.67. A residual trend pushes every lag correlation up, so the second
+column is an upper bound inflated by an approach that is still running, which is
+the same argument the declaration carries for the first.
+
+**The 12 added orbits are a `post_equilibrium_climatology` segment**, run at
+`low_io` false where the spinup ahead of it ran at true, on
+`most_plasim_t21_l10_p16.x`. They are production orbits by their declared
+purpose and the assessment includes them, so this is one series and not two.
+
+**What this settles and what it does not.** It settles that the declared bracket
+does not bound this run's memory time as the run now stands: the top of it,
+2.22, is exceeded by a factor of three. It does not settle what to declare
+instead. The production span is twenty times whichever number is carried, so
+adopting the second column would take a commissioning run at T21 from cold from
+about 108 to 114 orbits to about 208 to 240, on estimates every one of which
+fails the reliability rule the first column passed. What decides it is why a run
+declared post-equilibrium is drifting faster at orbit 80 than at orbit 65, and
+that question is prior to the number.
+
+**Nothing is silently carrying the old pair, which is the part that is closed.**
+`lib/run_lengths.py` records the observation the bracket was anchored to, and
+`check_memory_bracket` refuses the moment `run_432e5e46adef`'s convergence report
+is regenerated over the longer series -- both because the anchor moves and
+because the report then reads a memory time above the bracket.
+`assess_convergence.py`'s scatter bound refuses on the same regeneration, the
+82-orbit window reading 0.0923 K against a declared 0.091.
 
 ## Neither run on disk is stationary, and the guard says so
 
@@ -445,33 +519,58 @@ the MEMORY time is how long the model's stationary wobble stays correlated with
 itself and it prices a mean's interval; the RELAXATION time is the e-folding of
 an approach and it prices a decay.
 
-**A commissioning length is the approach plus twenty memory times.** The memory
-time is bracketed at 4.2 to 10.43, so at T21 from cold the approach of about
-seventy orbits is followed by a span of 84 to 209 and the run is 154 to 279
-orbits. The declared length is the FLOOR of that bracket, and it is not a
-stopping rule: a run that reaches it and is still refused by the convergence
-criteria is not finished.
+**A commissioning length is the approach plus twenty memory times.**
+`lib/run_lengths.py` owns the memory-time bracket and the multiple, and this note
+states neither: a span quoted here would be a second statement of a number that
+moves when the sweep behind it is re-taken. The declared length is the FLOOR of
+the bracket, and it is not a stopping rule: a run that reaches it and is still
+refused by the convergence criteria is not finished.
 
-**Running until the instrument stops refusing does not substitute for
-declaring the length**, which is the alternative that had to be ruled in or out
-before the derivation was worth building. It would be strictly better if the
-refusal were the same bar. It is not: the convergence window is sized so the
-offset criterion's slope error resolves its threshold, which is about 38 orbits
-on the dt-45 run, while the span above is 84 at the optimistic end of the
-bracket. The instruments therefore stop refusing tens of orbits before the
-climatology's own interval is bought, so the refusal is a weaker bar and can
-only decide whether to buy MORE.
+**Running until the instrument stops refusing does not substitute for declaring
+the length**, which is the alternative that had to be ruled in or out before the
+derivation was worth building. It would be strictly better if the refusal were
+the same bar. It is not: the convergence window is sized so the offset
+criterion's slope error resolves its threshold, and the production span is sized
+so a window mean's interval covers. The first is the smaller of the two by tens
+of orbits at every point of the memory bracket, so the instruments stop refusing
+well before the climatology's own interval is bought, and the refusal is a
+weaker bar that can only decide whether to buy MORE.
 
 **A settling length is `tau_relaxation * ln(A / 0.15 K)`**, where A is the
 perturbation the step change made. The residual is the offset criterion's own
 allowance, so what is left is smaller than the instrument that judges the next
-state can see. The relaxation time is bracketed by the three fits that are
-evidence, 6.27 to 13.68, rather than taken from the derived 10.1, because that
-value is not established as a bound on them. A step change worth about half a
-kelvin therefore settles in 8 to 17 orbits, which is where the ten to twenty
-this project has repeatedly seen comes from -- the derivation reproduces the
-experience rather than replacing it, and `scripts/smoke_test.py` fails if it
-stops doing so.
+state can see. The relaxation time is the bracket the fits support and not the
+derived value, because the derived value is not established as a bound on them.
+A step change worth about half a kelvin settles inside the ten to twenty orbits
+this project has repeatedly seen; `scripts/smoke_test.py` fails if the
+derivation stops covering that experience, which is a check on the derivation
+and not a target it was fitted to.
+
+**THE THREE NUMBERS THAT SIZE EVERY RUN ARE HELD TO THE REPORTS.** The window's
+orbit scatter, its memory time and its relaxation time were declared constants
+that no artifact could contradict, and two of the three were once wrong by about
+a factor of two while every commissioning run on the ladder was bought in them.
+Their disposition now:
+
+| quantity | where it lives | what re-runs when the measurement moves |
+| --- | --- | --- |
+| the memory time | `lib/run_lengths.py`'s bracket, and nowhere else. `assess_convergence.py` sizes its window on the top of it | `check_memory_bracket` refuses when the anchor report moves or when any settled production report reads above the bracket |
+| the orbit scatter | `assess_convergence.py`, with the report it was read off | `check_convergence_bounds` refuses on the same three conditions |
+| the relaxation time the window is sized on | `assess_convergence.py`, bounding what each run derives | `check_convergence_bounds` refuses when any report derives more |
+| the relaxation-time bracket | nowhere. It is read from `relaxation_ceiling.json` | the generator rewrites the artifact and the bracket follows |
+| the fit's tail fraction | `assess_convergence.py`, once. It is a decision, not a measurement | nothing has to: there is no second copy to disagree |
+
+All three declared values are UPPER BOUNDS taken on a series that still drifts,
+so a report reading below them is what they predict and is not a defect. What
+was missing is that nothing could tell that from a bound nobody had looked at
+since the series moved, and the ANCHOR is what separates them: each declaration
+records what the report it was taken beside reads, and a report that reads
+anything else refuses the declaration whether or not the bound still holds. The
+circle the audit named -- the constants size the window, the window sizes the
+assessment, the assessment reports the constants, and nothing carries back -- is
+closed at that refusal rather than by feeding the measurement back in, because
+the measurement is a LOWER bound on the same quantity and substituting it would
+shorten every span on the ladder.
 
 A settling length establishes only that a restart is not mid-transient. It does
 not establish equilibrium, a rung's climate, or an interval on any mean taken
