@@ -445,8 +445,10 @@ depression-filled surface is exactly flat inside a filled pit.
 and its verdict.** The bar is declared in
 `hydrography/config/topographic_index.yaml`, before any fraction was computed:
 the area under the ROC curve for an observed water table within a metre of the
-surface must exceed 0.573, which is what the model's cell-mean depth reaches
-alone. The attribution is exact rather than argued, because `f_sat` is strictly
+surface must exceed what the model's cell-mean depth reaches alone, per bore
+against its mesh region. The RULE is what was fixed in advance; the number is
+measured by the harness on every run, because it is a property of the depth
+model and moves when that moves. The attribution is exact rather than argued, because `f_sat` is strictly
 monotone in the depth for a fixed `f_sat_max`: ranking cells by `f_sat` with a
 constant `f_sat_max` reproduces ranking them by depth exactly, so any gain is
 `f_sat_max`'s and nothing else's. A miss means the index adds nothing to the
@@ -465,12 +467,13 @@ decision about which estimator the world's numbers rest on.
 `earth_calibration.py --stage fsat`, on the cached 15.19 km Earth mesh both
 continents' solves already sit on. Three things had to be declared before it
 could run and were, in `hydrography/config/topographic_index.yaml` and in the
-commit before the first score: the SUPPORT, because 0.573 is the depth's
+commit before the first score: the SUPPORT, because the bar is the depth's
 discrimination per bore against the mesh REGION it falls in while `f_sat` lives
 at a climate-grid cell; the COMPARATOR, the cell-mean depth's own area under the
 curve at that same support, because a coarser support moves the number on its
-own and clearing 0.573 alone would not show the terrain half had done anything;
-and the attribution IDENTITY, which the harness checks rather than argues.
+own and clearing the bar alone would not show the terrain half had done
+anything; and the attribution IDENTITY, which the harness checks rather than
+argues.
 
 **The identity holds exactly.** With `f_sat_max` held constant the closure's
 ranking is the depth's ranking, and the two areas under the curve agree to
@@ -486,10 +489,18 @@ over both sets the config requires.
 | United States, unconfined, 73,451 bores in 37 cells | 0.7739 | 0.6655 | 0.6723 / 0.6713 | 0.6719 / 0.6688 |
 
 The two `f_sat` columns are the two ends of `f_grad_bracket_per_m`, 1.25 and 2.5
-per metre. The bar is 0.573 and the second condition is the cell-mean depth
-column beside it. Both sets reproduce the bar's own provenance first: the depth
-per bore against its mesh region reads 0.5759 in Australia, against the 0.573
-recorded in `groundwater-et-sink.md`, and 0.6567 in the United States.
+per metre. The second condition is the cell-mean depth column beside them, and
+the bar is the depth per bore against its mesh region: 0.5759 in Australia and
+0.6567 in the United States on this run.
+
+**The bar used to be a literal and had drifted.** `topographic_index.yaml`
+carried 0.573, the figure `groundwater-et-sink.md` recorded when the bar was
+registered, while the harness recomputed the same statistic on every run,
+printed it beside that literal, and compared nothing. The Australian value had
+moved to 0.5759. The config now states no number and the harness's own
+measurement is the bar; 0.573 stays where it belongs, in the dated note that
+measured it. No verdict in the table above moves either way: Australia misses
+against both figures and the United States clears both.
 
 **The miss is the DEPTH's, not the terrain statistic's, and the ceiling column
 is what says so.** No cell-scale predictor can beat the cells' own observed wet

@@ -1192,11 +1192,19 @@ def stage_fsat(tag: Path, edge_km: float, region: str, confinement: str | None,
     CHECKED here at the tolerance the config declares, because a harness where
     it fails is measuring something other than what it says.
 
-    TWO CONDITIONS, BOTH DECLARED BEFORE ANY FRACTION WAS SCORED: the declared
-    bar `bar_auc`, which is the depth's own discrimination per bore against the
-    mesh region it falls in, and the cell-mean depth's AUC AT THIS SUPPORT. The
-    second is there because a coarser support moves an AUC on its own, so
-    clearing the first alone would not show the terrain half had done anything.
+    TWO CONDITIONS, BOTH FIXED BEFORE ANY FRACTION WAS SCORED, and both are
+    RULES rather than numbers: beat the depth's own discrimination per bore
+    against the mesh region it falls in, and beat the cell-mean depth's AUC AT
+    THIS SUPPORT. The second is there because a coarser support moves an AUC on
+    its own, so clearing the first alone would not show the terrain half had
+    done anything.
+
+    NEITHER COMPARATOR IS WRITTEN DOWN. `also_beat` never was; `bar_auc` was
+    `0.573` in the config while this function recomputed the same statistic,
+    printed it next to that literal with the words "the bar was measured here",
+    and compared nothing. It had drifted to 0.5759 on the Australian bores. The
+    config now carries the sentinel and the number comes from here, which is
+    where it was always being computed.
     """
     import pandas as pd
 
@@ -1215,7 +1223,14 @@ def stage_fsat(tag: Path, edge_km: float, region: str, confinement: str | None,
             "harness scores the share of a cell's land AREA above that cell's "
             "area-weighted mean index; a region COUNT share is a different "
             "quantity and is not available here.")
-    bar = float(sc["bar_auc"])
+    if sc["bar_auc"] != "derived":
+        raise SystemExit(
+            f"topographic_index.yaml score.bar_auc is {sc['bar_auc']!r}; it "
+            "must be the string `derived`. It is the model depth's own "
+            "discrimination per bore against its mesh region, which this "
+            "function computes on every run, and a number there is a copy that "
+            "cannot learn the depth model moved. The rule was fixed before any "
+            "fraction was scored; the number never was.")
     tol = float(sc["attribution_identity_tolerance"])
     min_regions = int(sc["min_regions_per_cell"])
     f_grads = [float(v) for v in cfg["closure"]["f_grad_bracket_per_m"]]
@@ -1290,6 +1305,7 @@ def stage_fsat(tag: Path, edge_km: float, region: str, confinement: str | None,
     # because reproducing it is what says the harness is wired to the same
     # quantity the bar came from.
     auc_region_depth = _auc(-depth[bore_region][use], label_all[use])
+    bar = auc_region_depth
 
     out = {
         "issue": "GW-26",
@@ -1299,6 +1315,8 @@ def stage_fsat(tag: Path, edge_km: float, region: str, confinement: str | None,
         "support": grid,
         "min_regions_per_cell": min_regions,
         "bar_auc": bar,
+        "bar_auc_source": "derived here as auc_depth_at_mesh_region; "
+                          "topographic_index.yaml states no number for it",
         "label": "observed water table within 1 m of the surface",
         "bores_in_window": int(obs.shape[0]),
         "bores_on_conducting_land": offered,
@@ -1315,7 +1333,7 @@ def stage_fsat(tag: Path, edge_km: float, region: str, confinement: str | None,
     print(f"  f_sat score: {offered:,} bores on conducting land, base rate "
           f"{out['base_rate_all_bores']:.1%}")
     print(f"    AUC of the depth at the mesh region  {auc_region_depth:.4f}   "
-          f"(the bar {bar:.3f} was measured here)")
+          f"<- the bar, measured here rather than declared")
 
     verdicts = []
     for arm, a in per_arm.items():
