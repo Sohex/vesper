@@ -1,17 +1,51 @@
 {
-  "generated": "2026-08-27T07:02:56+00:00",
+  "generated": "2026-08-27T10:16:33+00:00",
   "iteration": null,
   "closes_loop_with": "nothing; iteration 0 has no biosphere",
-  "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "climatology": "/home/cfutro/docs/world/exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "climatology_stage": "bootstrap",
   "climatology_sha256": "16c4b30f5c52eb91b878ca74d62fdb472c9693f342699ecf3feb99b650df0e8e",
-  "config_sha256": "236b83b93420a645cfad209246f54328b02601ea09508d4c5bd7f6db349ed8d2",
-  "pedogenesis_sha256": "aef257d41b3291e31422acf910e221849a849d848ccff9ee986607c4f8ac32ee",
+  "config_sha256": "b1664cde8a2a496e93dfd79dc8cc8f14b7364521db954c4a9320b1010dbfa3a3",
+  "pedogenesis_sha256": "902cb085296aedae4a60171f610b561e5bb37272c288a7c878c753dfabdd64f5",
   "source_build": "canonical-10m-base",
   "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
   "orbital_year_earth_days": 182.80142503147016,
   "land_cells": 1019,
   "moisture_variable": "runoff",
   "runoff_source": "p_minus_e",
+  "carbonate_system_ph": {
+    "pCO2_bar": 0.00045,
+    "pCO2_atm": 0.00044411547002220575,
+    "temperature_c": 25.0,
+    "no_alkalinity_ph": 5.585921412558292,
+    "calcite_atmospheric_ph": 8.16283993032826,
+    "calcite_soil_air_ph": {
+      "10x": 7.497900227322731,
+      "100x": 6.831589844023966
+    },
+    "parent_carbonate": 8.16283993032826,
+    "parent_bracket_silicate": [
+      5.585921412558292,
+      8.16283993032826
+    ],
+    "parent_bracket_carbonate": [
+      6.831589844023966,
+      8.16283993032826
+    ],
+    "endorheic_alkalinity_bonus_bracket": [
+      0.3371600696717394,
+      2.8371600696717394
+    ],
+    "closed_basin_ph_range": [
+      8.5,
+      11.0
+    ],
+    "soil_air_enrichment_bracket": [
+      10.0,
+      100.0
+    ],
+    "source": "Slessarev et al. (2016) Nature 540, 567-569, 10.1038/nature20139, Methods eq. (6), as the charge balance rather than as printed; pedology/scripts/carbonate_ph.py"
+  },
   "andisols": {
     "note": "Andic properties need ONGOING ejecta supply and enough leaching to weather glass to allophane rather than halloysite. The arc is resupplied because subduction is ongoing; flood_basalt and oib are excluded on a duration argument -- a province erupts for order 1% of its life -- not for want of an age field. Fractions are of total land area.",
     "resupplied_land_fraction": 0.0695209928859034,
@@ -66,7 +100,7 @@
     "silt": 0.30243950760966243,
     "clay": 0.27200304309566997,
     "quartz_inert": 0.22219233036962344,
-    "ph": 7.266854969344471,
+    "ph": 7.2669571671589726,
     "regolith_depth_m": 0.697876152999536,
     "organic_fraction": 0.0,
     "bulk_density_kg_m3": 1491.43205988571,
@@ -92,6 +126,6 @@
   "column_base_note": "the plant-available capacity is cut at the land column property contract's declared base. Nothing in this pipeline draws water from below it: the physical column is fifteen layers to that depth, LPJ-GUESS's root distribution spans exactly those layers, and the contract's rootable base is shallower still. Water in regolith deeper than the base belongs to the aquifer term, which hydrography/config/land_water_ledger.yaml registers as the unrepresentable `transient_saturated_storage` under PLHY-4. WORLD-7702.",
   "regolith_note": "LPJ-GUESS has a fixed 1.5 m physical profile. VesperInput consumes regolith depth and weathered-bedrock fraction by scaling each layer's texture-derived water capacity, but it does not change layer or root geometry; see pedology/README.md and the soil/land-surface hydraulic consistency audit.",
   "output": "pedology/data/canonical-10m-base/soilmap_T21.txt",
-  "output_sha256": "4e350183b8b2e3f853b72d176aede0ebba53decb095378bca3d539e56daab7c5",
-  "git_commit": "6344d35e8e4b812bd91e562d146046db73fc4813"
+  "output_sha256": "8db0acd2e83e914cac9be467cb695bbbcc41204a47cc1d5cd94abf015edd1494",
+  "git_commit": "a6fc247d6ffac3cb16d26ff9caf869cbb4a1f1d8"
 }

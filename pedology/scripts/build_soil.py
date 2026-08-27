@@ -968,6 +968,27 @@ def main() -> None:
     report_path = ANALYSIS / "soil_report.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n")
 
+    # THE LEVEL THE REGOLITH PAIR IS JOINTLY CONSTRAINED TO, checked against
+    # what the pair just produced. `pedogenesis.yaml` states the constraint --
+    # `clay_yield`'s prefactor and `erosion_coefficient_per_relief_m`'s level
+    # brack the land MEAN, not either key -- and nothing enforced it, so the
+    # config carried a land mean of 1.04 m as its justification while the
+    # generator emitted a different one. A bracket with no check is where an
+    # argument goes stale without the number it defends going wrong.
+    low, high = (float(v) for v in pedo["regolith"]["regolith_depth_bracket_m"])
+    land_mean_depth = report["land_means"]["regolith_depth_m"]
+    if not low <= land_mean_depth <= high:
+        raise SystemExit(
+            f"the land-mean regolith depth is {land_mean_depth:.4f} m, outside "
+            f"regolith_depth_bracket_m [{low}, {high}]. That bracket is "
+            "Heimsath's production function inverted against Portenga and "
+            "Bierman's denudation rates and is not narrowable from those two "
+            "papers, so a mean outside it is a statement no source here "
+            "supports. `clay_yield` and `erosion_coefficient_per_relief_m` set "
+            "it jointly; sweep the pair, not one of them. "
+            f"Written to {rel(report_path)} before this check so the state that "
+            "failed is inspectable.")
+
     means = report["land_means"]
     print(f"land cells          {len(rows)}")
     bracket = report["weathering_bracket"]

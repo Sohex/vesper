@@ -330,6 +330,38 @@ def main() -> None:
             "lithology": "assigned by published type locality, NOT read from GLiM",
         },
     }
+    # THE BRACKET END THIS SITE SET OWNS, re-derived and held to what the
+    # config declares. `clay_conversion_bracket`'s low end is one over the
+    # weathering intensity of the wettest of these localities: it says the
+    # conversion is still running at the wettest soil the model has ever been
+    # compared against. That made it a property of THIS artifact written into
+    # pedogenesis.yaml, with no path back -- change the locality set, or refetch
+    # a site's climate, and the end moves while the config sits still.
+    #
+    # The tolerance is arithmetic on the config's own written precision: two
+    # decimals, so half of the last place. Not a number chosen to pass.
+    wettest = max(r["weathering_intensity"] for r in rows)
+    implied_low_end = 1.0 / wettest
+    result["clay_conversion_bracket_low_end"] = {
+        "wettest_locality_weathering_intensity": round(wettest, 4),
+        "implied_low_end": round(implied_low_end, 4),
+        "note": "One over the wettest locality's W. pedogenesis.yaml declares "
+                "clay_conversion_bracket's low end and this is what these "
+                "sites say it should be.",
+    }
+    pedo = yaml.safe_load(
+        (ROOT / "pedology" / "config" / "pedogenesis.yaml").read_text(
+            encoding="utf-8"))
+    declared_low = float(pedo["texture"]["clay_conversion_bracket"][0])
+    if abs(declared_low - implied_low_end) > 0.005:
+        raise SystemExit(
+            f"pedogenesis.yaml clay_conversion_bracket's low end is "
+            f"{declared_low}, and these {len(rows)} localities imply "
+            f"{implied_low_end:.4f} -- one over the wettest locality's W of "
+            f"{wettest:.4f}. The bracket end is a property of this site set, "
+            "so update the config or say why the set changed. Nothing was "
+            "written.")
+
     out = ROOT / "pedology" / "analysis" / "earth_validation.json"
     out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
 

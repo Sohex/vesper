@@ -238,9 +238,14 @@ texture:
   # is the weathering intensity at which the conversion is 1 - 1/e complete, in
   # the units W is normalised in, so the bracket is stated on that intensity:
   # no faster than complete by Earth's land mean, W = 1, and no slower than
-  # still running at the wettest of the sixteen type localities, W = 3.41,
-  # which is the wettest soil this model has ever been compared against. The
-  # declared value puts the e-folding at W = 1.82.
+  # still running at the wettest of the sixteen type localities, which is the
+  # wettest soil this model has ever been compared against.
+  #
+  # THE LOW END IS THE RECIPROCAL OF THAT WETTEST LOCALITY'S W, so it is a
+  # property of `pedology/analysis/earth_validation.json` rather than of this
+  # file. `validate_against_earth.py` re-derives it from the sites it fetched
+  # and REFUSES when this end disagrees, at the precision written here. Change
+  # the locality set and the end moves; that is the intent.
   clay_conversion_bracket: [0.29, 1.00]
   # AND IT IS NEAR-DEGENERATE WITH `clay_yield` BELOW at low weathering
   # intensity. The two multiply, and where `clay_conversion * W` is small the
@@ -673,10 +678,15 @@ regolith:
   # accessible tectonically active terrain -- and it is not narrowable from
   # these two papers.
   #
-  # The declared value puts the land-mean regolith at 1.04 m, inside the bracket
-  # and in its upper third, which is the branch reached by outcrop denudation
-  # rather than by basin denudation. Report the spread where a result turns on
-  # it. `regolith_depth_bracket_m` below is what a sweep runs over.
+  # WHERE THE DECLARED VALUE LANDS IS NOT WRITTEN HERE, because it is a land
+  # mean over the build's own soil map and moves with every rebuild.
+  # `build_soil.py` emits it as `land_means.regolith_depth_m` on
+  # `pedology/analysis/soil_report.json` and REFUSES a run whose mean falls
+  # outside the bracket below, which is the check this pair had no way to fail.
+  # Read the branch attribution off that number against the denudation
+  # populations above: the basin median is the bracket's low end and the polar
+  # outcrop mean its high one. Report the spread where a result turns on it.
+  # `regolith_depth_bracket_m` below is what a sweep runs over.
   erosion_coefficient_per_relief_m: 0.0075
   regolith_depth_bracket_m: [0.15, 1.30]
   # Denudation that does not need runoff: wind, dry ravel, freeze-thaw creep,
