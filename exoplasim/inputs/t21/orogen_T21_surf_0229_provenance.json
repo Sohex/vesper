@@ -1,14 +1,14 @@
 {
-  "climatology": "exoplasim/analysis/climatology/endmember_regular_climatology.nc",
-  "generated": "2026-08-27T12:31:34+00:00",
+  "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "generated": "2026-08-27T13:19:46+00:00",
   "code": 229,
   "field": "dwmax, maximum soil water capacity, metres",
   "lakes": {
-    "source": "hydrography/data/canonical-10m-base/surface_water_endmember.nc",
+    "source": "hydrography/data/canonical-10m-base/surface_water.nc",
     "lake_dwmax_m": 0.2,
-    "mean_lake_fraction_of_land_cells": 0.07665780481776671,
+    "mean_lake_fraction_of_land_cells": 0.08021508037596106,
     "land_mean_dwmax_before_m": 0.0872,
-    "land_mean_dwmax_after_m": 0.09305,
+    "land_mean_dwmax_after_m": 0.09304,
     "ceiling": "annual lake evaporation is still capped by local precipitation; river water never re-enters dwatc"
   },
   "capacity_split": {
@@ -62,19 +62,19 @@
   "land_cells": 1019,
   "land_cells_matched": 1019,
   "land_cells_without_soil_left_at_default": 0,
-  "land_mean_capacity_m": 0.11741079885333325,
+  "land_mean_capacity_m": 0.11798314376245495,
   "exoplasim_uniform_default_m": 0.5,
   "why_this_matters": "landmod.f90 computes runoff as the overflow of this bucket, so a uniform default makes runoff a namelist property rather than a soil property; the model's low land runoff ratio is the symptom.",
   "enabled_by": "model.soil_water_source in config/planet.yaml (currently set to pedology). Changing the key is a configuration change continue_exoplasim.py refuses to resume across, so moving it blocks runs in flight.",
   "output": "exoplasim/inputs/t21/orogen_T21_surf_0229.sra",
-  "output_sha256": "60df5a29cea9f61bb41b62e73f0aa3353b8bafe8dd467a0eaf43513b8f0b1e98",
-  "git_commit": "85e1b8bffff649a576fe197547627504ebbc709d",
+  "output_sha256": "3721a365a013d6b633ecbb3bfeb0272cb63f57924e45036b1b3b4e9768c883a4",
+  "git_commit": "f577d48014459ccd4cdfe8a34dda642d2b269b23",
   "generator": "exoplasim/scripts/build_surface_soil_water.py",
   "source_config": {
     "schema_version": 1,
     "source_build": "canonical-10m-base",
     "baseline_climatology": null,
-    "bootstrap_climatology": null,
+    "bootstrap_climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
     "planet": {
       "radius_earth": 1.2,
       "gravity_m_s2": 12.81,
@@ -291,7 +291,7 @@
       "roughness_source": "lithology",
       "soil_water_source": "uniform",
       "lake_dwmax_m": 0.2,
-      "land_albedo_source": "lithology",
+      "land_albedo_source": "vegetated",
       "vegetation_albedo": 0.165,
       "vegetation_albedo_bracket": [
         0.15,
@@ -344,7 +344,7 @@
   },
   "source_inputs": {
     "pedology/data/canonical-10m-base/land_column_states_T21.txt": "9c071a9ae0fe5bf6145ef3be2ada294ec28ff28060b839e92408d90419638287",
-    "exoplasim/analysis/climatology/endmember_regular_climatology.nc": "be52fae201a4c16798957c97c002a672a145486cd0d24ec8a901ef281f764137",
-    "hydrography/data/canonical-10m-base/surface_water_endmember.nc": "82789e17b7ae9695b3fce4393d34013bb0546fb1216241e70417311176736d9f"
+    "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc": "16c4b30f5c52eb91b878ca74d62fdb472c9693f342699ecf3feb99b650df0e8e",
+    "hydrography/data/canonical-10m-base/surface_water.nc": "c9afdd1380abc80ce3da48cdf4db5116bc97dc5a9902db17733b71731bac2db4"
   }
 }
