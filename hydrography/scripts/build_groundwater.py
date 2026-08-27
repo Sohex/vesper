@@ -163,7 +163,13 @@ def recharge_field(export: Export, config: dict, clim_path: Path):
     copy of it in `lib/gridding.py` and this is not a fourth.
     """
     sw._CLIM_FILE = clim_path
-    lat, lon, runoff, precip, evaporation, model_runoff, lsm = sw.climate_fields(config)
+    # Eight values, and the staged albedo is the one this path discards: world-z7bu
+    # added it as an eighth return from climate_fields and updated only some of
+    # the callers. The groundwater balance reads no albedo. The same miss was
+    # fixed in surface_water.py's per-bin caller; this was the other one, and it
+    # had not raised only because the step has not run.
+    (lat, lon, runoff, precip, evaporation, model_runoff, lsm,
+     _) = sw.climate_fields(config)
     row, col = sw.region_grid_cells(export, lat)
     return runoff[row, col], (lat, lon, runoff, precip, evaporation, lsm)
 
