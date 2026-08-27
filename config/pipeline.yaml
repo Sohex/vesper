@@ -36,7 +36,27 @@ loops:
       `notes/audits/carve-overshoot.md` has the argument and the route.
   B:
     name: the soil and biosphere loop
-    exit: the criteria in pedology/config/pedogenesis.yaml
+    exit: >
+      the criteria in pedology/config/pedogenesis.yaml: a relative tolerance on
+      land-mean soil organic carbon and a cap on the fraction of land cells
+      whose clay content moves, both between successive iterations of THIS
+      loop, plus a maximum iteration count.
+
+      WHAT THAT EXIT DOES AND DOES NOT BOUND, because the two are easy to
+      merge. This loop runs AT A FIXED CLIMATE by construction
+      (`docs/src/pipeline/sequencing.md` section B: "for a given climate"), so
+      the climatology is a constant across the iterations these criteria
+      compare and both quantities move only under the soil-biosphere exchange.
+      That is what they bound.
+
+      The soil-climate exchange is a different circuit and it closes through
+      loop A, not here: `soil` feeds `land_column_properties`, which feeds
+      `surface_soil_water`, which is an input to `baseline_run`, whose
+      climatology `soil` then reads. It is traversed once per loop A
+      iteration, and loop A's exit is the carve bracket and its overshoot,
+      which are measured in basins. So neither loop's exit predicate observes
+      the soil-climate fixed point, and a claim that the soil has converged is
+      a claim about this loop's two criteria at one climate.
   C:
     name: the vegetation-climate loop
     exit: re-take the verdict on modelled vegetation; if basins flip, re-enter A
