@@ -1087,10 +1087,16 @@ steps:
       terrain, model.land_albedo_source lithology instead of vegetated. It needs
       its own bootstrap because its lakes, albedo compositing and soil water must
       be built from a bare-rock climatology and cannot inherit the vegetated
-      ones. Seed it with --restart-from off the vegetated baseline rather than
-      cold-starting. This arm is a BOUND, NOT A WORLD; nobody claims Vesper is at
-      this flux without a biosphere, and its numbers should never be quoted as a
-      description of the planet
+      ones. IT COLD-STARTS, and cannot be seeded with --restart-from: landmod's
+      landini reads dalbcl, dalbcl1 and dalbcl2 with mpgetgp when nrestart is
+      nonzero and only reads the staged .sra files inside its `nrestart == 0`
+      branch, so a seeded arm would integrate the DONOR'S albedo and the bracket
+      would be one climate compared with itself. run_exoplasim.py refuses the
+      seed for that reason -- the albedo codes' content differs -- and the
+      refusal must not be waived with --superseded-surface-ok, which exists for
+      an A/B where every arm inherits the same surface. This arm is a BOUND, NOT
+      A WORLD; nobody claims Vesper is at this flux without a biosphere, and its
+      numbers should never be quoted as a description of the planet
 
   - id: endmember_baseline_run
     script: exoplasim/scripts/run_exoplasim.py

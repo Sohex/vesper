@@ -3024,6 +3024,54 @@ def enable_dust_emission(model, run_dir: Path, config: dict) -> dict | None:
     }
 
 
+
+def refuse_an_albedo_field_the_config_misdeclares(config: dict, inputs_dir) -> None:
+    """`model.land_albedo_source` against the mode the staged albedo was built in.
+
+    THE TWO ARE INDEPENDENT TODAY AND ONLY ONE OF THEM IS OPERATIVE.
+    `build_surface_albedo.py --mode` decides what is IN the four albedo `.sra`
+    files; `model.land_albedo_source` only decides whether this script REQUIRES
+    them, and every value but `uniform` behaves identically here. So a run can
+    stage bare-rock albedo while its configuration, its manifest and its
+    `config_sha256` all say `vegetated`, and nothing in the tree disagrees.
+
+    That matters most exactly where the two modes are the experiment. The cold
+    end of loop A's intersection bracket IS `--mode lithology` against the
+    vegetated arm's `--mode vegetated` on the same terrain and the same flux, so
+    a mislabelled arm does not fail: it produces a second copy of the arm beside
+    it, and the bracket reports the disagreement between two identical climates
+    as zero. Loop A's exit predicate has already been zero once for the
+    neighbouring reason -- both arms reading one climatology -- and reported
+    0.0 per cent agreement rather than refusing.
+
+    `albedo_report.json` records the mode it was built in, so the check is a
+    string comparison and the fix is either regenerating the fields or
+    correcting the declaration. Silent when no report exists, because the
+    codes-missing refusal below already covers that and says what to run.
+    """
+    from pathlib import Path
+    declared = str(config["model"].get("land_albedo_source", "uniform"))
+    if declared == "uniform":
+        return                                  # the fields are not read at all
+    report = Path(inputs_dir) / "albedo_report.json"
+    if not report.is_file():
+        return
+    built = str(json.loads(report.read_text(encoding="utf-8")).get("mode", ""))
+    if built == declared:
+        return
+    raise SystemExit(
+        f"model.land_albedo_source is `{declared}` and the staged albedo was "
+        f"built in `{built}` mode ({report.name}).\n"
+        "  Nothing downstream can tell these apart: this script requires the "
+        "four albedo fields for every value but `uniform` and does not look "
+        "inside them, so the run would integrate one mode and record the "
+        "other on its manifest.\n"
+        f"  Either re-run build_surface_albedo.py --mode {declared}, or "
+        f"declare land_albedo_source: {built}. For the cold end of the "
+        "intersection bracket the two modes ARE the experiment, and an arm "
+        "that silently duplicates the other reports its disagreement as zero."
+    )
+
 def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
     """Copy the surface fields we generate into the run directory.
 
@@ -3035,6 +3083,8 @@ def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
     # is already on disk. See the function for why this is a refusal and not a
     # warning, and why it is silent on a first pass.
     refuse_a_staged_field_the_config_ignores(
+        config, INPUTS / str(config["model"]["resolution"]).lower())
+    refuse_an_albedo_field_the_config_misdeclares(
         config, INPUTS / str(config["model"]["resolution"]).lower())
     staged = []
     for code in sorted(intended_surface_codes(config) - BASE_SURFACE_CODES):
