@@ -2,9 +2,13 @@ schema_version: 1
 
 # Tectonic and magmatic ore prospectivity, per deposit type, as a 0-1 field.
 #
-# NOT deposits. A porphyry system is one to two kilometres against a 15.19 km
-# mesh cell and a vein is under a hundredth of one, so placing individual bodies
-# here would invent detail the grid cannot hold. See docs/src/reference/economic-minerals.md.
+# NOT deposits. A porphyry system is one to two kilometres against a mesh cell
+# several times that, and a vein is orders below one, so placing individual
+# bodies here would invent detail the grid cannot hold. The mesh spacing is a
+# property of the build's region count and is not restated here;
+# `analysis/orogen_resolution.py` derives it and
+# `analysis/orogen_resolution.json` carries it per build. See
+# docs/src/reference/economic-minerals.md.
 #
 # NOT a lithology and NOT an erodibility modifier. This field is read only by
 # what comes after climate. Nothing upstream may consume it, which is why it is
@@ -48,8 +52,37 @@ exhumation:
   cover_preserved_km: 0.05
   # `erosionDelta` in model units, above which the section removed is deep
   # enough to have reached an orogenic gold system's formation level. Set from
-  # the granite exhumation distribution on this build -- p75 -- rather than from
-  # an absolute depth, because erosionDelta carries no physical unit.
+  # the granite exhumation distribution -- p75 -- rather than from an absolute
+  # depth, because erosionDelta carries no physical unit.
+  #
+  # IT IS FROZEN ON PURPOSE, and the three keys below are what make that a
+  # decision rather than a drift with a timer on it. A quantile recomputed per
+  # build makes the same score mean a different thing on every generation, which
+  # is the defect `input_ranges` below exists to remove, so this is measured
+  # once and carried. What a deliberate freeze still owes is the rest of the
+  # disposition: WHAT it was derived from, WHERE, and something that fires when
+  # the two have drifted past what the decision can tolerate.
+  #
+  # THE CHECK IS IN QUANTILE SPACE, NOT IN VALUE SPACE, because that is what the
+  # decision is about. The point of freezing is that "deep" means the same depth
+  # everywhere; the point of checking is that it still means roughly the same
+  # PLACE in the exhumation distribution. `build_prospectivity.py` re-derives
+  # which quantile of granite exhumation this value sits at on the build being
+  # scored, and refuses outside the band below. Comparing the value against a
+  # re-taken p75 instead would refuse on any distribution shift, which is
+  # exactly what a frozen threshold is supposed to absorb.
+  deep_exhumation_delta_measured_on: precarve-craton
+  # The population, declared because it was not before and a re-derivation
+  # cannot be reproduced without it: land cells whose substrate OR basement is
+  # granite, the same either-counts rule `prospectivity_scale.host_weight`
+  # applies to every host.
+  deep_exhumation_delta_population: granite_substrate_or_basement_on_land
+  # The band the frozen threshold must still sit inside, as quantiles of that
+  # population. Fixed before the first re-derivation was run, and wide because
+  # it is a tolerance on a DECISION to hold a threshold still, not on a
+  # measurement: below it the threshold has stopped selecting deep exhumation,
+  # above it it has stopped rejecting most of the arc.
+  deep_exhumation_delta_quantile_band: [0.65, 0.85]
   deep_exhumation_delta: 0.058
 
 # THE DIVISOR IS PART OF THE RULE. Each field below is a 0-1 field per deposit
@@ -89,24 +122,38 @@ input_ranges:
 #
 # It is measured once and frozen, exactly as `deep_exhumation_delta` above is,
 # because a reference recomputed per build is the defect this block exists to
-# remove. Measured on `precarve-craton` and verified against an identity rather
-# than assumed: `min(1, min(1, r_stress/reference) * FOLD_BELT_MULT)`
-# reproduces the exported `r_t_foldBelt` to 1e-6 over every land cell Orogen
-# assigned one. Re-derive it, and check that identity again, if a generation
-# changes the plate model or the stress propagation constants.
+# remove. That freeze is a decision and the value is still derived, so it
+# carries the same three things: what it was derived from, where, and a check.
+#
+# THE CHECK IS AN IDENTITY AND IT IS RUN, not merely described.
+# `min(1, min(1, r_stress/reference) * FOLD_BELT_MULT)` reproduces the exported
+# `r_t_foldBelt` over every land cell Orogen assigned one, because that is the
+# line `vendor/orogen/js/elevation.js` computes the field on.
+# `build_prospectivity.py` evaluates it on the build being scored and refuses at
+# the tolerance below. This is the right check for a deliberate freeze: it does
+# not ask whether the reference is still this build's own 0.97 quantile -- it is
+# frozen precisely so that it need not be -- it asks whether the reference is
+# still the divisor Orogen itself normalised by. When it is not, the plate model
+# or the stress propagation constants have moved and the reference has to be
+# re-taken; nothing else can tell those apart from an ordinary terrain change.
 #
 # Reading the build's own `r_stress` maximum instead, which is what this file
 # used to do implicitly, took the divisor from a SEAFLOOR cell -- ocean stress
 # runs higher than land stress, and the field is land-only.
+stress_reference_measured_on: precarve-craton
+stress_reference_identity: min(1, min(1, r_stress/stress_reference) * FOLD_BELT_MULT) == r_t_foldBelt on land
+stress_reference_identity_tolerance: 1.0e-6
 stress_reference: 1.449732
 
 deposits:
 
   # Arc magmatism, emplaced shallow above a batholith, and requiring both the arc
   # AND a preserved shallow section: where the arc root is unroofed the porphyry
-  # level has already eroded off. On this world 59.5% of the arc belt is stripped
-  # to granodiorite, so this rejects most of the arc rather than accepting all of
-  # it, which is the point of keying on exhumation.
+  # level has already eroded off. Much of this world's arc belt is stripped to
+  # its granodiorite root, so this rejects most of the arc rather than accepting
+  # all of it, which is the point of keying on exhumation. The share is a
+  # lithology census over the export and moves with every generation:
+  # `world_state.json` carries `lithology_land_fractions` per build.
   #
   # SPLIT by arc type, on Cooke et al. (2005), and the split IS the grounding.
   # Sillitoe gives no host ranking, only that rheology and composition "may

@@ -9,8 +9,10 @@ provenance report beside it.
 ## What this is, and what it deliberately is not
 
 It is a FIELD, not deposits. A porphyry system is one to two kilometres against a
-15.19 km mesh cell and a vein is under a hundredth of one, so an individual body
-is invisible at every resolution this pipeline runs at. Placing one would invent
+mesh cell several times that, and a vein is orders below one, so an individual
+body is invisible at every resolution this pipeline runs at. The mesh spacing
+follows the build's region count; `analysis/orogen_resolution.json` carries it
+per build. Placing one would invent
 detail the grid cannot hold. Discrete deposits belong with the downscaling pass,
 which is also where glacial overdeepening goes, for the same reason and at almost
 the same scale ratio. See `docs/src/reference/economic-minerals.md`.
@@ -98,6 +100,91 @@ def ceiling(spec: dict, ranges: dict) -> float:
     return top
 
 
+# `vendor/orogen/js/elevation.js` computes `r_t_foldBelt` as
+# `min(1, stressNorm * FOLD_BELT_MULT)`, with FOLD_BELT_MULT declared in
+# `terrain-config.js`. Restated here because the identity below IS that line,
+# and a check that read the multiplier from the config it is checking would be
+# checking nothing.
+FOLD_BELT_MULT = 3.0
+
+
+def check_frozen_references(rules: dict, mesh, land, stress_raw, fold,
+                            erosion, substrate, basement, codes) -> None:
+    """Hold the two DELIBERATELY frozen references to what they are frozen FROM.
+
+    `stress_reference` and `deep_exhumation_delta` are quantiles of exported
+    fields, frozen on purpose so that a score means the same thing on every
+    build. That decision is sound and it is not self-enforcing: a frozen value
+    still has to be told when the thing it was measured on has moved out from
+    under it, and neither carried anything that could say so.
+
+    Each is checked against what its own freeze is a decision ABOUT, and the two
+    are different questions:
+
+    `stress_reference` is Orogen's own divisor, so the check is the identity the
+    config states. It does not ask whether the reference is still this build's
+    0.97 quantile -- it is frozen so that it need not be -- it asks whether it is
+    still the number Orogen normalised `r_t_foldBelt` by. A generation that
+    changed the plate model or the propagation constants breaks that and nothing
+    else does.
+
+    `deep_exhumation_delta` has no identity, so the check is in QUANTILE space:
+    the frozen threshold must still sit inside a declared band of the granite
+    exhumation distribution. Comparing it against a re-taken p75 would refuse on
+    any distribution shift, which is the thing a frozen threshold exists to
+    absorb; leaving it unchecked lets "deep" quietly become "most of the map" or
+    "almost nothing".
+    """
+    reference = float(rules["stress_reference"])
+    tol = float(rules["stress_reference_identity_tolerance"])
+    predicted = np.minimum(1.0, np.clip(stress_raw / reference, 0.0, 1.0)
+                           * FOLD_BELT_MULT)
+    resid = np.abs(predicted[land] - fold[land])
+    worst = float(resid.max()) if resid.size else 0.0
+    if worst > tol:
+        raise SystemExit(
+            f"stress_reference {reference} no longer reproduces "
+            f"r_t_foldBelt on {rules['stress_reference_measured_on']!r}'s "
+            f"successor: the identity "
+            f"{rules['stress_reference_identity']} is out by {worst:.3e} at "
+            f"worst over land, against a declared tolerance of {tol:g}.\n"
+            "The reference is frozen deliberately, so this is not a licence to "
+            "recompute it per build. It says the plate model or the stress "
+            "propagation constants moved: re-take the 0.97 quantile of "
+            "propagated stress over cells above STRESS_PROPAGATE_MIN, the way "
+            "elevation.js does, and re-declare it with the build it came from.")
+
+    ex = rules["exhumation"]
+    delta = float(ex["deep_exhumation_delta"])
+    lo, hi = (float(v) for v in ex["deep_exhumation_delta_quantile_band"])
+    granite = codes.get("granite")
+    if granite is None:
+        raise SystemExit(
+            "this export carries no `granite` rock class, so "
+            "deep_exhumation_delta cannot be checked against the population "
+            f"{ex['deep_exhumation_delta_population']!r} its declaration "
+            "names. A build without granite is not one this rule was derived "
+            "on.")
+    pop = land & ((substrate == granite) | (basement == granite))
+    if not pop.any():
+        raise SystemExit(
+            "no land cell on this build has granite as substrate or basement, "
+            "so the population deep_exhumation_delta was measured over is "
+            "empty here.")
+    quantile = float((erosion[pop] <= delta).mean())
+    if not lo <= quantile <= hi:
+        raise SystemExit(
+            f"deep_exhumation_delta {delta} sits at quantile {quantile:.3f} of "
+            f"granite exhumation on this build, outside the declared band "
+            f"[{lo}, {hi}]. It was taken as the p75 on "
+            f"{ex['deep_exhumation_delta_measured_on']!r}.\n"
+            "It is frozen on purpose, so the repair is not to re-take it "
+            "silently: at this quantile the threshold no longer selects deep "
+            "exhumation on the terrain being scored, and whether to re-take it "
+            "or to keep it and accept what it now selects is a decision, taken "
+            "before the scores it produces are read.")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--source-build", default=None,
@@ -122,13 +209,17 @@ def main() -> None:
     # maximum. The maximum is a single cell and it is a seafloor one, because
     # ocean stress runs higher than land stress and `r_stress` spans both; the
     # config says where the reference comes from and how to re-derive it.
-    stress = mesh.field("r_stress").astype(float)
-    stress = np.clip(stress / rules["stress_reference"], 0.0, 1.0)
+    stress_raw = mesh.field("r_stress").astype(float)
+    stress = np.clip(stress_raw / rules["stress_reference"], 0.0, 1.0)
     area = mesh.field("cell_area").astype(float)
 
     ranges = rules["input_ranges"]
     codes = {c["code"]: c["id"] for c in mesh.manifest["lithology"]["rockClasses"]}
     ex = rules["exhumation"]
+
+    check_frozen_references(rules, mesh, land, stress_raw, fold,
+                            erosion, substrate, basement, codes)
+
     cover_ok = thickness >= ex["cover_preserved_km"]
     deep = erosion >= ex["deep_exhumation_delta"]
 
