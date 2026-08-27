@@ -90,6 +90,20 @@ loops:
 #       "everything". The export edge crosses a pass boundary and `needs` does
 #       not, which is why it is a separate key. `--purge orogen` seeds from it.
 #
+# A climatology `need` says WHICH CLIMATOLOGY MUST EXIST, not which one the
+#       step reads. The two are different statements and conflating them is what
+#       pinned ten steps to a first-pass artifact forever. A step declaring
+#       `bootstrap_climatology` runs on a first pass, when no baseline exists at
+#       all, so the bootstrap is what its edge requires; what it READS is decided
+#       by whether its answer depends on the climate STATE. Where it does, the
+#       script calls `lib/paths.py:best_available_climatology`, which returns the
+#       baseline once `config/planet.yaml` names one and stamps `climatology_stage`
+#       on the product; where the answer depends only on the model calendar or the
+#       grid, it calls `bootstrap_climatology_path` and a baseline would tell it
+#       nothing. `scripts/smoke_test.py:check_climatology_needs_match_call_sites`
+#       holds every step to the resolvers its declaration permits, and
+#       `docs/src/pipeline/loops.md` carries the argument.
+#
 # cost: seconds | minutes | hours. `hours` is what must never run by accident.
 # loop: which loop the step belongs to, or a LIST where it belongs to more than
 #       one. A step in two loops is one that is re-run on a different input by
@@ -291,16 +305,20 @@ steps:
     needs: [bootstrap_climatology, bracket_run]
     writes: [exoplasim/analysis/design_flux.json]
     gate: >
-      THE BOOTSTRAP CLIMATOLOGY AND NOT THE BASELINE, because requiring the
-      baseline made this circular. The design flux IS the mean flux target, and
-      a baseline run is by this project's vocabulary the run on the full surface
-      fields -- which still has to be run at SOME flux. Ordering the baseline
-      first therefore means buying hours of model time at a provisional number
-      and buying them again at the derived one. What the method needs is two
-      converged climatologies ON THE VEGETATED BRANCH, which is a statement
-      about model.land_albedo_source and not about having soil and lakes, and
-      the bootstrap already runs vegetated; the script refuses a bracket run
-      whose manifest says otherwise. The corrected order is bootstrap_run,
+      THE BOOTSTRAP CLIMATOLOGY MUST EXIST AND THE BASELINE IS NOT REQUIRED,
+      because requiring the baseline makes this circular. The design flux IS the
+      mean flux target, and a baseline run is by this project's vocabulary the
+      run on the full surface fields -- which still has to be run at SOME flux.
+      Ordering the baseline first therefore means buying hours of model time at
+      a provisional number and buying them again at the derived one. What the
+      method needs is two converged climatologies ON THE VEGETATED BRANCH,
+      which is a statement about model.land_albedo_source and not about having
+      soil and lakes; the script refuses a bracket run whose manifest says
+      otherwise, and refuses its first point on the same ground, reading the
+      branch off that climatology's own run manifest. So the branch is the
+      condition and the stage is not: the script READS the best available
+      vegetated climatology, which is the bootstrap until a baseline exists and
+      the baseline after. The order on a first pass is bootstrap_run,
       bootstrap_climatology, bracket_run, design_flux, adopt the flux into
       config/planet.yaml, derived surface fields, baseline_run --
       `check_consistency.py` is what says the adoption happened.

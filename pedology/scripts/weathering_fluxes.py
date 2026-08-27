@@ -74,7 +74,7 @@ import numpy as np
 import yaml
 
 from _paths import (ANALYSIS, CONFIG, PEDOGENESIS, PROJECT_ROOT,
-                    bootstrap_climatology_path)
+                    best_available_climatology)
 
 import builds
 from brine_paths import ROCK_TO_MEYBECK
@@ -167,14 +167,21 @@ def main() -> None:
     if args.source_build:
         config["source_build"] = args.source_build
     pedo = yaml.safe_load(PEDOGENESIS.read_text(encoding="utf-8"))
-    # THE BOOTSTRAP, not the baseline. This product feeds volcanic_sulfate,
-    # which stages an aerosol field a climate run reads, so it has to be
-    # computed BEFORE the baseline exists. Reading the baseline here asks on
-    # a first pass for an artifact that cannot exist yet, and on a later pass
-    # reads a climate the staged field it feeds helped produce.
-    climatology = (args.climatology or bootstrap_climatology_path()).resolve()
+    # THE BEST AVAILABLE, which is the baseline once one is named and the
+    # bootstrap before that. Every term here is a function of the climate
+    # STATE: the runoff the solute flux multiplies and the temperature the
+    # activation energy exponentiates. That this product feeds an aerosol
+    # field a later run reads is what the `needs: bootstrap_climatology` edge
+    # in config/pipeline.yaml states, and that edge is unchanged -- it says
+    # the bootstrap must EXIST, which is what makes the first pass runnable.
+    # Reading the earlier of two climates on a pass where both exist is not
+    # an ordering constraint, it is a step held at the wrong stage.
+    climatology, clim_stage = best_available_climatology(args.climatology)
+    climatology = climatology.resolve()
     if not climatology.is_file():
-        raise SystemExit(f"{climatology} does not exist")
+        raise SystemExit(
+            f"{climatology} does not exist; config/planet.yaml names it as "
+            f"the {clim_stage} climatology")
     from provenance import require_build
     from climatology import annual_mean
     require_build(climatology, "climatology", config)
@@ -301,6 +308,8 @@ def main() -> None:
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "climatology": rel(climatology),
+        # WHICH STAGE these fluxes were taken at. lib/paths.py.
+        "climatology_stage": clim_stage,
         "climatology_sha256": sha256(climatology),
         "source_build": config.get("source_build"),
         "terrain_hash": mesh.terrain_hash,

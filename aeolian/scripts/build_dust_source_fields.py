@@ -433,11 +433,15 @@ def main() -> None:
 
     from netCDF4 import Dataset
 
-    # THE BOOTSTRAP, not the baseline, and this one is settled by the graph
-    # rather than by judgment: this step writes a staged `.sra` surface field,
-    # and a staged surface field is an INPUT to the baseline run. Reading the
-    # baseline climatology here would mean building an input to a run out of
-    # that run's own output, and on a first pass there is no baseline at all.
+    # THE BOOTSTRAP, and this one is a NO-OP rather than a preference. The
+    # only thing taken from the climatology here is the grid, which is the same
+    # at either stage of determination. The state-dependent inputs arrive by
+    # their own edges: the erodible mosaic from the surface classes and the
+    # lakes, and the subgrid wind shape from the MEASURED value in the dust
+    # baseline report. So a baseline would tell this step nothing the bootstrap
+    # does not, and resolving one would make it newly unrunnable on a first
+    # pass for no gain. `lib/paths.py:best_available_climatology` says where
+    # the invariant does and does not bite.
     if args.climatology is None:
         args.climatology = bootstrap_climatology_path()
     model = config["model"]

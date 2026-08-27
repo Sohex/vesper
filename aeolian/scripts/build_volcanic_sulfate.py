@@ -60,7 +60,7 @@ from build_dust import advect_to_steady_state, flag_anomalous_bins, settling_vel
 from builds import grid_export, mesh_export
 from gridding import land_fraction_of_class
 from orogen import Export
-from paths import bootstrap_climatology_path, rel
+from paths import best_available_climatology, rel
 from aerosol_deposition import write_deposition
 from sea_salt_optics import band_average, growth, read_index_table, read_size_table
 
@@ -141,11 +141,13 @@ def main() -> None:
     # raises KeyError before producing anything, which is what it did.
     cfg["_planet_radius_earth"] = config["planet"]["radius_earth"]
     gravity = float(config["planet"]["gravity_m_s2"])
-    # THE BOOTSTRAP, not the baseline. `volcanic_sulfate` declares
-    # `needs: bootstrap_climatology` in config/pipeline.yaml, on the same terms
-    # as its two sibling aerosol steps: the burden is a field the baseline run
-    # is run ON.
-    clim_path = args.climatology or bootstrap_climatology_path()
+    # THE BEST AVAILABLE, on the same terms as its two sibling aerosol steps:
+    # the burden is transported by the modelled winds, grown at the modelled
+    # humidity and washed out by the modelled precipitation, so it is a
+    # function of the climate STATE and the bootstrap is the best answer only
+    # on the pass where it is the only one. The `needs: bootstrap_climatology`
+    # edge in config/pipeline.yaml is unchanged and states what must EXIST.
+    clim_path, clim_stage = best_available_climatology(args.climatology)
 
     if not args.weathering.is_file():
         raise SystemExit(
@@ -371,6 +373,8 @@ def main() -> None:
         "generated": datetime.now(timezone.utc).isoformat(),
         "git_commit": git_commit(),
         "climatology": str(rel(clim_path)),
+        # WHICH STAGE this burden was transported by. lib/paths.py.
+        "climatology_stage": clim_stage,
         "excluded_time_bins": bad,
         "outgassing_over_earth": outgassing,
         "outgassing_source": str(rel(args.weathering)),
@@ -426,6 +430,7 @@ def main() -> None:
             "generated": payload["generated"],
             "git_commit": payload["git_commit"],
             "climatology": payload["climatology"],
+            "climatology_stage": payload["climatology_stage"],
             "outgassing_over_earth": outgassing,
             "outgassing_source": payload["outgassing_source"],
             "inputs": payload["inputs"],

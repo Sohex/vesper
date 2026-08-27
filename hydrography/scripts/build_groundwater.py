@@ -47,7 +47,7 @@ import groundwater as gw  # noqa: E402
 import lake_balance as lb  # noqa: E402
 import surface_water as sw  # noqa: E402
 from orogen import LAND, Export  # noqa: E402
-from paths import bootstrap_climatology_path, rel  # noqa: E402
+from paths import best_available_climatology, rel  # noqa: E402
 
 import builds  # noqa: E402
 import orbit  # noqa: E402
@@ -328,22 +328,40 @@ def main() -> int:
 
     data = args.data if args.data is not None else builds.component_data(
         "hydrography", config, strict=True)
-    # THE BOOTSTRAP, not the baseline. `groundwater` declares
-    # `needs: bootstrap_climatology` in config/pipeline.yaml, and it takes the
-    # same recharge field `surface_water.py` runs the lakes on, so the two have
-    # to be forced by the same run or the surface and subsurface halves of one
-    # water balance come from two different climates. Resolved through
+    # THE BEST AVAILABLE, which is the baseline once one is named and the
+    # bootstrap before that. Recharge is P-E off the climatology, so the water
+    # table is a function of the climate STATE and the bootstrap is the best
+    # answer only on the pass where it is the only one. The
+    # `needs: bootstrap_climatology` edge in config/pipeline.yaml is unchanged
+    # and states what must EXIST for a first pass to run. Resolved through
     # `lib/paths.py` rather than out of the config here: that is the one copy,
     # and it carries `require_configured_grid`, which a hand-rolled read of the
     # config key does not.
-    if args.climatology is not None:
-        clim = args.climatology.resolve()
-    else:
-        clim = bootstrap_climatology_path(root=PROJECT_ROOT).resolve()
-        if not clim.is_file():
+    clim, clim_stage = best_available_climatology(args.climatology)
+    clim = clim.resolve()
+    if not clim.is_file():
+        raise SystemExit(
+            f"config/planet.yaml names {rel(clim)} as the {clim_stage} "
+            "climatology and it does not exist")
+    # THE TWO HALVES OF ONE WATER BALANCE, checked rather than assumed. This
+    # takes the same recharge field `surface_water.py` runs the lakes on, so
+    # the surface and the subsurface have to be forced by the same run; the two
+    # scripts resolve it separately, and once one of them can prefer a baseline
+    # they can differ. `surface_water.nc` names its own forcing on the
+    # artifact, which is what makes this an identity to test rather than a
+    # convention to remember.
+    sw_nc = data / "surface_water.nc"
+    if sw_nc.is_file():
+        with Dataset(sw_nc) as _ds:
+            sw_forcing = getattr(_ds, "forcing", None)
+        if sw_forcing and sw_forcing != rel(clim):
             raise SystemExit(
-                f"config/planet.yaml names {rel(clim)} as the bootstrap "
-                "climatology and it does not exist")
+                f"{rel(sw_nc)} was forced by {sw_forcing} and this run "
+                f"resolved {rel(clim)} as the {clim_stage} climatology. The "
+                "lakes and the water table are the surface and subsurface "
+                "halves of one balance and cannot come from two climates: "
+                "re-run `surface_water` on this climatology, or pass "
+                "--climatology to force both onto the same one.")
 
     build = builds.build_root(config)
     export = Export(builds.mesh_export(config))
@@ -565,6 +583,8 @@ def main() -> int:
         "source_build": build.name,
         "terrain_hash": export.terrain_hash,
         "forcing": rel(clim),
+        # WHICH STAGE the recharge came from. lib/paths.py.
+        "climatology_stage": clim_stage,
         "forcing_sha256": sha256(clim),
         "config_sha256": sha256(CONFIG),
         "sigma": args.sigma,
@@ -813,6 +833,7 @@ def main() -> int:
         ds.terrain_hash = export.terrain_hash
         ds.setncattr("vesper_source_build", build.name)
         ds.forcing = rel(clim)
+        ds.climatology_stage = clim_stage
         ds.sigma = args.sigma
         ds.caveat = (
             "An equilibrium water table, not an aquifer with a history. "

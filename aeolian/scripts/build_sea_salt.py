@@ -68,7 +68,7 @@ from _paths import ANALYSIS, CONFIG, PROJECT_ROOT  # noqa: E402
 import climatology  # noqa: E402  from lib/, via _paths
 from build_dust import advect_to_steady_state, flag_anomalous_bins, settling_velocity
 from build_dust import weibull_shape_from_samples
-from paths import bootstrap_climatology_path, rel, snapshot_beside
+from paths import best_available_climatology, rel, snapshot_beside
 
 sys.path.insert(0, str(PROJECT_ROOT / "exoplasim" / "scripts"))
 # The two-stream expression and the upscatter fraction are imported, not
@@ -180,10 +180,14 @@ def main() -> None:
     # raises KeyError before producing anything, which is what it did.
     cfg["_planet_radius_earth"] = config["planet"]["radius_earth"]
     gravity = float(config["planet"]["gravity_m_s2"])
-    # THE BOOTSTRAP, not the baseline. `sea_salt` declares
-    # `needs: bootstrap_climatology` in config/pipeline.yaml, and the sea-salt
-    # burden is one of the aerosol fields the baseline run is run ON.
-    clim_path = args.climatology or bootstrap_climatology_path()
+    # THE BEST AVAILABLE, which is the baseline once one is named and the
+    # bootstrap before that. The source function is the near-surface wind to a
+    # high power over open water, gated by sea ice, and the burden is grown at
+    # the modelled humidity and washed out by the modelled precipitation: every
+    # one of those is the climate STATE. The `needs: bootstrap_climatology`
+    # edge in config/pipeline.yaml is unchanged and states what must EXIST for
+    # the first pass to run, not what a later pass should read.
+    clim_path, clim_stage = best_available_climatology(args.climatology)
     if not args.optics.is_file():
         raise SystemExit(f"{args.optics} missing; run "
                          f"aeolian/scripts/sea_salt_optics.py first")
@@ -554,6 +558,8 @@ def main() -> None:
         "generated": datetime.now(timezone.utc).isoformat(),
         "git_commit": git_commit(),
         "climatology": str(rel(clim_path)),
+        # WHICH STAGE this burden was emitted from. lib/paths.py.
+        "climatology_stage": clim_stage,
         "excluded_time_bins": bad,
         "gravity_m_s2": gravity,
         "subgrid_wind": {
@@ -609,6 +615,7 @@ def main() -> None:
         out.note = payload["note"]
         out.generated = payload["generated"]
         out.climatology = payload["climatology"]
+        out.climatology_stage = payload["climatology_stage"]
     print(f"\nwrote {rel(args.output)} and {rel(args.output_nc)}")
 
     # -- the nutrient carrier, a SEPARATE file holding mass and only mass -----
@@ -644,6 +651,7 @@ def main() -> None:
             "generated": payload["generated"],
             "git_commit": payload["git_commit"],
             "climatology": payload["climatology"],
+            "climatology_stage": payload["climatology_stage"],
             "source_function": "Grythe et al. (2014) equation 7, all three "
                                "modes, transported and deposited by the same "
                                "steady state that produces the burden",

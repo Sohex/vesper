@@ -39,7 +39,7 @@ import numpy as np
 import yaml
 
 from _paths import (ANALYSIS, CONFIG, COMPONENT_ROOT, DATA, PEDOGENESIS,
-                    PROJECT_ROOT, bootstrap_climatology_path)
+                    PROJECT_ROOT, best_available_climatology)
 
 import climatology as climatology_lib  # noqa: E402  from lib/, via _paths.
 # Aliased because `climatology` is a local Path in main(); see build_surface_classes.py.
@@ -514,14 +514,25 @@ def main() -> None:
     # paths from the file location rather than the cwd, so a `--climatology`
     # given relative to wherever the caller stood has to be made absolute before
     # anything opens it.
-    # THE BOOTSTRAP, not the baseline. `soil` declares
-    # `needs: bootstrap_climatology` in config/pipeline.yaml, and it has to:
-    # the soil map is one of the surface fields the baseline run is run ON, so
-    # a soil map built from the baseline is built from a climate its own output
-    # produced, and on a first pass there is no baseline to read at all.
-    climatology = (args.climatology or bootstrap_climatology_path()).resolve()
+    # THE BEST AVAILABLE, which is the baseline once one is named and the
+    # bootstrap before that. Soil texture and regolith depth are weathering
+    # products of temperature and runoff, so they are functions of the climate
+    # STATE and the bootstrap is only the best answer on the pass where it is
+    # the only one. This step already took its vegetation from `lpj_run`, which
+    # reaches the baseline through `lpj_driver`, so pinning the runoff to a
+    # terrain-only climate that carries no lakes on any iteration built one soil
+    # map out of two stages of one world. The `needs: bootstrap_climatology`
+    # edge in config/pipeline.yaml is unchanged and says something else: the
+    # bootstrap is what must EXIST for this step to run at all.
+    climatology, clim_stage = best_available_climatology(args.climatology)
+    climatology = climatology.resolve()
     if not climatology.is_file():
-        raise SystemExit(f"{climatology} does not exist")
+        # A named baseline that is missing RAISES rather than quietly dropping
+        # back to the bootstrap. Naming the stage is what makes the two cases
+        # tellable apart from the message alone.
+        raise SystemExit(
+            f"{climatology} does not exist; config/planet.yaml names it as "
+            f"the {clim_stage} climatology")
     # Deliberate, not assumed: this soil map pairs a climatology with a
     # lithology, and they have to be the same world.
     from provenance import require_build
@@ -804,6 +815,9 @@ def main() -> None:
         "closes_loop_with": (str(args.soil_carbon) if args.soil_carbon
                              else "nothing; iteration 0 has no biosphere"),
         "climatology": rel(climatology),
+        # WHICH STAGE this soil map was built at, so a first-pass artifact is
+        # distinguishable from a later one by reading it. lib/paths.py.
+        "climatology_stage": clim_stage,
         "climatology_sha256": hashlib.sha256(climatology.read_bytes()).hexdigest(),
         "config_sha256": hashlib.sha256(CONFIG.read_bytes()).hexdigest(),
         "pedogenesis_sha256": hashlib.sha256(PEDOGENESIS.read_bytes()).hexdigest(),

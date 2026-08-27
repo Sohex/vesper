@@ -295,6 +295,9 @@ def main() -> None:
     # read from the climatology here is the phase of the solar declination --
     # a property of the orbit rather than of the surface, so the earlier of the
     # two runs answers it as well as the later one and exists when this runs.
+    # That makes this a NO-OP for the best-available invariant rather than an
+    # exception to it: `lib/paths.py:best_available_climatology` says where the
+    # invariant bites and why a calendar phase is not one of those places.
     climatology = args.climatology or bootstrap_climatology_path()
     if not climatology.is_file():
         raise SystemExit(
