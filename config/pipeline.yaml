@@ -1479,6 +1479,20 @@ steps:
 
 # Run, never generate an artifact, and gate the expensive steps.
 checks:
+  # THE FINALIZER, and it is not a gate on a commit: it runs ONCE, after the
+  # ladder. Loop D advances only after replaying A, B and C on the new support,
+  # and the ladder's cost argument does not buy that replay, so the final state
+  # carries terrain carved at T21, soil and vegetation converged at T21 and a
+  # climate merely settled at the operating support. Each loop exited; none
+  # exited against the others' final state. This re-evaluates each loop's OWN
+  # exit predicate there. It reports NOT EVALUABLE distinctly from pass and fail
+  # -- exit 2 -- and never substitutes a coarser artifact for the operating
+  # support's, because a finalizer that passes on what it could not test is
+  # worse than one that refuses. Nothing iterates on its verdict:
+  # docs/src/pipeline/loops.md says why the decision to re-enter is the
+  # author's.
+  - id: verify_joint_convergence
+    script: scripts/verify_joint_convergence.py
   - id: check_consistency
     script: scripts/check_consistency.py
   # The FAST static gate, and the only one of these rows that is a per-commit
