@@ -64,6 +64,25 @@ rather than as a fit; their visible-band fits run 0.042 to 0.528, and the
 direction is known -- a value below one darkens the modelled surface sooner in a
 wetting cycle without moving either end. That is the declared bracket on band 1.
 
+**The bracket is swept OFFLINE and it does not buy a run.** Remixing the staged
+pair at `wetsigma1` of 1.0, 0.528 and 0.042 with band 2 held at the limit
+Sadeghi verify, land-mean fall against the skin's fill fraction:
+
+| f | sigma1 = 1.0 | 0.528 | 0.042 | worst, in kelvin at attenuation 0.5 |
+| --- | --- | --- | --- | --- |
+| 0.05 | 0.001648 | 0.002024 | 0.005927 | +0.22 |
+| 0.15 | 0.004747 | 0.005610 | 0.010028 | +0.27 |
+| 0.50 | 0.014064 | 0.015305 | 0.017873 | +0.19 |
+| 1.00 | 0.024668 | 0.025255 | 0.025984 | +0.07 |
+
+The bracket is worth at most 0.27 K and it is largest where the term itself is
+smallest: at a fifth of capacity it is a factor of two on a fall of half a
+hundredth. It never approaches the paired-arm resolution bar, so sweeping it in
+the model would buy a pair of runs that could not tell the arms apart. What it
+does say is that the band-1 uncertainty is comparable to the whole term at low
+wetness and negligible at high, which is the opposite of how a bracket on an
+endpoint would behave and is the signature of a bracket on the SHAPE.
+
 The one FIELD measurement of the shape this project holds sits at the adopted
 arm. Idso et al. (1975) ran four pyranometer experiments over one irrigated loam
 field with concurrent gravimetric sampling at eight depths, and found the albedo
