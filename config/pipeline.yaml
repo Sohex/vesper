@@ -44,28 +44,35 @@ loops:
     name: the declared escalation to T85
     exit: >
       T85 is the OPERATING SUPPORT and is declared, not discovered. The route
-      alternates resolution and timestep and never moves both at once: T21 at
-      dt 45, converge; reconverge T21 at dt 30 if the conversion needs it;
-      convert to T42 at dt 30, converge; reconverge T42 at dt 22.5 if needed;
-      convert to T85 at dt 22.5, converge; then continue at NLOWIO = 0 with
-      high-cadence orbits for dust. Every conversion therefore happens at
-      constant dt, so exactly one variable moves per step and a surprise after
-      a conversion is attributable to the support alone. Steps 2 and 4 are
-      SETTLING blocks and not commissioning verdicts: their length is
-      `lib/run_lengths.py:settling_orbits`, the orbits a step change takes to
-      decay below the offset criterion's own allowance, and they establish only
-      that the restart handed to the next conversion is not mid-transient. Steps
-      1, 3 and 5 are COMMISSIONING: ONE CONVERGENCE WINDOW, then THREE-orbit
+      moves resolution and timestep one at a time and never both at once, and
+      THIS route never moves the timestep at all: T21 at dt 45, converge;
+      convert to T42 at dt 45, converge; convert to T85 at dt 45, converge;
+      then continue at NLOWIO = 0 with high-cadence orbits for dust. Every
+      conversion therefore happens at constant dt, so exactly one variable moves
+      per step and a surprise after a conversion is attributable to the support
+      alone. It carries NO SETTLING BLOCK, because dt 45 is at or below every
+      rung's measured ceiling and a settling block exists only to change dt
+      before a conversion; `lib/run_lengths.py:settling_orbits` still prices one
+      for the fallback. It is an ATTEMPT: the ceilings license each rung to
+      START clean at 45 and endurance there is established only for T21, so a
+      rung that will not hold 45 for a commissioning span drops the route back
+      to the four-entry form that reconverges T21 at 30 and runs both
+      conversions there, which reinstates one settling block at T21 and none
+      above it. All three steps are COMMISSIONING: ONE CONVERGENCE WINDOW, then THREE-orbit
       increments until the convergence criteria are met; the criteria cannot be
       evaluated on fewer orbits than they are taken over, and
       `assess_convergence.py` derives that window rather than carrying a
       literal. Advance only after the current support has settled, replaying A, B
       and C on it. There is no between-rung convergence comparison: choosing
       T85 by decision removed the question one would answer, and nothing finer
-      is being run to difference it against. The three
-      timesteps are the highest each rung can carry and are PROVISIONAL on
-      WORLD-37TN re-measuring the stability grid; they are declared intent,
-      not a measured ceiling. `docs/src/pipeline/sequencing.md` section D.
+      is being run to difference it against. The one
+      timestep is at or below every rung's MEASURED ceiling, re-taken by
+      WORLD-37TN: the grid now carries a refusing cell above each, at 150 for
+      T21, 90 for T42 and 60 for T85, so these are boundaries rather than
+      declared intent. A ceiling bounds the route and does not set it, and it
+      qualifies a step against REFUSAL and nothing else; endurance lives in
+      `lib/rungs.py:COMMISSIONING_EVIDENCE`.
+      `docs/src/pipeline/sequencing.md` section D.
 
 # writes: the COMPLETE set of artifacts a step produces, not a marker for them.
 #       `--purge` deletes exactly this, so a row that names only its report
