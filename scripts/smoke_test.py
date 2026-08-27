@@ -2051,14 +2051,69 @@ def check_climatology_needs_match_call_sites() -> list[str]:
                 f"{sorted(permitted)} from lib/paths.py, or take the path from "
                 f"the caller and say so in CLIMATOLOGY_FROM_THE_CALLER with "
                 f"the argument")
-        if "best_available_climatology" in called \
-                and "climatology_stage" not in source:
-            problems.append(
-                f"step {step_id}'s {step['script']} reads the best available "
-                f"climatology and never writes `climatology_stage`. The choice "
-                f"between the two stages is defensible because it is stamped; "
-                f"an unstamped product cannot be told from a first-pass one")
+        if "best_available_climatology" in called:
+            problems.extend(stamp_problems(step_id, step["script"], tree))
     return problems
+
+
+def stamp_problems(step_id: str, script: str, tree: ast.AST) -> list[str]:
+    """The stage the resolver returned is the stage the product records.
+
+    Stronger than "the key is present", and that is the point: a script that
+    stamps the string `bootstrap` or a variable from somewhere else satisfies
+    presence and tells the reader something false. The property is a
+    pass-through -- the second element of what `best_available_climatology`
+    returned has to be what a `climatology_stage` entry is set to somewhere in
+    the script. One such entry is enough; several products may carry the value
+    on from the first.
+    """
+    stage_names = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        call = node.value
+        if not isinstance(call, ast.Call):
+            continue
+        f = call.func
+        name = f.id if isinstance(f, ast.Name) else (
+            f.attr if isinstance(f, ast.Attribute) else None)
+        if name != "best_available_climatology":
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Tuple) and len(target.elts) == 2 \
+                    and isinstance(target.elts[1], ast.Name):
+                stage_names.add(target.elts[1].id)
+    if not stage_names:
+        return [f"step {step_id}'s {script} calls "
+                f"best_available_climatology() without unpacking the stage it "
+                f"returns. It returns `(path, stage)` and the stage is not "
+                f"optional: it is what the product records"]
+    stamped = False
+    for node in ast.walk(tree):
+        value = None
+        if isinstance(node, ast.Dict):
+            for key, val in zip(node.keys, node.values):
+                if isinstance(key, ast.Constant) \
+                        and key.value == "climatology_stage":
+                    value = val
+                    if any(isinstance(n, ast.Name) and n.id in stage_names
+                           for n in ast.walk(value)):
+                        stamped = True
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Attribute) \
+                        and target.attr == "climatology_stage":
+                    if any(isinstance(n, ast.Name) and n.id in stage_names
+                           for n in ast.walk(node.value)):
+                        stamped = True
+    if stamped:
+        return []
+    return [f"step {step_id}'s {script} reads the best available climatology "
+            f"and never records {sorted(stage_names)[0]} as "
+            f"`climatology_stage`. The choice between the two stages is "
+            f"defensible because it is stamped; a product carrying no stage, "
+            f"or a stage that is not the one resolved, cannot be told from a "
+            f"first-pass one"]
 
 
 def check_best_available_climatology_resolves_by_stage() -> list[str]:
