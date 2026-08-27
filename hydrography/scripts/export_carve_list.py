@@ -696,13 +696,19 @@ def climate_terms(clim_path, args, config, basins):
     and the two verdicts would no longer be comparable. `main` calibrates once
     on the primary arm and applies that coefficient to both.
     """
-    with Dataset(args.climatology) as ds:
+    # `clim_path`, NOT `args.climatology`. This function exists to be run once
+    # per arm of the bracket and it read the primary climatology both times, so
+    # the cold arm was the warm arm and the two-climate bracket was one climate
+    # compared with itself. What that produces is not an error: it is a bracket
+    # reporting zero width, which reads as the arms agreeing completely. `main`
+    # now refuses two arms that come out bit-identical.
+    with Dataset(clim_path) as ds:
         am = cv.annual_mean
         pr, evap, mrro = am(ds, "pr"), -am(ds, "evap"), am(ds, "mrro")
         rss, rls = am(ds, "rss"), am(ds, "rls")
         diurnal = am(ds, "maxt") - am(ds, "mint")
         lsm = am(ds, "lsm")
-    t_air, q_air, wind, p_air = cv.reference_level_air(args.climatology)
+    t_air, q_air, wind, p_air = cv.reference_level_air(clim_path)
 
     # Through the one door, not by rebuilding the path from `model.resolution`:
     # that path is keyed by the RUNG alone and `surface_albedo` rewrites it per
@@ -1184,6 +1190,19 @@ def main() -> None:
     if args.endmember_climatology is not None:
         endmember = climate_terms(args.endmember_climatology, args, config,
                                   basins)
+        # THE ARMS MUST ACTUALLY DIFFER. `climate_terms` took a climatology
+        # path and read `args.climatology` regardless, so both arms were the
+        # primary and the bracket reported zero width -- which reads as the two
+        # bounding climates agreeing rather than as never having been asked.
+        # Two different files that produce a bit-identical discharge field are
+        # not a bracket, whatever the cause.
+        if np.array_equal(endmember["q_pen"], primary["q_pen"]):
+            raise SystemExit(
+                f"the endmember arm ({args.endmember_climatology}) produced a "
+                f"discharge field bit-identical to the primary arm "
+                f"({args.climatology}). Two bounding climates that agree to the "
+                "last bit have not been evaluated on two climates, and a "
+                "bracket of zero width would be reported as agreement")
         retain_endmember_incision_finished = incision_retain(
             endmember["q_pen"], year_s, basins.depth_at_spill_m, sill_ero,
             coefficient, slope=slope)
