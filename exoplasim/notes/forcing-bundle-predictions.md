@@ -2283,6 +2283,20 @@ warmer summers and colder winters, and what survives into the mean is the pair o
 feedbacks that are nonlinear in it; at this state the summer melt outruns the
 winter growth and the sign is warming.
 
+**THE DONOR IS NAMED WITH THE BAR, and one refusal here is donor-limited.**
+Every bar above was measured on this pair's own difference rather than inherited,
+but the pair branched from `run_14906cb7b914`'s `MOST_REST.00034` at 35 orbits,
+which is not a settled restart -- both arms drift together for the whole 50 and
+neither passes its own diagnostic assessment. Failure-modes class 37: what that
+costs is a wrong REFUSAL, not a wrong number. It does not touch anything resolved
+here, since a smaller bar only resolves those further. It does touch the one near
+miss: global-mean `ts` at +0.097 +/- 0.037 K against a bar of 0.104 is a refusal
+taken at 0.93 of its threshold, and a settled donor gives standard errors of
+0.017 to 0.031 K for arms of this length. What would settle it is this same pair
+seeded from `run_893e276ee029`, the settled 210-orbit baseline, and until then
+`ts` is reported as unresolved rather than as small. The amplitude verdict does
+not depend on it: `tas` resolves, and the term's own quantity is the land range.
+
 **IT IS NOT MATERIAL, AND THAT IS THE VERDICT THAT WAS REGISTERED FOR.** The
 threshold fixed before the arm was 1.0 K and the largest resolved global-mean
 separation is a quarter of it, so the term does not need bisecting out of the
