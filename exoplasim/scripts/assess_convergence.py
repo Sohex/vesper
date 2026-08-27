@@ -55,7 +55,8 @@ import sea_water
 import autocorrelation as ac
 # The one reader of the manifest's segment records; see
 # exoplasim/scripts/segments.py for what a purpose means.
-from segments import orbit_purposes, production_window
+from segments import (io_regime_changes, orbit_purposes, production_window,
+                      refuse_a_window_spanning_an_io_regime_change)
 # CLAUDE.md names lib/sensitivity.py as the one flux-to-kelvin conversion, and
 # the radiative damping this file relaxes at is that conversion inverted.
 from sensitivity import planetary_albedo_from_fluxes, radiative_damping_w_m2_per_k
@@ -236,7 +237,16 @@ def slab_heat_capacity(run_dir: Path) -> tuple[float, dict]:
 # "the bound still holds" from "the bound was never re-examined".
 
 # THE SETTLED-WINDOW SPREAD, taken on run_432e5e46adef's own detrended residual.
-NOMINAL_ORBIT_SCATTER_K = 0.091
+#
+# 0.092 AND NOT 0.091, because the window it is read on is now the clean-I/O
+# block alone and the clean stream is the noisier instrument: PlaSim's low-I/O
+# accumulation averages over the output interval, which suppresses per-orbit
+# variance, so a window that reached back across the join read 0.0910 where the
+# twelve clean orbits read 0.09103. The bound goes to the top of what the
+# reports derive, per the asymmetry argued above -- a nominal below what a run
+# reads under-sizes the window that run is judged in, and a nominal above only
+# buys orbits.
+NOMINAL_ORBIT_SCATTER_K = 0.092
 
 # THE MEMORY TIME STATES NO NUMBER HERE. `lib/run_lengths.py` declares the
 # bracket, with the sweep it came from and the anchor that re-examines it, and
@@ -305,6 +315,39 @@ def fit_span_orbits(total_orbits: int) -> int:
     return int(np.count_nonzero(axis >= axis.max() * FIT_TAIL_FRACTION))
 
 
+
+# THE FIT SPANS THE APPROACH BY CONSTRUCTION, SO IT CAN CROSS AN I/O JOIN.
+# The verdict WINDOW refuses to span one -- `segments.py` argues why -- but the
+# relaxation fit is a different quantity: it needs the approach, and on this
+# project every approach was integrated in the low-I/O regime while the settled
+# tail is clean. Refusing outright would make the relaxation time unavailable
+# on every run that has one to measure.
+#
+# So the step is MEASURED against the criterion it would decide, which is
+# CLAUDE.md's rule about checking the instrument against the size of the
+# effect. The asymptote's whole use is the offset criterion, `asymptote -
+# window mean` against `_OFFSET_TOLERANCE_K`. A step at the join enters the
+# asymptote directly, so a step at or above that tolerance means the fit cannot
+# decide the criterion whatever it returns, and a step well below it means the
+# join is not what the answer rests on.
+def io_step_at_join(series, run_dir: Path, first: int, last: int,
+                    sample: int = 5) -> tuple[int | None, float]:
+    """The jump in `series` across the first I/O-regime change in [first, last].
+
+    Means over up to `sample` orbits each side, so the answer is a level change
+    rather than one pair of orbits. Returns `(None, 0.0)` when the range holds
+    no join.
+    """
+    joins = io_regime_changes(run_dir, range(first, last + 1))
+    if not joins:
+        return None, 0.0
+    join = joins[0]
+    before = series[max(first, join - sample):join]
+    after = series[join:min(last + 1, join + sample)]
+    if len(before) == 0 or len(after) == 0:
+        return join, float("nan")
+    return join, float(np.mean(after) - np.mean(before))
+
 # THE REPORT EACH DECLARED BOUND WAS TAKEN BESIDE, recorded so that a bound
 # nobody has looked at can be told from one that has been looked at and held.
 # The scatter was read off this run's settled window; the relaxation time is
@@ -317,7 +360,7 @@ CONVERGENCE_BOUND_ANCHOR = {
     "run": "run_432e5e46adef",
     "artifact": "exoplasim/analysis/convergence/"
                 "run_432e5e46adef_convergence.json",
-    "orbit_scatter_k": 0.08333227083609156,
+    "orbit_scatter_k": 0.09103088646658508,
 }
 CONVERGENCE_REPORTS = "exoplasim/analysis/convergence"
 
@@ -464,7 +507,9 @@ def assessment_window(run_dir: Path, n_orbits: int, window: int,
 
     The trailing-drop and interior-hole rules are `production_window`'s, applied
     to the declared purpose instead: a diagnostic block interrupted by a spin-up
-    segment is no more a trend than the other way round.
+    segment is no more a trend than the other way round. So is the I/O-regime
+    rule, and unmodified: an A/B arm is judged on the same instrument on both
+    sides of its window or it is not judged.
     """
     if purpose == "production":
         return production_window(run_dir, n_orbits, window)
@@ -492,6 +537,7 @@ def assessment_window(run_dir: Path, n_orbits: int, window: int,
             f"{end} and are not declared `{purpose}`. A window with a hole in "
             f"it is not a trend; shorten --window, or assess the block before "
             f"them.")
+    refuse_a_window_spanning_an_io_regime_change(run_dir, start, end, window)
     return start, end
 
 
@@ -819,6 +865,22 @@ def main() -> None:
         relaxation_fit_verdict = (
             f"tau = {tau_fit:.6g} orbits is shorter than the {fit_span} "
             "orbits fitted, so the series carries the curvature that fixes it")
+    # The fitted range is the tail `fit_span_orbits` selects, so the join is
+    # looked for there and not over the whole series.
+    fit_first = len(orbits_axis) - fit_span
+    io_join, io_step_k = io_step_at_join(
+        arrays["ts"], run_dir, fit_first, len(orbits_axis) - 1)
+    if io_join is not None and (
+            not np.isfinite(io_step_k) or abs(io_step_k) >= _OFFSET_TOLERANCE_K):
+        relaxation_fit_identifiable = False
+        relaxation_fit_verdict = (
+            f"the fitted range crosses the I/O-regime change at orbit "
+            f"{io_join}, and the surface temperature steps {io_step_k:+.4g} K "
+            f"across it against the {_OFFSET_TOLERANCE_K} K the offset "
+            f"criterion discriminates at. The step enters the asymptote "
+            f"directly, so this fit cannot decide that criterion whatever it "
+            f"returns; extend the run in one regime, or read the relaxation "
+            f"time off the clean block alone")
     offset = asymptote - metrics["temperature_mean_k"]
 
     # A converged run has no approach left to fit, so the exponential becomes
@@ -932,6 +994,13 @@ def main() -> None:
         "relaxation_orbits_fitted_standard_error": (
             tau_fit_se if relaxation_fit_identifiable else None),
         "relaxation_fit_span_orbits": fit_span,
+        # Whether the approach and the settled tail were written by the same
+        # instrument, and what the join is worth if not. Reported on every run
+        # -- including `null` -- so that a fit nobody has checked for a join
+        # can be told from one that has been checked and has none.
+        "relaxation_fit_io_regime_join_orbit": io_join,
+        "relaxation_fit_io_regime_step_k": (
+            None if io_join is None else io_step_k),
         "relaxation_orbits_expected": tau_expected,
         # What tau_expected was built from, so the fallback offset below can be
         # audited without re-deriving it. lib/sensitivity.py owns the damping.

@@ -482,6 +482,132 @@ def check_documented_in_component(files) -> list[str]:
 
 
 
+
+def check_io_regime_window() -> list[str]:
+    """A verdict window is refused when it spans a change of I/O regime.
+
+    THE LIVE FAILURE. This project's bootstrap ran 70 orbits of low-I/O spinup
+    and then a clean-I/O tail. Fitted across the join, the integrated
+    autocorrelation time of the per-orbit mean surface temperature came back at
+    9.08 orbits; fitted on each side it is 2.00 and 1.00. The whole difference
+    was a +0.1616 K step at the boundary, read as memory the planet does not
+    have -- and tau is what sizes the window and prices the production span.
+
+    Class 17: every case has a right answer, and every refusal is paired with
+    the positive that proves the setup was real rather than the manifest merely
+    existing. Synthetic manifests in a temp directory; it touches no run.
+    """
+    import json as _json
+    import tempfile
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    from segments import io_regime_changes, production_window
+
+    bad = []
+
+    def run_dir(tmp: str, segments) -> Path:
+        d = Path(tmp)
+        (d / "run_manifest.json").write_text(
+            _json.dumps({"segments": segments}), encoding="utf-8")
+        return d
+
+    def seg(a, b, low_io):
+        return {"start_year_index": a, "end_year_index": b,
+                "purpose": "spinup", "low_io": low_io}
+
+    def case(name, got, want):
+        if got != want:
+            bad.append(f"{name}: got {got!r}, expected {want!r}")
+
+    def raises(name, fn) -> None:
+        try:
+            fn()
+        except RuntimeError:
+            return
+        bad.append(f"{name}: expected a refusal and got a window")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = run_dir(tmp, [seg(0, 79, False)])
+        # The positive that proves the setup: one clean regime throughout and
+        # the window is the plain tail, so the refusals below are caused by the
+        # join and not by `low_io` being declared at all.
+        case("one regime throughout takes the tail",
+             production_window(d, 80, 10), (70, 79))
+        case("one regime has no change", io_regime_changes(d, range(80)), [])
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # The bootstrap's own shape: a low-I/O approach, then a clean tail.
+        d = run_dir(tmp, [seg(0, 69, True), seg(70, 81, False)])
+        case("the join is found", io_regime_changes(d, range(82)), [70])
+        raises("a window spanning the join is refused",
+               lambda: production_window(d, 82, 21))
+        # Paired positive: the same run judged inside the clean block is fine,
+        # so the refusal is about the join and not about the run's length.
+        case("a window inside the clean block is accepted",
+             production_window(d, 82, 12), (70, 81))
+        # And the boundary is exactly where it should be: one orbit more
+        # reaches back into the low-I/O block.
+        raises("one orbit past the join is refused",
+               lambda: production_window(d, 82, 13))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # A run that switched BACK. Both joins are reported, and the window is
+        # judged on the first one it meets rather than on the segment list.
+        d = run_dir(tmp, [seg(0, 9, True), seg(10, 19, False),
+                          seg(20, 29, True)])
+        case("both joins are found",
+             io_regime_changes(d, range(30)), [10, 20])
+        case("a subrange reports only its own joins",
+             io_regime_changes(d, range(20, 30)), [])
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # A segment with no `low_io` key is low-I/O, which is what every run
+        # made before 2026-08-17 was. So an undeclared block beside a declared
+        # clean one IS a join, and the unsafe default is what makes it one.
+        d = run_dir(tmp, [{"start_year_index": 0, "end_year_index": 9,
+                           "purpose": "spinup"}, seg(10, 19, False)])
+        case("an undeclared block joins a clean one",
+             io_regime_changes(d, range(20)), [10])
+    return bad
+
+
+def check_io_step_measurement() -> list[str]:
+    """`assess_convergence.io_step_at_join` measures the step it names.
+
+    The relaxation fit spans the approach by construction, so it may cross a
+    join the verdict window may not. What makes that admissible is measuring
+    the step against the criterion the asymptote decides, so this holds the
+    measurement to a series whose step is known by construction.
+    """
+    import json as _json
+    import tempfile
+    import numpy as _np
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    from assess_convergence import io_step_at_join
+
+    bad = []
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        (d / "run_manifest.json").write_text(_json.dumps({"segments": [
+            {"start_year_index": 0, "end_year_index": 19, "purpose": "spinup",
+             "low_io": True},
+            {"start_year_index": 20, "end_year_index": 29, "purpose": "spinup",
+             "low_io": False}]}), encoding="utf-8")
+        # Flat at 288.0, then flat at 288.5: the step is 0.5 K exactly and no
+        # trend can be confused for it.
+        series = _np.array([288.0] * 20 + [288.5] * 10)
+        join, step = io_step_at_join(series, d, 0, 29)
+        if join != 20:
+            bad.append(f"join: got {join}, expected 20")
+        if abs(step - 0.5) > 1e-12:
+            bad.append(f"step: got {step}, expected 0.5")
+        # A range that stops short of the join has no join and no step, which
+        # is the case that must not report a spurious one.
+        join, step = io_step_at_join(series, d, 0, 19)
+        if (join, step) != (None, 0.0):
+            bad.append(f"no join: got {(join, step)}, expected (None, 0.0)")
+    return bad
+
+
 def check_production_window() -> list[str]:
     """`segments.py:production_window` picks the window a declaration implies.
 
@@ -3226,6 +3352,10 @@ def main() -> None:
                lambda: check_staged_surface_build_guard()),
               ("the convergence window follows the declared purposes",
                lambda: check_production_window()),
+        ("a verdict window is refused across an I/O-regime change",
+               lambda: check_io_regime_window()),
+        ("the I/O step at a join is measured against the offset criterion",
+               lambda: check_io_step_measurement()),
               ("no control patch is left in the model source",
                lambda: check_no_control_patch()),
               ("SHTns is asked for the one mode that runs no timing race",

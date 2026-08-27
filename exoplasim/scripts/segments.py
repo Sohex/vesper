@@ -91,6 +91,12 @@ def production_window(run_dir: Path, n_orbits: int, window: int) -> tuple[int, i
     with a hole in it is not a trend, and no rule for filling it is better than
     the caller saying which orbits they meant: shorten `--window`, or assess the
     block before the interruption.
+
+    A window that spans a change of I/O REGIME raises on the same terms, for
+    the reason `refuse_a_window_spanning_an_io_regime_change` gives: the two
+    regimes are two instruments and the join between them is a step. That rule
+    lives here rather than in each caller because a window is where a verdict
+    is taken, and there is no verdict the step is admissible in.
     """
     excluded = set(non_production_orbits(run_dir, range(n_orbits)))
     end = n_orbits - 1
@@ -113,6 +119,7 @@ def production_window(run_dir: Path, n_orbits: int, window: int) -> tuple[int, i
             f"{end} but are not production orbits. A convergence window with a "
             f"hole in it is not a trend; shorten --window, or assess the block "
             f"before them.")
+    refuse_a_window_spanning_an_io_regime_change(run_dir, start, end, window)
     return start, end
 
 
@@ -143,3 +150,59 @@ def low_io_orbits(run_dir: Path, orbits) -> list[int]:
         else:
             tainted.append(orbit)
     return tainted
+
+
+def io_regime_changes(run_dir: Path, orbits) -> list[int]:
+    """The first orbit of each block whose I/O regime differs from the one before.
+
+    `orbits` is taken in the order given and read as one series, so the answer
+    is about that series and not about the run's segment list: a caller that
+    hands over a subrange gets the changes inside its own subrange.
+    """
+    tainted = set(low_io_orbits(run_dir, orbits))
+    changes, previous = [], None
+    for orbit in orbits:
+        regime = orbit in tainted
+        if previous is not None and regime != previous:
+            changes.append(orbit)
+        previous = regime
+    return changes
+
+
+def refuse_a_window_spanning_an_io_regime_change(
+        run_dir: Path, start: int, end: int, window: int) -> None:
+    """A verdict window has to be one I/O regime, and this is why.
+
+    PlaSim's low-I/O accumulation writes interval accumulations where the clean
+    regime writes instantaneous samples, and runs written before the
+    first-record patch additionally carry a corrupt first record per orbit. The
+    two regimes therefore report the same planet on two instruments, and the
+    join between them is a STEP in every series taken across it.
+
+    That step is not a small bias to be tolerated. Fitted on this project's
+    82-orbit bootstrap, the integrated autocorrelation time of the per-orbit
+    mean surface temperature came back at 9.08 orbits; fitted on each side of
+    the join separately it is 2.00 on the low-I/O block and 1.00 and stationary
+    on the clean one. The whole of the difference was a +0.1616 K step at the
+    boundary, read by the estimator as memory the planet does not have. A
+    memory time is what sizes the window and prices the production span, so a
+    tau inflated ninefold buys orbits nobody needs -- and the same step tilts
+    the trend the convergence verdict is taken on.
+
+    A REFUSAL AND NOT A CLIP, on `production_window`'s own terms: no rule for
+    which side to keep is better than the caller saying which orbits they
+    meant. The message names the join and the orbits available on the near side
+    of it, which is what a caller needs to shorten `--window` or to decide the
+    run has not yet bought enough orbits in one regime to be judged.
+    """
+    inside = io_regime_changes(run_dir, range(start, end + 1))
+    if not inside:
+        return
+    join = inside[0]
+    raise RuntimeError(
+        f"the {window}-orbit window {start}-{end} spans a change of I/O "
+        f"regime at orbit {join}: PlaSim's low-I/O accumulation and the clean "
+        f"stream are two instruments, and every series across the join carries "
+        f"a step that an autocorrelation reads as memory. {end - join + 1} "
+        f"orbits are available on the near side; shorten --window to that or "
+        f"below, or extend the run in one regime.")

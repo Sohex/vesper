@@ -133,12 +133,20 @@ MEMORY_BRACKET_ANCHOR = {
     "run": "run_432e5e46adef",
     "artifact": "exoplasim/analysis/convergence/run_432e5e46adef_convergence.json",
     "node": ("resolving_power", "temperature_residual_tau_orbits"),
-    "observation": 1.714595170064968,
-    "why_below": "the sweep read the whole 70-orbit series over five candidate "
-                 "windows and carried the largest; the report reads the "
-                 "default window alone, and a tau taken inside a window is a "
-                 "lower bound on tau. Both are readings of one series, and the "
-                 "declaration bounds both.",
+    "observation": 1.0,
+    "why_below": "the report now reads the CLEAN-I/O block alone, twelve "
+                 "orbits, because a verdict window may no longer span the "
+                 "change of I/O regime at orbit 70. On those twelve the lag-1 "
+                 "correlation is 0.076 and the estimator returns its floor of "
+                 "1.0. THAT IS NOT A MEASUREMENT THAT COLLAPSES THIS BRACKET: "
+                 "the standard error on a lag-1 at twelve samples is about "
+                 "0.29, so 0.076 sits within one and a half of the 0.43 the "
+                 "mixed window read, and twelve orbits cannot tell a memory of "
+                 "1 from one of 2.2. The bracket stands on the sweep, which is "
+                 "an upper bound for the reason above it, and the clean block "
+                 "is what would collapse it once it is long enough to resolve "
+                 "one. That is the measurement to buy: about thirty clean "
+                 "orbits, against the twelve on disk.",
 }
 
 # WHAT COUNTS AS A READING OF THE SETTLED VARIABILITY, applied to every
