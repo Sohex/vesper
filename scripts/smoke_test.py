@@ -483,6 +483,79 @@ def check_documented_in_component(files) -> list[str]:
 
 
 
+
+def check_uncovered_trailing_orbits_refuse() -> list[str]:
+    """Orbits past the manifest's last segment refuse rather than defaulting.
+
+    THE LIVE CASE. A continuation killed partway leaves its orbits on disk and
+    no segment saying what they were, because the record is appended when the
+    block finishes. `low_io_orbits` then reads them as low-I/O -- correct when
+    "unlabelled" means a run older than segments, wrong when it means
+    UNRECORDED -- so a block of clean orbits becomes invisible and the
+    I/O-regime guard has nothing to refuse. The guard walked around rather than
+    failing.
+
+    Class 17, and the pairing is the point: a LEADING gap must still pass,
+    because orbit 0 is uncovered on older runs and every orbit is uncovered on
+    runs that predate segments entirely.
+    """
+    import json as _json
+    import tempfile
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    from segments import production_window, refuse_orbits_no_segment_covers
+
+    bad = []
+
+    def run_dir(tmp, segments):
+        d = Path(tmp)
+        if segments is not None:
+            (d / "run_manifest.json").write_text(
+                _json.dumps({"segments": segments}), encoding="utf-8")
+        return d
+
+    def seg(a, b, low_io=True):
+        return {"start_year_index": a, "end_year_index": b,
+                "purpose": "spinup", "low_io": low_io}
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # The killed continuation: 110 orbits, segments stop at 69.
+        d = run_dir(tmp, [seg(0, 69)])
+        try:
+            refuse_orbits_no_segment_covers(d, 110)
+            bad.append("40 uncovered trailing orbits did not refuse")
+        except RuntimeError:
+            pass
+        # And it refuses through the door callers actually use.
+        try:
+            production_window(d, 110, 42)
+            bad.append("production_window accepted a run with a trailing gap")
+        except RuntimeError as exc:
+            if "recorded nowhere" not in str(exc):
+                bad.append(f"production_window refused for the wrong reason: {exc}")
+        # The paired positive: the same manifest with the orbits it claims.
+        try:
+            refuse_orbits_no_segment_covers(d, 70)
+        except RuntimeError as exc:
+            bad.append(f"a fully covered run was refused: {exc}")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # A LEADING gap is legitimate and must pass: orbit 0 uncovered.
+        d = run_dir(tmp, [seg(1, 79)])
+        try:
+            refuse_orbits_no_segment_covers(d, 80)
+        except RuntimeError as exc:
+            bad.append(f"a leading gap was refused: {exc}")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # No manifest at all: every run made before segments existed.
+        d = run_dir(tmp, None)
+        try:
+            refuse_orbits_no_segment_covers(d, 80)
+        except RuntimeError as exc:
+            bad.append(f"a run with no manifest was refused: {exc}")
+    return bad
+
+
 def check_io_regime_window() -> list[str]:
     """A verdict window is refused when it spans a change of I/O regime.
 
@@ -819,7 +892,14 @@ def check_production_window() -> list[str]:
              production_window(run_dir(tmp, None), 80, 10), (70, 79))
 
     with tempfile.TemporaryDirectory() as tmp:
-        d = run_dir(tmp, [seg(1, 76, "spinup")])
+        # 1 to 79 and not 1 to 76: the segment has to COVER the orbits, or
+        # `refuse_orbits_no_segment_covers` refuses the run before the window
+        # is computed. The three-orbit trailing gap this used to carry was
+        # incidental to what the case asserts and the case is unchanged
+        # without it -- but a trailing gap is now a defect in its own right,
+        # because it is what a killed continuation leaves and it hides an
+        # I/O regime nobody recorded.
+        d = run_dir(tmp, [seg(1, 79, "spinup")])
         # The positive that proves the setup: with the tail declared spinup the
         # answer is still the tail, so the next case's shift is caused by the
         # declaration and not by the manifest merely existing.
@@ -3626,6 +3706,8 @@ def main() -> None:
                lambda: check_production_span_is_self_limiting()),
         ("a staged field is never written through a symlink",
                lambda: check_no_write_through_a_symlink()),
+        ("orbits no segment covers refuse rather than defaulting",
+               lambda: check_uncovered_trailing_orbits_refuse()),
         ("a verdict window is refused across an I/O-regime change",
                lambda: check_io_regime_window()),
         ("the I/O step at a join is measured against the offset criterion",

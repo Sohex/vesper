@@ -98,6 +98,7 @@ def production_window(run_dir: Path, n_orbits: int, window: int) -> tuple[int, i
     lives here rather than in each caller because a window is where a verdict
     is taken, and there is no verdict the step is admissible in.
     """
+    refuse_orbits_no_segment_covers(run_dir, n_orbits)
     excluded = set(non_production_orbits(run_dir, range(n_orbits)))
     end = n_orbits - 1
     while end >= 0 and end in excluded:
@@ -150,6 +151,49 @@ def low_io_orbits(run_dir: Path, orbits) -> list[int]:
         else:
             tainted.append(orbit)
     return tainted
+
+
+def refuse_orbits_no_segment_covers(run_dir: Path, n_orbits: int) -> None:
+    """Refuse when the disk holds orbits past the last segment the manifest has.
+
+    A KILLED CONTINUATION LEAVES EXACTLY THIS. The model writes its orbits and
+    the segment record is appended when the block finishes, so a run stopped
+    partway has the orbits and no line saying what they were. `low_io_orbits`
+    then reads them as low-I/O -- its documented default, and the safe one when
+    "unlabelled" means a run made before segments existed -- and here
+    unlabelled means UNRECORDED, where the same default is simply wrong: the
+    orbits are clean, the join is invisible, and
+    `refuse_a_window_spanning_an_io_regime_change` sees nothing to refuse.
+
+    That is the guard being walked around rather than failing, which is worse
+    than either. So the manifest's coverage is checked against the orbit count
+    the caller is asking about, and a trailing gap refuses.
+
+    A LEADING gap does not, and the difference is not cosmetic. Orbit 0 is
+    uncovered on runs made before the runner recorded its own first block, and
+    every orbit of every run made before segments existed is uncovered; those
+    are legitimate and `non_production_orbits` documents why they count as
+    production. What cannot be legitimate is an orbit AFTER a segment that
+    claims to end earlier: something wrote it and nothing said what it was.
+    """
+    segments = segment_records(run_dir)
+    if not segments:
+        return                       # no manifest, or a run that predates them
+    covered = max(int(s["end_year_index"]) for s in segments)
+    if n_orbits - 1 <= covered:
+        return
+    raise RuntimeError(
+        f"{Path(run_dir).name} has {n_orbits} orbits on disk and its manifest's "
+        f"last segment ends at {covered}, so orbits {covered + 1} to "
+        f"{n_orbits - 1} are recorded nowhere. Nothing says what I/O regime or "
+        f"what purpose they were run at, and the unlabelled default reads them "
+        f"as low-I/O production -- which is how a killed continuation's CLEAN "
+        f"orbits become invisible to the regime guard.\n"
+        f"  A continuation that was interrupted is the usual cause. Re-run it "
+        f"so the segment is recorded, or delete the uncovered orbits; do not "
+        f"hand-write the segment, because then the manifest asserts a regime "
+        f"nobody observed."
+    )
 
 
 def io_regime_changes(run_dir: Path, orbits) -> list[int]:
