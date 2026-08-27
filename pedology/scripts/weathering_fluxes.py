@@ -73,7 +73,8 @@ import netCDF4 as nc
 import numpy as np
 import yaml
 
-from _paths import ANALYSIS, CONFIG, PEDOGENESIS, PROJECT_ROOT, climatology_path
+from _paths import (ANALYSIS, CONFIG, PEDOGENESIS, PROJECT_ROOT,
+                    bootstrap_climatology_path)
 
 import builds
 from brine_paths import ROCK_TO_MEYBECK
@@ -166,7 +167,12 @@ def main() -> None:
     if args.source_build:
         config["source_build"] = args.source_build
     pedo = yaml.safe_load(PEDOGENESIS.read_text(encoding="utf-8"))
-    climatology = (args.climatology or climatology_path()).resolve()
+    # THE BOOTSTRAP, not the baseline. This product feeds volcanic_sulfate,
+    # which stages an aerosol field a climate run reads, so it has to be
+    # computed BEFORE the baseline exists. Reading the baseline here asks on
+    # a first pass for an artifact that cannot exist yet, and on a later pass
+    # reads a climate the staged field it feeds helped produce.
+    climatology = (args.climatology or bootstrap_climatology_path()).resolve()
     if not climatology.is_file():
         raise SystemExit(f"{climatology} does not exist")
     from provenance import require_build

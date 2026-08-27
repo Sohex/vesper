@@ -725,7 +725,7 @@ steps:
   - id: dust_forcing
     script: exoplasim/scripts/dust_forcing.py
     cost: minutes
-    needs: [dust, dust_optics, surface_albedo]
+    needs: [dust, dust_optics, surface_albedo, baseline_climatology]
     writes: [analysis/dust_forcing.json, analysis/dust_surface_forcing.nc]
 
   - id: sea_salt_optics
@@ -902,7 +902,7 @@ steps:
   - id: shortwave_band_weights
     script: exoplasim/scripts/shortwave_band_weights.py
     cost: minutes
-    needs: [stellar_spectrum]
+    needs: [stellar_spectrum, baseline_climatology]
     writes: [exoplasim/analysis/shortwave_band_weights.json, exoplasim/analysis/h2o_sw_level.json]
     gate: >
       two artifacts from one script because they are one subject reached at two
@@ -1002,7 +1002,7 @@ steps:
     script: hydrography/scripts/carve_verdict.py
     loop: A
     cost: minutes
-    needs: [endmember_baseline_run, hydrography]
+    needs: [endmember_baseline_run, hydrography, baseline_climatology]
     writes: [hydrography/analysis/carve_verdict_endmember.json]
     gate: >
       the cold-end verdict. Its own lakes and its own climatology, from the
@@ -1012,7 +1012,7 @@ steps:
     script: hydrography/scripts/export_carve_list.py
     loop: A
     cost: seconds
-    needs: [carve_verdict, carve_verdict_endmember]
+    needs: [carve_verdict, carve_verdict_endmember, baseline_climatology]
     writes: ["hydrography/data/{build}/carve_list.txt", "hydrography/data/{build}/carve_list.json"]
     gate: >
       carves the INTERSECTION, per `docs/src/pipeline/loops.md`: retain is the larger of
@@ -1103,13 +1103,13 @@ steps:
   - id: weathering_fluxes
     script: pedology/scripts/weathering_fluxes.py
     cost: minutes
-    needs: [soil, hydrography, outgassing_gate]
+    needs: [soil, hydrography, outgassing_gate, bootstrap_climatology]
     writes: [pedology/analysis/weathering_fluxes.json]
 
   - id: thermostat_efficiency
     script: pedology/scripts/thermostat_efficiency.py
     cost: minutes
-    needs: [weathering_fluxes]
+    needs: [weathering_fluxes, baseline_climatology]
     writes: [pedology/analysis/thermostat_efficiency.json]
 
   # What CHOOSING a weathering scheme costs the thermostat, as opposed to what a
@@ -1131,7 +1131,7 @@ steps:
   - id: surface_classes
     script: pedology/scripts/build_surface_classes.py
     cost: minutes
-    needs: [soil, brine_paths, dust, surface_water]
+    needs: [soil, brine_paths, dust, surface_water, baseline_climatology]
     writes: [pedology/analysis/surface_classes.nc, pedology/analysis/surface_classes_report.json]
 
   - id: phosphorus_budget
@@ -1422,7 +1422,7 @@ steps:
   - id: downstream_prospectivity
     script: minerals/scripts/build_downstream_prospectivity.py
     cost: minutes
-    needs: [prospectivity, brine_paths, surface_classes, soil]
+    needs: [prospectivity, brine_paths, surface_classes, soil, baseline_climatology]
     writes: ["minerals/data/{build}/downstream_prospectivity.nc", "minerals/data/{build}/downstream_prospectivity_report.json"]
 
   - id: trace_gas_forcing
@@ -1445,7 +1445,7 @@ steps:
     reads_export: true
     script: maps/build_basemap.py
     cost: minutes
-    needs: [analyze_climatology, surface_water]
+    needs: [analyze_climatology, surface_water, baseline_climatology]
     writes: [maps/build/basemap_provenance.json, maps/build/basemap.npy, maps/build/land.npy, maps/build/basemap_equirectangular.png, "maps/build/region_index_*.npy"]
     # `reads_export` was absent while the terrain was read all the same, through
     # `builds.mesh_export()`. It is what makes the map reachable from `orogen`,
