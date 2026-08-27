@@ -39,15 +39,29 @@ fields that are pure functions of terrain. It exists to produce the climatology
 that the remaining fields need. **Its numbers are not the baseline.**
 
 **baseline run** -- the second climate run on a build, on the full surface
-fields: lakes, the lake compositing in the albedo, and soil water capacity, all
-built from the bootstrap's climatology. The climatology of a baseline run is what
-downstream components read.
+fields: lakes, the lake compositing in the albedo, and soil water capacity. On
+the FIRST pass those are built from the bootstrap's climatology, because it is
+the only one that exists. The climatology of a baseline run is what downstream
+components read.
 
 **commissioning** -- the whole process of taking a build to a settled baseline:
 terrain-only surface fields, bootstrap run, every derived field rebuilt from the
-bootstrap's climatology, baseline run, convergence. A build is UNCOMMISSIONED
+BEST AVAILABLE climatology, baseline run, convergence. A build is UNCOMMISSIONED
 until that finishes, and an uncommissioned build has no climatology that anything
 downstream may read.
+
+  Best available, not the bootstrap's, and the difference only shows on a
+  second pass. A derived field whose answer depends on the climate STATE reads
+  the baseline once one exists and the bootstrap before that, which on a first
+  pass through a build is the bootstrap in every case. So the first pass reads
+  exactly as it always did, and it is the pass after -- the one that re-runs
+  the baseline on rebuilt fields -- where a field pinned to the bootstrap would
+  be holding the loop at the earliest stage rather than the best determined
+  one. `lib/paths.py:best_available_climatology` resolves it and stamps which
+  stage each product was built at; `docs/src/pipeline/loops.md` argues it. A
+  field that depends on the model calendar or the grid rather than the state
+  reads the bootstrap at every pass, because the two climatologies carry the
+  same answer.
 
   This is the word for "the work that extends from a build", and OROGEN IS NOT
   PART OF IT. If you are saying it and picturing a terrain being regenerated,
@@ -59,11 +73,20 @@ configuration value, a physics correction. Same build, no generation, and the
 bootstrap comes with it, because everything below a climatology is worthless
 rather than stale once the climatology is, by `CLAUDE.md` rule 7.
 
-**re-run the baseline** -- the narrow case, and NOT a re-commissioning: a new
-baseline run on derived fields that are still valid, because whatever changed
-does not reach them. The test is mechanical rather than a judgement: if lakes,
-the albedo compositing, the soil or code 229 have to be rebuilt, their input is
-a climatology, so it is a re-commissioning and the bootstrap is not optional.
+**re-run the baseline** -- a new baseline run on the same build, and NOT a
+re-commissioning. It covers two cases: derived fields that are still valid
+because whatever changed does not reach them, and derived fields that have been
+rebuilt on the standing baseline, which is one more turn of the loop rather
+than a return to its start.
+
+  The test is mechanical rather than a judgement, and it is asked of the
+  CLIMATOLOGY and not of the fields. If what changed invalidates the
+  climatology -- a model patch, a configuration value the run reads, a physics
+  correction -- everything below it is worthless by `CLAUDE.md` rule 7, the
+  bootstrap included, and it is a re-commissioning. If what changed invalidates
+  only a derived field, that field is rebuilt from the standing baseline and
+  the baseline is run again on it; no bootstrap is needed, because the
+  climatology the field reads is still valid.
 
   Do not say "re-baseline". It reads as an iteration and means one of these two,
   and that gap has already cost one misunderstanding.
