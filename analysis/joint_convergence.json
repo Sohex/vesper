@@ -1,15 +1,15 @@
 {
-  "generated": "2026-08-27T08:43:40.349014+00:00",
+  "generated": "2026-08-27T16:52:40.912810+00:00",
   "what": "each pipeline loop's OWN exit predicate, re-evaluated against the final state. docs/src/pipeline/loops.md, the finalizer.",
   "not_a_loop": "nothing iterates on this verdict. A failure names a loop and the decision to re-enter it is the author's.",
   "operating_support": "T85",
-  "status": "not evaluable",
+  "status": "FAIL",
   "loops": [
     {
       "loop": "A",
       "predicate": "carve the INTERSECTION of the verdicts taken at the two bounding climates; re-taken on the operating support's baseline climatology, that intersection is the set that was actually carved",
       "status": "not evaluable",
-      "detail": "no applied carve list at hydrography/data/canonical-10m-base/carve_list.json. Loop A has not exited on this lineage, so there is no carved set to hold a re-take against.",
+      "detail": "no re-taken carve list at hydrography/analysis/carve_list_final.json. Produce one with hydrography/scripts/export_carve_list.py on the PRE-CARVE basins and coupling under the operating support's baseline climatology, passing --endmember-climatology for the cold arm; hydrography/scripts/carve_overshoot.py's docstring carries the invocation and the cross-build caution.",
       "compared": {
         "operating_support": "T85",
         "applied_carve_list": "hydrography/data/canonical-10m-base/carve_list.json",
@@ -48,10 +48,10 @@
         "verdict_loop_a_used": "hydrography/analysis/carve_verdict.json",
         "verdict_on_modelled_vegetation": "hydrography/analysis/carve_verdict_modelled.json",
         "assumed_biosphere_arm": {
-          "path": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+          "path": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
           "exists": true,
           "rung": "T21",
-          "run_id": "run_432e5e46adef",
+          "run_id": "run_893e276ee029",
           "land_albedo_source": "vegetated"
         },
         "modelled_biosphere_arm": null
@@ -60,8 +60,8 @@
     {
       "loop": "D",
       "predicate": "the route's own invariants: the operating support is reached, and every change of rung happened at constant dt",
-      "status": "not evaluable",
-      "detail": "no run chain: there is no baseline climatology naming a run, so nothing says which supports were walked",
+      "status": "FAIL",
+      "detail": "the chain ends at T21 and the operating support is T85, so the route's terminal rung is not reached",
       "compared": {
         "operating_support": "T85",
         "declared_route": [
@@ -78,7 +78,15 @@
             45.0
           ]
         ],
-        "chain": []
+        "chain": [
+          {
+            "run_id": "run_893e276ee029",
+            "rung": "T21",
+            "timestep_minutes": 45.0,
+            "converted": false
+          }
+        ],
+        "rung_changes": []
       }
     }
   ]
