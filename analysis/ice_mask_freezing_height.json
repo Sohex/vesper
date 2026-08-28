@@ -1,19 +1,19 @@
 {
   "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
-  "mesh_export": "source/canonical-10m-base/exoplasim-T42",
-  "grid_export": "source/canonical-10m-base/exoplasim-T21",
-  "source_build": "canonical-10m-base",
-  "lapse_k_per_km_warmest": 8.430261425345707,
+  "mesh_export": "source/canonical-10m-carve1/exoplasim-T42",
+  "grid_export": "source/canonical-10m-carve1/exoplasim-T21",
+  "source_build": "canonical-10m-carve1",
+  "lapse_k_per_km_warmest": 8.376221008920714,
   "grid_cells_with_glac": 0,
-  "uncorrected_land_below_freezing": 0.012932207049404032,
-  "corrected_land_below_freezing": 0.07160574700677852,
+  "uncorrected_land_below_freezing": 0.012643907778857827,
+  "corrected_land_below_freezing": 0.07023127194330714,
   "by_margin_k": {
-    "0": 0.07160574700677852,
-    "-5": 0.04047156788245453,
-    "-10": 0.019241328166455088
+    "0": 0.07023127194330714,
+    "-5": 0.037947334553344085,
+    "-10": 0.017391617106668793
   },
   "mask": {
-    "path": "source/canonical-10m-base/ice_mask_baseline.txt",
+    "path": "source/canonical-10m-carve1/ice_mask_baseline.txt",
     "margin_k": 0.0
   }
 }

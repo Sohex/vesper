@@ -263,6 +263,23 @@ _KNOWN_TERRAIN_HASHES = {
     # mask supplying placement, the slider does only the erosion-rate half of
     # the job it used to do, and 0.8 was chosen for the half it no longer does.
     # It is undeclared either way and world-sr77 carries that, deferred.
+    # The THIRD pass, and the first whose carve list came from a real
+    # intersection: 195 basins both bounding climates agreed to cut, out of a
+    # union of 485 where they disagreed about 290. carve1's list was taken the
+    # same way; what is new is that the disagreement is now most of the union,
+    # which is what a second pass on the marginal population looks like.
+    #
+    # Its ice mask is written from carve1's own baseline climatology rather
+    # than carve1's donor: 307,118 regions against 313,790, because the carved
+    # world is warmer. Same seed, same region count, same 850 km2 basin floor,
+    # same --glacial 0.3, and the same basinCatalogue hash as both builds
+    # before it, so a verdict computed against any of the three still refers
+    # to the same basins.
+    "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec":
+        {"name": "canonical-10m-carve2", "note":
+         "2026-08 third pass at 10M: 195 basins cut and 40 notched out of the "
+         "4657 carve1 left standing, ice from carve1's baseline freezing "
+         "height, --glacial 0.3, basin floor 850"},
     "4884dc8a6120bf5661f0e6fefbbf8d6bc30c78d7d2f1de6ce5a6c93073ff5afe":
         {"name": "canonical-10m-carve1", "note":
          "2026-08 second pass at 10M: the first carve, 4115 basins cut and 60 "
@@ -304,7 +321,9 @@ _KNOWN_CATALOGUE_HASHES = {
     # the preserved set is what survived a water balance.
     "35c922c3b481af4bf7b814a6719e05969db0223b9a01895beef01cf200a73b28":
         "2026-08 catalogue at the 850 floor with minCells binding, 8772 "
-        "selected, shared by canonical-10m-base and canonical-10m-carve1",
+        "selected, shared by canonical-10m-base, canonical-10m-carve1 and "
+        "canonical-10m-carve2 -- three builds and two carves apart, and "
+        "byte-identical across all of them",
 }
 
 # The registry is keyed by hash because the hash is the identity, but config and
