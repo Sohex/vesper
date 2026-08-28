@@ -360,7 +360,15 @@ differed by close to a factor of two), `provenance.py` (build
 stamping, config drift, the declared removals that let the drift guard tell a key
 that no longer exists from a key whose value changed, the hashes of the derived
 files a generator read, and
-`staged_surface_field`, the one door onto a staged `.sra` keyed by the rung). Rule 5 cites `builds.py` and `provenance.py` from this list.
+`staged_surface_field`, the one door onto a staged `.sra` keyed by the rung),
+`fortran_source.py` (reading a compiled model's Fortran the way a check has to:
+comments and continuations gone in BOTH source forms, what a declaration line's
+own initialiser evaluates to, and which symbols a run can reach through a
+namelist block -- shared so two declarations of two models cannot disagree about
+what a line says), `cgenie_calibration.py` (the adopted offline ocean's
+calibration set: which switches are off, which factors are at 1.0, which
+reference files are absent, and the check that the source and the shipped
+defaults still agree with `config/cgenie_calibration.yaml`). Rule 5 cites `builds.py` and `provenance.py` from this list.
 
 Git does not track `exoplasim/runs/` (model output; but `runs/INDEX.json` IS
 tracked, and since run ids are UUIDs it is the only record of what each run
