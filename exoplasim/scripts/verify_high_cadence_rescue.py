@@ -3,14 +3,23 @@
 
 WORLDBUILDING CONTEXT: Vesper is a fictional planet and this is engineering
 work on the simulation of it. Everything below is a property of
-`continue_exoplasim.py`'s file handling, checked on fixtures. It runs no model,
-compiles nothing and spawns no process.
+`continue_exoplasim.py`'s file handling or of `pyburn`'s request dispatch,
+checked on fixtures. It runs no model, compiles nothing and spawns no process.
 
 WHY IT EXISTS. A high-cadence orbit is 2 GB of raw at T21 and 15 GB at T42, it
 costs a model run to produce, `.gitignore` keeps model output out of the
 repository on purpose, and nothing else in the tree recovers it. So the one
 property that matters is that the raw stream is still findable, and reported,
 after the postprocessing that reads it has failed.
+
+THE SECOND SUBJECT IS THE POSTPROCESSOR THE RESCUE CALLS. A rescued raw is
+worth nothing if the conversion that reads it answers the wrong question, and
+the conversion is one `pyburn.dataset` call over a list of variable codes. The
+dispatch cases below hold that list to meaning one thing: a code, that code as
+a string and the variable's name are one request and must come back identical,
+every derivation the file carries can be asked for by the code it is written
+for, and a request the raw cannot support is reported rather than raised or
+silently dropped.
 
 WHAT WENT WRONG, and each case below is one half of it. On run_67323a923013's
 orbit 127, pyburn raised on the raw, ExoPlaSim's `integritycheck` quietly
@@ -33,6 +42,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import struct
 import sys
 import tempfile
@@ -694,6 +704,400 @@ def case_a_derived_first_request_converts() -> list[str]:
     return problems
 
 
+PYBURN_SOURCE = (Path(__file__).resolve().parents[2] / "vendor" / "exoplasim"
+                 / "exoplasim" / "pyburn.py")
+MODEL_SOURCE = (Path(__file__).resolve().parents[2] / "vendor" / "exoplasim"
+                / "exoplasim" / "plasim" / "src")
+
+
+def _named(dataset: dict) -> dict:
+    """The variables in a pyburn dataset, without the coordinate axes."""
+    return {name: entry for name, entry in dataset.items()
+            if name not in ("lat", "lon", "lev", "levp", "time")}
+
+
+def _arm_inputs(function: str) -> dict[str, tuple[str, ...]]:
+    """The raw codes each derivation arm of `function` indexes, from the source.
+
+    Read out of the text rather than out of the running module because the
+    thing being checked is the DECLARATION against the CODE, and a table
+    derived from the code it is supposed to constrain constrains nothing.
+    Both spellings an arm uses are resolved: a literal `rawdata["142"]` and a
+    `rawdata[str(divcode)]` through the module's own constant.
+    """
+    from exoplasim import pyburn
+
+    lines = PYBURN_SOURCE.read_text(encoding="utf-8").split("\n")
+    start = next(i for i, l in enumerate(lines) if l.startswith(f"def {function}("))
+    end = next(i for i, l in enumerate(lines[start + 1:], start + 1)
+               if l.startswith("def "))
+    inputs: dict[str, set[str]] = {}
+    current: tuple[str, ...] = ()
+    for line in lines[start:end]:
+        opened = re.match(r"            (?:el)?if key==(.*?):", line)
+        if opened:
+            current = tuple(str(getattr(pyburn, name)) for name in
+                            re.findall(r"str\((\w+code)\)", opened.group(1)))
+            for code in current:
+                inputs.setdefault(code, set())
+        if not current:
+            # Everything before the first arm: the coordinate axes and the
+            # already-present branch, which are not a derivation's inputs.
+            continue
+        for indexed in re.findall(r"rawdata\[([^\]]+)\]", line):
+            through = re.fullmatch(r"str\((\w+code)\)", indexed)
+            literal = re.fullmatch(r'"(\d+)"', indexed)
+            if through:
+                read = str(getattr(pyburn, through.group(1)))
+            elif literal:
+                read = literal.group(1)
+            else:                                      # pragma: no cover
+                raise AssertionError(f"unparsed rawdata index: {indexed}")
+            for code in current:
+                inputs[code].add(read)
+    return {code: tuple(sorted(reads, key=int))
+            for code, reads in inputs.items()}
+
+
+def _codes_the_model_writes() -> set[str]:
+    """Every literal code the model hands to a record writer, from the source."""
+    codes = set()
+    for source in sorted(MODEL_SOURCE.glob("*.f90")):
+        for call in re.finditer(r"call write(?:gp|sp|scalar)\((.*)\)\s*$",
+                                source.read_text(encoding="utf-8"), re.M):
+            depth, field, args = 0, "", []
+            for char in call.group(1):
+                if char == "(":
+                    depth += 1
+                elif char == ")":
+                    depth -= 1
+                if char == "," and depth == 0:
+                    args.append(field.strip())
+                    field = ""
+                else:
+                    field += char
+            args.append(field.strip())
+            if len(args) >= 3 and args[2].isdigit():
+                codes.add(args[2])
+    return codes
+
+
+def case_the_three_spellings_of_a_request_agree() -> list[str]:
+    """A code, that code as a string and the variable's name are one request.
+
+    `dataset`'s docstring promises all three and its per-key loop used to
+    resolve them in a branch on `type(key)==int` that normalised only the
+    string side. An integer reached the derivation dispatch still an integer,
+    compared unequal to every `key==str(...code)` arm, and produced NOTHING:
+    `dataset(raw,[131,132,259])` returned an empty dataset where the same
+    request spelled with strings returned `ua`, `va` and `spd`. world-hs5z.
+
+    The identity needs no model and no expected values: the spelling of a
+    request is not an input to any derivation, so all three must return the
+    same variables with bit-identical arrays, or all three must refuse. It is
+    asked of pyburn's WHOLE table rather than of the three codes the row
+    named, because the defect was in the one line every request goes through.
+    """
+    from exoplasim import pyburn
+
+    problems = []
+    codes = list(pyburn.ilibrary.keys())
+    with tempfile.TemporaryDirectory() as tmpdir:
+        raw = str(synthetic_spectral_raw(Path(tmpdir) / "MOST_HC.00042"))
+        constants = {"radius": 1.2, "gravity": 12.81, "gascon": 287.0,
+                     "mode": "grid", "zonal": False, "substellarlon": 180.0,
+                     "physfilter": False, "logfile": None}
+        asked = {
+            "the integer codes": [int(code) for code in codes],
+            "the codes as strings": codes,
+            "the variable names": [pyburn.ilibrary[code][0] for code in codes],
+        }
+        got = {}
+        for how, request in asked.items():
+            try:
+                got[how] = _named(pyburn.dataset(raw, request, **constants))
+            except Exception as exc:
+                problems.append(f"the whole library requested as {how} raised "
+                                f"{type(exc).__name__}: {exc}")
+        if len(got) < len(asked):
+            return problems
+        reference = got["the codes as strings"]
+        if not reference:
+            return problems + ["the fixture produced no variables at all, so "
+                               "this case can no longer tell the spellings apart"]
+        for how, produced in got.items():
+            if sorted(produced) != sorted(reference):
+                problems.append(
+                    f"requested as {how} the dataset carries "
+                    f"{sorted(produced)} and requested as the codes as strings "
+                    f"it carries {sorted(reference)}. The spelling of a "
+                    f"request is not an input to any derivation")
+                continue
+            for name in reference:
+                if not np.array_equal(produced[name][0], reference[name][0]):
+                    problems.append(
+                        f"{name} differs between the request spelled as {how} "
+                        f"and the same request spelled as the codes as strings")
+    return problems
+
+
+def case_the_advanced_request_keeps_the_callers_key() -> list[str]:
+    """`advancedDataset` reads each variable's options off the key it was given.
+
+    Its per-variable options live in the CALLER's dict, keyed however the
+    caller spelled the request. The resolution used to rebind the key to the
+    numeric code and then look the options up under that, so the name-keyed
+    form this function's own docstring shows raised `KeyError '139'`, and the
+    integer form got past the lookup and fell through the derivation dispatch
+    to return nothing. world-hs5z.
+
+    Checked on an option that CHANGES THE ANSWER rather than on the call
+    returning: `zonal` collapses the longitude axis, so a request that reached
+    its options has one fewer dimension than a request that did not, and a
+    stub dict would pass the first test and fail this one.
+    """
+    from exoplasim import pyburn
+
+    problems = []
+    with tempfile.TemporaryDirectory() as tmpdir:
+        raw = str(synthetic_spectral_raw(Path(tmpdir) / "MOST_HC.00042"))
+        constants = {"radius": 1.2, "gravity": 12.81, "gascon": 287.0,
+                     "mode": "grid", "substellarlon": 180.0,
+                     "physfilter": False, "logfile": None}
+        # One code present in the raw and one derived from it, so both branches
+        # of the loop are asked. 139 is written by the model; 259 is not.
+        asked = {
+            "the variable names": {"ts": {"zonal": True}, "spd": {"zonal": True}},
+            "the codes as strings": {"139": {"zonal": True}, "259": {"zonal": True}},
+            "the integer codes": {139: {"zonal": True}, 259: {"zonal": True}},
+        }
+        plain = None
+        for how, request in asked.items():
+            try:
+                got = _named(pyburn.advancedDataset(raw, request, **constants))
+            except Exception as exc:
+                problems.append(f"the request spelled with {how} raised "
+                                f"{type(exc).__name__}: {exc}")
+                continue
+            if sorted(got) != ["spd", "ts"]:
+                problems.append(
+                    f"the request spelled with {how} produced {sorted(got)}, "
+                    f"not the ts and spd it asked for")
+                continue
+            if plain is None:
+                plain = _named(pyburn.advancedDataset(
+                    raw, {"139": {}, "259": {}}, **constants))
+            for name in ("ts", "spd"):
+                if got[name][0].ndim >= plain[name][0].ndim:
+                    problems.append(
+                        f"{name} came back with {got[name][0].ndim} dimensions "
+                        f"under zonal=True and {plain[name][0].ndim} without "
+                        f"it, spelled with {how}. The per-variable options were "
+                        f"not read off the caller's own key")
+    return problems
+
+
+def case_a_library_entry_added_at_run_time_is_addressable() -> list[str]:
+    """A row put into `ilibrary` after import answers to its name as well.
+
+    `run_exoplasim.register_energy_diagnostic_codes` makes codes 360-387 and
+    460-487 requestable by inserting rows into `pyburn.ilibrary` at call time,
+    which is the project's own way of teaching the postprocessor a code the
+    vendored table does not carry. `slibrary` is built from `ilibrary` once at
+    import and does not follow, so without a fallback the code answers and the
+    name does not -- the same request meaning two things, which is the defect
+    the resolution exists to remove.
+
+    The row here is invented and removed again; it is a lookup fixture, not a
+    claim that any such variable exists.
+    """
+    from exoplasim import pyburn
+
+    problems = []
+    code = "9001"
+    if code in pyburn.ilibrary:                        # pragma: no cover
+        return [f"code {code} is a real library entry now; this case needs "
+                f"one that is not"]
+    pyburn.ilibrary[code] = ["fixturevar", "a_lookup_fixture", "1"]
+    try:
+        by_code, meta_code = pyburn._resolvekey(code)
+        by_name, meta_name = pyburn._resolvekey("fixturevar")
+        if (by_code, meta_code) != (by_name, meta_name):
+            problems.append(
+                f"code {code} resolves to {(by_code, meta_code)} and its name "
+                f"to {(by_name, meta_name)}. A row added after import is "
+                f"addressable by one spelling and not the other")
+    except Exception as exc:
+        problems.append(f"a library row added after import does not resolve: "
+                        f"{type(exc).__name__}: {exc}")
+    finally:
+        del pyburn.ilibrary[code]
+    return problems
+
+
+def case_every_derivation_is_addressable() -> list[str]:
+    """Every derivation arm can be reached by the code it is written for.
+
+    An arm dispatched on `key==str(<name>code)` whose code is not an
+    `ilibrary` key is unreachable: the head of the per-key loop raises
+    "Unknown variable code requested" before the dispatch, and the arm itself
+    opens with `ilibrary[key]` and would raise again if it were reached.
+    Codes 270, 271 and 275 were three such arms. world-e9yz.
+
+    Both directions of the repair are held here. Deleting an arm satisfies
+    this; so does adding the library row. What it refuses is the state that
+    was there -- code carrying a derivation nothing can ask for.
+    """
+    from exoplasim import pyburn
+
+    problems = []
+    numbers = dict(re.findall(r"^(\w+code)\s*=\s*(\d+)",
+                              PYBURN_SOURCE.read_text(encoding="utf-8"), re.M))
+    for function in ("dataset", "advancedDataset"):
+        for code in _arm_inputs(function):
+            if code not in pyburn.ilibrary:
+                named = sorted(n for n, v in numbers.items() if v == code)
+                problems.append(
+                    f"{function} has a derivation arm for code {code} "
+                    f"({', '.join(named) or 'unnamed'}) and it is not an "
+                    f"ilibrary key, so no request can reach it")
+    names = [entry[0] for entry in pyburn.ilibrary.values()]
+    for name in sorted({n for n in names if names.count(n) > 1}):
+        problems.append(
+            f"two library codes are both named {name}; a dataset is keyed on "
+            f"the name, so one of them overwrites the other")
+    return problems
+
+
+def case_no_derivation_shadows_a_code_the_model_writes() -> list[str]:
+    """No arm derives a code the model itself puts in the raw.
+
+    When the model writes a code, the loop's already-present branch takes it
+    and the arm below can never run, so an arm for such a code is dead. Worse,
+    it is dead for a reason a reader cannot see: the arm and the library row
+    disagree about what the code MEANS, and the library row is the one the
+    output is labelled with.
+
+    That was 268 and 269. `outmod.f90` writes glacier elevation as 268 and
+    ground-plus-glacier elevation as 269 on every stream it writes, and
+    `ilibrary` names them `icez` and `netz` to match; burn7 numbers shortwave
+    and longwave net atmospheric radiation there, and the arms carried burn7's
+    meaning. On a raw missing those records the arms fired and stored a
+    radiative flux under the name `icez` in units of m2 s-2. world-e9yz.
+
+    The raw is the authority for what a code means in it, which is what makes
+    this checkable at all: the model source is the other half of the pair.
+    """
+    from exoplasim import pyburn
+
+    written = _codes_the_model_writes()
+    if not written:
+        return ["no code was parsed as written by the model; the record "
+                "writers moved or changed shape"]
+    problems = []
+    for function in ("dataset", "advancedDataset"):
+        for code in sorted(_arm_inputs(function), key=int):
+            if code in written:
+                problems.append(
+                    f"{function} derives code {code}, which the model writes "
+                    f"into the raw itself. The arm is unreachable and it and "
+                    f"ilibrary's {pyburn.ilibrary[code][0]} disagree about "
+                    f"what code {code} is")
+    return problems
+
+
+def case_the_declared_derivation_inputs_are_the_arms_own() -> list[str]:
+    """`_DERIVATION_INPUTS` says exactly what the arms read out of the raw.
+
+    The table is what lets a request the raw cannot support be reported
+    instead of raised, and it is only worth that if it tracks the arms. Both
+    directions: a table entry naming a record the arm does not read suppresses
+    a derivation that would have worked, and an arm reading a record the table
+    does not name is the bare `KeyError` back again.
+    """
+    from exoplasim import pyburn
+
+    problems = []
+    for function in ("dataset", "advancedDataset"):
+        found = _arm_inputs(function)
+        declared = {code: tuple(sorted(codes, key=int))
+                    for code, codes in pyburn._DERIVATION_INPUTS.items()}
+        for code in sorted(set(found) | set(declared), key=int):
+            if code not in declared:
+                problems.append(
+                    f"{function} has an arm for code {code} and "
+                    f"_DERIVATION_INPUTS does not, so its inputs are never "
+                    f"checked and a raw without them raises KeyError")
+            elif code not in found:
+                problems.append(
+                    f"_DERIVATION_INPUTS declares inputs for code {code} and "
+                    f"{function} has no arm for it")
+            elif found[code] != declared[code]:
+                problems.append(
+                    f"code {code}: {function} reads {found[code]} out of the "
+                    f"raw and _DERIVATION_INPUTS declares {declared[code]}")
+    return problems
+
+
+def case_an_underivable_request_is_reported_not_raised() -> list[str]:
+    """A derivation the raw cannot support says so and the conversion goes on.
+
+    Every arm indexes `rawdata` directly, so a code the raw does not carry came
+    back as a bare `KeyError('142')` from the middle of the per-key loop --
+    naming neither the variable requested nor the reason, and taking every
+    variable that would have followed with it. The namelist a run
+    postprocesses under lists every code the model was COMPILED to be able to
+    write, and the default request when no namelist is given is every key in
+    `ilibrary`, so a request for a derivation this configuration cannot
+    support is ordinary rather than exceptional. Same disposition as a code
+    with no arm at all, for the same reason.
+
+    Held on the pairing: the unsupported code is reported and SKIPPED, the
+    codes around it still come back, and the report names the record that was
+    missing. A repair that simply swallowed the error would pass the first
+    two and fail the third.
+    """
+    from exoplasim import pyburn
+
+    problems = []
+    # 260 is precipitation, derived from codes 142 and 143. The fixture is a
+    # spectral wind stream and carries neither.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        raw = str(synthetic_spectral_raw(Path(tmpdir) / "MOST_HC.00042"))
+        log = Path(tmpdir) / "pyburn.log"
+        constants = {"radius": 1.2, "gravity": 12.81, "gascon": 287.0,
+                     "mode": "grid", "zonal": False, "substellarlon": 180.0,
+                     "physfilter": False}
+        try:
+            got = _named(pyburn.dataset(raw, ["139", "260", "259"],
+                                        logfile=str(log), **constants))
+        except Exception as exc:
+            return [f"a request carrying code 260, whose inputs the raw does "
+                    f"not carry, raised {type(exc).__name__}: {exc}. The "
+                    f"request is ordinary and the codes beside it are "
+                    f"derivable"]
+        if "pr" in got:
+            return ["code 260 produced a pr out of a raw that carries no "
+                    "precipitation records. The fixture no longer holds the "
+                    "property this case is built on"]
+        for name in ("ts", "spd"):
+            if name not in got:
+                problems.append(
+                    f"the request produced no {name}. A code the raw cannot "
+                    f"support took the codes beside it down with it")
+        report = [line for line in log.read_text(encoding="utf-8").split("\n")
+                  if line.startswith("NOT COLLECTED") and " 260 " in line]
+        if not report:
+            problems.append(
+                "nothing in the log names code 260. A derivation dropped "
+                "without a word is the failure this replaced")
+        elif not all(code in report[0] for code in ("142", "143")):
+            problems.append(
+                f"the report for code 260 is {report[0].strip()!r} and does "
+                f"not name codes 142 and 143, which are the records it wanted")
+    return problems
+
+
 def case_the_planet_is_read_from_the_run() -> list[str]:
     """Radius comes back in Earth radii, which is what pyburn wants.
 
@@ -747,6 +1151,20 @@ def main() -> None:
          case_the_substitution_survives_a_second_pass),
         ("the conversion reads the planet off the run's own namelist",
          case_the_planet_is_read_from_the_run),
+        ("a code, its string and its name are one request",
+         case_the_three_spellings_of_a_request_agree),
+        ("advancedDataset reads each variable's options off the caller's key",
+         case_the_advanced_request_keeps_the_callers_key),
+        ("a library row added at run time answers to its name too",
+         case_a_library_entry_added_at_run_time_is_addressable),
+        ("every derivation is reachable by the code it is written for",
+         case_every_derivation_is_addressable),
+        ("no derivation shadows a code the model writes itself",
+         case_no_derivation_shadows_a_code_the_model_writes),
+        ("the declared derivation inputs are the ones the arms read",
+         case_the_declared_derivation_inputs_are_the_arms_own),
+        ("a derivation the raw cannot support is reported, not raised",
+         case_an_underivable_request_is_reported_not_raised),
     ]
     failed = 0
     for name, run in cases:

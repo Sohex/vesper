@@ -54,6 +54,13 @@ from rootable import read_rootable
 from lpj_output import reduce_table, require_lpj_acceptance
 
 import carbonate_ph
+# PH_GROUP -- which pH supply category each Orogen rock class maps to -- lives
+# in lithology_map.py beside ROCK_TO_MEYBECK, which answers the same question in
+# Meybeck's vocabulary for brine_paths.py. The two used to sit in separate files
+# and disagreed about melange by a factor of 4.29 with nothing able to see it.
+# That module holds both and checks them against each other.
+import lithology_map
+from lithology_map import PH_GROUP
 
 # Coordinate precision shared with biosphere/scripts/build_lpj_driver.py.
 # LPJ-GUESS keys its soil map on an exactly-compared pair of doubles, so both
@@ -77,25 +84,6 @@ def column_base_m() -> float:
     """
     decl = yaml.safe_load(LAND_COLUMN_CONTRACT.read_text(encoding="utf-8"))
     return float(decl["geometry"]["column_base_m"])
-
-# Which pH parent group each Orogen rock category maps to. Kept in code rather
-# than config because it is a classification of the *export's* vocabulary, not a
-# tunable: if Orogen adds a class this must fail loudly, which it does.
-PH_GROUP = {
-    "morb": "igneous_mafic", "oib": "igneous_mafic",
-    "flood_basalt": "igneous_mafic", "arc_basalt": "igneous_mafic",
-    "arc_andesite": "igneous_felsic", "rift_bimodal": "igneous_felsic",
-    "granite": "igneous_felsic", "granodiorite": "igneous_felsic",
-    "gneiss": "metamorphic", "schist": "metamorphic",
-    "quartzite": "igneous_felsic", "melange": "metamorphic",
-    "shelf_clastic": "sedimentary_clastic",
-    "foreland_clastic": "sedimentary_clastic",
-    "continental_clastic": "sedimentary_clastic",
-    "pelagic": "sedimentary_clastic",
-    "carbonate": "carbonate",
-    "evaporite": "evaporite", "playa_clastic": "evaporite",
-    "water": "sedimentary_clastic",
-}
 
 
 def lithology_fractions(config: dict) -> tuple[dict[str, np.ndarray], Export, Path]:
@@ -479,6 +467,13 @@ def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
             f"{buffer_ph}. The pH block runs between them and the alkaline one "
             "has to be above the acid one; at this pCO2 it is not, and there "
             "is no span for a parent to sit inside.")
+    # One rock, one answer. `lithology_map.py`'s `PH_GROUP` and its
+    # `ROCK_TO_MEYBECK` read the same twenty Orogen classes for the same
+    # released alkalinity, and a class whose two readings differ has to carry
+    # the argument for reading it two ways. This refuses before a soil map is
+    # built.
+    lithology_map.check_or_die(params["base_cation_supply_by_category"],
+                               params["base_cation_supply_bracket_by_category"])
     shape = runoff_mm_yr.shape
     buffers = params["parent_by_category"]
     supplies = params["base_cation_supply_by_category"]

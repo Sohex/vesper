@@ -317,9 +317,69 @@ than a factor of two on every category, and the requirement turns on a factor of
 | `igneous_felsic` | 0.0401 | [0.0310, 0.0725] | 0.4244 |
 | `metamorphic` | 0.0423 | [0.0310, 0.0638] | 0.4897 |
 | `sedimentary_clastic` | 0.1355 | [0.0391, 0.3052] | 0.5550 |
+| `melange` | 0.1815 | [0.1408, 0.3052] | 0.4897 |
 
 The requirement is met at every value and at every bracket end, where the pH
-encoding it replaced missed it on three of the four categories.
+encoding it replaced missed it on four of the five categories.
+
+### Melange, the one category whose mixture is declared here
+
+Every other entry above reads one source row, or the source's own outcrop-
+weighted mixture of two. `melange` reads a mixture this project declares,
+because Orogen's class is not a rock: `vendor/orogen/js/lithology.js` assigns it
+to the whole forearc province -- prism, forearc basin and serpentinite -- in one
+basement branch, and says outright that at about 15 km cells those cannot be
+separated. Greywacke, argillite and clastic basin fill are that province by
+volume, which is Meybeck's shale, and it is what `brine_paths.py` and both
+rokgem class mappings already read it as.
+
+**The mixing fraction is not declared, because nothing sizes it.** The generator
+carries no serpentinite share -- the class has no internal division and its own
+comment says why -- so a number for it would be invented. The bracket spans the
+fraction's full range instead: the floor is an all-serpentinite melange on
+Meybeck's peridotite row and the ceiling is GEM-CO2's shale class. **That
+bracket is a different kind of thing from the four above it**, which span two
+readings of one rock; this one spans an unresolved composition, and it is
+reported as wide-by-construction rather than as a measurement spread. What it
+costs is small in this column: peridotite's bicarbonate is 450 ueq/l against
+shale's 580, so the whole unresolved mixture spans 22 per cent.
+
+The value is the shale row alone rather than an outcrop-weighted mixture, which
+is the one place the rule above is departed from and the reason is that the
+weights would be wrong: Meybeck's outcrop percentages say what fraction of
+Earth's land is peridotite, not what fraction of a forearc is serpentinite.
+
+**One endmember is excluded, with the evidence.** A real melange can carry
+limestone blocks, and admitting a carbonate endmember would put the ceiling at
+1.0 -- a bracket that decides nothing. Meybeck's `misc_metamorphic` row is what
+that reading looks like: Ca + Mg 1740 ueq/l against HCO3 1730 is a near-exact
+carbonate balance, the signature of carbonate dissolution rather than silicate
+weathering. That row WAS this class's row until 2026-08-16 and was rejected on
+exactly that arithmetic.
+
+**What the fix was worth on the field**, on the offline reconstruction that
+reproduces the shipped soil map, re-checked through the shipped code path, over
+1,639 land cells at the declared slope. Melange is 6.1 per cent of the land AREA
+and reaches 738 cells covering 52.3 per cent of it, almost always as a minority
+of a cell's mixture: only 45 cells are more than half melange.
+
+The land mean moves 6.717 to 6.735 on world-jixy's weighting, cos(lat) over land
+cells, and 6.763 to 6.778 weighted by land area. Both are quoted because the two
+conventions also disagree about the melange share itself, 9.3 per cent against
+6.1, and the land-area one is the share the mesh reports directly. The dry mean
+does not move at either weighting and the wettest quartile moves +0.011.
+
+The move is small because the two-buffer form saturates -- a wet cell is on
+gibbsite and a dry one on calcite whatever the supply is, so a supply only
+decides the crossing -- and it concentrates: 508 cells change at the soil map's
+own three decimals, 77 move by more than 0.1 pH, 7 by more than 0.5, and the
+largest single move is 1.125. Over the 254 zero-runoff cells nothing moves at
+all, to four decimals, because a supply is absent from the form at `L = 0`.
+**A factor of 4.29 in the declared supply of six per cent of the land area is
+worth 0.015 pH on the land mean**, which is what this form does to a lithology
+contrast and is worth knowing before the next supply is argued over. The whole
+unsized serpentinite mixture is worth a third of that again: the bracket's floor
+and ceiling put the land mean at 6.774 and 6.793 against the declared 6.778.
 
 **The order moved, and both sources move it the same way.** The file used to
 assert mafic above clastic above metamorphic above felsic. The sourced order is

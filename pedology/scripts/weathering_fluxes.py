@@ -77,7 +77,7 @@ from _paths import (ANALYSIS, CONFIG, PEDOGENESIS, PROJECT_ROOT,
                     best_available_climatology)
 
 import builds
-from brine_paths import ROCK_TO_MEYBECK
+from lithology_map import ROCK_TO_MEYBECK
 from gridding import gaussian_grid, land_fraction_of_class, require_gaussian_rows
 from paths import rel
 

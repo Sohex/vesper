@@ -89,7 +89,7 @@ schemes:
 # between shale and sand moves the effective exponent between 0.68 and 0.74 with
 # no change of scheme at all.
 #
-# Reasoning follows ROCK_TO_MEYBECK in pedology/scripts/brine_paths.py wherever
+# Reasoning follows ROCK_TO_MEYBECK in pedology/scripts/lithology_map.py wherever
 # the same question arises, so that two mappings of the same rock table cannot
 # quietly disagree.
 class_mapping:

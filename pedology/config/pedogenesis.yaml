@@ -856,7 +856,7 @@ ph:
   # same file carries. Its published ratio reproduces: carbonate over plutonic
   # and metamorphic is 16.7 against the 17 the paper states.
   #
-  # THE MAPPING follows `brine_paths.py:ROCK_TO_MEYBECK` wherever that already
+  # THE MAPPING follows `lithology_map.py:ROCK_TO_MEYBECK` wherever that already
   # answers the question. Where a category spans more than one source row the
   # value is the source's own outcrop-weighted mixture, because an alkalinity
   # is extensive and mixes linearly, and the individual rows are bracket ends.
@@ -894,25 +894,62 @@ ph:
   # Earth's shales carry carbonate cement and the bicarbonate column sees it.
   # The clastic-over-mafic margin is two per cent on Meybeck and is not
   # resolvable there alone; GEM-CO2 puts it at 1.9x and settles the direction.
+  #
+  # MELANGE IS A MIXTURE AND IT HAS A CATEGORY OF ITS OWN, which no other entry
+  # here does. `metamorphic` is bracketed on gneiss and mica-schist alone, and
+  # Orogen's melange is neither. The class is the whole FOREARC PROVINCE:
+  # `vendor/orogen/js/lithology.js` names prism, forearc basin and serpentinite
+  # in one branch and says outright that at ~15 km cells they cannot be
+  # separated. Greywacke, argillite and clastic basin fill are that province by
+  # volume, which is Meybeck's shale, and `lithology_map.py:ROCK_TO_MEYBECK` and
+  # `weathering_schemes.yaml:class_mapping` both already read it there.
+  #
+  # THE MIXING FRACTION IS NOT DECLARED, BECAUSE NOTHING SIZES IT. Orogen
+  # assigns the class in one branch with no internal division, so the
+  # serpentinite share of a forearc is not a property this generator carries and
+  # a number for it would be invented. The bracket spans its FULL range instead:
+  # the floor is an all-serpentinite melange on Meybeck's peridotite row, the
+  # value is an all-shale one, and the ceiling is GEM-CO2's shale class. What
+  # the unresolved mixture costs is small in this column -- peridotite's
+  # bicarbonate is 450 ueq/l against shale's 580, so the whole range spans 22
+  # per cent, against the factor of 4.29 the metamorphic reading was wrong by.
+  #
+  # The value is the shale row ALONE and not an outcrop-weighted mixture, which
+  # is the one place this block departs from the rule stated above. Meybeck's
+  # outcrop percentages are Earth's global exposure; they say what fraction of
+  # Earth's land is peridotite, not what fraction of a forearc is serpentinite,
+  # and weighting by them here would answer a different question. The
+  # serpentinite share is carried entirely by the bracket.
+  #
+  # ONE ENDMEMBER IS EXCLUDED WITH A REASON: carbonate blocks. A real melange
+  # can carry limestone, and admitting it would put the ceiling at 1.0, which is
+  # a bracket that decides nothing. Meybeck's `misc_metamorphic` row is what
+  # that reading looks like -- Ca + Mg 1740 against HCO3 1730, a near-exact
+  # carbonate balance, which is carbonate dissolution and not silicate
+  # weathering -- and it was tested as this class's row and rejected on that
+  # arithmetic. The bracket is over the silicate province the generator
+  # describes.
   base_cation_supply_by_category:
     igneous_mafic: 0.1330
     igneous_felsic: 0.0401
     metamorphic: 0.0423
     sedimentary_clastic: 0.1355
+    melange: 0.1815
     carbonate: 1.0
     evaporite: 1.0
   # Ends are the minimum and the maximum over every applicable row of both
   # sources and both of Meybeck's columns. Report the spread; do not tune
-  # within it. The one asymmetry worth knowing: `metamorphic` is bracketed on
-  # gneiss and mica-schist alone, and `build_soil.py:PH_GROUP` also puts
-  # `melange` in this category while `brine_paths.py:ROCK_TO_MEYBECK` reads the
-  # same rock as shale. The two mappings disagree, and this bracket does not
-  # cover the disagreement.
+  # within it. `metamorphic` is bracketed on gneiss and mica-schist alone, and
+  # that is the whole of what the category covers: melange has its own entry.
   base_cation_supply_bracket_by_category:
     igneous_mafic: [0.1330, 0.1565]
     igneous_felsic: [0.0310, 0.0725]
     metamorphic: [0.0310, 0.0638]
     sedimentary_clastic: [0.0391, 0.3052]
+    # Peridotite's bicarbonate row to GEM-CO2's shale class: the full range of
+    # an unsized serpentinite share, and NOT a spread between two readings of
+    # one rock the way the four entries above are.
+    melange: [0.1408, 0.3052]
   # The buffer each category reaches with nothing exported, and the only role
   # this key still carries. `build_soil.py:soil_ph` takes the cell's mixture of
   # it as `dry`.
@@ -929,6 +966,7 @@ ph:
     igneous_felsic: derived
     metamorphic: derived
     sedimentary_clastic: derived
+    melange: derived
     carbonate: derived
     # The one entry that is not calcite. Sodium carbonate rather than calcite
     # sets an evaporite's buffer, and a solution buffered by soda is not

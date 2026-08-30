@@ -112,7 +112,7 @@ from orogen import INLAND_WATER, LAND, Export
 from paths import rel
 from provenance import require_build, staged_surface_field
 
-from brine_paths import MEYBECK, ROCK_TO_MEYBECK
+from lithology_map import MEYBECK, ROCK_TO_MEYBECK
 import solute_routing
 from solute_routing import SPECIES
 

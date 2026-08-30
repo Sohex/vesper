@@ -343,7 +343,7 @@ def absolute_arm(cfg: dict, ped: dict, climatology: Path,
     from build_soil import (COORD_DECIMALS, EARTH_YEAR_DAYS, KELVIN,
                             lithology_fractions)
     from weathering_fluxes import grid_cell_area_km2
-    from brine_paths import ROCK_TO_MEYBECK
+    from lithology_map import ROCK_TO_MEYBECK
 
     require_build(climatology, "climatology", cfg)
     with Dataset(climatology) as data:

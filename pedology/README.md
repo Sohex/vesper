@@ -20,7 +20,21 @@ python pedology/scripts/brine_paths.py                         # the chemical di
 python pedology/scripts/build_surface_classes.py               # needs brine_paths
 python pedology/scripts/land_column_properties.py              # the hydraulic property contract
 python pedology/scripts/carbonate_ph.py                        # the calcite equilibrium, validated
+python pedology/scripts/lithology_map.py                       # one rock, one reading
 ```
+
+`lithology_map.py` is where Orogen's twenty rock classes are mapped onto a
+weathering source, and it is one file because three tables here answer the same
+question in three vocabularies: `PH_GROUP` in the pH block's supply categories,
+`ROCK_TO_MEYBECK` in Meybeck (1987)'s rows, and
+`config/weathering_schemes.yaml`'s `class_mapping` in rokgem's classes. They sat
+in three places and disagreed about `melange` -- gneiss chemistry to the pH
+block, shale to the other two, a factor of 4.29 in the supply on six per cent
+of land -- with nothing in the tree able to see it. The module holds the tables
+and checks them against each other; `build_soil.py` runs the check before it
+builds a soil map, and running the module prints the table and the verdict. A
+class whose two readings differ must carry the argument for reading it two ways,
+and a declaration for a class that has come to agree fails too.
 
 `carbonate_ph.py` is the alkaline end of the soil pH block. It solves Slessarev
 et al. (2016) Methods eq. (6) at this world's `pCO2_bar`, validating against the

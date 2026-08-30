@@ -61,85 +61,14 @@ import solute_routing  # noqa: E402
 from solute_routing import SPECIES  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-MEYBECK = ROOT / "pedology" / "data" / "reference" / "meybeck1987_tables.json"
 
-# Orogen rock class -> Meybeck table 2C lithology.
-#
-# Orogen has 20 classes against Meybeck's 10, so this is a judgment map and it is
-# written out in full rather than derived, because a silent default here would
-# put every unmatched class on one side of the divide. Each entry says why.
-ROCK_TO_MEYBECK = {
-    "morb":                "volcanic_rocks",
-    "oib":                 "volcanic_rocks",
-    "flood_basalt":        "volcanic_rocks",
-    "arc_basalt":          "volcanic_rocks",
-    "arc_andesite":        "volcanic_rocks",
-    "rift_bimodal":        "volcanic_rocks",
-    "granite":             "granite",
-    "granodiorite":        "granite",
-    "gneiss":              "gneiss",
-    # Meybeck's class is "gneiss and mica-schists"; schist belongs with it.
-    "schist":              "gneiss",
-    # Quartzite is metamorphic by origin but chemically a quartz sand: nearly
-    # inert. Meybeck's misc_metamorphic is serpentinite/marble/amphibolite and
-    # releases 1375 ueq/l Ca, which quartzite emphatically does not.
-    "quartzite":           "sandstone",
-    # Melange -> SHALE, corrected 2026-08-16, and the correction mattered more
-    # than any other entry in this map.
-    #
-    # It was `misc_metamorphic`, chosen when the melange rule could not fire and
-    # the class was 0.00% of land, so nothing rested on it. The arc fix made the
-    # rule reachable and melange is now over 6% of land, at which point the
-    # choice was supplying close to half of this planet's silicate CO2 drawdown.
-    #
-    # It was wrong twice over. Meybeck's misc_metamorphic is MARBLE: 2.3% of
-    # Earth's outcrop, Ca 1375 ueq/l against sedimentary carbonate's 2560, and
-    # Ca + Mg = 1740 against HCO3 1730 -- a near-exact carbonate balance, which
-    # is the signature of carbonate dissolution rather than silicate weathering.
-    # So it gave a forearc province marble chemistry, AND that bicarbonate was
-    # entering the silicate total at full weight when most of it is
-    # rock-derived.
-    #
-    # What Orogen's class actually is decides the replacement. It is not the
-    # accretionary prism alone: `elevation.js` assigns it to the whole forearc
-    # province -- prism, forearc basin and serpentinite together -- because at
-    # ~15 km cells they cannot be separated. That province is greywacke,
-    # argillite and clastic basin fill by volume, which is Meybeck's shale, and
-    # is what shelf, foreland and pelagic clastics already map to.
-    #
-    # `gneiss` is not the alternative it looks like. A forearc is not felsic
-    # crystalline basement, and mapping it there would swap one wrong rock for
-    # another while happening to give a smaller number.
-    #
-    # KNOWN UNDER-REPRESENTATION: serpentinite. Melanges carry it and Meybeck
-    # has a peridotite row for exactly that rock. It is left out because the
-    # serpentinite fraction of a forearc is volumetrically minor, nothing here
-    # constrains it, and the effect is small: at a generous 10% of melange the
-    # planet's silicate CO2 total moves about half a percent.
-    #
-    # The bias directions, since intuition gets one of them backwards.
-    # Meybeck's peridotite is LOWER in bicarbonate than shale, 450 against 580,
-    # so omitting serpentinite biases CO2 and Ca HIGH, not low. It biases Mg
-    # (500 against 240) and silica (180 against 150) LOW. Ultramafic rock being
-    # an efficient CO2 sink per unit area is a statement about reaction rate,
-    # not about the solute concentration this table carries.
-    "melange":             "shale",
-    # "Shelf sandstone / shale" is a mixture. Shale is far more reactive and
-    # dominates the solute load of any such mixture, so it is mapped there;
-    # --clastic-as-sandstone tests the other choice.
-    "shelf_clastic":       "shale",
-    "carbonate":           "sedimentary_carbonate_rocks",
-    "foreland_clastic":    "shale",
-    "continental_clastic": "sandstone",
-    "pelagic":             "shale",
-    # Orogen's evaporite class is a SALT crust, so halite rather than gypsum.
-    # There is no gypsum lithology in this world's rock table at all, which is
-    # itself a result: see the note in the output.
-    "evaporite":           "halite_evaporite",
-    # Playa mud is detrital fill, not an evaporite. It is the host that
-    # evaporites grow in, and mapping it to an evaporite would beg the question.
-    "playa_clastic":       "shale",
-}
+# Orogen rock class -> Meybeck table 2C lithology, from `lithology_map.py`.
+# That module holds it beside `PH_GROUP`, which answers the same question in
+# the pH block's vocabulary, and checks the two against each other: they
+# disagreed about melange by a factor of 4.29 while sitting in separate files.
+# Every entry's argument is there.
+from lithology_map import MEYBECK, ROCK_TO_MEYBECK  # noqa: E402
+
 
 def single_lithology_check(export, terminal, mapping, release_table, cols,
                            n_basins, mean, weight):
