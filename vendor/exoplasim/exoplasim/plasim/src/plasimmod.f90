@@ -777,6 +777,29 @@
 
       real :: drhs(NHOR)  = 0.  ! surface wetness
       real :: dls(NHOR)   = 1.  ! land(1)/sea(0) mask
+!     Native-mesh subaerial AREA share. SPAT-5. `dls` remains the binary
+!     ownership/topology mask; physical land/ocean tile weighting uses this
+!     companion field. A negative default makes an absent direct-model input
+!     distinguishable from a legitimate all-ocean field.
+      real :: dlf(NHOR)   = -1. ! fractional land tile support [0,1]
+!     SPAT-5 tile-boundary archives. Landmod and seamod already own separate
+!     prognostic temperatures and stores, but both publish through the same
+!     atmospheric boundary arrays below. These bundles preserve each
+!     publication until flux and radiation can evaluate both tiles. They are
+!     restart records because those schemes run before the first surfstep of a
+!     continuation; rebuilding them one step later would be too late.
+      real :: dlt_ts(NHOR)      = 1.0e20 ! land tile surface temperature
+      real :: dlt_qs(NHOR)      = 1.0e20 ! land tile surface humidity
+      real :: dlt_rhs(NHOR)     = 0.0    ! land tile wetness factor
+      real :: dlt_z0(NHOR)      = 0.0    ! land tile roughness
+      real :: dlt_alb(NHOR)     = 0.0    ! land tile broadband albedo
+      real :: dlt_salb(2,NHOR)  = 0.0    ! land tile two-band albedo
+      real :: dot_ts(NHOR)      = 1.0e20 ! ocean tile surface temperature
+      real :: dot_qs(NHOR)      = 1.0e20 ! ocean tile surface humidity
+      real :: dot_rhs(NHOR)     = 0.0    ! ocean tile wetness factor
+      real :: dot_z0(NHOR)      = 0.0    ! ocean tile roughness
+      real :: dot_alb(NHOR)     = 0.0    ! ocean tile broadband albedo
+      real :: dot_salb(2,NHOR)  = 0.0    ! ocean tile two-band albedo
       real :: dz0(NHOR)   = 0.  ! rougthness length
       real :: diced(NHOR) = 0.  ! ice thickness
       real :: dicec(NHOR) = 0.  ! ice cover
@@ -790,6 +813,22 @@
       real :: dmld(NHOR)  = 0.  ! mixed-layer depth (output from ocean)
 !
       real dshdt(NHOR),dlhdt(NHOR)
+
+!     SPAT-5 per-tile exchange bundles. They are instantaneous outputs, not
+!     restart state: fluxstep and radstep rebuild them before surfstep can
+!     consume them on every cold or continued timestep. The seed routines
+!     initially mirror the still-binary exchange into both bundles; the next
+!     slice replaces that seed with independent tile evaluations.
+      real :: dlt_shfl(NHOR)=0., dlt_shdt(NHOR)=0.
+      real :: dlt_lhfl(NHOR)=0., dlt_lhdt(NHOR)=0.
+      real :: dlt_evap(NHOR)=0., dlt_taux(NHOR)=0.
+      real :: dlt_tauy(NHOR)=0., dlt_ust3(NHOR)=0.
+      real :: dlt_swfl(NHOR)=0., dlt_lwfl(NHOR)=0.
+      real :: dot_shfl(NHOR)=0., dot_shdt(NHOR)=0.
+      real :: dot_lhfl(NHOR)=0., dot_lhdt(NHOR)=0.
+      real :: dot_evap(NHOR)=0., dot_taux(NHOR)=0.
+      real :: dot_tauy(NHOR)=0., dot_ust3(NHOR)=0.
+      real :: dot_swfl(NHOR)=0., dot_lwfl(NHOR)=0.
       
       real :: tdipolep(NHOR) = 0.  ! Tidally-locked temp dipole (partial) [K]
       real :: tdipole(NUGP) = 0.  ! Tidally-locked temperature dipole [K]
@@ -1129,7 +1168,10 @@
 !$omp&  daeros,dalb,damp,dampsp,dawn,day_24hr,dcc,dclforc,dconv,deglat,delt,delt2,deltsec,deltsec2,&
 !$omp&  dener3d,denergy,devap,dfd,dfdsw1,dfdsw2,dflux,dforest,&
 !$omp&  dftd,dftu,dfu,dglac,dglacalbmn,dgp2d,dgp3d,dgroundalb,dicealbmn,dicealbmx,dicec,diced,dlhdt,&
-!$omp&  dlhfl,dls,dlwfl,dmld,doceanalb,dp,dp0,dprc,dprl,dprs,dq,dqco2,dqdt,dql,dqo3,dqsat,dqt,dqvi,&
+!$omp&  dlhfl,dlf,dls,dlwfl,dmld,dlt_alb,dlt_evap,dlt_lhdt,dlt_lhfl,dlt_lwfl,dlt_qs,dlt_rhs,&
+!$omp&  dlt_salb,dlt_shdt,dlt_shfl,dlt_swfl,dlt_taux,dlt_tauy,dlt_ts,dlt_ust3,dlt_z0,doceanalb,&
+!$omp&  dot_alb,dot_evap,dot_lhdt,dot_lhfl,dot_lwfl,dot_qs,dot_rhs,dot_salb,dot_shdt,dot_shfl,&
+!$omp&  dot_swfl,dot_taux,dot_tauy,dot_ts,dot_ust3,dot_z0,dp,dp0,dprc,dprl,dprs,dq,dqco2,dqdt,dql,dqo3,dqsat,dqt,dqvi,&
 !$omp&  drhs,drunoff,dsalb,dshdt,dshfl,dsigma,dsmelt,dsndch,dsnow,dsnowalb,dsnowalbmn,dsnowalbmx,&
 !$omp&  dsp2d,dsp3d,dswfl,dt,dtaux,dtauy,dtd2,dtd3,dtd4,dtd5,dtdt,dtdtlwr,dtdtswr,dtep,dtns,dtrace,&
 !$omp&  dtrop,dtsa,dtsoil,dttl,dttrp,du,du0,dudt,dust3,dv,dv0,dvdt,dw,dwatc,dwmax,dz0,eccen,&
@@ -1170,6 +1212,39 @@
 !$omp&  vrmpi,vrmpimax,ww,yguinam,ympname,yplanet)
 
       contains
+
+!     ====================================
+!     FUNCTION SPAT5_TILE_COMBINE
+!     ====================================
+
+!     The one-atmosphere/two-surface-tile extensive combine. Surface_ini has
+!     already bounded the immutable land fraction to [0,1]. The endpoint
+!     branches are part of the numerical contract: evaluating
+!     f*land+(1-f)*ocean at f=0 or 1 can propagate an absent tile's NaN through
+!     a zero multiplier and can perturb a pure-surface result. Turbulent,
+!     radiative and diagnostic routing will all use this one primitive rather
+!     than restating the dangerous arithmetic independently. SPAT-5.
+
+      elemental real function spat5_tile_combine(pfraction,pland,pocean)
+      real, intent(in) :: pfraction
+      real, intent(in) :: pland
+      real, intent(in) :: pocean
+
+      if (pfraction == 1.0) then
+         spat5_tile_combine = pland
+      else if (pfraction == 0.0) then
+         spat5_tile_combine = pocean
+      else if (pland == pocean) then
+!        Preserve the input bit pattern during the staged rollout, when both
+!        channels intentionally carry one legacy evaluation. The arithmetic
+!        form can otherwise move a last bit or change signed zero even though
+!        the two tile values are identical.
+         spat5_tile_combine = pland
+      else
+         spat5_tile_combine = pfraction * pland                    &
+     &                      + (1.0 - pfraction) * pocean
+      endif
+      end function spat5_tile_combine
 
 !     ==============================
 !     FUNCTIONS RA1S, RA2S AND RA4S

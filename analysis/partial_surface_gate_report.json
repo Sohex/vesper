@@ -1,0 +1,96 @@
+{
+  "contract_version": "vesper-partial-surface-gate/1",
+  "generated": "2026-08-28T16:40:00+00:00",
+  "checks": [
+    {
+      "name": "active build identity",
+      "passed": true,
+      "detail": "canonical-10m-carve2 vs canonical-10m-carve2"
+    },
+    {
+      "name": "whole ladder measured",
+      "passed": true,
+      "detail": "T21, T42, T85, T127, T170"
+    },
+    {
+      "name": "class partitions close",
+      "passed": true,
+      "detail": "maximum residual 0.0"
+    },
+    {
+      "name": "third class is absent, not small",
+      "passed": true,
+      "detail": "absent_not_small"
+    },
+    {
+      "name": "selection state is exclusive and measured",
+      "passed": true,
+      "detail": "selected_fractional_support_all_state_owners_exchange_pending"
+    },
+    {
+      "name": "fractional land support is emitted",
+      "passed": true,
+      "detail": "code 1720, 1053 partial cells"
+    },
+    {
+      "name": "compiled endpoint-preserving tile combine exists",
+      "passed": true,
+      "detail": "shared primitive for turbulent, radiative and diagnostic routing"
+    },
+    {
+      "name": "tile boundary archives are restart-complete",
+      "passed": true,
+      "detail": "14 land/ocean boundary records"
+    },
+    {
+      "name": "tile pure-surface reductions bypass absent state",
+      "passed": true,
+      "detail": "[17. 23.]"
+    },
+    {
+      "name": "tile extensive combination closes",
+      "passed": true,
+      "detail": "[10.  6.]"
+    },
+    {
+      "name": "identical tile values preserve their bit pattern",
+      "passed": true,
+      "detail": "0x8000000000000000"
+    },
+    {
+      "name": "tile fraction bounds fail closed",
+      "passed": true,
+      "detail": "negative one-epsilon fixture refused"
+    },
+    {
+      "name": "synthetic lower bracket",
+      "passed": true,
+      "detail": "-0.125"
+    },
+    {
+      "name": "synthetic upper bracket",
+      "passed": true,
+      "detail": "0.0625"
+    },
+    {
+      "name": "pure cells contribute exactly zero",
+      "passed": true,
+      "detail": "2 partial cells"
+    },
+    {
+      "name": "extensive closure",
+      "passed": true,
+      "detail": "0.0"
+    },
+    {
+      "name": "row expansion is explicit",
+      "passed": true,
+      "detail": "{\"cells\": [{\"column\": 0, \"missing_share\": 0.25, \"missing_surface\": \"land\", \"reference_cells\": 4, \"row\": 0, \"row_expansion\": 1}, {\"column\": 3, \"missing_share\": 0.25, \"missing_surface\": \"ocean\", \"reference_cells\": 4, \"row\": 1, \"row_expansion\": 1}], \"expanded_cells\": 2, \"maximum_row_expansion\": 1, \"minimum_references_observed\": 4}"
+    }
+  ],
+  "summary": {
+    "passed": 17,
+    "failed": 0
+  },
+  "verdict": "PASS"
+}

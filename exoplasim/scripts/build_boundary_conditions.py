@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write ExoPlaSim land mask and topography from the World Orogen mesh.
+"""Write ExoPlaSim land support and topography from the World Orogen mesh.
 
 Integrates from the mesh rather than remapping the equirectangular map PNGs.
 That older path was obsolete twice over: the fork emits Gaussian grids directly
@@ -22,15 +22,16 @@ holds no ocean at all still goes to the slab ocean when its lakes take more than
 half of it. See `coastline_ledger`'s own docstring for which reduction operator
 produced which field.
 
-**Both fields are integrated from the native mesh, not sampled from the gridded
+**All fields are integrated from the native mesh, not sampled from the gridded
 export.** The export resamples categorical fields, `surface_class` among them, by
 taking the value of the region containing the cell centre. Against the 10M
 fine-support reference a global T42 cell holds about 1,221 regions on average,
 so a point sample throws away the coastline. Here the
 land fraction of each cell is the area-weighted fraction of its regions that are
-land, thresholded at `model.geography_land_threshold`, and topography is the
-land-area-weighted mean elevation over the land regions only, so ocean depths
-never drag a coastal cell's elevation down.
+land. Code 1720 retains that fraction; code 172 thresholds it at
+`model.geography_land_threshold` for ownership and legacy output. Topography is
+the land-area-weighted mean elevation over the land regions only, so ocean
+depths never drag a coastal cell's elevation down.
 
 Elevation is written as geopotential, which is what SRA code 129 expects, using
 this planet's gravity. Dry basin floors keep their negative elevation: a floor
@@ -56,6 +57,10 @@ from provenance import config_stamp
 from orogen import Export, INLAND_WATER, LAND, OCEAN
 
 LAND_MASK_CODE = 172
+# The binary mask remains the model's ownership/topology field.  This companion
+# carries the native-mesh subaerial AREA share for the two-surface-tile
+# atmosphere boundary selected by SPAT-5.
+LAND_FRACTION_CODE = 1720
 TOPOGRAPHY_CODE = 129
 
 
@@ -319,6 +324,8 @@ def main() -> None:
     output.mkdir(parents=True, exist_ok=True)
     write_sra(output / f"orogen_{resolution}_surf_{LAND_MASK_CODE:04d}.sra",
               LAND_MASK_CODE, out["land_mask"])
+    write_sra(output / f"orogen_{resolution}_surf_{LAND_FRACTION_CODE:04d}.sra",
+              LAND_FRACTION_CODE, out["land_fraction"])
     write_sra(output / f"orogen_{resolution}_surf_{TOPOGRAPHY_CODE:04d}.sra",
               TOPOGRAPHY_CODE, out["geopotential"])
 
@@ -335,8 +342,9 @@ def main() -> None:
         "grid": str(grid_dir),
         "resolution": resolution,
         "method": ("Area-weighted land fraction per cell from the native mesh, "
-                   "thresholded; topography is the land-area-weighted mean "
-                   "elevation over land regions only."),
+                   "retained on code 1720 and thresholded only for code 172; "
+                   "topography is the land-area-weighted mean elevation over "
+                   "land regions only."),
         "land_definition": "surface_class == land (subaerial)",
         "land_threshold": threshold,
         "gravity_m_s2": gravity,
@@ -345,6 +353,15 @@ def main() -> None:
         "mesh_land_fraction": float(
             ex.cell_area[ex.surface_class == LAND].sum() / ex.cell_area.sum()),
         "land_cells": int(land_cells.sum()),
+        "land_fraction": {
+            "surface_code": LAND_FRACTION_CODE,
+            "minimum": float(out["land_fraction"].min()),
+            "maximum": float(out["land_fraction"].max()),
+            "partial_cells": int(((out["land_fraction"] > 0.0)
+                                  & (out["land_fraction"] < 1.0)).sum()),
+            "gauss_weighted": float(
+                (out["land_fraction"].mean(axis=1) * gw).sum() / gw.sum()),
+        },
         "cells_below_mesh_resolution": out["cells_below_mesh_resolution"],
         # What the binary threshold costs, in both signs. SPAT-5.
         "coastline_ledger": out["coastline_ledger"],
@@ -354,7 +371,7 @@ def main() -> None:
             "mean": float(e[land_cells].mean()),
             "cells_below_sea_level": int((e[land_cells] < 0).sum()),
         },
-        "codes": [LAND_MASK_CODE, TOPOGRAPHY_CODE],
+        "codes": [TOPOGRAPHY_CODE, LAND_MASK_CODE, LAND_FRACTION_CODE],
     }
     # Provenance stamp; lib/provenance.py owns the shape and the inert set.
     report.update(config_stamp(config, "exoplasim/scripts/build_boundary_conditions.py"))

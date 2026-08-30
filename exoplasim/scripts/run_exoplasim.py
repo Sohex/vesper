@@ -1775,6 +1775,11 @@ def geography_tag(config: dict) -> str:
 # Albedo is the exception, because the substrate genuinely varies and we know how
 # from the lithology, so it is supplied when land_albedo_source is not uniform.
 BASE_SURFACE_CODES = {129, 172}
+# Unlike 129 and 172, configure() does not know how to stage this companion
+# geography field, so it travels through stage_surface_extras.  It is required
+# for every run: code 172 is retained only for binary topology/legacy output,
+# while 1720 is the physical subaerial area fraction at the atmosphere boundary.
+LAND_FRACTION_SURFACE_CODES = {1720}
 ALBEDO_SURFACE_CODES = {174, 175, 176, 212}
 # dalbwet, dalbwet1 and dalbwet2, the SATURATED end of the moisture mixing, one
 # code per surface 174, 175 and 176 already carries. PHYS-15. Staged only when
@@ -2089,6 +2094,7 @@ def intended_surface_codes(config: dict) -> set[int]:
     also says why the flip cannot happen mid-run.
     """
     codes = set(BASE_SURFACE_CODES)
+    codes |= LAND_FRACTION_SURFACE_CODES
     if str(config["model"].get("land_albedo_source", "uniform")) != "uniform":
         codes |= ALBEDO_SURFACE_CODES
         if soil_albedo_moisture(config)["NWETSOIL"] == 1:
@@ -3183,7 +3189,10 @@ def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
     for code in sorted(intended_surface_codes(config) - BASE_SURFACE_CODES):
         src = surface_sra(config, code)
         if not src.is_file():
-            if code in SOIL_WATER_SURFACE_CODES | SOIL_WATER_SPLIT_SURFACE_CODES:
+            if code in LAND_FRACTION_SURFACE_CODES:
+                builder, setting = ("build_boundary_conditions.py",
+                                    "SPAT-5 fractional surface support")
+            elif code in SOIL_WATER_SURFACE_CODES | SOIL_WATER_SPLIT_SURFACE_CODES:
                 builder, setting = ("build_surface_soil_water.py",
                                     "model.soil_water_source")
             elif code in DUST_SURFACE_CODES:
@@ -3203,7 +3212,9 @@ def stage_surface_extras(run_dir: Path, config: dict) -> list[int]:
             else:
                 builder, setting = ("build_surface_albedo.py",
                                     "model.land_albedo_source")
-            if code in DUST_SURFACE_CODES | DUST_EMISSION_SURFACE_CODES:
+            if code in LAND_FRACTION_SURFACE_CODES:
+                fallback = "none"
+            elif code in DUST_SURFACE_CODES | DUST_EMISSION_SURFACE_CODES:
                 fallback = "none"
             elif code in WET_ALBEDO_SURFACE_CODES:
                 fallback = "false"
@@ -4081,6 +4092,11 @@ def main() -> None:
         pO2=float(atmosphere["pO2_bar"]),
         pAr=float(atmosphere["pAr_bar"]),
         pCO2=float(atmosphere["pCO2_bar"]),
+        # OCN-16. Atmospheric CO2 is a prescribed boundary condition. Keep
+        # both resident carbonmod switches explicit so a library-default change
+        # cannot silently turn an ocean/land carbon diagnostic into forcing.
+        co2weathering=False,
+        evolveco2=False,
         rotationperiod=derived["rotation_days"],
         year=derived["orbital_year_earth_days"],
         gravity=derived["gravity_m_s2"],

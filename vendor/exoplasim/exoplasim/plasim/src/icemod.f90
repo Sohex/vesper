@@ -212,6 +212,7 @@
       real :: xsst(NHOR)      = 0.   ! sea surface temperature (K)
       real :: xmld(NHOR)      = 0.   ! mixed layer depth (m) (from ocean)
       real :: xls(NHOR)       = 0.   ! land sea mask (1/0)
+      real :: xlf(NHOR)       = -1.  ! immutable subaerial area share
       real :: xiced(NHOR)     = 0.   ! ice thickness (m)
       real :: xicec(NHOR)     = 0.   ! ice cover (1/0)
       real :: xsnow(NHOR)     = 0.   ! snow depth (h2o equiv. m)
@@ -312,7 +313,7 @@
 !$omp&  taunc,tfreeze,thicec,tmelt,version,xaheat,xaout,xcflux,xcfluxa,xcfluxf,xcfluxn,xcfluxna,xcfluxr,&
 !$omp&  xcfluxra,xclicec,xclicec2,xcliced,xcliced2,xclsst,xclsst2,xclssto,xcpmea,xcroffa,xdt,&
 !$omp&  xfluxc,xfluxca,xflxice,xflxice2,xflxicea,xgw,xheat,xheata,xicec,xicecc,xiced,ximelt,ximelta,&
-!$omp&  xlhdt,xlhfl,xls,xlwfl,xmaxd,xmind,xmld,xoflux,xofluxa,xoheat,xpme,xprs,xqmelt,xqmelta,xroff,&
+!$omp&  xlhdt,xlhfl,xlf,xls,xlwfl,xmaxd,xmind,xmld,xoflux,xofluxa,xoheat,xpme,xprs,xqmelt,xqmelta,xroff,&
 !$omp&  xscflx,xscflxa,xshdt,xshfl,xsmelt,xsmelta,xsmflx,xsndch,xsnow,xsst,xstoi,xstoia,xswfl,xtaux,&
 !$omp&  xtauy,xts,xtsflux,xtsfluxa,xust3,xcoldsst,tsst_eq,tsst_pol,hice_ini,hlead)
 
@@ -536,6 +537,14 @@
 !
       xdt   = solar_day / real(ntspd)
       taunc = solar_day * taunc
+
+!     SPAT-5 support carrier. Keep the legacy binary mask xls unchanged until
+!     tile exchange is complete, but give sea ice the same immutable area
+!     share as land and ocean. It is a boundary and is therefore re-read on
+!     every start instead of being restored as prognostic restart state.
+      call mpsurfgp('xlf',xlf,NHOR,1)
+      xlf(:)=AMAX1(xlf(:),0.)
+      xlf(:)=AMIN1(xlf(:),1.)
 
       if (nrestart == 0) then ! read start file
        

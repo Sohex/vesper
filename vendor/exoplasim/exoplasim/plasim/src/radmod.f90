@@ -1995,6 +1995,14 @@
        deallocate(zdtdte)
       endif
 
+!     SPAT-5: establish separate radiative channels while exchange is still
+!     binary. Independent land/ocean evaluation replaces this seed later; the
+!     surface owners can already be wired to stable channel names.
+      dlt_swfl(:)=dswfl(:,NLEP)
+      dlt_lwfl(:)=dlwfl(:,NLEP)
+      dot_swfl(:)=dswfl(:,NLEP)
+      dot_lwfl(:)=dlwfl(:,NLEP)
+
       if(ntime == 1) then
        call mksecond(zsec,zsec)
        time4rad=time4rad+zsec

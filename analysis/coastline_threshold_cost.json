@@ -1,0 +1,441 @@
+{
+  "contract_version": "vesper-partial-surface-area-store/1",
+  "generated": "2026-08-28T11:08:49+00:00",
+  "source_build": "canonical-10m-carve2",
+  "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
+  "threshold": 0.5,
+  "rungs": [
+    {
+      "rung": "T21",
+      "grid": "source/canonical-10m-carve2/exoplasim-T21",
+      "cells_below_mesh_resolution": 0,
+      "ledger": {
+        "candidate_rules": {
+          "why": "a threshold is a DECISION and cannot be taken against one rule's cost alone; these are the alternatives priced in the same terms. Nothing here changes what this builder writes.",
+          "as_configured": {
+            "land_cells": 1019,
+            "model_land_area_relative": -0.011433416604240798,
+            "below_datum_land_dropped": 0.06441017231154111,
+            "land_dropped_of_mesh_land": 0.1157824972143338,
+            "water_promoted_of_model_land": 0.10555594571247862,
+            "land_volume_closure_relative": 0.027733510212091618
+          },
+          "area_conserving": {
+            "threshold": 0.4911753694371712,
+            "land_cells": 1029,
+            "model_land_area_relative": -0.00012959440336579586,
+            "below_datum_land_dropped": 0.06047866078806996,
+            "land_dropped_of_mesh_land": 0.11019878335037023,
+            "water_promoted_of_model_land": 0.11008345514669482,
+            "land_volume_closure_relative": 0.03668776428483679
+          },
+          "exempt_below_datum_share_any": {
+            "land_cells": 1405,
+            "model_land_area_relative": 0.46781962309260905,
+            "below_datum_land_dropped": 0.0,
+            "land_dropped_of_mesh_land": 0.0058890674094286,
+            "water_promoted_of_model_land": 0.3227294982635276,
+            "land_volume_closure_relative": 0.3844275747571293
+          },
+          "exempt_below_datum_share_0.10": {
+            "land_cells": 1021,
+            "model_land_area_relative": -0.008964663761895753,
+            "below_datum_land_dropped": 0.060231233768668804,
+            "land_dropped_of_mesh_land": 0.11483183946518452,
+            "water_promoted_of_model_land": 0.10682482433487464,
+            "land_volume_closure_relative": 0.027754492590138142
+          },
+          "exempt_below_datum_share_0.25": {
+            "land_cells": 1019,
+            "model_land_area_relative": -0.011433416604240798,
+            "below_datum_land_dropped": 0.06441017231154111,
+            "land_dropped_of_mesh_land": 0.1157824972143338,
+            "water_promoted_of_model_land": 0.10555594571247862,
+            "land_volume_closure_relative": 0.027733510212091618
+          }
+        },
+        "why": "the model's mask is binary at oceanmod.f90:256 whatever this builder writes; this is the size of the rounding, in both signs, not a proposal to change it",
+        "operators": {
+          "class_shares": "gridding.cell_fraction, CATEGORICAL, area share",
+          "areas_and_volume": "gridding.cell_sum, EXTENSIVE",
+          "elevation": "gridding.cell_mean over the land population, INTENSIVE, via gridding.land_weighted"
+        },
+        "class_partition_max_residual": 0.0,
+        "partial_land_cells": 1053,
+        "partial_land_cell_area_fraction": 0.5549737091519708,
+        "mesh_land_area": 318136714.761382,
+        "model_land_area": 314499325.1644106,
+        "net_land_area_relative": -0.011433416604240765,
+        "land_dropped_to_ocean": {
+          "area": 36834663.29063702,
+          "of_mesh_land": 0.1157824972143338,
+          "below_datum_area": 1570566.7176257372,
+          "of_mesh_land_below_datum": 0.06441017231154111
+        },
+        "water_promoted_to_land": {
+          "ocean_area": 33197273.693665683,
+          "inland_water_area": 0.0,
+          "of_model_land": 0.10555594571247862
+        },
+        "wholly_terrestrial_cells_sent_to_ocean": 0,
+        "land_volume_closure_relative": 0.027733510212091618,
+        "transfer": {
+          "regions_offered": 10000005,
+          "cells": 2048,
+          "cells_with_no_population": 0,
+          "area_offered": 734996288.1974249,
+          "area_landed": 734996288.1974249,
+          "closure_residual_relative": 0.0
+        }
+      }
+    },
+    {
+      "rung": "T42",
+      "grid": "source/canonical-10m-carve2/exoplasim-T42",
+      "cells_below_mesh_resolution": 0,
+      "ledger": {
+        "candidate_rules": {
+          "why": "a threshold is a DECISION and cannot be taken against one rule's cost alone; these are the alternatives priced in the same terms. Nothing here changes what this builder writes.",
+          "as_configured": {
+            "land_cells": 4116,
+            "model_land_area_relative": -0.009871072695028182,
+            "below_datum_land_dropped": 0.03187636485489724,
+            "land_dropped_of_mesh_land": 0.07737115472266153,
+            "water_promoted_of_model_land": 0.06817302289244465,
+            "land_volume_closure_relative": 0.02517307173846596
+          },
+          "area_conserving": {
+            "threshold": 0.47923805614979764,
+            "land_cells": 4153,
+            "model_land_area_relative": -0.00020275272007796996,
+            "below_datum_land_dropped": 0.02952801318662938,
+            "land_dropped_of_mesh_land": 0.07262917534659331,
+            "water_promoted_of_model_land": 0.07244111025866597,
+            "land_volume_closure_relative": 0.03308256029772574
+          },
+          "exempt_below_datum_share_any": {
+            "land_cells": 4828,
+            "model_land_area_relative": 0.2152563713103839,
+            "below_datum_land_dropped": 0.0,
+            "land_dropped_of_mesh_land": 0.01710425698019689,
+            "water_promoted_of_model_land": 0.19120297064563552,
+            "land_volume_closure_relative": 0.13819595579260058
+          },
+          "exempt_below_datum_share_0.10": {
+            "land_cells": 4118,
+            "model_land_area_relative": -0.009362143032713988,
+            "below_datum_land_dropped": 0.03108112018078226,
+            "land_dropped_of_mesh_land": 0.07713103322098545,
+            "water_promoted_of_model_land": 0.06840934829175385,
+            "land_volume_closure_relative": 0.02516999628197552
+          },
+          "exempt_below_datum_share_0.25": {
+            "land_cells": 4116,
+            "model_land_area_relative": -0.009871072695028182,
+            "below_datum_land_dropped": 0.03187636485489724,
+            "land_dropped_of_mesh_land": 0.07737115472266153,
+            "water_promoted_of_model_land": 0.06817302289244465,
+            "land_volume_closure_relative": 0.02517307173846596
+          }
+        },
+        "why": "the model's mask is binary at oceanmod.f90:256 whatever this builder writes; this is the size of the rounding, in both signs, not a proposal to change it",
+        "operators": {
+          "class_shares": "gridding.cell_fraction, CATEGORICAL, area share",
+          "areas_and_volume": "gridding.cell_sum, EXTENSIVE",
+          "elevation": "gridding.cell_mean over the land population, INTENSIVE, via gridding.land_weighted"
+        },
+        "class_partition_max_residual": 0.0,
+        "partial_land_cells": 2715,
+        "partial_land_cell_area_fraction": 0.3596425313967348,
+        "mesh_land_area": 318136714.761382,
+        "model_land_area": 314996364.1230149,
+        "net_land_area_relative": -0.009871072695028214,
+        "land_dropped_to_ocean": {
+          "area": 24614604.980762124,
+          "of_mesh_land": 0.07737115472266153,
+          "below_datum_area": 777267.87436378,
+          "of_mesh_land_below_datum": 0.03187636485489724
+        },
+        "water_promoted_to_land": {
+          "ocean_area": 21474254.342395127,
+          "inland_water_area": 0.0,
+          "of_model_land": 0.06817302289244465
+        },
+        "wholly_terrestrial_cells_sent_to_ocean": 0,
+        "land_volume_closure_relative": 0.02517307173846596,
+        "transfer": {
+          "regions_offered": 10000005,
+          "cells": 8192,
+          "cells_with_no_population": 0,
+          "area_offered": 734996288.1974249,
+          "area_landed": 734996288.1974249,
+          "closure_residual_relative": 0.0
+        }
+      }
+    },
+    {
+      "rung": "T85",
+      "grid": "source/canonical-10m-carve2/exoplasim-T85",
+      "cells_below_mesh_resolution": 0,
+      "ledger": {
+        "candidate_rules": {
+          "why": "a threshold is a DECISION and cannot be taken against one rule's cost alone; these are the alternatives priced in the same terms. Nothing here changes what this builder writes.",
+          "as_configured": {
+            "land_cells": 16567,
+            "model_land_area_relative": -0.009996393228174472,
+            "below_datum_land_dropped": 0.01323990496268604,
+            "land_dropped_of_mesh_land": 0.05382572361416721,
+            "water_promoted_of_model_land": 0.04427188960342304,
+            "land_volume_closure_relative": 0.011730879613992188
+          },
+          "area_conserving": {
+            "threshold": 0.47426918882022284,
+            "land_cells": 16701,
+            "model_land_area_relative": 5.8565502931262614e-05,
+            "below_datum_land_dropped": 0.011305647742861458,
+            "land_dropped_of_mesh_land": 0.04892854548677616,
+            "water_promoted_of_model_land": 0.04898424220292733,
+            "land_volume_closure_relative": 0.016921052900121098
+          },
+          "exempt_below_datum_share_any": {
+            "land_cells": 17459,
+            "model_land_area_relative": 0.06386342390802247,
+            "below_datum_land_dropped": 0.0,
+            "land_dropped_of_mesh_land": 0.030993577202393485,
+            "water_promoted_of_model_land": 0.08916276185336465,
+            "land_volume_closure_relative": 0.03132148236962191
+          },
+          "exempt_below_datum_share_0.10": {
+            "land_cells": 16576,
+            "model_land_area_relative": -0.009672135369958479,
+            "below_datum_land_dropped": 0.012682498449120271,
+            "land_dropped_of_mesh_land": 0.05369073116771774,
+            "water_promoted_of_model_land": 0.04444850778201975,
+            "land_volume_closure_relative": 0.011793533857947392
+          },
+          "exempt_below_datum_share_0.25": {
+            "land_cells": 16567,
+            "model_land_area_relative": -0.009996393228174472,
+            "below_datum_land_dropped": 0.01323990496268604,
+            "land_dropped_of_mesh_land": 0.05382572361416721,
+            "water_promoted_of_model_land": 0.04427188960342304,
+            "land_volume_closure_relative": 0.011730879613992188
+          }
+        },
+        "why": "the model's mask is binary at oceanmod.f90:256 whatever this builder writes; this is the size of the rounding, in both signs, not a proposal to change it",
+        "operators": {
+          "class_shares": "gridding.cell_fraction, CATEGORICAL, area share",
+          "areas_and_volume": "gridding.cell_sum, EXTENSIVE",
+          "elevation": "gridding.cell_mean over the land population, INTENSIVE, via gridding.land_weighted"
+        },
+        "class_partition_max_residual": 0.0,
+        "partial_land_cells": 6833,
+        "partial_land_cell_area_fraction": 0.22566850124616,
+        "mesh_land_area": 318136714.761382,
+        "model_land_area": 314956495.0603076,
+        "net_land_area_relative": -0.009996393228174501,
+        "land_dropped_to_ocean": {
+          "area": 17123938.880265296,
+          "of_mesh_land": 0.05382572361416721,
+          "below_datum_area": 322839.5971112251,
+          "of_mesh_land_below_datum": 0.01323990496268604
+        },
+        "water_promoted_to_land": {
+          "ocean_area": 13943719.179190993,
+          "inland_water_area": 0.0,
+          "of_model_land": 0.04427188960342304
+        },
+        "wholly_terrestrial_cells_sent_to_ocean": 0,
+        "land_volume_closure_relative": 0.011730879613992188,
+        "transfer": {
+          "regions_offered": 10000005,
+          "cells": 32768,
+          "cells_with_no_population": 0,
+          "area_offered": 734996288.1974249,
+          "area_landed": 734996288.1974249,
+          "closure_residual_relative": 0.0
+        }
+      }
+    },
+    {
+      "rung": "T127",
+      "grid": "source/canonical-10m-carve2/exoplasim-T127",
+      "cells_below_mesh_resolution": 32,
+      "ledger": {
+        "candidate_rules": {
+          "why": "a threshold is a DECISION and cannot be taken against one rule's cost alone; these are the alternatives priced in the same terms. Nothing here changes what this builder writes.",
+          "as_configured": {
+            "land_cells": 37364,
+            "model_land_area_relative": -0.009640116982787661,
+            "below_datum_land_dropped": 0.00816527767456076,
+            "land_dropped_of_mesh_land": 0.043684550988321726,
+            "water_promoted_of_model_land": 0.034375820940782766,
+            "land_volume_closure_relative": 0.004294205920716885
+          },
+          "area_conserving": {
+            "threshold": 0.466222126637006,
+            "land_cells": 37629,
+            "model_land_area_relative": 6.808705734995257e-06,
+            "below_datum_land_dropped": 0.0064729089689324615,
+            "land_dropped_of_mesh_land": 0.03902274803105594,
+            "water_promoted_of_model_land": 0.03902929099783358,
+            "land_volume_closure_relative": 0.007826951188820175
+          },
+          "exempt_below_datum_share_any": {
+            "land_cells": 38248,
+            "model_land_area_relative": 0.024710544189447514,
+            "below_datum_land_dropped": 0.0,
+            "land_dropped_of_mesh_land": 0.031998411638007956,
+            "water_promoted_of_model_land": 0.055341438759481845,
+            "land_volume_closure_relative": 0.011621262160759977
+          },
+          "exempt_below_datum_share_0.10": {
+            "land_cells": 37349,
+            "model_land_area_relative": -0.009229740577913148,
+            "below_datum_land_dropped": 0.007542080252326173,
+            "land_dropped_of_mesh_land": 0.04350822090162041,
+            "water_promoted_of_model_land": 0.03459780912650933,
+            "land_volume_closure_relative": 0.004340131064250367
+          },
+          "exempt_below_datum_share_0.25": {
+            "land_cells": 37333,
+            "model_land_area_relative": -0.009638380357564147,
+            "below_datum_land_dropped": 0.00815734284967212,
+            "land_dropped_of_mesh_land": 0.043683839435525555,
+            "water_promoted_of_model_land": 0.03437679571049365,
+            "land_volume_closure_relative": 0.0042941121853792815
+          }
+        },
+        "why": "the model's mask is binary at oceanmod.f90:256 whatever this builder writes; this is the size of the rounding, in both signs, not a proposal to change it",
+        "operators": {
+          "class_shares": "gridding.cell_fraction, CATEGORICAL, area share",
+          "areas_and_volume": "gridding.cell_sum, EXTENSIVE",
+          "elevation": "gridding.cell_mean over the land population, INTENSIVE, via gridding.land_weighted"
+        },
+        "class_partition_max_residual": 0.0,
+        "partial_land_cells": 11578,
+        "partial_land_cell_area_fraction": 0.1705120487820262,
+        "mesh_land_area": 318136714.761382,
+        "model_land_area": 315069839.6145625,
+        "net_land_area_relative": -0.009640116982787661,
+        "land_dropped_to_ocean": {
+          "area": 13897659.537250757,
+          "of_mesh_land": 0.043684550988321726,
+          "below_datum_area": 199100.74597859383,
+          "of_mesh_land_below_datum": 0.00816527767456076
+        },
+        "water_promoted_to_land": {
+          "ocean_area": 10830784.390431345,
+          "inland_water_area": 0.0,
+          "of_model_land": 0.034375820940782766
+        },
+        "wholly_terrestrial_cells_sent_to_ocean": 0,
+        "land_volume_closure_relative": 0.004294205920716885,
+        "transfer": {
+          "regions_offered": 10000005,
+          "cells": 73728,
+          "cells_with_no_population": 32,
+          "area_offered": 734996288.1974249,
+          "area_landed": 734996288.1974249,
+          "closure_residual_relative": 0.0
+        }
+      }
+    },
+    {
+      "rung": "T170",
+      "grid": "source/canonical-10m-carve2/exoplasim-T170",
+      "cells_below_mesh_resolution": 365,
+      "ledger": {
+        "candidate_rules": {
+          "why": "a threshold is a DECISION and cannot be taken against one rule's cost alone; these are the alternatives priced in the same terms. Nothing here changes what this builder writes.",
+          "as_configured": {
+            "land_cells": 66605,
+            "model_land_area_relative": -0.007605661330302493,
+            "below_datum_land_dropped": 0.004655530728287104,
+            "land_dropped_of_mesh_land": 0.03672130422784081,
+            "water_promoted_of_model_land": 0.029338783750588227,
+            "land_volume_closure_relative": 0.003037695943026582
+          },
+          "area_conserving": {
+            "threshold": 0.4653802057984626,
+            "land_cells": 66642,
+            "model_land_area_relative": -1.5497229683969493e-05,
+            "below_datum_land_dropped": 0.003914368219566126,
+            "land_dropped_of_mesh_land": 0.03305615456273811,
+            "water_promoted_of_model_land": 0.03304116937964504,
+            "land_volume_closure_relative": 0.005630712020809684
+          },
+          "exempt_below_datum_share_any": {
+            "land_cells": 67012,
+            "model_land_area_relative": 0.008959643821105923,
+            "below_datum_land_dropped": 0.0,
+            "land_dropped_of_mesh_land": 0.031093420944243774,
+            "water_promoted_of_model_land": 0.039697390287744265,
+            "land_volume_closure_relative": 0.006231115970805905
+          },
+          "exempt_below_datum_share_0.10": {
+            "land_cells": 66253,
+            "model_land_area_relative": -0.007396974792037603,
+            "below_datum_land_dropped": 0.004293897397013568,
+            "land_dropped_of_mesh_land": 0.03663503066690857,
+            "water_promoted_of_model_land": 0.0294559407258962,
+            "land_volume_closure_relative": 0.003041848884296854
+          },
+          "exempt_below_datum_share_0.25": {
+            "land_cells": 66240,
+            "model_land_area_relative": -0.007605661330302493,
+            "below_datum_land_dropped": 0.004655530728287104,
+            "land_dropped_of_mesh_land": 0.03672130422784081,
+            "water_promoted_of_model_land": 0.029338783750588227,
+            "land_volume_closure_relative": 0.003037695943026582
+          }
+        },
+        "why": "the model's mask is binary at oceanmod.f90:256 whatever this builder writes; this is the size of the rounding, in both signs, not a proposal to change it",
+        "operators": {
+          "class_shares": "gridding.cell_fraction, CATEGORICAL, area share",
+          "areas_and_volume": "gridding.cell_sum, EXTENSIVE",
+          "elevation": "gridding.cell_mean over the land population, INTENSIVE, via gridding.land_weighted"
+        },
+        "class_partition_max_residual": 0.0,
+        "partial_land_cells": 16610,
+        "partial_land_cell_area_fraction": 0.13792292780010165,
+        "mesh_land_area": 318136714.761382,
+        "model_land_area": 315717074.65217185,
+        "net_land_area_relative": -0.0076056613303025445,
+        "land_dropped_to_ocean": {
+          "area": 11682395.088798523,
+          "of_mesh_land": 0.03672130422784081,
+          "below_datum_area": 113519.6716966629,
+          "of_mesh_land_below_datum": 0.004655530728287104
+        },
+        "water_promoted_to_land": {
+          "ocean_area": 9262754.97958839,
+          "inland_water_area": 0.0,
+          "of_model_land": 0.029338783750588227
+        },
+        "wholly_terrestrial_cells_sent_to_ocean": 0,
+        "land_volume_closure_relative": 0.003037695943026582,
+        "transfer": {
+          "regions_offered": 10000005,
+          "cells": 131072,
+          "cells_with_no_population": 365,
+          "area_offered": 734996288.1974249,
+          "area_landed": 734996288.1974249,
+          "closure_residual_relative": 0.0
+        }
+      }
+    }
+  ],
+  "third_class": {
+    "mesh_area_fraction": 0.0,
+    "status": "absent_not_small",
+    "detail": "the active export contains exactly zero inherited INLAND_WATER area; solved lakes are a later land partition and must not be folded into this zero"
+  },
+  "selection": {
+    "status": "awaiting_accepted_baseline_flux_bracket",
+    "tile_model_selected": false,
+    "model_form_bracket_selected": false,
+    "reason": "author decision: cost bracket first, choose a tile model only if the measured response is material"
+  },
+  "config_sha256": "ee67a2b9be8a3fba2a788d5a0418c94bed38417dc32766a53b1175994f038d4e"
+}

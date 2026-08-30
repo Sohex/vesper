@@ -276,6 +276,7 @@
 
       if(ntime == 1) call mksecond(zsec,0.)
       call surflx
+      call spat5_seed_turbulent_bundles
       if(ntime == 1) then
        call mksecond(zsec1,zsec)
        time4sf=time4sf+zsec1
@@ -291,6 +292,36 @@
 
       return
       end subroutine fluxstep
+
+!     ========================================
+!     SUBROUTINE SPAT5_SEED_TURBULENT_BUNDLES
+!     ========================================
+
+      subroutine spat5_seed_turbulent_bundles
+      use fluxmod
+
+!     The execution is still binary in this slice, so the one evaluated flux
+!     is the only physically defined tile and is copied into both channels.
+!     Keeping the channels distinct now lets landstep and seastep be rewired
+!     without introducing them in the same edit as the dual evaluation.
+      dlt_shfl(:)=dshfl(:)
+      dlt_shdt(:)=dshdt(:)
+      dlt_lhfl(:)=dlhfl(:)
+      dlt_lhdt(:)=dlhdt(:)
+      dlt_evap(:)=devap(:)
+      dlt_taux(:)=dtaux(:)
+      dlt_tauy(:)=dtauy(:)
+      dlt_ust3(:)=dust3(:)
+      dot_shfl(:)=dshfl(:)
+      dot_shdt(:)=dshdt(:)
+      dot_lhfl(:)=dlhfl(:)
+      dot_lhdt(:)=dlhdt(:)
+      dot_evap(:)=devap(:)
+      dot_taux(:)=dtaux(:)
+      dot_tauy(:)=dtauy(:)
+      dot_ust3(:)=dust3(:)
+      return
+      end subroutine spat5_seed_turbulent_bundles
 
 !     ===================
 !     SUBROUTINE FLUXSTOP

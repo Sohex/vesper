@@ -1,11 +1,13 @@
 # What the binary coastline threshold costs, in both signs, on every rung
 
-**Measured:** 2026-08-25, on `precarve-craton-10m`, terrain hash `ab0d679b`,
+**Measured:** 2026-08-28, on `canonical-10m-carve2`, terrain hash
+`f496ae9fd749`,
 10,000,005 regions, at every rung of the T21/T42/T85/T127/T170 ladder.
-`exoplasim/scripts/build_boundary_conditions.py:coastline_ledger` is the
-measurement and it runs as part of every boundary-condition build, so the
-numbers below are reproduced in `boundary_conditions_report.json` rather than
-kept only here.
+`analysis/coastline_threshold_cost.py` reruns
+`exoplasim/scripts/build_boundary_conditions.py:coastline_ledger` on every
+rung. The machine-readable measurement is
+`analysis/coastline_threshold_cost.json`; each ordinary boundary build also
+reproduces its active rung in `boundary_conditions_report.json`.
 
 This is worldbuilding. Vesper is an invented super-Earth; every quantity below
 is a property of that planet's modelled surface or of the gridding this
@@ -59,9 +61,9 @@ falls below 0.5 goes to the slab ocean whatever its elevation.
 
 | rung | share of below-datum land dropped to ocean | land volume closure |
 | --- | ---: | ---: |
-| T21 | 6.44% | +2.23% |
-| T42 | 3.18% | +2.49% |
-| T85 | 1.32% | +1.20% |
+| T21 | 6.44% | +2.77% |
+| T42 | 3.19% | +2.52% |
+| T85 | 1.32% | +1.17% |
 | T127 | 0.82% | +0.43% |
 | T170 | 0.47% | +0.31% |
 
@@ -112,7 +114,7 @@ the ocean share.
 
 ## What each candidate rule would cost instead
 
-**Measured:** 2026-08-25, same build, same mesh, same ladder.
+**Measured:** 2026-08-28, same build, same mesh, same ladder.
 `build_boundary_conditions.py:coastline_ledger` now prices every candidate in
 `candidate_rules` as part of each boundary build, so these are reproduced in
 `boundary_conditions_report.json` rather than kept only here.
@@ -127,34 +129,34 @@ the extensive closure.
 
 | rung | rule | threshold | below-datum dropped | net land | water promoted | volume closure |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| T21 | as configured | 0.5 | 6.44% | -1.14% | 10.56% | +2.23% |
-| T21 | area-conserving | 0.491 | 6.05% | -0.01% | 11.01% | +3.19% |
-| T21 | exempt any below-datum | 0.5 | 0.00% | +46.78% | 32.27% | +40.66% |
-| T21 | exempt at 10% of the cell | 0.5 | 6.02% | -0.90% | 10.68% | +2.24% |
-| T42 | as configured | 0.5 | 3.18% | -0.99% | 6.82% | +2.49% |
+| T21 | as configured | 0.5 | 6.44% | -1.14% | 10.56% | +2.77% |
+| T21 | area-conserving | 0.491 | 6.05% | -0.01% | 11.01% | +3.67% |
+| T21 | exempt any below-datum | 0.5 | 0.00% | +46.78% | 32.27% | +38.44% |
+| T21 | exempt at 10% of the cell | 0.5 | 6.02% | -0.90% | 10.68% | +2.78% |
+| T42 | as configured | 0.5 | 3.19% | -0.99% | 6.82% | +2.52% |
 | T42 | area-conserving | 0.479 | 2.95% | -0.02% | 7.24% | +3.31% |
-| T42 | exempt any below-datum | 0.5 | 0.00% | +21.48% | 19.09% | +14.49% |
-| T85 | as configured | 0.5 | 1.32% | -1.00% | 4.43% | +1.20% |
-| T85 | area-conserving | 0.474 | 1.13% | +0.01% | 4.90% | +1.75% |
-| T85 | exempt any below-datum | 0.5 | 0.00% | +6.38% | 8.91% | +3.29% |
+| T42 | exempt any below-datum | 0.5 | 0.00% | +21.53% | 19.12% | +13.82% |
+| T85 | as configured | 0.5 | 1.32% | -1.00% | 4.43% | +1.17% |
+| T85 | area-conserving | 0.474 | 1.13% | +0.01% | 4.90% | +1.69% |
+| T85 | exempt any below-datum | 0.5 | 0.00% | +6.39% | 8.92% | +3.13% |
 | T127 | as configured | 0.5 | 0.82% | -0.96% | 3.44% | +0.43% |
-| T127 | area-conserving | 0.466 | 0.65% | +0.00% | 3.90% | +0.81% |
-| T127 | exempt any below-datum | 0.5 | 0.00% | +2.46% | 5.53% | +1.21% |
+| T127 | area-conserving | 0.466 | 0.65% | +0.00% | 3.90% | +0.78% |
+| T127 | exempt any below-datum | 0.5 | 0.00% | +2.47% | 5.53% | +1.16% |
 | T170 | as configured | 0.5 | 0.47% | -0.76% | 2.93% | +0.31% |
-| T170 | area-conserving | 0.465 | 0.39% | -0.00% | 3.30% | +0.59% |
-| T170 | exempt any below-datum | 0.5 | 0.00% | +0.89% | 3.97% | +0.65% |
+| T170 | area-conserving | 0.465 | 0.39% | -0.00% | 3.30% | +0.56% |
+| T170 | exempt any below-datum | 0.5 | 0.00% | +0.90% | 3.97% | +0.62% |
 
 ### The outright exemption trades a 6% error for a 32% one
 
 Exempting any cell that holds below-datum land is the only rule that recovers
 ALL of the terrain `source/README.md`'s first rule is about, and at T21 it does
 so by inflating the land the model receives by 46.8%, promoting a THIRD of that
-land out of open ocean, and taking the volume closure to +40.7%. That is the
+land out of open ocean, and taking the volume closure to +38.4%. That is the
 same class of error -- a cell given the wrong surface -- at five times the
 magnitude, and it reaches the volume the exemption exists to protect.
 
 It is not absurd in itself: its cost falls by a factor 52 across the ladder and
-at T170 it costs +0.89% of land area to recover the last 0.47% of below-datum
+at T170 it costs +0.90% of land area to recover the last 0.47% of below-datum
 land, which is close to a fair trade. It is absurd at the rungs this world is
 actually run at. **A rule cannot be adopted on the behaviour it would have at a
 resolution the project does not use.**
@@ -178,14 +180,14 @@ share at all.
 The area-conserving threshold is 0.491 at T21 falling to 0.465 at T170. It
 conserves land area to within 0.02% at every rung, and it makes both of the
 other numbers worse: it recovers almost none of the below-datum land, and it
-takes the land volume closure from +2.23% to +3.19% at T21. It buys the
+takes the land volume closure from +2.77% to +3.67% at T21. It buys the
 quantity that does not carry the sign of the preserved terrain by spending the
 one that does.
 
 ### 0.5 is the only value that makes the rounding single
 
 The other three rules are alternatives to a number. This is a reason for the
-number itself. `oceanmod.f90:326-329` hard-binarises `yls` at 0.5 whatever this
+number itself. `oceanmod.f90:339-344` hard-binarises `yls` at 0.5 whatever this
 builder writes. At a builder threshold of 0.5 the two agree and the cell is
 rounded once; at any other value the mask written and the rounding the model
 would apply to a fractional field disagree, and the cell is rounded twice by
@@ -213,9 +215,24 @@ stops covering every Gaussian cell.
 - Whether 0.5 is the right threshold is a separate question from whether the
   boundary should be fractional at all, and the section above answers the
   first: 0.5 stays, because every alternative is worse on the rule the fork
-  exists for and only 0.5 rounds the cell once. The second is still open and is
-  SPAT-5's, but the model as it stands cannot take a fraction at all.
-- The flux half of SPAT-5's first clause is not derivable at this step. A cell
-  flipped to slab ocean evaporates at the open-water rate and one flipped to
-  land at the bucket rate, and the difference between those rates is a
-  climatology.
+  exists for and only 0.5 rounds the cell once. The measured materiality test
+  has answered the second in favour of a tile boundary. Code 1720 now carries
+  the native-mesh subaerial share into every model start, separately named
+  `dlf`, `ylf` and `xlf` in the land/atmosphere, ocean and sea-ice owners, while
+  code 172 remains binary topology. A compiled endpoint-preserving combine
+  exists so pure cells never multiply an absent tile by zero. Fourteen restart
+  records now preserve both boundary publications, and land/glacier versus
+  ocean/ice consume separate exchange bundles before a combined diagnostic is
+  restored. Those bundles still mirror the one binary flux/radiation
+  evaluation, so this is routed infrastructure and not yet tile physics.
+- The flux half is now an executable, fail-closed measurement in
+  `analysis/coastline_flux_bracket.py`. It requires the accepted baseline on
+  this exact build, verifies its land mask, and has no bootstrap or stale-file
+  fallback. Canonical-10m-carve2's accepted baseline now supplies that
+  measurement: the global surface-energy bracket is -0.0719 to +0.1253 W m-2,
+  against the same run's pre-existing 0.12 W m-2 state-storage tolerance, and
+  the individual turbulent and radiative terms span 1.3 to 2.9 W m-2. The
+  declared inequality therefore selects the conservative tile representation.
+  `analysis/partial_surface_decision_gate.py` reproduces the choice, verifies
+  the code-1720 carrier, and remains fail-closed until the model no longer
+  hard-binarises the selected physical exchange.

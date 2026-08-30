@@ -174,13 +174,14 @@
 !        both set dls and doro from their own branch in surfini and have no
 !        surface files by design, and landmod reads the same two codes with
 !        no mode guard of its own.
-         if ((icode == 129 .or. icode == 172) &
+         if ((icode == 129 .or. icode == 172 .or. icode == 1720) &
              .and. naqua == 0 .and. ndesert == 0) then
             write(nud,*) 'Required surface field ',yc,' [code =',icode, &
                          '] has no file'
             write(nud,*) 'Expected <',trim(yf),'>'
             write(nud,*) 'Without it the compiled default stands: an all-land'
-            write(nud,*) 'mask at code 172, a flat surface at code 129.'
+            write(nud,*) 'mask at code 172, a flat surface at code 129, or no'
+            write(nud,*) 'fractional land support at code 1720.'
             call mpabort('Required surface file missing')
          endif
          write(nud,'(" * Init ",A10," [code =",I4,"] internally *")') yc,icode
@@ -257,6 +258,7 @@
  
       call surfcode( 129,'doro'    )
       call surfcode( 172,'dls'     )
+      call surfcode(1720,'dlf'     ) ! subaerial area share; SPAT-5
 
 !     miscmod arrays
 
@@ -267,12 +269,14 @@
 
       call surfcode( 169,'yclsst'  )
       call surfcode( 172,'yls'     )  ! same as dls
+      call surfcode(1720,'ylf'     )  ! same immutable support as dlf
       call surfcode( 903,'yfsst'   )
 
 !     icemod arrays
 
       call surfcode( 169,'xclsst'  )  ! same as zclsst
       call surfcode( 172,'xls'     )  ! same as dls
+      call surfcode(1720,'xlf'     )  ! same immutable support as dlf
       call surfcode( 210,'xclicec' )
       call surfcode( 211,'xcliced' )
       call surfcode( 709,'xflxice' )
@@ -474,6 +478,7 @@
       if (nrestart == 0 .and. naqua /= 0) then
          n_sea_points = NUGP   ! all gridpoints are water
          dls(:)  = 0.0         ! land/sea mask ro water
+         dlf(:)  = 0.0         ! fractional land support
          doro(:) = 0.0         ! gridpoint orography
          so(:)   = 0.0         ! spectral  orography
          sp(:)   = 0.0         ! spectral  pressure
@@ -485,6 +490,7 @@
       if (nrestart == 0 .and. ndesert /= 0) then
          n_sea_points = 0      ! No gridpoints are water
          dls(:)  = 1.0         ! land/sea mask ro water
+         dlf(:)  = 1.0         ! fractional land support
          doro(:) = 0.0         ! gridpoint orography (flat)
          so(:)   = 0.0         ! spectral  orography
          sp(:)   = 0.0         ! spectral  pressure
@@ -550,10 +556,28 @@
 
       endif ! (nrestart == 0)
 
+!     SPAT-5: immutable physical support, read on EVERY start. The evolving
+!     per-tile temperatures and stores belong in restart records; the area
+!     fraction is a boundary condition and must not be frozen into one.
+      if (naqua == 0 .and. ndesert == 0) then
+         call mpsurfgp('dlf',dlf,NHOR,1)
+         dlf(:)=AMAX1(dlf(:),0.)
+         dlf(:)=AMIN1(dlf(:),1.)
+      else if (naqua /= 0) then
+         dlf(:)=0.0
+      else
+         dlf(:)=1.0
+      endif
+
                             call landini  ! land module
                             call glacierini(noromax) !glacier module
       if (nveg > 0)         call vegini   ! vegetation module
+      if (nrestart == 0 .and. naqua == 0) &
+     &                      call spat5_archive_land_boundary
       if (n_sea_points > 0) call seaini   ! sea module
+      if (nrestart == 0 .and. n_sea_points > 0) &
+     &                      call spat5_archive_ocean_boundary
+      if (nrestart == 0)    call spat5_complete_boundary_endpoints
 
       return
       end subroutine surfini
@@ -565,12 +589,126 @@
       subroutine surfstep
       use surfmod
 
+      if (naqua == 0)       call spat5_load_land_exchange
       if (naqua == 0)       call landstep
                             call glacierstep
+      if (naqua == 0)       call spat5_archive_land_boundary
+      if (n_sea_points > 0) call spat5_load_ocean_exchange
       if (n_sea_points > 0) call seastep
+      if (n_sea_points > 0) call spat5_archive_ocean_boundary
+                            call spat5_complete_boundary_endpoints
+                            call spat5_restore_exchange_aggregate
 
       return
       end subroutine surfstep
+
+!     =====================================
+!     SPAT-5 TILE BOUNDARY ARCHIVE ROUTINES
+!     =====================================
+
+      subroutine spat5_archive_land_boundary
+      use surfmod
+      use landmod, only: land_ts => dts, land_qs => dqs
+
+      dlt_ts(:)     = land_ts(:)
+      dlt_qs(:)     = land_qs(:)
+      dlt_rhs(:)    = drhs(:)
+      dlt_z0(:)     = dz0(:)
+      dlt_alb(:)    = dalb(:)
+      dlt_salb(:,:) = dsalb(:,:)
+      return
+      end subroutine spat5_archive_land_boundary
+
+      subroutine spat5_archive_ocean_boundary
+      use surfmod
+      use seamod, only: ocean_ts => dts, ocean_qs => dqs
+
+      dot_ts(:)     = ocean_ts(:)
+      dot_qs(:)     = ocean_qs(:)
+      dot_rhs(:)    = drhs(:)
+      dot_z0(:)     = dz0(:)
+      dot_alb(:)    = dalb(:)
+      dot_salb(:,:) = dsalb(:,:)
+      return
+      end subroutine spat5_archive_ocean_boundary
+
+      subroutine spat5_complete_boundary_endpoints
+      use surfmod
+
+!     Give an absent tile a finite copy of the present one. The endpoint-safe
+!     combine will discard it, but the full-column flux and radiation kernels
+!     evaluate every lane before combination and must never see a sentinel.
+      where (dlf(:) == 0.0)
+         dlt_ts(:)  = dot_ts(:)
+         dlt_qs(:)  = dot_qs(:)
+         dlt_rhs(:) = dot_rhs(:)
+         dlt_z0(:)  = dot_z0(:)
+         dlt_alb(:) = dot_alb(:)
+      endwhere
+      where (dlf(:) == 1.0)
+         dot_ts(:)  = dlt_ts(:)
+         dot_qs(:)  = dlt_qs(:)
+         dot_rhs(:) = dlt_rhs(:)
+         dot_z0(:)  = dlt_z0(:)
+         dot_alb(:) = dlt_alb(:)
+      endwhere
+      do jband=1,2
+         where (dlf(:) == 0.0) dlt_salb(jband,:) = dot_salb(jband,:)
+         where (dlf(:) == 1.0) dot_salb(jband,:) = dlt_salb(jband,:)
+      enddo
+      return
+      end subroutine spat5_complete_boundary_endpoints
+
+      subroutine spat5_load_land_exchange
+      use surfmod
+
+      dshfl(:)=dlt_shfl(:)
+      dshdt(:)=dlt_shdt(:)
+      dlhfl(:)=dlt_lhfl(:)
+      dlhdt(:)=dlt_lhdt(:)
+      devap(:)=dlt_evap(:)
+      dtaux(:)=dlt_taux(:)
+      dtauy(:)=dlt_tauy(:)
+      dust3(:)=dlt_ust3(:)
+      dswfl(:,NLEP)=dlt_swfl(:)
+      dlwfl(:,NLEP)=dlt_lwfl(:)
+      return
+      end subroutine spat5_load_land_exchange
+
+      subroutine spat5_load_ocean_exchange
+      use surfmod
+
+      dshfl(:)=dot_shfl(:)
+      dshdt(:)=dot_shdt(:)
+      dlhfl(:)=dot_lhfl(:)
+      dlhdt(:)=dot_lhdt(:)
+      devap(:)=dot_evap(:)
+      dtaux(:)=dot_taux(:)
+      dtauy(:)=dot_tauy(:)
+      dust3(:)=dot_ust3(:)
+      dswfl(:,NLEP)=dot_swfl(:)
+      dlwfl(:,NLEP)=dot_lwfl(:)
+      return
+      end subroutine spat5_load_ocean_exchange
+
+      subroutine spat5_restore_exchange_aggregate
+      use surfmod
+
+!     Seeded bundles are identical while exchange remains binary, making this
+!     an exact no-op today. Once the flux/radiation kernels evaluate both
+!     tiles, this is the one endpoint-safe restoration seen by diagnostics.
+      dshfl(:)=spat5_tile_combine(dlf(:),dlt_shfl(:),dot_shfl(:))
+      dshdt(:)=spat5_tile_combine(dlf(:),dlt_shdt(:),dot_shdt(:))
+      dlhfl(:)=spat5_tile_combine(dlf(:),dlt_lhfl(:),dot_lhfl(:))
+      dlhdt(:)=spat5_tile_combine(dlf(:),dlt_lhdt(:),dot_lhdt(:))
+      devap(:)=spat5_tile_combine(dlf(:),dlt_evap(:),dot_evap(:))
+      dtaux(:)=spat5_tile_combine(dlf(:),dlt_taux(:),dot_taux(:))
+      dtauy(:)=spat5_tile_combine(dlf(:),dlt_tauy(:),dot_tauy(:))
+      dust3(:)=spat5_tile_combine(dlf(:),dlt_ust3(:),dot_ust3(:))
+      dswfl(:,NLEP)=spat5_tile_combine(dlf(:),dlt_swfl(:),dot_swfl(:))
+      dlwfl(:,NLEP)=spat5_tile_combine(dlf(:),dlt_lwfl(:),dot_lwfl(:))
+      return
+      end subroutine spat5_restore_exchange_aggregate
 
 !     ===================
 !     SUBROUTINE SURFSTOP

@@ -100,6 +100,7 @@
       real :: ysst(NHOR,NLEV_OCE) = 0.  ! temperature (K)
       real :: ymld(NHOR,NLEV_OCE) = 0.  ! layer depth (m)
       real :: yls(NHOR)    = 0.         ! land sea mask (frac.)
+      real :: ylf(NHOR)    = -1.        ! immutable subaerial area share
       real :: yicec(NHOR)  = 0.         ! ice cover (frac.)
       real :: yiced(NHOR)  = 0.         ! ice thickness (m)
       real :: ycliced(NHOR)= 0.         ! climatological ice thickness (m)
@@ -161,7 +162,7 @@
 !$omp&  naccuout,naomod,ndatim,ndiag,newsurf,nfluko,ngui,nhdiff,nlsg,nocean,nout,noutput,&
 !$omp&  nperpetual_ocean,nprhor,nprint,nproc,nrestart,nstep,ntspd,nud,solar_day,taunc,tfreeze,&
 !$omp&  vdiffk,vdiffkl,version,ycliced,yclsst,yclsst2,ydsst,ydssta,yfldo,yfldoa,yfsst,yfsst2,&
-!$omp&  yfssta,yheat,yheata,yicec,yiced,yicesnow,yiflux,yifluxa,yifluxr,yls,ymld,ypme,yqhd,yqhda,&
+!$omp&  yfssta,yheat,yheata,yicec,yiced,yicesnow,yiflux,yifluxa,yifluxr,ylf,yls,ymld,ypme,yqhd,yqhda,&
 !$omp&  yroff,ysst,ytaux,ytauy,yust3)
 
       end module oceanmod
@@ -328,6 +329,15 @@
 !     compute taunc in s
 !
       taunc = solar_day  * taunc
+!
+!     SPAT-5 support carrier. The ocean state keeps its binary execution mask
+!     until the two-tile exchange is complete; ylf is the separately named,
+!     immutable area share that exchange will consume. Re-read it on cold and
+!     restart starts so a boundary condition never becomes evolving state.
+!
+      call mpsurfgp('ylf',ylf,NHOR,1)
+      ylf(:)=AMAX1(ylf(:),0.)
+      ylf(:)=AMIN1(ylf(:),1.)
 !
       if (nrestart == 0) then ! new start (read start file)
          call mpsurfgp('yls',yls,NHOR,1)
@@ -1523,4 +1533,3 @@
       enddo
 !
       end subroutine hdiffo
-

@@ -1,6 +1,6 @@
 {
   "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
-  "generated": "2026-08-28T00:18:50.170467+00:00",
+  "generated": "2026-08-28T16:07:48.838537+00:00",
   "mesh": {
     "export_root": "/home/cfutro/docs/world/source/canonical-10m-carve2/exoplasim-T42",
     "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
@@ -18651,13 +18651,20 @@
   },
   "grid": "/home/cfutro/docs/world/source/canonical-10m-carve2/exoplasim-T21",
   "resolution": "T21",
-  "method": "Area-weighted land fraction per cell from the native mesh, thresholded; topography is the land-area-weighted mean elevation over land regions only.",
+  "method": "Area-weighted land fraction per cell from the native mesh, retained on code 1720 and thresholded only for code 172; topography is the land-area-weighted mean elevation over land regions only.",
   "land_definition": "surface_class == land (subaerial)",
   "land_threshold": 0.5,
   "gravity_m_s2": 12.81,
   "land_fraction_gauss_weighted": 0.4276915732398812,
   "mesh_land_fraction": 0.4328412413597107,
   "land_cells": 1019,
+  "land_fraction": {
+    "surface_code": 1720,
+    "minimum": 0.0,
+    "maximum": 1.0,
+    "partial_cells": 1053,
+    "gauss_weighted": 0.4326460599924388
+  },
   "cells_below_mesh_resolution": 0,
   "coastline_ledger": {
     "candidate_rules": {
@@ -18745,15 +18752,16 @@
     "cells_below_sea_level": 52
   },
   "codes": [
+    129,
     172,
-    129
+    1720
   ],
   "generator": "exoplasim/scripts/build_boundary_conditions.py",
   "source_config": {
     "schema_version": 1,
     "source_build": "canonical-10m-carve2",
-    "baseline_climatology": null,
-    "bootstrap_climatology": null,
+    "baseline_climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+    "bootstrap_climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
     "planet": {
       "radius_earth": 1.2,
       "gravity_m_s2": 12.81,
@@ -18844,7 +18852,7 @@
       "soil_albedo_moisture": {
         "enabled": true,
         "saturation_at_empty_layer": 0.0,
-        "saturation_at_full_layer": 0.7543,
+        "saturation_at_full_layer": 0.7609,
         "shape_sigma_broadband": 1.0,
         "shape_sigma_band1": 1.0,
         "shape_sigma_band2": 1.0
@@ -18955,7 +18963,7 @@
       "precip_reevaporation_gamma": "derived",
       "cloud_fraction_subgrid_width": "derived",
       "asymptotic_mixing_length_m": "derived",
-      "land_longwave_emissivity": 0.935,
+      "land_longwave_emissivity": 0.930897,
       "sea_longwave_emissivity": 0.98,
       "ozone_scale": 0.794,
       "ozone_uv_weight": 0.335,
@@ -18968,7 +18976,7 @@
       ],
       "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
-      "soil_water_source": "uniform",
+      "soil_water_source": "pedology",
       "lake_dwmax_m": 0.2,
       "land_albedo_source": "vegetated",
       "vegetation_albedo": 0.165,
@@ -19021,6 +19029,6 @@
       "alignment_recurrence_earth_years": 314
     }
   },
-  "config_sha256": "ee67a2b9be8a3fba2a788d5a0418c94bed38417dc32766a53b1175994f038d4e",
-  "git_commit": "ff7d71a418d8abd9f3c60902e898928e69f6ed5c"
+  "config_sha256": "c8639d3f08f21eacf7b794ed6bef772c50e8b474f1ed4e8b34a6503b026abc89",
+  "git_commit": "2896f62efec8bf838181e64345c980ff3215ec65"
 }

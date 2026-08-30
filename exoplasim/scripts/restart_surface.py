@@ -260,6 +260,11 @@ SURFACE_RESTART_FIELDS = {
 # restart still carries no record by that name, which is what makes them
 # unsubstitutable.
 REREAD_EVERY_START = {
+    # SPAT-5's immutable native-mesh subaerial area fraction.  The binary code
+    # 172 remains restart-borne topology, while this physical support is read
+    # from code 1720 on cold starts and resumes alike.  Tile temperatures and
+    # stores are prognostic and therefore belong in the restart separately.
+    1720: "dlf",
     1811: "ddustcol",
     1801: "dsrcw",
     1802: "ddrage",

@@ -1,0 +1,72 @@
+{
+  "contract_version": "vesper-partial-surface-decision-gate/1",
+  "generated": "2026-08-28T16:29:24+00:00",
+  "declaration": "config/partial_surface.yaml",
+  "measurement": "analysis/coastline_flux_bracket.json",
+  "implementation": {
+    "hard_binary_boundary": true,
+    "required_seams": {
+      "separate positive-fraction land state": false,
+      "separate positive-fraction ocean state": false,
+      "area-weighted turbulent exchange": false,
+      "area-weighted radiative exchange": false,
+      "separate tile diagnostics": false,
+      "tile restart records": false
+    },
+    "missing_seams": [
+      "separate positive-fraction land state",
+      "separate positive-fraction ocean state",
+      "area-weighted turbulent exchange",
+      "area-weighted radiative exchange",
+      "separate tile diagnostics",
+      "tile restart records"
+    ]
+  },
+  "checks": [
+    {
+      "name": "measurement contract",
+      "passed": true,
+      "detail": "vesper-partial-surface-flux-bracket/1"
+    },
+    {
+      "name": "materiality test predates and matches the measurement",
+      "passed": true,
+      "detail": "accepted_baseline_state_storage_tolerance"
+    },
+    {
+      "name": "materiality reference is unchanged",
+      "passed": true,
+      "detail": "0.12 vs 0.12 W m-2"
+    },
+    {
+      "name": "decision follows the declared inequality",
+      "passed": true,
+      "detail": "bound 0.12529409389238141 vs tolerance 0.12 W m-2"
+    },
+    {
+      "name": "declaration records the measured decision",
+      "passed": true,
+      "detail": "selected_fractional_support_all_state_owners_exchange_pending"
+    },
+    {
+      "name": "selected tile operator is fully declared",
+      "passed": true,
+      "detail": "one_atmosphere_column_two_surface_tiles"
+    },
+    {
+      "name": "selected fractional support reaches every model start",
+      "passed": true,
+      "detail": "code 1720, 1053 partial T21 cells; immutable boundary is re-read on restart"
+    },
+    {
+      "name": "selected representation is implemented",
+      "passed": false,
+      "detail": "tile selected; oceanmod.f90 still hard-binarises the boundary; missing separate positive-fraction land state, separate positive-fraction ocean state, area-weighted turbulent exchange, area-weighted radiative exchange, separate tile diagnostics, tile restart records"
+    }
+  ],
+  "summary": {
+    "passed": 7,
+    "failed": 1
+  },
+  "verdict": "FAIL"
+}

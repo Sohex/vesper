@@ -525,6 +525,16 @@ POLICY.update({
 POLICY.update({
     "drhs": Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE, bounds=(0.0, 1.0),
                    why="surface wetness factor"),
+    **{n: Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE,
+                 why="SPAT-5 restart-required tile boundary temperature or humidity")
+       for n in ("dlt_ts", "dlt_qs", "dot_ts", "dot_qs")},
+    **{n: Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE, bounds=(0.0, 1.0),
+                 why="SPAT-5 restart-required tile wetness or albedo")
+       for n in ("dlt_rhs", "dlt_alb", "dlt_sa1", "dlt_sa2",
+                 "dot_rhs", "dot_alb", "dot_sa1", "dot_sa2")},
+    **{n: Policy(PROGNOSTIC_GRID, REMAP, INTENSIVE, bounds=(0.0, None),
+                 why="SPAT-5 restart-required tile roughness")
+       for n in ("dlt_z0", "dot_z0")},
     "dicec": Policy(PROGNOSTIC_GRID, REMAP, FRACTION, domain="ocean",
                     bounds=(0.0, 1.0), partner="diced", why="ice cover"),
     "diced": Policy(PROGNOSTIC_GRID, REMAP, THICKNESS, domain="ocean",

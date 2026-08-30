@@ -1,0 +1,88 @@
+# SPAT-5 decision record. The author selected measurement before model change.
+contract_version: vesper-partial-surface/1
+atmosphere_boundary:
+  implemented_representation: binary_land_ocean_with_restart_safe_tile_channels
+  threshold: 0.5
+  threshold_verdict: retain
+  reason: >-
+    ExoPlaSim hard-binarises yls at 0.5. Alternative builder thresholds add a
+    second rounding and worsen the below-datum land-volume closure.
+surface_partition:
+  top_level: [ocean, inherited_inland_water, subaerial, solved_lake]
+  subaerial_partition: [rootable, dry_barren]
+  overlap_rule: solved water owns water over barren; deduct it once
+selection:
+  strategy: cost_bracket_first_decide_after
+  tile_model_selected: true
+  model_form_bracket_selected: false
+  tile_model_status: selected_restart_safe_tile_channels_dual_evaluation_pending
+  area_store_measurement: analysis/coastline_threshold_cost.json
+  flux_measurement: analysis/coastline_flux_bracket.json
+  materiality_test: accepted_baseline_state_storage_tolerance
+  decision_gate: >-
+    Select a tile model if the absolute accepted-baseline surface-energy bracket
+    exceeds that same run's already-declared state-storage tolerance; otherwise
+    retain the binary model with the bracket as model-form error. The criterion
+    predates the bracket and is read from the run's convergence report rather
+    than chosen after seeing the result.
+  decision: >-
+    Selected: the measured bracket reaches +0.125294 W m-2 against the accepted
+    run's 0.12 W m-2 state-storage tolerance. The component turbulent and
+    radiative terms also span 1.3 to 2.9 W m-2. SPAT-5 remains open until the
+    conservative tile implementation carries separate land/ocean state and
+    closes its extensive flux identities.
+tile_model:
+  operator: one_atmosphere_column_two_surface_tiles
+  support:
+    land_fraction_source: native_mesh_subaerial_area_fraction
+    ocean_fraction: 1 - land_fraction
+    ownership_mask_role: topology_and_legacy_output_only
+  state:
+    land: [surface_temperature, soil_water, soil_ice, land_snow]
+    ocean: [sea_surface_temperature, mixed_layer_heat, sea_ice, sea_ice_snow]
+    rule: >-
+      A tile state advances wherever its fraction is positive. Neither tile may
+      overwrite the other's temperature, water or snow store in a partial cell.
+  exchange:
+    atmosphere_state: shared above both tiles
+    compiled_combine: spat5_tile_combine
+    endpoint_rule: pure endpoints bypass absent tile arithmetic
+    channel_status: separate_land_ocean_channels_seeded_from_binary_evaluation
+    turbulent_fluxes: [sensible_heat, latent_heat, evaporation, momentum]
+    radiative_fluxes: [absorbed_shortwave_band_1, absorbed_shortwave_band_2,
+      net_longwave]
+    aggregation: land_fraction * land_tile + ocean_fraction * ocean_tile
+    accumulation_rule: weight each tile exactly once at the atmosphere boundary
+    precipitation_rule: >-
+      Atmospheric precipitation depth is applied to each tile over its own area;
+      land runoff is routed to ocean after the land ledger closes and is not an
+      additional atmospheric freshwater sink.
+  diagnostics:
+    retained_per_tile: [surface_temperature, water_and_snow_stores,
+      sensible_heat, latent_heat, evaporation, momentum, absorbed_shortwave,
+      net_longwave]
+    retained_aggregate: [surface_temperature, water_and_snow_stores,
+      sensible_heat, latent_heat, evaporation, momentum, absorbed_shortwave,
+      net_longwave]
+  acceptance:
+    pure_land_reduction: bit_identical_to_binary_land_at_fraction_1
+    pure_ocean_reduction: bit_identical_to_binary_ocean_at_fraction_0
+    fraction_bounds: [0.0, 1.0]
+    extensive_closure: weighted_tiles_equal_atmosphere_exchange
+    storage_closure: weighted_tile_storage_change_equals_weighted_flux_plus_transfer
+    restart: every_separate_tile_state_is_serialized
+flux_bracket:
+  contract_version: vesper-partial-surface-flux-bracket/1
+  climatology: accepted_baseline_only
+  fields: [evap, hfss, hfls, rss, rls, surface_energy]
+  surface_energy_identity: rss + rls + hfss + hfls
+  missing_tile_estimator: >-
+    For each partial cell, bound the unrepresented tile's annual-mean flux by
+    the minimum and maximum accepted-baseline values over cells of that surface
+    class in the same Gaussian row. Expand symmetrically to adjacent rows only
+    until four references exist, and inventory every expansion.
+  minimum_reference_cells: 4
+  interpretation: >-
+    This is a same-climate model-form bracket, not a tiled-model prediction. It
+    holds circulation and tile temperatures fixed and therefore cannot measure
+    their coupled response.
