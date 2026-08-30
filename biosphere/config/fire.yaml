@@ -1,0 +1,204 @@
+# The simulated fire operator's departures from mainline, declared.
+#
+# Worldbuilding. Vesper is an invented planet and this file describes the
+# vegetation model's fire as it runs on the simulation of it: the GLOBFIRM
+# burned-fraction operator in `modules/vegdynam.cpp`, and the places where this
+# project's source departs from mainline LPJ-GUESS.
+#
+# THE SCOPE IS THE FIRE OPERATORS AND NOT ONE SOURCE FILE, which is the one
+# structural difference from `biosphere/config/ntransform.yaml` and
+# `somdynam.yaml`. Those key on a file because a gate reads a file. Fire is
+# split across three: GLOBFIRM's burned fraction is `modules/vegdynam.cpp`'s
+# `fire()`, its mortality is the same file's `mortality_lpj` and
+# `mortality_guess`, and the BLAZE effects path is `modules/blaze.cpp`.
+# `source_file` carries the file per entry so a gate can still read one at a
+# time, and `biosphere/config/snow_thermal.yaml` is the precedent for a register
+# named for its concern rather than for its file.
+#
+# The argument is `biosphere/notes/fire-model-audit.md`, section "8. The
+# GLOBFIRM burn-probability floor is a reporting cap applied to the state". The
+# unit half of it rests on `biosphere/notes/time-base-unit-contract.md`, whose
+# registry deliberately excludes fire rates and hands them here.
+#
+# NOTHING IN THIS FILE IS EXECUTION-VERIFIED, and nothing can be yet. No
+# LPJ-GUESS run this project has made has passed acceptance -- `world-qcse` has
+# why -- so every statement below is arithmetic on the declared forms and on the
+# source. `comparison_arm` names what would change that.
+
+# EVERY DIVERGENCE FROM MAINLINE, WITH ITS VERDICT.
+#
+# The reference point is the RELEASE and not the fork's own commit, which is
+# what this shares with `ntransform.yaml` and `snow_thermal.yaml` and what
+# separates it from `somdynam.yaml`. `fire()` arrived byte-identical to
+# `guess_4.1/modules/vegdynam.cpp`'s apart from the C-N-P rename of the litter
+# members and the commented-out phosphorus block: the fork changed the currency
+# the function reads, never its fire arithmetic. So a change here is a change to
+# default-on behaviour in a widely used community model, not a fork quirk this
+# project inherited.
+#
+# It is LIVE in the configuration this project runs.
+# `biosphere/scripts/run_lpj_guess.py` writes `firemodel "GLOBFIRM"`, and
+# `biosphere/generated/vesper_pfts.ins` sets `vegmode "cohort"`, so
+# `vegetation_dynamics` calls `fire()` and hands its result to
+# `mortality_guess`. `live_under` records that.
+#
+# `verdict` is what this project decided about the change, not what the
+# arithmetic says:
+#   keep    the divergence stands and is declared. `mainline` records the line
+#           the release runs, verbatim, beside the changed one in the source
+#   gate    the divergence stands but is not settled, and `--strict` refuses
+#           while it does. There is no such entry; the kind exists so the next
+#           one has somewhere to go that is not `keep`
+# A divergence that does not survive review is reverted and leaves this file;
+# reverting is the null result, not a defeat.
+#
+# A gate over this file checks BOTH halves, as the other three do. Each
+# `mainline` string has to be in the source, so the record cannot go missing,
+# and NOT in it once comments are stripped, so a silent revert fails. A DELETION
+# has no `live` line to find, so `mainline_form: deleted_line` is the shape a
+# gate keys on: the check is the mainline half plus the absence of any
+# uncommented occurrence, and `absent_from_stripped` carries what must not
+# reappear.
+mainline_divergences:
+  release: "LPJ-GUESS 4.1.1, Zenodo record 8065737, SVN r10118, MPL-2.0"
+  fork_reference: "LPJ-GUESS-CNP v1.0, mateusdp/LPJ-GUESS-NTD, subtree commit b368b893c4324840b43c56866e901c6916858afb, vendored at vendor/lpj-guess"
+  # Per-entry execution claims, the shape world-h3qg gave the other registers:
+  # a register-wide boolean over a growing set is stale the moment the set
+  # grows, so the claim lives on the entry and the arms live here. Empty and
+  # never absent, so a gate can tell an unwritten block from an empty one.
+  execution_arms: {}
+  comparison_arm: >
+    What would bound what this is worth in a simulated vegetation, which
+    arithmetic on the curve cannot reach: one arm with the floor restored
+    against one without, the same build, the same climatology, the same
+    instruction file and the same `vesper_root_seed`, over the full
+    `nyear_spinup`. The quantities to compare are the share of gridcells whose
+    annual burned fraction is exactly the floor, the cohort age structure and
+    mean patch age on those gridcells, standing biomass and `cpool.out` on them,
+    and the FIREC and fire nitrogen fluxes. It has to be run at `npatch 15` or
+    more, because the effect below reaches the vegetation through a stochastic
+    per-patch draw and one patch cannot resolve a 0.1 per cent hazard.
+  entries:
+    - id: globfirm_fireprob_floor
+      owner: world-v5j1
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/vegdynam.cpp
+      function: fire
+      mainline_form: deleted_line
+      mainline:
+        - "else if (fireprob<0.001) fireprob=0.001; // c.f. LPJF"
+      absent_from_stripped:
+        - "fireprob=0.001"
+        - "fireprob = 0.001"
+      live: null
+      live_under: globfirm_cohort
+      execution: none
+      why_no_execution: >
+        No LPJ-GUESS run this project has made has passed acceptance, so there
+        is no run whose fire output could carry a comparison arm, and none
+        could have (world-qcse: the trend statistic was fitted inside one
+        memory time, and the spin-up is short of the derived 2318 cycles).
+        Verified only by syntax check: the edited translation unit compiles
+        with the build's own include paths at -std=c++14; a link was not
+        available while the host lock was held. The comparison_arm block above
+        is the arm world-zq9v's gate will require evidence for when it runs.
+      classification: implicit-earth
+      settles: >
+        Two findings, and the first is what disposes of the constant while the
+        second is what proves it wrong here.
+
+        The comment's provenance is real and it terminates in a restatement.
+        "LPJF" is the FORTRAN LPJ this file's own reference block cites as Sitch
+        et al., and its maintained descendant carries the identical constant:
+        LPJmL's `src/soil/fire_prob.c`, vendored at `vendor/lpjml`, returns
+        0.001 for any `fire_frac` below 0.001. So the pointer is not a claim
+        somebody wrote down -- two independent implementations state the number
+        -- but neither states an argument for it, and walking the chain is
+        exactly the repair the OPAQUE class prescribes. The chain is walked and
+        there is no derivation at the end of it, so the number is not opaque.
+        It is not tuned either: a fit residual does not come out at exactly
+        1e-3 in two codebases, and no comment in either claims a fit.
+
+        What the number is, mainline says in its own source.
+        `modules/commonoutput.cpp` writes `firert_gridcell += 1000.0` under
+        `// Set a limit of 1000 years` for any patch whose `fireprob` is below
+        0.001. 0.001 per year is a REPORTING CAP on the fire return interval, a
+        round cutoff on where a diagnostic stops resolving, and this line
+        applied it to the model STATE.
+
+        The cap is one per EARTH year, and that is the implicit-Earth
+        diagnosis. LPJF and LPJmL both run `NDAYYEAR 365`. This model's year is
+        183 absolute days, declared as `VESPER_YEAR_LENGTH_DAYS` in
+        `framework/vesper.h`, so carrying the numeral across delivers a whole
+        Earth year of the floor every 183 days: 1.996 times the hazard in
+        absolute time, the same factor the VESPDRV4-to-V5 driver magic exists to
+        catch on nitrogen deposition. The neighbouring quantity of the same
+        class IS converted for exactly this reason -- `distinterval`, the
+        generic patch-destroying disturbance return time read 140 lines below,
+        reaches the model as 199.594 simulation years against an Earth
+        calibration of 100. The floor was never converted because
+        `biosphere/notes/time-base-unit-contract.md` deliberately excludes fire
+        rates from its registry and hands them to the fire review, which had not
+        covered this line.
+
+        Rescaling by 0.501 is refused rather than overlooked. It would repair
+        the unit of a number that has no derivation, which is a tidier copy of
+        the wrong thing; and the quantity it would rescale is a diagnostic cap,
+        not a mechanism. Deleting is the fix. Under CLAUDE.md's disposition
+        space the fourth option, irreducible-with-the-argument, is what a
+        surviving constant would need, and a reporting cap has no argument to
+        make about what burns.
+      breaks_if_removed: >
+        Nothing, and the source is what says so rather than an assumption about
+        it. Three checks.
+
+        Zero is already reachable in the shipped model. `fire()` returns
+        `fireprob = 0.0` from the MINFUEL branch before the floor is reached,
+        and `vegetation_dynamics` leaves it at 0.0 for any patch where
+        `has_fires()` is false or the fire model is not GLOBFIRM. So every
+        consumer already handles a zero and always has.
+
+        There is one division by `fireprob` in the whole tree,
+        `commonoutput.cpp`'s `1.0/patch.fireprob`, and it is already guarded by
+        `patch.fireprob < 0.001` -- the same constant. The floor is what kept
+        that guard dead for every fuel-bearing patch. Removing the floor makes
+        it live, and the reported fire return interval does not move: a floored
+        patch currently takes the else branch and reports 1/0.001 = 1000 years,
+        and without the floor the guard reports 1000 years. What changes is that
+        the patch stops adding 0.001 to burned area, which is what the guard
+        already says it should do.
+
+        Every other consumer is linear in `fireprob` and none divides:
+        `mortality_lpj` and `mortality_guess` scale mortality by
+        `fireprob*(1-fireresist)`, `mortality_guess` draws
+        `randfrac(...) < fireprob`, and `fire()` itself scales litter pools by
+        `(1-mort_fire)`. A zero is the identity in all of them.
+
+        The curve has no singularity the floor was covering. Thonicke et al.
+        (2001) Eqn 9's denominator, 0.45s'^3 + 2.83s'^2 + 2.96s' + 1.04, has no
+        root on s' in [-1,0]: its minimum over that interval is 0.185 at
+        s' = -0.612. `fireprob` goes to zero linearly as the fire index does,
+        with slope 0.1137.
+      worth: >
+        The floor binds where the annual mean daily fire probability s is below
+        0.00914, which is fewer than 1.67 fully-flammable-day-equivalents out of
+        the model year's 183. That is the regime where the moisture term says
+        the patch cannot carry fire, and the floor was replacing the curve's
+        answer there by up to ten orders of magnitude: at s = 0.001 the curve
+        returns 1.13e-4 against the floor's 1e-3, and as s goes to zero the
+        curve does too while the floor stays at 1e-3.
+
+        Where it binds, the effect on the simulated vegetation runs through
+        `mortality_guess`'s stochastic draw, and the scale to compare it against
+        is the converted generic disturbance. The floor is a 0.001 per
+        model-year hazard of a stand-replacing fire against `distinterval`'s
+        0.00501, so it was adding 20 per cent to the patch-destroying
+        disturbance rate on every fuel-bearing gridcell the fire model says
+        cannot burn. Over `nyear_spinup 2318` that is 2.32 expected fires per
+        patch and a 90.2 per cent chance of at least one, so it is not a
+        rounding on the cohort age structure of those gridcells.
+
+        How many gridcells that is cannot be stated here. It needs a run, and
+        `comparison_arm` says which one; the share is a property of this world's
+        soil moisture and fuel, not of the curve.

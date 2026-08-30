@@ -176,4 +176,84 @@ interval, intensity, mortality and C-N-P destinations.  Model choice should be
 reported as uncertainty in downstream productivity, albedo, soils and smoke,
 not collapsed into a single tuned answer.
 
+### 8. The GlobFIRM burn-probability floor is a reporting cap applied to the state
+
+`modules/vegdynam.cpp`'s `fire()` floored the Thonicke et al. (2001) Eqn 9
+burned fraction at 0.001 per simulation year, with `// c.f. LPJF` as its whole
+justification.  GlobFIRM is the live fire model, so the line was not dormant:
+`run_lpj_guess.py` writes `firemodel "GLOBFIRM"` and `vesper_pfts.ins` sets
+`vegmode "cohort"`, which routes `fireprob` into `mortality_guess`.  The floor is
+deleted, and the deletion is registered as a declared divergence from mainline
+LPJ-GUESS 4.1.1 in `biosphere/config/fire.yaml`.
+
+**The provenance is real and it terminates in a restatement.**  "LPJF" is the
+FORTRAN LPJ that `vegdynam.cpp`'s own reference block cites as Sitch et al., and
+its maintained descendant carries the identical constant: LPJmL's
+`src/soil/fire_prob.c`, vendored at `vendor/lpjml`, returns 0.001 for any
+`fire_frac` below 0.001.  Two independent implementations state the number and
+neither argues for it.  Walking the chain is the repair the OPAQUE class
+prescribes, the chain has been walked, and there is no derivation at the end of
+it, so the constant is not opaque.  It is not tuned either: a fit residual does
+not arrive at exactly 1e-3 in two codebases, and no comment in either claims a
+fit.
+
+**What the number is, mainline states in its own source.**
+`modules/commonoutput.cpp` writes `firert_gridcell += 1000.0` under
+`// Set a limit of 1000 years` for any patch whose `fireprob` falls below 0.001.
+0.001 per year is a reporting cap on the fire return interval -- a round cutoff
+on where a diagnostic stops resolving -- and the deleted line applied that cap to
+the model state.
+
+**The cap is one per Earth year, and that is the diagnosis.**  LPJF and LPJmL
+both run `NDAYYEAR 365`.  This model's year is 183 absolute days, declared as
+`VESPER_YEAR_LENGTH_DAYS` in `framework/vesper.h`, so carrying the numeral across
+delivered a whole Earth year of the floor every 183 days: 1.996 times the hazard
+in absolute time, the same factor the VESPDRV4-to-V5 driver magic exists to catch
+on nitrogen deposition.  The neighbouring quantity of the same class is converted
+for exactly this reason -- `distinterval`, the generic patch-destroying
+disturbance return time read 140 lines below in the same file, reaches the model
+as 199.594 simulation years against an Earth calibration of 100.  The floor was
+never converted because `biosphere/notes/time-base-unit-contract.md` excludes
+fire rates from its registry and hands them to this review, which had not covered
+the line.  The constant is therefore IMPLICIT-EARTH, which is a diagnosis and not
+an endorsement: establishing that the unit is Earth's is what proves the number
+wrong here.
+
+Rescaling by 0.501 is refused rather than overlooked.  It would repair the unit
+of a number that has no derivation, and the quantity it would rescale is a
+diagnostic cap rather than a mechanism.
+
+**Nothing downstream needed a nonzero burn probability**, and the source says so
+rather than an assumption about it.  `fire()` already returns `fireprob = 0.0`
+from its MINFUEL branch before the floor was reached, and `vegetation_dynamics`
+leaves it at 0.0 wherever `has_fires()` is false, so every consumer already
+handles a zero.  There is one division by `fireprob` in the tree,
+`commonoutput.cpp`'s `1.0/patch.fireprob`, and it is already guarded by the same
+0.001 -- the floor is what kept that guard dead for every fuel-bearing patch.
+Removing the floor makes it live and does not move the reported fire return
+interval: a floored patch took the else branch and reported 1/0.001 = 1000 years,
+and the guard reports 1000 years.  What changes is that a patch the moisture term
+says cannot carry fire stops reporting burned area it did not burn.  Every other
+consumer is linear in `fireprob` and none divides.  The curve has no singularity
+the floor was covering: Eqn 9's denominator has no root on the reachable domain,
+with a minimum of 0.185, and `fireprob` goes to zero linearly with the fire index
+at slope 0.1137.
+
+**What the floor was worth.**  It bound wherever the annual mean daily fire
+probability fell below 0.00914, which is fewer than 1.67
+fully-flammable-day-equivalents out of the model year's 183 days -- the regime
+where the moisture term says the patch cannot carry fire.  Where it bound, the
+effect on the simulated vegetation ran through `mortality_guess`'s stochastic
+draw, and the scale to judge it against is the converted generic disturbance: a
+0.001 per model-year hazard of a stand-replacing fire against `distinterval`'s
+0.00501, so the floor added 20 per cent to the patch-destroying disturbance rate
+on every fuel-bearing gridcell the fire model says cannot burn.  Over
+`nyear_spinup 2318` that is 2.32 expected fires per patch and a 90.2 per cent
+chance of at least one, which is not a rounding on those gridcells' cohort age
+structure.
+
+How many gridcells that is cannot be stated from the source.  It is a property of
+this world's soil moisture and fuel, and `biosphere/config/fire.yaml`'s
+`comparison_arm` names the paired run that would measure it.
+
 No LPJ-GUESS or ExoPlaSim run was performed for this audit.

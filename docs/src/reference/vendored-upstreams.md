@@ -311,8 +311,47 @@ curves that diverge everywhere else. `notes/audits/cryosphere-material-propertie
 argues the choice, the bracket it sits at the upper endpoint of, and what the
 change is worth.
 
+### GlobFIRM's burn probability diverges from the RELEASE, and the divergence is a DELETION
+
+`modules/vegdynam.cpp`'s `fire()` carries one declared divergence, and it is the
+first register here whose entry removes a line rather than replacing one.
+`fire()` arrived byte-identical to `guess_4.1/modules/vegdynam.cpp`'s apart from
+the C-N-P rename of the litter members and a commented-out phosphorus block: the
+CNP fork changed the currency the function reads and never its fire arithmetic.
+So the reference point is release 4.1.1, as it is for `ntransform.cpp` and the
+snowpack, rather than the fork's own commit. It is LIVE in the configuration this
+project runs, because `biosphere/scripts/run_lpj_guess.py` writes
+`firemodel "GLOBFIRM"` and `biosphere/generated/vesper_pfts.ins` sets
+`vegmode "cohort"`.
+
+What went is a floor of 0.001 per simulation year on the Thonicke et al. (2001)
+burned fraction, justified in mainline by `// c.f. LPJF` and nothing else. The
+pointer is real and it terminates in a restatement: LPJmL, that lineage's
+maintained descendant, carries the identical bare constant at
+`vendor/lpjml/src/soil/fire_prob.c`. Mainline's own `commonoutput.cpp` says what
+the number is, writing `firert_gridcell += 1000.0` under
+`// Set a limit of 1000 years` below the same threshold, so 0.001 per year is a
+reporting cap on the fire return interval that had been applied to the model
+state. The cap is one per EARTH year -- LPJF and LPJmL both run `NDAYYEAR 365`
+against this model's 183-day year -- which makes it implicit-Earth by a factor of
+1.996, beside a `distinterval` that is converted for exactly that reason.
+
+`biosphere/config/fire.yaml` holds the register and
+`biosphere/notes/fire-model-audit.md` section 8 argues it. The register is keyed
+on the fire OPERATORS rather than on one source file, because fire is split
+across `vegdynam.cpp` and `blaze.cpp` and `blaze.cpp`'s own audited defects have
+nowhere else to land; `source_file` per entry keeps a gate reading one file at a
+time. A deletion has no changed line for a gate to find, so the entry declares
+`mainline_form: deleted_line` and carries `absent_from_stripped` in place of
+`live`: the check is that mainline's line is recorded in a comment and that no
+uncommented occurrence has come back.
+
+**NO GATE READS `fire.yaml` YET, and that is the one thing this register does not
+have that the other three do.** Until one exists the divergence is declared but
+not enforced, so a silent revert would not be caught. `world-v5j1` carries it.
+
 No other file under `vendor/lpj-guess/modules/` carries a register of this kind.
-Where one does, it belongs beside these three.
+Where one does, it belongs beside these four.
 
 Vendoring the CNP source does not itself enable phosphorus limitation.
 `data/ins/global.ins` and the run harness keep `ifplim 0` until the gridded

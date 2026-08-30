@@ -1432,7 +1432,43 @@ void fire(Patch& patch,double& fireprob) {
 
 	if (fireprob>1.0)
 		fail("fire: probability of fire >1.0");
-	else if (fireprob<0.001) fireprob=0.001; // c.f. LPJF
+
+	// DECLARED DIVERGENCE FROM MAINLINE: globfirm_fireprob_floor, owner
+	// WORLD-V5J1, registered in biosphere/config/fire.yaml. Mainline
+	// LPJ-GUESS 4.1.1 and the vendored CNP fork both floor the curve:
+	//     else if (fireprob<0.001) fireprob=0.001; // c.f. LPJF
+	// The floor is deleted here rather than rescaled, and the curve's own
+	// answer is kept whatever it is.
+	//
+	// The comment's pointer resolves to a restatement, not to a derivation.
+	// LPJF is the FORTRAN LPJ cited at the foot of this file, and its
+	// maintained descendant carries the same bare constant with no argument
+	// beside it: LPJmL's src/soil/fire_prob.c returns 0.001 for any fire_frac
+	// below 0.001, at vendor/lpjml. Two implementations state the number and
+	// neither derives it, so there is no chain left to walk.
+	//
+	// What the number IS, mainline says itself. commonoutput.cpp writes
+	// `firert_gridcell += 1000.0` under `// Set a limit of 1000 years` for any
+	// patch whose fireprob is below 0.001, so 0.001/yr is a reporting cap on
+	// the fire return interval. This line applied that cap to the STATE.
+	//
+	// And the cap is one per EARTH year. LPJF and LPJmL both run NDAYYEAR 365;
+	// this model's year is 183 absolute days, so carrying the numeral across
+	// delivers a whole Earth year of the floor every 183 days -- 1.996 times
+	// the rate, the same factor the VESPDRV4-to-V5 magic exists to catch.
+	// distinterval, the same class of quantity read 140 lines below, is
+	// converted for exactly this reason and reaches the model as 199.594
+	// against an Earth calibration of 100. This one never was, because
+	// biosphere/notes/time-base-unit-contract.md deliberately left fire rates
+	// to the fire review.
+	//
+	// Nothing downstream needs a nonzero fireprob. The MINFUEL branch above
+	// already returns 0.0, so zero is reachable in the shipped model; the one
+	// division, commonoutput.cpp's 1.0/patch.fireprob, is already guarded by
+	// the same 0.001 and that guard is what this line kept dead. Removing the
+	// floor leaves the reported return interval identical at 1000 years and
+	// stops a patch the moisture term says cannot carry fire from reporting
+	// burned area it did not burn.
 
 	// Calculate expected flux from litter due to fire
 	// (fluxes from vegetation calculated in mortality functions)
