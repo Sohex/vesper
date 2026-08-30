@@ -2435,18 +2435,25 @@ CLIMATOLOGY_FROM_THE_CALLER = {
                            "from it; a fixed default here reported 280.9 K for "
                            "a 293.8 K world",
     "ice_mask": "--climatology is required=True",
+    "ocean_forcing": "the forcing contract takes an explicit pass artifact; "
+                       "resolving config's current baseline could select the "
+                       "newer side of a chronological pass pair",
+    "ocean_loop_convergence": "the assessor takes both consecutive pass "
+                               "artifacts from the caller; there is no single "
+                               "current climatology in a pairwise test",
 }
 
 
 RESOLVERS = {"bootstrap_climatology_path", "climatology_path",
-             "best_available_climatology"}
+             "best_available_climatology", "climatology_path_for_state"}
 
 # Which resolvers each declared need permits. The need is what must EXIST; the
 # resolver is what the step READS, and the two are different statements, which
 # is why one need admits two resolvers and the other admits one.
 PERMITTED_RESOLVERS = {
     "bootstrap_climatology": {"bootstrap_climatology_path",
-                              "best_available_climatology"},
+                              "best_available_climatology",
+                              "climatology_path_for_state"},
     "baseline_climatology": {"climatology_path"},
 }
 
@@ -2526,6 +2533,10 @@ def check_climatology_needs_match_call_sites() -> list[str]:
                 called.add(name)
         permitted = PERMITTED_RESOLVERS[needs[0]]
         wrong = called - permitted
+        if "climatology_path_for_state" in called and step_id != "soil":
+            problems.append(
+                f"step {step_id} uses climatology_path_for_state(), which is "
+                "reserved for soil's required --state contract")
         if wrong:
             problems.append(
                 f"step {step_id} declares `needs: {needs[0]}` and "
@@ -3231,18 +3242,30 @@ def check_convergence_bounds_are_re_read() -> list[str]:
         return [f"assess_convergence.py or lib/run_lengths.py does not import: {exc}"]
 
     bad = []
-    anchor_name = Path(assess_convergence.CONVERGENCE_BOUND_ANCHOR["artifact"]).name
+    scatter_anchor_name = Path(
+        assess_convergence.CONVERGENCE_BOUND_ANCHOR["artifact"]).name
+    memory_anchor_name = Path(
+        run_lengths.MEMORY_BRACKET_ANCHOR["artifact"]).name
     anchor_scatter = assess_convergence.CONVERGENCE_BOUND_ANCHOR["orbit_scatter_k"]
     anchor_tau = run_lengths.MEMORY_BRACKET_ANCHOR["observation"]
     tau_top = max(run_lengths.TAU_MEMORY_ORBITS_BRACKET)
     scatter_top = assess_convergence.NOMINAL_ORBIT_SCATTER_K
     relaxation_top = assess_convergence.NOMINAL_RELAXATION_ORBITS
 
-    def anchor(**overrides):
-        report = _convergence_report(anchor_scatter, anchor_tau,
-                                     relaxation_top - 1.0)
+    def anchor(scatter=anchor_scatter, tau=anchor_tau, **overrides):
+        report = _convergence_report(scatter, tau, relaxation_top - 1.0)
         report["resolving_power"].update(overrides)
         return report
+
+    def anchors(scatter_overrides=None, memory_overrides=None):
+        """Both independent evidence files, even when their runs differ."""
+        reports = {
+            scatter_anchor_name: anchor(
+                tau=tau_top * 0.5, **(scatter_overrides or {})),
+            memory_anchor_name: anchor(
+                scatter=scatter_top * 0.5, **(memory_overrides or {})),
+        }
+        return reports
 
     def case(name, root, want_scatter_problem, want_tau_problem):
         got = assess_convergence.check_convergence_bounds(root)
@@ -3259,7 +3282,7 @@ def check_convergence_bounds_are_re_read() -> list[str]:
     # what each case changes and not by the fixture merely existing.
     with tempfile.TemporaryDirectory() as tmp:
         case("an anchor reading what was recorded passes",
-             _convergence_tree(tmp, {anchor_name: anchor()}), False, False)
+             _convergence_tree(tmp, anchors()), False, False)
 
     # THE ANCHOR IS GONE: no report at all. Both bounds are unexamined, and an
     # unexamined bound is not a held one.
@@ -3272,13 +3295,13 @@ def check_convergence_bounds_are_re_read() -> list[str]:
     # reading, and the reading refuses the declaration derived from the old one.
     with tempfile.TemporaryDirectory() as tmp:
         case("a moved anchor scatter is a refusal",
-             _convergence_tree(tmp, {anchor_name: anchor(
-                 temperature_residual_scatter_k=anchor_scatter * 0.5)}),
+             _convergence_tree(tmp, anchors(scatter_overrides={
+                 "temperature_residual_scatter_k": anchor_scatter * 0.5})),
              True, False)
     with tempfile.TemporaryDirectory() as tmp:
         case("a moved anchor memory time is a refusal",
-             _convergence_tree(tmp, {anchor_name: anchor(
-                 temperature_residual_tau_orbits=anchor_tau * 0.5)}),
+             _convergence_tree(tmp, anchors(memory_overrides={
+                 "temperature_residual_tau_orbits": anchor_tau * 0.5})),
              False, True)
 
     # A READING BELOW THE BOUND IS NOT A DEFECT, which is the case the audit is
@@ -3286,8 +3309,7 @@ def check_convergence_bounds_are_re_read() -> list[str]:
     # series, so a smaller measurement is what they predict.
     with tempfile.TemporaryDirectory() as tmp:
         case("a second report reading well below both bounds passes",
-             _convergence_tree(tmp, {
-                 anchor_name: anchor(),
+             _convergence_tree(tmp, anchors() | {
                  "run_0000_convergence.json": _convergence_report(
                      scatter_top * 0.1, tau_top * 0.1, 1.0)}),
              False, False)
@@ -3296,23 +3318,20 @@ def check_convergence_bounds_are_re_read() -> list[str]:
     # the bound being wrong rather than old.
     with tempfile.TemporaryDirectory() as tmp:
         case("a settled report above the scatter bound is a refusal",
-             _convergence_tree(tmp, {
-                 anchor_name: anchor(),
+             _convergence_tree(tmp, anchors() | {
                  "run_0000_convergence.json": _convergence_report(
                      scatter_top * 1.1, tau_top * 0.5, 1.0)}),
              True, False)
     with tempfile.TemporaryDirectory() as tmp:
         case("a settled report above the memory bound is a refusal",
-             _convergence_tree(tmp, {
-                 anchor_name: anchor(),
+             _convergence_tree(tmp, anchors() | {
                  "run_0000_convergence.json": _convergence_report(
                      scatter_top * 0.5, tau_top * 1.1, 1.0)}),
              False, True)
     with tempfile.TemporaryDirectory() as tmp:
         case("a report deriving more relaxation than the window is sized on "
              "is a refusal",
-             _convergence_tree(tmp, {
-                 anchor_name: anchor(),
+             _convergence_tree(tmp, anchors() | {
                  "run_0000_convergence.json": _convergence_report(
                      scatter_top * 0.5, tau_top * 0.5, relaxation_top * 1.1)}),
              True, False)
@@ -3326,16 +3345,14 @@ def check_convergence_bounds_are_re_read() -> list[str]:
                            {"tau_resolved": False})):
         with tempfile.TemporaryDirectory() as tmp:
             case(f"{label} above both bounds is not a refusal",
-                 _convergence_tree(tmp, {
-                     anchor_name: anchor(),
+                 _convergence_tree(tmp, anchors() | {
                      "run_0000_convergence.json": _convergence_report(
                          scatter_top * 2.0, tau_top * 2.0, 1.0, **kwargs)}),
                  False, False)
         with tempfile.TemporaryDirectory() as tmp:
             case(f"the same numbers in a settled production report ARE a "
                  f"refusal, against {label}",
-                 _convergence_tree(tmp, {
-                     anchor_name: anchor(),
+                 _convergence_tree(tmp, anchors() | {
                      "run_0000_convergence.json": _convergence_report(
                          scatter_top * 2.0, tau_top * 2.0, 1.0)}),
                  True, True)
@@ -3346,15 +3363,14 @@ def check_convergence_bounds_are_re_read() -> list[str]:
         old = _convergence_report(scatter_top * 2.0, tau_top * 2.0, 1.0)
         del old["assessed_purpose"]
         case("an old report with no purpose field is read as production",
-             _convergence_tree(tmp, {anchor_name: anchor(),
-                                     "run_0000_convergence.json": old}),
+             _convergence_tree(tmp, anchors() | {
+                 "run_0000_convergence.json": old}),
              True, True)
     with tempfile.TemporaryDirectory() as tmp:
         old = _convergence_report(scatter_top * 2.0, tau_top * 2.0, 1.0)
         del old["assessed_purpose"]
         case("an old report named diagnostic is read as one",
-             _convergence_tree(tmp, {
-                 anchor_name: anchor(),
+             _convergence_tree(tmp, anchors() | {
                  "run_0000_convergence_diagnostic.json": old}),
              False, False)
 

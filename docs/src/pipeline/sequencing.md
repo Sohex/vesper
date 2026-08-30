@@ -179,6 +179,27 @@ and a verdict defaulted onto a climate with no lakes and no soil water is a
 verdict on the wrong evaporation. `config/planet.yaml` says the same at the
 key; repoint it at the baseline's REGULAR climatology once that run finishes.
 
+SPAT-5's coastline flux bracket is another deliberate consumer of that exact
+baseline. It does not run from the bootstrap and it does not select an older
+file from the climatology directory: until the accepted baseline is named, the
+area/store cost is complete and the flux/selection half remains pending. Once
+named, `analysis/coastline_flux_bracket.py` verifies the source build and land
+mask before measuring anything. On canonical-10m-carve2 the measured
+surface-energy bracket exceeds the accepted baseline's pre-existing storage
+tolerance, so the declared decision selects a conservative land/ocean tile
+boundary. `partial_surface_decision_gate` now blocks `ocean_support` until that
+selected representation is implemented. Code 1720 already carries the
+native-mesh subaerial area share through boundary generation, run staging and
+every cold or restart model start, under separately owned `dlf`, `ylf` and
+`xlf` aliases; code 172 remains binary topology and legacy output. A compiled
+endpoint-preserving combine now provides the one shared arithmetic contract.
+Restart-safe land/ocean boundary archives and separately routed exchange
+bundles are in place, but both bundles still mirror one binary evaluation. The
+gate remains closed until independent positive-fraction land/ocean state and
+weighted turbulent, radiative and diagnostic exchange consume that support. The
+fixed-climate bracket is evidence for the choice and not a substitute for the
+coupled tile response.
+
 Seasonal snapshots are written by default, and `analyze_climatology.py` needs
 the orbital phase they carry. A segment run with `--no-seasonal-output` has to
 be extended before it can produce a climatology, which has happened once.
@@ -411,6 +432,29 @@ measures it.
 
 Sequence, then: baseline at the chosen mean, cycle run centred on it, verdict
 on a cycle-informed climate, and only then the terrain loop.
+
+**O. The offline ocean-transport loop, inside A.** The first full-surface
+baseline on a build carries the explicitly declared zero transport return. It
+is a forcing seed, not the final climatology. From there one pass is:
+
+1. Build `ocean_support` once for the active terrain and every atmosphere rung.
+2. Difference the atmosphere's native chronological accumulations and build
+   `ocean_forcing`, including land, routed-water and authoritative sea-ice
+   terms on the same intervals.
+3. Run `ocean_run`, then require `ocean_convergence` to close ocean heat,
+   freshwater and salt over its terminal window.
+4. Build `ocean_transport`: heat-flux convergence and surface velocity mapped
+   conservatively back to the atmosphere support.
+5. Re-run `baseline_run` with that return, rebuild its climatology, and apply
+   `ocean_loop_convergence` to the consecutive pass pair.
+
+Repeat steps 2 through 5 until every criterion in
+`ocean/config/transport_loop.yaml` passes on two consecutive pairs. Eight
+passes is a refusal limit, not a second success condition. Temperature
+restoring is absent; any future salinity restoring must be separately named
+and its tendency carried in the salt budget. Since the return can move the
+climate fields used by `carve_verdict`, the verdict waits on the ocean-loop
+assessment and a terrain change invalidates the old ocean support.
 
 **C. The vegetation-climate loop.** `build_surface_albedo.py --mode modelled`
 turns the run's foliar cover into surface albedo and forest fraction, then the

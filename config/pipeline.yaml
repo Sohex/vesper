@@ -34,6 +34,19 @@ loops:
       `hydrography/scripts/carve_overshoot.py` computes it, and it is reported
       beside the bracket width rather than inside it.
       `notes/audits/carve-overshoot.md` has the argument and the route.
+  O:
+    name: the offline ocean-transport loop
+    exit: >
+      The declaration in ocean/config/transport_loop.yaml. Each pass hands a
+      chronologically complete atmosphere/land/ice forcing bundle to cGENIE,
+      returns GOLDSTEIN heat convergence and surface velocity to ExoPlaSim,
+      and requires two consecutive pass pairs to satisfy every declared axis:
+      transport change, ocean heat inventory, SST and sea-ice change,
+      atmospheric storage, freshwater/salt closure, and stability of the
+      carve-driving basin classification. Temperature restoring is forbidden;
+      salinity restoring is off unless a later declaration names its target,
+      strength, and salt-budget treatment. The loop refuses after the finite
+      pass budget rather than silently accepting a non-converged ocean.
   B:
     name: the soil and biosphere loop
     exit: >
@@ -134,6 +147,31 @@ loops:
 
 steps:
 
+  - id: spatial_support_gate
+    script: scripts/spatial_support_gate.py
+    cost: seconds
+    needs: []
+    writes: [analysis/spatial_support_gate_report.json]
+    gate: >
+      SPAT-1's versioned vocabulary and malformed-contract fixtures. It makes
+      geometry and coordinate identity, native/effective measure, field and
+      time semantics, operator order and provenance prerequisites of a spatial
+      artifact. It runs no model; SPAT-10 applies the contract to crossings and
+      production outputs.
+
+  - id: spatial_conversion_gate
+    script: scripts/spatial_conversion_gate.py
+    cost: seconds
+    needs: [spatial_support_gate]
+    writes: [analysis/spatial_conversion_gate_report.json]
+    gate: >
+      SPAT-10's assessed-conversion envelope and no-simulation fixtures. It
+      binds source and destination contract identities, shapes and coordinates;
+      closes every applicable conserved ledger; requires constant, identity,
+      reduction, round-trip, operator-order and common-support tests; and keeps
+      fallbacks, ownership/connectivity changes, spectral loss and unmapped
+      stores as machine-readable inventories.
+
   - id: stellar_spectrum
     script: exoplasim/scripts/build_stellar_spectrum.py
     cost: minutes
@@ -151,7 +189,7 @@ steps:
     script: hydrography/scripts/build_hydrography.py
     loop: A
     cost: minutes
-    needs: []
+    needs: [spatial_support_gate]
     writes: ["hydrography/data/{build}/regions.nc", "hydrography/data/{build}/basins.nc", "hydrography/data/{build}/hydrography_report.json", "hydrography/data/{build}/coupling_exoplasim-{res}.nc", "hydrography/data/{build}/coupling_exoplasim-*.nc"]
     # One coupling matrix per grid in --grids, which defaults to the configured
     # rung. TWO ENTRIES, because presence and purge ask different questions of
@@ -169,23 +207,93 @@ steps:
     script: exoplasim/scripts/build_boundary_conditions.py
     loop: A
     cost: minutes
-    needs: []
-    writes: ["exoplasim/inputs/{res_lower}/boundary_conditions_report.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0129.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0172.sra"]
+    needs: [spatial_support_gate]
+    writes: ["exoplasim/inputs/{res_lower}/boundary_conditions_report.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0129.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0172.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1720.sra"]
+
+  - id: coastline_threshold_cost
+    reads_export: true
+    script: analysis/coastline_threshold_cost.py
+    loop: A
+    cost: minutes
+    needs: [spatial_support_gate]
+    writes: [analysis/coastline_threshold_cost.json]
+    gate: >
+      SPAT-5's area and store half, measured independently on every exported
+      rung. It reports both one-signed coastline errors, below-datum land loss,
+      extensive land-volume closure, partial-cell support and mesh fallbacks;
+      a cancelling net is never accepted as the size of the rounding.
+
+  - id: partial_surface_gate
+    script: analysis/partial_surface_gate.py
+    loop: A
+    cost: seconds
+    needs: [coastline_threshold_cost]
+    writes: [analysis/partial_surface_gate_report.json]
+    gate: >
+      SPAT-5's partition, decision-state and no-simulation fixtures. It checks
+      the full active-build ladder, exact absence rather than smallness of the
+      inherited-water third class, ExoPlaSim's hard binary boundary, exact
+      extensive closure and explicit same-row reference expansion.
+
+  - id: coastline_flux_bracket
+    reads_export: true
+    script: analysis/coastline_flux_bracket.py
+    loop: A
+    cost: seconds
+    needs: [baseline_climatology, partial_surface_gate]
+    writes: [analysis/coastline_flux_bracket.json]
+    gate: >
+      SPAT-5's flux half requires the accepted baseline on the active build and
+      has deliberately no bootstrap or stale-file fallback. It bounds the
+      missing land or ocean share with observed same-class annual-mean fluxes
+      along the same Gaussian row, inventories every adjacent-row expansion,
+      and is a fixed-climate model-form bracket rather than a tile prediction.
+
+  - id: partial_surface_decision_gate
+    script: analysis/partial_surface_decision_gate.py
+    loop: A
+    cost: seconds
+    needs: [coastline_flux_bracket]
+    writes: [analysis/partial_surface_decision_gate_report.json]
+    gate: >
+      SPAT-5's post-measurement choice. It re-reads the accepted baseline's
+      pre-existing state-storage tolerance, reproduces the materiality
+      inequality, holds the declaration to the measured result, verifies the
+      code-1720 fractional support carrier from native mesh through every model
+      start, and refuses while tile exchange is still hard-binarised in source.
+
+  - id: rootable_albedo_gate
+    script: exoplasim/scripts/rootable_albedo_gate.py
+    loop: C
+    cost: seconds
+    needs: [equilibrium_window_gate]
+    writes: [exoplasim/analysis/rootable_albedo_gate_report.json]
+    gate: >
+      BIO-17's extensive-share compositing identity. LPJ cover is conditional
+      on BIO-11 rootable ground, so canopy replaces only the rootable substrate
+      contribution; solved water and dry barren contributions never receive
+      the `(1-cover)` factor. Seven fixtures cover ordinary, wholly barren,
+      partial-lake and pure persistent-lake cells, exact code-212 forest share,
+      and two-band recombination.
 
   - id: surface_albedo
     reads_export: true
     script: exoplasim/scripts/build_surface_albedo.py
     loop: [A, C]
     cost: minutes
-    needs: [lpj_run, rock_albedo_bands, soil_albedo_wetting, vegetation_albedo]
+    needs: [lpj_acceptance, rootable_fraction, rootable_albedo_gate, rock_albedo_bands, soil_albedo_wetting, vegetation_albedo]
     writes: ["exoplasim/inputs/{res_lower}/albedo_report.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0174.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0175.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0176.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0212.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1742.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1750.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_1760.sra"]
     gate: >
-      the `lpj_run` edge is loop C and is a BACK edge: the first pass of an
+      the `lpj_acceptance` edge is loop C and is a BACK edge: the first pass of an
       iteration runs --mode vegetated on terrain alone, before any biosphere
       exists, and the mode this project should end up in is --mode modelled
       --vegetation <run>/fpc.out, which raises without it. One artifact, one
       row, so the mode is the state of albedo_report.json rather than a second
-      step. Adopting modelled requires the flux to be re-derived, and the size
+      step. Adopting modelled requires the flux to be re-derived. LPJ cover is
+      conditional on BIO-11 rootable ground: modelled mode
+      replaces only that substrate contribution, so persistent water and dry
+      barren shares remain exactly what the native-mesh composite supplied and
+      code 212 is f_rootable times conditional tree FPC. The size
       of that is BOUNDED rather than known: `modelled` is brighter than
       `vegetated` because it leaves the deserts bare, so it sits strictly
       inside the lithology-to-vegetated span, and the endmember bracket
@@ -217,9 +325,10 @@ steps:
     writes: [exoplasim/analysis/ocean_tier_gate_report.json]
     gate: >
       the declaration of the adopted ocean tier, checked against the source the
-      model compiles. The tier is ExoPlaSim's slab -- oceanmod, icemod and
-      seamod -- and NOT vendor/cgenie, which is a candidate under OCN-3 that
-      nothing reads. It reads exoplasim/config/ocean_tier.yaml and fails on a
+      model compiles. ExoPlaSim's surface tier remains its slab -- oceanmod,
+      icemod and seamod -- while the adopted offline circulation tier is
+      cGENIE/GOLDSTEIN and enters through the explicitly declared transport
+      loop. This gate reads exoplasim/config/ocean_tier.yaml and fails on a
       quantity two modules act on that is no longer stated once and handed on,
       on a constant whose declaration line the source no longer runs or whose
       value is not what that line's own initialiser evaluates to, on a constant
@@ -236,11 +345,71 @@ steps:
       it. Nothing here is verified by execution; what the slab DELIVERS is
       verified by running the model, in verify_ocean_flux_channel.py.
 
+  - id: ocean_column_response
+    script: analysis/ocean_column_response.py
+    cost: seconds
+    needs: []
+    writes: [analysis/ocean_column_response.json]
+    gate: >
+      OCN-1's no-run viability and seasonal-response verdict for oceanmod's
+      dormant multilayer vertical diffuser. It reproduces vdiffo's discrete
+      elimination, checks heat-content closure and the one-layer analytic
+      response, and records the source seams that reject activation in the
+      adopted cGENIE/GOLDSTEIN tier.
+
+  - id: ocean_shortwave_penetration
+    script: analysis/ocean_shortwave_penetration.py
+    cost: seconds
+    needs: [ocean_column_response]
+    writes: [analysis/ocean_shortwave_penetration.json]
+    gate: >
+      OCN-6's no-run clear-water Beer-Lambert operator and bound. Absorption by
+      hypothetical layer plus transmission below the column closes exactly,
+      infinite opacity recovers oceanmod's surface-deposition reduction, and
+      pigment/particle absorption remains excluded behind OCN-14 rather than
+      becoming an isolated chlorophyll scalar.
+
+  - id: ocean_carbon_gate
+    script: ocean/scripts/carbon_feedback_gate.py
+    loop: [A, O]
+    cost: seconds
+    needs: []
+    writes: [ocean/analysis/carbon_feedback_gate_report.json]
+    gate: >
+      OCN-16's prescribed-CO2 boundary. Every ExoPlaSim run entry point pins
+      carbon weathering and CO2 evolution off, the ocean return carries no
+      carbon term, and activating air-sea exchange without the declared
+      atmospheric debit, prerequisites, new loop, permission, and convergence
+      predicate is a refusal. No model is run.
+
+  - id: ocean_loop_gate
+    script: ocean/scripts/transport_loop_gate.py
+    loop: [A, O]
+    cost: seconds
+    needs: [ocean_carbon_gate]
+    writes: [ocean/analysis/transport_loop_gate_report.json]
+    gate: >
+      OCN-5's fail-closed declaration of the offline forcing procedure,
+      restoration policy, return fields, convergence axes, finite refusal
+      budget, and provenance chain. It also checks the cGENIE source seams on
+      which the declaration relies. No climate or ocean model is run.
+
+  - id: ocean_flux_channel
+    script: exoplasim/scripts/verify_ocean_flux_channel.py
+    loop: [A, O]
+    cost: minutes
+    needs: [rebuild_binaries, ocean_loop_gate]
+    writes: [exoplasim/analysis/ocean_flux_channel_report.json]
+    gate: >
+      The executable OCN-2 code-903 return-channel proof. It must be re-run on
+      the active build; source inspection alone does not establish that the
+      staged convergence reaches the model with the declared sign and scale.
+
   - id: bootstrap_run
     script: exoplasim/scripts/run_exoplasim.py
     loop: A
     cost: hours
-    needs: [rebuild_binaries, boundary_conditions, surface_albedo, surface_roughness, ocean_tier_gate]
+    needs: [rebuild_binaries, boundary_conditions, surface_albedo, surface_roughness, ocean_tier_gate, ocean_loop_gate]
     writes: []
     presence: by_index   # UUID-named; ask exoplasim/runs/INDEX.json, not the path
     gate: >
@@ -308,6 +477,82 @@ steps:
       every orbit in the window ran NLOWIO = 0, and config/planet.yaml's
       baseline_climatology is repointed here once it exists, so that nothing
       downstream keeps reading the bootstrap.
+
+  - id: ocean_support
+    reads_export: true
+    script: ocean/scripts/build_spatial_support.py
+    loop: [A, O]
+    cost: minutes
+    needs: [hydrography, ocean_remap, ocean_loop_gate, spatial_support_gate, partial_surface_decision_gate]
+    writes: ["ocean/data/{build}/spatial_support.nc", "ocean/data/{build}/cgenie_bathymetry.nc", "ocean/data/{build}/remap_weights.npz", "ocean/data/{build}/spatial_support_report.json"]
+    gate: >
+      OCN-11's single wet-mask and bathymetry contract. Catchments, coasts,
+      bathymetry, cGENIE topology and both remap directions must derive from the
+      active canonical export and preserve extensive quantities on their
+      declared wet support. A report is not acceptance unless every support
+      identity and conservation check passes.
+
+  - id: ocean_forcing
+    script: ocean/scripts/build_forcing.py
+    loop: [A, O]
+    cost: minutes
+    needs: [baseline_climatology, hydrography, surface_water, groundwater, ocean_support, ocean_loop_gate]
+    writes: ["ocean/data/{build}/forcing.nc", "ocean/data/{build}/forcing_report.json"]
+    gate: >
+      OCN-10's chronological atmosphere/land/ice-to-ocean contract. Flux
+      accumulations are differenced on their native chronology before remap;
+      transfer coefficients and downward radiation are replayed while the
+      SST-dependent turbulent and longwave terms are recomputed inside the
+      ocean coupling. Moisture forcing is handed over, not independently
+      recomputed, so freshwater and salt retain one budget.
+
+  - id: ocean_run
+    script: ocean/scripts/run_cgenie.py
+    loop: [A, O]
+    cost: hours
+    needs: [ocean_flux_channel, ocean_support, ocean_forcing, ocean_loop_gate]
+    writes: [ocean/runs/]
+    presence: by_index
+    gate: >
+      Runs the adopted cGENIE/GOLDSTEIN circulation with the declared forcing
+      bundle and restoration policy. The run is not accepted merely because it
+      exits successfully; ocean_convergence owns the physical closure tests.
+
+  - id: ocean_convergence
+    script: ocean/scripts/assess_convergence.py
+    loop: [A, O]
+    cost: minutes
+    needs: [ocean_run]
+    writes: [ocean/analysis/convergence/]
+    gate: >
+      Tests ocean heat inventory and freshwater/salt closure over the declared
+      terminal window. A missing diagnostic or ambiguous sign convention is a
+      refusal, not a zero residual.
+
+  - id: ocean_transport
+    script: ocean/scripts/build_transport_return.py
+    loop: [A, O]
+    cost: minutes
+    needs: [ocean_convergence, ocean_support]
+    writes: [ocean/analysis/heat_transport.nc, ocean/analysis/surface_velocity.nc, ocean/analysis/transport_return_report.json, "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0903.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0903_provenance.json"]
+    gate: >
+      Conservatively returns GOLDSTEIN heat convergence and surface velocity to
+      ExoPlaSim support. Code 903 is positive downward into the surface, so the
+      staged heat-convergence sign is checked against the executable channel
+      proof before the next atmospheric pass can consume it.
+
+  - id: ocean_loop_convergence
+    script: ocean/scripts/assess_transport_loop.py
+    loop: [A, O]
+    cost: minutes
+    needs: [ocean_transport, baseline_climatology, state_energy, hydrography]
+    writes: [ocean/analysis/transport_loop_convergence.json]
+    gate: >
+      Applies every OCN-5 exit axis to consecutive pass pairs and accepts only
+      after all axes pass twice in succession. The finite pass budget and
+      carve-classification criterion make non-convergence and terrain feedback
+      visible rather than allowing a numerically quiet ocean to terminate the
+      enclosing terrain loop.
 
   - id: bracket_run
     script: exoplasim/scripts/run_exoplasim.py
@@ -438,7 +683,7 @@ steps:
       SPAT-3, extending GRID-2. The 10M native mesh UNDER every cell of every
       requested ladder rung, one file per (build, rung) on the coupling
       matrices' precedent: exact cell, land and ocean area against the native
-      region count; the surface-class partition and the barren, rootable and
+      region count; the surface-class partition and the barren, nonbarren and
       solved-lake shares of the cell's land; land elevation and ocean depth
       moments and HYPSOMETRY; co-located lithology and drainage class shares;
       and explicit empty-cell accounting. Terrain and the solved lake only: no
@@ -675,8 +920,18 @@ steps:
     script: pedology/scripts/build_soil.py
     loop: A
     cost: minutes
-    needs: [bootstrap_climatology, hydrography, lpj_run]
+    needs: [bootstrap_climatology, hydrography, rootable_fraction]
     writes: [pedology/analysis/soil_report.json, "pedology/data/{build}/soilmap_{res}.txt"]
+    gate: >
+      BIO-19's mode-bearing soil artifact. The caller must state --state and
+      --iteration: bootstrap/0 builds the baseline surface input; baseline/0
+      builds the first LPJ soil with no biosphere; positive baseline iterations
+      require carbon from a BIO-14-accepted LPJ run. The report records both
+      axes plus climate and soil-map hashes; LPJ preparation accepts only a
+      baseline-state soil and refuses a soil/driver climate mismatch. BIO-14 is
+      a conditional back edge enforced at the read for positive iterations,
+      not a hard graph edge: making it a static need would deadlock bootstrap/0
+      and baseline/0, the two modes that deliberately have no biosphere input.
 
   - id: land_column_properties
     script: pedology/scripts/land_column_properties.py
@@ -729,7 +984,7 @@ steps:
     reads_export: true
     script: analysis/ocean_remap.py
     cost: seconds
-    needs: []
+    needs: [spatial_conversion_gate]
     writes: [analysis/ocean_remap.json, analysis/ocean_remap_weights.npz]
     gate: >
       The grid-to-grid crossing the offline ocean under OCN-3 needs, and the
@@ -741,11 +996,13 @@ steps:
       which Gauss-Legendre quadrature returns exactly, so a crossing whose row
       areas are not the model's quadrature weights misses it; the midpoint
       construction runs beside it as the negative control that has to miss the
-      same bar by three orders. Terrain only: no climate run, no ocean run, and
-      no adopted ocean component, which is why it sits outside every loop and
-      why nothing needs it yet. The masked arm is a DEMONSTRATION of the coast
-      rule on the export's own surface_class; the ocean's real wet mask arrives
-      with OCN-11.
+      same bar by three orders. Terrain only: no climate run and no ocean run.
+      Its report embeds SPAT-1 source/destination contracts and a SPAT-10
+      conversion assessment, and its weight file carries those identities.
+      The masked arm is a DEMONSTRATION of the coast rule on the export's own
+      surface_class; the ocean's real wet mask, volume and topology arrive with
+      OCN-11, which is why the candidate GOLDSTEIN geometry is labelled a
+      comparison support here rather than an accepted ocean support.
 
   - id: dust_optics
     script: exoplasim/scripts/dust_optics.py
@@ -1046,7 +1303,7 @@ steps:
     script: exoplasim/scripts/run_exoplasim.py
     loop: A
     cost: hours
-    needs: [design_flux, surface_water, surface_albedo, surface_soil_water, rebuild_binaries, ocean_tier_gate]
+    needs: [design_flux, surface_water, surface_albedo, surface_soil_water, rebuild_binaries, ocean_tier_gate, ocean_loop_gate, ocean_transport]
     writes: []
     presence: by_index
     gate: >
@@ -1062,6 +1319,9 @@ steps:
       winner into config/planet.yaml is a separate human act, because the flux
       fixes the semi-major axis and that orbit is compiled into LPJ-GUESS.
       `check_consistency.py` is what refuses to let the two drift apart.
+      The first ocean-loop pass is the declared zero-transport seed; subsequent
+      passes require ocean_transport from the preceding pass. This is a loop
+      boundary, not permission to omit the return once it exists.
 
   - id: stellar_cycle_run
     script: exoplasim/scripts/run_stellar_cycle.py
@@ -1078,7 +1338,7 @@ steps:
     script: hydrography/scripts/carve_verdict.py
     loop: A
     cost: minutes
-    needs: [baseline_climatology, hydrography, surface_water, stellar_cycle_run, dust_forcing]
+    needs: [baseline_climatology, hydrography, surface_water, stellar_cycle_run, dust_forcing, ocean_loop_convergence]
     writes: [hydrography/analysis/carve_verdict.json]
 
   - id: endmember_bootstrap_run
@@ -1252,6 +1512,22 @@ steps:
     needs: [soil, brine_paths, dust, surface_water, baseline_climatology]
     writes: [pedology/analysis/surface_classes.nc, pedology/analysis/surface_classes_report.json]
 
+  - id: rootable_fraction
+    reads_export: true
+    script: biosphere/scripts/build_rootable_fraction.py
+    loop: [A, B, C]
+    cost: minutes
+    needs: [surface_water, spatial_support]
+    writes: ["biosphere/data/{build}/rootable_fraction_{res}.nc", "biosphere/data/{build}/rootable_fraction_{res}_report.json"]
+    gate: >
+      BIO-11's one provenance-stamped effective plant area. It partitions
+      native-mesh land into rootable, solved-water and dry-barren populations,
+      reading the solved lake mask directly from surface_water so iteration-0
+      soil does not depend cyclically on post-soil surface classes. Water over
+      salt/playa is deducted once. The older spatial_support field is named
+      nonbarren because it lacks the lake half and cannot be consumed as this
+      artifact.
+
   - id: phosphorus_budget
     script: pedology/scripts/phosphorus_budget.py
     cost: minutes
@@ -1298,7 +1574,7 @@ steps:
     script: biosphere/scripts/build_lpj_driver.py
     loop: B
     cost: minutes
-    needs: [baseline_climatology, land_column_properties, vesper_pfts]
+    needs: [baseline_climatology, land_column_properties, vesper_pfts, rootable_fraction]
     writes: [biosphere/generated/vesper_driver_provenance.json, biosphere/generated/vesper_driver.bin]
 
   - id: bvoc_gate
@@ -1441,6 +1717,24 @@ steps:
       refuses. `lpj_run` needs it so the refusal sits on the path rather than
       beside it.
 
+  - id: century_acceleration_gate
+    script: biosphere/scripts/century_acceleration_gate.py
+    loop: B
+    cost: seconds
+    needs: [somdynam_gate]
+    writes: [biosphere/generated/century_acceleration_gate_report.json]
+    gate: >
+      SDEC-1's no-simulation proof that the 40,000-year CENTURY accelerator is
+      the sampled daily nutrient operator rather than a second model. Daily
+      uptake and mineral-leaching survival fractions compose
+      multiplicatively; multiple sample years reduce by their geometric monthly
+      mean; phosphorus weathering and deposition are sampled as fluxes rather
+      than repeated year-to-date totals; and every accelerated P mutation goes
+      through the same labile--sorbed isotherm as the daily path. Deterministic
+      fixtures exercise daily/monthly parity, C-N-P closure and deliberately
+      broken source forms. The gate also requires all mineral-P pools changed
+      during the hidden acceleration to be restored afterward.
+
   - id: mineral_reactivity_gate
     script: biosphere/scripts/mineral_reactivity_gate.py
     loop: B
@@ -1524,12 +1818,61 @@ steps:
       southern, equatorial, flat and sixteen-orbit forcings. `--strict` refuses
       on the one natural-vegetation event still on an Earth calendar, BIO-31.
 
+  - id: stochastic_seed_gate
+    script: biosphere/scripts/stochastic_seed_gate.py
+    loop: B
+    cost: seconds
+    needs: []
+    writes: [biosphere/generated/stochastic_seed_report.json]
+    gate: >
+      DEMO-5's one manifest-recorded random root and stable independent
+      substreams. The FNV key is physical cell coordinates, stand, replicate
+      patch and named process, never MPI rank or traversal position. The gate
+      checks a fixed cross-language vector, stream and replicate separation,
+      rank/order invariance, draw-count isolation, every source call site, and
+      restart serialization. `lpj_run` needs it so no run can fall back to the
+      old literal shared Stand seed.
+
+  - id: equilibrium_window_gate
+    script: biosphere/scripts/equilibrium_window_gate.py
+    loop: B
+    cost: seconds
+    needs: [stochastic_seed_gate]
+    writes: [biosphere/generated/equilibrium_window_report.json]
+    gate: >
+      BIO-12's one statistic for every LPJ output consumer. It requires ten
+      complete forcing cycles (ten years for a one-year forcing), reduces the
+      annual rows to cycle means before testing their trend, refuses incomplete
+      cell-year output, and reports temporal spread separately from root-seed
+      and patch-count ensemble spread. Missing ensemble members are
+      `not_measured`, never zero uncertainty. Fixtures cover a stationary
+      multi-year phase, trend and truncation refusals, and seed/patch ensembles;
+      source probes hold albedo, scoring and soil carbon to this shared reader.
+
   - id: lpj_run
     script: biosphere/scripts/run_lpj_guess.py
     loop: B
     cost: hours
-    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, somdynam_gate, snow_thermal_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate, soil_restart_state_gate]
+    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, somdynam_gate, century_acceleration_gate, snow_thermal_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate, soil_restart_state_gate, stochastic_seed_gate, equilibrium_window_gate]
     writes: [biosphere/runs/]
+    gate: >
+      Completion includes BIO-14 assessment inside the run harness: every
+      required rank/output/cell/year must be present and identical to the
+      merged tables, all values must be finite and physically valid, the
+      retained equilibrium windows must be stationary, and carbon, nitrogen
+      and water closure must pass. Exit status alone never produces a usable
+      run; PASS or FAIL is recorded in acceptance.json.
+
+  - id: lpj_acceptance
+    script: biosphere/scripts/assess_lpj_run.py
+    loop: B
+    cost: seconds
+    needs: [lpj_run]
+    writes: ["biosphere/analysis/lpj_*/acceptance.json"]
+    gate: >
+      BIO-14's independently repeatable assessment of a completed run. The
+      run harness invokes the same assessor before returning success, while
+      this graph row gives the accepted artifact its own dependency edge.
 
   - id: prospectivity
     script: minerals/scripts/build_prospectivity.py
@@ -1864,6 +2207,12 @@ one_offs:
   - pedology/scripts/validate_against_earth.py
   - pedology/scripts/probe_runoff_response.py
   - biosphere/scripts/score_prediction.py
+  # Builds and compares the two matched ntransform sensitivity arms. Outside
+  # loop B because the stock binary and paired report are evidence about a
+  # completed run pair, not inputs consumed by the production LPJ step.
+  # world-9f1v.
+  - biosphere/scripts/prepare_stock_ntransform_arm.py
+  - biosphere/scripts/compare_ntransform_arms.py
   # Checks a climate product against the ecological forcing field
   # contract. Generates nothing: it is a verdict on an artifact another
   # step wrote, and carries fixtures so it can fail on itself.

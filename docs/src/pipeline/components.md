@@ -6,7 +6,8 @@
 config/planet.yaml   Canonical planet, star, orbit, atmosphere. Every component reads it.
 source/              World Orogen exports. Canonical, read-only.
 lib/                 Shared readers: orogen.py, gridding.py, and the rest of the
-                     list CLAUDE.md's Layout carries in full.
+                     list CLAUDE.md's Layout carries in full. spatial_support.py
+                     validates the identity and semantics every crossing stamps.
 hydrography/         Drainage, catchments, basin capacity, lake balance, carve verdict,
                      and the steady-state water table, whose depth field is
                      UNVALIDATED: see hydrography/README.md before using it.
@@ -18,6 +19,9 @@ aeolian/             Offline dust: emission, transport, deposition, optical dept
                      Reads a climatology and the lake solution; feeds pedology's
                      loess and the radiation's dust forcing. NOT a leaf: it is
                      downstream of one climate and upstream of the next.
+ocean/               Offline cGENIE/GOLDSTEIN circulation. Owns the chronological
+                     forcing and spatial-support contracts, run identity, physical
+                     convergence, and the heat/velocity return to ExoPlaSim.
 analysis/            Project-level products that belong to no single component:
                      the error budget, the dust optics and forcing.
 maps/                Rendering. Terminal: nothing reads its output. Its generators
@@ -44,6 +48,8 @@ lib/gridding.py            integrate mesh fields onto any model grid
    |                        |
    |                        v
    |                  exoplasim/scripts/build_boundary_conditions.py -> land mask, topography
+   |                  analysis/coastline_threshold_cost.py            -> five-rung area/store cost
+   |                  analysis/coastline_flux_bracket.py              -> accepted-baseline flux bracket
    |                  exoplasim/scripts/build_surface_albedo.py      -> albedo, forest fraction
    |                  exoplasim/scripts/build_surface_soil_water.py  -> dwmax  (off for the bootstrap;
    |                                                                    from the land column states)
@@ -55,9 +61,16 @@ lib/gridding.py            integrate mesh fields onto any model grid
    |                                       -> per-orbit climatologies (--per-year)
    |                                       -> climate series, per bin per orbit
    |                        |
-   |          +-------------+-------------+
-   |          |                           |
-   v          v                           v
+   |          +-------------+-------------+-------------------+
+   |          |             |                                 |
+   |          |             v                                 |
+   |          |        ocean/build_forcing.py                  |
+   |          |             |                                 |
+   |          |             v                                 |
+   |          |        cGENIE/GOLDSTEIN                        |
+   |          |             | heat convergence + velocity     |
+   |          |             +------> next ExoPlaSim baseline  |
+   v          v                                               v
 hydrography/            pedology/scripts/build_soil.py        hydrography/scripts/carve_verdict.py
   drainage,               weathers lithology            which basins overflow
   catchments,             under the climate         <-- integrates climate over
@@ -66,6 +79,8 @@ hydrography/            pedology/scripts/build_soil.py        hydrography/script
    |                  pedology/scripts/land_column_properties.py -> the soil's
    |                        |    hydraulic states, derived here and nowhere else
    |                        v
+   |                  biosphere/scripts/build_rootable_fraction.py -> one effective plant area
+   |                        |
    |                  biosphere/scripts/build_lpj_driver.py -> one binary, N years
    |                        |
    |                        v
@@ -82,7 +97,7 @@ hydrography/            pedology/scripts/build_soil.py        hydrography/script
 carve list + ice mask -> back to World Orogen -> new terrain
 ```
 
-Three loops close in that diagram and a fourth is cut across iterations;
+Four loops close in that diagram and a fifth is cut across iterations;
 [section 4](loops.md) says why each has to be what it is.
 
 **Several branches hang off it that the diagram does not draw** -- the offline

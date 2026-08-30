@@ -7,6 +7,27 @@ and every slider, plus a carve list. The code is in
 `source/worldorogen_seed.txt` and is not a build: it survives across builds,
 while a build is what one pass of the generator produced from it.
 
+Before a spatial producer is meaningful, `spatial_support_gate` validates the
+versioned vocabulary in `config/spatial_support.yaml`. A support is not a shape:
+its identity includes geometry and coordinates, native area or volume, any
+effective fraction, time support, field semantics, aggregation operator and
+nonlinear order, and provenance. Native terrain regions, Gaussian atmosphere
+cells, GOLDSTEIN cells, hydrologic units, soil units, separate land and marine
+ecological response units, LPJ grid cells and demographic patches, and
+comparison supports are distinct kinds. In particular,
+an LPJ patch explicitly says it is a stochastic demographic sample and not a
+spatial response unit. `lib/spatial_support.py` is the validator; SPAT-10 owns
+applying it to every conversion and production artifact.
+
+`spatial_conversion_gate` is that application envelope. It binds a conversion
+to the source and destination contract digests, shapes and coordinates; carries
+separate area, volume, water, salt, energy and C-N-P closure ledgers; and
+requires constant, identity, reduction, round-trip, operator-order and
+common-support tests. A quantity that does not apply still has a named reason.
+Nearest fallbacks, changed surface ownership or connectivity, discarded modes,
+and unmapped extensive stores are lists even when empty, so a finite field can
+never hide what the operator dropped.
+
 Verify a build by `manifest.hashes.finalElevation`. A seed alone does not
 identify a planet, because fixes to the generator change the terrain under a
 fixed seed. Which build is current is in `world_state.json`; `lib/orogen.py`
@@ -30,9 +51,39 @@ Land comes from `surface_class`, never from `land_mask`. The two disagree over
 dry closed-basin floor below sea level -- `manifest.landSeaMask` has the size
 of the disagreement -- and `land_mask` would flood it (CLAUDE.md rule 1).
 
-Seven surface fields are always supplied: topography (129), land mask (172),
-roughness (173), broadband and two-band albedo (174, 175, 176) and forest
-fraction (212). Three more are conditional on model keys: soil water capacity
+The atmosphere boundary receives both the binary ownership mask on code 172
+and the native-mesh subaerial area share on code 1720. ExoPlaSim still converts
+its legacy `yls` mask to zero or one at 0.5, so the physical exchange remains
+binary until the tile kernel is complete. The immutable fraction is separately
+bound as `dlf`, `ylf` and `xlf` in the atmosphere/land, ocean and sea-ice state
+owners, and all three aliases are re-read on cold and restart starts. The
+compiled `spat5_tile_combine` primitive bypasses absent-tile arithmetic at the
+pure endpoints and preserves identical tile inputs bit-for-bit. Fourteen
+restart-required records retain land/ocean temperature, humidity, wetness,
+roughness and broadband/two-band albedo publications. Land/glacier and
+ocean/ice now consume separate turbulent and radiative bundles, after which
+the shared diagnostics are restored through that combine. Both bundles are
+still seeded from the one binary evaluation; independent tile evaluation is
+the remaining physics seam. `coastline_threshold_cost` measures
+that rounding on all five exported rungs rather than reading its partly
+cancelling net. On the active carve2 export, land dropped into ocean falls from
+11.58% of mesh land at T21 to 3.67% at T170, while water promoted to land falls
+from 10.56% to 2.93%.
+`partial_surface_gate` checks the mutually exclusive class partition and the
+declared measurement-before-model-change decision. `coastline_flux_bracket`
+refuses until an accepted baseline exists on this build, then bounds the
+missing tile rate from same-latitude observed cells. It is explicitly a
+fixed-climate model-form bracket, not a coupled tile result. The downstream
+`partial_surface_decision_gate` compares its surface-energy bound with the
+accepted run's already-declared state-storage tolerance, verifies that code
+1720 is generated, staged and re-read by every surface-state owner on every
+start, and refuses until the selected exchange and separate tile states exist
+in the model source.
+
+Eight surface fields are always supplied: topography (129), land mask (172),
+subaerial area fraction (1720), roughness (173), broadband and two-band albedo
+(174, 175, 176) and forest fraction (212). Three more are conditional on model
+keys: soil water capacity
 (229, `model.soil_water_source`), the dust radiative source (1811,
 `model.dust_source`), and the dust emission fields (1801,
 `model.dust_emission`).
@@ -60,6 +111,31 @@ ExoPlaSim 3.4.2, on the resolution, rank count, timestep, layer count and
 slab-ocean depth that `config/planet.yaml`'s `model:` block declares, with
 interactive sea ice, glaciers enabled, and a measured stellar spectrum
 rather than a blackbody.
+
+`ocean_column_response` records why the dormant multilayer slab is not the
+route beyond that surface tier. Its vertical solver is cheap and viable, but
+the source overwrites the final declared layer with `mldepth`, applies every
+surface watt to level 1, and at the default diffusivity raises the unit seasonal
+SST response by 2.79 times for a converged ten-layer subdivision of the same
+50 m. That is a material, profile-dependent model change without penetrative
+shortwave. The active resolved tier remains the separately contracted
+cGENIE/GOLDSTEIN loop.
+
+`ocean_shortwave_penetration` prices the companion optical change without
+activating it. Hale--Querry extinction integrated against k25v puts 69.53% of
+the clear-water shortwave in the top metre, against 57.73% for a 5772 K Planck
+spectrum on the same grid, and leaves 3.19% below a hypothetical 50 m column.
+The operator closes energy and exactly reduces to existing surface deposition,
+but OCN-1 left it no accepted ExoPlaSim layer destination. Biological
+attenuation stays with OCN-14 and reflected ocean colour with OCN-7.
+
+`ocean_carbon_gate` keeps the marine carbon feedback deliberately absent while
+`config/planet.yaml` prescribes atmospheric CO2. It checks every ExoPlaSim run
+entry point, refuses a carbon-bearing ocean return, and records the ownership,
+conservation, permission and convergence requirements that must replace this
+boundary before air-sea CO2 exchange can enter a new pipeline loop. It runs no
+model and does not treat a diagnostic ocean carbon inventory as an atmospheric
+reservoir.
 
 That spectrum is `k25v`, built from BT-Settl, replacing a shipped file that
 was the star K2-18 rather than the spectral type K2; snow, ice and glacier
@@ -107,7 +183,31 @@ carries the arithmetic, the bracket it lands in, and the operational lengths of
 the approach itself. A separate five-orbit window with 32 snapshots per orbit,
 run after the pass/fail decision, forms the climatology.
 
-### 3.4 Hydrography
+### 3.4 Offline ocean circulation
+
+The adopted circulation is cGENIE/GOLDSTEIN, wrapped by `ocean/`; ExoPlaSim is
+still the only atmosphere and remains authoritative for sea ice. The first
+ocean pass begins from an explicitly zero transport return. Later passes build
+one chronological atmosphere/land/ice forcing bundle, integrate the ocean,
+assess its heat and freshwater/salt closure, and conservatively return ocean
+heat convergence on surface code 903 plus surface velocity for sea-ice
+advection.
+
+Two contracts stand between a climatology and a run. OCN-10 owns time bounds,
+units, signs, masks, state-versus-flux semantics, and one owner for every heat,
+water and salt term. OCN-11 owns the wet area and volume, partial coasts,
+bathymetry and connectivity, river mouths, and mappings between the independent
+ocean grid and every atmosphere rung. Their registered entry points refuse
+until their Beads dependencies are accepted; the pipeline therefore cannot
+mistake a provisional file for a valid coupling artifact.
+
+The forcing procedure, provenance chain and across-pass exit are declared in
+`ocean/config/transport_loop.yaml` and checked by
+`ocean/scripts/transport_loop_gate.py`. The executed return channel has a
+separate proof in `exoplasim/scripts/verify_ocean_flux_channel.py`; the static
+gate does not substitute for that model run.
+
+### 3.5 Hydrography
 
 The export deliberately does not route water -- routing is a hydrology
 decision and the exporter leaves it downstream. `build_hydrography.py`
@@ -118,7 +218,7 @@ capacity substantially), and writes the sparse basin-by-grid-cell coupling
 matrix that climate is integrated over. `hydrography/README.md` has the
 construction.
 
-### 3.5 The carve verdict
+### 3.6 The carve verdict
 
 A basin that overflows year on year incises its outlet, and over 1e4 to 1e6
 years that drains the lake and the depression stops existing. So a basin
@@ -141,7 +241,7 @@ than open water, so a smooth lake in a rough wet landscape evaporates less
 than the ground around it, and a floor asserting otherwise once decided most
 of the overflowing basins by clamp rather than by climate.
 
-### 3.6 Pedology
+### 3.7 Pedology
 
 `pedology/` weathers the lithology into soil under the climate, which is the
 step neither the climate model nor the vegetation model does. Parent material
@@ -192,7 +292,7 @@ Every Earth calibration lives in `pedology/config/` with its source or an
 explicit statement that it is declared; nothing in the scripts hardcodes a
 Vesper number, so porting the component to another world is a config change.
 
-### 3.7 The biosphere
+### 3.8 The biosphere
 
 `biosphere/` runs the vendored LPJ-GUESS CNP v1.0 fork, with phosphorus
 limitation deliberately disabled until its Vesper inputs are ready. The in-tree
@@ -205,12 +305,46 @@ model, and the year is a function of the semimajor axis, so the axis has to be
 locked before the biosphere is built against it and later flux changes go
 through luminosity instead (loop C).
 
+LPJ's spatial population is the BIO-11 rootable surface, not every binary land
+cell. `build_rootable_fraction.py` partitions native-mesh land into solved
+water, dry barren substrate, and rootable ground on each atmosphere rung. Fully
+non-rootable cells are omitted from the driver; partial cells retain one
+environment but every extensive NPP/carbon total, soil-carbon feedback and
+prediction denominator uses the same effective rootable area. The artifact is
+support- and build-stamped, and a model-land cell with no native support is a
+SPAT-5 refusal rather than a nearest-cell fill.
+
 Forcing arrives as one binary driver file carrying however many years of
 climate it was built with, and the model cycles through them. One year is a
 fixed climate; several are how a variable star reaches the biosphere, and a
 single repeating year cannot represent one at all.
 
-### 3.8 Economic minerals
+The stochastic model has one declared root in
+`biosphere/config/stochastic_seeds.yaml`. `run_lpj_guess.py` writes that root
+into both the instruction file and run manifest. LPJ-GUESS then derives a
+separate restart-serialized Park-Miller state from cell coordinates, stand,
+replicate patch and process. MPI rank and traversal order are absent from the
+key, and establishment, fire occurrence, fire mortality, background mortality
+and disturbance cannot advance one another's sequences. The
+`stochastic_seed_gate` checks fixed vectors and rank/order fixtures without
+launching the model.
+
+Downstream consumers use one `lib/lpj_output.py` equilibrium statistic rather
+than choosing the greatest year number. The declared window is ten complete
+forcing cycles—ten years under a repeated one-year climate. It is accepted only
+when every cell has every annual row and the sequence of cycle means is no
+longer trending. Reports separate annual temporal spread, fixed-patch root-seed
+spread, and across-patch-count spread; an absent ensemble is labelled
+`not_measured`, not silently treated as zero.
+
+For albedo feedback those equilibrium FPCs are conditional on rootable ground.
+The modelled compositor replaces only BIO-11's rootable substrate contribution;
+the solved-water and dry-barren contributions retain their native-mesh weights,
+and forest code 212 receives the whole-cell rootable tree share. This is why a
+partly flooded cell is not equivalent to multiplying its already mixed albedo
+by one minus canopy cover.
+
+### 3.9 Economic minerals
 
 `minerals/` emits ore prospectivity per deposit type, in two artifacts split
 by genesis and therefore by lifetime: the tectonic and magmatic half is a pure

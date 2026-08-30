@@ -14,7 +14,7 @@ On Arch Linux the required host tools are `gcc-fortran` and `openmpi`. Activate
 `.venv`, install `requirements.txt`, then run:
 
 ```bash
-python exoplasim/scripts/build_boundary_conditions.py   # land mask + topography
+python exoplasim/scripts/build_boundary_conditions.py   # topography + binary/fractional land support
 python exoplasim/scripts/build_surface_albedo.py        # background albedo
 python exoplasim/scripts/run_exoplasim.py --purpose spinup --run-years 1
 ```
@@ -513,8 +513,9 @@ unless told they exist.
 | script | what it does |
 | --- | --- |
 | `compare_eco_streams.py` | does a run taken in pieces write the same ecological stream as the same run taken whole? Reports structure, interval bounds, payload and headers separately, because they have different owners |
-| `build_boundary_conditions.py` | land mask and topography, integrated from the Orogen mesh |
+| `build_boundary_conditions.py` | topography, binary ownership mask (172), and native-mesh subaerial area share (1720) integrated from the Orogen mesh; the model re-reads 1720 as separately owned `dlf`, `ylf` and `xlf` aliases on cold and restart starts while tile exchange remains gated |
 | `build_surface_albedo.py` | background land albedo from lithology, optionally composited with solved lakes |
+| `rootable_albedo_gate.py` | BIO-17 no-simulation fixtures proving modelled canopy replaces only BIO-11 rootable substrate while barren ground, partial/pure lakes, forest code 212 and the two-band identity remain intact |
 | `build_surface_roughness.py` | aerodynamic roughness length per cell, surface code 0173 |
 | `build_surface_soil_water.py` | installs the land column property contract's soil water capacity as `dwmax` |
 | `build_stellar_spectrum.py` | this star's spectrum from BT-Settl, checked against the blend at source resolution |

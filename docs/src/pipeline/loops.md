@@ -125,6 +125,30 @@ the climatology in the register and
 surface code 1811 sits ABOVE the next run, which reads as a contradiction in
 the diagram and is really one loop drawn across two iterations.
 
+**The offline ocean closes another loop inside terrain loop A.** A slab-derived
+atmosphere has learned to carry the poleward heat load without ocean transport.
+Driving a dynamic ocean from that state once and stopping would add ocean
+transport to an atmosphere that still carries the whole load. The answer is a
+cross-pass partition: the first settled atmosphere supplies the chronological
+forcing, cGENIE/GOLDSTEIN returns heat convergence and surface velocity, and
+the next ExoPlaSim baseline responds to that return before supplying the next
+forcing bundle.
+
+This is flux coupling with no sea-surface-temperature restoring. Transfer
+coefficients and downward radiation are replayed, while saturation humidity,
+latent and sensible heat, and net longwave are recomputed against the live
+ocean temperature. Evaporation is deliberately handed over rather than
+recomputed so the moisture budget has one owner. ExoPlaSim remains the sea-ice
+authority; ice state travels to the ocean and does not return from it.
+
+The loop exits only when two consecutive pass pairs satisfy every axis declared
+in `ocean/config/transport_loop.yaml`: heat-transport change and ocean heat
+integral, SST and ice-area change, atmospheric storage, freshwater and salt
+closure, and stability of the basin classifications that drive carving. The
+finite iteration cap is a refusal boundary, not an alternate convergence rule.
+`ocean/scripts/transport_loop_gate.py` checks this decision against the pipeline
+graph and the cGENIE source seams without running either model.
+
 **One loop is deliberately left open: the carbon cycle.** `config/planet.yaml`
 fixes CO2, and nothing in this project solves the carbonate-silicate balance
 that would set it -- a defensible choice for a snapshot climate, to be read as

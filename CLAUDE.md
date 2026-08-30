@@ -295,6 +295,8 @@ pedology/              Soil formation, texture, phosphorus (see pedology/README.
 biosphere/             LPJ-GUESS port and the C-N-P fork (see biosphere/README.md).
 minerals/              Ore prospectivity, a field not deposits (see minerals/README.md).
 aeolian/               Offline dust: emission, transport, deposition (see aeolian/README.md).
+ocean/                 Offline cGENIE/GOLDSTEIN coupling, forcing/support contracts,
+                       transport returns and loop gates (see ocean/README.md).
 maps/                  Rendering and cartography.
 analysis/              Project-level analysis products (error budget, dust optics).
 references/            Primary literature. PDFs untracked; INDEX.md tracked, and it
@@ -308,10 +310,10 @@ vendor/exoplasim/      ExoPlaSim fork, git subtree. THE model source: edited her
 vendor/lpj-guess/      LPJ-GUESS CNP fork, git subtree. The Vesper input and
                        calendar port compile directly from this tree.
 vendor/cgenie/         cGENIE.muffin, git subtree. The ADOPTED offline ocean (OCN-3,
-                       2026-08-26). It builds and runs here and NOTHING READS IT YET:
-                       OCN-5 adds the loop and its steps to config/pipeline.yaml, and
-                       until that lands an artifact no step generates does not exist.
-                       See vendored-upstreams.md.
+                       2026-08-26). It builds and runs here; ocean/ owns the project
+                       interface and config/pipeline.yaml registers the offline
+                       transport loop. Its blocked contracts refuse rather than emit
+                       provisional production artifacts. See vendored-upstreams.md.
 vendor/lpjml/          LPJmL, git subtree. NOT the biosphere and NOT a replacement for
                        lpj-guess: a different model in the same family, vendored because
                        the intended work is fork-shaped. Nothing reads it yet.
@@ -341,7 +343,11 @@ constructors a crossing takes its coordinates from),
 that are not the same grid, normalisation by field semantics, the coverage
 that travels with the result, and where a coastal flux goes when the two
 masks disagree), `orbit.py` (orbital period), `stellar.py` (spectrum, band split,
-Rayleigh coefficient), `sensitivity.py` (the one flux-to-kelvin conversion),
+Rayleigh coefficient), `spatial_support.py` (the versioned identity and semantics contract every
+spatial artifact carries: geometry, coordinates, native/effective measure,
+time support, aggregation order and provenance, plus the assessed-conversion
+envelope that binds two such identities to closure tests and loss inventories),
+`sensitivity.py` (the one flux-to-kelvin conversion),
 `climatology.py` (time-bin weights),
 `autocorrelation.py` (the integrated autocorrelation time, the effective
 sample size, and the ONE standard error of a mean over a series whose samples
@@ -351,6 +357,12 @@ the RELAXATION time, both bracketed because neither time is measured, and the
 two never interchanged), `lapse.py` (lapse rates, and the
 height of the lowest model level),
 `surface_classes.py` (derived surface classes BY NAME),
+`rootable.py` (BIO-11's one per-build/per-rung effective plant-area fraction,
+its support/build checks and no-fallback reader),
+`stochastic_seeds.py` (DEMO-5's manifest-recorded LPJ root and the stable
+cell/stand/patch/process substream derivation mirrored by the vendored C++),
+`lpj_output.py` (BIO-12's strict complete-forcing-cycle equilibrium reducer,
+trend refusal, temporal spread and seed/patch ensemble uncertainty report),
 `sea_water.py` (the four numbers salinity reaches the model through, read
 from `icemod.f90` and the run's namelist rather than copied),
 `snow.py` (the one relation between the modelled snow's density and its thermal
