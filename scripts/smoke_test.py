@@ -125,15 +125,17 @@ writes -- run from `main()` with the rest):
    maintained by hand, so a newly filed row silently sits outside the order and
    `bd ready --label batch:2` quietly under-reports. A text read of the tracked
    export, which is the copy every other checkout sees.
-15. **Every pedology bracket contains the value it brackets.** The declarations
-   under `pedology/config/` bracket nearly every number they carry, and nothing
-   read the brackets: a value edited outside its own, or a bracket whose ends
-   were swapped, reached a soil build with nothing objecting. Four dispositions,
-   because a bracket on a LEVEL no key states and a bracket the carbonate
-   equilibrium DERIVES are enforced elsewhere, and what is checked for those two
-   is that they still are. `pedology/scripts/outgassing_gate.py` runs the same
-   job for its own declaration at the artifact tier; every input to this one is
-   a config read.
+15. **Every declared bracket contains the value it brackets.** The declaration
+   files bracket nearly every number they carry, and nothing read the brackets:
+   a value edited outside its own, or a bracket whose ends were swapped, reached
+   a soil build with nothing objecting. One implementation over every
+   `config/*.yaml` in the tree, reached by glob so a component added later
+   arrives with its brackets in scope. Ten dispositions, because a bracket on a
+   LEVEL no key states, one the carbonate equilibrium DERIVES, and one a
+   component gate already holds its value to are enforced elsewhere, and what is
+   checked for those is that they still are. A key that carries the word and
+   declares something else is exempt in writing, with the reason and with an
+   assertion that it is still not two numbers.
 """
 
 from __future__ import annotations
@@ -3661,20 +3663,31 @@ def check_commissioning_evidence_is_re_read() -> list[str]:
     return bad
 
 
-# Every bracket pedology declares, and what each one is a bracket ON. The table
+# Every bracket this tree declares, and what each one is a bracket ON. The table
 # is written out rather than discovered by key name, for the reason
 # `pedology/scripts/outgassing_gate.py` gives about its own: a check that
 # guesses which keys are brackets stops checking the moment someone names one
-# differently, and stops silently. `_unregistered_pedology_brackets` below is
-# the other half -- it walks the files and reports a bracket this table does not
-# name -- so the two cannot drift apart.
+# differently, and stops silently. `_unregistered_brackets` below is the other
+# half -- it walks the files and reports a bracket this table does not name --
+# so the two cannot drift apart.
 #
-# Four dispositions, and they are not interchangeable:
+# THE FILES ARE DISCOVERED AND THE ROWS ARE NOT. The globs below reach every
+# declaration file in the tree rather than a list someone has to remember to
+# extend, so a component added later arrives with its brackets already in scope
+# and its first commit has to say which disposition each one is. Run records
+# under `analysis/` are deliberately out of scope: an arm file freezes a copy of
+# `config/planet.yaml` beside the run it describes, and a frozen copy is a
+# record of what ran rather than a declaration anything can still move.
+#
+# Ten dispositions, and they are not interchangeable:
 #
 #   value    the file states the bracket and the number inside it. The number
 #            has to be inside the bracket.
 #   pair     the same, with the two ends carried as `<key>_minimum` and
 #            `<key>_maximum` beside the value rather than as a two-element list.
+#   optional the same, except the value may still be the sentinel `undeclared`.
+#            A run declares it and a gate refuses one outside the bracket, so
+#            what is checked here is the sentinel or the containment.
 #   level    the bracket is on a quantity NO key in the file states, because it
 #            is a land mean over a build's own soil map. Nothing static can
 #            evaluate it, so what is checked here is that the named generator
@@ -3684,72 +3697,334 @@ def check_commissioning_evidence_is_re_read() -> list[str]:
 #            it from `config/planet.yaml`. The sentinel has to be intact, the
 #            module has to still name the key, and the value it brackets is
 #            checked against the bracket that module computes.
+#   elsewhere the pair is already checked by a named gate at another tier, and
+#            repeating the arithmetic here is the second implementation this
+#            check exists to avoid. Two things are checked and neither is the
+#            number: the declaration still carries the key, and the gate still
+#            names it. A gate that stopped reading it is the silent failure,
+#            and so is a row here left behind by a key that was renamed.
+#   choice   the bracket is over a named ALTERNATIVE rather than a number -- the
+#            bound is a different dataset, not a wider interval. It has to name
+#            an alternative for every key the value names, and the named script
+#            has to still read it.
+#   flag     the bracket is an ARM that is either run or not, carried as a
+#            boolean. The flag has to be set and the named script has to still
+#            build the arm.
+#   pending  the declaration is the sentinel `undeclared` and the work that
+#            fills it is tracked elsewhere. What is checked is that it is STILL
+#            the sentinel, so the commit that declares a real one has to come
+#            back here and give it a disposition.
+#   not_a_bracket  the key carries the word and declares something else: an
+#            ownership row, a selection flag, a contract block, or prose saying
+#            what a spread is a spread OF. The exemption is explicit and it can
+#            fail -- what is asserted is that the thing is still NOT two
+#            numbers, so the day one of these becomes a bracket it comes back
+#            here for a disposition. The last field states the reason.
 #
-# (kind, label, config, value path, bracket path, enforcer)
-PEDOLOGY_CONFIGS = {
-    "pedogenesis": Path("pedology/config/pedogenesis.yaml"),
-    "surface_classes": Path("pedology/config/surface_classes.yaml"),
-}
-PEDOLOGY_BRACKETS = (
-    ("value", "texture.clay_conversion", "pedogenesis",
+# (kind, label, config, value path, bracket path, enforcer or reason)
+BRACKET_CONFIG_GLOBS = ("config/*.yaml", "*/config/*.yaml")
+
+DUST = "aeolian/config/dust.yaml"
+SEA_SALT = "aeolian/config/sea_salt.yaml"
+VOLCANIC = "aeolian/config/volcanic_sulfate.yaml"
+NUTRIENTS = "biosphere/config/abiotic_nutrients.yaml"
+BVOC = "biosphere/config/bvoc.yaml"
+NTRANSFORM = "biosphere/config/ntransform.yaml"
+ACCLIMATION = "biosphere/config/respiration_acclimation.yaml"
+SNOW_THERMAL = "biosphere/config/snow_thermal.yaml"
+WETLANDS = "biosphere/config/wetlands.yaml"
+PLANET = "config/planet.yaml"
+PARTIAL_SURFACE = "config/partial_surface.yaml"
+OCEAN_TIER = "exoplasim/config/ocean_tier.yaml"
+GROUNDWATER = "hydrography/config/groundwater.yaml"
+TOPOGRAPHIC_INDEX = "hydrography/config/topographic_index.yaml"
+PROSPECTIVITY = "minerals/config/downstream_prospectivity.yaml"
+CARBON_FEEDBACK = "ocean/config/carbon_feedback.yaml"
+LAND_COLUMN = "pedology/config/land_column_properties.yaml"
+OUTGASSING = "pedology/config/outgassing.yaml"
+PEDOGENESIS = "pedology/config/pedogenesis.yaml"
+SURFACE_CLASSES = "pedology/config/surface_classes.yaml"
+
+DECLARED_BRACKETS = (
+    ("value", "texture.clay_conversion", PEDOGENESIS,
      ("texture", "clay_conversion"), ("texture", "clay_conversion_bracket"), None),
-    ("value", "texture.sand_to_silt_loss_ratio", "pedogenesis",
+    ("value", "texture.sand_to_silt_loss_ratio", PEDOGENESIS,
      ("texture", "sand_to_silt_loss_ratio"),
      ("texture", "sand_to_silt_loss_ratio_bracket"), None),
-    ("value", "regolith.maximum_depth_m", "pedogenesis",
+    ("value", "regolith.maximum_depth_m", PEDOGENESIS,
      ("regolith", "maximum_depth_m"), ("regolith", "maximum_depth_bracket_m"), None),
-    ("value", "regolith.dry_erosion_baseline", "pedogenesis",
+    ("value", "regolith.dry_erosion_baseline", PEDOGENESIS,
      ("regolith", "dry_erosion_baseline"),
      ("regolith", "dry_erosion_baseline_bracket"), None),
-    ("value", "ph.parent_by_category.evaporite", "pedogenesis",
+    ("value", "ph.parent_by_category.evaporite", PEDOGENESIS,
      ("ph", "parent_by_category", "evaporite"),
      ("ph", "parent_bracket_evaporite"), None),
-    ("value", "ph.leaching_slope", "pedogenesis",
+    ("value", "ph.leaching_slope", PEDOGENESIS,
      ("ph", "leaching_slope"), ("ph", "leaching_slope_bracket"), None),
-    ("value", "ph.gibbsite_buffer_ph", "pedogenesis",
+    ("value", "ph.gibbsite_buffer_ph", PEDOGENESIS,
      ("ph", "gibbsite_buffer_ph"), ("ph", "gibbsite_buffer_ph_bracket"), None),
-    ("value", "water.volumetric_capacity_by_texture.sand", "pedogenesis",
+    # The other buffer of the pair, and `derived` rather than `value` because
+    # this one IS reachable from `config/planet.yaml`: it is calcite saturation
+    # at this world's pCO2, and the bracket is the same equilibrium over the
+    # declared soil-air CO2 enrichment. The value is the sentinel too, so what
+    # is checked statically is the sentinel and the module; `carbonate_ph.resolve`
+    # refuses a number in either key on every run.
+    ("derived", "ph.calcite_buffer_ph", PEDOGENESIS,
+     None, ("ph", "calcite_buffer_ph_bracket"),
+     "pedology/scripts/carbonate_ph.py"),
+    ("value", "water.volumetric_capacity_by_texture.sand", PEDOGENESIS,
      ("water", "volumetric_capacity_by_texture", "sand"),
      ("water", "volumetric_capacity_by_texture_bracket", "sand"), None),
-    ("value", "water.volumetric_capacity_by_texture.silt", "pedogenesis",
+    ("value", "water.volumetric_capacity_by_texture.silt", PEDOGENESIS,
      ("water", "volumetric_capacity_by_texture", "silt"),
      ("water", "volumetric_capacity_by_texture_bracket", "silt"), None),
-    ("value", "water.volumetric_capacity_by_texture.clay", "pedogenesis",
+    ("value", "water.volumetric_capacity_by_texture.clay", PEDOGENESIS,
      ("water", "volumetric_capacity_by_texture", "clay"),
      ("water", "volumetric_capacity_by_texture_bracket", "clay"), None),
-    ("value", "water.volumetric_capacity_organic", "pedogenesis",
+    ("value", "water.volumetric_capacity_organic", PEDOGENESIS,
      ("water", "volumetric_capacity_organic"),
      ("water", "volumetric_capacity_organic_bracket"), None),
-    ("value", "catena.frost_production_bonus", "pedogenesis",
+    ("value", "catena.frost_production_bonus", PEDOGENESIS,
      ("catena", "frost_production_bonus"),
      ("catena", "frost_production_bonus_bracket"), None),
-    ("value", "catena.slope_transport", "pedogenesis",
+    ("value", "catena.slope_transport", PEDOGENESIS,
      ("catena", "slope_transport"), ("catena", "slope_transport_bracket"), None),
-    ("value", "catena.slope_fines_loss", "pedogenesis",
+    ("value", "catena.slope_fines_loss", PEDOGENESIS,
      ("catena", "slope_fines_loss"), ("catena", "slope_fines_loss_bracket"), None),
-    ("value", "catena.maximum_fines_loss", "pedogenesis",
+    ("value", "catena.maximum_fines_loss", PEDOGENESIS,
      ("catena", "maximum_fines_loss"), ("catena", "maximum_fines_loss_bracket"), None),
-    ("pair", "andisol.volumetric_capacity_allophane", "pedogenesis",
+    ("pair", "andisol.volumetric_capacity_allophane", PEDOGENESIS,
      ("andisol", "volumetric_capacity_allophane"),
      (("andisol", "volumetric_capacity_allophane_minimum"),
       ("andisol", "volumetric_capacity_allophane_maximum")), None),
-    ("value", "surface_cover.loess.deposition_g_m2_yr", "surface_classes",
+    ("value", "surface_cover.loess.deposition_g_m2_yr", SURFACE_CLASSES,
      ("surface_cover", "loess", "deposition_g_m2_yr"),
      ("surface_cover", "loess", "deposition_bracket"), None),
     # The one the pair `maximum_depth_m` and `erosion_coefficient_per_relief_m`
     # is jointly constrained by. Neither key's own bracket expresses it, so a
     # sweep that moves them independently can satisfy both and violate this.
-    ("level", "regolith.regolith_depth_bracket_m", "pedogenesis",
+    ("level", "regolith.regolith_depth_bracket_m", PEDOGENESIS,
      None, ("regolith", "regolith_depth_bracket_m"),
      "pedology/scripts/build_soil.py"),
-    ("derived", "ph.parent_bracket_silicate", "pedogenesis",
+    ("derived", "ph.parent_bracket_silicate", PEDOGENESIS,
      None, ("ph", "parent_bracket_silicate"), "pedology/scripts/carbonate_ph.py"),
-    ("derived", "ph.parent_bracket_carbonate", "pedogenesis",
+    ("derived", "ph.parent_bracket_carbonate", PEDOGENESIS,
      None, ("ph", "parent_bracket_carbonate"), "pedology/scripts/carbonate_ph.py"),
-    ("derived", "ph.endorheic_alkalinity_bonus", "pedogenesis",
+    ("derived", "ph.endorheic_alkalinity_bonus", PEDOGENESIS,
      ("ph", "endorheic_alkalinity_bonus"),
      ("ph", "endorheic_alkalinity_bonus_bracket"),
      "pedology/scripts/carbonate_ph.py"),
+    # Pedology's other two declaration files. `outgassing.yaml` is the one
+    # component gate that already does this arithmetic, and it is a registered
+    # pipeline step rather than a script someone remembers to run, so the rows
+    # below check that it still reads each key instead of computing the same
+    # answer twice.
+    ("elsewhere", "supply.mass_scaling_exponent", OUTGASSING,
+     None, ("supply", "mass_scaling_exponent_bracket"),
+     "pedology/scripts/outgassing_gate.py"),
+    ("elsewhere", "supply.per_km_segment", OUTGASSING,
+     None, ("supply", "per_km_segment_bracket"),
+     "pedology/scripts/outgassing_gate.py"),
+    ("elsewhere", "supply.source_partition.ridge", OUTGASSING,
+     None, ("supply", "source_partition", "ridge", "bracket_mol_per_year"),
+     "pedology/scripts/outgassing_gate.py"),
+    ("elsewhere", "supply.source_partition.arc_recycled", OUTGASSING,
+     None, ("supply", "source_partition", "arc_recycled", "bracket_mol_per_year"),
+     "pedology/scripts/outgassing_gate.py"),
+    ("elsewhere", "supply.source_partition.plume_rift", OUTGASSING,
+     None, ("supply", "source_partition", "plume_rift", "bracket_mol_per_year"),
+     "pedology/scripts/outgassing_gate.py"),
+    ("elsewhere", "supply.source_partition.metamorphic", OUTGASSING,
+     None, ("supply", "source_partition", "metamorphic", "bracket_mol_per_year"),
+     "pedology/scripts/outgassing_gate.py"),
+    ("elsewhere", "supply.atmosphere_versus_ocean_split.ocean_fraction", OUTGASSING,
+     None, ("supply", "atmosphere_versus_ocean_split", "ocean_fraction_bracket"),
+     "pedology/scripts/outgassing_gate.py"),
+    ("not_a_bracket", "uncertainty.sources.cosby_within_class_variance.brackets",
+     LAND_COLUMN, None,
+     ("uncertainty", "sources", "cosby_within_class_variance", "brackets"),
+     "prose naming WHAT that source's spread is a spread of, beside the `from` "
+     "that points at the file the numbers live in"),
+    ("not_a_bracket", "uncertainty.sources.volumetric_capacity_endmembers.brackets",
+     LAND_COLUMN, None,
+     ("uncertainty", "sources", "volumetric_capacity_endmembers", "brackets"),
+     "prose naming what that source's spread is a spread of; the numbers are "
+     "pedogenesis.yaml's, registered above"),
+    ("not_a_bracket", "uncertainty.sources.volumetric_capacity_organic.brackets",
+     LAND_COLUMN, None,
+     ("uncertainty", "sources", "volumetric_capacity_organic", "brackets"),
+     "prose naming what that source's spread is a spread of; the numbers are "
+     "pedogenesis.yaml's, registered above"),
+
+    # --- aeolian ------------------------------------------------------------
+    ("value", "emission.cd0", DUST,
+     ("emission", "cd0"), ("emission", "cd0_bracket"), None),
+    ("value", "emission.ce", DUST,
+     ("emission", "ce"), ("emission", "ce_bracket"), None),
+    ("value", "emission.c_alpha", DUST,
+     ("emission", "c_alpha"), ("emission", "c_alpha_bracket"), None),
+    ("value", "emission.u_star_st_typical_m_s", DUST,
+     ("emission", "u_star_st_typical_m_s"),
+     ("emission", "u_star_st_typical_bracket"), None),
+    ("value", "drag_partition.z0s_cm", DUST,
+     ("drag_partition", "z0s_cm"), ("drag_partition", "z0s_bracket_cm"), None),
+    ("value", "drag_partition.aeolian_z0_m", DUST,
+     ("drag_partition", "aeolian_z0_m"),
+     ("drag_partition", "aeolian_z0_bracket_m"), None),
+    ("value", "drag_partition.aeolian_z0_by_class_m.playa_clastic", DUST,
+     ("drag_partition", "aeolian_z0_by_class_m", "playa_clastic", "z0"),
+     ("drag_partition", "aeolian_z0_by_class_m", "playa_clastic", "bracket"), None),
+    ("value", "drag_partition.aeolian_z0_by_class_m.evaporite", DUST,
+     ("drag_partition", "aeolian_z0_by_class_m", "evaporite", "z0"),
+     ("drag_partition", "aeolian_z0_by_class_m", "evaporite", "bracket"), None),
+    ("value", "drag_partition.within_class_z0.sigma_g", DUST,
+     ("drag_partition", "within_class_z0", "sigma_g"),
+     ("drag_partition", "within_class_z0", "sigma_g_bracket"), None),
+    ("value", "subgrid_wind.weibull_shape", DUST,
+     ("subgrid_wind", "weibull_shape"),
+     ("subgrid_wind", "weibull_shape_bracket"), None),
+    ("value", "source.erodible_weight.evaporite", DUST,
+     ("source", "erodible_weight", "evaporite"),
+     ("source", "erodible_weight_bracket", "evaporite"), None),
+    ("value", "source.pavement_residual_erodibility", DUST,
+     ("source", "pavement_residual_erodibility"),
+     ("source", "pavement_residual_erodibility_bracket"), None),
+    ("value", "transport.dust_scale_height_m", DUST,
+     ("transport", "dust_scale_height_m"),
+     ("transport", "dust_scale_height_bracket_m"), None),
+    ("value", "removal.scavenging_a", DUST,
+     ("removal", "scavenging_a"), ("removal", "scavenging_a_bracket"), None),
+    # The vegetation assumption's other arm rather than a wider number: dry
+    # cells emit regardless of lithology, and `build_dust.py --variant` is what
+    # runs it. A flag nothing builds is the bracket declared and not taken.
+    ("flag", "source.arid_bare_ground", DUST,
+     None, ("source", "arid_bare_ground", "enabled_as_bracket"),
+     "aeolian/scripts/build_dust.py"),
+    # The absorbing end of the dust optics, which is a different dataset rather
+    # than a wider interval, priced offline because running it in the model
+    # would mean a second climate run.
+    ("choice", "optics.indices", DUST,
+     ("optics", "indices"), ("optics", "indices_bracket"),
+     "exoplasim/scripts/dust_indices.py"),
+    ("value", "subgrid_wind.weibull_shape", SEA_SALT,
+     ("subgrid_wind", "weibull_shape"),
+     ("subgrid_wind", "weibull_shape_bracket"), None),
+    ("value", "surface_layer.charnock", SEA_SALT,
+     ("surface_layer", "charnock"), ("surface_layer", "charnock_bracket"), None),
+    ("value", "transport.scale_height_m", SEA_SALT,
+     ("transport", "scale_height_m"), ("transport", "scale_height_bracket_m"), None),
+    ("value", "removal.wet_lifetime_hours", SEA_SALT,
+     ("removal", "wet_lifetime_hours"),
+     ("removal", "wet_lifetime_hours_bracket"), None),
+    ("value", "source.earth_so2_tg_per_year", VOLCANIC,
+     ("source", "earth_so2_tg_per_year"),
+     ("source", "earth_so2_tg_per_year_bracket"), None),
+    ("value", "source.aerosol_yield", VOLCANIC,
+     ("source", "aerosol_yield"), ("source", "aerosol_yield_bracket"), None),
+    ("value", "transport.scale_height_m", VOLCANIC,
+     ("transport", "scale_height_m"), ("transport", "scale_height_bracket_m"), None),
+    ("value", "removal.wet_lifetime_hours", VOLCANIC,
+     ("removal", "wet_lifetime_hours"),
+     ("removal", "wet_lifetime_hours_bracket"), None),
+
+    # --- biosphere ----------------------------------------------------------
+    ("value", "adequacy.residence_time_earth_years", NUTRIENTS,
+     ("adequacy", "residence_time_earth_years"),
+     ("adequacy", "residence_time_bracket_earth_years"), None),
+    ("value", "adequacy.belowground_and_exchangeable_multiplier", NUTRIENTS,
+     ("adequacy", "belowground_and_exchangeable_multiplier"),
+     ("adequacy", "belowground_and_exchangeable_bracket"), None),
+    # The nitrogen calibration audit carries a bracket per entry, and its own
+    # gate holds each entry's paper or model value to it. One row covers the
+    # list, so an entry added to it needs no row of its own here.
+    ("elsewhere", "calibration.entries", NTRANSFORM,
+     None, ("calibration", "entries"),
+     "biosphere/scripts/ntransform_gate.py"),
+    # The memory the acclimated respiration option runs on. Off in the
+    # baseline, so the value is the sentinel until a run declares one.
+    ("optional", "memory.run_value_days", ACCLIMATION,
+     ("memory", "run_value_days"), ("memory", "bracket_days"),
+     "biosphere/scripts/acclimation_gate.py"),
+    ("not_a_bracket", "relation.bracket", SNOW_THERMAL, None,
+     ("relation", "bracket"),
+     "prose stating that the residual uncertainty in the modelled snow's "
+     "conductivity is ONE-SIGNED, so there is no interval to be inside"),
+    ("pending", "source.missing_scope_bracket", BVOC, None,
+     ("source", "missing_scope_bracket"), "BVOC-5"),
+    ("pending", "traits.declared_bracket_factor", BVOC, None,
+     ("traits", "declared_bracket_factor"), "PCAR-5's registry"),
+    ("pending", "oxidants.bracket", BVOC, None,
+     ("oxidants", "bracket"), "BVOC-6"),
+    ("not_a_bracket", "traits.minimum_bracket_factor", BVOC, None,
+     ("traits", "minimum_bracket_factor"),
+     "a FLOOR on how wide each declared bracket has to be, one number per "
+     "trait, not an interval a value sits in"),
+    ("pending", "peat.age_bracket", WETLANDS, None,
+     ("peat", "age_bracket"), "WET-4"),
+    ("pending", "peat.depth_bracket", WETLANDS, None,
+     ("peat", "depth_bracket"), "WET-4"),
+    ("pending", "traits.transplanted_earth_bracket", WETLANDS, None,
+     ("traits", "transplanted_earth_bracket"), "PCAR-5"),
+    ("pending", "process.transport_bracket", WETLANDS, None,
+     ("process", "transport_bracket"), "WET-7"),
+    ("pending", "acceptance.declared_bracket_factor", WETLANDS, None,
+     ("acceptance", "declared_bracket_factor"), "the rows above it"),
+    ("not_a_bracket", "acceptance.minimum_bracket_factor", WETLANDS, None,
+     ("acceptance", "minimum_bracket_factor"),
+     "a FLOOR on how wide each declared bracket has to be, one number per "
+     "row, not an interval a value sits in"),
+
+    # --- project level ------------------------------------------------------
+    ("value", "model.h2o_sw_level", PLANET,
+     ("model", "h2o_sw_level"), ("model", "h2o_sw_level_bracket"), None),
+    ("value", "model.vegetation_albedo", PLANET,
+     ("model", "vegetation_albedo"), ("model", "vegetation_albedo_bracket"), None),
+    ("value", "model.tree_albedo", PLANET,
+     ("model", "tree_albedo"), ("model", "tree_albedo_bracket"), None),
+    ("value", "model.grass_albedo", PLANET,
+     ("model", "grass_albedo"), ("model", "grass_albedo_bracket"), None),
+    ("not_a_bracket", "selection.model_form_bracket_selected", PARTIAL_SURFACE,
+     None, ("selection", "model_form_bracket_selected"),
+     "whether the model-form bracket has been selected, which is a decision "
+     "flag and not the bracket itself"),
+    ("not_a_bracket", "flux_bracket", PARTIAL_SURFACE, None, ("flux_bracket",),
+     "the contract the coastal flux bracket is evaluated under -- fields, "
+     "climatology and estimator -- rather than two numbers"),
+
+    # --- the rest -----------------------------------------------------------
+    # Three corners of one hull. Nothing here states the endpoints: radmod
+    # re-derives them from the stellar spectrum at init, so the gate sweeps the
+    # corners and asserts the ramp cannot leave the hull of any of them.
+    ("level", "ramps.sea_ice_albedo.endpoint_bracket.open_water", OCEAN_TIER,
+     None, ("ramps", "sea_ice_albedo", "endpoint_bracket", "open_water"),
+     "exoplasim/scripts/ocean_tier_gate.py"),
+    ("level", "ramps.sea_ice_albedo.endpoint_bracket.ice_min", OCEAN_TIER,
+     None, ("ramps", "sea_ice_albedo", "endpoint_bracket", "ice_min"),
+     "exoplasim/scripts/ocean_tier_gate.py"),
+    ("level", "ramps.sea_ice_albedo.endpoint_bracket.ice_max", OCEAN_TIER,
+     None, ("ramps", "sea_ice_albedo", "endpoint_bracket", "ice_max"),
+     "exoplasim/scripts/ocean_tier_gate.py"),
+    ("value", "evapotranspiration.lambda_m", GROUNDWATER,
+     ("evapotranspiration", "lambda_m"),
+     ("evapotranspiration", "lambda_bracket_m"), None),
+    # Both ends are taken, so no key states a value: the bracket IS a factor of
+    # two between two conventions and a consumer takes both arms or neither.
+    ("level", "closure.f_grad_bracket_per_m", TOPOGRAPHIC_INDEX,
+     None, ("closure", "f_grad_bracket_per_m"),
+     "hydrography/scripts/build_topographic_index.py"),
+    ("value", "deposits.bauxite.minimum_precipitation_mm_yr", PROSPECTIVITY,
+     ("deposits", "bauxite", "minimum_precipitation_mm_yr"),
+     ("deposits", "bauxite", "precipitation_bracket_mm_yr"), None),
+    # An ownership row in a fail-closed contract: the key names the bracket that
+    # has to exist before prescribed pCO2 may be reopened, and the value names
+    # the issue that owns it. What can fail is the pairing -- an owner naming an
+    # issue the contract does not require closed is a contract that has stopped
+    # meaning what it says.
+    ("not_a_bracket", "reopening_contract.owners.weathering_and_outgassing_bracket",
+     CARBON_FEEDBACK, ("reopening_contract", "required_closed_issues"),
+     ("reopening_contract", "owners", "weathering_and_outgassing_bracket"),
+     "an owner row naming the issue that owns the weathering and outgassing "
+     "bracket, not the bracket itself"),
 )
 
 
@@ -3766,19 +4041,55 @@ def _dig(doc, path):
     return node
 
 
-def _unregistered_pedology_brackets(docs: dict, table=None) -> list[str]:
-    """Brackets in the files that `PEDOLOGY_BRACKETS` does not name.
+def _number(value):
+    """The number a declaration states, or None where it states none.
 
-    The half of the pairing that keeps the table honest. Two shapes count as a
-    bracket: a leaf whose key says `bracket`, and a `<key>_minimum` /
-    `<key>_maximum` pair sitting beside a `<key>` that they bound. A clip is
-    neither -- `ph.minimum` and `ph.maximum` bound the OUTPUT and have no value
-    of their own beside them -- so the sibling requirement is what tells the two
-    apart rather than a list of exceptions.
+    A YAML 1.1 float wants a sign in its exponent, so `5.0e+4` resolves to a
+    float and `5.0e4` resolves to a string. Both are meant as numbers by
+    whoever wrote them and both are read as numbers by whoever consumes them,
+    so refusing the second here would report an exponent form as a bracket
+    violation, which it is not. A bool is not a number: `true` is an arm being
+    taken, and `float(True)` is 1.0, which would put it inside almost anything.
+    """
+    if isinstance(value, bool) or value is _MISSING:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return None
+    return None
+
+
+def _text_names(where: str, token: str) -> bool:
+    """Does the file at `where` still name `token`?"""
+    source = ROOT / where
+    return source.is_file() and token in source.read_text(encoding="utf-8")
+
+
+def _unregistered_brackets(docs: dict, table=None) -> list[str]:
+    """Brackets in the files that `DECLARED_BRACKETS` does not name.
+
+    The half of the pairing that keeps the table honest. Three shapes count as
+    a bracket: any key that says `bracket`, whether it holds two numbers, a
+    mapping of them or a sentence; and a `<key>_minimum` / `<key>_maximum` pair
+    sitting beside a `<key>` that they bound. A clip is neither --
+    `ph.minimum` and `ph.maximum` bound the OUTPUT and have no value of their
+    own beside them -- so the sibling requirement is what tells the two apart
+    rather than a list of exceptions.
+
+    A LIST CONTRIBUTES NO PATH COMPONENT, so a bracket inside a list of audit
+    records is named by the key it sits under rather than by its index and an
+    entry inserted above it does not silently unregister it. And a path counts
+    as covered when a registered path is a prefix of it or it is a prefix of a
+    registered one, which is how one row over a mapping covers the brackets
+    inside it and three rows over the corners of a hull cover the mapping.
     """
     registered = set()
     for kind, _label, config, _value, bracket, _enforcer in (
-            PEDOLOGY_BRACKETS if table is None else table):
+            DECLARED_BRACKETS if table is None else table):
         if kind == "pair":
             registered.update((config,) + p for p in bracket)
         else:
@@ -3789,21 +4100,29 @@ def _unregistered_pedology_brackets(docs: dict, table=None) -> list[str]:
         def walk(node, path=()):
             if isinstance(node, dict):
                 for key, child in node.items():
-                    if (key.endswith("_minimum") and key[:-8] + "_maximum" in node
+                    key = str(key)
+                    if "bracket" in key:
+                        found.append((config,) + path + (key,))
+                    elif (key.endswith("_minimum") and key[:-8] + "_maximum" in node
                             and key[:-8] in node):
                         found.append((config,) + path + (key,))
                         found.append((config,) + path + (key[:-8] + "_maximum",))
                     walk(child, path + (key,))
-            elif path and "bracket" in path[-1]:
-                found.append((config,) + path)
+            elif isinstance(node, list):
+                for item in node:
+                    walk(item, path)
         walk(doc)
-    return [f"{'.'.join(p[1:])} in {PEDOLOGY_CONFIGS[p[0]]} is a bracket that "
-            f"scripts/smoke_test.py:PEDOLOGY_BRACKETS does not name, so nothing "
-            f"checks it" for p in sorted(set(found)) if p not in registered]
+
+    def covered(path):
+        return any(r[:len(path)] == path or path[:len(r)] == r for r in registered)
+
+    return [f"{'.'.join(p[1:])} in {p[0]} is a bracket that "
+            f"scripts/smoke_test.py:DECLARED_BRACKETS does not name, so nothing "
+            f"checks it" for p in sorted(set(found)) if not covered(p)]
 
 
-def _pedology_bracket_problems(docs: dict, derived: dict | None,
-                               table=None) -> list[str]:
+def _bracket_problems(docs: dict, derived: dict | None,
+                      table=None) -> list[str]:
     """Every declared bracket, checked against the value it is a bracket on.
 
     `derived` maps a derived bracket's key path to the two numbers
@@ -3811,12 +4130,83 @@ def _pedology_bracket_problems(docs: dict, derived: dict | None,
     which is itself reported, because a bracket nothing can evaluate is the
     frozen state with the number deleted.
     """
-    table = PEDOLOGY_BRACKETS if table is None else table
-    bad = list(_unregistered_pedology_brackets(docs, table))
+    table = DECLARED_BRACKETS if table is None else table
+    bad = list(_unregistered_brackets(docs, table))
 
     for kind, label, config, value_path, bracket_path, enforcer in table:
+        if config not in docs:
+            bad.append(f"{label} is registered against {config}, which no "
+                       f"declaration file in the tree is named by")
+            continue
         doc = docs[config]
-        where = PEDOLOGY_CONFIGS[config]
+        where = config
+
+        if kind == "not_a_bracket":
+            # The exemption, and what makes it an exemption rather than a
+            # silence: the day the thing becomes two numbers it needs a
+            # disposition, and this says so.
+            declared = _dig(doc, bracket_path)
+            if declared is _MISSING:
+                bad.append(f"{label} is exempt in {where} as {enforcer}, and no "
+                           f"key of that name is there to be exempt")
+            elif (isinstance(declared, (list, tuple)) and len(declared) == 2
+                    and all(_number(x) is not None for x in declared)):
+                bad.append(f"{label} in {where} is exempt as {enforcer}, and it "
+                           f"is now the two numbers {declared!r}. A bracket "
+                           f"wants a disposition, not an exemption")
+            continue
+
+        if kind == "pending":
+            declared = _dig(doc, bracket_path)
+            if declared != "undeclared":
+                bad.append(f"{label} in {where} is {declared!r}, and it was the "
+                           f"sentinel `undeclared` waiting on {enforcer}. A "
+                           f"bracket that has been declared wants a disposition "
+                           f"in scripts/smoke_test.py:DECLARED_BRACKETS")
+            continue
+
+        if kind == "elsewhere":
+            # No arithmetic here: the gate does it on every run. What can rot is
+            # the pairing, from either end.
+            if _dig(doc, bracket_path) is _MISSING:
+                bad.append(f"{label} in {where} no longer carries "
+                           f"{bracket_path[-1]}, so the row registering it here "
+                           f"and {enforcer} are checking a key that is gone")
+            elif not _text_names(enforcer, bracket_path[-1]):
+                bad.append(f"{label} in {where} is checked by {enforcer} rather "
+                           f"than here, and that file no longer names "
+                           f"{bracket_path[-1]}, so nothing checks it at all")
+            continue
+
+        if kind == "flag":
+            # The arm is the bracket. `bracket_path[-2]` is the block the arm is
+            # declared under, which is the name the generator builds it by.
+            declared = _dig(doc, bracket_path)
+            if declared is not True:
+                bad.append(f"{label} in {where} carries the bracket as an arm "
+                           f"and {bracket_path[-1]} is {declared!r}, not true. "
+                           f"An arm nothing runs is a bracket nothing reports")
+            elif not _text_names(enforcer, bracket_path[-2]):
+                bad.append(f"{label} in {where} is an arm and {enforcer} no "
+                           f"longer names {bracket_path[-2]}, so nothing builds "
+                           f"it")
+            continue
+
+        if kind == "choice":
+            # A bound that is a different dataset rather than a wider interval.
+            declared = _dig(doc, bracket_path)
+            chosen = _dig(doc, value_path)
+            if not isinstance(declared, dict) or not isinstance(chosen, dict):
+                bad.append(f"{label} in {where} is bounded by {declared!r}, "
+                           f"which is not an alternative per key of {value_path[-1]}")
+            elif set(declared) != set(chosen):
+                bad.append(f"{label} in {where} names {sorted(chosen)} and its "
+                           f"bound names {sorted(declared)}. A bound that does "
+                           f"not cover every key is not a bound")
+            elif not _text_names(enforcer, bracket_path[-1]):
+                bad.append(f"{label} in {where} is bounded by a dataset "
+                           f"{enforcer} no longer names, so nothing prices it")
+            continue
 
         if kind == "derived":
             declared = _dig(doc, bracket_path)
@@ -3826,9 +4216,7 @@ def _pedology_bracket_problems(docs: dict, derived: dict | None,
                            f"config/planet.yaml's pCO2_bar through {enforcer}, "
                            f"and a number here cannot learn that pCO2 moved")
                 continue
-            source = ROOT / enforcer
-            if not source.is_file() or bracket_path[-1] not in source.read_text(
-                    encoding="utf-8"):
+            if not _text_names(enforcer, bracket_path[-1]):
                 bad.append(f"{label}'s bracket is declared `derived` and "
                            f"{enforcer} does not name {bracket_path[-1]}, so "
                            f"nothing fills it")
@@ -3839,20 +4227,23 @@ def _pedology_bracket_problems(docs: dict, derived: dict | None,
                            f"tree cannot evaluate it; see the refusal above")
                 continue
         elif kind == "pair":
-            ends = [_dig(doc, p) for p in bracket_path]
-            if not all(isinstance(e, (int, float)) for e in ends):
+            ends = [_number(_dig(doc, p)) for p in bracket_path]
+            if not all(e is not None for e in ends):
                 bad.append(f"{label} in {where} is bracketed by "
-                           f"{ends!r}, which is not two numbers")
+                           f"{[_dig(doc, p) for p in bracket_path]!r}, which is "
+                           f"not two numbers")
                 continue
-            bracket = [float(e) for e in ends]
+            bracket = ends
         else:
             declared = _dig(doc, bracket_path)
-            if (not isinstance(declared, (list, tuple)) or len(declared) != 2
-                    or not all(isinstance(x, (int, float)) for x in declared)):
+            ends = ([_number(x) for x in declared]
+                    if isinstance(declared, (list, tuple)) and len(declared) == 2
+                    else [None])
+            if not all(e is not None for e in ends):
                 bad.append(f"{label} in {where} is bracketed by {declared!r}, "
                            f"which is not two numbers")
                 continue
-            bracket = [float(x) for x in declared]
+            bracket = ends
 
         low, high = bracket
         if not low <= high:
@@ -3863,9 +4254,7 @@ def _pedology_bracket_problems(docs: dict, derived: dict | None,
         if kind == "level":
             # Nothing here states the value, so what is checkable is that the
             # generator that CAN state it still reads the key.
-            source = ROOT / enforcer
-            if not source.is_file() or bracket_path[-1] not in source.read_text(
-                    encoding="utf-8"):
+            if not _text_names(enforcer, bracket_path[-1]):
                 bad.append(f"{label} brackets a level no key in {where} states, "
                            f"and {enforcer} no longer names "
                            f"{bracket_path[-1]}, so nothing evaluates it on any "
@@ -3879,11 +4268,25 @@ def _pedology_bracket_problems(docs: dict, derived: dict | None,
             continue
 
         value = _dig(doc, value_path)
-        if not isinstance(value, (int, float)):
+        if kind == "optional":
+            # The value is a run's to declare, and until a run declares one the
+            # sentinel is the honest state. The gate refuses a declared value
+            # outside the bracket, so it is checked whichever state the
+            # declaration is in; the sentinel is then a pass and a number is
+            # held to the bracket like any other.
+            if not _text_names(enforcer, bracket_path[-1]):
+                bad.append(f"{label} in {where} is bracketed [{low}, {high}] and "
+                           f"{enforcer} no longer names {bracket_path[-1]}, so "
+                           f"no run is held to it")
+                continue
+            if value == "undeclared":
+                continue
+        number = _number(value)
+        if number is None:
             bad.append(f"{label} in {where} is {value!r}, which is not a number "
                        f"its bracket [{low}, {high}] can contain")
             continue
-        if not low <= float(value) <= high:
+        if not low <= number <= high:
             bad.append(f"{label} in {where} is {value} and its own bracket is "
                        f"[{low}, {high}]. A value its bracket does not contain "
                        f"is one of the two, not both")
@@ -3923,8 +4326,8 @@ def check_steering_weight_is_layer_mass() -> list[str]:
             sys.modules["_paths"] = shadowed
 
 
-def check_pedology_values_are_inside_their_brackets() -> list[str]:
-    """Every bracket pedology declares contains the value it is a bracket on.
+def check_declared_brackets_contain_their_values() -> list[str]:
+    """Every bracket this tree declares contains the value it is a bracket on.
 
     `world-9ctm` gave the regolith, texture and pH blocks of
     `pedology/config/pedogenesis.yaml` the brackets they lacked, and nothing read
@@ -3935,22 +4338,31 @@ def check_pedology_values_are_inside_their_brackets() -> list[str]:
     already runs for its own declaration, in the per-commit tier because every
     input to it is a config read.
 
-    Three of the four dispositions have a right answer that can fail on a value
-    nobody looked at: a bracket that is not two numbers, ends the wrong way
-    round, and a value outside its own bracket. The fourth, `level`, brackets
-    the land-mean regolith depth that `maximum_depth_m` and
-    `erosion_coefficient_per_relief_m` produce jointly; no key states it, so
-    what this asserts is that `build_soil.py` still reads the key and refuses on
-    it at run time.
+    ONE IMPLEMENTATION AND NOT ONE PER COMPONENT, which is why the files are
+    reached by glob: dust, sea salt, volcanic sulfate, the nutrient ledger, the
+    groundwater sink, the bauxite rule and the planet's own albedos all declare
+    brackets, and a check that had to be extended per component would be
+    extended for the component whose bracket had already moved.
+
+    Most dispositions have a right answer that can fail on a value nobody looked
+    at: a bracket that is not two numbers, ends the wrong way round, and a value
+    outside its own bracket. The rest are declarations no static pass can
+    evaluate -- a level no key states, a bracket the carbonate equilibrium
+    derives, a pair a component gate already holds its value to -- and for each
+    of those what is asserted is that the thing that CAN evaluate it still names
+    it. An exemption is written out with its reason and asserts that the thing
+    exempted is still not a bracket.
     """
     import copy
     import yaml
     docs = {}
-    for name, path in PEDOLOGY_CONFIGS.items():
-        full = ROOT / path
-        if not full.is_file():
-            return [f"{path} does not exist"]
-        docs[name] = yaml.safe_load(full.read_text(encoding="utf-8"))
+    for pattern in BRACKET_CONFIG_GLOBS:
+        for full in sorted(ROOT.glob(pattern)):
+            name = full.relative_to(ROOT).as_posix()
+            try:
+                docs[name] = yaml.safe_load(full.read_text(encoding="utf-8"))
+            except Exception as exc:                           # noqa: BLE001
+                return [f"{name} does not parse: {exc!r}"]
 
     # The derived brackets, from the module that owns them rather than from a
     # number written down anywhere.
@@ -3967,14 +4379,15 @@ def check_pedology_values_are_inside_their_brackets() -> list[str]:
     except Exception as exc:                                   # noqa: BLE001
         return [f"the derived pH brackets cannot be evaluated: {exc!r}"]
 
-    bad = _pedology_bracket_problems(docs, derived)
+    bad = _bracket_problems(docs, derived)
 
     # AND THE CHECK ITSELF CAN FAIL. Each fixture is one declaration broken in
     # one way, and each asserts the sentence it has to produce. A gate whose
     # failure path is never exercised reads as a pass for the same reason an
     # unregistered one does.
-    def mutated(path, value, config="pedogenesis"):
-        d = {k: copy.deepcopy(v) for k, v in docs.items()}
+    def mutated(path, value, config=PEDOGENESIS):
+        d = dict(docs)
+        d[config] = copy.deepcopy(docs[config])
         node = d[config]
         for key in path[:-1]:
             node = node[key]
@@ -4000,24 +4413,54 @@ def check_pedology_values_are_inside_their_brackets() -> list[str]:
          mutated(("ph", "endorheic_alkalinity_bonus"), 9.0), "does not contain"),
         ("a bracket in another file its value sits outside",
          mutated(("surface_cover", "loess", "deposition_g_m2_yr"), 500.0,
-                 "surface_classes"), "does not contain"),
+                 SURFACE_CLASSES), "does not contain"),
+        # And the same in another component, because the whole of this row is
+        # that the check is not pedology's.
+        ("a bracket in another component its value sits outside",
+         mutated(("emission", "cd0"), 1.0, DUST), "does not contain"),
+        ("a bracket a new declaration file would arrive with",
+         mutated(("evapotranspiration", "lambda_m"), 9.0, GROUNDWATER),
+         "does not contain"),
+        ("an optional value declared outside its bracket",
+         mutated(("memory", "run_value_days"), 90.0, ACCLIMATION),
+         "does not contain"),
+        ("a pending declaration that has stopped being the sentinel",
+         mutated(("oxidants", "bracket"), [1.0, 2.0], BVOC),
+         "wants a disposition"),
+        ("an exemption that has become two numbers",
+         mutated(("reopening_contract", "owners",
+                  "weathering_and_outgassing_bracket"), [1.0, 2.0],
+                 CARBON_FEEDBACK), "not an exemption"),
+        ("an arm declared as a bracket and then turned off",
+         mutated(("source", "arid_bare_ground", "enabled_as_bracket"), False,
+                 DUST), "not true"),
+        ("a bound that stopped covering every key it bounds",
+         mutated(("optics", "indices_bracket"), {"band1": "OPAC"}, DUST),
+         "does not cover every key"),
+        ("a bracket a gate owns, deleted from under the gate",
+         mutated(("supply", "mass_scaling_exponent_bracket"), _MISSING,
+                 OUTGASSING), "checking a key that is gone"),
     )
     for label, broken, expected in fixtures:
-        said = _pedology_bracket_problems(broken, derived)
+        said = _bracket_problems(broken, derived)
         if not any(expected in s for s in said):
             bad.append(f"the fixture {label!r} was not caught: expected a "
                        f"problem saying {expected!r}, got {said!r}")
 
-    # The two dispositions whose enforcement is a file rather than a number.
-    # Neither can be broken by editing the declaration, so the fixture moves the
-    # enforcer instead: a generator that no longer names the key is the failure
-    # each of them exists to catch.
-    elsewhere = "pedology/scripts/_paths.py"   # a real file that names no bracket
+    # The dispositions whose enforcement is a file rather than a number. None of
+    # them can be broken by editing the declaration, so the fixture moves the
+    # enforcer instead: the thing that CAN evaluate the bracket no longer naming
+    # it is the failure each of them exists to catch.
+    unrelated = "pedology/scripts/_paths.py"   # a real file that names no bracket
     for kind, expected in (("level", "no longer names"),
-                           ("derived", "nothing fills it")):
-        table = tuple((k, lab, cfg, val, br, elsewhere if k == kind else enf)
-                      for k, lab, cfg, val, br, enf in PEDOLOGY_BRACKETS)
-        said = _pedology_bracket_problems(docs, derived, table)
+                           ("derived", "nothing fills it"),
+                           ("elsewhere", "nothing checks it at all"),
+                           ("optional", "no run is held to it"),
+                           ("flag", "nothing builds"),
+                           ("choice", "nothing prices it")):
+        table = tuple((k, lab, cfg, val, br, unrelated if k == kind else enf)
+                      for k, lab, cfg, val, br, enf in DECLARED_BRACKETS)
+        said = _bracket_problems(docs, derived, table)
         if not any(expected in s for s in said):
             bad.append(f"the fixture 'a {kind} bracket whose enforcer no longer "
                        f"reads it' was not caught: expected a problem saying "
@@ -4392,6 +4835,432 @@ def check_bin_weights_take_bin_centres() -> list[str]:
     return problems
 
 
+# Directories whose scripts reduce a climatology's TIME axis. Not `SCRIPT_DIRS`:
+# the two producers this check exists for, `minerals/` and `analysis/`, are not
+# in that list, and a lint that cannot see the file it was written for is not a
+# gate.
+TIME_REDUCING_DIRS = [ROOT / "scripts", ROOT / "lib", ROOT / "maps",
+                      ROOT / "analysis", ROOT / "minerals" / "scripts",
+                      ROOT / "hydrography" / "scripts",
+                      ROOT / "pedology" / "scripts", ROOT / "aeolian" / "scripts",
+                      ROOT / "exoplasim" / "scripts", ROOT / "ocean" / "scripts"]
+
+
+def _netcdf_read_names(tree: ast.AST) -> set[str]:
+    """Names bound to a whole netCDF variable, `x = np.asarray(ds["v"][:])`.
+
+    The shape is specific enough to be worth matching literally: a subscript of
+    a name by a string constant, sliced whole. Nothing else in this tree spells
+    that, and an ordinary numpy array is not caught by it.
+    """
+    def is_read(node) -> bool:
+        while isinstance(node, ast.Call):        # np.asarray(...), np.array(...)
+            if not node.args:
+                return False
+            node = node.args[0]
+        if not (isinstance(node, ast.Subscript)
+                and isinstance(node.slice, ast.Slice)):
+            return False                          # not the trailing [:]
+        inner = node.value
+        return (isinstance(inner, ast.Subscript)
+                and isinstance(inner.value, ast.Name)
+                and isinstance(inner.slice, ast.Constant)
+                and isinstance(inner.slice.value, str))
+
+    names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and is_read(node.value):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    names.add(target.id)
+        elif (isinstance(node, ast.AnnAssign) and node.value is not None
+              and is_read(node.value) and isinstance(node.target, ast.Name)):
+            names.add(node.target.id)
+    return names
+
+
+# The reductions over a climatology's time axis that are unweighted ON PURPOSE,
+# keyed by the variable so a new one in the same file still fires. An entry is a
+# recorded ARGUMENT and not a waiver: it says why the record-count weighting is
+# the wrong weighting there, and it is wrong to add one for a site that simply
+# has not been fixed.
+ARGUED_UNWEIGHTED = {
+    # The Weibull shape is fitted from std/mean, so weighting the mean without
+    # weighting the variance the same way would bias the ratio rather than
+    # correct it. The file carries the argument at the site.
+    "build_dust.py": {"spd"},
+    # `lsm` does not vary across bins, so every weighting returns the same
+    # field and the threshold below it cannot move. Kept as an entry rather
+    # than a silent pass because "it happens not to matter here" is a claim
+    # about the field, and this is where that claim is written down.
+    "derive_design_flux.py": {"lsm"},
+}
+
+
+def check_nonlinear_reduction_order() -> list[str]:
+    """A climatology's time axis is reduced by record count, and a nonlinear
+    function of it is not the same evaluated before and after that reduction.
+
+    Two halves. The first is a lint over the producers; the second is a fixture
+    on the function five of this project's weathering call sites share, and it
+    is what makes the first mean something.
+
+    **The lint.** A whole netCDF variable reduced over axis 0 with a bare
+    `.mean()` asserts that the climatology's bins are equal length. They are
+    not: pyburn splits the raw stream with
+    `np.linspace(0, ntimes, nbin+1).astype(int)`, so at 182 records in twelve
+    bins two hold sixteen and the rest fifteen. `lib/climatology.py` measures
+    that from the bin centres and `check_bin_weights_take_bin_centres` guards
+    the call; this guards the reductions that never called it at all. It is the
+    same defect one step earlier, and it hid in three files at once.
+
+    **The fixture, and why it needs both halves.** Jensen's inequality says
+    `mean(f(x))` and `f(mean(x))` differ whenever `f` is curved, one-signed in
+    the direction of the curvature. `pedology/scripts/build_soil.py`'s
+    Walker-Hays-Kasting intensity is `exp(T/tau) * Q**beta` under a two-sided
+    clip -- convex in temperature, concave in runoff -- and it is read here by
+    `minerals/`, by `weathering_fluxes.py` and by `thermostat_efficiency.py`.
+    The fixture asserts, on the real function:
+
+    1. **THE CONTROL, and it is what makes the rest a test.** With every bin
+       identical there is no spread for Jensen to act on, so the per-bin mean
+       and the evaluation on the mean must agree EXACTLY -- and must go on
+       agreeing when the bin weights are made deliberately uneven, because a
+       weighted mean of one repeated value is that value. If this half fails,
+       the arms are not two evaluations of one function and nothing the other
+       half reports is about curvature.
+    2. **The convex arm.** Give the temperature a seasonal swing and the
+       per-bin mean must come out STRICTLY above, by more than a stated floor.
+       A function that had been linearised, or an arm accidentally computing
+       the same thing twice, fails here and passes everything else.
+    3. **The closed form.** For a symmetric two-bin swing of +/- dT the ratio
+       is exactly `cosh(dT / tau)`, with `tau` read from the config rather than
+       restated. An identity, so it is checked to floating point and not to a
+       tolerance. This is the half that can tell a real Jensen term from an
+       arbitrary disagreement between two code paths.
+    4. **The concave arm.** Swing the runoff instead, at fixed temperature, and
+       the inequality must REVERSE. Curvature has a sign and the check has to be
+       able to read it; an implementation that always returned the larger of the
+       two arms would pass 2 and 3 and fail here.
+
+    The clip is asserted inactive throughout, because a clipped fixture is
+    testing `np.clip` and not the law.
+    """
+    problems = []
+
+    files = sorted({f for d in TIME_REDUCING_DIRS if d.is_dir()
+                    for f in d.glob("*.py")})
+    for path in files:
+        allowed = ARGUED_UNWEIGHTED.get(path.name, {})
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue                    # check_modules_parse owns that
+        read = _netcdf_read_names(tree)
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "mean"):
+                continue
+            axis = None
+            for kw in node.keywords:
+                if kw.arg == "axis" and isinstance(kw.value, ast.Constant):
+                    axis = kw.value.value
+            if axis is None and len(node.args) == 1 and isinstance(
+                    node.args[0], ast.Constant):
+                axis = node.args[0].value
+            if axis != 0:
+                continue
+            target = node.func.value
+            # Either the name is bound to a whole netCDF variable, or the read
+            # is chained straight onto the reduction.
+            hit = (isinstance(target, ast.Name) and target.id in read)
+            if not hit:
+                sub = ast.Assign(targets=[ast.Name(id="_", ctx=ast.Store())],
+                                 value=target)
+                ast.fix_missing_locations(sub)
+                hit = bool(_netcdf_read_names(ast.Module(body=[sub],
+                                                         type_ignores=[])))
+            # The name to look up: the local it was bound to, or, when the
+            # read is chained straight onto the reduction, the netCDF variable
+            # the chain names.
+            if isinstance(target, ast.Name):
+                label = target.id
+            else:
+                label = next((n.slice.value for n in ast.walk(target)
+                              if isinstance(n, ast.Subscript)
+                              and isinstance(n.slice, ast.Constant)
+                              and isinstance(n.slice.value, str)), None)
+            if hit and label in allowed:
+                continue                # declared above, with its argument
+            if hit:
+                problems.append(
+                    f"{path.relative_to(ROOT)}:{node.lineno} reduces a whole "
+                    f"netCDF variable over axis 0 with a bare .mean(). If that "
+                    f"axis is the climatology's time axis the bins are not "
+                    f"equal length, so this asserts a weighting instead of "
+                    f"measuring one. Use climatology.annual_mean(field, "
+                    f"centres), or reduce an axis that is not time")
+
+    sys.path.insert(0, str(ROOT / "lib"))
+    # `build_soil` imports its component's private `_paths`, so that directory
+    # goes on the path for the load and comes straight back off it. Every
+    # component ships one under that name and leaving it there would hand the
+    # next import pedology's directories.
+    pedo_scripts = str(ROOT / "pedology" / "scripts")
+    saved = sys.modules.pop("_paths", None)
+    sys.path.insert(0, pedo_scripts)
+    try:
+        import numpy as np
+        import yaml as _yaml
+        import importlib.util as _ilu
+        _spec = _ilu.spec_from_file_location(
+            "_smoke_build_soil", ROOT / "pedology" / "scripts" / "build_soil.py")
+        _soil = _ilu.module_from_spec(_spec)
+        _spec.loader.exec_module(_soil)
+        params = _yaml.safe_load(
+            (ROOT / "pedology" / "config" / "pedogenesis.yaml")
+            .read_text(encoding="utf-8"))["weathering"]
+    except Exception as exc:            # noqa: BLE001 - reported, not raised
+        return problems + [f"the weathering intensity fixture cannot load: {exc}"]
+    finally:
+        if pedo_scripts in sys.path:
+            sys.path.remove(pedo_scripts)
+        sys.modules.pop("_paths", None)
+        if saved is not None:
+            sys.modules["_paths"] = saved
+
+    tau = float(params["temperature_e_folding_k"])
+    beta = float(params["runoff_exponent"])
+    t_ref = float(params["reference_temperature_c"])
+    q_ref = float(params["reference_runoff_mm_per_earth_year"])
+    lo, hi = float(params["minimum"]), float(params["maximum"])
+    f = lambda q, t: _soil.weathering_intensity(q, t, params)   # noqa: E731
+
+    def clipped(x) -> bool:
+        return bool(np.any(x <= lo + 1e-12) or np.any(x >= hi - 1e-12))
+
+    # Fixed before the fixture was run, and neither is a project number: a
+    # swing this world's land carries many times over, and a floor an order
+    # below the smallest ratio it produces.
+    SWING_K = 8.0
+    MIN_JENSEN = 1.05
+
+    # 1. THE CONTROL. Identical bins, so the arms are the same number whatever
+    # the weights are. Both an even weighting and a deliberately uneven one.
+    for weights in (np.full(4, 0.25),
+                    np.array([0.30, 0.20, 0.28, 0.22])):
+        q = np.array([q_ref, 2.0 * q_ref, 0.5 * q_ref])
+        t = np.array([t_ref, t_ref + 5.0, t_ref - 5.0])
+        flat_t = np.broadcast_to(t, (weights.size, t.size))
+        flat_q = np.broadcast_to(q, (weights.size, q.size))
+        annual = f(q, t)
+        per_bin = np.einsum("b,b...->...", weights, f(flat_q, flat_t))
+        if clipped(annual):
+            problems.append("the identical-bin control runs into the intensity "
+                            "clip, so it is testing np.clip and not the law")
+        gap = float(np.max(np.abs(per_bin / annual - 1.0)))
+        if gap > 1e-12:
+            problems.append(
+                f"with every bin identical the per-bin mean and the evaluation "
+                f"on the mean differ by {gap:.3e} under weights "
+                f"{weights.tolist()}. With no spread there is nothing for "
+                f"Jensen to act on, so the two arms are not one function")
+
+    # 2 and 3. THE CONVEX ARM, against the closed form it has. Two equal bins at
+    # T_ref +/- dT and a fixed runoff give exactly cosh(dT / tau).
+    w2 = np.full(2, 0.5)
+    q2 = np.full(3, q_ref)
+    for dt in (2.0, SWING_K, 15.0):
+        t_bins = np.stack([np.full(3, t_ref + dt), np.full(3, t_ref - dt)])
+        annual = f(q2, np.full(3, t_ref))
+        per_bin = np.einsum("b,b...->...", w2, f(np.broadcast_to(q2, t_bins.shape),
+                                                 t_bins))
+        if clipped(annual) or clipped(f(np.broadcast_to(q2, t_bins.shape), t_bins)):
+            problems.append(f"the +/-{dt} K fixture runs into the intensity "
+                            f"clip, so it is testing np.clip and not the law")
+            continue
+        ratio = float(np.max(per_bin / annual))
+        want = float(np.cosh(dt / tau))
+        if abs(ratio - want) > 1e-12 * want:
+            problems.append(
+                f"a +/-{dt} K swing about the reference through exp(T/{tau}) is "
+                f"cosh({dt}/{tau}) = {want:.9f} and the per-bin mean returned "
+                f"{ratio:.9f}. That is an identity, not a tolerance")
+        if ratio <= 1.0:
+            problems.append(
+                f"a +/-{dt} K swing gives a per-bin mean {ratio:.6f} times the "
+                f"evaluation on the mean. exp() is convex, so it cannot be at "
+                f"or below one and the temperature term is not curved here")
+    # The floor, on the swing the audit was written about. Without it a term
+    # that had been linearised would satisfy every inequality above.
+    t_bins = np.stack([np.full(3, t_ref + SWING_K), np.full(3, t_ref - SWING_K)])
+    got = float(np.max(np.einsum("b,b...->...", w2,
+                                 f(np.broadcast_to(q2, t_bins.shape), t_bins))
+                       / f(q2, np.full(3, t_ref))))
+    if got < MIN_JENSEN:
+        problems.append(
+            f"a +/-{SWING_K} K swing moves the weathering intensity by only "
+            f"{got:.4f}x. The whole reason this class is tracked is that the "
+            f"difference is not second order; below {MIN_JENSEN} the bracket "
+            f"minerals/ declares is empty and the declaration should go")
+
+    # 4. THE CONCAVE ARM. The runoff exponent is under one, so swinging runoff
+    # at fixed temperature must send the inequality the OTHER way.
+    if not 0.0 < beta < 1.0:
+        problems.append(f"runoff_exponent is {beta}; this fixture's concave arm "
+                        f"assumes it is strictly between 0 and 1")
+    else:
+        q_bins = np.stack([np.full(3, 2.0 * q_ref), np.full(3, 0.5 * q_ref)])
+        t_flat = np.full(3, t_ref)
+        annual = f(np.full(3, 1.25 * q_ref), t_flat)     # the mean of the two
+        per_bin = np.einsum("b,b...->...", w2,
+                            f(q_bins, np.broadcast_to(t_flat, q_bins.shape)))
+        if clipped(annual):
+            problems.append("the runoff fixture runs into the intensity clip")
+        ratio = float(np.max(per_bin / annual))
+        if ratio >= 1.0:
+            problems.append(
+                f"a runoff swing gives a per-bin mean {ratio:.6f} times the "
+                f"evaluation on the mean. Q**{beta} is concave, so it has to "
+                f"come out BELOW one; a check that cannot read the sign of the "
+                f"curvature is not reading curvature")
+    return problems
+
+def check_withdrawn_closure_has_no_consumer() -> list[str]:
+    """The withdrawn saturated fraction is refused where it would be read, and
+    the two components state the one support field the same way.
+
+    `hydrography/config/topographic_index.yaml` withdrew the saturated-area
+    closure on the verdict of a score it had declared in advance, so no
+    consumer gets a saturated fraction from this project at any support. The
+    absence is easy to miss precisely because it is an absence: the producer
+    stops writing a field and nothing objects, while a consumer that guards
+    the field's SUPPORT goes on looking like a live contract.
+
+    Four ways that can go wrong, and each has a right answer rather than a
+    preference:
+
+    1. **A consumer keys a class on the withdrawn fraction.** Refused by name
+       in `biosphere/scripts/wetland_gate.py`; this fails if the declaration
+       ever names one anyway.
+    2. **The producer stops declaring the absence.** `wetness.yaml` carries the
+       saturated mineral class with an `unavailable_reason` while the closure
+       is withdrawn, which is what makes the missing class a statement rather
+       than an omission.
+    3. **The closure is revived.** A revived closure is a new closure with a
+       new criterion, and both consumers refuse on the strength of the
+       withdrawal, so a revival is a decision to retake in both of them rather
+       than a config value to flip.
+    4. **The two components drift on the one support field.**
+       `wetlands.yaml`'s `extent.saturated_fraction_support` and
+       `wetness.yaml`'s `refusals.saturated_fraction_support` are one field
+       with one reading, and a reader who finds two answers has no way to tell
+       which is current.
+    """
+    import yaml
+
+    problems = []
+    ti = ROOT / "hydrography" / "config" / "topographic_index.yaml"
+    wetness = ROOT / "hydrography" / "config" / "wetness.yaml"
+    wetlands = ROOT / "biosphere" / "config" / "wetlands.yaml"
+    gate = ROOT / "biosphere" / "scripts" / "wetland_gate.py"
+    for path in (ti, wetness, wetlands, gate):
+        if not path.is_file():
+            return [f"{path.relative_to(ROOT)} does not exist"]
+
+    closure = (yaml.safe_load(ti.read_text(encoding="utf-8")) or {}).get(
+        "closure") or {}
+    status = str(closure.get("status", "active"))
+    hyd = yaml.safe_load(wetness.read_text(encoding="utf-8")) or {}
+    bio = yaml.safe_load(wetlands.read_text(encoding="utf-8")) or {}
+    extent = bio.get("extent") or {}
+
+    if status != "withdrawn":
+        problems.append(
+            f"hydrography/config/topographic_index.yaml closure.status is "
+            f"{status!r}. build_wetness.py refuses to run and "
+            f"biosphere/scripts/wetland_gate.py refuses every extent class "
+            f"keyed on a saturated fraction, both on the strength of the "
+            f"withdrawal. A revived closure is a new closure with a new "
+            f"criterion, so what it may key has to be decided in both before "
+            f"a fraction is read")
+    else:
+        saturated = ((hyd.get("classes") or {}).get("saturated_mineral")
+                     or {})
+        if not saturated.get("unavailable_reason"):
+            problems.append(
+                "hydrography/config/wetness.yaml no longer declares "
+                "classes.saturated_mineral.unavailable_reason while the "
+                "closure is withdrawn, so the class the fraction would have "
+                "formed is missing rather than declared absent")
+
+    one_field = "saturated_fraction_support"
+    theirs = str(((hyd.get("refusals") or {}).get(one_field, "missing")))
+    ours = str(extent.get(one_field, "missing"))
+    if theirs != ours:
+        problems.append(
+            f"biosphere/config/wetlands.yaml extent.{one_field} is {ours!r} "
+            f"and hydrography/config/wetness.yaml refusals.{one_field} is "
+            f"{theirs!r}. It is one field with one reading -- the support any "
+            f"revived closure would have to live at -- and two answers leave a "
+            f"reader no way to tell which is current")
+
+    # The closed source set, read from the gate rather than restated here.
+    tree = ast.parse(gate.read_text(encoding="utf-8"))
+    declared = {}
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id in (
+                    "EXTENT_CLASSES", "EXTENT_SOURCES", "WITHDRAWN_SOURCE"):
+                try:
+                    declared[target.id] = ast.literal_eval(node.value)
+                except ValueError:
+                    problems.append(
+                        f"biosphere/scripts/wetland_gate.py {target.id} is no "
+                        f"longer a literal, so the closed set of extent "
+                        f"sources cannot be read from outside the gate")
+    if len(declared) != 3:
+        return problems + [
+            "biosphere/scripts/wetland_gate.py no longer declares "
+            "EXTENT_CLASSES, EXTENT_SOURCES and WITHDRAWN_SOURCE at module "
+            "level; the extent's sources are the closed set this check reads"]
+
+    sources = extent.get("class_sources")
+    if not isinstance(sources, dict):
+        return problems + [
+            "biosphere/config/wetlands.yaml extent.class_sources is not a "
+            "mapping; the classification is a partition and every class in it "
+            "names the field it is taken from"]
+    for name in declared["EXTENT_CLASSES"]:
+        value = sources.get(name, "undeclared")
+        if isinstance(value, dict) or value == "undeclared":
+            continue
+        token = str(value)
+        if token == declared["WITHDRAWN_SOURCE"] or re.search(
+                r"f_sat|saturated[ _]fraction", token, re.IGNORECASE):
+            problems.append(
+                f"biosphere/config/wetlands.yaml extent.class_sources.{name} "
+                f"is {token!r} and no saturated fraction is published at any "
+                f"support: hydrography/config/topographic_index.yaml carries "
+                f"closure.status {status!r}")
+        elif token not in declared["EXTENT_SOURCES"]:
+            problems.append(
+                f"biosphere/config/wetlands.yaml extent.class_sources.{name} "
+                f"is {token!r}, which is not in the gate's EXTENT_SOURCES. A "
+                f"source named in prose cannot be checked against what "
+                f"hydrography publishes")
+    for name in sources:
+        if name not in declared["EXTENT_CLASSES"]:
+            problems.append(
+                f"biosphere/config/wetlands.yaml extent.class_sources names "
+                f"{name!r}, which is not one of the classes the gate "
+                f"partitions the land into")
+    return problems
+
+
 def main() -> None:
     argparse.ArgumentParser(
         description="The fast static gate: every check here is a read, a parse "
@@ -4481,6 +5350,8 @@ def main() -> None:
                lambda: check_autocorrelation_estimator()),
               ("the bin weighting is handed bin centres, never a bin index",
                lambda: check_bin_weights_take_bin_centres()),
+              ("no nonlinear function is evaluated on a naive time mean",
+               lambda: check_nonlinear_reduction_order()),
               ("the transform gates run the configured spectral filter",
                lambda: check_gate_filter_matches_config()),
               ("a continuation redeclares what a prepare declared",
@@ -4521,10 +5392,12 @@ def main() -> None:
                lambda: check_cloud_tables_match_the_papers()),
               ("the tools environment.md names are on this host",
                lambda: check_documented_tools()),
-              ("every pedology bracket contains the value it brackets",
-               lambda: check_pedology_values_are_inside_their_brackets()),
+              ("every declared bracket contains the value it brackets",
+               lambda: check_declared_brackets_contain_their_values()),
               ("the aerosol steering wind is weighted by layer mass",
                lambda: check_steering_weight_is_layer_mass()),
+              ("the withdrawn saturated fraction has no consumer keyed on it",
+               lambda: check_withdrawn_closure_has_no_consumer()),
               ("every unclosed issue carries exactly one batch:<n>",
                lambda: check_every_open_issue_is_batched())]
     # Run and REPORT one at a time, rather than evaluating the list and then
