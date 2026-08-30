@@ -4509,6 +4509,69 @@ def check_steering_weight_is_layer_mass() -> list[str]:
             sys.modules["_paths"] = shadowed
 
 
+"""The proposed smoke_test.py check, exercised standalone against fixtures.
+
+Verbatim function body below (only ROOT is injected here); in smoke_test.py it
+reads the module-level ROOT like every other check.
+"""
+import json
+from pathlib import Path
+import tempfile
+
+
+
+def check_deposition_carrier_partitions_itself() -> list[str]:
+    """Each deposition carrier JSON reproduces its own element split.
+
+    world-5wl5. `aeolian/analysis/sea_salt_deposition.json` and
+    `volcanic_sulfate_deposition.json` are the abiotic nutrient ledger's
+    carriers: mass and only mass. Each carries the element land means AND the
+    element mass fractions it split them with, so the file holds two
+    identities about itself -- every element's land mean is the aerosol total
+    times its declared fraction, and its dry and wet halves partition it --
+    and a carrier regenerated with a broken split contradicts its own
+    composition block. Static read; a carrier not yet generated is the
+    resting state of the tree and is skipped.
+    """
+    problems = []
+    for rel in ("aeolian/analysis/sea_salt_deposition.json",
+                "aeolian/analysis/volcanic_sulfate_deposition.json"):
+        path = ROOT / rel
+        if not path.exists():
+            continue
+        try:
+            dep = json.loads(path.read_text(encoding="utf-8"))["deposition"]
+            fractions = dep["composition"][
+                "element_mass_fraction_of_dry_aerosol"]
+            total = float(dep["land_mean_total_aerosol_mg_m2_earth_year"])
+            means = dep["land_mean_deposition_mg_m2_earth_year"]
+        except (KeyError, TypeError, ValueError) as exc:
+            problems.append(f"{rel}: not a carrier: {exc!r}")
+            continue
+        for element, row in means.items():
+            if element not in fractions:
+                problems.append(f"{rel}: {element} has a land mean and no "
+                                f"declared mass fraction")
+                continue
+            want = float(fractions[element]) * total
+            got = float(row["total"])
+            # every figure is rounded to 4 decimals on write, so the slack is
+            # what those roundings can stack to on either side of the product
+            tol = 5e-4 + 1e-3 * abs(want)
+            if abs(got - want) > tol:
+                problems.append(
+                    f"{rel}: {element} land mean {got} is not the aerosol "
+                    f"total {total} times its declared fraction "
+                    f"{fractions[element]} (= {want:.4f})")
+            if abs(float(row["dry"]) + float(row["wet"]) - got) > tol:
+                problems.append(
+                    f"{rel}: {element} dry {row['dry']} + wet {row['wet']} "
+                    f"does not partition its total {got}")
+    return problems
+
+
+
+
 def check_declared_brackets_contain_their_values() -> list[str]:
     """Every bracket this tree declares contains the value it is a bracket on.
 
@@ -6248,6 +6311,8 @@ def main() -> None:
                lambda: check_declared_numerics_resolve_to_numbers()),
               ("the aerosol steering wind is weighted by layer mass",
                lambda: check_steering_weight_is_layer_mass()),
+              ("the deposition carrier partitions itself",
+               lambda: check_deposition_carrier_partitions_itself()),
               ("the withdrawn saturated fraction has no consumer keyed on it",
                lambda: check_withdrawn_closure_has_no_consumer()),
               ("every unclosed issue carries exactly one batch:<n>",

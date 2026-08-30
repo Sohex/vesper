@@ -561,8 +561,10 @@ screen:
         phosphorus down. Booking a P flux here would invent one.
       pulse_timing: not_material
       pulse_reason: storm-modulated, and the ledger interval is longer than a storm.
-      carrier: undeclared
-      carrier_note: NOT sea-salt optical depth or extinction.
+      carrier: aeolian/analysis/sea_salt_deposition.nc
+      carrier_note: >
+        The mass artifact, wet and dry per size bin in kg m-2 s-1 with one
+        field per element. NOT sea-salt optical depth or extinction.
     volcanic_sulfate_deposition:
       mechanism: >
         Volcanic sulfur degassed as SO2, oxidised to sulfate and deposited over
@@ -584,8 +586,11 @@ screen:
         absent: rule 2 would retain it on any surface where the weathering
         sulfur term is zero, and the ANUT-8 screen is what identifies those.
       pulse_timing: material_for_eruptive_only
-      carrier: undeclared
-      carrier_note: NOT the volcanic sulfate optical depth, for the same reason as tephra.
+      carrier: aeolian/analysis/volcanic_sulfate_deposition.nc
+      carrier_note: >
+        The mass artifact, wet and dry per size bin in kg m-2 s-1 with
+        deposition_S. NOT the volcanic sulfate optical depth, for the same
+        reason as tephra.
     fire_ash:
       mechanism: combustion returns nutrients from plant_and_litter to the surface.
       verdict: out_of_scope

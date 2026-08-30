@@ -315,8 +315,12 @@ an Earth number is against the second. Neither is a correction to the other.
 shared by sea salt and volcanic sulfate, and
 `--self-test` is its identities: that each composition table closes on one and
 that a mistranscribed one is rejected, that the element split conserves mass and
-that a monatomic ion carries its own solute mass exactly, and that the writer's
-land mean reproduces the analytic mean of a uniform field.
+that a monatomic ion carries its own solute mass exactly, that the writer's
+land mean reproduces the analytic mean of a uniform field, and that the mass is
+EXTENSIVE: the written file's area integral reproduces the input's, the bin and
+element fields partition the total exactly, and the integral is invariant under
+an area-weighted change of support while the unweighted aggregation is shown to
+move it, so the check is seen to be able to fail.
 
 ```bash
 python aeolian/scripts/aerosol_deposition.py --self-test
@@ -343,9 +347,10 @@ carrier file therefore has to hold mass and nothing else.
 **The deposition is a PARTITION, not a second calculation.** At steady state each
 size bin loses `loss * m` per unit area per unit time and `loss` is already the
 sum of a settling frequency and a wet scavenging rate, so the two fields are that
-one rate split in two. `build_sea_salt.py` asserts that they sum back to the
-removal its own mass balance computed, to within rounding, which catches a sign
-error or a dropped bin that the mass residual cannot see.
+one rate split in two. `build_sea_salt.py` and `build_volcanic_sulfate.py` each
+assert that they sum back to the removal their own mass balance computed, to
+within rounding, which catches a sign error, a dropped bin, or a scale height
+edited in one of its two spellings -- none of which the mass residual can see.
 
 **The composition is Earth's Reference Composition, declared rather than
 derived.** `aeolian/config/sea_salt.yaml` carries Table D.3 of the TEOS-10 Manual

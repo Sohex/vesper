@@ -299,6 +299,24 @@ def main() -> None:
         residual = abs(float((emission * coslat_solver).sum())
                        - float((loss * m * coslat_solver).sum())
                        ) / max(float((emission * coslat_solver).sum()), 1e-30)
+        dry_dep = v_s / cfg["transport"]["scale_height_m"] * m
+        wet_dep = lam_wet * m
+        # IDENTITY, and it can fail. The carrier's wet and dry fields are a
+        # PARTITION of the removal `loss * m` the steady state balanced, so
+        # summed over the solver's own metric they must reproduce it to
+        # rounding -- the same check build_sea_salt.py runs on its split. The
+        # scale height is spelled twice in this function, once in `loss` and
+        # once in the dry half, and this is what objects when one spelling
+        # moves without the other; the mass residual above is a diagnostic of
+        # the steering field and cannot see it.
+        removed = float((loss * m * coslat_solver).sum())
+        split_sum = float(((dry_dep + wet_dep) * coslat_solver).sum())
+        if abs(split_sum / max(removed, 1e-30) - 1.0) > 1e-10:
+            raise SystemExit(
+                f"the wet/dry deposition split sums to {split_sum:.6e} "
+                f"against a removal of {removed:.6e}. It is meant to be the "
+                f"same quantity partitioned, so this is an implementation "
+                f"error and not a physical residual.")
         aod1 = m * 1000.0 * np.interp(rh_cell, optics_rh, mee1_t)
         aod2 = m * 1000.0 * np.interp(rh_cell, optics_rh, mee2_t)
         # AREA-WEIGHTED, like every other global mean in this function and
@@ -330,8 +348,7 @@ def main() -> None:
                 critical_surface_albedo(ssa, beta), 4),
             "transport_steps": steps, "converged": bool(converged),
             "mass_residual": round(residual, 6),
-        }, m, (b1 * aod1 + (1 - b1) * aod2), emission, (
-            v_s / cfg["transport"]["scale_height_m"] * m, lam_wet * m)
+        }, m, (b1 * aod1 + (1 - b1) * aod2), emission, (dry_dep, wet_dep)
 
     central, burden, aod, emission, (dry_dep, wet_dep) = solve(cfg)
     if not central["converged"] or central["mass_residual"] >= 0.10:

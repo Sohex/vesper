@@ -324,6 +324,75 @@ def _self_test() -> bool:
           f"{ca_expected:.6f}, off by {miss_ca:.2e}   "
           f"{'OK' if miss_ca < 1e-4 else 'FAIL'}")
     ok = ok and miss_ca < 1e-4
+
+    # --- 4. the deposited mass is EXTENSIVE, and the artifact carries it ----
+    #
+    # kg m-2 s-1 is the areal DENSITY of an extensive quantity, so the number
+    # with a right answer is the area integral, and it has three identities:
+    # the written file's fields reproduce the arrays handed in, the per-bin
+    # and per-element fields partition the total exactly, and the integral is
+    # invariant under a change of support when the aggregation is the
+    # area-weighted one. The wrong operator -- an unweighted block mean, the
+    # defect world-vwqw found three times in this component -- moves the
+    # integral on any field correlated with cell area, so the check is run
+    # with both operators on a deliberately correlated field: the weighted one
+    # must conserve and the unweighted one must be caught not conserving.
+    nlat, nlon = 8, 16
+    lat_t = np.linspace(-75.0, 75.0, nlat)
+    area = np.cos(np.deg2rad(lat_t))[:, None] * np.ones((1, nlon))
+    # Squared, not linear: a linear gradient's covariance with a symmetric
+    # cos(lat) area cancels BETWEEN blocks and the broken operator hides.
+    grad = ((1.0 + np.arange(nlat, dtype=float)) ** 2)[:, None] \
+        * np.ones((1, nlon))
+    dry = np.stack([1.0e-12 * grad, 0.5e-12 * grad, 0.25e-12 * grad])
+    wet = 0.5 * dry
+    with tempfile.TemporaryDirectory() as d:
+        nc_path = Path(d) / "t.nc"
+        write_deposition(
+            nc_path, Path(d) / "t.json",
+            lat=lat_t, lon=np.linspace(0, 337.5, nlon),
+            bins_um=[[0.1, 1.0], [1.0, 3.0], [3.0, 10.0]],
+            dry_per_bin=dry, wet_per_bin=wet, comp=comp,
+            land_weight=area, ocean_weight=area, payload={"note": "self-test"})
+        from netCDF4 import Dataset as _DS
+        with _DS(nc_path) as f:
+            total = np.array(f["deposition"][:])
+            per_bin = (np.array(f["dry_deposition_per_bin"][:])
+                       + np.array(f["wet_deposition_per_bin"][:]))
+            ca_field = np.array(f["deposition_Ca"][:])
+            ca_frac = float(f["deposition_Ca"].element_mass_fraction_of_dry_aerosol)
+    integral = float((total * area).sum())
+    handed_in = float(((dry + wet).sum(axis=0) * area).sum())
+    miss = abs(integral / handed_in - 1.0)
+    print(f"check 4  the file's area integral reproduces the input's, off by "
+          f"{miss:.2e}   {'OK' if miss < 1e-12 else 'FAIL'}")
+    ok = ok and miss < 1e-12
+    miss = float(np.abs(per_bin.sum(axis=0) - total).max()
+                 / max(float(np.abs(total).max()), 1e-300))
+    print(f"check 4  the bins partition the total, worst {miss:.2e}   "
+          f"{'OK' if miss < 1e-12 else 'FAIL'}")
+    ok = ok and miss < 1e-12
+    miss = float(np.abs(ca_field - ca_frac * total).max()
+                 / max(float(np.abs(ca_frac * total).max()), 1e-300))
+    print(f"check 4  the element field is its fraction of the total, worst "
+          f"{miss:.2e}   {'OK' if miss < 1e-12 else 'FAIL'}")
+    ok = ok and miss < 1e-12
+    # The change of support: 2x2 blocks. Area-weighted aggregation first.
+    blk = (total * area).reshape(nlat // 2, 2, nlon // 2, 2).sum(axis=(1, 3))
+    blk_area = area.reshape(nlat // 2, 2, nlon // 2, 2).sum(axis=(1, 3))
+    coarse = blk / blk_area                       # the intensive field, coarse
+    miss = abs(float((coarse * blk_area).sum()) / integral - 1.0)
+    print(f"check 4  the integral is invariant under the area-weighted change "
+          f"of support, off by {miss:.2e}   {'OK' if miss < 1e-12 else 'FAIL'}")
+    ok = ok and miss < 1e-12
+    # And the broken operator is CAUGHT rather than assumed broken: the
+    # unweighted block mean re-integrated over the coarse areas must move the
+    # integral on this field, or this check could not fail and is not a check.
+    coarse_bad = total.reshape(nlat // 2, 2, nlon // 2, 2).mean(axis=(1, 3))
+    drift = abs(float((coarse_bad * blk_area).sum()) / integral - 1.0)
+    print(f"check 4  and the unweighted aggregation moves it by {drift:.2e}, "
+          f"which must be seen   {'OK' if drift > 1e-4 else 'FAIL'}")
+    ok = ok and drift > 1e-4
     _sys.stdout.flush()
     return ok
 
