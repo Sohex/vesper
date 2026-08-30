@@ -182,7 +182,7 @@ def main() -> None:
         raise SystemExit(
             f"{climatology} does not exist; config/planet.yaml names it as "
             f"the {clim_stage} climatology")
-    from provenance import require_build
+    from provenance import build_stamp, require_build
     from climatology import annual_mean
     require_build(climatology, "climatology", config)
 
@@ -312,6 +312,12 @@ def main() -> None:
         "climatology_stage": clim_stage,
         "climatology_sha256": sha256(climatology),
         "source_build": config.get("source_build"),
+        # `--source-build` overwrites config's source_build in memory, after
+        # check_consistency's activatable guard has run, so this product can be
+        # made on a build the registry refuses. That stays legal; what it must
+        # not do is land in pedology/analysis indistinguishable from a
+        # production one. The verdict travels with the artifact.
+        "build_verdict": build_stamp(str(config.get("source_build"))),
         "terrain_hash": mesh.terrain_hash,
         "meybeck_tables_sha256": sha256(MEYBECK),
         "land_area_km2": land_area,

@@ -409,7 +409,19 @@ def regolith_depth_expectation(mesh: Export, grid_dir: Path,
 def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
             endorheic: np.ndarray, params: dict, reference_runoff: float
             ) -> np.ndarray:
-    """Parent pH, leached down by drainage, pushed up where drainage is closed.
+    """Parent pH relaxing onto the gibbsite buffer as drainage leaches it.
+
+    The parent-to-buffer offset decays exponentially in the leaching index, so
+    the acid end is PARENT-INDEPENDENT: however far apart two rocks start,
+    heavy leaching puts both on the same aluminium buffer. That is Slessarev et
+    al. (2016)'s central observation about the acid mode -- their Methods
+    predict 5.1 for every profile with a non-negative water balance, with no
+    lithology term -- and a line in the leaching index cannot express it,
+    because a line has no asymptote and holds two parents exactly their initial
+    spacing apart at every slope. At zero leaching this returns the fresh
+    parent, which is what an unleached soil is; at finite leaching a carbonate
+    parent still sits above a felsic one, which is what the paper's own
+    wettest-quartile carbonate deviation is a statement about.
 
     Deliberately takes runoff, not whatever `weathering.moisture_variable`
     selects. Leaching is base cations physically leaving the profile, which
@@ -418,6 +430,14 @@ def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
     precipitation, and pH is consequently the one soil property that does not
     move when that switch is flipped. Intended, not an oversight.
     """
+    buffer_ph = float(params["gibbsite_buffer_ph"])
+    low, high = (float(v) for v in params["gibbsite_buffer_ph_bracket"])
+    if not low <= buffer_ph <= high:
+        raise SystemExit(
+            f"pedogenesis.yaml ph.gibbsite_buffer_ph is {buffer_ph}, outside "
+            f"its own bracket [{low}, {high}]. That bracket is Slessarev's "
+            "eq. (7) over the declared range of the exchange ratio; a value "
+            "outside it is not a gibbsite-buffered soil pH.")
     shape = runoff_mm_yr.shape
     parent = np.zeros(shape)
     total = np.zeros(shape)
@@ -432,7 +452,8 @@ def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
     parent[~covered] = params["parent_by_category"]["sedimentary_clastic"]
 
     leaching = np.log1p(np.maximum(runoff_mm_yr, 0.0) / reference_runoff)
-    ph = parent - params["leaching_slope"] * leaching
+    ph = buffer_ph + (parent - buffer_ph) * np.exp(
+        -params["leaching_slope"] * leaching)
     ph += endorheic * params["endorheic_alkalinity_bonus"]
     return np.clip(ph, params["minimum"], params["maximum"])
 

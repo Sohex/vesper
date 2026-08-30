@@ -98,7 +98,7 @@ being the regressor. A weak moisture dependence is the reading that compilation
 licenses. The 0.15 this key used to carry is a suppression of dry denudation to
 13 per cent of the reference rate and nothing supported it.
 
-## 3. The soil pH block, and the form its own source refutes
+## 3. The soil pH block, and the two ends its source sets
 
 Slessarev, Lin, Bingham, Johnson, Dai, Schimel and Chadwick (2016) draw a
 spatially random sample of 20,000 subsoil pH measurements from a compilation of
@@ -110,20 +110,25 @@ per cent of the observed variation, interquartile range 42 to 45 per cent.
 Soils in the neutral range are uncommon, because that range is held by primary
 mineral dissolution, which is slow.
 
-### The finding: the acid end is parent-independent and this form makes it parent-dependent
+### The acid end is parent-independent, and the form is an asymptote not a line
 
 In the measurement, gibbsite sets the acid end wherever leaching has run,
-whatever the rock was. `soil_ph` in `build_soil.py` instead starts every parent
-at its own value and takes a single `leaching_slope` down from it, so its wet
-cells spread across a range where the measurement clusters on one buffer. No
-single slope lands them all on 5.1.
+whatever the rock was. `soil_ph` in `build_soil.py` therefore relaxes each
+parent onto that buffer rather than taking it down a line of its own:
 
-That is a property of the FORM, not of any value in the block, and it is why
-the values are bracketed rather than fitted: they cannot be sized against this
-observation until the form changes. Recorded here rather than acted on, because
-replacing a parameterisation is a larger change than the one this note is the
-evidence for, and because a form with a parent-independent acid end is a
-different model of leaching and not a retuning of this one.
+    ph = G + (parent - G) * exp(-leaching_slope * L),   L = ln(1 + q/q_ref)
+
+with `G` the `gibbsite_buffer_ph` entry. At `L = 0` this is the fresh parent,
+which is what an unleached soil is; as `L` grows every parent goes to the same
+buffer whatever the rock was, which is the observation. A line cannot express
+that, because it has no asymptote and holds two parents exactly their initial
+spacing apart at every slope.
+
+The form keeps the lithology term rather than deleting it, and that is
+deliberate: at finite `L` a carbonate parent still sits above a felsic one,
+which is what the paper's own wettest-quartile carbonate deviation is a
+statement about. A model that collapsed the acid end to a single value would
+reproduce the paper's step model and destroy its second finding.
 
 ### The alkaline end is derivable, and is derived at run time
 
@@ -197,15 +202,50 @@ than adopting 8.2.
 
 ### The remaining two pH entries
 
-`leaching_slope` is bracketed by one requirement evaluated at two runoffs: that
-the term can carry the modal clastic parent down to the gibbsite buffer of 5.1,
-a drop of 1.7. At Earth's reference runoff the leaching index is `ln 2` and the
-slope that does it is 2.45; at five times that runoff the index is `ln 6` and
-the slope is 0.95. The multiple of five is declared, not measured, and it is
-what sets the bracket's width. The declared value is the low end, and the
-reason is the clip rather than a preference: a steeper slope drives the felsic
-and metamorphic parents onto `ph.minimum` across the wet fraction of land,
-which is the railing the regolith block was rewritten to remove.
+`gibbsite_buffer_ph` is 5.1, the mean pH of the spatially resampled NCSS
+profiles with non-zero exchangeable Al. It is IMPLICIT-EARTH and not tuned: a
+measured population mean is not the residual of a fit, and the derivation is in
+the Methods rather than somewhere a reader cannot reach. What makes it Earth's
+is the input to that derivation. The paper's eq. (7), `pH = 4.96 + 0.32
+log10(CaX/AlX)`, puts 5.1 at an exchange ratio of 2.7, and that ratio is a
+property of Earth's lithology, weathering and biological cycling; the Gapon
+exchange chemistry travels to another planet, the population it was averaged
+over does not. The repair is a cation-exchange model this project does not
+have, so the bracket stands in for it: `CaX/AlX` over two decades, 0.1 to 10,
+gives 4.64 to 5.28. The two decades are declared -- the paper publishes the
+fit, not the range of the ratio in the field.
+
+It is not reachable the way the alkaline end is. `carbonate_ph.py` solves an
+equilibrium in `pCO2`; gibbsite solubility carries no CO2 term, so there is no
+sentinel to write and no function to fill it.
+
+`leaching_slope` is bracketed by one requirement evaluated at three points of
+this world's wettest quartile: that the lithology deviation Slessarev measures
+still exists in the model. The paper reports profiles in the wettest quartile
+2.6 times more likely to exceed pH 6.5 where carbonate bedrock is present, so a
+slope steep enough to put every carbonate-bearing cell of that quartile below
+6.5 has deleted a deviation the measurement reports. In closed form,
+
+    s = ln((carbonate - G) / (6.5 - G)) / L
+
+which at the quartile's wettest cell gives 0.35, at its median 0.90, and at its
+dry edge 1.33. The declared value is the median: the deviation survives over at
+least half the quartile rather than only at its driest fringe. WHICH point of
+the quartile is declared; the requirement is not.
+
+**All three ends are readings of an UPPER bound, and there is no sourced lower
+one.** The bound that would supply it is the measured bimodality -- neutral-range
+soils uncommon relative to the buffered ranges -- and on this world's land it is
+unreachable at any slope, for two reasons that both lie outside `leaching_slope`.
+A fifth of land area drains nothing, so `L = 0` and no slope moves those cells;
+they sit at their parent values, which are in the neutral range. And the two
+paper findings jointly size the parent SPACING, in an inequality the slope
+cancels out of: the carbonate parent stays above 6.5 while the retained offset
+fraction `f = exp(-s L)` is at least `(6.5 - G)/(carbonate - G)`, and the modal
+clastic parent reaches a gibbsite mode one pH unit wide while `f` is at most
+`0.5/(clastic - G)`. Both hold only if `(carbonate - G)/(clastic - G) >= 2.80`.
+The declared values give 1.80. That is a defect in the spacing, not in the
+slope, and it is the first thing this file has that sizes the spacing at all.
 
 `endorheic_alkalinity_bonus` has to carry a calcite-buffered soil into the range
 a closed basin reaches. Helvaci (2019) lists lake water at pH 8.5 to 11 among

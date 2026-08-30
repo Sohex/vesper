@@ -140,8 +140,13 @@ the two orders against `regolith.minimum_depth_m`, and the soil report's
 `regolith_aggregation` block carries the difference on whatever map it just
 built.
 
-**pH**, from parent material leached down by drainage, and pushed back up where
-drainage is closed and salts concentrate instead of leaving.
+**pH**, from parent material relaxing onto a gibbsite buffer as drainage leaches
+it, and pushed back up where drainage is closed and salts concentrate instead of
+leaving. The acid end is parent-independent by construction: the offset between
+a parent and the buffer decays exponentially in the leaching index, so however
+far apart two rocks start, heavy leaching puts both on the same buffer. The
+alkaline end is not yet the mirror of it, and that is a known departure from the
+measurement.
 
 **Organic fraction and bulk density**, from LPJ-GUESS's own soil carbon through
 the standard reciprocal mixing rule, which is why organic soils come out light.
@@ -563,10 +568,16 @@ The Vesper side of that comparison lives in `analysis/soil_report.json`, which
 is where a land mean belongs. The soil pH column has a second limit on it that
 the water and depth columns do not: Slessarev et al. (2016) measure the global
 soil pH distribution as BIMODAL, clustered on a calcite buffer near 8.2 and a
-gibbsite buffer near 5.1, and this model's pH form takes every parent down a
-line of its own from its own starting value, so a Vesper pH figure is being
-compared against a central tendency the measurement says is uncommon.
-`notes/pedogenesis-value-provenance.md` section 3 has the argument.
+gibbsite buffer near 5.1, so a land-mean pH is being compared against a central
+tendency the measurement says is uncommon. The acid end of this model now
+relaxes onto the gibbsite buffer and the mode it produces is real. The alkaline
+end does not: a fifth of this world's land area drains nothing at all, so no
+leaching slope moves it, and it sits at its parent value in the neutral range
+rather than on the calcite buffer. The modelled distribution is therefore
+single-moded in the neutral range whatever the slope, and the two things that
+would close it -- the alkaline end and the declared parent spacing -- are
+tracked separately. `notes/pedogenesis-value-provenance.md` section 3 has the
+argument.
 
 ### The pattern is terrain; the level is weathering
 
@@ -623,10 +634,18 @@ mentions.
 - `maximum_depth_m` is a pure prefactor inside a bracket a factor of 2.0 wide,
   and its two ends are the two ways a depth-to-bedrock measurement misses a
   weathering-front reach rather than a scatter on one estimate.
-- The soil pH form cannot be sized against the one global measurement of soil
-  pH, because that measurement's acid end is set by a gibbsite buffer whatever
-  the rock was and this form's acid end is parent-dependent. The values in the
-  block are bracketed; the form is recorded as the thing to change.
+- The soil pH form has a parent-independent acid end and no lower bound on how
+  fast it gets there. `leaching_slope`'s bracket is three readings of ONE upper
+  bound -- the wettest-quartile carbonate deviation Slessarev measures must
+  still exist in the model -- evaluated at three points of that quartile. The
+  bound that would supply a lower end is the measured bimodality, and it is
+  unreachable at any slope while the alkaline end sits in the neutral range and
+  the declared parent spacing is narrower than the two findings jointly require.
+- `gibbsite_buffer_ph` is implicit-Earth: Slessarev's 5.1 is the mean of an
+  Earth soil population, and through their eq. (7) it fixes an exchange ratio
+  CaX/AlX of 2.7 that this project has no model for. The exchange chemistry
+  travels; the population does not. Bracketed 4.64 to 5.28 over two decades of
+  that ratio.
 - The catena slope term carries the pattern and not the magnitude, because even
   the 15.19 km mesh is two orders of magnitude coarser than a hillslope.
 - Nothing here has been validated against an independent product, unlike the

@@ -3706,6 +3706,8 @@ PEDOLOGY_BRACKETS = (
      ("ph", "parent_bracket_evaporite"), None),
     ("value", "ph.leaching_slope", "pedogenesis",
      ("ph", "leaching_slope"), ("ph", "leaching_slope_bracket"), None),
+    ("value", "ph.gibbsite_buffer_ph", "pedogenesis",
+     ("ph", "gibbsite_buffer_ph"), ("ph", "gibbsite_buffer_ph_bracket"), None),
     ("value", "water.volumetric_capacity_by_texture.sand", "pedogenesis",
      ("water", "volumetric_capacity_by_texture", "sand"),
      ("water", "volumetric_capacity_by_texture_bracket", "sand"), None),
@@ -3886,6 +3888,39 @@ def _pedology_bracket_problems(docs: dict, derived: dict | None,
                        f"[{low}, {high}]. A value its bracket does not contain "
                        f"is one of the two, not both")
     return bad
+
+
+def check_steering_weight_is_layer_mass() -> list[str]:
+    """The aerosol steering wind's vertical weight, against answers it can miss.
+
+    All three aerosols advect on the wind of the layers at or below a declared
+    sigma, and all three used to contract that level axis with a plain mean
+    while their comments said the contraction was mass-weighted. The model's
+    layer thicknesses differ by a factor of four, so the two are different
+    quantities and a reader had no way to know which one the number was.
+
+    `aeolian/scripts/build_dust.py:check_steering_weights` is the check and this
+    runs it: the weights sum to one, a constant column comes back as that
+    constant, `levp` is refused, and -- the control -- the layer-mass weights
+    DIFFER from a plain mean on levels of unequal thickness, which is what says
+    the first two are looking at the weight rather than past it.
+
+    Every component keeps its own `_paths`, and an earlier check in this file
+    has already imported one of them, so a plain import here would hand
+    `build_dust` the wrong component's module. The cached entry is set aside
+    for the length of this check and put back, which keeps this a static read
+    rather than the subprocess the alternative would cost.
+    """
+    sys.path.insert(0, str(ROOT / "lib"))
+    sys.path.insert(0, str(ROOT / "aeolian" / "scripts"))
+    shadowed = sys.modules.pop("_paths", None)
+    try:
+        import build_dust
+        return build_dust.check_steering_weights()
+    finally:
+        sys.modules.pop("_paths", None)
+        if shadowed is not None:
+            sys.modules["_paths"] = shadowed
 
 
 def check_pedology_values_are_inside_their_brackets() -> list[str]:
@@ -4149,15 +4184,15 @@ def _climatology_call_sites() -> list[tuple]:
 
 
 def check_bin_weights_take_bin_centres() -> list[str]:
-    """The bin weighting is handed a time coordinate, never a bin index.
+    """The bin weighting is handed a time coordinate, never a bin index, and it
+    refuses the axes that cannot answer.
 
     `lib/climatology.py` recovers how many raw records each bin of a pyburn
     climatology holds from the SPACING of the bin centres, and weights the
     annual mean by those counts. Hand it `np.arange(nbin)` and the spacing is
-    uniform, so it reports the degenerate case -- the record count divides the
-    bin count -- and returns equal weights. Nothing raises. A uniform weight
-    vector is an ordinary array, and the annual mean it produces is the one the
-    project had before the module existed.
+    uniform, which asserts that the bins are even instead of measuring them; a
+    uniform weight vector is an ordinary array, and the annual mean it produces
+    is the one the project had before the module existed.
 
     THIS FAILS SILENTLY IN BOTH DIRECTIONS, which is why it is a gate and not a
     review note. On a climatology whose bins happen to be nearly even the wrong
@@ -4165,20 +4200,29 @@ def check_bin_weights_take_bin_centres() -> list[str]:
     coincidence rather than by construction, so it stops being right when the
     cadence or the window changes and still nothing objects.
 
-    Two halves, and the second is what makes the first a test rather than a
+    Three parts, and the last two are what make the first a test rather than a
     lint:
 
     1. **No call site synthesises the axis.** Resolved through the imports,
        so the local `annual_mean(field, weights)` in `build_sea_salt.py` is not
        confused with the climatology function of the same name.
-    2. **The two spellings must actually differ.** A fixture reconstructs the
-       bin centres pyburn's own binning implies for a record count, over a
-       sweep of counts, and requires that the weighting inverts them back to
-       that record count and returns the counts themselves. The CONTROL is the
-       index spelling: wherever the bin count does not divide the record count
-       the two answers have to be measurably apart, and wherever it does they
-       have to agree exactly. Without that control a weighting that had
-       collapsed to uniform would pass half of this and prove nothing.
+    2. **The weighting inverts real centres.** A fixture reconstructs the bin
+       centres pyburn's own binning implies for a record count, over a sweep of
+       counts, and requires that the weighting inverts them back to that record
+       count and returns the counts themselves. The CONTROL is uniformity:
+       wherever the bin count does not divide the record count the answer has
+       to be measurably apart from equal weights, or passing an index would be
+       undetectable. Without that control a weighting that had collapsed to
+       uniform would pass half of this and prove nothing. A declaration of the
+       record count is checked against the centres too, so one from another run
+       is refused rather than reweighting the file to fit.
+    3. **The axes that carry no answer are refused.** An index is one, and an
+       evenly spaced axis over an even bin count is the other: [1, 2, 1, 2, ...]
+       over twelve bins stamps exactly the centres [3, 3, 3, ...] stamps at
+       twice the write interval, so the file cannot say which it is and the two
+       weight neighbouring bins a factor of two apart. The sweep holds 18 and 30
+       records in twelve bins inside it for that reason, and asserts both the
+       refusal and the answer a declared record count buys.
     """
     problems = []
     for path, lineno, name, args in _climatology_call_sites():
@@ -4211,7 +4255,24 @@ def check_bin_weights_take_bin_centres() -> list[str]:
     DT = 32.0            # a write interval; the recovery is scale-free in it
     T0 = 31.0            # and offset-free, so neither is a project number
     checked = 0
-    for nbin in (4, 12):
+    alternating = 0
+    for nbin in (4, 5, 12):
+        uniform = np.full(nbin, 1.0 / nbin)
+        # THE INDEX CONTROL. A bin index is refused at the boundary, so what is
+        # asserted is the refusal. Both spellings are here because an index
+        # scaled by a constant is still an index and still evenly spaced.
+        for index in (np.arange(nbin), np.arange(nbin) * 5.0):
+            try:
+                clim.bin_weights(index)
+            except ValueError:
+                pass
+            else:
+                problems.append(
+                    f"lib/climatology.py takes {index.tolist()} as the bin "
+                    f"centres of a {nbin}-bin climatology. That is a bin "
+                    f"INDEX: the weighting reads the spacing of real centres, "
+                    f"so evenly spaced integers from the time origin assert "
+                    f"that the bins are even instead of measuring them")
         for ntimes in range(nbin, 250):
             counts = clim.counts_for(ntimes, nbin)
             if counts.min() <= 0:
@@ -4224,30 +4285,59 @@ def check_bin_weights_take_bin_centres() -> list[str]:
             gaps = np.diff(centres)
             recoverable = not np.allclose(gaps, gaps[0], rtol=1e-9, atol=1e-9)
             even = bool(np.all(counts == counts[0]))
-            # Counts that alternate about a constant sum -- [1, 2, 1, 2, ...]
-            # and its multiples -- give evenly spaced centres from UNEQUAL
-            # bins, so the record count is not in the file and the weights are
-            # not either. `lib/climatology.py` reports the degenerate answer
-            # there. Neither spelling is checkable on such a file, so the
-            # sweep states the property where the file carries the evidence
-            # for it: everything else is covered.
-            if not recoverable and not even:
-                continue
             checked += 1
-            w_index = clim.bin_weights(np.arange(nbin))
-            if not np.allclose(w_index, 1.0 / nbin, rtol=0, atol=1e-12):
-                problems.append(f"a bin index does not give equal weights over "
-                                f"{nbin} bins, so this control proves nothing")
-            if even:
-                # The bins really are equal. The two spellings must AGREE here,
-                # or the sweep below is measuring something other than the
-                # unevenness.
-                w = clim.bin_weights(centres)
-                if not np.allclose(w, w_index, rtol=0, atol=1e-12):
+            if not recoverable:
+                # THE EVENLY SPACED AXES. Counts that alternate about a constant
+                # pair sum, [1, 2, 1, 2, ...] and the families above it, stamp
+                # the same centres as an EQUAL binning of a different record
+                # count: 18 records in 12 bins written every 320 timesteps and
+                # 36 written every 160 give the identical twelve numbers. So the
+                # file carries neither the record count nor the weights, and the
+                # two answers are a factor of two apart on neighbouring bins.
+                # The weighting refuses that rather than picking one, and
+                # answers only when the caller declares what the run wrote.
+                declared = clim.bin_weights(centres, ntimes)
+                if not np.allclose(declared * ntimes, counts, rtol=0, atol=1e-9):
                     problems.append(
-                        f"{nbin} bins hold {counts[0]} records each and the "
-                        f"weighting still differs from equal weights by "
-                        f"{float(np.max(np.abs(w - w_index))):.3e}")
+                        f"a declared {ntimes} records in {nbin} bins weights "
+                        f"them {(declared * ntimes).tolist()}, not by their "
+                        f"record counts {counts.tolist()}")
+                if not even:
+                    alternating += 1
+                    # The refusal has to protect something: an alternating
+                    # binning sits exactly half a record per bin from uniform,
+                    # so returning uniform here is a real error and not a
+                    # rounding one.
+                    spread = float(np.max(np.abs(declared - uniform)))
+                    if spread + 1e-12 < 0.5 / ntimes:
+                        problems.append(
+                            f"{nbin} bins holding {counts.tolist()} are within "
+                            f"{spread:.3e} of uniform, so this case proves "
+                            f"nothing about the refusal")
+                if nbin % 2 == 0:
+                    # An even bin count always admits both shapes, so no answer
+                    # is derivable from the centres alone.
+                    try:
+                        got = clim.bin_weights(centres)
+                    except ValueError:
+                        pass
+                    else:
+                        problems.append(
+                            f"{nbin} bins holding {counts.tolist()} have evenly "
+                            f"spaced centres, which both a multiple of {nbin} "
+                            f"records and an odd multiple of {nbin // 2} "
+                            f"records produce, and the weighting answered "
+                            f"{got.tolist()} instead of refusing")
+                else:
+                    # An odd bin count admits only the equal shape, so the
+                    # weights are determined even though the record count is
+                    # not, and refusing would be over-strict.
+                    w = clim.bin_weights(centres)
+                    if not np.allclose(w, uniform, rtol=0, atol=1e-12):
+                        problems.append(
+                            f"{nbin} bins holding {counts.tolist()} admit only "
+                            f"equal weights, and the weighting returned "
+                            f"{w.tolist()}")
                 continue
             got = clim.infer_ntimes(centres)
             if got != ntimes:
@@ -4265,11 +4355,26 @@ def check_bin_weights_take_bin_centres() -> list[str]:
                 problems.append(
                     f"weights for {ntimes} records in {nbin} bins are not the "
                     f"record counts {counts.tolist()}: {(w * ntimes).tolist()}")
+            # A declaration is checked against the centres rather than trusted,
+            # so the count from another run or another I/O regime is refused.
+            for wrong in (ntimes + 1, ntimes * 2):
+                if np.allclose(clim.counts_for(wrong, nbin) / wrong,
+                               counts / ntimes, rtol=0, atol=1e-12):
+                    continue            # same weights, so nothing to refuse
+                try:
+                    clim.bin_weights(centres, wrong)
+                except ValueError:
+                    pass
+                else:
+                    problems.append(
+                        f"centres from {ntimes} records in {nbin} bins accept "
+                        f"a declared {wrong} records, so a declaration is "
+                        f"taken on trust rather than checked against the file")
             # THE CONTROL, and the whole point. An uneven split moves at least
             # one whole record between bins, so the answer from the centres and
             # the answer an index would have given are at least half a record
             # apart. If they were not, passing an index would be undetectable.
-            spread = float(np.max(np.abs(w - w_index)))
+            spread = float(np.max(np.abs(w - uniform)))
             if spread < 0.5 / ntimes:
                 problems.append(
                     f"{nbin} bins hold {counts.tolist()} records and the "
@@ -4279,6 +4384,11 @@ def check_bin_weights_take_bin_centres() -> list[str]:
         problems.append(f"the sweep only reached {checked} record counts; it is "
                         f"meant to cover a few hundred and something has "
                         f"narrowed it")
+    if alternating < 2:
+        problems.append(f"the sweep reached {alternating} alternating bin "
+                        f"patterns; 18 and 30 records in 12 bins are the cases "
+                        f"the weighting has to refuse and they have gone out "
+                        f"of the fixture")
     return problems
 
 
@@ -4413,6 +4523,8 @@ def main() -> None:
                lambda: check_documented_tools()),
               ("every pedology bracket contains the value it brackets",
                lambda: check_pedology_values_are_inside_their_brackets()),
+              ("the aerosol steering wind is weighted by layer mass",
+               lambda: check_steering_weight_is_layer_mass()),
               ("every unclosed issue carries exactly one batch:<n>",
                lambda: check_every_open_issue_is_batched())]
     # Run and REPORT one at a time, rather than evaluating the list and then

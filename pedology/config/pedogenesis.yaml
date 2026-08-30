@@ -818,7 +818,20 @@ ph:
   #
   # WHAT IS STILL DECLARED is the ORDER and the SPACING inside that bracket.
   # Mafic above clastic above metamorphic above felsic is a contrast this file
-  # asserts; no source here sizes it. Do not tune within the bracket.
+  # asserts. Do not tune within the bracket.
+  #
+  # The SPACING is now sized by a requirement the declared values do not meet,
+  # and the arithmetic is short enough to state here. Slessarev asks two things
+  # of the same figure at once: soils in the neutral range 6-7 are uncommon
+  # relative to the buffered ranges, and profiles in the wettest quartile are
+  # 2.6 times more likely to exceed pH 6.5 on carbonate bedrock. Under the
+  # relaxation form below, both are statements about the same retained offset
+  # fraction f = exp(-leaching_slope * L): the carbonate parent stays above 6.5
+  # while f >= (6.5 - G)/(carbonate - G), and the modal clastic parent reaches
+  # a gibbsite mode one pH unit wide while f <= 0.5/(clastic - G). Those close
+  # only if (carbonate - G)/(clastic - G) >= (6.5 - G)/0.5 = 2.80. The declared
+  # values give 1.80. f cancels, so NO slope and no leaching index satisfies
+  # both: the shortfall is in the spacing and not in `leaching_slope`.
   parent_by_category:
     igneous_mafic: 7.6
     igneous_felsic: 6.4
@@ -851,23 +864,64 @@ ph:
   # is LAKE WATER in one depositional setting and not a soil, which is why it
   # bounds the entry and does not set it.
   parent_bracket_evaporite: [8.50, 11.00]
-  # pH lost per e-folding of the leaching index (runoff over reference runoff).
+  # The acid end of the pH block: the parent-independent buffer every parent
+  # relaxes onto as drainage leaches it. `build_soil.py:soil_ph` reads it.
   #
-  # BRACKET, not a value, and both ends are one requirement evaluated at two
-  # runoffs: that the term can carry the modal clastic parent down to
-  # Slessarev's gibbsite buffer of 5.1, a drop of 1.7. At Earth's reference
-  # runoff the index is ln 2 and the slope that does it is 2.45; at five times
-  # that runoff the index is ln 6 and the slope is 0.95. The multiple of five
-  # is declared, not measured.
+  # Slessarev et al. (2016), Methods, "Gibbsite buffer": 5.1 is the mean pH of
+  # the spatially resampled NCSS profiles with non-zero exchangeable Al, and
+  # their "Water-balance model evaluation" predicts it for EVERY profile with a
+  # non-negative water balance, with no lithology term anywhere in it.
   #
-  # The declared value is the low end, and the reason is the clip below rather
-  # than a preference: a steeper slope drives the felsic and metamorphic
-  # parents onto `minimum` across the wet fraction of this world's land, which
-  # is the railing the regolith block above was rewritten to remove. A form
-  # with a parent-independent acid end would not have to choose. Report the
-  # spread; do not tune within it.
-  leaching_slope: 0.95
-  leaching_slope_bracket: [0.95, 2.45]
+  # IMPLICIT-EARTH, and the diagnosis is what says the number is wrong here
+  # rather than an endorsement of it. Not tuned: it is a measured population
+  # mean, not the residual of a fit. Not opaque: the derivation is in the
+  # Methods and the paper is held and read. What makes it Earth's is the input
+  # to that derivation. The paper's own eq. (7), pH = 4.96 + 0.32 log10(CaX /
+  # AlX), puts 5.1 at an exchange ratio of 2.7, and that ratio is a property of
+  # Earth's lithology, weathering and biological cycling -- the Gapon exchange
+  # chemistry travels to another planet, the population it was averaged over
+  # does not. The repair is a cation-exchange model this project does not have,
+  # so what stands in for it is the bracket below, which gets swept.
+  #
+  # It is NOT reachable the way the calcite end is. `carbonate_ph.py` solves an
+  # equilibrium in pCO2; gibbsite solubility carries no CO2 term, so there is
+  # no sentinel to put here and no function to fill it.
+  gibbsite_buffer_ph: 5.1
+  # Eq. (7) evaluated over the exchange ratio: CaX/AlX of 0.1 gives 4.64 and of
+  # 10 gives 5.28. The two decades are DECLARED, not measured -- the paper
+  # publishes the fit, not the range of the ratio in the field.
+  gibbsite_buffer_ph_bracket: [4.64, 5.28]
+  # The rate at which a parent relaxes onto that buffer, per unit of the
+  # leaching index L = ln(1 + runoff/reference_runoff). The offset from the
+  # buffer falls by 1/e per unit of L.
+  #
+  # BRACKET, not a value, and all three ends are ONE requirement evaluated at
+  # three points of this world's wettest quartile: that the lithology deviation
+  # Slessarev measures still exists in the model. The paper reports profiles in
+  # the wettest quartile are 2.6 times more likely to exceed pH 6.5 where
+  # carbonate bedrock is present, so a slope steep enough to put every
+  # carbonate-bearing cell of that quartile below 6.5 has deleted a deviation
+  # the measurement reports. In closed form, with G the buffer above and
+  # `carbonate` the derived calcite parent,
+  #
+  #     s = ln((carbonate - G) / (6.5 - G)) / L
+  #
+  # at the quartile's wettest cell gives 0.35, at its median 0.90, and at its
+  # dry edge 1.33. The declared value is the median: the deviation survives
+  # over at least half the quartile rather than only at its driest fringe.
+  # WHICH point of the quartile is declared; the requirement is not.
+  #
+  # THERE IS NO SOURCED LOWER BOUND, and the ends above are three readings of
+  # an upper one. The bound that would have supplied it is the paper's
+  # bimodality -- neutral-range soils are uncommon relative to the buffered
+  # ranges -- and on this world's land it is unreachable at any slope, for two
+  # reasons that both live elsewhere. A fifth of land area has zero runoff, so
+  # L = 0 and no slope moves it; those cells sit at their parent values, which
+  # are in the neutral range, and that is the alkaline end's defect. And the
+  # declared parent spacing is too narrow by the factor argued above. Report
+  # the spread; do not tune within it.
+  leaching_slope: 0.90
+  leaching_slope_bracket: [0.35, 1.33]
   # Clips, and nothing here rests on either. The two buffered modes Slessarev
   # measures are at 8.2 and 5.1 and are not clips: a soil goes below the
   # gibbsite buffer under organic acids and above the calcite one under sodium
