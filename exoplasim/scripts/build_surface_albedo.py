@@ -946,7 +946,19 @@ def main() -> None:
         }
 
     fraction, alb_grid, _empty = land_weighted(mesh, grid_dir, region_albedo)
-    land_cells = fraction >= float(model["geography_land_threshold"])
+    # THE POPULATION IS GROUND, NOT OWNERSHIP. `geography_land_threshold` is
+    # ExoPlaSim's binary 0.5 coastline rounding and it belongs to code 172 in
+    # build_boundary_conditions.py, which is where the model's ownership mask is
+    # decided. Applying it here as well threw away an albedo this builder had
+    # already integrated from the mesh: at T21 on canonical-10m-carve2, all 620
+    # sea-owned partial cells were written at the flat water value 0.06 while
+    # the land value for them sat in `alb_grid`. SPAT-5's land tile needs it.
+    #
+    # Inert for the binary model, which reads dalbcl only under dls > 0.0 and
+    # takes its albedo from seamod's own constants under dls < 0.5. The A/B is
+    # what proves that rather than this comment.
+    owned_land_cells = fraction >= float(model["geography_land_threshold"])
+    land_cells = fraction > 0.0
 
     # Codes 175 and 176, from the same regions and the same gridding as 174.
     # One identical field in all three was a fair statement about a rock table
@@ -1557,6 +1569,12 @@ def main() -> None:
                         "unforested endpoints, so it has to agree with the "
                         "background albedo assumption. ExoPlaSim's default is a "
                         "uniform 0.5."),
+        "population": ("cell land fraction > 0, integrated from the mesh. The "
+                       "binary geography_land_threshold belongs to code 172 in "
+                       "build_boundary_conditions.py and is not applied here"),
+        "cells_owned_by_the_binary_mask": int(owned_land_cells.sum()),
+        "cells_with_ground_the_mask_calls_ocean": int(
+            (land_cells & ~owned_land_cells).sum()),
         "land_mean_bare_rock": raw_mean,
         "land_mean_written": final_mean,
         "endmembers": endmembers,

@@ -95,8 +95,12 @@ SOIL_WATER_CODE = 229
 # the water column is cut into more than one.
 SOIL_WATER_SPLIT_CODE = 2290
 
-# ExoPlaSim's own default, landmod.f90 `WSMAX_EARTH`. Non-land cells keep it,
-# since dwmax is meaningless over ocean but must still be a sane number.
+# ExoPlaSim's own default, landmod.f90 `WSMAX_EARTH`. Only cells with NO
+# ground keep it now: a cell the binary 0.5 coastline rounding gave to the
+# ocean still has a soil column and SPAT-5's land tile needs its capacity,
+# so the population is the states file's and not the ownership mask's.
+# Where there is genuinely no land this is still meaningless and still has
+# to be a sane number.
 EXOPLASIM_DEFAULT_WSMAX_M = 0.5
 
 # Coordinate rounding shared with pedology/scripts/build_soil.py.
@@ -329,16 +333,28 @@ def main() -> None:
     field = np.full((nlat, nlon), EXOPLASIM_DEFAULT_WSMAX_M)
     matched = 0
     unmatched_land = 0
+    matched_outside_ownership = 0
+    # THE STATES FILE'S POPULATION IS THE GROUND, NOT THE OWNERSHIP MASK.
+    # pedology now writes a column for every cell with a positive land
+    # fraction, so a cell the binary 0.5 coastline rounding gave to the ocean
+    # still has a real capacity and SPAT-5's land tile needs it. Gating this
+    # loop on `land` threw those away and left them at the uniform 0.5 m
+    # namelist default, which is a placeholder and not a soil property.
+    #
+    # Inert for the binary model: landmod reads dwmax only under dls > 0.0, so
+    # nothing the model integrates today reads a cell this newly fills. `land`
+    # is still what says an UNMATCHED cell is an error rather than an absence.
     for j in range(nlat):
         for i in range(nlon):
-            if not land[j, i]:
-                continue
             value = capacity_mm.get((float(lon_signed[i]), float(lat_rounded[j])))
             if value is None:
-                unmatched_land += 1
+                if land[j, i]:
+                    unmatched_land += 1
                 continue
             field[j, i] = value / 1000.0   # mm -> m, the units dwmax is in
             matched += 1
+            if not land[j, i]:
+                matched_outside_ownership += 1
 
     # Lakes, as an area-weighted bucket depth. `drhs` reaches 1 once soil water
     # exceeds 40% of dwmax (landmod.f90:103-104), so a SHALLOWER bucket saturates
@@ -450,10 +466,10 @@ def main() -> None:
     split = np.tile(geometric[:, None, None], (1, nlat, nlon))
     split_matched = 0
     worst_identity_mm = 0.0
+    # Follows the same population as the capacity above: a cell with a soil
+    # column gets its own split, whatever the ownership mask calls it.
     for j in range(nlat):
         for i in range(nlon):
-            if not land[j, i]:
-                continue
             key = (float(lon_signed[i]), float(lat_rounded[j]))
             usable = shares.get(key)
             states = retention.get(key)
@@ -577,6 +593,10 @@ def main() -> None:
         "resolution": resolution,
         "land_cells": int(land.sum()),
         "land_cells_matched": matched,
+        "cells_matched_outside_the_ownership_mask": matched_outside_ownership,
+        "population": ("every cell with a pedology soil column, which is "
+                       "cell land fraction > 0 and NOT the binary lsm; the "
+                       "binary model reads dwmax only under dls > 0.0"),
         "land_cells_without_soil_left_at_default": unmatched_land,
         "land_mean_capacity_m": land_mean,
         "exoplasim_uniform_default_m": EXOPLASIM_DEFAULT_WSMAX_M,
@@ -613,8 +633,9 @@ def main() -> None:
     report_path = output.with_name(output.stem + "_provenance.json")
     report_path.write_text(json.dumps(report, indent=2) + "\n")
 
-    print(f"land cells        {int(land.sum())}, matched {matched}, "
-          f"left at default {unmatched_land}")
+    print(f"land cells        {int(land.sum())} by the ownership mask; "
+          f"matched {matched}, of which {matched_outside_ownership} the "
+          f"mask calls ocean; left at default {unmatched_land}")
     print(f"land-mean dwmax   {land_mean:.3f} m against ExoPlaSim's uniform "
           f"{EXOPLASIM_DEFAULT_WSMAX_M} m")
     upper_stats = split_report["top_layer_share_over_land"]

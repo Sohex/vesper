@@ -593,10 +593,32 @@ def main() -> None:
         bin_min = np.asarray(data["mint"][:], dtype=float) - KELVIN
         bin_max = np.asarray(data["maxt"][:], dtype=float) - KELVIN
 
+    fractions, mesh, grid_dir = lithology_fractions(config)
+
+    # THE SOIL MAP'S POPULATION IS GROUND, NOT OWNERSHIP. `lsm` is the
+    # climatology's copy of ExoPlaSim's binary 0.5 coastline rounding, and a
+    # cell the rounding gave to the ocean still has land in it -- 620 of them at
+    # T21 on canonical-10m-carve2, which is the population SPAT-5's tile model
+    # exists for and which had no soil column at all. The cell land fraction is
+    # taken with the same categorical operator that writes surface code 1720,
+    # so the two agree by construction rather than by coincidence.
+    #
+    # On these cells the weathering climate is the OCEAN cell's, because that is
+    # what the model computed there. It is the best available input rather than
+    # the right one, and it converges when the tile model gives them a land
+    # surface temperature: the first pass of a loop, in the sense
+    # docs/src/pipeline/loops.md argues.
+    from gridding import cell_fraction as _cell_fraction, region_cells as _region_cells
+    _cell, _nlat, _nlon = _region_cells(mesh, grid_dir)
+    land_fraction, _covered = _cell_fraction(
+        _cell, _nlat * _nlon, mesh.cell_area.astype(np.float64),
+        mesh.surface_class == LAND)
+    land_fraction = land_fraction.reshape(_nlat, _nlon)
+    owned_land = land
+    land = land_fraction > 0.0
+
     rootable, rootable_provenance = read_rootable(
         config, lat, lon, args.rootable, land=land)
-
-    fractions, mesh, grid_dir = lithology_fractions(config)
 
     # Local relief, as the spread of surface height across each cell's neighbours.
     # A stand-in for slope that needs no extra field and no mesh gradient.
@@ -869,6 +891,12 @@ def main() -> None:
             "the feedback is a climate-cell mean and non-rootable ground is zero"),
         "orbital_year_earth_days": orbit.orbital_year_days(config),
         "land_cells": int(len(rows)),
+        "population": ("cell land fraction > 0, the same categorical operator "
+                       "that writes surface code 1720, NOT the climatology's "
+                       "binary lsm"),
+        "cells_owned_by_the_binary_mask": int(np.count_nonzero(owned_land)),
+        "cells_with_ground_the_mask_calls_ocean": int(
+            np.count_nonzero(land & ~owned_land)),
         "moisture_variable": selector,
         "runoff_source": pedo["weathering"].get("runoff_source", "p_minus_e"),
         # The pH values pedogenesis.yaml deliberately does not state, recorded

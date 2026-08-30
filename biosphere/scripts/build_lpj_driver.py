@@ -604,7 +604,19 @@ def main() -> None:
     land = lsm > 0.5
     rootable, rootable_provenance = read_rootable(
         config, lat, lon, args.rootable, land=land)
-    simulated_land = land & (rootable > 0.0)
+    # THE SIMULATED SET IS THE ROOTABLE GROUND, NOT THE OWNERSHIP MASK. `land`
+    # is ExoPlaSim's binary 0.5 coastline rounding, and intersecting with it
+    # dropped every cell the rounding gave to the ocean -- exactly the cells
+    # SPAT-5's tile model exists for. BIO-11's f_rootable is integrated from
+    # the native mesh and is positive only where there is rootable land, so it
+    # already implies a positive land fraction and needs no mask beside it:
+    # measured at T21 on canonical-10m-carve2, all 1617 cells with
+    # f_rootable > 0 have code-1720 land fraction > 0, and the 620 this adds to
+    # the previous 997 are precisely the sea-owned partial cells.
+    #
+    # `land` is kept for the support check above and for the report below,
+    # where it still says what the ownership mask thinks.
+    simulated_land = rootable > 0.0
     codes, soil_summary = soil_codes(config, simulated_land)
 
     # ExoPlaSim's longitudes run 0..360; LPJ-GUESS expects -180..180.
@@ -787,9 +799,18 @@ def main() -> None:
         "land_cells": int(land.sum()),
         "simulated_rootable_cells": int(len(rows)),
         "fully_nonrootable_land_cells_omitted": int(np.sum(land & ~simulated_land)),
+        # The cells the binary coastline rounding gives to the ocean and which
+        # carry rootable ground anyway. They were dropped until SPAT-5's tile
+        # model needed a land tile on them; the count is the size of what the
+        # ownership mask was hiding from the biosphere.
+        "simulated_cells_outside_the_ownership_mask": int(
+            np.sum(simulated_land & ~land)),
         "rootable_surface": rootable_provenance,
         "rootable_area_fraction_of_model_land": float(
             effective_weights[land].sum() / weights[land].sum()),
+        "rootable_area_fraction_of_simulated_ground": float(
+            effective_weights[simulated_land].sum()
+            / weights[simulated_land].sum()),
         "land_column_states_source": (project_relative(Path(states_path))
                                       if states_path
                                       else "none, LPJ soil codes assumed"),
@@ -822,8 +843,11 @@ def main() -> None:
             "biosphere/notes/ecological-forcing-field-contract.md"),
         "land_definition": "lsm from the climatology, itself built from surface_class",
         "simulation_population": (
-            "model land with BIO-11 f_rootable > 0; LPJ outputs remain intensive "
-            "over rootable ground and every extensive consumer applies the same fraction"),
+            "BIO-11 f_rootable > 0, which is integrated from the native mesh "
+            "and is NOT intersected with the binary ownership mask: the "
+            "coastline rounding is not a statement about where ground is. LPJ "
+            "outputs remain intensive over rootable ground and every extensive "
+            "consumer applies the same fraction"),
         # Month-weighted, because the months are NOT equal: a plain mean over the
         # twelve would over-weight the eleven short ones.
         "land_mean_temperature_c": float(
@@ -847,7 +871,9 @@ def main() -> None:
     report_path = output.with_name(output.stem + "_provenance.json")
     report_path.write_text(json.dumps(report, indent=2) + "\n")
 
-    print(f"land cells     {int(land.sum())}; {len(rows)} with rootable area")
+    print(f"land cells     {int(land.sum())} by the ownership mask; "
+          f"{len(rows)} simulated, of which "
+          f"{int(np.sum(simulated_land & ~land))} the mask calls ocean")
     print(f"year length    {year_length} absolute days")
     print(f"intervals      {nintervals} per year, carried with explicit bounds: "
           + ", ".join(f"{s:.2f}" for s in spans_y[0]) + " days")

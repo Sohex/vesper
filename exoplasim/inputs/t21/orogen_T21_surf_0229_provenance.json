@@ -1,16 +1,9 @@
 {
   "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
-  "generated": "2026-08-28T14:24:11+00:00",
+  "generated": "2026-08-30T16:43:14+00:00",
   "code": 229,
   "field": "dwmax, maximum soil water capacity, metres",
-  "lakes": {
-    "source": "hydrography/data/canonical-10m-carve2/surface_water.nc",
-    "lake_dwmax_m": 0.2,
-    "mean_lake_fraction_of_land_cells": 0.01897364926326532,
-    "land_mean_dwmax_before_m": 0.11757,
-    "land_mean_dwmax_after_m": 0.11936,
-    "ceiling": "annual lake evaporation is still capped by local precipitation; river water never re-enters dwatc"
-  },
+  "lakes": null,
   "capacity_split": {
     "code": 2290,
     "field": "dsoilwfc, the capacity of each land water layer as a fraction of dwmax, per cell",
@@ -30,7 +23,7 @@
       0.32,
       0.666667
     ],
-    "land_cells_matched": 1019,
+    "land_cells_matched": 1639,
     "surface_layer": {
       "present": true,
       "thickness_m": 0.02,
@@ -38,7 +31,7 @@
       "air_dry_water_content": 0.0,
       "note": "the top water layer's capacity is cut from air dry when it IS the contract's surface layer, because a bare drying surface reaches water a root cannot. Every layer below it keeps field capacity minus the wilting point, which is why soilsrwp and soilsrfc still describe them."
     },
-    "capacity_identity_residual_mm": 0.001619999999945776,
+    "capacity_identity_residual_mm": 0.0016800000000500859,
     "capacity_identity_tolerance_mm": 0.01,
     "top_layer_share_over_land": {
       "min": 0.0206,
@@ -49,26 +42,28 @@
       "at_the_geometric_value": 0.0
     },
     "derivation": "the per-layer usable shares the land column property contract emits, cut onto the declared water column by overlap depth and multiplied by the volumetric range each layer's capacity is taken over. The same array the capacity column is the integral of, so the split and the capacity are one arithmetic rather than two that agree, and `capacity_identity_residual_mm` is the check.",
-    "lakes": "the lake blend moves dwmax and not the split: the lake fraction of a cell has no soil profile, so its share of the bucket is cut on the surrounding column's shape. The split is a property of the soil column and this is the limit of it.",
+    "lakes": null,
     "output": "exoplasim/inputs/t21/orogen_T21_surf_2290.sra",
-    "output_sha256": "74eb0a6ec0f6d35808e9b1d0c2e57f31d530e0bee456e8b1ef37728516ce5b12"
+    "output_sha256": "df5cf8b19ceaabc09cf955a07c6fc2bb7fd8240f388a998ee5bd7d82167c6fdb"
   },
   "land_column_states": "pedology/data/canonical-10m-carve2/land_column_states_T21.txt",
-  "land_column_states_sha256": "6096a8e04f44d00ab5782576a38daa360c867f2a7cf8e7c043eab1fb27b55672",
+  "land_column_states_sha256": "61fc9b2d7c10888fa0d92fef44b4df85c9fdc4deb1447e1c645c5248deb5a044",
   "capacity_column": "evaporable_mm",
   "capacity_source": "the land column property contract's evaporable_mm column, selected by whether the declared water column carries the contract's surface layer at its top. This script converts mm to m and installs it; it derives no capacity of its own. `awc_mm` is LPJ-GUESS's and is not what this installs when a surface layer is present.",
   "config_sha256": "c8639d3f08f21eacf7b794ed6bef772c50e8b474f1ed4e8b34a6503b026abc89",
   "resolution": "T21",
   "land_cells": 1019,
-  "land_cells_matched": 1019,
+  "land_cells_matched": 1639,
+  "cells_matched_outside_the_ownership_mask": 620,
+  "population": "every cell with a pedology soil column, which is cell land fraction > 0 and NOT the binary lsm; the binary model reads dwmax only under dls > 0.0",
   "land_cells_without_soil_left_at_default": 0,
-  "land_mean_capacity_m": 0.160483111100884,
+  "land_mean_capacity_m": 0.15908081338713473,
   "exoplasim_uniform_default_m": 0.5,
   "why_this_matters": "landmod.f90 computes runoff as the overflow of this bucket, so a uniform default makes runoff a namelist property rather than a soil property; the model's low land runoff ratio is the symptom.",
   "enabled_by": "model.soil_water_source in config/planet.yaml (currently set to pedology). Changing the key is a configuration change continue_exoplasim.py refuses to resume across, so moving it blocks runs in flight.",
   "output": "exoplasim/inputs/t21/orogen_T21_surf_0229.sra",
-  "output_sha256": "89e928955515b65c80d3ec076d85de648985f915620a46a16655bf53fee27da4",
-  "git_commit": "2896f62efec8bf838181e64345c980ff3215ec65",
+  "output_sha256": "3e3af7935614cb2c6307f2fb60d7ccc1adaa1d280bd03edab8eb729ba8461d83",
+  "git_commit": "2e20dc48e92111dceca93bbf31be24d1864c28b5",
   "generator": "exoplasim/scripts/build_surface_soil_water.py",
   "source_config": {
     "schema_version": 1,
@@ -343,8 +338,7 @@
     }
   },
   "source_inputs": {
-    "pedology/data/canonical-10m-carve2/land_column_states_T21.txt": "6096a8e04f44d00ab5782576a38daa360c867f2a7cf8e7c043eab1fb27b55672",
-    "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc": "13ddb89058fe9901588f73482a3b79a726cbecf758d7dd98762cd19a3b417602",
-    "hydrography/data/canonical-10m-carve2/surface_water.nc": "27ba3c3b5db5d1d1f0831c875ff9aadeb6972c8b1e917e912e6bc8e07f7f66eb"
+    "pedology/data/canonical-10m-carve2/land_column_states_T21.txt": "61fc9b2d7c10888fa0d92fef44b4df85c9fdc4deb1447e1c645c5248deb5a044",
+    "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc": "13ddb89058fe9901588f73482a3b79a726cbecf758d7dd98762cd19a3b417602"
   }
 }

@@ -1,0 +1,162 @@
+{
+  "run_id": "lpj_183dca231e354f399fee49060960b1f8",
+  "generated": "2026-08-30T16:57:46+00:00",
+  "physical": {
+    "nyear": 100,
+    "npatch": 5,
+    "root_seed": 20260828,
+    "ranks": 16,
+    "nfix_a": 0.234,
+    "nfix_b": -0.172,
+    "label": "widened-rootable-set",
+    "ntransform_profile": "vesper",
+    "ifbvoc": 0,
+    "run_peatland": 0,
+    "ifmethane": 0
+  },
+  "wall_seconds": 990.7,
+  "ranks": 16,
+  "settings": {
+    "title": "lpj_183dca231e354f399fee49060960b1f8",
+    "nyear": 100,
+    "npatch": 5,
+    "root_seed": 20260828,
+    "nfix_a": 0.234,
+    "nfix_b": -0.172,
+    "ifbvoc": 0,
+    "outputs": [
+      "anpp.out",
+      "lai.out",
+      "fpc.out",
+      "cmass.out",
+      "aaet.out",
+      "cpool.out",
+      "dens.out",
+      "agpp.out",
+      "nsources.out",
+      "cflux.out",
+      "firert.out",
+      "tot_runoff.out",
+      "nmass.out",
+      "nuptake.out",
+      "npool.out",
+      "nflux.out",
+      "ngases.out",
+      "soil_npool.out",
+      "soil_nflux.out"
+    ],
+    "run_peatland": 0,
+    "ifmethane": 0,
+    "ifsaturatewetlands": 0,
+    "wetland_runon": 0.0
+  },
+  "cells_simulated": 1617,
+  "output_rows": {
+    "anpp.out": 161700,
+    "lai.out": 161700,
+    "fpc.out": 161700,
+    "cmass.out": 161700,
+    "aaet.out": 161700,
+    "cpool.out": 161700,
+    "dens.out": 161700,
+    "agpp.out": 161700,
+    "nsources.out": 161700,
+    "cflux.out": 161700,
+    "firert.out": 161700,
+    "tot_runoff.out": 161700,
+    "nmass.out": 161700,
+    "nuptake.out": 161700,
+    "npool.out": 161700,
+    "nflux.out": 161700,
+    "ngases.out": 161700,
+    "soil_npool.out": 161700,
+    "soil_nflux.out": 161700
+  },
+  "forcing": {
+    "format": "VESPDRV8",
+    "cells": 1617,
+    "intervals_per_year": 12,
+    "year_length_days": 183,
+    "cycle_years": 1,
+    "subdaily_samples": 0,
+    "header_padding": 0
+  },
+  "stochastic_randomness": {
+    "contract_version": "vesper-stochastic-streams/1",
+    "algorithm": "fnv1a64-components-le-v1",
+    "root_seed": 20260828,
+    "keys": [
+      "root_seed",
+      "longitude_microdegrees",
+      "latitude_microdegrees",
+      "stand_id",
+      "patch_id",
+      "process_id"
+    ],
+    "processes": {
+      "establishment": 1,
+      "fire_occurrence": 2,
+      "fire_mortality": 3,
+      "background_mortality": 4,
+      "disturbance": 5
+    },
+    "declaration": "biosphere/config/stochastic_seeds.yaml",
+    "declaration_sha256": "2b207d9a2425bff45d561a338e7c9f60e35e427b8763eb81a083af1d9e1a610e",
+    "invariance": "independent of MPI rank and grid-cell traversal order"
+  },
+  "inputs": {
+    "driver": {
+      "path": "/home/cfutro/docs/world/biosphere/generated/vesper_driver.bin",
+      "sha256": "f4bf4a1f4b495ae9d58392ada09f57bb707ec20406f39f394190af5c09921733"
+    },
+    "soilmap": {
+      "path": "/home/cfutro/docs/world/pedology/data/canonical-10m-carve2/soilmap_T21.txt",
+      "sha256": "7886309a8aae382edc8d007b1c37dfbe893743d700af4b065ce6af149ae4cb00"
+    },
+    "pfts": {
+      "path": "/home/cfutro/docs/world/biosphere/generated/vesper_pfts.ins",
+      "sha256": "df45416fb9b375f3cd2a5237fd2d86ca32811fbdf34e26c4694b91aded386073"
+    },
+    "vesper_h": {
+      "path": "/home/cfutro/docs/world/biosphere/generated/vesper.h",
+      "sha256": "2adbdfdb16d0e60bd10da16fa78fd51f52277e0c834cdb1d00039f204f66d840"
+    },
+    "binary": {
+      "path": "/home/cfutro/docs/world/vendor/lpj-guess/build/guess",
+      "sha256": "40ddfcc4aa33bfe0a51c94d6b617ffe0641ab4aa6c6a5e4b3641be5b07683a6d"
+    },
+    "global_soiln": {
+      "path": "/home/cfutro/docs/world/biosphere/runs/lpj_183dca231e354f399fee49060960b1f8/global_soiln.ins",
+      "sha256": "34c911930653079dea8104fcde9bc3e59210168a6e86a1f8e1601d86514ad341"
+    }
+  },
+  "ntransform_comparison": {
+    "profile": "vesper",
+    "binary_provenance": null
+  },
+  "config_sha256": "c8639d3f08f21eacf7b794ed6bef772c50e8b474f1ed4e8b34a6503b026abc89",
+  "source_build": "canonical-10m-carve2",
+  "soil_driver_climate_contract": {
+    "soil_iteration": 0,
+    "soil_state": "baseline",
+    "climatology_stage": "baseline",
+    "climatology_sha256": "54ba7da74dcc87399983cacfe67adff80de34d3252c6f003261f439a5857f94b",
+    "soil_report": "pedology/analysis/soil_report.json",
+    "soil_report_sha256": "a528baa6aa26642c7e95d31eb65e70ae771b5241d38ce99185de573627f4fda8",
+    "driver_provenance": "biosphere/generated/vesper_driver_provenance.json",
+    "driver_provenance_sha256": "fb527c2a90a09765b1cc98bee9faa4c6819cba62b95057015b333d9489097975"
+  },
+  "stellar_spectrum": "k25v",
+  "orbital_year_earth_days": 182.80142503147016,
+  "model_year_days": 183,
+  "earth_year_days": 365.2568983,
+  "earth_years_per_simulation_year": 0.5010172315751716,
+  "annual_flux_per_orbit_to_per_earth_year": 1.9959393349726775,
+  "reporting_interval": "one simulation year, which is one orbit of 183 absolute days",
+  "unit_note": "Every annual column in the .out files is a sum over one simulation year, which is one orbit and not one Earth year. Multiply such a flux by annual_flux_per_orbit_to_per_earth_year before comparing with anything quoted per Earth year, including notes/productivity-prediction.md. The name says which direction the factor goes, because the two directions differ by four in the answer and look identical in a script. The registry of which quantity is in which unit is biosphere/notes/time-base-unit-contract.md.",
+  "software": {
+    "platform": "Linux-7.2.0-1-cachyos-x86_64-with-glibc2.44",
+    "lpj_guess": "LPJ-GUESS-CNP v1.0 (b368b893c4324840b43c56866e901c6916858afb) + in-tree Vesper port; phosphorus limitation disabled"
+  },
+  "git_commit": "2e20dc48e92111dceca93bbf31be24d1864c28b5"
+}
