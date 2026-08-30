@@ -125,21 +125,69 @@ groundwater recharge and discharge, storage and runoff. PLHY-4 owns it, it does
 not exist, and the repairs above are what make its absence a NAMED absence
 rather than a constant standing in for it.
 
-## 3. A saturated fraction is a grid-cell quantity
+## 3. The extent is a partition, and one of its classes has no source
 
-GW-26 settled that `f_sat_max` is a rank statistic over the terrain population
-inside a cell, and the only such population this project holds is the mesh
-regions inside a climate-grid cell. There is no per-region saturated fraction
-and manufacturing one needs a sub-region hypsometry that GW-6 established does
-not exist. `hydrography/notes/subgrid-water-table.md` section 5 carries the
-argument; WORLD-D9U4 carries the decision, and it is a decision rather than an
-implementation.
+The classification of section 1 is a partition of a cell's land into five
+classes, so every class in it needs a field it is taken from and a class with
+none is land the partition cannot account for.
+`biosphere/config/wetlands.yaml` names one source per class, each from the
+closed set in `biosphere/scripts/wetland_gate.py:EXTENT_SOURCES`, and the gate
+checks each named artifact against the builds under `hydrography/data`. The set
+is closed because a source named in prose cannot be checked against what
+hydrography publishes.
 
-So the extent declaration in `biosphere/config/wetlands.yaml` carries the
-support of the fraction it consumes as a field of its own, and the gate refuses
-any value but `climate_grid`. A wetland extent declared on a native-mesh
-saturated fraction is refused by name, not because the number would be wrong but
-because there is no population it could be a fraction of.
+Four of the five classes have somewhere to come from. Open water is the solved
+equilibrium lake surface; seasonal inundation is the per-bin inundated share of
+a closed basin's regions, which is the closed-basin part of that class and no
+more, because a floodplain's inundated area needs a height-above-nearest-drainage
+CDF and a routing model and a seasonally saturated soil is a water content
+rather than an area; persistent peat-forming land is the simulated peatland
+stand's own state, which is a model output; dry mineral soil is the residual.
+None of those four is a wetland extent on its own, and whether the four
+together are one is WET-2's decision.
+
+THE SATURATED NON-INUNDATED MINERAL CLASS HAS NO SOURCE AT ANY SUPPORT. It
+needed a saturated fraction, and the saturated-area closure that would have
+produced one is withdrawn in `hydrography/config/topographic_index.yaml`. The
+withdrawal is the disposition that config declared for a missed score before any
+fraction was computed, and the score missed;
+`hydrography/scripts/build_topographic_index.py` implements no closure and
+`hydrography/scripts/build_wetness.py` forms no saturated class and refuses to
+run if that status ever says anything else.
+`hydrography/notes/subgrid-water-table.md` section 7 measures why no narrower
+criterion can license one: on every arm of both Earth bore sets the gain the
+terrain half carries over the cell-mean depth is at or below the scatter the
+support puts on it, and a narrower criterion has less support, not more.
+
+Two routes reopen it, and each carries a decision procedure rather than a
+hope. The first is a new score, and what it needs is SUPPORT rather than a
+narrower criterion: enough grid cells carrying observations to put a gain of a
+few thousandths of an AUC above the cells' own scatter, where two continents of
+bores gave the withdrawn score 34 and 37, either from more cells or from an
+areal saturation or inundation observation in place of point depths. Its
+criterion is declared before those observations are in hand, and it needs a
+depth field with a regime, which is GW-24's and MIN-6's question rather than
+this one's. `hydrography/notes/subgrid-water-table.md` section 7 owns that
+route and is where it is stated; this document does not restate its terms.
+The second route is a reduced form declared under WET-12, which states what
+dropping the class costs in claims before anything is built to it; the gate
+refuses a class declared absent without both the reason and the row that
+licensed it. WET-12's own reduced extent is the TOPMODEL saturated fraction
+from GW-26's index, so that route needs restating too: the fraction it names is
+the withdrawn one.
+
+The support of a saturated fraction is settled and stays enforced beside all of
+that. GW-26 settled that `f_sat_max` is a rank statistic over the terrain
+population inside a cell, and the only such population this project holds is the
+mesh regions inside a climate-grid cell. There is no per-region saturated
+fraction and manufacturing one needs a sub-region hypsometry that GW-6
+established does not exist. `hydrography/notes/subgrid-water-table.md` section 5
+carries the argument; WORLD-D9U4 carries the decision.
+`biosphere/config/wetlands.yaml` therefore declares `climate_grid` as the
+support any revived closure would have to live at, the same reading as
+`hydrography/config/wetness.yaml`'s `refusals.saturated_fraction_support`, and
+the gate refuses every other value by name. Declaring it supplies no fraction:
+it is a standing refusal about a revival, not a precondition of activation.
 
 The same section establishes that the compound topographic index transports as a
 rank statistic and not as an absolute threshold: `a` carries a length, so the
@@ -295,8 +343,11 @@ never supply one.
    off, and add the restart-continuity fixture. DONE. What remains of step 1 is
    `hydrology.water_ledger`: PLHY-4's one daily exchange, which the repairs turn
    from a constant standing in for it into a named absence.
-2. Settle WORLD-D9U4, then derive the mutually exclusive surface fractions on
-   the support it chooses, closing against BIO-11's rootable surface.
+2. Name a source for each of the five extent classes, and settle the saturated
+   non-inundated mineral class, whose source is withdrawn: either the new areal
+   instrument of section 3 or a reduced form declared under WET-12. Then derive
+   the mutually exclusive surface fractions on the climate-grid support
+   WORLD-D9U4 chose, closing against BIO-11's rootable surface.
 3. Place the wetland traits in PCAR-5's registry once it exists, and declare the
    peat age and depth brackets.
 4. Separate production from oxidation and transport, add the dry-soil sink and

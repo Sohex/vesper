@@ -562,11 +562,17 @@ python biosphere/scripts/soil_restart_state_gate.py --list-unclassified
 ```
 
 `run_lpj_guess.py` asks the gate and writes all four switches into the
-instruction file from the answer. A saturated fraction is a grid-cell quantity
-and the gate refuses any other support for it, which is WORLD-D9U4's constraint
-made enforceable; peat age and depth are two-ended brackets and the gate refuses
-a scalar, because a scalar is a claim to a history `no-time-axis.md` says this
-world does not have.
+instruction file from the answer. The extent is a partition, so the gate takes
+one source per class from a closed set and checks each named artifact against
+the builds under `hydrography/data`; the saturated non-inundated mineral class
+has none, because the saturated-area closure that would have supplied a
+saturated fraction is withdrawn in
+`hydrography/config/topographic_index.yaml`, and the gate reads that file rather
+than carrying a copy of the verdict, so a revival refuses here too. A saturated
+fraction is a grid-cell quantity and the gate refuses any other support for it,
+which is WORLD-D9U4's constraint made enforceable; peat age and depth are
+two-ended brackets and the gate refuses a scalar, because a scalar is a claim to
+a history `no-time-axis.md` says this world does not have.
 
 ### One abiotic nutrient ledger, and it does not close yet
 

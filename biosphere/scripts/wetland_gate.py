@@ -22,15 +22,23 @@ average on an ordinal the calendar never reaches, and prognostic peat hydrology
 absent from the serializer. A declaration that says a defect is closed while the
 probe still finds it is reported as a contradiction rather than believed.
 
+One of the grounds it refuses on is another component's declaration. A
+wetland extent's saturated non-inundated mineral class needed a saturated
+fraction, and the saturated-area closure that would have supplied one is
+withdrawn in `hydrography/config/topographic_index.yaml`. This module reads
+that file on every invocation rather than carrying a copy of the verdict, so a
+revived closure refuses here until what it may key has been decided again.
+
 It is fail-closed in one direction only. A biosphere run with peat and methane
 OFF is a correct run, so with `requested: false` the gate reports and exits 0.
 Only a request to activate can be refused.
 
 A fixture set runs on every invocation. Most are mutations of the declaration,
 built to be wrong in one named way each; one is the declaration as it stands,
-which must be refused for some reason; three mutate the EVIDENCE instead, so
-that what the gate does when a declaration and the source disagree stays
-checkable after the repair that made the source agree; and the last is a met
+which must be refused for some reason; six mutate the EVIDENCE instead, so
+that what the gate does when a declaration disagrees with the vendored source,
+or with what another component declares and publishes, stays checkable after
+the repair or the withdrawal that made them agree; and the last is a met
 declaration against a repaired source, which must be granted, because a gate
 nothing can satisfy is a wall refusing for a reason that is never written down. A fixture that does not get
 the verdict it was built for is a defect in this checker, and the gate exits
@@ -108,9 +116,6 @@ PRECONDITIONS = (
      "WET-3"),
     ("extent", "classification",
      "the mutually exclusive surface classification, as fractions", "WET-2"),
-    ("extent", "saturated_fraction_support",
-     "the support of the saturated fraction the classification consumes",
-     "WORLD-D9U4"),
     ("extent", "downscaling_rule",
      "how a climate-grid fraction reaches a consumer that wants finer",
      "WORLD-D9U4"),
@@ -163,6 +168,59 @@ PRECONDITIONS = (
      "the declared uncertainty brackets on extent, flux, sink and production "
      "ratio", "WET-11"),
 )
+
+# The five classes WET-2's classification partitions the land into, and the
+# closed set of fields a declaration may name as the source of each. A source
+# named in prose cannot be checked against what hydrography publishes, so the
+# set is closed and anything outside it is refused rather than believed.
+#
+# `topographic_index:f_sat` is in the set for one purpose: so that an extent
+# keyed on a saturated fraction is refused BY NAME, with the withdrawal as the
+# reason. Nothing may declare it.
+EXTENT_CLASSES = ("peat_forming", "saturated_mineral", "seasonal_inundation",
+                  "open_water", "dry_mineral")
+
+EXTENT_SOURCES = {
+    "surface_water:lake": (
+        "surface_water.nc",
+        "the solved equilibrium lake surface, one label per mesh region"),
+    "surface_water:lake_cycle_fraction": (
+        "surface_water.nc",
+        "the per-bin inundated share of a closed basin's regions. It is the "
+        "closed-basin part of seasonal inundation and no more: a floodplain's "
+        "inundated area needs a height-above-nearest-drainage CDF and a "
+        "routing model, and a seasonally saturated SOIL is a water content "
+        "rather than an area"),
+    "water_table:at_surface": (
+        "water_table.nc",
+        "where the solved water table meets the surface, a groundwater "
+        "DISCHARGE extent per region, which needs no closure. It carries a "
+        "regime licence: the depth field it comes from scores below no "
+        "discrimination on one of the two Earth bore sets, so a cell mixing "
+        "the licensed regime with the unlicensed one has no verdict attached"),
+    "wetness:class_shares": (
+        "wetness_*.nc",
+        "the resolved wetness class shares over a climate-grid cell's land"),
+    "lpj_guess:peatland_stand": (
+        None,
+        "the simulated peatland stand's own state, which is a model output "
+        "rather than a hydrography field"),
+    "residual": (
+        None,
+        "the land the resolved classes leave, which is a class only where "
+        "every other class in the partition has a source"),
+    "topographic_index:f_sat": (
+        "topographic_index_*.nc",
+        "WITHDRAWN. No consumer gets a saturated fraction from hydrography"),
+}
+WITHDRAWN_SOURCE = "topographic_index:f_sat"
+# The one class that source would have formed, named in
+# `hydrography/config/wetness.yaml` as the class the withdrawal leaves absent.
+# It is here so that the refusal a reader actually meets carries the
+# withdrawal, rather than a blank field's sentinel.
+WITHDRAWN_CLASS = "saturated_mineral"
+CLOSURE_DECLARATION = (PROJECT_ROOT / "hydrography" / "config" /
+                       "topographic_index.yaml")
 
 # One hydrology defect, one probe, one declaration field. A probe that still
 # matches refuses while the field is undeclared, and CONTRADICTS the field once
@@ -348,6 +406,34 @@ def probes() -> dict:
             "pfts": len(re.findall(r'^\s*pft\s*"', text, re.MULTILINE)),
             "with_aerenchyma": len(re.findall(r"has_aerenchyma\s+1", text)),
         }
+
+    # ANOTHER COMPONENT'S DECLARATION, READ RATHER THAN RESTATED. Whether a
+    # saturated fraction exists is hydrography's to say, and a refusal here
+    # carrying its own copy of the verdict would go on refusing after a revival
+    # and would grant after a second withdrawal, with nothing objecting either
+    # time. Unreadable is its own answer and not a default.
+    closure = {"declaration": str(rel(CLOSURE_DECLARATION)), "readable": False}
+    if CLOSURE_DECLARATION.is_file():
+        try:
+            block = (yaml.safe_load(CLOSURE_DECLARATION.read_text())
+                     or {}).get("closure") or {}
+        except yaml.YAMLError:
+            block = {}
+        if block:
+            closure.update(readable=True,
+                           status=str(block.get("status", "active")),
+                           withdrawn_on=str(block.get("withdrawn_on")),
+                           withdrawn_because=block.get("withdrawn_because"))
+    found["saturated_area_closure"] = closure
+
+    # Which of the artifacts the closed source set names exist on any build. A
+    # field nothing has produced is not a source, whatever the declaration says
+    # the extent is keyed on.
+    data = PROJECT_ROOT / "hydrography" / "data"
+    found["hydrography_published"] = {
+        token: sorted({p.parent.name for p in data.glob(f"*/{artifact}")})
+        for token, (artifact, _what) in EXTENT_SOURCES.items()
+        if artifact is not None}
     return found
 
 
@@ -365,7 +451,7 @@ def evaluate(declaration: dict, planet: dict, evidence: dict | None = None
                 f"{what} is undeclared", issue))
 
     refusals.extend(_source_refusals(declaration, evidence))
-    refusals.extend(_extent_refusals(declaration))
+    refusals.extend(_extent_refusals(declaration, evidence))
     refusals.extend(_peat_refusals(declaration))
     refusals.extend(_trait_refusals(declaration))
     refusals.extend(_acceptance_refusals(declaration, evidence))
@@ -445,8 +531,39 @@ def _source_refusals(declaration: dict, evidence: dict) -> list[Refusal]:
     return refusals
 
 
-def _extent_refusals(declaration: dict) -> list[Refusal]:
-    """The support of the saturated fraction, and what may key an extent."""
+def _withdrawal(closure: dict) -> str:
+    """Why no saturated fraction is published, and what would reopen one.
+
+    Read from hydrography's own declaration on every invocation, so a revival
+    or a second withdrawal reaches the refusal text without anything here being
+    edited. The reopening route is stated positively and its terms belong to
+    `hydrography/notes/subgrid-water-table.md` section 7, which is cited rather
+    than restated.
+    """
+    where = closure.get("declaration",
+                        "hydrography/config/topographic_index.yaml")
+    return (
+        f"{where} carries closure.status {closure.get('status')!r} "
+        f"({closure.get('withdrawn_because')}), "
+        "hydrography/scripts/build_topographic_index.py implements no "
+        "closure, and hydrography/scripts/build_wetness.py forms no saturated "
+        "class and refuses to run if that status ever says anything else. "
+        "hydrography/notes/subgrid-water-table.md section 7 measures why no "
+        "narrower criterion can license one: the gain the terrain half "
+        "carries over the cell-mean depth is at or below the scatter its own "
+        "support puts on it on every arm of both bore sets, and a narrower "
+        "criterion has less support rather than more. What reopens it is a "
+        "score whose SUPPORT can resolve a gain of a few thousandths of an "
+        "AUC -- more cells carrying observations than the 34 and 37 two "
+        "continents of bores give, or an areal saturation or inundation "
+        "observation in place of point depths -- with its criterion declared "
+        "before those "
+        "observations are in hand. The other route is a reduced form declared "
+        "under WET-12 with what dropping the class costs in claims")
+
+
+def _extent_refusals(declaration: dict, evidence: dict) -> list[Refusal]:
+    """What may key an extent, and whether the fields it names exist."""
     refusals: list[Refusal] = []
     extent = declaration.get("extent") or {}
 
@@ -460,6 +577,96 @@ def _extent_refusals(declaration: dict) -> list[Refusal]:
             "a region has no sub-population: the sub-region hypsometry a "
             "native-mesh fraction would need does not exist and is not "
             "recoverable by a finer generation", "WORLD-D9U4 / GW-6"))
+
+    # THE SATURATED-AREA CLOSURE IS WITHDRAWN, and this is where a reader of a
+    # refusal meets that. The support statement above stays true and is no
+    # longer the operative one: hydrography publishes no saturated fraction at
+    # ANY support, so an extent keyed on one has no source rather than the
+    # wrong support. The verdict is read from hydrography's own declaration on
+    # every invocation, so a revival cannot pass unnoticed in either direction.
+    closure = evidence.get("saturated_area_closure") or {}
+    where = closure.get("declaration",
+                        "hydrography/config/topographic_index.yaml")
+    if not closure.get("readable"):
+        refusals.append(Refusal(
+            "WET-EXTENT-CLOSURE-UNREADABLE",
+            f"{where} carries no readable closure block, so whether "
+            "hydrography publishes a saturated fraction cannot be "
+            "established here. It is refused rather than assumed either way",
+            "WET-2 / GW-26"))
+    elif closure.get("status") != "withdrawn":
+        refusals.append(Refusal(
+            "WET-EXTENT-CLOSURE-REVIVED",
+            f"{where} closure.status is {closure.get('status')!r}, and every "
+            "extent refusal here is written on the withdrawal. A revived "
+            "closure is a new closure with a new criterion, and what that "
+            "criterion may key in a wetland extent is a decision to be taken "
+            "again before any fraction is read", "WET-2 / GW-26"))
+
+    # One source per class, from the closed set, and each source checked
+    # against what hydrography has actually published. The classification is a
+    # PARTITION, so a class with no named source is land the partition cannot
+    # account for, and a class declared absent is a reduced form rather than an
+    # omission.
+    sources = extent.get("class_sources")
+    if not isinstance(sources, dict):
+        refusals.append(Refusal(
+            "WET-EXTENT-CLASS-SOURCES-UNDECLARED",
+            "extent.class_sources is not a mapping from each of " +
+            ", ".join(EXTENT_CLASSES) + " to the field it is taken from",
+            "WET-2"))
+        sources = {}
+    published = evidence.get("hydrography_published") or {}
+    for name in EXTENT_CLASSES:
+        value = sources.get(name, UNDECLARED)
+        if isinstance(value, dict):
+            if not (value.get("absent_because") and value.get("licensed_by")):
+                refusals.append(Refusal(
+                    "WET-EXTENT-CLASS-ABSENT-UNLICENSED",
+                    f"extent.class_sources.{name} declares the class absent "
+                    "without both `absent_because` and `licensed_by`. An "
+                    "extent that drops one of its classes is a reduced form, "
+                    "and WET-12 is where a reduced form is declared together "
+                    "with what taking it costs in claims", "WET-12"))
+            continue
+        if not _declared(value):
+            withdrawn = closure.get("status") == "withdrawn"
+            if name == WITHDRAWN_CLASS and withdrawn:
+                refusals.append(Refusal(
+                    "WET-EXTENT-CLASS-SOURCE-WITHDRAWN",
+                    f"extent.class_sources.{name} is undeclared and has "
+                    "nothing to declare: hydrography publishes no saturated "
+                    f"fraction at any support. {_withdrawal(closure)}",
+                    "WET-2 / GW-26 / WET-12"))
+            else:
+                refusals.append(Refusal(
+                    "WET-EXTENT-CLASS-SOURCE-UNDECLARED",
+                    f"extent.class_sources.{name} is undeclared", "WET-2"))
+            continue
+        token = str(value)
+        if token == WITHDRAWN_SOURCE or re.search(
+                r"f_sat\b|saturated[ _]fraction", token, re.IGNORECASE):
+            refusals.append(Refusal(
+                "WET-EXTENT-SATURATED-FRACTION-WITHDRAWN",
+                f"extent.class_sources.{name} is {token!r} and hydrography "
+                f"publishes no saturated fraction: {_withdrawal(closure)}",
+                "WET-2 / GW-26"))
+            continue
+        if token not in EXTENT_SOURCES:
+            refusals.append(Refusal(
+                "WET-EXTENT-CLASS-SOURCE-UNKNOWN",
+                f"extent.class_sources.{name} is {token!r}, which is not one "
+                "of " + ", ".join(sorted(EXTENT_SOURCES)) + ". The set is "
+                "closed because a source named in prose cannot be checked "
+                "against what hydrography publishes", "WET-2"))
+            continue
+        artifact, _what = EXTENT_SOURCES[token]
+        if artifact is not None and not published.get(token):
+            refusals.append(Refusal(
+                "WET-EXTENT-CLASS-SOURCE-NOT-PUBLISHED",
+                f"extent.class_sources.{name} is {token!r} and no build under "
+                f"hydrography/data carries {artifact}. A field nothing has "
+                "produced is not a source", "WET-2"))
 
     # The compound topographic index transports as a rank statistic and not as
     # an absolute threshold: `a` carries a length, so the whole distribution
@@ -882,6 +1089,22 @@ def _fixtures(declaration: dict, planet: dict, evidence: dict) -> list[dict]:
         ("a saturated fraction taken on the native mesh",
          mutate(put("extent", "saturated_fraction_support", "native_mesh")),
          "WET-EXTENT-SUPPORT-NOT-GRID"),
+        ("the saturated mineral class left with nothing to declare",
+         mutate(lambda d: d["extent"]["class_sources"].__setitem__(
+             "saturated_mineral", "undeclared")),
+         "WET-EXTENT-CLASS-SOURCE-WITHDRAWN"),
+        ("an extent class keyed on the withdrawn saturated fraction",
+         mutate(lambda d: d["extent"]["class_sources"].__setitem__(
+             "saturated_mineral", "topographic_index:f_sat")),
+         "WET-EXTENT-SATURATED-FRACTION-WITHDRAWN"),
+        ("an extent class keyed on a source named in prose",
+         mutate(lambda d: d["extent"]["class_sources"].__setitem__(
+             "open_water", "the lakes, obviously")),
+         "WET-EXTENT-CLASS-SOURCE-UNKNOWN"),
+        ("a class dropped from the extent with no reduced form to license it",
+         mutate(lambda d: d["extent"]["class_sources"].__setitem__(
+             "saturated_mineral", {"absent_because": "there is no closure"})),
+         "WET-EXTENT-CLASS-ABSENT-UNLICENSED"),
         ("an extent keyed on an absolute topographic index cut",
          mutate(put("extent", "classification",
                     "TOPMODEL fraction with cti_mean_crit 5.5")),
@@ -954,8 +1177,31 @@ def _fixtures(declaration: dict, planet: dict, evidence: dict) -> list[dict]:
     # against a source where the defect is absent. They stay meaningful after a
     # repair lands, which is exactly what a fixture written against live
     # evidence stops doing the moment the repair it was built for arrives.
+    # What the gate does when the PRODUCER'S declaration moves. The withdrawal
+    # is read on every invocation, so both directions of a change to it have to
+    # be checkable from here rather than from a copy of the verdict.
+    revived = copy.deepcopy(evidence)
+    revived["saturated_area_closure"] = dict(
+        evidence.get("saturated_area_closure") or {},
+        readable=True, status="active")
+    unreadable = copy.deepcopy(evidence)
+    unreadable["saturated_area_closure"] = {
+        "declaration": "hydrography/config/topographic_index.yaml",
+        "readable": False}
+    unbuilt = dict(evidence)
+    unbuilt["hydrography_published"] = dict(
+        evidence.get("hydrography_published") or {})
+    unbuilt["hydrography_published"]["surface_water:lake"] = []
+
     defective = _defective(evidence)
     cases += [
+        ("the saturated-area closure revived in hydrography's declaration",
+         declaration, "WET-EXTENT-CLOSURE-REVIVED", revived),
+        ("hydrography's closure declaration unreadable",
+         declaration, "WET-EXTENT-CLOSURE-UNREADABLE", unreadable),
+        ("an extent class keyed on an artifact no build carries",
+         _satisfied(declaration), "WET-EXTENT-CLASS-SOURCE-NOT-PUBLISHED",
+         unbuilt),
         ("the free-water repair declared while the source still creates water",
          mutate(put("hydrology", "free_water_repair", "done, honestly")),
          "WET-DECLARATION-CONTRADICTED", defective),
@@ -1003,7 +1249,20 @@ def _satisfied(declaration: dict) -> dict:
     candidate = copy.deepcopy(declaration)
     for section, field, _what, _issue in PRECONDITIONS:
         candidate.setdefault(section, {})[field] = "declared, for the fixture"
-    candidate["extent"]["saturated_fraction_support"] = "climate_grid"
+    # One source per class. The saturated mineral class is where this fixture
+    # has to say something rather than fill a blank: it has no source at all
+    # and cannot acquire one from a declaration, so the only route that
+    # satisfies the gate is a reduced form declared under WET-12. That the
+    # other four resolve says nothing about whether any of them IS a wetland
+    # extent, which is WET-2's decision and not this fixture's.
+    candidate["extent"]["class_sources"] = {
+        "peat_forming": "lpj_guess:peatland_stand",
+        "saturated_mineral": {
+            "absent_because": "the saturated-area closure is withdrawn",
+            "licensed_by": "WET-12, for the fixture"},
+        "seasonal_inundation": "surface_water:lake_cycle_fraction",
+        "open_water": "surface_water:lake",
+        "dry_mineral": "residual"}
     candidate["extent"]["regime_selector"] = "saturation and its persistence"
     candidate["peat"]["age_bracket"] = [1, 2]
     candidate["peat"]["depth_bracket"] = [0.1, 10.0]

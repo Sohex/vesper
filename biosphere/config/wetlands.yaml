@@ -114,22 +114,48 @@ hydrology:
     - mthaw
     - maxthawdepththisyear
 
-# WET-2, and the support question WORLD-D9U4 owns. A saturated fraction is a
-# fraction of a POPULATION, and the only population this project holds is the
-# mesh regions inside a climate-grid cell. There is no per-region saturated
-# fraction: GW-6 established that the sub-region hypsometry one would need does
-# not exist and is not recoverable by a finer generation.
+# WET-2. The classification is a PARTITION of a cell's land, so every class in
+# it needs a source and a class with none is land the partition cannot account
+# for. Two of the five have a published source, one is the model's own output,
+# one is the residual, and the saturated non-inundated mineral class has NO
+# source at any support: the saturated-area closure that would have supplied a
+# saturated fraction is withdrawn in `hydrography/config/topographic_index.yaml`
+# on its declared score's verdict, and `hydrography/scripts/build_wetness.py`
+# forms no saturated class. What reopens it is a score whose SUPPORT can
+# resolve a gain of a few thousandths of an AUC, never a narrower criterion;
+# `hydrography/notes/subgrid-water-table.md` section 7 has the route. The
+# alternative is a reduced form declared under WET-12 with what dropping the
+# class costs in claims; the gate refuses a class dropped without one.
 extent:
   # The mutually exclusive classification: persistent peat-forming land,
   # saturated non-inundated mineral soil, seasonal inundation, open
   # lake/river/playa water, dry mineral soil. Fractions, not thresholds, and
   # closing against BIO-11's rootable surface without double counting. WET-2.
   classification: undeclared
-  # The support of the saturated fraction this classification consumes. The
-  # gate accepts `climate_grid` and refuses everything else BY NAME, including
-  # any native-mesh or per-region value: there is no population such a fraction
-  # could be a fraction of. WORLD-D9U4.
-  saturated_fraction_support: undeclared
+  # One source per class, each from the closed set in
+  # `biosphere/scripts/wetland_gate.py:EXTENT_SOURCES`, which is where each
+  # source's artifact, field and licence are stated. The set is closed because
+  # a source named in prose cannot be checked against what hydrography
+  # publishes, and the gate checks each named artifact against the builds under
+  # `hydrography/data`. A class with no source is declared absent as a mapping
+  # carrying `absent_because` and `licensed_by`, never left blank. WET-2.
+  class_sources:
+    peat_forming: undeclared
+    saturated_mineral: undeclared
+    seasonal_inundation: undeclared
+    open_water: undeclared
+    dry_mineral: undeclared
+  # The support any REVIVED saturated-area closure would have to live at, and
+  # the same reading as `hydrography/config/wetness.yaml`'s
+  # `refusals.saturated_fraction_support`. It is a standing refusal rather than
+  # a precondition of activation: declaring it supplies no fraction, because
+  # none is published at any support. A saturated fraction is a fraction of a
+  # POPULATION, the only population this project holds is the mesh regions
+  # inside a climate-grid cell, and GW-6 established that the sub-region
+  # hypsometry a native-mesh one would need does not exist and is not
+  # recoverable by a finer generation. The gate refuses every other value BY
+  # NAME. WORLD-D9U4.
+  saturated_fraction_support: climate_grid
   # How a climate-grid fraction reaches a consumer that wants finer. WORLD-D9U4
   # names three routes -- a stated downscaling rule, a parameterised sub-region
   # hypsometry declared as a parameterisation rather than a measurement, or a
@@ -331,8 +357,12 @@ acceptance:
       why: there is no mutually exclusive wetness classification to aggregate
     awetland_area_native.out:
       emitted: false
-      waits_on: WORLD-D9U4
-      why: there is no declared support for a saturated fraction on the native mesh
+      waits_on: WET-2
+      why: >-
+        no saturated fraction is published at any support, so there is no
+        native-mesh area for this table to aggregate. WORLD-D9U4 settled the
+        support; the closure that would have supplied the fraction was
+        withdrawn after it
     apeat_stock.out:
       emitted: false
       waits_on: WET-4

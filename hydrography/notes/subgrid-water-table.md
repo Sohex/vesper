@@ -411,8 +411,14 @@ Per row, and two of the three turn out not to need anything built:
   between them on their own. Its saturated non-inundated mineral class would
   have crossed as a climate-grid AREA share taken OUT of what they leave, which
   is what makes mutual exclusivity a constraint at two supports rather than one.
-  Section 7 withdraws the closure that share would have come from, so WET-2 has
-  one support and three classes and does not carry that cost.
+  Section 7 withdraws the closure that share would have come from, so the cost
+  WET-2 carries is not two supports. It is a class with no source: the three
+  resolved here partition a cell's land on one support, WET-2's fourth class is
+  the simulated peatland stand's own state, and its saturated non-inundated
+  mineral class has nothing to come from until a revived closure or a reduced
+  form declared under WET-12 supplies one.
+  `biosphere/scripts/wetland_gate.py` refuses activation on that class rather
+  than folding it into the residual.
 
 **The absolute scale does not transport, and the rank statistic does.**
 CLIMBER-X keys three wetland schemes on absolute index values: a CDF tabulated
