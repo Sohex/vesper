@@ -252,20 +252,17 @@ def slab_heat_capacity(run_dir: Path) -> tuple[float, dict]:
 # a colder arm is a noisier one. Both arms are settled: the cold one passes all
 # six criteria and RESOLVES all six, which the vegetated bootstrap does not.
 #
-# NOT RAISED TO THE CARVED BASELINE'S 0.128, and the reason is the third
-# condition in `report_is_settled_production`: that run fails its own offset
-# criterion with 0.15 K still to go, so its window is not a settled one and
-# its scatter is a reading of a planet still moving. When it converges its
-# scatter counts and this bound follows it. The carve did drain the world --
-# lakes from 4.25 per cent of the planet to 1.31, the endorheic share of land
-# from 74 to 51 -- so a noisier planet is expected; it has to be measured on a
-# settled run rather than a relaxing one.
+# 0.106 to 0.117, when that carved baseline did converge. Its 57-orbit clean
+# production window reads 0.116626 K and passes all six criteria. The carve did
+# drain the world -- lakes from 4.25 per cent of the planet to 1.31, the
+# endorheic share of land from 74 to 51 -- so the larger variability that first
+# appeared during approach remains in the settled climate and now counts.
 #
 # The bound therefore has to cover the noisiest world this project judges and
 # not the most comfortable, per the asymmetry argued above: a nominal below
 # what a run reads under-sizes the window that run is judged in, and a nominal
 # above only buys orbits.
-NOMINAL_ORBIT_SCATTER_K = 0.106
+NOMINAL_ORBIT_SCATTER_K = 0.117
 
 # THE MEMORY TIME STATES NO NUMBER HERE. `lib/run_lengths.py` declares the
 # bracket, with the sweep it came from and the anchor that re-examines it, and
@@ -376,14 +373,15 @@ def io_step_at_join(series, run_dir: Path, first: int, last: int,
 # refuses -- not because the bound is wrong but because it is now unexamined,
 # which is the whole state the audit found and could not distinguish.
 CONVERGENCE_BOUND_ANCHOR = {
-    # THE CARVED BUILD'S BOOTSTRAP, forty clean orbits at one I/O regime.
-    # Moved off `run_432e5e46adef` when `source_build` moved: that run is on a
-    # superseded terrain, and an anchor whose artifact describes another world
-    # cannot say whether a bound still holds on this one.
-    "run": "run_8ff97d5e189a",
+    # THE CANONICAL-10M-CARVE2 BASELINE, 57 clean production orbits at one I/O
+    # regime. It is the noisiest current settled production run. The bootstrap
+    # remains the memory-time anchor in lib/run_lengths.py; the two inputs need
+    # not be observations of the same run because each is independently
+    # bounded over every qualifying report.
+    "run": "run_67323a923013",
     "artifact": "exoplasim/analysis/convergence/"
-                "run_8ff97d5e189a_convergence.json",
-    "orbit_scatter_k": 0.08580507897713036,
+                "run_67323a923013_convergence.json",
+    "orbit_scatter_k": 0.11662626566849577,
 }
 CONVERGENCE_REPORTS = "exoplasim/analysis/convergence"
 

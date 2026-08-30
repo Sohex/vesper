@@ -69,12 +69,12 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
-# THE MEMORY TIME, MEASURED 2026-08-26 on run_432e5e46adef and no longer
-# inferred. Both ends are readings of the same series: the per-orbit
-# area-weighted mean surface temperature of the bootstrap, reduced by Geyer's
-# initial monotone positive sequence over five candidate windows starting at
-# orbits 25, 30, 35, 40 and 45. They returned 2.22, 1.89, 2.00, 2.07 and 2.11,
-# every one reliable with a span over ten tau, and the bracket is their range.
+# THE MEMORY TIME, MEASURED and no longer inferred. The lower end is retained
+# from the 2026-08-26 five-window Geyer sweep on run_432e5e46adef. The upper end
+# follows the completed canonical-10m-carve2 bootstrap run_5994d1f9624e: its
+# 46-orbit clean production window reads 3.687208 orbits and explicitly reports
+# enough span to resolve that estimate. Rounded upward, not to nearest, because
+# this pair sizes a window and is an upper bound rather than a fit parameter.
 #
 # BOTH ENDS ARE UPPER BOUNDS. `autocorrelation.stationary_enough` refused all
 # five windows: the run still drifts 0.003 to 0.007 K per orbit, and a residual
@@ -99,7 +99,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 # `exoplasim/scripts/assess_convergence.py` sizes its default window on the TOP
 # of this bracket and states no number of its own, so this is the one statement
 # of the memory time in the tree.
-TAU_MEMORY_ORBITS_BRACKET = (1.89, 3.21)
+TAU_MEMORY_ORBITS_BRACKET = (1.89, 3.69)
 
 # WHERE THE BOUND WAS ANCHORED, so that "the bound still holds" can be told from
 # "the bound was never re-examined". Those two look identical in a declared
@@ -130,15 +130,16 @@ TAU_MEMORY_ORBITS_BRACKET = (1.89, 3.21)
 # on a drifting series is supposed to look like, and the check reports the
 # headroom rather than treating it either as agreement or as a defect.
 MEMORY_BRACKET_ANCHOR = {
-    "run": "run_8ff97d5e189a",
-    "artifact": "exoplasim/analysis/convergence/run_8ff97d5e189a_convergence.json",
+    "run": "run_5994d1f9624e",
+    "artifact": "exoplasim/analysis/convergence/run_5994d1f9624e_convergence.json",
     "node": ("resolving_power", "temperature_residual_tau_orbits"),
-    "observation": 3.2013904538922717,
-    "why_below": "the anchor is the CARVED build's bootstrap, forty clean "
-                 "orbits at one I/O regime, and it reads AT the top of this "
-                 "bracket rather than below it. The top moved 2.22 to 2.45 to "
-                 "cover it, which is what an upper bound does when a supported "
-                 "reading passes it. WHAT THE BRACKET IS NOT: a property of "
+    "observation": 3.6872084085259305,
+    "why_below": "the anchor is canonical-10m-carve2's completed bootstrap, "
+                 "46 clean production orbits at one I/O regime, and the "
+                 "reported estimate has enough span to resolve it. The top is "
+                 "the observation rounded upward to 3.69, which is what an "
+                 "upper bound does when a supported reading passes it. WHAT "
+                 "THE BRACKET IS NOT: a property of "
                  "the process. Tau on this model grows with the window it is "
                  "measured on -- 1.00 at twenty orbits and 6.30 at a hundred "
                  "and forty on one clean block, every reading supported -- so "

@@ -1,14 +1,14 @@
 {
-  "generated": "2026-08-27T11:11:08+00:00",
+  "generated": "2026-08-28T11:52:10+00:00",
   "generator": "analysis/emissivity_contrast.py --land-mean",
   "quantity": "model.land_longwave_emissivity: the area-weighted mean of the per-rock-class thermal emissivity over this build's land, on the mesh. No climatology enters it.",
-  "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
-  "source_build": "canonical-10m-base",
+  "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
+  "source_build": "canonical-10m-carve2",
   "derivation": "analysis/rock_emissivity.json",
-  "land_mean": 0.934993,
+  "land_mean": 0.930897,
   "preparation_arms": {
-    "solid": 0.9177,
-    "particulate": 0.9523
+    "solid": 0.9103,
+    "particulate": 0.9515
   },
   "preparation_arm_classes_without_samples": {
     "solid": [

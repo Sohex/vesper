@@ -1,196 +1,75 @@
 {
-  "generated": "2026-08-28T14:24:50+00:00",
-  "code": 173,
-  "field": "dz0clim, total aerodynamic roughness length, metres",
-  "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
-  "replaces_uniform": 2.0,
-  "surface_z0_m": {
-    "bare": 0.003,
-    "canopy": 0.625,
-    "forest": 1.0,
-    "forest_fraction_used": 0.5
+  "climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+  "generated": "2026-08-28T14:24:11+00:00",
+  "code": 229,
+  "field": "dwmax, maximum soil water capacity, metres",
+  "lakes": {
+    "source": "hydrography/data/canonical-10m-carve2/surface_water.nc",
+    "lake_dwmax_m": 0.2,
+    "mean_lake_fraction_of_land_cells": 0.01897364926326532,
+    "land_mean_dwmax_before_m": 0.11757,
+    "land_mean_dwmax_after_m": 0.11936,
+    "ceiling": "annual lake evaporation is still capped by local precipitation; river water never re-enters dwatc"
   },
-  "anchor": {
-    "arm": "derived",
-    "target_land_mean_m": null,
-    "unrescaled_land_mean_m": 0.48042,
-    "unrescaled_ce_bracket": [
-      0.005223,
-      0.005491
+  "capacity_split": {
+    "code": 2290,
+    "field": "dsoilwfc, the capacity of each land water layer as a fraction of dwmax, per cell",
+    "water_layer_count": 3,
+    "layer_thickness_m": [
+      0.02,
+      0.48,
+      1.0
     ],
-    "written_ce_bracket": [
-      0.005338,
-      0.005615
+    "physical_increments_per_model_layer": [
+      0.2,
+      4.8,
+      10.0
     ],
-    "earth_reference": {
-      "rung": "T21",
-      "dataset": "N032",
-      "files": [
-        "vendor/exoplasim/exoplasim/plasim/run/N032_surf_0172.sra",
-        "vendor/exoplasim/exoplasim/plasim/run/N032_surf_0173.sra",
-        "vendor/exoplasim/exoplasim/plasim/run/N032_surf_1730.sra"
-      ],
-      "land_cells": 673,
-      "reference_height_m": 113.96,
-      "effective_land_z0_m": 2.204850052252377,
-      "land_mean_ce": 0.010279959009933747,
-      "land_mean_of_length_m": 2.396712376085461,
-      "topography_only_land_mean_m": 2.2304562892254385,
-      "surface_part_land_mean_m": 0.3162410692655255,
-      "land_max_m": 46.8217,
-      "namelist_fallback_m": 2.0
+    "geometric_split": [
+      0.013333,
+      0.32,
+      0.666667
+    ],
+    "land_cells_matched": 1019,
+    "surface_layer": {
+      "present": true,
+      "thickness_m": 0.02,
+      "cut_from": "air_dry",
+      "air_dry_water_content": 0.0,
+      "note": "the top water layer's capacity is cut from air dry when it IS the contract's surface layer, because a bare drying surface reaches water a root cannot. Every layer below it keeps field capacity minus the wilting point, which is why soilsrwp and soilsrfc still describe them."
     },
-    "cover_roughness_ratio_to_earth": 1.5191,
-    "note": "the derived land mean is what this world's own subgrid slope gives through WM93 Eq (33) and Beljaars Eq (6); the Earth reference beside it is the effective land roughness of PlaSim's own boundary dataset, code 173 reduced over its land in ce, and is a COMPARISON rather than a target. The namelist fallback dz0land is reported inside earth_reference and is a rounding of that reference."
+    "capacity_identity_residual_mm": 0.001619999999945776,
+    "capacity_identity_tolerance_mm": 0.01,
+    "top_layer_share_over_land": {
+      "min": 0.0206,
+      "p50": 0.0692,
+      "p95": 0.1763,
+      "max": 0.2206,
+      "mean": 0.0839,
+      "at_the_geometric_value": 0.0
+    },
+    "derivation": "the per-layer usable shares the land column property contract emits, cut onto the declared water column by overlap depth and multiplied by the volumetric range each layer's capacity is taken over. The same array the capacity column is the integral of, so the split and the capacity are one arithmetic rather than two that agree, and `capacity_identity_residual_mm` is the check.",
+    "lakes": "the lake blend moves dwmax and not the split: the lake fraction of a cell has no soil profile, so its share of the bucket is cut on the surrounding column's shape. The split is a property of the soil column and this is the limit of it.",
+    "output": "exoplasim/inputs/t21/orogen_T21_surf_2290.sra",
+    "output_sha256": "74eb0a6ec0f6d35808e9b1d0c2e57f31d530e0bee456e8b1ef37728516ce5b12"
   },
-  "derived_orographic": {
-    "relation": "WM93 Eq (33): karman^2/ln(z_m/z0)^2 = Ca + karman^2/ln(z_m/z0_cover)^2, with Beljaars Eq (6) Ca = 2 alpha beta Cmd theta_bar^2",
-    "sources": [
-      "Wood and Mason (1993), 10.1002/qj.49711951402",
-      "Beljaars, Brown and Wood (2004), 10.1256/qj.03.73",
-      "Mason (1988), 10.1002/qj.49711448007",
-      "Lettau (1969), 10.1175/1520-0450(1969)008<0828:NOARPE>2.0.CO;2"
-    ],
-    "land_mean_m": 0.5102,
-    "ce_bracket": [
-      0.005338,
-      0.005615
-    ],
-    "written": true,
-    "shape_factor_beta": 1.0,
-    "closure_written": "first-order",
-    "band_multiple_written": 2.0,
-    "bracket_land_mean_m": {
-      "band_multiple": {
-        "ends": [
-          1.0,
-          4.0
-        ],
-        "land_mean_m": [
-          0.50719,
-          0.51356
-        ]
-      },
-      "closure": {
-        "ends": [
-          "second-order",
-          "first-order"
-        ],
-        "wm93_theta2_coefficients": [
-          3.48,
-          5.9
-        ],
-        "land_mean_m": [
-          0.49761,
-          0.5102
-        ]
-      }
-    },
-    "slope_variance_per_direction": {
-      "median": 0.0003232094465102973,
-      "p95": 0.004062867715090333,
-      "max": 0.027515835231941635
-    },
-    "form_drag_over_skin_friction": {
-      "median": 0.007852929224563755,
-      "p95": 0.09801214064025851,
-      "max": 0.6591191926612416
-    },
-    "shear_parameter_alpha_median": 12.042,
-    "pressure_scale_height_m_median": 1731.0,
-    "mesh_spacing_m": 9848.7,
-    "capped_land_area_fraction": 0.0,
-    "above_scale_separation": {
-      "lowest_model_level_m": 113.96,
-      "land_area_fraction_z0_over_tenth_of_level": 0.0,
-      "land_area_fraction_z0_over_level": 0.0,
-      "share_of_land_mean_ce_from_those_cells": 0.0
-    },
-    "published_value_checks": {
-      "beljaars_hm_over_lambda": 0.10469,
-      "beljaars_alpha": 11.9939,
-      "beljaars_cmd": 0.00492,
-      "lettau_colorado_z0_m": 12.5,
-      "published": {
-        "hm_over_lambda": 0.1,
-        "alpha": 12.0,
-        "cmd": 0.005,
-        "lettau_colorado_z0_m": 12.5
-      }
-    },
-    "lettau_cross_check": {
-      "relation": "Lettau (1969) Eq (1), z0 = 0.5 h* s/S, one mesh region as one roughness element",
-      "orographic_land_mean_m": 2.76343,
-      "ratio_to_wm93_enhancement": 92.792
-    },
-    "terrain_information_floor_note": "the derived value is what this world's terrain supports. Orogen's measured terrain-information floor is near 20 km and Beljaars' turbulent orographic form drag lives below 5 km, so the band that dominates slope variance on Earth is absent here rather than unmeasured."
-  },
-  "orographic": {
-    "coefficient_solved": 0.0,
-    "relation": "z0_oro = coefficient * stdev(elevation) within the cell. SUPERSEDED by derived_orographic: the drag is quadratic in slope, not linear in relief amplitude, so this coefficient was carrying the missing horizontal scale. Retained for the reference and fixed-coefficient arms, which exist to price the change.",
-    "subgrid_stdev_m": {
-      "min": 0.0,
-      "median": 144.71,
-      "max": 1996.6
-    },
-    "mesh_regions_per_land_cell_median": 1980,
-    "coefficient_was_solved": true
-  },
-  "surface_aggregation": {
-    "operator": "gridding.cell_expectation, NONLINEAR, over the cell's land population: ce evaluated per mesh region and then area-averaged, inverted to the length that reproduces that mean. lib/gridding.py owns the reduction operators and this file calls one rather than reimplementing it.",
-    "law": "ce = karman^2 / ln(z_ref / z0)^2",
-    "population": "surface_class == land",
-    "reference_height_anchor_m": 113.96,
-    "blending_height_m": 29.558,
-    "blending_height_source": "Mason (1988) Eq (14), l_b ln(l_b/z0)^2 = 2 karman^2 L_c with L_c = mesh spacing / 2pi. The average of drag coefficients that reproduces the correct area-mean surface stress is taken at it, not at the lowest model level.",
-    "land_mean_m_over_reference_air_bracket": [
-      0.5102,
-      0.5102
-    ],
-    "jensen_gap_in_ce_relative": {
-      "min": -0.8086582638002374,
-      "median": -0.013782731517895599,
-      "max": 5.965752526445559e-15,
-      "land_area_weighted_mean": -0.06597816499516153
-    },
-    "transfer": {
-      "regions_offered": 4328732,
-      "cells": 2048,
-      "cells_with_no_population": 409,
-      "area_offered": 318136714.761382,
-      "area_landed": 318136714.761382,
-      "closure_residual_relative": 0.0
-    }
-  },
-  "land_mean_m": 0.5102,
-  "land_min_m": 0.003,
-  "land_max_m": 3.5809,
-  "exchange_coefficient": {
-    "note": "ce = k^2 / ln(z_ref / z0)^2, the quantity roughness acts through. z_ref is lib/lapse.py:reference_height_m at this planet's gravity; each value is [low, high] over reference_air_k, across which z_ref is linear.",
-    "karman": 0.4,
-    "reference_air_k": [
-      273.15,
-      313.15
-    ],
-    "reference_height_m": [
-      106.18,
-      121.73
-    ],
-    "uniform_default": [
-      0.009478,
-      0.010141
-    ],
-    "this_field_land_max": [
-      0.012868,
-      0.013926
-    ],
-    "this_field_land_min": [
-      0.001421,
-      0.001458
-    ]
-  },
-  "file": "/home/cfutro/docs/world/exoplasim/inputs/t21/orogen_T21_surf_0173.sra",
-  "generator": "exoplasim/scripts/build_surface_roughness.py",
+  "land_column_states": "pedology/data/canonical-10m-carve2/land_column_states_T21.txt",
+  "land_column_states_sha256": "6096a8e04f44d00ab5782576a38daa360c867f2a7cf8e7c043eab1fb27b55672",
+  "capacity_column": "evaporable_mm",
+  "capacity_source": "the land column property contract's evaporable_mm column, selected by whether the declared water column carries the contract's surface layer at its top. This script converts mm to m and installs it; it derives no capacity of its own. `awc_mm` is LPJ-GUESS's and is not what this installs when a surface layer is present.",
+  "config_sha256": "c8639d3f08f21eacf7b794ed6bef772c50e8b474f1ed4e8b34a6503b026abc89",
+  "resolution": "T21",
+  "land_cells": 1019,
+  "land_cells_matched": 1019,
+  "land_cells_without_soil_left_at_default": 0,
+  "land_mean_capacity_m": 0.160483111100884,
+  "exoplasim_uniform_default_m": 0.5,
+  "why_this_matters": "landmod.f90 computes runoff as the overflow of this bucket, so a uniform default makes runoff a namelist property rather than a soil property; the model's low land runoff ratio is the symptom.",
+  "enabled_by": "model.soil_water_source in config/planet.yaml (currently set to pedology). Changing the key is a configuration change continue_exoplasim.py refuses to resume across, so moving it blocks runs in flight.",
+  "output": "exoplasim/inputs/t21/orogen_T21_surf_0229.sra",
+  "output_sha256": "89e928955515b65c80d3ec076d85de648985f915620a46a16655bf53fee27da4",
+  "git_commit": "2896f62efec8bf838181e64345c980ff3215ec65",
+  "generator": "exoplasim/scripts/build_surface_soil_water.py",
   "source_config": {
     "schema_version": 1,
     "source_build": "canonical-10m-carve2",
@@ -463,6 +342,9 @@
       "alignment_recurrence_earth_years": 314
     }
   },
-  "config_sha256": "c8639d3f08f21eacf7b794ed6bef772c50e8b474f1ed4e8b34a6503b026abc89",
-  "git_commit": "2896f62efec8bf838181e64345c980ff3215ec65"
+  "source_inputs": {
+    "pedology/data/canonical-10m-carve2/land_column_states_T21.txt": "6096a8e04f44d00ab5782576a38daa360c867f2a7cf8e7c043eab1fb27b55672",
+    "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc": "13ddb89058fe9901588f73482a3b79a726cbecf758d7dd98762cd19a3b417602",
+    "hydrography/data/canonical-10m-carve2/surface_water.nc": "27ba3c3b5db5d1d1f0831c875ff9aadeb6972c8b1e917e912e6bc8e07f7f66eb"
+  }
 }
