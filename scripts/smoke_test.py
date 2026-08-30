@@ -4884,6 +4884,19 @@ def _netcdf_read_names(tree: ast.AST) -> set[str]:
 # recorded ARGUMENT and not a waiver: it says why the record-count weighting is
 # the wrong weighting there, and it is wrong to add one for a site that simply
 # has not been fixed.
+PENMAN_INTERVAL_DIR = ROOT / "hydrography" / "scripts"
+PENMAN_SOURCE = ROOT / "hydrography" / "scripts" / "carve_verdict.py"
+
+
+def _called(node) -> str | None:
+    """The bare name a call names, whether it is `f(...)` or `mod.f(...)`."""
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    if isinstance(node, ast.Name):
+        return node.id
+    return None
+
+
 ARGUED_UNWEIGHTED = {
     # The Weibull shape is fitted from std/mean, so weighting the mean without
     # weighting the variance the same way would bias the ratio rather than
@@ -5127,6 +5140,217 @@ def check_nonlinear_reduction_order() -> list[str]:
                 f"curvature is not reading curvature")
     return problems
 
+def check_penman_evaluation_interval() -> list[str]:
+    """Penman is evaluated per climatology bin, not once on annual-mean air.
+
+    A sibling of `check_nonlinear_reduction_order` for the one nonlinear
+    function this component's three producers share, with the same two halves
+    and the same reason for both: a lint over the callers, and a fixture on the
+    real function that is what makes the lint mean something.
+
+    **The lint.** `hydrography/config/land_water_ledger.yaml` holds
+    `open_water_evaporation` at `interval_floor: climatology_bin`, so a module
+    that takes `surface_water.climate_fields` WITHOUT a `bin_index` and never
+    reaches a per-bin evaluation anywhere is evaluating Penman once on annual
+    means, against a standing decision rather than a simplification anyone
+    chose. That is what `build_groundwater.py` did for as long as it existed,
+    after `carve_verdict.py` and `surface_water.py` had both been fixed: the
+    third caller of one pattern, invisible because each file on its own read as
+    deliberate.
+
+    **The fixture, on `carve_verdict.penman_open_water` itself.** Every arm
+    first requires the state to evaporate something finite, because a fixture
+    whose annual arm is zero divides by zero and reports a ratio nobody can
+    read.
+
+    1. **THE CONTROL, and it is what makes the rest a test.** With every bin
+       identical there is no spread for Jensen to act on, so the bin mean and
+       the evaluation on the mean must agree EXACTLY -- and must go on agreeing
+       under deliberately uneven bin weights, because a weighted mean of one
+       repeated value is that value. If this half fails the two arms are not
+       two evaluations of one function and nothing below is about curvature.
+    2. **THE CURVATURE IDENTITY, IN BOTH DIRECTIONS.** For a symmetric two-bin
+       swing of +/- dT the leading term is `mean(f)/f(mean) - 1 = (f''/2f) dT^2`,
+       so that ratio less one, divided by `dT^2`, has to hold still as `dT`
+       shrinks. Asserted on a cold dry windy column, where it is POSITIVE and
+       above a floor, and on a warm humid calm one, where it is NEGATIVE.
+       Penman is NOT one-signed in temperature: saturation vapour pressure is
+       convex, the `delta / (delta + gamma)` energy weighting saturates, and
+       above about 270 K the second wins. On the real climatology the bin mean
+       falls below the annual evaluation on 15% of land, all of it warm, so a
+       check that could not read the sign would call those cells an error.
+    3. **THE RECTIFIER, which is the half that is NOT second order.** Penman
+       clamps net radiation at zero because a lake does not evaporate a
+       negative amount in a dark month. On a dry windy column whose aerodynamic
+       term keeps the answer positive, a radiation swing that takes one bin
+       under that clamp must give a bin mean well ABOVE the annual evaluation.
+       Remove the clamp and the same swing sends it below one, which is the
+       sign flip this arm exists to catch. This is the term that carries the
+       real climatology's tail, where the bin mean reaches 9.5x the annual
+       evaluation at the 95th percentile of land.
+    """
+    problems = []
+
+    # -- the lint ----------------------------------------------------------
+    for path in sorted(PENMAN_INTERVAL_DIR.glob("*.py")):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue                    # check_modules_parse owns that
+        calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)]
+        fields = [n for n in calls if _called(n.func) == "climate_fields"]
+        annual = [n for n in fields
+                  if not any(kw.arg == "bin_index" for kw in n.keywords)]
+        if not annual:
+            continue
+        reaches_bins = any(
+            _called(n.func) == "bin_mean_open_water"
+            or any(kw.arg == "bin_index" for kw in n.keywords) for n in calls)
+        if not reaches_bins:
+            problems.append(
+                f"{path.relative_to(ROOT)}:{annual[0].lineno} takes "
+                f"climate_fields with no bin_index and this module never "
+                f"reaches a per-bin evaluation, so Penman is evaluated once on "
+                f"annual-mean air. land_water_ledger.yaml holds "
+                f"open_water_evaporation at interval_floor: climatology_bin. "
+                f"Use carve_verdict.bin_mean_open_water, or loop bin_index the "
+                f"way surface_water.py does")
+
+    # -- the fixture -------------------------------------------------------
+    sys.path.insert(0, str(ROOT / "lib"))
+    # `carve_verdict` imports its component's private `_paths`, so that
+    # directory goes on the path for the load and comes straight back off it.
+    # Every component ships one under that name and leaving it there would hand
+    # the next import hydrography's directories.
+    hyd_scripts = str(ROOT / "hydrography" / "scripts")
+    saved = sys.modules.pop("_paths", None)
+    sys.path.insert(0, hyd_scripts)
+    try:
+        import numpy as np
+        import yaml as _yaml
+        import importlib.util as _ilu
+        _spec = _ilu.spec_from_file_location("_smoke_carve_verdict",
+                                             PENMAN_SOURCE)
+        _cv = _ilu.module_from_spec(_spec)
+        _spec.loader.exec_module(_cv)
+        planet = _yaml.safe_load(
+            (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    except Exception as exc:            # noqa: BLE001 - reported, not raised
+        return problems + [f"the Penman interval fixture cannot load: {exc}"]
+    finally:
+        if hyd_scripts in sys.path:
+            sys.path.remove(hyd_scripts)
+        sys.modules.pop("_paths", None)
+        if saved is not None:
+            sys.modules["_paths"] = saved
+
+    gravity = float(planet["planet"]["gravity_m_s2"])
+
+    def penman(t, q, u, rss, p=9.0e4, rls=-60.0, albedo=0.25, diurnal=8.0):
+        col = lambda x: np.full(3, float(x))            # noqa: E731
+        return float(_cv.penman_open_water(
+            col(t), col(q), col(u), col(p), col(rss), col(rls), col(albedo),
+            gravity, diurnal_range=col(diurnal), cfg=planet)[0])
+
+    # Fixed before the fixture was run. These are COLUMN STATES rather than
+    # project numbers: a cold dry windy column, a warm humid calm one, and a dry
+    # windy one with a radiation swing wide enough to take a bin under the
+    # zero clamp while the aerodynamic term keeps the answer positive.
+    COLD = dict(t=250.0, q=3.0e-3, u=5.0, rss=120.0)
+    WARM = dict(t=300.0, q=2.0e-2, u=0.5, rss=250.0)
+    RECT = dict(t=285.0, q=5.0e-4, u=20.0, rss=64.0)
+    RECT_SWING = 64.0            # takes the dim bin to Rn = -60 W/m2
+    MIN_RECTIFIER = 1.20         # measured 1.35 with the clamp, 0.97 without
+    MIN_CURVATURE = 1.0e-3       # per K^2, on the cold state; measured 1.69e-3
+    QUADRATIC_TOLERANCE = 0.05   # on the dT^2 coefficient, over dT 0.5 to 2 K
+
+    def alive(value, label) -> bool:
+        if np.isfinite(value) and value > 0.0:
+            return True
+        problems.append(
+            f"the {label} fixture state evaporates {value}, so no ratio taken "
+            f"on it says anything. Penman has to return a finite positive rate "
+            f"there or the arm below is not measuring curvature")
+        return False
+
+    # 1. THE CONTROL. Identical bins, so the arms are one number whatever the
+    # weights are. Both an even weighting and a deliberately uneven one.
+    base = penman(**WARM)
+    if alive(base, "control"):
+        for weights in (np.full(4, 0.25), np.array([0.30, 0.20, 0.28, 0.22])):
+            per_bin = float(np.dot(weights, np.full(weights.size, base)))
+            gap = abs(per_bin / base - 1.0)
+            if gap > 1e-12:
+                problems.append(
+                    f"with every climatology bin identical the bin mean and "
+                    f"the evaluation on the mean differ by {gap:.3e} under "
+                    f"weights {weights.tolist()}. With no spread there is "
+                    f"nothing for Jensen to act on, so the two arms are not "
+                    f"one function")
+
+    # 2. THE CURVATURE IDENTITY, both signs.
+    for label, state, sign in (("cold dry windy", COLD, +1),
+                               ("warm humid calm", WARM, -1)):
+        annual = penman(**state)
+        if not alive(annual, label):
+            continue
+        coeffs, broke = [], False
+        for d_t in (0.5, 1.0, 2.0):
+            hot = penman(**dict(state, t=state["t"] + d_t))
+            cold = penman(**dict(state, t=state["t"] - d_t))
+            ratio = 0.5 * (hot + cold) / annual
+            if not np.isfinite(ratio) or (ratio - 1.0) * sign <= 0.0:
+                problems.append(
+                    f"a +/-{d_t} K swing about the {label} state gives a bin "
+                    f"mean {ratio:.6f} times the evaluation on the mean, and "
+                    f"it has to come out {'above' if sign > 0 else 'below'} "
+                    f"one. Penman's curvature in temperature changes sign near "
+                    f"270 K -- saturation vapour pressure is convex and the "
+                    f"delta/(delta+gamma) weighting saturates -- and a check "
+                    f"that cannot read which one wins is not reading curvature")
+                broke = True
+                break
+            coeffs.append((ratio - 1.0) / d_t ** 2)
+        if broke:
+            continue
+        spread = (max(coeffs) - min(coeffs)) / abs(float(np.mean(coeffs)))
+        if spread > QUADRATIC_TOLERANCE:
+            problems.append(
+                f"the Jensen term about the {label} state is not quadratic in "
+                f"the swing: (ratio - 1) / dT^2 moves by {spread:.1%} over dT "
+                f"from 0.5 to 2 K, coefficients "
+                f"{[float(f'{c:.3e}') for c in coeffs]}. The leading term is "
+                f"f''/2f times dT^2 exactly, so either a clamp is engaging "
+                f"inside the fixture or the arms are not two evaluations of "
+                f"one function")
+        if sign > 0 and abs(float(np.mean(coeffs))) < MIN_CURVATURE:
+            problems.append(
+                f"the {label} state carries a Jensen coefficient of only "
+                f"{float(np.mean(coeffs)):.3e} per K^2, under a floor of "
+                f"{MIN_CURVATURE:.1e}. The whole reason this class is tracked "
+                f"is that the difference is not second order; a Penman that "
+                f"had been linearised in temperature would pass every "
+                f"inequality above and fail here")
+
+    # 3. THE RECTIFIER, which is the half that is NOT second order.
+    annual = penman(**RECT)
+    if alive(annual, "rectifier"):
+        bright = penman(**dict(RECT, rss=RECT["rss"] + RECT_SWING))
+        dim = penman(**dict(RECT, rss=RECT["rss"] - RECT_SWING))
+        ratio = 0.5 * (bright + dim) / annual
+        if not (np.isfinite(ratio) and ratio > MIN_RECTIFIER):
+            problems.append(
+                f"a +/-{RECT_SWING:.0f} W/m2 radiation swing that takes one "
+                f"bin under Penman's zero clamp on net radiation gives a bin "
+                f"mean {ratio:.4f} times the evaluation on the mean, against a "
+                f"floor of {MIN_RECTIFIER}. max(Rn, 0) is a rectifier and a "
+                f"rectifier is why this class is large rather than second "
+                f"order: without the clamp the same swing comes out BELOW one, "
+                f"so a ratio under the floor says the clamp is gone or the "
+                f"swing no longer reaches it")
+    return problems
+
+
 def check_withdrawn_closure_has_no_consumer() -> list[str]:
     """The withdrawn saturated fraction is refused where it would be read, and
     the two components state the one support field the same way.
@@ -5352,6 +5576,8 @@ def main() -> None:
                lambda: check_bin_weights_take_bin_centres()),
               ("no nonlinear function is evaluated on a naive time mean",
                lambda: check_nonlinear_reduction_order()),
+              ("Penman is evaluated per climatology bin, not on annual-mean air",
+               lambda: check_penman_evaluation_interval()),
               ("the transform gates run the configured spectral filter",
                lambda: check_gate_filter_matches_config()),
               ("a continuation redeclares what a prepare declared",
