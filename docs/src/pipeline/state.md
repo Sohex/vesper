@@ -42,11 +42,16 @@ reinventing it.
 
 **A refusal no run would lift leaves a design decision, and the artifact says
 which it is holding.** Every `design_flux.json` carries `basis`, `derived` or
-`chosen`. On this world the derivation REFUSES: four land bands have a negative
-warmest-bin response between the two measured flux points, so the per-band
-projection has nothing to scale by, and the sign is a property of how this
-world's seasons respond rather than of where the two points sit. That is not a
-refusal another run buys out, so the flux is CHOSEN. The same script records the
+`chosen`. On this world the derivation REFUSES, on the cold extreme rather than
+on the band responses: the smallest cold-extreme land fraction any scored
+candidate reaches is 0.117 against a declared cap of 0.05, and at the current
+flux it is 0.247, which is a measured field rather than a projection. That is
+not a refusal another run buys out, because it is a property of this terrain
+under this star and not of where the two flux points sit, so the flux is
+CHOSEN. The band-sign ground this paragraph used to give was deleted by
+WORLD-M61P: a negative warmest-bin response does not stop the projection, which
+is a straight line either way, and the test was neither necessary nor
+sufficient for the `warm >= cold` identity it stood in for. The same script records the
 choice, and only after running the whole derivation and catching a refusal on a
 ground it declares choosable: a derivation that ANSWERS is adopted rather than
 overridden, and a refusal about a missing or unsuitable input is fixed by

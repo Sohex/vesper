@@ -153,12 +153,21 @@ star:
 #
 # `baseline_flux_earth` is CHOSEN. The derivation is
 # `exoplasim/scripts/derive_design_flux.py`; it has been RUN on this terrain and
-# it REFUSES. Four land bands have a NEGATIVE warmest-bin response between the
-# two measured flux points, so the per-band projection has nothing to scale by,
-# and no further run lifts that: the sign is a property of how this world's
-# seasons respond and not of where the two points sit. A refusal no run at any
-# flux would lift leaves a design decision as the only thing that can settle the
-# number.
+# it REFUSES -- but NOT on the ground this comment used to give. WORLD-M61P
+# deleted `band_amplification_sign`: a negative warmest-bin response does not
+# make the projection meaningless, because `base + amp*slope*(f-f0)` is a
+# straight line and is defined for either sign, and the sign test was neither
+# necessary nor sufficient for the property it stood in for, which is
+# `warm >= cold`. Two bands passed it and still closed their seasonal range
+# inside the declared flux range.
+#
+# The surviving refusal is `cold_extreme_cap`, which was always sitting behind
+# the broken guard. The smallest cold-extreme land fraction any scored
+# candidate reaches is 0.117 against a cap of 0.05, and at f0 = 0.945 it is
+# 0.247 -- f0 being where the projection IS the measured baseline field, so
+# that is a measurement. A quarter of this world's land has a coldest bin below
+# -40 C. Whether the cap or the terrain is the thing that should move is
+# WORLD-DNRR, and until it is settled the number here stays chosen.
 #
 # The record is `exoplasim/analysis/design_flux.json` with `basis: chosen`,
 # written by the same script and only after it caught its own refusal. It
