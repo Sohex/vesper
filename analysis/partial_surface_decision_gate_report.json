@@ -1,6 +1,6 @@
 {
   "contract_version": "vesper-partial-surface-decision-gate/1",
-  "generated": "2026-08-30T16:32:16+00:00",
+  "generated": "2026-08-30T17:03:01+00:00",
   "declaration": "config/partial_surface.yaml",
   "measurement": "analysis/coastline_flux_bracket.json",
   "implementation": {
@@ -26,7 +26,6 @@
     "initial_state_contract": "vesper-partial-surface-initial-state/1",
     "initial_state_not_available": [
       "land_background_albedo",
-      "land_field_capacity",
       "land_vegetation_cover"
     ],
     "seam_prerequisites": {

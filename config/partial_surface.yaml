@@ -52,7 +52,7 @@ tile_model:
         the evidence. The disposition below is what world-cp27 implements and
         what world-uiq7 is then an execution-gate change against.
       ocean_tile_on_land_owned_cells: available
-      land_tile_on_ocean_owned_cells: incomplete
+      land_tile_on_ocean_owned_cells: blocked_on_world-qcse
       fields:
         ocean_surface_temperature:
           status: available
@@ -89,35 +89,44 @@ tile_model:
             land roughness on every cell containing land. Measured at T21:
             0.3446 to 3.581 m over the 620 sea-owned partial cells, against
             0.00015 m over pure ocean.
-        land_background_albedo:
-          status: incomplete
-          source: >-
-            build_surface_albedo.py computes the area-weighted land albedo on
-            every cell containing land and then discards it at
-            `land_cells = fraction >= geography_land_threshold`, writing the
-            water value instead. Measured at T21: codes 174, 175 and 176 read
-            exactly 0.06 over all 620 sea-owned partial cells. The land value
-            exists in the builder and is thrown away rather than absent.
         land_field_capacity:
-          status: incomplete
+          status: available
           source: >-
-            Code 229 reads a uniform 0.5 over every sea-owned cell, which is a
-            placeholder and not a derived soil capacity; the same cells carry a
-            uniform 0.01333 in code 2290. Over land the two are mesh-derived
-            and span 0.0199 to 0.2591 and 0.0206 to 0.2206.
+            build_surface_soil_water.py now follows the states file's
+            population rather than the climatology's binary lsm, and pedology
+            writes a column for every cell with a positive land fraction. Code
+            229 over the 620 sea-owned partial cells goes from the uniform
+            0.5 m placeholder to a derived 0.0165 to 0.2655 m, against
+            0.0199 to 0.2591 over binary land. Cells with genuinely no ground
+            keep 0.5, which is where ExoPlaSim's default belongs.
+        land_background_albedo:
+          status: blocked
+          blocked_by: world-qcse
+          source: >-
+            build_surface_albedo.py no longer re-applies
+            geography_land_threshold, which belongs to code 172 in
+            build_boundary_conditions.py; the land albedo it had already
+            integrated from the mesh is emitted instead of the flat water
+            value 0.06 the 620 sea-owned partial cells carried. The builder
+            cannot RUN until an LPJ run passes acceptance, because it calls
+            require_lpj_acceptance, so the field is blocked behind world-qcse
+            rather than behind anything of its own.
         land_vegetation_cover:
           status: blocked
+          blocked_by: world-qcse
           source: >-
-            build_lpj_driver.py selects `simulated_land = land & (rootable >
-            0.0)`, where `land` is the BINARY ownership mask, so LPJ has never
-            run on a sea-owned partial cell and code 212 reads zero there.
-            BIO-11's f_rootable is mesh-derived and already nonzero on 2026 of
-            2048 T21 cells, so the rootable ground exists and only the
-            simulated cell set excludes it. Giving the land tile a vegetated
-            albedo on those cells is therefore a change to WHAT THE BIOSPHERE
-            SIMULATES and costs an LPJ re-run; it is not a builder change.
-            Until that is decided the land tile there takes its bare
-            substrate albedo, which is honest and rung-dependent.
+            build_lpj_driver.py selected `land & (rootable > 0.0)` against the
+            BINARY ownership mask and now selects `rootable > 0.0`, which adds
+            exactly the 620 sea-owned partial cells and takes the simulated set
+            from 997 to 1617. Every one of them now has a pedology soil column,
+            so none falls back to LPJ's own soil codes. The resulting run is
+            REFUSED by vesper-lpj-acceptance/1 for the same ecological
+            equilibrium failure every LPJ run on this project has had, which is
+            world-qcse. The time base is NOT the reason: vesper_pfts.ins sets
+            nyear_spinup 998 and freenyears 200, deliberately doubled from
+            LPJ-GUESS's 500 and 100, which at 0.5010172 Earth years per orbit
+            is 500.0 and 100.2 Earth years and matches the convention exactly.
+            The cause is not established.
       orography_is_not_in_this_class: >-
         One atmosphere column carries one orography, so doro stays the cell's
         single elevation and is not split per tile. The land tile's elevation
