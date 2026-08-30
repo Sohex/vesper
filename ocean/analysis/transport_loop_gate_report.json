@@ -1,0 +1,371 @@
+{
+  "source_build": "canonical-10m-carve2",
+  "loop_id": "O",
+  "checks": [
+    {
+      "check": "schema version",
+      "pass": true,
+      "detail": "transport_loop schema version is 1"
+    },
+    {
+      "check": "loop is declared in the canonical graph",
+      "pass": true,
+      "detail": "loop 'O' is present"
+    },
+    {
+      "check": "all ocean steps are registered",
+      "pass": true,
+      "detail": "missing: []"
+    },
+    {
+      "check": "every ocean step belongs to the ocean loop",
+      "pass": true,
+      "detail": "each OCN-2/5/10/11 and execution row names loop O"
+    },
+    {
+      "check": "ocean physics is also inside loop A",
+      "pass": true,
+      "detail": "ocean transport can move the loop-A carve verdict"
+    },
+    {
+      "check": "offline full-flux architecture",
+      "pass": true,
+      "detail": "ExoPlaSim is the only atmosphere"
+    },
+    {
+      "check": "temperature restoring is absent",
+      "pass": true,
+      "detail": "the ocean is not restored toward the SST that forced it"
+    },
+    {
+      "check": "hosing is explicitly inert",
+      "pass": true,
+      "detail": "all three always-reachable hosing controls are zero"
+    },
+    {
+      "check": "forcing gate exists in cGENIE",
+      "pass": true,
+      "detail": "the driven path is exclusive with both cGENIE atmospheres"
+    },
+    {
+      "check": "hosing remains on the source path",
+      "pass": true,
+      "detail": "zero is a declared value, not an unreachable term"
+    },
+    {
+      "check": "solver rel is numerical under-relaxation",
+      "pass": true,
+      "detail": "rel mixes successive solver iterates and is not temperature restoring"
+    },
+    {
+      "check": "return set keeps ExoPlaSim sea ice authoritative",
+      "pass": true,
+      "detail": "the ocean returns transport agents and no ice state"
+    },
+    {
+      "check": "every required exit axis is declared",
+      "pass": true,
+      "detail": "criteria: ['atmospheric_energy_storage', 'carve_drivers', 'freshwater_closure', 'heat_transport_change', 'ocean_heat_integral', 'salt_closure', 'sea_ice_area', 'sea_surface_temperature']"
+    },
+    {
+      "check": "transport loop has a finite refusal bound",
+      "pass": true,
+      "detail": "hitting the cap is not rounded into convergence"
+    },
+    {
+      "check": "provenance chain is chronological and complete",
+      "pass": true,
+      "detail": "baseline_climatology -> ocean_support -> ocean_forcing -> ocean_run -> ocean_convergence -> ocean_transport -> baseline_run -> baseline_climatology -> ocean_loop_convergence"
+    },
+    {
+      "check": "carbon feedback remains fail closed",
+      "pass": true,
+      "detail": "marine carbon cannot alter a prescribed atmosphere"
+    }
+  ],
+  "verdict": "PASS",
+  "generator": "ocean/scripts/transport_loop_gate.py",
+  "source_config": {
+    "schema_version": 1,
+    "source_build": "canonical-10m-carve2",
+    "baseline_climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+    "bootstrap_climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
+    "planet": {
+      "radius_earth": 1.2,
+      "gravity_m_s2": 12.81,
+      "mass_earth": 1.881009,
+      "rotation_hours": 30.0,
+      "obliquity_degrees": 32.0,
+      "eccentricity": 0.02,
+      "rotation_direction": "prograde",
+      "longitude_positive": "east",
+      "prime_meridian": "orogen_export_zero"
+    },
+    "star": {
+      "spectral_type": "K2.5V",
+      "activity": "active",
+      "surface_uv_relative_to_earth": 0.4,
+      "mass_solar": 0.8,
+      "luminosity_solar": 0.32359365692962827,
+      "effective_temperature_k": 4965.0,
+      "metallicity": 0.0
+    },
+    "orbit": {
+      "earth_solar_constant_w_m2": 1361.0,
+      "baseline_flux_earth": 0.945,
+      "sweep_flux_earth": [
+        0.9,
+        0.95,
+        1.0
+      ],
+      "longitude_vernal_equinox_degrees": 102.7
+    },
+    "atmosphere": {
+      "pN2_bar": 0.78025,
+      "pO2_bar": 0.21,
+      "pAr_bar": 0.0093,
+      "pCO2_bar": 0.00045,
+      "pCH4_bar": 1.6e-06,
+      "pN2O_bar": 3e-07,
+      "ozone": true
+    },
+    "radiation": {
+      "two_band_albedo": true,
+      "stellar_spectrum": "k25v"
+    },
+    "ocean": {
+      "horizontal_diffusion": false,
+      "horizontal_diffusivity_m2_s": 1000.0,
+      "salinity_psu": 34.7,
+      "cold_start": {
+        "sst_equator_k": 300.0,
+        "sst_pole_k": 273.0,
+        "sea_ice_thickness_m": 0.0
+      },
+      "sea_ice_fusion_j_kg": 328000.0
+    },
+    "surface": {
+      "mixed_layer_depth_m": 50.0,
+      "sea_ice": true,
+      "sea_ice_max_thickness_m": -1.0,
+      "sea_ice_lead_closing_m": 0.5,
+      "cryosphere": {
+        "sea_ice_density_kg_m3": 920.0,
+        "sea_ice_specific_heat_j_kg_k": 2070.0,
+        "sea_ice_conductivity_w_m_k": 2.03,
+        "snow_fusion_j_kg": 333444.87
+      },
+      "glaciers": {
+        "enabled": true,
+        "min_snow_depth_m": 2.0,
+        "initial_height_m": -1.0,
+        "max_snow_depth_m": -1.0,
+        "persistence_orbits": 1.0
+      },
+      "land_water_column": {
+        "scheme": "layered",
+        "layers": 3,
+        "lower_boundary": "impermeable",
+        "layer_thickness_m": [
+          0.02,
+          0.48,
+          1.0
+        ],
+        "soil_phase": false,
+        "evaporation_limiter": {
+          "theta_low": 0.0,
+          "exponent": 1
+        }
+      },
+      "soil_albedo_moisture": {
+        "enabled": true,
+        "saturation_at_empty_layer": 0.0,
+        "saturation_at_full_layer": 0.7609,
+        "shape_sigma_broadband": 1.0,
+        "shape_sigma_band1": 1.0,
+        "shape_sigma_band2": 1.0
+      }
+    },
+    "model": {
+      "resolution": "T21",
+      "latitudes": 32,
+      "longitudes": 64,
+      "layers": 10,
+      "vertical_grid": 4,
+      "model_top_hpa": 50.0,
+      "precision_bytes": 8,
+      "compile_flags": {
+        "f90_opts": [
+          "-O2",
+          "-cpp",
+          "-ffpe-trap=invalid,zero,overflow",
+          "-ffpe-summary=none",
+          "-march=znver4",
+          "-funroll-loops",
+          "-g"
+        ],
+        "profiles": {
+          "production": [],
+          "checked": [
+            "-fcheck=all"
+          ],
+          "poisoned": [
+            "-fcheck=all",
+            "-finit-real=snan",
+            "-Og"
+          ]
+        },
+        "profile": "production"
+      },
+      "ncpus": 16,
+      "timestep_minutes": 45.0,
+      "physics_filter": "gp|exp|sp",
+      "filter_kappa": 8.0,
+      "filter_power": 16,
+      "cold_start_seed": 88888888,
+      "hyperdiffusion": {
+        "eddy_wind_m_s": 9.838,
+        "order_alpha": 4,
+        "cutoff_fraction": 0.381,
+        "ratios_to_vorticity": {
+          "divergence": 0.2,
+          "temperature": 2.533,
+          "humidity": 0.333
+        },
+        "timescales_days": {
+          "T21": {
+            "divergence": 0.2691,
+            "vorticity": 1.3455,
+            "temperature": 3.4082,
+            "humidity": 0.4481
+          },
+          "T42": {
+            "divergence": 0.1346,
+            "vorticity": 0.6728,
+            "temperature": 1.7042,
+            "humidity": 0.224
+          },
+          "T85": {
+            "divergence": 0.0665,
+            "vorticity": 0.3324,
+            "temperature": 0.842,
+            "humidity": 0.1107
+          },
+          "T127": {
+            "divergence": 0.0445,
+            "vorticity": 0.2225,
+            "temperature": 0.5636,
+            "humidity": 0.0741
+          },
+          "T170": {
+            "divergence": 0.0333,
+            "vorticity": 0.1663,
+            "temperature": 0.4212,
+            "humidity": 0.0554
+          }
+        }
+      },
+      "cold_start_profile": {
+        "surface_temperature_k": 279.83
+      },
+      "semi_implicit_reference_temperature_k": 241.41,
+      "rayleigh_sponge_rotations": [
+        20.0,
+        100.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_type": ".nc",
+      "uniform_land_surface": true,
+      "energy_diagnostics": true,
+      "energy_diagnostics_3d": false,
+      "energy_fixer": true,
+      "cloud_absorption_scale": 1.192,
+      "cloud_water_reference_kg_m3": 0.00021,
+      "precip_reevaporation_gamma": "derived",
+      "cloud_fraction_subgrid_width": "derived",
+      "asymptotic_mixing_length_m": "derived",
+      "land_longwave_emissivity": 0.930897,
+      "sea_longwave_emissivity": 0.98,
+      "ozone_scale": 0.794,
+      "ozone_uv_weight": 0.335,
+      "ozone_visible_weight": 0.908,
+      "h2o_sw_weight": 1.351,
+      "h2o_sw_level": 1.161,
+      "h2o_sw_level_bracket": [
+        1.128,
+        1.205
+      ],
+      "co2_sw_weight": 1.51,
+      "roughness_source": "lithology",
+      "soil_water_source": "pedology",
+      "lake_dwmax_m": 0.2,
+      "land_albedo_source": "vegetated",
+      "vegetation_albedo": 0.165,
+      "vegetation_albedo_bracket": [
+        0.15,
+        0.171
+      ],
+      "vegetation_albedo_bands": [
+        0.074,
+        0.222
+      ],
+      "tree_albedo": 0.143,
+      "tree_albedo_bracket": [
+        0.13,
+        0.148
+      ],
+      "grass_albedo": 0.209,
+      "grass_albedo_bracket": [
+        0.19,
+        0.217
+      ],
+      "lithology_albedo_overrides": {
+        "playa_clastic": {
+          "albedo": 0.23,
+          "replaces": 0.19
+        }
+      },
+      "barren_rock_classes": [
+        "evaporite",
+        "playa_clastic"
+      ],
+      "geography_land_threshold": 0.5,
+      "seasonal_samples_per_orbit": 32,
+      "regular_output_bins_per_orbit": 12
+    },
+    "stellar_cycle": {
+      "components": {
+        "medium": {
+          "period_earth_years": 11.0,
+          "amplitude_flux_peak_to_peak": 0.025,
+          "note": "The lived rhythm. Damped about 0.83, so amplitude times damping times `lib/sensitivity.py`'s slope, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow. The kelvin figure is NOT restated here: it is a product of a slope that is re-derived per model, and the two numbers that stood here before reproduced at a slope retired two measurements ago.\n"
+        },
+        "long": {
+          "period_earth_years": 57.0,
+          "amplitude_flux_peak_to_peak": 0.035,
+          "note": "The geomorphic driver. Essentially undamped at 0.99, so amplitude times damping times the same slope, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+        }
+      },
+      "total_amplitude_flux_peak_to_peak": 0.06,
+      "alignment_recurrence_earth_years": 314
+    }
+  },
+  "config_sha256": "c8639d3f08f21eacf7b794ed6bef772c50e8b474f1ed4e8b34a6503b026abc89",
+  "git_commit": "2896f62efec8bf838181e64345c980ff3215ec65",
+  "source_inputs": {
+    "ocean/config/transport_loop.yaml": "b8f1d0a15ec0ed0529c87ca69d3dff2441105f9a924f65b360a232d59b29dfea",
+    "config/pipeline.yaml": "30fa1100ea3c4909c781a5c9c9f8fbbc8e699ea8aa28c34c108459c7a8f60d70",
+    "vendor/cgenie/genie-main/genie.F": "4a6b4b811c107e05b0d52d2d13db18e7b4db3535da12a410f5266de9cf586110",
+    "vendor/cgenie/genie-main/initialise_genie.F": "90d34a9646d9a49131cfa4a5a4f8e0860bc4ccb3e43a19995149ba5d888b24fb",
+    "vendor/cgenie/genie-goldstein/src/fortran/goldstein.F": "0d0e5cad115b4c957ffc25d0efc85381884c64beb86e2fd8412171628481d1aa",
+    "vendor/cgenie/genie-goldstein/src/fortran/initialise_goldstein.F": "0b06f26dfd1daba4e7e111a4a3e026bdde5a1bd56d6b51170dedf49f98712920",
+    "vendor/cgenie/genie-goldstein/src/fortran/velc.f": "c8319a5ab6dfef3818fe2872074532f359b4e498a770d44570c45a6dff497f94"
+  }
+}

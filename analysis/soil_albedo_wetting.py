@@ -152,12 +152,10 @@ WATER_OPTICS = ROOT / "exoplasim" / "data" / "water" / "hale_querry_1973_liquid_
 SUBSTRATE_INDEX = 1.55
 SUBSTRATE_INDEX_BRACKET = (1.5, 2.5)
 
-# Liquid water's real refractive index below 0.75 um. The Hale and Querry
-# extract this project holds starts at 0.75 um, and over 0.4 to 0.75 um the real
-# index runs 1.339 to 1.330 in that table's parent, so a single value carries
-# band 1 to better than the map can resolve. `nl_flat_sensitivity` measures what
-# using this value in band 2 as well would have changed, so the wavelength
-# dependence that IS carried has a size.
+# This consumer deliberately retains its original flat band-1 reduction even
+# though OCN-6 extended the held table to 0.20 um. Its registered wetting result
+# is not silently changed by a new consumer's larger source extract;
+# `nl_flat_sensitivity` is already the comparison arm for that reduction.
 WATER_INDEX_BAND1 = 1.333
 
 # The reflectance of the water film's own upper face at normal incidence, which
@@ -362,15 +360,16 @@ def tbm_wet(alpha_dry: np.ndarray, ratio: float = TBM_SCALING_RATIO,
 def water_indices(wavelength_um: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """(n, k) of liquid water on `wavelength_um`, Hale and Querry (1973).
 
-    The extract this project holds starts at 0.75 um, so band 1 takes the flat
-    band-1 value. Both are returned because n drives the two wetting maps and k
-    is what neither of them carries.
+    The held extract now covers 0.20--4.0 um, but this older wetting consumer
+    intentionally keeps its flat band-1 reduction. Both are returned because n
+    drives the two wetting maps and k is what neither of them carries.
     """
     table = np.loadtxt(WATER_OPTICS)
     lam, k_w, n_w = table[:, 0], table[:, 1], table[:, 2]
-    n = np.where(wavelength_um < lam[0], WATER_INDEX_BAND1,
+    n = np.where(wavelength_um < 0.75, WATER_INDEX_BAND1,
                  np.interp(wavelength_um, lam, n_w))
-    k = np.where(wavelength_um < lam[0], np.interp(lam[0], lam, k_w),
+    k = np.where(wavelength_um < 0.75,
+                 np.interp(0.75, lam, k_w),
                  np.interp(wavelength_um, lam, k_w))
     return n, k
 

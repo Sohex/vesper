@@ -56,6 +56,7 @@ resolution ratio the crossing will actually run at.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -72,6 +73,8 @@ import paths as paths_lib  # noqa: E402
 import provenance  # noqa: E402
 import remap as remap_lib  # noqa: E402
 import rungs  # noqa: E402
+from spatial_support import (grid_support_contract, validate_contract,  # noqa: E402
+                             validate_conversion_assessment)
 
 OUT_JSON = ROOT / "analysis" / "ocean_remap.json"
 
@@ -249,6 +252,129 @@ def dst_of(crossing, field):
     return out
 
 
+def assessed_conversion(atm, ocn, crossing, checks, grid_dir, coast):
+    """Bind the produced weights to SPAT-1 identities and SPAT-10 checks."""
+    source_artifact = (str((grid_dir / "manifest.json").relative_to(ROOT))
+                       if grid_dir is not None else "config/planet.yaml")
+    source_contract = grid_support_contract(
+        atm, "analysis/ocean_remap_weights.npz", "atmosphere_grid",
+        "atmosphere_gaussian_grid", [source_artifact])
+    # Until OCN-11 supplies wet volume and topology this is a candidate
+    # comparison geometry, not an accepted ocean support.
+    destination_contract = grid_support_contract(
+        ocn, "analysis/ocean_remap_weights.npz", "goldstein_candidate_grid",
+        "comparison_support", ["lib/gridding.py:goldstein_grid"])
+
+    by_name = {row["check"]: row for row in checks}
+
+    def le(residual, tolerance):
+        return {"status": "pass", "residual": float(residual),
+                "tolerance": float(tolerance), "comparator": "less_than_or_equal"}
+
+    def ge(residual, tolerance):
+        return {"status": "pass", "residual": float(residual),
+                "tolerance": float(tolerance), "comparator": "greater_than_or_equal"}
+
+    def na(reason):
+        return {"status": "not_applicable", "reason": reason}
+
+    rng = np.random.default_rng(20260828)
+    probe = rng.normal(size=atm.shape)
+    reduced, _ = crossing.apply(probe, remap_lib.INTENSIVE)
+    processed_then, _ = crossing.apply(probe ** 2, remap_lib.INTENSIVE)
+    order_gap = float(np.max(np.abs(processed_then - reduced ** 2)))
+    ones_dst, _ = crossing.apply(np.ones(atm.shape), remap_lib.INTENSIVE)
+    ones_back, _ = remap_lib.Crossing(ocn, atm).restrict().apply(
+        ones_dst, remap_lib.INTENSIVE)
+    common_a, _ = remap_lib.Crossing(atm, atm).restrict().apply(
+        np.ones(atm.shape), remap_lib.INTENSIVE)
+    common_b, _ = remap_lib.Crossing(ocn, atm).restrict().apply(
+        ones_dst, remap_lib.INTENSIVE)
+    identity_residual = max(
+        row["residual"] for row in checks
+        if row["check"].startswith("a grid crossed with itself is the identity"))
+    energy = by_name["an arbitrary flux density conserves its integral"]
+    area_residual = max(abs(atm.cell_area_fraction().sum() - 1.0),
+                        abs(ocn.cell_area_fraction().sum() - 1.0))
+
+    nearest = []
+    ownership = []
+    if coast is not None:
+        if coast.get("source_cells_orphaned", 0):
+            nearest.append({
+                "source_cells": coast["source_cells_orphaned"],
+                "source_area_fraction": coast["source_area_fraction_moved"],
+                "furthest_move_degrees": coast["furthest_move_degrees"],
+                "rule": "nearest valid destination; conserving semantics only",
+            })
+        ownership.append({
+            "atmosphere_ocean_cells": coast["atmosphere_ocean_cells"],
+            "candidate_ocean_wet_cells": coast["ocean_wet_cells"],
+            "wet_fraction_cut": coast["ocean_wet_cut"],
+            "status": "demonstration; OCN-11 supplies the accepted ownership",
+        })
+
+    source_bytes = ((grid_dir / "manifest.json").read_bytes()
+                    if grid_dir is not None else
+                    (ROOT / "config" / "planet.yaml").read_bytes())
+    assessment = {
+        "assessment_version": "vesper-spatial-conversion/1",
+        "source_contract_identity": validate_contract(source_contract),
+        "destination_contract_identity": validate_contract(destination_contract),
+        "source_support_id": "atmosphere_grid",
+        "destination_support_id": "goldstein_candidate_grid",
+        "source_shape": list(atm.shape),
+        "destination_shape": list(ocn.shape),
+        "source_coordinates_sha256": source_contract["supports"][0]["coordinates_sha256"],
+        "destination_coordinates_sha256": destination_contract["supports"][0]["coordinates_sha256"],
+        "operator_version": "lib.remap.Crossing/1",
+        "closure": {
+            "area": le(area_residual, remap_lib.AREA_TOLERANCE),
+            "ocean_volume": na("OCN-11 has not supplied accepted bathymetry or wet volume"),
+            "water": na("the geometry fixture carries no water reservoir"),
+            "salt": na("the geometry fixture carries no salt reservoir"),
+            "energy": le(energy["residual"], energy["tolerance"]),
+            "carbon": na("the geometry fixture carries no carbon reservoir"),
+            "nitrogen": na("the geometry fixture carries no nitrogen reservoir"),
+            "phosphorus": na("the geometry fixture carries no phosphorus reservoir"),
+        },
+        "tests": {
+            "constant": le(float(np.max(np.abs(ones_dst - 1.0))),
+                           remap_lib.CONSTANT_TOLERANCE),
+            "identity": le(identity_residual, 1e-14),
+            "reduction": le(energy["residual"], energy["tolerance"]),
+            "round_trip": le(float(np.max(np.abs(ones_back - 1.0))), 1e-14),
+            "operator_order": ge(order_gap, 1e-6),
+            "common_support": le(float(np.max(np.abs(common_a - common_b))), 1e-14),
+        },
+        "inventory": {
+            "nearest_fallbacks": nearest,
+            "ownership_changes": ownership,
+            "connectivity_changes": [{
+                "status": "not_applicable",
+                "reason": "the candidate crossing has no ocean topology; OCN-11 owns it",
+            }],
+            "discarded_spectral_content": [{
+                "count": 0,
+                "reason": "finite-volume overlap is not a spectral truncation",
+            }],
+            "unmapped_extensive_stores": [],
+        },
+        "provenance": {
+            "source_artifact_sha256": hashlib.sha256(source_bytes).hexdigest(),
+            "destination_geometry_sha256":
+                destination_contract["supports"][0]["geometry_sha256"],
+            "operator_sha256": hashlib.sha256(
+                (ROOT / "lib" / "remap.py").read_bytes()).hexdigest(),
+        },
+    }
+    identity = validate_conversion_assessment(
+        assessment, source_contract, destination_contract)
+    return {"source_contract": source_contract,
+            "destination_contract": destination_contract,
+            "assessment": assessment, "assessment_identity": identity}
+
+
 def coast_demonstration(atm, ocn, grid_dir: Path) -> dict:
     """The coast rule against real geography, and what it costs.
 
@@ -346,6 +472,9 @@ def main() -> int:
         checked_against = str(grid_dir.relative_to(ROOT))
 
     checks, crossing = run_checks(atm, ocn)
+    coast = coast_demonstration(atm, ocn, grid_dir) if grid_dir is not None else None
+    support_assessment = assessed_conversion(
+        atm, ocn, crossing, checks, grid_dir, coast)
     report = {
         "atmosphere": {"name": atm.name, "shape": list(atm.shape), "source": atm.source},
         "ocean": {"name": ocn.name, "shape": list(ocn.shape), "source": ocn.source,
@@ -360,10 +489,11 @@ def main() -> int:
             "control_floor": CONTROL_FLOOR,
         },
         "provenance": provenance.config_stamp(config, "analysis/ocean_remap.py"),
+        "spatial_conversion": support_assessment,
     }
     if grid_dir is not None:
         report["export_area_disagreement"] = export_area_disagreement(grid_dir, atm)
-        report["coast_demonstration"] = coast_demonstration(atm, ocn, grid_dir)
+        report["coast_demonstration"] = coast
 
     failed = [c for c in checks if not c["passes"]]
     report["checks_run"] = len(checks)
@@ -381,7 +511,12 @@ def main() -> int:
         conserving_val=conserving.data, intensive_row=intensive.row,
         intensive_col=intensive.col, intensive_val=intensive.data,
         src_shape=np.array(atm.shape), dst_shape=np.array(ocn.shape),
-        src_area=crossing.src_area, dst_area=crossing.dst_area)
+        src_area=crossing.src_area, dst_area=crossing.dst_area,
+        source_contract_identity=np.array(
+            support_assessment["assessment"]["source_contract_identity"]),
+        destination_contract_identity=np.array(
+            support_assessment["assessment"]["destination_contract_identity"]),
+        assessment_identity=np.array(support_assessment["assessment_identity"]))
 
     for c in checks:
         mark = "  ok  " if c["passes"] else " FAIL "

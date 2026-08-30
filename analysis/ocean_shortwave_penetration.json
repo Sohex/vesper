@@ -1,0 +1,76 @@
+{
+  "contract_version": "vesper-ocean-shortwave-penetration/1",
+  "generated": "2026-08-28T11:25:17+00:00",
+  "sources": {
+    "optics": "exoplasim/data/water/hale_querry_1973_liquid_water.dat",
+    "optics_sha256": "9622f4d1886963e7526c604f347a5930b95a4d903c6387c9866422bd4e41f12a",
+    "stellar_spectrum": "exoplasim/inputs/stellarspectra/k25v_hr.dat",
+    "stellar_sha256": "50729d2432316108c45332eac45e6d36e7b6f7fd0c34c854bfc822533119cb51"
+  },
+  "layers_m": [
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0
+  ],
+  "k25v_clear_water": {
+    "absorbed_fraction_by_layer": [
+      0.8142394276374484,
+      0.05126663858500286,
+      0.02786607235584748,
+      0.019196310493448086,
+      0.014622182816583885,
+      0.011643108684342934,
+      0.009479979953041968,
+      0.007820418042108786,
+      0.006508279654911276,
+      0.005451526586996539
+    ],
+    "transmitted_below_column": 0.03190605519026785,
+    "closure_residual": 0.0,
+    "absorbed_top_1m": 0.6953095652509036
+  },
+  "solar_5772k_clear_water": {
+    "absorbed_fraction_by_layer": [
+      0.7337961741285437,
+      0.07401416611072215,
+      0.04113985698429711,
+      0.0282291934032606,
+      0.021266664021929012,
+      0.016746762100062804,
+      0.013506026958438583,
+      0.011053735985095656,
+      0.009138438361982564,
+      0.007611721293187333
+    ],
+    "transmitted_below_column": 0.04349726065248054,
+    "closure_residual": 0.0,
+    "absorbed_top_1m": 0.5773415749802877
+  },
+  "k25v_over_solar_top_1m_absorption": 1.204329629777041,
+  "checks": {
+    "surface_deposition_reduction_residual": 0.0,
+    "maximum_energy_closure_residual": 0.0,
+    "icemod_already_receives_separate_shortwave": true
+  },
+  "implementation_cost": {
+    "new_spectral_radiation_call": false,
+    "new_horizontal_prognostic_fields_per_layer": 0,
+    "required_interface_change": "accumulate the already available xswfl separately from total xcflux, pass net shortwave into oceanstep, and distribute it by layer",
+    "operator_complexity": "O(horizontal_ocean_cells * layers) per ocean coupling"
+  },
+  "excluded": {
+    "pigment_and_particle_absorption": "pending OCN-14",
+    "surface_reflection": "owned by OCN-7"
+  },
+  "verdict": {
+    "adopted": false,
+    "reason": "OCN-1 rejected an ExoPlaSim multilayer column for the active tier. The clear-water operator is cheap and closes, but has no accepted destination; pigment/particle attenuation additionally waits for OCN-14's covarying physiology rather than inventing a chlorophyll scalar here."
+  }
+}

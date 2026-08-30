@@ -1,0 +1,39 @@
+# OCN-1 exploration declaration. This prices the dormant multilayer diffuser;
+# it does not activate it in the climate model.
+contract_version: vesper-ocean-column-response/1
+source: vendor/exoplasim/exoplasim/plasim/src/oceanmod.f90
+forcing:
+  shape: unit_sinusoidal_downward_surface_heat_flux
+  period: configured_orbital_year
+  amplitude_w_m2: 1.0
+  timestep: configured_solar_day_divided_by_ocean_steps_per_day
+water_column:
+  total_depth_m: 50.0
+  density_kg_m3: 1030.0
+  heat_capacity_j_kg_k: 3990.34
+  candidates:
+    slab: [50.0]
+    two_layer: [10.0, 40.0]
+    four_layer: [5.0, 10.0, 15.0, 20.0]
+    ten_layer: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
+  vertical_diffusivity_m2_s: [1.0e-5, 3.0e-5, 1.0e-4, 3.0e-4, 1.0e-3]
+  source_default_vertical_diffusivity_m2_s: 1.0e-4
+verdict:
+  adopted: false
+  status: viable_but_rejected_for_active_tier
+  reasons:
+    - >-
+      The source unconditionally replaces the last declared layer thickness
+      with mldepth, so subdivision of the existing 50 m column is not the
+      namelist-only change the issue premise described.
+    - >-
+      The seasonal response is material and strongly conditional on an
+      undeclared diffusivity/profile choice; it is not a small correction.
+    - >-
+      Every radiative and turbulent watt is still deposited in level 1, so
+      adding levels does not implement the penetrative-shortwave physics that
+      motivated a red-star column.
+    - >-
+      The adopted resolved tier is cGENIE/GOLDSTEIN. A second vertical ocean
+      state in ExoPlaSim needs an explicit state/energy coupling decision, not
+      activation of a dormant diffuser while only heat convergence is returned.

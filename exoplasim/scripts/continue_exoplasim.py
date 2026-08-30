@@ -525,6 +525,9 @@ def main() -> None:
         pO2=float(atmosphere["pO2_bar"]),
         pAr=float(atmosphere["pAr_bar"]),
         pCO2=float(atmosphere["pCO2_bar"]),
+        # OCN-16: a continuation must retain the same prescribed-CO2 premise.
+        co2weathering=False,
+        evolveco2=False,
         rotationperiod=derived["rotation_days"],
         year=derived["orbital_year_earth_days"],
         gravity=derived["gravity_m_s2"],

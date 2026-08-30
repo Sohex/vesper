@@ -179,6 +179,9 @@ def make_model(
         pO2=float(atmosphere["pO2_bar"]),
         pAr=float(atmosphere["pAr_bar"]),
         pCO2=float(atmosphere["pCO2_bar"]),
+        # OCN-16: stellar-cycle arms vary irradiance, never atmospheric CO2.
+        co2weathering=False,
+        evolveco2=False,
         rotationperiod=derived["rotation_days"],
         year=derived["orbital_year_earth_days"],
         gravity=derived["gravity_m_s2"],

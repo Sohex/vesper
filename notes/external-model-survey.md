@@ -3502,8 +3502,9 @@ bluer than the light at the surface". What follows is its magnitude, and the
 distinction between this figure and section 12a's 0.869 is drawn there.
 
 `exoplasim/data/water/hale_querry_1973_liquid_water.dat` is this project's own
-extraction of Hale and Querry (1973) Table I, deliberately covering 0.75 to
-4.0 um. Converting to an absorption coefficient, `a = 4*pi*k/lambda`:
+extraction of Hale and Querry (1973) Table I. It originally covered 0.75 to
+4.0 um; OCN-6 extended it to 0.20 um for the clear-water column calculation.
+Converting to an absorption coefficient, `a = 4*pi*k/lambda`:
 
 | lambda um | 0.75 | 0.80 | 0.90 | 1.00 | 1.20 | 1.50 | 2.00 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -3529,9 +3530,8 @@ attenuates with depth.
 
 Three limits on that figure, none of which change its sign. It is the flux
 reaching below the surface layer, NOT the photic depth itself -- the depth also
-needs visible attenuation, and the visible half of Table I is not extracted here
-(the existing file stops at 0.75 um deliberately, and the PDF is a scan whose
-table would not extract reliably, so it was not guessed at). It is pure water,
+needs visible attenuation. OCN-6 subsequently extracted that half directly
+from the held paper rather than guessing it. It is pure water,
 whereas attenuation in productive water is dominated by chlorophyll and CDOM,
 which absorb more strongly in the blue and therefore partly offset the penalty.
 And it treats band 2 as wholly removed, which the table above justifies.

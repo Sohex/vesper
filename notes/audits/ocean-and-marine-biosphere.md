@@ -528,6 +528,16 @@ is reopened, OCN-16 joins air-sea exchange and carbonate chemistry to ANUT-6,
 OCN-13 and VOLC-8's weathering/outgassing bracket; only then does ocean biology
 leave the pipeline's leaf tier and enter a climate convergence loop.
 
+That boundary is now executable rather than prose. OCN-16's
+`ocean/config/carbon_feedback.yaml` declares the prescribed atmospheric owner,
+the absent air-sea exchange and atmospheric carbon reservoir, and the complete
+reopening contract. `ocean/scripts/carbon_feedback_gate.py` checks the three
+ExoPlaSim run entry points pin `co2weathering=False` and `evolveco2=False`, that
+the transport return contains no carbon term, and that reopening includes an
+equal atmospheric debit for every ocean credit. Its mutation fixtures remove
+each of those conditions in turn and require refusal; it activates no carbon
+cycle.
+
 ### 8g. The existing marine substrate already has a static latitude classifier
 
 This is not only a future external-model problem. Orogen's `shelfClass()`

@@ -17,7 +17,7 @@
     "igrid": 0,
     "lon_origin_deg": -260.0
   },
-  "rows_checked_against": "source/precarve-craton-10m/exoplasim-T21",
+  "rows_checked_against": "source/canonical-10m-carve2/exoplasim-T21",
   "checks": [
     {
       "check": "exoplasim-T21: cell areas sum to the sphere",
@@ -182,8 +182,9 @@
     "generator": "analysis/ocean_remap.py",
     "source_config": {
       "schema_version": 1,
-      "source_build": "precarve-craton-10m",
+      "source_build": "canonical-10m-carve2",
       "baseline_climatology": null,
+      "bootstrap_climatology": null,
       "planet": {
         "radius_earth": 1.2,
         "gravity_m_s2": 12.81,
@@ -243,6 +244,12 @@
         "sea_ice": true,
         "sea_ice_max_thickness_m": -1.0,
         "sea_ice_lead_closing_m": 0.5,
+        "cryosphere": {
+          "sea_ice_density_kg_m3": 920.0,
+          "sea_ice_specific_heat_j_kg_k": 2070.0,
+          "sea_ice_conductivity_w_m_k": 2.03,
+          "snow_fusion_j_kg": 333444.87
+        },
         "glaciers": {
           "enabled": true,
           "min_snow_depth_m": 2.0,
@@ -251,20 +258,27 @@
           "persistence_orbits": 1.0
         },
         "land_water_column": {
-          "scheme": "bucket",
-          "layers": 1,
+          "scheme": "layered",
+          "layers": 3,
           "lower_boundary": "impermeable",
-          "layer_capacity_fraction": [
-            1.0
-          ],
           "layer_thickness_m": [
-            1.5
+            0.02,
+            0.48,
+            1.0
           ],
           "soil_phase": false,
           "evaporation_limiter": {
             "theta_low": 0.0,
             "exponent": 1
           }
+        },
+        "soil_albedo_moisture": {
+          "enabled": true,
+          "saturation_at_empty_layer": 0.0,
+          "saturation_at_full_layer": 0.7543,
+          "shape_sigma_broadband": 1.0,
+          "shape_sigma_band1": 1.0,
+          "shape_sigma_band2": 1.0
         }
       },
       "model": {
@@ -299,13 +313,13 @@
           "profile": "production"
         },
         "ncpus": 16,
-        "timestep_minutes": 30.0,
+        "timestep_minutes": 45.0,
         "physics_filter": "gp|exp|sp",
         "filter_kappa": 8.0,
         "filter_power": 16,
         "cold_start_seed": 88888888,
         "hyperdiffusion": {
-          "eddy_wind_m_s": 5.94,
+          "eddy_wind_m_s": 9.838,
           "order_alpha": 4,
           "cutoff_fraction": 0.381,
           "ratios_to_vorticity": {
@@ -315,43 +329,41 @@
           },
           "timescales_days": {
             "T21": {
-              "divergence": 0.4457,
-              "vorticity": 2.2285,
-              "temperature": 5.6449,
-              "humidity": 0.7421
+              "divergence": 0.2691,
+              "vorticity": 1.3455,
+              "temperature": 3.4082,
+              "humidity": 0.4481
             },
             "T42": {
-              "divergence": 0.2229,
-              "vorticity": 1.1143,
-              "temperature": 2.8224,
-              "humidity": 0.3711
+              "divergence": 0.1346,
+              "vorticity": 0.6728,
+              "temperature": 1.7042,
+              "humidity": 0.224
             },
             "T85": {
-              "divergence": 0.1101,
-              "vorticity": 0.5506,
-              "temperature": 1.3946,
-              "humidity": 0.1833
+              "divergence": 0.0665,
+              "vorticity": 0.3324,
+              "temperature": 0.842,
+              "humidity": 0.1107
             },
             "T127": {
-              "divergence": 0.0737,
-              "vorticity": 0.3685,
-              "temperature": 0.9334,
-              "humidity": 0.1227
+              "divergence": 0.0445,
+              "vorticity": 0.2225,
+              "temperature": 0.5636,
+              "humidity": 0.0741
             },
             "T170": {
-              "divergence": 0.0551,
-              "vorticity": 0.2753,
-              "temperature": 0.6973,
-              "humidity": 0.0917
+              "divergence": 0.0333,
+              "vorticity": 0.1663,
+              "temperature": 0.4212,
+              "humidity": 0.0554
             }
           }
         },
         "cold_start_profile": {
-          "surface_temperature_k": 289.03,
-          "lapse_rate_k_per_m": 0.008489,
-          "tropopause_height_m": 9220.0
+          "surface_temperature_k": 279.83
         },
-        "semi_implicit_reference_temperature_k": 249.4,
+        "semi_implicit_reference_temperature_k": 241.41,
         "rayleigh_sponge_rotations": [
           20.0,
           100.0,
@@ -371,18 +383,19 @@
         "energy_fixer": true,
         "cloud_absorption_scale": 1.192,
         "cloud_water_reference_kg_m3": 0.00021,
-        "land_longwave_emissivity": 0.9357,
+        "precip_reevaporation_gamma": "derived",
+        "cloud_fraction_subgrid_width": "derived",
+        "asymptotic_mixing_length_m": "derived",
+        "land_longwave_emissivity": 0.935,
         "sea_longwave_emissivity": 0.98,
         "ozone_scale": 0.794,
-        "ozone_height_m": 15311.8,
-        "ozone_spread_m": 3828.0,
         "ozone_uv_weight": 0.335,
-        "ozone_visible_weight": 0.914,
-        "h2o_sw_weight": 1.346,
-        "h2o_sw_level": 1.163,
+        "ozone_visible_weight": 0.908,
+        "h2o_sw_weight": 1.351,
+        "h2o_sw_level": 1.161,
         "h2o_sw_level_bracket": [
-          1.129,
-          1.206
+          1.128,
+          1.205
         ],
         "co2_sw_weight": 1.51,
         "roughness_source": "lithology",
@@ -427,26 +440,273 @@
           "medium": {
             "period_earth_years": 11.0,
             "amplitude_flux_peak_to_peak": 0.025,
-            "note": "The lived rhythm. Damped about 0.83, so roughly 3.1 K peak-to-peak, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow.\n"
+            "note": "The lived rhythm. Damped about 0.83, so amplitude times damping times `lib/sensitivity.py`'s slope, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow. The kelvin figure is NOT restated here: it is a product of a slope that is re-derived per model, and the two numbers that stood here before reproduced at a slope retired two measurements ago.\n"
           },
           "long": {
             "period_earth_years": 57.0,
             "amplitude_flux_peak_to_peak": 0.035,
-            "note": "The geomorphic driver. Essentially undamped at 0.99, roughly 5.2 K peak-to-peak, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+            "note": "The geomorphic driver. Essentially undamped at 0.99, so amplitude times damping times the same slope, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
           }
         },
         "total_amplitude_flux_peak_to_peak": 0.06,
         "alignment_recurrence_earth_years": 314
       }
     },
-    "config_sha256": "5ab8c97d4d36f6c7f0b1610648e6b8abf3a5d338458f310fb996b3b584b1769c",
-    "git_commit": "f59a621ebd8573440ef78464fea34df13a102f01"
+    "config_sha256": "ee67a2b9be8a3fba2a788d5a0418c94bed38417dc32766a53b1175994f038d4e",
+    "git_commit": "2896f62efec8bf838181e64345c980ff3215ec65"
+  },
+  "spatial_conversion": {
+    "source_contract": {
+      "contract_version": "vesper-spatial-support/1",
+      "artifact_id": "analysis/ocean_remap_weights.npz",
+      "supports": [
+        {
+          "id": "atmosphere_grid",
+          "kind": "atmosphere_gaussian_grid",
+          "dimensions": {
+            "latitude": 32,
+            "longitude": 64
+          },
+          "geometry_sha256": "5e7fd5564e34e151c8fed95afa88e59b8e65ba1595d1c78c5afb9222efc6160e",
+          "coordinates_sha256": "925545097c7ef9eb0db681400ffbfc4748563c4e0e83564926a5f16925d6a044",
+          "native_measures": [
+            {
+              "kind": "area",
+              "variable": "cell_area",
+              "units": "m2"
+            }
+          ]
+        }
+      ],
+      "fields": [
+        {
+          "name": "cell_coverage",
+          "semantics": "dimensionless_fraction",
+          "units": "1",
+          "support_id": "atmosphere_grid",
+          "spatial_dimensions": [
+            "latitude",
+            "longitude"
+          ],
+          "effective_measure": {
+            "mode": "native",
+            "measure_kind": "area"
+          },
+          "aggregation": {
+            "operator": "identity",
+            "operator_version": "lib.spatial_support.grid_support_contract/1",
+            "source_support": "atmosphere_grid",
+            "destination_support": "atmosphere_grid",
+            "nonlinear_order": "not_applicable"
+          }
+        }
+      ],
+      "time_support": {
+        "semantics": "static"
+      },
+      "provenance": {
+        "source_artifacts": [
+          "source/canonical-10m-carve2/exoplasim-T21/manifest.json"
+        ],
+        "operator_versions": {
+          "identity": "lib.spatial_support.grid_support_contract/1"
+        }
+      }
+    },
+    "destination_contract": {
+      "contract_version": "vesper-spatial-support/1",
+      "artifact_id": "analysis/ocean_remap_weights.npz",
+      "supports": [
+        {
+          "id": "goldstein_candidate_grid",
+          "kind": "comparison_support",
+          "dimensions": {
+            "latitude": 36,
+            "longitude": 36
+          },
+          "geometry_sha256": "613ee5c50981ad772c7a8d44e46d1dbac18179c8af77337f4663679fedc5d6a9",
+          "coordinates_sha256": "211c0115333e44eb9aa41eb8401af9ed2472639ea0f2969caeeb64a088be05fd",
+          "native_measures": [
+            {
+              "kind": "area",
+              "variable": "cell_area",
+              "units": "m2"
+            }
+          ]
+        }
+      ],
+      "fields": [
+        {
+          "name": "cell_coverage",
+          "semantics": "dimensionless_fraction",
+          "units": "1",
+          "support_id": "goldstein_candidate_grid",
+          "spatial_dimensions": [
+            "latitude",
+            "longitude"
+          ],
+          "effective_measure": {
+            "mode": "native",
+            "measure_kind": "area"
+          },
+          "aggregation": {
+            "operator": "identity",
+            "operator_version": "lib.spatial_support.grid_support_contract/1",
+            "source_support": "goldstein_candidate_grid",
+            "destination_support": "goldstein_candidate_grid",
+            "nonlinear_order": "not_applicable"
+          }
+        }
+      ],
+      "time_support": {
+        "semantics": "static"
+      },
+      "provenance": {
+        "source_artifacts": [
+          "lib/gridding.py:goldstein_grid"
+        ],
+        "operator_versions": {
+          "identity": "lib.spatial_support.grid_support_contract/1"
+        }
+      }
+    },
+    "assessment": {
+      "assessment_version": "vesper-spatial-conversion/1",
+      "source_contract_identity": "cb9c26801fdb7bbc6376d888f18efbef33fc50334c6b4e7f1759e118fc0de9e2",
+      "destination_contract_identity": "194588b440c5cb4c8ace0727dbcefb610a4bf6164b6c3913a7b3927ef7ac18f9",
+      "source_support_id": "atmosphere_grid",
+      "destination_support_id": "goldstein_candidate_grid",
+      "source_shape": [
+        32,
+        64
+      ],
+      "destination_shape": [
+        36,
+        36
+      ],
+      "source_coordinates_sha256": "925545097c7ef9eb0db681400ffbfc4748563c4e0e83564926a5f16925d6a044",
+      "destination_coordinates_sha256": "211c0115333e44eb9aa41eb8401af9ed2472639ea0f2969caeeb64a088be05fd",
+      "operator_version": "lib.remap.Crossing/1",
+      "closure": {
+        "area": {
+          "status": "pass",
+          "residual": 0.0,
+          "tolerance": 1e-13,
+          "comparator": "less_than_or_equal"
+        },
+        "ocean_volume": {
+          "status": "not_applicable",
+          "reason": "OCN-11 has not supplied accepted bathymetry or wet volume"
+        },
+        "water": {
+          "status": "not_applicable",
+          "reason": "the geometry fixture carries no water reservoir"
+        },
+        "salt": {
+          "status": "not_applicable",
+          "reason": "the geometry fixture carries no salt reservoir"
+        },
+        "energy": {
+          "status": "pass",
+          "residual": 4.6183213519836015e-18,
+          "tolerance": 1e-12,
+          "comparator": "less_than_or_equal"
+        },
+        "carbon": {
+          "status": "not_applicable",
+          "reason": "the geometry fixture carries no carbon reservoir"
+        },
+        "nitrogen": {
+          "status": "not_applicable",
+          "reason": "the geometry fixture carries no nitrogen reservoir"
+        },
+        "phosphorus": {
+          "status": "not_applicable",
+          "reason": "the geometry fixture carries no phosphorus reservoir"
+        }
+      },
+      "tests": {
+        "constant": {
+          "status": "pass",
+          "residual": 2.220446049250313e-16,
+          "tolerance": 1e-13,
+          "comparator": "less_than_or_equal"
+        },
+        "identity": {
+          "status": "pass",
+          "residual": 2.074990836943379e-16,
+          "tolerance": 1e-14,
+          "comparator": "less_than_or_equal"
+        },
+        "reduction": {
+          "status": "pass",
+          "residual": 4.6183213519836015e-18,
+          "tolerance": 1e-12,
+          "comparator": "less_than_or_equal"
+        },
+        "round_trip": {
+          "status": "pass",
+          "residual": 4.440892098500626e-16,
+          "tolerance": 1e-14,
+          "comparator": "less_than_or_equal"
+        },
+        "operator_order": {
+          "status": "pass",
+          "residual": 4.881832312643841,
+          "tolerance": 1e-06,
+          "comparator": "greater_than_or_equal"
+        },
+        "common_support": {
+          "status": "pass",
+          "residual": 4.440892098500626e-16,
+          "tolerance": 1e-14,
+          "comparator": "less_than_or_equal"
+        }
+      },
+      "inventory": {
+        "nearest_fallbacks": [
+          {
+            "source_cells": 12,
+            "source_area_fraction": 0.005667310528638307,
+            "furthest_move_degrees": 12.362058356434419,
+            "rule": "nearest valid destination; conserving semantics only"
+          }
+        ],
+        "ownership_changes": [
+          {
+            "atmosphere_ocean_cells": 989,
+            "candidate_ocean_wet_cells": 733,
+            "wet_fraction_cut": 0.5,
+            "status": "demonstration; OCN-11 supplies the accepted ownership"
+          }
+        ],
+        "connectivity_changes": [
+          {
+            "status": "not_applicable",
+            "reason": "the candidate crossing has no ocean topology; OCN-11 owns it"
+          }
+        ],
+        "discarded_spectral_content": [
+          {
+            "count": 0,
+            "reason": "finite-volume overlap is not a spectral truncation"
+          }
+        ],
+        "unmapped_extensive_stores": []
+      },
+      "provenance": {
+        "source_artifact_sha256": "0c83be736a599f5e72314f83404402d59c3964b5d50ed64bc8ebdab6e77fc14e",
+        "destination_geometry_sha256": "613ee5c50981ad772c7a8d44e46d1dbac18179c8af77337f4663679fedc5d6a9",
+        "operator_sha256": "b2e516056b2f434625936b436e8102698ae42c531ffe5a7810b233b196477f51"
+      }
+    },
+    "assessment_identity": "5eb717e51962155741edfad73d9f5e10d1a19f2615c03525718138c354705772"
   },
   "export_area_disagreement": {
     "gauss_weights_against_construction": 1.3834419720915037e-15,
-    "grid_cell_area_against_weights_max_relative": 0.2199443581709792,
+    "grid_cell_area_against_weights_max_relative": 4.857732603026979e-08,
     "grid_cell_area_against_weights_max_row": 0,
-    "grid_cell_area_against_weights_interior_median_relative": 0.001556591116490453,
+    "grid_cell_area_against_weights_interior_median_relative": 2.214498295972115e-08,
     "used_for_the_crossing": "grid/gauss_weights.bin"
   },
   "coast_demonstration": {

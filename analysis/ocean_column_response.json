@@ -1,0 +1,825 @@
+{
+  "contract_version": "vesper-ocean-column-response/1",
+  "generated": "2026-08-28T11:22:19+00:00",
+  "source_sha256": "6159c660c2563d91c0f883ab431418ab57cb64c5a1b0dad24269f67a82f6e70e",
+  "forcing": {
+    "orbital_period_days": 182.80142503147016,
+    "solar_day_hours": 30.0,
+    "ocean_steps_per_solar_day": 32,
+    "timestep_seconds": 3375.0,
+    "amplitude_w_m2": 1.0
+  },
+  "checks": {
+    "single_slab_against_analytic_relative_residual": 7.51120188269283e-08,
+    "maximum_thickness_weighted_closure_residual_m": 7.105427357601002e-15,
+    "source_overwrites_last_layer_with_mldepth": true,
+    "source_deposits_all_surface_heat_in_level_1": true
+  },
+  "responses": [
+    {
+      "layers_m": [
+        50.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.012231968471802952,
+      "surface_phase_degrees": -90.0384638686404,
+      "bottom_amplitude_k_per_w_m2": 0.012231968471802952,
+      "diffusion_skin_depth_m": 7.090416115274599,
+      "thickness_weighted_closure_residual_m": 0.0,
+      "candidate": "slab",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 1e-05,
+      "surface_amplitude_relative_to_slab": 1.0
+    },
+    {
+      "layers_m": [
+        50.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.012231968471802952,
+      "surface_phase_degrees": -90.0384638686404,
+      "bottom_amplitude_k_per_w_m2": 0.012231968471802952,
+      "diffusion_skin_depth_m": 12.280960958460751,
+      "thickness_weighted_closure_residual_m": 0.0,
+      "candidate": "slab",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 3e-05,
+      "surface_amplitude_relative_to_slab": 1.0
+    },
+    {
+      "layers_m": [
+        50.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.012231968471802952,
+      "surface_phase_degrees": -90.0384638686404,
+      "bottom_amplitude_k_per_w_m2": 0.012231968471802952,
+      "diffusion_skin_depth_m": 22.42186448263073,
+      "thickness_weighted_closure_residual_m": 0.0,
+      "candidate": "slab",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.0001,
+      "surface_amplitude_relative_to_slab": 1.0
+    },
+    {
+      "layers_m": [
+        50.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.012231968471802952,
+      "surface_phase_degrees": -90.0384638686404,
+      "bottom_amplitude_k_per_w_m2": 0.012231968471802952,
+      "diffusion_skin_depth_m": 38.835808484340475,
+      "thickness_weighted_closure_residual_m": 0.0,
+      "candidate": "slab",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.0003,
+      "surface_amplitude_relative_to_slab": 1.0
+    },
+    {
+      "layers_m": [
+        50.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.012231968471802952,
+      "surface_phase_degrees": -90.0384638686404,
+      "bottom_amplitude_k_per_w_m2": 0.012231968471802952,
+      "diffusion_skin_depth_m": 70.90416115274598,
+      "thickness_weighted_closure_residual_m": 0.0,
+      "candidate": "slab",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.001,
+      "surface_amplitude_relative_to_slab": 1.0
+    },
+    {
+      "layers_m": [
+        10.0,
+        40.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.060697579455098453,
+      "surface_phase_degrees": -84.31532234727766,
+      "bottom_amplitude_k_per_w_m2": 0.0015252476578595392,
+      "diffusion_skin_depth_m": 7.090416115274599,
+      "thickness_weighted_closure_residual_m": 0.0,
+      "candidate": "two_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 1e-05,
+      "surface_amplitude_relative_to_slab": 4.962208625293475
+    },
+    {
+      "layers_m": [
+        10.0,
+        50.0
+      ],
+      "total_depth_m": 60.0,
+      "surface_amplitude_k_per_w_m2": 0.06085816887107605,
+      "surface_phase_degrees": -85.25723281007308,
+      "bottom_amplitude_k_per_w_m2": 0.00101970664210217,
+      "diffusion_skin_depth_m": 7.090416115274599,
+      "thickness_weighted_closure_residual_m": 1.7763568394002505e-15,
+      "candidate": "two_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 1e-05,
+      "surface_amplitude_relative_to_slab": 4.975337290262469
+    },
+    {
+      "layers_m": [
+        10.0,
+        40.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.05737965097232172,
+      "surface_phase_degrees": -73.69640251776478,
+      "bottom_amplitude_k_per_w_m2": 0.004314588689337191,
+      "diffusion_skin_depth_m": 12.280960958460751,
+      "thickness_weighted_closure_residual_m": 1.7763568394002505e-15,
+      "candidate": "two_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 3e-05,
+      "surface_amplitude_relative_to_slab": 4.690958050177524
+    },
+    {
+      "layers_m": [
+        10.0,
+        50.0
+      ],
+      "total_depth_m": 60.0,
+      "surface_amplitude_k_per_w_m2": 0.05861898775086306,
+      "surface_phase_degrees": -76.13401905109838,
+      "bottom_amplitude_k_per_w_m2": 0.0029431949665938597,
+      "diffusion_skin_depth_m": 12.280960958460751,
+      "thickness_weighted_closure_residual_m": 0.0,
+      "candidate": "two_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 3e-05,
+      "surface_amplitude_relative_to_slab": 4.792277537829756
+    },
+    {
+      "layers_m": [
+        10.0,
+        40.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.03925688366362419,
+      "surface_phase_degrees": -52.67698078531103,
+      "bottom_amplitude_k_per_w_m2": 0.009568758150917947,
+      "diffusion_skin_depth_m": 22.42186448263073,
+      "thickness_weighted_closure_residual_m": 7.105427357601002e-15,
+      "candidate": "two_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.0001,
+      "surface_amplitude_relative_to_slab": 3.209367629921454
+    },
+    {
+      "layers_m": [
+        10.0,
+        50.0
+      ],
+      "total_depth_m": 60.0,
+      "surface_amplitude_k_per_w_m2": 0.043719710243273424,
+      "surface_phase_degrees": -54.41341589497271,
+      "bottom_amplitude_k_per_w_m2": 0.00722500046494298,
+      "diffusion_skin_depth_m": 22.42186448263073,
+      "thickness_weighted_closure_residual_m": 7.105427357601002e-15,
+      "candidate": "two_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 0.0001,
+      "surface_amplitude_relative_to_slab": 3.5742170480618713
+    },
+    {
+      "layers_m": [
+        10.0,
+        40.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.019639772984286763,
+      "surface_phase_degrees": -51.934409741111814,
+      "bottom_amplitude_k_per_w_m2": 0.011821256329340214,
+      "diffusion_skin_depth_m": 38.835808484340475,
+      "thickness_weighted_closure_residual_m": 1.7763568394002505e-15,
+      "candidate": "two_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.0003,
+      "surface_amplitude_relative_to_slab": 1.6056101705592383
+    },
+    {
+      "layers_m": [
+        10.0,
+        50.0
+      ],
+      "total_depth_m": 60.0,
+      "surface_amplitude_k_per_w_m2": 0.021542234654846042,
+      "surface_phase_degrees": -45.09707586030769,
+      "bottom_amplitude_k_per_w_m2": 0.009673541058767948,
+      "diffusion_skin_depth_m": 38.835808484340475,
+      "thickness_weighted_closure_residual_m": 0.0,
+      "candidate": "two_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 0.0003,
+      "surface_amplitude_relative_to_slab": 1.761142101085778
+    },
+    {
+      "layers_m": [
+        10.0,
+        40.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.013125210344446714,
+      "surface_phase_degrees": -72.89892930911094,
+      "bottom_amplitude_k_per_w_m2": 0.012192787395226532,
+      "diffusion_skin_depth_m": 70.90416115274598,
+      "thickness_weighted_closure_residual_m": 0.0,
+      "candidate": "two_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.001,
+      "surface_amplitude_relative_to_slab": 1.0730251941625633
+    },
+    {
+      "layers_m": [
+        10.0,
+        50.0
+      ],
+      "total_depth_m": 60.0,
+      "surface_amplitude_k_per_w_m2": 0.011814654890031025,
+      "surface_phase_degrees": -64.90207226181083,
+      "bottom_amplitude_k_per_w_m2": 0.0101425949677161,
+      "diffusion_skin_depth_m": 70.90416115274598,
+      "thickness_weighted_closure_residual_m": 0.0,
+      "candidate": "two_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 0.001,
+      "surface_amplitude_relative_to_slab": 0.9658833667913783
+    },
+    {
+      "layers_m": [
+        5.0,
+        10.0,
+        15.0,
+        20.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.09344454063630754,
+      "surface_phase_degrees": -63.7019428609508,
+      "bottom_amplitude_k_per_w_m2": 0.0002521749685276673,
+      "diffusion_skin_depth_m": 7.090416115274599,
+      "thickness_weighted_closure_residual_m": 1.7763568394002505e-15,
+      "candidate": "four_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 1e-05,
+      "surface_amplitude_relative_to_slab": 7.639370625563273
+    },
+    {
+      "layers_m": [
+        5.0,
+        10.0,
+        15.0,
+        50.0
+      ],
+      "total_depth_m": 80.0,
+      "surface_amplitude_k_per_w_m2": 0.09345710876023926,
+      "surface_phase_degrees": -63.698758627215085,
+      "bottom_amplitude_k_per_w_m2": 5.520237434014173e-05,
+      "diffusion_skin_depth_m": 7.090416115274599,
+      "thickness_weighted_closure_residual_m": 7.105427357601002e-15,
+      "candidate": "four_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 1e-05,
+      "surface_amplitude_relative_to_slab": 7.64039810727733
+    },
+    {
+      "layers_m": [
+        5.0,
+        10.0,
+        15.0,
+        20.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.0604745091205298,
+      "surface_phase_degrees": -54.72582016186017,
+      "bottom_amplitude_k_per_w_m2": 0.0021537146210499755,
+      "diffusion_skin_depth_m": 12.280960958460751,
+      "thickness_weighted_closure_residual_m": 1.7763568394002505e-15,
+      "candidate": "four_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 3e-05,
+      "surface_amplitude_relative_to_slab": 4.943971958392078
+    },
+    {
+      "layers_m": [
+        5.0,
+        10.0,
+        15.0,
+        50.0
+      ],
+      "total_depth_m": 80.0,
+      "surface_amplitude_k_per_w_m2": 0.060220146164319074,
+      "surface_phase_degrees": -54.4807858745565,
+      "bottom_amplitude_k_per_w_m2": 0.0005115944533494488,
+      "diffusion_skin_depth_m": 12.280960958460751,
+      "thickness_weighted_closure_residual_m": 0.0,
+      "candidate": "four_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 3e-05,
+      "surface_amplitude_relative_to_slab": 4.923177026096669
+    },
+    {
+      "layers_m": [
+        5.0,
+        10.0,
+        15.0,
+        20.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.03509189073245451,
+      "surface_phase_degrees": -49.05673556490134,
+      "bottom_amplitude_k_per_w_m2": 0.007862063900738896,
+      "diffusion_skin_depth_m": 22.42186448263073,
+      "thickness_weighted_closure_residual_m": 1.7763568394002505e-15,
+      "candidate": "four_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.0001,
+      "surface_amplitude_relative_to_slab": 2.8688670031604553
+    },
+    {
+      "layers_m": [
+        5.0,
+        10.0,
+        15.0,
+        50.0
+      ],
+      "total_depth_m": 80.0,
+      "surface_amplitude_k_per_w_m2": 0.035187067787080126,
+      "surface_phase_degrees": -52.51286633629919,
+      "bottom_amplitude_k_per_w_m2": 0.0024715613076023123,
+      "diffusion_skin_depth_m": 22.42186448263073,
+      "thickness_weighted_closure_residual_m": 1.7763568394002505e-15,
+      "candidate": "four_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 0.0001,
+      "surface_amplitude_relative_to_slab": 2.876648011985406
+    },
+    {
+      "layers_m": [
+        5.0,
+        10.0,
+        15.0,
+        20.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.018778614906280102,
+      "surface_phase_degrees": -53.3520680210165,
+      "bottom_amplitude_k_per_w_m2": 0.01142786329422254,
+      "diffusion_skin_depth_m": 38.835808484340475,
+      "thickness_weighted_closure_residual_m": 3.552713678800501e-15,
+      "candidate": "four_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.0003,
+      "surface_amplitude_relative_to_slab": 1.5352079225488877
+    },
+    {
+      "layers_m": [
+        5.0,
+        10.0,
+        15.0,
+        50.0
+      ],
+      "total_depth_m": 80.0,
+      "surface_amplitude_k_per_w_m2": 0.02209358988771479,
+      "surface_phase_degrees": -48.2439488972774,
+      "bottom_amplitude_k_per_w_m2": 0.005621143216044684,
+      "diffusion_skin_depth_m": 38.835808484340475,
+      "thickness_weighted_closure_residual_m": 1.7763568394002505e-15,
+      "candidate": "four_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 0.0003,
+      "surface_amplitude_relative_to_slab": 1.8062170400982294
+    },
+    {
+      "layers_m": [
+        5.0,
+        10.0,
+        15.0,
+        20.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.013028596343430341,
+      "surface_phase_degrees": -73.90276445170632,
+      "bottom_amplitude_k_per_w_m2": 0.012152496684949093,
+      "diffusion_skin_depth_m": 70.90416115274598,
+      "thickness_weighted_closure_residual_m": 3.552713678800501e-15,
+      "candidate": "four_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.001,
+      "surface_amplitude_relative_to_slab": 1.065126710673247
+    },
+    {
+      "layers_m": [
+        5.0,
+        10.0,
+        15.0,
+        50.0
+      ],
+      "total_depth_m": 80.0,
+      "surface_amplitude_k_per_w_m2": 0.010986943556646287,
+      "surface_phase_degrees": -54.71975463545611,
+      "bottom_amplitude_k_per_w_m2": 0.007371021312460408,
+      "diffusion_skin_depth_m": 70.90416115274598,
+      "thickness_weighted_closure_residual_m": 1.7763568394002505e-15,
+      "candidate": "four_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 0.001,
+      "surface_amplitude_relative_to_slab": 0.8982154901701482
+    },
+    {
+      "layers_m": [
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.08464240020363682,
+      "surface_phase_degrees": -64.33701595561277,
+      "bottom_amplitude_k_per_w_m2": 0.00016574613781723235,
+      "diffusion_skin_depth_m": 7.090416115274599,
+      "thickness_weighted_closure_residual_m": 8.881784197001252e-16,
+      "candidate": "ten_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 1e-05,
+      "surface_amplitude_relative_to_slab": 6.919769324026128
+    },
+    {
+      "layers_m": [
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        50.0
+      ],
+      "total_depth_m": 95.0,
+      "surface_amplitude_k_per_w_m2": 0.08464243768653218,
+      "surface_phase_degrees": -64.33676942768841,
+      "bottom_amplitude_k_per_w_m2": 5.9194509979880765e-06,
+      "diffusion_skin_depth_m": 7.090416115274599,
+      "thickness_weighted_closure_residual_m": 7.105427357601002e-15,
+      "candidate": "ten_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 1e-05,
+      "surface_amplitude_relative_to_slab": 6.919772388364909
+    },
+    {
+      "layers_m": [
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.057300603126625264,
+      "surface_phase_degrees": -56.58699753849002,
+      "bottom_amplitude_k_per_w_m2": 0.0022767502606993967,
+      "diffusion_skin_depth_m": 12.280960958460751,
+      "thickness_weighted_closure_residual_m": 1.7763568394002505e-15,
+      "candidate": "ten_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 3e-05,
+      "surface_amplitude_relative_to_slab": 4.684495652413936
+    },
+    {
+      "layers_m": [
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        50.0
+      ],
+      "total_depth_m": 95.0,
+      "surface_amplitude_k_per_w_m2": 0.05734627791448726,
+      "surface_phase_degrees": -56.56183957590507,
+      "bottom_amplitude_k_per_w_m2": 0.000160862216172662,
+      "diffusion_skin_depth_m": 12.280960958460751,
+      "thickness_weighted_closure_residual_m": 7.105427357601002e-15,
+      "candidate": "ten_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 3e-05,
+      "surface_amplitude_relative_to_slab": 4.688229702903625
+    },
+    {
+      "layers_m": [
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.034152522364057226,
+      "surface_phase_degrees": -50.073460901818024,
+      "bottom_amplitude_k_per_w_m2": 0.008190494964646024,
+      "diffusion_skin_depth_m": 22.42186448263073,
+      "thickness_weighted_closure_residual_m": 8.881784197001252e-16,
+      "candidate": "ten_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.0001,
+      "surface_amplitude_relative_to_slab": 2.7920708300373223
+    },
+    {
+      "layers_m": [
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        50.0
+      ],
+      "total_depth_m": 95.0,
+      "surface_amplitude_k_per_w_m2": 0.033980507562003735,
+      "surface_phase_degrees": -51.50555475286902,
+      "bottom_amplitude_k_per_w_m2": 0.001291004949850225,
+      "diffusion_skin_depth_m": 22.42186448263073,
+      "thickness_weighted_closure_residual_m": 1.7763568394002505e-15,
+      "candidate": "ten_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 0.0001,
+      "surface_amplitude_relative_to_slab": 2.778008105591129
+    },
+    {
+      "layers_m": [
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.018351866184554172,
+      "surface_phase_degrees": -54.34947276457765,
+      "bottom_amplitude_k_per_w_m2": 0.011521552107661422,
+      "diffusion_skin_depth_m": 38.835808484340475,
+      "thickness_weighted_closure_residual_m": 8.881784197001252e-16,
+      "candidate": "ten_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.0003,
+      "surface_amplitude_relative_to_slab": 1.5003199384349923
+    },
+    {
+      "layers_m": [
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        50.0
+      ],
+      "total_depth_m": 95.0,
+      "surface_amplitude_k_per_w_m2": 0.021205980556227355,
+      "surface_phase_degrees": -49.92619334783358,
+      "bottom_amplitude_k_per_w_m2": 0.0037649409927061708,
+      "diffusion_skin_depth_m": 38.835808484340475,
+      "thickness_weighted_closure_residual_m": 7.105427357601002e-15,
+      "candidate": "ten_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 0.0003,
+      "surface_amplitude_relative_to_slab": 1.7336523230182643
+    },
+    {
+      "layers_m": [
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.012962447561590349,
+      "surface_phase_degrees": -74.64169245840087,
+      "bottom_amplitude_k_per_w_m2": 0.012162280544550373,
+      "diffusion_skin_depth_m": 70.90416115274598,
+      "thickness_weighted_closure_residual_m": 8.881784197001252e-16,
+      "candidate": "ten_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.001,
+      "surface_amplitude_relative_to_slab": 1.05971884995218
+    },
+    {
+      "layers_m": [
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        50.0
+      ],
+      "total_depth_m": 95.0,
+      "surface_amplitude_k_per_w_m2": 0.01088986395432443,
+      "surface_phase_degrees": -50.732560352974254,
+      "bottom_amplitude_k_per_w_m2": 0.005960784988037054,
+      "diffusion_skin_depth_m": 70.90416115274598,
+      "thickness_weighted_closure_residual_m": 8.881784197001252e-16,
+      "candidate": "ten_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 0.001,
+      "surface_amplitude_relative_to_slab": 0.8902789423818144
+    }
+  ],
+  "default_diffusivity_summary": [
+    {
+      "layers_m": [
+        50.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.012231968471802952,
+      "surface_phase_degrees": -90.0384638686404,
+      "bottom_amplitude_k_per_w_m2": 0.012231968471802952,
+      "diffusion_skin_depth_m": 22.42186448263073,
+      "thickness_weighted_closure_residual_m": 0.0,
+      "candidate": "slab",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.0001,
+      "surface_amplitude_relative_to_slab": 1.0
+    },
+    {
+      "layers_m": [
+        10.0,
+        40.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.03925688366362419,
+      "surface_phase_degrees": -52.67698078531103,
+      "bottom_amplitude_k_per_w_m2": 0.009568758150917947,
+      "diffusion_skin_depth_m": 22.42186448263073,
+      "thickness_weighted_closure_residual_m": 7.105427357601002e-15,
+      "candidate": "two_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.0001,
+      "surface_amplitude_relative_to_slab": 3.209367629921454
+    },
+    {
+      "layers_m": [
+        10.0,
+        50.0
+      ],
+      "total_depth_m": 60.0,
+      "surface_amplitude_k_per_w_m2": 0.043719710243273424,
+      "surface_phase_degrees": -54.41341589497271,
+      "bottom_amplitude_k_per_w_m2": 0.00722500046494298,
+      "diffusion_skin_depth_m": 22.42186448263073,
+      "thickness_weighted_closure_residual_m": 7.105427357601002e-15,
+      "candidate": "two_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 0.0001,
+      "surface_amplitude_relative_to_slab": 3.5742170480618713
+    },
+    {
+      "layers_m": [
+        5.0,
+        10.0,
+        15.0,
+        20.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.03509189073245451,
+      "surface_phase_degrees": -49.05673556490134,
+      "bottom_amplitude_k_per_w_m2": 0.007862063900738896,
+      "diffusion_skin_depth_m": 22.42186448263073,
+      "thickness_weighted_closure_residual_m": 1.7763568394002505e-15,
+      "candidate": "four_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.0001,
+      "surface_amplitude_relative_to_slab": 2.8688670031604553
+    },
+    {
+      "layers_m": [
+        5.0,
+        10.0,
+        15.0,
+        50.0
+      ],
+      "total_depth_m": 80.0,
+      "surface_amplitude_k_per_w_m2": 0.035187067787080126,
+      "surface_phase_degrees": -52.51286633629919,
+      "bottom_amplitude_k_per_w_m2": 0.0024715613076023123,
+      "diffusion_skin_depth_m": 22.42186448263073,
+      "thickness_weighted_closure_residual_m": 1.7763568394002505e-15,
+      "candidate": "four_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 0.0001,
+      "surface_amplitude_relative_to_slab": 2.876648011985406
+    },
+    {
+      "layers_m": [
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0
+      ],
+      "total_depth_m": 50.0,
+      "surface_amplitude_k_per_w_m2": 0.034152522364057226,
+      "surface_phase_degrees": -50.073460901818024,
+      "bottom_amplitude_k_per_w_m2": 0.008190494964646024,
+      "diffusion_skin_depth_m": 22.42186448263073,
+      "thickness_weighted_closure_residual_m": 8.881784197001252e-16,
+      "candidate": "ten_layer",
+      "profile_interpretation": "declared_total_50m",
+      "vertical_diffusivity_m2_s": 0.0001,
+      "surface_amplitude_relative_to_slab": 2.7920708300373223
+    },
+    {
+      "layers_m": [
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        50.0
+      ],
+      "total_depth_m": 95.0,
+      "surface_amplitude_k_per_w_m2": 0.033980507562003735,
+      "surface_phase_degrees": -51.50555475286902,
+      "bottom_amplitude_k_per_w_m2": 0.001291004949850225,
+      "diffusion_skin_depth_m": 22.42186448263073,
+      "thickness_weighted_closure_residual_m": 1.7763568394002505e-15,
+      "candidate": "ten_layer",
+      "profile_interpretation": "unmodified_source_last_layer_overwrite",
+      "vertical_diffusivity_m2_s": 0.0001,
+      "surface_amplitude_relative_to_slab": 2.778008105591129
+    }
+  ],
+  "cost": {
+    "persistent_real_fields_per_horizontal_cell_per_layer": 2,
+    "peak_additional_scratch_bytes_per_horizontal_cell_per_layer": 40,
+    "restart_reals_per_horizontal_cell_per_layer": 1,
+    "vertical_solver_complexity": "O(horizontal_cells * layers)",
+    "interpretation": "computationally viable at the declared profiles; the rejection is physical/interface scope, not cost"
+  },
+  "verdict": {
+    "adopted": false,
+    "status": "viable_but_rejected_for_active_tier",
+    "reasons": [
+      "The source unconditionally replaces the last declared layer thickness with mldepth, so subdivision of the existing 50 m column is not the namelist-only change the issue premise described.",
+      "The seasonal response is material and strongly conditional on an undeclared diffusivity/profile choice; it is not a small correction.",
+      "Every radiative and turbulent watt is still deposited in level 1, so adding levels does not implement the penetrative-shortwave physics that motivated a red-star column.",
+      "The adopted resolved tier is cGENIE/GOLDSTEIN. A second vertical ocean state in ExoPlaSim needs an explicit state/energy coupling decision, not activation of a dormant diffuser while only heat convergence is returned."
+    ]
+  }
+}

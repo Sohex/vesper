@@ -8,8 +8,9 @@
 # docs/src/practice/failure-modes.md class 9 tracks, and references/INDEX.md
 # marked the work neither read nor held because it was not listed at all.
 #
-# Range covered here is 0.75 to 4.0 um, which is the Lacis and Hansen shortwave
-# range 2 (lambda > 0.75 um) plus enough of the 3 um band to integrate against.
+# Range covered here is 0.20 to 4.0 um. The 0.20--0.725 rows were added for
+# OCN-6's penetrative-ocean calculation; 0.75 onward is the original extract
+# used for the Lacis and Hansen shortwave range 2 and the 3 um band.
 # The full table runs 0.200 to 200 um; take more from the paper if a longwave
 # consumer ever needs it.
 #
@@ -17,6 +18,28 @@
 # sea_salt_optics.py recovers from OPAC's volume mixing at 1.3328.
 #
 # lambda_um    k              n
+0.200          1.10e-7        1.396
+0.225          4.90e-8        1.373
+0.250          3.35e-8        1.362
+0.275          2.35e-8        1.354
+0.300          1.60e-8        1.349
+0.325          1.08e-8        1.346
+0.350          6.50e-9        1.343
+0.375          3.50e-9        1.341
+0.400          1.86e-9        1.339
+0.425          1.30e-9        1.338
+0.450          1.02e-9        1.337
+0.475          9.35e-10       1.336
+0.500          1.00e-9        1.335
+0.525          1.32e-9        1.334
+0.550          1.96e-9        1.333
+0.575          3.60e-9        1.333
+0.600          1.09e-8        1.332
+0.625          1.39e-8        1.332
+0.650          1.64e-8        1.331
+0.675          2.23e-8        1.331
+0.700          3.35e-8        1.331
+0.725          9.15e-8        1.330
 0.750          1.56e-7        1.330
 0.775          1.48e-7        1.330
 0.800          1.25e-7        1.329

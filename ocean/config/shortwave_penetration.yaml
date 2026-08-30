@@ -1,0 +1,18 @@
+contract_version: vesper-ocean-shortwave-penetration/1
+status: exploration_not_adopted
+optical_source: exoplasim/data/water/hale_querry_1973_liquid_water.dat
+stellar_source: configured_high_resolution_spectrum
+hypothetical_layers_m: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
+semantics:
+  input: net_shortwave_after_surface_reflection
+  output: extensive_fraction_absorbed_per_layer
+  closure: layer_absorption_plus_transmission_below_column_equals_one
+  biological_absorption: excluded_pending_ocn_14
+  reflected_fraction: owned_by_ocn_7_and_never_counted_as_absorption
+verdict:
+  adopted: false
+  reason: >-
+    OCN-1 rejected an ExoPlaSim multilayer column for the active tier. The
+    clear-water operator is cheap and closes, but has no accepted destination;
+    pigment/particle attenuation additionally waits for OCN-14's covarying
+    physiology rather than inventing a chlorophyll scalar here.

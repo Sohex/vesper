@@ -835,6 +835,31 @@ fact to state rather than one to avoid.
 
 # 6. What this did NOT establish
 
+## OCN-20 decision: retain the direct solve at the adopted grid
+
+OCN-20's prerequisite did not fire.  The decision rule above required the
+algorithmic route to precede threading only when the serial share exceeded 20
+per cent.  The measured share is 1.83 per cent at 36 x 36 x 16 and 2.57 per
+cent at 72 x 72 x 16 (2.81 per cent after correcting the different EMBM
+subcycling).  Even the deliberately conservative asymptotic projection reaches
+only 11.2 per cent at 288 x 288, four doublings in cell count beyond the adopted
+36 x 36 support and above the resolution range this project can presently
+justify.
+
+The existing LU factorisation is also performed once during initialisation;
+the recurring cost is only the two triangular sweeps in `ubarsolv`.  Replacing
+those sweeps with an iterative elliptic solve would make every ocean step
+tolerance-dependent and would require redesigning the island basis
+(`psisl`/`ubisl`) and its small `erisl` solve.  A fill-reducing ordering would
+retain a direct answer but still has to preserve the periodic seam and those
+island basis solves.  Neither risk can buy more than the measured serial share.
+
+The selected action is therefore **no solver replacement**: retain the shipped
+direct factorisation and bitwise reference surface.  Reopen the decision only
+if an accepted ocean support is larger than 144 x 144 or a new profile measures
+`ubarsolv` above 20 per cent of retired instructions.  This is a rejected
+optimisation, not an unresolved implementation.
+
 - **Nothing here is an implementation.** Everything above is a reading of the
   source and a profile of the tree as it stood. What happened when sections 2d,
   3a and 3c were acted on is

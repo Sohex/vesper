@@ -1,0 +1,33 @@
+# OCN-16. This is a fail-closed boundary, not a dormant implementation of a
+# prognostic carbon cycle. It states what must remain true while atmospheric
+# CO2 is prescribed and what must exist before that premise may be changed.
+schema_version: 1
+mode: fail_closed_prescribed_atmospheric_pco2
+
+active_boundary:
+  atmospheric_state_owner: config/planet.yaml:atmosphere.pCO2_bar
+  ocean_air_sea_co2_exchange: disabled
+  ocean_may_modify_atmospheric_co2: false
+  atmospheric_carbon_reservoir: absent_while_prescribed
+  rule: >-
+    Ocean carbon may be retained as a diagnostic only. No ocean uptake,
+    outgassing, biology, burial, weathering, or river export may alter the
+    radiative atmosphere while pCO2_bar is prescribed.
+
+reopening_contract:
+  required_closed_issues: [anut-6, ocn-13, ocn-14, volc-8]
+  requires_explicit_permission: true
+  requires_new_pipeline_loop: true
+  requires_declared_convergence_predicate: true
+  owners:
+    atmospheric_carbon: new_prognostic_atmospheric_carbon_artifact
+    ocean_dic_alkalinity_redox: ocn-13
+    marine_uptake_export_remineralisation: ocn-14
+    river_and_groundwater_export: anut-6
+    weathering_and_outgassing_bracket: volc-8
+  conservation:
+    transfer_identity: atmospheric_debit_mol_c + ocean_credit_mol_c == 0
+    prohibit_unbalanced_ocean_uptake: true
+    require_restart_continuity: true
+    require_air_sea_gas_transfer_and_buffering_priors: true
+

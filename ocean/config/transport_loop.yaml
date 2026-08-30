@@ -1,0 +1,154 @@
+# The ocean-transport loop is a DECISION made before its first pass. The
+# generated reports record what happened; this file states what is allowed to
+# count as a pass. OCN-5.
+schema_version: 1
+loop_id: O
+parent_loop: A
+
+architecture:
+  circulation_host: cgenie_goldstein
+  coupling: offline_full_flux
+  atmosphere: exoplasim
+  atmosphere_in_cgenie: none
+  sea_ice_authority: exoplasim
+  carbon_feedback: disabled_while_pco2_is_prescribed
+
+forcing_procedure:
+  initial_pass: >-
+    Commission the build once with the declared zero ocean-transport return.
+    That settled full-surface baseline is the seed forcing, not an exit from
+    the ocean loop and not the canonical climatology.
+  crossing: ocean_forcing
+  circulation: ocean_run
+  return: ocean_transport
+  next_atmosphere: baseline_run
+  temperature_restoring: none
+  salinity_restoring:
+    mode: none
+    rule: >-
+      Any later weak restoring is a named numerical control with its tendency
+      reported separately; it never replaces precipitation, evaporation,
+      runoff, ice freshwater, brine, or salt conservation.
+  freshwater_hosing:
+    hosing_sv: 0.0
+    hosing_trend_sv_per_kyr: 0.0
+    years: 0
+  handover:
+    replay:
+      - transfer_coefficients
+      - downward_shortwave
+      - downward_longwave
+      - atmospheric_temperature
+      - atmospheric_specific_humidity
+      - atmospheric_pressure
+      - precipitation
+      - evaporation
+      - runoff
+      - wind_stress_u_point
+      - wind_stress_v_point
+    recompute_live_against_ocean_temperature:
+      - saturation_specific_humidity
+      - latent_heat_flux
+      - net_longwave_flux
+      - sensible_heat_flux
+    deliberately_not_recomputed:
+      - evaporation
+    reason: >-
+      Replaying net heat flux severs the negative feedback that holds sea
+      surface temperature. Recomputing evaporation breaks the moisture budget.
+
+return_fields:
+  - name: ocean_heat_flux_convergence
+    destination: exoplasim_surface_code_903
+    semantics: flux_density
+    units: W m-2
+    integral_support: ocean_wet_area
+  - name: ocean_surface_eastward_velocity
+    destination: exoplasim_sea_ice_advection
+    semantics: intensive
+    units: m s-1
+  - name: ocean_surface_northward_velocity
+    destination: exoplasim_sea_ice_advection
+    semantics: intensive
+    units: m s-1
+
+controls:
+  scf:
+    disposition: declared_bracket
+    minimum: 1.0
+    maximum: 3.0
+    reason: >-
+      GOLDSTEIN declares this wind-stress scaling as tuned. No member of the
+      bracket is promoted to a planetary value; every loop result carries the
+      bracket.
+  solver_under_relaxation:
+    symbol: rel
+    disposition: numerical_control
+  dropped_surface_residual:
+    symbol: delta_flux
+    disposition: diagnostic_not_correction
+
+exit:
+  form: all criteria pass on two consecutive atmosphere-ocean pass pairs
+  controlling_scalar: ocean_area_weighted_rms_heat_transport_change_w_m2
+  maximum_iterations: 8
+  on_maximum: refuse_and_carry_an_unconverged_transport_bracket
+  uncertainty_form: absolute statistic plus its standard error is below threshold
+  criteria:
+    - id: heat_transport_change
+      statistic: ocean_area_weighted_rms_heat_transport_change_w_m2
+      threshold: 0.12
+      units: W m-2
+      derivation: >-
+        ExoPlaSim's 0.12 W m-2 storage threshold is the largest unresolved
+        forcing consistent with its 0.15 K remaining-offset allowance.
+    - id: ocean_heat_integral
+      statistic: absolute_ocean_area_mean_heat_transport_w_m2
+      threshold: 0.0001
+      units: W m-2
+      derivation: >-
+        The verified code-903 channel and its float32 service stream resolve
+        1e-4 W m-2; the zero integral is over ocean area, never the globe.
+    - id: sea_surface_temperature
+      statistic: absolute_global_ocean_mean_sst_change_k
+      threshold: 0.15
+      units: K
+      derivation: ExoPlaSim's declared remaining-offset allowance.
+    - id: sea_ice_area
+      statistic: absolute_planetary_sea_ice_area_fraction_change
+      threshold: 0.001
+      units: fraction_of_planet
+      derivation: ExoPlaSim's declared ice-area drift threshold.
+    - id: atmospheric_energy_storage
+      statistic: absolute_atmospheric_storage_w_m2
+      threshold: 0.12
+      units: W m-2
+      derivation: ExoPlaSim's declared storage threshold.
+    - id: freshwater_closure
+      statistic: absolute_freshwater_inventory_residual_fraction
+      threshold: 1.0e-10
+      units: fraction_of_forced_throughput
+      derivation: Float64 conservation identity, one order looser than the remap bar.
+    - id: salt_closure
+      statistic: absolute_salt_inventory_residual_fraction
+      threshold: 1.0e-10
+      units: fraction_of_inventory
+      derivation: Float64 conservation identity, one order looser than the remap bar.
+    - id: carve_drivers
+      statistic: basins_whose_carve_classification_changes
+      threshold: 0
+      units: basins
+      derivation: >-
+        The loop has not settled the decision it feeds while any basin changes
+        class. The two vegetation endmembers remain the separate loop-A bracket.
+
+provenance_chain:
+  - baseline_climatology
+  - ocean_support
+  - ocean_forcing
+  - ocean_run
+  - ocean_convergence
+  - ocean_transport
+  - baseline_run
+  - baseline_climatology
+  - ocean_loop_convergence
