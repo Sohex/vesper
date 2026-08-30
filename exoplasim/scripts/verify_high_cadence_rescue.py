@@ -85,7 +85,8 @@ def _fortran_record(header: tuple[int, ...], payload) -> bytes:
 
 
 def synthetic_spectral_raw(path: Path, nsamples: int = 3,
-                           seed: int = 20260830) -> Path:
+                           seed: int = 20260830,
+                           omit: tuple[int, ...] = ()) -> Path:
     """Write a raw stream pyburn can read, carrying the spectral wind source.
 
     WHY THIS IS SYNTHESISED RATHER THAN SLICED. The property under test is that
@@ -99,6 +100,11 @@ def synthetic_spectral_raw(path: Path, nsamples: int = 3,
     The values are not physical and are not meant to be: nothing downstream
     reads them, and a check that needed them to be physical would be checking
     the model rather than pyburn's dispatch.
+
+    `omit` drops the named codes from the stream. It exists for one case --
+    a raw with no code-152 record, which is a file pyburn cannot read at all
+    rather than a request it cannot answer -- and writing that as a subtraction
+    from the readable fixture is what makes the two comparable.
     """
     rng = np.random.default_rng(seed)
     sigmah = np.linspace(0.05, 1.0, FIXTURE_NLEV)
@@ -111,15 +117,19 @@ def synthetic_spectral_raw(path: Path, nsamples: int = 3,
         spectral = lambda: rng.normal(0.0, 1.0e-5, FIXTURE_NSP)
         # Surface geopotential and log surface pressure, one spectral record
         # each; `dataset` reads the second before it reaches the request.
-        parts.append(_fortran_record(
-            (129, 0, 20260830, step, FIXTURE_NSP, 1, 0, step), spectral()))
+        if 129 not in omit:
+            parts.append(_fortran_record(
+                (129, 0, 20260830, step, FIXTURE_NSP, 1, 0, step), spectral()))
         lnps = np.zeros(FIXTURE_NSP)
         # Mode zero alone, so the surface is uniform at 1000 hPa. The
         # coefficient reaches the grid unscaled and pyburn wants log(Pa).
         lnps[0] = np.log(1.0e5)
-        parts.append(_fortran_record(
-            (152, 0, 20260830, step, FIXTURE_NSP, 1, 0, step), lnps))
+        if 152 not in omit:
+            parts.append(_fortran_record(
+                (152, 0, 20260830, step, FIXTURE_NSP, 1, 0, step), lnps))
         for code in (130, 155, 138):  # air temperature, divergence, vorticity
+            if code in omit:
+                continue
             for _level in range(FIXTURE_NLEV):
                 parts.append(_fortran_record(
                     (code, 1, 20260830, step, FIXTURE_NSP, 1, 0, step),
@@ -1120,6 +1130,145 @@ def case_an_underivable_request_is_reported_not_raised() -> list[str]:
     return problems
 
 
+def case_the_ecological_codes_are_refused_out_loud() -> list[str]:
+    """`refuse_eco_codes` fires, names the codes, and says where they are read.
+
+    A refusal nobody has watched refuse is a comment. This is the pairing:
+    a postprocessor code list carrying an ecological code is rejected and a
+    list without one passes, so the check fails both if the refusal goes and
+    if it starts refusing everything.
+
+    `scripts/smoke_test.py:check_every_written_code_is_named_or_refused` holds
+    the other half statically -- that codes 600 to 628 are DECLARED as refused
+    rather than merely missing from pyburn's table. This holds that the
+    declaration is executable: the refusal fires, names the code, and says
+    where the stream IS read, so a reader who hits it is told what to do
+    instead.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import run_exoplasim                                # noqa: E402
+
+    problems = []
+    ordinary = [139, 131, 132, 259]
+    try:
+        run_exoplasim.refuse_eco_codes(ordinary, "FIXTURE")
+    except Exception as exc:
+        problems.append(f"an ordinary code list was refused: "
+                        f"{type(exc).__name__}: {exc}")
+    carrying = ordinary + [610]
+    try:
+        run_exoplasim.refuse_eco_codes(carrying, "FIXTURE")
+        problems.append(
+            "a code list carrying 610 was accepted. That stream is written to "
+            "its own unit with its own interval bounds and is read directly; "
+            "asking pyburn for it stops the postprocessor naming neither the "
+            "code nor the reason")
+    except ValueError as exc:
+        said = str(exc)
+        if "610" not in said:
+            problems.append(f"the refusal does not name the code it refused: "
+                            f"{said}")
+        if "compare_eco_streams" not in said:
+            problems.append(
+                f"the refusal does not say where the stream IS read, so a "
+                f"reader is told no and not told what to do: {said}")
+    return problems
+
+
+def case_one_code_carries_one_record_shape() -> list[str]:
+    """A code whose records disagree in length is refused, not reshaped.
+
+    `readallvariables` keeps the FIRST record's header per code and
+    `refactorvariable` reshapes the whole joined array by it, so two different
+    fields sharing a code do not fail -- they come back as one variable with
+    the wrong time axis and the wrong values, under the name the library
+    supplies. That is the worst of the outcomes available, and it is what a
+    diagnostic-block collision produces.
+
+    The pairing is the point: two EXTRA records of the same length under one
+    code must still read, because that is what every multi-level field and
+    every extra output step is.
+    """
+    from exoplasim import pyburn
+
+    problems = []
+    scalar = _fortran_record((51, 0, 20260830, 0, 1, 1, 0, 0), np.zeros(1))
+    spectral = _fortran_record((51, 0, 20260830, 0, FIXTURE_NSP, 1, 0, 0),
+                               np.zeros(FIXTURE_NSP))
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base = synthetic_spectral_raw(Path(tmpdir) / "MOST_HC.00042").read_bytes()
+
+        same = Path(tmpdir) / "same.raw"
+        same.write_bytes(base + scalar + scalar)
+        try:
+            pyburn.readfile(str(same))
+        except Exception as exc:
+            problems.append(
+                f"two records of the SAME length under code 51 were refused: "
+                f"{type(exc).__name__}: {exc}. That is what every multi-level "
+                f"field looks like")
+
+        mixed = Path(tmpdir) / "mixed.raw"
+        mixed.write_bytes(base + scalar + spectral)
+        try:
+            pyburn.readfile(str(mixed))
+            problems.append(
+                "a code carrying a 1-long record and a 484-long record was "
+                "read. The two are joined and reshaped by the first one's "
+                "dimensions, so the result is a variable with the wrong time "
+                "axis and the wrong values under a name the library supplies")
+        except Exception as exc:
+            said = str(exc)
+            if "51" not in said:
+                problems.append(f"the refusal does not name the code that "
+                                f"collided: {said}")
+    return problems
+
+
+def case_the_readers_own_prerequisite_says_so() -> list[str]:
+    """A raw with no log surface pressure is refused as unreadable, by name.
+
+    Code 152 is read once, before any requested variable is looked at, and the
+    half- and full-level pressures, the surface pressure, the horizontal
+    gradients and every derivation that uses a pressure are built from it. So
+    its absence is not a variable that could not be produced -- the disposition
+    `_logcollected` and `_DERIVATION_INPUTS` settle for that -- it is a file
+    that cannot be read at all, whatever was requested. It came back as a bare
+    `KeyError('152')` raised from before the loop, which reads as a request
+    having gone wrong.
+
+    Held on the message rather than on the raising, because raising was never
+    the problem: the refusal has to be distinguishable from the ordinary case
+    by someone reading a log.
+    """
+    from exoplasim import pyburn
+
+    problems = []
+    with tempfile.TemporaryDirectory() as tmpdir:
+        raw = synthetic_spectral_raw(Path(tmpdir) / "MOST_HC.00042", omit=(152,))
+        constants = {"radius": 1.2, "gravity": 12.81, "gascon": 287.0,
+                     "mode": "grid", "zonal": False, "substellarlon": 180.0,
+                     "physfilter": False, "logfile": None}
+        try:
+            pyburn.dataset(str(raw), ["139"], **constants)
+            problems.append(
+                "a raw carrying no code-152 record was read. Every pressure "
+                "the postprocessor reports is built from it")
+        except KeyError as exc:
+            problems.append(
+                f"a raw with no code-152 record raised a bare KeyError({exc}), "
+                f"which names a dictionary key and not the file's defect")
+        except Exception as exc:
+            said = str(exc)
+            if "152" not in said:
+                problems.append(f"the refusal does not name code 152: {said}")
+            if "prerequisite" not in said:
+                problems.append(
+                    f"the refusal does not separate a file that cannot be read "
+                    f"from a variable that could not be produced: {said}")
+    return problems
+
+
 def case_the_planet_is_read_from_the_run() -> list[str]:
     """Radius comes back in Earth radii, which is what pyburn wants.
 
@@ -1187,6 +1336,12 @@ def main() -> None:
          case_the_declared_derivation_inputs_are_the_arms_own),
         ("a derivation the raw cannot support is reported, not raised",
          case_an_underivable_request_is_reported_not_raised),
+        ("the ecological stream's codes are refused out loud",
+         case_the_ecological_codes_are_refused_out_loud),
+        ("one code carries one record shape, or the read is refused",
+         case_one_code_carries_one_record_shape),
+        ("the reader's own missing prerequisite says it is one",
+         case_the_readers_own_prerequisite_says_so),
     ]
     failed = 0
     for name, run in cases:

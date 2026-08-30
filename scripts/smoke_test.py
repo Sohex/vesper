@@ -2412,6 +2412,160 @@ def _codes_written_to_unit(src: Path, unit: str) -> set[int]:
     return codes
 
 
+def _codes_the_model_writes(src: Path) -> set[int]:
+    """Every literal code the model hands to a record writer, on any unit.
+
+    `_codes_written_to_unit` above answers a different question -- which stream
+    a code lands in -- and so drops the calls whose unit is a variable. The
+    high-cadence writers take theirs as `kunit`, so this counts those too: the
+    question here is whether pyburn can NAME a record, and a record's name does
+    not depend on which stream it went to.
+    """
+    codes: set[int] = set()
+    for path in sorted(src.glob("*.f90")):
+        for match in re.finditer(r"call\s+write(gp|sp|scalar)\s*\((.*)\)\s*$",
+                                 path.read_text(), flags=re.M):
+            args = _fortran_call_args(match.group(2))
+            if len(args) < 3:
+                continue
+            raw = args[2] if match.group(1) in ("gp", "sp") else args[-1]
+            if re.fullmatch(r"\d+", raw):
+                codes.add(int(raw))
+    return codes
+
+
+def check_every_written_code_is_named_or_refused() -> list[str]:
+    """Every record the model writes is one pyburn can name, or one refused.
+
+    The mirror of the check below, and it catches the failure at the edit that
+    causes it. A code with no `pyburn.ilibrary` row makes `dataset` stop with
+    "Unknown variable code requested", naming neither the field nor the reason,
+    at the end of an otherwise good run; and a request that simply omits it
+    leaves the record sitting unread in every raw the model has ever written.
+
+    world-k5db found eight. Code 229 is `dwmax`, the field capacity: written
+    unconditionally by all three record writers, staged into every run by
+    `build_surface_soil_water.py`, and owned by coupled vegetation once
+    NVEG = 2 -- so it is exactly the field a staged-against-evolved comparison
+    reads, and it could not be asked for. Codes 101 to 107 are the cloud
+    forcing diagnostic, the clear-sky twins of seven rows that were already
+    there.
+
+    A REFUSAL IS THE OTHER ACCEPTABLE ANSWER and the ecological stream is why.
+    `run_exoplasim.refuse_eco_codes` argues that that stream writes its own
+    interval bounds precisely so nothing has to infer an interval from a
+    record's position, and that routing it through pyburn -- whose only notion
+    of time is counting code-139 records -- would restore the inference. So
+    this accepts a row or a declared refusal and rejects the third state: a
+    code nothing has decided about.
+
+    Literal codes only. The optional diagnostic blocks number their output off
+    a loop index; `check_no_enabled_diagnostic_block_collides` has those.
+    """
+    src = ROOT / "vendor" / "exoplasim" / "exoplasim" / "plasim" / "src"
+    if not src.is_dir():
+        return [f"{src} is missing; the vendored model source moved"]
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    try:
+        import run_exoplasim
+        from exoplasim import pyburn
+    except ImportError as exc:
+        return [f"the postprocessor code tables do not import: {exc}"]
+
+    written = _codes_the_model_writes(src)
+    if not written:
+        return ["no code was parsed as written by the model; the record "
+                "writers moved or changed shape"]
+    problems = []
+    for code in sorted(written):
+        if str(code) in pyburn.ilibrary:
+            continue
+        if code in run_exoplasim.ECO_STREAM_CODES:
+            continue
+        problems.append(
+            f"the model writes code {code} and nothing decides what it is: no "
+            f"pyburn.ilibrary row names it and run_exoplasim.ECO_STREAM_CODES "
+            f"does not refuse it, so asking for it stops the postprocessor and "
+            f"not asking leaves the record unread")
+    return problems
+
+
+# Which codes each optional diagnostic block writes, from `outmod.f90:outdiag`,
+# as a function of how many arrays it is asked for. The numbering is off the
+# LOOP INDEX, which is what makes the blocks collide with the ordinary output
+# they share a unit with.
+DIAGNOSTIC_BLOCK_CODES = {
+    "ndiaggp2d": lambda n: range(1, n + 1),
+    "ndiaggp3d": lambda n: range(21, 21 + n),
+    "ndiagsp2d": lambda n: range(51, 51 + n),
+    "ndiagsp3d": lambda n: range(61, 61 + n),
+}
+# The files that may legitimately name one of those keys without setting it.
+# A mapping rather than a tuple, so every exemption says why it is one.
+DIAGNOSTIC_BLOCK_OWNER = {
+    "scripts/smoke_test.py": "this lint",
+    "exoplasim/scripts/verify_high_cadence_rescue.py":
+        "holds the same collision against a raw pyburn has already read",
+}
+
+
+def check_no_enabled_diagnostic_block_collides() -> list[str]:
+    """No enabled diagnostic block numbers its output onto a library code.
+
+    `outdiag` numbers its optional arrays off the loop index -- jcode = jdiag
+    for the 2-D gridpoint block, 20+jdiag for 3-D gridpoint, 50+jdiag for 2-D
+    spectral, 60+jdiag for 3-D spectral -- and writes them into the SAME unit
+    the ordinary output goes to. So `ndiagsp2d = 1` in `plasim_nl` makes the
+    model write code 51 twice per step: once as the orbital ecliptic longitude
+    from `outsc` and once as a spectral diagnostic array. pyburn keeps the
+    first record's dimensions per code and reshapes the joined array by them,
+    so the second is read as more timestamps of the first.
+
+    ASKED OF WHAT IS ENABLED, NOT OF THE NUMBERING. The overlap is a
+    model-source defect and its repair is a Fortran renumber, which is a
+    separate row; the collision only exists when a block is switched on, and
+    nothing in this tree switches one on. So this passes today and fails the
+    moment a value is set whose codes reach a library row -- which is the
+    moment the decision has to be made rather than the moment a finished run
+    turns out to have written an unreadable raw.
+
+    `pyburn.readallvariables` refuses a code carrying two record lengths, which
+    is the same defect caught at the far end. This is the near end.
+    """
+    from exoplasim import pyburn
+
+    problems = []
+    searched = (sorted((ROOT / "exoplasim" / "scripts").glob("*.py"))
+                + sorted((ROOT / "vendor" / "exoplasim" / "exoplasim"
+                          / "plasim" / "run").glob("*.nl"))
+                + [ROOT / "config" / "planet.yaml", ROOT / "config" / "pipeline.yaml"])
+    for path in searched:
+        if not path.is_file():
+            continue
+        rel = str(path.relative_to(ROOT))
+        if rel in DIAGNOSTIC_BLOCK_OWNER:
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for key, codes_for in DIAGNOSTIC_BLOCK_CODES.items():
+            for setting in re.finditer(
+                    rf'{key}\b["\']?\s*[=:,]\s*["\']?\s*(\d+)',
+                    text, re.IGNORECASE):
+                count = int(setting.group(1))
+                if count == 0:
+                    continue
+                landed = [str(c) for c in codes_for(count)
+                          if str(c) in pyburn.ilibrary]
+                if landed:
+                    problems.append(
+                        f"{rel} sets {key}={count}, so outdiag writes code(s) "
+                        f"{', '.join(landed)} into the stream that already "
+                        f"carries "
+                        f"{', '.join(pyburn.ilibrary[c][0] for c in landed)}. "
+                        f"Two fields under one code cannot be told apart once "
+                        f"read")
+    return problems
+
+
 def _codes_pyburn_derives(pyburn_source: str) -> set[int]:
     """Every code pyburn has a derivation branch for.
 
@@ -5688,6 +5842,10 @@ def main() -> None:
                lambda: check_restart_schema_covers_the_model()),
               ("every postprocessor code requested is one something produces",
                lambda: check_requested_codes_are_produced()),
+              ("every code the model writes is named or refused with a reason",
+               lambda: check_every_written_code_is_named_or_refused()),
+              ("no enabled diagnostic block lands on a library code",
+               lambda: check_no_enabled_diagnostic_block_collides()),
               ("the autocorrelation estimator recovers a known answer",
                lambda: check_autocorrelation_estimator()),
               ("the bin weighting is handed bin centres, never a bin index",

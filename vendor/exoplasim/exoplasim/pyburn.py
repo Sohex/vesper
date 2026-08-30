@@ -185,11 +185,52 @@ def _resolvekey(key):
 
 
 #dictionary that can be searched by string (integer) codes
+#
+# EIGHT ROWS HERE ARE THIS FORK'S AND NOT UPSTREAM'S: 101 to 107 and 229. Each
+# is a code `outmod.f90` WRITES and this table had no name for, so the record
+# sat in every raw and `dataset` answered "Unknown variable code requested" --
+# a diagnostic nobody could read back. world-k5db.
+#
+# NEITHER SET IS AN INVENTED NAME. 229 is `dwmax`, the model's own name for it
+# (`plasimmod.f90:851`, "field capacity (m)"), and this project already calls
+# it that at three sites: `restart_surface.py`'s `SurfaceRestartField(229,
+# "dwmax")`, `restart_schema.py`'s policy row, and `build_surface_soil_water.py`
+# in the component README. It is a STAGED surface field that coupled vegetation
+# then owns under NVEG=2, so reading it back is how a staged value is compared
+# against what the model has. 101 to 107 are the cloud forcing diagnostic
+# (`radmod.f90:1799-1834`), which is the second radiation call made with the
+# cloud cover zeroed: each term is the CLEAR-SKY twin of a row that is already
+# here, so each takes that row's name with CF's `cs` suffix, that row's long
+# name, and that row's units.
+#
+#     101 = dswfl(:,NLEP)  clear-sky 176 rss     104 = dlwfl(:,1)     179 rlut
+#     102 = dlwfl(:,NLEP)  clear-sky 177 rls     105 = dfu(:,1)       203 rsut
+#     103 = dswfl(:,1)     clear-sky 178 rst     106 = dfu(:,NLEP)    204 ssru
+#                                                107 = dftu(:,NLEP)   205 stru
+#
+# THE ROWS ARE HERE RATHER THAN INSERTED BY A CALLER. `run_exoplasim.py`'s
+# `register_energy_diagnostic_codes` puts codes 360-387 and 460-487 in at call
+# time and argues that this keeps the vendored tree untouched because a `.venv`
+# reinstall would drop a patch. That argument does not hold for this fork:
+# ExoPlaSim is installed EDITABLE from `vendor/exoplasim`, so this file IS the
+# installed one, and the fork is hard as of 2026-08-21 so there is no upstream
+# merge to carry the divergence through. A run-time insertion is also
+# CONDITIONAL and lives on the run path, so a scratch script calling
+# `pyburn.dataset` directly would still not be able to name the field. 229 is
+# written unconditionally by all three record writers, exactly as 267, 268 and
+# 269 are, and those are rows here.
 ilibrary = { "50":["nu"   ,"true_anomaly"                    ,"deg"        ],
              "51":["lambda","ecliptic_longitude"             ,"deg"        ],
              "52":["zdec" ,"solar_declination"               ,"deg"        ],
              "53":["rdist","orbital_distance"                ,"1"          ],
              "54":["rasc" ,"solar right ascension"           ,"deg"        ],
+           "101":["rsscs","surface_net_shortwave_flux_clear_sky","W m-2"   ],
+           "102":["rlscs","surface_net_longwave_flux_clear_sky","W m-2"    ],
+           "103":["rstcs","toa_net_shortwave_flux_clear_sky" ,"W m-2"      ],
+           "104":["rlutcs","toa_net_longwave_flux_clear_sky" ,"W m-2"      ],
+           "105":["rsutcs","toa_outgoing_shortwave_flux_clear_sky","W m-2" ],
+           "106":["ssrucs","surface_solar_radiation_upward_clear_sky","W m-2"],
+           "107":["strucs","surface_thermal_radiation_upward_clear_sky","W m-2"],
             "110":["mld"  ,"mixed_layer_depth"               ,"m"          ], 
             "129":["sg"   ,"surface_geopotential"            ,"m2 s-2"     ],
             "130":["ta"   ,"air_temperature"                 ,"K"          ],
@@ -257,6 +298,7 @@ ilibrary = { "50":["nu"   ,"true_anomaly"                    ,"deg"        ],
             "211":["sit"  ,"sea_ice_thickness"               ,"m"          ],
             "218":["snm"  ,"snow_melt"                       ,"m s-1"      ],
             "221":["sndc" ,"snow_depth_change"               ,"m s-1"      ],
+            "229":["dwmax","field_capacity"                  ,"m"          ],
             "230":["prw"  ,"atmosphere_water_vapor_content"  ,"kg m-2"     ],
             "231":["mrrob","subsurface_runoff"                ,"m s-1"      ],
             "232":["glac" ,"glacier_cover"                   ,"1"          ],
@@ -693,64 +735,15 @@ def _decoderecord(fbuffer,n,en,ml,mf):
                          count=databytes//wl,offset=n)
     n+=databytes+ml #additional marker for restatement of datalength
     return header,view,n
-    '''Extract all variables and their headers from a file byte buffer.
-    
-    Doing this and then only keeping the codes you want may be faster than extracting variables one by one,
-    because it only needs to seek through the file one time.
-    
-    Parameters
-    ----------
-    fbuffer : bytes
-        Binary bytes read from a file opened with ``mode='rb'`` and read with ``file.read()``.
-    
-    Returns
-    -------
-    dict, dict
-        A dictionary containing all variable headers (by variable code), and a dictionary containing all
-        variables, again by variable code.
-    '''
-    
-    en = _getEndian(fbuffer)
-    ml,mf = _getwordlength(fbuffer,0,en)
-    
-    n=0
-    mainheader,zsig,n = readrecord(fbuffer,n,en,ml,mf)
-    
-    headers= {'main':mainheader}
-    variables = {'main':zsig}
-    nlev=mainheader[6]
-    variables["sigmah"] = zsig[:nlev]
-    variables["time"] = []
-    
-    # Records are collected per code and joined ONCE. This replaced
-    # `np.append(accumulated, field)` per record, which reallocates and copies
-    # the whole accumulated array every call and makes reading QUADRATIC in
-    # record count. On a T42 orbit of ~81k records it dominated postprocessing:
-    # joining once took the same job from 304 s to 29 s. np.append flattens,
-    # so a 1-D concatenate gives the identical result.
-    _chunks = {}
-    nbuffer = len(fbuffer)
-    while n<nbuffer:
-        header,field,n = _decoderecord(fbuffer,n,en,ml,mf)
-        kcode = str(header[0])
-        if header[0]==139:
-            variables["time"].append(header[6]) #nstep-nstep1 (timesteps since start of run)
-        if kcode not in _chunks:
-            _chunks[kcode] = [field]
-            headers[kcode] = header
-        else:
-            _chunks[kcode].append(field)
-    
-    # The records are views on fbuffer in the file's own word length; the copy
-    # and the promotion to float64 happen once per code, here, rather than once
-    # per record.
-    for _kcode,_parts in _chunks.items():
-        variables[_kcode] = (_parts[0].astype(np.float64) if len(_parts)==1
-                             else np.concatenate(_parts,dtype=np.float64))
-    
-    return headers, variables
-    
-    
+
+# THE BODY OF `readallvariables` USED TO BE REPEATED HERE, unreachable after
+# the return above and complete with its docstring: residue of the restore
+# argued below, where the function was pasted back without the stub body it
+# replaced being removed. It never ran, and what it cost is that an edit to
+# "the" accumulation loop had two candidates and only one of them live. The
+# live one is `readallvariables` below.
+
+
 def refactorvariable(variable,header,ntimes=None,nlev=10):
     '''Given a 1D data array extracted from a file with :py:func:`readrecord <exoplasim.pyburn.readrecord>`, reshape it into its appropriate dimensions.
     
@@ -860,6 +853,7 @@ def readallvariables(fbuffer):
     # joining once took the same job from 304 s to 29 s. np.append flattens,
     # so a 1-D concatenate gives the identical result.
     _chunks = {}
+    _widths = {}
     nbuffer = len(fbuffer)
     while n<nbuffer:
         header,field,n = _decoderecord(fbuffer,n,en,ml,mf)
@@ -868,8 +862,40 @@ def readallvariables(fbuffer):
             variables["time"].append(header[6]) #nstep-nstep1 (timesteps since start of run)
         if kcode not in _chunks:
             _chunks[kcode] = [field]
+            _widths[kcode] = len(field)
             headers[kcode] = header
         else:
+            #ONE CODE, ONE RECORD SHAPE, established here rather than assumed.
+            #`headers[kcode]` keeps the FIRST record's dimensions and
+            #`refactorvariable` reshapes the whole joined array by them, so
+            #records of two lengths under one code do not fail -- they reshape
+            #into a variable with the wrong time axis and the wrong values,
+            #under whatever name the table supplies. Every writer in
+            #`outmod.f90` satisfies this: a multi-level field is one record per
+            #level and each is nlat*nlon or NSP, and a scalar is length 1.
+            #
+            #WHAT BREAKS IT is two DIFFERENT fields sharing a code in one
+            #stream, and the model can produce that. `outdiag` numbers its
+            #optional diagnostic arrays off the loop index -- jcode = 50+jdiag
+            #for the 2-D spectral block -- so `ndiagsp2d > 0` in `plasim_nl`
+            #writes codes 51 upward into the same unit 40 that `outsc` writes
+            #the orbital elements 51 to 54 into. The record LENGTHS differ,
+            #NESP against 1, which is what makes the collision detectable at
+            #all; the names never could be. Refusing the read is the only
+            #honest answer, because the joined array is not the variable the
+            #table names and nothing downstream can tell.
+            #
+            #The numbering itself is a model-source defect and the repair is a
+            #Fortran renumber. This is the guard that keeps it from being
+            #silent in the meantime. world-k5db.
+            if len(field)!=_widths[kcode]:
+                raise Exception(
+                    "Code %s carries records of two lengths in this file, %d and %d. "
+                    "One code is one variable and one record shape; two fields sharing "
+                    "a code cannot be told apart once read, so this file cannot be "
+                    "postprocessed. If an optional diagnostic block is enabled, its "
+                    "codes are colliding with the ones pyburn.ilibrary names."
+                    %(kcode,_widths[kcode],len(field)))
             _chunks[kcode].append(field)
     
     # The records are views on fbuffer in the file's own word length; the copy
@@ -1726,6 +1752,24 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
     rlon = lon*np.pi/180.0
     colat = np.cos(rlat)
     
+    #CODE 152 IS A PREREQUISITE OF THE READER, NOT OF A REQUEST, and the
+    #difference is what this says out loud. Log surface pressure is read once
+    #here, before any variable is looked at, and everything that follows
+    #depends on it: the half- and full-level pressures, the surface pressure
+    #the log reports, the horizontal gradients, and every derivation that uses
+    #a pressure. So its absence is not "a variable could not be produced" --
+    #the disposition `_logcollected` and `_DERIVATION_INPUTS` settle for that
+    #-- it is a file this function cannot read at all, whatever was asked for.
+    #It came back as a bare KeyError('152') from before the loop, which reads
+    #as a request having gone wrong. world-k5db.
+    if str(lnpscode) not in rawdata:
+        raise Exception(
+            "This file carries no code %s (log surface pressure) records. Every "
+            "pressure level, every pressure field and every derivation that uses "
+            "one is built from it before any requested variable is read, so it is "
+            "a prerequisite of reading the file at all rather than a variable that "
+            "could not be produced. Codes present: %s"
+            %(lnpscode,", ".join(sorted((k for k in rawdata if k.isdigit()),key=int))))
     gridlnps,lnpsmeta = _transformvar(lon[:],lat[:],rawdata[str(lnpscode)][:],ilibrary[str(lnpscode)][:],nlat,nlon,
                                       nlev,ntru,ntime,mode='grid',substellarlon=substellarlon,
                                       physfilter=physfilter,zonal=False)
@@ -2512,6 +2556,24 @@ def advancedDataset(filename, variablecodes, mode='grid', substellarlon=180.0,
     rlon = lon*np.pi/180.0
     colat = np.cos(rlat)
     
+    #CODE 152 IS A PREREQUISITE OF THE READER, NOT OF A REQUEST, and the
+    #difference is what this says out loud. Log surface pressure is read once
+    #here, before any variable is looked at, and everything that follows
+    #depends on it: the half- and full-level pressures, the surface pressure
+    #the log reports, the horizontal gradients, and every derivation that uses
+    #a pressure. So its absence is not "a variable could not be produced" --
+    #the disposition `_logcollected` and `_DERIVATION_INPUTS` settle for that
+    #-- it is a file this function cannot read at all, whatever was asked for.
+    #It came back as a bare KeyError('152') from before the loop, which reads
+    #as a request having gone wrong. world-k5db.
+    if str(lnpscode) not in rawdata:
+        raise Exception(
+            "This file carries no code %s (log surface pressure) records. Every "
+            "pressure level, every pressure field and every derivation that uses "
+            "one is built from it before any requested variable is read, so it is "
+            "a prerequisite of reading the file at all rather than a variable that "
+            "could not be produced. Codes present: %s"
+            %(lnpscode,", ".join(sorted((k for k in rawdata if k.isdigit()),key=int))))
     gridlnps,lnpsmeta = _transformvar(lon[:],lat[:],rawdata[str(lnpscode)][:],ilibrary[str(lnpscode)][:],nlat,nlon,
                                       nlev,ntru,ntime,mode='grid',substellarlon=substellarlon,
                                       physfilter=physfilter,zonal=False)
