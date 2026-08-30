@@ -126,3 +126,30 @@ documents, numbers and results are kept; this file says how work proceeds.
   thing from the other side -- a row that says "rebuild X before the next run"
   is tracking state, and state is what `check_consistency.py` and
   `world_state.json` are for.
+
+- **A delegated workstream ends resolved or blocked, and the agent that
+  discovers a task is the one that works it.** Finding a defect is most of the
+  cost of fixing it: by the time an agent has verified the claim, read the
+  source around it, quantified the effect and worked out which of the project's
+  rules apply, it holds context that no summary carries and that the next agent
+  would have to rebuild from nothing. So an agent that files a row in the
+  course of its work does not hand that row back -- it keeps going until every
+  thread it opened is closed or is genuinely blocked, and only then reports.
+  The two end states are the same two a task has: completed or blocked.
+  Naming the next step is not taking it.
+
+  What DOES come back is the thing a fresh reader is better placed to judge:
+  a decision the project's declared truth does not settle, a change whose scope
+  the delegator deliberately drew a line around, or work in a directory another
+  agent holds. Those are handed over with the evidence and the reason. Recorded
+  2026-08-30, after a fan-out in which most agents closed their own follow-on
+  work and the ones that did not left rows whose next reader had to re-derive
+  the measurement before it could act -- the pH parent-supply sourcing, the
+  melange mapping and the pyburn key handling all cost a second agent most of a
+  first agent's work.
+
+  The delegator's half of this is to say so in the brief and to draw the file
+  boundary wide enough that following a thread does not immediately cross it.
+  An agent told to stay inside one directory and then asked to run its findings
+  down will stop at the boundary, correctly, and the stopping is the
+  delegator's doing rather than the agent's.

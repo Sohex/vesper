@@ -218,6 +218,12 @@ One line each; the argument and the recorded incidents are in
   does not cover the one beside it.
 - Naming the next step is not taking it: if you can say what would settle a
   question, you are not blocked.
+- **A delegated agent works the rows it files.** Finding a defect is most of
+  the cost of fixing it, so the agent holding that context runs its own
+  follow-on work to resolved or blocked before reporting. What comes back is
+  what a fresh reader judges better: an unsettled decision, a scope line the
+  delegator drew, or another agent's directory. The brief says so, and draws
+  the file boundary wide enough that following a thread does not cross it.
 - Ask whether the thing should exist BEFORE building or fixing it: deleting
   is a fix, so ask what breaks if the thing simply goes.
 - Do not offer a defect as a decision: if one option is "leave the known-wrong
