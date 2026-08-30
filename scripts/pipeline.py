@@ -44,6 +44,12 @@ for -- and it is the reason `writes` has to be the complete artifact set rather
 than a marker file. A row naming only its report purges its report and leaves
 the .sra beside it, then says it succeeded.
 
+A purge starts at the seed's OWN output and works down. A change to a step
+invalidates what that step wrote before anything else, so a walk that only went
+downstream answered "nothing" at every step nothing else `needs`, with a success
+exit; it also made the completeness rule on `writes` untestable at every leaf,
+since a leaf could name its whole output set and still purge none of it.
+
 Two edges are not `needs` and purge uses both:
 
 `reads_export` is the step consuming `source/{build}/`. Four steps do it,
@@ -57,7 +63,10 @@ unrestricted reachability from any climate step reaches the generation step and
 then everything, including `source/{build}/` itself. That answer is wrong, not
 merely alarming: a new climatology does not invalidate the terrain it was
 computed on. The cycle closes across an ITERATION boundary and "what is worthless
-now" is a within-pass question, so the generation step is where it is cut.
+now" is a within-pass question, so the generation step is where it is cut. That
+cut holds for `orogen` seeded from itself too: `source/` is read-only, so
+`--purge orogen` clears what the generation invalidates and is the one seed that
+does not take its own output with it.
 
 It also does not check whether artifacts AGREE with each other. That is
 `check_consistency.py`, which compares terrain hashes, provenance stamps and
@@ -244,9 +253,11 @@ def downstream(seed: str, by_id: dict) -> set:
     generation step is the iteration boundary: things computed ON a build are
     downstream of it, and the build is not downstream of them.
 
-    The seed is never in its own result, so `--purge X` deletes what X invalidates
-    and never X itself. For `orogen` that is the difference between clearing the
-    tree and deleting the export.
+    STRICTLY downstream: the seed is not in its own result. `purge_set` below is
+    what `--purge` deletes and it adds the seed back, because a step's own output
+    is the first thing a change to that step invalidates. The two are kept apart
+    so the cut at `orogen` is stated once, against reachability, where the cycle
+    is.
     """
     out: set[str] = set()
     frontier = ({s for s, v in by_id.items() if v.get("reads_export")}
@@ -263,6 +274,42 @@ def downstream(seed: str, by_id: dict) -> set:
         out |= nxt
         frontier = nxt
     return out
+
+
+def purge_set(seed: str, by_id: dict) -> set:
+    """Every step `--purge seed` deletes: what `seed` invalidates, plus `seed`.
+
+    A step's own output is the first thing a change to that step makes worthless,
+    so it is the one case the tool must always get right. Reverse reachability
+    alone gets it wrong at every leaf: a step nothing else `needs` has an empty
+    downstream set, and `--purge` reported success having deleted none of the
+    step's own artifacts. `writes` is required to name the COMPLETE output set
+    precisely so a purge deletes exactly that, and a leaf could satisfy that rule
+    perfectly while purging nothing. world-ysd1.
+
+    `orogen` is the one exemption, BY NAME and for rule 7: its output is
+    `source/{build}/`, which is read-only. A build is retired by adding its
+    successor and stubbing it under `archive/builds/`, never by deleting the
+    export in place, and `--purge orogen` means "clear what this generation
+    invalidates" rather than "delete the terrain". The cut in `downstream` stops
+    every OTHER seed from reaching the export; this stops the export's own seed.
+    """
+    out = downstream(seed, by_id)
+    if seed != "orogen":
+        out.add(seed)
+    return out
+
+
+def purge_writes(seed: str, graph: dict, by_id: dict) -> list[tuple[str, list[str]]]:
+    """The `writes` entries `--purge seed` would expand, per step, in graph order.
+
+    Declared entries, not files: what is on disk is the tree's business and this
+    is the graph's. `cmd_purge` expands these and `smoke_test.py` asserts over
+    them, so the plan a check reads is the plan the delete walks.
+    """
+    doomed = purge_set(seed, by_id)
+    return [(s["id"], list(s.get("writes", [])))
+            for s in graph["steps"] if s["id"] in doomed]
 
 
 MAP_STEPS = ("basemap", "projections")
@@ -429,11 +476,14 @@ def cmd_purge(graph: dict, target: str, execute: bool) -> int:
     if target not in by_id:
         raise SystemExit(f"no step '{target}'. Known: {', '.join(sorted(by_id))}")
     build = active_build()
-    doomed = downstream(target, by_id)
+    doomed = purge_set(target, by_id)
 
     print(f"active build: {build}")
+    own = (f"`{target}` included"
+           if target in doomed
+           else f"`{target}`'s own output is the read-only export and stays")
     print(f"worthless if `{target}` changes: {len(doomed)} of "
-          f"{len(graph['steps'])} steps\n")
+          f"{len(graph['steps'])} steps, {own}\n")
 
     # Runs are named by a UUID and have no path in the graph, so purge cannot
     # find them and must not pretend the tree is clear without them. They also
@@ -443,12 +493,9 @@ def cmd_purge(graph: dict, target: str, execute: bool) -> int:
     runs = sorted(s for s in doomed if by_id[s].get("presence") == "by_index")
 
     total, plan = 0, []
-    for step in graph["steps"]:            # graph order, so the tree reads top-down
-        sid = step["id"]
-        if sid not in doomed:
-            continue
+    for sid, writes in purge_writes(target, graph, by_id):   # graph order, top-down
         files = []
-        for w in step.get("writes", []):
+        for w in writes:
             files += [q for q in expand(w, build) if q.is_file()]
         if not files:
             continue
@@ -522,8 +569,9 @@ def main() -> None:
     ap.add_argument("--force", action="store_true",
                     help="with --plan, list steps whose artifacts already exist")
     ap.add_argument("--purge", metavar="STEP",
-                    help="delete every artifact a change to STEP makes worthless. "
-                         "Excludes STEP's own output, and never crosses `orogen`")
+                    help="delete every artifact a change to STEP makes worthless, "
+                         "STEP's own output included. Never crosses `orogen`, and "
+                         "never deletes the export")
     ap.add_argument("--execute", action="store_true",
                     help="with --purge, actually delete; default is a dry run")
     ap.add_argument("--no-maps", action="store_true",
