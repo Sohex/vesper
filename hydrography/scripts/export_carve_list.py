@@ -115,6 +115,7 @@ from orbit import orbital_year_days
 from paths import climatology_path, rel, require_configured_grid
 from provenance import staged_surface_field
 from orogen import Export, LAND
+import lake_balance as lb
 from lake_balance import BasinSet
 
 
@@ -127,6 +128,15 @@ from lake_balance import BasinSet
 # different n here than the generator carves with would be two worlds.
 INCISION_EXPONENT = 0.5
 SLOPE_EXPONENT = 1.0
+# THE LEDGER ABSENCES THIS FILE'S DISPOSITIONS REST ON, by name, so that closing
+# one makes the declaration that cites it fail loudly instead of quietly
+# becoming untrue. `seasonal_concavity` bounds an error rather than correcting
+# it BECAUSE the delivery phase is unrepresentable; the day that absence closes,
+# the correction is computable and the bound is the wrong instrument. Nothing
+# else in the tree could notice that, because the citation is prose.
+# `scripts/smoke_test.py` holds every name here to a key under `absences:` in
+# `hydrography/config/land_water_ledger.yaml`.
+LEDGER_ABSENCES_RELIED_ON = ("seasonal_phase_of_catchment_delivery",)
 SLOPE_EXPONENT_BRACKET = (0.5, 2.0)
 KM3_PER_YEAR_TO_M3_PER_S = 1e9
 
@@ -266,6 +276,14 @@ def incision_retain(q_km3_per_year, year_s: float, depth_m, erodibility,
     Every basin outside that band keeps its verdict under every admissible
     delivery phase; the ones inside it are flagged `seasonal_concavity_movable`
     on the sidecar, one basin at a time, because a count cannot say WHICH.
+
+    **That bound is ATTAINED and cannot be narrowed from what this pipeline
+    carries.** The lake's own surface flux is seasonal and representable, and
+    knowing it buys nothing, because the lake's STORAGE stands between the
+    balance and the overflow and sharpens the season rather than damping it: a
+    lake drawn below spill refills before it spills again. Put a year's delivery
+    in one bin and `lake_balance.solve_periodic` returns an overflow sitting
+    exactly on the floor, whatever the lake's own swing.
 
     The EVAPORATION inside `Q` is a different question and is already handled:
     `cv._INTERVAL_BRACKET` brackets the interval Penman is evaluated over, and
@@ -682,12 +700,28 @@ def seasonal_concavity(q_km3_per_year, year_s: float, depth_m, erodibility,
     the same on either basis -- `to_natural_relief_basis` passes both endpoints
     through -- so a movable basin is movable on the list as written.
 
-    What would tighten it is a per-bin lake surface term. The overflow is
-    catchment delivery, whose phase is the absence, PLUS the lake's own surface
-    flux, whose phase is representable and is already carried in
-    `surface_water.nc`. Bounding the two separately is strictly narrower than
-    bounding their sum, and needs a per-bin open-water evaporation that
-    `carve_verdict.bin_mean_open_water` reduces before returning.
+    **THE BOUND IS ATTAINED, AND THE LAKE'S OWN SEASON DOES NOT NARROW IT.**
+    The overflow is catchment delivery, whose phase is the absence, plus the
+    lake's own surface flux, whose phase IS representable and is carried per bin
+    in `surface_water.nc`. Bounding the two separately looks strictly narrower
+    and is not, because the lake's STORAGE stands between the balance and the
+    overflow. Storage does not damp the overflow's season, it SHARPENS it: a
+    lake drawn below spill refills before it spills again, so a deficit season
+    that in a no-storage model would absorb delivery and spread the overflow
+    instead delays the spill and concentrates it further. Run through
+    `lake_balance.solve_periodic` -- the pipeline's own lake balance -- a year's
+    delivery placed in the lightest bin drives the overflow to `w_min**(1 - m)`
+    exactly, unchanged as the lake's own seasonal swing is taken from 0 to 0.9.
+    `_selftest` is that sweep, with the no-storage net beside it as the control
+    that reads the same forcing as less concentrated.
+
+    The same run closes the bound's own premise. Under the delivery this
+    pipeline represents, an overflowing basin sits AT spill through the whole
+    cycle, so its periodic annual overflow equals the spill-level `Q` computed
+    here to 1.0000; and under the adversary's concentrated delivery the
+    drawn-down lake evaporates over less area and passes MORE water, which puts
+    the worst admissible cycle at 0.03 to 2.6% ABOVE the floor rather than
+    below it. The bound holds and is very slightly conservative.
 
     Returns (report, movable mask).
     """
@@ -730,9 +764,23 @@ def seasonal_concavity(q_km3_per_year, year_s: float, depth_m, erodibility,
             "basin-to-basin spread reaches the verdict, and a bracket over the "
             "common level would have zero width.",
         "assumptions": ["an overflow is never negative in any bin",
+                        "its weighted mean is the spill-level Q above. Not a "
+                        "convention but an identity here: an overflowing basin "
+                        "sits at spill through the cycle under the delivery "
+                        "this pipeline represents, and its storage returns to "
+                        "where it started over a closed year",
                         "the cycle is the climatology's own bins at "
-                        "lib/climatology.py's weights",
+                        "lib/climatology.py's weights. The bound is against the "
+                        "per-bin evaluation at THAT resolution, which is the "
+                        "correction that was on the table; against a continuous "
+                        "cycle there is no bound without a delivery model",
                         "nothing about which bin the water arrives in"],
+        "the_bound_is_attained": "a year's delivery in the lightest bin drives "
+            "the overflow of lake_balance.solve_periodic to exactly this floor, "
+            "unchanged as the lake's own seasonal swing goes from 0 to 0.9. The "
+            "lake's per-bin surface flux does not narrow the bound, because "
+            "storage sharpens the overflow's season rather than damping it: a "
+            "lake drawn below spill refills before it spills.",
         "basis": "finished-depression cut over depth, the basis the coefficient "
             "is solved on. The class boundary is the same on the rebased basis, "
             "because to_natural_relief_basis passes both endpoints through.",
@@ -1320,6 +1368,82 @@ def _selftest() -> int:
     check("the band is not the whole population, so it says something",
           0 < concav["movable"] < concav["overflowing"],
           f"movable {concav['movable']} of {concav['overflowing']} overflowing")
+
+    # THE BOUND IS ATTAINED, AND THE LAKE'S OWN SEASON DOES NOT NARROW IT.
+    # `lb._synthetic` is the sibling module's own fixture and is used here
+    # deliberately: what is being checked is a property of the OVERFLOW that
+    # `solve_periodic` produces, so the lake balance under test has to be the
+    # one the pipeline runs rather than a reservoir written for this check.
+    nb = w_syn.size
+    dt_syn = w_syn.copy()
+    lake = lb._synthetic(n_basins=6)
+    lake_phase = np.cos(2 * np.pi * (np.cumsum(dt_syn) - dt_syn / 2))[:, None]
+    # A supply that puts every basin over its sill: at a catchment five times
+    # the area at spill, the balance there is `A (4r - E + P)`.
+    r_bar, e_bar, p_bar = 400e-6, 900e-6, 60e-6
+    lightest = int(np.argmin(w_syn))
+    delivery_flat = np.full((nb, lake.n), r_bar)
+    delivery_one_bin = np.zeros((nb, lake.n))
+    delivery_one_bin[lightest] = r_bar / w_syn[lightest]
+    check("the two delivery phases carry the same annual water",
+          bool(np.allclose((w_syn[:, None] * delivery_one_bin).sum(0),
+                           (w_syn[:, None] * delivery_flat).sum(0))),
+          "the concentrated arm is not the flat arm rephased")
+
+    def _overflow_phi(delivery, swing):
+        e_k = e_bar * (1.0 + swing * lake_phase) * np.ones((1, lake.n))
+        per = lb.solve_periodic(lake, delivery, e_k,
+                                np.full((nb, lake.n), p_bar), dt_syn,
+                                area_resolution_km2=1.0)
+        rate = per["overflow_km3"] / dt_syn[:, None]
+        annual = (w_syn[:, None] * rate).sum(0)
+        evaluated = (w_syn[:, None] * np.power(np.clip(rate, 0.0, None),
+                                               INCISION_EXPONENT)).sum(0)
+        return (evaluated / np.power(annual, INCISION_EXPONENT), per["all_closed"])
+
+    flat_phi, flat_closed = _overflow_phi(delivery_flat, 0.0)
+    check("a flat delivery on a flat lake evaluates to the annual value exactly",
+          flat_closed and float(np.abs(flat_phi - 1.0).max()) < 1e-9,
+          f"phi {flat_phi.min():.9f}-{flat_phi.max():.9f}")
+
+    # THE CLAIM `seasonal_concavity` RESTS ON. The whole year's delivery in the
+    # lightest bin must drive the OVERFLOW to the floor, and the lake's own
+    # season must not move it: a bound narrowed by the lake's per-bin flux is
+    # exactly a bound that this sweep would lift off the floor.
+    at_floor = []
+    for swing in (0.0, 0.3, 0.6, 0.9):
+        phi_k, closed_k = _overflow_phi(delivery_one_bin, swing)
+        at_floor.append((swing, closed_k, float(phi_k.min()), float(phi_k.max())))
+    # And the floor the code reports has to BE that attained value, or the band
+    # is drawn around a number the lake balance does not produce.
+    check("the reported floor is the one the lake balance attains",
+          concav["phi_range"][0] == round(floor_syn, 4),
+          f"reported {concav['phi_range'][0]} against attained "
+          f"{round(floor_syn, 4)}")
+    check("the whole year in the lightest bin attains the bound",
+          all(c and abs(lo - floor_syn) < 1e-9 and abs(hi - floor_syn) < 1e-9
+              for _, c, lo, hi in at_floor),
+          "; ".join(f"swing {s}: {lo:.9f}-{hi:.9f} against {floor_syn:.9f}"
+                    for s, _, lo, hi in at_floor))
+
+    # AND THE MECHANISM, as an inequality that can fail. Modelling the overflow
+    # as the instantaneous net -- delivery plus the lake's own surface flux,
+    # floored at zero -- is the NO-STORAGE limit, and it reads the same forcing
+    # as strictly less concentrated. That is why the lake's deficit season looks
+    # as though it should narrow the bound and does not: storage does not damp
+    # the overflow's season, it sharpens it, because a lake drawn below spill
+    # refills before it spills.
+    dry_syn = np.maximum(lake.catchment_km2 - lake.area_at_spill_km2, 0.0)
+    e_flat = np.full((nb, lake.n), e_bar)
+    net = (delivery_one_bin * dry_syn - (e_flat - p_bar) * lake.area_at_spill_km2)
+    net_annual = (w_syn[:, None] * net).sum(0)
+    no_storage = ((w_syn[:, None] * np.power(np.clip(net, 0.0, None),
+                                             INCISION_EXPONENT)).sum(0)
+                  / np.power(net_annual, INCISION_EXPONENT))
+    check("the no-storage net reads the same forcing as less concentrated",
+          bool((no_storage > floor_syn + 1e-6).all()),
+          f"no-storage phi {no_storage.min():.6f}-{no_storage.max():.6f} against "
+          f"the floor {floor_syn:.6f}")
 
     # Weights that are not the climatology's own would silently move the bound,
     # since it is read off the lightest bin.

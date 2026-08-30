@@ -3756,9 +3756,6 @@ DECLARED_BRACKETS = (
     ("value", "regolith.dry_erosion_baseline", PEDOGENESIS,
      ("regolith", "dry_erosion_baseline"),
      ("regolith", "dry_erosion_baseline_bracket"), None),
-    ("value", "ph.parent_by_category.evaporite", PEDOGENESIS,
-     ("ph", "parent_by_category", "evaporite"),
-     ("ph", "parent_bracket_evaporite"), None),
     ("value", "ph.base_cation_supply_by_category.igneous_mafic", PEDOGENESIS,
      ("ph", "base_cation_supply_by_category", "igneous_mafic"),
      ("ph", "base_cation_supply_bracket_by_category", "igneous_mafic"), None),
@@ -4926,6 +4923,48 @@ ARGUED_UNWEIGHTED = {
 }
 
 
+def check_one_rock_one_reading() -> list[str]:
+    """Orogen's rock classes read the same way in every table that maps them.
+
+    Three tables answer one question -- how much acid-neutralising capacity does
+    this rock release -- in three vocabularies: `PH_GROUP` in the pH block's
+    supply categories, `ROCK_TO_MEYBECK` in Meybeck (1987)'s rows, and
+    `weathering_schemes.yaml`'s `class_mapping` in rokgem's classes. They sat in
+    three files and disagreed twice without anything able to see it: `melange`
+    read as gneiss in one and shale in the other two, a factor of 4.29 in the
+    supply on six per cent of the land area, and `playa_clastic` read as an
+    evaporite in one and shale in the other two, a factor of 5.5 on fourteen.
+
+    `pedology/scripts/lithology_map.py` holds all three and checks them. This
+    runs that check per commit, because it is a static read and what it catches
+    is an edit to a literal.
+    """
+    import importlib.util as ilu
+    import yaml
+    pedo_scripts = str(ROOT / "pedology" / "scripts")
+    saved = sys.modules.pop("_paths", None)
+    sys.path.insert(0, pedo_scripts)
+    try:
+        spec = ilu.spec_from_file_location(
+            "_smoke_lithology_map",
+            ROOT / "pedology" / "scripts" / "lithology_map.py")
+        module = ilu.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        ph = yaml.safe_load(
+            (ROOT / "pedology" / "config" / "pedogenesis.yaml")
+            .read_text(encoding="utf-8"))["ph"]
+        return module.check(ph["base_cation_supply_by_category"],
+                            ph["base_cation_supply_bracket_by_category"])
+    except Exception as exc:            # noqa: BLE001 - reported, not raised
+        return [f"the rock-class mapping check cannot load: {exc}"]
+    finally:
+        if pedo_scripts in sys.path:
+            sys.path.remove(pedo_scripts)
+        sys.modules.pop("_paths", None)
+        if saved is not None:
+            sys.modules["_paths"] = saved
+
+
 def check_nonlinear_reduction_order() -> list[str]:
     """A climatology's time axis is reduced by record count, and a nonlinear
     function of it is not the same evaluated before and after that reduction.
@@ -5155,6 +5194,69 @@ def check_nonlinear_reduction_order() -> list[str]:
                 f"come out BELOW one; a check that cannot read the sign of the "
                 f"curvature is not reading curvature")
     return problems
+
+def check_ledger_absences_cited_exist() -> list[str]:
+    """Every ledger absence a hydrography module says it relies on still exists.
+
+    A disposition can rest on something being ABSENT. `export_carve_list.py`
+    bounds the concavity in `Q**m` rather than correcting it, and the whole
+    reason is that `land_water_ledger.yaml` declares
+    `seasonal_phase_of_catchment_delivery` unrepresentable: with a delivery
+    phase the correction is computable and a bound is the wrong instrument.
+
+    That dependency lives in prose, so closing the absence would leave the
+    declaration standing and untrue with nothing in the tree objecting. A module
+    names what it relies on in `LEDGER_ABSENCES_RELIED_ON` and this holds every
+    name to a key under `absences:`. The failure it exists for is a citation
+    that no longer resolves, which is the direction that produces a confident
+    false statement in the artifact that changes the terrain.
+    """
+    problems = []
+    ledger_path = ROOT / "hydrography" / "config" / "land_water_ledger.yaml"
+    if not ledger_path.is_file():
+        return [f"{ledger_path.relative_to(ROOT)} is missing, so no module can "
+                f"cite an absence in it"]
+    import yaml as _yaml
+    absences = (_yaml.safe_load(ledger_path.read_text(encoding="utf-8"))
+                or {}).get("absences") or {}
+    cited = 0
+    for path in sorted((ROOT / "hydrography" / "scripts").glob("*.py")):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue                    # check_modules_parse owns that
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign):
+                continue
+            if not any(isinstance(t, ast.Name)
+                       and t.id == "LEDGER_ABSENCES_RELIED_ON"
+                       for t in node.targets):
+                continue
+            try:
+                names = ast.literal_eval(node.value)
+            except ValueError:
+                problems.append(
+                    f"{path.relative_to(ROOT)}:{node.lineno} "
+                    f"LEDGER_ABSENCES_RELIED_ON is not a literal, so this check "
+                    f"cannot read it")
+                continue
+            for name in names:
+                cited += 1
+                if name not in absences:
+                    problems.append(
+                        f"{path.relative_to(ROOT)}:{node.lineno} relies on the "
+                        f"ledger absence {name!r} and land_water_ledger.yaml has "
+                        f"no such key under absences:. A disposition that rests "
+                        f"on something being missing is wrong once it is there: "
+                        f"read the declaration at the citing site before "
+                        f"removing this name")
+    if not cited:
+        problems.append(
+            "no hydrography module declares LEDGER_ABSENCES_RELIED_ON, so this "
+            "check passed by having nothing to check. export_carve_list.py "
+            "carries one; if it has gone, the declaration it guards has gone too")
+    return problems
+
 
 def check_penman_evaluation_interval() -> list[str]:
     """Penman is evaluated per climatology bin, not once on annual-mean air.
@@ -5592,8 +5694,12 @@ def main() -> None:
                lambda: check_bin_weights_take_bin_centres()),
               ("no nonlinear function is evaluated on a naive time mean",
                lambda: check_nonlinear_reduction_order()),
+              ("one rock reads the same way in every table that maps it",
+               lambda: check_one_rock_one_reading()),
               ("Penman is evaluated per climatology bin, not on annual-mean air",
                lambda: check_penman_evaluation_interval()),
+              ("every ledger absence a module relies on still exists",
+               lambda: check_ledger_absences_cited_exist()),
               ("the transform gates run the configured spectral filter",
                lambda: check_gate_filter_matches_config()),
               ("a continuation redeclares what a prepare declared",

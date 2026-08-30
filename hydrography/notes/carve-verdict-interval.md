@@ -273,24 +273,72 @@ demonstrated to fail on an injected defect: the Jensen direction with its
 equality case, the bound being attained by the whole year in the lightest bin
 and never breached, the calibration absorbing a common discount exactly while
 an uncompensated one does not, the band being read off the same cut over depth
-the retain is, and the claim the whole disposition rests on -- that under an
+the retain is, the floor the code reports being the one the lake balance
+attains, and the claim the whole disposition rests on -- that under an
 admissible per-basin `phi` with the coefficient re-solved, no basin outside the
 band changes class. The band and the retain read ONE arithmetic:
 `cut_over_depth` is factored out of `incision_retain` precisely because the
 retain is clipped and the band needs the ratio above 1.
 
-## What would tighten it, and what would close it
+Two more guard the disposition rather than the arithmetic. The attainment sweep
+below runs `lake_balance.solve_periodic` and fails if the lake's own season
+lifts the concentrated arm off the floor, with the no-storage net beside it as
+the control. And `scripts/smoke_test.py` holds
+`export_carve_list.LEDGER_ABSENCES_RELIED_ON` to a key under `absences:` in the
+ledger: the choice to BOUND this error rather than correct it rests on the
+delivery phase being unrepresentable, and closing that absence has to fail the
+gate at the site counting on it rather than leave the declaration standing and
+untrue.
 
-The overflow is catchment delivery, whose phase is the absence, PLUS the lake's
-own surface flux, whose phase is representable and is already carried per bin
-in `surface_water.nc`. Bounding the two separately is strictly narrower than
-bounding their sum, and it bites here: the catchment term is a median 2.06
-times the overflow on this population, because the lake evaporates about half
-of what its catchment delivers, so concentrating the delivery into one bin puts
-far more than the annual overflow into that bin. What it needs is a per-bin
-open-water evaporation, and `carve_verdict.bin_mean_open_water` reduces the
-bins before returning.
+## The bound is attained, and the lake's own season does not narrow it
+
+The overflow is catchment delivery, whose phase is the absence, plus the lake's
+own surface flux, whose phase IS representable and is carried per bin in
+`surface_water.nc`. Bounding the two separately looks strictly narrower and it
+is not. **Lake storage stands between the water balance and the overflow, and
+it sharpens the season rather than damping it**: a lake drawn below spill has to
+refill before it spills again, so a deficit season that would absorb delivery in
+a no-storage model instead delays the spill and concentrates it further.
+
+Measured through `lake_balance.solve_periodic`, the pipeline's own lake balance,
+on its own synthetic set of six basins spanning a factor of a hundred in
+capacity, at 12 bins whose lightest weight is 0.043478 so the floor is
+`w_min**(1 - m) = 0.208514`. Two delivery phases carrying the same annual water,
+against four lake seasonal swings:
+
+| lake evaporation swing | flat delivery | whole year in the lightest bin |
+| --- | --- | --- |
+| 0.0 | 1.000000 | 0.208514 |
+| 0.3 | 0.991854 | 0.208514 |
+| 0.6 | 0.963500 | 0.208514 |
+| 0.9 | 0.865745 | 0.208514 |
+
+The concentrated arm sits ON the floor to six decimals for every basin, and the
+lake's own swing does not move it by so much as a part in a million. A bound
+narrowed by the lake's per-bin flux is exactly a bound that this sweep would
+lift off the floor.
+
+**The same run closes the bound's own premise**, which was stated as an
+assumption and is an identity here. Under the delivery this pipeline represents,
+an overflowing basin sits AT spill through the entire cycle -- cycle-mean area
+over area at spill measures 1.0000 -- so its periodic annual overflow equals the
+spill-level `Q` the carve verdict computes, to 1.0000. And under the adversary's
+concentrated delivery the drawn-down lake evaporates over less area and passes
+MORE water, which puts the worst admissible cycle at 0.03 to 2.6% ABOVE the
+floor rather than below it. The bound holds and is slightly conservative.
+
+The no-storage net is the control, and it is what made the tightening look
+available: reading the same forcing as the instantaneous `delivery + (P - E)`
+floored at zero gives a ratio strictly above the floor, because it lets the
+lake's deficit season absorb delivery that a real lake would have stored and
+spilled later. `_selftest` carries the inequality.
+
+So `J = 3.4833` stands, the call stays DECISIVE, and the 26 carved basins are
+still movable. There is no narrower bound to be had from what this pipeline
+carries.
 
 Closing the absence outright is a different decision and the ledger already
 names it: it is the same decision as adopting the climate column's
 `surface_runoff`, which this path rejects as an incomplete routed diagnostic.
+What that would buy is not a narrower bound but a delivery phase, and with one
+the correction becomes computable rather than bounded.

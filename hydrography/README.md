@@ -94,6 +94,18 @@ already had.
 coupling: which store is being debited, by which component, over which
 interval. It refuses the answer "all of them".
 
+**A module can also depend on an absence, and it says so by name.** The
+ledger's `absences:` block records water the coupled system does not carry, and
+a consumer sometimes chooses its whole instrument because of one:
+`export_carve_list.py` bounds the concavity in `Q**m` rather than correcting it
+precisely because `seasonal_phase_of_catchment_delivery` is unrepresentable, and
+with a delivery phase the correction is computable and a bound is the wrong
+tool. That dependency would otherwise live only in prose, so a module names what
+it relies on in `LEDGER_ABSENCES_RELIED_ON` and `scripts/smoke_test.py` holds
+every name to a key under `absences:`. Closing an absence then fails the gate at
+the site that was counting on it, instead of leaving a confident false statement
+in an artifact.
+
 The pipeline already has a water balance and it is not the same thing. `P - E`
 closes at equilibrium, the groundwater solver conserves its own recharge
 against its own seepage, and the basin code adds only signed exchange to
