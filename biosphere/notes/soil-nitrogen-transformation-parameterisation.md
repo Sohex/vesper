@@ -52,11 +52,13 @@ mainline" is not proof the code is right, and "a paper disagrees" is not licence
 to change it quietly. Both are evidence, and a divergence that survives has to
 be declared where the next reader will hit it.
 
-**The eleven changes below are execution-verified as one combined arm.** The
-comparison bounds their joint effect; it does not assign an observed change to
-one edit or decide which Earth calibration belongs on Vesper. The per-entry
-`worth` remains coefficient arithmetic, while the paired report measures the
-fluxes after the Michaelis-Menten terms and pool clamps.
+**Eleven of the twelve changes below are execution-verified as one combined
+arm.** The comparison bounds their joint effect; it does not assign an observed
+change to one edit or decide which Earth calibration belongs on Vesper. The
+per-entry `worth` remains coefficient arithmetic, while the paired report
+measures the fluxes after the Michaelis-Menten terms and pool clamps. The
+twelfth, the labile carbon split, postdates the arms and is bounded by hand
+alone; the section on it below says what would verify it.
 
 The five `world-i2ch` re-examined as a set:
 
@@ -76,8 +78,12 @@ from a fraction of available capacity to `Soil::wfps(0)`, neither curve
 changed), `nitrification_wet_limb` (removed on Greaves and Carter),
 `denitrification_gas_constant` (the other half of the crossed pair) and
 `mass_balance_check` (mainline's identity, enforced in a Release build rather
-than compiled out with the `assert`). `biosphere/config/ntransform.yaml` under
-`mainline_divergences` carries all eleven with their arguments, and
+than compiled out with the `assert`). A twelfth, `labile_carbon_microbial_share`,
+splits the labile carbon this operator denitrifies on into DNDC's two paths; its
+source half is in `modules/somdynam.cpp` and is registered in
+`biosphere/config/somdynam.yaml` as `labile_carbon_paths`.
+`biosphere/config/ntransform.yaml` under
+`mainline_divergences` carries all twelve with their arguments, and
 `ntransform_gate.py` checks three things about each: that mainline's line is
 recorded in the source, that it is not in the source once comments are stripped,
 and that the changed line is. So a divergence can become neither a silent fork
@@ -170,6 +176,8 @@ paper states, what the code has, and whether they agree.
 | `f_nitri_max` | `global_soiln.ins`, then `nitrification` | 0.1 /day | Xu-Ri table 11, Nmax, from Khalil et al. (2004), stated AT 20 C | agrees in value; the paper applies it at the peak of a curve normalised to 38 C |
 | `k_N` | `global_soiln.ins`, then `denitrification` | 0.083 kgN/m3 | Xu-Ri table 11, Kn, from Li et al. (1992) | agrees, identical |
 | `k_C` | `global_soiln.ins`, then `denitrification` | 0.017 kgC/m3 | Xu-Ri table 11, Kc, from Li et al. (1992) | agrees, identical |
+| `frac_labile_carbon` | `global_soiln.ins`, then `somfluxes` | 0.6 | Li et al. (1992) p.9765: soluble carbon is 60 per cent of the carbon leaving microbial biomass | agrees, identical; the pool correspondence is the judgement and is registered, not the number |
+| `frac_labile_carbon_humus` | `global_soiln.ins`, then `somfluxes` | 0.2 | Li et al. (1992) p.9765: plus 20 per cent of the carbon leaving humads | agrees, identical; bracket 0.2 to 0.447, CENTURY's own SLOWSOM-to-SOILMICRO share for the same quantity |
 | `f_nitri_gas_max` | `global_soiln.ins`, then `nitrification` | 0.022 | Xu-Ri table 11, RNON 0.1-4% mean 2% and RN2ON under 0.1-0.2%, applied by table 8 eqns 3 and 4 | agrees, inside the 0.2 to 4.2% their sum brackets |
 | `f_denitri_max` | `global_soiln.ins`, then `denitrification` | 0.33 | Xu-Ri table 9 eqn 3 has no maximum-rate constant, and table 11 lists none | unsourced |
 | `f_denitri_gas_max` | `global_soiln.ins`, then `denitrification` | 0.33 | Xu-Ri table 9 eqn 4, the same | unsourced |
@@ -200,7 +208,7 @@ has drifted from the source is a failure of the declaration.
 
 ## The Earth-calibrated response bracket
 
-Eight of the twenty-four declared entries are what remain undeclared, and
+Seven of the twenty-six declared entries are what remain undeclared, and
 `--strict` refuses on exactly those and on the five Vesper preconditions. Four
 carry a bracket the gate re-derives against a single constant of the model --
 `f_nitri_max`, `f_nitri_gas_max`, the partition's midpoint and the
@@ -316,7 +324,8 @@ midpoint's.
 ## What the five corrections are worth, by hand and in the matched arm
 
 The coefficient arithmetic below explains direction and mechanism. The matched
-arm measures the eleven divergences together, after the Michaelis-Menten terms
+arm measures eleven of the twelve divergences together, after the
+Michaelis-Menten terms
 and pool clamps: area-weighted plant mineral-N uptake changes only +0.343%,
 while gross nitrification rises 148%, gross denitrification rises 20,853%, NH3
 rises 67,216%, NO falls 82.4%, N2O falls 84.7%, and N2 rises from 1.98e-7 to
@@ -363,6 +372,155 @@ the temperature clamp all lower it, by amounts that depend on the gridcell's
 water, pH and temperature. Which dominates is not answerable by hand, and no
 absolute nitrogen number from this operator is available until the model builds
 and a baseline climatology exists to drive it.
+
+## The substrate the operator denitrifies on is DNDC's, and it comes per path
+
+`d_N_max` is table 9 eqn 2 of Xu-Ri and Prentice (2008), labile carbon over
+`k_C` times water plus labile carbon, and it multiplies both denitrification
+steps. It is the only substrate control the operator has. The carbon it reads is
+not computed in `ntransform.cpp` at all: `modules/somdynam.cpp` writes
+`soil.labile_carbon` at the end of `somfluxes`, and `substrate_partition` splits
+it by water-filled pore space like every nitrogen pool.
+
+The quantity is DNDC's soluble carbon, and `k_C` is DNDC's `Kc`. Li, Frolking
+and Frolking (1992) p. 9765 defines the pool in one sentence: it "consists of
+the carbon from microbial biomass decomposition (60%) and humads decomposition
+(20%) that is recycled into microbial biomass", and it "is not actually a carbon
+pool but rather an indicator of the daily rate of decomposition". The CO2 shares
+on those same two paths are 20 and 40 per cent. DNDC's decomposition submodel
+has four pools, of which three decompose: residues, microbial biomass and
+humads, with passive humus assumed not to interact with the other three.
+
+So the soluble-to-respired ratio DNDC implies is 3.0 on the microbial biomass
+path and 0.5 on the humads path. Mainline LPJ-GUESS 4.1.1 and the vendored CNP
+fork both run
+
+    soil.labile_carbon = respsum * frac_labile_carbon;
+
+with `frac_labile_carbon` 0.5, one coefficient on the summed respiration of
+every CENTURY pool. 0.5 is 0.2/0.4 exactly: it is the humads path's ratio, and
+it is applied to the microbial path and to the litter pools as well. The defect
+is scope. The value is not a fit residual, so it is not tuned, and its
+derivation is reachable and read, so it is not opaque.
+
+### The ratio does not cross between the two models; the recycled fraction does
+
+Carrying 3.0 and 0.5 onto CENTURY's respiration is the obvious repair and it is
+wrong. The ratio is recycled carbon over respired carbon, and the two models
+respire different shares of the same pool. DNDC respires 20 per cent of the
+carbon leaving microbial biomass. CENTURY respires 0.6 of it on every
+`SURFMICRO` call and `0.85 - 0.68*(clay + silt)` on `SOILMICRO`, which is 0.44
+to 0.85 over the texture simplex. Labile carbon would then be `3.0 * respfrac`
+of the carbon that decomposed: 1.8 for every surface microbial transfer, and
+above 1 for every soil microbial texture with clay plus silt below 0.76. A
+substrate larger than the carbon that produced it is not a quantity the paper
+contains.
+
+What crosses is the recycled FRACTION, 0.6 and 0.2, applied to each pool's
+decomposition. It is bounded by `cdec` by construction, it is the number the
+paper states rather than a ratio derived from two of them, and `cdec` is exactly
+the carbon leaving a pool because every donor's transfer fractions sum to one.
+
+### The pool correspondence, and the three places it is imperfect
+
+DNDC has four pools where CENTURY has eleven, so the mapping is a judgement
+about kind. It rests on position in the flow network rather than on turnover
+time, since the two models' rates are not on a common reduction factor.
+
+| DNDC pool | CENTURY pools | fraction | what the identification rests on |
+| --- | --- | --- | --- |
+| microbial biomass | `SURFMICRO`, `SOILMICRO` | 0.6 | the pools every litter transfer feeds and which feed the humified pools; CENTURY splits DNDC's one microbial pool by horizon, not by function |
+| humads | `SURFHUMUS`, `SLOWSOM` | 0.2 | both receive from a microbial pool and hand on to a more humified one, which is humads' position in DNDC fig. 3. The CNP fork's own nitrogen ramp already gives `SURFHUMUS` `SLOWSOM`'s C:N pair off `SLOWSOM`'s driver |
+| passive humus | `PASSIVESOM` | 0.2 | position only. DNDC's stable humus does not decompose, so it forms no fraction at all |
+| residues | the six litter pools | none | DNDC's soluble carbon draws from biomass and humads decomposition alone. Residue carbon reaches it one step later, after passing through microbial biomass, which is exactly what litter carbon does here |
+
+The three imperfections, stated rather than smoothed:
+
+**`PASSIVESOM` has no counterpart and the choice cannot matter.** DNDC's stable
+humus is inert; CENTURY's passive pool decomposes at `1.9e-6` per day and
+returns 0.45 of that to `SOILMICRO`. It is given the humified fraction as
+CENTURY's terminal humified pool. Its share of total decomposition is 0.03 to
+0.35 per cent over the whole texture and litter sweep below, so moving its
+coefficient across the whole of [0, 1] changes the labile carbon by 0.16 to 1.61
+per cent, and by 0.7 per cent on the leaf and root mix. This is a loose
+correspondence that needs no bracket, because the quantity it governs is
+immaterial.
+
+**`SLOWSOM` is where the two models disagree about the same number, and that
+disagreement is the bracket.** DNDC's humads returns 0.2 of its decomposition to
+microbial biomass. CENTURY's `SLOWSOM` returns `csa = 1 - csp - 0.55` to
+`SOILMICRO`, which is 0.447 to 0.450 across the whole clay range: a factor of
+2.2. `SURFHUMUS` transfers only to `SLOWSOM` and adds no lower end, and
+`PASSIVESOM` returns 0.45, so the bracket is one-sided, **0.2 to 0.447**, with
+DNDC's number at the low end. DNDC's number is the declared one because the
+parameter exists to import DNDC's definition of soluble carbon into a model with
+no native counterpart to it. Reading CENTURY's own transfer shares instead would
+put the humified path on CENTURY's structure and leave the microbial path on
+DNDC's, since CENTURY's microbial pools transfer nothing back to a microbial
+pool and would give the larger path a coefficient of zero. The bracket is
+registered on `instruction:frac_labile_carbon_humus` and is swept below.
+
+**`SOILMICRO`'s decomposition includes organic leaching.** `orgleachfrac` of it
+leaves as DOC rather than being respired or transferred, and DNDC has no
+leaching path, so 0.6 is applied to a little carbon that leaves the ecosystem.
+On the sweep below, organic leaching moves the result by under 0.05 across its
+whole range.
+
+### What the split is worth, bounded by hand
+
+The steady state of `somfluxes` fixes each pool class's share of decomposition
+from the transfer coefficients alone. Every unit of litter carbon eventually
+leaves as CO2 or as DOC, so the shares depend on the flow network and not on the
+decay rates, and the network can be solved for unit input into each litter pool.
+Against mainline's `0.5 * respsum`, the paired form gives:
+
+| litter input | labile carbon, as a fraction of mainline's |
+| --- | --- |
+| leaf and root mix, 40/30/20/10 into surface structural, surface metabolic, soil structural, soil metabolic | 0.70 |
+| the same, across the texture simplex from 5 per cent clay and silt to 40 and 40 | 0.62 to 0.74 |
+| woody mix, 35 per cent fine and 25 per cent coarse woody debris | 0.49 |
+| coarse woody debris alone | 0.26 |
+| structural lignin fraction 0.0 to 0.6 | 0.694 to 0.698 |
+| the humified coefficient across its 0.2 to 0.447 bracket | 0.70 to 0.88 |
+
+**The repair lowers the substrate term rather than raising it.** A factor of six
+on one of two coefficients reads as an increase, and it is not, because the
+litter pools carry 48 to 76 per cent of respiration in this model and DNDC gives
+them nothing directly. That is the largest single consequence of the mapping and
+it follows from DNDC's own structure rather than from a choice made here.
+
+`d_N_max` is a saturation, so it damps whatever reaches it. `k_C` times water is
+of order 0.0026 kgC per m2 for a 150 mm available capacity, and the labile pool
+is of that order or below, so the operator sits on the roughly linear limb and
+0.7 to 1.0 of the fall reaches `d_N_max` and from there both denitrification
+steps.
+
+Against what this file's constants are already known to be worth, that is small.
+The matched arms put gross denitrification 209 times apart, so a factor between
+0.26 and 0.88 on the substrate term is a small share of the span two Earth
+calibrations of the same operator already cover, and it moves denitrification
+down. Plant mineral-N uptake moved 0.343 per cent over that 209-fold span, so no
+visible change in what the simulated plants take up is expected from this.
+
+### What would verify it, and why nothing here does
+
+None of the above is execution-verified, and it cannot be on the runs that
+exist. `world-qcse` records that every LPJ-GUESS run this project has made fails
+its own BIO-12/BIO-14 acceptance gate on an equilibrium refusal, that the trend
+statistic is fitted inside one memory time, and that the spin-up is short of
+this world's relaxation time. A run against a run in that state cannot say
+whether a substrate change is right; it can only say what two non-equilibrium
+states differ by.
+
+What would verify it is the same matched-arm construction `world-9f1v` built for
+`ntransform.cpp`, on an accepted pair: one arm on mainline's
+`respsum * frac_labile_carbon` and one on the split, same build, same
+climatology, same instruction values elsewhere, same seed and patches, compared
+on `NET_DENITRIF`, the four soil gas fluxes and plant mineral-N uptake over
+complete forcing cycles that pass acceptance. The bracket on the humified
+coefficient is a second axis of the same arm, and it is the one worth sweeping,
+since it moves the result by 0.18 where the passive assignment moves it by
+0.003. Both wait on `world-qcse`.
 
 ## The split is applied to water-filled pore space, and the paper says so
 

@@ -1343,8 +1343,53 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 		soil.apimmob += pimmob;
 	}
 
-	// Fraction of microbial resp. is assumed to produce labile carbon
-	soil.labile_carbon = respsum * frac_labile_carbon;
+	// The labile carbon the soil nitrogen transformation operator denitrifies on.
+	// This is DNDC's soluble carbon pool imported into CENTURY's pool structure:
+	// ntransform.cpp's d_N_max is table 9 eqn 2 of Xu-Ri and Prentice (2008),
+	// which is Li, Frolking and Frolking (1992) eqn Kc, and it is the ONLY
+	// substrate control on either denitrification step.
+	//
+	// DECLARED DIVERGENCE FROM MAINLINE: labile_carbon_paths, owner world-vyvn.
+	// Stock LPJ-GUESS 4.1.1 and the vendored CNP fork both run
+	//     soil.labile_carbon = respsum * frac_labile_carbon;
+	// with frac_labile_carbon 0.5 in data/ins/global_soiln.ins, one coefficient
+	// on the summed respiration of every pool. Li et al. (1992) p. 9765 defines
+	// the pool it stands for per path: soluble carbon "consists of the carbon
+	// from microbial biomass decomposition (60%) and humads decomposition (20%)
+	// that is recycled into microbial biomass". DNDC's residues contribute
+	// nothing directly -- residue carbon reaches soluble carbon only after it has
+	// passed through microbial biomass -- and its passive humus does not decompose
+	// at all. So the sourced object is a form with one coefficient per pool class,
+	// and 0.5 is the humads path's soluble-to-respired ratio 0.2/0.4 applied to
+	// all of them.
+	//
+	// The coefficients are taken as fractions of DECOMPOSITION and not as ratios
+	// to respiration, because the ratio is the part that does not survive the
+	// crossing. DNDC respires 20 per cent of the carbon leaving microbial
+	// biomass; CENTURY respires respfrac of it, 0.6 fixed on SURFMICRO and
+	// 0.85 - 0.68*(clay + silt) on SOILMICRO. Carrying DNDC's 60/20 ratio of 3.0
+	// onto CENTURY's respiration would make labile carbon 3.0*respfrac of the
+	// carbon that decomposed, which exceeds it for every SURFMICRO call and for
+	// most SOILMICRO textures. The recycled FRACTION carries; the ratio does not.
+	//
+	// The pool correspondence, and where it is imperfect, is registered in
+	// biosphere/config/somdynam.yaml and argued in
+	// biosphere/notes/soil-nitrogen-transformation-parameterisation.md:
+	//   SURFMICRO, SOILMICRO            DNDC's microbial biomass, 0.6
+	//   SURFHUMUS, SLOWSOM              DNDC's humads, 0.2
+	//   PASSIVESOM                      DNDC's stable humus, which does not
+	//                                   decompose, so it forms no fraction. Given
+	//                                   the humified one; its share of total
+	//                                   decomposition is 0.03 to 0.35 per cent, so
+	//                                   its coefficient moves labile carbon by at
+	//                                   most 1.6 per cent over the whole of [0, 1].
+	//   the six litter pools            DNDC's residues, which contribute nothing
+	// cdec and not the transfers out of it: every donor's fracs sum to one, so
+	// cdec is exactly the carbon leaving the pool, and it is still the final
+	// nutrient-limited solve's when this line runs.
+	double labile_from_microbes = frac_labile_carbon * (soil.sompool[SURFMICRO].cdec + soil.sompool[SOILMICRO].cdec);
+	double labile_from_humus = frac_labile_carbon_humus * (soil.sompool[SURFHUMUS].cdec + soil.sompool[SLOWSOM].cdec + soil.sompool[PASSIVESOM].cdec);
+	soil.labile_carbon = labile_from_microbes + labile_from_humus;
 
 	// Adding mineral nitrogen to soil available pool
 	double nmin_inc = nmin_actual - nimmob; 

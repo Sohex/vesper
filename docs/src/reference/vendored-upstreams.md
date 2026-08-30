@@ -216,7 +216,8 @@ imports `global_soiln.ins`, which sets `ifntransform 1`. The CNP fork never
 touched it. So every change this project has made there is a divergence from
 default-on behaviour in a widely used community model, not a fork quirk it
 inherited, and the same is true of `data/ins/global_soiln.ins`, where one
-constant is off its release value.
+constant is off its release value, a second is off it and has changed meaning,
+and a third has no release counterpart at all.
 
 Every one of them is declared. Each carries mainline's own line verbatim beside
 the changed one in the source, under a `DECLARED DIVERGENCE FROM MAINLINE`
@@ -224,24 +225,36 @@ heading; `biosphere/config/ntransform.yaml` holds the register under
 `mainline_divergences` with the verdict, what settles it and what it is worth;
 and `biosphere/scripts/ntransform_gate.py` checks that mainline's form is
 recorded, that it is not what the model runs, and that the changed line still
-is, so a divergence can become neither a silent fork nor a silent revert. The
-eleven divergences are execution-verified together against an exact stock-4.1.1
-arm on the same 997 cells and inputs; the declaration pins both runs and the
-paired final-ten-cycle report. That comparison bounds their combined effect and
-does not attribute it to individual edits or settle which Earth calibration is
-Vesper's. The argument for each is
+is, so a divergence can become neither a silent fork nor a silent revert.
+Eleven of the twelve divergences are execution-verified together against an
+exact stock-4.1.1 arm on the same 997 cells and inputs; the declaration pins
+both runs, the paired final-ten-cycle report, and which entries the arms cover.
+That comparison bounds their combined effect and does not attribute it to
+individual edits or settle which Earth calibration is Vesper's. The twelfth,
+`labile_carbon_microbial_share`, postdates the arms: it splits the labile carbon
+this operator denitrifies on into the two paths DNDC states, so the instruction
+file now carries a coefficient per path and the source half lives in
+`modules/somdynam.cpp` under the register below. The argument for each is
 `biosphere/notes/soil-nitrogen-transformation-parameterisation.md`.
 
-### The phosphorus path diverges from THIS FORK, not from a release
+### `modules/somdynam.cpp` diverges from THIS FORK, not from a release
 
-`modules/somdynam.cpp` and `modules/soil.cpp` carry three declared divergences.
+`modules/somdynam.cpp` and `modules/soil.cpp` carry four declared divergences,
+three phosphorus and one carbon. The register is keyed on the source file rather
+than on the element, because a gate reads a file.
 `PMASS_SAT`, the labile-P saturation threshold of the soil organic C:P ramp, is
 converted out of Parton, Stewart and Cole (1988)'s resin-extractable currency
 into the CNP fork's own Hedley-labile one; the surface humus pool, which the fork
 left with no phosphorus ramp and a fixed C:P, ramps on the slow pool's line off
 labile P, and its initialisation moves to that line's phosphorus-poor end. Each
 records the fork's own line verbatim beside the changed one under the same
-`DECLARED DIVERGENCE FROM MAINLINE` heading.
+`DECLARED DIVERGENCE FROM MAINLINE` heading. The fourth is
+`labile_carbon_paths`, the carbon half of the divergence above: the fork and the
+release both set the operator's labile carbon from one coefficient on summed
+respiration, and it is now one coefficient per CENTURY pool class on that
+class's decomposition, under the mapping onto DNDC's pools that
+`biosphere/notes/soil-nitrogen-transformation-parameterisation.md` argues and
+brackets.
 
 The reference point is what differs from `ntransform.cpp`. Release 4.1.1 has no
 phosphorus at all, so there is no release form to compare against and no Zenodo
@@ -251,8 +264,10 @@ the only fixed point is the subtree commit at the top of this section.
 `biosphere/scripts/somdynam_gate.py` checks it, on the same three conditions as
 the nitrogen gate plus the ramps those constants drive and the two lines the
 phosphorus argument rests on. It also records which configuration each
-divergence is live in, because two of the three are inert under the `ifplim 0`
-this project runs and are waiting rather than harmless. The argument is
+divergence is live in, because two of the four are inert under the `ifplim 0`
+this project runs and are waiting rather than harmless; that field names the
+phosphorus switch, and the carbon entry, whose own switch is `ifntransform`, is
+live either way. The argument for the phosphorus three is
 `biosphere/notes/phosphorus-cycle-parameterisation.md`.
 
 ### The snowpack's conductivity diverges from the RELEASE, and the relation is not declared in this subtree

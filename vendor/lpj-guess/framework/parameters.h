@@ -179,8 +179,10 @@ extern double nfix_b;
 
 /// whether to use nitrification/denitrification in CENTURY SOM dynamics
 extern bool ifntransform;
-/// Fraction of microbial respiration assumed to produce DOC, 0.0,0.3
+/// Fraction of the microbial pools' decomposition recycled as labile carbon
 extern double frac_labile_carbon;
+/// Fraction of the humified pools' decomposition recycled as labile carbon
+extern double frac_labile_carbon_humus;
 
 /// Soil pH (used for calculating N-transformation), 3.5,8.5
 extern double pH_soil;

@@ -53,6 +53,7 @@ double nfix_b;
 
 bool ifntransform;
 double frac_labile_carbon = 1.0;
+double frac_labile_carbon_humus = 1.0;
 double pH_soil;
 
 //Maximum amount of NH4 nitrified
@@ -508,7 +509,9 @@ void plib_declarations(int id,xtring setname) {
 		declareitem("ifntransform",&ifntransform,1,CB_NONE,
 			"Whether to calculate nitrification/denitrification (only if CENTURY SOM dynamics is on)");
 		declareitem("frac_labile_carbon",&frac_labile_carbon,0.0,1.0,1,CB_NONE,
-			"Fraction of microbial respiration assumed to produce labile carbon");
+			"Fraction of the microbial pools' decomposition recycled as labile carbon");
+		declareitem("frac_labile_carbon_humus",&frac_labile_carbon_humus,0.0,1.0,1,CB_NONE,
+			"Fraction of the humified pools' decomposition recycled as labile carbon");
 		declareitem("pH_soil",&pH_soil,3.5,8.5,1,CB_NONE, "Soil pH");
 		declareitem("f_nitri_max",  &f_nitri_max,  0.01,   1.0, 1,CB_NONE, "Maximum amount of NH4 nitrified");
 

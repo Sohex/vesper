@@ -3,7 +3,25 @@ ifntransform 1
 file_soil_npool "soil_npool.out"
 file_soil_nflux "soil_nflux.out"
 
-frac_labile_carbon 	0.5
+frac_labile_carbon 	0.6	! Microbial pools: SURFMICRO, SOILMICRO
+frac_labile_carbon_humus 0.2	! Humified pools: SURFHUMUS, SLOWSOM, PASSIVESOM
+! The two shares of a pool's decomposition that modules/somdynam.cpp recycles
+! into the labile carbon ntransform.cpp denitrifies on. Li, Frolking and
+! Frolking (1992), the DNDC paper Xu-Ri and Prentice (2008) take Kc from, p.
+! 9765: soluble carbon "consists of the carbon from microbial biomass
+! decomposition (60%) and humads decomposition (20%) that is recycled into
+! microbial biomass". Those are the two numbers, read as fractions of
+! decomposition; the litter pools contribute nothing, which is DNDC's residues
+! reaching soluble carbon only after passing through microbial biomass.
+!
+! DECLARED DIVERGENCE FROM MAINLINE: labile_carbon_microbial_share, owner
+! world-vyvn. Stock LPJ-GUESS 4.1.1 and the vendored CNP fork both set
+!     frac_labile_carbon 0.5
+! and both apply it to the summed respiration of every pool. 0.5 is the humads
+! path's soluble-to-respired ratio 0.2/0.4 exactly, so mainline runs one of two
+! path coefficients on both paths. frac_labile_carbon_humus has no mainline
+! counterpart: the second key exists because the form does. The split itself is
+! registered as labile_carbon_paths in biosphere/config/somdynam.yaml.
 
 k_N 			0.083
 k_C 			0.017

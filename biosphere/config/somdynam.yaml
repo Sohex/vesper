@@ -1,11 +1,19 @@
-# The simulated soil's phosphorus path, and where it leaves the fork it came
-# from.
+# `modules/somdynam.cpp`: where the simulated soil's decomposition operator
+# leaves the fork it came from, and the phosphorus path it carries.
 #
 # Worldbuilding. Vesper is an invented planet and this file describes the
-# vegetation model's soil organic phosphorus chemistry as it runs on the
-# simulation of it: the saturation thresholds of the C:P ramps, the ramps
-# themselves, and every place this project's source departs from the vendored
-# LPJ-GUESS-CNP fork.
+# vegetation model's soil organic matter dynamics as they run on the simulation
+# of it: the saturation thresholds of the C:P ramps, the ramps themselves, the
+# labile carbon the nitrogen transformation operator denitrifies on, and every
+# place this project's source departs from the vendored LPJ-GUESS-CNP fork.
+#
+# THE SCOPE IS THE SOURCE FILE AND NOT THE ELEMENT. `biosphere/config/` carries
+# one register per source file, because a gate reads a file: this one covers
+# `modules/somdynam.cpp` and the `modules/soil.cpp` initialisation that pairs
+# with it, and `ntransform.yaml` covers `modules/ntransform.cpp` and
+# `data/ins/global_soiln.ins`. A divergence in somdynam.cpp whose constants
+# arrive through the soil nitrogen instruction file is therefore split across
+# the two, with each half naming the other.
 #
 # `biosphere/scripts/somdynam_gate.py` reads this file. Every constant is
 # checked against the declaration the model reads it from, every ramp is
@@ -35,7 +43,9 @@
 # `data/ins/global.ins` keeps `ifplim 0` and `framework/parameters.cpp` refuses
 # `ifplim 1` outright. `bites_under` records which configuration each entry is
 # live in, because an entry that is inert under `ifplim 0` is not thereby
-# harmless -- it is waiting.
+# harmless -- it is waiting. Its vocabulary names the PHOSPHORUS switch, since
+# that is the one the entries below turn on; an entry armed by a different
+# switch says `both` and names its own in `settles`.
 #
 # `verdict` is what this project decided about the change, not what the
 # arithmetic says:
@@ -190,6 +200,94 @@ mainline_divergences:
         was load-bearing for the whole of a run in the fork, where nothing
         overwrote it. Reverting the ramp alone would make it load-bearing again,
         which is what the ramp entry's third check refuses.
+    - id: labile_carbon_paths
+      owner: world-vyvn
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/somdynam.cpp
+      mainline_form: line
+      mainline: ["soil.labile_carbon = respsum * frac_labile_carbon;"]
+      live: "soil.labile_carbon = labile_from_microbes + labile_from_humus;"
+      bites_under: both
+      settles: >
+        Not a phosphorus entry, and its arming switch is `ifntransform`, which
+        `data/ins/global_soiln.ins` sets to 1; `both` above is the phosphorus
+        axis, on which it is live either way.
+        The fork and stock LPJ-GUESS 4.1.1 both run one coefficient on the
+        summed respiration of every CENTURY pool, and that coefficient is one of
+        DNDC's two. Li, Frolking and Frolking (1992) p. 9765 states the soluble
+        carbon pool per path: 60 per cent of the carbon leaving microbial
+        biomass and 20 per cent of the carbon leaving humads, both being the
+        share recycled into microbial biomass, against CO2 shares of 20 and 40
+        per cent on the same paths. So DNDC's soluble-to-respired ratio is 3.0
+        on the biomass path and 0.5 on the humads path, and the fork's 0.5 is
+        0.2/0.4 exactly -- the humads path's ratio, applied to the biomass path
+        as well.
+        THE COEFFICIENTS CROSS AS FRACTIONS OF DECOMPOSITION AND NOT AS RATIOS
+        TO RESPIRATION. DNDC respires 20 per cent of the carbon leaving
+        microbial biomass; CENTURY respires 0.6 on every SURFMICRO call and
+        0.85 - 0.68*(clay + silt) on SOILMICRO. Carrying 3.0 onto CENTURY's
+        respiration would set labile carbon to 3.0*respfrac of the carbon that
+        decomposed, which is 1.8 for every SURFMICRO call and above 1 for every
+        SOILMICRO texture with clay plus silt below 0.76, so the ratio form
+        cannot be transcribed. The recycled fraction can, and it is bounded by
+        cdec by construction.
+        THE POOL CORRESPONDENCE is the judgement, and it is one of kind rather
+        than of number. DNDC's four pools are residues, microbial biomass,
+        humads and passive humus; CENTURY's eleven are six litter pools, two
+        microbial, two humified and one passive. SURFMICRO and SOILMICRO take
+        DNDC's microbial biomass fraction, 0.6. SURFHUMUS and SLOWSOM take
+        humads' 0.2: both receive from a microbial pool and both hand on to a
+        more humified one, which is the position humads occupies in DNDC's
+        figure 3, and the fork's own nitrogen ramp already identifies SURFHUMUS
+        with SLOWSOM. The six litter pools contribute nothing, which is DNDC's
+        own structure and not an omission: its soluble carbon draws from biomass
+        and humads decomposition alone, and residue carbon reaches it one step
+        later, after passing through microbial biomass, exactly as litter carbon
+        does here.
+        WHERE IT IS IMPERFECT, in three places. PASSIVESOM has no counterpart,
+        because DNDC's stable humus does not decompose and so forms no fraction;
+        it is given the humified coefficient as CENTURY's terminal humified
+        pool. SLOWSOM returns csa = 1 - csp - 0.55 of its decomposition to
+        SOILMICRO, 0.447 to 0.450 over the whole clay range, where DNDC's humads
+        returns 0.2, so the two models disagree by a factor of 2.2 about the
+        same quantity; DNDC's number is taken because the parameter exists to
+        import DNDC's definition, and the disagreement is carried as the bracket
+        [0.2, 0.447] on instruction:frac_labile_carbon_humus in
+        `biosphere/config/ntransform.yaml`. And SOILMICRO's cdec includes the
+        organic leaching share, which DNDC has no path for, so 0.6 is applied to
+        a little carbon that leaves as DOC.
+        The two coefficients arrive through `data/ins/global_soiln.ins` as
+        `frac_labile_carbon` and `frac_labile_carbon_humus`; the
+        instruction-file half of this divergence is
+        `labile_carbon_microbial_share` in `biosphere/config/ntransform.yaml`,
+        which is also where each number is checked against the paper.
+        `framework/parameters.cpp` and `parameters.h` declare the second key and
+        both help strings now say decomposition rather than respiration, which
+        is what the operator reads.
+      worth: >
+        Bounded by hand, because somfluxes' steady state fixes each pool class's
+        share of decomposition from the transfer coefficients alone: every unit
+        of litter carbon leaves as CO2 or as DOC, so the shares do not depend on
+        the decay rates, only on the network. Solved for unit input, the paired
+        form gives 0.70 of mainline's labile carbon on a leaf-and-root litter
+        mix, 0.62 to 0.74 across the texture simplex, 0.49 on a woody mix and
+        0.26 on coarse woody debris alone; lignin moves it by under 0.01 and
+        organic leaching by under 0.05. So the repair LOWERS the substrate term
+        rather than raising it, which the row that opened it did not expect: the
+        litter pools carry 48 to 76 per cent of respiration and DNDC gives them
+        nothing.
+        d_N_max is that carbon over k_C * water plus that carbon. k_C * water is
+        of order 0.0026 kgC/m2 for a 150 mm available capacity and the labile
+        pool is of the same order or below, so the operator sits on the roughly
+        linear limb and 0.7 to 1.0 of the fall reaches d_N_max, hence both
+        denitrification steps. Against the span this file's constants already
+        cover -- the stock-versus-Vesper arms put gross denitrification 209
+        times apart -- a factor between 0.26 and 0.88 is a small share, and
+        plant mineral-N uptake moved 0.343 per cent over that 209-fold span, so
+        no visible change in what the simulated plants take up is expected.
+        None of this is execution-verified and it cannot be until an LPJ run
+        reaches acceptance: `world-qcse`.
 
 # The two saturation constants, checked against the source that declares them.
 # `declaration` is matched verbatim against modules/somdynam.cpp with comments
@@ -332,6 +430,23 @@ invariants:
         constants would invent a second number with no independent derivation
         and let the pair drift, so the pin reading the symbol is what makes
         converting the threshold one definition propagating.
+    - name: labile_carbon_microbial_path
+      line: "double labile_from_microbes = frac_labile_carbon * (soil.sompool[SURFMICRO].cdec + soil.sompool[SOILMICRO].cdec);"
+      why: >
+        The labile_carbon_paths entry's `live` line is the sum of the two paths
+        and would still be there if either path's pool set or coefficient moved.
+        This is the microbial half: which pools carry DNDC's 0.6, and that it is
+        applied to cdec rather than to a respiration term. Changing either
+        without changing the register is the silent fork the entry exists to
+        prevent.
+    - name: labile_carbon_humified_path
+      line: "double labile_from_humus = frac_labile_carbon_humus * (soil.sompool[SURFHUMUS].cdec + soil.sompool[SLOWSOM].cdec + soil.sompool[PASSIVESOM].cdec);"
+      why: >
+        The humified half, and the one carrying a bracket: SURFHUMUS, SLOWSOM
+        and PASSIVESOM take DNDC's humads fraction where CENTURY's own
+        SLOWSOM-to-SOILMICRO share is 2.2 times it. Dropping a pool from this
+        set or moving it to the microbial line changes the quantity the bracket
+        is declared on.
     - name: ptoc_is_set_on_the_receiving_pool
       line: "soil.sompool[pool].ptoc = 1.0 / ctop_max;"
       why: >

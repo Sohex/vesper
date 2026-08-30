@@ -782,81 +782,94 @@ so a mid-latitude geostrophic wind 20 per cent above Earth's carries
 
 ---
 
-### 11. `frac_labile_carbon = 0.5`, the only substrate control on denitrification. REGISTERED
+### 11. `frac_labile_carbon`, the only substrate control on denitrification. RESOLVED
 
-`vendor/lpj-guess/data/ins/global_soiln.ins:6`, consumed at
-`vendor/lpj-guess/modules/somdynam.cpp:1347`.
+`vendor/lpj-guess/data/ins/global_soiln.ins`, consumed in
+`vendor/lpj-guess/modules/somdynam.cpp` at the end of `somfluxes`.
 
-It sets the fraction of total microbial respiration declared labile. That pool
-is split by water-filled pore space and becomes the Michaelis-Menten substrate
-term that multiplies BOTH denitrification steps
-(`vendor/lpj-guess/modules/ntransform.cpp:412`). It is the only substrate control
-on denitrification in the model.
+It sets the labile carbon the soil nitrogen transformation operator denitrifies
+on. That pool is split by water-filled pore space and becomes the
+Michaelis-Menten substrate term multiplying BOTH denitrification steps in
+`vendor/lpj-guess/modules/ntransform.cpp`. It is the only substrate control on
+denitrification in the model.
 
 **The evidence was an absence, and it was a complete one.** The instruction file
-gives it no comment. It appeared in none of
+gave it no comment. It appeared in none of
 `biosphere/config/ntransform.yaml`'s `instruction_parameters.values`, its
 `parser_bounds` or its `calibration.entries`, nor in `somdynam.yaml`, and a grep
 for it across `biosphere/` returned nothing.
-`vendor/lpj-guess/framework/parameters.cpp:55` defaults it to 1.0 and the
-instruction file halves that with no note.
+`vendor/lpj-guess/framework/parameters.cpp` defaults it to 1.0 and the
+instruction file halved that with no note.
 
 This is the finding the biosphere sweep exists for. `ntransform.yaml` is an
 honest register that names its soil-nitrogen constants `unsourced` where they
 are and refuses on them under `--strict`, and a constant this load-bearing sat
 outside it entirely: the register's completeness was never checked against the
 instruction file it declares, so absence from the register looked exactly like
-absence of a constant.
+absence of a constant. The gate now walks both ways and refuses on any numeric
+key in `global_soiln.ins` that the register does not carry.
 
-**Magnitude.** Dimensionless on [0, 1]. A factor of two against the compiled
-default, sitting inside a saturation, so between one and two times on the
-denitrification substrate and hence on the mineral nitrogen the simulated plants
-can reach.
+**It was never TUNED, and the class is what settled the repair.** 0.5 is not the
+residual of a fit; it is exactly DNDC's humads-path ratio, 0.2 over 0.4, and the
+derivation is reachable and has been read, so it was not OPAQUE either. It is
+Earth-calibrated, as everything in DNDC is, but IMPLICIT-EARTH was not the
+defect that bit first and that class's repair -- find this world's number -- was
+neither available nor to the point. The defect was SCOPE.
 
-**Disposition: REGISTERED, and IRREDUCIBLE AS A CONSTANT.** It is in
-`ntransform.yaml`'s `instruction_parameters.values`, its `parser_bounds` and its
-`calibration.entries` with an `unsourced` verdict, so `--strict` refuses on it.
-That was the immediate move and it did not wait on the paper.
+Li, Frolking and Frolking (1992) p. 9765 states the soluble carbon pool per
+path: 60 per cent of the carbon leaving microbial biomass plus 20 per cent of
+that leaving humads, in both cases the share recycled into biomass, against CO2
+shares of 20 and 40 per cent on the same two paths. So the soluble-to-respired
+ratio DNDC implies is 3.0 on the biomass path and 0.5 on the humads path, and
+the declared 0.5 was the humads path's ratio applied to all respiration.
 
-Li et al. (1992) was read on 2026-08-25 and **it does not supply the number,
-because DNDC never forms this ratio.** Its soluble carbon is per-path: 60 per
-cent of the carbon leaving microbial biomass and 20 per cent of that leaving
-humads, in both cases the share recycled into biomass, and the paper states it
-"is not actually a carbon pool but rather an indicator of the daily rate of
-decomposition". The CO2 shares on those same two paths are 20 and 40 per cent,
-so the soluble-to-respired ratio DNDC implies is **3.0 on the biomass path and
-0.5 on the humads path**. The declared 0.5 is the humads path's ratio applied to
-ALL respiration: exact on one path and six times low on the other.
+**Disposition: SOURCED, and the form is now the paper's.** `somfluxes` computes
+labile carbon as one coefficient per pool class on that class's decomposition:
+0.6 on `SURFMICRO` and `SOILMICRO`, 0.2 on `SURFHUMUS`, `SLOWSOM` and
+`PASSIVESOM`, and nothing on the six litter pools, which is DNDC's own structure
+rather than an omission. Both numbers are the paper's own and both calibration
+entries now read `agrees`.
 
-So what is sourced is a FORM with two coefficients on two respiration paths, and
-`somdynam.cpp` does not separate those paths at the point it sets
-`labile_carbon`. As a single fraction of total respiration the quantity is not
-recoverable from the primary, and this row's expectation that fetching the paper
-would settle it was wrong.
+Three things about the repair are worth carrying, because each is a shape other
+rows in this audit will meet:
 
-**So it is not TUNED, and the class matters because the repair does.** 0.5 is
-not the residual of a fit; it is exactly DNDC's humads-path ratio, 0.2 over 0.4,
-and the derivation is reachable and has now been read, so it is not OPAQUE
-either. It is Earth-calibrated, as everything in DNDC is, but IMPLICIT-EARTH is
-not the defect that bites first and the repair that class implies -- find this
-world's number -- is neither available nor to the point. The defect is SCOPE:
-one of two path coefficients applied to both paths, exact on the path it came
-from and six times low on the other. Separating the paths at the point
-`somdynam.cpp` sets `labile_carbon` is the repair, and it is a judgement rather
-than a transcription, since under `ifcentury 1` it is the CENTURY pools that
-would have to be mapped onto DNDC's biomass/humads pair. That is
-`world-vyvn`'s remaining half.
+- **The ratio was the part that did not cross.** DNDC respires 20 per cent of
+  the carbon leaving microbial biomass; CENTURY respires 0.6 on every
+  `SURFMICRO` call and `0.85 - 0.68*(clay + silt)` on `SOILMICRO`. Applying
+  DNDC's 3.0 to CENTURY's respiration makes the substrate larger than the carbon
+  that produced it over most of the texture simplex. Two models that state the
+  same process differently share their FRACTIONS, not the ratios between them.
+- **The mapping needed a bracket in one place and not in the others.**
+  `PASSIVESOM` has no DNDC counterpart at all, and that loose correspondence
+  needs no bracket because the pool carries 0.03 to 0.35 per cent of
+  decomposition. `SLOWSOM` returns 0.447 of its decomposition to the microbial
+  pool where DNDC's humads returns 0.2, and that is a real disagreement about
+  one quantity: bracket 0.2 to 0.447, declared on
+  `instruction:frac_labile_carbon_humus`.
+- **The repair went the other way from the row that opened it.** "Six times low
+  on one of two paths" reads as an increase. The litter pools carry 48 to 76 per
+  cent of respiration in this model and DNDC gives them nothing directly, so the
+  paired form gives 0.70 of mainline's labile carbon on a leaf and root litter
+  mix and 0.26 on coarse woody debris alone. A magnitude estimated from the
+  coefficients alone had the sign wrong.
 
-Reading it settled a second thing the row named. Li's table 7 gives `Kc` = 0.017
-kg C/m3 and `Kn` = 0.083 kg N/m3 and attributes BOTH to Shah and Coulman (1978)
-rather than measuring them, so the chain to a measurement is one paper longer
-than this project recorded -- and it states the units exactly as Xu-Ri does, per
-cubic metre of an unnamed volume. The `michaelis_menten_divisor` question is
-therefore NOT closed by it. Shah and Coulman (1978) is what settles it, in
-favour of the soil-solution reading the operator already runs, and the magnitude
-argument from DNDC's own soluble carbon pool that this row once offered for the
-per-cubic-metre-of-SOIL branch is withdrawn: it rested on an assumed bulk
-density and on a coincidence of numerals between two different volumes.
+It is a declared divergence in two registers, `labile_carbon_paths` in
+`biosphere/config/somdynam.yaml` for the source form and
+`labile_carbon_microbial_share` in `ntransform.yaml` for the instruction value,
+and it is NOT execution-verified: no LPJ-GUESS run this project has made reaches
+acceptance (`world-qcse`). `biosphere/notes/soil-nitrogen-transformation-parameterisation.md` carries the correspondence, the bracket, the steady-state sweep and what an accepted-pair arm would settle.
+
+Reading the paper settled a second thing the row named. Li's table 7 gives `Kc`
+= 0.017 kg C/m3 and `Kn` = 0.083 kg N/m3 and attributes BOTH to Shah and Coulman
+(1978) rather than measuring them, so the chain to a measurement is one paper
+longer than this project recorded -- and it states the units exactly as Xu-Ri
+does, per cubic metre of an unnamed volume. The `michaelis_menten_divisor`
+question is therefore NOT closed by it. Shah and Coulman (1978) is what settles
+it, in favour of the soil-solution reading the operator already runs, and the
+magnitude argument from DNDC's own soluble carbon pool that this row once
+offered for the per-cubic-metre-of-SOIL branch is withdrawn: it rested on an
+assumed bulk density and on a coincidence of numerals between two different
+volumes.
 
 ---
 
@@ -1160,11 +1173,11 @@ it is a fix.
 
 ---
 
-### 17. `ntransform.yaml`'s seven `unsourced` entries, already registered
+### 17. `ntransform.yaml`'s six `unsourced` entries, already registered
 
 `biosphere/config/ntransform.yaml`, the `calibration.entries` whose verdict is
-`unsourced`: `instruction:frac_labile_carbon`, `instruction:f_denitri_gas_max`,
-`instruction:f_denitri_max`, `function:wet_fraction`, `form:wet_fraction_shape`,
+`unsourced`: `instruction:f_denitri_gas_max`, `instruction:f_denitri_max`,
+`function:wet_fraction`, `form:wet_fraction_shape`,
 `function:nitrification_activity` and `form:denitrification_wfps_threshold`.
 Named rather than cited by line, because the register is appended to and every
 line number in it goes stale silently. `ntransform_gate.py` prints the set on
@@ -1331,13 +1344,13 @@ filed.
 | 8. `th2oc` | `world-2esd` |
 | 9. the `dz0land` anchor | `world-u8ds` |
 | 10. `vdiff_lamm` and the Louis fives | `world-x6q8`; the fives are answered and irreducible, the mixing length waits on Blackadar (1962), and `vdiff_c`'s dropped roughness dependence is `world-awm5` |
-| 11. `frac_labile_carbon` | `world-vyvn`; registered, and the primary shows the sourced object is a two-path form rather than a constant |
+| 11. `frac_labile_carbon` | `world-vyvn`; the two-path form the primary states is implemented and declared, both coefficients are the paper's, and the humified path carries a bracket. Execution verification waits on `world-qcse` |
 | 12. `gamma` | `world-trs3`; the form is derived and in the declaration, and implementing it in `rainmod.f90` is what is left |
 | 13. `zcca`, `zccb`, `rcrit` | `world-o12h`; `world-khn` closed the resolution half by declaring it |
 | 14. `a1` in the sigma quartic | none: irreducible, and a convergence sweep across it is a measurement rather than a fix |
 | 15. the unbracketed pedogenesis values | `world-9ctm` |
 | 16. `ntoc`, `frac_maxtomin`, the fire floor | `world-xfif`, `world-v5j1` |
-| 17. `ntransform.yaml`'s seven `unsourced` entries | already registered; the gate refuses on them |
+| 17. `ntransform.yaml`'s six `unsourced` entries | already registered; the gate refuses on them |
 | 18. the dormant knobs | `world-9g8p` |
 | 19. the cgenie tier | `world-u9kg` |
 
@@ -1351,7 +1364,7 @@ this section says which.
 | paper | what it was expected to give | what it gave |
 | --- | --- | --- |
 | Portenga and Bierman (2011) `10.1130/G111A.1` | global cosmogenic denudation BY LITHOLOGY, and with Heimsath an absolute production-to-erosion ratio for rows 3 and 4 | by-lithology denudation for OUTCROPS only, which carry no regolith, and none at all for drainage basins; no relief-to-erosion relation of any kind, mean basin slope being the regressor. It sourced the erosion term's FORM and, with Heimsath, bracketed the level at 0.15 to 1.30 m with a regime in it where no soil is possible. Row 4's expectation was wrong outright: it measures denudation, not a weathering-front reach |
-| Li et al. (1992) `10.1029/92JD00509` | the value of `frac_labile_carbon`, and the `michaelis_menten_divisor` volume, together | neither. DNDC's soluble carbon is per-path, 0.6 of biomass turnover and 0.2 of humads, so the ratio to respired carbon is 3.0 on one path and 0.5 on the other and a single fraction of total respiration is not a quantity the paper forms. On the divisor it repeats Xu-Ri's silence and pushes the chain one paper further, to Shah and Coulman (1978) |
+| Li et al. (1992) `10.1029/92JD00509` | the value of `frac_labile_carbon`, and the `michaelis_menten_divisor` volume, together | the first, by supplying a FORM where the row expected a constant. DNDC's soluble carbon is per-path, 0.6 of biomass decomposition and 0.2 of humads, so a single fraction of total respiration is not a quantity the paper forms and the operator now carries both coefficients. On the divisor it repeats Xu-Ri's silence and pushes the chain one paper further, to Shah and Coulman (1978) |
 | Louis (1979) `10.1007/BF00117978` | whether the three fives are Louis's set or ECHAM's re-fit | ECHAM's re-fit, definitively: Louis's own set is `b = 2b' = 9.4` with `c` varying as `sqrt(z/z0)`, and he calls his values uncertain. It also removed a proposed derivation, since his `lambda` is 100 m and declared adjustable. The dropped roughness dependence it was read as exposing in `vdiff_c` is not there -- see row 10; the reading of the paper was right and the reading of the code beside it was not |
 | Kessler (1969) `10.1007/978-1-935704-36-2` | the re-evaporation FORM, as a derivation to do rather than a number to copy | exactly that, and the derivation closes: `gamma = 5.44e-4 M^0.65 deltsec2` with the layer depth cancelling, proportional to the step, going as `P^0.578` and carrying `ga^(-0.289)`. The declared 0.01 is below the whole span the derived form reaches |
 | Blackadar (1962) `10.1029/JZ067i008p03095` | a rule for the asymptotic mixing length that carries to another rotation rate | exactly that: eq. 25 is `lambda = 0.00027 G/f`, dimensionally argued with `z0` ruled out of the free atmosphere. The VALUE does not transfer -- 0.00027 is matched to one observed wind deflection, he offers `u*/f` as equally acceptable, and his 26 m is a boundary-layer asymptote against ECHAM's whole-column 160 m -- but the `1/Omega` SCALING does, taking `vdiff_lamm` to 200.5 m on a 30-hour rotator with `G` left as the bracket |

@@ -96,7 +96,7 @@ a result.
 | abiotic source screen | geomorphic renewal, arc tephra and marine aerosol are RETAINED against the ledger, volcanic sulfate deposition is registered and not implemented, and fire ash and lightning belong to FIRE-7 and ANUT-4. The exhumation and tephra rates come from Earth's stationary population and not from the terrain; no screen may be carried on an aerosol optical depth |
 | non-N/P adequacy | screened as a critical runoff per element and per lithology, bounds and directions declared before the result. Potassium binds; iron and the trace set REFUSE for want of a release table. The declared model boundary is that any LPJ-GUESS result here is a C-N-P result and not a nutrient-limitation result |
 | tissue stoichiometry | the fine-root and sapwood C:N and C:P windows are anchored on the tissue MEAN, so the proportion `canexch.cpp` applies to their nutrient demand is the one Friend et al. (1997) measured. The max-anchored form the model used to carry applied 1.79 times it on nitrogen and 2.22 on phosphorus, so every C-N number produced before the repair is worthless rather than stale and the biosphere needs re-commissioning. `notes/plant-physiology-carbon-allocation-audit.md` finding 11 |
-| phosphorus parameters | every constant registered with its source or its bracket in `notes/phosphorus-cycle-parameterisation.md`; the uptake profile, the leaf C:P window, the root proportion and the labile-P saturation threshold are derived, the sapwood proportion and the litter-P saturation threshold are not, and `ifplim 1` fails closed naming each. Two DECLARED DIVERGENCES from the vendored CNP values: the labile-P threshold is converted into the fork's own Hedley-labile currency, which is inert under `ifplim 0` because the P-limitation-off pin reads the same constant, and the surface humus pool ramps on the slow pool's C:P line instead of holding a fixed unsourced ratio, under the identification the fork's own nitrogen ramp already makes. The sapwood refusal is now about the element, the proportional form and the level alone: the model applies the constant it declares |
+| phosphorus parameters | every constant registered with its source or its bracket in `notes/phosphorus-cycle-parameterisation.md`; the uptake profile, the leaf C:P window, the root proportion and the labile-P saturation threshold are derived, the sapwood proportion and the litter-P saturation threshold are not, and `ifplim 1` fails closed naming each. Two DECLARED DIVERGENCES from the vendored CNP phosphorus values: the labile-P threshold is converted into the fork's own Hedley-labile currency, which is inert under `ifplim 0` because the P-limitation-off pin reads the same constant, and the surface humus pool ramps on the slow pool's C:P line instead of holding a fixed unsourced ratio, under the identification the fork's own nitrogen ramp already makes. The sapwood refusal is now about the element, the proportional form and the level alone: the model applies the constant it declares |
 | phosphorus sinks | leaching, fire and harvest only. Terminal occlusion is a DECLARED ABSENCE, argued in the same note, so a simulated soil that must be old carries its phosphorus depletion in its initial stocks rather than developing it |
 | run harness | written; `lpj_run` records inputs, binary, model identity, and DEMO-5's stochastic root plus substream ABI, then `lpj_acceptance` runs `assess_lpj_run.py` to require exact rank/output/cell/year coverage, finite physical values, stable end windows and C/N/water closure before the run can be consumed |
 | equilibrium acceptance | the acceptance window is SHORTER THAN THE MEMORY TIME of what it judges: the integrated autocorrelation time of these series is 9 to 125 complete forcing cycles against a 10-cycle window, so a slope fitted on it sees one excursion rather than a trend, and the measured per-cell flag rate is 0.47 to 0.86 against a nominal 0.081. A memory-adequacy guard now refuses ahead of that test, on `lib/autocorrelation.py`'s own span bar applied to both the record and the window, and it fails closed on every run this project has. The relaxation time is hundreds of cycles and the 998-cycle spin-up is short by a factor of two to five. `notes/equilibrium-trend-null.md` has the measurements; `scripts/derive_trend_null.py --timescales` re-takes them |
@@ -653,8 +653,13 @@ python biosphere/scripts/ntransform_gate.py --strict   # refuses while a Vesper
                                                        # precondition is undeclared
 ```
 
-The eleven source/instruction divergences are execution-verified together by a
-matched stock-4.1.1 arm. `prepare_stock_ntransform_arm.py` copies the active
+Eleven of the twelve source/instruction divergences are execution-verified
+together by a matched stock-4.1.1 arm. The twelfth,
+`labile_carbon_microbial_share`, postdates the arms: it splits the labile carbon
+the operator denitrifies on into the two paths Li et al. (1992) states, so
+`global_soiln.ins` carries a coefficient per path and the source half is
+`labile_carbon_paths` in `somdynam.yaml`. `execution_scope` in the declaration
+names which entries the arms reach. `prepare_stock_ntransform_arm.py` copies the active
 source tree, replaces only `modules/ntransform.cpp` with the exact release
 object held in git, verifies its digest, and builds a provenance sidecar.
 `run_lpj_guess.py --ntransform-profile stock-4.1.1 --binary <guess>` also
@@ -687,18 +692,22 @@ carries three defects the operator had: the soil map's pH never reached it, its
 no-pH fallback ran on a variable nothing assigns, and its only conservation check
 was an `assert` that Release compiles out.
 
-### The phosphorus path's divergences from the CNP fork are registered
+### `modules/somdynam.cpp`'s divergences from the CNP fork are registered
 
 `somdynam_gate.py` is the same enforcement as `ntransform_gate.py` on a
-different reference point. The soil nitrogen transformation operator is stock
+different reference point. Its register is keyed on the SOURCE FILE and not on
+an element, because a gate reads a file: three of its four divergences are
+phosphorus and the fourth is the labile carbon the nitrogen transformation
+operator denitrifies on. The soil nitrogen transformation operator is stock
 LPJ-GUESS 4.1.1, which the tree can name by Zenodo record and SVN revision.
 LPJ-GUESS 4.1.1 has no phosphorus at all: `pmass_labile`, `setptoc`, the
 sorption isotherm and both saturation thresholds arrived with the CNP fork, so a
 divergence on this path can be measured against nothing but the commit that
 subtree was imported at, and `biosphere/config/somdynam.yaml` names it.
 
-The declaration carries the three divergences, the two saturation constants, the
-five C:P ramps and the two lines the phosphorus argument rests on. The gate
+The declaration carries the four divergences, the two saturation constants, the
+five C:P ramps and the four lines the phosphorus and labile-carbon arguments
+rest on. The gate
 fails on a constant whose line `modules/somdynam.cpp` no longer runs or whose
 value is not what that line's own initialiser evaluates to; on a ramp whose
 `setptoc` call the source no longer contains, or contains a different number of
@@ -709,11 +718,12 @@ off the ramp threshold is caught even though no constant moved; and on any of
 the three halves of a divergence, so it can become neither a silent fork nor a
 silent revert.
 
-Each entry also says which configuration it is live in. Two of the three are
+Each entry also says which configuration it is live in. Two of the four are
 inert under the `ifplim 0` this project runs, and that is recorded as waiting
 rather than as harmless: the comparison arm that would bound what they are worth
 needs two runs, and the `ifplim 1` one needs `parameters.cpp`'s refusal lifted
-first.
+first. That field names the phosphorus switch; the labile-carbon entry, whose
+own switch is `ifntransform`, is live either way.
 
 ```bash
 python biosphere/scripts/somdynam_gate.py            # status, exit 0
