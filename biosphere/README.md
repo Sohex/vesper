@@ -653,13 +653,16 @@ python biosphere/scripts/ntransform_gate.py --strict   # refuses while a Vesper
                                                        # precondition is undeclared
 ```
 
-Eleven of the twelve source/instruction divergences are execution-verified
-together by a matched stock-4.1.1 arm. The twelfth,
-`labile_carbon_microbial_share`, postdates the arms: it splits the labile carbon
-the operator denitrifies on into the two paths Li et al. (1992) states, so
+WHETHER A DIVERGENCE HAS BEEN EXECUTED IS DECLARED PER ENTRY. The register's
+`execution_arms` names the matched arms that have run, and every entry claims
+one by name or says `none` and why; the gate refuses an entry that says nothing,
+one that claims an arm the register does not carry, and an arm no entry claims.
+So a divergence appended after an arm ran cannot inherit its verdict, which is
+what a register-wide boolean did. `labile_carbon_microbial_share` is the entry
+that claims none: it postdates the arm, and it splits the labile carbon the
+operator denitrifies on into the two paths Li et al. (1992) states, so
 `global_soiln.ins` carries a coefficient per path and the source half is
-`labile_carbon_paths` in `somdynam.yaml`. `execution_scope` in the declaration
-names which entries the arms reach. `prepare_stock_ntransform_arm.py` copies the active
+`labile_carbon_paths` in `somdynam.yaml`. `prepare_stock_ntransform_arm.py` copies the active
 source tree, replaces only `modules/ntransform.cpp` with the exact release
 object held in git, verifies its digest, and builds a provenance sidecar.
 `run_lpj_guess.py --ntransform-profile stock-4.1.1 --binary <guess>` also
@@ -668,9 +671,11 @@ and input matched. `compare_ntransform_arms.py <vesper-run> <stock-run>` rejects
 input drift and compares paired cell-years over the final ten forcing cycles.
 The recorded arm changes area-weighted plant mineral-N uptake by +0.343%, but
 substantially changes internal transformations and gas partitioning; the exact
-runs and quantities are pinned under `execution_evidence` in the declaration.
-Both arms fail the same BIO14 ANPP stationarity gate, so this is a sensitivity
-bound rather than an accepted coupled biosphere endpoint.
+runs and quantities are pinned in the arm's own block in the declaration, beside
+the `standing` that says what its report is worth. Both arms fail the same
+equilibrium refusal and `world-qcse` says why no run this project has made could
+pass one, so this is a matched sensitivity bound between two refused runs rather
+than an accepted coupled biosphere endpoint.
 
 `biosphere/config/ntransform.yaml` is the declaration and there is no default for
 any precondition in it. All five carry the `undeclared` sentinel today: surface

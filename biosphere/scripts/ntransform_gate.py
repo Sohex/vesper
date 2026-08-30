@@ -35,7 +35,10 @@ This module is the enforcement, and it can fail:
                that is not recorded is a silent fork, one that is recorded but
                live is a declaration that has drifted from the model, and one
                whose changed line is gone has been reverted with the record
-               left behind
+               left behind. Also a divergence that says nothing about whether
+               an arm has executed it, one that claims an arm the register does
+               not carry, one that claims none without saying why, and an arm
+               no divergence claims
   calibration  an entry in the calibration block whose declared verdict is not
                what the arithmetic says: an `agrees` whose value is not the
                paper's value or is outside the paper's range, an `outside` that
@@ -84,11 +87,15 @@ run on the Earth-calibrated operator, declared as such, is a correct run of a
 declared model boundary, so the default arm reports and exits 0. `--strict` is
 the arm that refuses.
 
-The eleven declared divergences are also held to a matched execution report:
-one active Vesper arm and one exact stock-LPJ-GUESS-4.1.1 ntransform arm, with
-the same source everywhere else and identical inputs. This bounds their combined
-effect. It does not attribute the effect to individual edits or settle which
-Earth calibration belongs on Vesper.
+EXECUTION IS A PROPERTY OF EACH DIVERGENCE AND NEVER OF THE REGISTER. The
+declaration carries the matched arms that have run, by name, and every entry
+claims one of them or says `none` and why. An arm is one active Vesper arm
+against one exact stock-LPJ-GUESS-4.1.1 ntransform arm, the same source
+everywhere else and identical inputs, and it bounds the combined effect of the
+entries claiming it. It does not attribute that effect to individual edits,
+settle which Earth calibration belongs on Vesper, or say that either of its runs
+is an accepted one -- each arm carries its own `standing` saying what its report
+is worth, and this gate refuses an arm that carries none.
 """
 
 from __future__ import annotations
@@ -246,6 +253,13 @@ def _check_divergences(declaration: dict, source_text: str, code_only: str,
     An `instruction` entry is the same shape against the instruction file: the
     declared value has to differ from mainline's, and `record` has to appear in
     the file, so mainline's number stands beside the changed one there too.
+
+    EXECUTION IS CLAIMED PER ENTRY. Each names the `execution_arms` arm that
+    covers it or says `none` and why, so a divergence appended after an arm ran
+    carries no claim it did not earn; an arm no entry claims fails too, so the
+    evidence block cannot outlive the entries it was taken for. One answer over
+    the whole register would assert an arm over every entry appended after that
+    arm was taken, which is what any summary of a growing collection does.
     """
     findings: list[dict] = []
     register = declaration.get("mainline_divergences")
@@ -260,60 +274,55 @@ def _check_divergences(declaration: dict, source_text: str, code_only: str,
     for field in ("release", "comparison_arm"):
         if not register.get(field):
             bad("mainline_divergences", f"the register carries no {field}")
-    verified = register.get("execution_verified")
-    if verified not in (True, False):
-        bad("mainline_divergences", "execution_verified is not a boolean")
-    elif verified:
-        evidence = register.get("execution_evidence") or {}
-        for field in ("report", "vesper_run", "stock_run",
-                      "window_complete_forcing_cycles", "cells"):
-            if not evidence.get(field):
-                bad("mainline_divergences",
-                    f"execution evidence carries no {field}")
-        report_path = PROJECT_ROOT / evidence.get("report", "")
-        if not report_path.is_file():
-            bad("mainline_divergences",
-                f"execution report {report_path} is missing")
-        else:
-            try:
-                report = json.loads(report_path.read_text(encoding="utf-8"))
-            except json.JSONDecodeError as exc:
-                bad("mainline_divergences",
-                    f"execution report is not JSON: {exc}")
-            else:
-                expected = {
-                    "contract_version": "vesper-ntransform-comparison/1",
-                    "vesper_run": evidence.get("vesper_run"),
-                    "stock_run": evidence.get("stock_run"),
-                    "window_complete_forcing_cycles":
-                        evidence.get("window_complete_forcing_cycles"),
-                }
-                for field, value in expected.items():
-                    if report.get(field) != value:
-                        bad("mainline_divergences",
-                            f"execution report {field} does not match evidence")
-                required = {
-                    "gross_nitrification", "net_nitrification",
-                    "gross_denitrification", "net_denitrification",
-                    "soil_nh3", "soil_no", "soil_n2o", "soil_n2",
-                    "plant_mineral_n_uptake",
-                }
-                quantities = report.get("quantities", {})
-                if set(quantities) != required:
-                    bad("mainline_divergences",
-                        "execution report does not contain the required quantities")
-                elif any(item.get("cells") != evidence.get("cells")
-                         for item in quantities.values()):
-                    bad("mainline_divergences",
-                        "execution report cell count does not match evidence")
-        if not register.get("execution_interpretation"):
-            bad("mainline_divergences",
-                "verified execution carries no interpretation")
-    elif not register.get("why_not_verified"):
+    arms = register.get("execution_arms")
+    if arms is None:
+        arms = {}
+    elif not isinstance(arms, dict):
         bad("mainline_divergences",
-            "unverified execution carries no why_not_verified")
+            "execution_arms is not a mapping of arm name to its evidence")
+        arms = {}
+    for name, arm in sorted(arms.items()):
+        where = f"execution_arms.{name}"
+        arm = arm or {}
+        for field in ("report", "vesper_run", "stock_run",
+                      "window_complete_forcing_cycles", "cells",
+                      "standing", "interpretation"):
+            if not arm.get(field):
+                bad(where, f"an execution arm carrying no {field}")
+        report_path = PROJECT_ROOT / arm.get("report", "")
+        if not report_path.is_file():
+            bad(where, f"execution report {report_path} is missing")
+            continue
+        try:
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            bad(where, f"execution report is not JSON: {exc}")
+            continue
+        expected = {
+            "contract_version": "vesper-ntransform-comparison/1",
+            "vesper_run": arm.get("vesper_run"),
+            "stock_run": arm.get("stock_run"),
+            "window_complete_forcing_cycles":
+                arm.get("window_complete_forcing_cycles"),
+        }
+        for field, value in expected.items():
+            if report.get(field) != value:
+                bad(where, f"execution report {field} does not match the arm")
+        required = {
+            "gross_nitrification", "net_nitrification",
+            "gross_denitrification", "net_denitrification",
+            "soil_nh3", "soil_no", "soil_n2o", "soil_n2",
+            "plant_mineral_n_uptake",
+        }
+        quantities = report.get("quantities", {})
+        if set(quantities) != required:
+            bad(where, "execution report does not contain the required quantities")
+        elif any(item.get("cells") != arm.get("cells")
+                 for item in quantities.values()):
+            bad(where, "execution report cell count does not match the arm")
 
     seen = set()
+    claimed: set[str] = set()
     for entry in register.get("entries", []):
         what = entry.get("id", "?")
         if what in seen:
@@ -326,6 +335,21 @@ def _check_divergences(declaration: dict, source_text: str, code_only: str,
         for field in ("settles", "worth"):
             if not entry.get(field):
                 bad(what, f"a divergence saying nothing about what it {field}")
+        claim = entry.get("execution")
+        if not claim:
+            bad(what, "a divergence saying nothing about whether it has been "
+                      "executed. Each entry names the arm that covers it or "
+                      "says `none`, because one answer over the whole register "
+                      "stops being true the moment an entry is appended")
+        elif claim == "none":
+            if not entry.get("why_no_execution"):
+                bad(what, "a divergence claiming no execution arm and saying "
+                          "nothing about why none covers it")
+        elif claim not in arms:
+            bad(what, f"claims execution arm {claim!r}, which the register does "
+                      "not carry")
+        else:
+            claimed.add(claim)
 
         where = entry.get("where")
         if where == "instruction":
@@ -368,6 +392,11 @@ def _check_divergences(declaration: dict, source_text: str, code_only: str,
         elif live not in code_only:
             bad(what, (f"declares that modules/ntransform.cpp runs {live!r} "
                        "instead, and it does not"))
+
+    for name in sorted(set(arms) - claimed):
+        bad("mainline_divergences",
+            f"execution arm {name!r} is claimed by no divergence, so it is "
+            "evidence that has outlived the entries it was taken for")
     return findings
 
 
@@ -738,10 +767,41 @@ def _fixtures(declaration: dict, source_text: str, instruction_text: str,
          mutate(divergence_claim("nitrification_gas_share", "record",
                                  "! no such recorded line")),
          "divergence"),
-        ("a verified register whose execution report is missing",
-         mutate(lambda d: d["mainline_divergences"]["execution_evidence"].__setitem__(
-             "report", "biosphere/analysis/no-such-report.json")),
+        ("an execution arm whose report is missing",
+         mutate(lambda d: d["mainline_divergences"]["execution_arms"]
+                ["stock_4_1_1_matched"].__setitem__(
+                    "report", "biosphere/analysis/no-such-report.json")),
          "divergence"),
+        ("an execution arm that says nothing about the standing of its report",
+         mutate(lambda d: d["mainline_divergences"]["execution_arms"]
+                ["stock_4_1_1_matched"].pop("standing")),
+         "divergence"),
+        ("a thirteenth divergence appended, saying nothing about whether an "
+         "arm has executed it",
+         mutate(lambda d: d["mainline_divergences"]["entries"].append(
+             {k: v for k, v in copy.deepcopy(
+                 _divergence(d, "mass_balance_check")).items()
+              if k != "execution"} | {"id": "a_thirteenth_divergence"})),
+         "divergence"),
+        ("a divergence claiming an execution arm the register does not carry",
+         mutate(divergence_claim("mass_balance_check", "execution",
+                                 "no_such_arm")),
+         "divergence"),
+        ("an unexecuted divergence saying nothing about why no arm covers it",
+         mutate(lambda d: _divergence(d, "labile_carbon_microbial_share")
+                .pop("why_no_execution")),
+         "divergence"),
+        ("an execution arm no divergence claims",
+         mutate(lambda d: [_divergence(d, i).__setitem__("execution", "none")
+                           or _divergence(d, i).__setitem__(
+                               "why_no_execution", "not run")
+                           for i in [e["id"] for e
+                                     in d["mainline_divergences"]["entries"]]]),
+         "divergence"),
+        ("an executed divergence, which is not a finding",
+         mutate(divergence_claim("labile_carbon_microbial_share", "execution",
+                                 "stock_4_1_1_matched")),
+         None),
         ("a constant declared to agree with a bracket that excludes it",
          mutate(calibration_claim("instruction:f_nitri_gas_max", "bracket", [0.5, 0.9])),
          "calibration"),
@@ -830,10 +890,14 @@ def main() -> int:
     register = declaration.get("mainline_divergences", {})
     divergences = [
         {"id": entry.get("id", "?"), "verdict": entry.get("verdict", "?"),
-         "owner": entry.get("owner", "?"), "where": entry.get("where", "?")}
+         "owner": entry.get("owner", "?"), "where": entry.get("where", "?"),
+         "execution": entry.get("execution", "?")}
         for entry in register.get("entries", [])
     ]
     gated = [d for d in divergences if d["verdict"] == "gate"]
+    arms = register.get("execution_arms") or {}
+    executed = [d for d in divergences if d["execution"] in arms]
+    unexecuted = [d for d in divergences if d["execution"] not in arms]
 
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -848,7 +912,13 @@ def main() -> int:
         "calibration_settled": settled,
         "mainline_release": register.get("release"),
         "mainline_divergences": divergences,
-        "execution_verified": bool(register.get("execution_verified")),
+        "execution_arms": {
+            name: {"report": (arm or {}).get("report"),
+                   "standing": (arm or {}).get("standing")}
+            for name, arm in sorted(arms.items())
+        },
+        "divergences_executed": [d["id"] for d in executed],
+        "divergences_unexecuted": [d["id"] for d in unexecuted],
         "fixtures": fixtures,
     }
     REPORT.parent.mkdir(parents=True, exist_ok=True)
@@ -872,16 +942,18 @@ def main() -> int:
             kept = [d for d in divergences if d["verdict"] == "keep"]
             print(f"\n  {len(divergences)} declared divergence(s) from "
                   f"{register.get('release', 'mainline')},")
-            print(f"  {len(kept)} kept and {len(gated)} gated. Combined execution "
-                  f"verified: {bool(register.get('execution_verified'))}")
-            if register.get("execution_verified"):
-                evidence = register.get("execution_evidence", {})
-                print(f"  matched report: {evidence.get('report')}")
-            else:
-                print(f"  why not verified: {register.get('why_not_verified')}")
+            print(f"  {len(kept)} kept and {len(gated)} gated. "
+                  f"{len(executed)} of {len(divergences)} claim a matched "
+                  f"execution arm, per entry and not per register.")
+            for name, arm in sorted(arms.items()):
+                arm = arm or {}
+                claiming = [d["id"] for d in divergences if d["execution"] == name]
+                print(f"    arm {name}: {len(claiming)} entr(y/ies), "
+                      f"report {arm.get('report')}")
+                print(f"      standing: {(arm.get('standing') or '').strip()}")
             for item in divergences:
                 print(f"    [{item['verdict']}] {item['id']} ({item['where']})  "
-                      f"[{item['owner']}]")
+                      f"[{item['owner']}]  execution: {item['execution']}")
         total = len(declaration.get("calibration", {}).get("entries", []))
         print(f"\n  calibration: {len(settled)} of {total} entries agree with the source they name")
         if unsettled:

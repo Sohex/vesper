@@ -22,10 +22,16 @@
 # a widely used community model, and none of them is a fork quirk this project
 # inherited.
 #
-# The eleven divergences have now been run together against an exact stock
-# LPJ-GUESS 4.1.1 arm. `execution_evidence` pins the paired runs and report.
-# This bounds the combined behavioural effect; it does not attribute that
-# effect to individual edits or decide which Earth calibration is Vesper's.
+# WHETHER A DIVERGENCE HAS BEEN EXECUTED IS A PROPERTY OF THE ENTRY AND NEVER
+# OF THE REGISTER. `execution_arms` carries the matched arms that have run, each
+# with the report it produced and the standing that report has; every entry
+# names the arm that covers it or says `none` and why. One boolean over the
+# whole register asserted something about entries appended after the arm ran,
+# which is what a summary of a growing collection does.
+#
+# An arm bounds the combined behavioural effect of the entries naming it. It
+# does not attribute that effect to individual edits, and it does not decide
+# which Earth calibration is Vesper's.
 #
 # `verdict` is what this project decided about the change, not what the
 # arithmetic says:
@@ -45,59 +51,50 @@
 # to differ from `mainline_value`, and `record` has to appear in that file.
 mainline_divergences:
   release: "LPJ-GUESS 4.1.1, Zenodo record 8065737, SVN r10118, MPL-2.0"
-  execution_verified: true
-  execution_evidence:
-    report: biosphere/analysis/ntransform_lpj_de621fd6ac9a472c9b8e9f14b2e27e59_lpj_09e22558a4bf44b6ae5868c56d275dba.json
-    vesper_run: lpj_de621fd6ac9a472c9b8e9f14b2e27e59
-    stock_run: lpj_09e22558a4bf44b6ae5868c56d275dba
-    window_complete_forcing_cycles: 10
-    cells: 997
-  # WHICH ENTRIES THE ARMS COVER. `execution_verified` is one boolean over the
-  # whole register and the report is older than the register, so the set is
-  # named here. An entry outside it is declared and argued but has not been run
-  # in both directions.
-  execution_scope:
-    covered:
-      - soil_ph_fallback
-      - nh3_max
-      - substrate_partition_argument
-      - nitrification_argument
-      - nitrification_wet_limb
-      - nitrification_gas_constant
-      - nitrification_gas_share
-      - denitrification_gas_constant
-      - denitrification_temperature_clamp
-      - denitrification_gas_partition
-      - mass_balance_check
-    not_covered:
-      - labile_carbon_microbial_share
-  execution_interpretation: >
-    THE ARMS COVER ELEVEN OF THE TWELVE ENTRIES, and the twelfth is
-    labile_carbon_microbial_share, which postdates them: the Vesper arm's source
-    ran mainline's single frac_labile_carbon on summed respiration, so that run
-    is no longer this tree's source and this report bounds the eleven rather
-    than the twelve. Re-taking it is owed on an accepted pair under `world-qcse`
-    and `world-9f1v`, not on this pair.
-    Over the final ten forcing cycles, the eleven divergences together change
-    the area-weighted plant mineral-N uptake by only +0.343%, despite large
-    changes inside the transformation operator: gross nitrification +148.1%,
-    gross denitrification +20,853%, NH3 +67,216%, NO -82.4%, N2O -84.7%, and
-    N2 from 1.98e-7 to 0.00539 kgN/ha/simulation-year. The gas partition is
-    therefore load-bearing for reported chemistry, while the retained
-    productivity-facing mineral-N uptake is weakly sensitive in this arm.
+  # THE MATCHED ARMS THAT HAVE RUN, by name. An entry below claims one of these
+  # by name or declares that none covers it. An arm no entry names is evidence
+  # that has outlived what it was taken for, and the gate refuses it, so this
+  # block cannot drift away from the register in either direction.
+  execution_arms:
+    stock_4_1_1_matched:
+      report: biosphere/analysis/ntransform_lpj_de621fd6ac9a472c9b8e9f14b2e27e59_lpj_09e22558a4bf44b6ae5868c56d275dba.json
+      vesper_run: lpj_de621fd6ac9a472c9b8e9f14b2e27e59
+      stock_run: lpj_09e22558a4bf44b6ae5868c56d275dba
+      window_complete_forcing_cycles: 10
+      cells: 997
+      standing: >
+        NEITHER ARM PASSED ACCEPTANCE, and that qualifier travels with every
+        number this arm reports. Both fail the same equilibrium refusal, and
+        `world-qcse` and `world-rnns` establish that no LPJ-GUESS run this
+        project has made could have passed one: the trend statistic is fitted
+        inside one memory time of the fields it judges, and `world-r9nz`'s
+        spin-up derivation asks for well over twice the spin-up either arm ran.
+        So this is a matched difference between two refused runs. It bounds the
+        entries naming it against each other, which is what a paired arm is for,
+        and it is not a statement that either arm is a Vesper result.
+      interpretation: >
+        Over the final ten forcing cycles the entries naming this arm together
+        change the area-weighted plant mineral-N uptake by only +0.343%, despite
+        large changes inside the transformation operator: gross nitrification
+        +148.1%, gross denitrification +20,853%, NH3 +67,216%, NO -82.4%, N2O
+        -84.7%, and N2 from 1.98e-7 to 0.00539 kgN/ha/simulation-year. The gas
+        partition is therefore load-bearing for reported chemistry, while the
+        retained productivity-facing mineral-N uptake is weakly sensitive in
+        this arm.
   comparison_arm: >
-    One exact stock-4.1.1 ntransform.cpp and f_nitri_gas_max=0.25 arm against
-    one Vesper arm, with the same current source everywhere else, climatology,
-    soil, PFTs, instruction values, patches, random seed and MPI layout. Both
-    ran the 998-year accelerator spin-up plus 100 retained years over 997 cells.
-    The comparison pairs every cell-year and area-weights final-ten-cycle
-    global means. Both arms retain NET_NITRIF, NET_DENITRIF, all four soil gas
-    fluxes and plant mineral-N uptake. Both separately fail the same BIO14 ANPP
-    stationarity test, so this is a matched sensitivity bound, not an accepted
-    coupled biosphere state. `world-9f1v` owns it.
+    What an arm here is, and what re-taking one means. One exact stock-4.1.1
+    ntransform.cpp and f_nitri_gas_max=0.25 arm against one Vesper arm, with the
+    same current source everywhere else, climatology, soil, PFTs, instruction
+    values, patches, random seed and MPI layout. Both ran the 998-year
+    accelerator spin-up plus 100 retained years over 997 cells. The comparison
+    pairs every cell-year and area-weights final-ten-cycle global means. Both
+    arms retain NET_NITRIF, NET_DENITRIF, all four soil gas fluxes and plant
+    mineral-N uptake. `world-9f1v` owns it; re-taking it on a pair that passes
+    acceptance is owed under `world-qcse`.
   entries:
     - id: soil_ph_fallback
       owner: world-i2ch
+      execution: stock_4_1_1_matched
       verdict: keep
       where: operator
       mainline: ["soil.pH = 3810 / (762 + (climate.aprec_lastyear)) + 3.5;"]
@@ -120,6 +117,7 @@ mainline_divergences:
         to run at a constant pH 8.5 nobody chose.
     - id: nh3_max
       owner: world-i2ch
+      execution: stock_4_1_1_matched
       verdict: keep
       where: operator
       mainline:
@@ -151,6 +149,7 @@ mainline_divergences:
         margin below 1 falls from four orders to one.
     - id: substrate_partition_argument
       owner: world-i2ch
+      execution: stock_4_1_1_matched
       verdict: keep
       where: operator
       mainline: ["double wet = richards_curve(0.05,0.95,7.5,0.5,wcont);"]
@@ -175,6 +174,7 @@ mainline_divergences:
         way to learn it.
     - id: nitrification_argument
       owner: world-i2ch
+      execution: stock_4_1_1_matched
       verdict: keep
       where: operator
       mainline: ["double act_dry = a*exp(wcont*b);"]
@@ -201,6 +201,7 @@ mainline_divergences:
         that it moved.
     - id: nitrification_wet_limb
       owner: world-i2ch
+      execution: stock_4_1_1_matched
       verdict: keep
       where: operator
       mainline:
@@ -226,6 +227,7 @@ mainline_divergences:
         to the partition's shape, which world-nga8 owns.
     - id: nitrification_gas_constant
       owner: world-i2ch
+      execution: stock_4_1_1_matched
       verdict: keep
       where: operator
       mainline: ["double ngas_inc = f_denitri_gas_max * no3_inc;"]
@@ -252,6 +254,7 @@ mainline_divergences:
         content is the denitrification NO2-to-gas ceiling, 0.25 to 0.33.
     - id: nitrification_gas_share
       owner: world-i2ch
+      execution: stock_4_1_1_matched
       verdict: keep
       where: instruction
       key: f_nitri_gas_max
@@ -278,6 +281,7 @@ mainline_divergences:
         and N2O_SOIL falls by 15.
     - id: denitrification_gas_constant
       owner: world-i2ch
+      execution: stock_4_1_1_matched
       verdict: keep
       where: operator
       mainline: ["soil.NO2_mass_w * f_nitri_gas_max * d_N_max * f_den_w * f_den_T"]
@@ -295,6 +299,7 @@ mainline_divergences:
         That is the entire behavioural content of uncrossing the reads.
     - id: denitrification_temperature_clamp
       owner: world-i2ch
+      execution: stock_4_1_1_matched
       verdict: keep
       where: operator
       mainline: ["f_den_T = min(1.0, exp(308.56 * (1.0 / 68.02 - 1.0 / (soil_T + 46.02))));"]
@@ -322,6 +327,7 @@ mainline_divergences:
         rather than rate-limited, which mainline's clamp never allowed.
     - id: denitrification_gas_partition
       owner: world-i2ch
+      execution: stock_4_1_1_matched
       verdict: keep
       where: operator
       mainline:
@@ -358,6 +364,7 @@ mainline_divergences:
         form:denitrification_n2_share.
     - id: mass_balance_check
       owner: world-i2ch
+      execution: stock_4_1_1_matched
       verdict: keep
       where: operator
       mainline: ["assert(fabs(n_budget_check) < EPS);"]
@@ -374,6 +381,13 @@ mainline_divergences:
         change a flux; it can only stop a run that has already gone wrong.
     - id: labile_carbon_microbial_share
       owner: world-vyvn
+      execution: none
+      why_no_execution: >
+        It postdates every arm the register carries. The Vesper arm's source ran
+        mainline's single frac_labile_carbon on summed respiration, so that run
+        is not this tree's source for this entry and its report bounds the
+        entries that name it rather than this one. Re-taking the arm on a pair
+        that passes acceptance is owed under `world-qcse` and `world-9f1v`.
       verdict: keep
       where: instruction
       key: frac_labile_carbon

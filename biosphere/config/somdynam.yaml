@@ -80,28 +80,39 @@ mainline_divergences:
     record or SVN revision to name. The subtree commit is the reference point,
     and `docs/src/reference/vendored-upstreams.md` carries the pull command that
     reproduces it.
-  execution_verified: false
-  why_not_verified: >
-    LPJ-GUESS now builds and the declared ifplim-0 arm has run on the accepted
-    carve2 baseline, including SDEC-1's corrected accelerator. That is not a
-    controlled verification of these divergences: no run has restored the CNP
-    fork forms under the same binary inputs, and two entries are live only under
-    the ifplim 1 that parameters.cpp still refuses. No divergence below has
-    therefore been run in both directions.
+  # THE MATCHED ARMS THAT HAVE RUN, by name, and an entry below claims one of
+  # these by name or declares that none covers it. WHETHER A DIVERGENCE HAS BEEN
+  # EXECUTED IS A PROPERTY OF THE ENTRY: a boolean here would be one answer over
+  # a register that is appended to, and would go on asserting it about entries
+  # added after the last arm ran. No arm has run on this register, so the block
+  # is empty and every entry says so for itself.
+  execution_arms: {}
   comparison_arm: >
     What would bound what these are worth, though not whether they are right:
     one arm on the vendored CNP fork's own somdynam.cpp and soil.cpp against one
     Vesper arm, the same build, the same climatology and the same instruction
     file. It has to be run TWICE, once at ifplim 0 and once at ifplim 1, because
-    two of the three entries are inert in the configuration this project runs
-    and live in the one it does not. The quantities to compare are the soil
-    organic C:P of SLOWSOM, PASSIVESOM, SOILMICRO and SURFHUMUS, the phosphorus
-    riding carbon in transferdecomp's pinc, and the reported PO4_mass and
-    availp. The ifplim 1 arm additionally needs framework/parameters.cpp's
+    an entry marked `bites_under: ifplim_1` is inert in the configuration this
+    project runs and live in the one it does not. The quantities to compare are
+    the soil organic C:P of SLOWSOM, PASSIVESOM, SOILMICRO and SURFHUMUS, the
+    phosphorus riding carbon in transferdecomp's pinc, and the reported PO4_mass
+    and availp. The ifplim 1 arm additionally needs framework/parameters.cpp's
     refusal lifted, which is BIO-34 and WORLD-PIDX and is not lifted here.
+    An entry armed by a different switch is bounded by a different arm: the
+    labile carbon path is live under `ifntransform` and the quantities it moves
+    are the nitrogen transformation operator's, so its arm is the one
+    `biosphere/config/ntransform.yaml` describes.
   entries:
     - id: pmass_sat_labile_currency
       owner: world-z01o
+      execution: none
+      why_no_execution: >
+        No arm has restored the fork's PMASS_SAT under the same binary inputs.
+        What this entry moves in the flows is live only under the ifplim 1 that
+        `framework/parameters.cpp` refuses outright, so the arm that would cover
+        it cannot be run on this tree until that refusal is lifted, which is
+        `world-pidx` and BIO-34. What it moves under the ifplim 0 this project
+        runs is the reported stock alone, and that is arithmetic on the pin.
       verdict: keep
       where: operator
       source_file: vendor/lpj-guess/modules/somdynam.cpp
@@ -143,6 +154,12 @@ mainline_divergences:
         the midpoint of its own range multiplies its C:P by 5.5, 1.61 and 1.83.
     - id: surfhumus_ptoc_ramp
       owner: world-shcp
+      execution: none
+      why_no_execution: >
+        An arm covering this one is runnable today, since it is live under the
+        ifplim 0 this project runs, and none has been run: no arm has restored
+        the fork's commented-out call under the same binary inputs. The ifplim 1
+        half of it waits on the same refusal as the entry above.
       verdict: keep
       where: operator
       source_file: vendor/lpj-guess/modules/somdynam.cpp
@@ -177,6 +194,13 @@ mainline_divergences:
         so this is the one entry of the three that is live in both.
     - id: surfhumus_ptoc_init
       owner: world-shcp
+      execution: none
+      why_no_execution: >
+        There is nothing for an arm to measure while the ramp above runs, since
+        setptoc overwrites this on the first call to somfluxes. It becomes
+        measurable only if the ramp is reverted, which is what that entry's
+        third check refuses, so an arm on this one alone would be an arm on a
+        configuration this tree does not have.
       verdict: keep
       where: operator
       source_file: vendor/lpj-guess/modules/soil.cpp
@@ -202,6 +226,15 @@ mainline_divergences:
         which is what the ramp entry's third check refuses.
     - id: labile_carbon_paths
       owner: world-vyvn
+      execution: none
+      why_no_execution: >
+        No arm has run the fork's single-coefficient form under the same binary
+        inputs. The matched stock-4.1.1 arm in `biosphere/config/ntransform.yaml`
+        predates this form -- its Vesper arm ran mainline's single
+        frac_labile_carbon on summed respiration -- so it covers neither this
+        half nor the instruction-file half, `labile_carbon_microbial_share`,
+        which says `execution: none` there for the same reason. Re-taking that
+        arm on a pair that passes acceptance is owed under `world-qcse`.
       verdict: keep
       where: operator
       source_file: vendor/lpj-guess/modules/somdynam.cpp

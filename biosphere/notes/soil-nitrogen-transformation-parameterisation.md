@@ -52,13 +52,23 @@ mainline" is not proof the code is right, and "a paper disagrees" is not licence
 to change it quietly. Both are evidence, and a divergence that survives has to
 be declared where the next reader will hit it.
 
-**Eleven of the twelve changes below are execution-verified as one combined
-arm.** The comparison bounds their joint effect; it does not assign an observed
-change to one edit or decide which Earth calibration belongs on Vesper. The
-per-entry `worth` remains coefficient arithmetic, while the paired report
-measures the fluxes after the Michaelis-Menten terms and pool clamps. The
-twelfth, the labile carbon split, postdates the arms and is bounded by hand
-alone; the section on it below says what would verify it.
+**Whether a change below has been executed is declared per entry and never per
+register.** `biosphere/config/ntransform.yaml` names the matched arms that have
+run, and each entry claims one by name or says `none` and why; a change appended
+after an arm ran therefore states its own standing instead of inheriting a
+verdict written before it existed. The labile carbon split is the entry claiming
+none, and the section on it below says what would cover it.
+
+A matched arm bounds the joint effect of the entries claiming it. It does not
+assign an observed change to one edit, decide which Earth calibration belongs on
+Vesper, or make either of its runs an accepted one: both arms fail the same
+equilibrium refusal, and `world-qcse` establishes that no LPJ-GUESS run this
+project has made could have passed one, since the trend statistic is fitted
+inside one memory time of the fields it judges and the spin-up derivation asks
+for well over twice what either arm ran. So the arm is a matched difference
+between two refused runs, and that qualifier travels with every number it
+reports. The per-entry `worth` remains coefficient arithmetic, while the paired
+report measures the fluxes after the Michaelis-Menten terms and pool clamps.
 
 The five `world-i2ch` re-examined as a set:
 
@@ -78,16 +88,18 @@ from a fraction of available capacity to `Soil::wfps(0)`, neither curve
 changed), `nitrification_wet_limb` (removed on Greaves and Carter),
 `denitrification_gas_constant` (the other half of the crossed pair) and
 `mass_balance_check` (mainline's identity, enforced in a Release build rather
-than compiled out with the `assert`). A twelfth, `labile_carbon_microbial_share`,
-splits the labile carbon this operator denitrifies on into DNDC's two paths; its
+than compiled out with the `assert`). `labile_carbon_microbial_share` is the
+most recent, and splits the labile carbon this operator denitrifies on into
+DNDC's two paths; its
 source half is in `modules/somdynam.cpp` and is registered in
 `biosphere/config/somdynam.yaml` as `labile_carbon_paths`.
 `biosphere/config/ntransform.yaml` under
-`mainline_divergences` carries all twelve with their arguments, and
+`mainline_divergences` carries every one of them with its argument, and
 `ntransform_gate.py` checks three things about each: that mainline's line is
 recorded in the source, that it is not in the source once comments are stripped,
 and that the changed line is. So a divergence can become neither a silent fork
-nor a silent revert, and reverting by deleting both fails too.
+nor a silent revert, and reverting by deleting both fails too. It checks a
+fourth: that the entry says which execution arm covers it, or says none and why.
 
 ### Why none of them was reverted, and what would have made one so
 
@@ -324,13 +336,13 @@ midpoint's.
 ## What the five corrections are worth, by hand and in the matched arm
 
 The coefficient arithmetic below explains direction and mechanism. The matched
-arm measures eleven of the twelve divergences together, after the
-Michaelis-Menten terms
-and pool clamps: area-weighted plant mineral-N uptake changes only +0.343%,
-while gross nitrification rises 148%, gross denitrification rises 20,853%, NH3
-rises 67,216%, NO falls 82.4%, N2O falls 84.7%, and N2 rises from 1.98e-7 to
-0.00539 kgN/ha/simulation-year. Both arms fail the same BIO14 ANPP stationarity
-test, so these are sensitivity results, not an accepted coupled endpoint.
+arm measures the divergences claiming it together, after the Michaelis-Menten
+terms and pool clamps: area-weighted plant mineral-N uptake changes only
++0.343%, while gross nitrification rises 148%, gross denitrification rises
+20,853%, NH3 rises 67,216%, NO falls 82.4%, N2O falls 84.7%, and N2 rises from
+1.98e-7 to 0.00539 kgN/ha/simulation-year. Neither arm passed acceptance and
+`world-qcse` says why none could, so these bound one refused run against another:
+they are a matched sensitivity result, not an accepted coupled endpoint.
 
 **The gas share of gross nitrification, 0.33 to 0.022.** Of every kilogram of
 nitrogen nitrified, 978 grams now return to `NO3_mass_d` where 670 did, and 22

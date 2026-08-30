@@ -1,15 +1,21 @@
-"""The soil phosphorus gate: what this project's phosphorus path is declared to
-be, and whether the model still agrees.
+"""The `modules/somdynam.cpp` gate: what this project's decomposition operator is
+declared to be, and whether the model still agrees.
 
 Worldbuilding. Vesper is an invented planet; everything below is about the
-simulation of it -- a vegetation model's soil organic phosphorus chemistry, the
-file that declares it, and the source the model actually reads.
+simulation of it -- a vegetation model's soil organic matter dynamics, the file
+that declares them, and the source the model actually reads.
+
+THE SCOPE IS THE SOURCE FILE AND NOT THE ELEMENT. `biosphere/config/` carries
+one register per source file, because a gate reads a file. Most of what is
+declared here is the phosphorus path, and the labile carbon the soil nitrogen
+transformation operator denitrifies on is declared here too, because it is a
+line of the same file.
 
 `biosphere/config/somdynam.yaml` is the declaration and this module is the
-enforcement. The subject is the C:P ramps of `modules/somdynam.cpp`: the two
-saturation thresholds, the five `setptoc` calls that read them, the lines the
-phosphorus argument rests on, and every place this project's source departs from
-the vendored LPJ-GUESS-CNP fork.
+enforcement. The subject is `modules/somdynam.cpp` with the `modules/soil.cpp`
+initialisation that pairs with it: the two saturation thresholds, the five
+`setptoc` calls that read them, the lines the phosphorus argument rests on, and
+every place this project's source departs from the vendored LPJ-GUESS-CNP fork.
 
 THE REFERENCE POINT IS A SUBTREE COMMIT AND NOT A RELEASE. `ntransform_gate.py`
 checks divergences from LPJ-GUESS 4.1.1, which can be named by Zenodo record and
@@ -56,16 +62,19 @@ and a divergence whose verdict is `gate`. The first is the refusal
 constant is declared rather than left in a C++ error string. There is no gated
 divergence; the verdict exists so the next one has somewhere to go.
 
-The default arm reports and exits 0. This project runs `ifplim 0`, where two of
-the three divergences are inert in the flows and the third moves one pool's C:P,
-so a run on the declared phosphorus path is a correct run of a declared model
-boundary.
+The default arm reports and exits 0. This project runs `ifplim 0`, where each
+entry's `bites_under` says whether it is live in the flows or waiting on the
+configuration `framework/parameters.cpp` refuses, so a run on the declared
+operator is a correct run of a declared model boundary.
 
-NOTHING IN THE DIVERGENCE REGISTER IS VERIFIED BY A CONTROLLED EXECUTION, and
-that is stated in both arms rather than left to be inferred. LPJ-GUESS now
-builds and the ifplim-0 Vesper arm has run, but no matched arm has restored the
-fork forms, and two entries are live only under the configuration
-`framework/parameters.cpp` refuses. The declaration names that comparison arm.
+EXECUTION IS A PROPERTY OF EACH DIVERGENCE AND NEVER OF THE REGISTER. The
+declaration carries the matched arms that have run, by name, and every entry
+claims one of them or says `none` and why. No matched arm has restored the fork
+forms, so that block is empty here and every entry says so for itself; an entry
+appended later therefore has to state its own standing rather than inherit an
+answer written before it existed. The declaration names the comparison arm that
+would change this, and the gate refuses an entry that claims an arm the register
+does not carry as well as an arm no entry claims.
 """
 
 from __future__ import annotations
@@ -200,6 +209,12 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
     begin with a comment marker, so the weaker guard cannot be claimed for a
     line that would support the stronger one, and the revert it guards against
     -- the live line commented out again -- is caught by the third check.
+
+    EXECUTION IS CLAIMED PER ENTRY. Each names the `execution_arms` arm that
+    covers it or says `none` and why. Nothing here has been executed, so every
+    entry says so for itself and the arms block is empty; a boolean over the
+    register would be one answer for a set that is appended to, and would go on
+    answering for entries added after it was written.
     """
     findings: list[dict] = []
     register = declaration.get("mainline_divergences")
@@ -211,7 +226,7 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
     def bad(what: str, detail: str) -> None:
         findings.append({"kind": "divergence", "what": what, "detail": detail})
 
-    for field in ("reference", "not_a_release", "why_not_verified", "comparison_arm"):
+    for field in ("reference", "not_a_release", "comparison_arm"):
         if not register.get(field):
             bad("mainline_divergences", f"the register carries no {field}")
     reference = register.get("reference") or ""
@@ -220,12 +235,16 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
             "the register's reference names no subtree commit. The phosphorus "
             "path is not in any LPJ-GUESS release, so a divergence here can be "
             "measured against nothing else")
-    if register.get("execution_verified") is not False:
+    arms = register.get("execution_arms")
+    if arms is None or not isinstance(arms, dict):
         bad("mainline_divergences",
-            "execution_verified is not false, but no matched fork-form arm has "
-            "run, so no divergence is verified in both directions")
+            "execution_arms is not a mapping of arm name to its evidence. No "
+            "matched fork-form arm has run, so it is empty rather than absent: "
+            "an absent block cannot be told from one that was never written")
+        arms = {}
 
     seen = set()
+    claimed: set[str] = set()
     for entry in register.get("entries", []):
         what = entry.get("id", "?")
         if what in seen:
@@ -242,6 +261,21 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
         for field in ("settles", "worth"):
             if not entry.get(field):
                 bad(what, f"a divergence saying nothing about what it {field}")
+        claim = entry.get("execution")
+        if not claim:
+            bad(what, "a divergence saying nothing about whether it has been "
+                      "executed. Each entry names the arm that covers it or "
+                      "says `none`, because one answer over the whole register "
+                      "stops being true the moment an entry is appended")
+        elif claim == "none":
+            if not entry.get("why_no_execution"):
+                bad(what, "a divergence claiming no execution arm and saying "
+                          "nothing about why none covers it")
+        elif claim not in arms:
+            bad(what, f"claims execution arm {claim!r}, which the register does "
+                      "not carry")
+        else:
+            claimed.add(claim)
 
         if entry.get("where") != "operator":
             bad(what, f"unknown divergence site {entry.get('where')!r}")
@@ -281,6 +315,11 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
         elif live not in code_only:
             bad(what, (f"declares that {source_file} runs {live!r} instead, "
                        "and it does not"))
+
+    for name in sorted(set(arms) - claimed):
+        bad("mainline_divergences",
+            f"execution arm {name!r} is claimed by no divergence, so it is "
+            "evidence that has outlived the entries it was taken for")
     return findings
 
 
@@ -447,9 +486,24 @@ def _fixtures(declaration: dict, sources: dict) -> list[dict]:
         ("the weaker guard claimed for a line that would support the stronger one",
          mutate(divergence_claim("surfhumus_ptoc_init", "mainline_form", "commented_out")),
          "divergence"),
-        ("a register that claims a divergence has been run",
-         mutate(lambda d: d["mainline_divergences"].__setitem__(
-             "execution_verified", True)),
+        ("a fifth divergence appended, saying nothing about whether an arm "
+         "has executed it",
+         mutate(lambda d: d["mainline_divergences"]["entries"].append(
+             {k: v for k, v in copy.deepcopy(
+                 _divergence(d, "surfhumus_ptoc_init")).items()
+              if k != "execution"} | {"id": "a_fifth_divergence"})),
+         "divergence"),
+        ("a divergence claiming an execution arm the register does not carry",
+         mutate(divergence_claim("surfhumus_ptoc_init", "execution",
+                                 "no_such_arm")),
+         "divergence"),
+        ("an unexecuted divergence saying nothing about why no arm covers it",
+         mutate(lambda d: _divergence(d, "surfhumus_ptoc_init")
+                .pop("why_no_execution")),
+         "divergence"),
+        ("an execution arm no divergence claims",
+         mutate(lambda d: d["mainline_divergences"]["execution_arms"]
+                .__setitem__("an_arm_nobody_claims", {})),
          "divergence"),
         ("a register whose reference names no subtree commit",
          mutate(lambda d: d["mainline_divergences"].__setitem__(
@@ -520,9 +574,12 @@ def main() -> int:
         {"id": entry.get("id", "?"), "verdict": entry.get("verdict", "?"),
          "owner": entry.get("owner", "?"),
          "source_file": entry.get("source_file", "?"),
-         "bites_under": entry.get("bites_under", "?")}
+         "bites_under": entry.get("bites_under", "?"),
+         "execution": entry.get("execution", "?")}
         for entry in register.get("entries", [])
     ]
+    arms = register.get("execution_arms") or {}
+    executed = [d for d in divergences if d["execution"] in arms]
     gated = [d for d in divergences if d["verdict"] == "gate"]
     unsourced = [
         {"name": item["name"], "owner": item.get("owner", "?")}
@@ -537,7 +594,10 @@ def main() -> int:
         "fork_reference": register.get("reference"),
         "divergences": divergences,
         "unsourced_constants": unsourced,
-        "execution_verified": bool(register.get("execution_verified")),
+        "execution_arms": sorted(arms),
+        "divergences_executed": [d["id"] for d in executed],
+        "divergences_unexecuted": [d["id"] for d in divergences
+                                   if d["execution"] not in arms],
         "fixtures": fixtures,
     }
     REPORT.parent.mkdir(parents=True, exist_ok=True)
@@ -546,7 +606,8 @@ def main() -> int:
     if args.json:
         print(json.dumps(report, indent=2))
     else:
-        print("The simulated soil's phosphorus path, checked against the source.\n")
+        print("The simulated soil's decomposition operator, checked against the "
+              "source.\n")
         broken = [f for f in fixtures if not f["pass"]]
         print(f"  fixtures: {len(fixtures) - len(broken)} of {len(fixtures)} got their verdict")
         for case in broken:
@@ -562,12 +623,13 @@ def main() -> int:
         print(f"  {len(kept)} kept and {len(gated)} gated. The reference point is a")
         print("  SUBTREE COMMIT and not a release: LPJ-GUESS 4.1.1 has no phosphorus,")
         print(f"  so there is nothing else to measure these against.\n    {register.get('reference')}")
-        print("  NONE IS VERIFIED BY A MATCHED FORK-FORM ARM. LPJ-GUESS now builds,")
-        print("  but no divergence has been run in both directions, and two of these are")
-        print("  live only under the ifplim 1 that parameters.cpp refuses.")
+        print(f"  {len(executed)} of {len(divergences)} claim a matched "
+              "execution arm, per entry and not per register. Each says for")
+        print("  itself which arm covers it, or why none does.")
         for item in divergences:
             print(f"    [{item['verdict']}] {item['id']}  bites under "
-                  f"{item['bites_under']}  ({item['source_file']})  [{item['owner']}]")
+                  f"{item['bites_under']}  ({item['source_file']})  "
+                  f"[{item['owner']}]  execution: {item['execution']}")
         if unsourced:
             print(f"\n  {len(unsourced)} saturation constant(s) with no phosphorus source,")
             print("  which is what --strict refuses on and what parameters.cpp already")
