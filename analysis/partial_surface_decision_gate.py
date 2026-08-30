@@ -114,29 +114,58 @@ def main() -> None:
         for name in ("fluxmod.f90", "radmod.f90", "landmod.f90",
                      "seamod.f90", "outmod.f90")
     }
+    # THE SEAMS ARE ORDERED, AND THE ORDER IS NOT A PREFERENCE. Exactly one
+    # surface owner advances on a cell -- landstep is masked on dls > 0.0 and
+    # seastep on dls < 0.5 -- and neither initialises outside its own mask. So
+    # until both tiles carry their own state, the absent tile's boundary is a
+    # COPY of the present one. An exchange seam taken first would evaluate the
+    # same surface twice and area-weight two copies of it: a model that
+    # reports per-tile fluxes which are not tiles, and which would then be
+    # credited as implemented. STATE FIRST, EXCHANGE AFTER.
+    LAND_STATE = "separate positive-fraction land state"
+    OCEAN_STATE = "separate positive-fraction ocean state"
+    BOTH_STATES = (LAND_STATE, OCEAN_STATE)
+    seam_order = (
+        (LAND_STATE, "spat5_tile_state", ("landmod.f90",), ()),
+        (OCEAN_STATE, "spat5_tile_state", ("seamod.f90",), ()),
+        ("tile restart records", "spat5_tile_restart",
+         ("landmod.f90", "seamod.f90"), BOTH_STATES),
+        ("area-weighted turbulent exchange", "spat5_tile_turbulent",
+         ("fluxmod.f90",), BOTH_STATES),
+        ("area-weighted radiative exchange", "spat5_tile_radiative",
+         ("radmod.f90",), BOTH_STATES),
+        ("separate tile diagnostics", "spat5_tile_diagnostics",
+         ("outmod.f90",), BOTH_STATES),
+    )
     required_seams = {
-        "separate positive-fraction land state": (
-            "spat5_tile_state" in implementation_sources["landmod.f90"]),
-        "separate positive-fraction ocean state": (
-            "spat5_tile_state" in implementation_sources["seamod.f90"]),
-        "area-weighted turbulent exchange": (
-            "spat5_tile_turbulent" in implementation_sources["fluxmod.f90"]),
-        "area-weighted radiative exchange": (
-            "spat5_tile_radiative" in implementation_sources["radmod.f90"]),
-        "separate tile diagnostics": (
-            "spat5_tile_diagnostics" in implementation_sources["outmod.f90"]),
-        "tile restart records": all(
-            "spat5_tile_restart" in implementation_sources[name]
-            for name in ("landmod.f90", "seamod.f90")),
+        name: all(token in implementation_sources[unit] for unit in units)
+        for name, token, units, _ in seam_order
     }
-    missing_seams = [name for name, present in required_seams.items()
-                     if not present]
+    missing_seams = [name for name, _, _, _ in seam_order
+                     if not required_seams[name]]
+    # A seam standing on an absent prerequisite is worse than a missing one:
+    # it looks like progress and cannot be right.
+    out_of_order = [
+        name for name, _, _, prerequisites in seam_order
+        if required_seams[name]
+        and not all(required_seams[p] for p in prerequisites)
+    ]
+    next_seam = next(
+        (name for name, _, _, prerequisites in seam_order
+         if not required_seams[name]
+         and all(required_seams[p] for p in prerequisites)),
+        None)
+    check("implementation seams are taken in dependency order",
+          not out_of_order,
+          ("no seam stands on an absent prerequisite" if not out_of_order
+           else "state-dependent seams present without tile state: "
+                + ", ".join(out_of_order)))
     check("selected representation is implemented",
           (not expected_tile or (not hard_binary and not missing_seams)),
           ("tile selected; "
            + ("oceanmod.f90 still hard-binarises the boundary; "
               if hard_binary else "")
-           + ("missing " + ", ".join(missing_seams)
+           + (f"next seam is {next_seam}; missing " + ", ".join(missing_seams)
               if missing_seams else "all implementation seams present")))
 
     failed = [item for item in checks if not item["passed"]]
@@ -148,7 +177,12 @@ def main() -> None:
         "implementation": {
             "hard_binary_boundary": hard_binary,
             "required_seams": required_seams,
+            "seam_order": [name for name, _, _, _ in seam_order],
+            "seam_prerequisites": {name: list(prerequisites)
+                                   for name, _, _, prerequisites in seam_order},
             "missing_seams": missing_seams,
+            "out_of_order_seams": out_of_order,
+            "next_seam": next_seam,
         },
         "checks": checks,
         "summary": {"passed": len(checks) - len(failed), "failed": len(failed)},

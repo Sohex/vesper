@@ -577,7 +577,13 @@
       if (n_sea_points > 0) call seaini   ! sea module
       if (nrestart == 0 .and. n_sea_points > 0) &
      &                      call spat5_archive_ocean_boundary
-      if (nrestart == 0)    call spat5_complete_boundary_endpoints
+!     UNCONDITIONAL, cold start or continuation. On a cold start it defines the
+!     absent tile the archives above could not. On a continuation the bundles
+!     come back from the restart, where re-completing them from the same
+!     execution mask is exactly a no-op -- and a restart written before this
+!     routine keyed on `dls` carries the sentinel, which fluxstep and radstep
+!     would read before the first surfstep could repair it.
+                            call spat5_complete_absent_tile
 
       return
       end subroutine surfini
@@ -596,7 +602,7 @@
       if (n_sea_points > 0) call spat5_load_ocean_exchange
       if (n_sea_points > 0) call seastep
       if (n_sea_points > 0) call spat5_archive_ocean_boundary
-                            call spat5_complete_boundary_endpoints
+                            call spat5_complete_absent_tile
                             call spat5_restore_exchange_aggregate
 
       return
@@ -632,32 +638,55 @@
       return
       end subroutine spat5_archive_ocean_boundary
 
-      subroutine spat5_complete_boundary_endpoints
+      subroutine spat5_complete_absent_tile
       use surfmod
 
-!     Give an absent tile a finite copy of the present one. The endpoint-safe
-!     combine will discard it, but the full-column flux and radiation kernels
-!     evaluate every lane before combination and must never see a sentinel.
-      where (dlf(:) == 0.0)
+!     Give the tile that did not advance a defined copy of the one that did.
+!     The flux and radiation kernels evaluate every lane before combination
+!     and must never see a sentinel or an unassigned array.
+!
+!     THE POPULATION IS `dls`, THE EXECUTION MASK, AND NOT `dlf`. Exactly one
+!     surface owner runs on a cell: landstep is masked on dls > 0.0 and
+!     seastep on dls < 0.5, and neither owner initialises outside its own
+!     mask. landmod's dts and dqs carry a 1.0e20 sentinel there and seamod's
+!     carry no initialiser at all, while drhs, dz0, dalb and dsalb are shared
+!     plasimmod arrays and are always defined.
+!
+!     Keying the completion on dlf's endpoints left undefined precisely the
+!     cells the tile model exists for. Measured on a T21 cold start over
+!     canonical-10m-carve2: of 1053 partial cells, the 620 sea-owned ones
+!     carried 1.0e20 in dlt_ts and the 433 land-owned ones carried an
+!     unassigned zero in dot_ts, and both reached the restart. No pure cell
+!     was affected, because those are the only ones an endpoint test covers.
+!
+!     This is bookkeeping and not a tile. While execution is binary the absent
+!     tile is a COPY, so the two bundles agree exactly and any area weighting
+!     of them returns the binary answer. spat5_tile_state is what replaces the
+!     copy with a tile that advances on its own fraction; until it exists,
+!     agreement between the bundles is the invariant to hold rather than a
+!     result to report.
+      where (dls(:) > 0.5)
+         dot_ts(:)  = dlt_ts(:)
+         dot_qs(:)  = dlt_qs(:)
+         dot_rhs(:) = dlt_rhs(:)
+         dot_z0(:)  = dlt_z0(:)
+         dot_alb(:) = dlt_alb(:)
+      elsewhere
          dlt_ts(:)  = dot_ts(:)
          dlt_qs(:)  = dot_qs(:)
          dlt_rhs(:) = dot_rhs(:)
          dlt_z0(:)  = dot_z0(:)
          dlt_alb(:) = dot_alb(:)
       endwhere
-      where (dlf(:) == 1.0)
-         dot_ts(:)  = dlt_ts(:)
-         dot_qs(:)  = dlt_qs(:)
-         dot_rhs(:) = dlt_rhs(:)
-         dot_z0(:)  = dlt_z0(:)
-         dot_alb(:) = dlt_alb(:)
-      endwhere
       do jband=1,2
-         where (dlf(:) == 0.0) dlt_salb(jband,:) = dot_salb(jband,:)
-         where (dlf(:) == 1.0) dot_salb(jband,:) = dlt_salb(jband,:)
+         where (dls(:) > 0.5)
+            dot_salb(jband,:) = dlt_salb(jband,:)
+         elsewhere
+            dlt_salb(jband,:) = dot_salb(jband,:)
+         endwhere
       enddo
       return
-      end subroutine spat5_complete_boundary_endpoints
+      end subroutine spat5_complete_absent_tile
 
       subroutine spat5_load_land_exchange
       use surfmod

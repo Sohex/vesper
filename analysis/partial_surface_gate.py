@@ -48,6 +48,22 @@ def tile_combine(fraction: np.ndarray, land: np.ndarray,
     return out
 
 
+def _routine_body(source: str, name: str) -> str:
+    """One Fortran routine's body, from lowercased source.
+
+    Splitting on the bare name is wrong and quietly returns the WRONG region:
+    `end subroutine <name>` contains `subroutine <name>`, so the last part is
+    everything AFTER the routine and every substring test on it passes or
+    fails for reasons that have nothing to do with the routine. The opening
+    line is anchored to its own newline and indentation instead.
+    """
+    opening = f"\n      subroutine {name}\n"
+    if opening not in source:
+        return ""
+    body = source.split(opening, 1)[1]
+    return body.split(f"\n      end subroutine {name}", 1)[0]
+
+
 def main() -> None:
     checks: list[dict] = []
 
@@ -110,8 +126,32 @@ def main() -> None:
               for name in tile_boundary_records)
           and "call spat5_archive_land_boundary" in surface_source
           and "call spat5_archive_ocean_boundary" in surface_source
-          and "call spat5_complete_boundary_endpoints" in surface_source,
+          and "call spat5_complete_absent_tile" in surface_source,
           f"{len(tile_boundary_records)} land/ocean boundary records")
+
+    # The absent tile must be completed over the EXECUTION mask. Keyed on the
+    # fraction's endpoints instead, the completion covers only pure cells and
+    # leaves every partial cell holding landmod's 1.0e20 sentinel or seamod's
+    # unassigned array -- which is the whole population the tile model is for,
+    # and it reaches the restart. Measured at T21: 620 and 433 of 1053.
+    absent_tile_body = _routine_body(surface_source,
+                                     "spat5_complete_absent_tile")
+    check("absent tile is completed over the execution mask",
+          "where (dls(:) > 0.5)" in absent_tile_body
+          and "elsewhere" in absent_tile_body
+          and "dlf(:) == 0.0" not in absent_tile_body
+          and "dlf(:) == 1.0" not in absent_tile_body,
+          "keyed on dls, so partial cells are covered and no sentinel survives")
+
+    # It must run before anything can read the bundles on a continuation:
+    # fluxstep and radstep precede the first surfstep, so a restart-only
+    # completion leaves a legacy sentinel live for one timestep.
+    surfini_body = _routine_body(surface_source, "surfini")
+    check("absent-tile completion is unconditional at initialisation",
+          "call spat5_complete_absent_tile" in surfini_body
+          and "if (nrestart == 0)    call spat5_complete_absent_tile"
+              not in surfini_body,
+          "cold start and continuation both repair the absent tile")
     flux_source = (ROOT / "vendor/exoplasim/exoplasim/plasim/src/"
                    "fluxmod.f90").read_text(encoding="utf-8").lower()
     radiation_source = (ROOT / "vendor/exoplasim/exoplasim/plasim/src/"
