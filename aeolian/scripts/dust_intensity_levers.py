@@ -68,6 +68,7 @@ from scipy.stats import norm
 
 from _paths import ANALYSIS, CONFIG, DUST_CONFIG, PROJECT_ROOT  # noqa: E402
 
+import climatology                                           # noqa: E402  from lib/, via _paths
 import build_dust as bd                                      # noqa: E402
 from builds import component_data, grid_export, mesh_export, soilmap
 from gridding import region_cells
@@ -150,10 +151,11 @@ class Emitter:
     what lets a cell carry a DISTRIBUTION of roughness rather than one value.
     """
 
-    def __init__(self, config: dict, cfg: dict, climatology: Path):
+    def __init__(self, config: dict, cfg: dict, clim_path: Path):
         self.config, self.cfg = config, cfg
         self.gravity = float(config["planet"]["gravity_m_s2"])
-        with Dataset(climatology) as ds:
+        with Dataset(clim_path) as ds:
+            bin_centres = np.asarray(ds["time"][:], dtype=float)
             self.lat = np.asarray(ds["lat"][:], dtype=float)
             self.lon = np.asarray(ds["lon"][:], dtype=float)
             lev = np.asarray(ds["lev"][:], dtype=float)
@@ -168,6 +170,13 @@ class Emitter:
         # with 7.5x the wind is the whole annual total at u* cubed.
         self.bad = bd.flag_anomalous_bins(spd)
         self.good = [t for t in range(self.nbin) if t not in self.bad]
+        # A lever is a RATIO of annual means, so both arms have to be annual
+        # means: the bins hold different numbers of raw records and averaging
+        # them alike is the climatology's weighting thrown away. Renormalised
+        # over `good`, the way build_dust.py weights the same sum.
+        w = climatology.bin_weights(bin_centres)
+        self.bin_weight = np.zeros(self.nbin)
+        self.bin_weight[self.good] = w[self.good] / w[self.good].sum()
         sigma_bottom = float(lev[-1]) if lev[-1] > lev[0] else float(lev[0])
         if sigma_bottom > 1.5:
             sigma_bottom = sigma_bottom * 100.0 / float(np.mean(ps))
@@ -288,8 +297,8 @@ class Emitter:
                 bare = np.where(self.snd[t] > src["snow_suppression_depth_m"],
                                 0.0, bare)
                 acc += flux * bare
-            out += float((acc * self.weight).sum())
-        return out / len(self.good)
+            out += self.bin_weight[t] * float((acc * self.weight).sum())
+        return out
 
     def point(self, end: str, **kw) -> float:
         """The treatment the component ships: one geometric-mean z0 per cell."""
@@ -736,11 +745,11 @@ def main() -> None:
             f"{rel(BASELINE_JSON)} was built on {report['source_build']} and "
             f"config/planet.yaml says {config['source_build']}. Every ratio "
             "here is taken against that artifact; re-run build_dust.py first.")
-    climatology = args.climatology or (PROJECT_ROOT / report["climatology"])
-    if not climatology.exists():
-        raise SystemExit(f"{rel(climatology)} does not exist")
+    clim_path = args.climatology or (PROJECT_ROOT / report["climatology"])
+    if not clim_path.exists():
+        raise SystemExit(f"{rel(clim_path)} does not exist")
 
-    em = Emitter(config, cfg, climatology)
+    em = Emitter(config, cfg, clim_path)
     sigma = within_class_sigma(cfg)
 
     out = {
@@ -752,7 +761,7 @@ def main() -> None:
                 "licenses that.",
         "source_build": str(config["source_build"]),
         "terrain_hash": em.terrain,
-        "climatology": rel(climatology),
+        "climatology": rel(clim_path),
         "baseline_report": rel(BASELINE_JSON),
         "baseline_report_sha256": sha256_of(BASELINE_JSON),
         "dust_config_sha256": sha256_of(args.dust_config),

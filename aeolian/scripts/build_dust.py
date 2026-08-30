@@ -651,6 +651,16 @@ def main() -> None:
               f"inherits it.")
     if len(good) < 2:
         raise SystemExit("too few usable time bins; refusing to guess a climate")
+    # ONE weighting for every annual mean this script takes. The optical depth
+    # and the emission go through `climatology.masked_mean` below; the
+    # deposition sums over the bins itself and divided by their COUNT, so the
+    # two products were means over the same bins with different weights and
+    # described different years. Renormalised over `good` for the same reason
+    # masked_mean renormalises: a subset of a normalised weight vector is not
+    # one.
+    bin_weight = np.zeros(nbin)
+    _w = climatology.bin_weights(bin_centres)
+    bin_weight[good] = _w[good] / _w[good].sum()
 
     clay = soil_clay_grid(soilmap(config), lat, lon)
     (erodible, land_fraction, per_class, class_detail, terrain,
@@ -796,8 +806,8 @@ def main() -> None:
                    * np.maximum(precip_mm_hr, 0.0) ** cfg["removal"]["scavenging_b"])
             for b, db in enumerate(d_bin):
                 vs = settling_velocity(db, rho_p, rho_a[t], tas[t], gravity)
-                deposition += load[b, t] * (
-                    vs / cfg["transport"]["dust_scale_height_m"] + wet) / len(good)
+                deposition += load[b, t] * bin_weight[t] * (
+                    vs / cfg["transport"]["dust_scale_height_m"] + wet)
         dep = deposition * EARTH_YEAR_S * 1000.0            # g/m2 per Earth year
         emit_annual = climatology.masked_mean(emission, bin_centres, good)
         emit_mean = gmean(emit_annual)

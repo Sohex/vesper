@@ -194,6 +194,11 @@ def main() -> None:
     optics, optics_payload = optics_table(args.optics)
 
     with Dataset(clim_path) as ds:
+        # The bin centres, not a bin index. `lib/climatology.py` recovers the
+        # record count each bin holds from the SPACING of these, and evenly
+        # spaced integers say "the count divides the bin count" whatever the
+        # file was written from.
+        bin_centres = np.asarray(ds["time"][:], dtype=float)
         lat = np.asarray(ds["lat"][:], dtype=float)
         lon = np.asarray(ds["lon"][:], dtype=float)
         lev = np.asarray(ds["lev"][:], dtype=float)
@@ -216,8 +221,7 @@ def main() -> None:
     # same reason: this reads `spd` from the same regular climatology.
     bad = flag_anomalous_bins(spd_all)
     spd = spd_all[:, -1]
-    weights = np.asarray(climatology.bin_weights(np.arange(spd.shape[0])),
-                         dtype=float)
+    weights = np.asarray(climatology.bin_weights(bin_centres), dtype=float)
     if bad:
         weights[bad] = 0.0
     weights = weights / weights.sum()

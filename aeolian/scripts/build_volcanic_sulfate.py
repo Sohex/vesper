@@ -163,6 +163,10 @@ def main() -> None:
     mode = cfg["growth"]["mode"]
 
     with Dataset(clim_path) as ds:
+        # See build_sea_salt.py: the weighting reads the SPACING of the bin
+        # centres, so an index array asserts even bins rather than measuring
+        # them.
+        bin_centres = np.asarray(ds["time"][:], dtype=float)
         lat = np.asarray(ds["lat"][:], dtype=float)
         lon = np.asarray(ds["lon"][:], dtype=float)
         lev = np.asarray(ds["lev"][:], dtype=float)
@@ -180,8 +184,7 @@ def main() -> None:
         lsm = np.asarray(ds["lsm"][:], dtype=float)[0]
 
     bad = flag_anomalous_bins(spd_all)
-    weights = np.asarray(climatology.bin_weights(np.arange(spd_all.shape[0])),
-                         dtype=float)
+    weights = np.asarray(climatology.bin_weights(bin_centres), dtype=float)
     if bad:
         weights[bad] = 0.0
     weights = weights / weights.sum()
@@ -291,9 +294,14 @@ def main() -> None:
                        ) / max(float((emission * coslat_solver).sum()), 1e-30)
         aod1 = m * 1000.0 * np.interp(rh_cell, optics_rh, mee1_t)
         aod2 = m * 1000.0 * np.interp(rh_cell, optics_rh, mee2_t)
-        ssa = float(np.interp(np.mean(rh_cell), optics_rh, ssa1_t))
-        beta = backscatter_fraction(float(np.interp(np.mean(rh_cell),
-                                                    optics_rh, g1_t)))
+        # AREA-WEIGHTED, like every other global mean in this function and
+        # like build_sea_salt's `rh_mean`. A plain mean over a Gaussian grid
+        # counts a polar row and an equatorial row alike, which on this
+        # climatology reads the humidity four points too dry and takes the
+        # asymmetry parameter, and so the forcing, off the wrong node.
+        rh_mean = float((rh_cell * coslat).sum() / coslat.sum())
+        ssa = float(np.interp(rh_mean, optics_rh, ssa1_t))
+        beta = backscatter_fraction(float(np.interp(rh_mean, optics_rh, g1_t)))
         forcing = (shortwave_forcing(aod1, ssa, beta, alb1_a, b1 * rsdt_a)
                    + shortwave_forcing(aod2, ssa, beta, alb2_a,
                                        (1.0 - b1) * rsdt_a))
