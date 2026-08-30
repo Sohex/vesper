@@ -110,25 +110,42 @@ per cent of the observed variation, interquartile range 42 to 45 per cent.
 Soils in the neutral range are uncommon, because that range is held by primary
 mineral dissolution, which is slow.
 
-### The acid end is parent-independent, and the form is an asymptote not a line
+### Neither end carries the rock, and the form is a crossing between them
 
-In the measurement, gibbsite sets the acid end wherever leaching has run,
-whatever the rock was. `soil_ph` in `build_soil.py` therefore relaxes each
-parent onto that buffer rather than taking it down a line of its own:
+In the measurement, gibbsite sets the acid end wherever leaching has run and
+calcite sets the alkaline end wherever it has not, whatever the rock was in
+either case. `soil_ph` in `build_soil.py` therefore runs the leaching index
+between the two buffers rather than taking each parent down a line of its own:
 
-    ph = G + (parent - G) * exp(-leaching_slope * L),   L = ln(1 + q/q_ref)
+    ph = G + (C - G) * exp(-leaching_slope * L / u),   L = ln(1 + q/q_ref)
 
-with `G` the `gibbsite_buffer_ph` entry. At `L = 0` this is the fresh parent,
-which is what an unleached soil is; as `L` grows every parent goes to the same
-buffer whatever the rock was, which is the observation. A line cannot express
-that, because it has no asymptote and holds two parents exactly their initial
-spacing apart at every slope.
+with `G` the `gibbsite_buffer_ph` entry, `C` the `calcite_buffer_ph` entry, and
+`u = (parent - G)/(C - G)` the parent's base-cation supply as a fraction of a
+calcite-saturated soil's. At `L = 0` this is `C` for every rock that supplies
+calcium, which is every rock class here; as `L` grows every parent goes to `G`.
+A line cannot express either end, because it has no asymptote and holds two
+parents exactly their initial spacing apart at every slope, and an asymptote at
+one end only cannot express the other.
+
+**The fresh parent's own pH is not a state this model can be in.** That is what
+the dry end turns on. The mechanism behind the alkaline mode is that calcium
+released by weathering is not exported, so pedogenic calcite accumulates until
+the solution saturates and calcite takes the buffering over; it needs a calcium
+supply and zero export, and every rock class here supplies some calcium. The
+only argument for a rock contrast at zero export is that one parent saturates
+sooner than another, and Orogen has no time axis, so what a gridcell here
+represents is a steady state and a claim about which soil gets there first is
+one this project cannot make. `docs/src/reference/no-time-axis.md` is the rule.
+The same objection retires the fresh parent as the `L = 0` endmember of the acid
+relaxation, which is what it was before the dry buffer was added.
 
 The form keeps the lithology term rather than deleting it, and that is
 deliberate: at finite `L` a carbonate parent still sits above a felsic one,
 which is what the paper's own wettest-quartile carbonate deviation is a
-statement about. A model that collapsed the acid end to a single value would
-reproduce the paper's step model and destroy its second finding.
+statement about. A model that collapsed either end to a single value with no
+supply term would reproduce the paper's step model and destroy its second
+finding, which is measurable: setting every parent to the alkaline value drives
+the wettest-quartile carbonate deviation to 0.62 against the paper's 2.6.
 
 ### The alkaline end is derivable, and is derived at run time
 
@@ -186,6 +203,13 @@ the low end of its bracket: a field pH on carbonate reads below the open-air
 one, and the ten-to-a-hundred-fold enrichment that says how far below is a
 declared bracket on soil respiration rather than a measurement on this world.
 
+`calcite_buffer_ph` takes the same atmospheric value and the same bracket, and
+is a separate key because it is a separate role. The parent entry is the pH of
+a solution on carbonate rock; the buffer is where a gridcell that exports
+nothing ends up whatever its rock was. They coincide because the buffering
+phase is the same one. Both are `derived`, and `carbonate_ph.resolve` refuses a
+number written into either.
+
 The same two atmospheric values bracket every silicate parent, from both sides
 and for a stated reason. A soil solution supplied with base cations sits above
 water in equilibrium with the atmosphere and nothing else, and below the point
@@ -233,19 +257,45 @@ dry edge 1.33. The declared value is the median: the deviation survives over at
 least half the quartile rather than only at its driest fringe. WHICH point of
 the quartile is declared; the requirement is not.
 
+A carbonate parent's supply fraction is 1 by construction, so that closed form
+is the same expression it was under the single-buffer model and the three
+readings do not move when the dry buffer is added.
+
 **All three ends are readings of an UPPER bound, and there is no sourced lower
-one.** The bound that would supply it is the measured bimodality -- neutral-range
-soils uncommon relative to the buffered ranges -- and on this world's land it is
-unreachable at any slope, for two reasons that both lie outside `leaching_slope`.
-A fifth of land area drains nothing, so `L = 0` and no slope moves those cells;
-they sit at their parent values, which are in the neutral range. And the two
-paper findings jointly size the parent SPACING, in an inequality the slope
-cancels out of: the carbonate parent stays above 6.5 while the retained offset
-fraction `f = exp(-s L)` is at least `(6.5 - G)/(carbonate - G)`, and the modal
-clastic parent reaches a gibbsite mode one pH unit wide while `f` is at most
-`0.5/(clastic - G)`. Both hold only if `(carbonate - G)/(clastic - G) >= 2.80`.
-The declared values give 1.80. That is a defect in the spacing, not in the
-slope, and it is the first thing this file has that sizes the spacing at all.
+one.** The bound that would supply it is the measured bimodality, neutral-range
+soils uncommon relative to the buffered ranges, and with two buffers in the
+model that finding STOPS BEING A LOWER BOUND rather than failing. Stated as the
+buffered windows holding at least the land-area density of the neutral window 6
+to 7, it holds at every slope down to the smallest tried, because a shallow
+slope leaves the whole land on the calcite buffer, which is one of the two
+modes. The pass set is not even contiguous: it fails only in a narrow band of
+slopes where the land is split between the modes and enough of it is in transit.
+A quantity satisfied in the degenerate limit is not a bound.
+
+**The parent SPACING is separately sized, and the declared values fall short.**
+Both paper findings close on one cell's supply fraction, in an inequality the
+slope and the leaching index cancel out of: a carbonate parent has `u = 1` and
+stays above 6.5 while `f = exp(-s L)` is at least `(6.5 - G)/(C - G)`, and the
+modal clastic parent reaches a gibbsite mode one pH unit wide while `f^(1/u)` is
+at most `0.5/(C - G)`. Both hold only if
+
+    u <= ln((6.5 - G)/(C - G)) / ln(0.5/(C - G))
+
+which at the declared buffers is 0.4319, putting the modal clastic parent at or
+below 6.423 against a declared 6.8. In the ratio form the earlier single-buffer
+reading used, `(C - G)/(clastic - G)` has to reach 2.32 where the declared
+values give 1.80; the dry buffer relieves about a third of the shortfall the
+single-buffer form put at 2.80, and does not close it.
+
+The shortfall is not in the carbonate end, which is pinned to the calcite
+equilibrium at this world's pCO2 and moves only when pCO2 moves, and it is only
+partly in the buffer: `G` at the top of its own bracket lifts the bound to 6.695
+and at the bottom drops it to 5.792, so no reading of the gibbsite bracket
+reaches 6.8. It sits in the silicate set, and the repair is not one number.
+Dropping the clastic entry to 6.423 puts it under the metamorphic entry and
+level with the felsic one, which breaks the order the config asserts, so
+satisfying the requirement means re-deriving all four against a source that
+sizes their base-cation supply, and no source here does.
 
 `endorheic_alkalinity_bonus` has to carry a calcite-buffered soil into the range
 a closed basin reaches. Helvaci (2019) lists lake water at pH 8.5 to 11 among

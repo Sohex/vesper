@@ -140,13 +140,16 @@ the two orders against `regolith.minimum_depth_m`, and the soil report's
 `regolith_aggregation` block carries the difference on whatever map it just
 built.
 
-**pH**, from parent material relaxing onto a gibbsite buffer as drainage leaches
-it, and pushed back up where drainage is closed and salts concentrate instead of
-leaving. The acid end is parent-independent by construction: the offset between
-a parent and the buffer decays exponentially in the leaching index, so however
-far apart two rocks start, heavy leaching puts both on the same buffer. The
-alkaline end is not yet the mirror of it, and that is a known departure from the
-measurement.
+**pH**, as a crossing between two mineral buffers driven by drainage, and pushed
+back up where drainage is closed and salts concentrate instead of leaving. Both
+ends are parent-independent by construction: a gridcell that exports nothing
+sits on the calcite buffer, because calcium that is not exported accumulates as
+pedogenic calcite until the solution saturates, and one that exports everything
+sits on the gibbsite buffer, because nothing else is left. What the rock decides
+is the base-cation supply that sets how much drainage the crossing takes, so the
+lithology contrast lives at finite leaching rather than at either limit. The
+calcite end is solved from this world's declared pCO2 rather than taken from
+Earth; the gibbsite end is Earth's.
 
 **Organic fraction and bulk density**, from LPJ-GUESS's own soil carbon through
 the standard reciprocal mixing rule, which is why organic soils come out light.
@@ -569,15 +572,13 @@ is where a land mean belongs. The soil pH column has a second limit on it that
 the water and depth columns do not: Slessarev et al. (2016) measure the global
 soil pH distribution as BIMODAL, clustered on a calcite buffer near 8.2 and a
 gibbsite buffer near 5.1, so a land-mean pH is being compared against a central
-tendency the measurement says is uncommon. The acid end of this model now
-relaxes onto the gibbsite buffer and the mode it produces is real. The alkaline
-end does not: a fifth of this world's land area drains nothing at all, so no
-leaching slope moves it, and it sits at its parent value in the neutral range
-rather than on the calcite buffer. The modelled distribution is therefore
-single-moded in the neutral range whatever the slope, and the two things that
-would close it -- the alkaline end and the declared parent spacing -- are
-tracked separately. `notes/pedogenesis-value-provenance.md` section 3 has the
-argument.
+tendency the measurement says is uncommon. Both modes now exist in this model:
+the gridcells that drain nothing, a fifth of this world's land area, sit on the
+calcite buffer, and the heavily drained ones relax onto the gibbsite buffer. The
+modelled distribution is bimodal rather than single-moded in the neutral range,
+and what still departs from the measurement is how MUCH land is in transit
+between the two, which the declared parent spacing sets and which no source here
+sizes. `notes/pedogenesis-value-provenance.md` section 3 has the argument.
 
 ### The pattern is terrain; the level is weathering
 
@@ -634,13 +635,18 @@ mentions.
 - `maximum_depth_m` is a pure prefactor inside a bracket a factor of 2.0 wide,
   and its two ends are the two ways a depth-to-bedrock measurement misses a
   weathering-front reach rather than a scatter on one estimate.
-- The soil pH form has a parent-independent acid end and no lower bound on how
-  fast it gets there. `leaching_slope`'s bracket is three readings of ONE upper
-  bound -- the wettest-quartile carbonate deviation Slessarev measures must
-  still exist in the model -- evaluated at three points of that quartile. The
-  bound that would supply a lower end is the measured bimodality, and it is
-  unreachable at any slope while the alkaline end sits in the neutral range and
-  the declared parent spacing is narrower than the two findings jointly require.
+- The soil pH form has two parent-independent ends and no lower bound on how
+  fast a gridcell crosses between them. `leaching_slope`'s bracket is three
+  readings of ONE upper bound -- the wettest-quartile carbonate deviation
+  Slessarev measures must still exist in the model -- evaluated at three points
+  of that quartile. The bound that would supply a lower end is the measured
+  bimodality, and with two buffers in the model it stops being a bound at all:
+  a shallow slope leaves the whole land on the calcite buffer, which is one of
+  the two modes, so the test passes in the degenerate limit.
+- `calcite_buffer_ph` is derived rather than transplanted: it is calcite
+  saturation at `config/planet.yaml`'s pCO2, solved by `carbonate_ph.py`, and
+  bracketed by the same equilibrium over the declared soil-air CO2 enrichment,
+  so a field pH on a calcite-buffered soil reads below the declared value.
 - `gibbsite_buffer_ph` is implicit-Earth: Slessarev's 5.1 is the mean of an
   Earth soil population, and through their eq. (7) it fixes an exchange ratio
   CaX/AlX of 2.7 that this project has no model for. The exchange chemistry

@@ -409,19 +409,42 @@ def regolith_depth_expectation(mesh: Export, grid_dir: Path,
 def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
             endorheic: np.ndarray, params: dict, reference_runoff: float
             ) -> np.ndarray:
-    """Parent pH relaxing onto the gibbsite buffer as drainage leaches it.
+    """Two mineral buffers, with the lithology deciding how far between them.
 
-    The parent-to-buffer offset decays exponentially in the leaching index, so
-    the acid end is PARENT-INDEPENDENT: however far apart two rocks start,
-    heavy leaching puts both on the same aluminium buffer. That is Slessarev et
-    al. (2016)'s central observation about the acid mode -- their Methods
-    predict 5.1 for every profile with a non-negative water balance, with no
-    lithology term -- and a line in the leaching index cannot express it,
-    because a line has no asymptote and holds two parents exactly their initial
-    spacing apart at every slope. At zero leaching this returns the fresh
-    parent, which is what an unleached soil is; at finite leaching a carbonate
-    parent still sits above a felsic one, which is what the paper's own
-    wettest-quartile carbonate deviation is a statement about.
+    BOTH ENDS ARE PARENT-INDEPENDENT, which is Slessarev et al. (2016)'s
+    central observation about the modelled soil pH distribution: it is bimodal
+    on calcite and on gibbsite, and their Methods predict one value for every
+    profile with a negative water balance and the other for every profile
+    without, with no lithology term in either. A soil that exports nothing
+    accumulates pedogenic calcite until the solution saturates and calcite
+    takes the buffering over; a soil that exports everything is left on the
+    aluminium buffer whatever its rock was. So the leaching index runs between
+    two buffers, not from a rock to one buffer:
+
+        ph = gibbsite + (dry - gibbsite) * exp(-leaching_slope * L / supply)
+
+    with `dry` the highest buffer that parent can reach and `supply` the
+    parent's base-cation supply relative to a calcite-saturated one.
+
+    WHY THE PARENT IS NOT AN ENDMEMBER AT EITHER END. The fresh parent's own pH
+    is a state a steady-state soil is never in, and a model with no time axis
+    can only represent steady states, so "this rock has not yet accumulated
+    calcite" is a sentence this project cannot write. What the parent decides
+    instead is the one thing that survives into the steady state: how much base
+    cation the rock supplies against what the drainage exports. A rock whose
+    own solution sits near calcite saturation supplies nearly as much as a
+    carbonate and holds the calcite buffer to much higher drainage; one whose
+    solution sits near the acid end supplies almost none and is stripped at the
+    first leaching. That is the paper's own second finding, that profiles in
+    the wettest quartile are likelier to exceed pH 6.5 where carbonate bedrock
+    is present, and it is where the lithology contrast lives in this form: at
+    FINITE leaching, not at either limit.
+
+    `supply` is the fraction of the buffer-to-buffer span the parent's declared
+    pH occupies, which is a monotone reading of the same declared contrast the
+    config asserts the order and the spacing of. It is a ratio of a supply to
+    an export and carries no time, so it is a steady-state statement and not a
+    rate.
 
     Deliberately takes runoff, not whatever `weathering.moisture_variable`
     selects. Leaching is base cations physically leaving the profile, which
@@ -438,6 +461,22 @@ def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
             f"its own bracket [{low}, {high}]. That bracket is Slessarev's "
             "eq. (7) over the declared range of the exchange ratio; a value "
             "outside it is not a gibbsite-buffered soil pH.")
+    calcite_ph = float(params["calcite_buffer_ph"])
+    calcite_low, calcite_high = (float(v)
+                                 for v in params["calcite_buffer_ph_bracket"])
+    if not calcite_low <= calcite_ph <= calcite_high:
+        raise SystemExit(
+            f"pedogenesis.yaml ph.calcite_buffer_ph is {calcite_ph}, outside "
+            f"its own bracket [{calcite_low}, {calcite_high}]. Both come from "
+            "the same calcite equilibrium at this world's pCO2, so a value "
+            "outside the bracket says the two were solved at different "
+            "pressures. See pedology/scripts/carbonate_ph.py")
+    if not calcite_ph > buffer_ph:
+        raise SystemExit(
+            f"the calcite buffer is {calcite_ph} and the gibbsite buffer is "
+            f"{buffer_ph}. The pH block runs between them and the alkaline one "
+            "has to be above the acid one; at this pCO2 it is not, and there "
+            "is no span for a parent to sit inside.")
     shape = runoff_mm_yr.shape
     parent = np.zeros(shape)
     total = np.zeros(shape)
@@ -451,9 +490,24 @@ def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
     parent[covered] /= total[covered]
     parent[~covered] = params["parent_by_category"]["sedimentary_clastic"]
 
+    # The highest buffer this parent can reach with nothing exported. Calcite
+    # for everything that supplies calcium, which is every rock class here; the
+    # evaporite parent sits above calcite saturation because sodium carbonate
+    # rather than calcite sets it, and a solution buffered by soda is not
+    # brought back down by precipitating calcite out of it.
+    dry = np.maximum(parent, calcite_ph)
+    if float(parent.min()) <= buffer_ph:
+        raise SystemExit(
+            f"the mixed parent pH falls to {float(parent.min()):.4f}, at or "
+            f"below the gibbsite buffer {buffer_ph}. Every declared parent has "
+            "to sit inside the span the two buffers draw, or its base-cation "
+            "supply relative to a calcite-saturated soil is zero or negative "
+            "and the leaching index has nothing to be relative to.")
+    supply = (parent - buffer_ph) / (dry - buffer_ph)
+
     leaching = np.log1p(np.maximum(runoff_mm_yr, 0.0) / reference_runoff)
-    ph = buffer_ph + (parent - buffer_ph) * np.exp(
-        -params["leaching_slope"] * leaching)
+    ph = buffer_ph + (dry - buffer_ph) * np.exp(
+        -params["leaching_slope"] * leaching / supply)
     ph += endorheic * params["endorheic_alkalinity_bonus"]
     return np.clip(ph, params["minimum"], params["maximum"])
 

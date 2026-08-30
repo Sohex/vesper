@@ -798,6 +798,24 @@ regolith:
 # THE ALKALINE END IS DERIVABLE, and is derived below at this world's own
 # atmosphere rather than read off Earth's.
 ph:
+  # THE BLOCK RUNS BETWEEN TWO MINERAL BUFFERS AND THE PARENT DECIDES WHERE A
+  # SOIL SITS BETWEEN THEM. `build_soil.py:soil_ph` is the form and its
+  # docstring is the argument; what belongs here is what the form reads.
+  # Slessarev's figure is bimodal on calcite and on gibbsite, and their Methods
+  # predict one of those two values for every profile from the SIGN of the
+  # water balance alone, with no lithology term at either end. So neither end
+  # carries the rock: a soil that exports nothing accumulates pedogenic calcite
+  # until the solution saturates, and a soil that exports everything is left on
+  # the aluminium buffer. The parent decides the base-cation supply that sets
+  # how much drainage it takes to cross from one to the other, which is where
+  # the paper's own lithology deviation lives.
+  #
+  # A FRESH PARENT pH IS NOT A STATE THIS MODEL CAN BE IN. Orogen has no time
+  # axis, so what a gridcell here represents is a steady state, and "this rock
+  # has not accumulated its calcite yet" is a sentence about kinetics. The
+  # numbers below are read as a supply ordering, not as the pH of any modelled
+  # soil.
+
   # pH of a fresh, unleached soil on each rock category.
   #
   # DERIVED BRACKET on the silicate entries, from the carbonate system at this
@@ -820,18 +838,38 @@ ph:
   # Mafic above clastic above metamorphic above felsic is a contrast this file
   # asserts. Do not tune within the bracket.
   #
-  # The SPACING is now sized by a requirement the declared values do not meet,
-  # and the arithmetic is short enough to state here. Slessarev asks two things
-  # of the same figure at once: soils in the neutral range 6-7 are uncommon
+  # THE SPACING IS SIZED BY A REQUIREMENT THE DECLARED VALUES DO NOT MEET, and
+  # the arithmetic is short enough to state here. Slessarev asks two things of
+  # the same figure at once: soils in the neutral range 6-7 are uncommon
   # relative to the buffered ranges, and profiles in the wettest quartile are
-  # 2.6 times more likely to exceed pH 6.5 on carbonate bedrock. Under the
-  # relaxation form below, both are statements about the same retained offset
-  # fraction f = exp(-leaching_slope * L): the carbonate parent stays above 6.5
-  # while f >= (6.5 - G)/(carbonate - G), and the modal clastic parent reaches
-  # a gibbsite mode one pH unit wide while f <= 0.5/(clastic - G). Those close
-  # only if (carbonate - G)/(clastic - G) >= (6.5 - G)/0.5 = 2.80. The declared
-  # values give 1.80. f cancels, so NO slope and no leaching index satisfies
-  # both: the shortfall is in the spacing and not in `leaching_slope`.
+  # 2.6 times more likely to exceed pH 6.5 on carbonate bedrock. Both are
+  # statements about one cell's retained offset above the gibbsite buffer G, so
+  # both close on the parent's supply fraction u = (parent - G)/(C - G), with C
+  # the calcite buffer. Writing f = exp(-leaching_slope * L), a carbonate
+  # parent has u = 1 and stays above 6.5 while f >= (6.5 - G)/(C - G); the
+  # modal clastic parent reaches a gibbsite mode one pH unit wide while
+  # f^(1/u) <= 0.5/(C - G). Those close only if
+  #
+  #     u <= ln((6.5 - G)/(C - G)) / ln(0.5/(C - G))
+  #
+  # which at the declared buffers is 0.4319, so the modal clastic parent has to
+  # sit at or below 6.423. It is declared at 6.8, a supply fraction of 0.5550.
+  # In the ratio the row world-jixy states it in: (C - G)/(clastic - G) has to
+  # reach 2.32 and the declared values give 1.80. THE SLOPE AND THE LEACHING
+  # INDEX BOTH CANCEL, so no value of `leaching_slope` satisfies both and the
+  # shortfall is in the spacing.
+  #
+  # WHERE THE SHORTFALL SITS. Not in the carbonate end: that is pinned to the
+  # calcite equilibrium at this world's pCO2 and moves only when pCO2 moves.
+  # Only partly in the buffer: G at the top of its own bracket lifts the bound
+  # to 6.695 and G at the bottom drops it to 5.792, so no reading of the
+  # gibbsite bracket reaches 6.8. It sits in the silicate set, and the repair
+  # is not one number. Dropping the clastic entry to 6.423 puts it under the
+  # metamorphic and level with the felsic entry, which breaks the order this
+  # file asserts, so satisfying the requirement means re-deriving all four
+  # against a source that sizes their base-cation supply. No source here does.
+  # The values therefore stand as SOURCED AND CONTRADICTED, which is what
+  # world-jixy is open on; do not close the gap by moving one of them.
   parent_by_category:
     igneous_mafic: 7.6
     igneous_felsic: 6.4
@@ -864,6 +902,38 @@ ph:
   # is LAKE WATER in one depositional setting and not a soil, which is why it
   # bounds the entry and does not set it.
   parent_bracket_evaporite: [8.50, 11.00]
+  # The DRY end of the pH block: the parent-independent buffer every parent
+  # relaxes onto as drainage goes to zero. `build_soil.py:soil_ph` reads it.
+  #
+  # Slessarev et al. (2016), Methods, "Water-balance model evaluation" predicts
+  # a single alkaline value for EVERY profile with a negative water balance,
+  # with no lithology term in it, and their "Calcite buffer" paragraph derives
+  # it from eq. (6). The mechanism is that calcium released by weathering is
+  # not exported, so pedogenic calcite accumulates until the solution saturates
+  # and calcite takes the buffering over. That needs a calcium supply and zero
+  # export, and every rock class here supplies some calcium; the only argument
+  # for a rock contrast at zero export is that one parent saturates sooner than
+  # another, which is a statement about rates that a model with no time axis
+  # cannot make.
+  #
+  # DERIVED, and therefore stated as no number at all. This is the same calcite
+  # equilibrium as the carbonate parent above, at the same atmospheric pCO2,
+  # and `pedology/scripts/carbonate_ph.py` fills both and REFUSES a number
+  # here. It is a separate key because it is a separate role: the parent is the
+  # pH of a solution on carbonate rock, and this is where a soil that exports
+  # nothing ends up whatever its rock was. It is NOT implicit-Earth, which the
+  # gibbsite end below is: it travels to another planet because it is solved at
+  # this planet's declared atmosphere rather than measured on Earth's.
+  calcite_buffer_ph: derived
+  # DERIVED too, and the same numbers as `parent_bracket_carbonate`: the
+  # equilibrium at the top of the declared soil-air CO2 enrichment at one end
+  # and open to the atmosphere at the other. The declared value sits at the TOP
+  # of it, because open to the atmosphere is the condition a laboratory pH is
+  # measured under and the condition Slessarev's figure is stated at, and a
+  # field soil buffered by calcite reads below it because roots and decomposers
+  # run soil air above atmospheric. The bracket is that enrichment and nothing
+  # else.
+  calcite_buffer_ph_bracket: derived
   # The acid end of the pH block: the parent-independent buffer every parent
   # relaxes onto as drainage leaches it. `build_soil.py:soil_ph` reads it.
   #
@@ -891,9 +961,12 @@ ph:
   # 10 gives 5.28. The two decades are DECLARED, not measured -- the paper
   # publishes the fit, not the range of the ratio in the field.
   gibbsite_buffer_ph_bracket: [4.64, 5.28]
-  # The rate at which a parent relaxes onto that buffer, per unit of the
-  # leaching index L = ln(1 + runoff/reference_runoff). The offset from the
-  # buffer falls by 1/e per unit of L.
+  # How much drainage it takes to cross from the calcite buffer to the gibbsite
+  # one, per unit of the leaching index L = ln(1 + runoff/reference_runoff).
+  # The offset above the acid buffer falls by 1/e per unit of L on a parent
+  # whose base-cation supply matches a calcite-saturated soil, and faster in
+  # proportion as that supply falls: the exponent `soil_ph` uses is
+  # leaching_slope * L / supply.
   #
   # BRACKET, not a value, and all three ends are ONE requirement evaluated at
   # three points of this world's wettest quartile: that the lithology deviation
@@ -911,15 +984,22 @@ ph:
   # over at least half the quartile rather than only at its driest fringe.
   # WHICH point of the quartile is declared; the requirement is not.
   #
-  # THERE IS NO SOURCED LOWER BOUND, and the ends above are three readings of
-  # an upper one. The bound that would have supplied it is the paper's
-  # bimodality -- neutral-range soils are uncommon relative to the buffered
-  # ranges -- and on this world's land it is unreachable at any slope, for two
-  # reasons that both live elsewhere. A fifth of land area has zero runoff, so
-  # L = 0 and no slope moves it; those cells sit at their parent values, which
-  # are in the neutral range, and that is the alkaline end's defect. And the
-  # declared parent spacing is too narrow by the factor argued above. Report
-  # the spread; do not tune within it.
+  # A carbonate parent's supply fraction is 1 by construction, so the closed
+  # form above is the same expression it was under the single-buffer model and
+  # the three readings do not move when the dry buffer is added.
+  #
+  # THERE IS STILL NO SOURCED LOWER BOUND, and the ends above are three
+  # readings of an upper one. The bound that would have supplied it is the
+  # paper's bimodality, and with two buffers in the model that finding STOPS
+  # BEING A LOWER BOUND rather than failing. Stated as the buffered windows
+  # holding at least the land-area density of the neutral window 6-7, it is
+  # satisfied at every slope down to the smallest tried, because a shallow
+  # slope leaves the whole land on the calcite buffer, which is one of the two
+  # modes and passes a density test trivially. The pass set is not even
+  # contiguous: it fails only in a narrow window of slopes where the land is
+  # split between the two modes and enough of it is in transit. A quantity that
+  # is satisfied in the degenerate limit is not a bound, and is not recorded as
+  # one. Report the spread; do not tune within it.
   leaching_slope: 0.90
   leaching_slope_bracket: [0.35, 1.33]
   # Clips, and nothing here rests on either. The two buffered modes Slessarev

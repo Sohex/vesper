@@ -279,6 +279,17 @@ def derived_ph_block(p_co2_bar: float) -> dict:
             f"{int(high_enrichment)}x": soil_air_low,
         },
         "parent_carbonate": atmospheric,
+        # The DRY end of the pH block, the buffer every parent relaxes onto as
+        # drainage goes to zero. Numerically the carbonate parent, because both
+        # are calcite saturation at this world's atmospheric pCO2, and named
+        # separately because they are different roles: one is the pH of a
+        # solution on carbonate rock, the other is where a soil that exports
+        # nothing ends up whatever its rock was. The bracket is the same
+        # equilibrium at the declared soil-air enrichment, so a field pH reads
+        # below the open-atmosphere value and the declared value sits at the
+        # top of its own bracket.
+        "calcite_buffer_ph": atmospheric,
+        "calcite_buffer_ph_bracket": [soil_air_low, atmospheric],
         "parent_bracket_silicate": [co2_only_ph(p_atm), atmospheric],
         "parent_bracket_carbonate": [soil_air_low, atmospheric],
         "endorheic_alkalinity_bonus_bracket": [closed_low - atmospheric,
@@ -313,6 +324,8 @@ def resolve(ph_params: dict, p_co2_bar: float) -> tuple[dict, dict]:
     resolved = dict(ph_params)
     for key, value in (("parent_bracket_silicate", block["parent_bracket_silicate"]),
                        ("parent_bracket_carbonate", block["parent_bracket_carbonate"]),
+                       ("calcite_buffer_ph_bracket",
+                        block["calcite_buffer_ph_bracket"]),
                        ("endorheic_alkalinity_bonus_bracket",
                         block["endorheic_alkalinity_bonus_bracket"])):
         declared = ph_params.get(key)
@@ -324,6 +337,15 @@ def resolve(ph_params: dict, p_co2_bar: float) -> tuple[dict, dict]:
                 "number here is a restatement that cannot learn pCO2 moved. "
                 "See pedology/scripts/carbonate_ph.py")
         resolved[key] = list(value)
+
+    if ph_params.get("calcite_buffer_ph") != "derived":
+        raise SystemExit(
+            f"pedogenesis.yaml ph.calcite_buffer_ph is "
+            f"{ph_params.get('calcite_buffer_ph')!r}; it must be the string "
+            "`derived`. It is the dry end of the pH block, calcite saturation "
+            "at this world's pCO2, and a number here is a restatement that "
+            "cannot learn pCO2 moved. See pedology/scripts/carbonate_ph.py")
+    resolved["calcite_buffer_ph"] = block["calcite_buffer_ph"]
 
     parents = dict(ph_params["parent_by_category"])
     if parents.get("carbonate") != "derived":
