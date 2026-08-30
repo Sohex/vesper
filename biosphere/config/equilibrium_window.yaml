@@ -1,14 +1,52 @@
 # Shared acceptance rule for every downstream LPJ-GUESS output consumer.
-contract_version: vesper-lpj-equilibrium-window/1
+#
+# Every number below carries its disposition. The argument, the measurement it
+# rests on and what the earlier form of this rule could and could not detect are
+# in `biosphere/notes/equilibrium-trend-null.md`.
+contract_version: vesper-lpj-equilibrium-window/2
 complete_forcing_cycles: 10
 trend:
+  # DECISION. The residual drift the acceptance contract is willing to carry into
+  # a consumer: a simulated field whose window mean moves by less than this over
+  # the window is treated as settled. It is a declared tolerance and an input, not
+  # a measurement, and it is the quantity a consumer-sensitivity derivation would
+  # replace it with -- what an LAI drift of this size is worth once it has become
+  # a surface albedo and a top-of-atmosphere forcing. That derivation is owed.
   relative_end_to_end_limit: 0.05
+  # DECISION. The significance a drift must reach before it counts. Read honestly:
+  # the window carries `complete_forcing_cycles` points and the slope fit spends
+  # two, so the statistic has 8 degrees of freedom and 2.0 standard errors is a
+  # two-sided probability of 0.081 under independent samples, not 0.05. Cycle means
+  # driven by patch gap dynamics carry memory the ordinary least-squares standard
+  # error does not model, so the achieved rate is higher still; that is why the
+  # cell-fraction limit below is measured rather than assumed.
   slope_standard_errors: 2.0
-  maximum_trending_cell_fraction: 0.25
+  # IRREDUCIBLE, and provably without consequence. It exists so a field that is
+  # absent from a cell divides by a scale rather than by zero. The assessed tables
+  # are written quantized at 1e-4 or coarser, so the smallest window mean any of
+  # them can express over 10 cycles is 1e-5; every floor in (0, 1e-5) therefore
+  # gives identical results on every table this contract reads, and the floor binds
+  # only where the mean is exactly zero, where the drift is exactly zero too.
   absolute_scale_floor: 1.0e-12
+  cell_fraction:
+    # DERIVED, per field, from the run being judged -- there is no number here to
+    # declare. Measured at fixed forcing, the share of occupied cells a field's own
+    # test flags when nothing is drifting spans 0.001 for the slow soil pools to
+    # 0.40 for the patch-driven grass and vegetation fields, so no single declared
+    # fraction can be a limit for both. Each field's limit is instead the largest
+    # share it reaches over the detrended windows of this run's own record before
+    # the acceptance window.
+    null_statistic: maximum_over_detrended_windows_of_this_run
+    # DECISION, at the conventional level. A stationary field exceeds the largest
+    # of N such windows with probability 1/(N+1), so this rate sets how much record
+    # a run must retain beyond its acceptance window: at least 1/rate windows, which
+    # at rate 0.05 and a 10-cycle window is 200 retained cycles. This is a lower
+    # bound from the acceptance statistic alone; the ecological lower bound on
+    # retained length is a separate and still-owed derivation, and `lib/run_lengths.py`
+    # is where it belongs.
+    maximum_false_refusal_rate: 0.05
 uncertainty:
   temporal_statistic: sample_standard_deviation_over_annual_values
   seed_statistic: sample_standard_deviation_of_window_means_at_fixed_patch_count
   patch_statistic: range_of_seed_ensemble_means_across_patch_counts
   missing_ensemble_status: not_measured
-

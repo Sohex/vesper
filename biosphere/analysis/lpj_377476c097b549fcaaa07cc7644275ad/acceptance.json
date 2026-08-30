@@ -1,10 +1,10 @@
 {
   "contract_version": "vesper-lpj-acceptance/1",
-  "generated": "2026-08-30T17:37:54+00:00",
+  "generated": "2026-08-30T19:30:54+00:00",
   "run_id": "lpj_377476c097b549fcaaa07cc7644275ad",
   "source_build": "canonical-10m-carve2",
   "manifest_sha256": "dcbe5f4d023cfe76eeb3f6e4a9ee2ab4199a5325f5db5a35f92582005aef9696",
   "contract_sha256": "c1a86db8be4fc40ef74d93d5a0e16e4b0d1bc3c9e4b4f804b6ab8b6d5e587e62",
   "verdict": "FAIL",
-  "refusal": "lai.out equilibrium refusal: /home/cfutro/docs/world/biosphere/runs/lpj_377476c097b549fcaaa07cc7644275ad/lai.out's end window is still trending in TrIBE, C3G, Total"
+  "refusal": "lai.out equilibrium refusal: /home/cfutro/docs/world/biosphere/runs/lpj_377476c097b549fcaaa07cc7644275ad/lai.out's end window is still trending in TrIBE"
 }

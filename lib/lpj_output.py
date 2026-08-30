@@ -58,16 +58,25 @@ class ReducedTable:
 
 def read_policy(path: Path = POLICY_PATH) -> dict:
     policy = yaml.safe_load(path.read_text())
-    if policy.get("contract_version") != "vesper-lpj-equilibrium-window/1":
+    if policy.get("contract_version") != "vesper-lpj-equilibrium-window/2":
         raise EquilibriumWindowError("unsupported equilibrium-window contract")
     cycles = policy.get("complete_forcing_cycles")
     if not isinstance(cycles, int) or cycles < 3:
         raise EquilibriumWindowError("complete_forcing_cycles must be at least 3")
     trend = policy.get("trend", {})
     for key in ("relative_end_to_end_limit", "slope_standard_errors",
-                "maximum_trending_cell_fraction", "absolute_scale_floor"):
+                "absolute_scale_floor"):
         if not isinstance(trend.get(key), (int, float)) or trend[key] <= 0:
             raise EquilibriumWindowError(f"trend.{key} must be positive")
+    cell = trend.get("cell_fraction", {})
+    if cell.get("null_statistic") != "maximum_over_detrended_windows_of_this_run":
+        raise EquilibriumWindowError(
+            "trend.cell_fraction.null_statistic names the only null this "
+            "contract knows how to build")
+    rate = cell.get("maximum_false_refusal_rate")
+    if not isinstance(rate, (int, float)) or not 0 < rate < 1:
+        raise EquilibriumWindowError(
+            "trend.cell_fraction.maximum_false_refusal_rate must lie in (0, 1)")
     return policy
 
 
@@ -193,9 +202,16 @@ def _read_rows(path: Path) -> tuple[list[str], list[tuple[float, float]],
     return names, cells, years, cube
 
 
-def _trend(cycle_means: np.ndarray, policy: dict) -> tuple[list[dict], bool]:
-    # cycle_means: cycle, cell, field
-    ncycle, ncell, nfield = cycle_means.shape
+def _cell_fraction(cycle_means: np.ndarray, policy: dict) -> np.ndarray:
+    """Per field, the share of the cells it OCCUPIES whose own series is trending.
+
+    The denominator is the occupied cells and not every cell, so the statistic
+    separates how widely a field drifts from how widely it is present. Over the
+    whole grid a plant functional type on a sixth of the cells could not reach a
+    quarter-of-all-cells limit however hard it drifted, which made the test inert
+    for nine of this world's thirteen types.
+    """
+    ncycle = cycle_means.shape[0]
     x = np.arange(ncycle, dtype=float)
     x -= x.mean()
     denominator = float(np.sum(x * x))
@@ -207,16 +223,28 @@ def _trend(cycle_means: np.ndarray, policy: dict) -> tuple[list[dict], bool]:
                            / (ncycle - 2) / denominator)
     else:  # read_policy requires at least three, retained as a hard backstop.
         slope_se = np.full_like(slope, np.inf)
-    drift = slope * (ncycle - 1)
     floor = float(policy["trend"]["absolute_scale_floor"])
-    scale = np.maximum(np.abs(intercept), floor)
-    relative = np.abs(drift) / scale
-    sigma = float(policy["trend"]["slope_standard_errors"])
+    relative = np.abs(slope * (ncycle - 1)) / np.maximum(np.abs(intercept), floor)
     with np.errstate(divide="ignore", invalid="ignore"):
         significance = np.where(slope_se > 0, np.abs(slope) / slope_se,
                                 np.where(np.abs(slope) > 0, np.inf, 0.0))
-    cell_trending = ((relative > policy["trend"]["relative_end_to_end_limit"])
-                     & (significance > sigma))
+    trending = ((relative > policy["trend"]["relative_end_to_end_limit"])
+                & (significance > float(policy["trend"]["slope_standard_errors"])))
+    occupied = np.abs(intercept) > floor
+    counts = occupied.sum(axis=0)
+    return np.where(counts > 0, (trending & occupied).sum(axis=0)
+                    / np.maximum(counts, 1), 0.0)
+
+
+def _trend(cycle_means: np.ndarray, policy: dict,
+           limits: np.ndarray) -> tuple[list[dict], bool]:
+    # cycle_means: cycle, cell, field
+    ncycle, ncell, nfield = cycle_means.shape
+    x = np.arange(ncycle, dtype=float)
+    x -= x.mean()
+    denominator = float(np.sum(x * x))
+    floor = float(policy["trend"]["absolute_scale_floor"])
+    sigma = float(policy["trend"]["slope_standard_errors"])
 
     spatial = cycle_means.mean(axis=1)
     spatial_slope = np.einsum("t,tf->f", x, spatial) / denominator
@@ -234,19 +262,83 @@ def _trend(cycle_means: np.ndarray, policy: dict) -> tuple[list[dict], bool]:
     global_trending = (
         (spatial_relative > policy["trend"]["relative_end_to_end_limit"])
         & (spatial_significance > sigma))
-    fractions = cell_trending.sum(axis=0) / max(ncell, 1)
-    fraction_trending = (
-        fractions > policy["trend"]["maximum_trending_cell_fraction"])
+    fractions = _cell_fraction(cycle_means, policy)
+    fraction_trending = fractions > limits
     rejected = global_trending | fraction_trending
     diagnostics = [{
         "spatial_mean_relative_end_to_end_change": float(spatial_relative[i]),
         "spatial_mean_slope_standard_errors": float(spatial_significance[i]),
         "trending_cell_fraction": float(fractions[i]),
+        "trending_cell_fraction_limit": float(limits[i]),
         "global_trending": bool(global_trending[i]),
         "cell_fraction_trending": bool(fraction_trending[i]),
         "rejected": bool(rejected[i]),
     } for i in range(nfield)]
     return diagnostics, bool(rejected.any())
+
+
+def _cell_fraction_null(cube: np.ndarray, years: list[int], window_years: int,
+                        cycle_years: int, policy: dict) -> tuple[np.ndarray, dict]:
+    """Per field, the trending-cell fraction this run reaches with no trend left.
+
+    The limit on the trending-cell fraction cannot be one declared number. Measured
+    on a run at fixed forcing, the fraction a field reaches when nothing is drifting
+    spans three orders of magnitude across the assessed fields, because it is set by
+    that field's own internal variability and not by anything about equilibrium: the
+    slow soil pools sit near a thousandth while the patch-driven grass and vegetation
+    fields sit near four tenths. A single limit is therefore either unreachable for
+    one group or permanently exceeded by the other.
+
+    So the limit is measured rather than declared, and from the run being judged. The
+    record before the acceptance window is detrended cell by cell, which removes any
+    approach to equilibrium the run does carry, and is cut into windows of the
+    contract's own length. A field's limit is the largest trending-cell fraction it
+    reaches over those windows. The acceptance window itself is judged undetrended, so
+    a drift that is present throughout the record is removed from the reference and
+    left in the quantity being judged, and is refused.
+
+    A stationary field exceeds the largest of N such windows with probability
+    1/(N+1), which is what makes the retained record length, not a chosen number, set
+    the rate at which the contract wrongly refuses.
+
+    `biosphere/notes/equilibrium-trend-null.md` carries the measurement.
+    """
+    ncycle = policy["complete_forcing_cycles"]
+    rate = float(policy["trend"]["cell_fraction"]["maximum_false_refusal_rate"])
+    available = len(years) - window_years
+    nwindow = available // window_years
+    if nwindow < 1 or 1.0 / (nwindow + 1) > rate:
+        needed = int(np.ceil(1.0 / rate) * window_years)
+        raise EquilibriumWindowError(
+            f"a retained record of {len(years)} years leaves {max(nwindow, 0)} "
+            f"windows to measure the trending-cell null on, so a stationary field "
+            f"would be refused at {1.0 / (max(nwindow, 0) + 1):.3f} against a "
+            f"declared {rate:g}; retain at least {needed} years")
+    start = available - nwindow * window_years
+    block_years = years[start:available]
+    if block_years != list(range(block_years[0], block_years[-1] + 1)):
+        raise EquilibriumWindowError(
+            "the record before the acceptance window has year gaps, so its "
+            "windows cannot measure a null")
+    block = cube[start:available]
+    if not np.isfinite(block).all():
+        raise EquilibriumWindowError(
+            "the record before the acceptance window has missing cell-year rows")
+    x = np.arange(block.shape[0], dtype=float)
+    x -= x.mean()
+    slope = np.einsum("t,tcf->cf", x, block) / float(np.sum(x * x))
+    flat = block - x[:, None, None] * slope[None]
+    windows = flat.reshape(nwindow, ncycle, cycle_years,
+                           block.shape[1], block.shape[2]).mean(axis=2)
+    fractions = np.stack([_cell_fraction(window, policy) for window in windows])
+    limits = fractions.max(axis=0)
+    return limits, {
+        "statistic": policy["trend"]["cell_fraction"]["null_statistic"],
+        "windows": int(nwindow),
+        "first_year": int(block_years[0]), "last_year": int(block_years[-1]),
+        "false_refusal_rate": 1.0 / (nwindow + 1),
+        "maximum_false_refusal_rate": rate,
+    }
 
 
 def _summary(values: np.ndarray, names: list[str]) -> dict:
@@ -298,7 +390,8 @@ def reduce_table(path: Path, peers: Iterable[Path] = (), *,
     cycle_means = window.reshape(
         policy["complete_forcing_cycles"], cycle_years, len(cells), len(names)
     ).mean(axis=1)
-    trends, rejected = _trend(cycle_means, policy)
+    limits, null = _cell_fraction_null(cube, years, window_years, cycle_years, policy)
+    trends, rejected = _trend(cycle_means, policy, limits)
     for name, diagnostic in zip(names, trends):
         diagnostic["field"] = name
     if rejected:
@@ -384,7 +477,8 @@ def reduce_table(path: Path, peers: Iterable[Path] = (), *,
                    "annual_values": window_years,
                    "complete_forcing_cycles": policy["complete_forcing_cycles"],
                    "forcing_cycle_years": cycle_years},
-        "trend": {"rule": policy["trend"], "fields": trends, "verdict": "PASS"},
+        "trend": {"rule": policy["trend"], "cell_fraction_null": null,
+                  "fields": trends, "verdict": "PASS"},
         "uncertainty": uncertainty,
         "peers": peer_records,
     }
