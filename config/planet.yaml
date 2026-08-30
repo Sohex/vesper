@@ -166,8 +166,15 @@ star:
 # candidate reaches is 0.117 against a cap of 0.05, and at f0 = 0.945 it is
 # 0.247 -- f0 being where the projection IS the measured baseline field, so
 # that is a measurement. A quarter of this world's land has a coldest bin below
-# -40 C. Whether the cap or the terrain is the thing that should move is
-# WORLD-DNRR, and until it is settled the number here stays chosen.
+# -40 C.
+#
+# SETTLED 2026-08-30, WORLD-DNRR: the cap stands as a recorded, unmet
+# preference and the flux stays chosen at 0.945, the value the comfort score
+# favours. The refusal is a choosable ground -- its minimum is over the whole
+# scored range, so no run at any flux lifts it -- and the reopen condition
+# lives beside it in CHOOSABLE_REFUSALS: a future carve that removes
+# cold-extreme land, or a re-declared cap. The decision and its measurement
+# are in notes/audits/design-flux-two-point-response.md.
 #
 # The record is `exoplasim/analysis/design_flux.json` with `basis: chosen`,
 # written by the same script and only after it caught its own refusal. It

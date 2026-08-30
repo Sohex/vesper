@@ -164,3 +164,23 @@ The reason this reads as an oversight rather than a separation is inside the
 graph: `soil` needs `lpj_run`, which needs `lpj_driver`, which needs
 `baseline_climatology`. So one step already takes its VEGETATION from a
 lake-bearing climate while taking its RUNOFF from a lake-free one.
+
+## The cap stands, the flux stays chosen (decided 2026-08-30)
+
+The corrected instrument (WORLD-M61P) re-measured the conflict on
+`canonical-10m-carve2`'s accepted baseline: the smallest cold-extreme land
+fraction any scored candidate reaches is 0.117 against the declared cap of
+0.05, and at the standing flux 0.945 it is 0.247. The sweep's loose end (0.10)
+admits nothing either. No flux in the scored range satisfies the declared
+preference, and the minimum is taken over the whole range, so no run at any
+flux lifts it: the conflict is a property of the terrain under this star at
+this obliquity, where winter amplification runs several times the summer's.
+
+The author's decision: the flux stays 0.945, the value the comfort score
+favours -- the table above shows comfort falling monotonically toward the
+warm end while the cap and comfort pull in opposite directions -- and the
+cap stands as a recorded, unmet preference rather than being re-declared to
+fit the world it failed to constrain. `cold_extreme_cap_admits_no_candidate`
+therefore joins `CHOOSABLE_REFUSALS` by the membership test stated there:
+more input cannot answer it, and a design decision is the only thing left
+that can settle the number. The commissioning on 0.945 is retained.

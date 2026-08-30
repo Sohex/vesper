@@ -218,16 +218,16 @@ missing. A refusal that no run at any flux would lift is a different thing: the
 instrument has looked at the evidence and cannot answer, and on that ground
 alone the flux may be CHOSEN. `--chosen` records the choice.
 
-`CHOOSABLE_REFUSALS` IS EMPTY, and that is a statement rather than a gap. The
-one ground it carried was `band_amplification_sign`, and that guard is gone: a
-negative warm-season response is a measurement the linear form represents
-exactly, the sign test was neither necessary nor sufficient for the property it
-claimed to protect, and the refusal that replaces it -- the projection
-inverting a cell's seasons at a measured flux -- is answered by a better
-projection or by points that bracket rather than by a design decision. Nothing
-here currently refuses on a ground a choice may stand on, so `--chosen` writes
-nothing until a future guard earns membership by the test above and the
-argument beside it.
+`CHOOSABLE_REFUSALS` CARRIES ONE GROUND: `cold_extreme_cap_admits_no_candidate`.
+Its predecessor `band_amplification_sign` is gone -- a negative warm-season
+response is a measurement the linear form represents exactly, and the refusal
+that replaced it, the projection inverting a cell's seasons at a measured flux,
+is answered by a better projection or by bracketing points rather than by a
+design decision. The cap ground passes the membership test because its minimum
+is taken over the whole scored range: no run at any flux moves it, so only a
+different terrain or a re-declared preference can, and both are design
+decisions. Decided 2026-08-30 under world-dnrr, on
+`notes/audits/design-flux-two-point-response.md`.
 
     --chosen FLUX --evidence notes/audits/<the finding>.md
 
@@ -387,16 +387,34 @@ class Refusal(SystemExit):
 # the caller supplies the evidence for the number, never the terms on which the
 # derivation could resume.
 #
-# IT IS EMPTY, and the emptiness is load-bearing. `band_amplification_sign` was
-# the one entry, and it was wrong on its own terms: the projection is a straight
-# line through two measured points and is defined for either sign of its slope,
-# so a negative warm-season response was never a refusal the derivation had to
-# take. What replaced it, `projection_inverts_at_a_measured_point`, fails the
-# membership test above -- a per-cell response, or two points that bracket the
-# candidate instead of sitting inside it, would answer it -- so it is a plain
-# input refusal and not a ground for a choice. A guard joins this dict by
-# argument, never by a record needing one.
-CHOOSABLE_REFUSALS: dict[str, str] = {}
+# ONE MEMBER. `band_amplification_sign` was the previous entry, and it was
+# wrong on its own terms: the projection is a straight line through two
+# measured points and is defined for either sign of its slope, so a negative
+# warm-season response was never a refusal the derivation had to take. What
+# replaced it, `projection_inverts_at_a_measured_point`, fails the membership
+# test above -- a per-cell response, or two points that bracket the candidate
+# instead of sitting inside it, would answer it -- so it is a plain input
+# refusal and not a ground for a choice.
+#
+# `cold_extreme_cap_admits_no_candidate` passes the test, and the argument is
+# a measurement rather than a preference: the guard compares the declared cap
+# against the MINIMUM cold-extreme land fraction over the whole scored range,
+# so the refusal is a property of the terrain under this star at this
+# obliquity, and no run at any flux moves the minimum. More input cannot
+# answer it; only a different world or a different preference can, and both
+# of those are design decisions. Decided 2026-08-30, world-dnrr;
+# notes/audits/design-flux-two-point-response.md carries the decision and the
+# measurement it rests on.
+CHOOSABLE_REFUSALS: dict[str, str] = {
+    "cold_extreme_cap_admits_no_candidate": (
+        "reopen when the smallest cold-extreme land fraction any scored "
+        "candidate reaches falls to the declared cap or below -- which is a "
+        "property of the terrain under this star, so in practice a future "
+        "carve that removes cold-extreme land, or a re-declaration of the "
+        "cap with a new argument. Until one of those happens, re-running the "
+        "derivation at any flux returns this same refusal."
+    ),
+}
 
 
 def manifest_branch(manifest: dict) -> str | None:
@@ -775,7 +793,12 @@ def derive(bracket_run: str, tail_orbits: int = 10) -> dict:
     win_dry, win_te = winner("dry"), winner("equivalent")
     win_dry_capped, win_te_capped = winner("dry", cap=cap), winner("equivalent", cap=cap)
     if win_dry_capped is None or win_te_capped is None:
-        raise SystemExit(
+        # A TYPED refusal, because it is a ground a choice may stand on: the
+        # minimum below is over the whole scored range, so no run at any flux
+        # lifts it. CHOOSABLE_REFUSALS carries the membership argument and the
+        # reopen condition.
+        raise Refusal(
+            "cold_extreme_cap_admits_no_candidate",
             f"the declared cold-extreme cap {cap} admits no candidate in "
             f"{scored_edges[0]} to {scored_edges[1]}, the range the projection "
             f"is a field on inside the declared {edges[0]} to {edges[1]}. The "
@@ -783,7 +806,13 @@ def derive(bracket_run: str, tail_orbits: int = 10) -> dict:
             f"is {min(r['dry']['extreme_cold'] for r in table)}. This world "
             "cannot be placed at any flux the search carries without exceeding "
             "the cap; that is a result about the cap and the terrain together, "
-            "and it is not resolved by moving either one after the fact")
+            "and it is not resolved by moving either one after the fact",
+            {"cap": cap,
+             "scored_range": list(scored_edges),
+             "minimum_cold_extreme_land_fraction": float(
+                 min(r["dry"]["extreme_cold"] for r in table)),
+             "cold_extreme_land_fraction_by_flux": {
+                 str(r["flux"]): r["dry"]["extreme_cold"] for r in table}})
 
     # An edge winner is a refusal, not a flag. The candidate range is derived in
     # this file's docstring from where the corrected cloud optics can put the
