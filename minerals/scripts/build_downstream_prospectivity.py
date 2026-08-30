@@ -107,6 +107,7 @@ import yaml
 from _paths import CONFIG, DATA, DOWNSTREAM, PROJECT_ROOT
 
 import builds
+from climatology import annual_mean, bin_weights
 from gridding import climatology_cells
 from orogen import LAND, Export
 from orbit import orbital_year_days
@@ -232,14 +233,23 @@ def main() -> None:
              for c in mesh.manifest["lithology"]["rockClasses"]}
 
     # --- climate on the mesh ---------------------------------------------
+    # The annual mean is weighted by the raw records each bin holds, which is
+    # NOT one over the bin count: pyburn splits the stream with
+    # `np.linspace(0, ntimes, nbin+1).astype(int)`, so at the 182 records per
+    # orbit of a clean-I/O run two bins in twelve hold sixteen and the rest
+    # fifteen. A plain `.mean(axis=0)` asserts even bins instead of measuring
+    # them. Worth 0.4% on the land-mean weathering intensity and up to 1.65x on
+    # a single cell, because the intensity floor rectifies the difference.
     with nc.Dataset(climatology) as ds:
         clim_lat = np.asarray(ds["lat"][:], dtype=float)
+        bin_centres = np.asarray(ds["time"][:], dtype=float)
         scale = 1000.0 * 86400.0 * EARTH_YEAR_DAYS
         pr_bins = np.asarray(ds["pr"][:], dtype=float) * scale
         tas_bins = np.asarray(ds["tas"][:], dtype=float) - 273.15
-        pr = pr_bins.mean(axis=0)
-        evap = -np.asarray(ds["evap"][:], dtype=float).mean(axis=0) * scale
-        tas = tas_bins.mean(axis=0)
+        evap_bins = -np.asarray(ds["evap"][:], dtype=float) * scale
+        pr = annual_mean(pr_bins, bin_centres)
+        evap = annual_mean(evap_bins, bin_centres)
+        tas = annual_mean(tas_bins, bin_centres)
     # Runoff is P - E and NOT `mrro`, which is river-routed net divergence.
     # Clamped at zero: a catchment delivers zero or more, never less.
     runoff = np.maximum(pr - evap, 0.0)
@@ -273,6 +283,46 @@ def main() -> None:
         .read_text(encoding="utf-8"))
     intensity = soil.weathering_intensity(runoff_region, temperature,
                                           pedo["weathering"])
+    # THE INTERVAL THE WEATHERING INTENSITY IS EVALUATED OVER, bracketed rather
+    # than chosen. `weathering_intensity` is `exp(T) * Q**0.65` under a two-sided
+    # clip, so it is nonlinear in both arguments and the annual evaluation is not
+    # the bin mean of the per-bin one. Which end is right is a question about the
+    # law, not about arithmetic:
+    #
+    #   the ANNUAL evaluation is what the law was fitted on. Berner's f_B(T) and
+    #   the 0.65 runoff exponent come from catchment-year regressions, and
+    #   `pedogenesis.yaml` records the applicability as MEAN ANNUAL air
+    #   temperature 10-30 C. Evaluating per bin extrapolates outside that.
+    #
+    #   the BIN mean is what the kinetics say. Dissolution is Arrhenius and
+    #   instantaneous: a warm bin weathers faster while it is warm, and exp() is
+    #   convex, so the bin mean is never below the annual evaluation.
+    #
+    # What the spread measures is the SEASONALITY the fitted law already carries
+    # against this world's. Dunne's thirty catchments are equatorial Kenyan and
+    # swing a few K, so the annual form absorbs almost no Jensen term; a cell
+    # here can swing over a hundred. That difference is not measurable from
+    # anything in this tree, so it is declared.
+    #
+    # The RUNOFF stays annual in both arms and that is argued, not assumed.
+    # `hydrography/scripts/surface_water.py` and `config/land_water_ledger.yaml`
+    # set out why annual `P - E` is exactly the water a cell drained over a
+    # closed cycle and why clamping it per bin counts the wet season's supply
+    # twice. The third combination is measured below and reported, not shipped.
+    #
+    # The shipped field is the annual arm: it is the low end, a prospectivity
+    # claimed and absent costs more than one missed, and it is the arm inside
+    # the law's own calibration.
+    intensity_bin = np.einsum(
+        "b,b...->...", bin_weights(bin_centres),
+        soil.weathering_intensity(
+            np.broadcast_to(runoff_region, tas_bins[:, row, col].shape),
+            tas_bins[:, row, col], pedo["weathering"]))
+    runoff_bins = np.maximum(pr_bins - evap_bins, 0.0)[:, row, col]
+    intensity_bin_runoff = np.einsum(
+        "b,b...->...", bin_weights(bin_centres),
+        soil.weathering_intensity(runoff_bins, tas_bins[:, row, col],
+                                  pedo["weathering"]))
     # The top of the intensity range, read from the pedology config that applies
     # the clip rather than copied here. `weathering_intensity` returns
     # `np.clip(..., minimum, maximum)`, so this bounds every rule that scales by
@@ -304,6 +354,42 @@ def main() -> None:
 
     fields: dict[str, np.ndarray] = {}
     summary: dict[str, dict] = {}
+    intensity_interval: dict[str, dict] = {}
+
+    def interval_over(mask: np.ndarray) -> dict:
+        """The two ends of the evaluation interval over the cells a rule reaches.
+
+        Reported on the GATED cells and not over all land, because that is where
+        the number enters the emitted field and the two populations are not
+        alike: the gates select wet and warm, which on this world is also where
+        the seasonal temperature swing is smallest, so a land-wide ratio
+        overstates what any deposit type actually carries.
+        """
+        n = int(mask.sum())
+        if n == 0:
+            return {"gated_cells": 0}
+        lo, hi = intensity[mask], intensity_bin[mask]
+        both = intensity_bin_runoff[mask]
+        return {
+            "gated_cells": n,
+            "annual_arm_mean": float(lo.mean()),
+            "bin_arm_mean": float(hi.mean()),
+            # The emitted field is `score / attainable_maximum` and the divisor
+            # is a closed form over the config, so it does not move with the
+            # intensity. The ratio below is therefore the factor the emitted 0-1
+            # value would move by, cell for cell, on the other arm.
+            "bin_over_annual_mean": float(hi.mean() / lo.mean()),
+            "bin_over_annual_cell_median": float(np.median(hi / lo)),
+            "bin_over_annual_cell_max": float((hi / lo).max()),
+            "cells_below_one": int((hi < lo - 1e-12).sum()),
+            "seasonal_range_k_median": float(np.median((warmest - coldest)[mask])),
+            # Not an arm. The third combination, with runoff taken per bin too,
+            # measured so a reader does not have to re-derive that it was
+            # considered. The land water ledger's argument is why it is not
+            # shipped: clamping P - E per bin invents water the model drew from
+            # storage.
+            "runoff_per_bin_over_annual_mean": float(both.mean() / lo.mean()),
+        }
 
     # --- weathering and drainage types ------------------------------------
     for key, spec in rules["deposits"].items():
@@ -361,7 +447,9 @@ def main() -> None:
             # decide WHETHER, and this decides how far past the threshold a cell
             # sits: the difference between three times Earth's mean and ten is
             # the difference between a lateritic soil and an ore body.
+            gated = land & (score > 0)
             score = score * intensity
+            intensity_interval[key] = interval_over(gated)
 
         score = np.where(land, score, 0.0)
         top = deposit_ceiling(key, spec, ranges, intensity_max)
@@ -535,6 +623,42 @@ def main() -> None:
                  "are declared judgment."),
         "input_ranges": ranges,
         "weathering_intensity_maximum": intensity_max,
+        "weathering_intensity_interval": {
+            "what_is_bracketed": (
+                "the interval the Walker-Hays-Kasting weathering intensity is "
+                "evaluated over. It is exp(T) * Q**0.65 under a two-sided clip, "
+                "so the annual evaluation and the mean of the per-bin one are "
+                "different numbers and the difference is one-signed in the "
+                "temperature term"),
+            "lower_end": (
+                "one evaluation on the annual-mean climate. The arm the law was "
+                "FITTED on: pedogenesis.yaml records the applicability as mean "
+                "annual air temperature 10-30 C, and the 0.65 exponent comes "
+                "from catchment-year regressions. This is what is emitted"),
+            "upper_end": (
+                "the record-weighted mean of the per-bin evaluation, holding "
+                "runoff annual. The arm the kinetics say: dissolution is "
+                "Arrhenius and instantaneous, and exp() is convex, so this end "
+                "is never below the other"),
+            "what_the_spread_measures": (
+                "the seasonality the fitted law already carries against this "
+                "world's. Dunne's thirty catchments are equatorial Kenyan and "
+                "swing a few K; a cell here can swing over a hundred. Not "
+                "measurable from anything in this tree, so it is declared"),
+            "runoff_is_annual_in_both_arms": (
+                "argued, not assumed. config/land_water_ledger.yaml and "
+                "hydrography/scripts/surface_water.py: annual P - E is exactly "
+                "the water a cell drained over a closed cycle, and clamping it "
+                "per bin counts the wet season's supply twice. The third "
+                "combination is measured per deposit as "
+                "`runoff_per_bin_over_annual_mean` and is not an arm"),
+            "against_the_law_s_own_scatter": (
+                "Dunne's S_y.x is 0.13 log units, a factor of 1.35, and the "
+                "choice of temperature e-folding between 13.7 and 8.91 K is a "
+                "further 1.4 to 1.5x on the thermostat. A spread below those is "
+                "inside the law's own uncertainty and should be read as such"),
+            "per_deposit": intensity_interval,
+        },
         "disposable": ("Driven by a pre-carve climatology, lake solution and "
                        "brine solve. The carve replaces all three. The tectonic "
                        "half in prospectivity.nc does not move with a climate "

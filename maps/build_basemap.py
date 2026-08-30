@@ -33,6 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 # top-level module, the way every other component's `_paths.py` sets it up.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 from lib import builds  # noqa: E402
+import climatology  # noqa: E402
 import gridding  # noqa: E402
 import lapse  # noqa: E402
 
@@ -432,8 +433,13 @@ def main():
 
     clm = nc.Dataset(_climatology())
     tas = np.asarray(clm["tas"][:])  # (12, 64, 128)
-    sic = np.asarray(clm["sic"][:]).mean(axis=0)
-    lsm = np.asarray(clm["lsm"][:]).mean(axis=0)
+    # Weighted by the raw records each bin holds. pyburn's bins are not equal
+    # length -- at 182 records in twelve bins two hold sixteen and the rest
+    # fifteen -- and both fields below are thresholded, so a mis-weighted mean
+    # moves the coastline and the ice edge rather than shading them.
+    _centres = np.asarray(clm["time"][:], dtype=float)
+    sic = climatology.annual_mean(np.asarray(clm["sic"][:]), _centres)
+    lsm = climatology.annual_mean(np.asarray(clm["lsm"][:]), _centres)
     clm.close()
     warmest = tas.max(axis=0)
 

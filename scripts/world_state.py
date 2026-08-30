@@ -288,8 +288,15 @@ def _mean_ts(run: Path, last: int = 5) -> float | None:
                 a = np.asarray(ds["ts"][:])
                 if a.ndim > 2:      # leading axis is time, and its bins differ
                     a = clim.annual_mean(a, np.asarray(ds["time"][:]))
-                while a.ndim > 2:
-                    a = a.mean(axis=0)
+                if a.ndim != 2:
+                    # `ts` is a surface field, so the time mean leaves (lat, lon)
+                    # and there is nothing further to reduce. An extra axis here
+                    # is a level axis, and collapsing one with an unweighted mean
+                    # is a mass weighting nobody chose; refuse instead.
+                    raise ValueError(
+                        f"{f.name}: ts is {a.ndim}-dimensional after the annual "
+                        "mean. The remaining axis is not time and this has no "
+                        "weighting for it")
                 vals.append(float((a.mean(axis=1) * w).sum() / w.sum()))
         return round(float(np.mean(vals)), 3)
     except Exception:

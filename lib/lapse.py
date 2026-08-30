@@ -394,6 +394,31 @@ def environmental_lapse_k_per_km(cfg: dict | None = None,
     weights = weights / weights.sum()
 
     if season == "annual":
+        # THE PROFILE IS AVERAGED AND THEN FITTED, not fitted per bin and
+        # averaged, and the two are different numbers. `_column_rates` is a
+        # least-squares slope -- a ratio of sums of products, with the heights it
+        # regresses against built from the temperature it regresses -- so it is
+        # nonlinear in `ta` and Jensen applies.
+        #
+        # MEASURED, on `baseline_regular_climatology.nc` over its 1,019 land
+        # cells: fitting the annual-mean profile gives 6.799 K/km and the
+        # record-weighted mean of the twelve per-bin fits gives 6.763, a
+        # difference of -0.036 K/km or 0.53%. It is one-signed in practice --
+        # the annual-mean profile fits steeper in 937 of 1,019 cells -- but the
+        # sign is not predictable in advance the way a convex function's is,
+        # because a slope is not a convex functional of the profile.
+        #
+        # IT IS DECLARED RATHER THAN CHANGED, because it is far below this
+        # instrument's own scatter. The per-bin rate varies by 1.21 K/km within
+        # a cell across the twelve bins -- 34 times the correction and 18% of
+        # the rate itself -- and the linear fit's own residual over the sigma
+        # window is 0.24 K. A 0.5% shift in a quantity whose seasonal spread is
+        # 18% is not a resolved effect, and moving a number every consumer of
+        # this module reads to chase it would buy nothing.
+        #
+        # `season="warmest"` already fits per bin, because a freezing height
+        # wants the profile of the bin that is warm and not of the average year.
+        # That is the branch to copy if a consumer ever needs the interval.
         rate, rms = _column_rates(climatology.annual_mean(ta_bins, centres),
                                   sigma, r_specific, gravity)
     elif season == "warmest":

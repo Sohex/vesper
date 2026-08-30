@@ -163,11 +163,10 @@ def recharge_field(export: Export, config: dict, clim_path: Path):
     copy of it in `lib/gridding.py` and this is not a fourth.
     """
     sw._CLIM_FILE = clim_path
-    # Eight values, and the staged albedo is the one this path discards: world-z7bu
-    # added it as an eighth return from climate_fields and updated only some of
-    # the callers. The groundwater balance reads no albedo. The same miss was
-    # fixed in surface_water.py's per-bin caller; this was the other one, and it
-    # had not raised only because the step has not run.
+    # Eight values, and the staged albedo is the one this path discards: the
+    # groundwater balance reads no albedo. Unpack the whole tuple rather than a
+    # prefix of it, so a ninth return raises here instead of silently shifting
+    # every name one place along.
     (lat, lon, runoff, precip, evaporation, model_runoff, lsm,
      _) = sw.climate_fields(config)
     row, col = sw.region_grid_cells(export, lat)
@@ -926,7 +925,7 @@ def measure_carve_effect(export, data, basins, terminal, qg, give, gain,
     # that is supposed to measure groundwater and nothing else.
     _, lake_precip, lake_evap = sw.per_basin_forcing(
         basins.n, lat, lon, runoff_grid, precip_grid, evap_grid, sinks,
-        export, lsm)
+        export, lsm, config)
 
     year_s = orbit.orbital_year_days(config) * sw.SECONDS_PER_DAY
     to_km_yr = year_s / 1000.0

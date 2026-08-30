@@ -83,6 +83,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "lib"))
 
 from builds import grid_export, mesh_export  # noqa: E402
+from climatology import annual_mean  # noqa: E402
 from gridding import cell_fraction, cell_mean, region_cells  # noqa: E402
 from orogen import Export, LAND  # noqa: E402
 from paths import best_available_climatology, rel  # noqa: E402
@@ -250,11 +251,23 @@ def main() -> None:
         rls = np.asarray(ds["rls"][:])
         lsm = np.asarray(ds["lsm"][:])
         lat = np.asarray(ds["lat"][:])
+        centres = (np.asarray(ds["time"][:], dtype=float)
+                   if "time" in ds.variables else None)
         clim_label = args.climatology.name
+    if rls.ndim == 3 and centres is None:
+        raise SystemExit(
+            f"{args.climatology} carries a time axis on `rls` and no `time` "
+            "variable to weight it by. The bins are not equal length, so there "
+            "is no annual mean to take here; nothing reconstructs one.")
+    # The time axis is reduced by the raw records each bin holds, not by one
+    # over the bin count: pyburn's bins are not equal length. `rls` enters
+    # linearly here, so this is a weighting correction and not a Jensen one --
+    # but `lsm > 0.5` below is a threshold, and a threshold on a mis-weighted
+    # mean is not a threshold on the mean.
     if rls.ndim == 3:
-        rls = rls.mean(axis=0)
+        rls = annual_mean(rls, centres)
     if lsm.ndim == 3:
-        lsm = lsm.mean(axis=0)
+        lsm = annual_mean(lsm, centres)
     if rls.shape != (nlat, nlon):
         raise SystemExit(
             f"{args.climatology} is {rls.shape}, the export grid is "

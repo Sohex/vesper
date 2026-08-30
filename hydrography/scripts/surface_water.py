@@ -590,9 +590,9 @@ def main():
     season_precip = np.zeros((nbin, basins.n))
     for k in range(nbin):
         # Eight values, and the staged albedo is the one this path discards:
-        # world-z7bu added it as an eighth return and updated the annual caller
-        # above without this one, so the per-bin path has raised since. The lake
-        # balance reads no albedo.
+        # the lake balance reads no albedo. Unpack the whole tuple rather than a
+        # prefix of it, so a ninth return raises here instead of silently
+        # shifting every name one place along.
         (f_lat, f_lon, f_run, f_pr, f_ev, _, f_lsm,
          _) = climate_fields(config, bin_index=k)
         _, p_k, e_k = per_basin_forcing(basins.n, f_lat, f_lon, f_run, f_pr, f_ev,
