@@ -75,6 +75,7 @@ Nothing is cleaned up until the last chunk lands.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -90,11 +91,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, PROJECT_ROOT  # noqa: E402
 from paths import rel  # noqa: E402
 
-# 139 is not wanted for itself. pyburn builds its ENTIRE time axis by counting
-# occurrences of code 139 -- `readallvariables` appends to `variables["time"]`
-# on every one -- and its assembly loop leaves `variable` unbound for any code
-# in the file that is not also in this list. So 139 has to be both present in
-# the chunk and requested here.
+# 139 is not wanted for itself, and it must come FIRST. pyburn builds its
+# ENTIRE time axis by counting occurrences of code 139 -- `readallvariables`
+# appends to `variables["time"]` on every one -- so it has to be present in the
+# chunk. And `pyburn.dataset` closes its per-key loop logging `variable.shape`,
+# a name only the arm that finds a code ALREADY IN THE RAW binds; `ua`, `va`
+# and `spd` are each derived from the spectral divergence and vorticity and
+# bind their own names instead. A request that opens with one of those raises
+# UnboundLocalError before anything is written, which is what substituted a
+# twelve-bin average for run_67323a923013's orbit 127. Leading with 139 binds
+# the name once and every derived key after it finds it bound. world-2jj3.
 WIND_CODES = ["139", "131", "132", "259"]
 FIELDS = ("spd", "ua", "va")
 GRID_DESCRIPTOR_CODE = 333
@@ -329,11 +335,26 @@ def main() -> None:
               f"rss {rss_gb():.1f} GB", flush=True)
 
     shutil.rmtree(work, ignore_errors=True)
+    # THE HASH AND NOT ONLY THE PATH. A path is where a file was, not which
+    # file it was, and the raw stream moves: `continue_exoplasim.py
+    # --rescue-high-cadence` relocates it from the run root into `highcadence/`,
+    # and `_crash()` moves the whole run directory into a `_crashed` sibling.
+    # An extract stamped with the path alone comes to name somewhere with
+    # nothing in it, and nothing can then say whether the file that turns up
+    # elsewhere is the one this was read from. The rescue's
+    # `highcadence/high_cadence_raw.json` stamps the same sha256, so the two
+    # meet on the file's identity rather than on its location.
+    digest = hashlib.sha256()
+    with open(args.raw, "rb") as fh:
+        for block in iter(lambda: fh.read(1 << 22), b""):
+            digest.update(block)
     with Dataset(out, "a") as ds:
         try:
             ds.source_raw = rel(args.raw)
         except ValueError:
             ds.source_raw = str(args.raw)
+        ds.source_raw_sha256 = digest.hexdigest()
+        ds.source_raw_bytes = int(args.raw.stat().st_size)
         ds.samples = len(samples)
     print(f"\nwrote {out}  ({out.stat().st_size / 1e6:.0f} MB, {len(samples)} samples)",
           flush=True)

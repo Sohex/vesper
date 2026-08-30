@@ -279,6 +279,199 @@ def preserve_high_cadence_raw(run_dir: Path, years: range,
     return entries
 
 
+def run_planet_constants(run_dir: Path) -> dict:
+    """Radius, gravity and gas constant AS THE MODEL INTEGRATED THEM.
+
+    Read out of the run's own `planet_namelist` rather than re-derived from
+    `config/planet.yaml`, because a conversion describes the orbit that was
+    actually run and the config is free to have moved since. pyburn wants the
+    radius in EARTH RADII, which is what `Model.configure` wrote PLARAD from.
+    """
+    text = (run_dir / "planet_namelist").read_text(encoding="utf-8")
+
+    def value(key: str) -> float:
+        match = re.search(rf"^\s*{key}\s*=\s*([-+0-9.eEdD]+)", text, re.M)
+        if match is None:
+            raise RuntimeError(
+                f"{rel(run_dir / 'planet_namelist')} declares no {key}; the "
+                f"conversion cannot state the planet the raw stream was "
+                f"integrated on")
+        return float(match.group(1).replace("D", "e").replace("d", "e"))
+
+    return {"radius": value("PLARAD") / 6371220.0,
+            "gravity": value("GA"),
+            "gascon": value("GASCON")}
+
+
+SUBSTITUTED_SUFFIX = "substituted_regular_average"
+
+
+def prior_aside(run_dir: Path, year: int, extension: str) -> str | None:
+    """The substituted conversion moved aside for this orbit, if there is one.
+
+    Read off the DIRECTORY rather than remembered, so it survives a manifest
+    that was rewritten and says the same thing whichever pass asks.
+    """
+    aside = (run_dir / "highcadence" /
+             f"MOST_HC.{year:05d}.{SUBSTITUTED_SUFFIX}{extension}")
+    return rel(aside) if aside.is_file() else None
+
+
+def model_output_extension(manifest: dict) -> str:
+    """The output format THIS RUN was written in, from its own manifest copy.
+
+    A rescue reads the run rather than the config file: the config is free to
+    have moved since the segment ran, and a conversion that named the wrong
+    extension would write beside the file it means to replace.
+    """
+    return str(manifest["source_config"]["model"]["output_type"])
+
+
+def reconvert_high_cadence(run_dir: Path, year: int, expected_samples: int,
+                           constants: dict, extension: str = ".nc") -> dict:
+    """Convert one preserved raw high-cadence stream, and refuse a substitute.
+
+    THE CONVERSION IS THE PART THAT FAILED, so this is what the rescue leaves
+    a caller able to do. It runs pyburn under the HIGH-CADENCE variable set and
+    the high-cadence time handling -- `HIGH_CADENCE_CODES`, every sample the
+    model wrote, no time average -- which is exactly what
+    `cfgpostprocessor(ftype="highcadence")` configures on the run path, and
+    then puts the result through `validate_high_cadence`.
+
+    An existing file is judged before it is touched. One that already carries
+    the samples the model wrote is left alone and reported; one that does not
+    is MOVED ASIDE under a name that says what it is rather than deleted,
+    because a substituted file is the only evidence of what a segment reported.
+    """
+    from exoplasim import pyburn
+
+    # BEFORE ANYTHING IS MOVED. A refusal that fires after the existing
+    # conversion has been renamed leaves the run rearranged by a call that
+    # did nothing.
+    if extension != ".nc":
+        raise RuntimeError(
+            f"the high-cadence re-conversion writes netCDF and this run's "
+            f"output type is {extension}. `pyburn.netcdf` is the writer used "
+            f"below, and `pyburn.postprocess`'s format dispatch is bypassed "
+            f"for the reason stated there")
+
+    raw = find_high_cadence_raw(run_dir, year)
+    if raw is None:
+        raise RuntimeError(
+            f"No raw MOST_HC.{year:05d} in "
+            + ", ".join(rel(r) for r in high_cadence_search_roots(run_dir))
+            + ". The conversion cannot be redone from the netCDF: the raw is "
+              "where the per-sample records are")
+    out = run_dir / "highcadence" / f"MOST_HC.{year:05d}{extension}"
+    aside = None
+    if out.is_file():
+        try:
+            validate_high_cadence(out, expected_samples)
+        except RuntimeError:
+            aside = out.with_name(
+                f"MOST_HC.{year:05d}.{SUBSTITUTED_SUFFIX}{extension}")
+            out.replace(aside)
+            print(f"  moved the substituted conversion aside as {rel(aside)}")
+        else:
+            print(f"  {rel(out)} already holds {expected_samples} samples; "
+                  f"left as it is")
+            # THE SUBSTITUTION IS NOT RE-DERIVED, and this is the same trap
+            # `preserve_high_cadence_raw` guards `recovered_from` against. A
+            # second pass finds a valid conversion and has no way to know one
+            # was ever replaced, so reporting `moved_aside` as None here would
+            # erase the only record that orbit's conversion had failed --
+            # every time anyone re-ran the rescue.
+            return {"year_index": int(year), "path": rel(out),
+                    "samples": expected_samples,
+                    "sha256": file_sha256(out),
+                    "reconverted": False,
+                    "moved_aside": prior_aside(run_dir, year, extension)}
+    log = run_dir / f"hcout_reconvert.{year:05d}"
+    # WHY THIS DOES NOT CALL `pyburn.postprocess`, WHICH IS WHAT THE RUN PATH
+    # CALLS AND IS WHAT FAILED HERE.
+    #
+    # `pyburn.dataset` closes its per-key loop with
+    #
+    #     _log(logfile,"Collected variable: ..."%(meta[0],variable.shape[0]))
+    #
+    # (pyburn.py:2289) and `variable` is bound only by the arm that finds the
+    # code already present in the raw. `ua`, `va` and `spd` are all DERIVED
+    # from the spectral divergence and vorticity, and their arms assign `ua`,
+    # `va` and `spd` without ever binding `variable`. So a request whose FIRST
+    # key is derived raises UnboundLocalError before anything is written --
+    # and `HIGH_CADENCE_CODES` is exactly such a request. That is the
+    # `UnboundLocalError` that took orbit 127 of run_67323a923013 into
+    # `integritycheck`'s example.nl fallback and left a twelve-bin average of
+    # the regular variable set under the high-cadence name.
+    #
+    # Code 139 leads the request to bind the name once, and is then dropped so
+    # the product is exactly the declared set. It is not an arbitrary choice:
+    # `hcadencegp` writes surface temperature every sample and
+    # `readallvariables` COUNTS `tscode` records to get `ntimes` (pyburn.py:669),
+    # so a high-cadence raw pyburn can read at all has one per sample by
+    # construction.
+    # `aeolian/scripts/extract_high_cadence_wind.py` leads with the same code
+    # and has always survived this for the same reason.
+    #
+    # The writer is called directly because `postprocess`'s time block is a
+    # no-op under the high-cadence configuration -- every sample, no average,
+    # no standard deviation -- and going through it would only reintroduce the
+    # loop above. The result is held to all three below rather than trusted:
+    # `validate_high_cadence` fails an averaged file on its sample count, which
+    # is the exact failure this path exists for, and a standard deviation
+    # cannot be written without leaving a `_std` variable to find.
+    marker = str(pyburn.tscode)
+    requested = [str(code) for code in HIGH_CADENCE_CODES]
+    if marker in requested:
+        raise RuntimeError(
+            f"HIGH_CADENCE_CODES now contains code {marker}, which this "
+            f"prepends as a clock and then drops. Drop the prepend instead")
+    data = pyburn.dataset(
+        str(raw), [marker] + requested, mode="grid", zonal=False,
+        substellarlon=180.0, physfilter=False, logfile=str(log), **constants)
+    names = {name for name in data
+             if name not in ("time", "lat", "lon", "lev", "levp")}
+    marker_name = pyburn.ilibrary[marker][0]
+    if marker_name not in names:
+        raise RuntimeError(
+            f"the clock code {marker} produced no {marker_name}; the raw "
+            f"stream is not what pyburn read it as")
+    del data[marker_name]
+    # CLOSED HERE, because `pyburn.netcdf` returns the open Dataset and does
+    # not close it -- `postprocess` does that on the line after it calls the
+    # writer. Left open, the file on disk is short of its final metadata, so
+    # anything that reads or hashes it before the interpreter exits describes a
+    # file that is about to change. It cost a recorded sha256 that did not
+    # match the file it named.
+    pyburn.netcdf(data, str(out), logfile=str(log)).close()
+    # AFTER the write and not instead of it. pyburn returning is not the claim
+    # being made here; the claim is that the file holds the records `plasim.f90`
+    # says it wrote, and the failure this whole path exists for is a conversion
+    # that returned success on the wrong product.
+    validate_high_cadence(out, expected_samples)
+    with Dataset(out) as nc:
+        variables = sorted(
+            name for name in nc.variables
+            if name not in ("time", "lat", "lon", "lev", "levp",
+                            "fourier", "modes", "fharmonic"))
+    averaged = [name for name in variables if name.endswith("_std")]
+    if averaged:
+        raise RuntimeError(
+            f"{rel(out)} carries {', '.join(averaged)}. A standard deviation "
+            f"means the samples were binned, and the high-cadence product is "
+            f"every sample the model wrote")
+    print(f"  converted {rel(raw)} -> {rel(out)}: {expected_samples} samples, "
+          f"{', '.join(variables)}")
+    return {"year_index": int(year), "path": rel(out),
+            "samples": expected_samples,
+            "variables": variables,
+            "bytes": out.stat().st_size,
+            "sha256": file_sha256(out),
+            "reconverted": True,
+            "moved_aside": rel(aside) if aside is not None else None,
+            "log": rel(log)}
+
+
 def report_high_cadence_raw(entries: list[dict]) -> None:
     if not entries:
         print("  high-cadence raw: NONE FOUND. The model was asked for a "
@@ -417,7 +610,11 @@ def main() -> None:
     # soon as a flag is added. Required, and there is no default, because a
     # default is the inference again with fewer places to notice it.
     parser.add_argument(
-        "--purpose", required=True, choices=SEGMENT_PURPOSES,
+        # REQUIRED FOR A SEGMENT AND MEANINGLESS FOR A RESCUE, so it is
+        # enforced below rather than by argparse. The two rescue modes
+        # integrate nothing and add no segment, and demanding a purpose from
+        # them asks the caller to declare what a file move is for.
+        "--purpose", choices=SEGMENT_PURPOSES,
         help="what this segment is for. `spinup` integrates toward equilibrium; "
              "`post_equilibrium_climatology` is orbits meant to be read as this "
              "world's climate, and needs a run already assessed; `diagnostic` "
@@ -513,6 +710,15 @@ def main() -> None:
              "<run>_crashed/ sibling -- move it into highcadence/, stamp it "
              "and report the path, then exit. For a run whose segment "
              "predates the runner doing this for itself.")
+    parser.add_argument(
+        "--reconvert-high-cadence", action="store_true",
+        help="rescue as above, then convert each preserved raw again under the "
+             "HIGH-CADENCE variable set and validate the result against the "
+             "sample count plasim.f90 says the model wrote. A conversion "
+             "already carrying that count is left alone; one that is not is "
+             "moved aside as MOST_HC.NNNNN.substituted_regular_average.nc "
+             "rather than deleted, because a substituted file is the only "
+             "evidence of what the segment reported. Runs nothing else.")
     # The prepare-time flag of the same name authorises ADOPTING a donor's
     # surface. It says nothing about the segments that follow, and
     # `stage_surface_extras` rewrites the current `.sra` into the run directory
@@ -527,6 +733,13 @@ def main() -> None:
              "integrating. Valid for a paired A/B, never for the canonical "
              "chain")
     args = parser.parse_args()
+    rescue_only = args.rescue_high_cadence or args.reconvert_high_cadence
+    if args.purpose is None and not rescue_only:
+        parser.error("the following arguments are required: --purpose")
+    if args.purpose is not None and rescue_only:
+        parser.error(
+            "--purpose with a high-cadence rescue: the rescue adds no segment "
+            "and integrates nothing, so it has no purpose to declare. Drop it.")
     if args.orbits < 1:
         raise ValueError("--orbits must be positive")
     if args.high_cadence and args.high_cadence_interval < 1:
@@ -585,17 +798,42 @@ def main() -> None:
     # that can no longer be resumed. `_crash()` empties the run directory, and a
     # mode that first checked the executable, the restart and the staged surface
     # would refuse exactly where the raw most needs finding.
-    if args.rescue_high_cadence:
+    if args.rescue_high_cadence or args.reconvert_high_cadence:
+        # ONE RAW FILE IS ONE ORBIT. The model renames `plasim_hcadence` at the
+        # end of every model call, so `orbits` is 1 here whatever the segment
+        # that produced the file was, and the count this stamps is the count
+        # `validate_high_cadence` will hold the conversion to.
+        runsteps = int(manifest["derived_parameters"]["runsteps_per_orbit"])
+        expected = expected_high_cadence_samples(
+            runsteps, 1, int(args.high_cadence_interval))
         years = discover_high_cadence_years(run_dir)
         entries = preserve_high_cadence_raw(
             run_dir, years,
             {"run_id": identifier,
              "source_build": manifest.get("source_build"),
+             "runsteps_per_orbit": runsteps,
+             "interval_steps": int(args.high_cadence_interval),
+             "expected_samples_per_orbit": expected,
              "rescued_utc": datetime.now(timezone.utc).isoformat(),
-             "rescued_by": "continue_exoplasim.py --rescue-high-cadence"})
+             "rescued_by": "continue_exoplasim.py " + (
+                 "--reconvert-high-cadence" if args.reconvert_high_cadence
+                 else "--rescue-high-cadence")})
         report_high_cadence_raw(entries)
         if entries:
             manifest["high_cadence_raw"] = entries
+        if args.reconvert_high_cadence:
+            constants = run_planet_constants(run_dir)
+            print(f"  converting on the run's own planet: radius "
+                  f"{constants['radius']:.4f} Earth radii, gravity "
+                  f"{constants['gravity']} m/s2, gascon {constants['gascon']}")
+            conversions = [
+                reconvert_high_cadence(run_dir, entry["year_index"], expected,
+                                       constants,
+                                       extension=model_output_extension(manifest))
+                for entry in entries]
+            if conversions:
+                manifest["high_cadence_conversions"] = conversions
+        if entries:
             manifest_path.write_text(json.dumps(manifest, indent=2) + "\n",
                                      encoding="utf-8")
             print(f"  recorded in {rel(manifest_path)}")

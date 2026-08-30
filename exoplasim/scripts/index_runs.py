@@ -35,6 +35,46 @@ FIELDS = ["resolution", "layers", "ranks", "flux_ratio", "co2_ppm",
           "stellar_spectrum", "geography"]
 
 
+def high_cadence(m: dict) -> dict:
+    """The high-cadence stream orbit by orbit, and whether it was substituted.
+
+    THE SUBSTITUTION IS WHY THIS IS INDEXED AT ALL. ExoPlaSim answers a failed
+    high-cadence conversion by calling `integritycheck`, which re-runs pyburn
+    under `example.nl` -- the REGULAR variable set and the regular twelve-bin
+    average -- and returns success. The segment then reports normally and the
+    run directory holds a twelve-bin average under the high-cadence name, which
+    nothing about its name or its location distinguishes from the real product.
+    Orbit 127 of run_67323a923013 is that file, and it is the accepted
+    baseline.
+
+    So the index carries it. Run ids are UUIDs and `exoplasim/runs/` is not
+    tracked, which makes this the only durable record of what a run's
+    high-cadence stream is; `substituted_conversion` names the file that was
+    reported, kept on disk beside the corrected one because it is the evidence
+    of what a consumer would have read.
+
+    Derived from the manifest and never written here, so re-running the
+    conversion moves this with it. `continue_exoplasim.py
+    --reconvert-high-cadence` is what fills those manifest blocks in.
+    """
+    raws = {int(r["year_index"]): r for r in (m.get("high_cadence_raw") or [])}
+    convs = {int(c["year_index"]): c
+             for c in (m.get("high_cadence_conversions") or [])}
+    orbits = {}
+    for year in sorted(set(raws) | set(convs)):
+        raw, conv = raws.get(year, {}), convs.get(year, {})
+        orbits[str(year)] = {
+            "raw": raw.get("file"),
+            "raw_bytes": raw.get("bytes"),
+            "raw_sha256": raw.get("sha256"),
+            "expected_samples": raw.get("expected_samples_per_orbit"),
+            "converted_samples": conv.get("samples"),
+            "converted_sha256": conv.get("sha256"),
+            "substituted_conversion": conv.get("moved_aside"),
+        }
+    return orbits
+
+
 def read(run_dir: Path) -> dict | None:
     mf = run_dir / "run_manifest.json"
     if not mf.is_file():
@@ -109,6 +149,7 @@ def read(run_dir: Path) -> dict | None:
         "converged": conv.get("sufficiently_equilibrated_for_worldbuilding",
                               conv.get("pass")),
         "convergence_metrics": conv.get("metrics") or {},
+        "high_cadence": high_cadence(m),
     }
 
 

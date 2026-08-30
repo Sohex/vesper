@@ -141,7 +141,45 @@ climate, and `diagnostic` for orbits run to measure the model rather than the
 planet -- an I/O verification, a high-cadence wind sample for DUST-5, a block on
 a differently patched binary. A diagnostic segment does not move the run's
 status, is skipped by the convergence window, and is refused as climatology
-input. The vocabulary lives in `segments.py`.
+input. The vocabulary lives in `segments.py`. The two high-cadence rescue modes
+below integrate nothing and add no segment, so they take no `--purpose` and are
+refused if given one.
+
+THE HIGH-CADENCE STREAM, AND THE TWO WAYS IT GOES WRONG. A `--high-cadence`
+segment's deliverable is the raw `MOST_HC.NNNNN`, which is 2 GB at T21 and
+15 GB at T42, is kept out of git, and costs a model run to make again. The
+model leaves it at the run ROOT and moves only the netCDF into `highcadence/`,
+and `_crash()` moves the whole run directory into a `<run>_crashed/` sibling,
+so the raw ends up in one of three places:
+
+```bash
+python exoplasim/scripts/continue_exoplasim.py --run <run_id> --rescue-high-cadence
+```
+
+finds it in any of them, moves it into `highcadence/`, and stamps it in
+`highcadence/high_cadence_raw.json` and in the run manifest with the run id,
+source build, size, sha256 and the sample count `plasim.f90` says the model
+wrote. It runs nothing and works on a run that can no longer be resumed.
+
+The conversion is the other half, and its failure is a SUBSTITUTION rather than
+an absence. When pyburn raises on the raw, ExoPlaSim's `integritycheck` re-runs
+it under `example.nl` -- the regular variable set and the regular twelve-bin
+average -- and reports success, leaving a twelve-bin average of the wrong
+fields under the high-cadence name. Nothing about the file's name or location
+distinguishes it from the real product.
+
+```bash
+python exoplasim/scripts/continue_exoplasim.py --run <run_id> --reconvert-high-cadence
+```
+
+rescues as above and then converts each raw again under `HIGH_CADENCE_CODES`,
+reading the planet off the run's own `planet_namelist`, and holds the result to
+the model's sample count. A conversion that already carries that count is left
+alone. One that does not is moved aside as
+`MOST_HC.NNNNN.substituted_regular_average.nc` rather than deleted, because it
+is the only evidence of what the segment reported; `exoplasim/runs/INDEX.json`
+carries that filename per orbit, which for a UUID-named run in an untracked
+directory is the only durable record that the substitution happened.
 
 A resume also compares the STELLAR SPECTRUM BY CONTENT, not by name. The config
 names `k25v`, `build_stellar_spectrum.py` writes `k25v.dat` from the `star`
