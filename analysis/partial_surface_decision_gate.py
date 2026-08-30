@@ -122,12 +122,24 @@ def main() -> None:
     # same surface twice and area-weight two copies of it: a model that
     # reports per-tile fluxes which are not tiles, and which would then be
     # credited as implemented. STATE FIRST, EXCHANGE AFTER.
+    # And the state seams themselves stand on a declaration. A tile that begins
+    # advancing on a cell it did not own has to start from a value someone
+    # named: without that, the seam invents an initial condition at the moment
+    # it is switched on, which is the least inspectable place to put one.
+    DECLARED_STATE = "declared initial state for both tiles"
+    initial_state = (declaration.get("tile_model", {}).get("state", {})
+                     .get("initial_state", {}))
+    initial_state_fields = initial_state.get("fields", {})
+    unready_initial_state = sorted(
+        name for name, entry in initial_state_fields.items()
+        if entry.get("status") != "available")
     LAND_STATE = "separate positive-fraction land state"
     OCEAN_STATE = "separate positive-fraction ocean state"
     BOTH_STATES = (LAND_STATE, OCEAN_STATE)
     seam_order = (
-        (LAND_STATE, "spat5_tile_state", ("landmod.f90",), ()),
-        (OCEAN_STATE, "spat5_tile_state", ("seamod.f90",), ()),
+        (DECLARED_STATE, None, (), ()),
+        (LAND_STATE, "spat5_tile_state", ("landmod.f90",), (DECLARED_STATE,)),
+        (OCEAN_STATE, "spat5_tile_state", ("seamod.f90",), (DECLARED_STATE,)),
         ("tile restart records", "spat5_tile_restart",
          ("landmod.f90", "seamod.f90"), BOTH_STATES),
         ("area-weighted turbulent exchange", "spat5_tile_turbulent",
@@ -138,7 +150,9 @@ def main() -> None:
          ("outmod.f90",), BOTH_STATES),
     )
     required_seams = {
-        name: all(token in implementation_sources[unit] for unit in units)
+        name: (bool(initial_state_fields) and not unready_initial_state
+               if token is None
+               else all(token in implementation_sources[unit] for unit in units))
         for name, token, units, _ in seam_order
     }
     missing_seams = [name for name, _, _, _ in seam_order
@@ -178,6 +192,8 @@ def main() -> None:
             "hard_binary_boundary": hard_binary,
             "required_seams": required_seams,
             "seam_order": [name for name, _, _, _ in seam_order],
+            "initial_state_contract": initial_state.get("contract_version"),
+            "initial_state_not_available": unready_initial_state,
             "seam_prerequisites": {name: list(prerequisites)
                                    for name, _, _, prerequisites in seam_order},
             "missing_seams": missing_seams,

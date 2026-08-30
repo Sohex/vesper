@@ -43,6 +43,86 @@ tile_model:
     rule: >-
       A tile state advances wherever its fraction is positive. Neither tile may
       overwrite the other's temperature, water or snow store in a partial cell.
+    initial_state:
+      contract_version: vesper-partial-surface-initial-state/1
+      rule: >-
+        A tile that begins advancing on a cell it did not own must start from a
+        DECLARED value, and the declaration names the source. Read against the
+        source on 2026-08-30; notes/audits/partial-cell-tile-state.md carries
+        the evidence. The disposition below is what world-cp27 implements and
+        what world-uiq7 is then an execution-gate change against.
+      ocean_tile_on_land_owned_cells: available
+      land_tile_on_ocean_owned_cells: incomplete
+      fields:
+        ocean_surface_temperature:
+          status: available
+          source: >-
+            icemod ice_cold_start computes the declared analytic profile
+            tsst_pol + (tsst_eq - tsst_pol) * cos(latitude)^2 across the whole
+            latitude band with no mask, and assigns xcoldsst unmasked. Surface
+            code 169 is not staged on this world, so xclsst holds its -999
+            sentinel and the analytic profile is what a cold start uses. The
+            value on a land-owned cell is therefore declared, not fabricated.
+        ocean_mixed_layer_depth:
+          status: available
+          source: >-
+            oceanmod mldepth is a scalar namelist value assigned to
+            dlayer(NLEV_OCE), not a field, so the slab carries one depth
+            everywhere and a land-owned cell needs no per-cell value.
+        sea_ice:
+          status: available
+          source: >-
+            ice_cold_start sets hice_ini below TFREEZE. The branch is masked on
+            xls < 0.5 today and widens with the ocean tile's own gate.
+        land_surface_temperature:
+          status: available
+          source: >-
+            landmod initialises dtclsoil, dsoilt and dtclim to tmelt with no
+            mask, and reads staged dtclsoil through mpsurfgp with no mask.
+            Surface code 209 is not staged on this world, so tmelt is the
+            declared cold-start value and it is defined on every cell.
+        land_roughness:
+          status: available
+          source: >-
+            build_surface_roughness.py works from mesh.surface_class rather
+            than the gridded ownership mask, so code 173 already carries a
+            land roughness on every cell containing land. Measured at T21:
+            0.3446 to 3.581 m over the 620 sea-owned partial cells, against
+            0.00015 m over pure ocean.
+        land_background_albedo:
+          status: incomplete
+          source: >-
+            build_surface_albedo.py computes the area-weighted land albedo on
+            every cell containing land and then discards it at
+            `land_cells = fraction >= geography_land_threshold`, writing the
+            water value instead. Measured at T21: codes 174, 175 and 176 read
+            exactly 0.06 over all 620 sea-owned partial cells. The land value
+            exists in the builder and is thrown away rather than absent.
+        land_field_capacity:
+          status: incomplete
+          source: >-
+            Code 229 reads a uniform 0.5 over every sea-owned cell, which is a
+            placeholder and not a derived soil capacity; the same cells carry a
+            uniform 0.01333 in code 2290. Over land the two are mesh-derived
+            and span 0.0199 to 0.2591 and 0.0206 to 0.2206.
+        land_vegetation_cover:
+          status: blocked
+          source: >-
+            build_lpj_driver.py selects `simulated_land = land & (rootable >
+            0.0)`, where `land` is the BINARY ownership mask, so LPJ has never
+            run on a sea-owned partial cell and code 212 reads zero there.
+            BIO-11's f_rootable is mesh-derived and already nonzero on 2026 of
+            2048 T21 cells, so the rootable ground exists and only the
+            simulated cell set excludes it. Giving the land tile a vegetated
+            albedo on those cells is therefore a change to WHAT THE BIOSPHERE
+            SIMULATES and costs an LPJ re-run; it is not a builder change.
+            Until that is decided the land tile there takes its bare
+            substrate albedo, which is honest and rung-dependent.
+      orography_is_not_in_this_class: >-
+        One atmosphere column carries one orography, so doro stays the cell's
+        single elevation and is not split per tile. The land tile's elevation
+        within a partial cell is a sub-grid lapse-rate question and is outside
+        a conservative tile model.
   exchange:
     atmosphere_state: shared above both tiles
     compiled_combine: spat5_tile_combine

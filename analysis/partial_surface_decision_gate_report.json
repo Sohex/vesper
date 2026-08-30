@@ -1,11 +1,12 @@
 {
   "contract_version": "vesper-partial-surface-decision-gate/1",
-  "generated": "2026-08-30T16:16:56+00:00",
+  "generated": "2026-08-30T16:32:16+00:00",
   "declaration": "config/partial_surface.yaml",
   "measurement": "analysis/coastline_flux_bracket.json",
   "implementation": {
     "hard_binary_boundary": true,
     "required_seams": {
+      "declared initial state for both tiles": false,
       "separate positive-fraction land state": false,
       "separate positive-fraction ocean state": false,
       "tile restart records": false,
@@ -14,6 +15,7 @@
       "separate tile diagnostics": false
     },
     "seam_order": [
+      "declared initial state for both tiles",
       "separate positive-fraction land state",
       "separate positive-fraction ocean state",
       "tile restart records",
@@ -21,9 +23,20 @@
       "area-weighted radiative exchange",
       "separate tile diagnostics"
     ],
+    "initial_state_contract": "vesper-partial-surface-initial-state/1",
+    "initial_state_not_available": [
+      "land_background_albedo",
+      "land_field_capacity",
+      "land_vegetation_cover"
+    ],
     "seam_prerequisites": {
-      "separate positive-fraction land state": [],
-      "separate positive-fraction ocean state": [],
+      "declared initial state for both tiles": [],
+      "separate positive-fraction land state": [
+        "declared initial state for both tiles"
+      ],
+      "separate positive-fraction ocean state": [
+        "declared initial state for both tiles"
+      ],
       "tile restart records": [
         "separate positive-fraction land state",
         "separate positive-fraction ocean state"
@@ -42,6 +55,7 @@
       ]
     },
     "missing_seams": [
+      "declared initial state for both tiles",
       "separate positive-fraction land state",
       "separate positive-fraction ocean state",
       "tile restart records",
@@ -50,7 +64,7 @@
       "separate tile diagnostics"
     ],
     "out_of_order_seams": [],
-    "next_seam": "separate positive-fraction land state"
+    "next_seam": "declared initial state for both tiles"
   },
   "checks": [
     {
@@ -96,7 +110,7 @@
     {
       "name": "selected representation is implemented",
       "passed": false,
-      "detail": "tile selected; oceanmod.f90 still hard-binarises the boundary; next seam is separate positive-fraction land state; missing separate positive-fraction land state, separate positive-fraction ocean state, tile restart records, area-weighted turbulent exchange, area-weighted radiative exchange, separate tile diagnostics"
+      "detail": "tile selected; oceanmod.f90 still hard-binarises the boundary; next seam is declared initial state for both tiles; missing declared initial state for both tiles, separate positive-fraction land state, separate positive-fraction ocean state, tile restart records, area-weighted turbulent exchange, area-weighted radiative exchange, separate tile diagnostics"
     }
   ],
   "summary": {
