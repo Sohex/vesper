@@ -417,16 +417,19 @@ not as a bound, is that the declared set returned 0.8 to 1.0 at every slope,
 which is no lithology signal at all, while the sourced set returns 12 to 18
 against the paper's 2.6 in the middle of the slope bracket.
 
-### The closed basin is stated once, and it is a hydrology
+### The closed basin is stated once, it is a hydrology, and it belongs to the sump
 
-`endorheic_alkalinity_bonus` has to carry a calcite-buffered soil into the range
-a closed basin reaches. Helvaci (2019) lists lake water at pH 8.5 to 11 among
-the conditions the Turkish borate deposits form under, which is the one measured
-closed-basin range this project holds. Helvaci's range minus the derived
-carbonate pH is the bracket, so the bracket is derived too and is emitted
-alongside it rather than written into the config. It is lake water in one
-depositional setting and not a soil, so it bounds the entry and does not set
-it.
+`soda_buffer_ph` is the buffer a closed basin's salt crust reaches with nothing
+exported. Helvaci (2019) lists lake water at pH 8.5 to 11 among the conditions
+the Turkish borate deposits form under, which is the one measured closed-basin
+range this project holds, and both the value and its bracket are emitted from
+`carbonate_ph.py:CLOSED_BASIN_PH_RANGE` rather than written into the config so
+that the measurement is stated once. The value is the low end: Helvaci
+attributes the boron to circulating boron-rich hot water and `references/`
+records that the Anatolian type needs a hydrothermal flux this project cannot
+place, so the top of the range is the most evaporated brine in a basin fed by
+something Vesper has no model for, and the low end is the only point in the
+range not chosen by preference.
 
 **It is the ONLY place the closed basin enters, and it used to be one of
 three.** `PH_GROUP` put `playa_clastic` in the evaporite supply bin at 1.0, and
@@ -437,6 +440,24 @@ evaporite-plus-playa classes agree over all but 0.023 per cent of land area,
 because Orogen's `basin_fill` cover rule assigns those classes FROM the endorheic
 flag. The rock class carried nothing the flag did not.
 
+**And the one that survived was the wrong one of the three.** What was left
+after the other two went was `endorheic_alkalinity_bonus`, a flat additive
+offset on every basin FLOOR cell, and both halves of that were wrong. It was
+keyed to the endorheic fraction, 15.35 per cent of land area against the salt
+crust's 1.39, and 91.75 per cent of the land area carrying it drains at a median
+11.55 mm/yr -- cells exporting their salts to the sump, being told they
+accumulated them. And it was unconditional in the leaching index, so a fully
+leached floor cell landed on the gibbsite buffer and then had 0.8 pH added to
+it, which is not a range any closed basin was measured at.
+
+**A solute stays where the drainage does not export it, which is the statement
+the block already makes.** The calcite offset relaxes as `exp(-sL/u)` for
+exactly that reason, so the closed basin belongs in the same place: as the
+buffer the sump relaxes FROM, `dry = dry + sump * (soda - dry)`, and not as a
+constant added to whatever the relaxation returned. The three buffers then run
+gibbsite < calcite < soda, and which one a gridcell sits near is drainage and
+zoning rather than rock.
+
 **The chemistry behind the soda buffer is right, and this world's own
 calculation confirms it.** The Hardie-Eugster divide in `brine_paths.py`, run on
 the configured build and the baseline climatology, puts 95.7 per cent of
@@ -446,14 +467,28 @@ passing at 5.5e-16 and 0.0. Median Ca/HCO3 across resolved basins is 0.78 and
 0.79. So a closed basin here does evaporate past calcite saturation. What was
 wrong was where the model said so: **passing the divide is a property of the
 BASIN, computed from its catchment's inflow, not of the floor's own rock**, and
-the bonus is the key that carries it.
+where the resulting brine lands is the sump.
+
+**That is also what settles deletion.** Nothing else in the block can put a
+gridcell above calcite saturation: `dry` is floored at the calcite buffer and
+the relaxation only descends from it, so removing the closed-basin statement
+would leave the model with no expression of the alkaline path at all, on a world
+whose own divide puts 95 per cent of endorheic catchment area on it. No
+endorheic-bearing gridcell reaches Helvaci's floor without the statement, 0 of
+926, which is evidence that the buffers do not carry it rather than a
+requirement that a basin floor reach 8.5: that requirement is about lake water,
+and reading it over the whole floor is what installed the defect.
 
 **Playa mud is not the sump.** `saltCrustMask` in the generator zones the basin
 by depth below the spill point: the salt crust is "the SUMP -- the part that
 repeatedly floods and dries -- not the basin", and the margins take the clastic
 load as playa mud and alluvial fans. So `playa_clastic` is by definition the
 part of the closed basin where the dissolved load did NOT precipitate, and the
-evaporite bin contradicted the class's own definition. It reads
+evaporite bin contradicted the class's own definition. The `evaporite` class is
+produced by the `basin_fill` cover rule only where the cell is endorheic AND in
+that mask, so the class IS the sump: none of its land area on the configured
+build falls outside `is_endorheic`, which is what makes it the quantity the soda
+buffer is carried by. It reads
 `sedimentary_clastic` now, which is where `ROCK_TO_MEYBECK` and both rokgem
 class mappings already had it; its Meybeck row is shale at 0.1815, inside that
 category's bracket [0.0391, 0.3052], alongside the three other clastic classes
@@ -494,10 +529,48 @@ duplicated as a literal. The bracket is gone with the value it bracketed.
 
 **The move is the same order as the block's own declared uncertainty**, and that
 is how it should be read. Sweeping the land mean over the ends of the declared
-brackets: `leaching_slope` [0.35, 1.33] spans 0.597, `gibbsite_buffer_ph` [4.64,
-5.28] spans 0.330, and `endorheic_alkalinity_bonus` over its derived bracket
-spans 0.341, against this change's -0.324. What makes it a defect rather than a
-choice inside a bracket is that it was a mapping error, not a reading.
+brackets at the time: `leaching_slope` [0.35, 1.33] spans 0.597,
+`gibbsite_buffer_ph` [4.64, 5.28] spans 0.330, and the additive endorheic offset
+over its bracket spans 0.341, against that change's -0.324. What makes it a
+defect rather than a choice inside a bracket is that it was a mapping error, not
+a reading.
+
+**Moving the closed basin onto the sump is measured the same way**, offline
+through the shipped `soil_ph`, 1,639 land cells, canonical-10m-carve2 against
+the baseline climatology:
+
+| set | cells | before | after | area weighting |
+| --- | --- | --- | --- | --- |
+| all land | 1639 | 6.454 | 6.335 | land area |
+| all land | 1639 | 6.527 | 6.446 | cos(lat) |
+| dry, runoff <= 0 | 254 | 8.298 | 8.170 | land area |
+| wettest quartile | 367 | 5.200 | 5.165 | land area |
+| endorheic > 0.5 | 130 | 7.626 | 7.088 | land area |
+| endorheic > 0.01 | 926 | 6.972 | 6.790 | land area |
+| salt crust > 0.1 | 30 | 8.248 | 7.965 | land area |
+
+988 cells move, 764 by more than 0.05 pH and 83 by more than 0.5, none by more
+than 1.0; the largest single move is -0.800, which is the retired offset
+exactly, and 983 of 1,639 change at the soil map's own three decimals. No cell
+rails at either clip before or after. Sweeping the same three brackets on the
+current tree gives 0.631, 0.383 and 0.373 against this change's -0.120, so it
+too sits inside the spread the block already carries; what makes it a defect
+rather than a choice inside a bracket is that the term stated the sump's
+mechanism about the whole basin floor.
+
+**THE SALT CRUST IS SUB-GRID AT T21, and that is the honest size of the term
+that replaced the offset.** The sump is 1.39 per cent of land area and no T21
+gridcell is more than 0.238 salt crust, so the soda buffer is worth +0.003 pH on
+the land mean and at most +0.064 on any single cell, against the +0.123 the
+offset was worth. Over the buffer's whole bracket, 8.5 to 11, the land mean
+moves 0.023. The term is here because the mechanism is, not because of its size:
+it is resolution-dependent by construction and a finer rung resolves more of the
+crust. What the pH column feeds is LPJ-GUESS's ammonia volatilisation, which
+enters as `exp(2 * (pH - 10))`, and the whole change is worth a factor of 0.67
+on the land-area mean of that quantity and 0.64 over endorheic-bearing cells.
+Resolving the crust inside the cell rather than through the cell's mean pH would
+raise that mean by a further 8.7 per cent, which is the ordinary cost of handing
+a convex consumer one number per cell.
 
 ## 4. The two texture entries, and one near-degeneracy
 

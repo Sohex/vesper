@@ -176,8 +176,8 @@ PH_GROUP = {
     # clastic load as playa mud and alluvial fans. So this class is by
     # definition the part of the basin where the dissolved load did NOT
     # precipitate, and putting it on the sump's buffer contradicts the
-    # definition. The closed basin enters through
-    # `ph.endorheic_alkalinity_bonus`, which is where the hydrology belongs.
+    # definition. The sump's own buffer is `ph.soda_buffer_ph`, carried by the
+    # `evaporite` share of a cell in `build_soil.py:SUMP_GROUPS`.
     "evaporite": "evaporite", "playa_clastic": "sedimentary_clastic",
     "water": "sedimentary_clastic",
 }

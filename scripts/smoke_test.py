@@ -5303,16 +5303,22 @@ def check_closed_basin_is_the_sump() -> list[str]:
        identity, checked to floating point. Deleting the statement fails here,
        which is the point: the alkaline path is established for this world by
        its own Hardie-Eugster divide and the block has to be able to express it.
-    2. **The same cell under heavy leaching falls BELOW the calcite buffer.** A
-       solute stays where the drainage does not export it, so the sump's buffer
-       has to vanish as drainage runs, exactly as the calcite offset does. An
-       additive term outside the exponential passes 1 and fails this.
-    3. **A basin-floor cell that is not sump never exceeds the calcite buffer,
-       at any runoff.** This is the one the old form failed. Playa mud is the
+    2. **At finite drainage the sump carries STRICTLY LESS than the full
+       offset**, measured against the same cell with the sump table emptied --
+       same rock, same supply, same leaching, so the two runs differ by the
+       closed-basin statement and by nothing else. This is the arm no additive
+       form passes: an offset added outside the relaxation is its full amount at
+       every runoff, which is a closed basin holding its solutes in while it
+       exports water.
+    3. **The same cell in the leached limit falls BELOW the calcite buffer.**
+       The limit runoff is computed from the declared slope rather than picked,
+       so the arm means the same thing wherever in its bracket the slope sits.
+    4. **A basin-floor cell that is not sump never exceeds the calcite buffer,
+       at either end.** This is the one the old form failed. Playa mud is the
        basin floor by definition -- the part where the dissolved load did NOT
        precipitate -- so nothing may lift it above the buffer a soil that
        exports nothing reaches.
-    4. **A half-sump cell is the linear blend, exactly.** A share is a share; if
+    5. **A half-sump cell is the linear blend, exactly.** A share is a share; if
        the term stops being linear in it, it has become something else.
 
     Also refuses the retired key by name, because a returning
@@ -5379,16 +5385,32 @@ def check_closed_basin_is_the_sump() -> list[str]:
     G = float(params["gibbsite_buffer_ph"])
     C = float(params["calcite_buffer_ph"])
     S = float(params["soda_buffer_ph"])
-    # Four cells: pure sump dry, pure sump drenched, pure floor drenched, half
-    # and half dry. The drenched runoff is far past anything this world carries,
-    # because the arm is about the limit and not about a land population.
-    DRENCHED = 100.0 * q_ref
-    runoff = np.array([0.0, DRENCHED, DRENCHED, 0.0])
-    sump_share = np.array([1.0, 1.0, 0.0, 0.5])
+    # Six cells: sump at no export, at one reference runoff and in the leached
+    # limit; basin floor with no sump at each end; and a half-and-half cell.
+    #
+    # THE LEACHED LIMIT IS COMPUTED, NOT PICKED. A fixed runoff would be a
+    # statement about the declared leaching slope, and the slope carries a
+    # bracket that gets swept. This runs at the runoff that drives the retained
+    # offset below exp(-6) AT THE SLOPE THE CONFIG DECLARES, so the arm means
+    # the same thing wherever in its bracket the slope sits.
+    slope = float(params["leaching_slope"])
+    drenched = q_ref * (math.exp(6.0 / max(slope, 1e-6)) - 1.0)
+    moderate = q_ref
+    runoff = np.array([0.0, moderate, drenched, 0.0, drenched, 0.0])
+    sump_share = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.5])
     fractions = {sump_codes[0]: sump_share,
                  floor_codes[0]: 1.0 - sump_share}
     try:
         ph = _soil.soil_ph(fractions, runoff, params, q_ref)
+        # The control: the same cells with the sump table empty, so the two runs
+        # differ by the closed-basin statement and by nothing else. Same rock,
+        # same supply, same leaching.
+        held = _soil.SUMP_GROUPS
+        try:
+            _soil.SUMP_GROUPS = ()
+            plain = _soil.soil_ph(fractions, runoff, params, q_ref)
+        finally:
+            _soil.SUMP_GROUPS = held
     except Exception as exc:            # noqa: BLE001 - reported, not raised
         return problems + [f"soil_ph refuses the closed-basin fixture: {exc}"]
 
@@ -5397,23 +5419,38 @@ def check_closed_basin_is_the_sump() -> list[str]:
             f"a cell that is all sump with nothing exported reads {ph[0]:.6f} "
             f"and the soda buffer is {S:.6f}. That is an identity: with no "
             f"leaching the relaxation returns the buffer it starts from")
-    if not float(ph[1]) < C:
+    # THE ARM THE OLD FORM CANNOT PASS, whichever quantity it is keyed to. The
+    # excess a sump carries over the same cell without one has to be strictly
+    # inside the full offset once any water drains, because the statement is an
+    # accumulation against an export. An offset added outside the relaxation is
+    # the full amount at every runoff and fails here alone.
+    excess = float(ph[1]) - float(plain[1])
+    if not 0.0 < excess < (S - C):
         problems.append(
-            f"a cell that is all sump under {DRENCHED:.0f} mm/yr of runoff "
-            f"reads {ph[1]:.6f}, at or above the calcite buffer {C:.6f}. The "
+            f"at one reference runoff the sump carries {excess:+.6f} pH over "
+            f"the same cell with no sump, and the whole offset is "
+            f"{S - C:.6f}. It has to be strictly inside that: an offset that "
+            f"is undiminished at finite drainage is unconditional in the "
+            f"leaching index, which is a closed basin holding solutes in while "
+            f"exporting water")
+    if not float(ph[2]) < C:
+        problems.append(
+            f"a cell that is all sump under {drenched:.0f} mm/yr of runoff "
+            f"reads {ph[2]:.6f}, at or above the calcite buffer {C:.6f}. The "
             f"closed-basin statement has to vanish as drainage runs -- a "
-            f"solute stays where the drainage does not export it -- so it "
-            f"belongs inside the relaxation and not added on top of it")
-    if not float(ph[2]) <= C + 1e-12:
-        problems.append(
-            f"a basin-floor cell carrying no sump reads {ph[2]:.6f}, above the "
-            f"calcite buffer {C:.6f}. Nothing may lift the basin FLOOR above "
-            f"the buffer a soil that exports nothing reaches; that is the "
-            f"sump's, and the floor exports to it")
+            f"solute stays where the drainage does not export it")
+    for index, where in ((3, "with nothing exported"),
+                         (4, f"under {drenched:.0f} mm/yr of runoff")):
+        if not float(ph[index]) <= C + 1e-12:
+            problems.append(
+                f"a basin-floor cell carrying no sump reads {ph[index]:.6f} "
+                f"{where}, above the calcite buffer {C:.6f}. Nothing may lift "
+                f"the basin FLOOR above the buffer a soil that exports nothing "
+                f"reaches; that is the sump's, and the floor exports to it")
     blend = C + 0.5 * (S - C)
-    if abs(float(ph[3]) - blend) > 1e-12:
+    if abs(float(ph[5]) - blend) > 1e-12:
         problems.append(
-            f"a cell that is half sump with nothing exported reads {ph[3]:.6f} "
+            f"a cell that is half sump with nothing exported reads {ph[5]:.6f} "
             f"and the blend of the two buffers is {blend:.6f}. The sump enters "
             f"as a share of the cell, and a share mixes linearly")
     if not G < C < S:

@@ -971,16 +971,21 @@ ph:
   # statement lived.
   #
   # Passing the divide is a property of the BASIN, computed from its
-  # catchment's inflow chemistry, and it is already stated once as
-  # `ph.endorheic_alkalinity_bonus` -- whose bracket is Helvaci's 8.5 to 11
-  # minus the derived calcite pH, the SAME measurement this entry's own bracket
-  # was. The two fired on the same land: on the configured build, `is_endorheic`
-  # and the evaporite-plus-playa classes agree over all but 0.023 per cent of
-  # land area, because Orogen's `basin_fill` cover rule assigns those classes
-  # FROM the endorheic flag. So the rock class carried no information the flag
-  # did not, one measurement entered the model twice, and a salt-crust cell
-  # reached 8.8 + 0.8 = 9.6 and was decided by `maximum`, a clip this file says
-  # nothing rests on.
+  # catchment's inflow chemistry, and the same Helvaci measurement was stated a
+  # second time beside this entry. The two fired on the same land: on the
+  # configured build, `is_endorheic` and the evaporite-plus-playa classes agree
+  # over all but 0.023 per cent of land area, because Orogen's `basin_fill`
+  # cover rule assigns those classes FROM the endorheic flag. So the rock class
+  # carried no information the flag did not, one measurement entered the model
+  # twice, and a salt-crust cell reached 8.8 + 0.8 = 9.6 and was decided by
+  # `maximum`, a clip this file says nothing rests on.
+  #
+  # WHERE THE CLOSED BASIN IS STATED NOW IS `ph.soda_buffer_ph`, carried by the
+  # SUMP's share of a cell rather than by the whole basin floor, and inside the
+  # relaxation rather than added on top of it. This entry stays derived: the
+  # buffer a PARENT ROCK reaches at zero export is the calcite equilibrium, and
+  # a salt crust is not a parent rock weathering but the dissolved load of a
+  # basin, arriving from somewhere else.
   #
   # Removing it costs 0.006 pH on the land mean and at most 0.120 on any cell.
   # The duplication that MATTERED was `playa_clastic`, which shared this entry
@@ -1113,15 +1118,43 @@ ph:
   # carbonate, and these bound those two directions.
   minimum: 3.8
   maximum: 9.5
-  # Added where drainage is closed and salts accumulate.
+  # THE THIRD BUFFER, AND IT BELONGS TO THE SUMP RATHER THAN TO THE BASIN.
   #
-  # BRACKET from the carbonate entry above: the bonus has to carry a
-  # calcite-buffered soil into the range a closed basin reaches, which is
-  # Helvaci's 8.5 to 11. That is Helvaci's range minus the derived carbonate
-  # pH, so it is DERIVED too and moves with pCO2. The value inside it is
-  # declared. Do not tune within the bracket.
-  endorheic_alkalinity_bonus: 0.8
-  endorheic_alkalinity_bonus_bracket: derived
+  # A closed basin evaporates past calcite saturation. That precipitates the
+  # calcium out of solution and leaves sodium carbonate to buffer what is left,
+  # so the ground the brine finally reaches sits ABOVE the calcite equilibrium
+  # rather than on it. This world's own Hardie-Eugster divide, computed in
+  # `brine_paths.py` from each basin's catchment inflow, puts 95 per cent of
+  # endorheic catchment area on that alkaline path under both published
+  # weightings, so the mechanism is established here and not assumed.
+  #
+  # WHERE THE BRINE ENDS UP IS THE SUMP, WHICH IS NOT THE BASIN.
+  # `vendor/orogen/js/lithology.js:saltCrustMask` zones a closed basin by depth
+  # below its spill point and says why: the clastic load drops at the margin as
+  # alluvial fans and playa mud, while the dissolved load travels to the lowest
+  # ground and precipitates there. `build_soil.py:SUMP_GROUPS` names the pH
+  # categories whose land is that sump, and the buffer below is carried by their
+  # share of a cell.
+  #
+  # This was an additive `endorheic * bonus` on every basin FLOOR cell, and both
+  # halves of that were wrong. It was keyed to the endorheic fraction, eleven
+  # times the sump's area, where 91.75 per cent of the land area carrying it
+  # drains at a median 11.55 mm/yr -- cells exporting their salts to the sump,
+  # being told they accumulated them. And it was unconditional in the leaching
+  # index, so a fully leached floor cell landed on the gibbsite buffer and then
+  # had 0.8 pH added to it, which is not a range any closed basin was measured
+  # at. As a buffer inside the relaxation it vanishes as drainage runs, which is
+  # the same statement the calcite offset already makes: a solute stays where
+  # the drainage does not export it.
+  #
+  # BOTH DERIVED, and for a different reason from the calcite pair above: this
+  # one does not move with pCO2. What the sentinel buys is that Helvaci's range
+  # is written down ONCE, in `carbonate_ph.py:CLOSED_BASIN_PH_RANGE`, with its
+  # citation, its IMPLICIT-EARTH classification and the argument for reading its
+  # low end. The closed basin was stated three times in this block once; a
+  # second copy of the measurement is how that happened.
+  soda_buffer_ph: derived
+  soda_buffer_ph_bracket: derived
 
 # ---------------------------------------------------------------------------
 # Organic matter, the loop closure

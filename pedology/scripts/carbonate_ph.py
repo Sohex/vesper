@@ -122,7 +122,28 @@ SOIL_AIR_ENRICHMENT_BRACKET = (10.0, 100.0)
 
 # Helvaci (2019) lists lake water at pH 8.5 to 11 among the conditions the
 # Turkish borate deposits form under. The one measured closed-basin range this
-# project holds, and the target the endorheic alkalinity bonus has to reach.
+# project holds, and it measures WATER STANDING IN A SUMP: the medium
+# `saltCrustMask` calls "the part that repeatedly floods and dries". So it
+# brackets the buffer a salt crust reaches at zero export and it does not
+# bracket a soil on the basin margin, which drains.
+#
+# THE DECLARED VALUE IS THE LOW END, and the reason is the setting the range
+# comes from. Helvaci attributes the boron to circulating boron-rich hot water
+# and lists thermal springs beside the lake water; `references/INDEX.md` records
+# that the Anatolian type needs a hydrothermal flux this project cannot place.
+# The top of the range is therefore the most evaporated brine in a
+# hydrothermally fed basin, and reading it here would import that flux. The low
+# end is the least committal reading of the source and the only point in the
+# range not chosen by preference.
+#
+# IMPLICIT-EARTH, and the diagnosis is what says the number is wrong here rather
+# than an endorsement of it. Not tuned: it is a measured range, not the residual
+# of a fit, and it was fixed before any pH was recomputed. Not opaque: the paper
+# is held and read. What makes it Earth's is that a soda brine's pH is set by
+# its own alkalinity at its own pCO2, and this is Turkish lake water at Earth's.
+# The repair is a saturation solve for trona or nahcolite at this world's pCO2,
+# which needs Pitzer activities at brine ionic strength and is not something
+# this project can do today; until then the bracket stands in and gets swept.
 CLOSED_BASIN_PH_RANGE = (8.50, 11.00)
 
 
@@ -292,8 +313,12 @@ def derived_ph_block(p_co2_bar: float) -> dict:
         "calcite_buffer_ph_bracket": [soil_air_low, atmospheric],
         "parent_bracket_silicate": [co2_only_ph(p_atm), atmospheric],
         "parent_bracket_carbonate": [soil_air_low, atmospheric],
-        "endorheic_alkalinity_bonus_bracket": [closed_low - atmospheric,
-                                               closed_high - atmospheric],
+        # The SUMP's buffer, the third the pH block runs on. Not a function of
+        # pCO2 -- it is Helvaci's measured range and its low end -- and it is
+        # emitted from here anyway so that the range is stated once, in the
+        # constant above, with its citation and its classification beside it.
+        "soda_buffer_ph": closed_low,
+        "soda_buffer_ph_bracket": [closed_low, closed_high],
         "closed_basin_ph_range": list(CLOSED_BASIN_PH_RANGE),
         "soil_air_enrichment_bracket": list(SOIL_AIR_ENRICHMENT_BRACKET),
         "source": "Slessarev et al. (2016) Nature 540, 567-569, "
@@ -325,9 +350,7 @@ def resolve(ph_params: dict, p_co2_bar: float) -> tuple[dict, dict]:
     for key, value in (("parent_bracket_silicate", block["parent_bracket_silicate"]),
                        ("parent_bracket_carbonate", block["parent_bracket_carbonate"]),
                        ("calcite_buffer_ph_bracket",
-                        block["calcite_buffer_ph_bracket"]),
-                       ("endorheic_alkalinity_bonus_bracket",
-                        block["endorheic_alkalinity_bonus_bracket"])):
+                        block["calcite_buffer_ph_bracket"])):
         declared = ph_params.get(key)
         if declared != "derived":
             raise SystemExit(
@@ -337,6 +360,25 @@ def resolve(ph_params: dict, p_co2_bar: float) -> tuple[dict, dict]:
                 "number here is a restatement that cannot learn pCO2 moved. "
                 "See pedology/scripts/carbonate_ph.py")
         resolved[key] = list(value)
+
+    # The sump's buffer is emitted from here for a DIFFERENT reason, and the
+    # message has to say so or it claims a planet transfer it does not have.
+    # Helvaci's range does not move with pCO2; what it must not do is be written
+    # down twice, which is how the closed basin came to be stated three times.
+    for key, value in (("soda_buffer_ph", block["soda_buffer_ph"]),
+                       ("soda_buffer_ph_bracket",
+                        list(block["soda_buffer_ph_bracket"]))):
+        declared = ph_params.get(key)
+        if declared != "derived":
+            raise SystemExit(
+                f"pedogenesis.yaml ph.{key} is {declared!r}; it must be the "
+                "string `derived`. It is the one closed-basin water range this "
+                "project holds, and it is stated once, in "
+                "pedology/scripts/carbonate_ph.py:CLOSED_BASIN_PH_RANGE, with "
+                "its citation and its implicit-Earth classification beside it. "
+                "A number here is a second copy of that measurement, which is "
+                "the defect world-5th5 and world-bo4n between them removed.")
+        resolved[key] = value
 
     if ph_params.get("calcite_buffer_ph") != "derived":
         raise SystemExit(
@@ -352,9 +394,10 @@ def resolve(ph_params: dict, p_co2_bar: float) -> tuple[dict, dict]:
     # on is not a property of the rock. The evaporite entry was the last
     # exception, at a declared 8.8 for sodium carbonate. It went because a
     # closed basin passing the Hardie-Eugster divide is a property of the BASIN
-    # and is already stated once as `ph.endorheic_alkalinity_bonus`, off the
-    # same Helvaci measurement and on the same land; `pedogenesis.yaml` has the
-    # argument.
+    # rather than of the floor's rock, and the same Helvaci measurement was
+    # already stated a second time beside it; `pedogenesis.yaml` has the
+    # argument. Where the closed basin is stated now is `ph.soda_buffer_ph`,
+    # carried by the SUMP's share of a cell and inside the relaxation.
     parents = dict(ph_params["parent_by_category"])
     stated = [name for name, value in parents.items() if value != "derived"]
     if stated:
@@ -366,8 +409,8 @@ def resolve(ph_params: dict, p_co2_bar: float) -> tuple[dict, dict]:
               "this world's pCO2, and a number here is a restatement that "
               "cannot learn pCO2 moved. A parent that carries its own brine "
               "past calcite saturation is a closed-basin statement and belongs "
-              "in ph.endorheic_alkalinity_bonus, which already makes it. See "
-              "pedology/scripts/carbonate_ph.py")
+              "in ph.soda_buffer_ph, which already makes it and makes it about "
+              "the sump. See pedology/scripts/carbonate_ph.py")
     for name in parents:
         parents[name] = block["parent_carbonate"]
     resolved["parent_by_category"] = parents
@@ -453,8 +496,9 @@ def main() -> None:
     print(f"  parent_bracket_silicate              [{lo:.4f}, {hi:.4f}]")
     lo, hi = block["parent_bracket_carbonate"]
     print(f"  parent_bracket_carbonate             [{lo:.4f}, {hi:.4f}]")
-    lo, hi = block["endorheic_alkalinity_bonus_bracket"]
-    print(f"  endorheic_alkalinity_bonus_bracket   [{lo:.4f}, {hi:.4f}]")
+    lo, hi = block["soda_buffer_ph_bracket"]
+    print(f"  soda_buffer_ph                       {block['soda_buffer_ph']:.4f}"
+          f"  (the sump's, in [{lo:.4f}, {hi:.4f}])")
 
 
 if __name__ == "__main__":

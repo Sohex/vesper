@@ -394,9 +394,26 @@ def regolith_depth_expectation(mesh: Export, grid_dir: Path,
     return depth, at_mixed, mixed, transfer_ledger(cell, ncell, area, is_land)
 
 
+#  The closed basin enters here and nowhere else, and it enters as a ZONE.
+#
+#  A closed basin is not a uniform surface and Orogen does not treat it as one.
+#  `vendor/orogen/js/lithology.js:saltCrustMask` zones it by depth below the
+#  spill point: "the clastic load drops at the basin margin as alluvial fans and
+#  playa mud, while the dissolved load travels to the lowest ground and
+#  precipitates there when the water evaporates. The salt crust is therefore the
+#  SUMP -- the part that repeatedly floods and dries -- not the basin." The
+#  `evaporite` class is produced by the `basin_fill` cover rule only where the
+#  cell is endorheic AND in that mask, so the class IS the sump: on the
+#  configured build none of its land area falls outside `is_endorheic`.
+#
+#  So this names the pH categories whose land is sump, and the soda buffer is
+#  carried by their share of the cell. A margin cell exports its solutes to the
+#  sump and does not accumulate them, which is what the share expresses.
+SUMP_GROUPS = ("evaporite",)
+
+
 def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
-            endorheic: np.ndarray, params: dict, reference_runoff: float
-            ) -> np.ndarray:
+            params: dict, reference_runoff: float) -> np.ndarray:
     """Two mineral buffers, with the lithology deciding how far between them.
 
     BOTH ENDS ARE PARENT-INDEPENDENT, which is Slessarev et al. (2016)'s
@@ -413,6 +430,28 @@ def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
 
     with `dry` the highest buffer that parent can reach and `supply` the
     parent's base-cation supply relative to a calcite-saturated one.
+
+    THE THIRD BUFFER IS THE SUMP'S, AND IT IS A ZONE RATHER THAN A ROCK. A
+    closed basin evaporates past calcite saturation, which strips the calcium
+    out of solution and leaves sodium carbonate to buffer what is left, so the
+    sump sits ABOVE the calcite equilibrium; this world's own Hardie-Eugster
+    divide puts 95 per cent of endorheic catchment area on that alkaline path
+    under either published weighting. That is a statement about the ground the
+    dissolved load reaches, not about the basin, so it is carried by the sump's
+    share of the cell (see `SUMP_GROUPS`) and it raises the buffer the soil
+    relaxes FROM:
+
+        dry = dry + sump * (soda - dry)
+
+    It therefore vanishes as leaching runs, exactly as the calcite offset does,
+    because both say the same thing: a solute stays where the drainage does not
+    export it. It was previously an additive `endorheic * bonus` outside the
+    exponential and keyed to the endorheic fraction -- the sump's mechanism
+    applied to the whole basin floor, unconditional in L. On the configured
+    build 91.75 per cent of the land area carrying it drained at a median 11.55
+    mm/yr, so the cells being told they accumulated salts were exporting them,
+    and a fully leached floor cell landed on the gibbsite buffer and then had
+    0.8 pH added to it.
 
     WHY THE PARENT IS NOT AN ENDMEMBER AT EITHER END. The fresh parent's own pH
     is a state a steady-state soil is never in, and a model with no time axis
@@ -467,6 +506,21 @@ def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
             f"{buffer_ph}. The pH block runs between them and the alkaline one "
             "has to be above the acid one; at this pCO2 it is not, and there "
             "is no span for a parent to sit inside.")
+    soda_ph = float(params["soda_buffer_ph"])
+    soda_low, soda_high = (float(v) for v in params["soda_buffer_ph_bracket"])
+    if not soda_low <= soda_ph <= soda_high:
+        raise SystemExit(
+            f"pedogenesis.yaml ph.soda_buffer_ph is {soda_ph}, outside its own "
+            f"bracket [{soda_low}, {soda_high}]. That bracket is the closed-"
+            "basin water Helvaci (2019) measures; a value outside it is not a "
+            "reading of that range. See pedology/scripts/carbonate_ph.py")
+    if not soda_ph > calcite_ph:
+        raise SystemExit(
+            f"the soda buffer is {soda_ph} and the calcite buffer is "
+            f"{calcite_ph}. The sump's buffer is what a brine reaches AFTER it "
+            "has evaporated past calcite saturation, so it has to sit above "
+            "it; at this pCO2 it does not, and the closed basin would be "
+            "pulling its own sump down rather than raising it.")
     # One rock, one answer. `lithology_map.py`'s `PH_GROUP` and its
     # `ROCK_TO_MEYBECK` read the same twenty Orogen classes for the same
     # released alkalinity, and a class whose two readings differ has to carry
@@ -477,8 +531,16 @@ def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
     shape = runoff_mm_yr.shape
     buffers = params["parent_by_category"]
     supplies = params["base_cation_supply_by_category"]
+    unknown = [g for g in SUMP_GROUPS if g not in buffers]
+    if unknown:
+        raise SystemExit(
+            f"SUMP_GROUPS names {unknown}, which is not a pH category. The sump "
+            "is carried by the share of the cell in those categories, so a "
+            "renamed category has to be renamed here too or the closed basin "
+            "silently stops being stated.")
     dry = np.zeros(shape)
     supply = np.zeros(shape)
+    sump = np.zeros(shape)
     total = np.zeros(shape)
     for code, share in fractions.items():
         group = PH_GROUP.get(code)
@@ -488,20 +550,28 @@ def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
         # A supply is extensive, so it mixes linearly over the cell's rock
         # classes for the same reason an alkalinity does.
         supply += share * supplies[group]
+        if group in SUMP_GROUPS:
+            sump += share
         total += share
     covered = total > 1e-9
     dry[covered] /= total[covered]
     supply[covered] /= total[covered]
+    sump[covered] /= total[covered]
     dry[~covered] = buffers["sedimentary_clastic"]
     supply[~covered] = supplies["sedimentary_clastic"]
+    # A cell with no mesh land in it has no sump either; the fallback above is a
+    # rock, and a zone that is not there is a zero rather than a substitution.
+    sump[~covered] = 0.0
 
-    # The buffer the mixture reaches with nothing exported is calcite for
-    # everything that supplies calcium, which is every rock class here; only the
-    # evaporite entry sits above calcite saturation, because sodium carbonate
-    # rather than calcite sets it and a solution buffered by soda is not brought
-    # back down by precipitating calcite out of it. The floor is defensive: a
-    # mixture of buffers cannot fall below the lowest of them.
+    # The buffer the mixture reaches with nothing exported is calcite for every
+    # rock class here, because every one of them supplies calcium. The floor is
+    # defensive: a mixture of buffers cannot fall below the lowest of them.
     dry = np.maximum(dry, calcite_ph)
+    # And the sump's share of the cell sits on the soda buffer instead, because
+    # the brine that reached it evaporated past calcite saturation. Linear in
+    # the share, for the same reason the mixture above is: a cell that is half
+    # salt crust is half a soil whose zero-export end is soda.
+    dry = dry + sump * (soda_ph - dry)
     if float(supply.min()) <= 0.0:
         raise SystemExit(
             f"the mixed base-cation supply falls to {float(supply.min()):.4f}. "
@@ -512,7 +582,6 @@ def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
     leaching = np.log1p(np.maximum(runoff_mm_yr, 0.0) / reference_runoff)
     ph = buffer_ph + (dry - buffer_ph) * np.exp(
         -params["leaching_slope"] * leaching / supply)
-    ph += endorheic * params["endorheic_alkalinity_bonus"]
     return np.clip(ph, params["minimum"], params["maximum"])
 
 
@@ -806,7 +875,7 @@ def main() -> None:
     # supply whose implied fresh solution falls outside the derived bracket.
     ph_params, ph_derivation = carbonate_ph.resolve(
         pedo["ph"], config["atmosphere"]["pCO2_bar"])
-    ph = soil_ph(fractions, runoff, endorheic, ph_params,
+    ph = soil_ph(fractions, runoff, ph_params,
                  pedo["weathering"]["reference_runoff_mm_per_earth_year"])
 
     # Andisols. Volcanism as a process rather than a composition: see the

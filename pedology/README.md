@@ -159,8 +159,8 @@ the two orders against `regolith.minimum_depth_m`, and the soil report's
 `regolith_aggregation` block carries the difference on whatever map it just
 built.
 
-**pH**, as a crossing between two mineral buffers driven by drainage, and pushed
-back up where drainage is closed and salts concentrate instead of leaving. Both
+**pH**, as a crossing between two mineral buffers driven by drainage, with a
+third buffer where a closed basin's dissolved load ends up. Both
 ends are parent-independent by construction: a gridcell that exports nothing
 sits on the calcite buffer, because calcium that is not exported accumulates as
 pedogenic calcite until the solution saturates, and one that exports everything
@@ -171,6 +171,17 @@ supply is declared per rock category and sourced per lithology from Meybeck
 (1987) and GEM-CO2, as a flux ratio rather than as a pH. The calcite end is
 solved from this world's declared pCO2 rather than taken from Earth; the
 gibbsite end and the supply set are Earth's.
+
+The third buffer is the SUMP's, and it is a zone rather than a rock. A closed
+basin evaporates past calcite saturation, which strips the calcium and leaves
+sodium carbonate buffering what is left, so the ground the brine finally reaches
+sits above the calcite equilibrium. Where that ground is comes from Orogen,
+which zones a closed basin by depth below its spill point: the margins take the
+clastic load as playa mud and alluvial fans, and the salt crust is the part that
+repeatedly floods and dries. So the soda buffer is carried by the salt crust's
+share of a gridcell -- a tenth of the basin floor's area -- and it enters as the
+buffer the crust relaxes FROM, so it vanishes as drainage runs, in the same way
+and for the same reason the calcite offset does.
 
 **Organic fraction and bulk density**, from LPJ-GUESS's own soil carbon through
 the standard reciprocal mixing rule, which is why organic soils come out light.
@@ -673,6 +684,14 @@ mentions.
   CaX/AlX of 2.7 that this project has no model for. The exchange chemistry
   travels; the population does not. Bracketed 4.64 to 5.28 over two decades of
   that ratio.
+- `soda_buffer_ph` is implicit-Earth too, and for a reason with the same shape.
+  Helvaci (2019) measures lake water at pH 8.5 to 11 in the Turkish borate
+  basins, which is the medium a salt crust is when it floods; the declared value
+  is the low end, because the top of the range is the most evaporated brine in a
+  hydrothermally fed basin and this project cannot place that flux. A soda
+  brine's pH is set by its own alkalinity at its own pCO2, so what does not
+  travel is the basin. The repair is a saturation solve for trona or nahcolite
+  at this world's pCO2, which needs Pitzer activities at brine ionic strength.
 - The catena slope term carries the pattern and not the magnitude, because even
   the 15.19 km mesh is two orders of magnitude coarser than a hillslope.
 - Nothing here has been validated against an independent product, unlike the
@@ -862,11 +881,14 @@ topology.
   its normalisation, so a young volcanic surface and an ancient craton weather
   identically under the same climate. Orogen has exhumation data that could
   support a real age term.
-- **Salinity is only a pH bonus.** Endorheic basins raise pH but sodicity,
-  osmotic stress and the actual salt budget are not modelled, and LPJ-GUESS has
-  no salinity response to receive them anyway. The bonus is bounded by what a
-  closed basin's water reaches and not by what its soil does, which is a
-  different measurement.
+- **Salinity is only a pH buffer, and only on the sump.** A closed basin's salt
+  crust reaches an alkaline buffer; sodicity, osmotic stress and the actual salt
+  budget are not modelled, and LPJ-GUESS has no salinity response to receive
+  them anyway. The buffer is bounded by what a closed basin's WATER reaches and
+  not by what its soil does, which is a different measurement, and the salt
+  crust is a sub-grid feature at T21: it is 1.39 per cent of land area and no
+  gridcell is more than a quarter of it, so the statement is worth 0.003 pH on
+  the land mean here and will be worth more at a finer rung.
 - **C:N is a single declared constant**, because this world has no measured
   nitrogen cycle and the deposition rate feeding LPJ-GUESS is itself an
   assumption.

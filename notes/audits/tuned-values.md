@@ -1013,7 +1013,7 @@ to tune within it.
 | `texture.clay_conversion` | no comment on the value, no source, no bracket; numerically identical to `clay_yield`, which WAS fitted to a SoilGrids slope of 0.543 | near-linear at this world's weathering intensity: a 10 per cent move is +9.2 per cent converted clay | BRACKETED on the e-folding intensity, 0.29 to 1.00, and the near-degeneracy with `clay_yield` recorded |
 | `texture.clay_yield` | fully admitted as an Earth fit over sixteen type localities, and applied BELOW the range it was calibrated in, where the file records the bias is largest | linear multiplier; documented residual bias of +0.084 clay fraction at this world's mean | UNCHANGED. It is disclosed, and disclosure is the standard this row asks for |
 | `regolith.dry_erosion_baseline` | the mechanism was argued and the value was not attached to it; no source, no bracket | 21 per cent of the moisture term at the land mean, 100 per cent of it over the arid fraction of land, where depth goes as its reciprocal | SOURCED from Portenga and Bierman's arid basins, and bracketed from their stated uncertainties |
-| the `ph:` block: six parent values, `leaching_slope`, `endorheic_alkalinity_bonus` | no comment on ANY value, no citation, no bracket, nothing in README, notes or references | the slope moves land-mean soil pH by 0.04 per 10 per cent and wet-cell pH by 0.13; the bonus is a flat 0.08 over the closed-basin fraction that the brine and duricrust rules key on | REBUILT. The block's FORM was refuted by its own source and replaced; BOTH BUFFERS ARE NOW DERIVED at this world's pCO2, the lithology contrast is SOURCED as a base-cation supply and no longer stated as a pH at all, and what remains declared is `gibbsite_buffer_ph` (implicit-Earth, bracketed), `leaching_slope` (bracketed one-sided) and `endorheic_alkalinity_bonus` (bracket derived) |
+| the `ph:` block: six parent values, `leaching_slope`, `endorheic_alkalinity_bonus` | no comment on ANY value, no citation, no bracket, nothing in README, notes or references | the slope moves land-mean soil pH by 0.04 per 10 per cent and wet-cell pH by 0.13; the bonus is a flat 0.08 over the closed-basin fraction that the brine and duricrust rules key on | REBUILT. The block's FORM was refuted by its own source and replaced; BOTH BUFFERS ARE NOW DERIVED at this world's pCO2, the lithology contrast is SOURCED as a base-cation supply and no longer stated as a pH at all, and the closed basin is now the SUMP's buffer inside that relaxation rather than a flat offset on the whole basin floor, and what remains declared is `gibbsite_buffer_ph` (implicit-Earth, bracketed), `soda_buffer_ph` (implicit-Earth, bracketed, emitted so the source is stated once) and `leaching_slope` (bracketed one-sided) |
 | `texture.sand_to_silt_loss_ratio` | no source; and the mechanism sentence beside it had the surface-area argument backwards, which is why the number did not follow from the reasoning printed next to it | redistributes 2 to 3 per cent between sand and silt at fixed clay; under 1 per cent on PAWC | BRACKETED over both mechanisms, sentence corrected, and the value moved to the one point in the bracket that carries a statement |
 
 **Disposition: RESOLVED, and one of the five turned out not to be a bracketing
@@ -1072,6 +1072,22 @@ base-cation supply as a fraction of a calcite-saturated soil's. Both ends are
 parent-independent, which is the observation, and the lithology contrast
 survives at finite leaching in `u`, which is where the paper's own carbonate
 deviation lives.
+
+**The closed basin is the third buffer, and it is inside that relaxation.** A
+closed basin evaporates past calcite saturation and the brine that does so ends
+up in the SUMP -- Orogen zones the basin and puts the salt crust in the lowest
+ground, giving the margins the clastic load -- so `D` is raised toward
+`soda_buffer_ph` by the salt crust's share of the cell. It was an additive
+offset on the endorheic fraction, eleven times that area, of which 91.75 per
+cent drains at a median 11.55 mm/yr, and unconditional in `L`, so a fully
+leached floor cell landed on the gibbsite buffer and then had 0.8 added to it.
+A solute stays where the drainage does not export it, which is the same
+statement `exp(-sL/u)` already makes, so the closed basin decays the same way.
+`soda_buffer_ph` is Helvaci (2019)'s closed-basin lake water, low end declared
+because the top of that range is the most evaporated brine in a hydrothermally
+fed basin; IMPLICIT-EARTH, because a soda brine's pH is set by its own
+alkalinity at its own pCO2 and the repair is a trona saturation solve this
+project cannot do today.
 
 **`u` IS SOURCED, and it is not a pH.** It sits in the denominator of an
 exponent whose numerator is a leaching index, so it is a ratio of a supply flux
