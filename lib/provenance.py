@@ -890,6 +890,7 @@ def staged_surface_field(code: int, config: dict | None = None, *,
     than trusted, because the whole failure this closes is silent.
     """
     import builds as _builds
+    import orogen as _orogen
     from orogen import _KNOWN_TERRAIN_HASHES
     if config is None:
         import yaml
@@ -922,13 +923,17 @@ def staged_surface_field(code: int, config: dict | None = None, *,
     wanted = _builds.terrain_hash(config)
     declared = for_build is not None
     if declared:
-        named = {v["name"]: k for k, v in _KNOWN_TERRAIN_HASHES.items()}
-        if for_build not in named:
+        # orogen.py owns the registry and both its indexes. Rebuilding the
+        # inverse here took the LAST of a duplicate pair, where the index in
+        # orogen.py raises on one -- and a duplicate name is exactly the case
+        # that cannot be resolved downstream, because a name addresses both a
+        # source/ directory and a per-build data directory.
+        wanted = _orogen.terrain_hash_for_name(for_build)
+        if wanted is None:
             raise SystemExit(
                 f"--for-build {for_build!r} is not a build in lib/orogen.py's "
                 f"registry; a cross-build read is declared by NAMING the build "
                 f"it means, so an unregistered name cannot declare anything")
-        wanted = named[for_build]
     if staged != wanted:
         who = (_KNOWN_TERRAIN_HASHES.get(staged) or {}).get("name", "an "
                                                             "unregistered build")

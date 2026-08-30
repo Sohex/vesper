@@ -332,6 +332,11 @@ _KNOWN_CATALOGUE_HASHES = {
 # came first, and it would also put two terrains in one `<component>/data/<name>`
 # directory, so the collision is worth more than a wrong answer here.
 _BUILDS_BY_NAME: dict[str, dict] = {}
+# The same index the other way, because a caller that has a name and needs the
+# HASH was rebuilding its own inverse with a dict comprehension, which silently
+# takes the last of a duplicate pair where this loop raises on it. One index,
+# one uniqueness rule, one owner.
+_HASH_BY_NAME: dict[str, str] = {}
 for _hash, _entry in _KNOWN_TERRAIN_HASHES.items():
     if _entry["name"] in _BUILDS_BY_NAME:
         raise RuntimeError(
@@ -339,6 +344,7 @@ for _hash, _entry in _KNOWN_TERRAIN_HASHES.items():
             "name addresses a source/ directory and a per-build data directory, "
             "so it has to be unique")
     _BUILDS_BY_NAME[_entry["name"]] = _entry
+    _HASH_BY_NAME[_entry["name"]] = _hash
 del _hash, _entry
 
 
@@ -359,6 +365,19 @@ def registry_entry(terrain_hash: str | None = None, *,
     if name is not None:
         return _BUILDS_BY_NAME.get(name)
     return None
+
+
+def terrain_hash_for_name(name: str) -> str | None:
+    """The terrain hash a registered build NAME addresses, or None if unknown.
+
+    The registry is keyed by hash because the hash is what the export IS, but a
+    declared cross-build read names the build it means, so the lookup has to go
+    the other way as well. It goes through the index built above, which raises
+    on a duplicate name; a caller inverting the registry itself gets whichever
+    entry happens to come last instead, and that is the case the uniqueness
+    rule exists for.
+    """
+    return _HASH_BY_NAME.get(name)
 
 
 def activation_refusal(terrain_hash: str | None = None, *,
