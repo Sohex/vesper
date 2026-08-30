@@ -298,11 +298,18 @@ def main() -> None:
     # The requirement, handed to the gate in the shape it reads, so the verdict
     # this report carries is the same verdict the gate reaches from the artifact.
     outgassing_declaration = outgassing_gate.read_declaration()
+    # Earth's silicate CO2 consumption, read from the declaration that owns it.
+    # It was a literal repeated at four use sites here while
+    # pedology/config/outgassing.yaml declared the same figure and nothing read
+    # it, so the file could be edited without any of these ratios moving.
+    earth_silicate = float(
+        outgassing_declaration["requirement"]
+        ["earth_silicate_co2_consumption_mol_per_year"])
     outgassing_verdict = outgassing_gate.verdict(
         outgassing_declaration, config,
         {"source_build": config.get("source_build"),
          "carbon_balance": {"plausibility_check": {
-             "required_outgassing_over_earth": (silicate_total / 11.7e12)}}},
+             "required_outgassing_over_earth": (silicate_total / earth_silicate)}}},
         PROJECT_ROOT / "pedology" / "analysis" / "weathering_fluxes.json")
 
     report = {
@@ -354,11 +361,13 @@ def main() -> None:
                 "agreeing is a check on the concentration, not on the runoff "
                 "law. Neither uses Berner's 0.65 exponent, which applies to the "
                 "global lithological mix rather than to basalt."),
-            "earth_silicate_consumption_mol_per_year": 11.7e12,
+            "earth_silicate_consumption_mol_per_year": earth_silicate,
             "earth_reference": (
-                "Gaillardet et al. (1999) put global silicate CO2 consumption "
-                "near 11.7e12 mol/yr. Quoted for scale only; it is a different "
-                "planet's land area, relief and lithology."),
+                "The figure beside this one is Gaillardet et al. (1999)'s "
+                "global silicate CO2 consumption, declared in "
+                "pedology/config/outgassing.yaml and read from there. Quoted "
+                "for scale only; it is a different planet's land area, "
+                "relief and lithology."),
         },
         "co2_by_class": dict(sorted(
             per_class.items(),
@@ -395,8 +404,8 @@ def main() -> None:
                 "balancing burial, and silicate weathering is what converts "
                 "CO2 into buriable alkalinity. So a silicate consumption rate "
                 "is also a statement about the outgassing this world needs."),
-            "silicate_consumption_over_earth": (silicate_total / 11.7e12),
-            "implied_outgassing_over_earth": (silicate_total / 11.7e12),
+            "silicate_consumption_over_earth": (silicate_total / earth_silicate),
+            "implied_outgassing_over_earth": (silicate_total / earth_silicate),
             "reading": (
                 f"config/planet.yaml fixes CO2 at {pco2_ppm:.0f} ppm. That is an "
                 "ASSUMPTION, not a result: nothing in this project solves the "
@@ -445,7 +454,7 @@ def main() -> None:
                     "outgassing. That sidesteps absolute outgassing estimates, "
                     "which span a factor of several depending on whether "
                     "metamorphic and diagenetic sources are counted."),
-                "required_outgassing_over_earth": (silicate_total / 11.7e12),
+                "required_outgassing_over_earth": (silicate_total / earth_silicate),
                 "radiogenic_supply_over_earth": outgassing_verdict["supply_over_earth"],
                 "margin": outgassing_verdict["margin"],
                 "supply_basis": (
@@ -543,7 +552,7 @@ def main() -> None:
     print(f"  volcanic share     {100*total(volcanic_silica*1e-6)/silica_total:10.1f}%")
     print(f"  land yield         {silica_yield:10.2f} t SiO2/km2/yr "
           f"(Earth exorheic mean 3.3)")
-    required = silicate_total / 11.7e12
+    required = silicate_total / earth_silicate
     print(f"\noutgassing required  {required:10.2f} x Earth "
           f"({pco2_ppm:.0f} ppm at this climate)")
     supply = outgassing_verdict["supply_over_earth"]

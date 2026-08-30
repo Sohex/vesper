@@ -104,6 +104,28 @@ reader can see what was fitted, to what, and how well.
   what was measured, so they keep their numbers and gain a "measured on".
 - **Rewrite superseded content; do not mark it.** A reader grepping for a number
   lands on the number, not on the warning above it.
+- **A declared numeric is written so the PARSER resolves it as a number.** YAML
+  1.1 wants a sign in the exponent and a decimal point in the mantissa, and
+  PyYAML's `safe_load` implements 1.1, so `5.0e+4` arrives as a float while
+  `5.0e4` and `1e+10` arrive as strings. Nothing in the file distinguishes the
+  two. The string reads as a number, survives every static pass, round-trips
+  through a report with quotes nobody looks at, and fails only where something
+  finally compares against it -- as a TypeError several steps from the
+  declaration that caused it. Three constants in this tree were written that
+  way, and the gate that should have caught them was coercing numeric strings
+  so that an exponent form would not be misreported as a bracket violation, so
+  the check was absorbing the defect rather than surfacing it.
+
+  The alternative -- quote the value and float it at the point of read -- was
+  rejected. It puts the fact in two places, it asks every future consumer to
+  remember a rule, and the consumer that forgets fails at a distance. One place
+  owns the fact instead: the file states the number, the parser is the check,
+  and `smoke_test.py:check_declared_numerics_resolve_to_numbers` refuses any
+  unquoted scalar in `config/*.yaml` or `*/config/*.yaml` that reads as a
+  number and resolves to a string. QUOTING IS THE STATEMENT OF INTENT, which
+  is what separates the defect from a deliberate string: `contract_unit: "1"`
+  is the dimensionless unit and `form: "0.025"` is a source form being quoted,
+  and neither is reported.
 - Keep citations and table cells on one source line, even where that breaks
   column alignment. They get copied out.
 - Claims about convergence and equilibration are stated with their exact criteria

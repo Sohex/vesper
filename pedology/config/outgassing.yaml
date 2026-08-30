@@ -33,7 +33,7 @@ requirement:
   # of required outgassing. That sidesteps absolute outgassing estimates, which
   # span a factor of several depending on whether metamorphic and diagenetic
   # sources are counted.
-  earth_silicate_co2_consumption_mol_per_year: 1.17e13
+  earth_silicate_co2_consumption_mol_per_year: 1.17e+13
   earth_reference_source: "Gaillardet et al. (1999), Chem. Geol. 159, 3-30"
   # The prescribed CO2 the requirement is a requirement FOR. Read from config
   # rather than restated, so a change there cannot leave this behind.

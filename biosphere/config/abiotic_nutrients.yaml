@@ -635,8 +635,8 @@ adequacy:
   # stricter test. Chadwick et al. (1999) independently find the atmosphere
   # taking over as the dominant Ca, Mg and K source below 1e5 years, which is
   # the same order and is not what set this number.
-  residence_time_earth_years: 5.0e4
-  residence_time_bracket_earth_years: [5.0e4, 1.15e5]
+  residence_time_earth_years: 5.0e+4
+  residence_time_bracket_earth_years: [5.0e+4, 1.15e+5]
 
   # Where the lower-bound release concentration comes from. Read at run time
   # rather than copied: two representations of one table is the duplication the

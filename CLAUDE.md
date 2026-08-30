@@ -116,6 +116,12 @@ The arguments and the incidents behind these are in
   "measured on".
 - **Rewrite superseded content; do not mark it.** A reader grepping for a number
   lands on the number, not on the warning above it.
+- **A declared numeric is written so the parser resolves it as a number.** YAML
+  1.1 wants a sign in the exponent and a point in the mantissa, so `5.0e4` and
+  `1e+10` are STRINGS and `5.0e+4` is a float. Do not quote and float at the
+  point of read; `smoke_test.py:check_declared_numerics_resolve_to_numbers`
+  refuses the string form in the file, and an explicitly quoted numeric is a
+  deliberate string it leaves alone.
 - **A sentence earns its place by the future work it can inform.** Process
   narration, correction stories, dates that carry no identity, and commentary
   about the document itself are byproduct: delete them. Git carries how a

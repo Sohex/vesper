@@ -136,6 +136,13 @@ writes -- run from `main()` with the rest):
    checked for those is that they still are. A key that carries the word and
    declares something else is exempt in writing, with the reason and with an
    assertion that it is still not two numbers.
+16. **Every declared numeric resolves to a number.** YAML 1.1 wants a sign in
+   the exponent and a point in the mantissa, so `5.0e4` and `1e+10` resolve to
+   STRINGS while `5.0e+4` resolves to a float, and nothing in the file says
+   which was meant. Such a string reads as a number everywhere except where
+   something finally compares against it. Over the same declaration files as
+   15, and it is what lets 15 stop coercing numeric strings, which is what was
+   hiding the three keys this found.
 """
 
 from __future__ import annotations
@@ -3876,7 +3883,9 @@ def check_commissioning_evidence_is_re_read() -> list[str]:
 #            here for a disposition. The last field states the reason.
 #
 # (kind, label, config, value path, bracket path, enforcer or reason)
-BRACKET_CONFIG_GLOBS = ("config/*.yaml", "*/config/*.yaml")
+# The declaration files: everything the project declares to itself, and the
+# population of both the bracket check and the numeric-resolution check below.
+DECLARATION_CONFIG_GLOBS = ("config/*.yaml", "*/config/*.yaml")
 
 DUST = "aeolian/config/dust.yaml"
 SEA_SALT = "aeolian/config/sea_salt.yaml"
@@ -3973,9 +3982,15 @@ DECLARED_BRACKETS = (
      None, ("ph", "parent_bracket_silicate"), "pedology/scripts/carbonate_ph.py"),
     ("derived", "ph.parent_bracket_carbonate", PEDOGENESIS,
      None, ("ph", "parent_bracket_carbonate"), "pedology/scripts/carbonate_ph.py"),
-    ("derived", "ph.endorheic_alkalinity_bonus", PEDOGENESIS,
-     ("ph", "endorheic_alkalinity_bonus"),
-     ("ph", "endorheic_alkalinity_bonus_bracket"),
+    # The third buffer, the sump's. `derived` and with no value path because
+    # both the value and the bracket are sentinels: this one does NOT move with
+    # pCO2, and what the sentinel buys is that Helvaci's closed-basin water
+    # range is written down once, in carbonate_ph.py, with its citation and its
+    # implicit-Earth classification. `carbonate_ph.resolve` refuses a number in
+    # either key on every run, and `build_soil.py:soil_ph` additionally refuses
+    # a soda buffer outside its bracket or at or below the calcite one.
+    ("derived", "ph.soda_buffer_ph", PEDOGENESIS,
+     None, ("ph", "soda_buffer_ph_bracket"),
      "pedology/scripts/carbonate_ph.py"),
     # Pedology's other two declaration files. `outgassing.yaml` is the one
     # component gate that already does this arithmetic, and it is a registered
@@ -4207,22 +4222,23 @@ def _dig(doc, path):
 def _number(value):
     """The number a declaration states, or None where it states none.
 
-    A YAML 1.1 float wants a sign in its exponent, so `5.0e+4` resolves to a
-    float and `5.0e4` resolves to a string. Both are meant as numbers by
-    whoever wrote them and both are read as numbers by whoever consumes them,
-    so refusing the second here would report an exponent form as a bracket
-    violation, which it is not. A bool is not a number: `true` is an arm being
-    taken, and `float(True)` is 1.0, which would put it inside almost anything.
+    A STRING IS NOT A NUMBER HERE, however much it reads as one. This used to
+    coerce, because a YAML 1.1 float wants a sign in its exponent -- `5.0e+4`
+    resolves to a float and `5.0e4` resolves to a string -- and refusing the
+    second would have reported an exponent form as a bracket violation, which
+    it is not. What the coercion actually did was absorb the defect: the
+    bracket read as intact here and the string went on to fail at whatever
+    compared against it next. `check_declared_numerics_resolve_to_numbers`
+    refuses that form in the file, which is where it is repairable, so there
+    is nothing left for this to coerce.
+
+    A bool is not a number either: `true` is an arm being taken, and
+    `float(True)` is 1.0, which would put it inside almost anything.
     """
     if isinstance(value, bool) or value is _MISSING:
         return None
     if isinstance(value, (int, float)):
         return float(value)
-    if isinstance(value, str):
-        try:
-            return float(value)
-        except ValueError:
-            return None
     return None
 
 
@@ -4374,10 +4390,10 @@ def _bracket_problems(docs: dict, derived: dict | None,
         if kind == "derived":
             declared = _dig(doc, bracket_path)
             if declared != "derived":
-                bad.append(f"{label}'s bracket in {where} is {declared!r} and not "
-                           f"the string `derived`. It is a function of "
-                           f"config/planet.yaml's pCO2_bar through {enforcer}, "
-                           f"and a number here cannot learn that pCO2 moved")
+                bad.append(f"{label}'s bracket in {where} is {declared!r} and "
+                           f"not the string `derived`. {enforcer} evaluates it "
+                           f"and a number here is a second copy that cannot "
+                           f"learn its input moved")
                 continue
             if not _text_names(enforcer, bracket_path[-1]):
                 bad.append(f"{label}'s bracket is declared `derived` and "
@@ -4523,7 +4539,7 @@ def check_declared_brackets_contain_their_values() -> list[str]:
     import copy
     import yaml
     docs = {}
-    for pattern in BRACKET_CONFIG_GLOBS:
+    for pattern in DECLARATION_CONFIG_GLOBS:
         for full in sorted(ROOT.glob(pattern)):
             name = full.relative_to(ROOT).as_posix()
             try:
@@ -4576,8 +4592,9 @@ def check_declared_brackets_contain_their_values() -> list[str]:
         ("a derived bracket restated as a number",
          mutated(("ph", "parent_bracket_silicate"), [5.5, 8.2]),
          "not the string `derived`"),
-        ("a value outside the bracket the equilibrium derives",
-         mutated(("ph", "endorheic_alkalinity_bonus"), 9.0), "does not contain"),
+        ("a derived closed-basin bracket restated as numbers",
+         mutated(("ph", "soda_buffer_ph_bracket"), [8.5, 11.0]),
+         "not the string `derived`"),
         ("a bracket in another file its value sits outside",
          mutated(("surface_cover", "loess", "deposition_g_m2_yr"), 500.0,
                  SURFACE_CLASSES), "does not contain"),
@@ -4632,6 +4649,150 @@ def check_declared_brackets_contain_their_values() -> list[str]:
             bad.append(f"the fixture 'a {kind} bracket whose enforcer no longer "
                        f"reads it' was not caught: expected a problem saying "
                        f"{expected!r}, got {said!r}")
+    return bad
+
+
+def _resolving_form(text: str) -> str | None:
+    """The nearest spelling of `text` that YAML 1.1 resolves to a float.
+
+    Two repairs, because 1.1's float wants BOTH a sign in the exponent and a
+    decimal point in the mantissa: `1e10` needs `1.0e+10`, not `1e+10`. The
+    third candidate is the dotted spelling 1.1 gives the non-finite values, so
+    a bare `nan` is told to become `.nan` rather than told nothing.
+    """
+    import yaml
+    sign = text[0] if text[:1] in ("+", "-") else ""
+    signed = re.sub(r"([eE])(\d)", r"\1+\2", text)
+    for candidate in (signed,
+                      re.sub(r"^([-+]?\d+)([eE])", r"\g<1>.0\2", signed),
+                      sign + "." + text[len(sign):]):
+        try:
+            if isinstance(yaml.safe_load(candidate), float):
+                return candidate
+        except yaml.YAMLError:
+            continue
+    return None
+
+
+def _unresolved_numerics(text: str, where: str) -> list[str]:
+    """Every unquoted scalar in one YAML document that reads as a number and
+    is not one.
+
+    QUOTING IS THE DECLARATION OF INTENT, and it is what separates the defect
+    from the two deliberate strings in this tree: `contract_unit: "1"` is the
+    dimensionless unit and `form: "0.025"` is a source form being quoted, both
+    written with quotes, both meant as text. An UNQUOTED scalar has no such
+    statement behind it -- the author wrote a number and expected the parser to
+    agree -- so a plain scalar that `float()` accepts and YAML resolved to a
+    string is the defect, every time, with no exception list to maintain.
+    """
+    import yaml
+    bad = []
+
+    def walk(node, path=()):
+        if isinstance(node, yaml.MappingNode):
+            for key, value in node.value:
+                name = key.value if isinstance(key, yaml.ScalarNode) else "?"
+                walk(key, path + (f"{name} (as a key)",))
+                walk(value, path + (str(name),))
+        elif isinstance(node, yaml.SequenceNode):
+            for index, item in enumerate(node.value):
+                walk(item, path + (f"[{index}]",))
+        elif isinstance(node, yaml.ScalarNode):
+            if node.tag != "tag:yaml.org,2002:str" or node.style is not None:
+                return
+            try:
+                float(node.value)
+            except ValueError:
+                return
+            repaired = _resolving_form(node.value)
+            bad.append(
+                f"{where}:{node.start_mark.line + 1} declares "
+                f"{'.'.join(path) or 'the document'} as the unquoted scalar "
+                f"{node.value}, which reads as a number and resolves to the "
+                f"string {node.value!r}. YAML 1.1 wants a sign in the exponent"
+                + (f"; write it {repaired}" if repaired else
+                   "; write it in a form the parser resolves"))
+
+    document = yaml.compose(text)
+    if document is not None:
+        walk(document)
+    return bad
+
+
+def check_declared_numerics_resolve_to_numbers() -> list[str]:
+    """Every declared numeric resolves to a number rather than to a string.
+
+    THIS IS NOT PYYAML BEING PEDANTIC. YAML 1.1's float resolver requires a
+    SIGN in the exponent, and `safe_load` implements 1.1, so `5.0e+4` arrives
+    as a float and `5.0e4` arrives as the string `'5.0e4'`. Nothing about the
+    file says which one you wrote. The string reads as a number, it round-trips
+    through a report as a number, `json.dump` writes it with quotes nobody
+    reads, and it fails only at the moment something compares against it -- at
+    which point the failure is a TypeError several steps away from the
+    declaration that caused it. That is the shape that survives every static
+    pass, which is why it wants a check of its own rather than a reader in each
+    consumer.
+
+    Three keys in this tree were written that way, and the two ends of one of
+    them went into a report as text. The bracket check beside this one could
+    see none of the three, because it coerced numeric strings deliberately so
+    that an exponent form would not be reported as a bracket violation -- so
+    the gate that would have caught them was absorbing them. With this check in
+    place `_number` no longer coerces.
+
+    THE RULE THIS ENFORCES, one rule and not one decision per constant: a
+    declared numeric is written so that the PARSER resolves it, which for an
+    exponent means writing the sign. The alternative -- quote it and float it
+    at the point of read -- puts the fact in two places and asks every future
+    consumer to remember, and a convention that has to be remembered is the
+    thing this project replaces with one place that owns the fact. Here the
+    file owns it and the parser is the check.
+
+    A right answer available in advance: an unquoted scalar that `float()`
+    accepts must not come back as a string. The population is the declaration
+    files, reached by the same glob as the bracket check, and the fixtures
+    below run both ways -- the forms that must be reported, and the forms that
+    must not, because a check that reported every numeric-looking string would
+    fire on the two the tree quotes on purpose.
+    """
+    bad = []
+    for pattern in DECLARATION_CONFIG_GLOBS:
+        for full in sorted(ROOT.glob(pattern)):
+            name = full.relative_to(ROOT).as_posix()
+            bad.extend(_unresolved_numerics(
+                full.read_text(encoding="utf-8"), name))
+
+    # AND THE CHECK ITSELF CAN FAIL. Each fixture is one scalar written one
+    # way, and the controls are half of it: without the quoting test the two
+    # quoted ones would be reported and the check would be unusable.
+    for label, text, expected in (
+            ("an unsigned exponent", "adequacy:\n  residence_years: 5.0e4\n",
+             "write it 5.0e+4"),
+            ("an unsigned exponent with no decimal point", "k: 1e10\n",
+             "write it 1.0e+10"),
+            ("a capitalised unsigned exponent", "k: 1.0E5\n",
+             "write it 1.0E+5"),
+            ("an unsigned exponent inside a bracket",
+             "k: [5.0e4, 1.15e5]\n", "k.[1]"),
+            ("a negative unsigned exponent", "k: -3.2e7\n",
+             "write it -3.2e+7"),
+            ("a bare nan, which 1.1 also spells with a dot", "k: nan\n",
+             "write it .nan")):
+        said = _unresolved_numerics(text, "fixture.yaml")
+        if not any(expected in s for s in said):
+            bad.append(f"the fixture {label!r} was not caught: expected a "
+                       f"problem saying {expected!r}, got {said!r}")
+    for label, text in (
+            ("a signed exponent", "k: 5.0e+4\n"),
+            ("the same magnitude written out", "k: 50000.0\n"),
+            ("a quoted numeric, which is a deliberate string", 'k: "1"\n'),
+            ("a quoted source form", 'k: "0.025"\n'),
+            ("a sentinel that is meant to be a string", "k: undeclared\n")):
+        said = _unresolved_numerics(text, "fixture.yaml")
+        if said:
+            bad.append(f"the control {label!r} was reported, and it is the "
+                       f"form this check must leave alone: {said!r}")
     return bad
 
 
@@ -5117,6 +5278,150 @@ def check_one_rock_one_reading() -> list[str]:
         sys.modules.pop("_paths", None)
         if saved is not None:
             sys.modules["_paths"] = saved
+
+
+def check_closed_basin_is_the_sump() -> list[str]:
+    """The pH block's closed-basin statement is about the sump, and it relaxes.
+
+    A closed basin evaporates past calcite saturation, which strips the calcium
+    and leaves sodium carbonate buffering what is left. That happens where the
+    dissolved load ends up, and Orogen says where that is: `saltCrustMask` zones
+    a basin by depth below its spill point, gives the margins the clastic load
+    as playa mud and alluvial fans, and puts the salt crust in the SUMP, "the
+    part that repeatedly floods and dries". The statement has been in the wrong
+    place twice. It was `parent_by_category.evaporite`, a soda pH read off the
+    floor's rock, and it was `endorheic * bonus`, a flat offset on every basin
+    FLOOR cell whatever that cell's drainage was doing -- eleven times the
+    sump's area, of which 91.75 per cent drains at a median 11.55 mm/yr, and
+    unconditional in the leaching index, so a fully leached floor cell landed on
+    the gibbsite buffer and then had 0.8 pH added to it.
+
+    Four assertions on the real `soil_ph`, on synthetic cells, reading no
+    artifact. Each has a right answer rather than a difference:
+
+    1. **A pure sump cell with nothing exported sits ON the soda buffer.** An
+       identity, checked to floating point. Deleting the statement fails here,
+       which is the point: the alkaline path is established for this world by
+       its own Hardie-Eugster divide and the block has to be able to express it.
+    2. **The same cell under heavy leaching falls BELOW the calcite buffer.** A
+       solute stays where the drainage does not export it, so the sump's buffer
+       has to vanish as drainage runs, exactly as the calcite offset does. An
+       additive term outside the exponential passes 1 and fails this.
+    3. **A basin-floor cell that is not sump never exceeds the calcite buffer,
+       at any runoff.** This is the one the old form failed. Playa mud is the
+       basin floor by definition -- the part where the dissolved load did NOT
+       precipitate -- so nothing may lift it above the buffer a soil that
+       exports nothing reaches.
+    4. **A half-sump cell is the linear blend, exactly.** A share is a share; if
+       the term stops being linear in it, it has become something else.
+
+    Also refuses the retired key by name, because a returning
+    `endorheic_alkalinity_bonus` would be a second statement of Helvaci's range
+    beside the one `carbonate_ph.py` holds.
+    """
+    problems = []
+    sys.path.insert(0, str(ROOT / "lib"))
+    pedo_scripts = str(ROOT / "pedology" / "scripts")
+    saved = sys.modules.pop("_paths", None)
+    sys.path.insert(0, pedo_scripts)
+    try:
+        import numpy as np
+        import yaml as _yaml
+        import importlib.util as _ilu
+        _spec = _ilu.spec_from_file_location(
+            "_smoke_build_soil_ph", ROOT / "pedology" / "scripts" / "build_soil.py")
+        _soil = _ilu.module_from_spec(_spec)
+        _spec.loader.exec_module(_soil)
+        pedo = _yaml.safe_load(
+            (ROOT / "pedology" / "config" / "pedogenesis.yaml")
+            .read_text(encoding="utf-8"))
+        planet = _yaml.safe_load(
+            (ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+        params, _ = _soil.carbonate_ph.resolve(
+            pedo["ph"], planet["atmosphere"]["pCO2_bar"])
+    except Exception as exc:            # noqa: BLE001 - reported, not raised
+        return [f"the closed-basin pH fixture cannot load: {exc}"]
+    finally:
+        if pedo_scripts in sys.path:
+            sys.path.remove(pedo_scripts)
+        sys.modules.pop("_paths", None)
+        if saved is not None:
+            sys.modules["_paths"] = saved
+
+    if "endorheic_alkalinity_bonus" in pedo["ph"]:
+        problems.append(
+            "pedogenesis.yaml ph.endorheic_alkalinity_bonus is back. The closed "
+            "basin is stated once, as ph.soda_buffer_ph carried by the sump's "
+            "share of a cell; an additive offset on the endorheic fraction is "
+            "the sump's mechanism applied to the whole basin floor")
+
+    # The classes: one that IS the sump, one that is the basin floor beside it.
+    # Read from PH_GROUP rather than named here, so a remapped class fails the
+    # fixture instead of silently leaving it testing nothing.
+    sump_codes = [c for c, g in _soil.PH_GROUP.items() if g in _soil.SUMP_GROUPS]
+    floor_codes = [c for c in ("playa_clastic",) if c in _soil.PH_GROUP]
+    if not sump_codes:
+        return problems + [
+            "no Orogen rock class maps to a pH category in build_soil.SUMP_GROUPS, "
+            "so the closed basin has nothing to be carried by and this fixture "
+            "is testing nothing"]
+    if not floor_codes:
+        return problems + [
+            "playa_clastic has no pH group, so the basin-floor arm of this "
+            "fixture cannot be built"]
+    if any(_soil.PH_GROUP[c] in _soil.SUMP_GROUPS for c in floor_codes):
+        problems.append(
+            "playa_clastic reads as sump. It is the part of a closed basin "
+            "where the dissolved load did NOT precipitate; saltCrustMask says "
+            "so in the generator")
+
+    q_ref = float(pedo["weathering"]["reference_runoff_mm_per_earth_year"])
+    G = float(params["gibbsite_buffer_ph"])
+    C = float(params["calcite_buffer_ph"])
+    S = float(params["soda_buffer_ph"])
+    # Four cells: pure sump dry, pure sump drenched, pure floor drenched, half
+    # and half dry. The drenched runoff is far past anything this world carries,
+    # because the arm is about the limit and not about a land population.
+    DRENCHED = 100.0 * q_ref
+    runoff = np.array([0.0, DRENCHED, DRENCHED, 0.0])
+    sump_share = np.array([1.0, 1.0, 0.0, 0.5])
+    fractions = {sump_codes[0]: sump_share,
+                 floor_codes[0]: 1.0 - sump_share}
+    try:
+        ph = _soil.soil_ph(fractions, runoff, params, q_ref)
+    except Exception as exc:            # noqa: BLE001 - reported, not raised
+        return problems + [f"soil_ph refuses the closed-basin fixture: {exc}"]
+
+    if abs(float(ph[0]) - S) > 1e-12:
+        problems.append(
+            f"a cell that is all sump with nothing exported reads {ph[0]:.6f} "
+            f"and the soda buffer is {S:.6f}. That is an identity: with no "
+            f"leaching the relaxation returns the buffer it starts from")
+    if not float(ph[1]) < C:
+        problems.append(
+            f"a cell that is all sump under {DRENCHED:.0f} mm/yr of runoff "
+            f"reads {ph[1]:.6f}, at or above the calcite buffer {C:.6f}. The "
+            f"closed-basin statement has to vanish as drainage runs -- a "
+            f"solute stays where the drainage does not export it -- so it "
+            f"belongs inside the relaxation and not added on top of it")
+    if not float(ph[2]) <= C + 1e-12:
+        problems.append(
+            f"a basin-floor cell carrying no sump reads {ph[2]:.6f}, above the "
+            f"calcite buffer {C:.6f}. Nothing may lift the basin FLOOR above "
+            f"the buffer a soil that exports nothing reaches; that is the "
+            f"sump's, and the floor exports to it")
+    blend = C + 0.5 * (S - C)
+    if abs(float(ph[3]) - blend) > 1e-12:
+        problems.append(
+            f"a cell that is half sump with nothing exported reads {ph[3]:.6f} "
+            f"and the blend of the two buffers is {blend:.6f}. The sump enters "
+            f"as a share of the cell, and a share mixes linearly")
+    if not G < C < S:
+        problems.append(
+            f"the three buffers are gibbsite {G}, calcite {C:.4f}, soda {S}, "
+            f"which is not in order. The sump's brine evaporated PAST calcite "
+            f"saturation, so its buffer sits above it")
+    return problems
 
 
 def check_nonlinear_reduction_order() -> list[str]:
@@ -5854,6 +6159,8 @@ def main() -> None:
                lambda: check_nonlinear_reduction_order()),
               ("one rock reads the same way in every table that maps it",
                lambda: check_one_rock_one_reading()),
+              ("the closed basin is stated about the sump, and it relaxes",
+               lambda: check_closed_basin_is_the_sump()),
               ("Penman is evaluated per climatology bin, not on annual-mean air",
                lambda: check_penman_evaluation_interval()),
               ("every ledger absence a module relies on still exists",
@@ -5900,6 +6207,8 @@ def main() -> None:
                lambda: check_documented_tools()),
               ("every declared bracket contains the value it brackets",
                lambda: check_declared_brackets_contain_their_values()),
+              ("every declared numeric resolves to a number",
+               lambda: check_declared_numerics_resolve_to_numbers()),
               ("the aerosol steering wind is weighted by layer mass",
                lambda: check_steering_weight_is_layer_mass()),
               ("the withdrawn saturated fraction has no consumer keyed on it",
