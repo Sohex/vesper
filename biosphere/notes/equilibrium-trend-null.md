@@ -122,7 +122,7 @@ The ordinary least-squares slope standard error in the reducer models no memory.
 and the reducer does not use it; repairing the standard error rather than
 calibrating around it is a separate disposition and is tracked.
 
-## What replaced it
+## What replaced it, and what replaced that
 
 `vesper-lpj-equilibrium-window/2`. The declared fraction is gone. Each field's
 limit is measured from the run being judged: the record before the acceptance
@@ -165,3 +165,152 @@ The two 100-orbit runs are refused for a different and honest reason: a 100-cycl
 record leaves 9 null windows, so a stationary field would face a 0.10 false-refusal
 rate against a declared 0.05. Their acceptance needs a longer retained record, not
 a different limit.
+
+
+## The window is shorter than the thing it tests
+
+Measured 2026-08-30 on the same 1000-orbit record, through
+`lib/autocorrelation.py`, which owns the estimator and the two verdicts that say
+whether its answer means anything. Reproduce with
+`biosphere/scripts/derive_trend_null.py <run> --timescales`.
+
+The integrated autocorrelation time of the spatial-mean cycle series runs 9.3 to
+125.3 complete forcing cycles. The window the contract tests over is 10. Sixty-one
+of the 64 assessed fields have a spatial-mean memory time longer than the whole
+window, per-cell medians run 2.9 to 93.1, and the share of cells whose own memory
+time exceeds the window is 0.22 to 1.00.
+
+| table.field | spatial tau | cell tau median | cells with tau > window |
+| --- | --- | --- | --- |
+| lai.out BNE | 75.3 | 64.9 | 1.00 |
+| lai.out TrIBE | 93.5 | 63.9 | 0.97 |
+| lai.out C3G | 9.9 | 6.3 | 0.36 |
+| cpool.out Total | 125.3 | 68.1 | 0.89 |
+| npool.out SoilN | 60.6 | 89.0 | 0.87 |
+| tot_runoff.out Total | 14.9 | 5.5 | 0.33 |
+
+A trend fitted inside one memory time is not a trend. It is one smooth excursion of
+a process that has not had time to sample its own distribution; the residuals
+within the span are small because the process is smooth on that scale, so the
+ordinary least-squares standard error is small and the slope looks decisive. That
+is the whole of the measured 0.47 to 0.86 per-cell flag rate against a nominal
+0.081, and it is failure-modes class 34: a bed shorter than its startup.
+
+NO CORRECTION RESCUES IT. Inflating the slope standard error by the square root of
+the memory time, which is the correction `lib/autocorrelation.py` owns, moves
+lai.out's bare flag rate from 0.47-0.84 to 0.19-0.46: two to three times better,
+still two to six times nominal, still spanning a factor of four across fields. The
+correction is for a MEAN over a span and cannot make a span shorter than its memory
+carry a trend.
+
+## The record is shorter than the approach it watches
+
+An exponential approach fitted to each field's spatial-mean series over the full
+1000 cycles is INADMISSIBLE for most fields, by a criterion declared before it was
+run: the asymptote must lie inside the record's own range and the e-folding time
+must be shorter than the record. Thirty-four of 64 fits put the asymptote outside
+the record, meaning the series has not turned over within 1000 cycles; three more
+return a timescale longer than the record. Where a fit is admissible the e-folding
+times are 22.9 to 775.9 cycles, mostly in the hundreds: lai.out TrIBE 685.1,
+aaet.out Total 775.9, lai.out TeBS 492.4.
+
+`lib/autocorrelation.py:stationary_enough` independently refuses the spatial-mean
+series of most fields: the linear trend across 1000 cycles moves them by more than
+their own standard deviation.
+
+So the two bounds on run length are:
+
+- On the RETAINED record, from the memory time and the module's own span bar: at
+  least ten times tau, so 100 to 1250 cycles by field. The 200-cycle statistical
+  bound is not the binding one for the woody types or the slow pools.
+- On the SPIN-UP, from the relaxation time: several times an e-folding time of
+  hundreds of cycles, so of order 2000 to 5000. `vesper_pfts.ins` sets
+  nyear_spinup 998. The spin-up is short by a factor of two to five.
+
+That is why a run at literally fixed forcing is still drifting coherently after
+1000 further cycles. The time base is correct and is not implicated: 998 spin-up
+cycles is 500.0 Earth years and matches the community convention exactly. The
+convention is simply too short for this world's woody types and slow pools.
+
+## Contract 2's declared rate was per field, and it refused per run
+
+`maximum_false_refusal_rate: 0.05` was exact PER FIELD: a stationary field exceeds
+the largest of N detrended null windows with probability 1/(N+1). But the gate
+refuses when ANY of the 64 assessed fields exceeds, and the family rate is
+1-(1-1/(N+1))^F_eff. Measured by leave-one-out on the 1000-orbit run's 100 windows,
+it is 0.34, flat across `slope_standard_errors` from 1.0 to 4.0 as the construction
+requires. The helper was validated first on synthetic fields: at 100 windows it
+returns 0.010 for one field, 0.080 for eight and 0.460 for sixty-four independent
+ones, against an analytic 0.010, 0.077 and 0.474. The measured 0.34 corresponds to
+about 35 effective independent fields out of 64.
+
+Raising the record does not fix it. The finest probability an N-window empirical
+null can express is 1/(N+1), so a family rate of 0.05 needs about 710 windows, 7100
+retained cycles, roughly twenty hours of model time, re-measured per configuration.
+The repair is an analytic null, which needs a valid standard error, which needs a
+window longer than the memory time.
+
+## What the contract is now
+
+`vesper-lpj-equilibrium-window/3` adds one thing and renames one thing. Both are
+fully measured; nothing else changed, deliberately.
+
+- A MEMORY-ADEQUACY GUARD, ahead of everything else. It applies
+  `lib/autocorrelation.py`'s declared span bar to both spans that must carry the
+  memory time: the retained record, where tau is estimated, and the acceptance
+  window, where the slope is actually fitted. It fails closed on every run this
+  project has: the 100-cycle runs cannot establish their fields' memory times at
+  all, and the 1000-cycle run has memory times of 9 to 125 cycles against a
+  10-cycle window. Every refusal now names the field, its memory time, and the
+  record length that would answer it.
+- `maximum_false_refusal_rate` is renamed `per_field_false_refusal_rate`, which is
+  what the construction controls, with the measured family rate recorded beside it.
+
+The trend test below the guard is unchanged and is unreachable, which is the honest
+state: it is not valid at any window this model supports, and its replacement is a
+piece of statistical design rather than a threshold. What that replacement has to
+handle is recorded on world-ioxr, including three subtleties found and discarded in
+one afternoon: a half-to-half mean difference is half the end-to-end change and
+silently doubles the declared tolerance unless scaled; the span bar belongs on the
+half whose mean is taken, not on the record; and guarding on an estimated tau and
+then using that same estimate for the standard error selects for underestimates and
+is anti-conservative near the bar. A candidate that survives those measured a
+family refusal rate of 0.040 against a declared 0.05, with power 0.31 at the
+contract's own drift limit and 0.92 at twice it -- promising, and not validated
+enough to ship on the day it was written.
+
+## What a 5 per cent drift is worth to the consumer
+
+The tolerance's own derivation, through the consumer that closes a loop:
+`exoplasim/scripts/build_surface_albedo.py --mode modelled` reads `fpc.out` and
+mixes tree and grass cover into the surface albedo, so the lever is the rootable
+fraction times canopy albedo minus substrate albedo.
+
+| link | value | source |
+| --- | --- | --- |
+| tree, grass albedo | 0.143 [0.130, 0.148], 0.209 [0.190, 0.217] | `config/planet.yaml` |
+| substrate albedo | 0.25585 land mean bare rock | `exoplasim/inputs/t21/albedo_report.json` |
+| rootable fraction of model land | 0.83488 | `biosphere/generated/vesper_driver_provenance.json` |
+| land fraction | 0.432841 | build manifest `landFractionBySurfaceClass` |
+| surface to planetary attenuation | 0.5, DECLARED, factor of two | `scripts/error_budget.py` |
+| flux to kelvin | 159.7 K per flux ratio [155.3, 160.6] | `lib/sensitivity.py` |
+
+A 5 per cent drift in both tree and grass cover is worth about +0.064 K of surface
+temperature, bracketed +0.032 to +0.128 K. Against what the climate arm resolves --
+0.15 K for the single-run convergence criterion, 0.05 K for its resolving-power bar,
+0.027 K for the standard error of a 57-orbit climatology mean -- the derived limit
+spans 0.02 to 0.23 and cannot choose the number.
+
+The bracket is dominated by one unmeasured link. There is no measured
+d(planetary albedo)/d(surface albedo) in this tree: `lib/sensitivity.py` explicitly
+declines to own it, `scripts/error_budget.py` declares 0.5 and says in the same
+breath that the honest claim is a factor of two, and the single measured point is
+0.3045 from one paired arm. world-ckbt is open to measure it. Until it closes, 0.05
+stays a declared tolerance with this bracket recorded rather than a derivation being
+invented for it.
+
+Two things the chain also exposed: `--mode modelled` has never been staged, since
+both `albedo_report.json` files record mode `vegetated`; and it cannot be, because
+`read_foliar_cover` calls `require_lpj_acceptance` and every LPJ run in the tree is
+refused. The cover magnitudes above are therefore from a refused run and are
+indicative of scale only.

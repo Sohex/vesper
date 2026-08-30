@@ -1,10 +1,10 @@
 {
   "contract_version": "vesper-lpj-acceptance/1",
-  "generated": "2026-08-30T16:58:12+00:00",
+  "generated": "2026-08-30T20:15:46+00:00",
   "run_id": "lpj_183dca231e354f399fee49060960b1f8",
   "source_build": "canonical-10m-carve2",
   "manifest_sha256": "1682d31df5b94a8fac732a274bb0c0c6f61eb675e0c0a8a3f1cfe9a78d8b0671",
   "contract_sha256": "c1a86db8be4fc40ef74d93d5a0e16e4b0d1bc3c9e4b4f804b6ab8b6d5e587e62",
   "verdict": "FAIL",
-  "refusal": "anpp.out equilibrium refusal: /home/cfutro/docs/world/biosphere/runs/lpj_183dca231e354f399fee49060960b1f8/anpp.out's end window is still trending in TeNE, IBS, C4G"
+  "refusal": "anpp.out equilibrium refusal: /home/cfutro/docs/world/biosphere/runs/lpj_183dca231e354f399fee49060960b1f8/anpp.out's retained record is too short to judge: BNE (a 100-cycle record cannot establish a memory time of 12.4 cycles, which needs 124); BINE (a 100-cycle record cannot establish a memory time of 10.5 cycles, which needs 105); BNS (a 100-cycle record cannot establish a memory time of 10.7 cycles, which needs 107); TeNE (a 100-cycle record cannot establish a memory time of 11.0 cycles, which needs 110); TeBS (memory time 4.5 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 45); IBS (memory time 9.0 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 90); TeBE (memory time 8.6 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 86); TrBE (memory time 6.7 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 67); TrIBE (a 100-cycle record cannot establish a memory time of 15.2 cycles, which needs 152); TrBR (memory time 9.1 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 91); C3G (memory time 6.8 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 68); C4G (memory time 5.4 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 54); Total (memory time 5.4 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 54)"
 }

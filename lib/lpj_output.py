@@ -12,8 +12,11 @@ from typing import Iterable
 import numpy as np
 import yaml
 
+from autocorrelation import RELIABLE_SPAN_MULTIPLE, integrated_time
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = PROJECT_ROOT / "biosphere/config/equilibrium_window.yaml"
+MEMORY_ESTIMATOR = "lib/autocorrelation.py:integrated_time"
 DRIVER_MAGIC = b"VESPDRV8"
 
 
@@ -58,7 +61,7 @@ class ReducedTable:
 
 def read_policy(path: Path = POLICY_PATH) -> dict:
     policy = yaml.safe_load(path.read_text())
-    if policy.get("contract_version") != "vesper-lpj-equilibrium-window/2":
+    if policy.get("contract_version") != "vesper-lpj-equilibrium-window/3":
         raise EquilibriumWindowError("unsupported equilibrium-window contract")
     cycles = policy.get("complete_forcing_cycles")
     if not isinstance(cycles, int) or cycles < 3:
@@ -73,10 +76,13 @@ def read_policy(path: Path = POLICY_PATH) -> dict:
         raise EquilibriumWindowError(
             "trend.cell_fraction.null_statistic names the only null this "
             "contract knows how to build")
-    rate = cell.get("maximum_false_refusal_rate")
+    rate = cell.get("per_field_false_refusal_rate")
     if not isinstance(rate, (int, float)) or not 0 < rate < 1:
         raise EquilibriumWindowError(
-            "trend.cell_fraction.maximum_false_refusal_rate must lie in (0, 1)")
+            "trend.cell_fraction.per_field_false_refusal_rate must lie in (0, 1)")
+    if trend.get("memory_estimator") != MEMORY_ESTIMATOR:
+        raise EquilibriumWindowError(
+            f"trend.memory_estimator must name {MEMORY_ESTIMATOR}")
     return policy
 
 
@@ -277,6 +283,67 @@ def _trend(cycle_means: np.ndarray, policy: dict,
     return diagnostics, bool(rejected.any())
 
 
+def _memory_adequacy(record: np.ndarray, names: list[str],
+                     policy: dict) -> tuple[list[dict], list[str]]:
+    """Can this retained record establish the memory time of what it is judging?
+
+    THE MEASUREMENT THAT FORCED THIS. At fixed forcing the integrated
+    autocorrelation time of these spatial-mean series is 9 to 125 complete forcing
+    cycles, against an acceptance window of 10. A trend fitted inside one memory
+    time is not a trend: it is one smooth excursion of a process that has not had
+    time to sample its own distribution, its residuals are small because the
+    process is smooth on that scale, and the ordinary least-squares standard error
+    it is judged against is correspondingly small. That is the whole of the 0.47 to
+    0.86 per-cell flag rate this contract measures against a nominal 0.081.
+    `biosphere/notes/equilibrium-trend-null.md` carries the measurement.
+
+    WHAT THIS GUARD DOES, AND WHAT IT DOES NOT. It applies
+    `lib/autocorrelation.py`'s declared span bar, fixed before it was applied to
+    any series here, to BOTH spans that have to carry the memory time: the retained
+    record, which is where tau is estimated, and the acceptance window, which is
+    where the trend test below actually runs. A statistic computed over a span
+    shorter than that span's own memory time is not supported by it, and the window
+    is the span the slope is fitted on.
+
+    It does not repair the trend test. That test is valid only where its window is
+    long against tau; on this model today it is nowhere, so this guard fails closed
+    and the test is unreachable. Its replacement is tracked rather than improvised.
+    """
+    floor = float(policy["trend"]["absolute_scale_floor"])
+    window = int(policy["complete_forcing_cycles"])
+    diagnostics, refused = [], []
+    span = record.shape[0]
+    x = np.arange(span, dtype=float)
+    for index, name in enumerate(names):
+        spatial = record[:, :, index].mean(axis=1)
+        level = float(abs(spatial.mean()))
+        if level <= floor or not np.isfinite(spatial).all() or spatial.std() == 0:
+            diagnostics.append({
+                "field": name, "assessed": False,
+                "reason": "the spatial mean is zero or exactly constant, so it "
+                          "carries no memory to establish"})
+            continue
+        flat = spatial - np.polyval(np.polyfit(x, spatial, 1), x) + spatial.mean()
+        memory = integrated_time(flat)
+        needed = float(RELIABLE_SPAN_MULTIPLE * memory["tau"])
+        row = {"field": name, "assessed": True, "tau_cycles": float(memory["tau"]),
+               "effective_samples": float(memory["effective_sample_size"]),
+               "record_supports_tau": bool(memory["reliable"]),
+               "window_supports_a_trend": bool(window >= needed),
+               "cycles_required": needed}
+        diagnostics.append(row)
+        if not memory["reliable"]:
+            refused.append(
+                f"{name} (a {span}-cycle record cannot establish a memory time of "
+                f"{memory['tau']:.1f} cycles, which needs {needed:.0f})")
+        elif window < needed:
+            refused.append(
+                f"{name} (memory time {memory['tau']:.1f} cycles, so a trend over "
+                f"the {window}-cycle window is inside one memory time; it needs "
+                f"{needed:.0f})")
+    return diagnostics, refused
+
+
 def _cell_fraction_null(cube: np.ndarray, years: list[int], window_years: int,
                         cycle_years: int, policy: dict) -> tuple[np.ndarray, dict]:
     """Per field, the trending-cell fraction this run reaches with no trend left.
@@ -304,7 +371,7 @@ def _cell_fraction_null(cube: np.ndarray, years: list[int], window_years: int,
     `biosphere/notes/equilibrium-trend-null.md` carries the measurement.
     """
     ncycle = policy["complete_forcing_cycles"]
-    rate = float(policy["trend"]["cell_fraction"]["maximum_false_refusal_rate"])
+    rate = float(policy["trend"]["cell_fraction"]["per_field_false_refusal_rate"])
     available = len(years) - window_years
     nwindow = available // window_years
     if nwindow < 1 or 1.0 / (nwindow + 1) > rate:
@@ -337,7 +404,7 @@ def _cell_fraction_null(cube: np.ndarray, years: list[int], window_years: int,
         "windows": int(nwindow),
         "first_year": int(block_years[0]), "last_year": int(block_years[-1]),
         "false_refusal_rate": 1.0 / (nwindow + 1),
-        "maximum_false_refusal_rate": rate,
+        "per_field_false_refusal_rate": rate,
     }
 
 
@@ -390,6 +457,18 @@ def reduce_table(path: Path, peers: Iterable[Path] = (), *,
     cycle_means = window.reshape(
         policy["complete_forcing_cycles"], cycle_years, len(cells), len(names)
     ).mean(axis=1)
+    usable = (len(years) // cycle_years) * cycle_years
+    if not np.isfinite(cube[:usable]).all():
+        raise EquilibriumWindowError(
+            f"{path}'s retained record has missing cell-year rows, so the memory "
+            "time its acceptance depends on cannot be established")
+    record = cube[:usable].reshape(
+        usable // cycle_years, cycle_years, len(cells), len(names)).mean(axis=1)
+    memory, unestablished = _memory_adequacy(record, names, policy)
+    if unestablished:
+        raise EquilibriumWindowError(
+            f"{path}'s retained record is too short to judge: "
+            f"{'; '.join(unestablished)}")
     limits, null = _cell_fraction_null(cube, years, window_years, cycle_years, policy)
     trends, rejected = _trend(cycle_means, policy, limits)
     for name, diagnostic in zip(names, trends):
@@ -478,7 +557,7 @@ def reduce_table(path: Path, peers: Iterable[Path] = (), *,
                    "complete_forcing_cycles": policy["complete_forcing_cycles"],
                    "forcing_cycle_years": cycle_years},
         "trend": {"rule": policy["trend"], "cell_fraction_null": null,
-                  "fields": trends, "verdict": "PASS"},
+                  "memory": memory, "fields": trends, "verdict": "PASS"},
         "uncertainty": uncertainty,
         "peers": peer_records,
     }

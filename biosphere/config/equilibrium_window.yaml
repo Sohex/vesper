@@ -3,23 +3,33 @@
 # Every number below carries its disposition. The argument, the measurement it
 # rests on and what the earlier form of this rule could and could not detect are
 # in `biosphere/notes/equilibrium-trend-null.md`.
-contract_version: vesper-lpj-equilibrium-window/2
+contract_version: vesper-lpj-equilibrium-window/3
 complete_forcing_cycles: 10
 trend:
-  # DECISION. The residual drift the acceptance contract is willing to carry into
-  # a consumer: a simulated field whose window mean moves by less than this over
-  # the window is treated as settled. It is a declared tolerance and an input, not
-  # a measurement, and it is the quantity a consumer-sensitivity derivation would
-  # replace it with -- what an LAI drift of this size is worth once it has become
-  # a surface albedo and a top-of-atmosphere forcing. That derivation is owed.
+  # DECISION, and sized through the consumer's own chain rather than left bare.
+  # `exoplasim/scripts/build_surface_albedo.py --mode modelled` reads fpc.out and
+  # mixes cover into the surface albedo, so a 5 per cent drift there is worth
+  # about +0.064 K of surface temperature, bracketed +0.032 to +0.128 K. Against
+  # what the climate arm resolves -- 0.15 K for the single-run convergence
+  # criterion, 0.05 K for its resolving-power bar, 0.027 K for the standard error
+  # of a 57-orbit climatology mean -- the derived limit spans 0.02 to 0.23 and
+  # cannot choose this number. The bracket is dominated by ONE unmeasured link,
+  # the surface-to-planetary albedo attenuation, declared 0.5 with an explicit
+  # factor of two in scripts/error_budget.py and open as world-ckbt. So this stays
+  # a declared tolerance with its bracket recorded, and world-mqzk holds the
+  # argument and the unblocker rather than a derivation being invented.
   relative_end_to_end_limit: 0.05
-  # DECISION. The significance a drift must reach before it counts. Read honestly:
-  # the window carries `complete_forcing_cycles` points and the slope fit spends
-  # two, so the statistic has 8 degrees of freedom and 2.0 standard errors is a
-  # two-sided probability of 0.081 under independent samples, not 0.05. Cycle means
-  # driven by patch gap dynamics carry memory the ordinary least-squares standard
-  # error does not model, so the achieved rate is higher still; that is why the
-  # cell-fraction limit below is measured rather than assumed.
+  # DECLARED, AND MEASURED NOT TO MEAN WHAT IT SAYS. The window carries
+  # `complete_forcing_cycles` points and the slope fit spends two, so 2.0 standard
+  # errors is a two-sided 0.081 at 8 degrees of freedom under independent samples,
+  # not 0.05. The samples are not independent: the measured memory time of these
+  # series is 9 to 125 cycles against a 10-cycle window, so the fit runs inside one
+  # memory time and the achieved per-cell flag rate is 0.47 to 0.86. Inflating the
+  # standard error by the square root of the memory time recovers only 0.19 to
+  # 0.46, because that correction is for a MEAN over a span and cannot make a span
+  # shorter than its memory carry a trend. This number therefore has no defensible
+  # value while the window is what it is, and the guard above fails closed so the
+  # test it governs is unreachable. world-ioxr holds the replacement.
   slope_standard_errors: 2.0
   # IRREDUCIBLE, and provably without consequence. It exists so a field that is
   # absent from a cell divides by a scale rather than by zero. The assessed tables
@@ -28,6 +38,11 @@ trend:
   # gives identical results on every table this contract reads, and the floor binds
   # only where the mean is exactly zero, where the drift is exactly zero too.
   absolute_scale_floor: 1.0e-12
+  # DERIVED, not declared: the memory-adequacy guard reads its estimator and its
+  # span bar from the module that owns them, and refuses a retained record that
+  # cannot establish the memory time of a field it is being asked to judge. This is
+  # the criterion every current run fails, and it fails them for a true reason.
+  memory_estimator: lib/autocorrelation.py:integrated_time
   cell_fraction:
     # DERIVED, per field, from the run being judged -- there is no number here to
     # declare. Measured at fixed forcing, the share of occupied cells a field's own
@@ -37,14 +52,15 @@ trend:
     # share it reaches over the detrended windows of this run's own record before
     # the acceptance window.
     null_statistic: maximum_over_detrended_windows_of_this_run
-    # DECISION, at the conventional level. A stationary field exceeds the largest
-    # of N such windows with probability 1/(N+1), so this rate sets how much record
-    # a run must retain beyond its acceptance window: at least 1/rate windows, which
-    # at rate 0.05 and a 10-cycle window is 200 retained cycles. This is a lower
-    # bound from the acceptance statistic alone; the ecological lower bound on
-    # retained length is a separate and still-owed derivation, and `lib/run_lengths.py`
-    # is where it belongs.
-    maximum_false_refusal_rate: 0.05
+    # DECISION at the conventional level, and it is a PER-FIELD rate: a stationary
+    # field exceeds the largest of N detrended null windows with probability
+    # 1/(N+1). The gate refuses a run when ANY of the 64 assessed fields exceeds,
+    # so the FAMILY rate is larger, and it was measured at 0.34 by the leave-one-out
+    # construction on lpj_377476c0's 100 windows. The name says per-field because
+    # that is what the construction controls. Controlling the family rate through
+    # an empirical null would need about 710 windows, 7100 retained cycles, so the
+    # repair is an analytic null and not a longer run; world-ioxr holds it.
+    per_field_false_refusal_rate: 0.05
 uncertainty:
   temporal_statistic: sample_standard_deviation_over_annual_values
   seed_statistic: sample_standard_deviation_of_window_means_at_fixed_patch_count

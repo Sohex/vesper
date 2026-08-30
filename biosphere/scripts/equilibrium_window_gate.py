@@ -31,7 +31,7 @@ FIXTURE_CYCLES = 210
 def write_run(root: Path, name: str, *, seed: int = 1, npatch: int = 5,
               cycle_years: int = 2, cycles: int = FIXTURE_CYCLES,
               trend: float = 0.0, offset: float = 0.0, dipole: bool = False,
-              omit: tuple[int, int] | None = None) -> Path:
+              jitter: float = 0.0, omit: tuple[int, int] | None = None) -> Path:
     run = root / name
     run.mkdir()
     manifest = {
@@ -46,6 +46,13 @@ def write_run(root: Path, name: str, *, seed: int = 1, npatch: int = 5,
                    "pfts": {"sha256": "pfts"}},
     }
     (run / "run_manifest.json").write_text(json.dumps(manifest) + "\n")
+    # Cycle-to-cycle jitter, deterministic so a fixture is reproducible. Without
+    # it a fixture's cycle means are exactly smooth, the record's integrated
+    # autocorrelation time is a large fraction of the record, and the memory guard
+    # refuses before the criterion under test is ever reached. Real output is
+    # noisy at this scale; a fixture that is not cannot exercise the trend test.
+    noise = np.random.default_rng(20260830).normal(0.0, jitter, (2, cycles)) \
+        if jitter else np.zeros((2, cycles))
     lines = ["Lon Lat Year A B\n"]
     for cell, (lon, lat) in enumerate(((-10.0, 20.0), (30.0, -40.0))):
         for year in range(cycles * cycle_years):
@@ -65,8 +72,10 @@ def write_run(root: Path, name: str, *, seed: int = 1, npatch: int = 5,
             # slope over 210 cycles can never move the last ten by 5 per cent of
             # a mean it has already raised.
             drift = trend * max(0, cycle - (cycles - 10))
-            a = 10.0 + base + phase + sign * drift + offset
-            b = 100.0 + 2.0 * base + 0.5 * phase + sign * 3.0 * drift + offset
+            wobble = noise[cell, cycle]
+            a = 10.0 + base + phase + sign * drift + offset + wobble
+            b = (100.0 + 2.0 * base + 0.5 * phase + sign * 3.0 * drift + offset
+                 + 3.0 * wobble)
             lines.append(f"{lon} {lat} {year} {a:.8f} {b:.8f}\n")
     table = run / "fixture.out"
     table.write_text("".join(lines))
@@ -115,7 +124,7 @@ def main() -> None:
               reduced.report["trend"]["cell_fraction_null"]["windows"] == 20
               and reduced.report["trend"]["cell_fraction_null"][
                   "false_refusal_rate"] <= reduced.report["trend"]["rule"][
-                      "cell_fraction"]["maximum_false_refusal_rate"],
+                      "cell_fraction"]["per_field_false_refusal_rate"],
               str(reduced.report["trend"]["cell_fraction_null"]))
         check("every assessed field carries its own limit",
               all("trending_cell_fraction_limit" in item
@@ -123,10 +132,23 @@ def main() -> None:
               "one declared fraction cannot serve fields whose null spans "
               "three orders of magnitude")
 
-        trending = write_run(root, "trending", trend=1.0)
-        refuses("trending end window refused", lambda: reduce_table(trending),
-                "still trending")
-        dipole = write_run(root, "dipole", trend=1.0, dipole=True)
+        memoryful = write_run(root, "memoryful", jitter=0.0, trend=1.0)
+        refuses("a window inside one memory time is refused, not judged",
+                lambda: reduce_table(memoryful), "inside one memory time")
+
+        # A record that drifts at its end is refused -- but by the memory guard,
+        # not by the trend test, because a series with any memory at all cannot
+        # support a slope fitted over ten cycles: the guard needs the window to be
+        # ten times the memory time, so it admits only a memoryless series. That
+        # the trend test is unreachable this way IS the contract's current state
+        # and is asserted here rather than reached by contorting a fixture. The
+        # trend test's own refusal path is exercised by the dipole below, whose
+        # spatial mean is flat by construction so the guard has nothing to
+        # establish and hands the record on.
+        trending = write_run(root, "trending", trend=1.0, jitter=2.0)
+        refuses("a drifting record is refused, and by the earlier guard",
+                lambda: reduce_table(trending), "inside one memory time")
+        dipole = write_run(root, "dipole", trend=1.0, dipole=True, jitter=2.0)
         refuses("cancelling regional drift refused, though the mean is flat",
                 lambda: reduce_table(dipole), "still trending")
         starved = write_run(root, "starved", cycle_years=1, cycles=100)
@@ -141,7 +163,8 @@ def main() -> None:
                 "ended at different years")
 
         seed_peer = write_run(root, "seed-peer", seed=2, offset=0.5)
-        patch_peer = write_run(root, "patch-peer", seed=1, npatch=10, offset=0.2)
+        patch_peer = write_run(root, "patch-peer", seed=1, npatch=10,
+                               offset=0.2)
         ensemble = reduce_table(baseline, [seed_peer, patch_peer])
         check("seed uncertainty measured",
               ensemble.report["uncertainty"]["seed"]["status"] == "measured",
