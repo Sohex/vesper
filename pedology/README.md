@@ -30,11 +30,14 @@ question in three vocabularies: `PH_GROUP` in the pH block's supply categories,
 `config/weathering_schemes.yaml`'s `class_mapping` in rokgem's classes. They sat
 in three places and disagreed about `melange` -- gneiss chemistry to the pH
 block, shale to the other two, a factor of 4.29 in the supply on six per cent
-of land -- with nothing in the tree able to see it. The module holds the tables
-and checks them against each other; `build_soil.py` runs the check before it
-builds a soil map, and running the module prints the table and the verdict. A
-class whose two readings differ must carry the argument for reading it two ways,
-and a declaration for a class that has come to agree fails too.
+of the land area -- and about `playa_clastic`, an evaporite to the pH block and
+shale to the other two, a factor of 5.5 on fourteen per cent -- with nothing in
+the tree able to see either. The module holds the tables and checks them
+against each other; `build_soil.py` runs the check before it builds a soil map,
+`scripts/smoke_test.py` runs it per commit, and running the module prints the
+table and the verdict. A class whose two readings differ must carry the argument
+for reading it two ways, and a declaration for a class that has come to agree
+fails too.
 
 `carbonate_ph.py` is the alkaline end of the soil pH block. It solves Slessarev
 et al. (2016) Methods eq. (6) at this world's `pCO2_bar`, validating against the

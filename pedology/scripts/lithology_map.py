@@ -16,14 +16,20 @@ three consumers:
     same flux again.
 
 **They are one question with three vocabularies, so they can be checked against
-each other, and until 2026-08-30 they were not.** `PH_GROUP` put `melange` in
-the metamorphic bin while the other two read the same rock as shale, a factor of
-4.29 in the supply, on six per cent of this world's land area, and nothing in the
-tree could see it. This module holds the tables so a future divergence is a
-failing check rather than a discovery.
+each other, and until 2026-08-30 they were not.** Two classes had drifted, and
+in both the pH bin was the odd one out:
+
+  * `melange` was metamorphic there and shale to the other two, a factor of 4.29
+    in the supply on six per cent of this world's land area;
+  * `playa_clastic` was an evaporite there, supply 1 by construction, and shale
+    to the other two, a factor of 5.5 on fourteen per cent.
+
+Nothing in the tree could see either. This module holds the tables so a future
+divergence is a failing check rather than a discovery.
 
 The check is `check()`; `main()` runs it. `build_soil.py:soil_ph` calls it on
-every soil build, so a mapping edit cannot reach a soil map unexamined.
+every soil build, so a mapping edit cannot reach a soil map unexamined, and
+`scripts/smoke_test.py` runs it per commit because it is a static read.
 
 WHAT THE CHECK CANNOT DO is decide which reading is right. It compares the
 supply a class's Meybeck row implies against the bracket its pH category
@@ -163,7 +169,16 @@ PH_GROUP = {
     "continental_clastic": "sedimentary_clastic",
     "pelagic": "sedimentary_clastic",
     "carbonate": "carbonate",
-    "evaporite": "evaporite", "playa_clastic": "evaporite",
+    # Playa mud is DETRITAL FILL and not an evaporite, which is the same call
+    # ROCK_TO_MEYBECK and both rokgem class mappings already make. Orogen
+    # zones the closed basin: `saltCrustMask` puts the salt crust in the SUMP,
+    # "the part that repeatedly floods and dries", and gives the margins the
+    # clastic load as playa mud and alluvial fans. So this class is by
+    # definition the part of the basin where the dissolved load did NOT
+    # precipitate, and putting it on the sump's buffer contradicts the
+    # definition. The closed basin enters through
+    # `ph.endorheic_alkalinity_bonus`, which is where the hydrology belongs.
+    "evaporite": "evaporite", "playa_clastic": "sedimentary_clastic",
     "water": "sedimentary_clastic",
 }
 
@@ -195,18 +210,6 @@ DECLARED_DISAGREEMENTS = {
         "read and none can disagree. Meybeck's halite row is a solute "
         "concentration on a different basis entirely: its cation sum is 6.19 "
         "TIMES the carbonate row's, which is not a fraction of anything.",
-    "playa_clastic":
-        "OPEN AND TRACKED, world-5th5. This is the same defect melange had, "
-        "unfixed: `PH_GROUP` puts playa mud on the evaporite bin, which "
-        "asserts the soda buffer and a supply of 1, while ROCK_TO_MEYBECK "
-        "reads it as shale at 0.1815 with the recorded argument that playa mud "
-        "is detrital fill and mapping it to an evaporite begs the question. "
-        "That argument applies unchanged to the pH bin. It is 13.9 per cent of "
-        "land and every playa cell is endorheic, so the soda bin and the "
-        "endorheic alkalinity bonus are two statements of one closed basin. "
-        "Settling it is a decision about the dry buffer, not a mapping fix, "
-        "which is why it is a row of its own and is declared rather than "
-        "silently changed here.",
     "water": "Open water is not land and no soil is built on it. It has no "
              "Meybeck row; `PH_GROUP` carries it only so the mesh's own class "
              "legend can be walked without a lookup failing.",

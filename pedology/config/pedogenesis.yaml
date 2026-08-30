@@ -954,13 +954,37 @@ ph:
   # this key still carries. `build_soil.py:soil_ph` takes the cell's mixture of
   # it as `dry`.
   #
-  # DERIVED for everything that supplies calcium, which is every silicate and
-  # the carbonate: a soil that exports nothing accumulates pedogenic calcite
-  # until the solution saturates, so the buffer is the calcite equilibrium at
-  # this world's pCO2 and not a property of the rock. That is world-i70y's
-  # verdict, stated once here instead of approximated by four declared numbers
-  # that happened to sit below it. `pedology/scripts/carbonate_ph.py` fills
-  # these and REFUSES a number written into any of them.
+  # DERIVED, EVERY ENTRY. A soil that exports nothing accumulates pedogenic
+  # calcite until the solution saturates, so the buffer is the calcite
+  # equilibrium at this world's pCO2 and not a property of the rock. That is
+  # world-i70y's verdict, stated once here instead of approximated by declared
+  # numbers that happened to sit below it. `pedology/scripts/carbonate_ph.py`
+  # fills these and REFUSES a number written into any of them.
+  #
+  # THE EVAPORITE ENTRY WAS THE LAST EXCEPTION AND IT WAS A DUPLICATE. It
+  # declared 8.8, sodium carbonate rather than calcite, on the argument that a
+  # solution buffered by soda is not brought back down by precipitating calcite
+  # out of it. The chemistry is right and this world's own calculation
+  # confirms it: the Hardie-Eugster divide in `brine_paths.py`, run on the
+  # configured build, puts 95 per cent of endorheic catchment area on the
+  # ALKALINE path under both published weightings. What was wrong was WHERE the
+  # statement lived.
+  #
+  # Passing the divide is a property of the BASIN, computed from its
+  # catchment's inflow chemistry, and it is already stated once as
+  # `ph.endorheic_alkalinity_bonus` -- whose bracket is Helvaci's 8.5 to 11
+  # minus the derived calcite pH, the SAME measurement this entry's own bracket
+  # was. The two fired on the same land: on the configured build, `is_endorheic`
+  # and the evaporite-plus-playa classes agree over all but 0.023 per cent of
+  # land area, because Orogen's `basin_fill` cover rule assigns those classes
+  # FROM the endorheic flag. So the rock class carried no information the flag
+  # did not, one measurement entered the model twice, and a salt-crust cell
+  # reached 8.8 + 0.8 = 9.6 and was decided by `maximum`, a clip this file says
+  # nothing rests on.
+  #
+  # Removing it costs 0.006 pH on the land mean and at most 0.120 on any cell.
+  # The duplication that MATTERED was `playa_clastic`, which shared this entry
+  # until it moved to `sedimentary_clastic`; see `lithology_map.py`.
   parent_by_category:
     igneous_mafic: derived
     igneous_felsic: derived
@@ -968,10 +992,7 @@ ph:
     sedimentary_clastic: derived
     melange: derived
     carbonate: derived
-    # The one entry that is not calcite. Sodium carbonate rather than calcite
-    # sets an evaporite's buffer, and a solution buffered by soda is not
-    # brought back down by precipitating calcite out of it.
-    evaporite: 8.8
+    evaporite: derived
   # Both DERIVED by `pedology/scripts/carbonate_ph.py` from the same
   # equilibrium: the silicate bracket runs from water with no alkalinity to
   # calcite open to the atmosphere, the carbonate one from calcite at the top of
@@ -985,12 +1006,6 @@ ph:
   # otherwise break silently.
   parent_bracket_silicate: derived
   parent_bracket_carbonate: derived
-  # Bracketed by what a closed basin reaches. Helvaci (2019) lists lake water
-  # at pH 8.5 to 11 among the conditions the Turkish borate deposits form
-  # under, which is the one measured closed-basin range this project holds. It
-  # is LAKE WATER in one depositional setting and not a soil, which is why it
-  # bounds the entry and does not set it.
-  parent_bracket_evaporite: [8.50, 11.00]
   # The DRY end of the pH block: the parent-independent buffer every parent
   # relaxes onto as drainage goes to zero. `build_soil.py:soil_ph` reads it.
   #

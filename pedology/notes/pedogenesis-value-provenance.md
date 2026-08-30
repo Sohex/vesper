@@ -124,7 +124,7 @@ reaches at zero export, and `u` the parent's base-cation supply as a fraction of
 a calcite-saturated soil's, declared in
 `ph.base_cation_supply_by_category`. At `L = 0` this is `D`, which is the
 calcite buffer for every rock that supplies calcium and therefore for every rock
-class but the evaporite; as `L` grows every parent goes to `G`.
+class there is; as `L` grows every parent goes to `G`.
 A line cannot express either end, because it has no asymptote and holds two
 parents exactly their initial spacing apart at every slope, and an asymptote at
 one end only cannot express the other.
@@ -417,6 +417,8 @@ not as a bound, is that the declared set returned 0.8 to 1.0 at every slope,
 which is no lithology signal at all, while the sourced set returns 12 to 18
 against the paper's 2.6 in the middle of the slope bracket.
 
+### The closed basin is stated once, and it is a hydrology
+
 `endorheic_alkalinity_bonus` has to carry a calcite-buffered soil into the range
 a closed basin reaches. Helvaci (2019) lists lake water at pH 8.5 to 11 among
 the conditions the Turkish borate deposits form under, which is the one measured
@@ -425,6 +427,77 @@ carbonate pH is the bracket, so the bracket is derived too and is emitted
 alongside it rather than written into the config. It is lake water in one
 depositional setting and not a soil, so it bounds the entry and does not set
 it.
+
+**It is the ONLY place the closed basin enters, and it used to be one of
+three.** `PH_GROUP` put `playa_clastic` in the evaporite supply bin at 1.0, and
+`parent_by_category.evaporite` declared a soda buffer at 8.8 bracketed by the
+same Helvaci range, so one measured fact reached the model three times. The
+three fired on the same land: on the configured build `is_endorheic` and the
+evaporite-plus-playa classes agree over all but 0.023 per cent of land area,
+because Orogen's `basin_fill` cover rule assigns those classes FROM the endorheic
+flag. The rock class carried nothing the flag did not.
+
+**The chemistry behind the soda buffer is right, and this world's own
+calculation confirms it.** The Hardie-Eugster divide in `brine_paths.py`, run on
+the configured build and the baseline climatology, puts 95.7 per cent of
+endorheic catchment area on the alkaline Na-CO3 path under discharge weighting
+and 94.6 per cent under area weighting, with the single-lithology identity
+passing at 5.5e-16 and 0.0. Median Ca/HCO3 across resolved basins is 0.78 and
+0.79. So a closed basin here does evaporate past calcite saturation. What was
+wrong was where the model said so: **passing the divide is a property of the
+BASIN, computed from its catchment's inflow, not of the floor's own rock**, and
+the bonus is the key that carries it.
+
+**Playa mud is not the sump.** `saltCrustMask` in the generator zones the basin
+by depth below the spill point: the salt crust is "the SUMP -- the part that
+repeatedly floods and dries -- not the basin", and the margins take the clastic
+load as playa mud and alluvial fans. So `playa_clastic` is by definition the
+part of the closed basin where the dissolved load did NOT precipitate, and the
+evaporite bin contradicted the class's own definition. It reads
+`sedimentary_clastic` now, which is where `ROCK_TO_MEYBECK` and both rokgem
+class mappings already had it; its Meybeck row is shale at 0.1815, inside that
+category's bracket [0.0391, 0.3052], alongside the three other clastic classes
+that map to the same row.
+
+**The supply is what mattered there, not the buffer.** Playa land is not dry:
+over cells more than half playa, only 5.3 per cent of the area has zero runoff
+against 7.5 per cent for land as a whole, and the median local runoff is 15.8
+mm/yr. So `L > 0` almost everywhere the closed basin is, and a supply of 1
+against a clastic 0.1355 held those cells at the calcite buffer against
+drainage that should have leached them.
+
+**Measured** on the offline reconstruction, re-checked through the shipped
+`soil_ph`, 1,639 land cells:
+
+| set | cells | before | after |
+| --- | --- | --- | --- |
+| all land, cos(lat) | 1639 | 6.735 | 6.527 |
+| all land, land area | 1639 | 6.778 | 6.454 |
+| dry, runoff <= 0 | 254 | 8.405 | 8.298 |
+| more than half playa | 113 | 8.566 | 7.594 |
+| wettest quartile | 367 | 5.266 | 5.200 |
+
+981 cells move, 756 by more than 0.1 pH, 346 by more than 0.5 and 144 by more
+than 1.0; the largest single move is -2.107 and 975 of 1,639 change at the soil
+map's own three decimals. The gibbsite window rises from 0.349 to 0.419 of land
+area and the calcite window falls from 0.328 to 0.285.
+
+**Seven cells were railed at `maximum` and none is now.** A playa cell reached
+8.8 + 0.8 = 9.6 and was decided by a clip this file says nothing rests on.
+
+**Retiring the soda buffer costs almost nothing on its own**: -0.006 pH on the
+land mean and at most 0.120 on any cell, once playa has left the bin. Its
+warrant is structural rather than numerical -- one fact stated once -- and the
+entry it removed was also a hand-copied restatement of
+`carbonate_ph.py:CLOSED_BASIN_PH_RANGE`, which `parent_bracket_evaporite`
+duplicated as a literal. The bracket is gone with the value it bracketed.
+
+**The move is the same order as the block's own declared uncertainty**, and that
+is how it should be read. Sweeping the land mean over the ends of the declared
+brackets: `leaching_slope` [0.35, 1.33] spans 0.597, `gibbsite_buffer_ph` [4.64,
+5.28] spans 0.330, and `endorheic_alkalinity_bonus` over its derived bracket
+spans 0.341, against this change's -0.324. What makes it a defect rather than a
+choice inside a bracket is that it was a mapping error, not a reading.
 
 ## 4. The two texture entries, and one near-degeneracy
 

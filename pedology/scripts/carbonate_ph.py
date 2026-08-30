@@ -347,25 +347,29 @@ def resolve(ph_params: dict, p_co2_bar: float) -> tuple[dict, dict]:
             "cannot learn pCO2 moved. See pedology/scripts/carbonate_ph.py")
     resolved["calcite_buffer_ph"] = block["calcite_buffer_ph"]
 
-    # Every entry but the evaporite is the calcite buffer: a soil that exports
-    # nothing accumulates pedogenic calcite until the solution saturates, so
-    # which buffer it lands on is not a property of the rock. Only the evaporite
-    # sits above calcite saturation, and it is declared.
+    # EVERY entry is the calcite buffer: a soil that exports nothing accumulates
+    # pedogenic calcite until the solution saturates, so which buffer it lands
+    # on is not a property of the rock. The evaporite entry was the last
+    # exception, at a declared 8.8 for sodium carbonate. It went because a
+    # closed basin passing the Hardie-Eugster divide is a property of the BASIN
+    # and is already stated once as `ph.endorheic_alkalinity_bonus`, off the
+    # same Helvaci measurement and on the same land; `pedogenesis.yaml` has the
+    # argument.
     parents = dict(ph_params["parent_by_category"])
-    stated = [name for name, value in parents.items()
-              if name != "evaporite" and value != "derived"]
+    stated = [name for name, value in parents.items() if value != "derived"]
     if stated:
         raise SystemExit(
             "pedogenesis.yaml ph.parent_by_category states a number for "
             + ", ".join(f"{name} ({parents[name]!r})" for name in sorted(stated))
-            + "; every entry but `evaporite` must be the string `derived`. The "
-              "buffer a soil reaches with nothing exported is the calcite "
-              "equilibrium at this world's pCO2, and a number here is a "
-              "restatement that cannot learn pCO2 moved. See "
+            + "; every entry must be the string `derived`. The buffer a soil "
+              "reaches with nothing exported is the calcite equilibrium at "
+              "this world's pCO2, and a number here is a restatement that "
+              "cannot learn pCO2 moved. A parent that carries its own brine "
+              "past calcite saturation is a closed-basin statement and belongs "
+              "in ph.endorheic_alkalinity_bonus, which already makes it. See "
               "pedology/scripts/carbonate_ph.py")
     for name in parents:
-        if name != "evaporite":
-            parents[name] = block["parent_carbonate"]
+        parents[name] = block["parent_carbonate"]
     resolved["parent_by_category"] = parents
 
     # The check that can fail on a value nobody edited. The declared quantity is
