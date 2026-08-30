@@ -716,7 +716,7 @@ def _named(dataset: dict) -> dict:
             if name not in ("lat", "lon", "lev", "levp", "time")}
 
 
-def _arm_inputs(function: str) -> dict[str, tuple[str, ...]]:
+def _arm_inputs(function: str) -> tuple[dict[str, tuple[str, ...]], list[str]]:
     """The raw codes each derivation arm of `function` indexes, from the source.
 
     Read out of the text rather than out of the running module because the
@@ -724,6 +724,13 @@ def _arm_inputs(function: str) -> dict[str, tuple[str, ...]]:
     derived from the code it is supposed to constrain constrains nothing.
     Both spellings an arm uses are resolved: a literal `rawdata["142"]` and a
     `rawdata[str(divcode)]` through the module's own constant.
+
+    THE PARSER'S OWN ASSUMPTION IS RETURNED RATHER THAN ASSUMED. Every arm
+    dispatches on `key==str(<name>code)` against a module-level integer, and a
+    reader of this function has to take that on trust; an arm written any other
+    way would simply not be seen, and a check that cannot see a defect passes.
+    So dispatch lines this cannot read come back as the second return value,
+    and the cases that call it report them as failures of their own.
     """
     from exoplasim import pyburn
 
@@ -732,12 +739,15 @@ def _arm_inputs(function: str) -> dict[str, tuple[str, ...]]:
     end = next(i for i, l in enumerate(lines[start + 1:], start + 1)
                if l.startswith("def "))
     inputs: dict[str, set[str]] = {}
+    unreadable: list[str] = []
     current: tuple[str, ...] = ()
     for line in lines[start:end]:
         opened = re.match(r"            (?:el)?if key==(.*?):", line)
         if opened:
             current = tuple(str(getattr(pyburn, name)) for name in
                             re.findall(r"str\((\w+code)\)", opened.group(1)))
+            if not current:
+                unreadable.append(f"{function}: {line.strip()}")
             for code in current:
                 inputs.setdefault(code, set())
         if not current:
@@ -751,12 +761,13 @@ def _arm_inputs(function: str) -> dict[str, tuple[str, ...]]:
                 read = str(getattr(pyburn, through.group(1)))
             elif literal:
                 read = literal.group(1)
-            else:                                      # pragma: no cover
-                raise AssertionError(f"unparsed rawdata index: {indexed}")
+            else:
+                unreadable.append(f"{function}: rawdata[{indexed}]")
+                continue
             for code in current:
                 inputs[code].add(read)
-    return {code: tuple(sorted(reads, key=int))
-            for code, reads in inputs.items()}
+    return ({code: tuple(sorted(reads, key=int))
+             for code, reads in inputs.items()}, unreadable)
 
 
 def _codes_the_model_writes() -> set[str]:
@@ -954,7 +965,11 @@ def case_every_derivation_is_addressable() -> list[str]:
     numbers = dict(re.findall(r"^(\w+code)\s*=\s*(\d+)",
                               PYBURN_SOURCE.read_text(encoding="utf-8"), re.M))
     for function in ("dataset", "advancedDataset"):
-        for code in _arm_inputs(function):
+        found, unreadable = _arm_inputs(function)
+        problems += [f"this check cannot read the dispatch at {line}, so an "
+                     f"arm written that way is invisible to it"
+                     for line in unreadable]
+        for code in found:
             if code not in pyburn.ilibrary:
                 named = sorted(n for n, v in numbers.items() if v == code)
                 problems.append(
@@ -996,7 +1011,11 @@ def case_no_derivation_shadows_a_code_the_model_writes() -> list[str]:
                 "writers moved or changed shape"]
     problems = []
     for function in ("dataset", "advancedDataset"):
-        for code in sorted(_arm_inputs(function), key=int):
+        found, unreadable = _arm_inputs(function)
+        problems += [f"this check cannot read the dispatch at {line}, so an "
+                     f"arm written that way is invisible to it"
+                     for line in unreadable]
+        for code in sorted(found, key=int):
             if code in written:
                 problems.append(
                     f"{function} derives code {code}, which the model writes "
@@ -1019,7 +1038,10 @@ def case_the_declared_derivation_inputs_are_the_arms_own() -> list[str]:
 
     problems = []
     for function in ("dataset", "advancedDataset"):
-        found = _arm_inputs(function)
+        found, unreadable = _arm_inputs(function)
+        problems += [f"this check cannot read {line}, so what that arm reads "
+                     f"out of the raw is not held to the table"
+                     for line in unreadable]
         declared = {code: tuple(sorted(codes, key=int))
                     for code, codes in pyburn._DERIVATION_INPUTS.items()}
         for code in sorted(set(found) | set(declared), key=int):
