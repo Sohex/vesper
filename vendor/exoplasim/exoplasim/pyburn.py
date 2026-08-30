@@ -135,6 +135,55 @@ def _logcollected(logfile,rdataset,meta,key):
         return
     _log(logfile,"Collected variable: %8s\t.... %3d timestamps"%(meta[0],stored.shape[0]))
 
+
+def _resolvekey(key):
+    '''Turn one requested variable into (integer code as a string, metadata).
+
+    THE ONE PLACE A REQUEST BECOMES A CODE. `dataset` and `advancedDataset`
+    both promise three spellings of the same request -- the burn7 integer code,
+    that code as a string, and the short variable name such as `ts` -- and both
+    used to resolve them in a branch keyed on `type(key)==int`. Only the string
+    branch normalised what it was given. An integer request therefore reached
+    the derivation dispatch STILL AN INTEGER, compared unequal to every
+    `key==str(...code)` arm it was written for, fell past all of them, and
+    stored nothing: `dataset(raw,[131,132,259])` returned an empty dataset
+    where `dataset(raw,["131","132","259"])` returned `ua`, `va` and `spd`.
+    world-hs5z.
+
+    Returning one canonical form makes the three spellings ONE code path
+    instead of three that have to be kept in step, which is the thing that
+    failed. `str()` rather than `int()` because every arm below, every
+    `rawdata` key and every `ilibrary` key is already a string code.
+
+    A NAME IS LOOKED UP IN `ilibrary` WHEN `slibrary` DOES NOT CARRY IT.
+    `slibrary` is built from `ilibrary` once at import, and `ilibrary` is
+    consulted at call time and is added to at run time -- that is how
+    `exoplasim/scripts/run_exoplasim.py:register_energy_diagnostic_codes`
+    makes codes 360-387 and 460-487 requestable without touching this file. So
+    a row added after import is addressable by its code and, without the scan
+    below, not by its name. Two spellings of one request that disagree is the
+    defect this function exists to remove, so the scan closes it rather than
+    leaving it for the one caller that happens to use a name. It runs only when
+    the fast lookups have already missed.
+
+    Raises the same `Exception` on an unknown request that both loops raised
+    before, and with the same message, because a request naming a variable
+    pyburn has no entry for is a caller error and not a property of the raw.
+    '''
+    code = str(key)
+    if code in ilibrary:
+        return code,ilibrary[code][:]
+    if code in slibrary:
+        entry = slibrary[code]
+        #meta[0] is the NAME the caller asked by, which is what the store is
+        #keyed on; slibrary holds the integer code there instead.
+        return str(entry[0]),[code,entry[1],entry[2]]
+    for icode in ilibrary:
+        if ilibrary[icode][0]==code:
+            return icode,ilibrary[icode][:]
+    raise Exception("Unknown variable code requested: %s"%code)
+
+
 #dictionary that can be searched by string (integer) codes
 ilibrary = { "50":["nu"   ,"true_anomaly"                    ,"deg"        ],
              "51":["lambda","ecliptic_longitude"             ,"deg"        ],
@@ -355,6 +404,36 @@ def saturation_specific_humidity(temp,pa,gascon):
     return zqsat
 
 
+# FIVE CODES OF burn7's ARE DELIBERATELY ABSENT HERE: 268, 269, 270, 271 and
+# 275. They each had a derivation arm below and none of the five was
+# requestable, so the arms had never run. world-e9yz.
+#
+# 268 AND 269 ARE THIS MODEL'S, NOT burn7's. `outmod.f90` writes glacier
+# elevation as 268 and ground-plus-glacier elevation as 269 on every stream it
+# writes, unconditionally, and `ilibrary` names them `icez` and `netz` to match
+# what the model puts in the raw. burn7 numbers shortwave and longwave net
+# atmospheric radiation there. The raw is the authority for what a code MEANS
+# in it, so the arms lost: on any stream this model writes, the already-present
+# branch takes 268 and 269 before the dispatch is reached, and on a raw missing
+# them the arms would have stored a radiative flux under the name `icez` and
+# the units `m2 s-2`. A dead arm and a mislabelled one, from one collision.
+#
+# 270, 271 AND 275 WERE NEVER `ilibrary` KEYS, so the head of the per-key loop
+# raised "Unknown variable code requested" before their arms could be reached,
+# and each arm opened with `ilibrary[key]` and would have raised again if it
+# had been. They were not repaired by adding three rows because each is an
+# exact arithmetic combination of codes that ARE addressable, so nothing is
+# lost and no new name had to be invented:
+#
+#     270 net atmospheric radiation      = 261 - 262
+#     275 precipitation plus evaporation = 260 + 182
+#     271 water added to the bucket      = 260 + 182 - 221
+#
+# 271 is the clearest case: its own arm carried the comment that actual runoff
+# is precipitation plus evaporation plus melt plus soil water minus the bucket
+# maximum, which is not what it computed, and code 160 carries the model's own
+# surface runoff.
+
 geopotcode  = 129 #done
 tempcode    = 130 #done
 ucode       = 131 #done
@@ -378,18 +457,84 @@ ntopcode    = 261 #done
 nbotcode    = 262 #done
 nheatcode   = 263 #done
 nh2ocode    = 264 #done
-swatmcode   = 268 #done
-lwatmcode   = 269 #done
-natmcode    = 270 #done
-sruncode    = 271 #done
 dpsdxcode   = 273 #done
 dpsdycode   = 274 #done
-freshcode   = 275 #done
-            
 hpresscode  = 277 #done
 fpresscode  = 278 #done
 thetahcode  = 279 #done
 thetafcode  = 280 #done
+
+
+# WHICH RAW RECORDS EACH DERIVATION READS, so that a request for a code this
+# raw cannot support is REPORTED rather than raised.
+#
+# Every arm below indexes `rawdata` directly. A code the raw does not carry
+# therefore came back as a bare `KeyError('142')` -- naming neither the
+# variable requested nor the reason -- and it came back from the middle of a
+# per-key loop, so it took the whole conversion with it and no earlier
+# variable was written either. `dataset(raw,["260"])` on a stream with no
+# precipitation records is the whole reproduction.
+#
+# That is the same disposition question `_logcollected` settles for a code with
+# no derivation at all, and it gets the same answer for the same reason: the
+# namelist a run postprocesses under lists every code the model was COMPILED to
+# be able to write, not the codes this configuration wrote, and the default
+# request when no namelist is given is every key in `ilibrary`. Under either,
+# "requested, derivable in principle, unsupported by this raw" is ordinary. So
+# the loop logs what is missing, skips the arm and goes on, and the contract
+# that a particular request came back complete stays with the caller that made
+# it.
+#
+# DECLARED HERE RATHER THAN CAUGHT AROUND THE DISPATCH so that the requirement
+# is inspectable and can be checked against the arms themselves;
+# `exoplasim/scripts/verify_high_cadence_rescue.py` reads the `rawdata[...]`
+# sites out of both dispatch chains and fails if this table and the code
+# disagree in either direction. A blanket `except KeyError` would also have
+# swallowed a genuine indexing bug inside an arm.
+#
+# An entry may name a code that is itself derivable only if that code's own arm
+# runs first, and none of these do: no code appearing on the right-hand side
+# below has a derivation arm, so presence in the raw is the whole test.
+_DERIVATION_INPUTS = {
+    str(ucode)      : ("155","138"),
+    str(vcode)      : ("155","138"),
+    str(spdcode)    : ("155","138"),
+    str(dpsdxcode)  : (),
+    str(dpsdycode)  : (),
+    str(preccode)   : ("142","143"),
+    str(ntopcode)   : ("178","179"),
+    str(nbotcode)   : ("176","177"),
+    str(nheatcode)  : ("146","147","176","177","218"),
+    str(nh2ocode)   : ("142","143","160","182"),
+    str(wcode)      : ("155","138"),
+    str(wzcode)     : ("130","155","138"),
+    str(pscode)     : (),
+    str(vpotcode)   : ("155",),
+    str(stfcode)    : ("138","155"),
+    str(slpcode)    : ("129","130"),
+    str(geopotzcode): ("129","130","133"),
+    str(rhumcode)   : ("130","133"),
+    str(hpresscode) : (),
+    str(fpresscode) : (),
+    str(thetahcode) : ("130","139"),
+    str(thetafcode) : ("130","139"),
+}
+
+
+def _missingderivationinputs(rawdata,key):
+    '''The raw records `key`'s derivation needs and this raw does not have.
+
+    Empty for a code with no arm: nothing is claimed about those here, and
+    `_logcollected` reports them at the end of the iteration instead.
+    '''
+    return [code for code in _DERIVATION_INPUTS.get(key,())
+            if code not in rawdata]
+
+
+def _lognotderived(logfile,meta,key,missing):
+    '''Say which record the derivation wanted, not just that something failed.'''
+    _log(logfile,"NOT COLLECTED:      %8s\t.... code %s is derived from code%s %s, which this raw does not carry"
+                 %(meta[0],key,"" if len(missing)==1 else "s",", ".join(missing)))
 
 
 #Constants
@@ -1634,34 +1779,16 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
         '''Collect metadata from our built-in list, and extract 
         the variable data if it already exists; if not set a flag
         that we need to derive it.'''
-        if type(key)==int:
-            try:
-                meta = ilibrary[str(key)][:]
-            except:
-                raise Exception("Unknown variable code requested: %s"%str(key))
-            if str(key) in rawdata:
-                variable = rawdata[str(key)][:]
-                derived=False
-            else:
-                #_log(logfile,str(key)+" not in rawdata;",rawdata.keys())
-                derived=True
+        #ONE resolution for all three spellings of a request; `_resolvekey` says
+        #why the branch on `type(key)` that used to be here was the defect.
+        #After this line `key` is always the integer code as a string and
+        #`meta[0]` is always the variable's name.
+        key,meta = _resolvekey(key)
+        if key in rawdata:
+            variable = rawdata[key][:]
+            derived=False
         else:
-            if key in ilibrary:
-                meta = ilibrary[key][:]
-            elif key in slibrary:
-                meta = slibrary[key][:]
-                kcode = meta[0]
-                meta[0] = key
-                #_log(logfile,"Reassigning key; key was %s and is now %s"%(key,kcode))
-                key = str(kcode) #Now key is always the integer code, and meta[0] is always the name
-            else:
-                raise Exception("Unknown variable code requested: %s"%key)
-            if key in rawdata:
-                variable = rawdata[key][:]
-                derived=False
-            else:
-                #_log(logfile,key+" not in rawdata;",rawdata.keys())
-                derived=True
+            derived=True
         #_log(logfile,meta)
         meta.append(key)
         #_log(logfile,meta)
@@ -1682,6 +1809,13 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
             #ta = np.reshape(np.transpose(ta),(ntimes,nlevs,nlat,nlon))
             
             #data["ta"] = ta
+            
+            #An arm whose inputs are not in this raw is REPORTED and skipped;
+            #`_DERIVATION_INPUTS` above has the table and the argument.
+            missing = _missingderivationinputs(rawdata,key)
+            if missing:
+                _lognotderived(logfile,meta,key,missing)
+                continue
             
             if key==str(ucode): #ua
                 if windless:
@@ -1798,55 +1932,6 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["182"][:] - rawdata["160"][:] + rawdata["142"][:] + rawdata["143"][:]
-                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
-                                              substellarlon=substellarlon,physfilter=physfilter,
-                                              zonal=zonal)
-                rdataset[meta[0]]= [variable,meta]
-                
-            elif key==str(swatmcode): #Shortwave net 
-                # rst = rss
-                meta = ilibrary[key][:]
-                meta.append(key)
-                variable = rawdata["178"][:] - rawdata["176"][:]
-                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
-                                              substellarlon=substellarlon,physfilter=physfilter,
-                                              zonal=zonal)
-                rdataset[meta[0]]= [variable,meta]
-                
-            elif key==str(lwatmcode): #longwave net 
-                # rlut - rst
-                meta = ilibrary[key][:]
-                meta.append(key)
-                variable = rawdata["179"][:] - rawdata["177"][:]
-                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
-                                              substellarlon=substellarlon,physfilter=physfilter,
-                                              zonal=zonal)
-                rdataset[meta[0]]= [variable,meta]
-                
-            elif key==str(natmcode): #Net atmospheric radiation
-                # rst + rlut - rss - rst
-                meta = ilibrary[key][:]
-                meta.append(key)
-                variable = rawdata["178"][:] - rawdata["176"][:] + rawdata["179"][:] - rawdata["177"][:]
-                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
-                                              substellarlon=substellarlon,physfilter=physfilter,
-                                              zonal=zonal)
-                rdataset[meta[0]]= [variable,meta]
-                
-            elif key==str(sruncode): #Precip + Evap - Increase in snow  = water added to bucket
-                #Actual runoff should be precip + evap + melt + soilh2o - bucketmax
-                meta = ilibrary[key][:]
-                meta.append(key)
-                variable = rawdata["182"][:] - rawdata["221"][:] + rawdata["142"][:] + rawdata["143"][:]
-                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
-                                              substellarlon=substellarlon,physfilter=physfilter,
-                                              zonal=zonal)
-                rdataset[meta[0]]= [variable,meta]
-                
-            elif key==str(freshcode): #Precip + Evap
-                meta = ilibrary[key][:]
-                meta.append(key)
-                variable = rawdata["142"][:] + rawdata["143"][:] + rawdata["182"][:]
                 variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
@@ -2476,38 +2561,28 @@ def advancedDataset(filename, variablecodes, mode='grid', substellarlon=180.0,
     thetah = None
     theta  = None
 
-    for key in variablecodes:
+    for request in variablecodes:
         '''Collect metadata from our built-in list, and extract 
         the variable data if it already exists; if not set a flag
         that we need to derive it.'''
-        if type(key)==int:
-            try:
-                meta = ilibrary[str(key)][:]
-            except:
-                raise Exception("Unknown variable code requested: %s"%str(key))
-            if str(key) in rawdata:
-                variable = rawdata[str(key)][:]
-                derived=False
-            else:
-                #_log(logfile,str(key)+" not in rawdata;",rawdata.keys())
-                derived=True
+        #ONE resolution for all three spellings of a request; `_resolvekey` says
+        #why the branch on `type(key)` that used to be here was the defect.
+        #After this line `key` is always the integer code as a string and
+        #`meta[0]` is always the variable's name.
+        #
+        #THE OPTIONS ARE READ OFF THE CALLER'S OWN KEY, which is why `request`
+        #survives the line below. `variablecodes` is the caller's dict and is
+        #keyed however the caller spelled the request; the resolution used to
+        #rebind `key` to the numeric code and then look the options up under
+        #it, so the name-keyed request this function's own docstring shows --
+        #{'ts':{...},'stf':{...}} -- raised KeyError '139'. world-hs5z.
+        key,meta = _resolvekey(request)
+        options = variablecodes[request]
+        if key in rawdata:
+            variable = rawdata[key][:]
+            derived=False
         else:
-            if key in ilibrary:
-                meta = ilibrary[key][:]
-            elif key in slibrary:
-                meta = slibrary[key][:]
-                kcode = meta[0]
-                meta[0] = key
-                #_log(logfile,"Reassigning key; key was %s and is now %s"%(key,kcode))
-                key = str(kcode) #Now key is always the integer code, and meta[0] is always the name
-            else:
-                raise Exception("Unknown variable code requested: %s"%key)
-            if key in rawdata:
-                variable = rawdata[key][:]
-                derived=False
-            else:
-                #_log(logfile,key+" not in rawdata;",rawdata.keys())
-                derived=True
+            derived=True
         #_log(logfile,meta)
         meta.append(key)
         #_log(logfile,meta)
@@ -2515,12 +2590,12 @@ def advancedDataset(filename, variablecodes, mode='grid', substellarlon=180.0,
         if not derived:
             #_log(logfile,"Found variable; no need to derive: %s"%meta[0])
             mode = "grid"; zonal=False; physfilter=False
-            if "mode" in variablecodes[key]:
-                mode=variablecodes[key]["mode"]
-            if "zonal" in variablecodes[key]:
-                zonal=variablecodes[key]["zonal"]
-            if "physfilter" in variablecodes[key]:
-                physfilter=variablecodes[key]["physfilter"]
+            if "mode" in options:
+                mode=options["mode"]
+            if "zonal" in options:
+                zonal=options["zonal"]
+            if "physfilter" in options:
+                physfilter=options["physfilter"]
             variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
@@ -2536,13 +2611,20 @@ def advancedDataset(filename, variablecodes, mode='grid', substellarlon=180.0,
             
             #data["ta"] = ta
             
+            #An arm whose inputs are not in this raw is REPORTED and skipped;
+            #`_DERIVATION_INPUTS` above has the table and the argument.
+            missing = _missingderivationinputs(rawdata,key)
+            if missing:
+                _lognotderived(logfile,meta,key,missing)
+                continue
+            
             mode = "grid"; zonal=False; physfilter=False
-            if "mode" in variablecodes[key]:
-                mode=variablecodes[key]["mode"]
-            if "zonal" in variablecodes[key]:
-                zonal=variablecodes[key]["zonal"]
-            if "physfilter" in variablecodes[key]:
-                physfilter=variablecodes[key]["physfilter"]
+            if "mode" in options:
+                mode=options["mode"]
+            if "zonal" in options:
+                zonal=options["zonal"]
+            if "physfilter" in options:
+                physfilter=options["physfilter"]
             
             if key==str(ucode): #ua
                 if windless:
@@ -2659,55 +2741,6 @@ def advancedDataset(filename, variablecodes, mode='grid', substellarlon=180.0,
                 meta = ilibrary[key][:]
                 meta.append(key)
                 variable = rawdata["182"][:] - rawdata["160"][:] + rawdata["142"][:] + rawdata["143"][:]
-                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
-                                              substellarlon=substellarlon,physfilter=physfilter,
-                                              zonal=zonal)
-                rdataset[meta[0]]= [variable,meta]
-                
-            elif key==str(swatmcode): #Shortwave net 
-                # rst = rss
-                meta = ilibrary[key][:]
-                meta.append(key)
-                variable = rawdata["178"][:] - rawdata["176"][:]
-                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
-                                              substellarlon=substellarlon,physfilter=physfilter,
-                                              zonal=zonal)
-                rdataset[meta[0]]= [variable,meta]
-                
-            elif key==str(lwatmcode): #longwave net 
-                # rlut - rst
-                meta = ilibrary[key][:]
-                meta.append(key)
-                variable = rawdata["179"][:] - rawdata["177"][:]
-                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
-                                              substellarlon=substellarlon,physfilter=physfilter,
-                                              zonal=zonal)
-                rdataset[meta[0]]= [variable,meta]
-                
-            elif key==str(natmcode): #Net atmospheric radiation
-                # rst + rlut - rss - rst
-                meta = ilibrary[key][:]
-                meta.append(key)
-                variable = rawdata["178"][:] - rawdata["176"][:] + rawdata["179"][:] - rawdata["177"][:]
-                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
-                                              substellarlon=substellarlon,physfilter=physfilter,
-                                              zonal=zonal)
-                rdataset[meta[0]]= [variable,meta]
-                
-            elif key==str(sruncode): #Precip + Evap - Increase in snow  = water added to bucket
-                #Actual runoff should be precip + evap + melt + soilh2o - bucketmax
-                meta = ilibrary[key][:]
-                meta.append(key)
-                variable = rawdata["182"][:] - rawdata["221"][:] + rawdata["142"][:] + rawdata["143"][:]
-                variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
-                                              substellarlon=substellarlon,physfilter=physfilter,
-                                              zonal=zonal)
-                rdataset[meta[0]]= [variable,meta]
-                
-            elif key==str(freshcode): #Precip + Evap
-                meta = ilibrary[key][:]
-                meta.append(key)
-                variable = rawdata["142"][:] + rawdata["143"][:] + rawdata["182"][:]
                 variable,meta = _transformvar(lon[:],lat[:],variable,meta,nlat,nlon,nlev,ntru,ntime,mode=mode,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
