@@ -228,7 +228,22 @@ available and the ladder pays T170's dt 15 in full.
 ## A converted arm relaxes four times faster and lands somewhere else
 
 *Measured 2026-08-25 on the corrected damping. Both arms T42 at dt 30, same
-build, same staged surface, differing only in where they start.*
+build, same staged surface.*
+
+**THE ARMS ARE NOT A CONTROLLED PAIR, and this section's conclusion is
+confounded.** They differ in the physics filter exponent as well as in where
+they start: `NFILTEREXP` is 16 in arm A and 8 in arm B, with `FILTERKAPPA`
+8.0, `MPSTEP` 30.0, `NDEL` 10*4, `NHDIFF` 16 and `TDISSZ` 10*1.1143 identical
+across both. That is the knob `exoplasim/analysis/filter_gamma_pair.json`
+exists to price, and it moves the spectral bite fraction from 0.714 to 0.688
+and the depth from -0.609 to -1.391 dex between these same two runs. So the
++0.106 K offset below cannot be attributed to the conversion alone.
+
+Both run records are gone, so this rests on the two surviving analysis
+artifacts rather than on the runs: `filter_dt_pair.json` carries arm A's
+namelist and `filter_gamma_pair.json` carries arm B's. Reconstructed identity
+for both is under `archive/runs/`, and WORLD-WW6Z carries how the records were
+lost.
 
 | arm | start | converged at |
 | --- | --- | ---: |

@@ -1,0 +1,58 @@
+{
+  "run_id": "run_42aaf441b10b",
+  "reconstructed": true,
+  "note": "RECONSTRUCTED IDENTITY, NOT AN INDEX ENTRY. This run was never in exoplasim/runs/INDEX.json: the index is BUILT BY SCANNING exoplasim/runs/, so it records what exists rather than what has existed, and a run created and deleted between two scans leaves nothing tracked. The sibling INDEX_ENTRY.json files under archive/runs/ are copies of a real index row; this file is not one, and is named differently so it cannot be mistaken for one. Every field below cites where it was recovered from, and what could not be recovered is listed rather than omitted. WORLD-WW6Z.",
+  "role": "arm B of the T42 ladder comparison, converted from a converged T21",
+  "recovered": {
+    "resolution": "T42",
+    "timestep_minutes": 30.0,
+    "namelist_fragment": {
+      "FILTERKAPPA": "8.0",
+      "NFILTEREXP": "8",
+      "MPSTEP": "30.0",
+      "NDEL": "10*4",
+      "NHDIFF": "16",
+      "TDISSZ": "10*1.1143"
+    },
+    "damping": "all-level damping",
+    "verdict": "converged at 19 orbits, held at 22",
+    "analysis_orbit_span": [
+      30,
+      53
+    ],
+    "ladder_comparison_window": [
+      37,
+      46
+    ],
+    "offsets_checked_at_orbits": [
+      22,
+      35,
+      45,
+      47
+    ]
+  },
+  "recovered_from": [
+    "exoplasim/analysis/filter_gamma_pair.json (namelist, orbit span, windows)",
+    "exoplasim/analysis/filter_spectral_cost_arms.json (rung, dt, gamma, damping)",
+    "exoplasim/analysis/ladder/run_1d39fef9bfc2__vs__run_42aaf441b10b.json (window)",
+    "notes/audits/resolution-ladder.md (start condition, convergence)",
+    "commit bc3a37573 (the measurement it was made for)"
+  ],
+  "unrecoverable": [
+    "executable_sha256",
+    "config_sha256",
+    "source_build",
+    "flux_ratio",
+    "co2_ppm",
+    "layers",
+    "ranks",
+    "precision_bytes",
+    "stellar_spectrum",
+    "geography",
+    "orbits_on_disk",
+    "size_gb",
+    "the full namelist set",
+    "the run manifest",
+    "the convergence report"
+  ]
+}

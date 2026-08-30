@@ -1,0 +1,36 @@
+{
+  "run_id": "run_900548ae632e",
+  "reconstructed": true,
+  "note": "RECONSTRUCTED IDENTITY, NOT AN INDEX ENTRY. This run was never in exoplasim/runs/INDEX.json: the index is BUILT BY SCANNING exoplasim/runs/, so it records what exists rather than what has existed, and a run created and deleted between two scans leaves nothing tracked. The sibling INDEX_ENTRY.json files under archive/runs/ are copies of a real index row; this file is not one, and is named differently so it cannot be mistaken for one. Every field below cites where it was recovered from, and what could not be recovered is listed rather than omitted. WORLD-WW6Z.",
+  "role": "T42 at dt 45 stability probe",
+  "recovered": {
+    "resolution": "T42",
+    "timestep_minutes": 45.0,
+    "verdict": "blew_up",
+    "orbits_claimed": 46,
+    "failure": "SIGFPE inside the 47th orbit on a gridpoint at -12.81 K at the second level from the top, after 46 orbits of ordinary climate with no trend towards it"
+  },
+  "recovered_from": [
+    "lib/rungs.py COMMISSIONING_EVIDENCE ('T42', 45.0) (verdict, orbits, failure, does_not_bind)",
+    "exoplasim/notes/route-step-criteria.md (route row)",
+    "notes/audits/resolution-ladder.md and exoplasim/notes/physics-filter-stability.md"
+  ],
+  "unrecoverable": [
+    "executable_sha256",
+    "config_sha256",
+    "source_build",
+    "flux_ratio",
+    "co2_ppm",
+    "layers",
+    "ranks",
+    "precision_bytes",
+    "stellar_spectrum",
+    "geography",
+    "orbits_on_disk",
+    "size_gb",
+    "the full namelist set",
+    "the run manifest",
+    "the convergence report"
+  ],
+  "note_extra": "No namelist survives for this run: it appears in no filter_*.json arm table. It is the least recoverable of the three and its row in lib/rungs.py already carries a does_not_bind argument for that reason."
+}
