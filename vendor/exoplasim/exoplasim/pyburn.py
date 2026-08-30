@@ -82,6 +82,59 @@ def _log(destination,string):
         with open(destination,"a") as f:
             f.write(string+"\n")
 
+
+def _logcollected(logfile,rdataset,meta,key):
+    '''Report the variable a loop iteration actually stored, read back out of `rdataset`.
+
+    THIS READS THE STORE RATHER THAN A LOOP LOCAL, and that is the whole point.
+    The line this replaces was
+
+        _log(logfile,"Collected variable: ..."%(meta[0],variable.shape[0]))
+
+    sitting after the derived-variable if/elif chain in `dataset` and in
+    `advancedDataset`. `variable` is bound only by the arm that finds a code
+    ALREADY IN THE RAW and by the derived arms that go through `_transformvar`
+    under that name. The arms for `ua` (131), `va` (132), `spd` (259) and `wa`
+    (137) each build and store their own array without ever binding it, and a
+    code with no derivation arm at all stores nothing, so that line had two
+    failure modes and no correct one:
+
+    - a request whose FIRST key is one of those four, or is a code pyburn
+      cannot derive, raised UnboundLocalError before anything was written.
+      `HIGH_CADENCE_CODES = [131, 132, 259]` is exactly that shape, and it is
+      why orbit 127 of run_67323a923013 fell into `integritycheck`'s
+      example.nl fallback and left a twelve-bin average under the
+      high-cadence name.
+    - a later key of either shape found the name still bound from an earlier
+      iteration and logged the shape of a DIFFERENT variable under the current
+      one's name. Requesting ["139","145"] logged `bld` at 40 timestamps when
+      the only thing in the dataset was `ts`, and a run's own `example.nl` asks
+      for `vegnpp` on a configuration that writes no vegetation records.
+
+    Initialising `variable` to None ahead of the loop would have stopped the
+    crash and kept the second failure, which is worse than the bug: the log
+    exists to say what was collected, and a log that names a variable the
+    dataset does not contain is not a smaller defect than a traceback.
+    `rdataset[meta[0]]` is what the iteration stored, so it cannot go stale,
+    and its absence is the honest signal that the iteration produced nothing.
+
+    A MISSING ENTRY IS REPORTED AND NOT RAISED, because on this path it is
+    ordinary. The namelist a run postprocesses under lists every code the
+    model was compiled to be able to write, not the codes this configuration
+    actually wrote, so "requested, absent, underivable" is the normal state of
+    a dozen entries in every `.nl` in the tree. Refusing there would fail every
+    postprocessing pass this project makes. The contract that a specific
+    request came back complete belongs to the caller that made it, which knows
+    what it asked for and why; what belongs here is a log that never attributes
+    one variable's shape to another's name.
+    '''
+    try:
+        stored = rdataset[meta[0]][0]
+    except KeyError:
+        _log(logfile,"NOT COLLECTED:      %8s\t.... code %s is absent from the raw output and has no derivation"%(meta[0],key))
+        return
+    _log(logfile,"Collected variable: %8s\t.... %3d timestamps"%(meta[0],stored.shape[0]))
+
 #dictionary that can be searched by string (integer) codes
 ilibrary = { "50":["nu"   ,"true_anomaly"                    ,"deg"        ],
              "51":["lambda","ecliptic_longitude"             ,"deg"        ],
@@ -1619,7 +1672,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
             rdataset[meta[0]]= [variable,meta]
-            _log(logfile,"Collected variable: %8s\t.... %3d timestamps"%(meta[0],variable.shape[0]))
+            _logcollected(logfile,rdataset,meta,key)
         else: #derived=True       
         
             # Add in derived variables
@@ -2286,7 +2339,7 @@ def dataset(filename, variablecodes, mode='grid', zonal=False, substellarlon=180
                                                       physfilter=physfilter,zonal=zonal)
                         rdataset[meta[0]]= [variable,meta]
                         
-            _log(logfile,"Collected variable: %8s\t.... %3d timestamps"%(meta[0],variable.shape[0]))
+            _logcollected(logfile,rdataset,meta,key)
           
     rdataset["lat"] = [np.array(lat),["lat","latitude","deg"] ]
     rdataset["lon"] = [np.array(lon),["lon","longitude","deg"]]
@@ -2472,7 +2525,7 @@ def advancedDataset(filename, variablecodes, mode='grid', substellarlon=180.0,
                                               substellarlon=substellarlon,physfilter=physfilter,
                                               zonal=zonal)
             rdataset[meta[0]]= [variable,meta]
-            _log(logfile,"Collected variable: %8s\t.... %3d timestamps"%(meta[0],variable.shape[0]))
+            _logcollected(logfile,rdataset,meta,key)
         else: #derived=True       
         
             # Add in derived variables
@@ -3147,7 +3200,7 @@ def advancedDataset(filename, variablecodes, mode='grid', substellarlon=180.0,
                                                       physfilter=physfilter,zonal=zonal)
                         rdataset[meta[0]]= [variable,meta]
                         
-            _log(logfile,"Collected variable: %8s\t.... %3d timestamps"%(meta[0],variable.shape[0]))
+            _logcollected(logfile,rdataset,meta,key)
           
     rdataset["lat"] = [np.array(lat),["lat","latitude","deg"] ]
     rdataset["lon"] = [np.array(lon),["lon","longitude","deg"]]

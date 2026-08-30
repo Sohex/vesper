@@ -33,6 +33,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import struct
 import sys
 import tempfile
 import warnings
@@ -53,6 +54,71 @@ STAMP = {"run_id": "run_fixture", "source_build": "fixture-build",
          "executable_sha256": None, "purpose": "diagnostic",
          "started_utc": "2026-01-01T00:00:00+00:00"}
 PAYLOAD = b"not a real Fortran stream, but it is the bytes that must survive\n" * 64
+
+
+# A T21 raw stream, which is the grid this project runs and the one whose
+# record layout is transcribed below. The main header carries (nlon, nlat,
+# nlev, ntru) in words 5 to 8; a spectral record is one per level and NSP long,
+# and a gridpoint record is nlat*nlon long. `readallvariables` builds its
+# ENTIRE time axis by counting code-139 records, so one per sample is what
+# makes the file readable at all.
+FIXTURE_NLAT, FIXTURE_NLON, FIXTURE_NLEV, FIXTURE_NTRU = 32, 64, 10, 21
+FIXTURE_NSP = (FIXTURE_NTRU + 1) * (FIXTURE_NTRU + 2)
+
+
+def _fortran_record(header: tuple[int, ...], payload) -> bytes:
+    """One Fortran sequential record: a marker-wrapped header, then the data."""
+    head = struct.pack("<8i", *header)
+    body = np.asarray(payload, dtype="<f4").tobytes()
+    return (struct.pack("<i", len(head)) + head + struct.pack("<i", len(head))
+            + struct.pack("<i", len(body)) + body + struct.pack("<i", len(body)))
+
+
+def synthetic_spectral_raw(path: Path, nsamples: int = 3,
+                           seed: int = 20260830) -> Path:
+    """Write a raw stream pyburn can read, carrying the spectral wind source.
+
+    WHY THIS IS SYNTHESISED RATHER THAN SLICED. The property under test is that
+    key order does not change a derived field, and it holds for any spectral
+    input at all -- the transform is linear and the derivation reads only the
+    divergence and vorticity records. A slice of a real orbit would tie this
+    file to `exoplasim/runs/`, which `.gitignore` keeps out of the repository,
+    so the check would pass or fail on whether a 2 GB untracked artifact
+    happened to be on the machine. Everything here is fixed by `seed`.
+
+    The values are not physical and are not meant to be: nothing downstream
+    reads them, and a check that needed them to be physical would be checking
+    the model rather than pyburn's dispatch.
+    """
+    rng = np.random.default_rng(seed)
+    sigmah = np.linspace(0.05, 1.0, FIXTURE_NLEV)
+    zsig = np.zeros(FIXTURE_NLAT * FIXTURE_NLON, dtype="f4")
+    zsig[:FIXTURE_NLEV] = sigmah
+    parts = [_fortran_record(
+        (333, 0, 20260830, 0, FIXTURE_NLON, FIXTURE_NLAT,
+         FIXTURE_NLEV, FIXTURE_NTRU), zsig)]
+    for step in range(nsamples):
+        spectral = lambda: rng.normal(0.0, 1.0e-5, FIXTURE_NSP)
+        # Surface geopotential and log surface pressure, one spectral record
+        # each; `dataset` reads the second before it reaches the request.
+        parts.append(_fortran_record(
+            (129, 0, 20260830, step, FIXTURE_NSP, 1, 0, step), spectral()))
+        lnps = np.zeros(FIXTURE_NSP)
+        # Mode zero alone, so the surface is uniform at 1000 hPa. The
+        # coefficient reaches the grid unscaled and pyburn wants log(Pa).
+        lnps[0] = np.log(1.0e5)
+        parts.append(_fortran_record(
+            (152, 0, 20260830, step, FIXTURE_NSP, 1, 0, step), lnps))
+        for code in (130, 155, 138):  # air temperature, divergence, vorticity
+            for _level in range(FIXTURE_NLEV):
+                parts.append(_fortran_record(
+                    (code, 1, 20260830, step, FIXTURE_NSP, 1, 0, step),
+                    spectral()))
+        parts.append(_fortran_record(
+            (139, 0, 20260830, step, FIXTURE_NLON, FIXTURE_NLAT, 0, step),
+            250.0 + rng.normal(0.0, 5.0, FIXTURE_NLAT * FIXTURE_NLON)))
+    path.write_bytes(b"".join(parts))
+    return path
 
 
 def fixture_run(tmp: Path, raw_in: str) -> Path:
@@ -299,17 +365,21 @@ class FakePyburn:
     """Enough of pyburn to exercise the re-conversion's decisions, and no more.
 
     The real one needs a Fortran stream and a spectral transform. What is under
-    test here is not the transform: it is WHICH CODES ARE ASKED FOR, whether
-    the clock code is dropped again, and what happens to a file that is already
-    sitting under the name the conversion writes to. So this records the
-    request and writes a netCDF holding what the request implies.
+    test here is not the transform -- `case_a_derived_first_request_converts`
+    runs the real one on a synthetic raw for that -- it is WHICH CODES ARE
+    ASKED FOR, what comes back, and what happens to a file already sitting
+    under the name the conversion writes to. So this records the request and
+    writes a netCDF holding what the request implies.
     """
 
-    tscode = 139
-    ilibrary = {"139": ["ts"], "131": ["ua"], "132": ["va"], "259": ["spd"]}
+    ilibrary = {"131": ["ua"], "132": ["va"], "259": ["spd"]}
 
-    def __init__(self, samples: int):
+    def __init__(self, samples: int, drop: str | None = None):
         self.samples = samples
+        # A code the fake accepts and then does not produce, which is what the
+        # real `dataset` does with a requested variable it can neither find in
+        # the raw nor derive: it says so in the log and returns what it has.
+        self.drop = drop
         self.requested: list[str] | None = None
         self.written: list[str] | None = None
 
@@ -317,6 +387,8 @@ class FakePyburn:
         self.requested = list(variablecodes)
         data = {"time": [np.arange(self.samples), None]}
         for code in variablecodes:
+            if str(code) == self.drop:
+                continue
             data[self.ilibrary[str(code)][0]] = [
                 np.zeros((self.samples, 2, 2)), None]
         return data
@@ -470,32 +542,155 @@ def case_the_substitution_survives_a_second_pass() -> list[str]:
     return problems
 
 
-def case_the_clock_code_leads_and_is_then_dropped() -> list[str]:
-    """The request leads with a code pyburn does not derive, and drops it after.
+def case_the_request_is_the_declared_set() -> list[str]:
+    """The conversion asks for HIGH_CADENCE_CODES, unpadded and unreordered.
 
-    `pyburn.dataset` ends its per-key loop logging `variable.shape[0]`, and
-    only the arm that finds a code ALREADY IN THE RAW binds `variable`. `ua`,
-    `va` and `spd` are each derived from the spectral divergence and vorticity,
-    so a request whose first key is one of them raises UnboundLocalError before
-    anything is written -- which is what happened on orbit 127 and what sent it
-    into the twelve-bin fallback. Leading with the clock code binds the name;
-    dropping it afterwards keeps the product exactly the declared set.
+    It used to prepend `pyburn.tscode` and drop that variable again, because
+    `pyburn.dataset` closed its per-key loop logging a name that only the arm
+    finding a code ALREADY IN THE RAW binds; `ua`, `va` and `spd` are each
+    derived from the spectral divergence and vorticity, so a request opening
+    with one of them raised UnboundLocalError before anything was written.
+    That is world-2jj3, and `case_a_derived_first_request_converts` below holds
+    the repair against the real pyburn. What is held here is that the caller no
+    longer compensates for it: a workaround left standing beside a fix is a
+    trap for whoever reads the two together.
     """
     problems = []
     with tempfile.TemporaryDirectory() as tmpdir:
         _run_dir, fake, _record = reconvert_fixture(Path(tmpdir), None)
         declared = [str(code) for code in cx.HIGH_CADENCE_CODES]
-        if fake.requested != [str(FakePyburn.tscode)] + declared:
+        if fake.requested != declared:
             problems.append(
-                f"the request was {fake.requested}, not the clock code "
-                f"{FakePyburn.tscode} followed by {declared}. The first key "
-                f"must be one pyburn finds in the raw rather than derives")
+                f"the request was {fake.requested} and the declared set is "
+                f"{declared}. A code added to the head of the request, or an "
+                f"order other than the declared one, is a workaround for a "
+                f"defect that is fixed")
         if fake.written != sorted(FakePyburn.ilibrary[c][0] for c in declared):
             problems.append(
                 f"the product carries {fake.written} and the declared set is "
                 f"{sorted(FakePyburn.ilibrary[c][0] for c in declared)}. A "
                 f"conversion that quietly adds a variable is the same class of "
                 f"defect as one that quietly substitutes them")
+    return problems
+
+
+def case_a_missing_declared_field_is_refused() -> list[str]:
+    """A product short of a declared field is refused rather than written.
+
+    `pyburn.dataset` REPORTS a requested variable it cannot produce and returns
+    what it has, which is right for the namelist a run postprocesses under --
+    that lists every code the model can write, not the codes this
+    configuration wrote. It is not right for a three-code request whose whole
+    purpose is the gust distribution, so the completeness check belongs to the
+    caller that knows what it asked for.
+    """
+    problems = []
+    with tempfile.TemporaryDirectory() as tmpdir:
+        run_dir = Path(tmpdir) / "run_fixture"
+        (run_dir / "highcadence").mkdir(parents=True)
+        (run_dir / "highcadence" /
+         cx.high_cadence_raw_name(YEAR)).write_bytes(PAYLOAD)
+        fake = FakePyburn(1463, drop="259")
+        exo_module, previous = _with_fake_pyburn(fake)
+        try:
+            cx.reconvert_high_cadence(run_dir, YEAR, 1463,
+                                      {"radius": 1.2, "gravity": 12.81,
+                                       "gascon": 287.0})
+        except RuntimeError as exc:
+            if "spd" not in str(exc):
+                problems.append(f"the refusal does not name the missing "
+                                f"variable: {exc}")
+        else:
+            problems.append(
+                "a conversion missing spd was accepted and written. That is "
+                "the same class of substitution as the twelve-bin average: a "
+                "file under the high-cadence name that is not the declared "
+                "product")
+        finally:
+            exo_module.pyburn = previous
+    return problems
+
+
+def case_a_derived_first_request_converts() -> list[str]:
+    """The real pyburn, on a request whose FIRST code is derived.
+
+    THE ONE CASE HERE THAT RUNS THE ACTUAL SPECTRAL TRANSFORM, on a synthetic
+    raw this file writes, because the property under test is pyburn's and a
+    fake cannot hold it. The right answer is available without a model: key
+    order is not an input to any derivation, so a request whose first code is
+    derived must return exactly what the same request returns reordered. That
+    is an identity, and it is what `world-2jj3` broke -- `dataset` closed its
+    per-key loop reading a name that the `ua`, `va`, `spd` and `wa` arms never
+    bind, so the derived-first request raised UnboundLocalError before writing
+    anything and the reordered one did not.
+
+    THE LOG IS CHECKED SEPARATELY, AND AGAINST A DIFFERENT REPAIR. Initialising
+    the name ahead of the loop stops the traceback and leaves the line
+    reporting whichever variable was collected before, which on the declared
+    request alone reads as correct: every variable in it is dimensioned by time
+    on axis 0, so a stale shape gives the right count under the right name. So
+    the second request below adds a code pyburn can neither find in the raw nor
+    derive. Nothing is stored for it, and under that repair the log announces
+    it as collected at the previous variable's shape -- a line naming a variable
+    the dataset does not contain. Requiring the log to name what the dataset
+    carries, and only that, is what separates the two repairs.
+    """
+    from exoplasim import pyburn
+
+    problems = []
+    declared = [str(code) for code in cx.HIGH_CADENCE_CODES]
+    names = [pyburn.ilibrary[code][0] for code in declared]
+    marker = str(pyburn.tscode)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        raw = synthetic_spectral_raw(Path(tmpdir) / "MOST_HC.00042")
+        log = Path(tmpdir) / "pyburn.log"
+        constants = {"radius": 1.2, "gravity": 12.81, "gascon": 287.0}
+        try:
+            derived_first = pyburn.dataset(
+                str(raw), declared, mode="grid", zonal=False,
+                substellarlon=180.0, physfilter=False, logfile=str(log),
+                **constants)
+        except Exception as exc:
+            return [f"the declared request {declared} raised "
+                    f"{type(exc).__name__}: {exc}. Its first code is derived "
+                    f"from the spectral divergence and vorticity, and key "
+                    f"order is not an input to any derivation"]
+        reordered = pyburn.dataset(
+            str(raw), [marker] + declared, mode="grid", zonal=False,
+            substellarlon=180.0, physfilter=False, logfile=None, **constants)
+        for name in names:
+            if name not in derived_first:
+                problems.append(f"the declared request produced no {name}")
+            elif not np.array_equal(derived_first[name][0], reordered[name][0]):
+                problems.append(
+                    f"{name} differs between the declared request and the "
+                    f"same request led by code {marker}. Key order changed a "
+                    f"derived field")
+        # A code that IS in pyburn's library, is absent from any high-cadence
+        # raw, and has no derivation arm. Requesting it is legal and produces
+        # nothing, which is the ordinary state of a dozen entries in every
+        # namelist this project postprocesses under.
+        underivable = "145"
+        absent = pyburn.ilibrary[underivable][0]
+        log.write_text("", encoding="utf-8")
+        with_absent = pyburn.dataset(
+            str(raw), declared + [underivable], mode="grid", zonal=False,
+            substellarlon=180.0, physfilter=False, logfile=str(log),
+            **constants)
+        if absent in with_absent:
+            return problems + [
+                f"code {underivable} produced a {absent} out of a raw that "
+                f"carries no such record. The fixture no longer holds the "
+                f"property this case is built on"]
+        collected = [line.split()[2] for line in
+                     log.read_text(encoding="utf-8").split("\n")
+                     if line.startswith("Collected variable:")]
+        if collected != names:
+            problems.append(
+                f"the log reports {collected} collected and the dataset "
+                f"carries {names}. A line naming a variable the dataset does "
+                f"not hold is reporting another variable's shape under that "
+                f"variable's name")
     return problems
 
 
@@ -540,8 +735,12 @@ def main() -> None:
          case_the_substituted_conversion_is_kept_as_evidence),
         ("a conversion that already holds the model's samples is not redone",
          case_a_valid_conversion_is_not_redone),
-        ("the clock code leads the request and is dropped from the product",
-         case_the_clock_code_leads_and_is_then_dropped),
+        ("the conversion requests the declared set and nothing else",
+         case_the_request_is_the_declared_set),
+        ("a conversion missing a declared field is refused",
+         case_a_missing_declared_field_is_refused),
+        ("pyburn converts a request whose first code is derived",
+         case_a_derived_first_request_converts),
         ("the recorded hash describes the file that was written",
          case_the_recorded_hash_describes_the_file),
         ("a re-run does not erase that the conversion was substituted",

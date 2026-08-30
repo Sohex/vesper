@@ -91,17 +91,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, PROJECT_ROOT  # noqa: E402
 from paths import rel  # noqa: E402
 
-# 139 is not wanted for itself, and it must come FIRST. pyburn builds its
-# ENTIRE time axis by counting occurrences of code 139 -- `readallvariables`
-# appends to `variables["time"]` on every one -- so it has to be present in the
-# chunk. And `pyburn.dataset` closes its per-key loop logging `variable.shape`,
-# a name only the arm that finds a code ALREADY IN THE RAW binds; `ua`, `va`
-# and `spd` are each derived from the spectral divergence and vorticity and
-# bind their own names instead. A request that opens with one of those raises
-# UnboundLocalError before anything is written, which is what substituted a
-# twelve-bin average for run_67323a923013's orbit 127. Leading with 139 binds
-# the name once and every derived key after it finds it bound. world-2jj3.
-WIND_CODES = ["139", "131", "132", "259"]
+# THE WINDS AND NOTHING ELSE. This used to open with code 139, which was
+# load-bearing and said so nowhere: `pyburn.dataset` closed its per-key loop
+# logging `variable.shape`, a name only the arm that finds a code ALREADY IN
+# THE RAW binds, and `ua`, `va` and `spd` are each derived from the spectral
+# divergence and vorticity. A request opening with one of those raised
+# UnboundLocalError before anything was written -- which is what substituted a
+# twelve-bin average for run_67323a923013's orbit 127. Leading with 139 bound
+# the name once and let every derived key after it through. That is world-2jj3
+# and it is fixed in `pyburn._logcollected`, so the ordering carries nothing
+# and the code is gone rather than documented.
+#
+# CODE 139 IS STILL REQUIRED IN THE CHUNK BYTES, which is a different claim and
+# is `write_chunk`'s: pyburn builds its ENTIRE time axis by counting
+# occurrences of it in the file -- `readallvariables` appends to
+# `variables["time"]` on every one -- whether or not anything requests it.
+WIND_CODES = ["131", "132", "259"]
 FIELDS = ("spd", "ua", "va")
 GRID_DESCRIPTOR_CODE = 333
 HEADER_BYTES = 32

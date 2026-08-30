@@ -387,56 +387,46 @@ def reconvert_high_cadence(run_dir: Path, year: int, expected_samples: int,
                     "reconverted": False,
                     "moved_aside": prior_aside(run_dir, year, extension)}
     log = run_dir / f"hcout_reconvert.{year:05d}"
-    # WHY THIS DOES NOT CALL `pyburn.postprocess`, WHICH IS WHAT THE RUN PATH
-    # CALLS AND IS WHAT FAILED HERE.
+    # WHY THIS CALLS `pyburn.dataset` AND `pyburn.netcdf` RATHER THAN
+    # `pyburn.postprocess`, WHICH IS WHAT THE RUN PATH CALLS. `postprocess`'s
+    # time block is a no-op under the high-cadence configuration -- every
+    # sample, no average, no standard deviation -- so going through it would
+    # add a binning stage that has nothing to do and a namelist scrape that
+    # would reintroduce the whole regular variable set.
     #
-    # `pyburn.dataset` closes its per-key loop with
+    # THE REQUEST IS THE DECLARED SET, IN THE DECLARED ORDER. It used to lead
+    # with `pyburn.tscode` and drop that variable again, because
+    # `pyburn.dataset` closed its per-key loop logging a name only the arm
+    # that finds a code ALREADY IN THE RAW binds, and `ua`, `va` and `spd` are
+    # each derived; a request opening with one of them raised UnboundLocalError
+    # before anything was written. That is world-2jj3, fixed in
+    # `pyburn._logcollected`, which reads back what the iteration stored
+    # instead of a loop local. The prepend is gone with it.
     #
-    #     _log(logfile,"Collected variable: ..."%(meta[0],variable.shape[0]))
-    #
-    # (pyburn.py:2289) and `variable` is bound only by the arm that finds the
-    # code already present in the raw. `ua`, `va` and `spd` are all DERIVED
-    # from the spectral divergence and vorticity, and their arms assign `ua`,
-    # `va` and `spd` without ever binding `variable`. So a request whose FIRST
-    # key is derived raises UnboundLocalError before anything is written --
-    # and `HIGH_CADENCE_CODES` is exactly such a request. That is the
-    # `UnboundLocalError` that took orbit 127 of run_67323a923013 into
-    # `integritycheck`'s example.nl fallback and left a twelve-bin average of
-    # the regular variable set under the high-cadence name.
-    #
-    # Code 139 leads the request to bind the name once, and is then dropped so
-    # the product is exactly the declared set. It is not an arbitrary choice:
-    # `hcadencegp` writes surface temperature every sample and
-    # `readallvariables` COUNTS `tscode` records to get `ntimes` (pyburn.py:669),
-    # so a high-cadence raw pyburn can read at all has one per sample by
-    # construction.
-    # `aeolian/scripts/extract_high_cadence_wind.py` leads with the same code
-    # and has always survived this for the same reason.
-    #
-    # The writer is called directly because `postprocess`'s time block is a
-    # no-op under the high-cadence configuration -- every sample, no average,
-    # no standard deviation -- and going through it would only reintroduce the
-    # loop above. The result is held to all three below rather than trusted:
+    # WHAT REPLACES IT is the check the prepend never made: that the product
+    # carries every code that was asked for. `dataset` reports a requested
+    # variable it could not produce and carries on, which is right for a
+    # namelist listing every code the model can write; it is not right for a
+    # request of three codes whose whole purpose is the gust distribution.
+    # The result is held to all three checks below rather than trusted:
     # `validate_high_cadence` fails an averaged file on its sample count, which
     # is the exact failure this path exists for, and a standard deviation
     # cannot be written without leaving a `_std` variable to find.
-    marker = str(pyburn.tscode)
     requested = [str(code) for code in HIGH_CADENCE_CODES]
-    if marker in requested:
-        raise RuntimeError(
-            f"HIGH_CADENCE_CODES now contains code {marker}, which this "
-            f"prepends as a clock and then drops. Drop the prepend instead")
     data = pyburn.dataset(
-        str(raw), [marker] + requested, mode="grid", zonal=False,
+        str(raw), requested, mode="grid", zonal=False,
         substellarlon=180.0, physfilter=False, logfile=str(log), **constants)
     names = {name for name in data
              if name not in ("time", "lat", "lon", "lev", "levp")}
-    marker_name = pyburn.ilibrary[marker][0]
-    if marker_name not in names:
+    missing = [f"{pyburn.ilibrary[code][0]} (code {code})"
+               for code in requested if pyburn.ilibrary[code][0] not in names]
+    if missing:
         raise RuntimeError(
-            f"the clock code {marker} produced no {marker_name}; the raw "
-            f"stream is not what pyburn read it as")
-    del data[marker_name]
+            f"the conversion produced {sorted(names)} and is missing "
+            f"{', '.join(missing)}. pyburn reports a requested variable it "
+            f"cannot produce and returns what it has; a high-cadence product "
+            f"short of a declared field is the same class of substitution "
+            f"this path exists to catch")
     # CLOSED HERE, because `pyburn.netcdf` returns the open Dataset and does
     # not close it -- `postprocess` does that on the line after it calls the
     # writer. Left open, the file on disk is short of its final metadata, so
