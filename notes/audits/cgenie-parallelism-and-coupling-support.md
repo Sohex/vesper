@@ -913,3 +913,293 @@ optimisation, not an unresolved implementation.
   for a core; retired instructions are a property of the binary and its input and
   every quantitative claim above rests on those. The profiling added one serial
   core to a contended machine and that is recorded rather than hidden.
+
+---
+
+# 7. What the threads buy on a quiet host
+
+Measured 2026-08-30 on this machine, under `scripts/lock_and_run` held for the
+whole series so that no arm was taken beside a neighbour. It answers two rows
+that the sibling note's section 5b left open: `world-ap7w`, which asks for the
+wall clock re-taken without contention, and `world-2lbs`, which asserts that
+the parallel-region barriers cost more than the threads buy above four.
+
+`analysis/cgenie_omp.py --cost` is the driver and `analysis/cgenie_omp.json` is
+what it wrote. Every record carries the one-minute load average before and
+after it.
+
+## 7a. The criteria, fixed before the series was run
+
+Written here before the first arm was taken, because a turnover point chosen
+after the curve it names is not a criterion.
+
+**The bed is sized against its own startup.** The cost case is fitted at two
+lengths at one thread, and the bed is only long enough if the fitted fixed cost
+is under a twentieth of the run. If 100 model years fails that test the bed is
+lengthened and the whole series is taken again at the longer bed; the sibling
+note's numbers are at 100 years, so that is where the comparison starts.
+
+**The scatter is measured before any difference is believed.** Six repeats of
+one configuration at one thread and six at sixteen, inside the same lock hold.
+The scatter of a configuration is its half-range over the median, and **no
+difference between two configurations smaller than the larger of their two
+scatters is reported as a difference.** If the inherited four-thread speedup is
+inside the scatter, the row's claim is not measurable at this bed and the bed is
+what gets fixed first.
+
+**Turnover has one definition.** The turnover point is the smallest thread count
+T at or below eight whose median wall clock is BEATEN by no larger count: that
+is, the median at 2T exceeds the median at T by more than the combined scatter.
+If no such T exists at or below sixteen there is no turnover in the measured
+range, and `world-2lbs`'s premise is refuted rather than merely unconfirmed.
+
+**Throughput is compared against the least-contended inherited sample.** The
+contaminated table's best one-thread reading is what the quiet host has to
+match. Agreement within a tenth confirms that the earlier low-load samples were
+already clean and that the collapse recorded at high load was contention.
+A quiet host slower than that by more than a tenth would mean something other
+than contention, and the retired instruction count, which does not move with
+load, would locate it.
+
+**Two mechanisms are on the table and they are distinguishable.** The row names
+synchronisation granularity. This host offers a second: sixteen physical cores
+on two dies, one carrying stacked cache and one not, and the sibling note's arms
+declared neither `OMP_PLACES` nor `OMP_PROC_BIND`, so a team of eight or sixteen
+was placed by the scheduler and could straddle the fabric. Granularity predicts
+that the turnover moves UP in thread count at 72 x 72 x 16, where four times the
+cell count sits between the same barriers. Placement predicts that binding the
+team to one die's physical cores raises the speedup at eight threads at the SAME
+grid. They are not exclusive and the series measures both.
+
+**The working-set test.** `CLAUDE.md`'s target is 32 MB for a thread team on one
+die, which is this host's cache-poor die. Section 3d's arithmetic puts the arrays
+a GOLDSTEIN timestep touches at roughly 2 MB at the shipped grid and 8 MB at the
+doubled one, so the prediction is that neither is bandwidth bound. The test that
+can fail it: last-level fills per instruction above five per thousand at any
+configuration means the working set is the mechanism and section 3d's arithmetic
+is wrong; below one per thousand means the arithmetic stands and memory is not
+what limits the team. Between the two is reported as neither.
+
+**The change triggers, and what each outcome concludes.** `world-2lbs` states
+its own acceptance: a change is worth keeping if the speedup at the grid it
+targets rises AND the answer stays bit-for-bit. What was not fixed was when a
+change gets BUILT, so it is fixed here.
+
+| finding | what follows |
+| --- | --- |
+| binding the team beats the unbound team at eight threads by more than the combined scatter | the bound placement becomes the declared run environment; it is a setting, not a source change, and the regression case verifies it anyway |
+| the turnover at 72 x 72 x 16 sits above four threads | route 1 of the row has answered it: the shipped grid was the worst case, the recommended grid is not, and NO coarsening of the parallel regions is built |
+| the turnover at 72 x 72 x 16 is still at or below four AND the best speedup there on eight threads is below 2.0 | routes 2 and 3 are built and re-measured against this table |
+| the turnover at 72 x 72 x 16 is at or below four but eight threads still reach 2.0 | the decomposition pays at the grid this project would run; the turnover is recorded and no coarsening is built |
+
+2.0 on eight threads is the line because a factor of two is the smallest speedup
+that changes a spin-up plan, and below it the decomposition is not worth the
+complexity of a wider parallel region.
+
+## 7b. The instrument, and the neighbour the lock cannot exclude
+
+The series ran 2026-08-30 15:30 to 16:22 under one `scripts/lock_and_run` hold.
+The lock did what it is for: no other agent touched the host. What it cannot
+exclude is the host's own interactive work, and a game process ran at about
+5.7 cores, its forty-odd threads spread across BOTH dies, for the whole series.
+Every timing below therefore carries a one-minute load average between 6 and 12,
+recorded before and after each repeat in `analysis/cgenie_omp.json`, and the
+absolute wall clocks are of a host sharing its last-level cache with that
+neighbour. The loads are in the load column of every table; nothing below quotes
+a number without one.
+
+Three internal controls say what that neighbour did and did not touch:
+
+- **Instructions are unaffected.** Repeats of one configuration agree to six
+  parts per million, and the one-thread count agrees with the earlier
+  low-load window's 246.64 G to 0.12 per cent -- the whole of which is scope,
+  because this series counted user-mode only (`instructions:u`) where the
+  earlier one counted kernel and user.
+- **The process never queued for a core at one thread**: task-clock is within
+  0.3 per cent of wall in every serial repeat.
+- **The scatter was measured before any difference was read.** Six repeats at
+  one thread and six at sixteen give half-range-over-median of 1.7 and 1.9 per
+  cent at 36 x 36 x 16. The curve arms sit at or under 4.2 per cent except
+  where the game's own scheduling moved (8.8 per cent at twelve threads, 10.9
+  at the doubled grid's four- and eight-thread points), and every verdict below
+  states the comparison against the combined scatter of its two sides.
+
+The bed passed its own criterion first: fitting 25- and 50-year runs gives a
+fixed cost of 0.16 s against a 15.9 s hundred-year run, 1.0 per cent, under the
+twentieth-of-the-run line, so 100 model years at `nyear` 100 is the bed
+throughout, as it was in the sibling note's section 5.
+
+## 7c. The quiet-host throughput, and what the contended era's collapse was
+
+`world-ap7w`'s remaining question was whether the model is slow or the host was
+busy. Split by what moves with load and what does not:
+
+| quantity | 36 x 36 x 16 | 72 x 72 x 16 probe |
+| --- | ---: | ---: |
+| retired instructions, 100 years, one thread, user-mode | 246.34 G | 1114.36 G |
+| the same tree's pre-threading-branch count | 302.68 G | 1364.6 G |
+| serial saving carried by the branch | -18.6% | -18.3% |
+| wall at one thread, beside the game | 16.37 s | 95.95 s |
+| implied rate beside the game | 15.0 G/s | 11.6 G/s |
+| rate in the earlier low-load window | 17.0 G/s | 15.5 G/s |
+
+Two readings. **The contended era's collapse was contention**: the instruction
+counts reproduce across three measurement campaigns to a tenth of a per cent,
+so nothing about the model got slower, and the amended row's conclusion stands
+confirmed with the cache counters attached. **And the suppression beside a
+cache-sharing neighbour grows with the state**: 13 per cent at the shipped grid
+against 25 per cent at the doubled one, with the miss-per-instruction column
+flat (2.10 against 1.76 per thousand at one thread). That is the direction the
+row's working-set suspicion pointed, and it is a property of sharing the die
+with a neighbour, not of the model alone: the serial process keeps its
+arithmetic and loses only rate.
+
+The 18 per cent serial saving measured at the shipped grid in the sibling note
+carries to the doubled grid unchanged, which had not been measured.
+
+## 7d. The scaling curve, and where it turns over
+
+All at 100 model years, `omp` arm, unbound (the placement the inherited table
+was taken under), medians over three repeats -- six in the scatter arm.
+
+36 x 36 x 16, beside the game (load 8 to 12):
+
+| threads | wall median, s | speedup | G instructions (user) | LLC misses per kilo-instruction |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 16.48 | 1.00 | 246.34 | 2.20 |
+| 2 | 14.01 | 1.18 | 246.72 | 2.61 |
+| 3 | 13.74 | 1.20 | 247.09 | 2.95 |
+| 4 | 14.00 | 1.18 | 247.48 | 3.18 |
+| 6 | 14.17 | 1.16 | 248.26 | 3.57 |
+| 8 | 15.00 | 1.10 | 248.98 | 3.88 |
+| 12 | 18.66 | 0.88 | 250.54 | 4.42 |
+| 16 | 20.16 | 0.82 | 251.98 | 5.15 |
+
+By section 7a's definition the turnover is FOUR: eight is worse than four by
+1.00 s against a combined scatter of 0.81 s, and two through six are a plateau
+the scatter does not separate. `world-2lbs`'s claim holds at the grid it was
+made at, under a busier host than the inherited table's.
+
+72 x 72 x 16 probe, beside the game (load 6 to 12):
+
+| threads | wall median, s | speedup | G instructions (user) | LLC misses per kilo-instruction |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 95.95 | 1.00 | 1114.36 | 1.76 |
+| 2 | 78.11 | 1.23 | 1115.09 | 1.82 |
+| 4 | 70.71 | 1.36 | 1116.53 | 1.97 |
+| 8 | 59.01 | 1.63 | 1119.47 | 2.17 |
+| 16 | 75.00 | 1.28 | 1125.04 | 3.13 |
+
+By the same definition the turnover is EIGHT: sixteen is worse than eight by
+16.0 s against a combined scatter of 6.8 s, while four and eight are 11.7 s
+apart against a combined scatter of 14.0 s and are therefore not separated --
+the game's interference inflates both scatters. Either way the turnover sits
+above four, and the 1.63 at eight threads is a floor rather than an estimate:
+the neighbour can only have cost the team time.
+
+**Section 7a's second decision row fires: the shipped grid was the worst case,
+the recommended grid is not, and no coarsening of the parallel regions is
+built.** Route 1 of `world-2lbs` -- measure at 72 x 72 x 16 before changing
+anything -- answered the row for the cost of one build, exactly as it was
+placed in the row to do.
+
+The instruction column also re-reads the mechanism. This series' user-mode
+count grows only 2.3 per cent from one thread to sixteen at the shipped grid,
+where the sibling note's kernel-plus-user count grew 11.8 per cent on the same
+tree and case. The one-thread counts agree to 0.12 per cent, so the difference
+is the counting scope: about nine points of the growth are KERNEL work -- the
+futex sleeps and wakes of `OMP_WAIT_POLICY=passive`, taken at sixteen barriers
+per ocean step, 160,000 times over the run, by up to fifteen sleeping threads.
+The barrier cost above the turnover is mostly the kernel putting threads to
+sleep and waking them, not the runtime dividing loops.
+
+## 7e. Placement, and what the neighbour contaminated
+
+This host's two dies are not alike (one carries the stacked cache) and the
+inherited table declared no placement, so three bound arms ran. The finding is
+mostly about the neighbour, and it is recorded as such rather than as a
+property of the model:
+
+| configuration, 8 threads, 36 x 36 x 16 | wall median, s | G instructions | misses per kilo-instruction |
+| --- | ---: | ---: | ---: |
+| unbound | 15.00 | 248.98 | 3.88 |
+| bound one-per-core, cache die (0-7) | 13.89 | 248.99 | 3.53 |
+| bound one-per-core, other die (8-15) | 25.72 | 248.99 | 3.62 |
+
+Identical instructions, near-identical miss rates, and a factor 1.85 in wall:
+the bound-to-8-15 team was fighting the game's threads for exactly the cores it
+was pinned to, while an unbound team drifts to idle ones. The die comparison
+this arm was designed for cannot be read beside a neighbour that is itself
+unpinned, and is left unread rather than read badly.
+
+Two placement facts do survive the contamination, both in the direction that
+implicates placement rather than barriers in the sixteen-thread collapse:
+sixteen threads bound one-per-physical-core run at 15.38 s where the unbound
+sixteen ran at 20.16 s (combined scatter 0.5 s), and that bound team's miss
+rate is 4.39 per thousand against the unbound team's 5.15. Most of what
+sixteen unbound threads lose at this grid, they lose to sitting on hyperthread
+siblings and migrating, not to the barriers.
+
+Section 7a's first decision row asked whether binding beats the unbound team AT
+EIGHT THREADS by more than the combined scatter: 13.89 against 15.00 is 1.11 s
+of difference against 1.19 s of combined scatter, so the row as registered DOES
+NOT fire and no declared placement change is made on this evidence. The
+sixteen-thread margin is recorded for the commissioning that would first
+consider a team that size.
+
+## 7f. The working-set verdict
+
+Section 7a fixed the lines before the counters ran: above five last-level
+fills per thousand instructions the working set is the mechanism, below one the
+arithmetic of section 3d stands, between the two neither is established.
+
+Every configuration measured sits between the lines except one: sixteen
+unbound threads at the shipped grid touch 5.15 per thousand, and the same
+sixteen threads bound one-per-core sit at 4.39. The one crossing is the
+configuration the placement section just attributed to sibling-sharing and
+migration beside the game, so the honest verdict is: the working-set target is
+NOT exceeded -- the declared-shape arithmetic (2 MB at the shipped grid, 8 MB
+at the doubled one, against 32 MB) is consistent with everything measured, the
+miss rate FALLS with grid size at fixed thread count as a cache-resident
+working set predicts, and the counters establish memory as the mechanism
+nowhere. What the counters do show is the game: a fifth to a quarter of the
+serial rate lost to sharing the die, growing with the state.
+
+## 7g. A barrier that is removable, read from the source and deliberately not removed
+
+`tstepo_flux` takes its team barrier at the end of the `!$OMP DO` over rows,
+once per level, sixteen times per ocean step. Enumerating every array the
+parallel region writes -- `ts`, `fb`, `rho`, `diffv_test`, `dzrho_test`, all at
+the writing thread's own cells -- against every cross-thread read shows the
+level-to-level dependence is carried entirely by `fb(l,i,j)` at the SAME row,
+and `SCHEDULE(STATIC)` over an identical iteration space at every level
+guarantees the same thread holds the same rows at every level. A `NOWAIT` on
+that loop would therefore remove fifteen of the sixteen barriers per step
+exactly, at zero arithmetic cost, and remain bit-for-bit by the same argument
+that made the decomposition exact.
+
+It is not built. Section 7a's decision table was fixed before the curve was
+taken, its second row fired, and `ocn-20`'s pattern -- a pre-registered
+trigger and an honest retention -- applies to a barrier as it does to a
+solver. The analysis is recorded here so that if a later profile at a larger
+grid or thread count re-opens the turnover question, the cheapest change is
+already derived; its acceptance test is unchanged from the row: bit-for-bit on
+both shipped regression cases at 1 and 16 threads, plus the omppoison arm.
+
+## 7h. What section 7 did not establish
+
+The geochemistry's rate was not measured here. The amended `world-ap7w` residue
+-- BIOGEM retiring 5.94 G instructions per second where the physics runs 15 to
+18, a property of the code rather than of the host -- still lacks its cache
+count. The instrument for it exists: `analysis/cgenie_omp.py --cost-biogem`
+runs the shipped fourteen-tracer configuration at bench length with the cache
+counters attached, and `--cost-case worbe2_36x36x8` is its matched physics
+comparator. That measurement, and the threading of BIOGEM's column sweep it
+would inform, are `world-hkcj`'s.
+
+And every absolute wall clock in section 7 is of a host sharing its cache with
+a ~5.7-core neighbour. The shapes -- the turnover, the placement gaps, the
+scatter each verdict was tested against -- were taken under one lock hold with
+the neighbour steady, and the instruction and miss counts are load-invariant;
+only the absolute seconds and the derived G/s carry the neighbour, and each
+carries its load beside it in `analysis/cgenie_omp.json`.

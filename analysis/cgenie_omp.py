@@ -213,7 +213,7 @@ def make_args(target: str = "") -> str:
     return " ".join(p for p in parts if p)
 
 
-def arm_env(arm: str, threads: int = 1) -> dict:
+def arm_env(arm: str, threads: int = 1, bind: str = "none") -> dict:
     """An arm's compiler flags travel in the ENVIRONMENT, not on make's command
     line. `genie.job` interpolates its -m argument unquoted, so a make variable
     whose value contains a space is resplit by the shell and `-finit-real=snan`
@@ -238,6 +238,22 @@ def arm_env(arm: str, threads: int = 1) -> dict:
     # the instruction count. Passive is what makes the count comparable across
     # thread counts.
     env["OMP_WAIT_POLICY"] = "passive"
+    # WHERE THE TEAM RUNS IS PART OF THE ARM, and leaving it undeclared is a
+    # measurement of the scheduler rather than of the model. This host has two
+    # dies of eight physical cores with two hardware threads each, and only one
+    # of them carries the stacked cache, so an unbound team of eight can be
+    # placed on eight hardware threads of four cores, or across both dies with a
+    # fabric crossing at every barrier, and neither is asked for. `none` leaves
+    # the placement to the scheduler, which is what the inherited table was
+    # taken under and is therefore kept as the default; `cores` asks for one
+    # thread per physical core, packed, which is what a barrier-bound team
+    # wants.
+    if bind == "cores":
+        env["OMP_PLACES"] = "cores"
+        env["OMP_PROC_BIND"] = "close"
+    elif bind != "none":
+        raise SystemExit(f"unknown bind {bind!r}")
+    env["CGENIE_BIND"] = bind
     return env
 
 
@@ -334,31 +350,99 @@ def run_case(arm: str, case: str, threads: int, tag: str) -> dict:
 # `notes/audits/cgenie-parallelism-and-coupling-support.md` section 2c.
 COST_CASE = "worjh2_36x36x16"
 
+# The doubled grid the coupling note recommends. It lives in `cgenie_cost.py`'s
+# PROBE72 rather than in CASES because two of the fields EMBM opens
+# unconditionally do not ship for it and are made by replication: the loop
+# structure and the instruction count are a 72 x 72 x 16 model's and the ocean
+# state it produces is not evidence about anything. Selecting it here is what
+# lets the threading question be asked at the grid it would be run on.
+PROBE_CASE = "dan_72_72x72x16_probe"
 
-def cost_config(years: int, nyear: int, maxisles: int) -> Path:
-    case = dict(cc.CASES[COST_CASE], mcmodel="medium")
-    cfg = cc.CONFIG_DIR / f"omp_cost_{COST_CASE}.xml"
+# LAST-LEVEL FILLS BESIDE THE INSTRUCTIONS, because the two answer different
+# questions and only the pair separates them. `instructions` prices the work;
+# `cache-misses` on this part counts the fills that reached memory, so the ratio
+# says whether a thread team is dividing an arithmetic-bound problem or
+# competing for bandwidth. `cache-references` is carried so the ratio can be
+# read either way round.
+PERF_EVENTS = "instructions,task-clock,cache-misses,cache-references"
+
+
+def cost_case_spec(name: str) -> dict:
+    """The cost case by name, with the doubled grid's inputs assembled if it is
+    the one asked for. `-mcmodel=medium` is forced for both, because the doubled
+    grid's static COMMON is past what the small model can address and building
+    the two the same way is what keeps the flag's cost out of the grid's."""
+    if name == PROBE_CASE:
+        cc.CASES.update(cc.PROBE72)
+        cc.build_probe72_inputs()
+    return dict(cc.CASES[name], mcmodel="medium")
+
+
+def cost_config(case_name: str, years: int, nyear: int, maxisles: int) -> Path:
+    case = cost_case_spec(case_name)
+    cfg = cc.CONFIG_DIR / f"omp_cost_{case_name}.xml"
     cc.write_config(cfg, case, years, nyear, maxisles, ndta=case.get("ndta", 5))
     return cfg
 
 
-def cost_run(arm: str, threads: int, tag: str, years: int, nyear: int,
-             maxisles: int, build_it: bool) -> dict:
-    """Build and run the cost case, counting retired instructions.
+def _perf_once(rundir: Path, env: dict, cpuset: str, log: Path) -> dict:
+    """One timed integration of an already configured experiment.
 
-    `perf stat -e instructions` COUNTS rather than samples, so on a
-    single-threaded process it is exact and needs no correction for host
-    load: it is a property of the binary and its input. On a THREADED
-    process it is not a cost, because a thread waiting at a barrier retires
-    instructions in proportion to how long it waits. OMP_WAIT_POLICY is
-    passive in `arm_env` for exactly that reason, and the wall clock and the
-    load average are recorded beside the count rather than in place of it,
-    so a reader can see what the machine was doing."""
-    env = arm_env(arm, threads)
-    cfg = cost_config(years, nyear, maxisles)
-    rec = {"arm": arm, "threads": threads, "case": COST_CASE,
-           "years": years, "nyear": nyear, "tree": str(CGENIE)}
+    `genie.job` has by this point written the namelists, staged the inputs and
+    copied the executable into `rundir`, so running the executable there again
+    repeats exactly the same integration. That is what makes a REPEAT cheap and
+    it is also what makes the internal control possible: two repeats of one
+    configuration must retire the same instructions, and a pair that does not is
+    not a pair of repeats."""
+    cmd = ["perf", "stat", "-e", PERF_EVENTS, "-x,"]
+    if cpuset:
+        cmd += ["taskset", "-c", cpuset]
+    cmd += ["./genie.exe"]
+    rec = {"load_before": cc.loadavg()}
+    t0 = time.perf_counter()
+    res = subprocess.run(cmd, cwd=rundir, capture_output=True, text=True,
+                         check=False, env=env)
+    rec["wall_seconds"] = round(time.perf_counter() - t0, 2)
+    rec["load_after"] = cc.loadavg()
+    log.write_text(res.stdout + "\n--- perf ---\n" + res.stderr)
+    if "Shutdown complete; home time" not in res.stdout:
+        rec["error"] = "the run under perf did not reach the shutdown banner"
+        return rec
+    for line in res.stderr.split("\n"):
+        parts = line.split(",")
+        if len(parts) < 3:
+            continue
+        try:
+            value = float(parts[0])
+        except ValueError:
+            continue
+        # Unprivileged perf qualifies each event with the modifier it counted
+        # under, so the name arrives as `instructions:u`; the qualifier is not
+        # part of which event it is.
+        key = {"instructions": "instructions", "task-clock": "task_clock_ms",
+               "cache-misses": "cache_misses",
+               "cache-references": "cache_references"}.get(
+                   parts[2].strip().split(":")[0])
+        if key:
+            rec[key] = int(value) if key != "task_clock_ms" else value
+    return rec
+
+
+def cost_series(arm: str, case_name: str, tag: str, years: int, nyear: int,
+                maxisles: int, build_it: bool, arms_of: list[dict],
+                repeats: int) -> list[dict]:
+    """Build once, configure once, then time every (threads, bind) point.
+
+    Splitting the configuration out of the timing is not a tidy-up. `genie.job`
+    itself RUNS the model, so the old shape paid for two integrations per timed
+    one, and a repeat cost as much as a fresh point. Configuring once and timing
+    in a loop makes the repeats -- which is what bounds every difference in the
+    table -- the cheap part of the series rather than the expensive part."""
+    cfg = cost_config(case_name, years, nyear, maxisles)
+    (LOGDIR / "exe").mkdir(parents=True, exist_ok=True)
+    out: list[dict] = []
     try:
+        env = arm_env(arm)
         if build_it:
             sh(["/usr/bin/make", *make_args().split(), "cleanall"],
                LOGDIR / f"{tag}.clean.log", cwd=cc.GENIE_MAIN, env=env)
@@ -367,44 +451,156 @@ def cost_run(arm: str, threads: int, tag: str, years: int, nyear: int,
                      "-h", ".", "-m", make_args(target="genie.exe")],
                     LOGDIR / f"{tag}.build.log", cwd=cc.GENIE_MAIN, env=env)
             if rc != 0 or not (cc.GENIE_MAIN / "genie.exe").exists():
-                rec["error"] = f"build failed, see {LOGDIR / (tag + '.build.log')}"
-                return rec
-        # Lay the run directory out once with genie.job, then run the
-        # executable under perf inside it, so perf sees the model and not
-        # the xsltproc configuration around it.
+                return [{"arm": arm, "case": case_name,
+                         "error": f"build failed, see {LOGDIR / (tag + '.build.log')}"}]
+            shutil.copy2(cc.GENIE_MAIN / "genie.exe",
+                         LOGDIR / "exe" / f"cost.{arm}.{case_name}.exe")
+        stashed = LOGDIR / "exe" / f"cost.{arm}.{case_name}.exe"
+        if not build_it and stashed.exists():
+            shutil.copy2(stashed, cc.GENIE_MAIN / "genie.exe")
         rc = sh(["./genie.job", "-z", "-f", f"configs/{cfg.name}",
                  "-o", str(OUT_ROOT), "-c", str(CGENIE), "-g", str(CGENIE),
                  "-h", ".", "-m", make_args()],
                 LOGDIR / f"{tag}.setup.log", cwd=cc.GENIE_MAIN, env=env)
         ok, why = cc.run_ok(LOGDIR / f"{tag}.setup.log")
         if not ok:
-            rec["error"] = why or f"setup run exit {rc}"
-            return rec
+            return [{"arm": arm, "case": case_name,
+                     "error": why or f"setup run exit {rc}"}]
         rundir = OUT_ROOT / cfg.stem
-        rec["load_before"] = cc.loadavg()
-        t0 = time.perf_counter()
-        res = subprocess.run(
-            ["perf", "stat", "-e", "instructions,task-clock", "-x,",
-             "./genie.exe"],
-            cwd=rundir, capture_output=True, text=True, check=False, env=env)
-        rec["wall_seconds"] = round(time.perf_counter() - t0, 2)
-        rec["load_after"] = cc.loadavg()
-        (LOGDIR / f"{tag}.perf.log").write_text(res.stdout + "\n--- perf ---\n"
-                                                + res.stderr)
-        if "Shutdown complete; home time" not in res.stdout:
-            rec["error"] = "the run under perf did not reach the shutdown banner"
-            return rec
-        for line in res.stderr.split("\n"):
-            parts = line.split(",")
-            if len(parts) > 2 and parts[2] == "instructions":
-                rec["instructions"] = int(parts[0])
-            if len(parts) > 2 and parts[2] == "task-clock":
-                rec["task_clock_ms"] = float(parts[0])
-        if "instructions" in rec:
-            rec["instructions_per_model_year"] = round(
-                rec["instructions"] / years / 1e9, 3)
+        for point in arms_of:
+            threads, bind, cpuset = point["threads"], point["bind"], point["cpuset"]
+            penv = arm_env(arm, threads, bind)
+            reps = []
+            for r in range(repeats):
+                reps.append(_perf_once(
+                    rundir, penv, cpuset,
+                    LOGDIR / f"{tag}.t{threads}.{bind}.r{r}.perf.log"))
+            rec = {"arm": arm, "case": case_name, "tag": tag,
+                   "threads": threads,
+                   "bind": bind, "cpuset": cpuset or "scheduler",
+                   "years": years, "nyear": nyear, "tree": str(CGENIE),
+                   "repeats": reps}
+            walls = sorted(x["wall_seconds"] for x in reps if "error" not in x)
+            counts = [x.get("instructions") for x in reps if "error" not in x]
+            if walls:
+                rec["wall_min"] = walls[0]
+                rec["wall_median"] = walls[len(walls) // 2]
+                rec["wall_max"] = walls[-1]
+                # The scatter a difference has to clear, defined once: the
+                # half-range over the median. It is a half-range rather than a
+                # standard deviation because three to six repeats do not
+                # estimate a standard deviation, and because the quantity that
+                # matters is how far apart two readings of ONE configuration
+                # were seen to be.
+                rec["scatter"] = round(
+                    (walls[-1] - walls[0]) / 2.0 / rec["wall_median"], 4)
+            if counts and all(c is not None for c in counts):
+                rec["instructions"] = min(counts)
+                # The internal control: repeats of one configuration integrate
+                # the same model and must retire the same instructions.
+                rec["instruction_spread"] = round(
+                    (max(counts) - min(counts)) / min(counts), 6)
+                rec["instructions_per_model_year"] = round(
+                    min(counts) / years / 1e9, 3)
+            misses = [x.get("cache_misses") for x in reps if "error" not in x]
+            if misses and all(m is not None for m in misses) and counts:
+                rec["cache_misses"] = min(misses)
+                rec["misses_per_kilo_instruction"] = round(
+                    1000.0 * min(misses) / min(counts), 4)
+            errs = [x["error"] for x in reps if "error" in x]
+            if errs:
+                rec["error"] = errs[0]
+            out.append(rec)
+            print(json.dumps(rec, indent=2))
         shutil.rmtree(rundir, ignore_errors=True)
-        return rec
+        return out
+    finally:
+        cfg.unlink(missing_ok=True)
+
+
+# The BIOGEM cost case. The regression case above is twenty timesteps and is
+# startup; this is the same shipped configuration -- fourteen GOLDSTEIN
+# tracers, ATCHEM and BIOGEM, 36 x 36 x 8 -- rewritten only in its length, the
+# same three keys `cgenie_cost.biogem_cost` rewrites. It exists here because
+# the geochemistry's instructions-per-second is the one large-state rate the
+# contended windows could not explain away, and the cache counters beside the
+# instruction count are what say whether that rate is a miss rate.
+def biogem_config(years: int) -> Path:
+    import re  # noqa: PLC0415
+    src = (cc.CONFIG_DIR / "eb_go_gs_ac_bg_test.xml").read_text()
+    cfg = cc.CONFIG_DIR / "omp_cost_biogem.xml"
+    koverall = years * 5 * 100
+    t = re.sub(r'(<param name="koverall_total">)\d+', rf"\g<1>{koverall}", src)
+    t = re.sub(r'(<param name="dt_write">)\d+', rf"\g<1>{koverall}", t)
+    t = re.sub(r'(<param name="par_misc_t_runtime">)\d+', rf"\g<1>{years}", t)
+    t = t.replace("genie_eb_go_gs_ac_bg", cfg.stem, 1)
+    cfg.write_text(t)
+    return cfg
+
+
+def biogem_cost_series(arm: str, tag: str, years: int, build_it: bool,
+                       points: list[dict], repeats: int) -> list[dict]:
+    """The cost_series flow on the BIOGEM bench configuration."""
+    cfg = biogem_config(years)
+    (LOGDIR / "exe").mkdir(parents=True, exist_ok=True)
+    stashed = LOGDIR / "exe" / f"cost.{arm}.biogem.exe"
+    out: list[dict] = []
+    try:
+        env = arm_env(arm)
+        if build_it or not stashed.exists():
+            sh(["/usr/bin/make", *make_args().split(), "cleanall"],
+               LOGDIR / f"{tag}.clean.log", cwd=cc.GENIE_MAIN, env=env)
+            rc = sh(["./genie.job", "-x", "-f", f"configs/{cfg.name}",
+                     "-o", str(OUT_ROOT), "-c", str(CGENIE), "-g", str(CGENIE),
+                     "-h", ".", "-m", make_args(target="genie.exe")],
+                    LOGDIR / f"{tag}.build.log", cwd=cc.GENIE_MAIN, env=env)
+            if rc != 0 or not (cc.GENIE_MAIN / "genie.exe").exists():
+                return [{"arm": arm, "case": "biogem_36x36x8_14tr",
+                         "error": f"build failed, see {LOGDIR / (tag + '.build.log')}"}]
+            shutil.copy2(cc.GENIE_MAIN / "genie.exe", stashed)
+        else:
+            shutil.copy2(stashed, cc.GENIE_MAIN / "genie.exe")
+        rc = sh(["./genie.job", "-z", "-f", f"configs/{cfg.name}",
+                 "-o", str(OUT_ROOT), "-c", str(CGENIE), "-g", str(CGENIE),
+                 "-h", ".", "-m", make_args()],
+                LOGDIR / f"{tag}.setup.log", cwd=cc.GENIE_MAIN, env=env)
+        ok, why = cc.run_ok(LOGDIR / f"{tag}.setup.log")
+        if not ok:
+            return [{"arm": arm, "case": "biogem_36x36x8_14tr",
+                     "error": why or f"setup run exit {rc}"}]
+        rundir = OUT_ROOT / cfg.stem
+        for point in points:
+            threads, bind, cpuset = point["threads"], point["bind"], point["cpuset"]
+            penv = arm_env(arm, threads, bind)
+            reps = [_perf_once(rundir, penv, cpuset,
+                               LOGDIR / f"{tag}.t{threads}.{bind}.r{r}.perf.log")
+                    for r in range(repeats)]
+            rec = {"arm": arm, "case": "biogem_36x36x8_14tr", "tag": tag,
+                   "threads": threads, "bind": bind,
+                   "cpuset": cpuset or "scheduler", "years": years,
+                   "nyear": 100, "tree": str(CGENIE), "repeats": reps}
+            walls = sorted(x["wall_seconds"] for x in reps if "error" not in x)
+            counts = [x.get("instructions") for x in reps if "error" not in x]
+            if walls:
+                rec["wall_min"], rec["wall_median"], rec["wall_max"] = (
+                    walls[0], walls[len(walls) // 2], walls[-1])
+                rec["scatter"] = round(
+                    (walls[-1] - walls[0]) / 2.0 / rec["wall_median"], 4)
+            if counts and all(c is not None for c in counts):
+                rec["instructions"] = min(counts)
+                rec["instruction_spread"] = round(
+                    (max(counts) - min(counts)) / min(counts), 6)
+                rec["instructions_per_model_year"] = round(
+                    min(counts) / years / 1e9, 3)
+            misses = [x.get("cache_misses") for x in reps if "error" not in x]
+            if misses and all(m is not None for m in misses) and counts:
+                rec["cache_misses"] = min(misses)
+                rec["misses_per_kilo_instruction"] = round(
+                    1000.0 * min(misses) / min(counts), 4)
+            out.append(rec)
+            print(json.dumps(rec, indent=2))
+        shutil.rmtree(rundir, ignore_errors=True)
+        return out
     finally:
         cfg.unlink(missing_ok=True)
 
@@ -468,6 +664,23 @@ def main() -> int:
                     help="compare against genie-knowngood/ rather than an arm")
     ap.add_argument("--cost", action="store_true",
                     help="build and run the cost case under perf stat")
+    ap.add_argument("--cost-biogem", action="store_true",
+                    help="build and run the BIOGEM bench case under perf stat")
+    ap.add_argument("--cost-case", default=COST_CASE,
+                    choices=[COST_CASE, PROBE_CASE, "worbe2_36x36x8"],
+                    help="which grid the cost case runs on")
+    ap.add_argument("--repeats", type=int, default=1,
+                    help="timed integrations per (threads, bind) point. The"
+                         " scatter over these is what any difference between"
+                         " two points has to clear")
+    ap.add_argument("--bind", default="none", choices=["none", "cores"],
+                    help="thread placement: 'none' leaves it to the scheduler,"
+                         " which is what the inherited table was taken under")
+    ap.add_argument("--cpuset", default="",
+                    help="taskset list confining the process, e.g. 8-15 for one"
+                         " die. Empty leaves the affinity mask alone")
+    ap.add_argument("--reuse-builds", action="store_true",
+                    help="reuse a stashed cost executable for this arm and case")
     ap.add_argument("--years", type=int, default=100)
     ap.add_argument("--nyear", type=int, default=100)
     ap.add_argument("--maxisles", type=int, default=20)
@@ -489,16 +702,33 @@ def main() -> int:
 
     if args.export:
         export_tree(args.rev)
+    if args.cost_biogem:
+        points = [dict(threads=t, bind=args.bind, cpuset=args.cpuset)
+                  for t in (args.threads or [1])]
+        for arm in args.arm or ["omp"]:
+            tag = f"cost.{arm}{args.tag}.biogem"
+            build_it = not args.reuse_builds
+            for rec in biogem_cost_series(arm, tag, args.years, build_it,
+                                          points, args.repeats):
+                key = (f"{tag}.t{rec.get('threads', 0)}"
+                       f".{rec.get('bind', 'none')}.y{args.years}")
+                results["cases"][key] = rec
+        args.out.write_text(json.dumps(results, indent=2) + "\n")
+        print(f"wrote {args.out}")
+        return 0
     if args.cost:
+        points = [dict(threads=t, bind=args.bind, cpuset=args.cpuset)
+                  for t in (args.threads or [1])]
         for arm in args.arm or ["base"]:
-            first = True
-            for threads in (args.threads or [1]):
-                tag = f"cost.{arm}{args.tag}.t{threads}"
-                rec = cost_run(arm, threads, tag, args.years, args.nyear,
-                               args.maxisles, build_it=first)
-                first = False
-                results["cases"][tag] = rec
-                print(json.dumps(rec, indent=2))
+            tag = f"cost.{arm}{args.tag}.{args.cost_case}"
+            build_it = not args.reuse_builds or not (
+                LOGDIR / "exe" / f"cost.{arm}.{args.cost_case}.exe").exists()
+            for rec in cost_series(arm, args.cost_case, tag, args.years,
+                                   args.nyear, args.maxisles, build_it,
+                                   points, args.repeats):
+                key = (f"{tag}.t{rec.get('threads', 0)}.{rec.get('bind', 'none')}"
+                       f".y{args.years}")
+                results["cases"][key] = rec
         args.out.write_text(json.dumps(results, indent=2) + "\n")
         print(f"wrote {args.out}")
         return 0

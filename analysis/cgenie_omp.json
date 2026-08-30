@@ -932,21 +932,1331 @@
         "differing": {},
         "worst_relative": 0.0
       }
+    },
+    "cost.omp_y25.worjh2_36x36x16.t1.none.y25": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_y25.worjh2_36x36x16",
+      "threads": 1,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 25,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 11.27,
+          "wall_seconds": 4.12,
+          "load_after": 10.77,
+          "instructions": 59432893613,
+          "task_clock_ms": 4094.54,
+          "cache_misses": 133955476,
+          "cache_references": 2491376800
+        },
+        {
+          "load_before": 10.77,
+          "wall_seconds": 4.1,
+          "load_after": 11.83,
+          "instructions": 59433132670,
+          "task_clock_ms": 4085.08,
+          "cache_misses": 132245276,
+          "cache_references": 2489256256
+        }
+      ],
+      "wall_min": 4.1,
+      "wall_median": 4.12,
+      "wall_max": 4.12,
+      "scatter": 0.0024,
+      "instructions": 59432893613,
+      "instruction_spread": 4e-06,
+      "instructions_per_model_year": 2.377,
+      "cache_misses": 132245276,
+      "misses_per_kilo_instruction": 2.2251
+    },
+    "cost.omp_y50.worjh2_36x36x16.t1.none.y50": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_y50.worjh2_36x36x16",
+      "threads": 1,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 50,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 10.92,
+          "wall_seconds": 8.04,
+          "load_after": 10.37,
+          "instructions": 121587749818,
+          "task_clock_ms": 8012.77,
+          "cache_misses": 261966818,
+          "cache_references": 4964385598
+        },
+        {
+          "load_before": 10.37,
+          "wall_seconds": 8.26,
+          "load_after": 9.98,
+          "instructions": 121587589949,
+          "task_clock_ms": 8240.19,
+          "cache_misses": 261058393,
+          "cache_references": 5051166642
+        }
+      ],
+      "wall_min": 8.04,
+      "wall_median": 8.26,
+      "wall_max": 8.26,
+      "scatter": 0.0133,
+      "instructions": 121587589949,
+      "instruction_spread": 1e-06,
+      "instructions_per_model_year": 2.432,
+      "cache_misses": 261058393,
+      "misses_per_kilo_instruction": 2.1471
+    },
+    "cost.omp_sc.worjh2_36x36x16.t1.none.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_sc.worjh2_36x36x16",
+      "threads": 1,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 10.12,
+          "wall_seconds": 16.4,
+          "load_after": 9.76,
+          "instructions": 246336613565,
+          "task_clock_ms": 16373.77,
+          "cache_misses": 548019809,
+          "cache_references": 9874827954
+        },
+        {
+          "load_before": 9.76,
+          "wall_seconds": 16.23,
+          "load_after": 10.08,
+          "instructions": 246336614146,
+          "task_clock_ms": 16204.85,
+          "cache_misses": 552049718,
+          "cache_references": 9911013095
+        },
+        {
+          "load_before": 10.08,
+          "wall_seconds": 16.03,
+          "load_after": 8.45,
+          "instructions": 246336613192,
+          "task_clock_ms": 16005.77,
+          "cache_misses": 543575088,
+          "cache_references": 9846776879
+        },
+        {
+          "load_before": 8.45,
+          "wall_seconds": 16.44,
+          "load_after": 7.7,
+          "instructions": 246336614835,
+          "task_clock_ms": 16406.25,
+          "cache_misses": 545112801,
+          "cache_references": 10066451391
+        },
+        {
+          "load_before": 7.7,
+          "wall_seconds": 16.04,
+          "load_after": 6.97,
+          "instructions": 246336615134,
+          "task_clock_ms": 15991.51,
+          "cache_misses": 534669522,
+          "cache_references": 9833811896
+        },
+        {
+          "load_before": 6.97,
+          "wall_seconds": 16.59,
+          "load_after": 6.88,
+          "instructions": 246336615137,
+          "task_clock_ms": 16554.18,
+          "cache_misses": 555853953,
+          "cache_references": 9870289059
+        }
+      ],
+      "wall_min": 16.03,
+      "wall_median": 16.4,
+      "wall_max": 16.59,
+      "scatter": 0.0171,
+      "instructions": 246336613192,
+      "instruction_spread": 0.0,
+      "instructions_per_model_year": 2.463,
+      "cache_misses": 534669522,
+      "misses_per_kilo_instruction": 2.1705
+    },
+    "cost.omp_sc.worjh2_36x36x16.t16.none.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_sc.worjh2_36x36x16",
+      "threads": 16,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 6.88,
+          "wall_seconds": 20.02,
+          "load_after": 8.12,
+          "instructions": 251981573849,
+          "task_clock_ms": 51332.49,
+          "cache_misses": 1318029847,
+          "cache_references": 12129773552
+        },
+        {
+          "load_before": 8.12,
+          "wall_seconds": 19.62,
+          "load_after": 8.39,
+          "instructions": 251982234129,
+          "task_clock_ms": 50811.13,
+          "cache_misses": 1315951739,
+          "cache_references": 12106880678
+        },
+        {
+          "load_before": 8.39,
+          "wall_seconds": 19.43,
+          "load_after": 8.58,
+          "instructions": 251981654057,
+          "task_clock_ms": 50500.48,
+          "cache_misses": 1302015844,
+          "cache_references": 12124681380
+        },
+        {
+          "load_before": 8.58,
+          "wall_seconds": 19.97,
+          "load_after": 10.71,
+          "instructions": 251981681733,
+          "task_clock_ms": 51604.42,
+          "cache_misses": 1335375943,
+          "cache_references": 12195633817
+        },
+        {
+          "load_before": 10.71,
+          "wall_seconds": 20.2,
+          "load_after": 10.43,
+          "instructions": 251981687666,
+          "task_clock_ms": 51819.16,
+          "cache_misses": 1323019811,
+          "cache_references": 12199304466
+        },
+        {
+          "load_before": 10.43,
+          "wall_seconds": 20.05,
+          "load_after": 10.52,
+          "instructions": 251981698094,
+          "task_clock_ms": 51481.49,
+          "cache_misses": 1327974088,
+          "cache_references": 12266125954
+        }
+      ],
+      "wall_min": 19.43,
+      "wall_median": 20.02,
+      "wall_max": 20.2,
+      "scatter": 0.0192,
+      "instructions": 251981573849,
+      "instruction_spread": 3e-06,
+      "instructions_per_model_year": 2.52,
+      "cache_misses": 1302015844,
+      "misses_per_kilo_instruction": 5.1671
+    },
+    "cost.omp_curve.worjh2_36x36x16.t1.none.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_curve.worjh2_36x36x16",
+      "threads": 1,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 9.75,
+          "wall_seconds": 16.48,
+          "load_after": 10.28,
+          "instructions": 246336614638,
+          "task_clock_ms": 16441.93,
+          "cache_misses": 548496883,
+          "cache_references": 9903971177
+        },
+        {
+          "load_before": 10.28,
+          "wall_seconds": 17.12,
+          "load_after": 9.04,
+          "instructions": 246336616289,
+          "task_clock_ms": 17071.66,
+          "cache_misses": 547270619,
+          "cache_references": 10089391794
+        },
+        {
+          "load_before": 9.04,
+          "wall_seconds": 16.27,
+          "load_after": 8.17,
+          "instructions": 246336614455,
+          "task_clock_ms": 16248.34,
+          "cache_misses": 541161547,
+          "cache_references": 9951338770
+        }
+      ],
+      "wall_min": 16.27,
+      "wall_median": 16.48,
+      "wall_max": 17.12,
+      "scatter": 0.0258,
+      "instructions": 246336614455,
+      "instruction_spread": 0.0,
+      "instructions_per_model_year": 2.463,
+      "cache_misses": 541161547,
+      "misses_per_kilo_instruction": 2.1968
+    },
+    "cost.omp_curve.worjh2_36x36x16.t2.none.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_curve.worjh2_36x36x16",
+      "threads": 2,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 8.17,
+          "wall_seconds": 13.99,
+          "load_after": 9.67,
+          "instructions": 246717647478,
+          "task_clock_ms": 17500.31,
+          "cache_misses": 652064339,
+          "cache_references": 10075491234
+        },
+        {
+          "load_before": 9.67,
+          "wall_seconds": 14.19,
+          "load_after": 9.22,
+          "instructions": 246717649623,
+          "task_clock_ms": 17701.72,
+          "cache_misses": 642861412,
+          "cache_references": 10083949736
+        },
+        {
+          "load_before": 9.22,
+          "wall_seconds": 14.01,
+          "load_after": 8.65,
+          "instructions": 246717649518,
+          "task_clock_ms": 17537.27,
+          "cache_misses": 652040507,
+          "cache_references": 10087307489
+        }
+      ],
+      "wall_min": 13.99,
+      "wall_median": 14.01,
+      "wall_max": 14.19,
+      "scatter": 0.0071,
+      "instructions": 246717647478,
+      "instruction_spread": 0.0,
+      "instructions_per_model_year": 2.467,
+      "cache_misses": 642861412,
+      "misses_per_kilo_instruction": 2.6057
+    },
+    "cost.omp_curve.worjh2_36x36x16.t3.none.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_curve.worjh2_36x36x16",
+      "threads": 3,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 8.65,
+          "wall_seconds": 13.74,
+          "load_after": 8.01,
+          "instructions": 247089360593,
+          "task_clock_ms": 18912.08,
+          "cache_misses": 733278508,
+          "cache_references": 10171258128
+        },
+        {
+          "load_before": 8.01,
+          "wall_seconds": 13.73,
+          "load_after": 9.09,
+          "instructions": 247090273731,
+          "task_clock_ms": 19981.62,
+          "cache_misses": 763311417,
+          "cache_references": 10254447415
+        },
+        {
+          "load_before": 9.09,
+          "wall_seconds": 13.94,
+          "load_after": 9.3,
+          "instructions": 247089306776,
+          "task_clock_ms": 19116.69,
+          "cache_misses": 728368181,
+          "cache_references": 10275840151
+        }
+      ],
+      "wall_min": 13.73,
+      "wall_median": 13.74,
+      "wall_max": 13.94,
+      "scatter": 0.0076,
+      "instructions": 247089306776,
+      "instruction_spread": 4e-06,
+      "instructions_per_model_year": 2.471,
+      "cache_misses": 728368181,
+      "misses_per_kilo_instruction": 2.9478
+    },
+    "cost.omp_curve.worjh2_36x36x16.t4.none.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_curve.worjh2_36x36x16",
+      "threads": 4,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 9.3,
+          "wall_seconds": 14.0,
+          "load_after": 11.4,
+          "instructions": 247482796441,
+          "task_clock_ms": 20668.96,
+          "cache_misses": 793147514,
+          "cache_references": 10342479791
+        },
+        {
+          "load_before": 11.4,
+          "wall_seconds": 13.67,
+          "load_after": 10.42,
+          "instructions": 247481869809,
+          "task_clock_ms": 21762.04,
+          "cache_misses": 825719569,
+          "cache_references": 10517642180
+        },
+        {
+          "load_before": 10.42,
+          "wall_seconds": 14.18,
+          "load_after": 11.7,
+          "instructions": 247481834121,
+          "task_clock_ms": 20927.04,
+          "cache_misses": 788001780,
+          "cache_references": 10512319698
+        }
+      ],
+      "wall_min": 13.67,
+      "wall_median": 14.0,
+      "wall_max": 14.18,
+      "scatter": 0.0182,
+      "instructions": 247481834121,
+      "instruction_spread": 4e-06,
+      "instructions_per_model_year": 2.475,
+      "cache_misses": 788001780,
+      "misses_per_kilo_instruction": 3.1841
+    },
+    "cost.omp_curve.worjh2_36x36x16.t6.none.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_curve.worjh2_36x36x16",
+      "threads": 6,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 11.7,
+          "wall_seconds": 13.98,
+          "load_after": 10.82,
+          "instructions": 248256984270,
+          "task_clock_ms": 25246.97,
+          "cache_misses": 886321178,
+          "cache_references": 10931911228
+        },
+        {
+          "load_before": 10.82,
+          "wall_seconds": 14.17,
+          "load_after": 10.57,
+          "instructions": 248256974674,
+          "task_clock_ms": 25461.06,
+          "cache_misses": 923714494,
+          "cache_references": 10748202221
+        },
+        {
+          "load_before": 10.57,
+          "wall_seconds": 15.17,
+          "load_after": 9.78,
+          "instructions": 248256963925,
+          "task_clock_ms": 25025.66,
+          "cache_misses": 892619066,
+          "cache_references": 10837498494
+        }
+      ],
+      "wall_min": 13.98,
+      "wall_median": 14.17,
+      "wall_max": 15.17,
+      "scatter": 0.042,
+      "instructions": 248256963925,
+      "instruction_spread": 0.0,
+      "instructions_per_model_year": 2.483,
+      "cache_misses": 886321178,
+      "misses_per_kilo_instruction": 3.5702
+    },
+    "cost.omp_curve.worjh2_36x36x16.t8.none.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_curve.worjh2_36x36x16",
+      "threads": 8,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 9.78,
+          "wall_seconds": 15.82,
+          "load_after": 9.17,
+          "instructions": 248982381643,
+          "task_clock_ms": 28822.56,
+          "cache_misses": 965110487,
+          "cache_references": 10894284395
+        },
+        {
+          "load_before": 9.17,
+          "wall_seconds": 14.71,
+          "load_after": 9.03,
+          "instructions": 248982506483,
+          "task_clock_ms": 28983.82,
+          "cache_misses": 1003728941,
+          "cache_references": 10887215274
+        },
+        {
+          "load_before": 9.03,
+          "wall_seconds": 15.0,
+          "load_after": 9.44,
+          "instructions": 248982472849,
+          "task_clock_ms": 29499.47,
+          "cache_misses": 1019389715,
+          "cache_references": 10933264842
+        }
+      ],
+      "wall_min": 14.71,
+      "wall_median": 15.0,
+      "wall_max": 15.82,
+      "scatter": 0.037,
+      "instructions": 248982381643,
+      "instruction_spread": 1e-06,
+      "instructions_per_model_year": 2.49,
+      "cache_misses": 965110487,
+      "misses_per_kilo_instruction": 3.8762
+    },
+    "cost.omp_curve.worjh2_36x36x16.t12.none.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_curve.worjh2_36x36x16",
+      "threads": 12,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 9.44,
+          "wall_seconds": 18.66,
+          "load_after": 9.06,
+          "instructions": 250537013233,
+          "task_clock_ms": 42566.68,
+          "cache_misses": 1219808693,
+          "cache_references": 11718247500
+        },
+        {
+          "load_before": 9.06,
+          "wall_seconds": 15.66,
+          "load_after": 9.23,
+          "instructions": 250535580410,
+          "task_clock_ms": 37290.13,
+          "cache_misses": 1106227104,
+          "cache_references": 11517054829
+        },
+        {
+          "load_before": 9.23,
+          "wall_seconds": 18.96,
+          "load_after": 10.63,
+          "instructions": 250536027135,
+          "task_clock_ms": 43202.88,
+          "cache_misses": 1237934249,
+          "cache_references": 11666317978
+        }
+      ],
+      "wall_min": 15.66,
+      "wall_median": 18.66,
+      "wall_max": 18.96,
+      "scatter": 0.0884,
+      "instructions": 250535580410,
+      "instruction_spread": 6e-06,
+      "instructions_per_model_year": 2.505,
+      "cache_misses": 1106227104,
+      "misses_per_kilo_instruction": 4.4154
+    },
+    "cost.omp_curve.worjh2_36x36x16.t16.none.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_curve.worjh2_36x36x16",
+      "threads": 16,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 10.63,
+          "wall_seconds": 20.16,
+          "load_after": 10.77,
+          "instructions": 251982373675,
+          "task_clock_ms": 51359.33,
+          "cache_misses": 1314251327,
+          "cache_references": 12187952821
+        },
+        {
+          "load_before": 10.77,
+          "wall_seconds": 20.58,
+          "load_after": 8.8,
+          "instructions": 251981488902,
+          "task_clock_ms": 52474.48,
+          "cache_misses": 1340286944,
+          "cache_references": 12145670601
+        },
+        {
+          "load_before": 8.8,
+          "wall_seconds": 19.91,
+          "load_after": 9.76,
+          "instructions": 251981361142,
+          "task_clock_ms": 51025.88,
+          "cache_misses": 1296479273,
+          "cache_references": 12139758699
+        }
+      ],
+      "wall_min": 19.91,
+      "wall_median": 20.16,
+      "wall_max": 20.58,
+      "scatter": 0.0166,
+      "instructions": 251981361142,
+      "instruction_spread": 4e-06,
+      "instructions_per_model_year": 2.52,
+      "cache_misses": 1296479273,
+      "misses_per_kilo_instruction": 5.1451
+    },
+    "cost.omp_ccd1.worjh2_36x36x16.t1.cores.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_ccd1.worjh2_36x36x16",
+      "threads": 1,
+      "bind": "cores",
+      "cpuset": "8-15",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 8.47,
+          "wall_seconds": 16.33,
+          "load_after": 8.96,
+          "instructions": 246337021836,
+          "task_clock_ms": 16319.47,
+          "cache_misses": 518254851,
+          "cache_references": 10020399537
+        },
+        {
+          "load_before": 8.96,
+          "wall_seconds": 16.47,
+          "load_after": 7.65,
+          "instructions": 246337023286,
+          "task_clock_ms": 16465.42,
+          "cache_misses": 516336365,
+          "cache_references": 10071758632
+        },
+        {
+          "load_before": 7.65,
+          "wall_seconds": 16.37,
+          "load_after": 7.16,
+          "instructions": 246337022654,
+          "task_clock_ms": 16362.05,
+          "cache_misses": 525478313,
+          "cache_references": 9891414520
+        }
+      ],
+      "wall_min": 16.33,
+      "wall_median": 16.37,
+      "wall_max": 16.47,
+      "scatter": 0.0043,
+      "instructions": 246337021836,
+      "instruction_spread": 0.0,
+      "instructions_per_model_year": 2.463,
+      "cache_misses": 516336365,
+      "misses_per_kilo_instruction": 2.0961
+    },
+    "cost.omp_ccd1.worjh2_36x36x16.t2.cores.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_ccd1.worjh2_36x36x16",
+      "threads": 2,
+      "bind": "cores",
+      "cpuset": "8-15",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 7.16,
+          "wall_seconds": 17.84,
+          "load_after": 7.49,
+          "instructions": 246719468783,
+          "task_clock_ms": 18728.23,
+          "cache_misses": 631086404,
+          "cache_references": 10351363502
+        },
+        {
+          "load_before": 7.49,
+          "wall_seconds": 17.78,
+          "load_after": 7.35,
+          "instructions": 246719469165,
+          "task_clock_ms": 18551.83,
+          "cache_misses": 624553910,
+          "cache_references": 10363997803
+        },
+        {
+          "load_before": 7.35,
+          "wall_seconds": 17.21,
+          "load_after": 6.76,
+          "instructions": 246719468103,
+          "task_clock_ms": 18301.05,
+          "cache_misses": 609327462,
+          "cache_references": 10221224114
+        }
+      ],
+      "wall_min": 17.21,
+      "wall_median": 17.78,
+      "wall_max": 17.84,
+      "scatter": 0.0177,
+      "instructions": 246719468103,
+      "instruction_spread": 0.0,
+      "instructions_per_model_year": 2.467,
+      "cache_misses": 609327462,
+      "misses_per_kilo_instruction": 2.4697
+    },
+    "cost.omp_ccd1.worjh2_36x36x16.t4.cores.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_ccd1.worjh2_36x36x16",
+      "threads": 4,
+      "bind": "cores",
+      "cpuset": "8-15",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 6.76,
+          "wall_seconds": 21.08,
+          "load_after": 6.58,
+          "instructions": 247485926000,
+          "task_clock_ms": 21304.2,
+          "cache_misses": 748126177,
+          "cache_references": 10572625188
+        },
+        {
+          "load_before": 6.58,
+          "wall_seconds": 22.38,
+          "load_after": 6.34,
+          "instructions": 247485925011,
+          "task_clock_ms": 22393.85,
+          "cache_misses": 760453048,
+          "cache_references": 10594216628
+        },
+        {
+          "load_before": 6.34,
+          "wall_seconds": 20.93,
+          "load_after": 7.62,
+          "instructions": 247485929952,
+          "task_clock_ms": 21876.0,
+          "cache_misses": 746774025,
+          "cache_references": 10643062118
+        }
+      ],
+      "wall_min": 20.93,
+      "wall_median": 21.08,
+      "wall_max": 22.38,
+      "scatter": 0.0344,
+      "instructions": 247485925011,
+      "instruction_spread": 0.0,
+      "instructions_per_model_year": 2.475,
+      "cache_misses": 746774025,
+      "misses_per_kilo_instruction": 3.0174
+    },
+    "cost.omp_ccd1.worjh2_36x36x16.t8.cores.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_ccd1.worjh2_36x36x16",
+      "threads": 8,
+      "bind": "cores",
+      "cpuset": "8-15",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 7.62,
+          "wall_seconds": 26.5,
+          "load_after": 6.79,
+          "instructions": 248991048935,
+          "task_clock_ms": 27083.43,
+          "cache_misses": 927059833,
+          "cache_references": 11192792095
+        },
+        {
+          "load_before": 6.79,
+          "wall_seconds": 25.72,
+          "load_after": 7.06,
+          "instructions": 248991057520,
+          "task_clock_ms": 26822.19,
+          "cache_misses": 917978057,
+          "cache_references": 11125895202
+        },
+        {
+          "load_before": 7.06,
+          "wall_seconds": 25.72,
+          "load_after": 8.36,
+          "instructions": 248991072645,
+          "task_clock_ms": 26944.17,
+          "cache_misses": 900564159,
+          "cache_references": 11473761164
+        }
+      ],
+      "wall_min": 25.72,
+      "wall_median": 25.72,
+      "wall_max": 26.5,
+      "scatter": 0.0152,
+      "instructions": 248991048935,
+      "instruction_spread": 0.0,
+      "instructions_per_model_year": 2.49,
+      "cache_misses": 900564159,
+      "misses_per_kilo_instruction": 3.6169
+    },
+    "cost.omp_ccd0.worjh2_36x36x16.t4.cores.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_ccd0.worjh2_36x36x16",
+      "threads": 4,
+      "bind": "cores",
+      "cpuset": "0-7",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 8.97,
+          "wall_seconds": 14.09,
+          "load_after": 11.21,
+          "instructions": 247485983995,
+          "task_clock_ms": 19416.42,
+          "cache_misses": 727392758,
+          "cache_references": 10313156529
+        },
+        {
+          "load_before": 11.21,
+          "wall_seconds": 13.8,
+          "load_after": 10.05,
+          "instructions": 247485930434,
+          "task_clock_ms": 19282.76,
+          "cache_misses": 744887027,
+          "cache_references": 10227710513
+        },
+        {
+          "load_before": 10.05,
+          "wall_seconds": 13.29,
+          "load_after": 9.62,
+          "instructions": 247486883180,
+          "task_clock_ms": 19136.3,
+          "cache_misses": 740382497,
+          "cache_references": 10321848396
+        }
+      ],
+      "wall_min": 13.29,
+      "wall_median": 13.8,
+      "wall_max": 14.09,
+      "scatter": 0.029,
+      "instructions": 247485930434,
+      "instruction_spread": 4e-06,
+      "instructions_per_model_year": 2.475,
+      "cache_misses": 727392758,
+      "misses_per_kilo_instruction": 2.9391
+    },
+    "cost.omp_ccd0.worjh2_36x36x16.t8.cores.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_ccd0.worjh2_36x36x16",
+      "threads": 8,
+      "bind": "cores",
+      "cpuset": "0-7",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 9.62,
+          "wall_seconds": 13.89,
+          "load_after": 8.29,
+          "instructions": 248991091874,
+          "task_clock_ms": 23443.42,
+          "cache_misses": 878370519,
+          "cache_references": 10964603453
+        },
+        {
+          "load_before": 8.29,
+          "wall_seconds": 14.43,
+          "load_after": 9.76,
+          "instructions": 248992045231,
+          "task_clock_ms": 23510.69,
+          "cache_misses": 886714300,
+          "cache_references": 10826568050
+        },
+        {
+          "load_before": 9.76,
+          "wall_seconds": 13.16,
+          "load_after": 9.31,
+          "instructions": 248991041614,
+          "task_clock_ms": 23129.59,
+          "cache_misses": 883508187,
+          "cache_references": 10740522708
+        }
+      ],
+      "wall_min": 13.16,
+      "wall_median": 13.89,
+      "wall_max": 14.43,
+      "scatter": 0.0457,
+      "instructions": 248991041614,
+      "instruction_spread": 4e-06,
+      "instructions_per_model_year": 2.49,
+      "cache_misses": 878370519,
+      "misses_per_kilo_instruction": 3.5277
+    },
+    "cost.omp_b16.worjh2_36x36x16.t16.cores.y100": {
+      "arm": "omp",
+      "case": "worjh2_36x36x16",
+      "tag": "cost.omp_b16.worjh2_36x36x16",
+      "threads": 16,
+      "bind": "cores",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 8.44,
+          "wall_seconds": 15.38,
+          "load_after": 7.97,
+          "instructions": 251999369104,
+          "task_clock_ms": 40739.28,
+          "cache_misses": 1113959850,
+          "cache_references": 11880348419
+        },
+        {
+          "load_before": 7.97,
+          "wall_seconds": 15.4,
+          "load_after": 9.22,
+          "instructions": 251999508350,
+          "task_clock_ms": 40772.08,
+          "cache_misses": 1109213116,
+          "cache_references": 11872581394
+        },
+        {
+          "load_before": 9.22,
+          "wall_seconds": 15.12,
+          "load_after": 9.78,
+          "instructions": 251999368834,
+          "task_clock_ms": 40301.79,
+          "cache_misses": 1105473610,
+          "cache_references": 11794909558
+        }
+      ],
+      "wall_min": 15.12,
+      "wall_median": 15.38,
+      "wall_max": 15.4,
+      "scatter": 0.0091,
+      "instructions": 251999368834,
+      "instruction_spread": 1e-06,
+      "instructions_per_model_year": 2.52,
+      "cache_misses": 1105473610,
+      "misses_per_kilo_instruction": 4.3868
+    },
+    "cost.omp_p72.dan_72_72x72x16_probe.t1.none.y100": {
+      "arm": "omp",
+      "case": "dan_72_72x72x16_probe",
+      "tag": "cost.omp_p72.dan_72_72x72x16_probe",
+      "threads": 1,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 6.93,
+          "wall_seconds": 98.07,
+          "load_after": 6.63,
+          "instructions": 1114362208538,
+          "task_clock_ms": 97894.96,
+          "cache_misses": 2066425410,
+          "cache_references": 66750522147
+        },
+        {
+          "load_before": 6.63,
+          "wall_seconds": 95.95,
+          "load_after": 5.6,
+          "instructions": 1114362147652,
+          "task_clock_ms": 95756.54,
+          "cache_misses": 1967408288,
+          "cache_references": 63881161181
+        },
+        {
+          "load_before": 5.6,
+          "wall_seconds": 95.19,
+          "load_after": 6.5,
+          "instructions": 1114362138798,
+          "task_clock_ms": 95116.65,
+          "cache_misses": 1963532640,
+          "cache_references": 63766759912
+        }
+      ],
+      "wall_min": 95.19,
+      "wall_median": 95.95,
+      "wall_max": 98.07,
+      "scatter": 0.015,
+      "instructions": 1114362138798,
+      "instruction_spread": 0.0,
+      "instructions_per_model_year": 11.144,
+      "cache_misses": 1963532640,
+      "misses_per_kilo_instruction": 1.762
+    },
+    "cost.omp_p72.dan_72_72x72x16_probe.t2.none.y100": {
+      "arm": "omp",
+      "case": "dan_72_72x72x16_probe",
+      "tag": "cost.omp_p72.dan_72_72x72x16_probe",
+      "threads": 2,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 6.5,
+          "wall_seconds": 78.48,
+          "load_after": 6.54,
+          "instructions": 1115093969519,
+          "task_clock_ms": 96348.58,
+          "cache_misses": 2026141650,
+          "cache_references": 64497639235
+        },
+        {
+          "load_before": 6.54,
+          "wall_seconds": 78.07,
+          "load_after": 6.9,
+          "instructions": 1115094039390,
+          "task_clock_ms": 95737.11,
+          "cache_misses": 2029312955,
+          "cache_references": 63203714319
+        },
+        {
+          "load_before": 6.9,
+          "wall_seconds": 78.11,
+          "load_after": 8.36,
+          "instructions": 1115094927002,
+          "task_clock_ms": 95617.63,
+          "cache_misses": 2024244308,
+          "cache_references": 64222201715
+        }
+      ],
+      "wall_min": 78.07,
+      "wall_median": 78.11,
+      "wall_max": 78.48,
+      "scatter": 0.0026,
+      "instructions": 1115093969519,
+      "instruction_spread": 1e-06,
+      "instructions_per_model_year": 11.151,
+      "cache_misses": 2024244308,
+      "misses_per_kilo_instruction": 1.8153
+    },
+    "cost.omp_p72.dan_72_72x72x16_probe.t4.none.y100": {
+      "arm": "omp",
+      "case": "dan_72_72x72x16_probe",
+      "tag": "cost.omp_p72.dan_72_72x72x16_probe",
+      "threads": 4,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 8.36,
+          "wall_seconds": 56.84,
+          "load_after": 8.69,
+          "instructions": 1116526619876,
+          "task_clock_ms": 83696.09,
+          "cache_misses": 2530538929,
+          "cache_references": 61829337642
+        },
+        {
+          "load_before": 8.69,
+          "wall_seconds": 71.95,
+          "load_after": 9.87,
+          "instructions": 1116526665342,
+          "task_clock_ms": 101454.92,
+          "cache_misses": 2203599838,
+          "cache_references": 63884960782
+        },
+        {
+          "load_before": 9.87,
+          "wall_seconds": 70.71,
+          "load_after": 8.86,
+          "instructions": 1116527564981,
+          "task_clock_ms": 99508.16,
+          "cache_misses": 2212967011,
+          "cache_references": 63066073652
+        }
+      ],
+      "wall_min": 56.84,
+      "wall_median": 70.71,
+      "wall_max": 71.95,
+      "scatter": 0.1068,
+      "instructions": 1116526619876,
+      "instruction_spread": 1e-06,
+      "instructions_per_model_year": 11.165,
+      "cache_misses": 2203599838,
+      "misses_per_kilo_instruction": 1.9736
+    },
+    "cost.omp_p72.dan_72_72x72x16_probe.t8.none.y100": {
+      "arm": "omp",
+      "case": "dan_72_72x72x16_probe",
+      "tag": "cost.omp_p72.dan_72_72x72x16_probe",
+      "threads": 8,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 8.86,
+          "wall_seconds": 70.82,
+          "load_after": 11.23,
+          "instructions": 1119472592196,
+          "task_clock_ms": 117157.72,
+          "cache_misses": 2431763125,
+          "cache_references": 66584067722
+        },
+        {
+          "load_before": 11.23,
+          "wall_seconds": 59.01,
+          "load_after": 11.96,
+          "instructions": 1119473649295,
+          "task_clock_ms": 99489.27,
+          "cache_misses": 2842404401,
+          "cache_references": 63578595056
+        },
+        {
+          "load_before": 11.96,
+          "wall_seconds": 57.98,
+          "load_after": 10.33,
+          "instructions": 1119472698386,
+          "task_clock_ms": 98048.34,
+          "cache_misses": 2846098741,
+          "cache_references": 63458772685
+        }
+      ],
+      "wall_min": 57.98,
+      "wall_median": 59.01,
+      "wall_max": 70.82,
+      "scatter": 0.1088,
+      "instructions": 1119472592196,
+      "instruction_spread": 1e-06,
+      "instructions_per_model_year": 11.195,
+      "cache_misses": 2431763125,
+      "misses_per_kilo_instruction": 2.1722
+    },
+    "cost.omp_p72.dan_72_72x72x16_probe.t16.none.y100": {
+      "arm": "omp",
+      "case": "dan_72_72x72x16_probe",
+      "tag": "cost.omp_p72.dan_72_72x72x16_probe",
+      "threads": 16,
+      "bind": "none",
+      "cpuset": "scheduler",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 10.33,
+          "wall_seconds": 75.39,
+          "load_after": 9.87,
+          "instructions": 1125044962381,
+          "task_clock_ms": 153247.67,
+          "cache_misses": 3521073184,
+          "cache_references": 67981535319
+        },
+        {
+          "load_before": 9.87,
+          "wall_seconds": 74.64,
+          "load_after": 9.11,
+          "instructions": 1125045819423,
+          "task_clock_ms": 152153.32,
+          "cache_misses": 3517208469,
+          "cache_references": 67241467527
+        },
+        {
+          "load_before": 9.11,
+          "wall_seconds": 75.0,
+          "load_after": 8.96,
+          "instructions": 1125044940704,
+          "task_clock_ms": 153094.47,
+          "cache_misses": 3520799739,
+          "cache_references": 68059566889
+        }
+      ],
+      "wall_min": 74.64,
+      "wall_median": 75.0,
+      "wall_max": 75.39,
+      "scatter": 0.005,
+      "instructions": 1125044940704,
+      "instruction_spread": 1e-06,
+      "instructions_per_model_year": 11.25,
+      "cache_misses": 3517208469,
+      "misses_per_kilo_instruction": 3.1263
+    },
+    "cost.omp_p72ccd1.dan_72_72x72x16_probe.t4.cores.y100": {
+      "arm": "omp",
+      "case": "dan_72_72x72x16_probe",
+      "tag": "cost.omp_p72ccd1.dan_72_72x72x16_probe",
+      "threads": 4,
+      "bind": "cores",
+      "cpuset": "8-15",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 7.19,
+          "wall_seconds": 90.87,
+          "load_after": 9.71,
+          "instructions": 1116530697975,
+          "task_clock_ms": 105081.37,
+          "cache_misses": 2217925045,
+          "cache_references": 64371127936
+        },
+        {
+          "load_before": 9.71,
+          "wall_seconds": 90.71,
+          "load_after": 10.66,
+          "instructions": 1116531654692,
+          "task_clock_ms": 105424.98,
+          "cache_misses": 2043479340,
+          "cache_references": 65336334540
+        },
+        {
+          "load_before": 10.66,
+          "wall_seconds": 90.33,
+          "load_after": 6.44,
+          "instructions": 1116530704824,
+          "task_clock_ms": 104625.65,
+          "cache_misses": 2052035373,
+          "cache_references": 63996025933
+        }
+      ],
+      "wall_min": 90.33,
+      "wall_median": 90.71,
+      "wall_max": 90.87,
+      "scatter": 0.003,
+      "instructions": 1116530697975,
+      "instruction_spread": 1e-06,
+      "instructions_per_model_year": 11.165,
+      "cache_misses": 2043479340,
+      "misses_per_kilo_instruction": 1.8302
+    },
+    "cost.omp_p72ccd1.dan_72_72x72x16_probe.t8.cores.y100": {
+      "arm": "omp",
+      "case": "dan_72_72x72x16_probe",
+      "tag": "cost.omp_p72ccd1.dan_72_72x72x16_probe",
+      "threads": 8,
+      "bind": "cores",
+      "cpuset": "8-15",
+      "years": 100,
+      "nyear": 100,
+      "tree": "/home/cfutro/cgenie_z3/vendor/cgenie",
+      "repeats": [
+        {
+          "load_before": 6.44,
+          "wall_seconds": 91.22,
+          "load_after": 8.56,
+          "instructions": 1119482309442,
+          "task_clock_ms": 110588.67,
+          "cache_misses": 2374747871,
+          "cache_references": 67606339360
+        },
+        {
+          "load_before": 8.56,
+          "wall_seconds": 91.02,
+          "load_after": 8.41,
+          "instructions": 1119481407577,
+          "task_clock_ms": 111459.7,
+          "cache_misses": 2299002259,
+          "cache_references": 67145926085
+        },
+        {
+          "load_before": 8.41,
+          "wall_seconds": 90.24,
+          "load_after": 8.52,
+          "instructions": 1119481354959,
+          "task_clock_ms": 111634.65,
+          "cache_misses": 2317033415,
+          "cache_references": 67934008794
+        }
+      ],
+      "wall_min": 90.24,
+      "wall_median": 91.02,
+      "wall_max": 91.22,
+      "scatter": 0.0054,
+      "instructions": 1119481354959,
+      "instruction_spread": 1e-06,
+      "instructions_per_model_year": 11.195,
+      "cache_misses": 2299002259,
+      "misses_per_kilo_instruction": 2.0536
     }
   },
   "provenance": {
-    "repo_head": "40246dda3da3c8dff809f93507333fdb644e7a61",
-    "repo_dirty": true,
+    "repo_head": "5148a930d02edb6bdc81bab6da1526d553ccc667",
+    "repo_dirty": false,
     "fortran": "GNU Fortran (GCC) 16.2.1 20260810",
     "netcdf_c": "netCDF 4.9.3",
     "netcdf_fortran": "4.6.2",
     "netcdf_flibs": "-L/usr/lib -lnetcdff -lnetcdf",
     "host": "yggdrasil",
     "cores": 32,
-    "load_average_at_start": 8.69,
+    "load_average_at_start": 8.96,
     "timing_estimator": "minimum over --repeats, of the model's own `time real` rather than the wrapper's, on a host that runs other work. cGENIE is one serial process and cores were free throughout; cache and memory bandwidth were not exclusively its own. Each run records the load average it finished under.",
     "cpu": "AMD Ryzen 9 7950X3D 16-Core Processor",
-    "kernel": "7.1.8-1-cachyos",
+    "kernel": "7.2.0-1-cachyos",
     "build_type": "SHIP (user.mak default), gfortran, serial",
     "parallelism": "None available. -fopenmp is commented out in makefile.arc, and every $omp string in goldstein, embm, biogem and genie-main is commented out in column one, so it is not a sentinel: enabling the flag would parallelise nothing. Three live `use omp_lib` statements have no call against them. MPI exists only in genie-plasim, which this project does not use. Cost is one core against simulated years; parallelism is across experiments, not within a run.",
     "code_model": "medium",
