@@ -1,0 +1,41 @@
+# The assessed-artifact envelope around any spatial conversion. SPAT-10.
+schema_version: 1
+assessment_version: vesper-spatial-conversion/1
+
+closure_ledgers:
+  - area
+  - ocean_volume
+  - water
+  - salt
+  - energy
+  - carbon
+  - nitrogen
+  - phosphorus
+
+required_tests:
+  - constant
+  - identity
+  - reduction
+  - round_trip
+  - operator_order
+  - common_support
+
+required_inventories:
+  - nearest_fallbacks
+  - ownership_changes
+  - connectivity_changes
+  - discarded_spectral_content
+  - unmapped_extensive_stores
+
+test_status:
+  - pass
+  - not_applicable
+
+comparators:
+  - less_than_or_equal
+  - greater_than_or_equal
+
+rule: >-
+  A finite output is not acceptance. Every applicable closure and test passes;
+  every inapplicable one names why; and every fallback, ownership/connectivity
+  change, discarded mode and unmapped store remains visible in the artifact.

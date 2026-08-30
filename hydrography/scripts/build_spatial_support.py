@@ -195,10 +195,9 @@ def barren_selector(mesh: Export, codes) -> tuple[np.ndarray, list[str], list[st
 
     `config/planet.yaml`'s `model.barren_rock_classes` is the declaration, and it
     is the SAME key `exoplasim/scripts/build_surface_albedo.py` reads to mask
-    vegetation off barren ground. That script forms `rootable = 1 - barren` as a
-    LOCAL VARIABLE and throws it away, which is what LSHY-6 records when it says
-    BIO-11's rootable surface exists nowhere as an artifact. Persisting it here
-    is that definition written once, not a second one.
+    vegetation off barren ground. This artifact persists that SUBSTRATE half as
+    `f_nonbarren`; it is not BIO-11's rootable fraction, which additionally
+    subtracts solved open water and lives in biosphere/data/<build>/.
 
     A class the export does not carry is recorded as absent rather than quietly
     skipped: an empty barren mask and a misspelled class code otherwise produce
@@ -495,13 +494,13 @@ def build_rung(mesh: Export, grid_dir: Path, rung: str, ctx: dict) -> tuple[dict
     # -- the partial-surface fractions, over the cell's LAND area.
     land_covered = land_area > 0
     f_barren, _ = gridding.cell_fraction(cell, ncell, area, ctx["barren"], land)
-    f_rootable = 1.0 - f_barren
+    f_nonbarren = 1.0 - f_barren
     f_lake, _ = gridding.cell_fraction(cell, ncell, area, ctx["lake"], land)
     lake_absent = ctx["lake_absent"]
     barren_area = gridding.cell_sum(cell, ncell, area, ctx["barren"] & land)
     lake_area = gridding.cell_sum(cell, ncell, area, ctx["lake"] & land)
-    rootable_worst = check_partition([f_barren, f_rootable], land_covered,
-                                     f"{rung}: rootable against barren")
+    nonbarren_worst = check_partition([f_barren, f_nonbarren], land_covered,
+                                      f"{rung}: nonbarren against barren")
     barren_extensive = check_share_against_area(f_barren, land_area, barren_area,
                                                 land_covered, f"{rung}: barren")
     lake_extensive = check_share_against_area(f_lake, land_area, lake_area,
@@ -662,7 +661,7 @@ def build_rung(mesh: Export, grid_dir: Path, rung: str, ctx: dict) -> tuple[dict
         "empty_cell": empty.reshape(shape).astype(np.int8),
         "f_surface": [f.reshape(shape) for f in surface_shares],
         "f_barren": f_barren.reshape(shape),
-        "f_rootable": f_rootable.reshape(shape),
+        "f_nonbarren": f_nonbarren.reshape(shape),
         "f_solved_lake": f_lake.reshape(shape),
         "barren_area_km2": barren_area.reshape(shape),
         "solved_lake_area_km2": lake_area.reshape(shape),
@@ -690,7 +689,7 @@ def build_rung(mesh: Export, grid_dir: Path, rung: str, ctx: dict) -> tuple[dict
             "surface_shares_worst_partition_departure": surface_worst,
             "lithology_shares_worst_partition_departure": rock_worst,
             "drainage_shares_worst_partition_departure": hydro_worst,
-            "rootable_against_barren_worst_departure": rootable_worst,
+            "nonbarren_against_barren_worst_departure": nonbarren_worst,
             "barren_share_against_area_worst_relative": barren_extensive,
             "solved_lake_share_against_area_worst_relative": lake_extensive,
             "tolerances": {"partition_and_area": CLOSURE_TOL,
@@ -871,11 +870,10 @@ def write_rung(path: Path, a: dict, mesh: Export, grid_dir: Path, rung: str,
             "share of the cell's LAND area on barren substrate, from "
             "config/planet.yaml model.barren_rock_classes -- the same key "
             "build_surface_albedo.py masks vegetation with")
-        var("f_rootable", a["f_rootable"], "f4", ("lat", "lon"), "1",
-            "1 - f_barren over the cell's land, which is the identity "
-            "build_surface_albedo.py applies as a local variable. BIO-11's "
-            "fuller identity is rootable == 1 - open_water - barren; this is "
-            "the barren half of it and the shares beside it are the other")
+        var("f_nonbarren", a["f_nonbarren"], "f4", ("lat", "lon"), "1",
+            "1 - f_barren over the cell's land. This is only a substrate "
+            "partition and is deliberately NOT called rootable: BIO-11's "
+            "canonical rootable_fraction also subtracts solved open water")
         v = var("f_solved_lake", a["f_solved_lake"], "f4", ("lat", "lon"), "1",
                 "share of the cell's LAND area under the solved lake surface, "
                 "from hydrography's surface_water.nc. The lake is a solved "

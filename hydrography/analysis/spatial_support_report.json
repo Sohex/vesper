@@ -4,8 +4,8 @@
     "SPAT-3",
     "GRID-2"
   ],
-  "source_build": "precarve-craton-10m",
-  "terrain_hash": "ab0d679bd81360cd30fb67a3ce13e726b4aa1bb9ba7e4afb601c10aa13f9a526",
+  "source_build": "canonical-10m-carve2",
+  "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
   "regions": 10000005,
   "mesh_mean_edge_km": 7.595189522169292,
   "probs": [
@@ -75,8 +75,9 @@
     "generator": "hydrography/scripts/build_spatial_support.py",
     "source_config": {
       "schema_version": 1,
-      "source_build": "precarve-craton-10m",
+      "source_build": "canonical-10m-carve2",
       "baseline_climatology": null,
+      "bootstrap_climatology": "exoplasim/analysis/climatology/bootstrap_regular_climatology.nc",
       "planet": {
         "radius_earth": 1.2,
         "gravity_m_s2": 12.81,
@@ -150,20 +151,27 @@
           "persistence_orbits": 1.0
         },
         "land_water_column": {
-          "scheme": "bucket",
-          "layers": 1,
+          "scheme": "layered",
+          "layers": 3,
           "lower_boundary": "impermeable",
-          "layer_capacity_fraction": [
-            1.0
-          ],
           "layer_thickness_m": [
-            1.5
+            0.02,
+            0.48,
+            1.0
           ],
           "soil_phase": false,
           "evaporation_limiter": {
             "theta_low": 0.0,
             "exponent": 1
           }
+        },
+        "soil_albedo_moisture": {
+          "enabled": true,
+          "saturation_at_empty_layer": 0.0,
+          "saturation_at_full_layer": 0.7543,
+          "shape_sigma_broadband": 1.0,
+          "shape_sigma_band1": 1.0,
+          "shape_sigma_band2": 1.0
         }
       },
       "model": {
@@ -198,13 +206,13 @@
           "profile": "production"
         },
         "ncpus": 16,
-        "timestep_minutes": 30.0,
+        "timestep_minutes": 45.0,
         "physics_filter": "gp|exp|sp",
         "filter_kappa": 8.0,
         "filter_power": 16,
         "cold_start_seed": 88888888,
         "hyperdiffusion": {
-          "eddy_wind_m_s": 5.94,
+          "eddy_wind_m_s": 9.838,
           "order_alpha": 4,
           "cutoff_fraction": 0.381,
           "ratios_to_vorticity": {
@@ -214,43 +222,41 @@
           },
           "timescales_days": {
             "T21": {
-              "divergence": 0.4457,
-              "vorticity": 2.2285,
-              "temperature": 5.6449,
-              "humidity": 0.7421
+              "divergence": 0.2691,
+              "vorticity": 1.3455,
+              "temperature": 3.4082,
+              "humidity": 0.4481
             },
             "T42": {
-              "divergence": 0.2229,
-              "vorticity": 1.1143,
-              "temperature": 2.8224,
-              "humidity": 0.3711
+              "divergence": 0.1346,
+              "vorticity": 0.6728,
+              "temperature": 1.7042,
+              "humidity": 0.224
             },
             "T85": {
-              "divergence": 0.1101,
-              "vorticity": 0.5506,
-              "temperature": 1.3946,
-              "humidity": 0.1833
+              "divergence": 0.0665,
+              "vorticity": 0.3324,
+              "temperature": 0.842,
+              "humidity": 0.1107
             },
             "T127": {
-              "divergence": 0.0737,
-              "vorticity": 0.3685,
-              "temperature": 0.9334,
-              "humidity": 0.1227
+              "divergence": 0.0445,
+              "vorticity": 0.2225,
+              "temperature": 0.5636,
+              "humidity": 0.0741
             },
             "T170": {
-              "divergence": 0.0551,
-              "vorticity": 0.2753,
-              "temperature": 0.6973,
-              "humidity": 0.0917
+              "divergence": 0.0333,
+              "vorticity": 0.1663,
+              "temperature": 0.4212,
+              "humidity": 0.0554
             }
           }
         },
         "cold_start_profile": {
-          "surface_temperature_k": 289.03,
-          "lapse_rate_k_per_m": 0.008489,
-          "tropopause_height_m": 9220.0
+          "surface_temperature_k": 279.83
         },
-        "semi_implicit_reference_temperature_k": 249.4,
+        "semi_implicit_reference_temperature_k": 241.41,
         "rayleigh_sponge_rotations": [
           20.0,
           100.0,
@@ -270,18 +276,19 @@
         "energy_fixer": true,
         "cloud_absorption_scale": 1.192,
         "cloud_water_reference_kg_m3": 0.00021,
-        "land_longwave_emissivity": 0.9357,
+        "precip_reevaporation_gamma": "derived",
+        "cloud_fraction_subgrid_width": "derived",
+        "asymptotic_mixing_length_m": "derived",
+        "land_longwave_emissivity": 0.930897,
         "sea_longwave_emissivity": 0.98,
         "ozone_scale": 0.794,
-        "ozone_height_m": 15311.8,
-        "ozone_spread_m": 3828.0,
         "ozone_uv_weight": 0.335,
-        "ozone_visible_weight": 0.914,
-        "h2o_sw_weight": 1.346,
-        "h2o_sw_level": 1.163,
+        "ozone_visible_weight": 0.908,
+        "h2o_sw_weight": 1.351,
+        "h2o_sw_level": 1.161,
         "h2o_sw_level_bracket": [
-          1.129,
-          1.206
+          1.128,
+          1.205
         ],
         "co2_sw_weight": 1.51,
         "roughness_source": "lithology",
@@ -326,26 +333,26 @@
           "medium": {
             "period_earth_years": 11.0,
             "amplitude_flux_peak_to_peak": 0.025,
-            "note": "The lived rhythm. Damped about 0.83, so roughly 3.1 K peak-to-peak, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow.\n"
+            "note": "The lived rhythm. Damped about 0.83, so amplitude times damping times `lib/sensitivity.py`'s slope, some thirty times Earth's solar-cycle signal and the dominant climatic fact of any individual life. Fast enough to be planned around, too fast for ice to follow. The kelvin figure is NOT restated here: it is a product of a slope that is re-derived per model, and the two numbers that stood here before reproduced at a slope retired two measurements ago.\n"
           },
           "long": {
             "period_earth_years": 57.0,
             "amplitude_flux_peak_to_peak": 0.035,
-            "note": "The geomorphic driver. Essentially undamped at 0.99, roughly 5.2 K peak-to-peak, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
+            "note": "The geomorphic driver. Essentially undamped at 0.99, so amplitude times damping times the same slope, slow enough that glaciers equilibrate rather than merely breathing. Each grand minimum is a distinct historical era.\n"
           }
         },
         "total_amplitude_flux_peak_to_peak": 0.06,
         "alignment_recurrence_earth_years": 314
       }
     },
-    "config_sha256": "f6d38da9be22664cbaa4e5040c0625edc7918d4744e18b5ee639b8da9e14fd9c",
-    "git_commit": "94a0496fdf5f43ff48e6c059351ca7e99546581d",
+    "config_sha256": "c2e8c7af3b686f92c215706895edfc68d3627676a90badfcf5d96742c0d00e9c",
+    "git_commit": "2896f62efec8bf838181e64345c980ff3215ec65",
     "source_inputs": {
-      "hydrography/data/precarve-craton-10m/regions.nc": "1d8d490e7ad223f70eb2628fdea57439ba4d8a04c9570082b3fc00d2c51bfa9a",
-      "hydrography/data/precarve-craton-10m/surface_water.nc": "105538809a56b3448653adeb0be0553173eb556fd1603ab159a004069c8c48cd"
+      "hydrography/data/canonical-10m-carve2/regions.nc": "dc08caacdbf6181246b4dbc357acb94ea5d553f79c7343e67201f29aa8bae34d",
+      "hydrography/data/canonical-10m-carve2/surface_water.nc": "27ba3c3b5db5d1d1f0831c875ff9aadeb6972c8b1e917e912e6bc8e07f7f66eb"
     }
   },
-  "created": "2026-08-26T08:47:21.228251+00:00",
+  "created": "2026-08-28T12:28:11.887398+00:00",
   "rungs": {
     "T21": {
       "grid": "exoplasim-T21",
@@ -364,13 +371,13 @@
         "cell_area_against_sphere_relative": 0.0,
         "mesh_area_against_export_relative": 0.0,
         "land_area_against_mesh_relative": 0.0,
-        "land_volume_against_direct_relative": 1.3001666872163278e-16,
+        "land_volume_against_direct_relative": 1.2570414128283495e-16,
         "surface_shares_worst_partition_departure": 0.0,
         "lithology_shares_worst_partition_departure": 2.220446049250313e-16,
         "drainage_shares_worst_partition_departure": 0.0,
-        "rootable_against_barren_worst_departure": 0.0,
+        "nonbarren_against_barren_worst_departure": 0.0,
         "barren_share_against_area_worst_relative": 1.0016814816547378e-16,
-        "solved_lake_share_against_area_worst_relative": 1.0026351673757186e-16,
+        "solved_lake_share_against_area_worst_relative": 7.006918362715329e-17,
         "tolerances": {
           "partition_and_area": 1e-12,
           "share_against_extensive": 1e-09,
@@ -397,10 +404,10 @@
         "bar_is": "the widest step in PROBS. The interpolated curve and the true one both lie between the two bracketing probabilities, so this is a bound rather than a tolerance",
         "cells": 1639,
         "single_valued_cells": 10,
-        "single_valued_land_area_fraction": 2.471109304654037e-06,
-        "mean_abs_error": 0.0017144524655950048,
-        "p99_abs_error": 0.028924118691724177,
-        "worst_abs_error": 0.04108977759208729
+        "single_valued_land_area_fraction": 2.471111369010753e-06,
+        "mean_abs_error": 0.0018431577915521847,
+        "p99_abs_error": 0.028612823006866756,
+        "worst_abs_error": 0.04166502063496666
       },
       "ledger": {
         "all_regions": {
@@ -412,19 +419,19 @@
           "closure_residual_relative": 0.0
         },
         "land": {
-          "regions_offered": 4328736,
+          "regions_offered": 4328732,
           "cells": 2048,
           "cells_with_no_population": 409,
-          "area_offered": 318136980.5317639,
-          "area_landed": 318136980.5317639,
+          "area_offered": 318136714.761382,
+          "area_landed": 318136714.761382,
           "closure_residual_relative": 0.0
         },
         "ocean": {
-          "regions_offered": 5671269,
+          "regions_offered": 5671273,
           "cells": 2048,
           "cells_with_no_population": 586,
-          "area_offered": 416859307.6656609,
-          "area_landed": 416859307.6656609,
+          "area_offered": 416859573.43604285,
+          "area_landed": 416859573.43604285,
           "closure_residual_relative": 0.0
         }
       },
@@ -441,27 +448,27 @@
         "cells_whose_region_count_differs": 1977,
         "worst_region_count_difference": 95,
         "median_regions_per_cell": 5397.0,
-        "max_abs_mean_km": 0.28107081687484414,
-        "max_abs_sd_km": 0.26861612474192587,
+        "max_abs_mean_km": 0.2939858619596697,
+        "max_abs_sd_km": 0.2681660310474059,
         "max_abs_min_km": 4.184005469083786,
-        "max_abs_max_km": 2.836726427078247,
+        "max_abs_max_km": 2.9371838569641113,
         "export_cells_with_no_region": 0,
         "export_all_region_peak_excess_km": {
-          "mean": 2.0156614808917395,
-          "p90": 4.240322387218475,
-          "max": 5.702157020568848
+          "mean": 2.10549538466078,
+          "p90": 4.380290198326111,
+          "max": 5.718618988990784
         },
         "land_population_peak_excess_km": {
-          "mean": 2.2514161807154234,
-          "p90": 3.855997897729372,
-          "max": 4.399372482819192,
+          "mean": 2.355729520638233,
+          "p90": 3.942411584959926,
+          "max": 5.341333346938281,
           "weighting": "land area, over cells that hold land"
         }
       },
       "absent": {},
-      "seconds": 11.680168867111206,
-      "output": "agent-a70706fb711032ec9/hydrography/data/precarve-craton-10m/support_exoplasim-T21.nc",
-      "output_bytes": 825720
+      "seconds": 11.069852113723755,
+      "output": "world/hydrography/data/canonical-10m-carve2/support_exoplasim-T21.nc",
+      "output_bytes": 810501
     },
     "T42": {
       "grid": "exoplasim-T42",

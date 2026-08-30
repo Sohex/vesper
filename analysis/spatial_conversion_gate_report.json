@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "assessment_version": "vesper-spatial-conversion/1",
+  "checks": [
+    {
+      "check": "complete assessed conversion",
+      "pass": true,
+      "identity": "0d72597613ec148916998514d5004dfda0f8202ae3c8927bc17e3f8f1d4ebbbb"
+    },
+    {
+      "check": "source identity mismatch refuses",
+      "pass": true,
+      "refusal": "source contract identity does not match its contract"
+    },
+    {
+      "check": "shape mismatch refuses",
+      "pass": true,
+      "refusal": "source shape does not match the named support"
+    },
+    {
+      "check": "coordinate mismatch refuses",
+      "pass": true,
+      "refusal": "destination coordinates do not match the named support"
+    },
+    {
+      "check": "missing closure ledger refuses",
+      "pass": true,
+      "refusal": "closure ledger is incomplete or contains undeclared quantities"
+    },
+    {
+      "check": "failed conserved quantity refuses",
+      "pass": true,
+      "refusal": "closure.energy fails its declared tolerance"
+    },
+    {
+      "check": "inapplicable closure needs a reason",
+      "pass": true,
+      "refusal": "closure.water needs an inapplicability reason"
+    },
+    {
+      "check": "missing round-trip test refuses",
+      "pass": true,
+      "refusal": "required conversion tests are incomplete"
+    },
+    {
+      "check": "failed common-support test refuses",
+      "pass": true,
+      "refusal": "tests.common_support fails its declared tolerance"
+    },
+    {
+      "check": "operator-order test is discriminating",
+      "pass": true,
+      "refusal": "tests.operator_order fails its declared tolerance"
+    },
+    {
+      "check": "fallback inventory cannot disappear",
+      "pass": true,
+      "refusal": "conversion inventory is incomplete"
+    },
+    {
+      "check": "inventories stay machine-readable lists",
+      "pass": true,
+      "refusal": "every conversion inventory is a list, including empty ones"
+    },
+    {
+      "check": "operator provenance is mandatory",
+      "pass": true,
+      "refusal": "conversion provenance is incomplete"
+    }
+  ],
+  "fixture_assessment": {
+    "assessment_version": "vesper-spatial-conversion/1",
+    "source_contract_identity": "993699ed7da0f014bb37ddf2b248d652960693de8e34a8814ec57d4c99cff9ee",
+    "destination_contract_identity": "f88fb697bd3e7a10395f63f688b32780244d7292a0f176cf9db5c32abff99e17",
+    "source_support_id": "source_grid",
+    "destination_support_id": "destination_grid",
+    "source_shape": [
+      8,
+      16
+    ],
+    "destination_shape": [
+      8,
+      12
+    ],
+    "source_coordinates_sha256": "5f6551de4e72054c10135a8967f34888294fbad6411836e26061bb6e0379e2ee",
+    "destination_coordinates_sha256": "3c1a5cdabad6b5583243b67f8e2ae1a4f1223df01afbe407a504e2eac15a9f50",
+    "operator_version": "lib.remap.Crossing/1",
+    "closure": {
+      "area": {
+        "status": "pass",
+        "residual": 2.220446049250313e-16,
+        "tolerance": 1e-14,
+        "comparator": "less_than_or_equal"
+      },
+      "ocean_volume": {
+        "status": "not_applicable",
+        "reason": "synthetic fixture carries no such reservoir"
+      },
+      "water": {
+        "status": "not_applicable",
+        "reason": "synthetic fixture carries no such reservoir"
+      },
+      "salt": {
+        "status": "not_applicable",
+        "reason": "synthetic fixture carries no such reservoir"
+      },
+      "energy": {
+        "status": "pass",
+        "residual": 0.0,
+        "tolerance": 1e-12,
+        "comparator": "less_than_or_equal"
+      },
+      "carbon": {
+        "status": "not_applicable",
+        "reason": "synthetic fixture carries no such reservoir"
+      },
+      "nitrogen": {
+        "status": "not_applicable",
+        "reason": "synthetic fixture carries no such reservoir"
+      },
+      "phosphorus": {
+        "status": "not_applicable",
+        "reason": "synthetic fixture carries no such reservoir"
+      }
+    },
+    "tests": {
+      "constant": {
+        "status": "pass",
+        "residual": 3.3306690738754696e-16,
+        "tolerance": 1e-13,
+        "comparator": "less_than_or_equal"
+      },
+      "identity": {
+        "status": "pass",
+        "residual": 2.220446049250313e-16,
+        "tolerance": 1e-14,
+        "comparator": "less_than_or_equal"
+      },
+      "reduction": {
+        "status": "pass",
+        "residual": 0.0,
+        "tolerance": 1e-12,
+        "comparator": "less_than_or_equal"
+      },
+      "round_trip": {
+        "status": "pass",
+        "residual": 2.220446049250313e-16,
+        "tolerance": 1e-14,
+        "comparator": "less_than_or_equal"
+      },
+      "operator_order": {
+        "status": "pass",
+        "residual": 2.720424709320632,
+        "tolerance": 1e-06,
+        "comparator": "greater_than_or_equal"
+      },
+      "common_support": {
+        "status": "pass",
+        "residual": 2.220446049250313e-16,
+        "tolerance": 1e-14,
+        "comparator": "less_than_or_equal"
+      }
+    },
+    "inventory": {
+      "nearest_fallbacks": [],
+      "ownership_changes": [],
+      "connectivity_changes": [],
+      "discarded_spectral_content": [],
+      "unmapped_extensive_stores": []
+    },
+    "provenance": {
+      "source_artifact_sha256": "2493b40d68e691991c896f85126726edef16428c5923b9c536a291da0d7bbaf4",
+      "destination_geometry_sha256": "ae4df70dc1ce0cecf26e4db721bbe294617bfdc52db9ebf4dffdfbce23854187",
+      "operator_sha256": "49070bcaba3be21bef1dbc7bdd9d523aa5b95f0b4eee383f1679f31b0070af9d"
+    }
+  },
+  "verdict": "PASS"
+}

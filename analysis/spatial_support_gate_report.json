@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "contract_version": "vesper-spatial-support/1",
+  "checks": [
+    {
+      "check": "schema and contract version are fixed",
+      "pass": true
+    },
+    {
+      "check": "every distinct project support is named",
+      "pass": true,
+      "declared": [
+        "atmosphere_gaussian_grid",
+        "comparison_support",
+        "hydrologic_unit",
+        "land_ecological_response_unit",
+        "lpj_demographic_patch",
+        "lpj_grid_cell",
+        "marine_ecological_response_unit",
+        "ocean_cgenie_grid",
+        "soil_response_unit",
+        "terrain_native_mesh"
+      ]
+    },
+    {
+      "check": "LPJ patches cannot masquerade as response units",
+      "pass": true
+    },
+    {
+      "check": "complete chronological contract",
+      "pass": true,
+      "identity": "a73badc78bab12d11dc64ba451616bea6d2bc12ba8cacdb883b3e0f7369361b2"
+    },
+    {
+      "check": "shape is not support identity",
+      "pass": true,
+      "refusal": "supports[0] is missing 'coordinates_sha256'"
+    },
+    {
+      "check": "unknown support kind refuses",
+      "pass": true,
+      "refusal": "supports[0].kind 'generic_resolution' is not declared"
+    },
+    {
+      "check": "non-positive dimensions refuse",
+      "pass": true,
+      "refusal": "supports[0] dimensions must be positive integers"
+    },
+    {
+      "check": "native measure is mandatory",
+      "pass": true,
+      "refusal": "supports[0] is missing 'native_measures'"
+    },
+    {
+      "check": "field shape names its support dimensions",
+      "pass": true,
+      "refusal": "fields[0].spatial_dimensions do not match support 'atmosphere_t42'; shape equality is checked through named support dimensions"
+    },
+    {
+      "check": "field semantics are closed",
+      "pass": true,
+      "refusal": "fields[1].semantics 'number' is not declared"
+    },
+    {
+      "check": "effective fraction must exist",
+      "pass": true,
+      "refusal": "field 'soil_carbon' names missing fraction 'rootable_fraction'"
+    },
+    {
+      "check": "fraction must share support",
+      "pass": true,
+      "refusal": "fields[0].support_id 'missing' is not in supports"
+    },
+    {
+      "check": "operator version is mandatory",
+      "pass": true,
+      "refusal": "fields[0].aggregation.operator_version is required"
+    },
+    {
+      "check": "chronology needs absolute time",
+      "pass": true,
+      "refusal": "non-static time_support requires absolute_time_units"
+    },
+    {
+      "check": "interval closure is explicit",
+      "pass": true,
+      "refusal": "interval time_support needs an interval_closure"
+    },
+    {
+      "check": "demographic patches are not spatial units",
+      "pass": true,
+      "refusal": "supports[0] is a demographic sample and must explicitly say spatially_representative: false"
+    },
+    {
+      "check": "vector crossing declares rotation",
+      "pass": true,
+      "refusal": "fields[0] vectors require declared rotation/remap semantics"
+    },
+    {
+      "check": "vector basis is explicit",
+      "pass": true,
+      "refusal": "fields[0] vector_basis is not declared"
+    },
+    {
+      "check": "coordinate identity changes the contract digest",
+      "pass": true
+    }
+  ],
+  "verdict": "PASS"
+}

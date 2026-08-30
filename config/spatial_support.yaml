@@ -1,0 +1,94 @@
+# The vocabulary every spatial artifact contract uses. SPAT-1 owns this file;
+# SPAT-10 owns applying it to every crossing and production artifact.
+schema_version: 1
+contract_version: vesper-spatial-support/1
+
+support_kinds:
+  terrain_native_mesh:
+    geometry: unstructured_spherical_regions
+    role: physical_reference
+  atmosphere_gaussian_grid:
+    geometry: structured_gaussian_latitude_longitude
+    role: numerical_support
+  ocean_cgenie_grid:
+    geometry: structured_cgenie_goldstein
+    role: numerical_support
+  hydrologic_unit:
+    geometry: mesh_region_set
+    role: response_unit
+  soil_response_unit:
+    geometry: co_located_fractional_mosaic
+    role: response_unit
+  land_ecological_response_unit:
+    geometry: co_located_fractional_mosaic
+    role: response_unit
+  marine_ecological_response_unit:
+    geometry: co_located_fractional_mosaic
+    role: response_unit
+  lpj_grid_cell:
+    geometry: ecological_columns_on_declared_spatial_support
+    role: ecological_model_support
+  lpj_demographic_patch:
+    geometry: stochastic_sample_within_ecological_unit
+    role: demographic_sample
+    spatially_representative: false
+  comparison_support:
+    geometry: declared_common_support
+    role: decision_support
+
+field_semantics:
+  - intensive_state
+  - extensive_total
+  - flux_density
+  - categorical_label
+  - categorical_fraction
+  - dimensionless_fraction
+  - vector_component
+
+time_semantics:
+  - static
+  - instantaneous
+  - interval_mean
+  - interval_accumulation
+  - interval_endpoint_state
+
+effective_measure_modes:
+  - native
+  - native_times_fraction
+  - explicit
+
+aggregation_operators:
+  - identity
+  - conservative_source_area
+  - conservative_destination_area
+  - covered_area_mean
+  - area_weighted_fraction
+  - categorical_majority
+  - categorical_histogram
+  - vector_rotation_and_component_remap
+  - stochastic_demographic_sampling
+
+nonlinear_orders:
+  - not_applicable
+  - process_then_aggregate
+  - aggregate_then_process
+
+vector_bases:
+  - east_north
+  - grid_aligned
+
+identity:
+  digest: sha256
+  canonicalization: sorted_json_utf8
+  rule: >-
+    Shape is never an identity. A support identity includes its kind,
+    dimensions, geometry digest, coordinate digest, native measures, and any
+    effective fraction or explicit measure used by a field.
+
+required_contract_sections:
+  - contract_version
+  - artifact_id
+  - supports
+  - fields
+  - time_support
+  - provenance
