@@ -1,0 +1,339 @@
+{
+  "contract_version": "vesper-ntransform-comparison/1",
+  "generated": "2026-08-28T15:50:17+00:00",
+  "vesper_run": "lpj_de621fd6ac9a472c9b8e9f14b2e27e59",
+  "stock_run": "lpj_09e22558a4bf44b6ae5868c56d275dba",
+  "comparison": "Vesper minus stock LPJ-GUESS 4.1.1",
+  "window_complete_forcing_cycles": 10,
+  "matched_invariants": [
+    "physical.nyear",
+    "physical.npatch",
+    "physical.root_seed",
+    "physical.ranks",
+    "physical.nfix_a",
+    "physical.nfix_b",
+    "physical.ifbvoc",
+    "physical.run_peatland",
+    "physical.ifmethane",
+    "inputs.driver.sha256",
+    "inputs.soilmap.sha256",
+    "inputs.pfts.sha256",
+    "inputs.vesper_h.sha256",
+    "forcing",
+    "stochastic_randomness",
+    "config_sha256",
+    "source_build",
+    "soil_driver_climate_contract",
+    "cells_simulated"
+  ],
+  "profiles": {
+    "vesper": {
+      "profile": "vesper",
+      "binary_provenance": null
+    },
+    "stock": {
+      "profile": "stock-4.1.1",
+      "binary_provenance": {
+        "contract_version": "vesper-ntransform-comparison-binary/1",
+        "generated": "2026-08-28T15:26:19+00:00",
+        "profile": "stock-4.1.1",
+        "release": "LPJ-GUESS 4.1.1, Zenodo 8065737, SVN r10118",
+        "stock_git_object": "b489c42f4^2",
+        "substituted_path": "modules/ntransform.cpp",
+        "stock_source_sha256": "77ecbdb5a68f447ef72685be6de082a765a53bf0765178c0dea36a1b7a0a0d39",
+        "live_source_sha256": "61e25b30ce91f4b66cc3ae8d78e27e9d03662f2a20e3f9cf1293d63d3e184a46",
+        "base_source_fingerprint": "fc10e25625a64097bfc39a5f1a573a636359c61ac6c1fde1ddf8b7618d860e63",
+        "binary_sha256": "520897f56533b9c33df4a2b2a4b8d226da14f8a48329b4958e98259040f5c3ba",
+        "invariant": "copy of the active vendor/lpj-guess tree with only modules/ntransform.cpp replaced by the stock release source",
+        "configure_command": [
+          "cmake",
+          "-S",
+          "/home/cfutro/docs/world/biosphere/generated/ntransform_stock_4_1_1_fc10e25625a6/source",
+          "-B",
+          "/home/cfutro/docs/world/biosphere/generated/ntransform_stock_4_1_1_fc10e25625a6/build",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DUNIT_TESTS=OFF"
+        ],
+        "compile_command": [
+          "cmake",
+          "--build",
+          "/home/cfutro/docs/world/biosphere/generated/ntransform_stock_4_1_1_fc10e25625a6/build",
+          "--parallel",
+          "16"
+        ]
+      }
+    }
+  },
+  "quantities": {
+    "gross_nitrification": {
+      "unit": "kgN/ha/simulation-year",
+      "stock_area_weighted_mean": 0.7758033571725136,
+      "vesper_area_weighted_mean": 1.9247631205657978,
+      "vesper_minus_stock": 1.1489597633932842,
+      "relative_change_percent": 148.09935440093653,
+      "cell_delta_quantiles": {
+        "p05": -0.036691699999999904,
+        "p50": 0.12642530000000007,
+        "p95": 4.20846572
+      },
+      "cell_sign_fraction": {
+        "lower": 0.10631895687061184,
+        "equal": 0.0,
+        "higher": 0.8936810431293881
+      },
+      "cells": 997,
+      "window_years": [
+        1088,
+        1089,
+        1090,
+        1091,
+        1092,
+        1093,
+        1094,
+        1095,
+        1096,
+        1097
+      ]
+    },
+    "net_nitrification": {
+      "unit": "kgN/ha/simulation-year",
+      "stock_area_weighted_mean": 0.2040522064987175,
+      "vesper_area_weighted_mean": 0.0333566257084552,
+      "vesper_minus_stock": -0.1706955807902623,
+      "relative_change_percent": -83.65289634412022,
+      "cell_delta_quantiles": {
+        "p05": -0.5155619199999999,
+        "p50": -0.06236339999999999,
+        "p95": -0.005891440000000001
+      },
+      "cell_sign_fraction": {
+        "lower": 0.995987963891675,
+        "equal": 0.0,
+        "higher": 0.004012036108324975
+      },
+      "cells": 997,
+      "window_years": [
+        1088,
+        1089,
+        1090,
+        1091,
+        1092,
+        1093,
+        1094,
+        1095,
+        1096,
+        1097
+      ]
+    },
+    "gross_denitrification": {
+      "unit": "kgN/ha/simulation-year",
+      "stock_area_weighted_mean": 0.023146366848486415,
+      "vesper_area_weighted_mean": 4.8499563079457495,
+      "vesper_minus_stock": 4.826809941097263,
+      "relative_change_percent": 20853.42366122957,
+      "cell_delta_quantiles": {
+        "p05": -2.6399999999999993e-06,
+        "p50": 0.0005828000000000001,
+        "p95": 7.842172419999986
+      },
+      "cell_sign_fraction": {
+        "lower": 0.11033099297893681,
+        "equal": 0.04312938816449348,
+        "higher": 0.8465396188565697
+      },
+      "cells": 997,
+      "window_years": [
+        1088,
+        1089,
+        1090,
+        1091,
+        1092,
+        1093,
+        1094,
+        1095,
+        1096,
+        1097
+      ]
+    },
+    "net_denitrification": {
+      "unit": "kgN/ha/simulation-year",
+      "stock_area_weighted_mean": 0.05200105729392971,
+      "vesper_area_weighted_mean": 0.009159101294007078,
+      "vesper_minus_stock": -0.04284195599992263,
+      "relative_change_percent": -82.38670178908794,
+      "cell_delta_quantiles": {
+        "p05": -0.14709576,
+        "p50": -0.0051708,
+        "p95": -0.0008341000000000007
+      },
+      "cell_sign_fraction": {
+        "lower": 0.9789368104312939,
+        "equal": 0.0,
+        "higher": 0.02106318956870612
+      },
+      "cells": 997,
+      "window_years": [
+        1088,
+        1089,
+        1090,
+        1091,
+        1092,
+        1093,
+        1094,
+        1095,
+        1096,
+        1097
+      ]
+    },
+    "soil_nh3": {
+      "unit": "kgN/ha/simulation-year",
+      "stock_area_weighted_mean": 9.251727726937195e-05,
+      "vesper_area_weighted_mean": 0.06227897134535395,
+      "vesper_minus_stock": 0.062186454068084575,
+      "relative_change_percent": 67216.044293028,
+      "cell_delta_quantiles": {
+        "p05": 0.00031676,
+        "p50": 0.0134142,
+        "p95": 0.29429713999999996
+      },
+      "cell_sign_fraction": {
+        "lower": 0.0,
+        "equal": 0.0,
+        "higher": 1.0
+      },
+      "cells": 997,
+      "window_years": [
+        1088,
+        1089,
+        1090,
+        1091,
+        1092,
+        1093,
+        1094,
+        1095,
+        1096,
+        1097
+      ]
+    },
+    "soil_no": {
+      "unit": "kgN/ha/simulation-year",
+      "stock_area_weighted_mean": 0.14478160260778425,
+      "vesper_area_weighted_mean": 0.02549828222934185,
+      "vesper_minus_stock": -0.1192833203784424,
+      "relative_change_percent": -82.3884514537271,
+      "cell_delta_quantiles": {
+        "p05": -0.3502145399999999,
+        "p50": -0.0410483,
+        "p95": -0.005320580000000001
+      },
+      "cell_sign_fraction": {
+        "lower": 0.9949849548645938,
+        "equal": 0.0,
+        "higher": 0.0050150451354062184
+      },
+      "cells": 997,
+      "window_years": [
+        1088,
+        1089,
+        1090,
+        1091,
+        1092,
+        1093,
+        1094,
+        1095,
+        1096,
+        1097
+      ]
+    },
+    "soil_n2o": {
+      "unit": "kgN/ha/simulation-year",
+      "stock_area_weighted_mean": 0.11127164520462438,
+      "vesper_area_weighted_mean": 0.01701744384211399,
+      "vesper_minus_stock": -0.09425420136251039,
+      "relative_change_percent": -84.7063968445694,
+      "cell_delta_quantiles": {
+        "p05": -0.30693794,
+        "p50": -0.0271811,
+        "p95": -0.0032699600000000014
+      },
+      "cell_sign_fraction": {
+        "lower": 0.9939819458375125,
+        "equal": 0.0,
+        "higher": 0.006018054162487462
+      },
+      "cells": 997,
+      "window_years": [
+        1088,
+        1089,
+        1090,
+        1091,
+        1092,
+        1093,
+        1094,
+        1095,
+        1096,
+        1097
+      ]
+    },
+    "soil_n2": {
+      "unit": "kgN/ha/simulation-year",
+      "stock_area_weighted_mean": 1.978697925015039e-07,
+      "vesper_area_weighted_mean": 0.005392323637517258,
+      "vesper_minus_stock": 0.005392125767724756,
+      "relative_change_percent": 2725087.897226037,
+      "cell_delta_quantiles": {
+        "p05": 0.0,
+        "p50": 0.0,
+        "p95": 0.005132679999999997
+      },
+      "cell_sign_fraction": {
+        "lower": 0.003009027081243731,
+        "equal": 0.7602808425275828,
+        "higher": 0.23671013039117353
+      },
+      "cells": 997,
+      "window_years": [
+        1088,
+        1089,
+        1090,
+        1091,
+        1092,
+        1093,
+        1094,
+        1095,
+        1096,
+        1097
+      ]
+    },
+    "plant_mineral_n_uptake": {
+      "unit": "kgN/ha/simulation-year",
+      "stock_area_weighted_mean": 24.891297148952336,
+      "vesper_area_weighted_mean": 24.97664740528061,
+      "vesper_minus_stock": 0.08535025632827242,
+      "relative_change_percent": 0.34289195865336725,
+      "cell_delta_quantiles": {
+        "p05": -1.6173999999999922,
+        "p50": -0.014000000000001123,
+        "p95": 2.066999999999998
+      },
+      "cell_sign_fraction": {
+        "lower": 0.5456369107321966,
+        "equal": 0.004012036108324975,
+        "higher": 0.45035105315947843
+      },
+      "cells": 997,
+      "window_years": [
+        1088,
+        1089,
+        1090,
+        1091,
+        1092,
+        1093,
+        1094,
+        1095,
+        1096,
+        1097
+      ]
+    }
+  }
+}

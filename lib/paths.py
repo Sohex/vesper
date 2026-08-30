@@ -171,6 +171,23 @@ def climatology_path(name: str | None = None, root: Path | None = None) -> Path:
     return path
 
 
+def climatology_path_for_state(state: str, root: Path | None = None) -> Path:
+    """Resolve one explicitly named climate state, without a fallback.
+
+    This is for mode-bearing iterative artifacts whose caller declares the
+    state it is building.  Unlike :func:`best_available_climatology`, the
+    answer must not depend on which keys happen to be populated: rebuilding a
+    bootstrap artifact after a baseline exists still reads the bootstrap, and
+    a baseline request with no named baseline still refuses.
+    """
+    if state == BOOTSTRAP:
+        return bootstrap_climatology_path(root=root)
+    if state == BASELINE:
+        return climatology_path(root=root)
+    raise ValueError(
+        f"climatology state must be {BOOTSTRAP!r} or {BASELINE!r}, got {state!r}")
+
+
 def climatology_stage(path: Path, root: Path | None = None) -> str:
     """Which of the two configured climatologies a given file IS.
 

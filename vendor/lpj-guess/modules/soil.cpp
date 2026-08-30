@@ -53,12 +53,14 @@ void Soil::init_states() {
 	for (int mth=0; mth<12; mth++) {
 		mwcont[mth][0] = 0.0;
 		mwcont[mth][1] = 0.0;
-		fnuptake_mean[mth] = 0.0;
+		fnuptake_survival[mth] = 1.0;
 		morgleach_mean[mth] = 0.0;
-		mminleach_mean[mth] = 0.0;
-		fpuptake_mean[mth] = 0.0;
+		morgleach_cmass[mth] = 0.0;
+		msoilmicro_cdec[mth] = 0.0;
+		mminleach_survival[mth] = 1.0;
+		fpuptake_survival[mth] = 1.0;
 		morgPleach_mean[mth] = 0.0;
-		mminpleach_mean[mth] = 0.0;
+		mminpleach_survival[mth] = 1.0;
 	}
 
 	std::fill_n(dwcontupper, Date::MAX_YEAR_LENGTH, 0.0);
@@ -4146,12 +4148,14 @@ void Soil::serialize(ArchiveStream& arch) {
 		& solvesomcent_beginyr
 		& solvesomcent_endyr
 		& solvesom
-		& fnuptake_mean
-		& fpuptake_mean
+		& fnuptake_survival
+		& fpuptake_survival
 		& morgleach_mean
-		& mminleach_mean
+		& morgleach_cmass
+		& msoilmicro_cdec
+		& mminleach_survival
 		& morgPleach_mean
-		& mminpleach_mean
+		& mminpleach_survival
 		& labile_carbon
 		& pH;
 }

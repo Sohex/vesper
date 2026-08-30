@@ -58,6 +58,15 @@ def bootstrap_climatology_path() -> Path:
     return _resolve(root=PROJECT_ROOT)
 
 
+def climatology_path_for_state(state: str) -> Path:
+    """Resolve the exact state named by a mode-bearing pedology product."""
+    import sys as _sys
+    if str(PROJECT_ROOT / "lib") not in _sys.path:
+        _sys.path.insert(0, str(PROJECT_ROOT / "lib"))
+    from paths import climatology_path_for_state as _resolve
+    return _resolve(state, root=PROJECT_ROOT)
+
+
 def best_available_climatology(override: Path | None = None):
     """The most determined climatology that exists, WITH its stage.
 

@@ -1,0 +1,78 @@
+{
+  "generated": "2026-08-28T12:29:01+00:00",
+  "generator": "biosphere/scripts/build_rootable_fraction.py",
+  "source_build": "canonical-10m-carve2",
+  "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
+  "rung": "T21",
+  "partition_source": "hydrography/data/canonical-10m-carve2/surface_water.nc",
+  "partition_source_role": "authoritative annual-equilibrium solved lake mask",
+  "partition_source_sha256": "27ba3c3b5db5d1d1f0831c875ff9aadeb6972c8b1e917e912e6bc8e07f7f66eb",
+  "spatial_contract": {
+    "contract_version": "vesper-spatial-support/1",
+    "artifact_id": "biosphere/data/canonical-10m-carve2/rootable_fraction_T21.nc",
+    "supports": [
+      {
+        "id": "atmosphere_grid",
+        "kind": "atmosphere_gaussian_grid",
+        "dimensions": {
+          "latitude": 32,
+          "longitude": 64
+        },
+        "geometry_sha256": "5e7fd5564e34e151c8fed95afa88e59b8e65ba1595d1c78c5afb9222efc6160e",
+        "coordinates_sha256": "925545097c7ef9eb0db681400ffbfc4748563c4e0e83564926a5f16925d6a044",
+        "native_measures": [
+          {
+            "kind": "area",
+            "variable": "cell_area_m2",
+            "units": "m2"
+          }
+        ]
+      }
+    ],
+    "fields": [
+      {
+        "name": "f_rootable",
+        "semantics": "dimensionless_fraction",
+        "units": "1",
+        "support_id": "atmosphere_grid",
+        "spatial_dimensions": [
+          "latitude",
+          "longitude"
+        ],
+        "effective_measure": {
+          "mode": "native",
+          "measure_kind": "area"
+        },
+        "aggregation": {
+          "operator": "identity",
+          "operator_version": "lib.spatial_support.grid_support_contract/1",
+          "source_support": "atmosphere_grid",
+          "destination_support": "atmosphere_grid",
+          "nonlinear_order": "not_applicable"
+        }
+      }
+    ],
+    "time_support": {
+      "semantics": "static"
+    },
+    "provenance": {
+      "source_artifacts": [
+        "hydrography/data/canonical-10m-carve2/surface_water.nc",
+        "source/canonical-10m-carve2/exoplasim-T21/manifest.json"
+      ],
+      "operator_versions": {
+        "identity": "lib.spatial_support.grid_support_contract/1"
+      }
+    }
+  },
+  "spatial_contract_identity": "701efb6e63b34b1c887f1a55fb8f225a09b6d5e50ebf77dc93386625c41197aa",
+  "partition_max_absolute_residual": 1.1102230246251565e-16,
+  "cells_without_native_land": 409,
+  "land_area_weighted": {
+    "rootable_fraction": 0.8396343803227778,
+    "solved_water_fraction": 0.021189064204796756,
+    "dry_barren_fraction": 0.13917655547242536
+  },
+  "output": "biosphere/data/canonical-10m-carve2/rootable_fraction_T21.nc",
+  "output_sha256": "0cb7dd1f04fc3f85ac00451e5aaa804f4f9c38ccc0b588456867d903675b96e0"
+}

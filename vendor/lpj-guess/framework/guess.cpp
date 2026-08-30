@@ -7,9 +7,40 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////////////
 
+#include <cmath>
+#include <cstdint>
 #include <sstream>
 #include "config.h"
 #include "guess.h"
+
+namespace {
+
+const long DEFAULT_STOCHASTIC_ROOT_SEED = 12345678;
+const uint64_t FNV_OFFSET = UINT64_C(14695981039346656037);
+const uint64_t FNV_PRIME = UINT64_C(1099511628211);
+const uint64_t PARK_MILLER_MAX_STATE = UINT64_C(2147483646);
+
+void hash_seed_component(uint64_t& hash, int64_t component) {
+	const uint64_t encoded = static_cast<uint64_t>(component);
+	for (unsigned int shift = 0; shift < 64; shift += 8) {
+		hash ^= (encoded >> shift) & UINT64_C(0xff);
+		hash *= FNV_PRIME;
+	}
+}
+
+long derive_stochastic_seed(long root_seed, double longitude, double latitude,
+		int stand_id, int patch_id, int process_id) {
+	uint64_t hash = FNV_OFFSET;
+	hash_seed_component(hash, root_seed);
+	hash_seed_component(hash, static_cast<int64_t>(llround(longitude * 1.0e6)));
+	hash_seed_component(hash, static_cast<int64_t>(llround(latitude * 1.0e6)));
+	hash_seed_component(hash, stand_id);
+	hash_seed_component(hash, patch_id);
+	hash_seed_component(hash, process_id);
+	return static_cast<long>((hash % PARK_MILLER_MAX_STATE) + 1);
+}
+
+} // namespace
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // GLOBAL VARIABLES WITH EXTERNAL LINKAGE
@@ -487,6 +518,9 @@ bool Patchpft::growingseason() const {
 
 Patch::Patch(int i,Stand& s,Soiltype& st):
 	id(i),stand(s),vegetation(*this),soil(*this,st),fluxes(*this) {
+	for (int process = 0; process < STOCHASTIC_PROCESS_COUNT; process++) {
+		stochastic_seed[process] = DEFAULT_STOCHASTIC_ROOT_SEED;
+	}
 
 	for (unsigned int p = 0; p < pftlist.nobj; p++) {
 		pft.createobj(pftlist[p]);
@@ -586,6 +620,9 @@ void Patch::serialize(ArchiveStream& arch) {
 		& litf_to_atm
 		& lfwd_to_atm
 		& lcwd_to_atm;
+	for (int process = 1; process < STOCHASTIC_PROCESS_COUNT; process++) {
+		arch & stochastic_seed[process];
+	}
 		for (unsigned int i=0; i < N_YEAR_BIOMEAVG; i++)
 			arch & fapar_grass_avg[i];
 		for (unsigned int i=0; i < N_YEAR_BIOMEAVG; i++)
@@ -598,6 +635,14 @@ void Patch::serialize(ArchiveStream& arch) {
 			arch & fapar_shrub_avg[i];
 		for (unsigned int i=0; i < N_YEAR_BIOMEAVG; i++)
 			arch & fapar_total_avg[i];
+}
+
+long& Patch::random_seed(StochasticProcess process) {
+	if (process < STOCHASTIC_ESTABLISHMENT ||
+			process >= STOCHASTIC_PROCESS_COUNT) {
+		fail("Patch::random_seed received invalid process id %d", (int)process);
+	}
+	return stochastic_seed[(int)process];
 }
 
 const Climate& Patch::get_climate() const {
@@ -858,8 +903,6 @@ Stand::Stand(int i, Gridcell* gc, Soiltype& st, landcovertype landcoverX, int np
 	transfer_area_st = new double[nst];
 	for(int i=0;i<nst;i++)
 		transfer_area_st[i] = 0.0;
-	seed = 12345678;
-
 	stid = 0;
 	pftid = -1;
 	current_rot = 0;
@@ -1235,14 +1278,17 @@ Stand& Stand::clone(StandType& st, double fraction) {
 	// Create a new stand in the gridcell...
 	// NB: the patch number is always that of the old stand, even if the new stand is a pasture or crop stand
 	Stand& new_stand = gridcell->create_stand(st.landcover, nobj);
-	int new_seed = new_stand.seed;
 
 	// ...and deserialize to that stand
 	ArchiveInStream ais(ss);
 	new_stand.serialize(ais);
+	// Deserializing the donor also copies its random states. A clone is a new
+	// stand and must not make the same stochastic decisions as its parent.
+	if (gridcell->stochastic_streams_initialized) {
+		new_stand.seed_stochastic_streams(gridcell->stochastic_root_seed);
+	}
 
 	new_stand.clone_year = date.year;
-//	new_stand.seed = new_seed;	// ?
 
 	// Set land use settings for new stand
 	new_stand.init_stand_lu(st, fraction);
@@ -1253,6 +1299,18 @@ Stand& Stand::clone(StandType& st, double fraction) {
 	}
 
 	return new_stand;
+}
+
+void Stand::seed_stochastic_streams(long root_seed) {
+	for (unsigned int replicate = 0; replicate < nobj; replicate++) {
+		Patch& patch = (*this)[replicate];
+		for (int process = STOCHASTIC_ESTABLISHMENT;
+				process < STOCHASTIC_PROCESS_COUNT; process++) {
+			patch.stochastic_seed[process] = derive_stochastic_seed(
+				root_seed, gridcell->get_lon(), gridcell->get_lat(), id,
+				patch.id, process);
+		}
+	}
 }
 
 double Stand::get_landcover_fraction() const {
@@ -1306,8 +1364,7 @@ void Stand::serialize(ArchiveStream& arch) {
 		& gdd5_intercrop
 		& cloned
 		& origin
-		& landcover
-		& seed;
+		& landcover;
 }
 
 const Climate& Stand::get_climate() const {
@@ -2840,7 +2897,9 @@ void Landcover::serialize(ArchiveStream& arch) {
 // Implementation of Gridcell member functions
 ////////////////////////////////////////////////////////////////////////////////
 
-Gridcell::Gridcell():climate(*this) {
+Gridcell::Gridcell():climate(*this),
+	stochastic_root_seed(DEFAULT_STOCHASTIC_ROOT_SEED),
+	stochastic_streams_initialized(false) {
 
 	for (unsigned int p=0; p<pftlist.nobj; p++) {
 		pft.createobj(pftlist[p]);
@@ -2868,7 +2927,7 @@ Gridcell::Gridcell():climate(*this) {
 	nesterov_cur = 0.;
 
 	// Initialise BLAZE variables
-	seed = 12345678;
+	seed = DEFAULT_STOCHASTIC_ROOT_SEED;
 	for (int i=0;i<12;i++) {
 		monthly_burned_area[i] = 0.0;
 		monthly_fire_risk[i] = 0.0;
@@ -2888,6 +2947,17 @@ double Gridcell::get_lat() const {
 void Gridcell::set_coordinates(double longitude, double latitude) {
 	lon = longitude;
 	lat = latitude;
+}
+
+void Gridcell::initialize_stochastic_streams(long root_seed) {
+	if (root_seed < 1 || root_seed > (long)PARK_MILLER_MAX_STATE) {
+		fail("stochastic root seed %ld is outside [1,2147483646]", root_seed);
+	}
+	stochastic_root_seed = root_seed;
+	stochastic_streams_initialized = true;
+	for (unsigned int stand_index = 0; stand_index < nbr_stands(); stand_index++) {
+		(*this)[stand_index].seed_stochastic_streams(root_seed);
+	}
 }
 
 Stand& Gridcell::create_stand_lu(StandType& st, double fraction, int no_patch) {
@@ -2980,14 +3050,23 @@ double Gridcell::pflux() {
 }
 
 void Gridcell::serialize(ArchiveStream& arch) {
+	const long requested_root = stochastic_root_seed;
+	const bool had_requested_root = stochastic_streams_initialized;
 	arch & climate
 		& landcover
 		& seed
+		& stochastic_root_seed
+		& stochastic_streams_initialized
 		& balance
 		& nesterov_max
 		& nesterov_monthly_max
 		& nesterov_cur
 		& fapar_recent_max;
+	if (!arch.save() && had_requested_root &&
+			stochastic_root_seed != requested_root) {
+		fail("restart stochastic root %ld does not match requested root %ld",
+		     stochastic_root_seed, requested_root);
+	}
 
 	if (arch.save()) {
 		for (unsigned int i = 0; i < pft.nobj; i++) {
@@ -3037,6 +3116,9 @@ Stand& Gridcell::create_stand(landcovertype landcover, int no_patch) {
 	Stand* stand = new Stand(get_next_id(), this, soiltype, landcover, no_patch);
 
 	push_back(stand);
+	if (stochastic_streams_initialized) {
+		stand->seed_stochastic_streams(stochastic_root_seed);
+	}
 
 	return *stand;
 }

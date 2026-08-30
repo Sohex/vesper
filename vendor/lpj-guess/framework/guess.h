@@ -4358,12 +4358,16 @@ public:
 
 	// Variables for fast spinup of SOM pools
 
-	/// monthly fraction of available mineral nitrogen taken up
-	double fnuptake_mean[12];
+	/// product of daily available-mineral-N survival fractions, by month
+	double fnuptake_survival[12];
 	/// monthly fraction of organic carbon/nitrogen leached
 	double morgleach_mean[12];
-	/// monthly fraction of available mineral nitrogen leached
-	double mminleach_mean[12];
+	/// sampled organic C leached from SOILMICRO, by month
+	double morgleach_cmass[12];
+	/// sampled SOILMICRO C decay paired with morgleach_cmass, by month
+	double msoilmicro_cdec[12];
+	/// product of daily available-mineral-N leaching survival fractions, by month
+	double mminleach_survival[12];
 	/// annual nitrogen fixation
 	double anfix_mean;
 	/// annual phosphorus weathering
@@ -4371,12 +4375,12 @@ public:
 	/// annual phosphorus deposition and fertilization
 	double apdep_mean;
 
-	/// monthly fraction of available mineral phosphorus taken up
-	double fpuptake_mean[12];
+	/// product of daily exchangeable-P uptake survival fractions, by month
+	double fpuptake_survival[12];
 	/// monthly fraction of organic carbon/phosphorus leached
 	double morgPleach_mean[12];
-	/// monthly fraction of available mineral phosphorus leached
-	double mminpleach_mean[12];
+	/// product of daily exchangeable-P leaching survival fractions, by month
+	double mminpleach_survival[12];
 
 	// Solving Century SOM pools
 
@@ -4938,6 +4942,17 @@ public:
  *  stand. A reference to the parent Stand object (defined below) is included as a
  *  member variable.
  */
+/// Independent random streams carried by each ecological replicate.
+/// Integer values are an ABI shared with stochastic_seeds.yaml: append only.
+enum StochasticProcess {
+	STOCHASTIC_ESTABLISHMENT = 1,
+	STOCHASTIC_FIRE_OCCURRENCE = 2,
+	STOCHASTIC_FIRE_MORTALITY = 3,
+	STOCHASTIC_BACKGROUND_MORTALITY = 4,
+	STOCHASTIC_DISTURBANCE = 5,
+	STOCHASTIC_PROCESS_COUNT = 6
+};
+
 class Patch : public Serializable {
 
 public:
@@ -4948,6 +4963,8 @@ public:
 	int id;
 	/// reference to parent Stand object
 	Stand& stand;
+	/// Park-Miller state for each process. Index zero is deliberately unused.
+	long stochastic_seed[STOCHASTIC_PROCESS_COUNT];
 	/// list array [0...npft-1] of Patchpft objects (initialised in constructor)
 	ListArray_idin1<Patchpft,Pft> pft;
 	/// vegetation for this patch
@@ -5105,6 +5122,9 @@ public:
 
 	/// Constructor: initialises various members and builds list array of Patchpft objects.
 	Patch(int i,Stand& s,Soiltype& st);
+
+	/// Return the state belonging only to this process and patch replicate.
+	long& random_seed(StochasticProcess process);
 
 	void serialize(ArchiveStream& arch);
 
@@ -5278,18 +5298,6 @@ public:
 	/// used for output from separate stands
 	double cmass;
 
-	/// Seed for generating random numbers within this Stand
-	/** The reason why Stand has its own seed, rather than using for instance
-	 *  a single global seed is to make it easier to compare results when using
-	 *  different land cover types.
-	 *
-	 *  Randomness not associated with a specific stand, but rather a whole
-	 *  grid cell should instead use the seed in the Gridcell class.
-	 *
-	 *  \see randfrac()
-	 */
-	long seed;
-
 	/// type of landcover
 	/** \see landcovertype
 	 *  initialised in constructor
@@ -5365,6 +5373,9 @@ public:
 	*  \returns reference to the new stand
 	*/
 	Stand& clone(StandType& st, double fraction);
+
+	/// Re-key every replicate and process from the run's recorded root seed.
+	void seed_stochastic_streams(long root_seed);
 
 	void serialize(ArchiveStream& arch);
 
@@ -5751,6 +5762,10 @@ public:
 	 *  \see randfrac()
 	 */
 	long seed;
+	/// Root used to derive ecological substreams once coordinates are assigned.
+	long stochastic_root_seed;
+	/// True after the input module has supplied the run-level root.
+	bool stochastic_streams_initialized;
 
 	// MEMBER FUNCTIONS
 
@@ -5765,6 +5780,9 @@ public:
 
 	/// Set longitude and latitude for this grid cell
 	void set_coordinates(double longitude, double latitude);
+
+	/// Key streams by cell, stand, patch and process, never rank or traversal.
+	void initialize_stochastic_streams(long root_seed);
 
 	void serialize(ArchiveStream& arch);
 

@@ -72,9 +72,12 @@ mainline_divergences:
     reproduces it.
   execution_verified: false
   why_not_verified: >
-    LPJ-GUESS does not build on this tree. `framework/vesper.h` is generated,
-    and the chain to it runs through a baseline run and a baseline climatology
-    that do not exist. No divergence below has been run, in either direction.
+    LPJ-GUESS now builds and the declared ifplim-0 arm has run on the accepted
+    carve2 baseline, including SDEC-1's corrected accelerator. That is not a
+    controlled verification of these divergences: no run has restored the CNP
+    fork forms under the same binary inputs, and two entries are live only under
+    the ifplim 1 that parameters.cpp still refuses. No divergence below has
+    therefore been run in both directions.
   comparison_arm: >
     What would bound what these are worth, though not whether they are right:
     one arm on the vendored CNP fork's own somdynam.cpp and soil.cpp against one
@@ -337,3 +340,49 @@ invariants:
         what makes a stoichiometric target the right KIND of quantity where a
         measured bulk C:P is not. The surfhumus_ptoc_ramp entry's argument fails
         if this becomes a ratio of the donating pool.
+
+# SDEC-1: the 40,000-year monthly accelerator must be the sampled daily
+# operator, not a second nutrient model. `century_acceleration_gate.py` checks
+# these source forms and exercises the reduced operator on deterministic C-N-P
+# fixtures without launching LPJ-GUESS.
+century_acceleration:
+  contract_version: vesper-century-acceleration/1
+  source_file: vendor/lpj-guess/modules/somdynam.cpp
+  state_file: vendor/lpj-guess/framework/guess.h
+  initialization_file: vendor/lpj-guess/modules/soil.cpp
+  sampled_operator:
+    uptake_and_mineral_leaching: multiplicative_daily_survival
+    across_sample_years: geometric_mean_monthly_survival
+    organic_leaching: decay_weighted_monthly_transfer_coefficient
+    phosphorus_forcing: daily_flux_sum_per_sample_year
+    phosphorus_mutation: pmass_add_labile_sorbed_isotherm
+  restored_after_acceleration:
+    - pmass_labile
+    - pmass_sorbed
+    - pmass_strongly_sorbed
+    - pmass_occluded
+  required_source:
+    - "soil.mminleach_survival[date.month] *= (1.0 - minleachfrac);"
+    - "soil.mminpleach_survival[date.month] *= (1.0 - minleachfrac);"
+    - "soil.morgleach_cmass[date.month] += leachsum_cmass;"
+    - "soil.msoilmicro_cdec[date.month] += soil.sompool[SOILMICRO].cdec;"
+    - "soil.morgleach_cmass[m] / soil.msoilmicro_cdec[m]"
+    - "soil.fnuptake_survival[date.month] *="
+    - "soil.fpuptake_survival[date.month] *="
+    - "pow(soil.fnuptake_survival[m], 1.0 / nyear)"
+    - "pow(soil.fpuptake_survival[m], 1.0 / nyear)"
+    - "pow(soil.mminleach_survival[m], 1.0 / nyear)"
+    - "pow(soil.mminpleach_survival[m], 1.0 / nyear)"
+    - "soil.apwtr_mean += daily_pwtr;"
+    - "soil.apdep_mean += soil.pmass_labile_input;"
+    - "soil.apwtr_mean /= nyear;"
+    - "soil.apdep_mean /= nyear;"
+    - "pmass_apply_survival(soil, soil.fpuptake_survival[m]);"
+    - "pmass_apply_survival(soil, soil.mminpleach_survival[m]);"
+    - "pmass_add(soil, (soil.apwtr_mean + soil.apdep_mean) / 12.0);"
+  forbidden_source:
+    - "soil.apwtr_mean += soil.apwtr;"
+    - "soil.apdep_mean += soil.apdep;"
+    - "nmass * (1.0 - soil.mminleach_mean[m])"
+    - "soil.pmass_labile *= (1.0 - soil.fpuptake_mean[m]);"
+    - "soil.pmass_labile += (soil.apwtr_mean + soil.apdep_mean) / 12.0;"

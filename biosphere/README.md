@@ -12,6 +12,15 @@ ExoPlaSim climatology and returns leaf area, carbon and plant functional type
 composition per gridcell, which becomes the surface albedo and forest fraction
 that the next climate run is forced with.
 
+BIO-11's shared area interface is
+`scripts/build_rootable_fraction.py`. It derives, per build and atmosphere rung,
+the mutually exclusive rootable, solved-water and dry-barren shares of native
+mesh land, reading the authoritative solved-lake mask directly so iteration-0
+soil does not depend on the post-soil surface classifier. `build_lpj_driver.py` omits fully non-rootable cells; pedology's soil
+carbon feedback and `scripts/score_prediction.py` apply the same fraction to
+every extensive quantity and denominator. The artifact is support- and
+provenance-stamped and has no nearest-cell fallback.
+
 The model is mechanically integrated and has run end to end on real Vesper
 cells at smoke scale. A follow-up source audit exposed ecological-calendar and
 time-base correctness work below that interface; the smoke result is therefore
@@ -89,12 +98,12 @@ a result.
 | tissue stoichiometry | the fine-root and sapwood C:N and C:P windows are anchored on the tissue MEAN, so the proportion `canexch.cpp` applies to their nutrient demand is the one Friend et al. (1997) measured. The max-anchored form the model used to carry applied 1.79 times it on nitrogen and 2.22 on phosphorus, so every C-N number produced before the repair is worthless rather than stale and the biosphere needs re-commissioning. `notes/plant-physiology-carbon-allocation-audit.md` finding 11 |
 | phosphorus parameters | every constant registered with its source or its bracket in `notes/phosphorus-cycle-parameterisation.md`; the uptake profile, the leaf C:P window, the root proportion and the labile-P saturation threshold are derived, the sapwood proportion and the litter-P saturation threshold are not, and `ifplim 1` fails closed naming each. Two DECLARED DIVERGENCES from the vendored CNP values: the labile-P threshold is converted into the fork's own Hedley-labile currency, which is inert under `ifplim 0` because the P-limitation-off pin reads the same constant, and the surface humus pool ramps on the slow pool's C:P line instead of holding a fixed unsourced ratio, under the identification the fork's own nitrogen ramp already makes. The sapwood refusal is now about the element, the proportional form and the level alone: the model applies the constant it declares |
 | phosphorus sinks | leaching, fire and harvest only. Terminal occlusion is a DECLARED ABSENCE, argued in the same note, so a simulated soil that must be old carries its phosphorus depletion in its initial stocks rather than developing it |
-| run harness | written; records inputs, binary and model identity in its manifest |
+| run harness | written; `lpj_run` records inputs, binary, model identity, and DEMO-5's stochastic root plus substream ABI, then `lpj_acceptance` runs `assess_lpj_run.py` to require exact rank/output/cell/year coverage, finite physical values, stable end windows and C/N/water closure before the run can be consumed |
 | albedo and forest feedback | modelled mode exists; rootable/lake and spectral corrections are BIO-17 and BIO-18 |
 | aerodynamic feedback | modelled roughness is open as BIO-16 |
 | BVOC/SOA feedback | LPJ source is present but off; carbon closure, PFT traits, reduced atmospheric chemistry/transport, direct optics and cloud effects are separated under BVOC-1 through BVOC-10 |
 | wetlands/peat/methane | LPJ's northern-Earth peat/CH4 source is present but off; current low-latitude saturation creates water and the full extent, groundwater, peat-stock, source/sink and atmospheric closure is separated under WET-1 through WET-11 |
-| full run | harness exists, but BIO-11 through BIO-15 and BIO-21 through BIO-25 must close before its output is interpreted; prior estimate ~25 min on 16 ranks |
+| full run | harness and BIO-14 acceptance exist, but BIO-15 and BIO-21 through BIO-25 must close before its output is interpreted; prior estimate ~25 min on 16 ranks |
 
 The model is vendored at `vendor/lpj-guess/` as a git subtree from the CNP fork.
 The Vesper calendar, astronomy and input-module changes live directly in that
@@ -392,6 +401,7 @@ failing. The driver file records the year length it was built for and
 ```bash
 python biosphere/scripts/build_vesper_header.py   # vesper.h, installed into the tree
 python biosphere/scripts/build_vesper_pfts.py     # degree-day limits rescaled
+python biosphere/scripts/build_rootable_fraction.py # BIO-11 effective plant area
 python biosphere/scripts/build_lpj_driver.py      # climate + soil codes + gridlist
 cmake --build vendor/lpj-guess/build --parallel 16
 ```
@@ -399,14 +409,41 @@ cmake --build vendor/lpj-guess/build --parallel 16
 `build_lpj_driver.py --self-test` runs the interval arithmetic and header layout
 fixtures and exits: no climatology, no soil map, no model. It covers the
 operator `vesperinput.cpp:integrate_year` implements and the byte layout that
-module parses, which is what can be executed here -- LPJ-GUESS does not build on
-this tree, so the C++ itself is checked by `g++ -fsyntax-only` against a
-synthetic `vesper.h` and never run.
+module parses. LPJ-GUESS now builds and runs on the generated 183-day header;
+the self-test remains the no-model interface check that can run before a
+climatology or MPI launch exists.
 
 All three land in `biosphere/generated/`, along with the gate and ledger
 reports. That directory is output and is not tracked: everything in it is
 re-derived by a step registered in `config/pipeline.yaml`, and what each gate
 argues is in `biosphere/notes/`, which is.
+
+`stochastic_seeds.yaml` declares the one random root. The run harness writes it
+to the instruction and manifest; the model hashes it with cell coordinates,
+stand, replicate patch and a named process id. Establishment, fire occurrence,
+fire mortality, background mortality and disturbance therefore have separate
+restart-serialized streams, and neither MPI rank nor traversal order is part of
+the key. `python biosphere/scripts/stochastic_seed_gate.py` exercises fixed
+vectors, rank/order reshuffling and source/serializer coverage without a model
+run. `--root-seed` creates a distinct recorded replicate rather than an
+unattributed change in results.
+
+No consumer reads the final output year. `equilibrium_window.yaml` fixes one
+rule for albedo feedback, prediction scoring and soil carbon: average ten
+complete forcing cycles, after reducing each cycle to one mean, and refuse an
+end window whose cycle means still trend or whose cell-year rows are
+incomplete. `equilibrium_window_gate.py` exercises the shared reader without a
+simulation. Every consumer report carries the temporal standard deviation and
+labels root-seed and patch-count uncertainty `not_measured` until comparable
+runs are supplied through its repeatable peer option; one realization is never
+reported as zero stochastic uncertainty.
+
+Modelled canopy is composited on the same BIO-11 partition. LPJ tree and grass
+FPC are conditional on rootable ground; `build_surface_albedo.py` multiplies
+them by `f_rootable` once, subtracts only the rootable substrate contribution,
+and leaves solved-water and dry-barren contributions unchanged. Forest code 212
+is the resulting whole-cell tree share. `rootable_albedo_gate.py` fixes ordinary,
+barren, partial-lake and pure-lake answers and checks the two-band identity.
 
 ### The volatile organic source is off, and off is a decision
 
@@ -608,6 +645,20 @@ python biosphere/scripts/ntransform_gate.py --strict   # refuses while a Vesper
                                                        # precondition is undeclared
 ```
 
+The eleven source/instruction divergences are execution-verified together by a
+matched stock-4.1.1 arm. `prepare_stock_ntransform_arm.py` copies the active
+source tree, replaces only `modules/ntransform.cpp` with the exact release
+object held in git, verifies its digest, and builds a provenance sidecar.
+`run_lpj_guess.py --ntransform-profile stock-4.1.1 --binary <guess>` also
+restores the release `f_nitri_gas_max` while keeping every other instruction
+and input matched. `compare_ntransform_arms.py <vesper-run> <stock-run>` rejects
+input drift and compares paired cell-years over the final ten forcing cycles.
+The recorded arm changes area-weighted plant mineral-N uptake by +0.343%, but
+substantially changes internal transformations and gas partitioning; the exact
+runs and quantities are pinned under `execution_evidence` in the declaration.
+Both arms fail the same BIO14 ANPP stationarity gate, so this is a sensitivity
+bound rather than an accepted coupled biosphere endpoint.
+
 `biosphere/config/ntransform.yaml` is the declaration and there is no default for
 any precondition in it. All five carry the `undeclared` sentinel today: surface
 pressure, oxygen partial pressure, soil gas diffusivity, water-table redox state
@@ -666,6 +717,26 @@ python biosphere/scripts/somdynam_gate.py --strict   # refuses while a saturatio
 phosphorus source anywhere in the tree. That is the refusal `parameters.cpp`
 already makes on `ifplim 1`, restated where the constant is declared instead of
 living only in a C++ error string.
+
+### The CENTURY equilibrium accelerator is the daily nutrient operator
+
+`century_acceleration_gate.py` enforces SDEC-1 on the active C-N path and on the
+waiting phosphorus path. The accelerator records products of daily mineral
+uptake and leaching survival fractions, takes a geometric monthly mean over the
+sample years, and applies that composed operator. It samples weathering and
+deposition as daily fluxes rather than summing their year-to-date diagnostics.
+Accelerated phosphorus uptake, leaching and additions all call the same
+`pmass_add()` labile--sorbed isotherm as daily integration, and the hidden
+40,000-year solve restores every mineral-P pool afterward.
+
+```bash
+python biosphere/scripts/century_acceleration_gate.py
+```
+
+The command launches no model. Its deterministic fixtures compare daily and
+monthly survival, reject the old arithmetic-mean and inverted-leaching forms,
+close a reduced C-N-P ledger, preserve the P isotherm after every mutation, and
+mutate the declared production source in three independently detectable ways.
 
 ### The simulated snowpack conducts what the climate model's snowpack conducts
 

@@ -13,12 +13,14 @@ denitrification and ammonia volatilisation together set how much mineral
 nitrogen the simulated plants can reach, so the operator is on the path from
 litter to productivity whether or not anything reads its gas fluxes.
 
-Nothing here is verified by execution. LPJ-GUESS does not build on this tree:
-`framework/vesper.h` is generated, and the chain to it runs through a baseline
-run and a baseline climatology that do not exist. Every statement below is
-against the source and against the papers, and every bound is arithmetic on
-the declared forms, which `biosphere/scripts/ntransform_gate.py` re-derives on
-each invocation.
+The operator now has a matched execution comparison as well as source and paper
+checks. One active Vesper arm and one exact stock-LPJ-GUESS-4.1.1 ntransform
+arm ran the same 997 cells, forcing, soil, PFTs, patches and random seed through
+the 998-year accelerator spin-up and 100 retained years. The paired final-ten-
+cycle report is
+`biosphere/analysis/ntransform_lpj_de621fd6ac9a472c9b8e9f14b2e27e59_lpj_09e22558a4bf44b6ae5868c56d275dba.json`.
+The gate re-derives every declared source bound and now also requires that
+report and its run/profile evidence.
 
 ## What the operator is
 
@@ -50,10 +52,11 @@ mainline" is not proof the code is right, and "a paper disagrees" is not licence
 to change it quietly. Both are evidence, and a divergence that survives has to
 be declared where the next reader will hit it.
 
-**Nothing below is execution-verified.** LPJ-GUESS does not build on this tree,
-so every verdict is arithmetic on the declared forms and on the papers. Each
-`worth` is a change to a COEFFICIENT, before the Michaelis-Menten terms and the
-`min()` against the pool that stand between a coefficient and a flux.
+**The eleven changes below are execution-verified as one combined arm.** The
+comparison bounds their joint effect; it does not assign an observed change to
+one edit or decide which Earth calibration belongs on Vesper. The per-entry
+`worth` remains coefficient arithmetic, while the paired report measures the
+fluxes after the Michaelis-Menten terms and pool clamps.
 
 The five `world-i2ch` re-examined as a set:
 
@@ -310,12 +313,15 @@ declared 0.5 at the bottom edge. The shape parameter has no source and no
 bracket at all, which is why it is its own entry rather than a clause in the
 midpoint's.
 
-## What the five corrections are worth, by hand
+## What the five corrections are worth, by hand and in the matched arm
 
-Every number below is arithmetic on the declared forms, and none of it is
-execution-verified: LPJ-GUESS does not build on this tree, so nothing here has
-been run. Each is the change to a coefficient, before the Michaelis-Menten terms
-and the `min()` against the pool that stand between a coefficient and a flux.
+The coefficient arithmetic below explains direction and mechanism. The matched
+arm measures the eleven divergences together, after the Michaelis-Menten terms
+and pool clamps: area-weighted plant mineral-N uptake changes only +0.343%,
+while gross nitrification rises 148%, gross denitrification rises 20,853%, NH3
+rises 67,216%, NO falls 82.4%, N2O falls 84.7%, and N2 rises from 1.98e-7 to
+0.00539 kgN/ha/simulation-year. Both arms fail the same BIO14 ANPP stationarity
+test, so these are sensitivity results, not an accepted coupled endpoint.
 
 **The gas share of gross nitrification, 0.33 to 0.022.** Of every kilogram of
 nitrogen nitrified, 978 grams now return to `NO3_mass_d` where 670 did, and 22

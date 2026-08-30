@@ -29,6 +29,8 @@ from _paths import CONFIG, PROJECT_ROOT, climatology_path
 from paths import rel  # noqa: E402
 
 import orbit
+from rootable import read_rootable
+from lpj_output import reduce_table, require_lpj_acceptance
 
 COMPONENT_ROOT = Path(__file__).resolve().parents[1]
 ANALYSIS = COMPONENT_ROOT / "analysis"
@@ -47,21 +49,10 @@ BOREAL_PFTS = ("BNE", "BINE", "BNS")
 PRESENCE_FPC = 0.1
 
 
-def read_table(path: Path) -> tuple[list[str], dict[tuple[float, float], list[float]]]:
-    """Last simulated year per cell, from an LPJ-GUESS .out file."""
-    lines = path.read_text().splitlines()
-    header = lines[0].split()
-    names = header[3:]
-    latest: dict[tuple[float, float], tuple[int, list[float]]] = {}
-    for line in lines[1:]:
-        parts = line.split()
-        if len(parts) < 3 + len(names):
-            continue
-        key = (round(float(parts[0]), 2), round(float(parts[1]), 2))
-        year = int(float(parts[2]))
-        if key not in latest or year > latest[key][0]:
-            latest[key] = (year, [float(v) for v in parts[3:3 + len(names)]])
-    return names, {k: v for k, (_, v) in latest.items()}
+def read_table(path: Path, peers: list[Path] | None = None):
+    """BIO-12 equilibrium mean per cell, plus its uncertainty report."""
+    reduced = reduce_table(path, peers or ())
+    return reduced.names, reduced.values, reduced.report
 
 
 def band(value: float, hit: tuple[float, float],
@@ -79,9 +70,16 @@ def main() -> None:
     parser.add_argument("--climatology", type=Path, default=None,
                         help="the climatology the run was driven from, for the "
                              "forcing-derived lines and cell areas")
+    parser.add_argument("--rootable", type=Path, default=None,
+                        help="BIO-11 rootable-fraction artifact; default the "
+                             "active build and rung")
+    parser.add_argument("--equilibrium-peer", type=Path, action="append", default=[],
+                        help="comparable LPJ run directory with another root seed "
+                             "or patch count; repeat to measure stochastic spread")
     args = parser.parse_args()
 
     run = args.run
+    require_lpj_acceptance(run)
     manifest_path = run / "run_manifest.json"
     manifest = json.loads(manifest_path.read_text()) if manifest_path.is_file() else {}
     config = yaml.safe_load(CONFIG.read_text())
@@ -104,11 +102,17 @@ def main() -> None:
     radius_km = 6371.0 * float(config["planet"]["radius_earth"])
     weight = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, len(lon)))
     cell_km2 = weight / weight.sum() * 4.0 * np.pi * radius_km ** 2
+    rootable, rootable_provenance = read_rootable(
+        config, lat, lon, args.rootable, land=land)
+    effective_area_km2 = cell_km2 * rootable
     lon_signed = np.where(lon > 180.0, lon - 360.0, lon)
 
-    npp_names, npp = read_table(run / "anpp.out")
-    lai_names, lai = read_table(run / "lai.out")
-    fpc_names, fpc = read_table(run / "fpc.out")
+    npp_names, npp, npp_window = read_table(
+        run / "anpp.out", [peer / "anpp.out" for peer in args.equilibrium_peer])
+    lai_names, lai, lai_window = read_table(
+        run / "lai.out", [peer / "lai.out" for peer in args.equilibrium_peer])
+    fpc_names, fpc, fpc_window = read_table(
+        run / "fpc.out", [peer / "fpc.out" for peer in args.equilibrium_peer])
 
     # Map every simulated cell onto the grid so areas can weight it.
     simulated = np.zeros(land.shape, dtype=bool)
@@ -141,15 +145,17 @@ def main() -> None:
             c4_grid[j, i] = sum(row[k] for k in c4_idx)
             boreal_grid[j, i] = sum(row[k] for k in boreal_idx)
 
-    covered = simulated & land
-    n_land = int(land.sum())
+    covered = simulated & land & (rootable > 0.0)
+    rootable_cells = land & (rootable > 0.0)
+    n_land = int(rootable_cells.sum())
     n_done = int(covered.sum())
     if n_done == 0:
         raise SystemExit("no simulated cells matched the climatology grid")
     partial = n_done < n_land
 
-    area = cell_km2[covered]
+    area = effective_area_km2[covered]
     land_area_km2 = float(cell_km2[land].sum())
+    rootable_area_km2 = float(effective_area_km2[land].sum())
 
     def wmean(field: np.ndarray) -> float:
         return float(np.average(field[covered], weights=area))
@@ -159,7 +165,7 @@ def main() -> None:
 
     # gC/m2 per Earth year, from kgC/m2 per simulation year.
     land_mean_npp = wmean(npp_grid) * 1000.0 * to_earth
-    total_npp_pgc = land_mean_npp * land_area_km2 * 1e6 / 1e15
+    total_npp_pgc = land_mean_npp * rootable_area_km2 * 1e6 / 1e15
     earth_land_mean = sum(EARTH_LAND_MEAN_NPP) / 2.0
     earth_total = sum(EARTH_TOTAL_NPP_PGC) / 2.0
 
@@ -169,6 +175,11 @@ def main() -> None:
     temp_limit = 3000 / (1 + np.exp(1.315 - 0.119 * temperature))
     prec_limit = 3000 * (1 - np.exp(-0.000664 * precip))
     water_limited = wfrac(prec_limit < temp_limit)
+    nonrootable_area = float((cell_km2 * (1.0 - rootable))[land].sum())
+    low_lai_rootable_area = float(
+        effective_area_km2[covered & (lai_grid < 0.5)].sum())
+    effective_barren_land_fraction = (
+        (nonrootable_area + low_lai_rootable_area) / land_area_km2)
 
     results = [
         ("1  land-mean NPP relative to Earth",
@@ -182,7 +193,7 @@ def main() -> None:
         ("5  tree cover, land fraction with tree FPC > 0.1",
          wfrac(tree_grid > PRESENCE_FPC), (0.40, 0.70), (0.25, 0.80), ""),
         ("6  effectively barren land, LAI < 0.5",
-         wfrac(lai_grid < 0.5), (0.08, 0.25), (0.0, 0.40), ""),
+         effective_barren_land_fraction, (0.08, 0.25), (0.0, 0.40), ""),
         ("7  water-limited land (from the forcing, not the run)",
          water_limited, (0.50, 0.70), (0.35, 1.0), ""),
         ("8  grass cover exceeds tree cover",
@@ -195,10 +206,16 @@ def main() -> None:
     ]
 
     print(f"run              {run.name}")
-    print(f"cells scored     {n_done} of {n_land} land cells"
+    print(f"cells scored     {n_done} of {n_land} rootable land cells"
           + ("   PARTIAL RUN, treat every line as indicative" if partial else ""))
     print(f"simulation year  {to_earth:.4f} Earth years")
     print(f"land area        {land_area_km2 / 1e6:.1f}e6 km2\n")
+    print(f"rootable area    {rootable_area_km2 / 1e6:.1f}e6 km2\n")
+    print("equilibrium      "
+          f"{fpc_window['window']['complete_forcing_cycles']} complete forcing "
+          f"cycles; seed uncertainty "
+          f"{fpc_window['uncertainty']['seed']['status']}; patch uncertainty "
+          f"{fpc_window['uncertainty']['patch_count']['status']}\n")
     scored = []
     for name, value, hit, miss, unit in results:
         verdict = band(value, hit, miss)
@@ -219,6 +236,16 @@ def main() -> None:
         "partial": partial,
         "annual_flux_per_orbit_to_per_earth_year": to_earth,
         "land_area_km2": land_area_km2,
+        "rootable_area_km2": rootable_area_km2,
+        "rootable_surface": rootable_provenance,
+        "equilibrium_windows": {
+            "anpp": npp_window, "lai": lai_window, "fpc": fpc_window},
+        "prediction_area_basis": (
+            "intensive vegetation quantities are weighted and normalised by "
+            "BIO-11 rootable area; extensive totals multiply by that area. "
+            "The effectively-barren diagnostic additionally counts the "
+            "non-rootable share against total model land."),
+        "nonrootable_area_km2": nonrootable_area,
         "land_mean_npp_gc_m2_earth_year": land_mean_npp,
         "total_npp_pgc_earth_year": total_npp_pgc,
         "earth_reference": {

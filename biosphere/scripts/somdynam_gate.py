@@ -61,12 +61,11 @@ the three divergences are inert in the flows and the third moves one pool's C:P,
 so a run on the declared phosphorus path is a correct run of a declared model
 boundary.
 
-NOTHING HERE IS VERIFIED BY EXECUTION, and that is stated in both arms rather
-than left to be inferred. LPJ-GUESS does not build on this tree, so every
-statement this module makes is against the source and the declaration, and no
-divergence from the fork has been run in either direction. The declaration names
-the comparison arm, which needs two runs because two entries are live only under
-the configuration `framework/parameters.cpp` refuses.
+NOTHING IN THE DIVERGENCE REGISTER IS VERIFIED BY A CONTROLLED EXECUTION, and
+that is stated in both arms rather than left to be inferred. LPJ-GUESS now
+builds and the ifplim-0 Vesper arm has run, but no matched arm has restored the
+fork forms, and two entries are live only under the configuration
+`framework/parameters.cpp` refuses. The declaration names that comparison arm.
 """
 
 from __future__ import annotations
@@ -223,8 +222,8 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
             "measured against nothing else")
     if register.get("execution_verified") is not False:
         bad("mainline_divergences",
-            "execution_verified is not false, and LPJ-GUESS does not build on "
-            "this tree, so no divergence has been run in either direction")
+            "execution_verified is not false, but no matched fork-form arm has "
+            "run, so no divergence is verified in both directions")
 
     seen = set()
     for entry in register.get("entries", []):
@@ -563,8 +562,8 @@ def main() -> int:
         print(f"  {len(kept)} kept and {len(gated)} gated. The reference point is a")
         print("  SUBTREE COMMIT and not a release: LPJ-GUESS 4.1.1 has no phosphorus,")
         print(f"  so there is nothing else to measure these against.\n    {register.get('reference')}")
-        print("  NONE IS EXECUTION-VERIFIED: LPJ-GUESS does not build on this tree, so")
-        print("  no divergence has been run in either direction, and two of these are")
+        print("  NONE IS VERIFIED BY A MATCHED FORK-FORM ARM. LPJ-GUESS now builds,")
+        print("  but no divergence has been run in both directions, and two of these are")
         print("  live only under the ifplim 1 that parameters.cpp refuses.")
         for item in divergences:
             print(f"    [{item['verdict']}] {item['id']}  bites under "

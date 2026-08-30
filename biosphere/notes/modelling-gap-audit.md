@@ -85,10 +85,11 @@ water and GLOBFIRM fire.  This is BIO-13.
 
 ## 4. Process success is not a scientific acceptance gate
 
-`run_lpj_guess.py` treats a zero MPI return code as success.  During merging it
-uses whichever rank pieces exist, skips an output entirely if no piece exists,
-and records row counts without checking them against expected ranks, cells and
-years.  Downstream tools can therefore consume a spatially incomplete run.
+The former harness treated a zero MPI return code as success. During merging it
+used whichever rank pieces existed, skipped an output entirely if no piece
+existed, and recorded row counts without checking them against expected ranks,
+cells and years. Downstream tools could therefore consume a spatially
+incomplete run.
 
 The retained output list also omits the stock `tot_runoff`, `nmass`, `npool` and
 `nflux` products.  Existing C outputs are sufficient to start a carbon check,
@@ -96,10 +97,12 @@ but the current artifact cannot close even the baseline nitrogen and water
 budgets.  BIO-10 adds phosphorus diagnostics later; it needs a general
 acceptance mechanism underneath it rather than a P-only exception.
 
-The run harness must write a machine-readable pass/fail assessment covering
-exact output/rank/cell/year coverage, finite and physically valid values,
-end-window stability, and C, N and water residuals.  No albedo, soil or scoring
-step should accept an unassessed or failed run.  This is BIO-14.
+Delivered under BIO-14: `run_lpj_guess.py` retains the stock runoff and N
+diagnostics and invokes `assess_lpj_run.py`, which writes a machine-readable
+PASS or FAIL covering exact output/rank/cell/year coverage, finite and
+physically valid values, BIO-12 end-window stability, and C, N and water
+residuals. The albedo, soil and scoring readers require that artifact and verify
+its manifest and table hashes before reduction.
 
 ## 5. The declared soil-biosphere convergence criteria have no assessor
 
@@ -197,10 +200,13 @@ manual practice has rebuilt the soil from the baseline.  `check_consistency.py`
 checks the soil report's terrain hash but not its climatology hash against the
 climatology selected for LPJ.
 
-The bootstrap soil and the iterative baseline soil need distinguishable graph
-states, or an equivalent mode-bearing artifact contract.  Consistency checking
-must reject a soil map whose recorded climatology does not match the LPJ driver's
-climatology.  This is BIO-19.
+Delivered under BIO-19: `build_soil.py` requires both an explicit climate state
+and a non-negative biosphere iteration. Bootstrap/0 makes the baseline surface
+input; baseline/0 makes the first LPJ soil without biosphere carbon; positive
+baseline iterations require carbon from an accepted run. The soil report
+records both axes plus soil and climate hashes, and `run_lpj_guess.py` accepts
+only a baseline-state soil whose soil-map hash is current and whose climate hash
+is exactly the single climatology carried by the LPJ driver.
 
 ## 10. The project adapter has no cheap regression boundary
 

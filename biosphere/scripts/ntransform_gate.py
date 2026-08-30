@@ -73,12 +73,11 @@ run on the Earth-calibrated operator, declared as such, is a correct run of a
 declared model boundary, so the default arm reports and exits 0. `--strict` is
 the arm that refuses.
 
-NOTHING HERE IS VERIFIED BY EXECUTION, and that is stated in both arms rather
-than left to be inferred. LPJ-GUESS does not build on this tree, so every
-statement this module makes is against the source and the declaration, and no
-divergence from mainline has been run in either direction. The declaration names
-the comparison arm that would bound what they are worth; it cannot be run here
-and its absence is not a finding.
+The eleven declared divergences are also held to a matched execution report:
+one active Vesper arm and one exact stock-LPJ-GUESS-4.1.1 ntransform arm, with
+the same source everywhere else and identical inputs. This bounds their combined
+effect. It does not attribute the effect to individual edits or settle which
+Earth calibration belongs on Vesper.
 """
 
 from __future__ import annotations
@@ -246,13 +245,61 @@ def _check_divergences(declaration: dict, source_text: str, code_only: str,
     def bad(what: str, detail: str) -> None:
         findings.append({"kind": "divergence", "what": what, "detail": detail})
 
-    for field in ("release", "why_not_verified", "comparison_arm"):
+    for field in ("release", "comparison_arm"):
         if not register.get(field):
             bad("mainline_divergences", f"the register carries no {field}")
-    if register.get("execution_verified") is not False:
+    verified = register.get("execution_verified")
+    if verified not in (True, False):
+        bad("mainline_divergences", "execution_verified is not a boolean")
+    elif verified:
+        evidence = register.get("execution_evidence") or {}
+        for field in ("report", "vesper_run", "stock_run",
+                      "window_complete_forcing_cycles", "cells"):
+            if not evidence.get(field):
+                bad("mainline_divergences",
+                    f"execution evidence carries no {field}")
+        report_path = PROJECT_ROOT / evidence.get("report", "")
+        if not report_path.is_file():
+            bad("mainline_divergences",
+                f"execution report {report_path} is missing")
+        else:
+            try:
+                report = json.loads(report_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                bad("mainline_divergences",
+                    f"execution report is not JSON: {exc}")
+            else:
+                expected = {
+                    "contract_version": "vesper-ntransform-comparison/1",
+                    "vesper_run": evidence.get("vesper_run"),
+                    "stock_run": evidence.get("stock_run"),
+                    "window_complete_forcing_cycles":
+                        evidence.get("window_complete_forcing_cycles"),
+                }
+                for field, value in expected.items():
+                    if report.get(field) != value:
+                        bad("mainline_divergences",
+                            f"execution report {field} does not match evidence")
+                required = {
+                    "gross_nitrification", "net_nitrification",
+                    "gross_denitrification", "net_denitrification",
+                    "soil_nh3", "soil_no", "soil_n2o", "soil_n2",
+                    "plant_mineral_n_uptake",
+                }
+                quantities = report.get("quantities", {})
+                if set(quantities) != required:
+                    bad("mainline_divergences",
+                        "execution report does not contain the required quantities")
+                elif any(item.get("cells") != evidence.get("cells")
+                         for item in quantities.values()):
+                    bad("mainline_divergences",
+                        "execution report cell count does not match evidence")
+        if not register.get("execution_interpretation"):
+            bad("mainline_divergences",
+                "verified execution carries no interpretation")
+    elif not register.get("why_not_verified"):
         bad("mainline_divergences",
-            "execution_verified is not false, and LPJ-GUESS does not build on "
-            "this tree, so no divergence has been run in either direction")
+            "unverified execution carries no why_not_verified")
 
     seen = set()
     for entry in register.get("entries", []):
@@ -632,9 +679,9 @@ def _fixtures(declaration: dict, source_text: str, instruction_text: str
          mutate(divergence_claim("nitrification_gas_share", "record",
                                  "! no such recorded line")),
          "divergence"),
-        ("a register that claims a divergence has been run",
-         mutate(lambda d: d["mainline_divergences"].__setitem__(
-             "execution_verified", True)),
+        ("a verified register whose execution report is missing",
+         mutate(lambda d: d["mainline_divergences"]["execution_evidence"].__setitem__(
+             "report", "biosphere/analysis/no-such-report.json")),
          "divergence"),
         ("a constant declared to agree with a bracket that excludes it",
          mutate(calibration_claim("instruction:f_nitri_gas_max", "bracket", [0.5, 0.9])),
@@ -750,10 +797,13 @@ def main() -> int:
             kept = [d for d in divergences if d["verdict"] == "keep"]
             print(f"\n  {len(divergences)} declared divergence(s) from "
                   f"{register.get('release', 'mainline')},")
-            print(f"  {len(kept)} kept and {len(gated)} gated. NONE IS "
-                  "EXECUTION-VERIFIED:")
-            print("  LPJ-GUESS does not build on this tree, so no divergence has been")
-            print("  run in either direction. The declaration names the comparison arm.")
+            print(f"  {len(kept)} kept and {len(gated)} gated. Combined execution "
+                  f"verified: {bool(register.get('execution_verified'))}")
+            if register.get("execution_verified"):
+                evidence = register.get("execution_evidence", {})
+                print(f"  matched report: {evidence.get('report')}")
+            else:
+                print(f"  why not verified: {register.get('why_not_verified')}")
             for item in divergences:
                 print(f"    [{item['verdict']}] {item['id']} ({item['where']})  "
                       f"[{item['owner']}]")

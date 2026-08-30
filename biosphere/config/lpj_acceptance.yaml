@@ -1,0 +1,89 @@
+# BIO-14. A process exit is not an accepted biosphere run.
+contract_version: vesper-lpj-acceptance/1
+
+required_outputs:
+  - anpp.out
+  - lai.out
+  - fpc.out
+  - cmass.out
+  - aaet.out
+  - cpool.out
+  - dens.out
+  - agpp.out
+  - nsources.out
+  - cflux.out
+  - firert.out
+  - tot_runoff.out
+  - nmass.out
+  - npool.out
+  - nflux.out
+  - ngases.out
+  - soil_npool.out
+  - soil_nflux.out
+
+# Tables whose values are physical stocks, non-negative flux magnitudes or
+# bounded fractions. Signed net-flux tables are deliberately absent.
+nonnegative_outputs:
+  - lai.out
+  - fpc.out
+  - cmass.out
+  - aaet.out
+  - cpool.out
+  - dens.out
+  - agpp.out
+  - tot_runoff.out
+  - nmass.out
+  - npool.out
+  - ngases.out
+  - soil_npool.out
+negative_roundoff_tolerance: 1.0e-9
+fraction_outputs:
+  # fpc.out is deliberately absent: its columns and Total are additive sums of
+  # overlapping cohort/PFT projective covers (`commonoutput.cpp` accumulates
+  # `indiv.fpc`), so the table is non-negative but is not an area partition and
+  # may exceed one.
+  firert.out:
+    BurntFr: [0.0, 1.001]
+
+# BIO-12 owns the reducer and thresholds. These tables must each pass it; flux
+# components near zero are excluded because a relative trend of a signed
+# residual is not a stability statistic.
+stability_outputs:
+  - anpp.out
+  - lai.out
+  - fpc.out
+  - cpool.out
+  - npool.out
+  - aaet.out
+  - tot_runoff.out
+
+closure:
+  window_complete_forcing_cycles: 10
+  carbon:
+    pool_output: cpool.out
+    pool_field: Total
+    flux_output: cflux.out
+    flux_field: NEE
+    absolute_floor_kg_c_m2: 0.01
+    relative_throughput_limit: 0.001
+  nitrogen:
+    pool_output: npool.out
+    pool_field: Total
+    flux_output: nflux.out
+    flux_field: NEE
+    pool_to_flux_units: 10000.0
+    absolute_floor_kg_n_ha: 2.0
+    relative_throughput_limit: 0.001
+  water:
+    precipitation_source: manifest-pinned VESPDRV8
+    aet_output: aaet.out
+    aet_field: Total
+    runoff_output: tot_runoff.out
+    runoff_field: Total
+    absolute_floor_mm: 2.0
+    relative_throughput_limit: 0.005
+    interpretation: >-
+      Over ten complete forcing cycles, precipitation minus AET and runoff is
+      the implied change in soil, snow and canopy stores. Those stores are not
+      retained as annual endpoints, so this is an equilibrium-window closure,
+      not a claim of bitwise daily hydrology closure.

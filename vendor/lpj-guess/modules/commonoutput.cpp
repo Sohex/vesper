@@ -412,6 +412,10 @@ void CommonOutput::define_output_tables() {
 	soil_nflux_columns += ColumnDescriptor("NO",   12, 6);
 	soil_nflux_columns += ColumnDescriptor("N2O",  12, 6);
 	soil_nflux_columns += ColumnDescriptor("N2",   12, 6);
+	soil_nflux_columns += ColumnDescriptor("GROSS_NITRIF",  14, 6);
+	soil_nflux_columns += ColumnDescriptor("NET_NITRIF",    14, 6);
+	soil_nflux_columns += ColumnDescriptor("GROSS_DENITRIF", 16, 6);
+	soil_nflux_columns += ColumnDescriptor("NET_DENITRIF",   16, 6);
 
 	// PMASS
 	ColumnDescriptors pmass_columns = nmass_columns;
@@ -1997,10 +2001,10 @@ void CommonOutput::outannual(Gridcell& gridcell) {
 	outlimit(out,out_soil_nflux, N2O_mass_inc * M2_PER_HA);
 	outlimit(out,out_soil_nflux, N2_mass_inc * M2_PER_HA);
 	// Nitrification/denitrification fluxes
-	//outlimit(out,out_soil_nflux, gross_nitrif * M2_PER_HA);
-	//outlimit(out,out_soil_nflux, net_nitrif * M2_PER_HA);
-	//outlimit(out,out_soil_nflux, gross_denitrif * M2_PER_HA);
-	//outlimit(out,out_soil_nflux, net_denitrif * M2_PER_HA);
+	outlimit(out,out_soil_nflux, gross_nitrif * M2_PER_HA);
+	outlimit(out,out_soil_nflux, net_nitrif * M2_PER_HA);
+	outlimit(out,out_soil_nflux, gross_denitrif * M2_PER_HA);
+	outlimit(out,out_soil_nflux, net_denitrif * M2_PER_HA);
 		
 	// Ackumulated nitrogen in pools		
 	outlimit(out,out_soil_npool, NH4_mass * M2_PER_HA);

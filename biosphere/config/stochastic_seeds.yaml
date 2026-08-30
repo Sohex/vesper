@@ -1,0 +1,23 @@
+# One root of every stochastic decision made by the Vesper LPJ-GUESS arm.
+#
+# The numeric process ids are an ABI: Python fixtures and the vendored C++
+# implementation both hash them.  Add a new process; never renumber one.
+contract_version: vesper-stochastic-streams/1
+algorithm: fnv1a64-components-le-v1
+root_seed: 20260828
+coordinate_quantization_microdegrees: 1
+park_miller_state_range: [1, 2147483646]
+keys:
+  - root_seed
+  - longitude_microdegrees
+  - latitude_microdegrees
+  - stand_id
+  - patch_id
+  - process_id
+processes:
+  establishment: 1
+  fire_occurrence: 2
+  fire_mortality: 3
+  background_mortality: 4
+  disturbance: 5
+

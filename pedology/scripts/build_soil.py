@@ -17,8 +17,9 @@ Nothing here is specific to Vesper. Every Earth calibration lives in
 World Orogen export and an ExoPlaSim climatology, none of which are
 world-specific in structure. Porting to another planet is a config change.
 
-    python pedology/scripts/build_soil.py
-    python pedology/scripts/build_soil.py --soil-carbon <lpj cpool.out>
+    python pedology/scripts/build_soil.py --state bootstrap --iteration 0
+    python pedology/scripts/build_soil.py --state baseline --iteration 0
+    python pedology/scripts/build_soil.py --state baseline --iteration 1 --soil-carbon <lpj cpool.out>
 
 The second form closes the loop: on iteration 0 there is no biosphere and soil
 carbon is whatever `organic.initial_soil_carbon_kg_m2` declares, and on every
@@ -39,7 +40,7 @@ import numpy as np
 import yaml
 
 from _paths import (ANALYSIS, CONFIG, COMPONENT_ROOT, DATA, PEDOGENESIS,
-                    PROJECT_ROOT, best_available_climatology)
+                    PROJECT_ROOT, climatology_path_for_state)
 
 import climatology as climatology_lib  # noqa: E402  from lib/, via _paths.
 # Aliased because `climatology` is a local Path in main(); see build_surface_classes.py.
@@ -49,6 +50,8 @@ from paths import rel  # noqa: E402
 import orbit
 from gridding import land_fraction_of_class
 from orogen import Export, LAND
+from rootable import read_rootable
+from lpj_output import reduce_table, require_lpj_acceptance
 
 import carbonate_ph
 
@@ -458,12 +461,15 @@ def organic_properties(soil_carbon_kg_m2: np.ndarray, params: dict
     return fraction, bulk
 
 
-def read_soil_carbon(path: Path, lon: np.ndarray, lat: np.ndarray) -> np.ndarray:
-    """Read LPJ-GUESS soil carbon (cpool.out) onto the grid, last year per cell."""
-    lines = path.read_text().splitlines()
-    header = lines[0].split()
+def read_soil_carbon(path: Path, lon: np.ndarray, lat: np.ndarray,
+                     peers: list[Path] | None = None):
+    """Read BIO-12's accepted equilibrium soil-carbon mean onto the grid."""
+    require_lpj_acceptance(path)
+    for peer in peers or ():
+        require_lpj_acceptance(peer)
+    reduced = reduce_table(path, peers or ())
     try:
-        column = header.index("SoilC")
+        column = reduced.names.index("SoilC")
     except ValueError:
         raise SystemExit(f"{path} has no SoilC column; is it a cpool.out?")
     # LPJ-GUESS prints coordinates at two decimals in its output files, which is
@@ -472,16 +478,6 @@ def read_soil_carbon(path: Path, lon: np.ndarray, lat: np.ndarray) -> np.ndarray
     # precision, which would never agree.
     output_decimals = 2
 
-    latest: dict[tuple[float, float], tuple[int, float]] = {}
-    for line in lines[1:]:
-        parts = line.split()
-        if len(parts) <= column:
-            continue
-        key = (round(float(parts[0]), output_decimals),
-               round(float(parts[1]), output_decimals))
-        year = int(float(parts[2]))
-        if key not in latest or year > latest[key][0]:
-            latest[key] = (year, float(parts[column]))
     grid = np.zeros((len(lat), len(lon)))
     lon_signed = np.where(lon > 180.0, lon - 360.0, lon)
     hits = 0
@@ -489,14 +485,14 @@ def read_soil_carbon(path: Path, lon: np.ndarray, lat: np.ndarray) -> np.ndarray
         for i, cell_lon in enumerate(lon_signed):
             key = (round(float(cell_lon), output_decimals),
                    round(float(cell_lat), output_decimals))
-            if key in latest:
-                grid[j, i] = latest[key][1]
+            if key in reduced.values:
+                grid[j, i] = reduced.values[key][column]
                 hits += 1
     if hits == 0:
         raise SystemExit(
             f"{path} shares no coordinates with the grid; are they the same run?")
     print(f"soil carbon: matched {hits} cells from {path.name}")
-    return grid
+    return grid, reduced.report
 
 
 def main() -> None:
@@ -505,9 +501,19 @@ def main() -> None:
     parser.add_argument("--soil-carbon", type=Path, default=None,
                         help="LPJ-GUESS cpool.out from the previous iteration. "
                              "Omit for iteration 0, which has no biosphere.")
+    parser.add_argument("--soil-carbon-peer", type=Path, action="append", default=[],
+                        help="comparable cpool.out with another root seed or "
+                             "patch count; repeat to measure uncertainty")
+    parser.add_argument("--rootable", type=Path, default=None,
+                        help="BIO-11 rootable-fraction artifact; default the "
+                             "active build and rung")
     parser.add_argument("--output", type=Path, default=None)
-    parser.add_argument("--iteration", type=int, default=None,
-                        help="loop iteration number, for the provenance record")
+    parser.add_argument("--state", choices=("bootstrap", "baseline"),
+                        required=True,
+                        help="climate state used to weather the soil")
+    parser.add_argument("--iteration", type=int, required=True,
+                        help="biosphere iteration within the chosen climate "
+                             "state; positive iterations require --soil-carbon")
     args = parser.parse_args()
 
     config = yaml.safe_load(CONFIG.read_text())
@@ -516,17 +522,22 @@ def main() -> None:
     # paths from the file location rather than the cwd, so a `--climatology`
     # given relative to wherever the caller stood has to be made absolute before
     # anything opens it.
-    # THE BEST AVAILABLE, which is the baseline once one is named and the
-    # bootstrap before that. Soil texture and regolith depth are weathering
-    # products of temperature and runoff, so they are functions of the climate
-    # STATE and the bootstrap is only the best answer on the pass where it is
-    # the only one. This step already took its vegetation from `lpj_run`, which
-    # reaches the baseline through `lpj_driver`, so pinning the runoff to a
-    # terrain-only climate that carries no lakes on any iteration built one soil
-    # map out of two stages of one world. The `needs: bootstrap_climatology`
-    # edge in config/pipeline.yaml is unchanged and says something else: the
-    # bootstrap is what must EXIST for this step to run at all.
-    climatology, clim_stage = best_available_climatology(args.climatology)
+    if args.iteration < 0:
+        raise SystemExit("--iteration must be non-negative")
+    if args.state == "bootstrap" and args.iteration != 0:
+        raise SystemExit("bootstrap soil has only iteration 0")
+    if args.iteration == 0 and args.soil_carbon is not None:
+        raise SystemExit("iteration 0 has no biosphere; omit --soil-carbon")
+    if args.iteration > 0 and args.soil_carbon is None:
+        raise SystemExit("positive iterations require --soil-carbon from an accepted run")
+
+    # BIO-19: the mode chooses the climate, rather than filesystem timing doing
+    # it through a best-available fallback. Rebuilding iteration 0 after a
+    # baseline exists must still reproduce the bootstrap soil; iterations that
+    # close loop B must use the named baseline.
+    clim_stage = args.state
+    expected_climatology = climatology_path_for_state(args.state)
+    climatology = args.climatology or expected_climatology
     climatology = climatology.resolve()
     if not climatology.is_file():
         # A named baseline that is missing RAISES rather than quietly dropping
@@ -539,6 +550,13 @@ def main() -> None:
     # lithology, and they have to be the same world.
     from provenance import require_build
     require_build(climatology, "climatology", config)
+    if args.climatology is not None:
+        expected_climatology = expected_climatology.resolve()
+        if hashlib.sha256(climatology.read_bytes()).hexdigest() != hashlib.sha256(
+                expected_climatology.read_bytes()).hexdigest():
+            raise SystemExit(
+                f"iteration {args.iteration} requires the named {clim_stage} "
+                f"climatology {expected_climatology}, not {climatology}")
 
     with nc.Dataset(climatology) as data:
         lat = np.asarray(data["lat"][:], dtype=float)
@@ -574,6 +592,9 @@ def main() -> None:
         # bin can straddle freezing even where the bin mean never does.
         bin_min = np.asarray(data["mint"][:], dtype=float) - KELVIN
         bin_max = np.asarray(data["maxt"][:], dtype=float) - KELVIN
+
+    rootable, rootable_provenance = read_rootable(
+        config, lat, lon, args.rootable, land=land)
 
     fractions, mesh, grid_dir = lithology_fractions(config)
 
@@ -692,11 +713,17 @@ def main() -> None:
     # and on a precipitation threshold rather than on rock type.
     andisol = andisol_properties(fractions, intensity, precip, pedo["andisol"])
 
+    soil_carbon_window = None
     if args.soil_carbon:
-        carbon = read_soil_carbon(args.soil_carbon, lon, lat)
+        carbon, soil_carbon_window = read_soil_carbon(
+            args.soil_carbon, lon, lat, args.soil_carbon_peer)
     else:
         carbon = np.full(temperature.shape,
                          float(pedo["organic"]["initial_soil_carbon_kg_m2"]))
+    # LPJ reports an intensive stock per square metre of the environment it
+    # simulated. BIO-11's fraction turns that into the climate-cell mean that
+    # feeds pedology; water, salt crust and playa carry zero biological carbon.
+    carbon = carbon * rootable
     organic_fraction, bulk_density = organic_properties(carbon, pedo["organic"])
 
     # Andic material is far less dense than its texture and organic content
@@ -821,6 +848,7 @@ def main() -> None:
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "iteration": args.iteration,
+        "soil_state": args.state,
         "closes_loop_with": (str(args.soil_carbon) if args.soil_carbon
                              else "nothing; iteration 0 has no biosphere"),
         "climatology": rel(climatology),
@@ -831,7 +859,14 @@ def main() -> None:
         "config_sha256": hashlib.sha256(CONFIG.read_bytes()).hexdigest(),
         "pedogenesis_sha256": hashlib.sha256(PEDOGENESIS.read_bytes()).hexdigest(),
         "source_build": config.get("source_build"),
+        "soilmap": rel(output),
+        "soilmap_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
         "terrain_hash": mesh.terrain_hash,
+        "rootable_surface": rootable_provenance,
+        "soil_carbon_equilibrium_window": soil_carbon_window,
+        "soil_carbon_area_basis": (
+            "LPJ kgC m-2 of rootable ground multiplied by BIO-11 f_rootable; "
+            "the feedback is a climate-cell mean and non-rootable ground is zero"),
         "orbital_year_earth_days": orbit.orbital_year_days(config),
         "land_cells": int(len(rows)),
         "moisture_variable": selector,

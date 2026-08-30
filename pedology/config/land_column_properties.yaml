@@ -637,10 +637,10 @@ thermal:
       declared constant from quietly describing the previous build's soil while
       the check is the only thing that knows. It also prints every other place
       the pair is restated and which of them the rebuild has left stale.
-    sr_at_wilting_point: 0.3636
-    sr_at_field_capacity: 0.7543
-    sr_at_wilting_point_p5_p95: [0.2537, 0.4915]
-    sr_at_field_capacity_p5_p95: [0.6452, 0.8564]
+    sr_at_wilting_point: 0.3748
+    sr_at_field_capacity: 0.7609
+    sr_at_wilting_point_p5_p95: [0.2514, 0.5092]
+    sr_at_field_capacity_p5_p95: [0.6416, 0.8583]
     tolerance: 0.002
     what_this_bounds: >
       THE LAYERS THIS MAPPING DESCRIBES CANNOT REACH A DRY SOIL, and that is the

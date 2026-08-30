@@ -68,6 +68,7 @@ import builds
 import orbit
 from gridding import land_fraction_of_class
 from orogen import Export
+from rootable import read_rootable
 
 # V2 regolith depth, V3 bedrock water, V4 multiple years, V5 nitrogen deposition
 # read per Earth year rather than per orbit, V6 the fourth climate array named
@@ -483,6 +484,9 @@ def main() -> None:
                              "per-cell states. Without them every cell falls "
                              "back to its LPJ soil code, which carries its own "
                              "tabulated capacities.")
+    parser.add_argument("--rootable", type=Path, default=None,
+                        help="BIO-11 rootable-fraction artifact; default the "
+                             "active build and rung")
     parser.add_argument("--ndep", type=float, default=0.5,
                         help="nitrogen deposition, kgN/ha per EARTH YEAR. "
                              "Absolute time, not per orbit: deposition is an "
@@ -526,7 +530,7 @@ def main() -> None:
     # This world's rotation, for the local solar phase of each interval. The
     # phase is not a property of the interval bounds alone: it needs the
     # rotation, and the rotation is not the absolute day.
-    rotation_hours = float(config["orbit"]["rotation_hours"])
+    rotation_hours = float(config["planet"]["rotation_hours"])
 
     # Each climatology contributes one year, stacked as [year][interval][lat][lon].
     tas_y, pr_y, rss_y, tsrange_y = [], [], [], []
@@ -598,7 +602,10 @@ def main() -> None:
             integrate_onto_days(field, np.asarray(spans_y[year]), year_length)
 
     land = lsm > 0.5
-    codes, soil_summary = soil_codes(config, land)
+    rootable, rootable_provenance = read_rootable(
+        config, lat, lon, args.rootable, land=land)
+    simulated_land = land & (rootable > 0.0)
+    codes, soil_summary = soil_codes(config, simulated_land)
 
     # ExoPlaSim's longitudes run 0..360; LPJ-GUESS expects -180..180.
     #
@@ -610,7 +617,8 @@ def main() -> None:
     lon_signed = np.round(np.where(lon > 180.0, lon - 360.0, lon), COORD_DECIMALS)
     lat = np.round(lat, COORD_DECIMALS)
 
-    provenance = f"{config.get('source_build')}|{climatology.parent.name}".encode()
+    provenance = (f"{config.get('source_build')}|{climatology.parent.name}|"
+                  f"root:{rootable_provenance['sha256'][:12]}").encode()
     provenance = provenance[:PROVENANCE_BYTES].ljust(PROVENANCE_BYTES, b"\0")
 
     output = args.output or (GENERATED / "vesper_driver.bin")
@@ -674,7 +682,7 @@ def main() -> None:
         print("no land column states found; every cell falls back to its LPJ "
               "soil code")
 
-    rows = np.argwhere(land)
+    rows = np.argwhere(simulated_land)
     missing_states = 0
     with output.open("wb") as handle:
         handle.write(MAGIC)
@@ -716,7 +724,8 @@ def main() -> None:
             handle.write(tsrange[:, :, j, i].astype("<f8").tobytes())
 
     weights = area_weights(lat, len(lon))
-    lw = weights[land]
+    effective_weights = weights * rootable
+    lw = effective_weights[simulated_land]
 
     def interval_mean(field: np.ndarray) -> np.ndarray:
         """Mean over years and intervals, weighting each interval by its length.
@@ -775,7 +784,12 @@ def main() -> None:
             "interp_monthly_means_conserve manufactured between bin centres is "
             "gone, and it had no source: the producer states an interval mean "
             "and says nothing about the shape inside the interval."),
-        "land_cells": int(len(rows)),
+        "land_cells": int(land.sum()),
+        "simulated_rootable_cells": int(len(rows)),
+        "fully_nonrootable_land_cells_omitted": int(np.sum(land & ~simulated_land)),
+        "rootable_surface": rootable_provenance,
+        "rootable_area_fraction_of_model_land": float(
+            effective_weights[land].sum() / weights[land].sum()),
         "land_column_states_source": (project_relative(Path(states_path))
                                       if states_path
                                       else "none, LPJ soil codes assumed"),
@@ -807,15 +821,18 @@ def main() -> None:
             "which this format has no array for. "
             "biosphere/notes/ecological-forcing-field-contract.md"),
         "land_definition": "lsm from the climatology, itself built from surface_class",
+        "simulation_population": (
+            "model land with BIO-11 f_rootable > 0; LPJ outputs remain intensive "
+            "over rootable ground and every extensive consumer applies the same fraction"),
         # Month-weighted, because the months are NOT equal: a plain mean over the
         # twelve would over-weight the eleven short ones.
         "land_mean_temperature_c": float(
-            np.average(interval_mean(tas)[land], weights=lw)),
+            np.average(interval_mean(tas)[simulated_land], weights=lw)),
         "land_mean_precip_mm_per_earth_year": float(
-            np.average(interval_mean(pr)[land], weights=lw)
+            np.average(interval_mean(pr)[simulated_land], weights=lw)
             * orbit.EARTH_CALENDAR_YEAR_DAYS),
         "land_mean_net_sw_w_m2": float(
-            np.average(interval_mean(rss)[land], weights=lw)),
+            np.average(interval_mean(rss)[simulated_land], weights=lw)),
         "soil": soil_summary,
         "soil_code_mapping": SOIL_CODE_BY_ROCK,
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
@@ -830,7 +847,7 @@ def main() -> None:
     report_path = output.with_name(output.stem + "_provenance.json")
     report_path.write_text(json.dumps(report, indent=2) + "\n")
 
-    print(f"land cells     {len(rows)}")
+    print(f"land cells     {int(land.sum())}; {len(rows)} with rootable area")
     print(f"year length    {year_length} absolute days")
     print(f"intervals      {nintervals} per year, carried with explicit bounds: "
           + ", ".join(f"{s:.2f}" for s in spans_y[0]) + " days")

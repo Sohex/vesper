@@ -364,6 +364,7 @@ def main() -> None:
                 "pfts_source": Path(args.pfts).resolve()}
 
     settings = {"nyear": args.nyear, "npatch": args.npatch,
+                "root_seed": 20260828,
                 "nfix_a": 0.234, "nfix_b": -0.172, "ifbvoc": 0,
                 "outputs": tables, **wetland_gate.switches(active)}
 

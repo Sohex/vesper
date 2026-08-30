@@ -267,6 +267,26 @@ void pmass_add(Soil &soil, double delta) {
 
 }
 
+/// Fraction of a stock surviving one daily removal operator.
+/** The accelerator composes these fractions multiplicatively. Averaging daily
+ *  removal fractions and applying the mean once is not the daily operator.
+ */
+double stock_survival(double before, double after) {
+	if (negligible(before))
+		return 1.0;
+	return min(1.0, max(0.0, after / before));
+}
+
+/// Apply a composed survival fraction to the exchangeable P stock.
+/** Every P mutation goes through pmass_add(), so the labile--sorbed isotherm
+ *  remains true after accelerated uptake and leaching just as on the daily
+ *  path.
+ */
+void pmass_apply_survival(Soil& soil, double survival) {
+	const double exchangeable = soil.pmass_labile + soil.pmass_sorbed;
+	pmass_add(soil, -exchangeable * (1.0 - survival));
+}
+
 
 //void pmass_add(Soil &soil, double delta) {
 //
@@ -1275,6 +1295,17 @@ void somfluxes(Patch& patch, bool ifequilsom, bool tillage) {
 	double leachsum_pmass_lost = leachsum_pmass * 0.0;
 
 
+	// Sample the organic-leaching OPERATOR after the final nutrient-limited
+	// decomposition solve. Its monthly coefficient is leached microbial C over
+	// microbial C decay, not the arithmetic mean of daily hydrologic fractions:
+	// a dry day with no decomposition must not carry the same weight as the day
+	// on which material moved.
+	if (!ifequilsom && date.year >= soil.solvesomcent_beginyr &&
+		date.year <= soil.solvesomcent_endyr) {
+		soil.morgleach_cmass[date.month] += leachsum_cmass;
+		soil.msoilmicro_cdec[date.month] += soil.sompool[SOILMICRO].cdec;
+	}
+
 	// Update pool sizes
 
 	for (int p = 0; p < NSOMPOOL; p++) {
@@ -1832,9 +1863,8 @@ void leaching(Soil& soil) {
 	}
 
 	if (date.year >= soil.solvesomcent_beginyr && date.year <= soil.solvesomcent_endyr) {
-		soil.morgleach_mean[date.month] += soil.orgleachfrac / date.ndaymonth[date.month];
-		soil.mminleach_mean[date.month] += minleachfrac      / date.ndaymonth[date.month];
-		soil.mminpleach_mean[date.month] += minleachfrac / date.ndaymonth[date.month];
+		soil.mminleach_survival[date.month] *= (1.0 - minleachfrac);
+		soil.mminpleach_survival[date.month] *= (1.0 - minleachfrac);
 	}
 }
 
@@ -1966,8 +1996,11 @@ void soilpadd(Patch& patch) {
 	soil.apdep += soil.pmass_labile_input;
 
 	if (date.year >= soil.solvesomcent_beginyr && date.year <= soil.solvesomcent_endyr) {
-		soil.apwtr_mean += soil.apwtr;
-		soil.apdep_mean += soil.apdep;
+		// Sample fluxes, not the year-to-date diagnostic accumulators. Adding
+		// apwtr/apdep here forms a triangular sum and makes the accelerator's
+		// input depend on which day in the year a flux occurred.
+		soil.apwtr_mean += daily_pwtr;
+		soil.apdep_mean += soil.pmass_labile_input;
 	}
 	
 
@@ -2040,7 +2073,8 @@ void vegetation_n_uptake(Patch& patch) {
 	}
 
 	if (date.year >= soil.solvesomcent_beginyr && date.year <= soil.solvesomcent_endyr && !negligible(orignmass)) {
-		soil.fnuptake_mean[date.month] += (1.0 - soil.nmass_avail() / orignmass) / date.ndaymonth[date.month];
+		soil.fnuptake_survival[date.month] *=
+			stock_survival(orignmass, soil.nmass_avail());
 	}
 }
 
@@ -2068,7 +2102,7 @@ void vegetation_p_uptake(Patch& patch) {
 	Vegetation& vegetation = patch.vegetation;
 	Soil& soil = patch.soil;
 
-	const double origpmass = soil.pmass_labile;
+	const double origpmass = soil.pmass_labile + soil.pmass_sorbed;
 	//double ammonium_frac = orignmass ? soil.NH4_mass / orignmass : 0;
 
 	// Loop through individuals
@@ -2101,8 +2135,9 @@ void vegetation_p_uptake(Patch& patch) {
 	}
 
 	if (date.year >= soil.solvesomcent_beginyr && date.year <= soil.solvesomcent_endyr && !negligible(origpmass)) {
-		//soil.fpuptake_mean[date.month] += (1.0 - max(0.0, origpmass - soil.pmass_labile_delta) / origpmass) / date.ndaymonth[date.month];
-		soil.fpuptake_mean[date.month] += (1.0 - soil.pmass_labile / origpmass) / date.ndaymonth[date.month];
+		const double remaining = soil.pmass_labile + soil.pmass_sorbed;
+		soil.fpuptake_survival[date.month] *=
+			stock_survival(origpmass, remaining);
 	}
 }
 
@@ -2146,6 +2181,9 @@ void equilsom(Soil& soil) {
 
 	// Save pmass_labile status
 	double save_pmass_labile = soil.pmass_labile;
+	double save_pmass_sorbed = soil.pmass_sorbed;
+	double save_pmass_strongly_sorbed = soil.pmass_strongly_sorbed;
+	double save_pmass_occluded = soil.pmass_occluded;
 
 	// Number of years with mean input data
 	int nyear = soil.solvesomcent_endyr - soil.solvesomcent_beginyr + 1;
@@ -2157,20 +2195,21 @@ void equilsom(Soil& soil) {
 			soil.sompool[p].mfracremain_mean[m] = pow(soil.sompool[p].mfracremain_mean[m] / nyear, (double)date.ndaymonth[m]);
 		}
 
-		// Monthly average mineral nitrogen uptake
-		soil.fnuptake_mean[m] /= nyear;
+		// One representative month's survival is the geometric mean of the
+		// sampled monthly operators. Daily survival fractions were already
+		// composed while sampling.
+		soil.fnuptake_survival[m] = pow(soil.fnuptake_survival[m], 1.0 / nyear);
 
-		// Monthly average mineral phosphorus uptake
-		soil.fpuptake_mean[m] /= nyear;
+		soil.fpuptake_survival[m] = pow(soil.fpuptake_survival[m], 1.0 / nyear);
 
-		// Monthly average organic carbon and nitrogen leaching
-		soil.morgleach_mean[m] /= nyear;
+		// Decay-weighted organic leaching. This reproduces the mass partition of
+		// the daily SOILMICRO operator and keeps C, N and P on one coefficient.
+		soil.morgleach_mean[m] = negligible(soil.msoilmicro_cdec[m]) ? 0.0 :
+			soil.morgleach_cmass[m] / soil.msoilmicro_cdec[m];
 
-		// Monthly average mineral nitrogen leaching
-		soil.mminleach_mean[m] /= nyear;
+		soil.mminleach_survival[m] = pow(soil.mminleach_survival[m], 1.0 / nyear);
 
-		// Monthly average mineral phosphorus leaching
-		soil.mminpleach_mean[m] /= nyear;
+		soil.mminpleach_survival[m] = pow(soil.mminpleach_survival[m], 1.0 / nyear);
 	}
 
 	// Annual average nitrogen fixation
@@ -2178,6 +2217,7 @@ void equilsom(Soil& soil) {
 
 	// Annual phosphorus weathering
 	soil.apwtr_mean /= nyear;
+	soil.apdep_mean /= nyear;
 
 	// Spin SOM pools with saved litter input, nitrogen addition and fractions of
 	// nitrogen uptake and leaching for EQUILSOM_YEARS years with monthly timesteps
@@ -2212,31 +2252,26 @@ void equilsom(Soil& soil) {
 			}
 
 			// Monthly nitrogen uptake
-			soil.NH4_mass *= (1.0 - soil.fnuptake_mean[m]);
-			soil.NO3_mass *= (1.0 - soil.fnuptake_mean[m]);
+			soil.NH4_mass *= soil.fnuptake_survival[m];
+			soil.NO3_mass *= soil.fnuptake_survival[m];
 
 			// Monthly mineral nitrogen leaching
 			double nmass = soil.nmass_avail(NO3);
-			double nleach = nmass * (1.0 - soil.mminleach_mean[m]);
+			double nleach = nmass * (1.0 - soil.mminleach_survival[m]);
 			soil.nmass_subtract(nleach, NO3);
 
 			// Monthly phosphorus uptake
-			soil.pmass_labile *= (1.0 - soil.fpuptake_mean[m]);
+			pmass_apply_survival(soil, soil.fpuptake_survival[m]);
 
 			// Monthly mineral phosphorus leaching
-			 double pleach = soil.pmass_labile * (1.0 - soil.mminpleach_mean[m]);
-			soil.pmass_labile -= pleach;
-			if (soil.pmass_labile < 0.0) {
-				patch.fluxes.report_flux(Fluxes::P_SOIL, soil.pmass_labile);
-				soil.pmass_labile = 0.0;
-			}
+			pmass_apply_survival(soil, soil.mminpleach_survival[m]);
 
 			// Monthly nitrogen addition to the system
 			soil.nmass_inc((gridcell.aNH4dep + soil.anfix_mean) / 12.0, NH4);
 			soil.nmass_inc(gridcell.aNO3dep / 12.0, NO3);
 
 			// Monthly phosphorus addition to the system
-			soil.pmass_labile += (soil.apwtr_mean + soil.apdep_mean) / 12.0;
+			pmass_add(soil, (soil.apwtr_mean + soil.apdep_mean) / 12.0);
 
 			// Monthly decomposition and fluxes between SOM pools
 
@@ -2260,6 +2295,9 @@ void equilsom(Soil& soil) {
 
 	// Reset pmass_labile status
 	soil.pmass_labile = save_pmass_labile;
+	soil.pmass_sorbed = save_pmass_sorbed;
+	soil.pmass_strongly_sorbed = save_pmass_strongly_sorbed;
+	soil.pmass_occluded = save_pmass_occluded;
 
 	// Reset variables for next equilsom()
 	for (int m = 0; m < 12; m++) {
@@ -2268,10 +2306,14 @@ void equilsom(Soil& soil) {
 			soil.sompool[p].mfracremain_mean[m] = 0.0;
 		}
 
-		soil.fnuptake_mean[m]  = 0.0;
+		soil.fnuptake_survival[m]  = 1.0;
+		soil.fpuptake_survival[m]  = 1.0;
 		soil.morgleach_mean[m] = 0.0;
-		soil.mminleach_mean[m] = 0.0;
-		soil.mminpleach_mean[m] = 0.0;
+		soil.morgleach_cmass[m] = 0.0;
+		soil.msoilmicro_cdec[m] = 0.0;
+		soil.morgPleach_mean[m] = 0.0;
+		soil.mminleach_survival[m] = 1.0;
+		soil.mminpleach_survival[m] = 1.0;
 	}
 
 	soil.anfix_mean = 0.0;
@@ -2368,4 +2410,3 @@ void som_dynamics(Patch& patch, Climate& climate) {
 // Schaefer, K. and Jafarov, E. 2016. 
 //   A parameterization of respiration in frozen soils based on substrate availability
 //   Biogeosciences, 13, 1991 - 2001, https ://doi.org/10.5194/bg-13-1991-2016
-

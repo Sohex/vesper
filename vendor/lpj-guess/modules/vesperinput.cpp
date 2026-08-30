@@ -77,12 +77,15 @@ void read_or_fail(FILE* in, T* target, size_t count, const char* what) {
 } // namespace
 
 VesperInput::VesperInput()
-	: current(0), total_cells(0), nyear(1), co2(0.0), ndep(0.0),
+	: current(0), total_cells(0), nyear(1), root_seed(20260828),
+	  co2(0.0), ndep(0.0),
 	  have_soilmap(false), years(1), nintervals(0), nsubdaily(0),
 	  loaded_year(-1) {
 
 	declare_parameter("nyear", &nyear, 1, 10000,
 		"Number of simulation years to run after spinup");
+	declare_parameter("vesper_root_seed", &root_seed, 1, 2147483646,
+		"Root of stable grid-cell, stand, replicate and process substreams");
 	declare_parameter("file_driver", &file_driver, 300,
 		"Path to the binary driver file built by build_lpj_driver.py");
 	declare_parameter("file_soilmap", &file_soilmap, 300,
@@ -340,6 +343,8 @@ void VesperInput::init() {
 		dprintf("  1 year of climate, repeated: a fixed climate\n");
 	}
 	dprintf("  CO2 %g ppm, N deposition %g kgN/ha/yr\n", co2, ndep);
+	dprintf("  stochastic root %d; substreams keyed by coordinates, stand, "
+	        "patch and process\n", root_seed);
 	dprintf("  built from %s\n\n", (char*)provenance);
 
 	// A soil map from the pedology component supersedes the driver file's soil
@@ -470,6 +475,7 @@ bool VesperInput::getgridcell(Gridcell& gridcell) {
 	        cell.lon, cell.lat, cell.soilcode);
 
 	gridcell.set_coordinates(cell.lon, cell.lat);
+	gridcell.initialize_stochastic_streams(root_seed);
 
 	// Net downward shortwave averaged over the whole timestep, which is what
 	// ExoPlaSim's rss is. With this insolation type driver.cpp applies no albedo

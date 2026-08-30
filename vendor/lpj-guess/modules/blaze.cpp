@@ -509,7 +509,7 @@ bool blaze(Patch& patch, Climate& climate) {
 	double accumulated_fraction_burned= 1.  / (1. - gridcell.annual_burned_area / flammable_area);
 
 	// Check whether it burns
-	if (!( randfrac(patch.stand.seed) <= area_burned || vegmode == POPULATION)) {
+	if (!( randfrac(patch.random_seed(STOCHASTIC_FIRE_OCCURRENCE)) <= area_burned || vegmode == POPULATION)) {
 		return false;
 	}
 	
@@ -639,7 +639,7 @@ bool blaze(Patch& patch, Climate& climate) {
 					int nindiv=(int)(indiv.densindiv*patcharea+0.5);
 					int nindiv_prev=nindiv;
 					for (int i=0;i<nindiv_prev;i++) {
-						if (randfrac(patch.stand.seed) > survival_probability(patch, indiv)) {
+						if (randfrac(patch.random_seed(STOCHASTIC_FIRE_MORTALITY)) > survival_probability(patch, indiv)) {
 							nindiv--;
 						}
 					}

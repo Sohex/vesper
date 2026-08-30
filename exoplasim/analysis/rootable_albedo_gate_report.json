@@ -1,0 +1,46 @@
+{
+  "contract_version": "vesper-rootable-albedo/1",
+  "generated": "2026-08-28T16:29:03+00:00",
+  "checks": [
+    {
+      "name": "ordinary rootable cell",
+      "passed": true,
+      "detail": "albedo 0.200, forest 0.500"
+    },
+    {
+      "name": "barren cell remains barren",
+      "passed": true,
+      "detail": "albedo 0.500, forest 0.000"
+    },
+    {
+      "name": "partial lake contribution preserved",
+      "passed": true,
+      "detail": "albedo 0.140, forest 0.200; water contributes 0.030"
+    },
+    {
+      "name": "persistent lake remains exact water",
+      "passed": true,
+      "detail": "albedo 0.060, forest 0.000"
+    },
+    {
+      "name": "two-band recombination",
+      "passed": true,
+      "detail": "maximum residual 0.000e+00"
+    },
+    {
+      "name": "BIO-11 partition is consumed",
+      "passed": true,
+      "detail": "modelled mode reads rootable, water and barren fractions"
+    },
+    {
+      "name": "forest uses effective tree share",
+      "passed": true,
+      "detail": "code 212 receives f_rootable times conditional tree FPC"
+    }
+  ],
+  "summary": {
+    "passed": 7,
+    "failed": 0
+  },
+  "verdict": "PASS"
+}

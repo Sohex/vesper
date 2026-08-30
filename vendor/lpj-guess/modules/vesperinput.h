@@ -153,6 +153,9 @@ private:
 	/// Number of simulation years to run after spin-up
 	int nyear;
 
+	/// Manifest-recorded root of all stochastic ecological substreams.
+	int root_seed;
+
 	/// Path to the driver file, from the instruction file
 	xtring file_driver;
 

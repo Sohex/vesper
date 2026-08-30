@@ -1,0 +1,14 @@
+# Shared acceptance rule for every downstream LPJ-GUESS output consumer.
+contract_version: vesper-lpj-equilibrium-window/1
+complete_forcing_cycles: 10
+trend:
+  relative_end_to_end_limit: 0.05
+  slope_standard_errors: 2.0
+  maximum_trending_cell_fraction: 0.25
+  absolute_scale_floor: 1.0e-12
+uncertainty:
+  temporal_statistic: sample_standard_deviation_over_annual_values
+  seed_statistic: sample_standard_deviation_of_window_means_at_fixed_patch_count
+  patch_statistic: range_of_seed_ensemble_means_across_patch_counts
+  missing_ensemble_status: not_measured
+

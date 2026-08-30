@@ -173,6 +173,8 @@ from builds import resolution_of, grid_export, mesh_export
 from gridding import land_fraction_of_class, land_weighted, region_cells
 from provenance import config_stamp
 from orogen import Export, LAND
+from lpj_output import reduce_table, require_lpj_acceptance
+from rootable import read_rootable_partition
 
 # 174 broadband, 175 below 0.75 um, 176 above. With NSIMPLEALBEDO=0 the
 # radiation uses the two-band pair; 174 is written too so the broadband
@@ -295,30 +297,64 @@ MODE_FOREST_FRACTION = {
 GRASS_PFTS = ("C3G", "C4G")
 
 
-def read_foliar_cover(path: Path) -> dict[tuple[float, float], tuple[float, float]]:
+def read_foliar_cover(path: Path, peers: list[Path] | None = None):
     """Tree and grass foliar projective cover per cell, from a run's fpc.out.
 
-    Takes the last simulated year per cell, which is the equilibrium the run
-    reached. Coordinates are rounded to two decimals because that is the
-    precision LPJ-GUESS prints them at, coarser than the driver's four.
+    BIO-12's shared reducer rejects a trending or incomplete end window and
+    averages ten complete forcing cycles. Coordinates are rounded to two
+    decimals by that reader because that is LPJ-GUESS's output precision.
     """
-    lines = path.read_text().splitlines()
-    header = lines[0].split()
-    pfts = [name for name in header[3:] if name != "Total"]
-    grass = [i for i, name in enumerate(pfts) if name in GRASS_PFTS]
-    trees = [i for i, name in enumerate(pfts) if name not in GRASS_PFTS]
-    latest: dict[tuple[float, float], tuple[int, list[float]]] = {}
-    for line in lines[1:]:
-        parts = line.split()
-        if len(parts) < 3 + len(pfts):
-            continue
-        key = (round(float(parts[0]), 2), round(float(parts[1]), 2))
-        year = int(float(parts[2]))
-        values = [float(v) for v in parts[3:3 + len(pfts)]]
-        if key not in latest or year > latest[key][0]:
-            latest[key] = (year, values)
-    return {key: (sum(values[i] for i in trees), sum(values[i] for i in grass))
-            for key, (_, values) in latest.items()}
+    require_lpj_acceptance(path)
+    for peer in peers or ():
+        require_lpj_acceptance(peer)
+    reduced = reduce_table(path, peers or ())
+    grass = [i for i, name in enumerate(reduced.names) if name in GRASS_PFTS]
+    trees = [i for i, name in enumerate(reduced.names)
+             if name not in GRASS_PFTS and name != "Total"]
+    cover = {
+        key: (sum(values[i] for i in trees), sum(values[i] for i in grass))
+        for key, values in reduced.values.items()
+    }
+    return cover, reduced.report
+
+
+def composite_rootable(total_surface: np.ndarray,
+                       rootable_substrate_contribution: np.ndarray,
+                       rootable_fraction: np.ndarray,
+                       tree_fpc: np.ndarray, grass_fpc: np.ndarray,
+                       tree_albedo: float, grass_albedo: float):
+    """Replace canopy only inside rootable area, preserving all other surface.
+
+    ``total_surface`` and ``rootable_substrate_contribution`` are contributions
+    to the whole model-land cell, not conditional means. Thus subtracting the
+    latter leaves solved water and dry barren ground exactly where the native
+    mesh placed them. LPJ FPC is conditional on the rootable environment, so it
+    is multiplied by BIO-11's rootable fraction exactly once.
+    """
+    arrays = [np.asarray(value, dtype=float) for value in (
+        total_surface, rootable_substrate_contribution, rootable_fraction,
+        tree_fpc, grass_fpc)]
+    if any(value.shape != arrays[0].shape for value in arrays[1:]):
+        raise ValueError("rootable compositing arrays have different shapes")
+    total_surface, root_contribution, rootable, tree, grass = arrays
+    if np.any((rootable < -1e-9) | (rootable > 1.0 + 1e-9)):
+        raise ValueError("rootable fraction is outside [0,1]")
+    if np.any(tree < -1e-9) or np.any(grass < -1e-9):
+        raise ValueError("LPJ foliar cover is negative")
+    cover = np.clip(tree + grass, 0.0, 1.0)
+    tree_share = rootable * tree
+    grass_share = rootable * grass
+    # When overlapping FPCs sum above one, retain their relative shares while
+    # enforcing the same total-cover ceiling the old code used.
+    raw_share = tree_share + grass_share
+    rescale = np.ones_like(raw_share)
+    np.divide(rootable * cover, raw_share, out=rescale, where=raw_share > 0)
+    tree_share *= rescale
+    grass_share *= rescale
+    nonrootable = total_surface - root_contribution
+    result = (nonrootable + (1.0 - cover) * root_contribution
+              + tree_share * tree_albedo + grass_share * grass_albedo)
+    return result, tree_share, grass_share, cover
 
 
 def _rock_id(mesh_dir: Path, code: str) -> int:
@@ -521,6 +557,12 @@ def main() -> None:
                     default=None)
     ap.add_argument("--vegetation", type=Path, default=None,
                     help="fpc.out from an LPJ-GUESS run, for --mode modelled")
+    ap.add_argument("--vegetation-peer", type=Path, action="append", default=[],
+                    help="comparable fpc.out with another root seed or patch "
+                         "count; repeat to measure stochastic uncertainty")
+    ap.add_argument("--rootable", type=Path, default=None,
+                    help="BIO-11 rootable-fraction artifact; required by and "
+                         "defaulted for --mode modelled")
     ap.add_argument("--lakes", type=Path, default=None,
                     help="surface_water.nc from hydrography; paints solved lake "
                          "regions with open water's albedo before gridding, so "
@@ -955,7 +997,8 @@ def main() -> None:
     if mode == "modelled":
         if args.vegetation is None:
             raise SystemExit("--mode modelled needs --vegetation <run>/fpc.out")
-        cover = read_foliar_cover(args.vegetation)
+        cover, equilibrium_window = read_foliar_cover(
+            args.vegetation, args.vegetation_peer)
         nlat_g, nlon_g = alb_grid.shape
 
         # Coordinates come from the climatology, not from the export's
@@ -985,8 +1028,8 @@ def main() -> None:
                 f"surface grid is {nlat_g}x{nlon_g}")
         lon_signed = np.where(lon_axis > 180.0, lon_axis - 360.0, lon_axis)
 
-        tree_cover = np.zeros_like(alb_grid)
-        grass_cover = np.zeros_like(alb_grid)
+        tree_fpc = np.zeros_like(alb_grid)
+        grass_fpc = np.zeros_like(alb_grid)
         matched = 0
         for j in range(nlat_g):
             for i in range(nlon_g):
@@ -996,20 +1039,52 @@ def main() -> None:
                                    round(float(lat_axis[j]), 2)))
                 if entry is None:
                     continue
-                tree_cover[j, i], grass_cover[j, i] = entry
+                tree_fpc[j, i], grass_fpc[j, i] = entry
                 matched += 1
 
-        # LPJ-GUESS is not told which ground is salt crust or playa mud. It is
-        # given a soil texture there and will happily grow on it if the climate
-        # allows, so the barren classes are masked out here rather than trusted.
-        # They are 12.65% of carved-zoned land and the brightest surfaces on the
-        # planet, so letting vegetation cover them would be a real error.
-        barren_fraction = land_fraction_of_class(mesh, grid_dir, barren)
-        rootable = np.clip(1.0 - barren_fraction, 0.0, 1.0)
-        tree_cover *= rootable
-        grass_cover *= rootable
+        # BIO-11 is the population contract. It subtracts persistent solved
+        # water and dry barren substrate once, including water over barren, and
+        # LPJ's FPC is conditional on what remains. Re-derive the native masks
+        # only to prove the surface inputs supplied to THIS builder are the
+        # same partition; the artifact is the fraction used in the algebra.
+        partition, rootable_provenance = read_rootable_partition(
+            config, lat_axis, lon_axis, args.rootable, land=land_cells)
+        rootable = partition["rootable"]
+        # BIO-11 follows the solved-lake extent. In the albedo arm an
+        # evaporation diagnostic may stage part of that extent as ephemeral
+        # salt crust rather than open water, but both populations remain
+        # non-rootable. Their optical levels already differ in region_albedo;
+        # only their common exclusion from canopy belongs here.
+        native_water = (np.zeros_like(is_land) if lake_mask is None
+                        else lake_mask & is_land)
+        native_barren = barren & is_land & ~native_water
+        native_rootable = is_land & ~native_water & ~barren
+        native_partition = {}
+        for name, population in (("rootable", native_rootable),
+                                 ("water", native_water),
+                                 ("barren", native_barren)):
+            native_partition[name] = land_weighted(
+                mesh, grid_dir, population.astype(np.float64))[1]
+        partition_residual = max(
+            float(np.max(np.abs(native_partition[name][land_cells]
+                                - partition[name][land_cells])))
+            for name in partition)
+        if partition_residual > 2.0e-6:
+            raise SystemExit(
+                "the lake/barren inputs supplied to surface albedo disagree "
+                "with BIO-11's rootable partition by "
+                f"{partition_residual:.3e}; rebuild both from the same derived "
+                "surface rather than compositing two worlds")
 
-        total_cover = np.clip(tree_cover + grass_cover, 0.0, 1.0)
+        # Contribution of ROOTABLE substrate to the whole land cell. This is
+        # deliberately not a conditional mean. Subtracting it from alb_grid
+        # leaves persistent water and dry barren contributions untouched; the
+        # old `(1-cover) * alb_grid` scaled those contributions down and then
+        # painted canopy over the missing share.
+        rootable_broadband = land_weighted(
+            mesh, grid_dir,
+            np.where(native_rootable, region_albedo, 0.0))[1]
+        pre_modelled_broadband = alb_grid.copy()
 
         # The same blend on the bands, with each endmember carrying its own
         # band pair. The substrate term keeps the pair the lithology gave it,
@@ -1026,38 +1101,71 @@ def main() -> None:
             cs1, cs2 = band_shapes(cover_rho[name], z1, z2)
             cover_shapes[name] = (cs1, cs2)
         if band_grids is not None:
-            blended = []
-            wet_blended = []
+            blended, wet_blended = [], []
             for index in (0, 1):
-                canopy = (
-                    tree_cover * args.tree_albedo * cover_shapes["tree"][index]
-                    + grass_cover * args.grass_albedo * cover_shapes["grass"][index])
-                blended.append(np.where(
-                    land_cells,
-                    canopy + (1.0 - total_cover) * band_grids[index],
-                    band_grids[index]))
-                # The canopy term is the SAME in both ends, so the cover
-                # fraction of a cell does not wet and the bare fraction does.
-                # That is the honest composite: the moisture term acts on the
-                # ground under the canopy, and the canopy is what the radiation
-                # sees over the covered fraction.
-                wet_blended.append(np.where(
-                    land_cells,
-                    canopy + (1.0 - total_cover) * wet_grids[index],
-                    wet_grids[index]))
+                shape = shape1 if index == 0 else shape2
+                wet_ratio = region_wet1 if index == 0 else region_wet2
+                rootable_band = land_weighted(
+                    mesh, grid_dir, np.where(
+                        native_rootable, region_albedo * shape, 0.0))[1]
+                rootable_wet_band = land_weighted(
+                    mesh, grid_dir, np.where(
+                        native_rootable,
+                        region_albedo * shape * wet_ratio, 0.0))[1]
+                dry, _tree, _grass, _cover = composite_rootable(
+                    band_grids[index], rootable_band, rootable,
+                    tree_fpc, grass_fpc,
+                    args.tree_albedo * cover_shapes["tree"][index],
+                    args.grass_albedo * cover_shapes["grass"][index])
+                wet, _tree, _grass, _cover = composite_rootable(
+                    wet_grids[index], rootable_wet_band, rootable,
+                    tree_fpc, grass_fpc,
+                    args.tree_albedo * cover_shapes["tree"][index],
+                    args.grass_albedo * cover_shapes["grass"][index])
+                blended.append(np.where(land_cells, dry, band_grids[index]))
+                wet_blended.append(np.where(land_cells, wet, wet_grids[index]))
             band_grids = blended
             wet_grids = wet_blended
 
-        alb_grid = np.where(
-            land_cells,
-            tree_cover * args.tree_albedo
-            + grass_cover * args.grass_albedo
-            + (1.0 - total_cover) * alb_grid,
-            alb_grid)
+        composite, tree_cover, grass_cover, conditional_cover = composite_rootable(
+            alb_grid, rootable_broadband, rootable,
+            tree_fpc, grass_fpc, args.tree_albedo, args.grass_albedo)
+        alb_grid = np.where(land_cells, composite, alb_grid)
+        total_cover = tree_cover + grass_cover
+        pure_water = land_cells & (partition["water"] >= 1.0 - 2.0e-6)
+        pure_barren = land_cells & (partition["barren"] >= 1.0 - 2.0e-6)
+        nonrootable_error = 0.0
+        pure_nonrootable = pure_water | pure_barren
+        if pure_nonrootable.any():
+            nonrootable_error = float(np.max(np.abs(
+                alb_grid[pure_nonrootable]
+                - pre_modelled_broadband[pure_nonrootable])))
+            if nonrootable_error > RECOMBINATION_TOLERANCE:
+                raise SystemExit(
+                    "modelled cover moved a wholly non-rootable cell by "
+                    f"{nonrootable_error:.3e}; water and barren ground cannot "
+                    "receive canopy")
+            if np.any(tree_cover[pure_nonrootable] != 0.0):
+                raise SystemExit(
+                    "modelled forest code 212 would be nonzero on wholly water "
+                    "or barren ground")
 
         missing = int(land_cells.sum()) - matched
         vegetation_summary = {
             "source": str(args.vegetation),
+            "equilibrium_window": equilibrium_window,
+            "rootable_surface": rootable_provenance,
+            "rootable_partition_max_absolute_residual": partition_residual,
+            "pure_water_cells_unchanged": int(pure_water.sum()),
+            "pure_barren_cells_unchanged": int(pure_barren.sum()),
+            "pure_nonrootable_max_absolute_change": nonrootable_error,
+            "cover_semantics": (
+                "LPJ FPC is conditional on rootable ground; code 212 and the "
+                "canopy albedo shares multiply it by f_rootable once. Solved "
+                "water and dry barren contributions are retained exactly."),
+            "conditional_rootable_cover_land_mean": float(
+                np.mean(conditional_cover[land_cells])),
+            "effective_cover_land_mean": float(np.mean(total_cover[land_cells])),
             "land_cells_matched": matched,
             "land_cells_without_vegetation_left_bare": missing,
             "tree_albedo": args.tree_albedo,
@@ -1071,8 +1179,9 @@ def main() -> None:
             "grass_albedo_bands": [round(args.grass_albedo * cover_shapes["grass"][0], 5),
                                    round(args.grass_albedo * cover_shapes["grass"][1], 5)],
             "cover_band_ratio": {k: round(v, 4) for k, v in cover_rho.items()},
-            "barren_masked": ("barren classes forced to zero cover; LPJ-GUESS is "
-                              "not told which ground is salt crust or playa"),
+            "barren_and_lakes_masked": (
+                "BIO-11 rootable fraction excludes dry barren substrate and "
+                "persistent solved water, with overlap deducted once"),
             "coordinate_source": str(args.climatology),
         }
 

@@ -224,9 +224,12 @@ heading; `biosphere/config/ntransform.yaml` holds the register under
 `mainline_divergences` with the verdict, what settles it and what it is worth;
 and `biosphere/scripts/ntransform_gate.py` checks that mainline's form is
 recorded, that it is not what the model runs, and that the changed line still
-is, so a divergence can become neither a silent fork nor a silent revert. None
-of it is execution-verified, because LPJ-GUESS does not build on this tree. The
-argument for each is
+is, so a divergence can become neither a silent fork nor a silent revert. The
+eleven divergences are execution-verified together against an exact stock-4.1.1
+arm on the same 997 cells and inputs; the declaration pins both runs and the
+paired final-ten-cycle report. That comparison bounds their combined effect and
+does not attribute it to individual edits or settle which Earth calibration is
+Vesper's. The argument for each is
 `biosphere/notes/soil-nitrogen-transformation-parameterisation.md`.
 
 ### The phosphorus path diverges from THIS FORK, not from a release

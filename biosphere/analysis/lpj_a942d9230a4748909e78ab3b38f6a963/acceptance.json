@@ -1,0 +1,10 @@
+{
+  "contract_version": "vesper-lpj-acceptance/1",
+  "generated": "2026-08-28T13:58:15+00:00",
+  "run_id": "lpj_a942d9230a4748909e78ab3b38f6a963",
+  "source_build": "canonical-10m-carve2",
+  "manifest_sha256": "ad8d2a0cba86560d3b5709e28da783b0adb9c4e5dcbe153e9efd037aa80130cd",
+  "contract_sha256": "c1a86db8be4fc40ef74d93d5a0e16e4b0d1bc3c9e4b4f804b6ab8b6d5e587e62",
+  "verdict": "FAIL",
+  "refusal": "anpp.out equilibrium refusal: /home/cfutro/docs/world/biosphere/runs/lpj_a942d9230a4748909e78ab3b38f6a963/anpp.out's end window is still trending in TeNE, IBS, C3G, C4G, Total"
+}
