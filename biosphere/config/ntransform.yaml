@@ -371,6 +371,15 @@ instruction_parameters:
     k_N: [0.0001, 1.0]
     k_C: [0.00001, 1.0]
     frac_labile_carbon: [0.0, 1.0]
+  # Every OTHER numeric key the instruction file sets, with what it is. The gate
+  # reads the file and refuses on any numeric key that is in neither list, so a
+  # constant added to the instruction file cannot reach the operator without
+  # passing through this register. `frac_labile_carbon` reached it for the whole
+  # life of this file before that check existed: absence from the register looked
+  # exactly like absence of a constant, because the gate only ever walked from
+  # the register to the file and never back.
+  not_constants:
+    ifntransform: the switch that arms the operator, not a quantity inside it
 
 # The domains every response function is evaluated over. These are properties of
 # the simulated soil, not of the functions, so they are declared once.
@@ -637,11 +646,11 @@ calibration:
       Li, Frolking and Frolking (1992), A model of nitrous oxide evolution from
       soil driven by rainfall events: 1. Model structure and sensitivity,
       Journal of Geophysical Research 97(D9) 9759-9776, 10.1029/92JD00509.
-      references/li1992-parameterization-of-cloud-optical-properties.pdf
-      DNDC itself, and the primary behind three of the entries below. The
-      filename is WRONG and the file is right: it was fetched under a slug
-      belonging to a different Li et al. (1992), and the PDF's own title page
-      and metadata are this paper. Do not re-fetch on the strength of the name.
+      references/li1992-a-model-of-nitrous-oxide-evolution-from-soil.pdf
+      DNDC itself, and the primary behind three of the entries below. Held and
+      read; the PDF's own title page and embedded metadata were checked against
+      the DOI, since a different Li et al. (1992) on cloud optical properties
+      answers to the same author and year.
     weier1993: >
       Weier, Doran, Power and Walters (1993), Denitrification and the
       dinitrogen/nitrous oxide ratio as affected by soil water, available carbon,

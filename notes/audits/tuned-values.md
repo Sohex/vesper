@@ -782,10 +782,10 @@ so a mid-latitude geostrophic wind 20 per cent above Earth's carries
 
 ---
 
-### 11. `frac_labile_carbon = 0.5`, in no register at all
+### 11. `frac_labile_carbon = 0.5`, the only substrate control on denitrification. REGISTERED
 
 `vendor/lpj-guess/data/ins/global_soiln.ins:6`, consumed at
-`vendor/lpj-guess/modules/somdynam.cpp:1316`.
+`vendor/lpj-guess/modules/somdynam.cpp:1347`.
 
 It sets the fraction of total microbial respiration declared labile. That pool
 is split by water-filled pore space and becomes the Michaelis-Menten substrate
@@ -793,23 +793,27 @@ term that multiplies BOTH denitrification steps
 (`vendor/lpj-guess/modules/ntransform.cpp:412`). It is the only substrate control
 on denitrification in the model.
 
-**The evidence is an absence, and it is a complete one.** The instruction file
-gives it no comment. It is not in `biosphere/config/ntransform.yaml`'s
-`instruction_parameters.values`, not in `parser_bounds`, not in the
-`calibration.entries` block, and not in `somdynam.yaml`. A grep for it across
-`biosphere/` returns nothing. `parameters.cpp:55` defaults it to 1.0 and the
+**The evidence was an absence, and it was a complete one.** The instruction file
+gives it no comment. It appeared in none of
+`biosphere/config/ntransform.yaml`'s `instruction_parameters.values`, its
+`parser_bounds` or its `calibration.entries`, nor in `somdynam.yaml`, and a grep
+for it across `biosphere/` returned nothing.
+`vendor/lpj-guess/framework/parameters.cpp:55` defaults it to 1.0 and the
 instruction file halves that with no note.
 
-This is the finding the biosphere sweep exists for: `ntransform.yaml` is an
-honest register that names seven soil-nitrogen constants as `unsourced` and
-refuses on them under `--strict`, and this one falls outside it.
+This is the finding the biosphere sweep exists for. `ntransform.yaml` is an
+honest register that names its soil-nitrogen constants `unsourced` where they
+are and refuses on them under `--strict`, and a constant this load-bearing sat
+outside it entirely: the register's completeness was never checked against the
+instruction file it declares, so absence from the register looked exactly like
+absence of a constant.
 
 **Magnitude.** Dimensionless on [0, 1]. A factor of two against the compiled
 default, sitting inside a saturation, so between one and two times on the
 denitrification substrate and hence on the mineral nitrogen the simulated plants
 can reach.
 
-**Disposition: REGISTERED, and IRREDUCIBLE AS A CONSTANT.** It is now in
+**Disposition: REGISTERED, and IRREDUCIBLE AS A CONSTANT.** It is in
 `ntransform.yaml`'s `instruction_parameters.values`, its `parser_bounds` and its
 `calibration.entries` with an `unsourced` verdict, so `--strict` refuses on it.
 That was the immediate move and it did not wait on the paper.
@@ -828,17 +832,31 @@ So what is sourced is a FORM with two coefficients on two respiration paths, and
 `somdynam.cpp` does not separate those paths at the point it sets
 `labile_carbon`. As a single fraction of total respiration the quantity is not
 recoverable from the primary, and this row's expectation that fetching the paper
-would settle it was wrong. Splitting the paths is `world-vyvn`'s remaining half.
+would settle it was wrong.
+
+**So it is not TUNED, and the class matters because the repair does.** 0.5 is
+not the residual of a fit; it is exactly DNDC's humads-path ratio, 0.2 over 0.4,
+and the derivation is reachable and has now been read, so it is not OPAQUE
+either. It is Earth-calibrated, as everything in DNDC is, but IMPLICIT-EARTH is
+not the defect that bites first and the repair that class implies -- find this
+world's number -- is neither available nor to the point. The defect is SCOPE:
+one of two path coefficients applied to both paths, exact on the path it came
+from and six times low on the other. Separating the paths at the point
+`somdynam.cpp` sets `labile_carbon` is the repair, and it is a judgement rather
+than a transcription, since under `ifcentury 1` it is the CENTURY pools that
+would have to be mapped onto DNDC's biomass/humads pair. That is
+`world-vyvn`'s remaining half.
 
 Reading it settled a second thing the row named. Li's table 7 gives `Kc` = 0.017
 kg C/m3 and `Kn` = 0.083 kg N/m3 and attributes BOTH to Shah and Coulman (1978)
 rather than measuring them, so the chain to a measurement is one paper longer
 than this project recorded -- and it states the units exactly as Xu-Ri does, per
 cubic metre of an unnamed volume. The `michaelis_menten_divisor` question is
-therefore NOT closed by it; what it adds is a magnitude, since DNDC's own
-soluble carbon runs at 10 to 20 mg C per kg soil and `Kc` reaches pool magnitude
-only under the per-cubic-metre-of-SOIL reading, which is the branch the operator
-does not run. Evidence, not proof; Shah and Coulman (1978) is what settles it.
+therefore NOT closed by it. Shah and Coulman (1978) is what settles it, in
+favour of the soil-solution reading the operator already runs, and the magnitude
+argument from DNDC's own soluble carbon pool that this row once offered for the
+per-cubic-metre-of-SOIL branch is withdrawn: it rested on an assumed bulk
+density and on a coincidence of numerals between two different volumes.
 
 ---
 
@@ -1102,8 +1120,13 @@ it is a fix.
 
 ### 17. `ntransform.yaml`'s seven `unsourced` entries, already registered
 
-`biosphere/config/ntransform.yaml` lines 687, 702, 732, 815, 834, 966 and 1054.
-Recorded here so the survey is complete and so nobody re-derives them: this
+`biosphere/config/ntransform.yaml`, the `calibration.entries` whose verdict is
+`unsourced`: `instruction:frac_labile_carbon`, `instruction:f_denitri_gas_max`,
+`instruction:f_denitri_max`, `function:wet_fraction`, `form:wet_fraction_shape`,
+`function:nitrification_activity` and `form:denitrification_wfps_threshold`.
+Named rather than cited by line, because the register is appended to and every
+line number in it goes stale silently. `ntransform_gate.py` prints the set on
+every invocation. Recorded here so the survey is complete and so nobody re-derives them: this
 project already knows, `ntransform_gate.py --strict` already refuses on them,
 and the register carries the evidence per entry. The two worst by the register's
 own account are the water-filled-pore-space partition, whose midpoint has two

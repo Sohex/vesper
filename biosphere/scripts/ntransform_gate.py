@@ -43,6 +43,17 @@ This module is the enforcement, and it can fail:
                function that does not exist. Also a `boundary` claimed on an
                entry the sources do settle, or claimed without an owner, since
                a declared model boundary is a decision and has to be owned
+  register     a numeric key the instruction file sets that the declaration
+               neither declares as a constant nor names as something else. The
+               drift check walks from the register to the file; this one walks
+               back, so a constant the model reads cannot stay outside the
+               register
+  source       a paper named in the calibration block's `sources` that cites no
+               file, or cites one `references/INDEX.md` does not record. The
+               PDFs themselves are untracked, so the index is what says a source
+               is held; a citation the index does not carry points at nothing a
+               reader can open, and a slug that was right when it was written
+               goes stale silently when the file is renamed
 
 Reduced fixtures run on every invocation, all but one built to be wrong in a
 named way. A fixture that does not get the verdict it was built for is a
@@ -99,6 +110,7 @@ COMPONENT_ROOT = Path(__file__).resolve().parents[1]
 DECLARATION = COMPONENT_ROOT / "config" / "ntransform.yaml"
 REPORT = GENERATED / "ntransform_gate_report.json"
 OPERATOR_SOURCE = GUESS_SOURCE / "modules" / "ntransform.cpp"
+REFERENCE_INDEX = PROJECT_ROOT / "references" / "INDEX.md"
 
 UNDECLARED = "undeclared"
 
@@ -359,6 +371,35 @@ def _check_divergences(declaration: dict, source_text: str, code_only: str,
     return findings
 
 
+def _check_sources(declaration: dict, index_text: str) -> list[dict]:
+    """Every paper the calibration block names, against what is actually held.
+
+    A source is reachable only through the file it cites, and the PDFs are
+    untracked, so `references/INDEX.md` is the tracked record of what this
+    project holds and has read. A citation the index does not carry is a dead
+    pointer whether the file was never fetched, was fetched under another slug,
+    or has since been renamed.
+    """
+    findings: list[dict] = []
+    sources = declaration.get("calibration", {}).get("sources", {})
+    indexed = set(re.findall(r"references/(\S+?\.pdf)", index_text))
+    indexed |= set(re.findall(r"`([^`]+?\.pdf)`", index_text))
+    for key, text in sources.items():
+        cited = re.findall(r"references/(\S+?\.pdf)", str(text))
+        if not cited:
+            findings.append({"kind": "source", "what": key,
+                             "detail": "names no file under references/, so nothing "
+                                       "a reader can open"})
+            continue
+        for name in cited:
+            if name not in indexed:
+                findings.append({
+                    "kind": "source", "what": key,
+                    "detail": (f"cites references/{name}, which references/INDEX.md "
+                               "does not record")})
+    return findings
+
+
 def _check_calibration(declaration: dict, declared_values: dict,
                        functions: dict) -> list[dict]:
     """Every calibration entry, against the source and the number it names.
@@ -475,8 +516,8 @@ def _check_calibration(declaration: dict, declared_values: dict,
     return findings
 
 
-def check(declaration: dict, source_text: str, instruction_text: str
-          ) -> list[dict]:
+def check(declaration: dict, source_text: str, instruction_text: str,
+          index_text: str) -> list[dict]:
     """Every check, as a list of findings. An empty list is a clean gate."""
     findings: list[dict] = []
     domains = declaration["domains"]
@@ -484,15 +525,16 @@ def check(declaration: dict, source_text: str, instruction_text: str
     declared_values = instruction["values"]
     bounds = instruction.get("parser_bounds", {})
 
-    parsed = {}
+    parsed_all = {}
     for line in instruction_text.splitlines():
         line = line.split("!", 1)[0].strip()
         parts = line.split()
-        if len(parts) >= 2 and parts[0] in declared_values:
+        if len(parts) >= 2:
             try:
-                parsed[parts[0]] = float(parts[1])
+                parsed_all[parts[0]] = float(parts[1])
             except ValueError:
-                pass
+                pass  # a quoted output filename, not a quantity
+    parsed = {k: v for k, v in parsed_all.items() if k in declared_values}
 
     for key, value in declared_values.items():
         if key not in parsed:
@@ -506,6 +548,19 @@ def check(declaration: dict, source_text: str, instruction_text: str
             if not (lo <= value <= hi):
                 findings.append({"kind": "bound", "what": key,
                                  "detail": f"{value} is outside the parser bound [{lo}, {hi}]"})
+
+    # And back the other way. The loop above walks from the register to the file
+    # and can only find a declared constant that moved; this walks from the file
+    # to the register and finds a constant the model reads that nobody declared.
+    not_constants = instruction.get("not_constants", {})
+    for key in parsed_all:
+        if key not in declared_values and key not in not_constants:
+            findings.append({
+                "kind": "register", "what": key,
+                "detail": ("is set in the instruction file and is in neither "
+                           "instruction_parameters.values nor its not_constants, "
+                           "so the model reads a number this register does not "
+                           "carry")})
 
     code_only = _strip_comments(source_text)
     # Literals are checked against the code and not against the whole file. The
@@ -546,6 +601,7 @@ def check(declaration: dict, source_text: str, instruction_text: str
                            f"outside the [{allowed_lo}, {allowed_hi}] its role allows")})
 
     findings.extend(_check_calibration(declaration, declared_values, functions))
+    findings.extend(_check_sources(declaration, index_text))
 
     for product in declaration.get("products", []):
         worst = 1.0
@@ -586,8 +642,8 @@ def check(declaration: dict, source_text: str, instruction_text: str
 # The fixtures. The first is the declaration as it stands and has to come back
 # clean; every other is built to be wrong in a named way. A fixture that does
 # not get its verdict is a defect in the checker.
-def _fixtures(declaration: dict, source_text: str, instruction_text: str
-              ) -> list[dict]:
+def _fixtures(declaration: dict, source_text: str, instruction_text: str,
+              index_text: str) -> list[dict]:
     import copy
 
     def mutate(fn):
@@ -643,6 +699,9 @@ def _fixtures(declaration: dict, source_text: str, instruction_text: str
 
     def calibration_target(what, target):
         return lambda d: _entry(d, what).__setitem__("what", target)
+
+    def named_source(key, text):
+        return lambda d: d["calibration"]["sources"].__setitem__(key, text)
 
     cases = [
         ("the declaration as it stands", declaration, None),
@@ -702,11 +761,25 @@ def _fixtures(declaration: dict, source_text: str, instruction_text: str
         ("a model boundary declared with no owner",
          mutate(lambda d: _entry(d, "form:denitrification_n2_share").pop("owner", None)),
          "calibration"),
+        ("a constant the instruction file sets that the register does not carry",
+         mutate(lambda d: d["instruction_parameters"]["values"].pop("frac_labile_carbon")),
+         "register"),
+        ("an instruction-file key exempted as something other than a constant, "
+         "with the exemption withdrawn",
+         mutate(lambda d: d["instruction_parameters"]["not_constants"].pop("ifntransform")),
+         "register"),
+        ("a source citing a file references/INDEX.md does not record",
+         mutate(named_source("li1992", "Li, Frolking and Frolking (1992). "
+                         "references/li1992-no-such-file.pdf")),
+         "source"),
+        ("a source that cites no file at all",
+         mutate(named_source("li1992", "Li, Frolking and Frolking (1992).")),
+         "source"),
     ]
 
     results = []
     for label, candidate, expect in cases:
-        findings = check(candidate, source_text, instruction_text)
+        findings = check(candidate, source_text, instruction_text, index_text)
         kinds = {f["kind"] for f in findings}
         if expect is None:
             ok = not findings
@@ -728,9 +801,10 @@ def main() -> int:
     source_text = OPERATOR_SOURCE.read_text()
     instruction_path = PROJECT_ROOT / declaration["instruction_parameters"]["file"]
     instruction_text = instruction_path.read_text()
+    index_text = REFERENCE_INDEX.read_text()
 
-    fixtures = _fixtures(declaration, source_text, instruction_text)
-    findings = check(declaration, source_text, instruction_text)
+    fixtures = _fixtures(declaration, source_text, instruction_text, index_text)
+    findings = check(declaration, source_text, instruction_text, index_text)
 
     undeclared = [
         name for name, spec in declaration["vesper_preconditions"].items()
@@ -766,6 +840,7 @@ def main() -> int:
         "declaration": rel(DECLARATION),
         "operator_source": rel(OPERATOR_SOURCE),
         "instruction_file": rel(instruction_path),
+        "reference_index": rel(REFERENCE_INDEX),
         "findings": findings,
         "undeclared_preconditions": undeclared,
         "calibration_unsettled": unsettled,
