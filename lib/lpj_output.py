@@ -12,11 +12,13 @@ from typing import Iterable
 import numpy as np
 import yaml
 
-from autocorrelation import RELIABLE_SPAN_MULTIPLE, integrated_time
+from autocorrelation import (RELIABLE_SPAN_MULTIPLE, integrated_time,
+                             mean_standard_error)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = PROJECT_ROOT / "biosphere/config/equilibrium_window.yaml"
 MEMORY_ESTIMATOR = "lib/autocorrelation.py:integrated_time"
+ACCEPTANCE_PATH = PROJECT_ROOT / "biosphere/config/lpj_acceptance.yaml"
 DRIVER_MAGIC = b"VESPDRV8"
 
 
@@ -281,6 +283,129 @@ def _trend(cycle_means: np.ndarray, policy: dict,
         "rejected": bool(rejected[i]),
     } for i in range(nfield)]
     return diagnostics, bool(rejected.any())
+
+
+def relaxation_time(series: np.ndarray, tau_memory: float,
+                    blocks: int = 4) -> dict:
+    """The e-folding time of an approach, measured WITHOUT its asymptote.
+
+    WHY NOT A CURVE FIT. Fitting `a + b * exp(-t / tau)` needs the record to
+    contain the turn-over: the asymptote `a` is a free parameter, and on a record
+    shorter than the approach it lands outside the data and the fit says nothing.
+    On this model's 1000-cycle record that happened for 34 of 64 assessed fields.
+
+    WHAT THIS DOES INSTEAD. For that same exponential the DIFFERENCE between
+    consecutive equal blocks decays by `exp(-Q / tau)`, and the asymptote cancels
+    out of the ratio. So the record is cut into `blocks` equal parts, and the ratio
+    of successive differences of their means estimates the decay RATE rather than
+    the distance still to travel. A record shorter than tau can carry that.
+
+    IT FAILS SOFTLY, so every condition it has to clear is declared rather than
+    discovered: the successive differences must share a sign, because opposite
+    signs are not a monotone approach; their ratio must be a contraction in (0, 1),
+    because a series that is not shrinking has no e-folding time; each difference
+    must exceed twice its own standard error, and that error is the
+    MEMORY-CORRECTED one, because these block means carry the memory this module
+    exists to respect; and the second ratio must agree with the first inside a
+    factor of two, because one exponential has one rate. A field failing any of
+    them gets NO relaxation time and is not given a default.
+    """
+    n = int(series.size)
+    q = n // blocks
+    if q < 3:
+        return {"admissible": False, "reason": "fewer than three cycles per block"}
+    parts = [series[i * q:(i + 1) * q] for i in range(blocks)]
+    means = [float(part.mean()) for part in parts]
+    errors = [float(mean_standard_error(part, tau_memory)) for part in parts]
+    steps = [means[i + 1] - means[i] for i in range(blocks - 1)]
+    step_errors = [float(np.hypot(errors[i], errors[i + 1]))
+                   for i in range(blocks - 1)]
+    base = {"block_cycles": q, "steps": steps, "step_standard_errors": step_errors}
+    if not steps[0] or not steps[1] or (steps[0] > 0) != (steps[1] > 0):
+        return {**base, "admissible": False,
+                "reason": "successive block differences change sign, so the "
+                          "series is not a monotone approach"}
+    for index in (0, 1):
+        if abs(steps[index]) <= 2.0 * step_errors[index]:
+            return {**base, "admissible": False,
+                    "reason": "a block difference is inside twice its own "
+                              "memory-corrected standard error, so the approach "
+                              "is smaller than the instrument reading it"}
+    ratio = steps[1] / steps[0]
+    if not 0.0 < ratio < 1.0:
+        return {**base, "admissible": False, "ratio": ratio,
+                "reason": f"a ratio of {ratio:.3f} is not a contraction"}
+    tau = -q / float(np.log(ratio))
+    second = None
+    if (steps[2] and (steps[2] > 0) == (steps[1] > 0)
+            and abs(steps[2]) > 2.0 * step_errors[2]):
+        check = steps[2] / steps[1]
+        if 0.0 < check < 1.0:
+            second = -q / float(np.log(check))
+            if not 0.5 <= second / tau <= 2.0:
+                return {**base, "admissible": False, "ratio": ratio,
+                        "tau_cycles": tau, "second_estimate_cycles": second,
+                        "reason": f"the two ratios give {tau:.0f} and "
+                                  f"{second:.0f} cycles, further than a factor "
+                                  "of two apart, so this is not one exponential"}
+    return {**base, "admissible": True, "ratio": ratio, "tau_cycles": tau,
+            "second_estimate_cycles": second}
+
+
+def timescale_report(run_dir: Path, *, policy_path: Path = POLICY_PATH) -> dict:
+    """Both ecological timescales, per field, for every assessed table.
+
+    Recorded on a run's acceptance artifact whatever its verdict, because a run
+    that is refused for not having settled is exactly the run whose timescales say
+    how long the next one has to be. `lib/run_lengths.py` reads this and states no
+    number of its own, on the same terms as the climate relaxation bracket.
+    """
+    run_dir = Path(run_dir)
+    policy = read_policy(policy_path)
+    floor = float(policy["trend"]["absolute_scale_floor"])
+    outputs = yaml.safe_load(ACCEPTANCE_PATH.read_text())["stability_outputs"]
+    tables = {}
+    for output in outputs:
+        path = run_dir / output
+        if not path.is_file():
+            continue
+        _, manifest = _manifest_for(path)
+        cycle_years, _ = forcing_cycle_years(path, manifest)
+        names, cells, years, cube = _read_rows(path)
+        usable = (len(years) // cycle_years) * cycle_years
+        record = cube[:usable].reshape(
+            usable // cycle_years, cycle_years, len(cells), len(names)).mean(axis=1)
+        span = record.shape[0]
+        x = np.arange(span, dtype=float)
+        fields = {}
+        for index, name in enumerate(names):
+            spatial = record[:, :, index].mean(axis=1)
+            if (abs(float(spatial.mean())) <= floor
+                    or not np.isfinite(spatial).all() or spatial.std() == 0):
+                continue
+            flat = spatial - np.polyval(np.polyfit(x, spatial, 1), x) + spatial.mean()
+            memory = integrated_time(flat)
+            fields[name] = {
+                "memory": {"tau_cycles": float(memory["tau"]),
+                           "effective_samples": float(memory["effective_sample_size"]),
+                           "reliable": bool(memory["reliable"]),
+                           "lag1": float(memory["lag1"])},
+                "relaxation": relaxation_time(spatial, memory["tau"]),
+            }
+        tables[output] = {"record_cycles": int(span),
+                          "forcing_cycle_years": int(cycle_years),
+                          "fields": fields}
+    return {"estimator": MEMORY_ESTIMATOR,
+            "relaxation_estimator": "lib/lpj_output.py:relaxation_time",
+            "reliable_span_multiple": float(RELIABLE_SPAN_MULTIPLE),
+            # Carried so that `lib/run_lengths.py` can size a spin-up from this
+            # artifact alone and state no number of its own. The residual a
+            # spin-up has to decay to is the drift the contract that judges what
+            # follows will absorb, which is the same reasoning
+            # `SETTLING_RESIDUAL_K` uses on the climate side.
+            "drift_tolerance": float(policy["trend"]["relative_end_to_end_limit"]),
+            "contract_version": policy["contract_version"],
+            "tables": tables}
 
 
 def _memory_adequacy(record: np.ndarray, names: list[str],

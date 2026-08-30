@@ -24,7 +24,8 @@ import numpy as np
 import yaml
 
 from _paths import COMPONENT_ROOT, PROJECT_ROOT, RUNS
-from lpj_output import EquilibriumWindowError, reduce_table
+from lpj_output import (EquilibriumWindowError, reduce_table,
+                        timescale_report)
 
 CONFIG = COMPONENT_ROOT / "config" / "lpj_acceptance.yaml"
 ANALYSIS = COMPONENT_ROOT / "analysis"
@@ -334,6 +335,7 @@ def assess(run_dir: Path, *, contract_path: Path = CONFIG,
             "window": reduced.report.get("window"),
             "trend": reduced.report.get("trend"),
         }
+    timescales = _timescales_or_reason(run_dir)
     closures = closure_report(tables, canonical_support, canonical_years,
                               manifest, contract)
     report = {
@@ -343,6 +345,7 @@ def assess(run_dir: Path, *, contract_path: Path = CONFIG,
         "source_build": manifest.get("source_build"),
         "manifest_sha256": sha256(manifest_path),
         "contract_sha256": sha256(contract_path),
+        "timescales": timescales,
         "coverage": {"ranks": ranks, "cells": len(canonical_support),
                      "years": canonical_years,
                      "rank_cell_counts_by_output": rank_summary},
@@ -358,6 +361,14 @@ def assess(run_dir: Path, *, contract_path: Path = CONFIG,
         analysis_dir.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(target, analysis_dir / "acceptance.json")
     return report
+
+
+def _timescales_or_reason(run_dir: Path) -> dict:
+    """The ecological timescales, or why they could not be taken."""
+    try:
+        return timescale_report(run_dir)
+    except (EquilibriumWindowError, OSError, ValueError, KeyError) as exc:
+        return {"measured": False, "reason": str(exc)}
 
 
 def write_failure(run_dir: Path, error: Exception, *,
@@ -380,6 +391,12 @@ def write_failure(run_dir: Path, error: Exception, *,
         "contract_sha256": sha256(contract_path) if contract_path.is_file() else None,
         "verdict": "FAIL",
         "refusal": str(error),
+        # A run refused for not having settled is exactly the run whose
+        # timescales say how long the next one has to be, so they are recorded on
+        # the refusal and not only on a pass. `lib/run_lengths.py` reads them from
+        # here. Guarded, because a refusal raised before the tables were readable
+        # must not be masked by a second failure while measuring them.
+        "timescales": _timescales_or_reason(run_dir),
     }
     run_dir.mkdir(parents=True, exist_ok=True)
     target = run_dir / "acceptance.json"

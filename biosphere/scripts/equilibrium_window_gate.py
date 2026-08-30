@@ -16,6 +16,7 @@ PROJECT_ROOT = SCRIPT.parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "lib"))
 
 from lpj_output import EquilibriumWindowError, reduce_table
+import run_lengths
 
 REPORT = PROJECT_ROOT / "biosphere/generated/equilibrium_window_report.json"
 
@@ -172,6 +173,50 @@ def main() -> None:
         check("patch-count uncertainty measured",
               ensemble.report["uncertainty"]["patch_count"]["status"] == "measured",
               "npatch 5 and 10 produce a separately labelled range")
+
+    # THE ECOLOGICAL RUN LENGTHS, checked against something that can fail rather
+    # than reported. The derivation is an identity: the spin-up it returns must
+    # actually satisfy the inequality it was derived from, and a spin-up one per
+    # cent shorter must not. That is a right answer, so it is a test.
+    try:
+        derived = run_lengths.ecological_run_cycles(PROJECT_ROOT)
+    except RuntimeError as exc:
+        check("ecological run lengths are derived from measured timescales",
+              False, str(exc))
+    else:
+        import math as _math
+        tau = derived["brackets"]["relaxation_cycles_bracket"][1]
+        tolerance = run_lengths.ecological_drift_tolerance()
+        record, spinup = derived["record_cycles"], derived["spinup_cycles"]
+
+        def residual_drift(span: float) -> float:
+            return (_math.exp(-span / tau)
+                    * (1.0 - _math.exp(-record / tau)))
+
+        check("the derived spin-up satisfies the drift it was derived from",
+              residual_drift(spinup) <= tolerance * 1.000001
+              and residual_drift(spinup * 0.99) > tolerance,
+              f"{spinup:.0f} cycles leaves {residual_drift(spinup):.4f} across "
+              f"{record:.0f} retained, against a tolerance of {tolerance:g}; "
+              f"one per cent shorter leaves {residual_drift(spinup*0.99):.4f}")
+        check("the retained record can establish its own memory time",
+              record >= run_lengths.RELIABLE_SPAN_MULTIPLE
+              * derived["brackets"]["memory_cycles_bracket"][1],
+              f"{record:.0f} cycles against a memory time of "
+              f"{derived['brackets']['memory_cycles_bracket'][1]:.1f}")
+        check("the ecological lengths are a floor and say why",
+              derived["is_a_floor"] and bool(derived["floor_because"]),
+              derived["floor_because"])
+        # The two pairs are in different units and the module must not let one
+        # be read as the other. A cycle is one orbit only while the driver's
+        # cycle is one year, so the reading carries the cycle length with it.
+        check("the ecological pair carries its own unit",
+              derived["brackets"]["forcing_cycle_years"] >= 1
+              and all(name.endswith("_cycles") for name in
+                      ("spinup_cycles", "record_cycles", "total_cycles")),
+              f"forcing cycle {derived['brackets']['forcing_cycle_years']} "
+              "simulation years, and every ecological length is named in cycles "
+              "while every climate length is named in orbits")
 
     consumers = {
         "feedback": PROJECT_ROOT / "exoplasim/scripts/build_surface_albedo.py",

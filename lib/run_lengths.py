@@ -67,6 +67,11 @@ import json
 import math
 from pathlib import Path
 
+# The one span bar in the tree, and the ecological record floor below is the same
+# rule applied to a different model's series. Importing it rather than restating
+# it is what keeps the two from drifting apart.
+from autocorrelation import RELIABLE_SPAN_MULTIPLE
+
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # THE MEMORY TIME, MEASURED and no longer inferred. The lower end is retained
@@ -509,3 +514,220 @@ def settling_bracket(perturbation_k: float,
     low, high = tau_relaxation_orbits_bracket(root)
     return (settling_orbits(perturbation_k, low, residual_k),
             settling_orbits(perturbation_k, high, residual_k))
+
+
+# =============================================================================
+# THE ECOLOGICAL PAIR. A SECOND SET OF BOTH TIMES, FOR A DIFFERENT MODEL.
+# =============================================================================
+#
+# READ THE TOP OF THIS FILE FIRST. Everything above is the CLIMATE model's, in
+# ORBITS. Everything below is the BIOSPHERE model's, in COMPLETE FORCING CYCLES.
+# They are four quantities, not two, and the ways they can be confused are worth
+# naming because three of them look like arithmetic that works:
+#
+#   NOT THE SAME MODEL     `TAU_MEMORY_ORBITS_BRACKET` is how long ExoPlaSim's
+#                          surface temperature stays correlated with itself.
+#                          `ecological_timescale_brackets` is how long a
+#                          gridcell's simulated vegetation does. They differ by
+#                          more than an order of magnitude and neither prices
+#                          the other's runs.
+#   NOT THE SAME UNIT      a cycle is `forcing_cycle_years` simulation years and
+#                          a simulation year is one modelled orbit, so cycles and
+#                          orbits coincide NUMERICALLY only while the driver's
+#                          cycle is one year. The run's own declared cycle length
+#                          travels with the reading and is never assumed here.
+#   NOT THE SAME SPAN      the climate side's settling block hands the next
+#                          conversion a restart that is not mid-transient. The
+#                          ecological spin-up precedes a RETAINED RECORD and has
+#                          to leave that record clean. Same shape, different
+#                          consumer, different residual.
+#
+# WHAT IS PRESERVED IS THE DISCIPLINE, not the names: memory sizes a span whose
+# MEAN needs an interval, relaxation sizes a block for a transient to DECAY, and
+# no answer here is anything but a bracket.
+#
+# THIS SIDE STATES NO NUMBER AT ALL. Both ecological times are read out of the
+# acceptance artifacts `biosphere/scripts/assess_lpj_run.py` writes, which record
+# them on a refusal as well as on a pass -- a run refused for not having settled
+# is exactly the run whose timescales say how long the next one must be. That is
+# the `tau_relaxation` treatment rather than the `TAU_MEMORY` one, and it is the
+# stronger of the two: there is nothing here to go stale against the measurement.
+ECOLOGICAL_ACCEPTANCE_DIR = "biosphere/analysis"
+ECOLOGICAL_TIMESCALE_GENERATOR = "biosphere/scripts/assess_lpj_run.py"
+
+
+def ecological_timescale_brackets(root=None) -> dict:
+    """Both ecological times, read from every acceptance artifact that has them.
+
+    The MEMORY bracket spans the fields, because a retained record has to
+    establish the memory time of every field it will be asked to judge, so the
+    top is what sizes it.
+
+    The RELAXATION bracket is bounded BELOW by the slowest field whose approach
+    is measurable and is OPEN ABOVE whenever any field's approach is not, because
+    a field the estimator declines is a field that may be slower still. An open
+    top is not a missing number; it is the honest shape of a timescale longer than
+    the record that measured it, and it is why what comes out of it is a FLOOR.
+
+    A MEMORY READING THE ESTIMATOR CALLS UNRELIABLE IS STILL ADMITTED, and that is
+    deliberate rather than an oversight. `reliable` false means the record is
+    shorter than ten times the tau it just produced, which makes that tau a LOWER
+    bound on a large number. Dropping it would shorten the record floor on the
+    strength of an estimate the estimator has written down as too small, which is
+    the same move `TAU_MEMORY_ORBITS_BRACKET` refuses on the climate side. Only
+    the TOP of each bracket sizes anything here, so a short run pooled with a long
+    one can widen the bottom and cannot shorten a floor.
+    """
+    base = Path(root) if root is not None else _REPO_ROOT
+    directory = base / ECOLOGICAL_ACCEPTANCE_DIR
+    memory, relaxation, sources, cycle_years = [], [], [], set()
+    declined = 0
+    tolerance, span = None, []
+    for path in sorted(directory.glob("lpj_*/acceptance.json")):
+        try:
+            report = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        scales = report.get("timescales") or {}
+        tables = scales.get("tables")
+        if not tables:
+            continue
+        sources.append(str(path.relative_to(base)))
+        if tolerance is None and scales.get("drift_tolerance") is not None:
+            tolerance = float(scales["drift_tolerance"])
+        for table in tables.values():
+            cycle_years.add(int(table.get("forcing_cycle_years", 1)))
+            span.append(int(table.get("record_cycles", 0)))
+            for field in table.get("fields", {}).values():
+                memory.append(float(field["memory"]["tau_cycles"]))
+                approach = field.get("relaxation", {})
+                if approach.get("admissible"):
+                    relaxation.append(float(approach["tau_cycles"]))
+                else:
+                    declined += 1
+    if not memory:
+        raise RuntimeError(
+            f"no acceptance artifact under {ECOLOGICAL_ACCEPTANCE_DIR} carries "
+            "ecological timescales, and they are where this bracket lives. "
+            f"Run `python {ECOLOGICAL_TIMESCALE_GENERATOR} <run>`; it records "
+            "them whatever the verdict.")
+    if len(cycle_years) != 1:
+        raise RuntimeError(
+            f"the acceptance artifacts declare more than one forcing cycle "
+            f"length {sorted(cycle_years)}, so their cycles are not one unit and "
+            "cannot be bracketed together")
+    if not relaxation:
+        raise RuntimeError(
+            "no field's approach to equilibrium is measurable on the records "
+            f"available: {declined} were declined by "
+            "`lib/lpj_output.py:relaxation_time`. A spin-up cannot be derived "
+            "from a relaxation time nothing has measured; buy a longer "
+            "diagnostic rather than a default.")
+    return {
+        "memory_cycles_bracket": (min(memory), max(memory)),
+        "relaxation_cycles_bracket": (min(relaxation), max(relaxation)),
+        "relaxation_top_is_open": declined > 0,
+        "fields_with_a_measurable_approach": len(relaxation),
+        "fields_declined": declined,
+        "forcing_cycle_years": cycle_years.pop(),
+        "longest_record_cycles": max(span) if span else 0,
+        "drift_tolerance_when_assessed": tolerance,
+        "sources": sources,
+    }
+
+
+def ecological_drift_tolerance() -> float:
+    """The residual a spin-up has to decay to, from the contract that judges it.
+
+    `SETTLING_RESIDUAL_K` takes its value from the criterion that judges the next
+    state, deliberately, and this is the same move: the drift the acceptance
+    contract will absorb over a retained record is what a spin-up has to leave
+    below. It is read LIVE rather than from the artifact a past run recorded,
+    because the floor is for the run that has not happened yet -- tighten the
+    contract and the spin-up it demands lengthens, with nothing to go stale in
+    between. `lib/lpj_output.py:read_policy` is the one reader of that contract
+    and is imported here rather than the YAML being parsed a second time.
+    """
+    from lpj_output import read_policy      # local: this module stays light
+    return float(read_policy()["trend"]["relative_end_to_end_limit"])
+
+
+def ecological_record_cycles(tau_memory_cycles: float) -> float:
+    """How much record a run must RETAIN, from the memory time.
+
+    The same rule `lib/autocorrelation.py` states for any span whose mean is
+    taken: a span shorter than `RELIABLE_SPAN_MULTIPLE` times its own memory time
+    cannot establish that memory time, so it cannot establish the interval on
+    anything measured over it either.
+
+    IT DOES NOT CLOSE, for the same reason the climate side's
+    `production_span_orbits` does not: the memory time read off this model grows
+    with the window it is read on. So this is a FLOOR at the lengths runs are
+    actually bought at, and the next record re-reads it.
+    """
+    return float(RELIABLE_SPAN_MULTIPLE) * float(tau_memory_cycles)
+
+
+def ecological_spinup_cycles(tau_relaxation_cycles: float,
+                             record_cycles: float,
+                             drift_tolerance: float) -> float:
+    """How much spin-up must precede a record for that record to be clean.
+
+    The same shape as `settling_orbits` and for the same reason, with the residual
+    taken from the criterion that judges what follows rather than typed. A
+    spin-up starting from bare ground begins a full equilibrium level away, so the
+    approach remaining after `S` cycles is `exp(-S / tau)` of the level, and the
+    DRIFT it puts across a retained record of `L` cycles is that times
+    `1 - exp(-L / tau)`. The acceptance contract refuses a record whose relative
+    end-to-end change exceeds its `relative_end_to_end_limit`, so
+
+        exp(-S / tau) * (1 - exp(-L / tau)) <= tolerance
+
+    and this returns the smallest `S` that satisfies it. Nothing in it is typed:
+    the tolerance is the contract's own, read from the artifact.
+
+    STARTING FROM BARE GROUND IS THE CONSERVATIVE READING and is stated rather
+    than hidden. A pool the CENTURY accelerator hands over part-grown begins
+    closer than a full level away, so its own requirement is shorter than this.
+    """
+    tau = float(tau_relaxation_cycles)
+    share = 1.0 - math.exp(-float(record_cycles) / tau)
+    if share <= 0.0:
+        return 1.0
+    remaining = float(drift_tolerance) / share
+    if remaining >= 1.0:
+        return 1.0
+    return max(1.0, tau * math.log(1.0 / remaining))
+
+
+def ecological_run_cycles(root=None) -> dict:
+    """The spin-up and retained record this world's ecology needs, and why.
+
+    Both are FLOORS. The record's floor is the memory time's, taken at the TOP of
+    that bracket because a record must serve every field it judges. The spin-up's
+    is the relaxation time's, taken at the top of a bracket whose top is open
+    whenever any field's approach could not be measured -- so the number that
+    comes out is what a run buys UP FRONT, and the acceptance contract's refusal
+    is what buys the rest. That is the same bargain the climate side makes.
+    """
+    brackets = ecological_timescale_brackets(root)
+    tolerance = ecological_drift_tolerance()
+    record = ecological_record_cycles(brackets["memory_cycles_bracket"][1])
+    slowest = brackets["relaxation_cycles_bracket"][1]
+    spinup = ecological_spinup_cycles(slowest, record, tolerance)
+    return {
+        "spinup_cycles": spinup,
+        "record_cycles": record,
+        "total_cycles": spinup + record,
+        "is_a_floor": True,
+        "floor_because": (
+            "the relaxation bracket's top is open: "
+            f"{brackets['fields_declined']} fields' approach is not measurable "
+            "on the records available, and a field the estimator declines may be "
+            "slower still"
+            if brackets["relaxation_top_is_open"] else
+            "the memory time read off this model grows with the window it is "
+            "read on, so every record floor is a floor at the length it was "
+            "read at"),
+        "brackets": brackets,
+    }

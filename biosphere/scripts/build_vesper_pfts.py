@@ -51,6 +51,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import re
 import subprocess
 from datetime import datetime, timezone
@@ -62,6 +63,7 @@ from _paths import CONFIG, GENERATED, GUESS_SOURCE, PROJECT_ROOT
 from paths import rel  # noqa: E402
 
 import orbit
+import run_lengths
 
 EARTH_YEAR_DAYS = orbit.EARTH_SIDEREAL_YEAR_DAYS
 
@@ -235,6 +237,36 @@ def self_check(factor: float, changes: list[dict]) -> None:
                 f"{tolerance}. Widen render().")
 
 
+def _derived_spinup_cycles() -> dict:
+    """The spin-up floor this world's ecology needs, or why there is not one yet.
+
+    Reads `lib/run_lengths.py`, which reads the acceptance artifacts and states no
+    number of its own. Returns the convention it would replace alongside it, so
+    the provenance records a substitution rather than a bare value.
+    """
+    convention = None
+    try:
+        source = (GUESS_SOURCE / "data" / "ins" / "global.ins").read_text()
+        match = re.search(r"^[ \t]*\bnyear_spinup\b[ \t]+([0-9.]+)", source,
+                          re.MULTILINE)
+        if match:
+            convention = float(match.group(1))
+    except OSError:
+        pass
+    try:
+        derived = run_lengths.ecological_run_cycles(PROJECT_ROOT)
+    except RuntimeError as exc:
+        return {"cycles": None, "source": "Earth convention, rescaled",
+                "reason": str(exc), "convention_cycles": convention}
+    return {"cycles": int(math.ceil(derived["spinup_cycles"])),
+            "source": "lib/run_lengths.py:ecological_run_cycles",
+            "is_a_floor": derived["is_a_floor"],
+            "floor_because": derived["floor_because"],
+            "record_cycles": int(math.ceil(derived["record_cycles"])),
+            "convention_cycles": convention,
+            "brackets": derived["brackets"]}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path,
@@ -280,6 +312,40 @@ def main() -> None:
     rescaled = pattern.sub(rescale, text)
     self_check(factor, changes)
 
+    # nyear_spinup IS NOT AN EARTH DURATION TO RESCALE, once anything has
+    # measured this world's own relaxation time. The rescale above converts the
+    # shipped 500 to 998 simulation years, which is Earth's CONVENTION carried
+    # across a correct conversion -- and this world's woody types and slow pools
+    # relax on hundreds of cycles, so the convention is short. The derived floor
+    # is already in simulation years and must NOT be scaled again; scaling it
+    # would be the exact YEAR_COUNT trap this file exists to avoid, applied to a
+    # number that is not in the unit the trap assumes.
+    #
+    # BEST AVAILABLE, NOT FIRST AVAILABLE. On a tree with no assessed run there
+    # is no measured relaxation time and the rescaled convention is genuinely the
+    # best there is; once a run has been assessed the floor is, and pinning this
+    # to the convention afterwards would converge to the wrong place quietly.
+    # Which one was used is recorded rather than inferred.
+    spinup = _derived_spinup_cycles()
+    if spinup.get("cycles"):
+        rescaled, applied = re.subn(
+            r"^([ \t]*)\bnyear_spinup\b([ \t]+)([0-9.]+)[^\n]*$",
+            lambda m: (f"{m.group(1)}nyear_spinup{m.group(2)}{spinup['cycles']}"
+                       "\t! simulation years; DERIVED floor from this world's "
+                       "own relaxation time, not Earth's convention"),
+            rescaled, flags=re.MULTILINE)
+        spinup["applied"] = bool(applied)
+        if applied:
+            # The rescale pass already recorded a YEAR_COUNT conversion for this
+            # parameter and the override supersedes it. Leaving both would file
+            # the value under a class it is no longer in, and the header's class
+            # list is read as the statement of what happened to each parameter.
+            changes[:] = [c for c in changes if c["parameter"] != "nyear_spinup"]
+            changes.append({"parameter": "nyear_spinup", "class": "DERIVED",
+                            "from": float(spinup["convention_cycles"]),
+                            "to": float(spinup["cycles"]),
+                            "written": float(spinup["cycles"])})
+
     # The shipped file's own inline comments on rescaled lines are replaced,
     # because several of them state the Earth unit and would now be wrong. The
     # upstream annotation is in the vendored source the header names.
@@ -288,8 +354,18 @@ def main() -> None:
         by_class.setdefault(change["class"], set()).add(change["parameter"])
     class_lines = "\n".join(
         f"!// {kind:12s} {', '.join(sorted(by_class[kind]))}"
-        for kind in ("ANNUAL_SUM", "YEAR_COUNT", "ANNUAL_RATE")
+        for kind in ("ANNUAL_SUM", "YEAR_COUNT", "ANNUAL_RATE", "DERIVED")
         if kind in by_class) or "!// nothing rescaled"
+    if "DERIVED" in by_class:
+        class_lines += (
+            "\n!//"
+            "\n!// DERIVED is not a rescale. nyear_spinup is not an Earth duration"
+            "\n!// converted into simulation years; it is this world's own"
+            "\n!// relaxation time, already in simulation years, read from"
+            "\n!// lib/run_lengths.py:ecological_run_cycles, which reads the"
+            "\n!// acceptance artifacts. Rescaling it would apply the YEAR_COUNT"
+            f"\n!// factor to a number that is already in the target unit."
+            f"\n!// It is a FLOOR: {spinup.get('floor_because', '')}")
 
     header = f"""!///////////////////////////////////////////////////////////////////////////////
 !// GENERATED by biosphere/scripts/build_vesper_pfts.py. Do not edit.
@@ -345,6 +421,7 @@ def main() -> None:
         "annual_rate_converted": ANNUAL_RATE,
         "deliberately_unscaled": DELIBERATELY_UNSCALED,
         "changes": changes,
+        "spinup": spinup,
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
         "git_commit": subprocess.run(
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True,

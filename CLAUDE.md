@@ -366,7 +366,10 @@ sample size, and the ONE standard error of a mean over a series whose samples
 carry memory), `run_lengths.py` (how many orbits to BUY, derived from the
 timescales: a commissioning span from the MEMORY time and a settling block from
 the RELAXATION time, both bracketed because neither time is measured, and the
-two never interchanged), `lapse.py` (lapse rates, and the
+two never interchanged -- and TWO SUCH PAIRS, not one: the climate model's in
+ORBITS, declared with an anchor, and the biosphere model's in COMPLETE FORCING
+CYCLES, read from the acceptance artifacts and stating no number, sizing a
+retained record from the memory time and a SPIN-UP from the relaxation time), `lapse.py` (lapse rates, and the
 height of the lowest model level),
 `surface_classes.py` (derived surface classes BY NAME),
 `rootable.py` (BIO-11's one per-build/per-rung effective plant-area fraction,

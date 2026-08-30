@@ -314,3 +314,84 @@ both `albedo_report.json` files record mode `vegetated`; and it cannot be, becau
 `read_foliar_cover` calls `require_lpj_acceptance` and every LPJ run in the tree is
 refused. The cover magnitudes above are therefore from a refused run and are
 indicative of scale only.
+
+## How long a run this world's ecology needs
+
+Both bounds are now derived rather than estimated, and both are carried by
+`lib/run_lengths.py` beside the climate model's pair. They are a second pair, in
+COMPLETE FORCING CYCLES rather than orbits, and the module keeps them apart: a
+cycle is one simulation year is one modelled orbit, so the two units coincide
+numerically only while the driver's cycle is one year, and the run's own declared
+cycle length travels with every reading.
+
+### The relaxation time, measured without its asymptote
+
+The exponential fits above refused for 34 of 64 fields because the asymptote landed
+outside the record, and a refused fit gives no number. A second estimator does not
+need the asymptote: for `y = A - B exp(-t/tau)` the difference between consecutive
+equal blocks decays by `exp(-Q/tau)` and `A` cancels out of the ratio, so four equal
+blocks of the record give `tau = -Q / ln(r)` with `r` the ratio of successive
+differences of the block means. `lib/lpj_output.py:relaxation_time` is the
+implementation and its admissibility conditions were declared before it was run: the
+successive differences must share a sign, their ratio must be a contraction in
+(0, 1), each difference must exceed twice its own MEMORY-CORRECTED standard error,
+and the second ratio must agree with the first inside a factor of two.
+
+On the 1000-cycle record, five fields across the two assessed runs clear all four.
+
+| field | relaxation, cycles | memory, cycles |
+| --- | --- | --- |
+| lai.out BNS | 464.8 | 48.7 |
+| anpp.out BNS | 767.0 | 39.4 |
+| npool.out Total | 846.8 | 78.3 |
+
+The other 123 are declined, most for a block difference inside twice its own
+standard error or for successive differences that change sign, which is what a
+memory time of 60 to 125 cycles does to blocks of 250. So the relaxation bracket is
+59.7 to 846.8 cycles with an OPEN TOP: a field the estimator declines may be slower
+still, and that is why what comes out of it is a floor rather than a length.
+
+### The two floors
+
+The RETAINED RECORD floor is the memory time's, at the top of that bracket because a
+record must serve every field it will be asked to judge, and at the span multiple
+`lib/autocorrelation.py` declares for any span whose mean is taken:
+
+    record >= 10 x 125.3 = 1253 cycles
+
+The SPIN-UP floor is the relaxation time's, and it takes its residual from the
+criterion that judges what follows, exactly as `SETTLING_RESIDUAL_K` takes 0.15 K
+from the offset criterion. A spin-up from bare ground starts a full equilibrium level
+away, so the approach remaining after `S` cycles is `exp(-S/tau)` of the level and the
+drift it puts across a retained record of `L` is that times `1 - exp(-L/tau)`. The
+acceptance contract refuses a record whose relative end-to-end change exceeds
+`relative_end_to_end_limit`, so
+
+    exp(-S/tau) x (1 - exp(-L/tau)) <= 0.05
+
+At tau 846.8 and L 1253 that is S >= 2318 cycles. Starting from bare ground is the
+conservative reading and is stated rather than hidden: a pool the CENTURY accelerator
+hands over part-grown begins closer than a full level away and needs less.
+
+### What it costs, which is the point
+
+    spin-up   2318 cycles
+    record    1253 cycles
+    total     3571 cycles
+
+Measured throughput on the runs on record, from their own manifests, is 0.9267 seconds
+per simulated year at npatch 5 on 16 ranks over 1617 cells: 990.7 s for 1098 simulated
+years and 1824.7 s for 1998, which agree to one per cent and imply a negligible fixed
+cost. So the whole run is about 55 minutes, and about 3.7 hours at npatch 20.
+
+THE ANSWER IS THAT IT IS CHEAP. The spin-up this world's ecology needs is 2.3 times
+Earth's convention and costs under an hour, and the reason no run has ever had it is
+not expense but that nobody had derived it. `vesper_pfts.ins` took the shipped 500 and
+rescaled it correctly into 998 simulation years; the conversion was right and the
+convention was Earth's.
+
+Both numbers are floors and the derivation says why: the relaxation bracket's top is
+open, and the memory time read off this model grows with the window it is read on, so
+the next record re-reads its own floor. `build_vesper_pfts.py` reads the spin-up floor
+when an assessed run exists and falls back to the rescaled convention only when none
+does, recording which it used.
