@@ -43,6 +43,7 @@ from netCDF4 import Dataset
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import ANALYSIS, PROJECT_ROOT  # noqa: E402
 
+import carve_verdict as cv  # noqa: E402
 import groundwater as gw  # noqa: E402
 import lake_balance as lb  # noqa: E402
 import surface_water as sw  # noqa: E402
@@ -161,16 +162,55 @@ def recharge_field(export: Export, config: dict, clim_path: Path):
     of those is the export/ExoPlaSim grid join, which `CLAUDE.md` rule 3 governs
     and which this project has got wrong on three separate scripts; there is one
     copy of it in `lib/gridding.py` and this is not a fourth.
+
+    **THE SINK'S `ET_max` IS THE BIN MEAN OF THE PER-BIN PENMAN, not one Penman
+    on annual-mean air.** Penman is nonlinear in everything it reads, so the two
+    are different numbers, and this path used to take the second: it called
+    `climate_fields` with no `bin_index` where `carve_verdict` and
+    `surface_water` had both already moved. `land_water_ledger.yaml` holds
+    `open_water_evaporation` at `interval_floor: climatology_bin`, so the annual
+    evaluation was against a standing decision rather than a simplification.
+
+    THE BIN MEAN IS THE RIGHT COMBINATION HERE AND NOT ONE END OF A BRACKET,
+    which is the question `carve_verdict._INTERVAL_BRACKET` makes every caller
+    of Penman answer. Two reasons, and they are separate. The sink is
+    `E(d) = ET_max exp(-d / lambda)`, nonlinear in the DEPTH and linear in
+    `ET_max`; a steady-state solve holds `d` fixed through the year, so the
+    annual mean of `E` is `exp(-d / lambda)` times the annual mean of `ET_max`
+    and that mean is the only thing the solver can be given. And the body doing
+    the evaporating is the ground, not a lake: the seasonal heat storage that
+    makes the annual evaluation the defensible end for a deep water body is a
+    ground heat flux of a few W/m2 against a net radiation cycle an order
+    larger, so the no-storage end is the near one rather than a bound.
+
+    Both arms are returned. The annual one is no longer used for the solve; it
+    is measured against the bin mean and the spread goes on the report, because
+    the SIZE of a correction belongs on the artifact rather than in a note.
     """
     sw._CLIM_FILE = clim_path
-    # Eight values, and the staged albedo is the one this path discards: the
-    # groundwater balance reads no albedo. Unpack the whole tuple rather than a
-    # prefix of it, so a ninth return raises here instead of silently shifting
-    # every name one place along.
-    (lat, lon, runoff, precip, evaporation, model_runoff, lsm,
-     _) = sw.climate_fields(config)
+    # Eight values, and the staged albedo is the one this path used to discard.
+    # It is needed now: the per-bin Penman below reads the same staged field,
+    # and taking it from here is what keeps the two arms on ONE albedo. Unpack
+    # the whole tuple rather than a prefix of it, so a ninth return raises here
+    # instead of silently shifting every name one place along.
+    (lat, lon, runoff, precip, evap_annual, model_runoff, lsm,
+     staged_albedo) = sw.climate_fields(config)
+    # Through `carve_verdict.bin_mean_open_water`, which is the one place that
+    # owns the per-bin Penman loop and its weights. A second loop written here
+    # would be a fourth copy of a convention this component has already had to
+    # reconcile twice.
+    land_albedo = cv.read_sra_field(PROJECT_ROOT / staged_albedo["path"],
+                                    *lsm.shape)
+    # `clip_at_zero` because the consumer is a SINK: a water table cannot gain
+    # water from a bin whose Penman is negative, so the floor belongs inside the
+    # mean rather than after it. `max(x, 0)` is a rectifier, which is the shape
+    # that makes an interval error large rather than second order.
+    evaporation = cv.bin_mean_open_water(
+        clim_path, land_albedo, float(config["planet"]["gravity_m_s2"]),
+        cfg=config, clip_at_zero=True)
     row, col = sw.region_grid_cells(export, lat)
-    return runoff[row, col], (lat, lon, runoff, precip, evaporation, lsm)
+    return runoff[row, col], (lat, lon, runoff, precip, evaporation, lsm,
+                              evap_annual)
 
 
 def basin_exchange(terminal, seepage_m3_s, supply_m3_s, n_basins,
@@ -442,8 +482,12 @@ def main() -> int:
     # -- forcing -----------------------------------------------------------
     print(f"reading the climatology {rel(clim)}")
     recharge, fields = recharge_field(export, config, clim)
-    lat, lon, runoff_grid, precip_grid, evap_grid, lsm = fields
+    lat, lon, runoff_grid, precip_grid, evap_grid, lsm, evap_annual_grid = fields
     recharge = np.where(land, recharge, 0.0)
+    # None on every arm that does not run the sink, so the report says "no
+    # interval was measured" rather than carrying a stale one from a branch
+    # that never evaluated it.
+    evaporation_interval = None
 
     surface_m = export.elevation_km.astype(np.float64) * 1000.0
 
@@ -499,9 +543,91 @@ def main() -> int:
         if et_on:
             row, col = sw.region_grid_cells(export, lat)
             et_max = np.where(land, np.clip(evap_grid[row, col], 0.0, None), 0.0)
+            # THIS WORLD'S YEAR, from lib/orbit. The rate reported here was per
+            # 365.25 days, which is Earth's, so the only number a reader could
+            # compare against a published potential-ET was in the wrong units.
+            mm_per_year = orbit.orbital_year_days(config) * 86400.0 * 1000.0
             print(f"groundwater ET on, lambda {et_lambda} m, ET_max from Penman: "
                   f"land median "
-                  f"{np.median(et_max[land]) * 365.25 * 86400 * 1000:.0f} mm/yr")
+                  f"{np.median(et_max[land]) * mm_per_year:.0f} mm/yr")
+            # WHAT THE INTERVAL IS WORTH, measured on the run that uses it. The
+            # solve takes the bin mean; the annual evaluation is the number this
+            # path used to take, and it is kept here as the size of the change
+            # rather than as a second answer. In the local-sink regime the depth
+            # is `lambda ln(ET_max A / supply)` exactly, so a ratio `f` between
+            # the two arms is a depth shift of `lambda ln f` and needs no second
+            # solve to state. `sink_fraction` below says where that regime holds.
+            et_annual = np.where(
+                land, np.clip(evap_annual_grid[row, col], 0.0, None), 0.0)
+            # ON THE CELLS THE LOCAL BALANCE GIVES A POSITIVE DEPTH ON, under
+            # BOTH arms. Where `ET_max` cannot take the cell's own recharge the
+            # local balance puts the table at the surface, so a depth shift
+            # quoted there is a shift on a depth of zero. The cells that CROSS
+            # that line are the categorical part of the change and are counted
+            # separately.
+            _pos = land & (recharge > 0)
+            _l = _pos & (et_annual > recharge) & (et_max > recharge)
+            _f = et_max[_l] / et_annual[_l]
+            _unpinned = int((_pos & (et_annual <= recharge)
+                             & (et_max > recharge)).sum())
+            evaporation_interval = {
+                "used": "the bin mean of the per-bin Penman",
+                "other_end": "one Penman evaluation on annual-mean air",
+                "why_the_bin_mean_is_used": (
+                    "the sink is linear in ET_max and nonlinear in the depth, "
+                    "and a steady-state solve holds the depth fixed through the "
+                    "year, so the annual mean of ET_max is the only input the "
+                    "solver can take. The evaporating body is the ground, whose "
+                    "seasonal heat storage is a ground heat flux of a few W/m2 "
+                    "against a net radiation cycle an order larger, so the "
+                    "no-storage end of cv._INTERVAL_BRACKET is the near one "
+                    "rather than a bound"),
+                "et_max_land_median_mm_per_year_bin_mean": float(
+                    np.median(et_max[_l]) * mm_per_year),
+                "et_max_land_median_mm_per_year_annual": float(
+                    np.median(et_annual[_l]) * mm_per_year),
+                "capacity_ratio_bin_over_annual": float(
+                    et_max[_l].sum() / max(et_annual[_l].sum(), 1e-30)),
+                "ratio_percentiles": {str(p): float(np.percentile(_f, p))
+                                      for p in (5, 25, 50, 75, 95)},
+                "land_fraction_bin_below_annual": float((_f < 1.0).mean()),
+                "regions_scored": int(_l.sum()),
+                "regions_unpinned_by_the_bin_mean": _unpinned,
+                "regions_unpinned_share_of_recharging_land": float(
+                    _unpinned / max(int(_pos.sum()), 1)),
+                "unpinned_note": (
+                    "the local balance cannot take the cell's recharge under "
+                    "the annual evaluation and can under the bin mean, so the "
+                    "table leaves the surface. That moves at_surface and the "
+                    "seepage a pinned cell returns, which is a different kind "
+                    "of change from a depth shift"),
+                "sign_is_not_one_signed": (
+                    "Penman is not convex in temperature alone: the "
+                    "Delta/(Delta+gamma) energy weighting saturates and the "
+                    "aerodynamic term is a product of wind with a deficit, so "
+                    "the curvature of the composite changes sign. The bin mean "
+                    "falls BELOW the annual evaluation on the warm cells with "
+                    "the smallest seasonal swing"),
+                "depth_shift_m_at_lambda": {
+                    str(lam): {
+                        "median": float(lam * np.log(np.median(_f))),
+                        "p95": float(lam * np.log(np.percentile(_f, 95))),
+                    } for lam in (0.5, float(et_lambda), 2.0)},
+                "depth_shift_note": (
+                    "d = lambda ln(ET_max A / supply) in the local-sink regime, "
+                    "so the shift is lambda ln f exactly. Read it against the "
+                    "lambda bracket in groundwater.yaml, which multiplies the "
+                    "same depth by four"),
+            }
+            print(f"  interval: bin mean is "
+                  f"{evaporation_interval['capacity_ratio_bin_over_annual']:.3f}x "
+                  f"the annual evaluation over land, below it on "
+                  f"{evaporation_interval['land_fraction_bin_below_annual']:.1%} "
+                  f"of land;\n  worth "
+                  f"{evaporation_interval['depth_shift_m_at_lambda'][str(float(et_lambda))]['median']:+.3f} m "
+                  f"on the median local-sink depth and "
+                  f"{evaporation_interval['depth_shift_m_at_lambda'][str(float(et_lambda))]['p95']:+.3f} m "
+                  f"at its 95th")
         else:
             et_lambda = None
             print("groundwater ET OFF: the table will pin at the surface")
@@ -596,6 +722,9 @@ def main() -> int:
         "operator_noise": args.operator_noise,
         "noise_seed": args.noise_seed,
         "unassigned_policy": policy,
+        # WHICH INTERVAL THE SINK'S PENMAN WAS EVALUATED OVER, and what the
+        # other end would have been. None when the sink is off.
+        "evaporation_interval": evaporation_interval,
         "gravity_m_s2": gravity,
         "conductivity_vs_earth": gravity / 9.80665,
         "geometry": {
@@ -915,7 +1044,13 @@ def measure_carve_effect(export, data, basins, terminal, qg, give, gain,
     belongs in the criterion is a loop A decision and it is taken by reading
     this, not by running it.
     """
-    lat, lon, runoff_grid, precip_grid, evap_grid, lsm = fields
+    # The BIN MEAN of the per-bin Penman, which is what `carve_verdict.py`
+    # decides its primary bound on. This function used to read the annual
+    # evaluation, so it measured the groundwater term against the OTHER end of
+    # `cv._INTERVAL_BRACKET` from the verdict it claims to be moving. The annual
+    # arm is unpacked and unused here: this reports a count of flips, and
+    # reporting it twice would be two numbers for one question.
+    lat, lon, runoff_grid, precip_grid, evap_grid, lsm, _ = fields
     sinks = np.array([b.sink for b in export.basins])
     # Only the lake fluxes are taken from here. The catchment runoff depth is
     # recomputed on the mesh below, for BOTH arms, because the comparison has to

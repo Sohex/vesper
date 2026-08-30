@@ -396,7 +396,8 @@ _INTERVAL_BRACKET = {
 
 
 def bin_mean_open_water(climatology, land_albedo, gravity, *, cfg=None,
-                        drss=None, drls=None, column_relative_humidity=None):
+                        drss=None, drls=None, column_relative_humidity=None,
+                        clip_at_zero=False):
     """Open-water evaporation, as the BIN MEAN OF THE PER-BIN EVALUATION.
 
     **Not `penman_open_water` on annual-mean air, and the difference is not
@@ -428,6 +429,18 @@ def bin_mean_open_water(climatology, land_albedo, gravity, *, cfg=None,
     `drss` and `drls` are an annual dust forcing and are added to every bin
     unchanged: the dust product carries no season, and inventing one here would
     be a term computed from a quantity that cannot carry it.
+
+    `clip_at_zero` FLOORS EACH BIN AT ZERO BEFORE AVERAGING, and the two
+    compositions are different numbers whenever any bin is negative. Which one
+    is right belongs to the consumer and not to the estimator: a lake can
+    condense, so the lake balance wants the signed mean and this defaults to it,
+    while a groundwater sink cannot run backwards and `build_groundwater.py`
+    asks for the floored one. `max(x, 0)` is a rectifier, so this is the
+    difference that a naive time mean makes large rather than second order --
+    see `notes/audits/annual-mean-of-a-nonlinear-function.md`. On the
+    climatology this is written against no bin is negative anywhere and the two
+    agree exactly; that is a measurement of one climatology and not a property
+    of the function.
     """
     with Dataset(climatology) as ds:
         weights = bin_weights(np.asarray(ds["time"][:]))
@@ -446,6 +459,8 @@ def bin_mean_open_water(climatology, land_albedo, gravity, *, cfg=None,
             t_air, q_air, wind, p_air, rss, rls, land_albedo, gravity,
             diurnal_range=diurnal,
             column_relative_humidity=column_relative_humidity, cfg=cfg)
+        if clip_at_zero:
+            e_k = np.clip(e_k, 0.0, None)
         contribution = weights[k] * e_k
         total = contribution if total is None else total + contribution
     return total

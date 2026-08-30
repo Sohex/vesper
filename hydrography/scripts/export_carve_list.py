@@ -236,6 +236,24 @@ def incision_retain(q_km3_per_year, year_s: float, depth_m, erodibility,
     proxy for the water. Its spread is wider than depth's, so the marginal class
     stays populated. It is now decided by how steeply a basin's overflow leaves
     rather than by how deep the basin is.
+
+    **`Q**m` IS EVALUATED ON AN ANNUAL DISCHARGE AND CANNOT BE EVALUATED ON
+    ANYTHING ELSE, and that is a declared absence rather than an oversight.**
+    `m` is under one, so the power is concave and `sqrt(mean Q)` exceeds
+    `mean(sqrt Q)`: a basin that delivers its overflow in a season is credited
+    here with more cutting than that season's discharge does. The correction is
+    not computable, because the per-bin discharge does not exist. `Q` is built
+    from the catchment's runoff, and `land_water_ledger.yaml` declares
+    `seasonal_phase_of_catchment_delivery` unrepresentable -- annual `P - E` is
+    exactly what a cell generated over a cycle, while per-bin clamping would
+    count the wet season's supply twice. So there is no second arm to bracket
+    against, and inventing one would be a term computed from a quantity that
+    cannot carry it. Closing this is the same decision as adopting the climate
+    column's `surface_runoff`, which that absence already names.
+
+    The EVAPORATION inside `Q` is a different question and is already handled:
+    `cv._INTERVAL_BRACKET` brackets the interval Penman is evaluated over, and
+    both ends are run.
     """
     q = np.asarray(q_km3_per_year, dtype=float) * KM3_PER_YEAR_TO_M3_PER_S / year_s
     cut = coefficient * np.asarray(erodibility, dtype=float) * np.power(

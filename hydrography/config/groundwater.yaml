@@ -388,6 +388,15 @@ fluid:
 # rule governs the lakes, the carve verdict and the water table rather than
 # three; `surface_water.py` takes the same field.
 #
+# AND IT IS THE BIN MEAN OF THE PER-BIN EVALUATION, `bin_mean_open_water`, not
+# one evaluation on annual-mean air. Penman is nonlinear in everything it reads,
+# `land_water_ledger.yaml` holds `open_water_evaporation` at
+# `interval_floor: climatology_bin`, and the sink is linear in `ET_max` while
+# being nonlinear in the depth -- so with the depth held fixed through the year,
+# as a steady-state solve holds it, the annual mean of `ET_max` is the only
+# input the solver can take and the bin mean is that annual mean. The two arms
+# and the spread between them go on the report as `evaporation_interval`.
+#
 # LAMBDA IS BRACKETED RATHER THAN CHOSEN, and the bracket is wider than Shah
 # strictly supports. She reports EXTINCTION depths of 0.18 m for bare sand to
 # 1.86 m for clay under forest. An exponential has no extinction depth, and she
