@@ -1013,7 +1013,7 @@ to tune within it.
 | `texture.clay_conversion` | no comment on the value, no source, no bracket; numerically identical to `clay_yield`, which WAS fitted to a SoilGrids slope of 0.543 | near-linear at this world's weathering intensity: a 10 per cent move is +9.2 per cent converted clay | BRACKETED on the e-folding intensity, 0.29 to 1.00, and the near-degeneracy with `clay_yield` recorded |
 | `texture.clay_yield` | fully admitted as an Earth fit over sixteen type localities, and applied BELOW the range it was calibrated in, where the file records the bias is largest | linear multiplier; documented residual bias of +0.084 clay fraction at this world's mean | UNCHANGED. It is disclosed, and disclosure is the standard this row asks for |
 | `regolith.dry_erosion_baseline` | the mechanism was argued and the value was not attached to it; no source, no bracket | 21 per cent of the moisture term at the land mean, 100 per cent of it over the arid fraction of land, where depth goes as its reciprocal | SOURCED from Portenga and Bierman's arid basins, and bracketed from their stated uncertainties |
-| the `ph:` block: six parent values, `leaching_slope`, `endorheic_alkalinity_bonus` | no comment on ANY value, no citation, no bracket, nothing in README, notes or references | the slope moves land-mean soil pH by 0.04 per 10 per cent and wet-cell pH by 0.13; the bonus is a flat 0.08 over the closed-basin fraction that the brine and duricrust rules key on | ONE ENTRY DERIVED, the rest bracketed, and the block's FORM refuted by its own source |
+| the `ph:` block: six parent values, `leaching_slope`, `endorheic_alkalinity_bonus` | no comment on ANY value, no citation, no bracket, nothing in README, notes or references | the slope moves land-mean soil pH by 0.04 per 10 per cent and wet-cell pH by 0.13; the bonus is a flat 0.08 over the closed-basin fraction that the brine and duricrust rules key on | REBUILT. The block's FORM was refuted by its own source and replaced; BOTH BUFFERS ARE NOW DERIVED at this world's pCO2, the lithology contrast is SOURCED as a base-cation supply and no longer stated as a pH at all, and what remains declared is `gibbsite_buffer_ph` (implicit-Earth, bracketed), `leaching_slope` (bracketed one-sided) and `endorheic_alkalinity_bonus` (bracket derived) |
 | `texture.sand_to_silt_loss_ratio` | no source; and the mechanism sentence beside it had the surface-area argument backwards, which is why the number did not follow from the reasoning printed next to it | redistributes 2 to 3 per cent between sand and silt at fixed clay; under 1 per cent on PAWC | BRACKETED over both mechanisms, sentence corrected, and the value moved to the one point in the bracket that carries a statement |
 
 **Disposition: RESOLVED, and one of the five turned out not to be a bracketing
@@ -1046,25 +1046,51 @@ shape Kessler took in row 12. Solved at their laboratory pressure it returns
 8.236, and at the pre-1977 pressure they quote a check for it returns 8.248;
 both round to what the paper prints, so the transcription is theirs and not
 something plausible assembled beside it. Solved at Vesper's declared pCO2 it
-gives 8.16 for the calcite buffer and 5.59 for water carrying no alkalinity,
-and those two values bracket every silicate parent from both sides while the
-carbonate parent takes the first outright. The derivation travels to another
-planet, which is what separates it from adopting 8.2.
+gives 8.16 for the calcite buffer and 5.59 for water carrying no alkalinity.
+The first is now TWO keys with two roles, `parent_by_category` and
+`calcite_buffer_ph`: the pH of a solution on carbonate rock, and the buffer a
+soil that exports nothing reaches whatever its rock was. The two values together
+bound the fresh solution each declared base-cation supply implies, which is the
+one pH statement the block still makes about a rock. The derivation travels to
+another planet, which is what separates it from adopting 8.2.
 
-**And the same paper refutes the block's FORM, which is more than this row
-asked for.** Slessarev sample 20,000 subsoil pH measurements out of 60,291 and
-find the distribution BIMODAL: a calcite mode near 8.2 and a gibbsite mode near
-5.1, with an abrupt step where mean annual precipitation begins to exceed
-potential evapotranspiration, and the neutral range uncommon. The acid end is
-set by gibbsite WHATEVER the rock was. `build_soil.py:soil_ph` instead starts
-every parent at its own value and takes a single `leaching_slope` down from it,
-so no one slope lands the wet cells on one buffer. That is a property of the
-form, and it is why the values in the block are bracketed rather than fitted:
-they cannot be sized against this observation until the form changes. The
-bracket on `leaching_slope` is the requirement evaluated at two runoffs and the
-declared value sits at its low end, because a steeper slope drives the felsic
-and metamorphic parents onto the `minimum` clip across wet land -- which is the
-railing the regolith block was rewritten to remove.
+**And the same paper refuted the block's FORM, which is more than this row
+asked for, and the form was then replaced.** Slessarev sample 20,000 subsoil pH
+measurements out of 60,291 and find the distribution BIMODAL: a calcite mode
+near 8.2 and a gibbsite mode near 5.1, with an abrupt step where mean annual
+precipitation begins to exceed potential evapotranspiration, and the neutral
+range uncommon. NEITHER MODE CARRIES THE ROCK. `build_soil.py:soil_ph` used to
+start every parent at its own value and take one `leaching_slope` down from it,
+a line with no asymptote at either end, so no slope landed the wet cells on one
+buffer and no slope held the dry ones on the other. It now runs the leaching
+index BETWEEN the two buffers,
+
+    ph = G + (D - G) * exp(-leaching_slope * L / u)
+
+with `D` the buffer the cell reaches at zero export and `u` the parent's
+base-cation supply as a fraction of a calcite-saturated soil's. Both ends are
+parent-independent, which is the observation, and the lithology contrast
+survives at finite leaching in `u`, which is where the paper's own carbonate
+deviation lives.
+
+**`u` IS SOURCED, and it is not a pH.** It sits in the denominator of an
+exponent whose numerator is a leaching index, so it is a ratio of a supply flux
+to an export flux; encoding it as `(parent - G)/(C - G)` from a declared parent
+pH was an affine map between quantities a logarithm separates, and it could not
+express a supply below 0.159 at all. Meybeck (1987) Table 2C, already extracted
+in this tree, and GEM-CO2, Amiotte Suchet and Probst (1995) as
+`vendor/cgenie/genie-rokgem` implements it, both measure the quantity per
+lithology on a common basis and agree to better than a factor of two on every
+category. Four supplies are declared from them, IMPLICIT-EARTH by the same test
+that convicts the gibbsite buffer -- the mineral stoichiometry travels, the
+temperature and soil CO2 the measurements were made at do not -- with brackets
+that are the spread between the two Earth compilations and not the transfer.
+
+The bracket on `leaching_slope` is one requirement evaluated at three points of
+the wettest quartile, and it is ONE-SIDED: all three ends are readings of an
+upper bound, and the finding that would supply a lower one stops being a bound
+under a two-buffer form rather than failing. Re-run against the sourced supply
+set, the three readings are unchanged and the lower bound is still absent.
 
 **`sand_to_silt_loss_ratio` is not derivable and the bracket says so.** The two
 mechanisms point opposite ways: specific surface area goes as one over grain
@@ -1076,13 +1102,13 @@ at the one point inside it carrying a statement, loss in proportion to
 abundance. That a bracket three orders of magnitude wide still moves PAWC by
 under one per cent is the result, not a weakness of the bracket.
 
-**What is left open, and it is not a value.** Nothing in the tree reads
-`pedogenesis.yaml`'s brackets. `outgassing_gate.py` already does exactly this
-job for its own declaration -- bracket well-formed, ends the right way round,
-value inside -- and there is no equivalent for the file this row is about, so a
-declared value drifting outside its declared bracket is invisible to every
-gate. Row 4's joint constraint between `maximum_depth_m` and
-`erosion_coefficient_per_relief_m` is invisible for the same reason.
+**What is left open, and it is not a value.** Row 4's joint constraint between
+`maximum_depth_m` and `erosion_coefficient_per_relief_m` is a relation between
+two keys rather than a value inside an interval, so no bracket expresses it and
+nothing checks it. The single-key half of this is closed:
+`scripts/smoke_test.py:DECLARED_BRACKETS` now registers every bracket in the
+file and refuses one it does not name, which is what makes a bracket added here
+a bracket something reads.
 
 ---
 

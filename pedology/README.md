@@ -25,10 +25,12 @@ python pedology/scripts/carbonate_ph.py                        # the calcite equ
 `carbonate_ph.py` is the alkaline end of the soil pH block. It solves Slessarev
 et al. (2016) Methods eq. (6) at this world's `pCO2_bar`, validating against the
 pH they publish at the pressure they state before it is evaluated anywhere else.
-`pedogenesis.yaml` therefore states no number for the calcite-buffered parent pH
-or for the brackets that hang off it; `build_soil.py` fills them from this module
-on every run, refuses a number written back into those keys, and refuses a
-declared silicate parent that has fallen outside the derived bracket.
+`pedogenesis.yaml` therefore states no number for the calcite buffer, for the
+buffer any parent reaches at zero export, or for the brackets that hang off
+them; `build_soil.py` fills them from this module on every run and refuses a
+number written back into those keys. The lithology contrast is declared
+separately as a base-cation supply, and this module refuses a supply whose
+implied fresh solution falls outside the derived silicate bracket.
 
 Writes `data/<source_build>/soilmap.txt`, which is LPJ-GUESS's own `SoilInput`
 format, and `analysis/soil_report.json`. The soil map is per build, because
@@ -147,9 +149,11 @@ sits on the calcite buffer, because calcium that is not exported accumulates as
 pedogenic calcite until the solution saturates, and one that exports everything
 sits on the gibbsite buffer, because nothing else is left. What the rock decides
 is the base-cation supply that sets how much drainage the crossing takes, so the
-lithology contrast lives at finite leaching rather than at either limit. The
-calcite end is solved from this world's declared pCO2 rather than taken from
-Earth; the gibbsite end is Earth's.
+lithology contrast lives at finite leaching rather than at either limit. That
+supply is declared per rock category and sourced per lithology from Meybeck
+(1987) and GEM-CO2, as a flux ratio rather than as a pH. The calcite end is
+solved from this world's declared pCO2 rather than taken from Earth; the
+gibbsite end and the supply set are Earth's.
 
 **Organic fraction and bulk density**, from LPJ-GUESS's own soil carbon through
 the standard reciprocal mixing rule, which is why organic soils come out light.

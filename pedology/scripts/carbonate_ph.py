@@ -347,34 +347,61 @@ def resolve(ph_params: dict, p_co2_bar: float) -> tuple[dict, dict]:
             "cannot learn pCO2 moved. See pedology/scripts/carbonate_ph.py")
     resolved["calcite_buffer_ph"] = block["calcite_buffer_ph"]
 
+    # Every entry but the evaporite is the calcite buffer: a soil that exports
+    # nothing accumulates pedogenic calcite until the solution saturates, so
+    # which buffer it lands on is not a property of the rock. Only the evaporite
+    # sits above calcite saturation, and it is declared.
     parents = dict(ph_params["parent_by_category"])
-    if parents.get("carbonate") != "derived":
+    stated = [name for name, value in parents.items()
+              if name != "evaporite" and value != "derived"]
+    if stated:
         raise SystemExit(
-            f"pedogenesis.yaml ph.parent_by_category.carbonate is "
-            f"{parents.get('carbonate')!r}; it must be the string `derived`. "
-            "It is the calcite equilibrium at this world's pCO2 and nothing "
-            "else. See pedology/scripts/carbonate_ph.py")
-    parents["carbonate"] = block["parent_carbonate"]
+            "pedogenesis.yaml ph.parent_by_category states a number for "
+            + ", ".join(f"{name} ({parents[name]!r})" for name in sorted(stated))
+            + "; every entry but `evaporite` must be the string `derived`. The "
+              "buffer a soil reaches with nothing exported is the calcite "
+              "equilibrium at this world's pCO2, and a number here is a "
+              "restatement that cannot learn pCO2 moved. See "
+              "pedology/scripts/carbonate_ph.py")
+    for name in parents:
+        if name != "evaporite":
+            parents[name] = block["parent_carbonate"]
     resolved["parent_by_category"] = parents
 
-    # The check that can fail on a value nobody edited: every DECLARED silicate
-    # parent has to sit inside the bracket the equilibrium draws around it. The
-    # config asserts the order and the spacing of those four; the bracket is
-    # what says they are pH values of a soil solution at all, and a change of
-    # pCO2 moves the bracket without moving them.
+    # The check that can fail on a value nobody edited. The declared quantity is
+    # a base-cation supply and not a pH, so the bracket cannot be applied to it
+    # directly; what the bracket bounds is the fresh solution that supply
+    # implies. Bicarbonate carries the alkalinity, so a solution supplying a
+    # fraction `u` of a calcite-saturated one sits at
+    # calcite_ph + log10(u), which is above water in equilibrium with the
+    # atmosphere and below calcite saturation exactly when `u` is a supply a
+    # soil solution can have. A change of pCO2 moves both ends without moving
+    # any declared supply.
+    supplies = ph_params["base_cation_supply_by_category"]
+    brackets = ph_params["base_cation_supply_bracket_by_category"]
     low, high = block["parent_bracket_silicate"]
-    outside = {name: value for name, value in parents.items()
-               if name not in ("carbonate", "evaporite")
-               and not low <= float(value) <= high}
-    if outside:
+    calcite = block["calcite_buffer_ph"]
+    bad = []
+    for name, value in sorted(supplies.items()):
+        value = float(value)
+        if not 0.0 < value <= 1.0:
+            bad.append(f"{name} {value}, which is not a fraction of a "
+                       "calcite-saturated soil's supply")
+            continue
+        implied = calcite + math.log10(value)
+        if not low <= implied <= high:
+            bad.append(f"{name} {value} implies a fresh solution at pH "
+                       f"{implied:.4f}")
+        ends = brackets.get(name)
+        if ends is not None and not float(ends[0]) <= value <= float(ends[1]):
+            bad.append(f"{name} {value} is outside its own declared bracket "
+                       f"[{ends[0]}, {ends[1]}]")
+    if bad:
         raise SystemExit(
-            "pedogenesis.yaml declares silicate parent pH outside the bracket "
-            f"the carbonate system draws at pCO2 {p_co2_bar} bar, "
-            f"[{low:.4f}, {high:.4f}]: "
-            + ", ".join(f"{k} {v}" for k, v in sorted(outside.items()))
-            + ". A soil solution supplied with base cations sits above water "
-              "in equilibrium with the atmosphere and below the point calcite "
-              "takes the buffering over.")
+            "pedogenesis.yaml ph.base_cation_supply_by_category does not "
+            "describe soil solutions the carbonate system allows at pCO2 "
+            f"{p_co2_bar} bar, where the silicate bracket is "
+            f"[{low:.4f}, {high:.4f}]: " + "; ".join(bad))
     return resolved, block
 
 

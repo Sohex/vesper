@@ -3759,6 +3759,18 @@ DECLARED_BRACKETS = (
     ("value", "ph.parent_by_category.evaporite", PEDOGENESIS,
      ("ph", "parent_by_category", "evaporite"),
      ("ph", "parent_bracket_evaporite"), None),
+    ("value", "ph.base_cation_supply_by_category.igneous_mafic", PEDOGENESIS,
+     ("ph", "base_cation_supply_by_category", "igneous_mafic"),
+     ("ph", "base_cation_supply_bracket_by_category", "igneous_mafic"), None),
+    ("value", "ph.base_cation_supply_by_category.igneous_felsic", PEDOGENESIS,
+     ("ph", "base_cation_supply_by_category", "igneous_felsic"),
+     ("ph", "base_cation_supply_bracket_by_category", "igneous_felsic"), None),
+    ("value", "ph.base_cation_supply_by_category.metamorphic", PEDOGENESIS,
+     ("ph", "base_cation_supply_by_category", "metamorphic"),
+     ("ph", "base_cation_supply_bracket_by_category", "metamorphic"), None),
+    ("value", "ph.base_cation_supply_by_category.sedimentary_clastic", PEDOGENESIS,
+     ("ph", "base_cation_supply_by_category", "sedimentary_clastic"),
+     ("ph", "base_cation_supply_bracket_by_category", "sedimentary_clastic"), None),
     ("value", "ph.leaching_slope", PEDOGENESIS,
      ("ph", "leaching_slope"), ("ph", "leaching_slope_bracket"), None),
     ("value", "ph.gibbsite_buffer_ph", PEDOGENESIS,
@@ -4262,9 +4274,13 @@ def _bracket_problems(docs: dict, derived: dict | None,
             continue
 
         if value_path is None:
-            # A derived bracket that brackets no key of its own: what it bounds
-            # is `parent_by_category`, and `carbonate_ph.resolve` refuses a
-            # parent outside it on every run.
+            # A derived bracket that brackets no key of its own. It bounds the
+            # FRESH SOLUTION the declared base-cation supplies imply, which is
+            # `C + log10(u)`, and `carbonate_ph.resolve` refuses a supply whose
+            # implied solution falls outside it on every run. It stopped
+            # bounding `parent_by_category` when world-jixy deleted the four
+            # silicate parent pH values: an affine encoding cannot carry a
+            # sourced supply, because a supply-to-pH map is a logarithm.
             continue
 
         value = _dig(doc, value_path)

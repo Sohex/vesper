@@ -812,88 +812,139 @@ ph:
   #
   # A FRESH PARENT pH IS NOT A STATE THIS MODEL CAN BE IN. Orogen has no time
   # axis, so what a gridcell here represents is a steady state, and "this rock
-  # has not accumulated its calcite yet" is a sentence about kinetics. The
-  # numbers below are read as a supply ordering, not as the pH of any modelled
-  # soil.
+  # has not accumulated its calcite yet" is a sentence about kinetics. So no
+  # key below states one: the rock enters as a supply and the two buffers are
+  # the only pH values the block declares.
 
-  # pH of a fresh, unleached soil on each rock category.
+  # THE LITHOLOGY CONTRAST IS A BASE-CATION SUPPLY, AND IT IS SOURCED.
   #
-  # DERIVED BRACKET on the silicate entries, from the carbonate system at this
-  # planet's declared pCO2. `config/planet.yaml` is the source of that number
-  # and nothing here restates it -- INCLUDING one function application removed,
-  # which is what a pH written here would be. A soil solution supplied with base
-  # cations sits above water in equilibrium with the atmosphere and nothing
-  # else, and below the point where calcite precipitates and takes the buffering
-  # over. Both ends come out of one equilibrium, Slessarev's Methods eq. (6) in
-  # the four dissociation constants and the calcite solubility.
+  # `build_soil.py:soil_ph` reads the rock through one dimensionless number:
+  # the base cations a parent supplies, as a fraction of what a
+  # calcite-saturated soil supplies. It sits in the denominator of an exponent
+  # whose numerator is a leaching index, so it is a ratio of a supply FLUX to
+  # an export FLUX, which is the only kind of statement a model with no time
+  # axis can make about which soil keeps its calcite.
   #
-  # `pedology/scripts/carbonate_ph.py` IS that equilibrium. It reproduces the
-  # paper's published pH at the paper's stated laboratory pCO2 before it is
-  # evaluated at this world's, `build_soil.py` calls it on every run, and the
-  # keys below are the string `derived` so that nothing here can drift from it.
-  # The bracket therefore travels to another planet, which is the point of
-  # deriving it instead of taking a value measured on Earth.
+  # A FLUX RATIO IS NOT A pH. This block used to encode it as one: four
+  # declared fresh-parent pH values, from which the form recovered the supply
+  # as (parent - G)/(C - G). That is an affine map from a pH onto a
+  # concentration ratio and the two differ by a logarithm, so no set of pH
+  # values inside the silicate bracket can carry a supply below 0.159. The
+  # encoding is gone. The supply is declared directly and `parent_by_category`
+  # below keeps only the role it can carry, naming the buffer each category
+  # reaches at zero export.
   #
-  # WHAT IS STILL DECLARED is the ORDER and the SPACING inside that bracket.
-  # Mafic above clastic above metamorphic above felsic is a contrast this file
-  # asserts. Do not tune within the bracket.
+  # THE SOURCES, both held, both per-lithology on a common basis.
   #
-  # THE SPACING IS SIZED BY A REQUIREMENT THE DECLARED VALUES DO NOT MEET, and
-  # the arithmetic is short enough to state here. Slessarev asks two things of
-  # the same figure at once: soils in the neutral range 6-7 are uncommon
-  # relative to the buffered ranges, and profiles in the wettest quartile are
-  # 2.6 times more likely to exceed pH 6.5 on carbonate bedrock. Both are
-  # statements about one cell's retained offset above the gibbsite buffer G, so
-  # both close on the parent's supply fraction u = (parent - G)/(C - G), with C
-  # the calcite buffer. Writing f = exp(-leaching_slope * L), a carbonate
-  # parent has u = 1 and stays above 6.5 while f >= (6.5 - G)/(C - G); the
-  # modal clastic parent reaches a gibbsite mode one pH unit wide while
-  # f^(1/u) <= 0.5/(C - G). Those close only if
+  # Meybeck (1987), Am. J. Sci. 287(5), 401-428, doi 10.2475/ajs.287.5.401,
+  # Table 2C: major-ion concentrations for ten rock types in the Temperate
+  # Stream Model, from monolithologic drainage basins, extracted and
+  # arithmetically validated in `pedology/data/reference/meybeck1987_tables.json`.
+  # At equal runoff a concentration ratio IS a flux ratio, which is what makes
+  # this a supply table. The value below is its bicarbonate column relative to
+  # sedimentary carbonate rocks, because bicarbonate is the acid-neutralising
+  # capacity: base cations arriving paired with chloride or sulphate buffer
+  # nothing. The cation-sum column is the other reading and is a bracket end.
   #
-  #     u <= ln((6.5 - G)/(C - G)) / ln(0.5/(C - G))
+  # Amiotte Suchet and Probst (1995), Tellus 47B(1-2), 273-280, doi
+  # 10.3402/tellusb.v47i1-2.16047, as `vendor/cgenie/genie-rokgem` implements
+  # its 2003 global form in `GEM_CO2_consts.dat`: the slope of atmospheric and
+  # soil CO2 consumption against runoff, fitted on 232 French monolithologic
+  # basins. Converted to an alkalinity yield by the paper's own stoichiometry,
+  # the whole bicarbonate flux from atmospheric CO2 for silicate weathering and
+  # half of it for carbonate dissolution, using the carbonate/silicate split the
+  # same file carries. Its published ratio reproduces: carbonate over plutonic
+  # and metamorphic is 16.7 against the 17 the paper states.
   #
-  # which at the declared buffers is 0.4319, so the modal clastic parent has to
-  # sit at or below 6.423. It is declared at 6.8, a supply fraction of 0.5550.
-  # In the ratio the row world-jixy states it in: (C - G)/(clastic - G) has to
-  # reach 2.32 and the declared values give 1.80. THE SLOPE AND THE LEACHING
-  # INDEX BOTH CANCEL, so no value of `leaching_slope` satisfies both and the
-  # shortfall is in the spacing.
+  # THE MAPPING follows `brine_paths.py:ROCK_TO_MEYBECK` wherever that already
+  # answers the question. Where a category spans more than one source row the
+  # value is the source's own outcrop-weighted mixture, because an alkalinity
+  # is extensive and mixes linearly, and the individual rows are bracket ends.
   #
-  # WHERE THE SHORTFALL SITS. Not in the carbonate end: that is pinned to the
-  # calcite equilibrium at this world's pCO2 and moves only when pCO2 moves.
-  # Only partly in the buffer: G at the top of its own bracket lifts the bound
-  # to 6.695 and G at the bottom drops it to 5.792, so no reading of the
-  # gibbsite bracket reaches 6.8. It sits in the silicate set, and the repair
-  # is not one number. Dropping the clastic entry to 6.423 puts it under the
-  # metamorphic and level with the felsic entry, which breaks the order this
-  # file asserts, so satisfying the requirement means re-deriving all four
-  # against a source that sizes their base-cation supply. No source here does.
-  # The values therefore stand as SOURCED AND CONTRADICTED, which is what
-  # world-jixy is open on; do not close the gap by moving one of them.
+  # IMPLICIT-EARTH, all four, and the diagnosis is what says they are wrong here
+  # rather than an endorsement of them. Not tuned: a measured concentration and
+  # a measured regression slope are not the residual of a fit against anything
+  # in this model, and neither was moved after a comparison was seen. Not
+  # opaque: both sources are held, one is extracted into the tree and the other
+  # reproduces its own published ratio. What is Earth's is the population. A
+  # supply ratio between two rock classes carries the stoichiometry of their
+  # minerals, which travels, and three things that do not: the temperature the
+  # dissolution was measured at, the soil CO2 that sets how much carbonate the
+  # denominator dissolves, and the carbonate cement Earth's shales and
+  # sandstones happen to carry. The repair is a mineral-kinetics supply solved
+  # at this world's temperature and pCO2, which
+  # `pedology/notes/mineral-reactivity-supply.md` records this project cannot
+  # yet build. THE BRACKET DOES NOT STAND IN FOR THAT: it is the spread between
+  # two Earth compilations and says nothing about the transfer.
+  #
+  # Carbonate and evaporite are 1 BY CONSTRUCTION and not by measurement: a
+  # parent that is itself the buffer mineral supplies what a soil buffered by
+  # it supplies, so the fraction is the definition and not a reading.
+  #
+  # THE REQUIREMENT world-jixy states IS SATISFIED, and by the whole bracket
+  # rather than the declared point. Slessarev's two findings close on one
+  # cell's supply and force u <= 0.4319 on the land-area modal silicate
+  # category; that category is `sedimentary_clastic` and the sourced value is
+  # 0.1355, with a bracket topping out at 0.3052. The declared pH encoding this
+  # replaced gave 0.5550.
+  #
+  # THE ORDER MOVED, and both sources move it the same way. This file used to
+  # assert mafic above clastic above metamorphic above felsic. The sourced
+  # order is CLASTIC ABOVE MAFIC above metamorphic above felsic, because
+  # Earth's shales carry carbonate cement and the bicarbonate column sees it.
+  # The clastic-over-mafic margin is two per cent on Meybeck and is not
+  # resolvable there alone; GEM-CO2 puts it at 1.9x and settles the direction.
+  base_cation_supply_by_category:
+    igneous_mafic: 0.1330
+    igneous_felsic: 0.0401
+    metamorphic: 0.0423
+    sedimentary_clastic: 0.1355
+    carbonate: 1.0
+    evaporite: 1.0
+  # Ends are the minimum and the maximum over every applicable row of both
+  # sources and both of Meybeck's columns. Report the spread; do not tune
+  # within it. The one asymmetry worth knowing: `metamorphic` is bracketed on
+  # gneiss and mica-schist alone, and `build_soil.py:PH_GROUP` also puts
+  # `melange` in this category while `brine_paths.py:ROCK_TO_MEYBECK` reads the
+  # same rock as shale. The two mappings disagree, and this bracket does not
+  # cover the disagreement.
+  base_cation_supply_bracket_by_category:
+    igneous_mafic: [0.1330, 0.1565]
+    igneous_felsic: [0.0310, 0.0725]
+    metamorphic: [0.0310, 0.0638]
+    sedimentary_clastic: [0.0391, 0.3052]
+  # The buffer each category reaches with nothing exported, and the only role
+  # this key still carries. `build_soil.py:soil_ph` takes the cell's mixture of
+  # it as `dry`.
+  #
+  # DERIVED for everything that supplies calcium, which is every silicate and
+  # the carbonate: a soil that exports nothing accumulates pedogenic calcite
+  # until the solution saturates, so the buffer is the calcite equilibrium at
+  # this world's pCO2 and not a property of the rock. That is world-i70y's
+  # verdict, stated once here instead of approximated by four declared numbers
+  # that happened to sit below it. `pedology/scripts/carbonate_ph.py` fills
+  # these and REFUSES a number written into any of them.
   parent_by_category:
-    igneous_mafic: 7.6
-    igneous_felsic: 6.4
-    metamorphic: 6.6
-    sedimentary_clastic: 6.8
-    # DERIVED, and therefore stated as no number at all: the calcite
-    # equilibrium at this world's pCO2, open to the atmosphere. That is the
-    # condition a laboratory pH is measured under and the one Slessarev's 8.2
-    # is stated at, so it is the condition to put a number that gets compared
-    # against measured pH on. Soil air runs above atmospheric, and the same
-    # equilibrium at that enrichment is the low end of `parent_bracket_carbonate`
-    # below, so a field pH on carbonate reads under this one.
-    #
-    # `pedology/scripts/carbonate_ph.py` fills it, and REFUSES a number here.
+    igneous_mafic: derived
+    igneous_felsic: derived
+    metamorphic: derived
+    sedimentary_clastic: derived
     carbonate: derived
-    # Above the calcite buffer, because sodium carbonate rather than calcite
-    # sets it.
+    # The one entry that is not calcite. Sodium carbonate rather than calcite
+    # sets an evaporite's buffer, and a solution buffered by soda is not
+    # brought back down by precipitating calcite out of it.
     evaporite: 8.8
   # Both DERIVED by `pedology/scripts/carbonate_ph.py` from the same
   # equilibrium: the silicate bracket runs from water with no alkalinity to
-  # calcite open to the atmosphere, the carbonate one from calcite at the top
-  # of the declared soil-air CO2 enrichment to the same atmospheric value. The
-  # four silicate entries above are checked against the first of them on every
-  # run, because a change of pCO2 moves the bracket without moving them.
+  # calcite open to the atmosphere, the carbonate one from calcite at the top of
+  # the declared soil-air CO2 enrichment to the same atmospheric value.
+  #
+  # WHAT THE SILICATE BRACKET BOUNDS is the fresh solution each declared supply
+  # implies. Bicarbonate carries the alkalinity, so a supply fraction u puts
+  # that solution at `calcite_buffer_ph` + log10(u), and `carbonate_ph.resolve`
+  # refuses a run whose declared supplies put it outside this bracket. That is a
+  # pH bound on a pH, it can fail, and it is the check a change of pCO2 would
+  # otherwise break silently.
   parent_bracket_silicate: derived
   parent_bracket_carbonate: derived
   # Bracketed by what a closed basin reaches. Helvaci (2019) lists lake water
@@ -917,11 +968,12 @@ ph:
   # cannot make.
   #
   # DERIVED, and therefore stated as no number at all. This is the same calcite
-  # equilibrium as the carbonate parent above, at the same atmospheric pCO2,
-  # and `pedology/scripts/carbonate_ph.py` fills both and REFUSES a number
-  # here. It is a separate key because it is a separate role: the parent is the
-  # pH of a solution on carbonate rock, and this is where a soil that exports
-  # nothing ends up whatever its rock was. It is NOT implicit-Earth, which the
+  # equilibrium `parent_by_category` above is filled from, at the same
+  # atmospheric pCO2, and `pedology/scripts/carbonate_ph.py` fills both and
+  # REFUSES a number here. It is a separate key because it is the FLOOR rather
+  # than a table entry: `soil_ph` holds the cell's mixture of buffers to it, so
+  # that a mixture can rise above calcite saturation on evaporite and never
+  # fall below it. It is NOT implicit-Earth, which the
   # gibbsite end below is: it travels to another planet because it is solved at
   # this planet's declared atmosphere rather than measured on Earth's.
   calcite_buffer_ph: derived

@@ -440,11 +440,13 @@ def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
     is present, and it is where the lithology contrast lives in this form: at
     FINITE leaching, not at either limit.
 
-    `supply` is the fraction of the buffer-to-buffer span the parent's declared
-    pH occupies, which is a monotone reading of the same declared contrast the
-    config asserts the order and the spacing of. It is a ratio of a supply to
-    an export and carries no time, so it is a steady-state statement and not a
-    rate.
+    `supply` is DECLARED, in `ph.base_cation_supply_by_category`, and is sourced
+    per lithology from Meybeck (1987) and GEM-CO2. It is not read off a parent
+    pH: it sits in the denominator of an exponent whose numerator is a leaching
+    index, so it is a ratio of a supply flux to an export flux, and a pH is the
+    logarithm of an activity rather than anything proportional to a flux. The
+    config argues that at length. It carries no time, so it is a steady-state
+    statement and not a rate.
 
     Deliberately takes runoff, not whatever `weathering.moisture_variable`
     selects. Leaching is base cations physically leaving the profile, which
@@ -478,32 +480,39 @@ def soil_ph(fractions: dict[str, np.ndarray], runoff_mm_yr: np.ndarray,
             "has to be above the acid one; at this pCO2 it is not, and there "
             "is no span for a parent to sit inside.")
     shape = runoff_mm_yr.shape
-    parent = np.zeros(shape)
+    buffers = params["parent_by_category"]
+    supplies = params["base_cation_supply_by_category"]
+    dry = np.zeros(shape)
+    supply = np.zeros(shape)
     total = np.zeros(shape)
     for code, share in fractions.items():
         group = PH_GROUP.get(code)
         if group is None:
             raise SystemExit(f"rock class {code!r} has no pH group; add it to PH_GROUP")
-        parent += share * params["parent_by_category"][group]
+        dry += share * buffers[group]
+        # A supply is extensive, so it mixes linearly over the cell's rock
+        # classes for the same reason an alkalinity does.
+        supply += share * supplies[group]
         total += share
     covered = total > 1e-9
-    parent[covered] /= total[covered]
-    parent[~covered] = params["parent_by_category"]["sedimentary_clastic"]
+    dry[covered] /= total[covered]
+    supply[covered] /= total[covered]
+    dry[~covered] = buffers["sedimentary_clastic"]
+    supply[~covered] = supplies["sedimentary_clastic"]
 
-    # The highest buffer this parent can reach with nothing exported. Calcite
-    # for everything that supplies calcium, which is every rock class here; the
-    # evaporite parent sits above calcite saturation because sodium carbonate
-    # rather than calcite sets it, and a solution buffered by soda is not
-    # brought back down by precipitating calcite out of it.
-    dry = np.maximum(parent, calcite_ph)
-    if float(parent.min()) <= buffer_ph:
+    # The buffer the mixture reaches with nothing exported is calcite for
+    # everything that supplies calcium, which is every rock class here; only the
+    # evaporite entry sits above calcite saturation, because sodium carbonate
+    # rather than calcite sets it and a solution buffered by soda is not brought
+    # back down by precipitating calcite out of it. The floor is defensive: a
+    # mixture of buffers cannot fall below the lowest of them.
+    dry = np.maximum(dry, calcite_ph)
+    if float(supply.min()) <= 0.0:
         raise SystemExit(
-            f"the mixed parent pH falls to {float(parent.min()):.4f}, at or "
-            f"below the gibbsite buffer {buffer_ph}. Every declared parent has "
-            "to sit inside the span the two buffers draw, or its base-cation "
-            "supply relative to a calcite-saturated soil is zero or negative "
-            "and the leaching index has nothing to be relative to.")
-    supply = (parent - buffer_ph) / (dry - buffer_ph)
+            f"the mixed base-cation supply falls to {float(supply.min()):.4f}. "
+            "A parent that supplies no base cation at all has no ratio for the "
+            "leaching index to be relative to; every declared supply has to be "
+            "positive.")
 
     leaching = np.log1p(np.maximum(runoff_mm_yr, 0.0) / reference_runoff)
     ph = buffer_ph + (dry - buffer_ph) * np.exp(
@@ -798,8 +807,8 @@ def main() -> None:
     # The alkaline end of the pH block is a function of ONE input,
     # `config/planet.yaml`'s `pCO2_bar`, through the calcite equilibrium
     # `carbonate_ph.py` solves. The config states no number for it; this fills
-    # the sentinels, refuses a restatement, and refuses a declared silicate
-    # parent that has fallen outside the derived bracket.
+    # the sentinels, refuses a restatement, and refuses a declared base-cation
+    # supply whose implied fresh solution falls outside the derived bracket.
     ph_params, ph_derivation = carbonate_ph.resolve(
         pedo["ph"], config["atmosphere"]["pCO2_bar"])
     ph = soil_ph(fractions, runoff, endorheic, ph_params,

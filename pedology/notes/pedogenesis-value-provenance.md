@@ -117,12 +117,14 @@ calcite sets the alkaline end wherever it has not, whatever the rock was in
 either case. `soil_ph` in `build_soil.py` therefore runs the leaching index
 between the two buffers rather than taking each parent down a line of its own:
 
-    ph = G + (C - G) * exp(-leaching_slope * L / u),   L = ln(1 + q/q_ref)
+    ph = G + (D - G) * exp(-leaching_slope * L / u),   L = ln(1 + q/q_ref)
 
-with `G` the `gibbsite_buffer_ph` entry, `C` the `calcite_buffer_ph` entry, and
-`u = (parent - G)/(C - G)` the parent's base-cation supply as a fraction of a
-calcite-saturated soil's. At `L = 0` this is `C` for every rock that supplies
-calcium, which is every rock class here; as `L` grows every parent goes to `G`.
+with `G` the `gibbsite_buffer_ph` entry, `D` the buffer the cell's mixture
+reaches at zero export, and `u` the parent's base-cation supply as a fraction of
+a calcite-saturated soil's, declared in
+`ph.base_cation_supply_by_category`. At `L = 0` this is `D`, which is the
+calcite buffer for every rock that supplies calcium and therefore for every rock
+class but the evaporite; as `L` grows every parent goes to `G`.
 A line cannot express either end, because it has no asymptote and holds two
 parents exactly their initial spacing apart at every slope, and an asymptote at
 one end only cannot express the other.
@@ -210,15 +212,15 @@ nothing ends up whatever its rock was. They coincide because the buffering
 phase is the same one. Both are `derived`, and `carbonate_ph.resolve` refuses a
 number written into either.
 
-The same two atmospheric values bracket every silicate parent, from both sides
-and for a stated reason. A soil solution supplied with base cations sits above
-water in equilibrium with the atmosphere and nothing else, and below the point
-where calcite precipitates and takes the buffering over. What remains declared
-inside that bracket is the ORDER and the SPACING of the four silicate entries;
-no source here sizes that contrast. The bracket is now enforced rather than
-described: `carbonate_ph.resolve` refuses a run whose declared silicate parents
-have fallen outside it, which is the failure a change of `pCO2_bar` would
-otherwise cause silently.
+The same two atmospheric values bracket every silicate soil solution, from both
+sides and for a stated reason. A soil solution supplied with base cations sits
+above water in equilibrium with the atmosphere and nothing else, and below the
+point where calcite precipitates and takes the buffering over. That is a pH
+bound, so it is applied to a pH: bicarbonate carries the alkalinity, a supply
+fraction `u` puts the fresh solution at `C + log10(u)`, and
+`carbonate_ph.resolve` refuses a run whose declared supplies put it outside the
+bracket. A change of `pCO2_bar` moves both ends without moving any declared
+supply, which is the failure that would otherwise be silent.
 
 Because the derivation runs on this world's pCO2 and not on a number read off
 Earth, it travels to another planet, which is the reason for deriving it rather
@@ -272,30 +274,88 @@ modes. The pass set is not even contiguous: it fails only in a narrow band of
 slopes where the land is split between the modes and enough of it is in transit.
 A quantity satisfied in the degenerate limit is not a bound.
 
-**The parent SPACING is separately sized, and the declared values fall short.**
+Re-run against the sourced supply set, the derivation returns the same three
+numbers and the same absence. The upper bound is unchanged because a carbonate
+parent's supply is 1 by construction and its expression carries no other
+lithology. The lower bound is still not there: the density test now passes at
+every slope from 0.01 to 4.00 without a gap, where on the declared set it failed
+in a narrow band, because a set whose silicates supply four to fourteen per cent
+of a calcite-saturated soil's base cations puts the whole silicate land on one
+buffer or the other at any slope. The falsification condition, `s_lo > s_hi`,
+does not fire, and it does not fire for the same reason as before: there is no
+`s_lo` to compare.
+
+### The supply set, and the requirement it has to meet
+
 Both paper findings close on one cell's supply fraction, in an inequality the
 slope and the leaching index cancel out of: a carbonate parent has `u = 1` and
 stays above 6.5 while `f = exp(-s L)` is at least `(6.5 - G)/(C - G)`, and the
-modal clastic parent reaches a gibbsite mode one pH unit wide while `f^(1/u)` is
-at most `0.5/(C - G)`. Both hold only if
+modal silicate parent reaches a gibbsite mode one pH unit wide while `f^(1/u)`
+is at most `0.5/(C - G)`. Both hold only if
 
     u <= ln((6.5 - G)/(C - G)) / ln(0.5/(C - G))
 
-which at the declared buffers is 0.4319, putting the modal clastic parent at or
-below 6.423 against a declared 6.8. In the ratio form the earlier single-buffer
-reading used, `(C - G)/(clastic - G)` has to reach 2.32 where the declared
-values give 1.80; the dry buffer relieves about a third of the shortfall the
-single-buffer form put at 2.80, and does not close it.
+which at the declared buffers is 0.4319. The land-area modal silicate category
+is `sedimentary_clastic`.
 
-The shortfall is not in the carbonate end, which is pinned to the calcite
-equilibrium at this world's pCO2 and moves only when pCO2 moves, and it is only
-partly in the buffer: `G` at the top of its own bracket lifts the bound to 6.695
-and at the bottom drops it to 5.792, so no reading of the gibbsite bracket
-reaches 6.8. It sits in the silicate set, and the repair is not one number.
-Dropping the clastic entry to 6.423 puts it under the metamorphic entry and
-level with the felsic one, which breaks the order the config asserts, so
-satisfying the requirement means re-deriving all four against a source that
-sizes their base-cation supply, and no source here does.
+**The set that meets it is sourced, and the two sources are independent.**
+Meybeck (1987) Table 2C gives major-ion concentrations for ten rock types in
+monolithologic drainage basins under one temperate stream model; at equal runoff
+a concentration ratio is a flux ratio, so the bicarbonate column relative to
+sedimentary carbonate rocks is a supply fraction directly. GEM-CO2, Amiotte
+Suchet and Probst (1995) as `vendor/cgenie/genie-rokgem` implements its 2003
+global form, gives the slope of atmospheric and soil CO2 consumption against
+runoff for 232 French monolithologic basins; converting it to an alkalinity
+yield by the paper's own stoichiometry, and dividing by the carbonate row,
+gives the same quantity from a different measurement. The two agree to better
+than a factor of two on every category, and the requirement turns on a factor of
+2.32, so they decide it.
+
+| category | value | bracket | rejected pH reading |
+| --- | --- | --- | --- |
+| `igneous_mafic` | 0.1330 | [0.1330, 0.1565] | 0.8162 |
+| `igneous_felsic` | 0.0401 | [0.0310, 0.0725] | 0.4244 |
+| `metamorphic` | 0.0423 | [0.0310, 0.0638] | 0.4897 |
+| `sedimentary_clastic` | 0.1355 | [0.0391, 0.3052] | 0.5550 |
+
+The requirement is met at every value and at every bracket end, where the pH
+encoding it replaced missed it on three of the four categories.
+
+**The order moved, and both sources move it the same way.** The file used to
+assert mafic above clastic above metamorphic above felsic. The sourced order is
+clastic above mafic above metamorphic above felsic, because Earth's shales carry
+carbonate cement and a bicarbonate column sees it. The clastic-over-mafic margin
+is two per cent on Meybeck and is not resolvable there alone; GEM-CO2 puts it at
+1.9x and settles the direction.
+
+**A supply is not a pH, which is what the encoding got wrong.** The form uses
+the parent only through `u`, and `u` sits in the denominator of an exponent
+whose numerator is a leaching index, so it is a ratio of a supply flux to an
+export flux. A pH is the logarithm of an activity and is proportional to no
+flux, so `u = (parent - G)/(C - G)` is an affine map between quantities a
+logarithm separates. It is also not a wide enough map: the silicate bracket's
+floor is 5.586, so no pH inside it encodes a supply below 0.159, and three of
+the four sourced supplies are below that. Reading the sources the other way
+instead -- solving Slessarev eq. (6) at each lithology's measured alkalinity to
+get a fresh-solution pH -- returns 6.77 to 7.30 and supplies of 0.54 to 0.72,
+which fails the requirement on all four. That route is rejected on mechanism and
+not on its score: it sizes a fresh parent pH, which this block says outright is
+not a state the model can be in.
+
+**What the set is worth on the modelled field**, measured on the offline
+reconstruction that reproduces the shipped soil map exactly at its three
+decimals, over 1,639 land cells, area-weighted, at the declared slope 0.90.
+Land-mean pH falls from 7.261 to 6.717, against Slessarev's own two-value model
+at 5.739; 718 cells move by more than 0.5 pH and 465 by more than 1.0. The
+paper's bimodality is what moves most: the neutral 6-7 share falls from 0.255 to
+0.089 and the gibbsite window rises from 0.065 to 0.399. The paper's carbonate
+deviation cannot be read at the declared slope on either set -- the declared set
+gives 0.90 on 6 and 14 cells, bootstrapping to [0.35, 1.88], and the sourced set
+puts no non-carbonate cell of the wettest quartile above 6.5 at all, so the
+ratio is undefined in every resample. What the sweep shows, as a diagnostic and
+not as a bound, is that the declared set returned 0.8 to 1.0 at every slope,
+which is no lithology signal at all, while the sourced set returns 12 to 18
+against the paper's 2.6 in the middle of the slope bracket.
 
 `endorheic_alkalinity_bonus` has to carry a calcite-buffered soil into the range
 a closed basin reaches. Helvaci (2019) lists lake water at pH 8.5 to 11 among
