@@ -989,6 +989,22 @@ moved. Under `runoff_source p_minus_e` the recorded runoff is
 `max(P - E_land, 0)` by construction, which is the identity to check before
 trusting them.
 
+**Each basin also carries whether the season this pipeline cannot see could
+change its class.** `Q**m` is evaluated on an ANNUAL overflow because
+`config/land_water_ledger.yaml` declares `seasonal_phase_of_catchment_delivery`
+an absence, and the power is concave, so the annual evaluation credits a
+seasonally delivered overflow with more cutting than its season supports.
+`method.seasonal_concavity` bounds that without the phase and
+`seasonal_concavity_movable` puts the bound on each basin.
+Two results make it a per-basin flag rather than a second carve list: the
+coefficient is solved from the same discharge field on every run, so a
+concavity discount common to every basin is absorbed exactly and a bracket over
+the level would have zero width; and an overflow is never negative, so the
+spread that survives cannot move a basin more than `J = 1/w_min**(1 - m)`
+either side of the class boundary. `false` is the strong statement -- no
+admissible delivery phase changes that basin's class.
+`hydrography/notes/carve-verdict-interval.md` carries the measurement.
+
 The count of retain-0 entries in `carve_list.json` matches
 `carvedByRetainZero` in the resulting build's manifest, which is the check
 that the list was consumed as written. Iteration 2 is a run, not a generator

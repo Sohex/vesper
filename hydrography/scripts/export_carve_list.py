@@ -251,17 +251,49 @@ def incision_retain(q_km3_per_year, year_s: float, depth_m, erodibility,
     cannot carry it. Closing this is the same decision as adopting the climate
     column's `surface_runoff`, which that absence already names.
 
+    **What the absence does NOT prevent is bounding the error, and the bound
+    changes what the absence costs.** `seasonal_concavity` carries it in full;
+    the two facts it turns on are these. The concavity discount is a factor on
+    `cut`, `cut` is linear in the coefficient, and the coefficient is SOLVED
+    from this same discharge field on every run -- so a discount common to
+    every basin is met by a coefficient of exactly `coefficient / phi` and the
+    verdict comes back bit-identical. The level is absorbed and only the
+    basin-to-basin spread survives, which is why a bracketed discharge here
+    would be a bracket of zero width rather than two carve lists. And the
+    spread is bounded by the bin weights alone, without the phase: an overflow
+    is never negative, so `phi` lies in `[w_min**(1 - m), 1]` and no basin's cut
+    can move more than `J = 1/w_min**(1 - m)` either side of the class boundary.
+    Every basin outside that band keeps its verdict under every admissible
+    delivery phase; the ones inside it are flagged `seasonal_concavity_movable`
+    on the sidecar, one basin at a time, because a count cannot say WHICH.
+
     The EVAPORATION inside `Q` is a different question and is already handled:
     `cv._INTERVAL_BRACKET` brackets the interval Penman is evaluated over, and
     both ends are run.
+    """
+    return np.clip(1.0 - cut_over_depth(q_km3_per_year, year_s, depth_m,
+                                        erodibility, coefficient, slope=slope,
+                                        slope_exponent=slope_exponent),
+                   0.0, 1.0)
+
+
+def cut_over_depth(q_km3_per_year, year_s: float, depth_m, erodibility,
+                   coefficient: float, slope=None,
+                   slope_exponent: float = SLOPE_EXPONENT):
+    """The incision as a fraction of the depression, BEFORE the clip.
+
+    `retain` is `1 - this`, clipped, and the clip is why this is its own
+    function rather than a line inside `incision_retain`: a basin cut through
+    twice over and one cut through exactly both come back as retain 0, and
+    `seasonal_concavity` needs the difference to say how far a basin sits from
+    the class boundary. One arithmetic, two readers, no copy to drift.
     """
     q = np.asarray(q_km3_per_year, dtype=float) * KM3_PER_YEAR_TO_M3_PER_S / year_s
     cut = coefficient * np.asarray(erodibility, dtype=float) * np.power(
         np.clip(q, 0.0, None), INCISION_EXPONENT)
     if slope is not None:
         cut = cut * np.power(np.asarray(slope, dtype=float), slope_exponent)
-    depth = np.maximum(np.asarray(depth_m, dtype=float), 1.0)
-    return np.clip(1.0 - cut / depth, 0.0, 1.0)
+    return cut / np.maximum(np.asarray(depth_m, dtype=float), 1.0)
 
 
 def to_natural_relief_basis(retain, retained_fraction):
@@ -596,6 +628,123 @@ def sweep_size_floor(q_km3_per_year, year_s: float, depth_m, erodibility,
         "verdict": verdict,
         "rungs": rungs,
     }
+
+
+def seasonal_concavity(q_km3_per_year, year_s: float, depth_m, erodibility,
+                       slope, coefficient: float, bin_weights,
+                       coefficient_bracket, slope_exponent: float = SLOPE_EXPONENT):
+    """What `Q**m` on an annual discharge is worth, bounded without the phase.
+
+    `Q` is annual and cannot be otherwise here: `land_water_ledger.yaml`
+    declares `seasonal_phase_of_catchment_delivery` an ABSENCE, so there is no
+    per-bin discharge to evaluate and no second arm to run. `incision_retain`
+    declares that at the site. What follows is the bound that absence still
+    permits, and it needs no phase at all -- Jensen's gap for a concave
+    function depends on how uneven the discharge is across bins, never on which
+    bin the water arrives in.
+
+    **THE LEVEL IS ABSORBED BY THE CALIBRATION, EXACTLY.** Write the truth as
+    `mean_k sqrt(Q_k) = phi * sqrt(Q_annual)`, so `phi` is the whole of the
+    concavity error on one basin. `cut` is LINEAR in the coefficient and
+    linear in `Q**m`, and `calibrate_coefficient` solves the coefficient on
+    every run against Earth's standing-basin density from this same discharge
+    field. So a `phi` common to every basin is met by a coefficient of exactly
+    `coefficient / phi` and every retain comes back bit-identical: not close,
+    identical, and `_selftest` checks it. A bracket over the common level would
+    therefore have ZERO WIDTH, which is why this is not two carve lists and not
+    two generations. Only the basin-to-basin SPREAD of `phi` reaches the
+    verdict.
+
+    **THE SPREAD IS BOUNDED BY THE BIN WEIGHTS ALONE.** Two facts and nothing
+    else: an overflow is never negative, and the cycle has the climatology's
+    own bins with the weights `lib/climatology.py` gives them. A discharge
+    spread evenly gives `phi = 1`; the most uneven admissible discharge puts
+    the whole year's overflow in the lightest bin and gives
+    `phi = w_min**(1 - m)`. So `phi` lies in `[w_min**(1 - m), 1]`, the ratio
+    between two basins' `phi` lies within `J = 1/w_min**(1 - m)`, and with the
+    population level pinned by the calibration a basin's cut can move by at
+    most `J` either side of the class boundary.
+
+    That makes the categorical question answerable. A basin whose annual
+    `cut / depth` sits outside `(1/J, J)` KEEPS ITS VERDICT under every
+    admissible delivery phase; one inside that band does not, and is reported
+    per basin as `seasonal_concavity_movable`. The band is a statement about
+    what this pipeline cannot see, not a claim that those basins are wrong.
+
+    **The call uses `sweep_size_floor`'s criterion, unchanged**, because it is
+    the same comparison against the same instrument: `J` against `P`, the ratio
+    of the Poisson bracket on the Earth count. `J > P` is DECISIVE and has to be
+    declared and carried; `J <= P` is SUBORDINATE and sits inside an uncertainty
+    already reported.
+
+    Counts are on the FINISHED-depression basis, for `sweep_size_floor`'s
+    reason: it is the basis the coefficient is solved on. The class boundary is
+    the same on either basis -- `to_natural_relief_basis` passes both endpoints
+    through -- so a movable basin is movable on the list as written.
+
+    What would tighten it is a per-bin lake surface term. The overflow is
+    catchment delivery, whose phase is the absence, PLUS the lake's own surface
+    flux, whose phase is representable and is already carried in
+    `surface_water.nc`. Bounding the two separately is strictly narrower than
+    bounding their sum, and needs a per-bin open-water evaporation that
+    `carve_verdict.bin_mean_open_water` reduces before returning.
+
+    Returns (report, movable mask).
+    """
+    w = np.asarray(bin_weights, dtype=float)
+    if w.ndim != 1 or w.size < 2 or not np.isclose(w.sum(), 1.0) or (w <= 0).any():
+        raise SystemExit(
+            f"bin weights are {w.size} values summing to {w.sum():.6g}; the "
+            "concavity bound is read off the LIGHTEST bin and means nothing "
+            "unless they are the climatology's own weights and sum to one")
+    # `w_min ** (1 - m)`, not `sqrt(w_min)`: the floor is a property of the
+    # exponent as well as of the weighting, and hardcoding the square root would
+    # go silently wrong if `m` ever moved off 0.5.
+    phi_floor = float(w.min() ** (1.0 - INCISION_EXPONENT))
+    factor = 1.0 / phi_floor
+
+    x = cut_over_depth(q_km3_per_year, year_s, depth_m, erodibility,
+                       coefficient, slope=slope, slope_exponent=slope_exponent)
+
+    overflows = np.asarray(q_km3_per_year, dtype=float) > 0.0
+    cuts = overflows & (x >= 1.0)
+    stands = overflows & (x < 1.0)
+    movable = overflows & (x > phi_floor) & (x < factor)
+    poisson = float(coefficient_bracket[1]) / float(coefficient_bracket[0])
+    return {
+        "bins": int(w.size),
+        "lightest_bin_weight": round(float(w.min()), 6),
+        "phi_range": [round(phi_floor, 4), 1.0],
+        "factor_J": round(factor, 4),
+        "coefficient_poisson_ratio_P": round(poisson, 3),
+        "call": "DECISIVE" if factor > poisson else "SUBORDINATE",
+        "criterion": "J against P by sweep_size_floor's criterion, unchanged: "
+            "J > P is DECISIVE and has to be declared and carried per basin, "
+            "J <= P is SUBORDINATE and sits inside an uncertainty already "
+            "reported. J is the widest ratio between two basins' seasonal "
+            "concentration; P is the Poisson bracket on the Earth count.",
+        "level_is_absorbed": "a concavity discount common to every basin is met "
+            "by a coefficient of exactly coefficient/phi and returns a "
+            "bit-identical verdict, because calibrate_coefficient solves the "
+            "coefficient on every run from this same discharge field. Only the "
+            "basin-to-basin spread reaches the verdict, and a bracket over the "
+            "common level would have zero width.",
+        "assumptions": ["an overflow is never negative in any bin",
+                        "the cycle is the climatology's own bins at "
+                        "lib/climatology.py's weights",
+                        "nothing about which bin the water arrives in"],
+        "basis": "finished-depression cut over depth, the basis the coefficient "
+            "is solved on. The class boundary is the same on the rebased basis, "
+            "because to_natural_relief_basis passes both endpoints through.",
+        "overflowing": int(overflows.sum()),
+        "cuts": int(cuts.sum()),
+        "stands": int(stands.sum()),
+        "movable": int(movable.sum()),
+        "movable_of_the_cut": int((movable & cuts).sum()),
+        "movable_of_the_standing": int((movable & stands).sum()),
+        "held_cut": int((overflows & (x >= factor)).sum()),
+        "held_standing": int((overflows & (x <= phi_floor)).sum()),
+    }, movable
 
 
 def measure_earth_floors(reference: Path, floors=None) -> dict:
@@ -1069,6 +1218,120 @@ def _selftest() -> int:
           and flat_verdict["coefficient_call"] == "SUBORDINATE",
           f"got {flat_verdict}")
 
+    # THE CONCAVITY IN `Q**m`, checked against identities that hold whether or
+    # not the delivery phase is known. `seasonal_concavity` says what the bound
+    # is for; these are the three things it asserts, each with a right answer
+    # fixed in advance and each able to fail.
+    w_syn = np.full(12, 1.0 / 12.0)
+    w_syn[3] = 0.5 / 12.0                 # a deliberately uneven weighting
+    w_syn = w_syn / w_syn.sum()
+
+    def _phi(bins, weights):
+        bins = np.asarray(bins, dtype=float)
+        return float((weights * np.power(bins, INCISION_EXPONENT)).sum()
+                     / float((weights * bins).sum()) ** INCISION_EXPONENT)
+
+    # THE DIRECTION, and it does not need the phase. `m` is under one, so the
+    # power is concave and the annual evaluation is at or above the mean of the
+    # per-bin evaluations, with equality only when the bins are identical.
+    flat_bins = np.full(w_syn.size, 7.0)
+    uneven = rng.lognormal(0.0, 1.5, (400, w_syn.size))
+    phis = np.array([_phi(row, w_syn) for row in uneven])
+    check("identical bins evaluate to the annual value exactly",
+          abs(_phi(flat_bins, w_syn) - 1.0) < 1e-12,
+          f"phi = {_phi(flat_bins, w_syn):.15g}")
+    check("uneven bins evaluate strictly below the annual value",
+          bool((phis < 1.0 - 1e-9).all()),
+          f"max phi {float(phis.max()):.12g}")
+
+    # THE BOUND. Nothing about the phase enters it: an overflow is never
+    # negative, so the worst admissible cycle puts the whole year in the
+    # lightest bin, and that is exactly sqrt(w_min).
+    worst = np.zeros(w_syn.size)
+    worst[int(np.argmin(w_syn))] = 1.0 / float(w_syn.min())
+    floor_syn = float(w_syn.min()) ** (1.0 - INCISION_EXPONENT)
+    check("the bound is attained by the whole year in the lightest bin",
+          abs(_phi(worst, w_syn) - floor_syn) < 1e-12,
+          f"{_phi(worst, w_syn):.12g} against {floor_syn:.12g}")
+    check("no admissible cycle falls below the bound",
+          bool((phis >= floor_syn - 1e-12).all()),
+          f"min phi {float(phis.min()):.12g}")
+
+    # THE LEVEL IS ABSORBED BY THE CALIBRATION, which is what makes a bracket
+    # over the common discount a bracket of zero width. Scaling every discharge
+    # so that Q**m is multiplied by phi, and dividing the coefficient by the
+    # same phi, must return the retain vector unchanged.
+    base_retain = incision_retain(q_syn, year_syn, depth_syn, ero_syn, 200.0,
+                                  slope=slope_syn)
+    phi_common = 0.37
+    scaled = q_syn * phi_common ** (1.0 / INCISION_EXPONENT)
+    same = incision_retain(scaled, year_syn, depth_syn, ero_syn,
+                           200.0 / phi_common, slope=slope_syn)
+    moved = incision_retain(scaled, year_syn, depth_syn, ero_syn, 200.0,
+                            slope=slope_syn)
+    check("a common concavity discount is absorbed by the coefficient exactly",
+          float(np.abs(same - base_retain).max()) < 1e-12,
+          f"max retain difference {float(np.abs(same - base_retain).max()):.3g}")
+    check("and is not absorbed without it, so the check is not vacuous",
+          int(((moved <= 0.0) != (base_retain <= 0.0)).sum()) > 0,
+          "the uncompensated discount changed no basin's class")
+
+    # THE MOVABLE MASK IS THE WHOLE OF THE EXPOSURE. Draw an admissible phi per
+    # basin, re-solve the coefficient against the same standing count, and no
+    # basin outside the band may change class. The band is the claim; this is
+    # the thing that can falsify it.
+    concav, movable_syn = seasonal_concavity(
+        q_syn, year_syn, depth_syn, ero_syn, slope_syn, 200.0, w_syn,
+        (186.0, 415.0))
+    standing_base, _ = _standing_solver(q_syn, year_syn, depth_syn, ero_syn,
+                                        slope_syn, lat_syn)
+    target_syn = standing_base(200.0)
+    # The draws go to the ENDS as well as through the middle. A band that is
+    # merely too narrow is invisible to interior draws, because the escape needs
+    # one basin at the floor while the population that sets the coefficient sits
+    # at the top; the Bernoulli rows put basins there.
+    escapes = 0
+    draws = ([rng.uniform(floor_syn, 1.0, n_syn) for _ in range(4)]
+             + [np.where(rng.random(n_syn) < f, floor_syn, 1.0)
+                for f in (0.02, 0.2, 0.5, 0.8, 0.98)])
+    for phi_syn in draws:
+        perturbed = q_syn * phi_syn ** (1.0 / INCISION_EXPONENT)
+        _, solve_p = _standing_solver(perturbed, year_syn, depth_syn, ero_syn,
+                                      slope_syn, lat_syn)
+        c_p = solve_p(target_syn)
+        r_p = incision_retain(perturbed, year_syn, depth_syn, ero_syn, c_p,
+                              slope=slope_syn)
+        changed = (r_p <= 0.0) != (base_retain <= 0.0)
+        escapes += int((changed & ~movable_syn).sum())
+    check("no basin outside the movable band changes class under any draw",
+          escapes == 0, f"{escapes} basins changed class outside the band")
+    # The band is read off the cut/depth ratio and the verdict off the retain,
+    # so `retain == 1 - ratio` has to hold exactly wherever the clip is not
+    # active. Otherwise the band is drawn on a different quantity from the one
+    # the verdict is taken on.
+    unclipped = (base_retain > 0.0) & (base_retain < 1.0)
+    x_syn = cut_over_depth(q_syn, year_syn, depth_syn, ero_syn, 200.0,
+                           slope=slope_syn)
+    agree = float(np.abs((1.0 - x_syn) - base_retain)[unclipped].max())
+    check("the band's cut/depth is the retain's, wherever the retain is unclipped",
+          bool(unclipped.any()) and agree == 0.0,
+          f"max difference {agree:.3g} over {int(unclipped.sum())} basins")
+
+    check("the band is not the whole population, so it says something",
+          0 < concav["movable"] < concav["overflowing"],
+          f"movable {concav['movable']} of {concav['overflowing']} overflowing")
+
+    # Weights that are not the climatology's own would silently move the bound,
+    # since it is read off the lightest bin.
+    try:
+        seasonal_concavity(q_syn, year_syn, depth_syn, ero_syn, slope_syn,
+                           200.0, np.full(12, 1.0), (186.0, 415.0))
+        refused = False
+    except SystemExit:
+        refused = True
+    check("bin weights that do not sum to one are refused", refused,
+          "the bound was computed off weights that are not a partition of the cycle")
+
     print(f"\n{n_checks} checks, {len(problems)} failed")
     return 1 if problems else 0
 
@@ -1400,6 +1663,51 @@ def main() -> None:
               f"`bracketed` is our uncertainty; `marginal` below is a "
               f"landform and the two are unrelated")
 
+    # WHAT THE ANNUAL DISCHARGE UNDER THE SQUARE ROOT IS WORTH, bounded from the
+    # bin weights and no delivery phase. `seasonal_concavity` carries the
+    # argument; the two results it turns on are that the calibration absorbs any
+    # common concavity discount exactly, so this is not a second carve list, and
+    # that the residual spread cannot move a basin more than `J` either side of
+    # the class boundary. Run on every arm, because the final class is a max over
+    # the arms and a basin is exposed if ANY of them can be moved.
+    with Dataset(args.climatology) as ds:
+        concavity_weights = climatology.bin_weights(np.asarray(ds["time"][:]))
+    concavity, concavity_movable = seasonal_concavity(
+        q_pen, year_s, basins.depth_at_spill_m, sill_ero, slope, coefficient,
+        concavity_weights, coefficient_bracket)
+    concavity_arms = {"warm_vegetated_bin_mean": concavity}
+    for _label, _arm in (("warm_vegetated_annual", interval_annual),
+                         ("cold_bare_rock_bin_mean", endmember)):
+        if _arm is None:
+            continue
+        _report, _mask = seasonal_concavity(
+            _arm["q_pen"], year_s, basins.depth_at_spill_m, sill_ero, slope,
+            coefficient, concavity_weights, coefficient_bracket)
+        concavity_arms[_label] = _report
+        concavity_movable = concavity_movable | _mask
+    concavity["arms"] = {k: {"movable": v["movable"],
+                             "movable_of_the_cut": v["movable_of_the_cut"],
+                             "movable_of_the_standing": v["movable_of_the_standing"],
+                             "overflowing": v["overflowing"]}
+                         for k, v in concavity_arms.items()}
+    concavity["movable_over_all_arms"] = int(concavity_movable.sum())
+    concavity["movable_note"] = (
+        "the counts above the `arms` block are the primary arm's, the arm the "
+        "coefficient is solved on. `seasonal_concavity_movable` on each basin "
+        "is the UNION over the arms, because the class a basin ends in is a max "
+        "over them and it is exposed if any one of them can be moved.")
+    print(f"concavity         Q**{INCISION_EXPONENT:g} is evaluated on an ANNUAL "
+          f"discharge; the delivery phase is an absence, the level is absorbed "
+          f"by the calibration")
+    print(f"                  phi in {concavity['phi_range']}, so a cut moves at "
+          f"most a factor {concavity['factor_J']:.3f} either side of the "
+          f"boundary, against P = {concavity['coefficient_poisson_ratio_P']:.3f}: "
+          f"{concavity['call']}")
+    print(f"                  {concavity['movable_over_all_arms']} basins can "
+          f"change class under some admissible delivery phase, of "
+          f"{concavity['overflowing']} that overflow; the rest hold their "
+          f"verdict under every one")
+
     # The superseded mapping, kept for comparison in the sidecar only.
     span = idx_pen - idx_wet
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -1689,6 +1997,7 @@ def main() -> None:
                     "every rung over a span the build derives, and calls the "
                     "lever against that noise on a criterion fixed beforehand.",
             },
+            "seasonal_concavity": concavity,
             "retain_incision_rationale":
                 "stream power goes as K Q^m S^n, so what the overflow achieves is "
                 "a LENGTH of incision, and whether that empties the basin depends "
@@ -1803,6 +2112,11 @@ def main() -> None:
                     None if not np.isfinite(retained_fraction[i])
                     else round(float(retained_fraction[i]), 4)),
                 "retain_margin": round(float(retain_margin[i]), 4),
+                # Whether the DELIVERY PHASE this pipeline does not carry could
+                # change this basin's class. False is the strong statement: no
+                # admissible seasonal concentration of the overflow moves it.
+                # method.seasonal_concavity carries the bound and its argument.
+                "seasonal_concavity_movable": bool(concavity_movable[i]),
                 "retain_span_superseded": round(float(retain_span[i]), 4),
                 "overflow_km3_per_year": round(float(q_pen[i]), 6),
                 "overflow_m3_per_s": round(

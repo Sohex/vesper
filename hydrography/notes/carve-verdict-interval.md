@@ -149,3 +149,148 @@ by the direction argued above, and each preserved fewer basins than the
 threshold rule does. All four are archived, payload deleted, and all predate
 this lineage. Under CLAUDE.md rule 7 nothing is owed to them: a build is
 disposable until the canonical climatology lineage is declared, and it is not.
+
+# The concavity in the discharge term, and what the missing delivery phase costs
+
+Measured on 2026-08-30 against `canonical-10m-carve1` (4,657 basins) forced by
+`baseline_regular_climatology.nc`, the verdict that produced
+`canonical-10m-carve2`. The evaporation interval above is one nonlinear
+evaluation on an annual mean; this is the other one in the same expression, one
+term over, and it is the member of the class that cannot be repaired the same
+way.
+
+## The defect, verified against the files
+
+`export_carve_list.py:incision_retain` evaluates
+
+    cut = coefficient * erodibility * slope**n * Q**m
+
+with `m = 0.5` and `Q` the ANNUAL overflow at spill level. The power is
+concave, so `sqrt(mean Q)` is at or above `mean(sqrt Q)` and a basin that
+delivers its overflow in a season is credited with more cutting than that
+season's discharge does. `Q` is `runoff * (catchment - area_at_spill) -
+(E - P) * area_at_spill`, built from the catchment's annual runoff.
+
+`hydrography/config/land_water_ledger.yaml` declares
+`seasonal_phase_of_catchment_delivery` under `absences`, and the declaration is
+current: the hydrography path computes catchment runoff as the annual mean of
+`P - E` and cannot phase it through the year, because over one cycle at steady
+state the annual mean is exactly what the cell generated while per-bin clamping
+would count the wet season's supply twice. So there is no per-bin discharge to
+evaluate, and the repair that fixed the evaporation interval is unavailable
+here.
+
+## Two results that do not need the phase
+
+**The level is absorbed by the calibration, exactly.** Write the truth as
+`mean(sqrt Q) = phi * sqrt(Q_annual)`, so `phi` is the whole of the concavity
+error on one basin. `cut` is linear in the coefficient and linear in `Q**m`,
+and `calibrate_coefficient` SOLVES the coefficient on every run from this same
+discharge field against Earth's standing-basin density. A `phi` common to every
+basin is therefore met by a coefficient of exactly `coefficient / phi`.
+Measured: scaling every discharge to give `phi = 0.9`, `0.5` and `0.2871` and
+re-solving returns `299.3884`, `538.8992` and `938.5720` against the shipped
+`269.4496`, which is `coefficient / phi` to 2.4e-8, the bisection's own
+resolution; with the coefficient set to `coefficient / phi` outright the retain
+vector matches to 3.3e-16 and no basin changes class. **A bracket over the
+common level would have zero width.** That is what settles whether the carve
+list can carry a bracketed discharge: it is not two carve lists and not two
+generations, because the second arm is the first one.
+
+**The spread is bounded by the bin weights alone.** Two facts and nothing else:
+an overflow is never negative, and the cycle has the climatology's own twelve
+bins at `lib/climatology.py`'s weights, the lightest of which is 0.082418. An
+evenly delivered discharge gives `phi = 1`; the most uneven admissible one puts
+the whole year's overflow in the lightest bin and gives `phi = w_min**(1 - m) =
+0.2871`. So `phi` lies in `[0.2871, 1]` whatever the phase is, the ratio
+between two basins' `phi` lies within `J = 3.4833`, and with the population
+level pinned by the calibration a basin's cut can move at most a factor `J`
+either side of the class boundary.
+
+Nothing in either result assumes when the water arrives.
+
+## Against the instrument
+
+`J = 3.4833` against `P = 2.2235`, the ratio of the Poisson bracket on Earth's
+count of 15 standing basins, which is the criterion `sweep_size_floor` already
+fixed: `J > P` is DECISIVE and has to be declared and carried, `J <= P` is
+SUBORDINATE. **DECISIVE**, so it is carried per basin rather than dismissed. It
+is not the largest lever on this coefficient: the size floor on the Earth
+sample moves it by a factor of 56.3 over the span the build derives, and that
+is reported beside the verdict already.
+
+## Which basins, which is the question that matters
+
+The verdict is categorical, so the number worth having is not how far `Q**0.5`
+moves but whether a basin changes side. On the finished-depression basis, the
+basis the coefficient is solved on, with `x` for the annual `cut / depth`:
+
+| | basins |
+| --- | --- |
+| overflow at all | 416 |
+| of those, `x >= 1`, cut | 356 |
+| of those, `x < 1`, overflow but keep some rim | 60 |
+| **movable: `x` inside `(1/J, J)`** | **99** |
+| movable and currently cut | 67 |
+| movable and currently standing | 32 |
+| held cut under every admissible phase, `x >= J` | 289 |
+| held standing under every admissible phase, `x <= 1/J` | 28 |
+
+`x` over the overflowing set runs 0.23 at the 5th percentile, 6.65 at the
+median and 70.8 at the 95th, so most of the population is nowhere near the
+boundary and the exposure is a minority of a minority.
+
+Against the verdict as exported, taking the union of the movable set over the
+three arms the list is a maximum over:
+
+| verdict | basins | movable |
+| --- | --- | --- |
+| carve | 195 | 26 |
+| marginal | 41 | 24 |
+| preserve | 4,421 | 49 |
+
+**None of the 195 carved basins is in the climate bracket** -- the intersection
+rule removes bracketed basins from the carve set by construction, and 0 of the
+290 bracketed basins carve -- so these 26 are an exposure the two-climate
+bracket does not already cover. That is why the flag is per basin: 26 of 195 is
+a count, and a count cannot say which depression is at risk of being removed
+from the terrain everything else is built on.
+
+## What is done about it
+
+`seasonal_concavity` computes the bound in the run that takes the verdict, puts
+it in the sidecar's `method` block, and stamps `seasonal_concavity_movable` on
+every basin record. `false` is the strong statement and is what most basins
+carry: no admissible seasonal concentration of the overflow changes that
+basin's class. The verdict itself is unchanged, and deliberately: the direction
+of the raw concavity is one-sided, but the calibration makes what reaches the
+verdict two-sided, so 32 standing basins are exposed to being cut for every 67
+cut basins exposed to standing. Taking one side of that would be a preference
+dressed as a bound.
+
+`export_carve_list.py --selftest` carries the identities, and each was
+demonstrated to fail on an injected defect: the Jensen direction with its
+equality case, the bound being attained by the whole year in the lightest bin
+and never breached, the calibration absorbing a common discount exactly while
+an uncompensated one does not, the band being read off the same cut over depth
+the retain is, and the claim the whole disposition rests on -- that under an
+admissible per-basin `phi` with the coefficient re-solved, no basin outside the
+band changes class. The band and the retain read ONE arithmetic:
+`cut_over_depth` is factored out of `incision_retain` precisely because the
+retain is clipped and the band needs the ratio above 1.
+
+## What would tighten it, and what would close it
+
+The overflow is catchment delivery, whose phase is the absence, PLUS the lake's
+own surface flux, whose phase is representable and is already carried per bin
+in `surface_water.nc`. Bounding the two separately is strictly narrower than
+bounding their sum, and it bites here: the catchment term is a median 2.06
+times the overflow on this population, because the lake evaporates about half
+of what its catchment delivers, so concentrating the delivery into one bin puts
+far more than the annual overflow into that bin. What it needs is a per-bin
+open-water evaporation, and `carve_verdict.bin_mean_open_water` reduces the
+bins before returning.
+
+Closing the absence outright is a different decision and the ledger already
+names it: it is the same decision as adopting the climate column's
+`surface_runoff`, which this path rejects as an incomplete routed diagnostic.
