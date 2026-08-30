@@ -88,6 +88,7 @@ from _paths import ANALYSIS, CONFIG, DUST_CONFIG, PROJECT_ROOT  # noqa: E402
 import climatology  # noqa: E402  from lib/, via _paths
 from builds import component_data, grid_export, mesh_export, resolution_of, soilmap
 from gridding import land_fraction_of_class, region_cells
+from lapse import sigma_levels
 from orogen import LAND, Export
 from paths import best_available_climatology, rel, require_clean_io, snapshot_beside
 from provenance import require_build
@@ -391,6 +392,158 @@ def emission_over_weibull(u_star_mean: np.ndarray, u_star_t: np.ndarray,
     return total * st / n
 
 
+def area_mean(field, lat) -> float:
+    """The cos(latitude)-weighted mean of a (..., lat, lon) field.
+
+    A plain mean over a Gaussian grid counts a polar row and an equatorial row
+    alike. Every global mean in this component is area-weighted; this is the
+    one spelling of it for fields that arrive with a leading time axis.
+    """
+    field = np.asarray(field, dtype=float)
+    w = np.cos(np.deg2rad(np.asarray(lat, dtype=float)))[:, None]
+    w = np.broadcast_to(w, field.shape)
+    return float((field * w).sum() / w.sum())
+
+
+# -- the steering wind --------------------------------------------------------
+#
+# ONE DOOR FOR ALL THREE AEROSOLS. Dust, sea salt and volcanic sulfate each
+# advect on the wind of the layers at or below a declared sigma, and each
+# declares that contraction to be MASS-weighted. The model's sigma levels are
+# not of equal thickness -- at ten layers the thinnest is 0.034 and the
+# thickest 0.137, a factor of four -- so a plain mean over them weights a thin
+# layer and a thick one alike. That is neither the declared mass weighting nor
+# a defensible alternative to it, which is why the three read the weight from
+# here rather than each spelling a contraction of its own.
+
+# The construction below and the climatology's `lev` are two statements of the
+# same grid, and this is how far apart they are allowed to be. Both are
+# float64 evaluations of the same quartic; the observed gap on the baseline
+# climatology is 4e-7, and the postprocessor writes `lev` at reduced precision.
+SIGMA_LEVEL_TOLERANCE = 1.0e-5
+
+
+def steering_weights(lev, steering_sigma, config=None, fallback_levels=0):
+    """(selection, weights) for the layer-mass mean over the steering levels.
+
+    Layer mass per unit area in a sigma-coordinate model is `dsigma * ps / g`.
+    Within one column `ps` and `g` are common factors, so they divide out of a
+    NORMALISED vertical mean and the weight is `dsigma` renormalised over the
+    selected levels -- no surface pressure field is needed and none is read.
+    The weights sum to one, so a constant column returns that constant.
+
+    `dsigma` is the model's own layer thickness from `lib/lapse.py:sigma_levels`,
+    which reproduces `plasim.f90`'s construction from the layer count and the
+    model top. The climatology's `lev` is CHECKED against it rather than assumed
+    to match: a weight built for a different vertical coordinate is a plausible
+    looking array and would be silent. `levp` is not this grid and must never be
+    passed here; its differences do not sum to one.
+
+    `fallback_levels` reproduces build_dust's rule that a `steering_sigma` above
+    every level falls back to the lowest few, rather than selecting nothing.
+    """
+    lev = np.asarray(lev, dtype=float)
+    _sigma, _sigmah, dsigma = sigma_levels(config)
+    if dsigma.shape != lev.shape:
+        raise SystemExit(
+            f"the climatology carries {lev.size} levels and the configured "
+            f"model has {dsigma.size}; the steering weight would be a weight "
+            f"for a different atmosphere")
+    gap = float(np.max(np.abs(_sigma - lev)))
+    if gap > SIGMA_LEVEL_TOLERANCE:
+        raise SystemExit(
+            f"the climatology's `lev` differs from the model's own sigma "
+            f"construction by {gap:.2e}, beyond {SIGMA_LEVEL_TOLERANCE:.0e}. "
+            f"Either this is `levp` and not `lev`, or the run used a vertical "
+            f"grid config/planet.yaml does not describe; a dsigma from the "
+            f"configured grid would then weight the wrong layers")
+    sel = lev >= float(steering_sigma)
+    if not np.any(sel) and fallback_levels:
+        sel = np.zeros_like(lev, dtype=bool)
+        sel[-int(fallback_levels):] = True
+    if not np.any(sel):
+        raise SystemExit(
+            f"steering_sigma {steering_sigma} selects no model level; the "
+            f"lowest is {lev.max():.4f}")
+    weights = dsigma[sel] / dsigma[sel].sum()
+    return sel, weights
+
+
+def steering_wind(ua, va, lev, cfg, config=None, fallback_levels=0):
+    """The layer-mass-weighted wind of the steering levels, level axis removed.
+
+    `ua` and `va` are (time, level, lat, lon) as the climatology writes them.
+    """
+    sel, weights = steering_weights(lev, cfg["transport"]["steering_sigma"],
+                                    config, fallback_levels)
+    return (np.tensordot(ua[:, sel], weights, axes=([1], [0])),
+            np.tensordot(va[:, sel], weights, axes=([1], [0])))
+
+
+def check_steering_weights(config=None) -> list[str]:
+    """The steering weight against answers it can get wrong. Empty means agreed.
+
+    Three of them, and the third is the control. The weights must sum to one;
+    a constant column must come back as that constant under any correct
+    weighting, so that test alone cannot tell the layer-mass weight from the
+    plain mean; and on levels of unequal thickness the two must DIFFER, which
+    is what says the check is looking at the weight and not past it.
+
+    Each aerosol's `steering_sigma` is READ FROM ITS OWN CONFIG rather than
+    restated here, so the check follows a threshold that moves instead of
+    testing a selection nothing runs.
+    """
+    out: list[str] = []
+    _sigma, _sigmah, dsigma = sigma_levels(config)
+    lev = _sigma.copy()
+    for name in ("dust", "sea_salt", "volcanic_sulfate"):
+        path = DUST_CONFIG.parent / f"{name}.yaml"
+        if not path.is_file():
+            out.append(f"{path} is gone, and it is what declares the "
+                       f"steering sigma this weight is built over")
+            continue
+        cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
+        sigma_min = cfg["transport"]["steering_sigma"]
+        sel, weights = steering_weights(lev, sigma_min, config)
+        if abs(float(weights.sum()) - 1.0) > 1e-12:
+            out.append(f"the {name} steering weights sum to "
+                       f"{float(weights.sum()):.12f} and not to one")
+        constant = np.full((1, int(sel.sum()), 2, 2), 7.5)
+        got = np.tensordot(constant, weights, axes=([1], [0]))
+        if float(np.max(np.abs(got - 7.5))) > 1e-12:
+            out.append(f"the {name} steering weights turn a constant 7.5 "
+                       f"column into {float(got.max()):.12f}")
+        thickness = dsigma[sel]
+        if float(thickness.max() / thickness.min()) < 1.5:
+            out.append(f"the {name} steering levels span a thickness ratio of "
+                       f"{float(thickness.max() / thickness.min()):.3f}, so "
+                       f"this check can no longer tell a layer-mass weight "
+                       f"from a plain mean and has stopped being a test")
+        plain = np.full(int(sel.sum()), 1.0 / int(sel.sum()))
+        if float(np.max(np.abs(weights - plain))) < 1e-3:
+            out.append(f"the {name} steering weights agree with a plain mean "
+                       f"to 1e-3 on levels whose thickness ratio is "
+                       f"{float(thickness.max() / thickness.min()):.3f}; the "
+                       f"layer-mass weighting is not being applied")
+    # The fallback selects levels rather than nothing, and still normalises.
+    _sel, weights = steering_weights(lev, 2.0, config, fallback_levels=3)
+    if _sel.sum() != 3 or abs(float(weights.sum()) - 1.0) > 1e-12:
+        out.append(f"the steering fallback selected {int(_sel.sum())} levels "
+                   f"weighted to {float(weights.sum()):.12f}")
+    # `levp` is the trap this refuses: midpoints between full levels, whose
+    # differences do not sum to one. Passing it must raise, not return.
+    levp = np.concatenate([[0.5 * _sigma[0]],
+                           0.5 * (_sigma[:-1] + _sigma[1:])])
+    try:
+        steering_weights(levp, 0.5, config)
+    except SystemExit:
+        pass
+    else:
+        out.append("steering_weights accepted `levp`, which is not the "
+                   "model's level grid, instead of refusing it")
+    return out
+
+
 def advect_to_steady_state(emission, u, v, loss_rate, lat, lon, cfg):
     """Column dust mass at steady state: emission in, advection and loss out.
 
@@ -671,7 +824,10 @@ def main() -> None:
     # ratio of the logarithms, which on a rough surface is not small.
     sigma_bottom = float(lev[-1]) if lev[-1] > lev[0] else float(lev[0])
     if sigma_bottom > 1.5:                       # levels given in hPa, not sigma
-        sigma_bottom = sigma_bottom * 100.0 / float(np.mean(ps))
+        # AREA-weighted: a plain mean over a Gaussian grid counts a polar row
+        # and an equatorial row alike, and the surface pressure this divides by
+        # is a global mean of a field, not a mean over cells.
+        sigma_bottom = sigma_bottom * 100.0 / area_mean(ps, lat)
     z_ref = (R_DRY * tas / gravity) * np.log(1.0 / min(max(sigma_bottom, 0.5), 0.999))
 
     rho_a = ps / (R_DRY * tas)
@@ -692,12 +848,11 @@ def main() -> None:
     # `RevCosPhi` appearing in burn7.cpp's pressure-level path. That was wrong
     # and it is recorded as CLIM-4, closed wontfix, so nobody
     # rediscovers the same false lead in the same source file.
-    sel = lev >= cfg["transport"]["steering_sigma"]
-    if not np.any(sel):
-        sel = np.zeros_like(lev, dtype=bool)
-        sel[-3:] = True
-    ua_col = np.average(ua[:, sel, :, :], axis=1)
-    va_col = np.average(va[:, sel, :, :], axis=1)
+    # Steering wind: LAYER-MASS weighted over the levels at or below
+    # `steering_sigma`, which is what config/dust.yaml declares it to be.
+    # `dsigma` spans a factor of four across this model's ten layers, so a
+    # plain mean over them is a different quantity from the declared one.
+    ua_col, va_col = steering_wind(ua, va, lev, cfg, config, fallback_levels=3)
 
     clay_pct = np.nan_to_num(clay, nan=0.0) * 100.0
     # K14 caps fclay; the limit is declared in the config beside its reason.

@@ -179,7 +179,10 @@ class Emitter:
         self.bin_weight[self.good] = w[self.good] / w[self.good].sum()
         sigma_bottom = float(lev[-1]) if lev[-1] > lev[0] else float(lev[0])
         if sigma_bottom > 1.5:
-            sigma_bottom = sigma_bottom * 100.0 / float(np.mean(ps))
+            # AREA-weighted, like build_dust.py's copy of this branch: a plain
+            # mean over a Gaussian grid counts a polar row and an equatorial
+            # row alike.
+            sigma_bottom = sigma_bottom * 100.0 / bd.area_mean(ps, self.lat)
         self.z_ref = (bd.R_DRY * tas / self.gravity) * np.log(
             1.0 / min(max(sigma_bottom, 0.5), 0.999))
         self.rho_a = ps / (bd.R_DRY * tas)

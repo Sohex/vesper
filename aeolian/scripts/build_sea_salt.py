@@ -67,7 +67,7 @@ from _paths import ANALYSIS, CONFIG, PROJECT_ROOT  # noqa: E402
 
 import climatology  # noqa: E402  from lib/, via _paths
 from build_dust import advect_to_steady_state, flag_anomalous_bins, settling_velocity
-from build_dust import weibull_shape_from_samples
+from build_dust import steering_wind, weibull_shape_from_samples
 from paths import best_available_climatology, rel, snapshot_beside
 
 sys.path.insert(0, str(PROJECT_ROOT / "exoplasim" / "scripts"))
@@ -294,11 +294,15 @@ def main() -> None:
         rh_cell = np.clip(hur_a, cfg["growth"]["rh_min_percent"],
                           cfg["growth"]["rh_max_percent"])
 
-        # Steering wind: mass-weighted over the layers below the steering sigma,
-        # which for a boundary-layer aerosol is most of what carries it.
-        below = lev >= cfg["transport"]["steering_sigma"]
-        u_steer = annual_mean(ua[:, below].mean(axis=1), weights)
-        v_steer = annual_mean(va[:, below].mean(axis=1), weights)
+        # Steering wind: LAYER-MASS weighted over the layers at or below the
+        # steering sigma, which for a boundary-layer aerosol is most of what
+        # carries it. The weight is `dsigma` renormalised over those layers,
+        # from `build_dust.steering_weights`. The two layers it selects here
+        # are 0.087 and 0.034 thick, so a plain mean over them is a different
+        # quantity and puts the weight 0.22 wrong on each.
+        u_lev, v_lev = steering_wind(ua, va, lev, cfg, config)
+        u_steer = annual_mean(u_lev, weights)
+        v_steer = annual_mean(v_lev, weights)
 
         # Wet removal, anchored to Jaegle et al. (2011)'s measured accumulation-mode
         # lifetime at Earth's ocean-mean precipitation and carried to this world's

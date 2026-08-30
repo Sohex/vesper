@@ -56,7 +56,8 @@ from netCDF4 import Dataset
 from _paths import ANALYSIS, CONFIG, PROJECT_ROOT  # noqa: E402
 
 import climatology  # noqa: E402  from lib/, via _paths
-from build_dust import advect_to_steady_state, flag_anomalous_bins, settling_velocity
+from build_dust import (advect_to_steady_state, flag_anomalous_bins,
+                        settling_velocity, steering_wind)
 from builds import grid_export, mesh_export
 from gridding import land_fraction_of_class
 from orogen import Export
@@ -207,9 +208,15 @@ def main() -> None:
     alb1_a = np.clip(annual(alb1), 0.0, 1.0)
     alb2_a = np.clip(annual(alb2), 0.0, 1.0)
 
-    below = lev >= cfg["transport"]["steering_sigma"]
-    u_steer = annual(ua[:, below].mean(axis=1))
-    v_steer = annual(va[:, below].mean(axis=1))
+    # Steering wind: LAYER-MASS weighted over the layers at or below the
+    # steering sigma. The weight is `dsigma` renormalised over those layers,
+    # from `build_dust.steering_weights`. Sigma 0.5 down to the surface spans
+    # five layers whose thicknesses differ by a factor of four, and a plain
+    # mean over them reads the area-mean steering speed 16 per cent slow: it
+    # over-counts the thin layers nearest the surface, where friction has
+    # already taken the wind down.
+    u_lev, v_lev = steering_wind(ua, va, lev, cfg, config)
+    u_steer, v_steer = annual(u_lev), annual(v_lev)
 
     # --- where the vents are ------------------------------------------------
     export = Export(mesh_export(config))
