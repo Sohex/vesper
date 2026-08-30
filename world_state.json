@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated": "2026-08-27T11:31:34.464226+00:00",
-  "git_commit": "d4528a06ef95a6b41cee37efbf7dfffd16933b73",
+  "generated": "2026-08-30T17:13:02.919078+00:00",
+  "git_commit": "e2f21e80610c860f03678a9235f4bab4c14890ec",
   "generator": "scripts/world_state.py",
   "note": "Generated from the artifacts. Do not edit; re-run the generator. Only derived values live here. Findings are in `notes/`, with their evidence, and open work is in the `bd` issue tracker.",
   "planet": {
@@ -57,7 +57,7 @@
     "rayleigh_coefficient_as_solarini_codes_it": 0.21192700718425783
   },
   "active_configuration": {
-    "source_build": "canonical-10m-base",
+    "source_build": "canonical-10m-carve2",
     "model": {
       "resolution": "T21",
       "latitudes": 32,
@@ -96,7 +96,7 @@
       "filter_power": 16,
       "cold_start_seed": 88888888,
       "hyperdiffusion": {
-        "eddy_wind_m_s": 10.09,
+        "eddy_wind_m_s": 9.838,
         "order_alpha": 4,
         "cutoff_fraction": 0.381,
         "ratios_to_vorticity": {
@@ -106,41 +106,41 @@
         },
         "timescales_days": {
           "T21": {
-            "divergence": 0.2624,
-            "vorticity": 1.3119,
-            "temperature": 3.3231,
-            "humidity": 0.4369
+            "divergence": 0.2691,
+            "vorticity": 1.3455,
+            "temperature": 3.4082,
+            "humidity": 0.4481
           },
           "T42": {
-            "divergence": 0.1312,
-            "vorticity": 0.656,
-            "temperature": 1.6616,
-            "humidity": 0.2184
+            "divergence": 0.1346,
+            "vorticity": 0.6728,
+            "temperature": 1.7042,
+            "humidity": 0.224
           },
           "T85": {
-            "divergence": 0.0648,
-            "vorticity": 0.3241,
-            "temperature": 0.821,
-            "humidity": 0.1079
+            "divergence": 0.0665,
+            "vorticity": 0.3324,
+            "temperature": 0.842,
+            "humidity": 0.1107
           },
           "T127": {
-            "divergence": 0.0434,
-            "vorticity": 0.2169,
-            "temperature": 0.5495,
-            "humidity": 0.0722
+            "divergence": 0.0445,
+            "vorticity": 0.2225,
+            "temperature": 0.5636,
+            "humidity": 0.0741
           },
           "T170": {
-            "divergence": 0.0324,
-            "vorticity": 0.1621,
-            "temperature": 0.4105,
-            "humidity": 0.054
+            "divergence": 0.0333,
+            "vorticity": 0.1663,
+            "temperature": 0.4212,
+            "humidity": 0.0554
           }
         }
       },
       "cold_start_profile": {
-        "surface_temperature_k": 279.68
+        "surface_temperature_k": 279.83
       },
-      "semi_implicit_reference_temperature_k": 241.28,
+      "semi_implicit_reference_temperature_k": 241.41,
       "rayleigh_sponge_rotations": [
         20.0,
         100.0,
@@ -163,20 +163,20 @@
       "precip_reevaporation_gamma": "derived",
       "cloud_fraction_subgrid_width": "derived",
       "asymptotic_mixing_length_m": "derived",
-      "land_longwave_emissivity": 0.935,
+      "land_longwave_emissivity": 0.930897,
       "sea_longwave_emissivity": 0.98,
       "ozone_scale": 0.794,
       "ozone_uv_weight": 0.335,
       "ozone_visible_weight": 0.908,
-      "h2o_sw_weight": 1.346,
-      "h2o_sw_level": 1.163,
+      "h2o_sw_weight": 1.351,
+      "h2o_sw_level": 1.161,
       "h2o_sw_level_bracket": [
-        1.129,
-        1.206
+        1.128,
+        1.205
       ],
       "co2_sw_weight": 1.51,
       "roughness_source": "lithology",
-      "soil_water_source": "uniform",
+      "soil_water_source": "pedology",
       "lake_dwmax_m": 0.2,
       "land_albedo_source": "vegetated",
       "vegetation_albedo": 0.165,
@@ -248,7 +248,7 @@
       "soil_albedo_moisture": {
         "enabled": true,
         "saturation_at_empty_layer": 0.0,
-        "saturation_at_full_layer": 0.7642,
+        "saturation_at_full_layer": 0.7609,
         "shape_sigma_broadband": 1.0,
         "shape_sigma_band1": 1.0,
         "shape_sigma_band2": 1.0
@@ -276,43 +276,49 @@
     }
   },
   "builds": {
-    "canonical-10m-base": {
-      "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
+    "canonical-10m-carve2": {
+      "build_verdict": {
+        "build": "canonical-10m-carve2",
+        "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
+        "registered": true,
+        "activation_refusal": null
+      },
+      "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
       "catalogue_hash": "35c922c3b481af4bf7b814a6719e05969db0223b9a01895beef01cf200a73b28",
       "seed": 16236323,
       "regions": 10000005,
-      "selection_source": "threshold",
+      "selection_source": "preserve-list",
       "drainage_hypothesis": {
-        "preserveListGiven": 0,
+        "preserveListGiven": 4657,
         "carveListGiven": 0,
-        "carvedByRetainZero": 0
+        "carvedByRetainZero": 195
       },
-      "preserved_basins": 8772,
+      "preserved_basins": 4462,
       "land_fraction": 0.43284125358185244,
-      "endorheic_catchment_share_of_land": 0.744486576035385,
-      "endorheic_basin_floor_share_of_land": 0.284027,
+      "endorheic_catchment_share_of_land": 0.4531657311284917,
+      "endorheic_basin_floor_share_of_land": 0.153476,
       "lithology_land_fractions": {
-        "playa_clastic": 0.25795,
-        "granite": 0.17279,
-        "continental_clastic": 0.16089,
-        "arc_andesite": 0.06651,
-        "granodiorite": 0.05871,
-        "melange": 0.05592,
-        "schist": 0.0517,
-        "shelf_clastic": 0.04302,
-        "carbonate": 0.03898,
-        "evaporite": 0.02565,
-        "foreland_clastic": 0.02052,
-        "pelagic": 0.01446,
-        "flood_basalt": 0.01166,
-        "oib": 0.01161,
-        "morb": 0.00693,
-        "gneiss": 0.0016,
-        "arc_basalt": 0.0011
+        "granite": 0.2083,
+        "continental_clastic": 0.18935,
+        "playa_clastic": 0.13933,
+        "arc_andesite": 0.07582,
+        "granodiorite": 0.06727,
+        "schist": 0.06326,
+        "melange": 0.0611,
+        "shelf_clastic": 0.04951,
+        "carbonate": 0.04354,
+        "foreland_clastic": 0.03634,
+        "pelagic": 0.01429,
+        "flood_basalt": 0.01425,
+        "evaporite": 0.01391,
+        "oib": 0.01282,
+        "morb": 0.0079,
+        "gneiss": 0.00181,
+        "arc_basalt": 0.00119
       },
       "land_elevation_km": {
-        "mean": 0.3783,
-        "max": 6.623,
+        "mean": 0.3726,
+        "max": 6.5618,
         "min": -0.5909
       },
       "grids": [
@@ -327,128 +333,154 @@
   },
   "climate_runs": [
     {
-      "run_id": "run_432e5e46adef",
+      "run_id": "run_5994d1f9624e",
       "status": "equilibrated_for_worldbuilding",
-      "orbits_complete": 82,
+      "orbits_complete": 123,
       "flux_earth": 0.945,
       "cycle": null,
       "resolution": "T21",
       "land_albedo_source": "vegetated",
-      "source_build": "canonical-10m-base",
+      "source_build": "canonical-10m-carve2",
       "glaciers": true,
       "converged": true,
-      "mean_surface_temperature_k": 279.8802086331803
+      "mean_surface_temperature_k": 279.9684002688948
     },
     {
-      "run_id": "run_b45380e61f90",
-      "status": "run_complete",
-      "orbits_complete": 70,
-      "flux_earth": 1.0,
+      "run_id": "run_67323a923013",
+      "status": "equilibrated_for_worldbuilding",
+      "orbits_complete": 128,
+      "flux_earth": 0.945,
       "cycle": null,
       "resolution": "T21",
       "land_albedo_source": "vegetated",
-      "source_build": "canonical-10m-base",
+      "source_build": "canonical-10m-carve2",
+      "glaciers": true,
+      "converged": true,
+      "mean_surface_temperature_k": 281.15764425856963
+    },
+    {
+      "run_id": "run_71b36de31f0c",
+      "status": "smoke_complete",
+      "orbits_complete": 1,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T21",
+      "land_albedo_source": "vegetated",
+      "source_build": "canonical-10m-carve2",
       "glaciers": true,
       "converged": null,
-      "mean_surface_temperature_k": 288.448
+      "mean_surface_temperature_k": 287.594
+    },
+    {
+      "run_id": "run_ef6fa5447420",
+      "status": "smoke_complete",
+      "orbits_complete": 1,
+      "flux_earth": 0.945,
+      "cycle": null,
+      "resolution": "T21",
+      "land_albedo_source": "vegetated",
+      "source_build": "canonical-10m-carve2",
+      "glaciers": true,
+      "converged": null,
+      "mean_surface_temperature_k": 287.594
     }
   ],
   "current_climate": {
-    "source": "exoplasim/analysis/climatology/bootstrap_climate_report.json",
+    "source": "exoplasim/analysis/climatology/baseline_climate_report.json",
     "global_metrics": {
-      "surface_temperature_k": 292.0106447901919,
-      "air_temperature_2m_k": 291.4785782466302,
-      "precipitation_mm_day": 2.597793871174998,
-      "toa_net_radiation_w_m2": -0.47233792476219705,
-      "surface_downward_heat_flux_w_m2": 0.009438585828251828,
-      "planetary_sea_ice_fraction": 0.007874987015241319,
-      "ocean_mean_sea_ice_concentration": 0.013771524776343441,
-      "land_area_fraction": 0.42816883800921784
+      "surface_temperature_k": 281.15922387037074,
+      "air_temperature_2m_k": 281.2321215741143,
+      "precipitation_mm_day": 1.882635237887534,
+      "toa_net_radiation_w_m2": -0.19474629613258101,
+      "surface_downward_heat_flux_w_m2": -0.04952189951413619,
+      "planetary_sea_ice_fraction": 0.06933165865713303,
+      "ocean_mean_sea_ice_concentration": 0.12114387175744527,
+      "land_area_fraction": 0.42769157323988183
     },
     "koppen_top": {
-      "BWh": 0.17796188077906155,
-      "BSh": 0.14267439445048552,
-      "Dfb": 0.10294365727052486,
-      "Dfa": 0.08621904100199146,
-      "Dsa": 0.07422304904002469,
-      "Aw": 0.06585264916020767
+      "Dsa": 0.20124007318081924,
+      "BWh": 0.09412787234823568,
+      "Cfb": 0.07862048105583788,
+      "BSh": 0.07840035937032025,
+      "Csa": 0.06848918612908629,
+      "Dfc": 0.06009251716232373
     },
     "biome_top": {
-      "Continental temperate/mixed forest": 0.27800150517247224,
-      "Desert": 0.17832638488922828,
-      "Steppe/semidesert": 0.15454430672152686,
-      "Seasonal tropical woodland/savanna": 0.10136352073775834,
-      "Temperate/subtropical forest": 0.08029130184808486,
-      "Boreal forest/woodland": 0.06954670118493252
+      "Continental temperate/mixed forest": 0.293749784168423,
+      "Temperate/subtropical forest": 0.15585345656127275,
+      "Boreal forest/woodland": 0.15432349031501102,
+      "Steppe/semidesert": 0.1267758651643863,
+      "Desert": 0.10173702867428235,
+      "Mediterranean woodland/shrubland": 0.08577878189828363
     },
-    "source_build": "canonical-10m-base"
+    "source_build": "canonical-10m-carve2"
   },
   "hydrography": {
-    "products_from": "hydrography/data/canonical-10m-base",
+    "products_from": "hydrography/data/canonical-10m-carve2",
     "endorheic_note": {
       "drainage_share_of_land": "fraction of LAND AREA that drains to a closed basin; the hydrography figure, and the one the carve verdict is about",
       "basin_floor_share_of_land": "fraction of LAND AREA inside a preserved basin, i.e. is_endorheic cells; the lithology and thermostat figure"
     },
-    "terrain_hash": "2004672995403ead35e5ccbee400ae10cf3549ca662363c629c798707766c0c9",
+    "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
     "drainage": {
       "land_fraction_of_planet": 0.4328412535818526,
-      "endorheic_fraction_of_land": 0.7443970173560283,
-      "ocean_draining_fraction_of_land": 0.25560298264397174,
+      "endorheic_fraction_of_land": 0.4531177116381395,
+      "ocean_draining_fraction_of_land": 0.5468822883618605,
       "unresolved_regions": 0,
-      "pits_filled": 583684,
-      "median_fill_depth_m": 11.085106059908867
+      "pits_filled": 617354,
+      "median_fill_depth_m": 11.589950881898403
     },
     "basins": {
-      "count": 8772,
-      "total_capacity_km3": 6867685.960143674,
-      "total_area_at_spill_km2": 60364494.70005417,
-      "area_at_spill_fraction_of_planet": 0.08212897897497935,
-      "total_catchment_km2": 236820021.57981828,
-      "catchment_to_spill_area_ratio_median": 3.6906447720073285,
-      "merged_basins": 811,
-      "spills_to_ocean": 2150,
-      "spills_into_another_basin": 6622,
+      "count": 4462,
+      "total_capacity_km3": 3124026.293031671,
+      "total_area_at_spill_km2": 34718517.638361275,
+      "area_at_spill_fraction_of_planet": 0.04723631696631868,
+      "total_catchment_km2": 144153380.18075293,
+      "catchment_to_spill_area_ratio_median": 3.574062847394946,
+      "merged_basins": 380,
+      "spills_to_ocean": 1398,
+      "spills_into_another_basin": 3064,
       "critical_aridity_index_percentiles": {
-        "5": 1.1078492772277178,
-        "25": 1.8212853660982495,
-        "50": 2.6906447720073285,
-        "75": 4.328006648791652,
-        "95": 10.32842633078282
+        "5": 1.0930699165925843,
+        "25": 1.7592107671695778,
+        "50": 2.574062847394946,
+        "75": 4.063048527136109,
+        "95": 9.819394292924429
       },
-      "capacity_vs_natural_catalogue": 0.7528009596191271
+      "capacity_vs_natural_catalogue": 0.7020371632259379
     },
     "carve_verdict": {
       "bounds": {
         "penman": {
-          "basins_carved": 3943,
-          "endorheic_land_km2": 155554170.50624517,
-          "lake_area_km2": 6875274.387789214,
-          "dry_survivors": 2512,
-          "wet_survivors": 2317,
-          "basins_without_runoff": 2512,
-          "lake_area_fraction_of_planet": 0.009360573742285333,
+          "basins_carved": 644,
+          "endorheic_land_km2": 137848682.93665397,
+          "lake_area_km2": 9713215.280653913,
+          "dry_survivors": 744,
+          "wet_survivors": 3231,
+          "basins_without_runoff": 744,
+          "lake_area_fraction_of_planet": 0.013224383898151584,
           "solver_converged": true,
-          "median_aridity_index": -0.7919886537779555
+          "median_aridity_index": 16.422583761290532
         },
         "penman_annual": {
-          "basins_carved": 4772,
-          "endorheic_land_km2": 120113780.1541132,
-          "lake_area_km2": 8239921.144436775,
-          "dry_survivors": 2512,
-          "wet_survivors": 2061,
-          "basins_without_runoff": 2512,
-          "lake_area_fraction_of_planet": 0.011218518004183732,
+          "basins_carved": 1719,
+          "endorheic_land_km2": 78878488.74940068,
+          "lake_area_km2": 5500859.3648264995,
+          "dry_survivors": 744,
+          "wet_survivors": 2282,
+          "basins_without_runoff": 744,
+          "lake_area_fraction_of_planet": 0.007489330145404802,
           "solver_converged": true,
-          "median_aridity_index": -1.1355831639532894
+          "median_aridity_index": 5.843836867270283
         },
         "wet": {
-          "basins_carved": 6260,
-          "endorheic_land_km2": 84770172.17473814,
-          "lake_area_km2": 4244155.269766788,
-          "dry_survivors": 2512,
-          "wet_survivors": 203,
-          "basins_without_runoff": 2512,
-          "lake_area_fraction_of_planet": 0.005778348053558283,
+          "basins_carved": 3913,
+          "endorheic_land_km2": 19021168.529889047,
+          "lake_area_km2": 368591.61087325844,
+          "dry_survivors": 744,
+          "wet_survivors": 68,
+          "basins_without_runoff": 744,
+          "lake_area_fraction_of_planet": 0.0005018314557008273,
           "solver_converged": true,
           "median_aridity_index": -1.0
         }
@@ -459,15 +491,15 @@
           "penman_annual",
           "wet"
         ],
-        "carve_under_both": 3943,
-        "survive_under_both": 2512,
-        "disputed": 2317,
+        "carve_under_both": 641,
+        "survive_under_both": 744,
+        "disputed": 3272,
         "note": "`both` and `neither` are unanimity over every bound in `bounds_agreed_over`, which is three since the interval became a bracket: the two ends of it and the wet estimator. The names are kept for their readers"
       },
       "penman_ocean_validation": {
-        "penman_mm_per_day": 2.019,
-        "model_mm_per_day": 1.7698,
-        "ratio": 1.1408,
+        "penman_mm_per_day": 2.0882,
+        "model_mm_per_day": 1.8393,
+        "ratio": 1.1354,
         "ocean_cells": 1029,
         "note": "Ocean cells are already open water, so this is a direct check."
       }

@@ -78,6 +78,33 @@ def active_build(config: dict | None = None) -> str:
     return build
 
 
+def build_stamp(build: str) -> dict:
+    """What a product must record about the build it was made on.
+
+    READING A REFUSED BUILD IS LEGAL AND HAS TO STAY LEGAL. A build is
+    disposable until a climate run has consumed it, results already computed
+    from a superseded terrain stay readable and datable, and
+    `notes/audits/orogen-resolution.md` measured one on purpose. Registration
+    and activation are separate for that reason, and this is not a refusal.
+
+    What goes wrong is later, not now: a product made on a refused build lands
+    in `<component>/data/<name>` beside a production one with nothing telling
+    them apart, and the mistake is made months afterwards by whoever reads the
+    artifact. So the ARTIFACT carries the verdict. `activation_refusal` is the
+    registry's own words when the build may not be named as `source_build`,
+    and None when it may; `registered` is False for a build the registry has
+    never seen, which is a third state and not a refusal.
+    """
+    import orogen as _orogen
+    entry = _orogen.registry_entry(name=build)
+    return {
+        "build": build,
+        "terrain_hash": _orogen.terrain_hash_for_name(build),
+        "registered": entry is not None,
+        "activation_refusal": _orogen.activation_refusal(name=build),
+    }
+
+
 def artifact_build(path: Path) -> str | None:
     """Which build an artifact says it came from, or None if it does not say.
 

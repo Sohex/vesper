@@ -31,6 +31,7 @@ from paths import rel  # noqa: E402
 # Aliased: there is a `builds()` reporter below, and the bare name would be
 # rebound by it -- which `scripts/smoke_test.py` lints for.
 import builds as build_registry  # noqa: E402
+from provenance import build_stamp  # noqa: E402
 import stellar  # noqa: E402
 SCHEMA_VERSION = 1
 
@@ -114,6 +115,13 @@ def builds(active: str) -> dict:
         b, lit = m["basins"], m["lithology"]
         comp = {x["code"]: x["fraction"] for x in lit["compositionLand"]}
         out[d.name] = {
+            # WORLD-8H15. world_state.json is the file everything quotes
+            # the current build from, and it reported the build without
+            # the registry's verdict on it. The registry can REFUSE the
+            # build config names -- registration and activation are
+            # separate on purpose -- so the state has to carry which it is
+            # rather than leaving a reader to go and look.
+            "build_verdict": build_stamp(d.name),
             "terrain_hash": m["hashes"]["finalElevation"],
             "catalogue_hash": m["hashes"]["basinCatalogue"],
             "seed": m["seed"],

@@ -72,6 +72,7 @@ import yaml
 
 from _paths import CONFIG, DATA, PROJECT_ROOT, PROSPECTIVITY
 from paths import rel  # noqa: E402
+from provenance import build_stamp  # noqa: E402
 from prospectivity_scale import host_ceiling, host_weight, normalise
 
 import builds
@@ -292,6 +293,12 @@ def main() -> None:
     report = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "source_build": config.get("source_build"),
+        # WORLD-8H15. --source-build overwrites config in memory AFTER
+        # check_consistency's activatable guard has run, so this product
+        # can be made on a build the registry refuses. That stays legal;
+        # what it must not do is land in data/<name> indistinguishable
+        # from a production one. The verdict travels with the artifact.
+        "build_verdict": build_stamp(str(config["source_build"])),
         "terrain_hash": mesh.terrain_hash,
         "config_sha256": hashlib.sha256(PROSPECTIVITY.read_bytes()).hexdigest(),
         "generator": "minerals/scripts/build_prospectivity.py",

@@ -59,6 +59,7 @@ import gridding  # noqa: E402
 import lapse  # noqa: E402
 from lib import builds  # noqa: E402
 from lib import paths  # noqa: E402
+from provenance import build_stamp  # noqa: E402
 
 FREEZE_K = 273.15
 
@@ -169,6 +170,10 @@ def main() -> None:
         "mesh_export": paths.rel(root),
         "grid_export": paths.rel(grid_root),
         "source_build": Path(root).parent.name,
+        # WORLD-8H15. --build takes an export root and may point at any
+        # registered build, or at one the registry refuses to activate.
+        # Reading one is legal; the artifact says which it was.
+        "build_verdict": build_stamp(Path(root).parent.name),
         "lapse_k_per_km_warmest": rate,
         "grid_cells_with_glac": (int((glac.max(axis=0) > 0).sum())
                                  if glac is not None else None),
