@@ -2105,6 +2105,26 @@ checks:
   - id: verify_build_path_independence
     script: exoplasim/scripts/verify_build_path_independence.py
 
+  # A high-cadence orbit's raw stream is the expensive, irreplaceable half of
+  # the segment that made it: 2 GB at T21, 15 GB at T42, kept out of git on
+  # purpose, and remade only by running the model again. This asserts on
+  # fixtures that it is found and stamped wherever the model or `_crash()` left
+  # it, and that a conversion which silently substituted the regular output's
+  # twelve bins under the high-cadence name is refused. No model, no process,
+  # milliseconds. world-xm1t.
+  - id: verify_high_cadence_rescue
+    script: exoplasim/scripts/verify_high_cadence_rescue.py
+
+  # The design flux's per-band projection, on synthetic bands whose answer is
+  # known before it runs: the line passes through both of its own measured
+  # points, a negative warm-season response is projected rather than refused,
+  # and a positive one does not certify a projection whose seasonal range
+  # closes inside the candidate set. Its anchor case carries the superseded
+  # arithmetic as a control, so the identity is known to be able to fail.
+  # No model, no run. world-m61p.
+  - id: verify_design_flux_projection
+    script: exoplasim/scripts/verify_design_flux_projection.py
+
 # Present, deliberately outside the graph: no step row runs them (some are
 # imported as modules by step scripts).
 one_offs:

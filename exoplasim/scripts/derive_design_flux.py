@@ -20,11 +20,49 @@ candidate means, scored on a warm-season comfort band. Concretely here:
 - A "month" is one of the 12 output bins; per-cell warmest and coldest bin
   means of `tas` are the two seasons. Bin weights come from
   `lib/climatology.py` (they differ between I/O regimes).
-- The projection is per 10-degree band: amplification = (band seasonal delta)
-  / (global annual delta) between the two sources, applied to every land cell
-  in the band, with the global mean moving along `lib/sensitivity.py`'s
-  canonical slope. Bracket between two points, never extrapolate from one --
-  the doctrine 5b itself was written under.
+- The projection is per 10-degree band: the band's seasonal RESPONSE, in
+  kelvin per unit flux ratio, taken between the two sources and applied to
+  every land cell in the band. Bracket between two points, never extrapolate
+  from one -- the doctrine 5b itself was written under.
+
+RESPONSE, NOT AMPLIFICATION, and the difference is the whole of what the
+projection assumes. The response is a signed regression coefficient through two
+measured points; an amplification is a ratio to the global-mean move, and
+calling it that smuggles in the premise that a band moves WITH the global mean.
+This world breaks that premise: at 32 degrees of obliquity, high-latitude
+summer land is warmed by melting out of snow under clear skies, and brightening
+the star adds moisture and cloud and retreats the sea ice, coupling that land to
+an ocean whose heat capacity damps the summer peak. Bands whose winter warms by
+tens of kelvin have warmest bins that COOL. The ratio is still reported per
+band, because 5b argues in it and it is the readable statement of the trade;
+nothing projects with it, and its sign is a measurement rather than a fault.
+
+The projection therefore reproduces both of its own anchor points at the band
+level, which the ratio form did not: it converted flux to kelvin with
+`lib/sensitivity.py`'s canonical slope while normalising the band responses by
+the span the two sources actually showed, and the two disagreed, so the fitted
+line missed one of the points it was fitted to. Measured 2026-08-30 on the
+baseline climatology of run_67323a923013 against run_b45380e61f90: the sources
+span -7.196 K over -0.055 in flux, a local 130.8 K per unit flux ratio, against
+the canonical 159.7, so every band mean at the bracket point came out 22 per
+cent too far. The canonical slope is still what the candidate range's kelvin
+margins are converted through -- that is a different use and it is the right
+one there -- and the disagreement between the two estimates of the same global
+slope is reported rather than averaged away.
+
+THE ONE PROPERTY A PROJECTED FIELD MUST HAVE. `warm` and `cold` are the maximum
+and the minimum of the same twelve bins, so warm >= cold is an identity of the
+field. A per-band response applied across a wide flux range can break it: a band
+whose winter response is several times its summer one has a seasonal range that
+contracts with flux and eventually closes. That is the property the old sign
+test was standing in for, and the sign test was neither necessary nor sufficient
+for it. Measured on the same pair: three bands with a NEGATIVE warm response
+stay ordered across the whole declared candidate range, while `-60 to -50` and
+`+50 to +60`, whose warm responses are POSITIVE, close inside it. So the scored
+candidates are the ones the projection is a field on, that window is reported,
+and an inversion at one of the two MEASURED fluxes is a refusal -- there the
+band-mean response is being asked to describe cells whose seasonal range it does
+not.
 - The bracket run contributes `tas` only: a spin-up under the cheap I/O
   regime carries the historical first-record defect in wind and humidity, so
   humidity comes solely from the clean climatology.
@@ -164,22 +202,32 @@ cloud coefficients and the offset bound above says the answer has moved.
 Checks that can fail, all of which REFUSE rather than report and carry on:
 `cold_extreme_cap` must be declared; the anchor and the pin flux must be
 interior to the candidate range; the two sources must span more than 5 K of
-global mean; the amplification must be positive in every band for the warm
-season; the declared cap must admit at least one candidate; and no winner --
-dry or equivalent, capped or not -- may sit on either end of the candidate
-range. The last of those was a reported flag in the artifact and is now a
-refusal, because the range is derived and an edge winner means the derivation
+global mean and must sit at different fluxes; the projection must not put a
+land cell's warmest bin below its coldest at either MEASURED flux; at least one
+candidate must survive that same test; the recorded prior must be one of the
+candidates that does; the declared cap must admit at least one candidate; and
+no winner -- dry or equivalent, capped or not -- may sit on either end of the
+SCORED range. The last of those was a reported flag in the artifact and is now
+a refusal, because the range is derived and an edge winner means the derivation
 was wrong.
 
-A FLUX THAT WAS CHOSEN, and why it is recorded by THIS script. Some of the
+A FLUX THAT WAS CHOSEN, and why it is recorded by THIS script. Most of the
 refusals above are about the inputs -- a missing run, a bare-rock bracket point,
 a bracket too weak to project across -- and each is fixed by supplying what is
-missing. One of them is not: a band whose warmest-bin response to warming is
-NEGATIVE has nothing for the per-band projection to scale by, and the sign is a
-property of how this world's seasons respond rather than of where the two flux
-points sit, so a third point does not fix it. The instrument has looked at the
-evidence and cannot answer. On that ground alone the flux may be CHOSEN, and
-`--chosen` records the choice.
+missing. A refusal that no run at any flux would lift is a different thing: the
+instrument has looked at the evidence and cannot answer, and on that ground
+alone the flux may be CHOSEN. `--chosen` records the choice.
+
+`CHOOSABLE_REFUSALS` IS EMPTY, and that is a statement rather than a gap. The
+one ground it carried was `band_amplification_sign`, and that guard is gone: a
+negative warm-season response is a measurement the linear form represents
+exactly, the sign test was neither necessary nor sufficient for the property it
+claimed to protect, and the refusal that replaces it -- the projection
+inverting a cell's seasons at a measured flux -- is answered by a better
+projection or by points that bracket rather than by a design decision. Nothing
+here currently refuses on a ground a choice may stand on, so `--chosen` writes
+nothing until a future guard earns membership by the test above and the
+argument beside it.
 
     --chosen FLUX --evidence notes/audits/<the finding>.md
 
@@ -338,15 +386,17 @@ class Refusal(SystemExit):
 # here rather than taken from the caller because it is a property of the guard:
 # the caller supplies the evidence for the number, never the terms on which the
 # derivation could resume.
-CHOOSABLE_REFUSALS = {
-    "band_amplification_sign":
-        "a projection method that can represent a band whose seasonal range "
-        "CONTRACTS with warming. The per-band amplification is a ratio to the "
-        "global mean change and is undefined in sign for such a band, so what "
-        "reopens the derivation is a different projection and not another flux "
-        "point: the sign is a property of this world's seasonal response, and "
-        "every run at every flux would show it",
-}
+#
+# IT IS EMPTY, and the emptiness is load-bearing. `band_amplification_sign` was
+# the one entry, and it was wrong on its own terms: the projection is a straight
+# line through two measured points and is defined for either sign of its slope,
+# so a negative warm-season response was never a refusal the derivation had to
+# take. What replaced it, `projection_inverts_at_a_measured_point`, fails the
+# membership test above -- a per-cell response, or two points that bracket the
+# candidate instead of sitting inside it, would answer it -- so it is a plain
+# input refusal and not a ground for a choice. A guard joins this dict by
+# argument, never by a record needing one.
+CHOOSABLE_REFUSALS: dict[str, str] = {}
 
 
 def manifest_branch(manifest: dict) -> str | None:
@@ -470,6 +520,74 @@ def score(warm_c: np.ndarray, cold_c: np.ndarray, land: np.ndarray,
     }
 
 
+def band_mean(field: np.ndarray, rows: np.ndarray, land: np.ndarray,
+              area: np.ndarray) -> float:
+    """The land-area weighted mean of a field over one latitude band."""
+    sel = land[rows, :]
+    a = area[rows, :]
+    return float((field[rows, :] * a * sel).sum() / float((a * sel).sum()))
+
+
+def band_response(base: dict, other: dict, bands: np.ndarray, nb: int,
+                  f0: float, f1: float, d_global: float) -> tuple[dict, list]:
+    """Each band's seasonal RESPONSE in kelvin per unit flux ratio, and the rows.
+
+    Signed, and taken between the two points directly, so the projection built
+    from it reproduces both of its own anchors at the band level. See RESPONSE,
+    NOT AMPLIFICATION in this module's docstring: the ratio to the global-mean
+    move is reported per band and is never what anything projects with, because
+    a band whose winter response is several times its summer one has a warmest
+    bin that can move the OTHER WAY and the ratio's sign then reads as a fault
+    rather than as the measurement it is.
+    """
+    d_flux = f0 - f1
+    response = {"warm": np.zeros(nb), "cold": np.zeros(nb)}
+    rows_out = []
+    for b in range(nb):
+        rows = bands == b
+        if not base["land"][rows, :].any():
+            continue
+        entry = {"band": f"{b*10-90:+d} to {b*10-80:+d}"}
+        for season in ("warm", "cold"):
+            t_base = band_mean(base[season], rows, base["land"], base["area"])
+            t_other = band_mean(other[season], rows, base["land"], base["area"])
+            response[season][b] = (t_base - t_other) / d_flux
+            entry[f"{season}_c_at_{f0}"] = round(t_base - 273.15, 2)
+            entry[f"{season}_c_at_{f1}"] = round(t_other - 273.15, 2)
+            entry[f"{season}_k_per_unit_flux"] = round(response[season][b], 2)
+            entry[f"amp_{season}"] = round((t_base - t_other) / d_global, 3)
+        rows_out.append(entry)
+    return response, rows_out
+
+
+def band_projector(base: dict, bands: np.ndarray, response: dict, f0: float):
+    """`projected(f)` and `inverted_land(f)` for one base field and response.
+
+    `projected` returns the warm, cold and equivalent-warm land fields at a
+    candidate flux in degrees Celsius. `inverted_land` is the identity guard:
+    `warm` and `cold` are the maximum and the minimum of the SAME twelve bins,
+    so a cell whose projected warmest bin sits below its coldest is not a cell
+    the comfort score can read.
+    """
+    warm_response_cells = response["warm"][bands][:, None]
+    cold_response_cells = response["cold"][bands][:, None]
+    q_warm = base.get("q_warm")
+    te_warm0 = (base["warm"] if q_warm is None
+                else base["warm"] + LATENT_OVER_CP * q_warm)
+
+    def projected(f):
+        df = f - f0
+        return (base["warm"] + warm_response_cells * df - 273.15,
+                base["cold"] + cold_response_cells * df - 273.15,
+                te_warm0 + warm_response_cells * df - 273.15)
+
+    def inverted_land(f):
+        warm, cold, _ = projected(f)
+        return base["land"] & (warm < cold)
+
+    return projected, inverted_land
+
+
 def derive(bracket_run: str, tail_orbits: int = 10) -> dict:
     """The derivation, or the refusal that says it cannot be made on this world.
 
@@ -557,57 +675,73 @@ def derive(bracket_run: str, tail_orbits: int = 10) -> dict:
         raise SystemExit(f"the two sources span only {d_global:.2f} K of global "
                          "mean; a bracket this weak cannot support a projection")
 
+    d_flux = f0 - f1
+    if abs(d_flux) < 1e-9:
+        raise SystemExit(f"both sources sit at flux {f0}; a response cannot be "
+                         "taken between two points that are the same point")
+
     bands = band_index(base["lat"], DECLARED["band_degrees"])
     nb = bands.max() + 1
-    amp = {"warm": np.ones(nb), "cold": np.ones(nb)}
-    band_rows = []
-    for b in range(nb):
-        rows = bands == b
-        sel = base["land"][rows, :]
-        if not sel.any():
-            continue
-        a_rows = base["area"][rows, :]
-        wsum = float((a_rows * sel).sum())
-        entry = {"band": f"{b*10-90:+d} to {b*10-80:+d}"}
-        for season in ("warm", "cold"):
-            t_base = float((base[season][rows, :] * a_rows * sel).sum() / wsum)
-            t_other = float((other[season][rows, :] * a_rows * sel).sum() / wsum)
-            amp[season][b] = (t_base - t_other) / d_global
-            entry[f"{season}_c_at_{f0}"] = round(t_base - 273.15, 2)
-            entry[f"amp_{season}"] = round(amp[season][b], 3)
-        band_rows.append(entry)
-    negative = [r for r in band_rows if r.get("amp_warm", 1) <= 0]
-    if negative:
-        raise Refusal(
-            "band_amplification_sign",
-            "a band's warm-season amplification is not positive; the "
-            "projection cannot be trusted. "
-            + "; ".join(f"{r['band']} amp_warm {r['amp_warm']}"
-                        for r in negative),
-            {"bands_with_non_positive_warm_amplification": negative,
-             "all_bands": band_rows,
-             "sources": {
-                 "base": {"path": rel(base_path), "flux": f0,
-                          "climatology_stage": base_stage,
-                          "land_albedo_source": base_branch},
-                 "bracket": {"run": bracket_run, "flux": f1,
-                             "tail_orbits": orbits,
-                             "land_albedo_source": branch},
-                 "global_mean_span_k": round(d_global, 3),
-                 "slope_k_per_unit_flux": sensitivity.SLOPE_K_PER_FLUX_RATIO}})
+    response, band_rows = band_response(base, other, bands, nb, f0, f1, d_global)
 
     slope = sensitivity.SLOPE_K_PER_FLUX_RATIO
-    amp_warm_cells = amp["warm"][bands][:, None]
-    amp_cold_cells = amp["cold"][bands][:, None]
+    projected, inverted_land = band_projector(base, bands, response, f0)
 
-    te_warm0 = base["warm"] + LATENT_OVER_CP * base["q_warm"]
+    def inverted_fraction(f):
+        return float((base["area"] * inverted_land(f)).sum()
+                     / (base["area"] * base["land"]).sum())
 
-    def projected(f):
-        """Warm, cold and equivalent-warm land fields at a candidate flux, in C."""
-        dT = slope * (f - f0)
-        return (base["warm"] + amp_warm_cells * dT - 273.15,
-                base["cold"] + amp_cold_cells * dT - 273.15,
-                te_warm0 + amp_warm_cells * dT - 273.15)
+    # THE IDENTITY THE PROJECTION HAS TO KEEP, and the one the sign test was
+    # standing in for. `warm` and `cold` are the maximum and the minimum of the
+    # SAME twelve bins, so warm >= cold is a property of the field and not a
+    # preference about it. A candidate at which the projection inverts a cell's
+    # seasons is not a candidate whose comfort fraction means anything, and the
+    # score would return one anyway.
+    #
+    # It fires at a MEASURED point or it does not fire at that point at all,
+    # which is what makes it a check rather than a threshold: at f0 the
+    # projection IS the base field, and at f1 it is the base field carried by a
+    # band-mean response, so an inversion there is the band-uniform assumption
+    # failing on a cell whose seasonal range the band mean does not describe.
+    for name, f in (("bracket", f1),):
+        if inverted_land(f).any():
+            raise Refusal(
+                "projection_inverts_at_a_measured_point",
+                f"the projection puts {inverted_land(f).sum()} land cells' "
+                f"warmest bin below their coldest at the {name} point's own "
+                f"flux {f}, which is {inverted_fraction(f):.3%} of land. A "
+                "band-mean response cannot describe those cells' seasons, so "
+                "the per-band form is wrong for this world rather than "
+                "under-determined.",
+                {"all_bands": band_rows,
+                 "inverted_land_fraction_at_bracket": round(inverted_fraction(f), 5),
+                 "sources": {
+                     "base": {"path": rel(base_path), "flux": f0,
+                              "climatology_stage": base_stage,
+                              "land_albedo_source": base_branch},
+                     "bracket": {"run": bracket_run, "flux": f1,
+                                 "tail_orbits": orbits,
+                                 "land_albedo_source": branch},
+                     "global_mean_span_k": round(d_global, 3),
+                     "slope_k_per_unit_flux": slope}})
+
+    # The candidates the projection is still a field on. Linear in f per cell,
+    # so the valid set is an interval; asserted rather than assumed, because a
+    # gap would mean the arithmetic is not what this comment says it is.
+    scored = [f for f in DECLARED["candidates"] if not inverted_land(f).any()]
+    if not scored:
+        raise SystemExit(
+            "the projection inverts a land cell's seasons at every candidate "
+            f"in {DECLARED['candidates'][0]} to {DECLARED['candidates'][-1]}. "
+            "There is no flux at which this projection is a field, so there is "
+            "nothing for the comfort score to read")
+    first = DECLARED["candidates"].index(scored[0])
+    if DECLARED["candidates"][first:first + len(scored)] != scored:
+        raise SystemExit(
+            "the set of candidates the projection is a field on is not "
+            "contiguous, which a linear response cannot produce. The "
+            "projection is not the arithmetic this script says it is")
+    scored_edges = (scored[0], scored[-1])
 
     # the humidity-coupled ceiling, pinned so the pin-flux comfort fractions match
     pin_warm, pin_cold, pin_te = projected(DECLARED["te_pin_flux"])
@@ -624,7 +758,7 @@ def derive(bracket_run: str, tail_orbits: int = 10) -> dict:
     te_ceiling = round(0.5 * (lo + hi), 3)
 
     table = []
-    for f in DECLARED["candidates"]:
+    for f in scored:
         warm, cold, te_warm = projected(f)
         table.append({
             "flux": f,
@@ -643,10 +777,13 @@ def derive(bracket_run: str, tail_orbits: int = 10) -> dict:
     if win_dry_capped is None or win_te_capped is None:
         raise SystemExit(
             f"the declared cold-extreme cap {cap} admits no candidate in "
-            f"{edges[0]} to {edges[1]}: this world cannot be placed at any flux "
-            "the search carries without exceeding the cap. That is a result about "
-            "the cap and the terrain together, and it is not resolved by moving "
-            "either one after the fact")
+            f"{scored_edges[0]} to {scored_edges[1]}, the range the projection "
+            f"is a field on inside the declared {edges[0]} to {edges[1]}. The "
+            f"smallest cold-extreme land fraction any scored candidate reaches "
+            f"is {min(r['dry']['extreme_cold'] for r in table)}. This world "
+            "cannot be placed at any flux the search carries without exceeding "
+            "the cap; that is a result about the cap and the terrain together, "
+            "and it is not resolved by moving either one after the fact")
 
     # An edge winner is a refusal, not a flag. The candidate range is derived in
     # this file's docstring from where the corrected cloud optics can put the
@@ -656,20 +793,23 @@ def derive(bracket_run: str, tail_orbits: int = 10) -> dict:
     at_edge = sorted({n for n, f in (("dry", win_dry), ("equivalent", win_te),
                                      ("dry under the cap", win_dry_capped),
                                      ("equivalent under the cap", win_te_capped))
-                      if f in edges})
+                      if f in scored_edges})
     if at_edge:
         raise SystemExit(
-            f"the winner is on the end of the candidate range for: "
-            f"{', '.join(at_edge)}. The range {edges[0]} to {edges[1]} does not "
-            "contain its own answer, so what the search would return is an edge "
-            "and not an optimum. Re-derive the range in the docstring and re-run")
+            f"the winner is on the end of the scored range for: "
+            f"{', '.join(at_edge)}. The candidates the projection is a field "
+            f"on, {scored_edges[0]} to {scored_edges[1]} inside the declared "
+            f"{edges[0]} to {edges[1]}, do not contain their own answer, so "
+            "what the search would return is an edge and not an optimum. "
+            "Widen the declared range in the docstring, or bring the "
+            "projection's validity window to where the answer is, and re-run")
 
     # What the answer owes to the two comfort preferences, measured rather than
     # asserted: the design flux each bracket point of each threshold returns,
     # the other threshold and the cap held at their declared values.
     def winner_at(warm_ceiling, cold_floor, cap_value):
         best_flux, best_comfort = None, -1.0
-        for f in DECLARED["candidates"]:
+        for f in scored:
             warm, cold, _ = projected(f)
             s = score(warm, cold, base["land"], base["area"], warm_ceiling, cold_floor)
             if s["extreme_cold"] > cap_value:
@@ -697,7 +837,15 @@ def derive(bracket_run: str, tail_orbits: int = 10) -> dict:
     # which the recorded prior would have been the constrained optimum. It is
     # what the purged artifact solved backwards, kept visible so the defect is
     # legible rather than repeated.
-    anchor_row = next(r for r in table if r["flux"] == DECLARED["anchor_flux"])
+    anchor_row = next((r for r in table if r["flux"] == DECLARED["anchor_flux"]),
+                      None)
+    if anchor_row is None:
+        raise SystemExit(
+            f"the recorded prior {DECLARED['anchor_flux']} is not a flux the "
+            "projection is a field on, so the distance to it cannot be "
+            "measured on the same instrument as the winner. That is a result "
+            "about the projection and the prior together and it is not fixed "
+            "by dropping the comparison")
     prior_implied_cap = anchor_row["dry"]["extreme_cold"]
 
     report = {
@@ -736,6 +884,25 @@ def derive(bracket_run: str, tail_orbits: int = 10) -> dict:
                                    "matches the dry score's; the divergence "
                                    "between columns is then distribution, not level",
         "candidates": table,
+        # WHERE THE PROJECTION IS STILL A FIELD, derived and not declared: the
+        # candidates over which no land cell's projected warmest bin sits below
+        # its coldest. Reported because the scored set is narrower than the
+        # declared range and a reader must not have to infer that from a row
+        # count.
+        "projection_validity": {
+            "declared_candidates": [edges[0], edges[1]],
+            "scored_candidates": [scored_edges[0], scored_edges[1]],
+            "dropped": len(DECLARED["candidates"]) - len(scored),
+            "inverted_land_fraction_at_declared_edges": [
+                round(inverted_fraction(edges[0]), 5),
+                round(inverted_fraction(edges[1]), 5)],
+            "note": "warm and cold are the maximum and the minimum of the same "
+                    "twelve bins, so warm >= cold is an identity of the field. "
+                    "A candidate that breaks it is not scored. The window is "
+                    "necessary and not sufficient: a projection can be far "
+                    "outside the regime it was measured in and still ordered, "
+                    "which is what the extrapolation figures below are for",
+        },
         "design_flux": win_dry_capped,
         "design_flux_equivalent": win_te_capped,
         "winner_dry_uncapped": win_dry,
@@ -745,9 +912,24 @@ def derive(bracket_run: str, tail_orbits: int = 10) -> dict:
             "beyond_sources_at_design_flux": round(
                 slope * max(0.0, min(f0, f1) - win_dry_capped,
                             win_dry_capped - max(f0, f1)), 2),
-            "note": "how far past the two measured points the band "
-                    "amplifications are carried to reach the design flux, in "
-                    "global-mean kelvin; zero means the answer is interpolated",
+            # In units of the span the responses were measured over, because
+            # that is the number that says whether the line is being read or
+            # merely continued. `lib/sensitivity.py` says of its own slope that
+            # a local response must not be used outside the regime it was
+            # measured in, and the per-band responses here are the same kind of
+            # object.
+            "spans_beyond_sources_at_design_flux": round(
+                max(0.0, min(f0, f1) - win_dry_capped,
+                    win_dry_capped - max(f0, f1)) / abs(f0 - f1), 2),
+            "spans_beyond_sources_at_scored_edges": [
+                round(max(0.0, min(f0, f1) - scored_edges[0],
+                          scored_edges[0] - max(f0, f1)) / abs(f0 - f1), 2),
+                round(max(0.0, min(f0, f1) - scored_edges[1],
+                          scored_edges[1] - max(f0, f1)) / abs(f0 - f1), 2)],
+            "note": "how far past the two measured points the band responses "
+                    "are carried to reach the design flux, in global-mean "
+                    "kelvin and in multiples of the measured flux span; zero "
+                    "means the answer is interpolated",
         },
         "threshold_sensitivity": {
             "note": "the design flux each bracket point of a comfort threshold "

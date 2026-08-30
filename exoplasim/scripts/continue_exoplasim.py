@@ -18,6 +18,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _paths import CONFIG, INPUTS, RUNS  # noqa: E402
+from paths import rel  # noqa: E402
 from provenance import applied_removals, config_drift  # noqa: E402
 from restart_surface import verify_restart_surface_fields  # noqa: E402
 from segments import SEGMENT_PURPOSES  # noqa: E402
@@ -92,6 +93,203 @@ def validate_year(path: Path, expected_times: int | None = None) -> None:
         bad = [name for name in sorted(REQUIRED) if not np.isfinite(nc[name][:]).all()]
         if bad:
             raise RuntimeError(f"{path} has non-finite variables: {bad}")
+
+
+# ---------------------------------------------------------------------------
+# THE HIGH-CADENCE RAW STREAM, and where it actually is.
+#
+# It is the expensive, irreplaceable half of a high-cadence segment: one orbit
+# is 2 GB at T21 and 15 GB at T42, `.gitignore` keeps model output out of the
+# repository, and regenerating it costs the segment again. So this file's job is
+# to know where the model and its postprocessor can have left it, put it in ONE
+# place whether they succeeded or not, and say where that is.
+#
+# WHAT THE MODEL DOES WITH IT. `plasim.f90` writes `plasim_hcadence`;
+# `exoplasim/__init__.py:891` renames it to `MOST_HC.NNNNN` at the RUN ROOT. The
+# move into `highcadence/` on the line after the postprocessor
+# (`__init__.py:916`) is `mv MOST_HC.NNNNN*.nc highcadence/` -- the netCDF and
+# only the netCDF. The raw therefore stays at the run root on the SUCCESS path
+# too, and the glob this replaced looked for it in `highcadence/` and filtered
+# out everything with a suffix, so it reported an empty list on every
+# high-cadence segment ever run, whatever the postprocessor did. world-xm1t.
+#
+# AND WHAT HAPPENS WHEN THE POSTPROCESSOR FAILS. `Model.postprocess` catches the
+# exception and calls `integritycheck`, which quietly re-runs pyburn with
+# `example.nl` -- the REGULAR variable set and the regular twelve-bin average --
+# and returns success if that file loads. `postprocess` then returns 0 and the
+# run carries on, so `highcadence/MOST_HC.NNNNN.nc` exists, is named as the
+# high-cadence product, and is a twelve-bin average of the wrong field list.
+# That is what happened on run_67323a923013 orbit 127: 1463 samples in the raw,
+# twelve in the file beside it. If integritycheck ALSO fails, `postprocess`
+# raises, `_run` calls `_crash()` (`__init__.py:1509`), and the whole run
+# directory including the raw is moved to a sibling `<run>_crashed/` that
+# nothing in this tree records.
+HIGH_CADENCE_START_STEP = 1
+
+
+def high_cadence_raw_name(year: int) -> str:
+    return f"MOST_HC.{year:05d}"
+
+
+def high_cadence_search_roots(run_dir: Path) -> list[Path]:
+    """Every directory a raw high-cadence stream can be in, in order.
+
+    The run root, where the model leaves it; `highcadence/`, where this script
+    puts it and where an earlier segment's may already be; and the crashed
+    sibling, because `_crash()` moves the working directory wholesale.
+    `exoplasim/scripts/filter_timestep_matrix.py` searches the same pair for the
+    same reason.
+    """
+    crashed = run_dir.parent / f"{run_dir.name}_crashed"
+    return [run_dir, run_dir / "highcadence", crashed, crashed / "highcadence"]
+
+
+def find_high_cadence_raw(run_dir: Path, year: int) -> Path | None:
+    """The raw stream for one orbit, wherever it ended up, or None."""
+    name = high_cadence_raw_name(year)
+    for root in high_cadence_search_roots(run_dir):
+        candidate = root / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+# MATCHED WHOLE, and not by `Path.suffix`. `MOST_HC.00127` has a suffix of
+# `.00127`, so "the extensionless ones" spelled as `p.suffix == ""` selects
+# nothing at all -- which is half of why the superseded report was always empty.
+HIGH_CADENCE_RAW_NAME = re.compile(r"MOST_HC\.(\d{5})$")
+
+
+def discover_high_cadence_years(run_dir: Path) -> list[int]:
+    """Every orbit index that has a raw high-cadence stream somewhere findable."""
+    years = set()
+    for root in high_cadence_search_roots(run_dir):
+        if not root.is_dir():
+            continue
+        for path in root.iterdir():
+            match = HIGH_CADENCE_RAW_NAME.fullmatch(path.name)
+            if match and path.is_file():
+                years.add(int(match.group(1)))
+    return sorted(years)
+
+
+def expected_high_cadence_samples(runsteps_per_orbit: int, orbits: int,
+                                  interval: int) -> int:
+    """How many samples one orbit's raw high-cadence file must hold.
+
+    Read off `plasim.f90` rather than assumed. `nhcstp` is set to 1 at the top
+    of each model call (plasim.f90:776) and incremented once per timestep
+    (plasim.f90:896); a sample is written when
+    `nhcstp >= hcstartstep .and. nhcstp < hcendstep` and
+    `mod(nhcstp - hcstartstep, hcinterval) == 0` (plasim.f90:841-843). One call
+    integrates one orbit, so the counter runs 1 to `runsteps_per_orbit` while
+    `hcendstep` is the whole segment.
+
+    Checked against the only high-cadence orbit this project has run:
+    `runsteps_per_orbit` 5850 at interval 4 gives 1463, and
+    `aeolian/scripts/extract_high_cadence_wind.py` pulled exactly 1463 samples
+    out of run_67323a923013's MOST_HC.00127.
+    """
+    end = runsteps_per_orbit * orbits
+    last = min(runsteps_per_orbit, end - 1)
+    if last < HIGH_CADENCE_START_STEP:
+        return 0
+    return (last - HIGH_CADENCE_START_STEP) // interval + 1
+
+
+def validate_high_cadence(path: Path, expected_samples: int) -> None:
+    """The converted high-cadence file holds the samples the model wrote.
+
+    THE FAILURE THIS CATCHES IS A SUBSTITUTION, not an absence. When pyburn
+    fails on the raw stream, ExoPlaSim's `integritycheck` re-runs it under
+    `example.nl` and leaves a twelve-bin time average of the regular variable
+    set under the high-cadence file's name, and the segment reports success. A
+    file that is named as the high-cadence product and is not it is worse than
+    no file: `aeolian/scripts/build_dust.py` refuses to guess a wind source
+    precisely because the biased answer looks exactly like the right one.
+
+    The sample count is an identity -- `plasim.f90` says how many records it
+    wrote -- so this has a right answer before the run starts.
+    """
+    if not path.is_file():
+        raise RuntimeError(
+            f"Missing high-cadence output {path}; the raw stream is preserved "
+            f"and the conversion has to be re-run against it")
+    with Dataset(path) as nc:
+        times = len(nc.dimensions["time"])
+    if times != expected_samples:
+        raise RuntimeError(
+            f"{path} holds {times} time samples and the model wrote "
+            f"{expected_samples}. A high-cadence file with the regular output's "
+            f"twelve bins in it is ExoPlaSim's integritycheck fallback having "
+            f"re-run pyburn under example.nl: the conversion FAILED and left a "
+            f"time average of the wrong variable set under the right name. The "
+            f"raw stream is preserved; convert it again rather than reading "
+            f"this file.")
+
+
+def preserve_high_cadence_raw(run_dir: Path, years: range,
+                              stamp: dict) -> list[dict]:
+    """Move every raw high-cadence stream into `highcadence/` and record it.
+
+    ONE PLACE WHETHER THE CONVERSION WORKED OR NOT, because the two paths used
+    to differ and the failure path was the one nothing recorded. Returns one
+    entry per stream found, and writes them beside the files as
+    `highcadence/high_cadence_raw.json` so the artifact says what it is without
+    the run manifest having to be read -- which matters exactly when `_crash()`
+    has moved the run manifest somewhere else.
+    """
+    target = run_dir / "highcadence"
+    target.mkdir(exist_ok=True)
+    sidecar = target / "high_cadence_raw.json"
+    # WHERE IT CAME FROM IS NOT RE-DERIVED on a second pass. Both paths call
+    # this, so the success path can have moved the stream already and the
+    # failure path would then read the destination back as the origin, erasing
+    # the one fact that says the file was rescued out of a crashed directory.
+    prior: dict[int, dict] = {}
+    if sidecar.is_file():
+        try:
+            prior = {int(e["year_index"]): e
+                     for e in json.loads(sidecar.read_text(encoding="utf-8"))}
+        except Exception:
+            prior = {}
+    entries = []
+    for year in years:
+        found = find_high_cadence_raw(run_dir, year)
+        if found is None:
+            continue
+        destination = target / found.name
+        moved = found != destination
+        if moved:
+            found.replace(destination)
+        entries.append({
+            "year_index": int(year),
+            "path": rel(destination),
+            "file": destination.name,
+            "bytes": destination.stat().st_size,
+            "sha256": file_sha256(destination),
+            "recovered_from": (str(found.parent) if moved else
+                               prior.get(int(year), {}).get(
+                                   "recovered_from", str(destination.parent))),
+            **stamp,
+        })
+    if entries:
+        sidecar.write_text(json.dumps(entries, indent=2) + "\n",
+                           encoding="utf-8")
+    return entries
+
+
+def report_high_cadence_raw(entries: list[dict]) -> None:
+    if not entries:
+        print("  high-cadence raw: NONE FOUND. The model was asked for a "
+              "high-cadence stream and no MOST_HC.NNNNN is at the run root, "
+              "in highcadence/, or in the crashed sibling.")
+        return
+    for entry in entries:
+        print(f"  high-cadence raw kept: {entry['file']} "
+              f"({entry['bytes'] / 1e9:.2f} GB) in {entry['path']}")
+    print(f"  extract it with: python aeolian/scripts/"
+          f"extract_high_cadence_wind.py {entries[0]['path']}")
 
 
 def global_mean(field: np.ndarray, weights: np.ndarray) -> np.ndarray:
@@ -244,12 +442,15 @@ def main() -> None:
     # snapshots resolve synoptic variance and not the diurnal and sub-daily
     # variance that actually lifts dust, so a Weibull fitted to them is too
     # narrow and the emission it implies is a lower bound. Sampling every fourth
-    # timestep gives 1462 samples a cell over one orbit, which resolves a
-    # 30-hour day. The postprocessed field list is trimmed to the winds by
-    # HIGH_CADENCE_CODES; note that this does NOT shrink what the model writes.
-    # The raw `MOST_HC.NNNNN` is 15 GB for one orbit at T42 whatever is asked
-    # for, because the model's own output path does not take a field list. It is
-    # deleted once pyburn has run, but the disk has to be there first.
+    # timestep gives 1463 samples a cell over one orbit at T21 -- see
+    # `expected_high_cadence_samples`, which derives that from plasim.f90 rather
+    # than asserting it -- and that resolves a 30-hour day. The postprocessed
+    # field list is trimmed to the winds by HIGH_CADENCE_CODES; note that this
+    # does NOT shrink what the model writes. The raw `MOST_HC.NNNNN` is 2 GB for
+    # one orbit at T21 and 15 GB at T42 whatever is asked for, because the
+    # model's own output path does not take a field list. It is KEPT, not
+    # deleted: it carries the per-sample records and the netCDF beside it does
+    # not.
     # A spin-up orbit and a climatology orbit want different things, and the
     # reason is what the two regimes MEAN rather than what they cost. Low I/O
     # writes the model's own accumulation over each output interval; clean I/O
@@ -296,11 +497,22 @@ def main() -> None:
              "absolute 24-hour day exactly")
     parser.add_argument(
         "--high-cadence", action="store_true",
-        help="write near-surface wind every fourth timestep for this segment, "
-             "into highcadence/MOST_HC.NNNNN.nc. For DUST-5")
+        help="write near-surface wind every fourth timestep for this segment. "
+             "The DELIVERABLE is the raw stream highcadence/MOST_HC.NNNNN, "
+             "which this preserves and records whether the conversion "
+             "succeeds or fails; the .nc beside it is pyburn's product and is "
+             "refused if it does not carry the samples the model wrote. "
+             "For DUST-5")
     parser.add_argument(
         "--high-cadence-interval", type=int, default=4,
         help="timesteps between high-cadence samples (default 4)")
+    parser.add_argument(
+        "--rescue-high-cadence", action="store_true",
+        help="do not run anything: find every raw MOST_HC.NNNNN belonging to "
+             "this run -- at the run root, in highcadence/, or in a "
+             "<run>_crashed/ sibling -- move it into highcadence/, stamp it "
+             "and report the path, then exit. For a run whose segment "
+             "predates the runner doing this for itself.")
     # The prepare-time flag of the same name authorises ADOPTING a donor's
     # surface. It says nothing about the segments that follow, and
     # `stage_surface_extras` rewrites the current `.sra` into the run directory
@@ -368,6 +580,27 @@ def main() -> None:
     if not manifest_path.is_file():
         raise RuntimeError(f"No prepared run manifest at {manifest_path}")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    # BEFORE ANY OF THE RESUME MACHINERY, because a rescue must work on a run
+    # that can no longer be resumed. `_crash()` empties the run directory, and a
+    # mode that first checked the executable, the restart and the staged surface
+    # would refuse exactly where the raw most needs finding.
+    if args.rescue_high_cadence:
+        years = discover_high_cadence_years(run_dir)
+        entries = preserve_high_cadence_raw(
+            run_dir, years,
+            {"run_id": identifier,
+             "source_build": manifest.get("source_build"),
+             "rescued_utc": datetime.now(timezone.utc).isoformat(),
+             "rescued_by": "continue_exoplasim.py --rescue-high-cadence"})
+        report_high_cadence_raw(entries)
+        if entries:
+            manifest["high_cadence_raw"] = entries
+            manifest_path.write_text(json.dumps(manifest, indent=2) + "\n",
+                                     encoding="utf-8")
+            print(f"  recorded in {rel(manifest_path)}")
+        return
+
     # Compare the parsed configuration against the copy the manifest already
     # stores, not the file's bytes. Hashing the raw file makes an edited comment
     # indistinguishable from an edited parameter, which blocks a legitimate
@@ -745,6 +978,41 @@ def main() -> None:
           f"{surface_restart['matched']} of {len(surface_restart['codes'])} "
           f"codes carry the field they were built from")
     started = datetime.now(timezone.utc).isoformat()
+    segment_years = range(start_year, start_year + args.orbits)
+    high_cadence_raw: list[dict] = []
+    high_cadence_stamp = {
+        "run_id": run_dir.name,
+        "source_build": manifest.get("source_build"),
+        "segment_start_year_index": start_year,
+        "orbits": int(args.orbits),
+        "interval_steps": int(args.high_cadence_interval),
+        "runsteps_per_orbit": int(derived["runsteps_per_orbit"]),
+        "expected_samples_per_orbit": expected_high_cadence_samples(
+            int(derived["runsteps_per_orbit"]), int(args.orbits),
+            int(args.high_cadence_interval)),
+        "executable_sha256": file_sha256(segment_exe) if segment_exe.is_file() else None,
+        "purpose": args.purpose,
+        "started_utc": started,
+    }
+
+    def rescue_high_cadence(when: str) -> None:
+        """Put the raw stream somewhere findable and say where, never raising.
+
+        Called on BOTH paths. Its own failure must not replace the exception
+        that brought it here, or a postprocessor fault would come back as a
+        missing directory and the 2 GB the caller wanted rescued would go
+        unmentioned as well as unfound.
+        """
+        nonlocal high_cadence_raw
+        try:
+            high_cadence_raw = preserve_high_cadence_raw(
+                run_dir, segment_years, high_cadence_stamp)
+            report_high_cadence_raw(high_cadence_raw)
+        except Exception as exc:                              # pragma: no cover
+            print(f"  high-cadence raw could not be preserved {when}: "
+                  f"{type(exc).__name__}: {exc}. Look for MOST_HC.NNNNN in "
+                  + ", ".join(rel(r) for r in high_cadence_search_roots(run_dir)))
+
     try:
         # `clean` deletes the RAW outputs once pyburn has written the netCDF,
         # and for a high-cadence segment the raw file is the deliverable: the
@@ -755,17 +1023,18 @@ def main() -> None:
         model.run(years=args.orbits, crashifbroken=True,
                   clean=not args.high_cadence)
         if args.high_cadence:
-            for year in range(start_year, start_year + args.orbits):
+            for year in segment_years:
                 for name in (f"MOST.{year:05d}", f"MOST_SNAP.{year:05d}"):
                     raw = run_dir / name
                     if raw.is_file():
                         raw.unlink()
-            kept = sorted((run_dir / "highcadence").glob("MOST_HC.[0-9]*"))
-            kept = [p for p in kept if p.suffix == ""]
-            print(f"  high-cadence raw kept: {[p.name for p in kept]}")
-            print("  extract it with aeolian/scripts/extract_high_cadence_wind.py")
+            # BEFORE the conversion is checked, so the order is: the
+            # irreplaceable thing is secured, then the derived thing is judged.
+            # The check below refuses on a substituted file and that refusal
+            # must not be what decides whether the raw was kept.
+            rescue_high_cadence("after the segment")
         new_diagnostics = []
-        for year in range(start_year, start_year + args.orbits):
+        for year in segment_years:
             output = run_dir / f"MOST.{year:05d}.nc"
             validate_year(
                 output,
@@ -776,9 +1045,23 @@ def main() -> None:
                     run_dir / "snapshots" / f"MOST_SNAP.{year:05d}.nc",
                     expected_times=int(model_cfg["seasonal_samples_per_orbit"]),
                 )
+            if args.high_cadence and model_cfg["output_type"] == ".nc":
+                validate_high_cadence(
+                    run_dir / "highcadence" / f"MOST_HC.{year:05d}.nc",
+                    high_cadence_stamp["expected_samples_per_orbit"])
             new_diagnostics.append(year_diagnostics(output))
     except Exception:
+        # THE RAW SURVIVES THE FAILURE, and it is the reason this handler does
+        # anything beyond re-raising. A postprocessor fault reaches here after
+        # `_crash()` has moved the whole run directory into `<run>_crashed/`,
+        # so the stream is neither where the run left it nor where anything
+        # looks; it costs a model run to make again and `.gitignore` keeps it
+        # out of the repository, so nothing else recovers it.
+        if args.high_cadence:
+            rescue_high_cadence("after the failure")
         manifest["status"] = "failed_during_resume"
+        if high_cadence_raw:
+            manifest["high_cadence_raw"] = high_cadence_raw
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         raise
 
@@ -814,6 +1097,13 @@ def main() -> None:
             "low_io": bool(args.low_io),
             "ecological_stream": eco_stream,
             "high_cadence": bool(args.high_cadence),
+            # WHERE THE RAW STREAM IS, because it is the deliverable of a
+            # high-cadence segment and the netCDF beside it is not. Recorded per
+            # segment for the same reason the executable is: this is the only
+            # thing in the tree that says the file exists, `.gitignore` keeps
+            # model output out of the repository, and remaking it costs the
+            # segment again.
+            "high_cadence_raw": high_cadence_raw,
             "purpose": args.purpose,
             # What star these particular orbits were integrated against. The
             # top-level digest is what the run was PREPARED on and is what the
