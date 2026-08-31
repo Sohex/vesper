@@ -3,10 +3,22 @@ seasonal lake-energy omission is worth once a baseline climatology exists.
 
 Worldbuilding. Vesper is an invented super-Earth. Everything here is about the
 simulation of its land surface: the modelled lake set solved by
-`surface_water.py`, the staged bucket capacity `landmod.f90` runs on, and the
-baseline climatology's own surface fields.
+`surface_water.py`, the bucket capacity `landmod.f90` runs on, and the baseline
+climatology's own surface fields.
 
 Two rows, one instrument, because both read the same three artifacts.
+
+THE CAPACITY THE FLUX ARMS STAND ON IS THE ONE THE CLIMATOLOGY'S OWN RUN
+INTEGRATED, not the one staged now. The wetness factor is a function of the
+soil water and the capacity together, so the two have to come from one state:
+`exoplasim/inputs/<rung>/` holds the field the NEXT run will read, and a
+restage is an ordinary event. On this build the two differ on 1598 of 2048
+cells, and pairing the run's soil water with the staged bucket puts the soil
+water above the bucket on 55 land cells, which a clipped store cannot do.
+`lib/provenance.py:run_surface_field` is the door onto the field a run
+consumed; `staged_surface_field` is the door onto the field the next run will
+read, and the perturbation arm keeps that one because it is about the next
+staging. world-q3p9.
 
 HYD-21 asks for the seasonal lake-energy omission to be BOUNDED before a lake
 implementation is chosen. `notes/audits/lake-energy-omission-bound.md` bounds
@@ -38,7 +50,6 @@ Reads only. Nothing here regenerates a tracked artifact.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -50,6 +61,7 @@ from _paths import ANALYSIS, DATA, PROJECT_ROOT
 
 import netCDF4 as nc  # noqa: E402
 import yaml  # noqa: E402
+import provenance  # noqa: E402
 from paths import climatology_path, rel  # noqa: E402
 
 # From notes/audits/lake-energy-omission-bound.md, both derived there in closed
@@ -72,39 +84,12 @@ DRHSFULL = 0.4
 BAR_W_M2 = 0.12
 
 
-def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def read_staged_capacity(root: Path, rung: str) -> tuple[np.ndarray, dict]:
-    """The staged bucket capacity, with the build it was staged from.
-
-    The per-code `_provenance.json` beside the `.sra` is the record, and the
-    bytes are CHECKED against it rather than trusted from the path, because a
-    staged field is keyed by the rung alone and the directory holds one build's
-    field at a time. `lib/provenance.py:staged_surface_field` is the same
-    guarantee through the shared door; it does not locate this per-code record,
-    so the check is taken here explicitly and the build is READ rather than
-    assumed.
-    """
-    stem = root / "exoplasim" / "inputs" / rung.lower() / f"orogen_{rung}_surf_0229"
-    sra, record = stem.with_suffix(".sra"), Path(str(stem) + "_provenance.json")
-    if not sra.exists() or not record.exists():
-        raise SystemExit(
-            f"{sra} or its provenance record is absent. The staged bucket "
-            "capacity is what the model runs on; re-run "
-            "exoplasim/scripts/build_surface_soil_water.py to stage it.")
-    prov = json.loads(record.read_text())
-    digest = sha256(sra)
-    if digest != prov.get("output_sha256"):
-        raise SystemExit(
-            f"{sra} does not match the sha256 its provenance record declares. "
-            "The staged field and its record are from different runs of the "
-            "generator; re-stage rather than reading either.")
+def read_sra_field(path: Path) -> np.ndarray:
+    """The values of a one-code `.sra`, header dropped."""
     values: list[float] = []
-    for line in [ln for ln in sra.read_text().split("\n") if ln.strip()][1:]:
+    for line in [ln for ln in path.read_text().split("\n") if ln.strip()][1:]:
         values.extend(float(x) for x in line.split())
-    return np.asarray(values, float), prov
+    return np.asarray(values, float)
 
 
 def wetness(water: np.ndarray, capacity: np.ndarray) -> np.ndarray:
@@ -179,19 +164,44 @@ def main() -> None:
                 "here and matching by coordinate value is refused.")
     shape = (support.dimensions["lat"].size, support.dimensions["lon"].size)
 
-    capacity_flat, staged = read_staged_capacity(PROJECT_ROOT, args.rung)
-    if capacity_flat.size < shape[0] * shape[1]:
-        raise SystemExit(f"the staged 0229 field holds {capacity_flat.size} "
-                         f"values, fewer than the {shape[0] * shape[1]} the "
-                         f"{args.rung} grid needs.")
-    capacity = capacity_flat[:shape[0] * shape[1]].reshape(shape)
-    if staged["source_config"]["source_build"] != build:
+    # TWO CAPACITY FIELDS, AND THEY ANSWER DIFFERENT QUESTIONS. The flux arms
+    # need a wetness factor, which is a function of the soil water AND the
+    # capacity, so the two have to be one state: the climatology's soil water
+    # is in equilibrium with the bucket THAT run integrated, and pairing it
+    # with whatever is staged now is a read across two iterations. The staged
+    # field answers the other question -- what the NEXT run will read -- and
+    # the perturbation arm below is about exactly that, so it keeps it.
+    run_id = getattr(clim, "vesper_run_id", None)
+    if not run_id:
         raise SystemExit(
-            f"the staged 0229 field was built from "
-            f"{staged['source_config']['source_build']} and this is reading "
+            f"{rel(clim_path)} carries no vesper_run_id, so which run's bucket "
+            "its soil water is in equilibrium with is unrecorded and the flux "
+            "arms have no self-consistent state to stand on.")
+    consumed = provenance.run_surface_field(229, str(run_id))
+    staged = provenance.staged_surface_field(229, config, for_build=build)
+    staged_record = json.loads(
+        (PROJECT_ROOT / staged["path"]).with_name(
+            Path(staged["path"]).stem + "_provenance.json").read_text())
+
+    capacity_flat = read_sra_field(PROJECT_ROOT / consumed["path"])
+    staged_flat = read_sra_field(PROJECT_ROOT / staged["path"])
+    for label, flat in (("the run's", capacity_flat), ("the staged", staged_flat)):
+        if flat.size < shape[0] * shape[1]:
+            raise SystemExit(f"{label} 0229 field holds {flat.size} values, "
+                             f"fewer than the {shape[0] * shape[1]} the "
+                             f"{args.rung} grid needs.")
+    capacity = capacity_flat[:shape[0] * shape[1]].reshape(shape)
+    staged_capacity = staged_flat[:shape[0] * shape[1]].reshape(shape)
+    if consumed["source_build"] != build:
+        raise SystemExit(
+            f"{run_id} ran on {consumed['source_build']} and this is reading "
             f"{build}. Rule 5: a cross-build read is declared by naming the "
             "build, never defaulted.")
-    blend_is_inert = staged.get("lakes") is None
+    # An inert blend is a property of a GENERATOR INVOCATION, and the record of
+    # that invocation lives beside the staged field rather than travelling with
+    # the copy in the run directory. So this is checked for the field that will
+    # be staged and is unrecorded for the field that ran. world-hl06.
+    blend_is_inert = staged_record.get("lakes") is None
 
     lake_km2 = np.asarray(support["solved_lake_area_km2"][:], float)
     land_km2 = np.asarray(support["land_area_km2"][:], float)
@@ -223,9 +233,13 @@ def main() -> None:
         "baseline_climatology": rel(clim_path),
         "baseline_run": getattr(clim, "vesper_run_id", None),
         "baseline_orbits": int(getattr(clim, "climatology_orbit_count", 0)) or None,
-        "staged_capacity_sha256": staged["output_sha256"],
+        "capacity_the_flux_arms_stand_on": consumed["path"],
+        "capacity_sha256": consumed["sha256"],
+        "staged_capacity": staged["path"],
+        "staged_capacity_sha256": staged["sha256"],
+        "staged_capacity_is_the_one_that_ran": consumed["matches_staged"],
         "lake_dwmax_m": lake_dwmax_m,
-        "lake_blend_is_inert": blend_is_inert,
+        "lake_blend_is_inert_in_the_staged_field": blend_is_inert,
         "bar_w_m2": BAR_W_M2,
         "bar_source": "config/partial_surface.yaml, the accepted baseline "
                       "run's state-storage tolerance",
@@ -239,6 +253,7 @@ def main() -> None:
     parts = (land_km2 + np.asarray(support["ocean_area_km2"][:], float)
              + np.asarray(support["inland_water_area_km2"][:], float))
     overshoot = soil_water.max(axis=0) - capacity
+    staged_overshoot = soil_water.max(axis=0) - staged_capacity
     report["controls"] = {
         "surface_share_partition_residual": float(
             np.abs(surface_share.sum(axis=2)[covered] - 1.0).max()),
@@ -246,18 +261,44 @@ def main() -> None:
             np.abs(f_barren[is_land] + f_nonbarren[is_land] - 1.0).max()),
         "area_partition_relative_residual": float(np.abs(
             (parts - mesh_km2) / np.where(mesh_km2 > 0, mesh_km2, 1.0))[covered].max()),
-        "land_cells_whose_soil_water_exceeds_the_staged_capacity": int(
-            (overshoot[is_land] > 1e-6).sum()),
         "land_cells": int(is_land.sum()),
+        "land_cells_whose_soil_water_exceeds_the_capacity_that_ran": int(
+            (overshoot[is_land] > 1e-6).sum()),
         "worst_overshoot_m": float(overshoot[is_land].max()),
+        "max_fill_fraction": float(
+            (soil_water.max(axis=0)[is_land]
+             / np.where(capacity[is_land] > 0, capacity[is_land], np.nan)).max()),
+        "land_cells_whose_soil_water_exceeds_the_STAGED_capacity": int(
+            (staged_overshoot[is_land] > 1e-6).sum()),
+        "worst_staged_overshoot_m": float(staged_overshoot[is_land].max()),
         "note": "the partition residuals are the float32 storage precision of "
                 "the shares, not a reduction error; the areas are float64 and "
-                "close exactly. The overshoot population is DECLARED rather "
-                "than dropped: on those cells the climatology's soil water "
-                "exceeds the staged bucket, so the staged capacity is not the "
-                "one that run used there, and every flux result below is "
-                "reported with and without them.",
+                "close exactly. THE OVERSHOOT COUNT IS A CONSERVATION TEST "
+                "WITH A RIGHT ANSWER and the right answer is zero: "
+                "bucket_step at landcolumn.f90:75-89 sets the store to "
+                "min(capacity, store + flux dt) at every timestep and the "
+                "layered path clips each layer at its share of the same "
+                "capacity, so a bin mean of clipped values cannot exceed the "
+                "clip. The maximum fill fraction is the same statement from "
+                "the other side: the bucket touches its capacity and does not "
+                "pass it. The STAGED count is reported beside it because it is "
+                "not zero -- the staged field is a later iteration than the "
+                "run and its bucket is a different bucket. world-q3p9.",
     }
+
+    # A BUCKET CANNOT EXCEED ITS CAPACITY, so this is a refusal and not a
+    # caveat. The tolerance is the `.sra` text format's own five decimals; the
+    # measured headroom's minimum is 7e-6 m, so a real violation clears it by
+    # orders of magnitude and the format's rounding does not reach it.
+    violating = int((overshoot[is_land] > 1e-5).sum())
+    if violating:
+        raise SystemExit(
+            f"the climatology's soil water exceeds the bucket capacity "
+            f"{run_id} ran on, on {violating} of {int(is_land.sum())} land "
+            f"cells, worst {float(overshoot[is_land].max()):.5f} m. "
+            f"landcolumn.f90:75-89 clips the store at the capacity every "
+            f"timestep, so this cannot happen for the run's own field and "
+            f"means the pairing is wrong rather than the physics.")
 
     # ---- HYD-21: the freezing threshold ---------------------------------
     seasonal_min_warm = ts.min(axis=0)     # bin means understate the minimum
@@ -373,7 +414,6 @@ def main() -> None:
                        "correction with one sign cannot track a gap with two.",
     }
 
-    clean = is_land & ~(overshoot > 1e-6)
     report["mosaic_cost"] = {
         "mosaic_absent_today": {
             "what": "the lake tile is not staged at all, so the cell runs on "
@@ -381,38 +421,69 @@ def main() -> None:
                     "world carries today, and it is the whole tile rather "
                     "than a mixing error.",
             "all_land_cells": flux_gap(beta_tiled - beta_soil, is_land),
-            "excluding_the_overshoot_population": flux_gap(beta_tiled - beta_soil, clean),
         },
         "mosaic_blended_if_lakes_were_staged": {
             "what": "the Jensen term that would remain: the two-point capacity "
                     "distribution averaged before the convex wetness law "
                     "rather than after it.",
             "all_land_cells": flux_gap(beta_tiled - beta_blend, is_land),
-            "excluding_the_overshoot_population": flux_gap(beta_tiled - beta_blend, clean),
         },
+        "population": "every land cell. There is no excluded population: the "
+                      "flux arms stand on the capacity the climatology's own "
+                      "run integrated, so the conservation test above passes "
+                      "and there is nothing to report around.",
     }
 
-    with np.errstate(invalid="ignore"):
-        perturbation = np.abs(blended - capacity) / np.where(capacity > 0, capacity, np.nan)
+    # THE DIRECTION IS A PROPERTY OF THE FIELD, so both fields are reported and
+    # neither is called "the" capacity. The blend raises the capacity wherever
+    # lake_dwmax_m exceeds the soil capacity and lowers it wherever it does
+    # not, and the two fields do not agree about which is the common case.
+    def perturbation_arm(field: np.ndarray) -> dict:
+        mixed = (1.0 - f_lake) * field + f_lake * lake_dwmax_m
+        with np.errstate(invalid="ignore"):
+            size = np.abs(mixed - field) / np.where(field > 0, field, np.nan)
+            # THE ABSENT TILE IS A MEAN-CAPACITY CHANGE and the mixing term is
+            # not: the blend IS the area-weighted mean of the two-point
+            # distribution, so it moves no mean at all. Only the first can be
+            # taken through a chord in the mean, which is the only instrument
+            # registered for the runoff consumer. world-cyu3.
+            log_change = (np.log(np.where(field > 0, field, np.nan))
+                          - np.log(np.where(mixed > 0, mixed, np.nan)))
+        weights = land_km2[is_land]
+        return {
+            "land_mean_capacity_m": float(
+                (field * land_km2)[is_land].sum() / land_km2[is_land].sum()),
+            "absent_tile_mean_log_capacity_change": float(
+                np.nansum(log_change[is_land] * weights) / weights.sum()),
+            "absent_tile_mean_absolute_log_capacity_change": float(
+                np.nansum(np.abs(log_change[is_land]) * weights) / weights.sum()),
+            "over_lake_bearing_land_area": area_weighted_quantile(
+                size[has_lake], land_km2[has_lake], [0.5, 0.75, 0.9, 0.95, 0.99]),
+            "max": float(np.nanmax(size[has_lake])),
+            "share_of_lake_bearing_land_area_above_100_percent": share(
+                land_km2[has_lake], size[has_lake] > 1.0),
+            "lake_bearing_land_area_share_where_lake_dwmax_exceeds_the_soil_capacity":
+                share(land_km2[has_lake], field[has_lake] < lake_dwmax_m),
+        }
+
     report["capacity_perturbation"] = {
-        "over_lake_bearing_land_area": area_weighted_quantile(
-            perturbation[has_lake], land_km2[has_lake], [0.5, 0.75, 0.9, 0.95, 0.99]),
-        "max": float(np.nanmax(perturbation[has_lake])),
-        "share_of_lake_bearing_land_area_above_100_percent": share(
-            land_km2[has_lake], perturbation[has_lake] > 1.0),
         "f_lake_over_lake_bearing_cells": {
             "median": float(np.median(f_lake[has_lake])),
             "mean": float(f_lake[has_lake].mean()),
             "max": float(f_lake[has_lake].max()),
         },
-        "lake_bearing_land_area_share_where_lake_dwmax_exceeds_the_soil_capacity": share(
-            land_km2[has_lake], capacity[has_lake] < lake_dwmax_m),
-        "direction": "where lake_dwmax_m exceeds the staged soil capacity the "
-                     "blend RAISES the cell's capacity, which lowers the "
-                     "wetness factor and lowers saturation-excess runoff. "
-                     "config/planet.yaml argues the opposite direction against "
-                     "ExoPlaSim's uniform 0.5 m default, which "
-                     "soil_water_source: pedology replaced. world-kvr.",
+        "on_the_capacity_that_ran": perturbation_arm(capacity),
+        "on_the_staged_capacity": perturbation_arm(staged_capacity),
+        "direction": "where lake_dwmax_m exceeds the soil capacity the blend "
+                     "RAISES the cell's capacity, which raises the water "
+                     "needed to reach 40 per cent of it and so lowers both the "
+                     "wetness factor and saturation-excess runoff. "
+                     "config/planet.yaml argues lake_dwmax_m shallower than "
+                     "the capacity it is blended into, for the opposite "
+                     "effect. Which way the field actually goes is measured "
+                     "per field above rather than assumed, because the two "
+                     "iterations do not agree. world-kvr owns the value's "
+                     "derivation.",
     }
 
     report["provenance"] = {
@@ -420,11 +491,15 @@ def main() -> None:
         "inputs": {
             "support": str(support_path.relative_to(PROJECT_ROOT)),
             "climatology": rel(clim_path),
-            "staged_capacity": staged["output"],
+            "capacity_that_ran": consumed["path"],
+            "staged_capacity": staged["path"],
         },
         "input_sha256": {
-            "staged_capacity": staged["output_sha256"],
+            "capacity_that_ran": consumed["sha256"],
+            "staged_capacity": staged["sha256"],
         },
+        "capacity_pairing": consumed,
+        "staged_capacity_stamp": staged,
         "reads_only": True,
     }
 

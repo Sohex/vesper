@@ -884,8 +884,176 @@ def _staged_reports(rung_dir: Path):
                 continue
 
 
+def staged_surface_records(codes, config: dict | None = None, *,
+                           root: Path | None = None) -> list[Path]:
+    """The provenance records beside the staged fields for these codes.
+
+    Deduplicated and sorted: one record can cover several codes, as
+    `albedo_report.json` covers seven. Returns paths and reads nothing else, so
+    a caller that wants to COPY the records rather than interpret them -- which
+    is what `run_exoplasim.py` does, because the staged record is overwritten
+    at the next staging while the run's copy of the field is not -- does not
+    have to know which of the directory's two naming conventions a generator
+    chose.
+    """
+    root = PROJECT_ROOT if root is None else Path(root)
+    if config is None:
+        import yaml
+        config = yaml.safe_load(
+            (root / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    rung_dir = (root / "exoplasim" / "inputs"
+                / str(config["model"]["resolution"]).lower())
+    wanted = {int(c) for c in codes}
+    return sorted({path for code, path, _ in _staged_reports(rung_dir)
+                   if code in wanted})
+
+
+def _record_build_name(rec: dict) -> str | None:
+    """The build a staged-field record NAMES, wherever it put the name.
+
+    `build_surface_dust.py` writes `source_build` at the top level and the
+    albedo, roughness and soil-water builders write it inside the
+    `config_stamp` block as `source_config.source_build`. Both are the same
+    assertion and `artifact_build` already treats either as the artifact's
+    identity, so a resolver that recognised only one would disagree with the
+    function beside it about what stamps an artifact.
+    """
+    for value in (rec.get("source_build"), rec.get("build"),
+                  (rec.get("source_config") or {}).get("source_build")):
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def _record_terrain_hash(rec: dict, path: Path, code: int, root: Path):
+    """The terrain hash a staged-field record asserts, by hash or by name.
+
+    A RECORD THAT NAMES ITS BUILD IS STAMPED. The registry in `lib/orogen.py`
+    is what turns a name into a terrain hash, and it is the same registry
+    `build_stamp` writes the explicit hash from, so the two routes cannot
+    disagree about a registered build. Accepting only the explicit hash made
+    this door refuse `orogen_T21_surf_0229_provenance.json`, which carries the
+    name and not the hash -- a correct-looking refusal on a field that was
+    stamped, which pushes the caller into hand-rolling the check.
+
+    THE CHECK THAT FIRES WHEN THEY DISAGREE is here rather than in the writer,
+    because a record carrying both is the ordinary case and a record whose two
+    halves name different builds is unusable in either direction.
+    """
+    import orogen as _orogen
+    explicit = rec.get("terrain_hash")
+    name = _record_build_name(rec)
+    by_name = _orogen.terrain_hash_for_name(name) if name else None
+    if explicit and by_name and explicit != by_name:
+        raise SystemExit(
+            f"{rel(path, root)} stamps code {code} with terrain hash "
+            f"{str(explicit)[:16]} and names build {name!r}, which the registry "
+            f"in lib/orogen.py resolves to {by_name[:16]}. A record cannot name "
+            f"two builds; re-run the generator that wrote it.")
+    return explicit or by_name
+
+
+def run_surface_field(code: int, run: str, *, root: Path | None = None):
+    """The staged `.sra` ONE RUN consumed, for one surface code.
+
+    THE FAILURE THIS CLOSES. `exoplasim/inputs/<rung>/` holds the field the NEXT
+    run will read, and a run's climatology is in equilibrium with the field
+    THAT run read. The two are the same file only until the next restage, and a
+    restage is an ordinary event: `build_surface_soil_water.py` rewrites code
+    229 whenever pedology re-derives the column. An offline calculation that
+    pairs a run's climatology with whatever sits in `exoplasim/inputs/` is then
+    computing on two worlds, and nothing about either file says so. Measured on
+    `run_67323a923013`: the staged code 229 and the field that run consumed
+    differ on 1598 of 2048 cells, and the climatology's soil water exceeds the
+    STAGED bucket on 55 land cells while fitting the run's own bucket exactly.
+
+    The run's own `run_manifest.json` records `surface_field_sha256` per code
+    and the run directory keeps its copy of every `.sra` it staged, so the
+    answer is already written down and needs only a door. This is that door.
+    The returned record names both hashes and `matches_staged`, so a product
+    that stamps it says whether the tree has moved on since the run -- which is
+    a fact to record rather than a refusal, because the run's field is the
+    right answer either way.
+
+    Raises `SystemExit` when the run, its manifest, its record of the code or
+    the file itself is absent, and when the bytes on disk do not match what the
+    manifest recorded.
+    """
+    root = PROJECT_ROOT if root is None else Path(root)
+    run_dir = root / "exoplasim" / "runs" / str(run)
+    if not run_dir.is_dir():
+        raise SystemExit(
+            f"no run directory at {rel(run_dir, root)}; "
+            f"exoplasim/runs/INDEX.json is the record of what exists")
+    manifest_path = run_dir / "run_manifest.json"
+    if not manifest_path.is_file():
+        raise SystemExit(
+            f"{rel(run_dir, root)} has no run_manifest.json, so which surface "
+            f"fields it consumed is unrecorded and cannot be recovered from "
+            f"the directory alone")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    recorded = (manifest.get("surface_field_sha256") or {}).get(str(int(code)))
+    if not recorded:
+        from_file = (manifest.get("surface_fields") or {}).get("from_file") or []
+        if int(code) not in {int(c) for c in from_file}:
+            raise SystemExit(
+                f"{rel(run_dir, root)} staged no surface code {code}: the run "
+                f"read the namelist default for it, so there is no field to "
+                f"pair with its climatology. run_manifest.json's "
+                f"`surface_fields.uniform_values` says what the default was.")
+        raise SystemExit(
+            f"{rel(manifest_path, root)} lists code {code} among the fields "
+            f"staged but records no sha256 for it, so the bytes in the run "
+            f"directory cannot be checked against what the run read")
+
+    nlat = int(manifest.get("source_config", {}).get("model", {})
+               .get("latitudes") or 0)
+    candidates = sorted(run_dir.glob(f"N*_surf_{int(code):04d}.sra"))
+    if nlat:
+        preferred = run_dir / f"N{nlat:03d}_surf_{int(code):04d}.sra"
+        if preferred.is_file():
+            candidates = [preferred]
+    if not candidates:
+        raise SystemExit(
+            f"{rel(run_dir, root)} records a sha256 for surface code {code} but "
+            f"holds no N*_surf_{int(code):04d}.sra; the run directory is the "
+            f"only copy of what the run read and it is gone")
+    path = candidates[0]
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    if digest != recorded:
+        raise SystemExit(
+            f"{rel(path, root)} hashes to {digest[:16]} and "
+            f"{rel(manifest_path, root)} records {recorded[:16]} for code "
+            f"{code}. The run directory's copy has been rewritten since the run, "
+            f"so it is not evidence of what the run read.")
+
+    staged_path = (root / "exoplasim" / "inputs"
+                   / str(manifest.get("physical", {}).get("resolution", "")).lower()
+                   / f"orogen_{manifest.get('physical', {}).get('resolution', '')}"
+                     f"_surf_{int(code):04d}.sra")
+    staged_sha = (hashlib.sha256(staged_path.read_bytes()).hexdigest()
+                  if staged_path.is_file() else None)
+    # The generator's own record, if the run kept it. `run_exoplasim.py` copies
+    # it in beside the field; a run taken before that did not, and the staged
+    # original has been overwritten since, so None here means the derivation is
+    # gone rather than that it can be looked up. world-hl06.
+    kept = sorted({p for c, p, _ in _staged_reports(run_dir) if c == int(code)})
+    return {
+        "code": int(code),
+        "run": str(run),
+        "path": rel(path, root),
+        "sha256": digest,
+        "source_build": manifest.get("source_build"),
+        "provenance_record": rel(kept[0], root) if kept else None,
+        "staged_path": rel(staged_path, root) if staged_sha else None,
+        "staged_sha256": staged_sha,
+        "matches_staged": None if staged_sha is None else staged_sha == digest,
+    }
+
+
 def staged_surface_field(code: int, config: dict | None = None, *,
-                         for_build: str | None = None, root: Path | None = None):
+                         for_build: str | None = None, root: Path | None = None,
+                         paired_with_run: str | None = None):
     """The staged `.sra` for one surface code, WITH the build it was staged from.
 
     `exoplasim/inputs/<rung>/orogen_<RUNG>_surf_<code>.sra` is keyed by the RUNG
@@ -911,6 +1079,17 @@ def staged_surface_field(code: int, config: dict | None = None, *,
     say which build it means, and a boolean `--allow-any` would have let the
     same silence back in under a flag.
 
+    **A record NAMES its build or carries its terrain hash, and either is a
+    stamp.** `_record_terrain_hash` resolves a name through the registry in
+    `lib/orogen.py` and refuses when a record carries both and they disagree.
+
+    **`paired_with_run` is for a caller reading a RUN's climatology.** The
+    staged field is what the next run will read; a run's climatology is in
+    equilibrium with what that run read, and the two part company at every
+    restage. Naming the run makes this door refuse the pairing rather than
+    return a field from another iteration; `run_surface_field` is the door onto
+    the field the run actually consumed.
+
     Raises `SystemExit` when the file is absent, when no provenance record
     beside it names the code, or when the build it was staged from is not the
     one asked for. An unstamped field is UNOBSERVABLE and is refused rather
@@ -933,7 +1112,7 @@ def staged_surface_field(code: int, config: dict | None = None, *,
             f"config/pipeline.yaml step that writes it")
 
     stamps = [(p, rec) for c, p, rec in _staged_reports(rung_dir) if c == int(code)]
-    hashes = {rec.get("terrain_hash") for _, rec in stamps}
+    hashes = {_record_terrain_hash(rec, p, int(code), root) for p, rec in stamps}
     hashes.discard(None)
     if not hashes:
         raise SystemExit(
@@ -972,13 +1151,29 @@ def staged_surface_field(code: int, config: dict | None = None, *,
             f"surface_albedo step for the build you mean, or, if the "
             f"cross-build read is deliberate, declare it by naming the build.")
 
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    if paired_with_run is not None:
+        consumed = run_surface_field(int(code), paired_with_run, root=root)
+        if consumed["sha256"] != digest:
+            raise SystemExit(
+                f"{rel(path, root)} is not the code {code} field "
+                f"{paired_with_run} ran on: the run consumed "
+                f"{consumed['sha256'][:16]} and the staged tree now holds "
+                f"{digest[:16]}. A run's climatology is in equilibrium with the "
+                f"field THAT run read, so pairing it with the staged one is a "
+                f"read across two worlds. Call "
+                f"lib/provenance.py:run_surface_field for the field the run "
+                f"consumed, or drop `paired_with_run` if you mean the field the "
+                f"NEXT run will read.")
+
     return {
         "code": int(code),
         "path": rel(path, root),
-        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "sha256": digest,
         "terrain_hash": staged,
         "build": (_KNOWN_TERRAIN_HASHES.get(staged) or {}).get("name"),
         "declared_cross_build": for_build,
+        "paired_with_run": paired_with_run,
     }
 
 
@@ -1165,3 +1360,163 @@ def artifact_drift(path, config: dict, inert) -> list[str] | None:
     if was is None:
         return None
     return config_drift(was, config, inert)
+
+
+def _selftest() -> int:
+    """The staged-field door's refusals, each with a right answer.
+
+    Synthetic: a four-value `.sra` and hand-built records in a temporary
+    directory, so nothing here depends on which build is staged or on a run
+    existing. What it checks is the DISPOSITION of a record, which is the part
+    that decided wrongly: the door read only an explicit `terrain_hash` and
+    refused a record that named its build, which is the stamp four of the five
+    records beside a staged field carry and the fifth does not.
+    """
+    import shutil
+    import tempfile
+    import orogen as _orogen
+
+    problems: list[str] = []
+    checks = 0
+
+    def check(name: str, ok: bool, detail: str = "") -> None:
+        nonlocal checks
+        checks += 1
+        print(f"[{'  ok  ' if ok else ' FAIL '}] {name}"
+              + (f"  ({detail})" if detail else ""))
+        if not ok:
+            problems.append(name)
+
+    import yaml
+    live = yaml.safe_load(
+        (PROJECT_ROOT / "config" / "planet.yaml").read_text(encoding="utf-8"))
+    build = active_build(live)
+    known = _orogen.terrain_hash_for_name(build)
+    if known is None:
+        print(f"the configured source_build {build!r} is not in the registry, "
+              f"so there is nothing to resolve a name against")
+        return 1
+    # The rung comes from the config rather than being written down here, for
+    # the same reason no artifact path carries one: the fixture is about the
+    # door's disposition and holds at whatever rung the tree is configured at.
+    rung = str(live["model"]["resolution"]).upper()
+
+    header = ("     229       0 20260811       0       4       1"
+              "       0       0\n")
+    root = Path(tempfile.mkdtemp())
+    try:
+        rung_dir = root / "exoplasim" / "inputs" / rung.lower()
+        rung_dir.mkdir(parents=True)
+        sra = rung_dir / f"orogen_{rung}_surf_0229.sra"
+        sra.write_text(header + "  0.1  0.2  0.3  0.4\n")
+        record = rung_dir / f"orogen_{rung}_surf_0229_provenance.json"
+        config = {"model": {"resolution": rung}, "source_build": build}
+
+        def door(rec: dict):
+            record.write_text(json.dumps(rec))
+            try:
+                return staged_surface_field(229, config, root=root), None
+            except SystemExit as refusal:
+                return None, str(refusal)
+
+        got, why = door({"code": 229, "source_config": {"source_build": build}})
+        check("a record that NAMES its build is a stamp",
+              got is not None and got["terrain_hash"] == known, why or "")
+
+        got, why = door({"code": 229, "source_build": build})
+        check("the name is read wherever the writer put it",
+              got is not None and got["terrain_hash"] == known, why or "")
+
+        got, why = door({"code": 229, "terrain_hash": known,
+                         "source_config": {"source_build": build}})
+        check("a record carrying both, agreeing, opens the door",
+              got is not None and got["terrain_hash"] == known, why or "")
+
+        got, why = door({"code": 229, "terrain_hash": "0" * 64,
+                         "source_config": {"source_build": build}})
+        check("a record whose hash and name are different builds is refused",
+              got is None and "cannot name two builds" in (why or ""),
+              (why or "")[:60])
+
+        got, why = door({"code": 229, "field": "no stamp of any kind"})
+        check("a record with no stamp at all is still refused",
+              got is None and "no provenance record" in (why or ""),
+              (why or "")[:60])
+
+        runs = root / "exoplasim" / "runs" / "run_synthetic"
+        runs.mkdir(parents=True)
+        (runs / "run_manifest.json").write_text(json.dumps({
+            "physical": {"resolution": rung},
+            "source_config": {"model": {"latitudes": 4}},
+            "source_build": build,
+            "surface_fields": {"from_file": [229]},
+            "surface_field_sha256": {
+                "229": hashlib.sha256(sra.read_bytes()).hexdigest()},
+        }))
+        shutil.copy(sra, runs / "N004_surf_0229.sra")
+
+        consumed = run_surface_field(229, "run_synthetic", root=root)
+        check("a run's field resolves to the run's own copy, and says whether "
+              "the staged tree has moved on",
+              consumed["path"].endswith("N004_surf_0229.sra")
+              and consumed["matches_staged"] is True, consumed["path"])
+        check("a run that kept no provenance record says so rather than "
+              "reaching for the staged one",
+              consumed["provenance_record"] is None)
+
+        shutil.copy(record, runs / record.name)
+        consumed = run_surface_field(229, "run_synthetic", root=root)
+        check("a run that kept the record names its own copy",
+              consumed["provenance_record"] is not None
+              and consumed["provenance_record"].endswith(record.name),
+              str(consumed["provenance_record"]))
+
+        try:
+            run_surface_field(1720, "run_synthetic", root=root)
+            check("a code the run never staged is refused as absent", False)
+        except SystemExit as refusal:
+            check("a code the run never staged is refused as absent",
+                  "staged no surface code" in str(refusal))
+
+        (runs / "N004_surf_0229.sra").write_text(header + "  0.9  0.9  0.9  0.9\n")
+        try:
+            run_surface_field(229, "run_synthetic", root=root)
+            check("a rewritten copy in the run directory is refused", False)
+        except SystemExit as refusal:
+            check("a rewritten copy in the run directory is refused",
+                  "has been rewritten since the run" in str(refusal))
+
+        shutil.copy(sra, runs / "N004_surf_0229.sra")
+        sra.write_text(header + "  0.5  0.5  0.5  0.5\n")
+        record.write_text(json.dumps(
+            {"code": 229, "source_config": {"source_build": build}}))
+        try:
+            staged_surface_field(229, config, root=root,
+                                 paired_with_run="run_synthetic")
+            check("a staged field that is not the one a named run read is refused",
+                  False)
+        except SystemExit as refusal:
+            check("a staged field that is not the one a named run read is refused",
+                  "two worlds" in str(refusal))
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    print(f"\n{checks} checks, {len(problems)} failed")
+    return 1 if problems else 0
+
+
+def main() -> int:
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--selftest", action="store_true",
+                    help="run the staged-field door's refusals against their "
+                         "right answers on synthetic input; needs no staged "
+                         "field and no run on disk")
+    args = ap.parse_args()
+    if not args.selftest:
+        ap.error("this module is a library; --selftest is the only thing to run")
+    return _selftest()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
