@@ -165,9 +165,14 @@ def mesh_ocean_edges(export: Export, ocean: np.ndarray):
     """
     off, lst = export.adjacency
     degree = np.diff(off.astype(np.int64))
-    src = np.repeat(np.arange(export.n_regions, dtype=np.int64), degree)
-    dst = lst.astype(np.int64)
-    keep = (src < dst) & ocean[src] & ocean[dst]
+    # int32 throughout: the mesh has under 2^31 regions and the half-edge list
+    # runs to tens of millions, so the width is the difference between a
+    # comfortable working set and a swapping one.
+    src = np.repeat(np.arange(export.n_regions, dtype=np.int32), degree)
+    dst = lst.astype(np.int32, copy=False)
+    keep = src < dst
+    np.logical_and(keep, ocean[src], out=keep)
+    np.logical_and(keep, ocean[dst], out=keep)
     return src[keep], dst[keep]
 
 
