@@ -285,16 +285,36 @@ Directions, each chosen so that it runs against the conclusion:
   stricter test. Chadwick et al. independently find the atmosphere taking over
   as the dominant base-cation source below 1e5 years, which is the same order
   and is not what set this number.
-- One input is bracketed rather than bounded, and the bracket is reported: the
-  multiplier taking the above-ground pool to the whole circulating pool, covering
-  roots and the exchangeable pool on soil colloids. No artifact in this
-  repository carries an exchangeable-cation or cation-exchange-capacity field --
-  `pedology/scripts/build_soil.py` emits sand, clay, silt, organic carbon, pH,
-  bulk density and C:N, and no CEC. The bracket is 1 to 5, its upper end set by
-  Chadwick et al.'s soil exchange cations reaching about 6 meq/100 g over the
-  top metre, which on a 1200 kg/m2 column is of order 1.4 kg Ca/m2 and near four
-  times the largest above-ground calcium pool in the compilation. The screen
-  runs on the upper end.
+- The multiplier taking the above-ground pool to the whole circulating pool --
+  roots, and the exchangeable pool on soil colloids -- is a BOUND READ OFF A
+  FIELD. Pedology emits an exchange complex: `build_soil.py` derives cation
+  exchange capacity from the soil map's clay and organic-matter fractions, base
+  saturation from its pH, and the exchangeable pool per element over this
+  ledger's own `root_zone_depth_m`, which it reads from here so both sides count
+  the same column. `pedology/config/pedogenesis.yaml`'s `exchange` block carries
+  every source and what each does and does not license.
+- THAT BOUND IS LARGER THAN THE BRACKET IT REPLACED, AND THE OLD UPPER END WAS
+  NOT AN UPPER BOUND. The 5 came from Chadwick et al. (1999) Fig. 2a, whose
+  Hawaiian exchange cations reach about 6 meq/100 g over the top metre -- a
+  deeply weathered, base-depleted basaltic profile. This world's simulated soils
+  sit above the base-saturation transition that Chadwick et al. (2003) and Solly
+  et al. (2020) independently place near pH 5.5 to 6.5, so most of their
+  capacity holds bases rather than aluminium. The screen had therefore been
+  reporting a critical runoff BELOW what its own construction supports, which is
+  a screen permissive where it advertises conservatism. The repair is the larger
+  number and not a narrower one.
+- THE FOUR ELEMENTS DIFFER BY MORE THAN THE SCALAR CAN CARRY. Sulfate is an
+  ANION and the cation exchange complex holds none of it, so sulfur's soil term
+  is not the cations' at all: it is the anion exchange capacity of
+  variable-charge andic material, small over most of this world's land and worth
+  several times the above-ground sulfur pool where the andic fraction is high.
+  `belowground_and_exchangeable_by_element` records each element's bound; the
+  scalar this script reads is the maximum over them and is conservative for
+  every element until world-vf8j moves the read onto the map.
+- AND IT CANNOT GO STALE. `build_soil.py` refuses when the declaration, or any
+  entry in the map beside it, falls below what the emitted field implies. Soil
+  carbon grows the capacity's organic term through loop A, so the check fires on
+  the iteration that outgrows the declaration.
 
 Because `F_low(X) = c_min(X) * runoff`, with `c_min` from Meybeck (1987) Table
 2C -- the per-lithology representative stream analysis already extracted and
@@ -384,8 +404,10 @@ justified implementation task and not a consequence of this screen.
   to the climate is `lib/gridding.py:climatology_cells` and nothing else. What
   it needs that this document did not use is the export payload and a
   climatology, which is a minutes-scale read.
-- **The exchangeable-cation bracket.** It collapses to a bound the moment
-  pedology emits a cation-exchange-capacity or exchangeable-base field. It does
-  not emit one today.
+- **The exchangeable-cation bracket.** Closed: pedology emits the field and the
+  multiplier is a bound read off it, refused when it falls below what the soil
+  implies. What remains is the LEVEL of the capacity relation, which rests on
+  one region's fit and moves this number by more than its declared bracket
+  does. world-n4i0.
 - **Everything the ledger holds open.** Twenty-one undeclared terms, each named
   above with its owner. The ledger closes when they are declared, and not before.

@@ -4120,6 +4120,25 @@ DECLARED_BRACKETS = (
     ("level", "regolith.regolith_depth_bracket_m", PEDOGENESIS,
      None, ("regolith", "regolith_depth_bracket_m"),
      "pedology/scripts/build_soil.py"),
+    # The exchange complex's two coefficients. ANTI-CORRELATED and swept
+    # jointly: the bracket is Solly et al. (2020)'s measured organic share
+    # inverted at Sahrawat's reference composition, so the low end of one goes
+    # with the high end of the other and taking one end of each independently
+    # is a composition neither source supports.
+    ("value", "exchange.clay_cec_cmol_kg", PEDOGENESIS,
+     ("exchange", "clay_cec_cmol_kg"),
+     ("exchange", "clay_cec_bracket_cmol_kg"), None),
+    ("value", "exchange.organic_matter_cec_cmol_kg", PEDOGENESIS,
+     ("exchange", "organic_matter_cec_cmol_kg"),
+     ("exchange", "organic_matter_cec_bracket_cmol_kg"), None),
+    # Not a bracket on any key in the file: it is the band the organic share
+    # the two coefficients IMPLY has to land in, which is the one independent
+    # check on a pair that came out of a single region's fit. `build_soil.py`
+    # evaluates it on every call.
+    ("level", "exchange.organic_share_check.solly_topsoil_organic_share_bracket",
+     PEDOGENESIS, None,
+     ("exchange", "organic_share_check", "solly_topsoil_organic_share_bracket"),
+     "pedology/scripts/build_soil.py"),
     ("derived", "ph.parent_bracket_silicate", PEDOGENESIS,
      None, ("ph", "parent_bracket_silicate"), "pedology/scripts/carbonate_ph.py"),
     ("derived", "ph.parent_bracket_carbonate", PEDOGENESIS,

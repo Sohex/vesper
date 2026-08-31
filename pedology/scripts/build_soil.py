@@ -8,9 +8,9 @@ organic fraction, which is what makes this a loop rather than a stage.
 
 Emits the soil map LPJ-GUESS's `SoilInput` reads, one row per land cell:
 
-    Lon Lat sand clay silt orgc ph bulkdensity cn soilc depth awc bedrockfrac andic pfixation
+    Lon Lat sand clay silt orgc ph bulkdensity cn soilc depth awc bedrockfrac andic pfixation cec
 
-(`SoilInput` skips the last five by name.)
+(`SoilInput` skips the last six by name.)
 
 Nothing here is specific to Vesper. Every Earth calibration lives in
 `../config/pedogenesis.yaml`; this reads the shared `config/planet.yaml`, the
@@ -71,6 +71,11 @@ EARTH_YEAR_DAYS = orbit.EARTH_CALENDAR_YEAR_DAYS
 KELVIN = 273.15
 
 LAND_COLUMN_CONTRACT = COMPONENT_ROOT / "config" / "land_column_properties.yaml"
+# The ANUT-8 adequacy screen's own declaration. Read for the root-zone depth the
+# exchangeable pool is counted over, and cross-checked against at the end of
+# this file: a multiplier declared there below what this soil implies would be
+# an upper bound that is not one.
+ANUT_DECLARATION = "biosphere/config/abiotic_nutrients.yaml"
 
 
 def column_base_m() -> float:
@@ -609,6 +614,100 @@ def organic_properties(soil_carbon_kg_m2: np.ndarray, params: dict
     return fraction, bulk
 
 
+# Molar mass and charge of each base cation the exchange complex carries. Both
+# are properties of the element and neither is a calibration, so they sit here
+# rather than in the config.
+CATION_MOLAR_MASS_G = {"Ca": 40.078, "Mg": 24.305, "K": 39.098}
+CATION_CHARGE = {"Ca": 2, "Mg": 2, "K": 1}
+# Sulfate, for the anion half. Divalent, so the same equivalents-to-mass step.
+SULFATE_MOLAR_MASS_G = 32.06
+SULFATE_CHARGE = 2
+
+
+def exchange_properties(clay: np.ndarray, organic_fraction: np.ndarray,
+                        ph: np.ndarray, bulk_density: np.ndarray,
+                        andic: np.ndarray, root_zone_depth_m: float, cfg: dict
+                        ) -> dict[str, np.ndarray]:
+    """Cation exchange capacity, base saturation, and the exchangeable pool.
+
+    THREE QUANTITIES, KEPT APART, because they fail in different ways. Capacity
+    is a surface: clay and organic matter present it and pH does not change it
+    in the source this rests on. Base saturation is who is sitting on that
+    surface, and pH is the whole of what decides it. The pool is capacity times
+    saturation times the element's share, over the root zone the ledger on the
+    other side of this interface declares.
+
+    Returns fields on the model grid, and the pools in g of element per m2.
+    """
+    a_clay = float(cfg["clay_cec_cmol_kg"])
+    a_organic = float(cfg["organic_matter_cec_cmol_kg"])
+
+    # THE CROSS-CHECK. The two coefficients come from one region's fit; what
+    # says the additive form transfers is that they reproduce a DIFFERENT
+    # continent's measured split between organic and mineral surfaces. Run here
+    # rather than asserted in the config's prose, so editing either coefficient
+    # is what tests it.
+    chk = cfg["organic_share_check"]
+    ref_clay = float(chk["reference_clay_fraction"])
+    ref_organic = float(chk["reference_organic_matter_fraction"])
+    organic_part = a_organic * ref_organic
+    organic_share = organic_part / (organic_part + a_clay * ref_clay)
+    share_low, share_high = (float(v) for v in
+                             chk["solly_topsoil_organic_share_bracket"])
+    if not share_low <= organic_share <= share_high:
+        raise SystemExit(
+            f"pedogenesis.yaml exchange puts organic matter at "
+            f"{organic_share:.3f} of cation exchange capacity at Sahrawat's "
+            f"own reference composition, outside the [{share_low}, "
+            f"{share_high}] Solly et al. (2020) "
+            "measured over 1204 Swiss forest profiles. The two coefficients "
+            "are one region's regression slopes and what licenses carrying "
+            "them to another world is that they reproduce a second region's "
+            "measured split. A pair outside that band has lost the only "
+            "independent check on it.")
+
+    cec = a_clay * clay + a_organic * organic_fraction
+
+    sat = cfg["base_saturation"]
+    ph_low, ph_high = float(sat["ph_low"]), float(sat["ph_high"])
+    if not ph_high > ph_low:
+        raise SystemExit(
+            f"pedogenesis.yaml exchange.base_saturation has ph_high {ph_high} "
+            f"at or below ph_low {ph_low}. The ramp runs upward from the "
+            "aluminium-dominated end to the base-saturated one; inverting it "
+            "would say acid soils hold more bases.")
+    acid_end = float(sat["low_value"])
+    ramp = np.clip((ph - ph_low) / (ph_high - ph_low), 0.0, 1.0)
+    base_saturation = acid_end + (1.0 - acid_end) * ramp
+
+    # Mass of fine earth per m2 of ground over the root zone. The pool is an
+    # areal density, so this is where bulk density and depth enter and the only
+    # place they do.
+    soil_kg_m2 = bulk_density * root_zone_depth_m
+
+    pools = {}
+    for element, cation_share in cfg["cation_share_upper"].items():
+        # cmol(+)/kg -> mol(+)/kg -> mol(+) per m2 -> mol of element -> grams.
+        equivalents = (cec * 0.01 * float(cation_share) * base_saturation
+                       * soil_kg_m2)
+        pools[element] = (equivalents / CATION_CHARGE[element]
+                          * CATION_MOLAR_MASS_G[element])
+    # Sulfate is an anion, so the CATION complex holds none of it. That is not
+    # the same as no retention: variable-charge andic material carries anion
+    # exchange, and this component emits the andic fraction, so the term has a
+    # field. Leaving it out would understate a pool the bound takes a land
+    # MAXIMUM of, which is the one direction ANUT-8 cannot afford.
+    anion = cfg["anion_exchange"]
+    aec = float(anion["andic_aec_cmol_kg"]) * andic
+    pools["S"] = (float(cfg["sulfur_on_cation_exchange"]) * cec
+                  + aec * 0.01 * float(anion["sulfate_share_upper"]) * soil_kg_m2
+                  / SULFATE_CHARGE * SULFATE_MOLAR_MASS_G)
+
+    return {"cec_cmol_kg": cec, "base_saturation": base_saturation,
+            "anion_exchange_cmol_kg": aec,
+            "exchangeable_pool_g_m2": pools, "soil_kg_m2": soil_kg_m2}
+
+
 def read_soil_carbon(path: Path, lon: np.ndarray, lat: np.ndarray,
                      peers: list[Path] | None = None):
     """Read BIO-12's accepted equilibrium soil-carbon mean onto the grid."""
@@ -903,6 +1002,17 @@ def main() -> None:
     bulk_density = (bulk_density * (1.0 - andisol["andic"])
                     + pedo["andisol"]["bulk_density_andic"] * andisol["andic"])
 
+    # The exchange complex. Emitted because nothing else in this pipeline
+    # carried one, and the ANUT-8 adequacy screen on the other side of the
+    # biosphere interface was running on a declared 1-to-5 guess at how much
+    # of an element circulates below ground for want of it. The root zone is
+    # read from that screen's own declaration so the two count the same column.
+    nutrients_decl = yaml.safe_load(
+        (PROJECT_ROOT / ANUT_DECLARATION).read_text(encoding="utf-8"))
+    exchange = exchange_properties(
+        texture["clay"], organic_fraction, ph, bulk_density, andisol["andic"],
+        float(nutrients_decl["root_zone_depth_m"]), pedo["exchange"])
+
     # Plant-available water capacity, mm: volumetric capacity from texture times
     # the depth of regolith that actually exists, cut at the declared base of
     # the simulated land column.
@@ -995,7 +1105,7 @@ def main() -> None:
         # material fixes phosphorus rather than supplying it, and no other
         # column in this file carries that.
         handle.write("Lon Lat sand clay silt orgc ph bulkdensity cn soilc "
-                     "depth awc bedrockfrac andic pfixation\n")
+                     "depth awc bedrockfrac andic pfixation cec\n")
         for j, i in rows:
             handle.write(
                 f"{lon_signed[i]:.{COORD_DECIMALS}f} {lat[j]:.{COORD_DECIMALS}f} "
@@ -1007,7 +1117,8 @@ def main() -> None:
                 f"{depth[j, i]:.4f} {water_capacity[j, i]:.2f} "
                 f"{bedrock_fraction[j, i]:.4f} "
                 f"{andisol['andic'][j, i]:.4f} "
-                f"{andisol['andic_p_fixation'][j, i]:.4f}\n")
+                f"{andisol['andic_p_fixation'][j, i]:.4f} "
+                f"{exchange['cec_cmol_kg'][j, i]:.3f}\n")
 
     weights = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, len(lon)))
     lw = weights[land]
@@ -1175,9 +1286,245 @@ def main() -> None:
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True,
             cwd=PROJECT_ROOT).stdout.strip() or None,
     }
+
+    # --- the exchange complex, and the ANUT-8 bound it collapses ------------
+    #
+    # THE BOUND'S DIRECTION IS UP AT EVERY STEP, matching the screen it feeds:
+    # the land MAXIMUM rather than the mean, the dropped intercept added back
+    # rather than left out, the largest cation share each source permits, and
+    # the largest root-to-shoot ratio in the compilation.
+    exch_cfg = pedo["exchange"]
+    cec = exchange["cec_cmol_kg"]
+    intercept = float(exch_cfg["sahrawat_intercept_cmol_kg"])
+
+    def land_stats(field: np.ndarray) -> dict:
+        v = field[land]
+        return {"mean": mean(field), "min": float(v.min()), "max": float(v.max()),
+                "p50": float(np.percentile(v, 50)),
+                "p95": float(np.percentile(v, 95)),
+                "p99": float(np.percentile(v, 99))}
+
+    # The dropped intercept added back, one-signed, and this is the only place
+    # it is allowed to move a number.
+    offset_equiv = intercept * 0.01
+    anut = nutrients_decl["adequacy"]
+    above_g_m2 = {el: kg_ha / 10.0
+                  for el, kg_ha in anut["standing_pool_aboveground_kg_ha"].items()}
+    s = anut["sulfur_from_biomass"]
+    above_g_m2["S"] = (float(s["max_biomass_t_ha"]) * 100.0
+                       * float(s["carbon_fraction_of_dry_mass"])
+                       / float(s["min_c_to_s_mass"]))
+
+    root_all = exch_cfg["root_to_shoot_nutrient_upper"]["all_sites"]
+    root_closed = exch_cfg["root_to_shoot_nutrient_upper"]["closed_canopy"]
+    soil_kg_m2 = exchange["soil_kg_m2"]
+
+    elements = {}
+    for element in ("K", "Ca", "Mg", "S"):
+        if element == "S":
+            # The dropped intercept is a CATION capacity and does not add here:
+            # the anion term is andic AEC, which the intercept says nothing
+            # about.
+            pool_field = exchange["exchangeable_pool_g_m2"]["S"]
+            bound_field = pool_field
+        else:
+            share = float(exch_cfg["cation_share_upper"][element])
+            pool_field = exchange["exchangeable_pool_g_m2"][element]
+            bound_field = (pool_field
+                           + offset_equiv * share * exchange["base_saturation"]
+                           * soil_kg_m2 / CATION_CHARGE[element]
+                           * CATION_MOLAR_MASS_G[element])
+        q_above = above_g_m2[element]
+        pool_max = float(bound_field[land].max())
+        pool_p99 = float(np.percentile(bound_field[land], 99))
+        elements[element] = {
+            "aboveground_pool_g_m2": q_above,
+            "exchangeable_pool_g_m2": land_stats(pool_field),
+            "exchangeable_bound_g_m2_max": pool_max,
+            "exchangeable_bound_g_m2_p99": pool_p99,
+            "root_to_shoot_upper_all_sites": root_all[element],
+            "root_to_shoot_upper_closed_canopy": root_closed[element],
+            # 1 for the above-ground pool itself, plus roots, plus the exchange
+            # complex. The screen's multiplier is exactly this ratio.
+            "multiplier_bound": 1.0 + float(root_all[element]) + pool_max / q_above,
+            "multiplier_bound_at_p99": (1.0 + float(root_all[element])
+                                        + pool_p99 / q_above),
+            "multiplier_closed_canopy": (1.0 + float(root_closed[element])
+                                         + pool_max / q_above),
+            # The LOW end of the declared bracket on the other side: the
+            # coherent single-ecosystem root term against the field at its 99th
+            # percentile rather than its single largest cell.
+            "multiplier_low_end": (1.0 + float(root_closed[element])
+                                   + pool_p99 / q_above),
+        }
+
+    # THE LEVEL PROBE. The clay coefficient's level is the one large exposure no
+    # source brackets, so the bound is re-evaluated at the endmember a second
+    # read source gives and reported beside it. If the verdict flips between
+    # them the bound is a statement about the coefficient rather than about this
+    # world, and a reader has to be able to see that without rerunning anything.
+    level_probe = {}
+    for probe in exch_cfg["clay_cec_level_probe_cmol_kg"]:
+        probe_cec = (float(probe) * texture["clay"]
+                     + exch_cfg["organic_matter_cec_cmol_kg"] * organic_fraction)
+        worst = 0.0
+        per_element = {}
+        for element in ("K", "Ca", "Mg"):
+            share = float(exch_cfg["cation_share_upper"][element])
+            field = ((probe_cec + intercept) * 0.01 * share
+                     * exchange["base_saturation"] * soil_kg_m2
+                     / CATION_CHARGE[element] * CATION_MOLAR_MASS_G[element])
+            m = (1.0 + float(root_all[element])
+                 + float(field[land].max()) / above_g_m2[element])
+            per_element[element] = m
+            worst = max(worst, m)
+        # Sulfur carries no clay term, so the probe does not move it; its
+        # anion term is andic and is the same in every entry.
+        per_element["S"] = elements["S"]["multiplier_bound"]
+        level_probe[f"clay_cec_{probe}"] = {
+            "by_element": per_element,
+            "multiplier_bound": max(worst, per_element["S"]),
+        }
+
+    multiplier_bound = max(e["multiplier_bound"] for e in elements.values())
+    binding = max(elements, key=lambda k: elements[k]["multiplier_bound"])
+    # The low end is the BINDING element's, not the smallest across elements.
+    # The scalar is one quantity and its bracket is the uncertainty in that
+    # quantity; the spread across elements is a different statement and is what
+    # `by_element` is for. Taking the minimum over elements would put sulfur's
+    # anion-only bound underneath a scalar magnesium sets.
+    multiplier_low_end = elements[binding]["multiplier_low_end"]
+    report["exchange_complex"] = {
+        "note": ("Cation exchange capacity, base saturation and the "
+                 "exchangeable base pool. Emitted because ANUT-8's "
+                 "above-ground-to-circulating multiplier was a declared "
+                 "1-to-5 bracket for want of any exchange field in this "
+                 "pipeline. The multiplier below is what this world's own "
+                 "soil implies, one-signed upward at every step."),
+        "form": ("CEC = clay_cec * clay + organic_matter_cec * organic, "
+                 "cmol(+)/kg of fine earth, no intercept. Sulfur does not read "
+                 "it: sulfate is an anion, so its pool is the andic anion "
+                 "exchange capacity instead"),
+        "sources": ("Sahrawat (1983) 10.1080/00103628309367409 for the two "
+                    "slopes; Solly et al. (2020) 10.3389/ffgc.2020.00098 for "
+                    "the organic-share check, the measured envelope and the "
+                    "calcium share; Chadwick et al. (2003) "
+                    "10.1016/j.chemgeo.2002.09.001 and Solly for base "
+                    "saturation against pH; Vitousek and Sanford (1986) "
+                    "10.1146/annurev.es.17.110186.001033 Table 7 for the root "
+                    "term; Dahlgren, Saigusa and Ugolini (2004) "
+                    "10.1016/S0065-2113(03)82003-5 for the andic anion "
+                    "exchange ceiling, which is sulfate's only retention term. "
+                    "pedology/config/pedogenesis.yaml carries what each does "
+                    "and does not license."),
+        "cec_cmol_kg": land_stats(cec),
+        "dropped_intercept_cmol_kg": intercept,
+        "cec_is_blind_to_ph": (
+            "the emitted capacity does not respond to this component's pH "
+            "field, because the source is one fit over soils spanning pH 3.5 "
+            "to 7.9 and does not resolve pH. pH reaches the pool through base "
+            "saturation instead, where two read sources do resolve it. "
+            "world-n4i0 owns the pH-resolved relation that would close it"),
+        "base_saturation": land_stats(exchange["base_saturation"]),
+        "anion_exchange_cmol_kg": land_stats(exchange["anion_exchange_cmol_kg"]),
+        "root_zone_depth_m": float(nutrients_decl["root_zone_depth_m"]),
+        "elements": elements,
+        "multiplier_bound": multiplier_bound,
+        "multiplier_low_end": multiplier_low_end,
+        "binding_element": binding,
+        "level_probe": level_probe,
+        "level_probe_note": (
+            "the ANUT-8 bound re-evaluated at the clay coefficient's level "
+            "endmembers rather than at its declared value, so how much of the "
+            "bound is the coefficient and how much is this world is readable "
+            "without rerunning anything. The root term is in every entry and "
+            "carries no clay at all, which is what makes the verdict "
+            "independent of the level."),
+        "root_term_only_multiplier": {
+            el: 1.0 + float(r) for el, r in root_all.items()},
+        "bracket_note": (
+            "both ends are the BINDING element's, because the scalar is one "
+            "quantity: they span the root term's composition (the largest "
+            "ratio anywhere in Vitousek and Sanford Table 7 against the "
+            "largest at a closed-canopy site of the kind the above-ground "
+            "maximum came from) and the field's tail (land maximum against "
+            "p99). The spread ACROSS elements is a different statement and is "
+            "what by_element carries. Neither end spans the LEVEL exposure on "
+            "the capacity coefficients, which is larger than both and which "
+            "level_probe reports and world-n4i0 owns."),
+        "declared_multiplier": float(anut["belowground_and_exchangeable_multiplier"]),
+    }
+
+
     ANALYSIS.mkdir(parents=True, exist_ok=True)
     report_path = ANALYSIS / "soil_report.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n")
+
+    # THE INSTRUMENT CHECK. The relation is a regression over real soils, so a
+    # land distribution outside every capacity those soils span is the relation
+    # applied where nothing measured it, not a wider world.
+    lo, hi = (float(v) for v in exch_cfg["measured_envelope_cmol_kg"])
+    cec_max = report["exchange_complex"]["cec_cmol_kg"]["max"]
+    if cec_max > hi:
+        raise SystemExit(
+            f"the emitted cation exchange capacity reaches {cec_max:.1f} "
+            f"cmol(+)/kg, above the {hi} cmol(+)/kg upper end of the measured "
+            "envelope in pedogenesis.yaml exchange.measured_envelope_cmol_kg. "
+            "That envelope is Solly et al. (2020) Table 1's own topsoil range "
+            "over 1204 profiles, so a cell above it is the additive relation "
+            "evaluated outside every soil it has been measured on. Widening "
+            "the envelope needs a source that measured a soil there. "
+            f"Written to {rel(report_path)} before this check so the state "
+            "that failed is inspectable.")
+
+    # THE LOOP CHECK. `belowground_and_exchangeable_multiplier` is a DECLARED
+    # upper bound on the other side of the biosphere interface, and this is the
+    # field it is a bound on. One-signed: a declaration at or above what this
+    # soil implies is a bound; below it, it is not one, whatever it is called.
+    # Soil carbon grows through the loop and carries capacity with it, so this
+    # fires on the iteration that outgrows the declaration rather than
+    # silently making the screen permissive.
+    # The per-element declaration beside the scalar, checked the same way. The
+    # scalar is what the ledger reads today and it has to cover the worst
+    # element; the map is what the mechanism actually says, and sulfur's entry
+    # is the one the scalar is most wrong about, since sulfate is an anion and
+    # the cation exchange complex holds none of it. A map with no check on it
+    # would be the frozen state with four numbers instead of one.
+    by_element = anut.get("belowground_and_exchangeable_by_element")
+    if by_element is not None:
+        for element, row in elements.items():
+            if element not in by_element:
+                raise SystemExit(
+                    "abiotic_nutrients.yaml declares "
+                    "belowground_and_exchangeable_by_element and it is silent "
+                    f"on {element}, which this soil emits a bound for. A "
+                    "partial map is not a declaration.")
+            if float(by_element[element]) < row["multiplier_bound"]:
+                raise SystemExit(
+                    "abiotic_nutrients.yaml declares "
+                    f"belowground_and_exchangeable_by_element {element} at "
+                    f"{by_element[element]}, below the "
+                    f"{row['multiplier_bound']:.2f} this soil implies for it. "
+                    "Each entry is an upper bound on that element's standing "
+                    "circulating pool. "
+                    f"Written to {rel(report_path)} before this check so the "
+                    "state that failed is inspectable.")
+
+    declared = float(anut["belowground_and_exchangeable_multiplier"])
+    if declared < multiplier_bound:
+        raise SystemExit(
+            f"biosphere/config/abiotic_nutrients.yaml declares "
+            f"belowground_and_exchangeable_multiplier {declared}, below the "
+            f"{multiplier_bound:.2f} this soil implies for {binding}. That key "
+            "is an UPPER bound on the standing circulating pool and ANUT-8 "
+            "runs on it, so a value below what the emitted exchange complex "
+            "carries makes the screen permissive rather than conservative: it "
+            "reports a critical runoff lower than its own construction "
+            "supports and calls cells adequate on it. Raise the declaration to "
+            "the emitted bound, or state why the exchangeable pool this world "
+            "carries is not circulating. "
+            f"Written to {rel(report_path)} before this check so the state "
+            "that failed is inspectable.")
 
     # THE LEVEL THE REGOLITH PAIR IS JOINTLY CONSTRAINED TO, checked against
     # what the pair just produced. `pedogenesis.yaml` states the constraint --
@@ -1224,6 +1571,17 @@ def main() -> None:
           f"(ExoPlaSim's uniform default is 500)")
     print(f"bedrock water       {means['bedrock_water_fraction']:.3f} of soil "
           f"capacity per unit volume")
+    ex = report["exchange_complex"]
+    print(f"exchange capacity   {ex['cec_cmol_kg']['mean']:.1f} cmol(+)/kg land "
+          f"mean, {ex['cec_cmol_kg']['max']:.1f} max "
+          f"(envelope {exch_cfg['measured_envelope_cmol_kg'][0]} to "
+          f"{exch_cfg['measured_envelope_cmol_kg'][1]})")
+    print(f"base saturation     {ex['base_saturation']['mean']:.3f} land mean")
+    print(f"anion exchange      {ex['anion_exchange_cmol_kg']['max']:.3f} "
+          f"cmol(+)/kg max, andic only; sulfate's only retention term")
+    print(f"ANUT-8 multiplier   {ex['multiplier_bound']:.2f} upper bound, set by "
+          f"{ex['binding_element']}; the declaration is "
+          f"{ex['declared_multiplier']:.2f}")
     print(f"\nwrote {report['output']}")
     print(f"      {rel(report_path)}")
 

@@ -942,6 +942,17 @@ steps:
       a conditional back edge enforced at the read for positive iterations,
       not a hard graph edge: making it a static need would deadlock bootstrap/0
       and baseline/0, the two modes that deliberately have no biosphere input.
+      IT ALSO EMITS THE EXCHANGE COMPLEX, the soil map's `cec` column plus base
+      saturation and the exchangeable base pool in the report, and refuses on
+      three things: a coefficient pair whose implied organic share leaves the
+      band a second continent measured, a capacity outside the envelope those
+      measurements span, and an ANUT-8
+      `belowground_and_exchangeable_multiplier` declared below what this soil
+      implies. The last is the loop edge back to
+      biosphere/config/abiotic_nutrients.yaml: that key is a declared upper
+      bound on a quantity this step derives, and soil carbon grows it through
+      loop A, so the check fires on the iteration that outgrows the
+      declaration.
 
   - id: land_column_properties
     script: pedology/scripts/land_column_properties.py
