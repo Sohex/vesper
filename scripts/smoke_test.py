@@ -1250,13 +1250,19 @@ def check_donor_surface_guard() -> list[str]:
             bad.append(f"a donor whose reread code {code} changed content was "
                        f"refused: {why}")
         # And the arm that found it: the same donor against a config that turns
-        # the moisture term off, which drops all three codes from the set.
+        # the moisture term off, which drops every code the term owns. That is
+        # the saturated pair, and the third point beside it wherever the config
+        # asks for one -- `enabled` is the single key that turns the whole term
+        # off, so what it drops has to be everything the term reads.
         off = copy.deepcopy(config)
         off["surface"]["soil_albedo_moisture"]["enabled"] = False
+        owned = set(rx.WET_ALBEDO_SURFACE_CODES)
+        if rx.soil_albedo_moisture(config)["NWETSOIL"] == 2:
+            owned |= set(rx.KNEE_ALBEDO_SURFACE_CODES)
         dropped = codes - rx.intended_surface_codes(off)
-        if dropped != set(rx.WET_ALBEDO_SURFACE_CODES):
+        if dropped != owned:
             bad.append(f"turning the moisture term off dropped {sorted(dropped)}, "
-                       "not the saturated albedo pair")
+                       f"not {sorted(owned)}")
         why = rx.donor_surface_reason(manifest(codes), off)
         if why is not None:
             bad.append("the nwetsoil = 0 arm was refused against a donor that "

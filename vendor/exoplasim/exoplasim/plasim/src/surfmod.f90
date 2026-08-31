@@ -323,6 +323,13 @@
       call surfcode(1742,'dalbwet' )   ! saturated background albedo
       call surfcode(1750,'dalbwet1')   ! saturated background albedo (<0.75 um)
       call surfcode(1760,'dalbwet2')   ! saturated background albedo (>0.75 um)
+!     The THIRD staged point of the moisture mixing, read only at nwetsoil = 2:
+!     the cell's own mixed albedo at the evaporation limiter's knee. It exists
+!     because the mixing is concave in the albedo, so a staged PAIR reproduces
+!     the cell's own mixture of rocks at the two ends and nowhere between them.
+      call surfcode(1743,'dalbknee' )  ! mixed albedo at the knee
+      call surfcode(1751,'dalbknee1')  ! mixed albedo at the knee (<0.75 um)
+      call surfcode(1761,'dalbknee2')  ! mixed albedo at the knee (>0.75 um)
       call surfcode( 232,'dglac'   )   
       call surfcode( 212,'dforest' )
       call surfcode( 229,'dwmax'   )

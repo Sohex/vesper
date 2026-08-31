@@ -67,7 +67,18 @@
 !     IT NEEDS THE LAYERED COLUMN. The scalar bucket has no depth, so there is
 !     no surface layer to read and `landini` refuses rather than falling back
 !     to the whole column, whose drydown is a season where the skin's is a day.
-      integer :: nwetsoil = 0     ! (0/1) Soil albedo responds to water content
+!     nwetsoil = 2 ADDS A THIRD STAGED POINT. The mixing is concave in the
+!     albedo, so mixing a cell's MEAN dry albedo toward its MEAN saturated one
+!     is not the mean of the mixings of the rocks the cell holds, and no other
+!     PAIR repairs it: the dry field is pinned to the cell's area-mean dry
+!     albedo by the radiation reading the same field on dry ground, and the
+!     saturated field is pinned at the other end by the same argument. Codes
+!     1743, 1751 and 1761 carry the cell's own mixed albedo at the evaporation
+!     limiter's knee, which makes the composition exact at three saturations
+!     rather than two. `notes/audits/nonlinear-spatial-reductions.md` section 7
+!     prices the two-field form at 0.147 W m-2 of global-mean absorbed shortwave
+!     against a 0.12 W m-2 storage tolerance and the three-point form at 0.042.
+      integer :: nwetsoil = 0     ! (0/1/2) Soil albedo responds to water content
       real    :: alblandnl  = 0.2   ! albedo for land
       real    :: albland  = 0.22
       
@@ -577,6 +588,14 @@
       real :: dalbwet(NHOR)     = -1.0  ! saturated background albedo
       real :: dalbwet1(NHOR)    = -1.0  ! saturated background albedo (<.75 um)
       real :: dalbwet2(NHOR)    = -1.0  ! saturated background albedo (>.75 um)
+!     The THIRD staged point, read only at nwetsoil = 2. Each is the cell's own
+!     area mean of the per-region mixed albedo at the knee below, so all three
+!     staged fields are exact area means of per-region quantities and the
+!     agreement at three saturations is a construction rather than a fit. The
+!     same negative sentinel means "no file staged" and `landini` refuses on it.
+      real :: dalbknee(NHOR)    = -1.0  ! mixed albedo at the knee
+      real :: dalbknee1(NHOR)   = -1.0  ! mixed albedo at the knee (<.75 um)
+      real :: dalbknee2(NHOR)   = -1.0  ! mixed albedo at the knee (>.75 um)
 !
 
 !     Threads instead of ranks: a thread owns what a rank owned.
@@ -584,7 +603,8 @@
 !$omp threadprivate(albforest,albgmax,albgmax1,albgmax2,albgmin,albgmin1,albgmin2,albland,alblandmax,&
 !$omp&  alblandnl,albsmax,albsmax1,albsmax2,albsmaxf,albsmaxf1,albsmaxf2,albsmin,albsmin1,albsmin2,&
 !$omp&  albsminf,albsminf1,albsminf2,co2conv,dalbcl,dalbcl1,dalbcl2,dalbclim,dalbclim1,dalbclim2,&
-!$omp&  dalbwet,dalbwet1,dalbwet2,skinsrad,skinsrfc,wetsigma,wetsigma1,wetsigma2,&
+!$omp&  dalbwet,dalbwet1,dalbwet2,dalbknee,dalbknee1,dalbknee2,&
+!$omp&  skinsrad,skinsrfc,wetsigma,wetsigma1,wetsigma2,&
 !$omp&  darea,dgroundalbnl,doro,dqs,drhsfull,drhsland,driver,dsmax,dsnowt,dsnowz,dsoilt,dsoilz,dtcl,&
 !$omp&  dtclim,dtclsoil,dts,dtsm,duroff,dvroff,dwatcini,dwater,dwcl,dwclim,dz0clim,dz0climo,dz0land,&
 !$omp&  dwatcl,dsoili,ddrain,adrain,dsoilwf,dsoilwfc,dsoilwz,drhslow,nlandwcol,nlsoilw,nlandwdrain,nrhsexp,nlandwphase,dzglac,dztop,&
@@ -815,10 +835,10 @@
 !     the error this switch exists to remove rather than one it may fall back
 !     on. It also needs the saturated pair staged, because mixing toward a
 !     sentinel is mixing toward nothing.
-      if (nwetsoil == 1) then
+      if (nwetsoil >= 1) then
        if (nlandwcol /= 1) then
         if (mypid == NROOT) then
-         write(nud,*)'*** nwetsoil = 1 needs nlandwcol = 1: the scalar bucket'
+         write(nud,*)'*** nwetsoil needs nlandwcol = 1: the scalar bucket'
          write(nud,*)'*** has no surface layer, and the column it does have'
          write(nud,*)'*** dries on the wrong timescale for an albedo'
         endif
@@ -836,7 +856,7 @@
        call mpsurfgp('dalbwet2',dalbwet2,NHOR,1)
        if (dalbwet1(1) < 0.0 .or. dalbwet2(1) < 0.0) then
         if (mypid == NROOT) then
-         write(nud,*)'*** nwetsoil = 1 with no saturated albedo field staged.'
+         write(nud,*)'*** nwetsoil is on with no saturated albedo staged.'
          write(nud,*)'*** exoplasim/scripts/build_surface_albedo.py writes'
          write(nud,*)'*** codes 1742, 1750 and 1760 beside 174, 175 and 176;'
          write(nud,*)'*** stage them or leave nwetsoil at 0'
@@ -845,7 +865,7 @@
        endif
        if (newsurf == 2) then
         if (mypid == NROOT) then
-         write(nud,*)'*** nwetsoil = 1 with newsurf = 2 mixes a staged'
+         write(nud,*)'*** nwetsoil with newsurf = 2 mixes a staged'
          write(nud,*)'*** saturated albedo against a namelist dry one, which'
          write(nud,*)'*** is half a boundary condition'
         endif
@@ -864,6 +884,35 @@
          write(nud,*)'*** scattering coefficients'
         endif
         stop
+       endif
+!      THE THIRD STAGED POINT, on the same terms as the saturated pair: a
+!      boundary condition and not a state, read on every start, never carried
+!      through a restart. The knee is `drhsfull` under the same map `wetalb`
+!      applies to a fill fraction, so it is the evaporation limiter's own
+!      transition and not a number chosen here; it must land strictly inside the
+!      saturation axis, because a third point at an end is the two-point form
+!      under another name.
+       if (nwetsoil == 2) then
+        call mpsurfgp('dalbknee' ,dalbknee ,NHOR,1)
+        call mpsurfgp('dalbknee1',dalbknee1,NHOR,1)
+        call mpsurfgp('dalbknee2',dalbknee2,NHOR,1)
+        if (dalbknee1(1) < 0.0 .or. dalbknee2(1) < 0.0) then
+         if (mypid == NROOT) then
+          write(nud,*)'*** nwetsoil = 2 with no knee albedo field staged.'
+          write(nud,*)'*** exoplasim/scripts/build_surface_albedo.py writes'
+          write(nud,*)'*** codes 1743, 1751 and 1761 beside 1742, 1750 and'
+          write(nud,*)'*** 1760; stage them or drop nwetsoil to 1'
+         endif
+         stop
+        endif
+        if (drhsfull <= 0.0 .or. drhsfull >= 1.0) then
+         if (mypid == NROOT) then
+          write(nud,*)'*** nwetsoil = 2 needs 0 < drhsfull < 1: the third'
+          write(nud,*)'*** staged point sits at the evaporation knee, and a'
+          write(nud,*)'*** knee at an end is not a third point'
+         endif
+         stop
+        endif
        endif
        if (mypid == NROOT) then
         write(nud,*)' *** PHYS-15: soil albedo responds to the surface layer,'
@@ -2735,7 +2784,7 @@
       dalbclim1(:)=zgw1*dalbcl1(:,jm1)+zgw2*dalbcl1(:,jm2)
       dalbclim2(:)=zgw1*dalbcl2(:,jm1)+zgw2*dalbcl2(:,jm2)
 
-      if (nwetsoil == 1) call wetalb
+      if (nwetsoil >= 1) call wetalb
 
       return
       end subroutine getalb
@@ -2768,11 +2817,18 @@
 !     `wet_soil_albedo` in landcolumn carries the arithmetic and takes
 !     everything as an argument, so it can be driven on its own.
 
+!     AT nwetsoil = 2 IT MIXES THROUGH A THIRD STAGED POINT. `zkn` is the
+!     saturation the knee field was staged at: `drhsfull` under the same map
+!     applied to the fill fraction two lines above, so the third point sits on
+!     the evaporation limiter's own transition and the two are one fact rather
+!     than two declarations that can drift.
+
       subroutine wetalb
       use landmod
-      real    :: zcap, zf, zsr
+      real    :: zcap, zf, zsr, zkn
       integer :: jhor
 
+      zkn = skinsrad + drhsfull * (skinsrfc - skinsrad)
       do jhor = 1, NHOR
        if (dls(jhor) > 0.5) then
         zcap = dwmax(jhor) * dsoilwfc(jhor,1)
@@ -2780,12 +2836,21 @@
         if (zcap > 0.0) zf = dwatcl(jhor,1) / zcap
         zf   = AMIN1(1., AMAX1(0., zf))
         zsr  = skinsrad + zf * (skinsrfc - skinsrad)
-        dalbclim(jhor)  = wet_soil_albedo(dalbclim(jhor) ,dalbwet(jhor) ,     &
-     &                                    zsr,wetsigma)
-        dalbclim1(jhor) = wet_soil_albedo(dalbclim1(jhor),dalbwet1(jhor),     &
-     &                                    zsr,wetsigma1)
-        dalbclim2(jhor) = wet_soil_albedo(dalbclim2(jhor),dalbwet2(jhor),     &
-     &                                    zsr,wetsigma2)
+        if (nwetsoil == 2) then
+         dalbclim(jhor)  = wet_soil_albedo_3pt(dalbclim(jhor) ,             &
+     &                       dalbknee(jhor) ,dalbwet(jhor) ,zsr,zkn,wetsigma)
+         dalbclim1(jhor) = wet_soil_albedo_3pt(dalbclim1(jhor),             &
+     &                       dalbknee1(jhor),dalbwet1(jhor),zsr,zkn,wetsigma1)
+         dalbclim2(jhor) = wet_soil_albedo_3pt(dalbclim2(jhor),             &
+     &                       dalbknee2(jhor),dalbwet2(jhor),zsr,zkn,wetsigma2)
+        else
+         dalbclim(jhor)  = wet_soil_albedo(dalbclim(jhor) ,dalbwet(jhor) ,  &
+     &                                     zsr,wetsigma)
+         dalbclim1(jhor) = wet_soil_albedo(dalbclim1(jhor),dalbwet1(jhor),  &
+     &                                     zsr,wetsigma1)
+         dalbclim2(jhor) = wet_soil_albedo(dalbclim2(jhor),dalbwet2(jhor),  &
+     &                                     zsr,wetsigma2)
+        endif
        endif
       enddo
 
