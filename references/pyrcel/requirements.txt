@@ -1,7 +1,0 @@
-numba
-numpy
-pandas
-pyyaml
-scipy
-setuptools
-xarray
