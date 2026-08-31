@@ -223,14 +223,13 @@ def check_physical(name: str, fields: list[str], values: np.ndarray,
 
 def verify_merge(output: str, merged: lpj_table.Table,
                  pieces: list[lpj_table.Table]) -> None:
-    """The merged table is the rank union, cell-year for cell-year and value
-    for value.
+    """The merged table is the rank union, cell-year for cell-year and value for value.
 
     Every table arrives sorted on one integer cell-year key, so the union is a
     concatenation put back into that order and the whole check is two array
-    comparisons. The ranks have already been shown to hold disjoint cells, so a
-    key appears at most once in the concatenation and set equality and
-    row-count equality are the same statement.
+    comparisons. The ranks have already been shown to hold disjoint cells, so
+    no key appears twice in the concatenation and comparing the sorted key
+    arrays is the same statement as comparing the two supports as sets.
     """
     keys = np.concatenate([piece.key for piece in pieces])
     order = np.argsort(keys, kind="stable")
