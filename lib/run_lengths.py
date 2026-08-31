@@ -707,6 +707,14 @@ def ecological_record_cycles(brackets: dict) -> float:
     IT IS STILL A FLOOR, for the weaker reason: the memory time is held at its
     measured value while a longer record may read a larger one, which moves the
     answer rather than preventing one.
+
+    POOLING ACROSS RUNS OF DIFFERENT LENGTHS IS SAFE HERE, and the arithmetic
+    says why rather than a convention: the resolving length is proportional to a
+    field's variance times its memory time and does NOT otherwise depend on the
+    record it was read on, so it is a property of the field. A record too short
+    to see a field's memory time underestimates it and so underestimates the
+    length, which can only widen the bottom of the bracket. Only the top sizes
+    anything.
     """
     return float(brackets["resolving_cycles_bracket"][1])
 
