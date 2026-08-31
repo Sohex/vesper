@@ -163,22 +163,110 @@ endmember pairs and 1.48 for PHYS-15.
 
 Two of the three terms `world-ckbt` named are not measured. The lakes item and
 the `playa_clastic` level are both staged-field changes rather than namelist
-keys, so each needs `build_surface_albedo.py` re-run under a different rock table
-or lake compositing, the six albedo codes restaged, and a paired 25-orbit set
-branched from an equilibrated restart on the configured build.
+keys, so each needs `build_surface_albedo.py` re-run under a different rock
+table or lake compositing, the seven albedo codes restaged, and a paired set on
+the configured build. `world-3ooi` carries the task; what follows is what
+measuring the instrument beforehand established, and it moved both the design
+and the price.
 
-**Restaging is what blocks them, not the run.** The staged fields live at
-`exoplasim/inputs/t21/` keyed by rung alone, so rewriting them replaces the one
-build's field the whole tree reads, and in a worktree those paths are symlinks
-into the main checkout. The run itself is cheap: a paired 25-orbit T21 set at
-eight threads an arm, pinned and run concurrently under one host lock, is
-bracketed at six to twenty-five minutes of wall clock. The lower end is what
-PHYS-15's own arms recorded; the upper is 25 orbits at the 53 s per orbit
-`docs/src/reference/config-rationale.md` measures for T21 on eight ranks, plus
-the concurrency penalty.
+### The playa arm resolves and the lakes arm does not
 
-Both terms would sit on `canonical-10m-carve2`, which is the configured build and
-which carries no measurement here at all.
+The perturbation each arm applies is now measured rather than assumed. Running
+`build_surface_albedo.py` three times into a scratch `--output`, changing only
+`model.lithology_albedo_overrides.playa_clastic.albedo`, moves the staged land
+mean by:
+
+| step in the class albedo | d(staged land mean) | share |
+| --- | ---: | ---: |
+| 0.23 to 0.25 | +0.0017028459 | 0.08514230 |
+| 0.23 to 0.33 | +0.0085142296 | 0.08514230 |
+| 0.25 to 0.33 | +0.0068113837 | 0.08514230 |
+
+Exactly linear to eight figures across a factor of five in step size, so a
+single share is the right shape. Code 212, the forest fraction, is
+byte-identical across all three, so the override moves albedo alone and the
+confound the endmember pairs had to disprove is absent here by construction.
+
+**The instrument is the quadrature sum of the two fitted asymptote half-widths,
+and across every pair on disk it runs 0.028 to 0.067 K**, with PHYS-15's own
+16-orbit-span pair at 0.046 K. That range does not track the fit span, which
+runs from 16 to 136 orbits over the same set, so a 25-orbit arm sits inside it.
+
+Predicted separations, at the measured share and over the attenuation's own
+0.29-to-0.48 bracket:
+
+| arm | d(staged land mean) | predicted dT | separation, in quadrature half-widths |
+| --- | ---: | --- | --- |
+| playa_clastic 0.25 to 0.33 | 0.006811 | 0.197 to 0.325 K | 2.9 to 11.6 |
+| playa_clastic 0.19 to 0.33 | 0.011920 | 0.344 to 0.569 K | 5.1 to 20 |
+| lakes composited or not | 0.003716 | 0.107 to 0.178 K | 1.6 to 6.3 |
+
+The bar fixed on `world-ckbt`, before any of these numbers, is three times that
+quadrature sum.
+
+**So the lakes arm is refused and the playa arm is bought at the wider step.**
+The lakes arm fails its own bar over much of its bracket, and the attenuation it
+would return carries a half-width of 20 to 48 per cent against a bracket that is
+25 per cent wide: a point wider than the thing it is meant to narrow. It becomes
+buyable at an amplified lake contrast or at about four times the orbits. The
+playa arm at 0.19 to 0.33 clears the bar across the whole bracket, and 0.19 is
+the export's own table entry rather than an invented endpoint.
+
+**It also tests the same hypothesis, on the same ground and harder.** The
+leading explanation for the two measured terms differing is that the attenuation
+belongs to the modelled atmosphere over the cells a perturbation acts on, and
+`playa_clastic` IS the dry closed-basin interior material where the modelled sky
+is clearest. The prediction registered before the arms run is that the playa
+point lands at or above the endmember term, in 0.38 to 0.55; the hypothesis is
+refuted if it lands at or below the wetting term's 0.292 plus its own
+uncertainty. The pre-registered exclusion is unchanged: a pair whose diagnosed
+and staged land-mean deltas disagree by more than a factor of 1.5 is pricing the
+swap rather than the attenuation.
+
+### What actually blocks it, which is not what the row assumed
+
+**Restaging is safe and is not the blocker.** `exoplasim/scripts/sra.py`'s
+`write_sra` refuses a write through a symlink on every one of the seven codes,
+so a generator run in a worktree exits before writing anything rather than
+replacing the main checkout's staged fields. The refusal fires on the first
+write, which is a wet-endmember code, so the report at the end is never reached
+either. `--output` takes the generator anywhere inside the worktree, and
+replacing the worktree's own seven links with real files is contained: removing
+a symlink does not touch its target, `exoplasim/inputs/*/*.sra` is ignored, and
+`albedo_report.json` is a tracked file whose edit stays in the worktree.
+
+Two things do block it.
+
+**No model binary is current.** `rebuild_binaries.py --verify` reports all ten
+configurations in the matrix as not built against the model source at
+`vendor/exoplasim`. Rule 4 asks for every binary, so the arms cost a full
+rebuild before the first orbit and that rebuild is unpriced here.
+
+**No T21 restart sits on a surface the tree still holds.**
+`check_consistency.py` reports every T21 run as being on a surface that has been
+regenerated since, and says in its own words that nothing can be seeded from it.
+Five live T21 runs on `canonical-10m-carve2` at the configured flux exist to
+branch from, and branching both arms from ONE of them is what makes that
+survivable: the common transient from the surface change is identical in both
+arms and cancels in the difference of the two asymptotes, which is the estimator.
+
+The staged T21 surface is itself behind the generator, and by more than the
+lakes item is worth. `analysis/soil_albedo_wetting.json` was rewritten by
+`world-znr7` after the surface was staged, and today's generator moves the
+staged land mean by -0.003474 and the soil-wetting bound from 0.015707 to
+0.010121. The gate already reports both.
+
+**The run, priced.** Two arms, sequential rather than concurrent, 40 orbits
+each, T21 on eight ranks under one host lock: 45 to 95 minutes of wall clock.
+The low end is the rate PHYS-15's own arms recorded; the high end is 53 s per
+orbit from `docs/src/reference/config-rationale.md` plus per-arm setup.
+Sequential is chosen over a concurrent pair deliberately: the estimator's floor
+across independent integrations is under a hundredth of a kelvin, two arms
+sharing a die do not, and twenty minutes is a cheap price for keeping the two
+arms as identical as this host can make them.
+
+Both terms would sit on `canonical-10m-carve2`, which is the configured build
+and which carries no measurement here at all.
 
 ## Currency
 
