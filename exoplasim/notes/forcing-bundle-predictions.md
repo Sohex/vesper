@@ -2371,6 +2371,30 @@ The saturation mapping the model reads is
 `surface_layer.saturation_endpoints`, 0.0 at an empty layer and 0.7642 at a full
 one. Neither is a number this entry chose.
 
+**THE BAND-2 DARK END IS BOUNDED, AND THE BOUND IS WHAT THE CEILING RESTS ON.**
+Neither Lekner and Dorf nor Twomey, Bohren and Mergenthaler carries the liquid's
+own absorption, so both staged endmembers are UPPER bounds in band 2 and the
+ceiling below is only a ceiling if the unpriced darkening under it is small.
+`analysis/soil_albedo_wetting.json`'s `band2_liquid_absorption` bounds it at the
+optical path a photon traverses in the pore water, which Nolet, Poortinga,
+Roosjen, Bartholomeus and Ruessink (2014) measure at 0.06 to 0.07 cm at
+saturation. The band-2 flux-weighted single-pass absorptance over that path is
+0.248 to 0.269, measured 2026-08-30; band 1's is 0.002. NO REGISTERED NUMBER
+BELOW MOVES: the magnitude is not a correction and never entered the endmembers,
+the table or the kelvin columns, and turning it into one still needs an absolute
+scattering coefficient for the dry soil that nothing in this tree carries.
+
+The path is measured on one quartz sand at a 288 um median grain, by an analysis
+stopping at 2100 nm, in a biconical reflectance factor rather than a flux albedo.
+This world's playa mud and fan fill are none of those, and the path is only a
+couple of grains deep, so a medium of another grain size has another path; the
+artifact's `what_the_path_does_not_carry` states each limit and this entry does
+not assert a direction for any of them. The 2100 nm cut is the one that is
+bounded rather than left open: the unconstrained tail carries a twentieth of
+band 2's flux, and driving its absorptance to each extreme moves the band-2
+magnitude by +0.008 and -0.047, so the flat extrapolation above 2100 nm cannot
+be what decides whether the dark end is open.
+
 **THE FLUX-TO-KELVIN ROUTE, stated because a surface albedo is not a planetary
 one.** `lib/sensitivity.py` deliberately refuses that conversion, so it goes
 through the budget that owns the assumption:

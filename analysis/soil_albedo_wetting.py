@@ -79,9 +79,13 @@ Liquid water absorbs weakly through band 1 and strongly in parts of band 2 --
 `exoplasim/data/water/hale_querry_1973_liquid_water.dat` carries the constants --
 so both arms are UPPER bounds on the band-2 wet endmember and the bracket is
 open at its dark end there. `band2_liquid_absorption` reports how far, as the
-band-2 flux-weighted absorptance of the skin's own equivalent water depth, which
-is a magnitude and not a correction: turning it into one needs an absolute
-scattering coefficient for the dry soil, which nothing here carries.
+band-2 flux-weighted absorptance over the OPTICAL PATH a photon traverses in
+the pore water -- Nolet et al. (2014) measure it, and it is not the layer's
+water inventory, which is more than an order of magnitude longer and is kept
+here only as the ceiling the path must sit inside. It is a magnitude and not a
+correction: turning it into one needs an absolute scattering coefficient for
+the dry soil, which nothing here carries. What the path is measured on and what
+that leaves open is `what_the_path_does_not_carry` in the output.
 
 **The shape between the endmembers.** That is Sadeghi, Jones and Philpot (2015),
 which is linear in the Kubelka-Munk transformed reflectance rather than in the
@@ -216,6 +220,41 @@ HELD_PAIRS = (
 # about the interstitial one. The consumer's own ceiling -- substrate albedo
 # minus open water's -- is about full INUNDATION and is a different quantity.
 OPEN_WATER_ALBEDO = 0.06
+
+# THE OPTICAL PATH A PHOTON TRAVERSES IN THE PORE WATER at saturation, in
+# metres, which is the quantity the liquid's own absorption is evaluated at.
+# Nolet, Poortinga, Roosjen, Bartholomeus and Ruessink (2014),
+# `references/nolet2014-surface-moisture-beach-sand-reflectance.pdf`, measure
+# it: their optical model Eq. (6), Rh = fs Rd exp(-a d), separates an elastic-
+# scattering fraction fs from an optical path length d in water, and d at
+# saturation is 0.06 to 0.07 cm.
+#
+# IT IS NOT THE LAYER'S WATER INVENTORY, which is what this term used to be
+# evaluated at. A 0.02 m skin at a full pore volume holds 9 mm of water, but a
+# photon does not traverse the layer's whole water content; it turns back after
+# a few grains. The two differ by more than an order of magnitude and the
+# inventory is one-signed, so band 2's dark end is far less open than the
+# inventory said.
+#
+# WHY d TRANSFERS AND NOLET'S REGRESSIONS DO NOT. d is obtained by curve
+# fitting, but against a(l), pure water's own absorption coefficient, so what
+# comes out is a geometric length with a physical meaning rather than the
+# residual of a fit -- and Nolet check it independently against their sample's
+# 288 um median grain as a few grains deep, which `grains_deep` in the output
+# restates as a check that can fail. Their OTHER model, Eq. (7)'s water
+# retention form, carries parameters with no such anchor and is not read here.
+NOLET_PATH_SATURATED_M = (6.0e-4, 7.0e-4)
+
+# The sample d was measured on, for the support statement the output carries.
+NOLET_MEDIAN_GRAIN_M = 288.0e-6
+NOLET_ANALYSIS_CEILING_UM = 2.1
+
+# The layer's water INVENTORY: skin thickness times a full pore volume. It is a
+# CEILING on the optical path and nothing narrower -- a photon cannot traverse
+# more water than the layer holds -- and it is kept as exactly that, a check
+# the measured path must sit inside.
+SKIN_THICKNESS_M = 0.02
+SKIN_POROSITY = 0.45
 
 # Gauss-Legendre order for the Chandrasekhar H-function quadrature. Raised until
 # the reproduction check stopped moving in its fifth figure.
@@ -704,20 +743,42 @@ def main() -> None:
             "Fix the map or the level before staging a field that asserts it.")
 
     # The band-2 term neither map carries: liquid water's own absorption. Stated
-    # as the single-pass absorptance of the equivalent water depth a saturated
-    # 0.02 m skin holds, flux-weighted over band 2 -- a MAGNITUDE, not a
-    # correction. Turning it into one needs an absolute scattering coefficient
-    # for the dry soil, which nothing in this tree carries; the measurement that
-    # would sidestep it is a wet-and-dry spectrum pair on the same sample, and
-    # references/INDEX.md records which one is wanted.
+    # as the single-pass absorptance over Nolet's measured optical path,
+    # flux-weighted per band -- a MAGNITUDE, not a correction. Turning it into
+    # one needs an absolute scattering coefficient for the dry soil, which
+    # nothing in this tree carries.
     hi = grid > rab.BAND_SPLIT_UM
-    skin_water_m = 0.02 * 0.45          # skin thickness times a full pore volume
     alpha_w = 4.0 * np.pi * k_water / (grid * 1.0e-6)
-    absorptance = 1.0 - np.exp(-alpha_w * skin_water_m)
-    band2_absorptance = float(np.trapezoid(absorptance[hi] * flux[hi], grid[hi])
-                              / np.trapezoid(flux[hi], grid[hi]))
-    band1_absorptance = float(np.trapezoid(absorptance[~hi] * flux[~hi], grid[~hi])
-                              / np.trapezoid(flux[~hi], grid[~hi]))
+
+    def band_absorptance(path_m, mask):
+        a = 1.0 - np.exp(-alpha_w * path_m)
+        return float(np.trapezoid(a[mask] * flux[mask], grid[mask])
+                     / np.trapezoid(flux[mask], grid[mask]))
+
+    skin_inventory_m = SKIN_THICKNESS_M * SKIN_POROSITY
+    band1_absorptance = [round(band_absorptance(d, ~hi), 4)
+                         for d in NOLET_PATH_SATURATED_M]
+    band2_absorptance = [round(band_absorptance(d, hi), 4)
+                         for d in NOLET_PATH_SATURATED_M]
+    grains_deep = [round(d / NOLET_MEDIAN_GRAIN_M, 2)
+                   for d in NOLET_PATH_SATURATED_M]
+
+    # WHAT THE UNCONSTRAINED TAIL IS WORTH, bounded rather than asserted. Nolet
+    # fit d only up to 2100 nm and it is held flat above that, so the honest
+    # statement is the band-2 magnitude with the tail's absorptance forced to
+    # each extreme: the flat extrapolation is trusted only inside those two.
+    tail = grid > NOLET_ANALYSIS_CEILING_UM
+    tail_flux_share = float(np.trapezoid(flux[tail], grid[tail])
+                            / np.trapezoid(flux[hi], grid[hi]))
+
+    def band2_with_tail(path_m, forced):
+        a = 1.0 - np.exp(-alpha_w * path_m)
+        a = np.where(tail, forced, a)
+        return round(float(np.trapezoid(a[hi] * flux[hi], grid[hi])
+                           / np.trapezoid(flux[hi], grid[hi])), 4)
+
+    tail_high = [band2_with_tail(d, 1.0) for d in NOLET_PATH_SATURATED_M]
+    tail_low = [band2_with_tail(d, 0.0) for d in NOLET_PATH_SATURATED_M]
 
     # What the two declared inputs are worth, measured rather than asserted.
     probe = np.array([0.10, 0.20, 0.30, 0.50])
@@ -804,15 +865,74 @@ def main() -> None:
             c for c, r in classes.items()
             if r["interstitial_arm_below_open_water"]),
         "band2_liquid_absorption": {
-            "skin_equivalent_water_m": skin_water_m,
-            "band1_single_pass_absorptance": round(band1_absorptance, 4),
-            "band2_single_pass_absorptance": round(band2_absorptance, 4),
+            "optical_path_m": list(NOLET_PATH_SATURATED_M),
+            "optical_path_source":
+                "Nolet, Poortinga, Roosjen, Bartholomeus and Ruessink (2014), "
+                "references/nolet2014-surface-moisture-beach-sand-reflectance.pdf. "
+                "Their optical model Eq. (6), Rh = fs Rd exp(-a d), separates an "
+                "elastic-scattering fraction from an optical path length d in "
+                "water; d at saturation is 0.06 to 0.07 cm. The path is what a "
+                "photon traverses, and it is not the layer's water inventory",
+            "optical_path_transfers_because":
+                "d is fitted, but against a(l), pure water's own absorption "
+                "coefficient, so it comes out a geometric length with a physical "
+                "meaning rather than the residual of a fit. Nolet's OTHER "
+                "regressions -- Eq. (7)'s water-retention parameters and the "
+                "field model -- have no such anchor and are not read here",
+            "unconstrained_tail": {
+                "above_um": NOLET_ANALYSIS_CEILING_UM,
+                "band2_flux_share": round(tail_flux_share, 4),
+                "band2_with_tail_fully_absorbing": tail_high,
+                "band2_with_tail_transparent": tail_low,
+                "why": "d is measured only up to 2100 nm and is held flat "
+                       "above it. These two are the band-2 magnitude with the "
+                       "tail's absorptance forced to 1 and to 0, so the flat "
+                       "extrapolation is bracketed by what it cannot be. The "
+                       "tail carries a twentieth of the band's flux and is "
+                       "already strongly absorbing at the measured path, so "
+                       "the upward room is small and the downward room is a "
+                       "fifth of the magnitude",
+            },
+            "grains_deep": grains_deep,
+            "grain_size_support":
+                "the path over Nolet's 288 um median grain. Their own physical "
+                "check on d is that it is a few grains deep, so a value outside "
+                "roughly 1 to 5 would say the inversion had returned something "
+                "other than a path through the wetted skin",
+            "skin_water_inventory_m": skin_inventory_m,
+            "path_inside_its_inventory": bool(
+                max(NOLET_PATH_SATURATED_M) < skin_inventory_m),
+            "band1_single_pass_absorptance": band1_absorptance,
+            "band2_single_pass_absorptance": band2_absorptance,
             "direction": "both arms are UPPER bounds on the wet endmember in "
                          "band 2: neither carries the liquid's own absorption, "
                          "and a wetted surface can only be darker for it",
+            "what_the_path_does_not_carry": [
+                "ONE MATERIAL. Quartz beach sand at a dry bulk density of "
+                "1.655 g/cm3 and a 288 um median grain. This world's playa mud "
+                "and fan fill are neither that mineralogy nor that grain size, "
+                "and the path is a few grains deep, so a medium of another "
+                "grain size has another path. The direction is not asserted "
+                "here: penetration into a scattering medium is set by the "
+                "single-scattering albedo as well as the grain, and this tree "
+                "carries no absolute scattering coefficient to settle it",
+                "AN ANALYSIS STOPPING AT 2100 nm, against a working range "
+                f"reaching {rab.WORKING[1]} um. Nolet cut the fit there for "
+                "signal to noise, so d above 2100 nm is unconstrained and is "
+                "held flat at its saturated value across the rest of band 2. "
+                "What that is worth is bounded rather than argued: "
+                "`unconstrained_tail` reports the band-2 magnitude with the "
+                "tail's absorptance driven to each of its two extremes, which "
+                "is what the flat extrapolation is being trusted instead of",
+                "A BICONICAL REFLECTANCE FACTOR and not a flux albedo. Nolet "
+                "measured at nadir under a single 30 degree source, so the "
+                "quantity d was inverted from is not the hemispherically "
+                "integrated reflectance this script's endmembers are",
+            ],
             "what_would_close_it": "an absolute scattering coefficient for the "
                                    "dry soil, or a wet-and-dry reflectance "
-                                   "spectrum pair measured on one sample",
+                                   "spectrum pair on one sample of a material "
+                                   "this world actually carries",
         },
         "classes": classes,
     }
