@@ -1307,18 +1307,18 @@ model:
   # from the weight above. `h2o_sw_weight` is a star-over-Sun ratio, so an error
   # in the absolute level of Lacis and Hansen Eq. 21 divides straight out of it
   # and is not corrected by anything. Correlated-k against Eq. 21 at the same
-  # absorber amount puts Eq. 21 low by 12.7% at this planet's operating path
+  # absorber amount puts Eq. 21 low by 12.6% at this planet's operating path
   # before the water vapour continuum, the cause being that Yamamoto's bands
   # were measured at a Curtis-Godson effective pressure while Eq. 21 is refitted
   # as though they held at standard pressure.
   #
-  # TWO-SIDED, and the continuum is why it is not 1.127. Neither the
+  # TWO-SIDED, and the continuum is why it is not 1.126. Neither the
   # correlated-k tables nor Eq. 21 carries the MT_CKD-convention continuum, and
-  # the continuum ADDS absorption to the line-by-line side, so 1.127 was a floor
+  # the continuum ADDS absorption to the line-by-line side, so 1.126 was a floor
   # rather than the answer. The missing term is 0.15 to 7.0% of the correlated-k
-  # absorptance and 3.1% is the estimate, which puts the level at 1.163 over a
-  # bracket of 1.129 to 1.206. The width is not resolvable here: it needs a
-  # line-by-line calculation with a continuum on this path.
+  # absorptance and 3.1% is the estimate, and that spread is what opens the
+  # bracket below. The width is not resolvable here: it needs a line-by-line
+  # calculation with a continuum on this path.
   #
   # THE BRACKET ENDS ARE ARMS TO RUN, not an error bar on a settled number: the
   # half-width is 0.38 K of mean surface temperature, against 0.10 K per 0.01 of
