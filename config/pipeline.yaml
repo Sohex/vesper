@@ -1042,16 +1042,27 @@ steps:
     script: exoplasim/scripts/build_surface_soil_water.py
     loop: A
     cost: minutes
-    needs: [bootstrap_climatology, land_column_properties]
-    writes: ["exoplasim/inputs/{res_lower}/orogen_{res}_surf_0229_provenance.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0229.sra"]
+    needs: [boundary_conditions, land_column_properties]
+    writes: ["exoplasim/inputs/{res_lower}/orogen_{res}_surf_0229_provenance.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_0229.sra", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_2290_provenance.json", "exoplasim/inputs/{res_lower}/orogen_{res}_surf_2290.sra"]
     gate: >
-      NEEDS THE BOOTSTRAP CLIMATOLOGY, settled by the graph rather than by
-      judgment: this writes a staged `.sra` surface field, and a staged surface
-      field is an INPUT to the baseline run. Reading the baseline here would
-      build an input to a run out of that run's own output, and on a first pass
-      there is no baseline at all.
-      The climatology supplies the grid and the land mask, so they match the
-      soil map exactly.
+      TAKES A `--grid` LIKE THE REST OF THE FAMILY, and the grid is the rung.
+      Its three rung-dependent inputs are the grid export, the ownership mask
+      surface code 0172 that boundary_conditions writes at every exported rung,
+      and land_column_properties' states file at that rung. None of them is a
+      climate. It read the grid and the mask off `bootstrap_climatology` until
+      WORLD-QGB6, which made the one rung a run had reached the only rung code
+      0229 could be cut at -- alone among the thirteen staged surface fields,
+      and with `model.soil_water_source: pedology` making that a refusal at
+      launch above T21.
+      THE DETERMINATION ARGUMENT IS UNCHANGED AND IS ENFORCED UPSTREAM. A
+      staged surface field is an INPUT to the baseline run, so nothing in this
+      chain may read the baseline's own output; the climate enters at `soil`,
+      which names its stage and refuses a pairing it did not declare. Passing
+      `--climatology` here is a CROSS-CHECK -- its axes and its `lsm` must be
+      the grid and the mask this step already has -- and never a carrier.
+      WHAT PINS THE RUNG NOW IS THE STATES FILE, which is per build and per rung
+      and exists only where `soil` has run, which is only where a climatology of
+      that rung exists. WORLD-QGB6 records the measurement.
 
   - id: dust
     script: aeolian/scripts/build_dust.py

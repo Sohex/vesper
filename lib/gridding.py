@@ -966,6 +966,111 @@ def require_gaussian_rows(spec: GridSpec, lat_axis, what: str = "the grid") -> N
             "nearest centres; construct both from one source. CLAUDE.md rule 3.")
 
 
+# ---------------------------------------------------------------------------
+# THE MODEL'S OWN LABELS. `column()` above places an Orogen longitude, which
+# runs -180..180; ExoPlaSim labels the SAME columns 0..360 from index 0 and has
+# never heard of Orogen. Both label column k of one grid, and the mapping
+# between them is the identity ON THE INDEX and a half-grid rotation on the
+# label -- which is CLAUDE.md rule 3 and what
+# notes/audits/grid-convention-and-runoff.md measured at 0.5955 of cells
+# agreeing when the labels are matched instead of the indices.
+#
+# These exist because artifacts DO carry the model's labels: a climatology's
+# `lon` variable, and every per-cell text product written from one --
+# `pedology/data/<build>/land_column_states_<res>.txt` keys its rows that way.
+# Reading such a product needs the label axis, and a consumer that builds one of
+# its own is the third occurrence of the defect. So the axis is constructed once
+# here, the inverse is a function rather than a subtraction at the point of use,
+# and a label that is not ON the axis is refused rather than snapped to the
+# nearest column.
+# ---------------------------------------------------------------------------
+
+def model_longitude_labels(nlon: int) -> np.ndarray:
+    """The longitude ExoPlaSim WRITES for grid column i. A LABEL, not a coordinate.
+
+    Degrees east from index 0, which is the column `column()` places Orogen
+    longitude -180 in. Nothing computed may be done with these against Orogen
+    coordinates; they exist to be matched against an artifact that carries them.
+    """
+    nlon = int(nlon)
+    return np.arange(nlon, dtype=np.float64) * (360.0 / nlon)
+
+
+def model_label_column(lon_label, nlon: int, what: str = "a longitude label",
+                       tolerance_cells: float = 1.0e-3) -> np.ndarray:
+    """Grid column for a longitude on ExoPlaSim's own label axis.
+
+    NOT `column()`, and the two are not interchangeable: `column()` reads an
+    Orogen longitude and this reads a model label, and on the same grid they
+    differ by half the columns.
+
+    A label is a name for a column, so this REFUSES one that does not sit on a
+    column rather than rounding it to the nearest. That is the check that
+    catches an axis handed in on the wrong convention: an Orogen centre offered
+    here lands exactly half a column from every model label and fails by 500
+    times the bar, where a nearest-column read would have accepted it and
+    rotated the field by half a world.
+    """
+    nlon = int(nlon)
+    exact = np.asarray(lon_label, dtype=np.float64) % 360.0 * nlon / 360.0
+    col = np.rint(exact)
+    off = float(np.abs(exact - col).max()) if exact.size else 0.0
+    if off > tolerance_cells:
+        raise SystemExit(
+            f"{what}: a label is {off:.4g} of a column away from any column of "
+            f"the {nlon}-column model label axis. It is not on this axis. Half "
+            "a column means it is on the export's -180..180 centres instead, "
+            "which is a DIFFERENT NAME FOR THE SAME COLUMNS and not a "
+            "coordinate transform. CLAUDE.md rule 3.")
+    return col.astype(np.int64) % nlon
+
+
+def model_label_cells(lat_label, lon_label, nlat: int, nlon: int,
+                      what: str = "a labelled point"):
+    """(row, column) on the model grid for points carrying the MODEL's labels.
+
+    The one entry point for "which cell is this row of a per-cell model-labelled
+    product". Rows go through `row()` against the constructed Gaussian nodes,
+    which bins on the midpoints and so is indifferent to the few parts in a
+    million a float32 axis printed to four decimals costs; columns go through
+    `model_label_column`, which refuses a label off the axis.
+    """
+    rows = row(lat_label, gaussian_latitudes(int(nlat)))
+    cols = model_label_column(lon_label, nlon, what=what)
+    return rows, cols
+
+
+def require_model_labels(lat_axis, lon_axis, nlat: int, nlon: int,
+                         what: str = "the axes") -> None:
+    """Refuse an axis pair that is not the labels ExoPlaSim writes for this grid.
+
+    For an artifact the model wrote: a climatology, or a product derived from
+    one. `require_same_rows` carries the latitude comparison because such an
+    axis is netCDF float32 and agrees with the constructed nodes to a few parts
+    in a million and no closer.
+
+    This is what says a file handed to a builder is on the grid the builder
+    thinks it is, in the one direction that matters: a file on another rung has
+    the wrong number of rows, and a file on the export's own longitude labels is
+    half a grid out.
+    """
+    require_same_rows(np.asarray(lat_axis, dtype=np.float64),
+                      gaussian_latitudes(int(nlat)), what=what)
+    axis = np.asarray(lon_axis, dtype=np.float64)
+    want = model_longitude_labels(nlon)
+    if axis.size != want.size:
+        raise SystemExit(
+            f"{what}: the longitude axis has {axis.size} labels and this grid "
+            f"has {want.size} columns. They are not the same grid.")
+    off = float(np.abs(axis - want).max())
+    if off > 1.0e-3:
+        raise SystemExit(
+            f"{what}: the longitude axis differs from the labels ExoPlaSim "
+            f"writes for a {nlon}-column grid by up to {off:.4g} degrees. Do "
+            "NOT reconcile the two by matching labels; they name the same "
+            "columns and the mapping is the index. CLAUDE.md rule 3.")
+
+
 GOLDSTEIN_EQUAL_AREA = 0        # igrid = 0: uniform in the sine of latitude
 GOLDSTEIN_EQUAL_ANGLE = 1       # igrid = 1: uniform in latitude
 GOLDSTEIN_ATMOSPHERE_ROWS = 2   # igrid = 2: the atmosphere's own rows
@@ -1033,7 +1138,7 @@ def goldstein_grid(nlon: int, nlat: int, igrid: int = GOLDSTEIN_EQUAL_AREA,
 # where the answer is unknown is not a check.
 
 
-_CHECKS = 22
+_CHECKS = 27
 
 
 def _selftest() -> int:
@@ -1254,6 +1359,40 @@ def _selftest() -> int:
             refused += 1
     check("a spec that is not a partition of the sphere is refused",
           refused == 2, f"{refused} of 2 refused")
+
+    # THE MODEL'S LABEL AXIS: an identity. Every label this constructs names the
+    # column it was constructed from, so the round trip is the index it started
+    # at and nothing about the export enters.
+    for nlon_lab in (64, 128, 170):
+        got = model_label_column(model_longitude_labels(nlon_lab), nlon_lab)
+        check(f"model labels round-trip to their own columns at nlon={nlon_lab}",
+              bool(np.array_equal(got, np.arange(nlon_lab))),
+              f"{int((got != np.arange(nlon_lab)).sum())} columns wrong")
+
+    # THE CONTROL, and it is the defect this pair exists to stop. The export's
+    # own column centres are a valid longitude axis for the SAME grid, half a
+    # column from every model label. Offered as model labels they must be
+    # refused, not snapped to the nearest column and silently rotated.
+    _, export_lon = gaussian_grid(32, 64).cell_centres()
+    refused_labels = 0
+    for bad_lat, bad_lon in ((gaussian_latitudes(32), export_lon),
+                             (gaussian_latitudes(64), model_longitude_labels(64))):
+        try:
+            require_model_labels(bad_lat, bad_lon, 32, 64, what="the control")
+        except SystemExit:
+            refused_labels += 1
+    try:
+        model_label_column(export_lon, 64, what="the control")
+    except SystemExit:
+        refused_labels += 1
+    check("an axis on the export's labels is refused as a model label axis",
+          refused_labels == 3, f"{refused_labels} of 3 refused")
+
+    # And the axis the model actually writes is accepted, so the control above
+    # is refusing the convention rather than refusing everything.
+    require_model_labels(gaussian_latitudes(32), model_longitude_labels(64),
+                         32, 64, what="the model's own axes")
+    check("the model's own axes are accepted", True)
 
     print(f"\n{_CHECKS} checks, {len(problems)} failed")
     return 1 if problems else 0
