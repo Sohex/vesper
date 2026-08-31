@@ -22,6 +22,7 @@ import yaml
 
 from _paths import CONFIG, INPUTS, MODEL_SRC, PROJECT_ROOT, RUNS
 import build_model
+import index_runs
 import rebuild_binaries
 import reset_restart_accumulators
 import restart_surface
@@ -3348,6 +3349,35 @@ def run_id(config: dict, flux_ratio: float) -> str:
     return "run_" + uuid.uuid4().hex[:12]
 
 
+def record_identity(run_dir: Path) -> None:
+    """Put this run in the tracked ledger, at every point its manifest changes.
+
+    WITHOUT THIS A RUN CAN EXIST AND LEAVE NOTHING BEHIND. `exoplasim/runs/` is
+    untracked and the manifest lives inside the run directory, so a run's whole
+    identity dies with its payload. `exoplasim/runs/INDEX.json` used to be
+    rebuilt by scanning that directory, which means it recorded what existed at
+    the moment of the scan: a run created and deleted between two scans left no
+    tracked trace anywhere, and a run id is twelve hex digits that say nothing.
+    Forty-seven runs reached that state, two of them the arms of the T42 ladder
+    comparison an audit rests on. CLAUDE.md rule 6 makes this file the only
+    record of what each run was, and it can only be that if the row is written
+    the moment the run exists rather than the next time someone reindexes.
+
+    Called after the prepared manifest, after the block ends, and after a
+    failure, because each writes a status the ledger should carry even if the
+    directory is gone before the next scan. Never fatal: refusing to integrate
+    because the ledger could not be written would trade a real run for a
+    bookkeeping error, and the message says what to run by hand.
+    """
+    try:
+        index_runs.register(run_dir)
+    except Exception as exc:                                    # noqa: BLE001
+        print(f"WARNING: {run_dir.name} is not in exoplasim/runs/INDEX.json "
+              f"({exc}). Nothing tracked says what this run is until it is. "
+              f"Run: python exoplasim/scripts/index_runs.py --register "
+              f"{run_dir}")
+
+
 def validate_outputs(run_dir: Path) -> dict:
     regular = run_dir / "MOST.00000.nc"
     snapshot = run_dir / "snapshots" / "MOST_SNAP.00000.nc"
@@ -4430,6 +4460,9 @@ def main() -> None:
     }
     manifest_path = run_dir / "run_manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    # BEFORE A SINGLE ORBIT. A prepared run that is killed, crashed or deleted
+    # before anything reindexes still leaves a tracked row saying what it was.
+    record_identity(run_dir)
     print(
         json.dumps(
             {"run_dir": str(run_dir), "derived": derived, "namelists": checks},
@@ -4527,8 +4560,14 @@ def main() -> None:
             manifest_path.write_text(
                 json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
             )
+            # A BLOW-UP IS EVIDENCE AND HAS TO SURVIVE ITS OWN RUN. The
+            # resolution ladder reads failed statuses as verdicts, and
+            # run_900548ae632e's SIGFPE is a row nothing can check because the
+            # run that took it left no record.
+            record_identity(run_dir)
             raise
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        record_identity(run_dir)
 
 
 if __name__ == "__main__":

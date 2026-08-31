@@ -548,8 +548,11 @@ def cmd_purge(graph: dict, target: str, execute: bool) -> int:
         print(f"  purged {sid}")
 
     print(f"\nfreed {total/1e9:.2f} GB")
-    print("`world_state.json` and `exoplasim/runs/INDEX.json` are generated from\n"
-          "what is on disk and now describe a tree that has moved. Regenerate:\n"
+    print("`world_state.json` describes a tree that has moved, and\n"
+          "`exoplasim/runs/INDEX.json` is a ledger whose payload flags this has\n"
+          "not touched. Regenerate both; the reindex KEEPS the row of every run\n"
+          "whose payload has gone and only marks it, so no identity is lost by\n"
+          "running it after a purge:\n"
           "    python exoplasim/scripts/index_runs.py\n"
           "    python scripts/world_state.py")
     note_runs()

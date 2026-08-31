@@ -3728,6 +3728,63 @@ def check_fit_tail_fraction_is_stated_once() -> list[str]:
     return bad
 
 
+def check_run_index_is_a_ledger() -> list[str]:
+    """A rescan of `exoplasim/runs/` cannot remove a run from the index.
+
+    THE INVARIANT WORLD-WW6Z COST FORTY RUNS. `exoplasim/runs/INDEX.json` was
+    rebuilt from a directory scan, so it recorded what EXISTED at the moment of
+    the scan: a run created and deleted between two scans left nothing tracked
+    anywhere, and a rescan after any deletion erased the row of a run that HAD
+    been indexed. A run id is twelve hex digits and says nothing, so a lost row
+    turns every citation of that run into a dead string -- which is what
+    happened to both arms of the T42 ladder comparison an audit rested on.
+
+    Class 17: the right answer is an identity rather than a comparison. A merge
+    of a scan that sees NOTHING must return every row it was given, and the
+    identity fields on a vanished row must be untouched, because nothing can
+    re-derive them once the manifest has gone with the payload. The paired
+    positive is that a scan which does see a run still wins for its live fields,
+    so a ledger that simply ignored the scan would fail here too.
+    """
+    bad = []
+    sys.path.insert(0, str(ROOT / "exoplasim" / "scripts"))
+    try:
+        import index_runs
+    except ImportError as exc:
+        return [f"exoplasim/scripts/index_runs.py does not import: {exc}"]
+
+    previous = [{"directory": "run_000000000001", "run_id": "run_000000000001",
+                 "orbits_on_disk": 84, "size_gb": 9.0, "status": "run_complete",
+                 "executable_sha256": "abc", "physical": {"resolution": "T42"},
+                 "converged": True}]
+    vanished = {r["directory"]: r for r in index_runs.merge(previous, [])}
+    if "run_000000000001" not in vanished:
+        bad.append("index_runs.merge drops a run whose directory is gone, so "
+                   "exoplasim/runs/INDEX.json is a directory listing again and "
+                   "a deleted run's identity goes with its payload")
+    else:
+        row = vanished["run_000000000001"]
+        if row.get("payload_present") is not False:
+            bad.append("a run whose directory is gone is not marked "
+                       "payload_present false, so the index claims a payload "
+                       "that is not there")
+        for key, want in (("orbits_on_disk", 84), ("executable_sha256", "abc"),
+                          ("status", "run_complete")):
+            if row.get(key) != want:
+                bad.append(f"a vanished run's {key} became {row.get(key)!r} "
+                           f"against {want!r}: the last known row IS the "
+                           f"identity and nothing can recompute it")
+
+    live = {r["directory"]: r for r in index_runs.merge(
+        previous, [{"directory": "run_000000000001", "run_id": "run_000000000001",
+                    "orbits_on_disk": 90, "size_gb": 9.5, "physical": {},
+                    "converged": True}])}
+    if live["run_000000000001"].get("orbits_on_disk") != 90:
+        bad.append("a scan that CAN see a run does not update its row, so the "
+                   "index is frozen rather than merged")
+    return bad
+
+
 def check_commissioning_evidence_is_re_read() -> list[str]:
     """Every commissioning row is re-read from the run record it was copied from.
 
@@ -6299,6 +6356,8 @@ def main() -> None:
                lambda: check_relaxation_bracket_is_read()),
               ("the fit's tail fraction is stated once",
                lambda: check_fit_tail_fraction_is_stated_once()),
+              ("a rescan cannot remove a run from the index",
+               lambda: check_run_index_is_a_ledger()),
               ("every commissioning row is re-read from its run record",
                lambda: check_commissioning_evidence_is_re_read()),
               ("the model's shortwave cloud tables are the papers' tables",

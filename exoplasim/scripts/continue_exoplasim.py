@@ -38,6 +38,7 @@ from run_exoplasim import (  # noqa: E402
     SHORTWAVE_GAS_KEYS,
     trace_gas_ppmv,
     verify_staged_namelists,
+    record_identity,
     configure_otherargs,
     surface_sra,
     stage_surface_extras,
@@ -1291,6 +1292,7 @@ def main() -> None:
         if high_cadence_raw:
             manifest["high_cadence_raw"] = high_cadence_raw
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        record_identity(run_dir)
         raise
 
     # A diagnostic segment says nothing about where the run is settling, so it
@@ -1368,6 +1370,10 @@ def main() -> None:
         }
     )
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    # The ledger carries the run's length and status, and this segment moved
+    # both. Written here rather than at the next reindex, because a reindex only
+    # ever sees a run that is still on disk when someone happens to run it.
+    record_identity(run_dir)
     print(json.dumps(new_diagnostics, indent=2))
 
 
