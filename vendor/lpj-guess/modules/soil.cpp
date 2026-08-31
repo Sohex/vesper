@@ -2921,9 +2921,41 @@ void Soil::update_snow_properties(const int& daynum, const double& dailyairtemp,
 	// Note that K/C = D has units mm2/day, as above
 	// Wania values
 	// Csnow from Fukusako, Eq. 2. It's the same as for ice
-	static const double ice_density = 917.0; // kg m-3
+	//
+	// DECLARED DIVERGENCE FROM MAINLINE: snow_heat_capacity_density, owner
+	// WORLD-2AIJ, registered in biosphere/config/snow_thermal.yaml. Mainline
+	// LPJ-GUESS 4.1.1 and the vendored CNP fork both multiply the specific heat
+	// by solid ice's density rather than by the snowpack's own:
+	//     static const double ice_density = 917.0; // kg m-3
+	//     Csnow *= ice_density; // conversion to volumetric heat capacity (J m-3 K-1) - should be 1,900,000 J m-3 K-1 approx.
+	// A volumetric heat capacity is a density times a specific heat, and the
+	// density in question is the density of the substance occupying the volume,
+	// which here is snow. The SPECIFIC heat above is unchanged and is right:
+	// this modelled pack is ice Ih plus air, and at these densities the air
+	// carries under a thousandth of the mass, so a kilogram of it stores what a
+	// kilogram of ice stores.
+	//
+	// WHAT THE WRONG DENSITY DID. Snow enters this model as a water equivalent,
+	// snowpack in mm, and the layer thickness the numerical solve gets is
+	// snowpack / (snowdens / water_density), so it goes as 1/snowdens. A pack's
+	// thermal mass is its thickness times its volumetric heat capacity, so at
+	// fixed water equivalent it should not depend on the density at all: the
+	// two factors cancel. Pinning the capacity at solid ice's broke the
+	// cancellation and left the thermal mass per unit water equivalent a factor
+	// ice_density/snowdens too high -- 3.33 at snowdens_start, 1.83 at
+	// snowdens_end, 3.67 under snowdensityconstant. Ci[] takes Csnow directly
+	// for every active snow layer of the multilayer solve and Dsnow =
+	// Ksnow/Csnow carries the same factor into the diffusivity, so the modelled
+	// pack was both too slow to warm and too slow to cool.
+	//
+	// THE CLIMATE COLUMN GOT THE SAME REPAIR. landmod.f90's landini derives
+	// snowcap = rhosnow * CPSNOW from the density it was just given, under
+	// GRAV-8, for this argument; before that it was a namelist key held fixed
+	// while a bracket on rhosnow moved the pack's thermal mass. snowdiff and
+	// sicecap are the same defect at two more sites, and this is the one it
+	// reached in a second component.
 	Csnow = (0.185 + 0.689 * (K2degC + dailyairtemp) * 0.01) * J_PER_KJ; // J kg-1 K-1
-	Csnow *= ice_density; // conversion to volumetric heat capacity (J m-3 K-1) - should be 1,900,000 J m-3 K-1 approx.
+	Csnow *= snowdens; // conversion to volumetric heat capacity (J m-3 K-1)
 
 	// THE SNOW CONDUCTIVITY RELATION IS DECLARED IN lib/snow.py AND THIS IS A
 	// CHECKED RESTATEMENT OF IT. The climate model's landmod carries the same

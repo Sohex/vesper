@@ -1,9 +1,16 @@
-"""The snow conductivity gate: which relation the vegetation model's snowpack
-runs, and whether it is still the same one the climate model runs.
+"""The snow thermal gate: what the vegetation model's snowpack conducts and
+stores, and whether its conductivity is still the one the climate model runs.
 
 Worldbuilding. Vesper is an invented planet; everything below is about the
-simulation of it -- a vegetation model's snowpack, the relation that turns its
-density into a thermal conductivity, and the source the model actually reads.
+simulation of it -- a vegetation model's snowpack, the two thermal properties it
+derives from that pack's density, and the source the model actually reads.
+
+The two are a CONDUCTIVITY, which is a material relation with a source and a
+published bracket that both columns have to share, and a volumetric HEAT
+CAPACITY, which is a density times a specific heat and is settled by dimensional
+argument alone. Only the conductivity is a cross-column declaration, so only it
+is held to `lib/snow.py`; the capacity is a divergence from the release like any
+other and is checked as one.
 
 `biosphere/config/snow_thermal.yaml` is the declaration and this module is the
 enforcement. There are two halves and they fail for different reasons.
@@ -17,13 +24,14 @@ and so does `scripts/smoke_test.py`. Without that, the register could certify a
 divergence into a relation the climate column had since moved off, which is the
 two-agreeing-copies state the declaration exists to remove.
 
-THE DIVERGENCE IS FROM A RELEASE. `modules/soil.cpp`'s `update_snow_properties`
-arrived byte-identical to `guess_4.1/modules/soil.cpp`'s apart from a stripped
-licence header, and the relation it ran is default-on: `data/ins/global.ins`
-sets `iftwolayersoil 0`, which selects the multilayer soil temperature scheme,
-and `Ksnow` becomes the conductivity of every active snow layer in that scheme's
-numerical solve. So the change is to default-on behaviour in a widely used
-community model, and it is recorded on the same terms `ntransform_gate.py`
+THE DIVERGENCES ARE FROM A RELEASE. `modules/soil.cpp`'s
+`update_snow_properties` arrived byte-identical to `guess_4.1/modules/soil.cpp`'s
+apart from a stripped licence header, and what it ran is default-on:
+`data/ins/global.ins` sets `iftwolayersoil 0`, which selects the multilayer soil
+temperature scheme, and `Ksnow` and `Csnow` become the conductivity and the
+volumetric heat capacity of every active snow layer in that scheme's numerical
+solve. So every change here is to default-on behaviour in a widely used
+community model, and each is recorded on the same terms `ntransform_gate.py`
 records its own: mainline's lines stand verbatim beside the changed one.
 
 It can fail:
@@ -32,13 +40,13 @@ It can fail:
                the adopted row's coefficients, or normalises the ice volume
                fraction by something other than the density the fit was made
                against, or has stopped being a quadratic this check can read
-  divergence   the declared divergence from the release whose mainline form the
+  divergence   a declared divergence from the release whose mainline form the
                model no longer records beside the changed one, which it has gone
                back to running, or whose changed line it no longer contains. All
-               three are checked, because a divergence that is not recorded is a
-               silent fork, one that is recorded but live is a declaration that
-               has drifted from the model, and one whose changed line is gone has
-               been reverted with the record left behind
+               three are checked on every entry, because a divergence that is not
+               recorded is a silent fork, one that is recorded but live is a
+               declaration that has drifted from the model, and one whose changed
+               line is gone has been reverted with the record left behind
   drift        a density span the declaration names and `modules/soil.h` does
                not declare, or a coefficient of the superseded relation live
                anywhere in the vendored vegetation model
@@ -429,6 +437,12 @@ def _fixtures(declaration: dict, sources: dict, guess_sources: dict,
          mutate(lambda d: d["mainline_divergences"].__setitem__(
              "release", "mainline LPJ-GUESS")),
          "divergence"),
+        ("the SECOND divergence's changed line, which the source no longer "
+         "contains. The entries are checked one by one, so an appended one is "
+         "covered by the loop and not by the first entry's verdict",
+         mutate(claim("snow_heat_capacity_density", "live",
+                      "Csnow *= ice_density;")),
+         "divergence"),
         ("a relation declared somewhere other than the module that owns it",
          mutate(lambda d: d["relation"].__setitem__("declared_in",
                                                     "biosphere/config/snow_thermal.yaml")),
@@ -513,7 +527,7 @@ def main() -> int:
     if args.json:
         print(json.dumps(report, indent=2))
     else:
-        print("The simulated snowpack's conductivity, checked against the source.\n")
+        print("The simulated snowpack's thermal properties, checked against the source.\n")
         broken = [f for f in fixtures if not f["pass"]]
         print(f"  fixtures: {len(fixtures) - len(broken)} of {len(fixtures)} got their verdict")
         for case in broken:
