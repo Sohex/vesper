@@ -214,17 +214,81 @@ closes inside the limit. The standard error falls as one over the root of the
 record while the memory time grows sublinearly with it, so the requirement is
 reached rather than chased.
 
-Three details are load-bearing and each was found by measurement. The
+Four details are load-bearing and each was found by measurement. The
 half-to-half difference is HALF the end-to-end change of a steady drift and is
 DOUBLED; left unscaled it silently doubles the tolerance it is judged against.
 The span bar belongs on the half whose mean is taken, and it enters as
 degrees of freedom rather than as a hard bar -- applied to the whole record
 instead, a half stands on five effective samples and a family refusal rate of
-0.23 was measured against a declared 0.05. And scatter and memory time are taken
+0.23 was measured against a declared 0.05. Scatter and memory time are taken
 on the RAW half rather than a detrended one, so a real drift inflates the error
-it is judged against rather than shrinking it; guarding on an estimated memory
-time and then using that same estimate for the standard error selects for
-underestimates and is anti-conservative near the bar.
+it is judged against rather than shrinking it. And the memory time is taken at
+the UPPER END of its own sampling interval rather than at the estimate, which
+the measurement below forced.
+
+## What the statistic measures, against series whose answer is known
+
+2000 synthetic AR(1) trials per cell, 1253 cycles -- the longest record this
+project has -- with a relative scatter of 0.02 and the memory time swept over
+and beyond the 11.1 to 212.7 the model's own fields read. Reproduce with
+`biosphere/scripts/validate_drift_statistic.py <run>`; the JSON is
+`biosphere/analysis/drift_statistic_validation.json`.
+
+THE RATE THE CONTRACT DECLARES is the share of trials that ACCEPT a field whose
+true end-to-end drift is exactly the tolerance. Declared 0.05, and the bar fixed
+before the sweep was 0.075 at every swept memory time:
+
+| memory time | 1 | 10 | 20 | 40 | 80 | 125 | 175 | 213 | 300 | 400 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| at the estimated memory time | 0.000 | 0.012 | 0.020 | 0.037 | 0.051 | 0.053 | 0.068 | 0.080 | 0.099 | 0.109 |
+| at its upper end, which ships | 0.000 | 0.004 | 0.005 | 0.011 | 0.018 | 0.020 | 0.027 | 0.028 | 0.031 | 0.033 |
+
+The first row MISSES the bar from 213 upward, which is the top of the range the
+model is in, and the cause is in the estimator rather than in the statistic. On
+1253 samples `integrated_time` returns 1.01 for a true 1.0, 9.70 for 10.0, 34.4
+for 40.0, 86.1 for 125.0 and 128.9 for 213.0. A memory time read too small makes
+every standard error built on it too small, and the bias grows exactly where the
+acceptance rate does. The second row is what ships, and it holds the declared
+rate across the whole swept range with room to spare.
+
+The upper end is the Madras-Sokal windowing interval, and it is validated rather
+than taken on trust: it covers the memory time the series was built with 1.000,
+0.775, 0.760, 0.585 and 0.545 of the time at 1, 10, 40, 125 and 213. Half to
+three-quarters is NOT the 0.84 a one-standard-error upper bound would nominally
+give, because the interval is symmetric about a centre that is biased low. It is
+reported rather than rounded up, and what carries the declared acceptance rate
+across the range is that conservatism together with the raw-half memory time and
+the ignored covariance between the halves.
+
+THE COST, which is not barred and is what sizes the record: the share of trials
+that REFUSE a field with NO drift at all, at that same 0.02 relative scatter.
+
+| memory time | 1 | 10 | 20 | 40 | 80 | 125 | 175 | 213 | 300 | 400 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| refused with no drift | 0.000 | 0.000 | 0.020 | 0.273 | 0.655 | 0.809 | 0.860 | 0.878 | 0.882 | 0.887 |
+
+THE SIGNIFICANCE FORM, measured on the same trials for comparison, is the one
+this row began with: reject "no drift" at a per-field level derived from a
+declared family rate of 0.05 by Sidak over the 64 counted fields. Quoted at the
+ESTIMATED memory time, which is the form as it was proposed and its most
+favourable setting, its size is excellent -- 0.000 to 0.027 with no drift --
+and its power collapses exactly where it matters. At a true drift AT the
+tolerance it refuses 0.510, 0.446, 0.349, 0.207, 0.115, 0.089, 0.086, 0.071,
+0.075, 0.068 across the same sweep, so on a field with the memory time this
+model's slowest have it would PASS a run drifting at the tolerance about
+ninety-three times in a hundred. That is not a defect of the multiplicity
+correction; it is what a "failed to reject" verdict means on a record this
+short, and it is the whole argument for the direction.
+
+ONE REGISTERED CHECK MISSES AND THE REASON IS UNDERSTOOD. At a memory time of
+one the construction was to reproduce the textbook two-sample t and accept a
+drift at the tolerance 0.05 of the time. It accepts 0.000. The cause is the
+raw-half memory time: an injected ramp inside a half reads as memory, so the
+standard error comes out four times the independent-samples one and the bound is
+far wider than nominal. That is the conservatism working as designed, and it is
+recorded as a miss rather than explained away. The half of that check that does
+have a clean answer -- the estimator recovering the memory time it was handed --
+passes and is quoted above.
 
 ## The reported value is taken over the span the contract certifies
 
@@ -316,6 +380,29 @@ memory time is held at the value its own record read, and a longer record may
 read a larger one. That moves the answer rather than preventing one, which is
 the difference between it and the span multiple it replaced.
 
+WHAT IT IS SET BY IS SCATTER, NOT MEMORY TIME, and that is the finding the
+earlier form could not see. The record a field needs is proportional to its
+variance times its memory time, so `cpool.out` Total, at a memory time of 212.7
+and a relative scatter of 0.0055, resolves the tolerance on the 1253 cycles
+already on disk, while `anpp.out` TrBR, at 169.8 and 0.0485, does not until
+33846. Twenty-two of the 64 assessed fields resolve on the record on disk --
+every Total column, both soil pools, the grasses, and the one broadleaf
+evergreen type -- and 42 do not. Every one of the 42 is an individual plant
+functional type's own column.
+
+| what needs it | resolving length, cycles |
+| --- | --- |
+| every aggregate, both soil pools, the grasses | inside the 1253 on disk |
+| the temperate and boreal types | 2100 to 9000 |
+| the tropical and intermediate types | 16000 to 33900 |
+| binding field, anpp.out TrBR | 33846 |
+
+At the measured throughput that binding length is about eight and three quarter
+hours of retained record at npatch 5 on 16 ranks, before any spin-up. So the
+assessed set is what buys the run, and whether every per-PFT column belongs in
+it is world-mxmr rather than a question to settle by looking at what the
+current run needs.
+
 ### The relaxation time, measured without its asymptote
 
 Fitting `a + b exp(-t/tau)` needs the record to contain the turn-over, and on the
@@ -337,9 +424,22 @@ no curvature in it and the timescale it implies is a lower bound rather than a
 value. On the 1253-cycle record the model's simulated soil nitrogen returned a
 contraction of 0.992 with a delta-method uncertainty of 0.344 and read out as an
 e-folding time of 37647 cycles; a spin-up sized from that number would have been
-about 74000 cycles against the 2500 the same record supports. `npool.out` Total
-and SoilN were the only two fields the estimator admitted on that record, and it
-admits neither now.
+about 74000 cycles against the 2500 the same record supports.
+
+AND NO FIELD ON ANY RECORD THIS PROJECT HAS SURVIVES IT. Over 192 field-records
+across the three diagnostic runs, 97 are declined for block differences that
+change sign, 82 for a difference inside its own standard error, five for a ratio
+that is not a contraction at all, and every one of the eight that reaches a
+contraction has an uncertainty reaching one -- the best being 0.584 +/- 0.331.
+The bracket of 59.7 to 846.8 cycles that the 2318-cycle spin-up was derived from
+rested on ratios whose interval spanned the whole answer.
+
+So THE RELAXATION TIME OF THIS MODEL IS NOT MEASURED, and until it is there is
+no derived spin-up floor. `lib/run_lengths.py:ecological_run_cycles` returns none
+and names the estimator and the count; `build_vesper_pfts.py` falls back to the
+rescaled convention and records that it did. The RECORD floor is unaffected,
+because it never depended on the relaxation time; the two are independent and
+one being unmeasurable was hiding the other.
 
 ### The spin-up
 
@@ -357,6 +457,14 @@ and the module returns the smallest `S` that satisfies it. Starting from bare
 ground is the conservative reading and is stated rather than hidden: a pool the
 CENTURY accelerator hands over part-grown begins closer than a full level away
 and needs less.
+
+IT RETURNS NOTHING TODAY, because `tau` is what no record has measured. That is
+the honest state and it is checked as one: the gate asserts that a derived
+spin-up satisfies the inequality it came from AND that an absent one names the
+estimator that declined and the count, so a default fails in either place. What
+would lift it is a record long enough for a block difference to be several times
+its own memory-corrected standard error, which is the same currency the record
+floor is bought in.
 
 ### What it costs
 
