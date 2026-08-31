@@ -51,11 +51,23 @@ tile_model:
         source on 2026-08-30; notes/audits/partial-cell-tile-state.md carries
         the evidence. The disposition below is what world-cp27 implements and
         what world-uiq7 is then an execution-gate change against.
+      staged_field_rule: >-
+        `staged_surface_codes` names the surface codes a field reaches the
+        model through, and an empty list says the field is a model constant or
+        a cold-start profile rather than a staged one. The decision gate reads
+        those codes off the staged `.sra` and refuses a field declared
+        available whose value is UNIFORM over the cells the binary ownership
+        mask gives to the ocean while the land fraction is positive. A field
+        derived from the mesh varies over coastlines on every continent; a
+        single value there is the ownership mask's placeholder and is what the
+        land tile would otherwise start from. This makes the status below a
+        claim the gate can refuse rather than a string it trusts.
       ocean_tile_on_land_owned_cells: available
       land_tile_on_ocean_owned_cells: blocked_on_world-qcse
       fields:
         ocean_surface_temperature:
           status: available
+          staged_surface_codes: []
           source: >-
             icemod ice_cold_start computes the declared analytic profile
             tsst_pol + (tsst_eq - tsst_pol) * cos(latitude)^2 across the whole
@@ -65,17 +77,20 @@ tile_model:
             value on a land-owned cell is therefore declared, not fabricated.
         ocean_mixed_layer_depth:
           status: available
+          staged_surface_codes: []
           source: >-
             oceanmod mldepth is a scalar namelist value assigned to
             dlayer(NLEV_OCE), not a field, so the slab carries one depth
             everywhere and a land-owned cell needs no per-cell value.
         sea_ice:
           status: available
+          staged_surface_codes: []
           source: >-
             ice_cold_start sets hice_ini below TFREEZE. The branch is masked on
             xls < 0.5 today and widens with the ocean tile's own gate.
         land_surface_temperature:
           status: available
+          staged_surface_codes: []
           source: >-
             landmod initialises dtclsoil, dsoilt and dtclim to tmelt with no
             mask, and reads staged dtclsoil through mpsurfgp with no mask.
@@ -83,6 +98,7 @@ tile_model:
             declared cold-start value and it is defined on every cell.
         land_roughness:
           status: available
+          staged_surface_codes: [173]
           source: >-
             build_surface_roughness.py works from mesh.surface_class rather
             than the gridded ownership mask, so code 173 already carries a
@@ -91,6 +107,7 @@ tile_model:
             0.00015 m over pure ocean.
         land_field_capacity:
           status: available
+          staged_surface_codes: [229]
           source: >-
             build_surface_soil_water.py now follows the states file's
             population rather than the climatology's binary lsm, and pedology
@@ -101,6 +118,7 @@ tile_model:
             keep 0.5, which is where ExoPlaSim's default belongs.
         land_background_albedo:
           status: blocked
+          staged_surface_codes: [174, 175, 176]
           blocked_by: world-qcse
           source: >-
             build_surface_albedo.py no longer re-applies
@@ -113,6 +131,7 @@ tile_model:
             rather than behind anything of its own.
         land_vegetation_cover:
           status: blocked
+          staged_surface_codes: [212]
           blocked_by: world-qcse
           source: >-
             build_lpj_driver.py selected `land & (rootable > 0.0)` against the
