@@ -1,6 +1,6 @@
 {
   "contract_version": "vesper-partial-surface-decision-gate/1",
-  "generated": "2026-08-30T17:03:01+00:00",
+  "generated": "2026-08-31T01:54:07+00:00",
   "declaration": "config/partial_surface.yaml",
   "measurement": "analysis/coastline_flux_bracket.json",
   "implementation": {
@@ -28,6 +28,25 @@
       "land_background_albedo",
       "land_vegetation_cover"
     ],
+    "initial_state_declared_available": [
+      "land_field_capacity",
+      "land_roughness",
+      "land_surface_temperature",
+      "ocean_mixed_layer_depth",
+      "ocean_surface_temperature",
+      "sea_ice"
+    ],
+    "sea_owned_cells_carrying_ground": 620,
+    "staged_codes_derived_on_them": {
+      "land_field_capacity": [
+        229
+      ],
+      "land_roughness": [
+        173
+      ]
+    },
+    "staged_codes_uniform_on_them": {},
+    "staged_codes_declared_but_absent": {},
     "seam_prerequisites": {
       "declared initial state for both tiles": [],
       "separate positive-fraction land state": [
@@ -102,6 +121,11 @@
       "detail": "code 1720, 1053 partial T21 cells; immutable boundary is re-read on restart"
     },
     {
+      "name": "every initial-state field declared available reaches the staged artifact",
+      "passed": true,
+      "detail": "620 sea-owned T21 cells carry ground; land_field_capacity code [229] derived there, land_roughness code [173] derived there"
+    },
+    {
       "name": "implementation seams are taken in dependency order",
       "passed": true,
       "detail": "no seam stands on an absent prerequisite"
@@ -113,7 +137,7 @@
     }
   ],
   "summary": {
-    "passed": 8,
+    "passed": 9,
     "failed": 1
   },
   "verdict": "FAIL"

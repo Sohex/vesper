@@ -4,14 +4,47 @@
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "exoplasim/scripts"))
 CONTRACT = ROOT / "config/partial_surface.yaml"
 REPORT = ROOT / "analysis/partial_surface_decision_gate_report.json"
+
+
+def staged_field_populations(rung: str, nlat: int, nlon: int):
+    """The three cell sets a tile's initial state is judged on, by INDEX.
+
+    Both arrays are staged `.sra` on the same Gaussian grid and are read from
+    the same directory, so the cells are matched by index and no longitude is
+    reconstructed on either side. Code 172 is the binary ownership mask the
+    model advances one surface on; code 1720 is the land fraction the tile
+    model advances two on. Where they disagree is exactly the population whose
+    initial state nothing has had to define until now.
+    """
+    from sra import read_sra
+    staged = ROOT / "exoplasim/inputs" / rung.lower()
+    fraction = read_sra(staged / f"orogen_{rung}_surf_1720.sra", nlat, nlon)
+    owned = read_sra(staged / f"orogen_{rung}_surf_0172.sra", nlat, nlon)
+    return staged, (owned < 0.5) & (fraction > 0.0), fraction >= 1.0
+
+
+def uniform_over(field, population) -> bool:
+    """Is the field a single value over this population?
+
+    A field integrated from the native mesh varies over coastal cells on every
+    continent, so one distinct value there is not a measurement of anything: it
+    is the ownership mask's placeholder, written because the builder asked the
+    binary mask where there was ground. That is the state the land tile would
+    otherwise begin advancing from.
+    """
+    sub = field[population]
+    return sub.size > 0 and np.unique(sub).size == 1
 
 
 def main() -> None:
@@ -130,9 +163,57 @@ def main() -> None:
     initial_state = (declaration.get("tile_model", {}).get("state", {})
                      .get("initial_state", {}))
     initial_state_fields = initial_state.get("fields", {})
-    unready_initial_state = sorted(
+    declared_available = sorted(
         name for name, entry in initial_state_fields.items()
-        if entry.get("status") != "available")
+        if entry.get("status") == "available")
+    # AND `available` IS A CLAIM ABOUT THE ARTIFACT, NOT A STRING. Every field
+    # here is one edit away from reading `available` while the builder that
+    # would derive it has not run, and the gate would then credit the state
+    # seam over a placeholder. So each field names the surface codes it reaches
+    # the model through and the staged `.sra` is read: a field whose value is
+    # uniform over the sea-owned cells that carry ground was decided by the
+    # ownership mask and not by the mesh. An empty code list is a field the
+    # model computes itself -- a cold-start profile or a scalar -- and there is
+    # nothing staged to read.
+    placeholder_fields: dict[str, list[int]] = {}
+    verified_fields: dict[str, list[int]] = {}
+    unstaged_fields: dict[str, list[int]] = {}
+    planet = yaml.safe_load(
+        (ROOT / "config/planet.yaml").read_text(encoding="utf-8"))["model"]
+    rung = str(planet["resolution"]).upper()
+    nlat, nlon = int(planet["latitudes"]), int(planet["longitudes"])
+    staged_dir, sea_owned_with_ground, _pure_land = staged_field_populations(
+        rung, nlat, nlon)
+    from sra import read_sra
+    for name in declared_available:
+        codes = initial_state_fields[name].get("staged_surface_codes") or []
+        for code in codes:
+            path = staged_dir / f"orogen_{rung}_surf_{int(code):04d}.sra"
+            if not path.is_file():
+                unstaged_fields.setdefault(name, []).append(int(code))
+                continue
+            field = read_sra(path, nlat, nlon)
+            target = (placeholder_fields if uniform_over(field, sea_owned_with_ground)
+                      else verified_fields)
+            target.setdefault(name, []).append(int(code))
+    unready_initial_state = sorted(
+        set(name for name, entry in initial_state_fields.items()
+            if entry.get("status") != "available")
+        | set(placeholder_fields) | set(unstaged_fields))
+    check("every initial-state field declared available reaches the staged artifact",
+          not placeholder_fields and not unstaged_fields,
+          (f"{int(sea_owned_with_ground.sum())} sea-owned {rung} cells carry ground; "
+           + (", ".join(f"{n} code {c} derived there"
+                        for n, c in sorted(verified_fields.items()))
+              or "no field declares a staged code")
+           + (
+               "; UNIFORM there, so the ownership mask decided it: "
+               + ", ".join(f"{n} code {c}" for n, c in sorted(placeholder_fields.items()))
+               if placeholder_fields else "")
+           + (
+               "; declared available but not staged: "
+               + ", ".join(f"{n} code {c}" for n, c in sorted(unstaged_fields.items()))
+               if unstaged_fields else "")))
     LAND_STATE = "separate positive-fraction land state"
     OCEAN_STATE = "separate positive-fraction ocean state"
     BOTH_STATES = (LAND_STATE, OCEAN_STATE)
@@ -194,6 +275,11 @@ def main() -> None:
             "seam_order": [name for name, _, _, _ in seam_order],
             "initial_state_contract": initial_state.get("contract_version"),
             "initial_state_not_available": unready_initial_state,
+            "initial_state_declared_available": declared_available,
+            "sea_owned_cells_carrying_ground": int(sea_owned_with_ground.sum()),
+            "staged_codes_derived_on_them": verified_fields,
+            "staged_codes_uniform_on_them": placeholder_fields,
+            "staged_codes_declared_but_absent": unstaged_fields,
             "seam_prerequisites": {name: list(prerequisites)
                                    for name, _, _, prerequisites in seam_order},
             "missing_seams": missing_seams,
