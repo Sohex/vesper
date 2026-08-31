@@ -1,16 +1,16 @@
 {
-  "generated": "2026-08-30T16:39:46+00:00",
+  "generated": "2026-08-31T02:49:59+00:00",
   "iteration": 0,
   "soil_state": "baseline",
   "closes_loop_with": "nothing; iteration 0 has no biosphere",
-  "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+  "climatology": "/home/cfutro/docs/world/exoplasim/analysis/climatology/baseline_regular_climatology.nc",
   "climatology_stage": "baseline",
   "climatology_sha256": "54ba7da74dcc87399983cacfe67adff80de34d3252c6f003261f439a5857f94b",
-  "config_sha256": "c8639d3f08f21eacf7b794ed6bef772c50e8b474f1ed4e8b34a6503b026abc89",
-  "pedogenesis_sha256": "902cb085296aedae4a60171f610b561e5bb37272c288a7c878c753dfabdd64f5",
+  "config_sha256": "7b49f669b081ec67961ea8c9e05f2b35f45d4cf54b2979c425a2571b113aafdf",
+  "pedogenesis_sha256": "e6c78d891179c023ebb57f449cef58ddb8fa29cb0076a3231e896f9838854d2b",
   "source_build": "canonical-10m-carve2",
   "soilmap": "pedology/data/canonical-10m-carve2/soilmap_T21.txt",
-  "soilmap_sha256": "7886309a8aae382edc8d007b1c37dfbe893743d700af4b065ce6af149ae4cb00",
+  "soilmap_sha256": "e5b3ee66535f7d83128a5c99387f88d019d8a355fd7dcf6568704da854ab7b19",
   "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
   "rootable_surface": {
     "path": "biosphere/data/canonical-10m-carve2/rootable_fraction_T21.nc",
@@ -37,6 +37,11 @@
       "100x": 6.831589844023966
     },
     "parent_carbonate": 8.16283993032826,
+    "calcite_buffer_ph": 8.16283993032826,
+    "calcite_buffer_ph_bracket": [
+      6.831589844023966,
+      8.16283993032826
+    ],
     "parent_bracket_silicate": [
       5.585921412558292,
       8.16283993032826
@@ -45,9 +50,10 @@
       6.831589844023966,
       8.16283993032826
     ],
-    "endorheic_alkalinity_bonus_bracket": [
-      0.3371600696717394,
-      2.8371600696717394
+    "soda_buffer_ph": 8.5,
+    "soda_buffer_ph_bracket": [
+      8.5,
+      11.0
     ],
     "closed_basin_ph_range": [
       8.5,
@@ -113,7 +119,7 @@
     "silt": 0.29101227849106565,
     "clay": 0.29665523112309417,
     "quartz_inert": 0.19823734501668017,
-    "ph": 6.801469842944557,
+    "ph": 6.446480825895901,
     "regolith_depth_m": 1.0487315840736926,
     "organic_fraction": 0.0,
     "bulk_density_kg_m3": 1491.1467321293903,
@@ -139,6 +145,148 @@
   "column_base_note": "the plant-available capacity is cut at the land column property contract's declared base. Nothing in this pipeline draws water from below it: the physical column is fifteen layers to that depth, LPJ-GUESS's root distribution spans exactly those layers, and the contract's rootable base is shallower still. Water in regolith deeper than the base belongs to the aquifer term, which hydrography/config/land_water_ledger.yaml registers as the unrepresentable `transient_saturated_storage` under PLHY-4. WORLD-7702.",
   "regolith_note": "LPJ-GUESS has a fixed 1.5 m physical profile. VesperInput consumes regolith depth and weathered-bedrock fraction by scaling each layer's texture-derived water capacity, but it does not change layer or root geometry; see pedology/README.md and the soil/land-surface hydraulic consistency audit.",
   "output": "pedology/data/canonical-10m-carve2/soilmap_T21.txt",
-  "output_sha256": "7886309a8aae382edc8d007b1c37dfbe893743d700af4b065ce6af149ae4cb00",
-  "git_commit": "2e20dc48e92111dceca93bbf31be24d1864c28b5"
+  "output_sha256": "e5b3ee66535f7d83128a5c99387f88d019d8a355fd7dcf6568704da854ab7b19",
+  "git_commit": "243e05a001dbd6cab8c4487808553bd9c72549cd",
+  "exchange_complex": {
+    "note": "Cation exchange capacity, base saturation and the exchangeable base pool. Emitted because ANUT-8's above-ground-to-circulating multiplier was a declared 1-to-5 bracket for want of any exchange field in this pipeline. The multiplier below is what this world's own soil implies, one-signed upward at every step.",
+    "form": "CEC = clay_cec * clay + organic_matter_cec * organic, cmol(+)/kg of fine earth, no intercept. Sulfur does not read it: sulfate is an anion, so its pool is the andic anion exchange capacity instead",
+    "sources": "Sahrawat (1983) 10.1080/00103628309367409 for the two slopes; Solly et al. (2020) 10.3389/ffgc.2020.00098 for the organic-share check, the measured envelope and the calcium share; Chadwick et al. (2003) 10.1016/j.chemgeo.2002.09.001 and Solly for base saturation against pH; Vitousek and Sanford (1986) 10.1146/annurev.es.17.110186.001033 Table 7 for the root term; Dahlgren, Saigusa and Ugolini (2004) 10.1016/S0065-2113(03)82003-5 for the andic anion exchange ceiling, which is sulfate's only retention term. pedology/config/pedogenesis.yaml carries what each does and does not license.",
+    "cec_cmol_kg": {
+      "mean": 11.272898782677576,
+      "min": 3.1953206385092323,
+      "max": 29.074314107159758,
+      "p50": 9.213382768381688,
+      "p95": 21.945647346762886,
+      "p99": 25.742174218881793
+    },
+    "dropped_intercept_cmol_kg": 7.98,
+    "cec_is_blind_to_ph": "the emitted capacity does not respond to this component's pH field, because the source is one fit over soils spanning pH 3.5 to 7.9 and does not resolve pH. pH reaches the pool through base saturation instead, where two read sources do resolve it. world-n4i0 owns the pH-resolved relation that would close it",
+    "base_saturation": {
+      "mean": 0.5198817438720265,
+      "min": 0.05,
+      "max": 1.0,
+      "p50": 0.7957893704933411,
+      "p95": 1.0,
+      "p99": 1.0
+    },
+    "anion_exchange_cmol_kg": {
+      "mean": 0.01771480264912297,
+      "min": 0.0,
+      "max": 0.6529138059494325,
+      "p50": 0.0,
+      "p95": 0.0440715773183309,
+      "p99": 0.347241331749541
+    },
+    "root_zone_depth_m": 1.0,
+    "elements": {
+      "K": {
+        "aboveground_pool_g_m2": 302.0,
+        "exchangeable_pool_g_m2": {
+          "mean": 1341.5168513213594,
+          "min": 38.41617374476345,
+          "max": 6207.056355021214,
+          "p50": 1326.9228900660985,
+          "p95": 3525.780674694876,
+          "p99": 5952.596846750806
+        },
+        "exchangeable_bound_g_m2_max": 8125.868901021214,
+        "exchangeable_bound_g_m2_p99": 7871.409392750807,
+        "root_to_shoot_upper_all_sites": 3.24,
+        "root_to_shoot_upper_closed_canopy": 0.45,
+        "multiplier_bound": 31.14685066563316,
+        "multiplier_bound_at_p99": 30.304269512419893,
+        "multiplier_closed_canopy": 28.356850665633157,
+        "multiplier_low_end": 27.51426951241989
+      },
+      "Ca": {
+        "aboveground_pool_g_m2": 390.0,
+        "exchangeable_pool_g_m2": {
+          "mean": 1391.9122949593727,
+          "min": 39.85931634624136,
+          "max": 6440.230734000753,
+          "p50": 1376.770096720603,
+          "p95": 3658.2302082930332,
+          "p99": 6176.212195745321
+        },
+        "exchangeable_bound_g_m2_max": 8431.125423000753,
+        "exchangeable_bound_g_m2_p99": 8167.106884745321,
+        "root_to_shoot_upper_all_sites": 3.75,
+        "root_to_shoot_upper_closed_canopy": 0.47,
+        "multiplier_bound": 26.368270315386546,
+        "multiplier_bound_at_p99": 25.69129970447518,
+        "multiplier_closed_canopy": 23.088270315386545,
+        "multiplier_low_end": 22.41129970447518
+      },
+      "Mg": {
+        "aboveground_pool_g_m2": 53.0,
+        "exchangeable_pool_g_m2": {
+          "mean": 416.9723140744493,
+          "min": 11.94057372329116,
+          "max": 1929.2867244972965,
+          "p50": 412.43619677549395,
+          "p95": 1095.8885275264586,
+          "p99": 1850.1952319847353
+        },
+        "exchangeable_bound_g_m2_max": 2525.6949669972964,
+        "exchangeable_bound_g_m2_p99": 2446.603474484735,
+        "root_to_shoot_upper_all_sites": 5.43,
+        "root_to_shoot_upper_closed_canopy": 0.28,
+        "multiplier_bound": 54.084622018816916,
+        "multiplier_bound_at_p99": 52.592329707259154,
+        "multiplier_closed_canopy": 48.93462201881692,
+        "multiplier_low_end": 47.442329707259155
+      },
+      "S": {
+        "aboveground_pool_g_m2": 134.21052631578948,
+        "exchangeable_pool_g_m2": {
+          "mean": 3.866557584819909,
+          "min": 0.0,
+          "max": 122.84141004266058,
+          "p50": 0.0,
+          "p95": 10.441330494950407,
+          "p99": 73.8341382588683
+        },
+        "exchangeable_bound_g_m2_max": 122.84141004266058,
+        "exchangeable_bound_g_m2_p99": 73.8341382588683,
+        "root_to_shoot_upper_all_sites": 3.75,
+        "root_to_shoot_upper_closed_canopy": 0.47,
+        "multiplier_bound": 5.665288937572765,
+        "multiplier_bound_at_p99": 5.300136716438627,
+        "multiplier_closed_canopy": 2.3852889375727653,
+        "multiplier_low_end": 2.0201367164386266
+      }
+    },
+    "multiplier_bound": 54.084622018816916,
+    "multiplier_low_end": 47.442329707259155,
+    "binding_element": "Mg",
+    "level_probe": {
+      "clay_cec_2.0": {
+        "by_element": {
+          "K": 11.675429544967098,
+          "Ca": 10.723985131579049,
+          "Mg": 19.598861302877157,
+          "S": 5.665288937572765
+        },
+        "multiplier_bound": 19.598861302877157
+      },
+      "clay_cec_10.0": {
+        "by_element": {
+          "K": 16.002412016226224,
+          "Ca": 14.200492950202937,
+          "Mg": 27.262363684197105,
+          "S": 5.665288937572765
+        },
+        "multiplier_bound": 27.262363684197105
+      }
+    },
+    "level_probe_note": "the ANUT-8 bound re-evaluated at the clay coefficient's level endmembers rather than at its declared value, so how much of the bound is the coefficient and how much is this world is readable without rerunning anything. The root term is in every entry and carries no clay at all, which is what makes the verdict independent of the level.",
+    "root_term_only_multiplier": {
+      "K": 4.24,
+      "Ca": 4.75,
+      "Mg": 6.43,
+      "S": 4.75
+    },
+    "bracket_note": "both ends are the BINDING element's, because the scalar is one quantity: they span the root term's composition (the largest ratio anywhere in Vitousek and Sanford Table 7 against the largest at a closed-canopy site of the kind the above-ground maximum came from) and the field's tail (land maximum against p99). The spread ACROSS elements is a different statement and is what by_element carries. Neither end spans the LEVEL exposure on the capacity coefficients, which is larger than both and which level_probe reports and world-n4i0 owns.",
+    "declared_multiplier": 54.09
+  }
 }
