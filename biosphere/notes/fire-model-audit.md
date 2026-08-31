@@ -192,10 +192,24 @@ its maintained descendant carries the identical constant: LPJmL's
 `src/soil/fire_prob.c`, vendored at `vendor/lpjml`, returns 0.001 for any
 `fire_frac` below 0.001.  Two independent implementations state the number and
 neither argues for it.  Walking the chain is the repair the OPAQUE class
-prescribes, the chain has been walked, and there is no derivation at the end of
-it, so the constant is not opaque.  It is not tuned either: a fit residual does
-not arrive at exactly 1e-3 in two codebases, and no comment in either claims a
-fit.
+prescribes, and the chain is walked to its end: past the code, into the primary
+description of LPJF's fire module.  Thonicke, Venevsky, Sitch and Cramer (2001)
+states no minimum burned fraction anywhere.  It states the opposite -- its Eqn 5,
+`A(s) = s * f(s)`, is introduced with "A is zero when fire conditions were absent
+during the year" -- and its own reporting stops at "more than 900 years" for
+regions unsuitable to carry fire, which is the same diagnostic ceiling and not a
+floor on the state.  Sitch et al. (2003), the LPJ-DGVM description, documents the
+fire terms as empirical global-Earth choices and states no floor either.  Two
+implementations and two papers, and no derivation at the end of it, so the
+constant is not opaque.  It is not tuned either: a fit residual does not arrive
+at exactly 1e-3 in two codebases, and no comment in either claims a fit.
+
+What Thonicke DOES fit is Eqn 8's four coefficients -- 0.45, 2.83, 2.96 and 1.04
+-- by non-linear least-mean-square regression against observed area burnt in
+Portugal, southern California and Kakadu National Park.  That is a published fit
+with inspectable provenance and a stated Earth domain, which is a different thing
+from a tuning, and it is the curve this project keeps.  It is a separate question
+from the floor that sat on top of it.
 
 **What the number is, mainline states in its own source.**
 `modules/commonoutput.cpp` writes `firert_gridcell += 1000.0` under
