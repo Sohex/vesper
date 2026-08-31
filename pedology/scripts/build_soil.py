@@ -648,13 +648,15 @@ def exchange_properties(clay: np.ndarray, organic_fraction: np.ndarray,
     ref_clay = float(chk["reference_clay_fraction"])
     ref_organic = float(chk["reference_organic_matter_fraction"])
     organic_part = a_organic * ref_organic
-    share = organic_part / (organic_part + a_clay * ref_clay)
-    low, high = (float(v) for v in chk["solly_topsoil_organic_share_bracket"])
-    if not low <= share <= high:
+    organic_share = organic_part / (organic_part + a_clay * ref_clay)
+    share_low, share_high = (float(v) for v in
+                             chk["solly_topsoil_organic_share_bracket"])
+    if not share_low <= organic_share <= share_high:
         raise SystemExit(
-            f"pedogenesis.yaml exchange puts organic matter at {share:.3f} of "
-            f"cation exchange capacity at Sahrawat's own reference "
-            f"composition, outside the [{low}, {high}] Solly et al. (2020) "
+            f"pedogenesis.yaml exchange puts organic matter at "
+            f"{organic_share:.3f} of cation exchange capacity at Sahrawat's "
+            f"own reference composition, outside the [{share_low}, "
+            f"{share_high}] Solly et al. (2020) "
             "measured over 1204 Swiss forest profiles. The two coefficients "
             "are one region's regression slopes and what licenses carrying "
             "them to another world is that they reproduce a second region's "
@@ -671,9 +673,9 @@ def exchange_properties(clay: np.ndarray, organic_fraction: np.ndarray,
             f"at or below ph_low {ph_low}. The ramp runs upward from the "
             "aluminium-dominated end to the base-saturated one; inverting it "
             "would say acid soils hold more bases.")
-    low = float(sat["low_value"])
+    acid_end = float(sat["low_value"])
     ramp = np.clip((ph - ph_low) / (ph_high - ph_low), 0.0, 1.0)
-    base_saturation = low + (1.0 - low) * ramp
+    base_saturation = acid_end + (1.0 - acid_end) * ramp
 
     # Mass of fine earth per m2 of ground over the root zone. The pool is an
     # areal density, so this is where bulk density and depth enter and the only
@@ -681,9 +683,10 @@ def exchange_properties(clay: np.ndarray, organic_fraction: np.ndarray,
     soil_kg_m2 = bulk_density * root_zone_depth_m
 
     pools = {}
-    for element, share in cfg["cation_share_upper"].items():
+    for element, cation_share in cfg["cation_share_upper"].items():
         # cmol(+)/kg -> mol(+)/kg -> mol(+) per m2 -> mol of element -> grams.
-        equivalents = cec * 0.01 * float(share) * base_saturation * soil_kg_m2
+        equivalents = (cec * 0.01 * float(cation_share) * base_saturation
+                       * soil_kg_m2)
         pools[element] = (equivalents / CATION_CHARGE[element]
                           * CATION_MOLAR_MASS_G[element])
     # Sulfate is an anion and the cation exchange complex holds none of it. Zero
