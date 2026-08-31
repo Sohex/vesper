@@ -1334,9 +1334,15 @@ def main() -> None:
                                         + pool_p99 / q_above),
             "multiplier_closed_canopy": (1.0 + float(root_closed[element])
                                          + pool_max / q_above),
+            # The LOW end of the declared bracket on the other side: the
+            # coherent single-ecosystem root term against the field at its 99th
+            # percentile rather than its single largest cell.
+            "multiplier_low_end": (1.0 + float(root_closed[element])
+                                   + pool_p99 / q_above),
         }
 
     multiplier_bound = max(e["multiplier_bound"] for e in elements.values())
+    multiplier_low_end = min(e["multiplier_low_end"] for e in elements.values())
     binding = max(elements, key=lambda k: elements[k]["multiplier_bound"])
     report["exchange_complex"] = {
         "note": ("Cation exchange capacity, base saturation and the "
@@ -1368,7 +1374,15 @@ def main() -> None:
         "root_zone_depth_m": float(nutrients_decl["root_zone_depth_m"]),
         "elements": elements,
         "multiplier_bound": multiplier_bound,
+        "multiplier_low_end": multiplier_low_end,
         "binding_element": binding,
+        "bracket_note": (
+            "the two ends span the root term's composition (the largest ratio "
+            "anywhere in Vitousek and Sanford Table 7 against the largest at a "
+            "closed-canopy site of the kind the above-ground maximum came "
+            "from) and the field's tail (land maximum against p99). They do "
+            "NOT span the LEVEL exposure on the capacity coefficients, which "
+            "is larger than either and which world-n4i0 owns."),
         "declared_multiplier": float(anut["belowground_and_exchangeable_multiplier"]),
     }
 
@@ -1401,6 +1415,32 @@ def main() -> None:
     # Soil carbon grows through the loop and carries capacity with it, so this
     # fires on the iteration that outgrows the declaration rather than
     # silently making the screen permissive.
+    # The per-element declaration beside the scalar, checked the same way. The
+    # scalar is what the ledger reads today and it has to cover the worst
+    # element; the map is what the mechanism actually says, and sulfur's entry
+    # is the one the scalar is most wrong about, since sulfate is an anion and
+    # the cation exchange complex holds none of it. A map with no check on it
+    # would be the frozen state with four numbers instead of one.
+    by_element = anut.get("belowground_and_exchangeable_by_element")
+    if by_element is not None:
+        for element, row in elements.items():
+            if element not in by_element:
+                raise SystemExit(
+                    "abiotic_nutrients.yaml declares "
+                    "belowground_and_exchangeable_by_element and it is silent "
+                    f"on {element}, which this soil emits a bound for. A "
+                    "partial map is not a declaration.")
+            if float(by_element[element]) < row["multiplier_bound"]:
+                raise SystemExit(
+                    "abiotic_nutrients.yaml declares "
+                    f"belowground_and_exchangeable_by_element {element} at "
+                    f"{by_element[element]}, below the "
+                    f"{row['multiplier_bound']:.2f} this soil implies for it. "
+                    "Each entry is an upper bound on that element's standing "
+                    "circulating pool. "
+                    f"Written to {rel(report_path)} before this check so the "
+                    "state that failed is inspectable.")
+
     declared = float(anut["belowground_and_exchangeable_multiplier"])
     if declared < multiplier_bound:
         raise SystemExit(
