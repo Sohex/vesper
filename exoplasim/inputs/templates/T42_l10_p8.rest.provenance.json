@@ -1,29 +1,29 @@
 {
   "schema_version": 1,
   "kind": "restart_template",
-  "generated": "2026-08-30T20:28:02.245881+00:00",
+  "generated": "2026-08-31T13:31:40.858487+00:00",
   "generator": "exoplasim/scripts/build_restart_template.py",
   "generator_sha256": "ea2c0a9afe4728d210ab658a2adbf67a5bf9fb7117031be9b0f15bf9a03834a9",
   "schema_sha256": "e2b784b3cc1c0a332cd7b6fbc1e80db9e70d1653476abe1eddf0dee07ff9ba0c",
   "output": {
     "path": "/home/cfutro/docs/world/exoplasim/inputs/templates/T42_l10_p8.rest",
-    "sha256": "422fc71db8c0d12b8d01d5540c3b5a13351f228fb427a3a7921c6809520c54b0"
+    "sha256": "c6930d9542e957f9290eb0f36bcc546bd7a2f09e96a6f7ff8f65f2eef28093dd"
   },
   "cut_from": {
-    "run_dir": "exoplasim/runs/run_2938193bf6e1",
-    "run_id": "run_2938193bf6e1",
-    "restart": "exoplasim/runs/run_2938193bf6e1/plasim_restart",
-    "restart_sha256": "08bd18c5a6c0a54aaadb07eb27f80f442a4c8ca1c995324934096e8cfb8b75ca",
-    "completed_orbits": 1,
-    "status": "smoke_complete"
+    "run_dir": "/home/cfutro/docs/world/exoplasim/runs/run_61c53dd52f13",
+    "run_id": "run_61c53dd52f13",
+    "restart": "/home/cfutro/docs/world/exoplasim/runs/run_61c53dd52f13/MOST_REST.00000",
+    "restart_sha256": "3aec929a1f0157f37bdf63a3a0772c60e31e252f6176ce4310d559680e1f921c",
+    "completed_orbits": null,
+    "status": "prepared"
   },
   "executable": {
-    "path": "/home/cfutro/docs/world/exoplasim/runs/run_2938193bf6e1/most_plasim_t42_l10_p8.x",
-    "sha256": "0b3fc7c8912db4d538ba66f57497c6194e9bbda0f80cd065057f8ecb9a878a2b",
+    "path": "/home/cfutro/docs/world/exoplasim/runs/run_61c53dd52f13/most_plasim_t42_l10_p8.x",
+    "sha256": "037c24e7cfebd6e15478ffe68be921f337a1db117143dc36a4aa2ab318298c98",
     "arm": null,
     "manifest_entry": {
       "name": "most_plasim_t42_l10_p8.x",
-      "sha256": "0b3fc7c8912db4d538ba66f57497c6194e9bbda0f80cd065057f8ecb9a878a2b",
+      "sha256": "037c24e7cfebd6e15478ffe68be921f337a1db117143dc36a4aa2ab318298c98",
       "profile": "production",
       "effective_f90_opts": "-O2 -cpp -ffpe-trap=invalid,zero,overflow -ffpe-summary=none -march=znver4 -funroll-loops -g -fopenmp -DOMPSHARED -fdefault-real-8",
       "manifest": "/home/cfutro/docs/world/exoplasim/binary_manifest.json"
@@ -44,22 +44,25 @@
     "eccentricity": 0.02,
     "glaciers": true,
     "stellar_spectrum": "k25v",
-    "geography": "ee606eea"
+    "geography": "9067e33f"
   },
   "source_build": "canonical-10m-carve2",
-  "config_sha256": "a98dde74cee422377f313c442db9cdb49955f855971853e5fc27a415663ca116",
+  "config_sha256": "d556e4259d108f4e1fed45d216c69953319efd9ee9d51f7d7c713a1da5a9b1e0",
   "surface_field_sha256": {
     "129": "55a46b548ea0373c0ca18479f9dea5f18fa37798e21b6ed19166ddc7932f3368",
     "172": "a69ceb4de85ee6c260e66a3a53f665321104cfca87ae4376c163a65773332027",
     "173": "d877f8e1629536253c01a3ac5958d286f86acbfd979c24238fc68d0708b99913",
-    "174": "51e6ce3b55bdbccb900506d53c5e49a2aa77074598ace02b6cd7eb13377f7215",
-    "175": "9f18176986fca9cf2f0c1c88e4d79238c9e8b32b47dc839fcc7153d864ab0f0b",
-    "176": "c32d790fb6c3476075946effd6ca961fe00423b2b34f74b066f4b484e8e96397",
-    "212": "89b2e19e6cd09118ee28910db4270fc37d80a597b523b954dd30ce44e9203792",
+    "174": "c900eb4067e7a265f842113708267465543c41b63e9f011c04300019ff6d0bdf",
+    "175": "b8a83519aa5ca6bb0a2ffd4720db8346f8f2ad27f12be017d206927b5946fcb9",
+    "176": "8b6800d1a4ba7e81b086acdc9d8d2e714c2f257813cdbb30472f22c741028757",
+    "212": "2d0685242acedb3b55fc19be602c77b8f42abd061fdc92840a8193dd4680983b",
     "1720": "45b089955f624107eab437d3a9851aff201bf32e3e26b1159e0bf9ebb6cd4c68",
-    "1742": "dd0a28ec12acf9c432abb5954ed927536a5444ed53fd3c0eda8d00b5cb6d781e",
-    "1750": "4d81b04432aeddfec516dc251bc29bcc1b46c77281483c592a6933056527009b",
-    "1760": "ed07e343a7adf8476d0fd6121aed10409922a6773512cd5ea152bf9fd2f461d8"
+    "1742": "b5827917340a84ced91df68c980ee2f77d8ae2c59a262700c71e9011b8dfdcfa",
+    "1743": "f5d5f02e8342f7d63264a52cd34121525b8fb9f50f78364d043e0f49851eb6da",
+    "1750": "e37dd592fe66c26e36a7e223142af12ad1d381ef95e8ff21fc479eb01e0d1af8",
+    "1751": "19149896b0b2d58415beffd8e646d2aae7fc0d5ba55bd5da55e8646a5b05ce74",
+    "1760": "0d83eed0d099591be075b375d9e0c6601b66b17efa93878a99fe23db27eb3715",
+    "1761": "32da3074b93098b403fa2e8fa819b88598cea0e1364aba187897512c9975c32f"
   },
   "surface_fields": {
     "from_file": [
@@ -72,8 +75,11 @@
       212,
       1720,
       1742,
+      1743,
       1750,
-      1760
+      1751,
+      1760,
+      1761
     ],
     "unexpected_extra_files": [],
     "uniform_defaults_declared": true,
