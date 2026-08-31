@@ -1,10 +1,24 @@
 # Shared acceptance rule for every downstream LPJ-GUESS output consumer.
 #
 # Every number below carries its disposition. The argument, the measurement it
-# rests on and what the earlier form of this rule could and could not detect are
+# rests on and what each earlier form of this rule could and could not detect are
 # in `biosphere/notes/equilibrium-trend-null.md`.
-contract_version: vesper-lpj-equilibrium-window/3
+contract_version: vesper-lpj-equilibrium-window/4
+# The PER-CELL HALF'S window, and nothing else's. It used to name three spans at
+# once -- the reported value's, the equilibrium claim's, and this one -- and the
+# first two are the whole retained record. A slope fitted over ten cycles sits
+# inside one memory time for 61 of the 64 assessed fields, and a mean taken over
+# ten cycles is one effective sample of them.
 complete_forcing_cycles: 10
+# WHAT A CONSUMER READS, and it is the span the contract certifies. Reporting a
+# ten-cycle mean while certifying the whole record hands a consumer a number
+# whose own sampling error is larger than the drift the certificate refuses: at
+# a memory time of tens to hundreds of cycles a ten-cycle mean cannot be known
+# better than the field's marginal scatter, and ten of the assessed fields have
+# a marginal scatter above `relative_end_to_end_limit` outright. The reduced
+# value, its temporal spread and its own standard error are therefore taken over
+# the whole retained record, and the standard error travels with the value.
+reported_span: whole_retained_record
 trend:
   # DECISION, and sized through the consumer's own chain rather than left bare.
   # `exoplasim/scripts/build_surface_albedo.py --mode modelled` reads fpc.out and
@@ -18,18 +32,38 @@ trend:
   # factor of two in scripts/error_budget.py and open as world-ckbt. So this stays
   # a declared tolerance with its bracket recorded, and world-mqzk holds the
   # argument and the unblocker rather than a derivation being invented.
+  #
+  # The derivation is for ONE consumer-facing quantity and the contract applies
+  # the number to every assessed field. world-mxmr holds that.
   relative_end_to_end_limit: 0.05
-  # DECLARED, AND MEASURED NOT TO MEAN WHAT IT SAYS. The window carries
-  # `complete_forcing_cycles` points and the slope fit spends two, so 2.0 standard
-  # errors is a two-sided 0.081 at 8 degrees of freedom under independent samples,
-  # not 0.05. The samples are not independent: the measured memory time of these
-  # series is 9 to 125 cycles against a 10-cycle window, so the fit runs inside one
-  # memory time and the achieved per-cell flag rate is 0.47 to 0.86. Inflating the
-  # standard error by the square root of the memory time recovers only 0.19 to
-  # 0.46, because that correction is for a MEAN over a span and cannot make a span
-  # shorter than its memory carry a trend. This number therefore has no defensible
-  # value while the window is what it is, and the guard above fails closed so the
-  # test it governs is unreachable. world-ioxr holds the replacement.
+  # DECISION at the conventional level, AND IT IS THE RATE THIS CONTRACT ACTUALLY
+  # CONTROLS: the probability that a field whose true end-to-end drift is AT the
+  # limit is nonetheless accepted. An acceptance gate asserts that a run has
+  # settled, so this is its error to control; the rate at which a settled run is
+  # refused is the instrument's COST and is reported per field rather than
+  # declared, because it is what sizes the retained record.
+  #
+  # The run-level rate is the same number and needs no multiplicity correction.
+  # A run passes only when every assessed field passes, so by the
+  # intersection-union principle the probability of accepting a run in which any
+  # field truly drifts at the limit is bounded by this per-field rate. Contract 2
+  # declared 0.05 per field and measured 0.34 per run over 64 fields; expressing
+  # 0.05 through its empirical null would have needed about 7100 retained cycles.
+  maximum_false_acceptance_rate: 0.05
+  # DERIVED, not declared: the global half is an upper confidence bound on each
+  # field's end-to-end relative drift over the WHOLE retained record, and a field
+  # passes when that bound is inside the limit. A record too short to resolve the
+  # limit gives a wide bound and is refused by the test itself, so there is no
+  # separate span guard in front of it and nothing to be self-referential.
+  drift_bound_estimator: lib/lpj_output.py:drift_bound
+  memory_estimator: lib/autocorrelation.py:integrated_time
+  # DECLARED, and it governs the PER-CELL half alone. That half is still a slope
+  # over `complete_forcing_cycles`, so 2.0 standard errors is a two-sided 0.081 at
+  # 8 degrees of freedom under independent samples and less than that under the
+  # memory these series carry. Its size is absorbed into the measured limit below
+  # rather than derived from this number, which is why the number is a shape
+  # parameter of that half and not its level. world-4hlw holds the analytic
+  # replacement for the per-cell half.
   slope_standard_errors: 2.0
   # IRREDUCIBLE, and provably without consequence. It exists so a field that is
   # absent from a cell divides by a scale rather than by zero. The assessed tables
@@ -38,11 +72,6 @@ trend:
   # gives identical results on every table this contract reads, and the floor binds
   # only where the mean is exactly zero, where the drift is exactly zero too.
   absolute_scale_floor: 1.0e-12
-  # DERIVED, not declared: the memory-adequacy guard reads its estimator and its
-  # span bar from the module that owns them, and refuses a retained record that
-  # cannot establish the memory time of a field it is being asked to judge. This is
-  # the criterion every current run fails, and it fails them for a true reason.
-  memory_estimator: lib/autocorrelation.py:integrated_time
   cell_fraction:
     # DERIVED, per field, from the run being judged -- there is no number here to
     # declare. Measured at fixed forcing, the share of occupied cells a field's own
@@ -54,12 +83,11 @@ trend:
     null_statistic: maximum_over_detrended_windows_of_this_run
     # DECISION at the conventional level, and it is a PER-FIELD rate: a stationary
     # field exceeds the largest of N detrended null windows with probability
-    # 1/(N+1). The gate refuses a run when ANY of the 64 assessed fields exceeds,
-    # so the FAMILY rate is larger, and it was measured at 0.34 by the leave-one-out
-    # construction on lpj_377476c0's 100 windows. The name says per-field because
-    # that is what the construction controls. Controlling the family rate through
-    # an empirical null would need about 710 windows, 7100 retained cycles, so the
-    # repair is an analytic null and not a longer run; world-ioxr holds it.
+    # 1/(N+1). This half refuses a run when ANY of the 64 assessed fields exceeds,
+    # so its FAMILY rate is larger -- measured at 0.34 on 100 windows and about
+    # 0.24 on the 124 a 1253-cycle record leaves. That errs toward REFUSING, so a
+    # pass through this half is evidence and a refusal through it is not, and the
+    # analytic replacement is world-4hlw rather than a longer record.
     per_field_false_refusal_rate: 0.05
 uncertainty:
   temporal_statistic: sample_standard_deviation_over_annual_values

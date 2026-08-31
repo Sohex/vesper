@@ -258,6 +258,17 @@ def _derived_spinup_cycles() -> dict:
     except RuntimeError as exc:
         return {"cycles": None, "source": "Earth convention, rescaled",
                 "reason": str(exc), "convention_cycles": convention}
+    # The RECORD floor and the SPIN-UP floor are independent, and on the records
+    # this project has only the first is measurable. A missing spin-up is a
+    # refusal with a reason, not a zero and not a default: the record floor is
+    # still reported beside it so a caller knows what the run has to retain even
+    # while it has to fall back on the convention for what precedes it.
+    if derived["spinup_cycles"] is None:
+        return {"cycles": None, "source": "Earth convention, rescaled",
+                "reason": derived["spinup_reason"],
+                "record_cycles": int(math.ceil(derived["record_cycles"])),
+                "convention_cycles": convention,
+                "brackets": derived["brackets"]}
     return {"cycles": int(math.ceil(derived["spinup_cycles"])),
             "source": "lib/run_lengths.py:ecological_run_cycles",
             "is_a_floor": derived["is_a_floor"],

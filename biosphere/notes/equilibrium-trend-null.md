@@ -1,76 +1,69 @@
-# The equilibrium window's trending-cell limit, and the null it was missing
+# The equilibrium acceptance rule, and the instrument it took four measurements to find
 
-Vesper is a simulated world. This note is about the acceptance rule that decides
-whether a LPJ-GUESS run of its biosphere has settled, and about a number in that
-rule that had no derivation. Measured on 2026-08-30 against
-`biosphere/config/equilibrium_window.yaml` as it then stood, contract version
-`vesper-lpj-equilibrium-window/1`.
+Vesper is a simulated world. This note is about the rule that decides whether a
+LPJ-GUESS run of its simulated biosphere has settled, and about four
+measurements that each changed what the rule is rather than what a number in it
+says. Measured on 2026-08-30 and 2026-08-31 against
+`biosphere/config/equilibrium_window.yaml`, which is the declaration; this note
+is the argument.
 
-## What the rule did
+## What the rule is
 
-A field's cycle-mean series over the last 10 complete forcing cycles was called
-trending in a gridcell when its end-to-end change exceeded 5 per cent of the cell's
-window mean AND its slope exceeded 2 standard errors. The run was refused when the
-spatial mean met the same two conditions, or when more than
-`maximum_trending_cell_fraction: 0.25` of ALL cells were individually flagged.
+A field is SETTLED when the upper confidence bound on its end-to-end relative
+drift, taken over the whole retained record, is inside
+`relative_end_to_end_limit`. A run is accepted when every assessed field of
+every stability table is settled and no field's per-cell half refuses.
 
-The global half works. Its behaviour across run lengths is recorded on world-qcse:
-TeNE and IBS cleared between 100 and 1000 orbits because their drift was real and
-coherent, and the spatial-mean end-to-end change is the quantity that responded.
+What the contract declares is `maximum_false_acceptance_rate`: the probability
+that a field whose true drift is AT the limit is nonetheless accepted. That is
+the error an acceptance gate has to control, because an acceptance gate asserts
+that a run HAS settled. It is a per-field rate and it is also the run-level
+rate, with no multiplicity correction: a run passes only when every field
+passes, so by the intersection-union principle the probability of accepting a
+run in which any field truly drifts at the limit is bounded by the per-field
+level. The rate at which a SETTLED run is refused is not declared. It is the
+instrument's cost, it is reported per field, and it is what sizes the retained
+record.
 
-The 0.25 had no recorded derivation, and neither of the two knobs that should have
-relaxed it moved it: across 100 to 1000 orbits the flagged fraction went 0.376 to
-0.365, and across npatch 5 to 20 it went 0.376 to 0.348 while the median per-cell
-drift fell to 0.603 of its value and the median relative slope standard error fell
-to 0.658 of its value. The test is the ratio of those two, so reducing the noise
-cannot satisfy it.
+Reproduce the statistic's size and cost with
+`biosphere/scripts/validate_drift_statistic.py <run>`, and the timescales with
+`biosphere/scripts/derive_trend_null.py <run> --timescales`.
 
-## The null costs no model run
+## The first measurement: no single trending-cell fraction can be a limit
 
-The forcing cycle is one simulation year: `run_manifest.forcing` records
-`cycle_years: 1` against a `VESPDRV8` driver of 12 intervals, and every simulated
-year replays byte-identical forcing. All interannual variation in a retained record
-is therefore internal stochasticity of the simulated vegetation - patch disturbance,
-establishment, fire - and not forcing. A long run at fixed forcing is already the
-two-seed experiment the null was thought to need.
+The rule began as a slope over the last 10 complete forcing cycles, with a run
+refused when the spatial mean drifted more than 5 per cent end to end at over 2
+standard errors, or when more than `maximum_trending_cell_fraction: 0.25` of
+cells were individually flagged. The 0.25 had no derivation, and neither knob
+that should have relaxed it moved it: across 100 to 1000 orbits the flagged
+fraction went 0.376 to 0.365, and across npatch 5 to 20 it went 0.376 to 0.348
+while the median per-cell drift fell to 0.603 of its value and the median
+relative slope standard error fell to 0.658 of its value. The test is the ratio
+of those two, so reducing the noise cannot satisfy it.
 
-Method. Take the 1000-orbit diagnostic `lpj_377476c097b549fcaaa07cc7644275ad`
-(npatch 5, 1617 cells, 1000 cycles). Subtract a per-cell linear fit over the whole
-record and add the per-cell mean back, which removes any genuine approach to
-equilibrium and leaves stationary internal variability with the patch ensemble's
-persistence intact. Cut 100 disjoint 10-cycle windows and apply the contract's own
-per-cell test to each. Because the gate refuses a run if ANY field exceeds its
-limit, the null distribution of a refusal is the per-window MAXIMUM over fields.
+THE NULL COSTS NO MODEL RUN. The forcing cycle is one simulation year:
+`run_manifest.forcing` records `cycle_years: 1` against a `VESPDRV8` driver of
+12 intervals, and every simulated year replays byte-identical forcing. All
+interannual variation in a retained record is therefore internal stochasticity
+of the simulated vegetation, and a long run at fixed forcing is already the
+two-seed experiment the null was thought to need. Detrend each cell's whole
+record, add its mean back, cut disjoint 10-cycle windows, and apply the
+contract's own test to each.
 
-Reproduce with `biosphere/scripts/derive_trend_null.py <run>`.
-
-## What the null is
-
-Per-window maximum over the assessed fields, 100 windows, denominator as the rule
-then had it (all cells):
+Per-window maximum over the assessed fields, 100 windows of the 1000-orbit
+diagnostic `lpj_377476c097b549fcaaa07cc7644275ad`:
 
     median 0.392    p90 0.450    p95 0.455    p99 0.461    maximum 0.462
 
 The same statistic on `lpj_36b0f5fc91a640ed94618b0e95420916` (npatch 20, 10
 windows) gives median 0.367 and maximum 0.383, so the null is near enough
-invariant to patch count, as the ratio argument predicts. Flag rate against window
-position is flat (first-half median 0.394, second-half 0.388), so the detrending
-left no residual drift for the estimate to absorb.
+invariant to patch count as the ratio argument predicts, and the flag rate
+against window position is flat (first-half median 0.394, second-half 0.388), so
+the detrending left no residual drift in the estimate.
 
-So the limit sat BELOW the rate at which the test flags cells with provably no
-trend to find. The observed fractions that refused the two npatch-5 runs were 0.376
-and 0.365 for lai C3G against a null median of 0.379 and a null 95th percentile of
-0.410, and 0.309 and 0.290 for lai Total against a null median of 0.298 and a 95th
-percentile of 0.314. All four sit inside the null's 95th percentile and three of the
-four sit below its median: the runs were refused for showing no more apparent
-per-cell trending than a stationary surrogate of themselves.
-
-## Why no single number could have worked
-
-The null is a per-field quantity spanning three orders of magnitude, because it is
-set by each field's own internal variability and by how much of the grid it
-occupies, not by anything about equilibrium. Null median and power at twice the
-contract's own drift limit, all-cells denominator:
+The limit therefore sat BELOW the rate at which the test flags cells with
+provably no trend to find, and the null is a per-field quantity spanning three
+orders of magnitude because it is set by each field's own internal variability:
 
 | field | occupancy | null | power at 2x limit |
 | --- | --- | --- | --- |
@@ -79,106 +72,56 @@ contract's own drift limit, all-cells denominator:
 | cpool.out SoilC | 0.94 | 0.001 | 0.942 |
 | cpool.out Total | 0.94 | 0.058 | 0.907 |
 | tot_runoff.out Total | 1.00 | 0.133 | 0.846 |
-| npool.out LitterN | 0.91 | 0.260 | 0.701 |
 | lai.out Total | 0.93 | 0.298 | 0.552 |
 | lai.out C3G | 0.93 | 0.379 | 0.539 |
 | cpool.out VegC | 0.90 | 0.387 | 0.605 |
-| aaet.out C3G | 0.92 | 0.379 | 0.576 |
 | lai.out TeNE | 0.10 | 0.066 | 0.085 |
 | lai.out C4G | 0.15 | 0.075 | 0.099 |
 | lai.out IBS | 0.20 | 0.118 | 0.135 |
-| lai.out TeBE | 0.24 | 0.119 | 0.184 |
 
-Two separate defects are visible in that table.
+Two defects are visible in that table. The DENOMINATOR was every cell rather
+than the cells the field occupies, so a plant functional type present on a sixth
+of the grid could not reach a quarter-of-all-cells limit however hard it
+drifted; nine of the thirteen types occupy under 0.37 of cells and the guard was
+inert for them. And the SPREAD is irreducible by any single choice: a limit high
+enough for the patch-driven grass destroys it for the slow soil pools, where it
+discriminates almost perfectly.
 
-The DENOMINATOR was every cell rather than the cells the field occupies, so a
-plant functional type present on a sixth of the grid could not reach a
-quarter-of-all-cells limit however hard it drifted. Nine of the thirteen types
-occupy under 0.37 of cells and five occupy under 0.25; for those the measured
-power at twice the contract's drift limit is 0.08 to 0.19 against a 0.25 limit.
-The guard was inert for them.
+The denominator became the occupied cells and the limit became a measurement
+from the run's own detrended windows. That construction is what the per-cell
+half still uses.
 
-The SPREAD is irreducible by any single choice. Setting the limit high enough for
-the patch-driven grass and vegetation fields destroys it for the slow soil pools,
-where it discriminates almost perfectly: SoilN's null is 0.001 and its power at
-twice the limit is 0.998. Those pools are where per-cell disequilibrium is the
-real risk, because they are what the CENTURY accelerator hands off.
+## The second measurement: an empirical null cannot control a family rate
 
-## Where the excess over the textbook rate comes from
+A stationary field exceeds the largest of N detrended null windows with
+probability 1/(N+1), which is exact PER FIELD. The gate refuses when ANY of the
+64 assessed fields exceeds, and the family rate is `1-(1-1/(N+1))^F_eff`.
+Measured by leave-one-out on the 1000-orbit run's 100 windows it is 0.34 against
+a declared 0.05, flat across `slope_standard_errors` from 1.0 to 4.0 as the
+construction requires. The helper was validated first on synthetic fields: at
+100 windows it returns 0.010 for one field, 0.080 for eight and 0.460 for
+sixty-four independent ones, against an analytic 0.010, 0.077 and 0.474. The
+measured 0.34 corresponds to about 35 effective independent fields out of 64,
+the remainder being the correlated ones -- C3G in lai, fpc and aaet move
+together.
 
-For 10 independent points a 2-standard-error slope test has 8 degrees of freedom
-and a two-sided probability of 0.081. The measured null runs to 0.39. The gap is
-temporal memory in the cycle means. A within-window circular-shift surrogate,
-which preserves each cell's marginal distribution but whitens its serial
-structure, returns 0.007 to 0.09 across fields, close to the independent-samples
-rate, while the memory-preserving detrended long-run null returns 0.001 to 0.40.
+Raising N does not fix it. The finest probability an N-window empirical null can
+express is 1/(N+1), so a family rate of 0.05 over about 35 effective fields
+needs roughly 710 windows, 7100 retained cycles, about twenty hours of model
+time, re-measured per configuration. THE REPAIR IS AN ANALYTIC NULL, which has
+unlimited resolution, and an analytic null needs a standard error that is valid.
 
-That also settles a tempting shortcut: the circular-shift surrogate is trend-blind
-as required, returning the same value under an injected drift as under none, but
-it is not a calibrated null and using it as one would refuse everything.
+## The third measurement: the window was shorter than the thing it tested
 
-The ordinary least-squares slope standard error in the reducer models no memory.
-`lib/autocorrelation.py` is the module for a series whose samples carry memory,
-and the reducer does not use it; repairing the standard error rather than
-calibrating around it is a separate disposition and is tracked.
-
-## What replaced it, and what replaced that
-
-`vesper-lpj-equilibrium-window/2`. The declared fraction is gone. Each field's
-limit is measured from the run being judged: the record before the acceptance
-window is detrended cell by cell, cut into windows of the contract's own length,
-and the field's limit is the largest share of its occupied cells that any of those
-windows flags. The acceptance window itself is judged undetrended, so a drift
-present throughout the record is removed from the reference and left in the
-quantity being judged.
-
-A stationary field exceeds the largest of N such windows with probability 1/(N+1),
-so the retained record length, and not a chosen number, sets the rate at which the
-contract wrongly refuses. The contract declares that rate, 0.05, which requires 19
-null windows beside the acceptance window, so 20 windows and 200 retained cycles
-in all.
-
-Measured on the 1000-orbit run, 99 null windows, false-refusal rate 0.010, over
-the 64 assessed fields of the seven stability tables:
-
-| acceptance window | cell half refuses | global half refuses |
-| --- | --- | --- |
-| as run | 0 of 64 | 1 of 64 |
-| coherent drift at 2x the contract's limit | 46 of 64 | 63 of 64 |
-| cancelling regional drift at 2x the limit | 42 of 64 | 0 of 64 |
-
-The last row is what the per-cell half exists for, and is the one case the global
-half cannot see: opposed regional drifts that leave the spatial mean flat. The
-earlier form did not separate that case from an undisturbed run on the noisy
-fields, because its flagged fraction under a cancelling dipole and under no drift
-differed by less than its own window-to-window scatter.
-
-## What this leaves refused
-
-The 1000-orbit run now passes the per-cell half on all seven stability tables and
-is refused on one field only, `lai.out` TrIBE, whose spatial mean moves 0.055 over
-the window at 5.65 standard errors. That is the half that works, on a plant
-functional type that had not established at 100 orbits and is still expanding at
-1000. The refusal is real.
-
-The two 100-orbit runs are refused for a different and honest reason: a 100-cycle
-record leaves 9 null windows, so a stationary field would face a 0.10 false-refusal
-rate against a declared 0.05. Their acceptance needs a longer retained record, not
-a different limit.
-
-
-## The window is shorter than the thing it tests
-
-Measured 2026-08-30 on the same 1000-orbit record, through
-`lib/autocorrelation.py`, which owns the estimator and the two verdicts that say
-whether its answer means anything. Reproduce with
-`biosphere/scripts/derive_trend_null.py <run> --timescales`.
+Through `lib/autocorrelation.py`, which owns the estimator and the two verdicts
+that say whether its answer means anything. On the 1000-cycle record, 400
+sampled cells per table:
 
 The integrated autocorrelation time of the spatial-mean cycle series runs 9.3 to
-125.3 complete forcing cycles. The window the contract tests over is 10. Sixty-one
-of the 64 assessed fields have a spatial-mean memory time longer than the whole
-window, per-cell medians run 2.9 to 93.1, and the share of cells whose own memory
-time exceeds the window is 0.22 to 1.00.
+125.3 complete forcing cycles. The window the contract tested over was 10.
+Sixty-one of the 64 assessed fields have a spatial-mean memory time longer than
+the whole window, per-cell medians run 2.9 to 93.1, and the share of cells whose
+own memory time exceeds the window is 0.22 to 1.00.
 
 | table.field | spatial tau | cell tau median | cells with tau > window |
 | --- | --- | --- | --- |
@@ -189,95 +132,180 @@ time exceeds the window is 0.22 to 1.00.
 | npool.out SoilN | 60.6 | 89.0 | 0.87 |
 | tot_runoff.out Total | 14.9 | 5.5 | 0.33 |
 
-A trend fitted inside one memory time is not a trend. It is one smooth excursion of
-a process that has not had time to sample its own distribution; the residuals
+A trend fitted inside one memory time is not a trend. It is one smooth excursion
+of a process that has not had time to sample its own distribution; the residuals
 within the span are small because the process is smooth on that scale, so the
-ordinary least-squares standard error is small and the slope looks decisive. That
-is the whole of the measured 0.47 to 0.86 per-cell flag rate against a nominal
-0.081, and it is failure-modes class 34: a bed shorter than its startup.
+ordinary least-squares standard error is small and the slope looks decisive.
+That is the whole of the measured 0.47 to 0.86 per-cell flag rate against a
+nominal 0.081, and it is `docs/src/practice/failure-modes.md` class 34: a bed
+shorter than its startup.
 
-NO CORRECTION RESCUES IT. Inflating the slope standard error by the square root of
-the memory time, which is the correction `lib/autocorrelation.py` owns, moves
-lai.out's bare flag rate from 0.47-0.84 to 0.19-0.46: two to three times better,
-still two to six times nominal, still spanning a factor of four across fields. The
-correction is for a MEAN over a span and cannot make a span shorter than its memory
-carry a trend.
+NO CORRECTION RESCUES THE WINDOWED FORM. Inflating the slope standard error by
+the square root of the memory time moves lai.out's bare flag rate from 0.47-0.84
+to 0.19-0.46: two to three times better, still two to six times nominal, still
+spanning a factor of four across fields. That correction is for a MEAN over a
+span and cannot make a span shorter than its memory carry a trend. A
+within-window circular-shift surrogate, which keeps each cell's marginal
+distribution but whitens its serial structure, returns 0.007 to 0.09 across
+fields, close to the independent-samples rate: the whole excess is temporal
+memory.
 
-## The record is shorter than the approach it watches
+## The fourth measurement: a span multiple does not converge
 
-An exponential approach fitted to each field's spatial-mean series over the full
-1000 cycles is INADMISSIBLE for most fields, by a criterion declared before it was
-run: the asymptote must lie inside the record's own range and the e-folding time
-must be shorter than the record. Thirty-four of 64 fits put the asymptote outside
-the record, meaning the series has not turned over within 1000 cycles; three more
-return a timescale longer than the record. Where a fit is admissible the e-folding
-times are 22.9 to 775.9 cycles, mostly in the hundreds: lai.out TrIBE 685.1,
-aaet.out Total 775.9, lai.out TeBS 492.4.
+The obvious repair is a longer record and a longer window, at the span bar
+`lib/autocorrelation.py` declares: a span shorter than `RELIABLE_SPAN_MULTIPLE`
+times its own memory time cannot establish that memory time. Applied to the top
+of the measured bracket that asks for 1253 retained cycles, and a spin-up of
+2318 cycles follows from the relaxation time. That run was bought:
+`lpj_7d3c576ee4e342acb097b46fece976e0`, npatch 5, 1617 cells, 16 ranks, about 55
+minutes as derived.
 
-`lib/autocorrelation.py:stationary_enough` independently refuses the spatial-mean
-series of most fields: the linear trend across 1000 cycles moves them by more than
-their own standard deviation.
+THE FLOOR MOVED UNDER ITSELF.
 
-So the two bounds on run length are:
+    read on the 1000-cycle diagnostic    9.3 to 125.3 cycles  ->  record floor 1253
+    read on the 1253-cycle record       11.1 to 212.7 cycles  ->  record floor 2127
 
-- On the RETAINED record, from the memory time and the module's own span bar: at
-  least ten times tau, so 100 to 1250 cycles by field. The 200-cycle statistical
-  bound is not the binding one for the woody types or the slow pools.
-- On the SPIN-UP, from the relaxation time: several times an e-folding time of
-  hundreds of cycles, so of order 2000 to 5000. `vesper_pfts.ins` sets
-  nyear_spinup 998. The spin-up is short by a factor of two to five.
+The top rose 70 per cent when the window it is read on grew 25 per cent. The
+slowest fields are cpool.out Total 212.7, cpool.out VegC 184.1, lai.out TrBR
+173.2, anpp.out TrBR 169.8, aaet.out TrBR 162.5, and the estimator marks six of
+those seven NOT reliable, so 212.7 is itself a floor.
 
-That is why a run at literally fixed forcing is still drifting coherently after
-1000 further cycles. The time base is correct and is not implicated: 998 spin-up
-cycles is 500.0 Earth years and matches the community convention exactly. The
-convention is simply too short for this world's woody types and slow pools.
+A record sized at ten times a memory time read off a shorter record is not
+self-consistent, and it has now failed to converge twice. That is not an
+argument for a third guess at a length. It is an argument that the span multiple
+is the wrong criterion for this question: it asks whether the memory time can be
+ESTABLISHED, when what the contract needs to know is whether the TOLERANCE can
+be RESOLVED.
 
-## Contract 2's declared rate was per field, and it refused per run
+## The instrument: an upper bound on the drift
 
-`maximum_false_refusal_rate: 0.05` was exact PER FIELD: a stationary field exceeds
-the largest of N detrended null windows with probability 1/(N+1). But the gate
-refuses when ANY of the 64 assessed fields exceeds, and the family rate is
-1-(1-1/(N+1))^F_eff. Measured by leave-one-out on the 1000-orbit run's 100 windows,
-it is 0.34, flat across `slope_standard_errors` from 1.0 to 4.0 as the construction
-requires. The helper was validated first on synthetic fields: at 100 windows it
-returns 0.010 for one field, 0.080 for eight and 0.460 for sixty-four independent
-ones, against an analytic 0.010, 0.077 and 0.474. The measured 0.34 corresponds to
-about 35 effective independent fields out of 64.
+The direction is the repair. A significance test that fails to reject "no drift"
+asserts nothing about equilibrium; it reports that it could not tell, and on a
+record shorter than its own memory time it can never tell about anything. An
+acceptance gate's own error is letting a DRIFTING run through, and the
+instrument for that is an equivalence test. `lib/lpj_output.py:drift_bound`, per
+field, on the spatial-mean cycle series `x[0..n-1]`:
 
-Raising the record does not fix it. The finest probability an N-window empirical
-null can express is 1/(N+1), so a family rate of 0.05 needs about 710 windows, 7100
-retained cycles, roughly twenty hours of model time, re-measured per configuration.
-The repair is an analytic null, which needs a valid standard error, which needs a
-window longer than the memory time.
+    m = n // 2;  H1 = x[0:m], H2 = x[n-m:n]
+    tau  = max over the two halves of integrated_time(H).tau
+    v_i  = var(H_i, ddof=1) * tau / m
+    D    = 2 * (mean(H2) - mean(H1))
+    seD  = 2 * sqrt(v1 + v2)
+    df   = Welch on v1, v2 at m / tau - 1 degrees of freedom each
+    U    = |D| / scale + t(alpha, df) * seD / scale
 
-## What the contract is now
+and the field passes when `U <= relative_end_to_end_limit`.
 
-`vesper-lpj-equilibrium-window/3` adds one thing and renames one thing. Both are
-fully measured; nothing else changed, deliberately.
+Three properties follow from the direction alone, and each replaces a defect the
+windowed form could not repair.
 
-- A MEMORY-ADEQUACY GUARD, ahead of everything else. It applies
-  `lib/autocorrelation.py`'s declared span bar to both spans that must carry the
-  memory time: the retained record, where tau is estimated, and the acceptance
-  window, where the slope is actually fitted. It fails closed on every run this
-  project has: the 100-cycle runs cannot establish their fields' memory times at
-  all, and the 1000-cycle run has memory times of 9 to 125 cycles against a
-  10-cycle window. Every refusal now names the field, its memory time, and the
-  record length that would answer it.
-- `maximum_false_refusal_rate` is renamed `per_field_false_refusal_rate`, which is
-  what the construction controls, with the measured family rate recorded beside it.
+THE MULTIPLICITY DISAPPEARS, by intersection-union, as above. The Sidak factor,
+the counted family size and the 0.34 family rate are all gone by a derivation
+rather than by a longer record.
 
-The trend test below the guard is unchanged and is unreachable, which is the honest
-state: it is not valid at any window this model supports, and its replacement is a
-piece of statistical design rather than a threshold. What that replacement has to
-handle is recorded on world-ioxr, including three subtleties found and discarded in
-one afternoon: a half-to-half mean difference is half the end-to-end change and
-silently doubles the declared tolerance unless scaled; the span bar belongs on the
-half whose mean is taken, not on the record; and guarding on an estimated tau and
-then using that same estimate for the standard error selects for underestimates and
-is anti-conservative near the bar. A candidate that survives those measured a
-family refusal rate of 0.040 against a declared 0.05, with power 0.31 at the
-contract's own drift limit and 0.92 at twice it -- promising, and not validated
-enough to ship on the day it was written.
+THE GUARD DISAPPEARS. A record too short to resolve the tolerance gives a wide
+bound, the bound exceeds the limit, and the field is refused by the test itself.
+There is no second span rule standing in front of the test, and being a span
+rule is what made the guard self-referential.
+
+THE RECORD FLOOR CONVERGES. `lib/lpj_output.py:cycles_for_bound` inverts the
+bound: the record at which a settled field of this scatter and this memory time
+closes inside the limit. The standard error falls as one over the root of the
+record while the memory time grows sublinearly with it, so the requirement is
+reached rather than chased.
+
+Four details are load-bearing and each was found by measurement. The
+half-to-half difference is HALF the end-to-end change of a steady drift and is
+DOUBLED; left unscaled it silently doubles the tolerance it is judged against.
+The span bar belongs on the half whose mean is taken, and it enters as
+degrees of freedom rather than as a hard bar -- applied to the whole record
+instead, a half stands on five effective samples and a family refusal rate of
+0.23 was measured against a declared 0.05. Scatter and memory time are taken
+on the RAW half rather than a detrended one, so a real drift inflates the error
+it is judged against rather than shrinking it. And the memory time is taken at
+the UPPER END of its own sampling interval rather than at the estimate, which
+the measurement below forced.
+
+## What the statistic measures, against series whose answer is known
+
+2000 synthetic AR(1) trials per cell, 1253 cycles -- the longest record this
+project has -- with a relative scatter of 0.02 and the memory time swept over
+and beyond the 11.1 to 212.7 the model's own fields read. Reproduce with
+`biosphere/scripts/validate_drift_statistic.py <run>`; the JSON is
+`biosphere/analysis/drift_statistic_validation.json`.
+
+THE RATE THE CONTRACT DECLARES is the share of trials that ACCEPT a field whose
+true end-to-end drift is exactly the tolerance. Declared 0.05, and the bar fixed
+before the sweep was 0.075 at every swept memory time:
+
+| memory time | 1 | 10 | 20 | 40 | 80 | 125 | 175 | 213 | 300 | 400 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| at the estimated memory time | 0.000 | 0.012 | 0.020 | 0.037 | 0.051 | 0.053 | 0.068 | 0.080 | 0.099 | 0.109 |
+| at its upper end, which ships | 0.000 | 0.004 | 0.005 | 0.011 | 0.018 | 0.020 | 0.027 | 0.028 | 0.031 | 0.033 |
+
+The first row MISSES the bar from 213 upward, which is the top of the range the
+model is in, and the cause is in the estimator rather than in the statistic. On
+1253 samples `integrated_time` returns 1.01 for a true 1.0, 9.70 for 10.0, 34.4
+for 40.0, 86.1 for 125.0 and 128.9 for 213.0. A memory time read too small makes
+every standard error built on it too small, and the bias grows exactly where the
+acceptance rate does. The second row is what ships, and it holds the declared
+rate across the whole swept range with room to spare.
+
+The upper end is the Madras-Sokal windowing interval, and it is validated rather
+than taken on trust: it covers the memory time the series was built with 1.000,
+0.775, 0.760, 0.585 and 0.545 of the time at 1, 10, 40, 125 and 213. Half to
+three-quarters is NOT the 0.84 a one-standard-error upper bound would nominally
+give, because the interval is symmetric about a centre that is biased low. It is
+reported rather than rounded up, and what carries the declared acceptance rate
+across the range is that conservatism together with the raw-half memory time and
+the ignored covariance between the halves.
+
+THE COST, which is not barred and is what sizes the record: the share of trials
+that REFUSE a field with NO drift at all, at that same 0.02 relative scatter.
+
+| memory time | 1 | 10 | 20 | 40 | 80 | 125 | 175 | 213 | 300 | 400 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| refused with no drift | 0.000 | 0.000 | 0.020 | 0.273 | 0.655 | 0.809 | 0.860 | 0.878 | 0.882 | 0.887 |
+
+THE SIGNIFICANCE FORM, measured on the same trials for comparison, is the one
+this row began with: reject "no drift" at a per-field level derived from a
+declared family rate of 0.05 by Sidak over the 64 counted fields. Quoted at the
+ESTIMATED memory time, which is the form as it was proposed and its most
+favourable setting, its size is excellent -- 0.000 to 0.027 with no drift --
+and its power collapses exactly where it matters. At a true drift AT the
+tolerance it refuses 0.510, 0.446, 0.349, 0.207, 0.115, 0.089, 0.086, 0.071,
+0.075, 0.068 across the same sweep, so on a field with the memory time this
+model's slowest have it would PASS a run drifting at the tolerance about
+ninety-three times in a hundred. That is not a defect of the multiplicity
+correction; it is what a "failed to reject" verdict means on a record this
+short, and it is the whole argument for the direction.
+
+ONE REGISTERED CHECK MISSES AND THE REASON IS UNDERSTOOD. At a memory time of
+one the construction was to reproduce the textbook two-sample t and accept a
+drift at the tolerance 0.05 of the time. It accepts 0.000. The cause is the
+raw-half memory time: an injected ramp inside a half reads as memory, so the
+standard error comes out four times the independent-samples one and the bound is
+far wider than nominal. That is the conservatism working as designed, and it is
+recorded as a miss rather than explained away. The half of that check that does
+have a clean answer -- the estimator recovering the memory time it was handed --
+passes and is quoted above.
+
+## The reported value is taken over the span the contract certifies
+
+The contract certifies the whole retained record. It used to report a mean over
+the last 10 cycles, and that mean is what `build_surface_albedo.py`,
+`score_prediction.py` and `build_soil.py` consume. At a memory time of tens to
+hundreds of cycles a ten-cycle mean is one effective sample and cannot be known
+better than the field's marginal scatter, and ten of the assessed fields have a
+marginal scatter above `relative_end_to_end_limit` outright. The gate would have
+been certifying a state to 5 per cent while handing the consumer a number that
+is not known to 5 per cent: class 34 again, pointed at the value rather than at
+the test.
+
+The reduced value, its temporal spread and its own relative standard error are
+now taken over the whole retained record, and the standard error travels with
+the value on the report. `complete_forcing_cycles` names the per-cell half's
+window and nothing else.
 
 ## What a 5 per cent drift is worth to the consumer
 
@@ -295,103 +323,169 @@ fraction times canopy albedo minus substrate albedo.
 | surface to planetary attenuation | 0.5, DECLARED, factor of two | `scripts/error_budget.py` |
 | flux to kelvin | 159.7 K per flux ratio [155.3, 160.6] | `lib/sensitivity.py` |
 
-A 5 per cent drift in both tree and grass cover is worth about +0.064 K of surface
-temperature, bracketed +0.032 to +0.128 K. Against what the climate arm resolves --
-0.15 K for the single-run convergence criterion, 0.05 K for its resolving-power bar,
-0.027 K for the standard error of a 57-orbit climatology mean -- the derived limit
-spans 0.02 to 0.23 and cannot choose the number.
+A 5 per cent drift in both tree and grass cover is worth about +0.064 K of
+surface temperature, bracketed +0.032 to +0.128 K. Against what the climate arm
+resolves -- 0.15 K for the single-run convergence criterion, 0.05 K for its
+resolving-power bar, 0.027 K for the standard error of a 57-orbit climatology
+mean -- the derived limit spans 0.02 to 0.23 and cannot choose the number. The
+bracket is dominated by one unmeasured link: there is no measured
+d(planetary albedo)/d(surface albedo) in this tree, `lib/sensitivity.py`
+explicitly declines to own it, `scripts/error_budget.py` declares 0.5 and says
+in the same breath that the honest claim is a factor of two, and the single
+measured point is 0.3045 from one paired arm. world-ckbt is open to measure it.
+Until it closes, 0.05 stays a declared tolerance with this bracket recorded.
 
-The bracket is dominated by one unmeasured link. There is no measured
-d(planetary albedo)/d(surface albedo) in this tree: `lib/sensitivity.py` explicitly
-declines to own it, `scripts/error_budget.py` declares 0.5 and says in the same
-breath that the honest claim is a factor of two, and the single measured point is
-0.3045 from one paired arm. world-ckbt is open to measure it. Until it closes, 0.05
-stays a declared tolerance with this bracket recorded rather than a derivation being
-invented for it.
+THAT DERIVATION IS ABOUT AGGREGATE COVER AND THE CONTRACT APPLIES ITS NUMBER TO
+ALL 64 ASSESSED FIELDS, including each plant functional type's own column.
+world-mxmr holds that, and it is what sizes the next run.
 
-Two things the chain also exposed: `--mode modelled` has never been staged, since
-both `albedo_report.json` files record mode `vegetated`; and it cannot be, because
-`read_foliar_cover` calls `require_lpj_acceptance` and every LPJ run in the tree is
-refused. The cover magnitudes above are therefore from a refused run and are
-indicative of scale only.
+## What is still calibrated
+
+The PER-CELL half. It exists for the one case a spatial mean cannot see, and
+that job is real: on the 1000-cycle record a cancelling dipole at twice the
+tolerance is caught by the cell half in 42 of 64 fields and by the global half
+in 0 of 64.
+
+| acceptance window | cell half refuses | global half refuses |
+| --- | --- | --- |
+| as run | 0 of 64 | 1 of 64 |
+| coherent drift at 2x the tolerance | 46 of 64 | 63 of 64 |
+| cancelling regional drift at 2x the tolerance | 42 of 64 | 0 of 64 |
+
+It is still a slope over `complete_forcing_cycles`, so it still sits inside one
+memory time, and its size is still absorbed into a limit measured from the run's
+own detrended windows rather than derived. Its family false-refusal rate is 0.34
+on 100 windows and about 0.24 on the 124 a 1253-cycle record leaves. That errs
+toward REFUSING, so a pass through it is evidence and a refusal through it is
+not, and its empirical-null construction needs many windows and therefore cannot
+adopt the whole-record statistic. world-4hlw holds the analytic replacement.
 
 ## How long a run this world's ecology needs
 
-Both bounds are now derived rather than estimated, and both are carried by
-`lib/run_lengths.py` beside the climate model's pair. They are a second pair, in
-COMPLETE FORCING CYCLES rather than orbits, and the module keeps them apart: a
-cycle is one simulation year is one modelled orbit, so the two units coincide
-numerically only while the driver's cycle is one year, and the run's own declared
-cycle length travels with every reading.
+Both lengths are FLOORS, both are read out of the acceptance artifacts by
+`lib/run_lengths.py`, and that module states no number of its own. They are a
+second timescale pair, in COMPLETE FORCING CYCLES rather than orbits, and the
+module keeps them apart from the climate model's: a cycle is one simulation year
+is one modelled orbit, so the two units coincide numerically only while the
+driver's cycle is one year, and the run's own declared cycle length travels with
+every reading.
+
+### The retained record
+
+The record floor is `cycles_for_bound`'s answer for the field that needs the
+most, and it is written onto the acceptance artifact whatever the verdict --
+because a run refused for not resolving its own drift is exactly the run that
+says how long the next one has to be. It is a floor for one reason only: the
+memory time is held at the value its own record read, and a longer record may
+read a larger one. That moves the answer rather than preventing one, which is
+the difference between it and the span multiple it replaced.
+
+WHAT IT IS SET BY IS SCATTER, NOT MEMORY TIME, and that is the finding the
+earlier form could not see. The record a field needs is proportional to its
+variance times its memory time, so `cpool.out` Total, at a memory time of 212.7
+and a relative scatter of 0.0055, resolves the tolerance on the 1253 cycles
+already on disk, while `anpp.out` TrBR, at 169.8 and 0.0485, does not until
+33846. Twenty-two of the 64 assessed fields resolve on the record on disk --
+every Total column, both soil pools, the grasses, and the one broadleaf
+evergreen type -- and 42 do not. Every one of the 42 is an individual plant
+functional type's own column.
+
+| what needs it | resolving length, cycles |
+| --- | --- |
+| every aggregate, both soil pools, the grasses | inside the 1253 on disk |
+| the temperate and boreal types | 2100 to 9000 |
+| the tropical and intermediate types | 16000 to 33900 |
+| binding field, anpp.out TrBR | 33846 |
+
+At the measured throughput that binding length is about eight and three quarter
+hours of retained record at npatch 5 on 16 ranks, before any spin-up. So the
+assessed set is what buys the run, and whether every per-PFT column belongs in
+it is world-mxmr rather than a question to settle by looking at what the
+current run needs.
 
 ### The relaxation time, measured without its asymptote
 
-The exponential fits above refused for 34 of 64 fields because the asymptote landed
-outside the record, and a refused fit gives no number. A second estimator does not
-need the asymptote: for `y = A - B exp(-t/tau)` the difference between consecutive
-equal blocks decays by `exp(-Q/tau)` and `A` cancels out of the ratio, so four equal
-blocks of the record give `tau = -Q / ln(r)` with `r` the ratio of successive
-differences of the block means. `lib/lpj_output.py:relaxation_time` is the
-implementation and its admissibility conditions were declared before it was run: the
-successive differences must share a sign, their ratio must be a contraction in
-(0, 1), each difference must exceed twice its own MEMORY-CORRECTED standard error,
-and the second ratio must agree with the first inside a factor of two.
+Fitting `a + b exp(-t/tau)` needs the record to contain the turn-over, and on the
+1000-cycle record the asymptote landed outside the data for 34 of 64 fields.
+`lib/lpj_output.py:relaxation_time` does not need it: for that same exponential
+the difference between consecutive equal blocks decays by `exp(-Q/tau)` and `a`
+cancels out of the ratio, so four equal blocks give `tau = -Q / ln(r)`.
 
-On the 1000-cycle record, five fields across the two assessed runs clear all four.
+Its admissibility conditions were declared before it was run, and one of them
+was added after the estimator was measured against itself: the successive
+differences must share a sign, their ratio must be a contraction in (0, 1), each
+difference must exceed twice its own MEMORY-CORRECTED standard error, the
+contraction must sit two standard errors BELOW ONE, and the second ratio must
+agree with the first inside a factor of two.
 
-| field | relaxation, cycles | memory, cycles |
-| --- | --- | --- |
-| lai.out BNS | 464.8 | 48.7 |
-| anpp.out BNS | 767.0 | 39.4 |
-| npool.out Total | 846.8 | 78.3 |
+THE RESOLUTION CONDITION IS THE ONE THAT BITES. `tau = -Q / ln(r)` diverges as
+`r` approaches one, so a ratio whose own uncertainty reaches one is a record with
+no curvature in it and the timescale it implies is a lower bound rather than a
+value. On the 1253-cycle record the model's simulated soil nitrogen returned a
+contraction of 0.992 with a delta-method uncertainty of 0.344 and read out as an
+e-folding time of 37647 cycles; a spin-up sized from that number would have been
+about 74000 cycles against the 2500 the same record supports.
 
-The other 123 are declined, most for a block difference inside twice its own
-standard error or for successive differences that change sign, which is what a
-memory time of 60 to 125 cycles does to blocks of 250. So the relaxation bracket is
-59.7 to 846.8 cycles with an OPEN TOP: a field the estimator declines may be slower
-still, and that is why what comes out of it is a floor rather than a length.
+AND NO FIELD ON ANY RECORD THIS PROJECT HAS SURVIVES IT. Over 192 field-records
+across the three diagnostic runs, 97 are declined for block differences that
+change sign, 82 for a difference inside its own standard error, five for a ratio
+that is not a contraction at all, and every one of the eight that reaches a
+contraction has an uncertainty reaching one -- the best being 0.584 +/- 0.331.
+The bracket of 59.7 to 846.8 cycles that the 2318-cycle spin-up was derived from
+rested on ratios whose interval spanned the whole answer.
 
-### The two floors
+So THE RELAXATION TIME OF THIS MODEL IS NOT MEASURED, and until it is there is
+no derived spin-up floor. `lib/run_lengths.py:ecological_run_cycles` returns none
+and names the estimator and the count; `build_vesper_pfts.py` falls back to the
+rescaled convention and records that it did. The RECORD floor is unaffected,
+because it never depended on the relaxation time; the two are independent and
+one being unmeasurable was hiding the other.
 
-The RETAINED RECORD floor is the memory time's, at the top of that bracket because a
-record must serve every field it will be asked to judge, and at the span multiple
-`lib/autocorrelation.py` declares for any span whose mean is taken:
+### The spin-up
 
-    record >= 10 x 125.3 = 1253 cycles
-
-The SPIN-UP floor is the relaxation time's, and it takes its residual from the
-criterion that judges what follows, exactly as `SETTLING_RESIDUAL_K` takes 0.15 K
-from the offset criterion. A spin-up from bare ground starts a full equilibrium level
-away, so the approach remaining after `S` cycles is `exp(-S/tau)` of the level and the
-drift it puts across a retained record of `L` is that times `1 - exp(-L/tau)`. The
-acceptance contract refuses a record whose relative end-to-end change exceeds
-`relative_end_to_end_limit`, so
+The spin-up floor takes its residual from the criterion that judges what
+follows, exactly as `SETTLING_RESIDUAL_K` takes 0.15 K from the offset criterion
+on the climate side. A spin-up from bare ground starts a full equilibrium level
+away, so the approach remaining after `S` cycles is `exp(-S/tau)` of the level
+and the drift it puts across a retained record of `L` is that times
+`1 - exp(-L/tau)`. The acceptance contract refuses a record whose relative
+end-to-end change exceeds `relative_end_to_end_limit`, so
 
     exp(-S/tau) x (1 - exp(-L/tau)) <= 0.05
 
-At tau 846.8 and L 1253 that is S >= 2318 cycles. Starting from bare ground is the
-conservative reading and is stated rather than hidden: a pool the CENTURY accelerator
-hands over part-grown begins closer than a full level away and needs less.
+and the module returns the smallest `S` that satisfies it. Starting from bare
+ground is the conservative reading and is stated rather than hidden: a pool the
+CENTURY accelerator hands over part-grown begins closer than a full level away
+and needs less.
 
-### What it costs, which is the point
+IT RETURNS NOTHING TODAY, because `tau` is what no record has measured. That is
+the honest state and it is checked as one: the gate asserts that a derived
+spin-up satisfies the inequality it came from AND that an absent one names the
+estimator that declined and the count, so a default fails in either place. What
+would lift it is a record long enough for a block difference to be several times
+its own memory-corrected standard error, which is the same currency the record
+floor is bought in.
 
-    spin-up   2318 cycles
-    record    1253 cycles
-    total     3571 cycles
+### What it costs
 
-Measured throughput on the runs on record, from their own manifests, is 0.9267 seconds
-per simulated year at npatch 5 on 16 ranks over 1617 cells: 990.7 s for 1098 simulated
-years and 1824.7 s for 1998, which agree to one per cent and imply a negligible fixed
-cost. So the whole run is about 55 minutes, and about 3.7 hours at npatch 20.
+Measured throughput on the runs on record, from their own manifests, is 0.9267
+seconds per simulated year at npatch 5 on 16 ranks over 1617 cells: 990.7 s for
+1098 simulated years and 1824.7 s for 1998, which agree to one per cent and
+imply a negligible fixed cost. Multiply the total cycle count by that; npatch 20
+is about four times it.
 
-THE ANSWER IS THAT IT IS CHEAP. The spin-up this world's ecology needs is 2.3 times
-Earth's convention and costs under an hour, and the reason no run has ever had it is
-not expense but that nobody had derived it. `vesper_pfts.ins` took the shipped 500 and
-rescaled it correctly into 998 simulation years; the conversion was right and the
-convention was Earth's.
+The time base is correct and is not implicated in any of this. `vesper_pfts.ins`
+sets nyear_spinup 998 and freenyears 200, which at 0.5010172 Earth years per
+orbit are 500.0 and 100.2 Earth years and match LPJ-GUESS's convention exactly.
+The convention is Earth's, and this world's woody types and slow pools are not
+Earth's. `build_vesper_pfts.py` reads the derived spin-up floor when an assessed
+run carries one and falls back to the rescaled convention only when none does,
+recording which it used.
 
-Both numbers are floors and the derivation says why: the relaxation bracket's top is
-open, and the memory time read off this model grows with the window it is read on, so
-the next record re-reads its own floor. `build_vesper_pfts.py` reads the spin-up floor
-when an assessed run exists and falls back to the rescaled convention only when none
-does, recording which it used.
+## What the contract cannot yet do, and what has never been staged
+
+`build_surface_albedo.py --mode modelled` has never been staged, since both
+`albedo_report.json` files record mode `vegetated`, and it cannot be while
+`read_foliar_cover` calls `require_lpj_acceptance` and no LPJ run in the tree is
+accepted. Every cover magnitude quoted from a run in this note is therefore from
+a refused run and is indicative of scale only.

@@ -1,16 +1,18 @@
 {
   "contract_version": "vesper-lpj-acceptance/1",
-  "generated": "2026-08-30T20:32:27+00:00",
+  "generated": "2026-08-31T04:52:22+00:00",
   "run_id": "lpj_377476c097b549fcaaa07cc7644275ad",
   "source_build": "canonical-10m-carve2",
   "manifest_sha256": "dcbe5f4d023cfe76eeb3f6e4a9ee2ab4199a5325f5db5a35f92582005aef9696",
   "contract_sha256": "c1a86db8be4fc40ef74d93d5a0e16e4b0d1bc3c9e4b4f804b6ab8b6d5e587e62",
   "verdict": "FAIL",
-  "refusal": "anpp.out equilibrium refusal: /home/cfutro/docs/world/biosphere/runs/lpj_377476c097b549fcaaa07cc7644275ad/anpp.out's retained record is too short to judge: BNE (memory time 88.5 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 885); BINE (memory time 70.5 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 705); BNS (memory time 39.4 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 394); TeNE (memory time 19.1 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 191); TeBS (memory time 31.5 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 315); IBS (memory time 84.1 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 841); TeBE (memory time 14.2 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 142); TrBE (memory time 73.7 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 737); TrIBE (memory time 98.3 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 983); TrBR (memory time 72.3 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 723); C3G (memory time 9.3 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 93); C4G (memory time 36.0 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 360); Total (memory time 12.7 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 127)",
+  "refusal": "anpp.out equilibrium refusal: /home/cfutro/docs/world/biosphere/runs/lpj_377476c097b549fcaaa07cc7644275ad/anpp.out's retained record does not bound its drift inside 0.05: BNE (drift 0.1219 +/- 0.0405 bounds at 0.2027 against a limit of 0.05; memory time 127.0 cycles leaves 3.9 effective samples per half of a 1000-cycle record, and a SETTLED field of this scatter would resolve the limit at 7214 cycles); BINE (drift 0.1516 +/- 0.0420 bounds at 0.2417 against a limit of 0.05; memory time 166.7 cycles leaves 3.0 effective samples per half of a 1000-cycle record, and a SETTLED field of this scatter would resolve the limit at 2738 cycles); BNS (drift 0.1701 +/- 0.0733 bounds at 0.3898 against a limit of 0.05; memory time 258.4 cycles leaves 1.9 effective samples per half of a 1000-cycle record, and a SETTLED field of this scatter would resolve the limit at 1427 cycles); TeNE (drift 0.1397 +/- 0.0895 bounds at 0.2927 against a limit of 0.05; memory time 37.1 cycles leaves 13.5 effective samples per half of a 1000-cycle record, and a SETTLED field of this scatter would resolve the limit at 21454 cycles); TeBS (drift 0.0351 +/- 0.0180 bounds at 0.0666 against a limit of 0.05; memory time 57.0 cycles leaves 8.8 effective samples per half of a 1000-cycle record, and a SETTLED field of this scatter would resolve the limit at 1000 cycles); IBS (drift 0.0697 +/- 0.1092 bounds at 0.3344 against a limit of 0.05; memory time 199.6 cycles leaves 2.5 effective samples per half of a 1000-cycle record, and a SETTLED field of this scatter would resolve the limit at 17280 cycles); TrBE (drift 0.0477 +/- 0.0261 bounds at 0.0978 against a limit of 0.05; memory time 111.8 cycles leaves 4.5 effective samples per half of a 1000-cycle record, and a SETTLED field of this scatter would resolve the limit at 2307 cycles); TrIBE (drift 0.0932 +/- 0.0559 bounds at 0.2204 against a limit of 0.05; memory time 189.1 cycles leaves 2.6 effective samples per half of a 1000-cycle record, and a SETTLED field of this scatter would resolve the limit at 11548 cycles); TrBR (drift 0.0532 +/- 0.0574 bounds at 0.1656 against a limit of 0.05; memory time 118.0 cycles leaves 4.2 effective samples per half of a 1000-cycle record, and a SETTLED field of this scatter would resolve the limit at 13731 cycles); C3G (drift 0.0471 +/- 0.0094 bounds at 0.0628 against a limit of 0.05; memory time 16.3 cycles leaves 30.8 effective samples per half of a 1000-cycle record, and a SETTLED field of this scatter would resolve the limit at 1000 cycles); C4G (drift 0.0103 +/- 0.0411 bounds at 0.0861 against a limit of 0.05; memory time 94.4 cycles leaves 5.3 effective samples per half of a 1000-cycle record, and a SETTLED field of this scatter would resolve the limit at 3886 cycles)",
   "timescales": {
     "estimator": "lib/autocorrelation.py:integrated_time",
     "relaxation_estimator": "lib/lpj_output.py:relaxation_time",
     "reliable_span_multiple": 10.0,
+    "drift_tolerance": 0.05,
+    "contract_version": "vesper-lpj-equilibrium-window/4",
     "tables": {
       "anpp.out": {
         "record_cycles": 1000,
@@ -37,6 +39,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.12186159149112073,
+              "relative_standard_error": 0.04049410573849551,
+              "upper_bound": 0.2027488586090868,
+              "tau_cycles": 127.01725987059524,
+              "effective_samples_per_half": 3.9364728896639587,
+              "degrees_of_freedom": 5.206752013340482,
+              "critical_value": 1.9975071838929641,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 7213.939006113604
             }
           },
           "BINE": {
@@ -60,6 +74,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.15162918880659057,
+              "relative_standard_error": 0.041997849586506306,
+              "upper_bound": 0.2417431838309939,
+              "tau_cycles": 166.696597485482,
+              "effective_samples_per_half": 2.999461341996175,
+              "degrees_of_freedom": 3.9121185888412695,
+              "critical_value": 2.1456811696700893,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 2737.808075028276
             }
           },
           "BNS": {
@@ -81,10 +107,23 @@
                 1.572284261866707e-05,
                 1.6686131241378926e-05
               ],
-              "admissible": true,
+              "admissible": false,
               "ratio": 0.7218397478433957,
-              "tau_cycles": 766.9838119902473,
-              "second_estimate_cycles": 1195.2269946806452
+              "ratio_standard_error": 0.3304624426534992,
+              "lower_bound_cycles": Infinity,
+              "reason": "a contraction of 0.722 +/- 0.330 reaches one, so this record carries no curvature and the timescale it implies is a lower bound"
+            },
+            "drift": {
+              "relative_drift": 0.17014466792532387,
+              "relative_standard_error": 0.07334715135871603,
+              "upper_bound": 0.3897842275749162,
+              "tau_cycles": 258.3895475253207,
+              "effective_samples_per_half": 1.9350627948717734,
+              "degrees_of_freedom": 1.9290860836650388,
+              "critical_value": 2.9945206539161933,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 1426.7404142277464
             }
           },
           "TeNE": {
@@ -108,6 +147,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.13965978739443455,
+              "relative_standard_error": 0.0894617310441948,
+              "upper_bound": 0.29265805064745,
+              "tau_cycles": 37.0870690895357,
+              "effective_samples_per_half": 13.481787918934728,
+              "degrees_of_freedom": 24.23774167684565,
+              "critical_value": 1.7102090633304772,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 21453.51082826746
             }
           },
           "TeBS": {
@@ -131,6 +182,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.03508240948079484,
+              "relative_standard_error": 0.017966867906743216,
+              "upper_bound": 0.06659130322014317,
+              "tau_cycles": 56.99475105321419,
+              "effective_samples_per_half": 8.77273767777608,
+              "degrees_of_freedom": 14.913007554901602,
+              "critical_value": 1.7537221235718337,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "IBS": {
@@ -154,6 +217,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.06965514759667549,
+              "relative_standard_error": 0.10916742491035729,
+              "upper_bound": 0.33440715437607504,
+              "tau_cycles": 199.62928872554755,
+              "effective_samples_per_half": 2.5046424960588087,
+              "degrees_of_freedom": 2.7956082078263065,
+              "critical_value": 2.42519237764196,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 17280.33601944414
             }
           },
           "TeBE": {
@@ -177,6 +252,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.0111146483323672,
+              "relative_standard_error": 0.004326922544111869,
+              "upper_bound": 0.018350295813997244,
+              "tau_cycles": 16.16817727848435,
+              "effective_samples_per_half": 30.924945427544902,
+              "degrees_of_freedom": 56.57030191433787,
+              "critical_value": 1.672238735004953,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "TrBE": {
@@ -200,6 +287,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.047730519086350974,
+              "relative_standard_error": 0.02609165956555234,
+              "upper_bound": 0.09782859766617136,
+              "tau_cycles": 111.84313286866292,
+              "effective_samples_per_half": 4.470547159897144,
+              "degrees_of_freedom": 6.431490885982791,
+              "critical_value": 1.920080187078734,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 2307.098867503924
             }
           },
           "TrIBE": {
@@ -223,6 +322,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.09323272648797906,
+              "relative_standard_error": 0.055917931749019364,
+              "upper_bound": 0.22037069806806336,
+              "tau_cycles": 189.0982468333424,
+              "effective_samples_per_half": 2.644128162862684,
+              "degrees_of_freedom": 3.2801016138473496,
+              "critical_value": 2.273652969690066,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 11548.32204204571
             }
           },
           "TrBR": {
@@ -246,6 +357,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.05315328819968166,
+              "relative_standard_error": 0.0574002135077531,
+              "upper_bound": 0.16558963235276764,
+              "tau_cycles": 117.95836312523059,
+              "effective_samples_per_half": 4.238783811107777,
+              "degrees_of_freedom": 5.743794198034983,
+              "critical_value": 1.9588140406115229,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 13730.786872742705
             }
           },
           "C3G": {
@@ -269,6 +392,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.04710370587980132,
+              "relative_standard_error": 0.009405739837727503,
+              "upper_bound": 0.06283330745429423,
+              "tau_cycles": 16.255041087803765,
+              "effective_samples_per_half": 30.759688474435933,
+              "degrees_of_freedom": 56.363872333337774,
+              "critical_value": 1.6723407032161017,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "C4G": {
@@ -292,6 +427,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.010310530437039509,
+              "relative_standard_error": 0.041099314760527104,
+              "upper_bound": 0.08607921930930369,
+              "tau_cycles": 94.39832478205736,
+              "effective_samples_per_half": 5.296704164553531,
+              "degrees_of_freedom": 8.573448716608388,
+              "critical_value": 1.8435511471114472,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 3886.29746740729
             }
           },
           "Total": {
@@ -315,6 +462,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.0048340808094658695,
+              "relative_standard_error": 0.002438916409092825,
+              "upper_bound": 0.008970836017708678,
+              "tau_cycles": 29.826133307856075,
+              "effective_samples_per_half": 16.763822344624945,
+              "degrees_of_freedom": 30.63287896054106,
+              "critical_value": 1.6961447275601826,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           }
         }
@@ -344,6 +503,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.12199101112722734,
+              "relative_standard_error": 0.04340911199255269,
+              "upper_bound": 0.20808513192952327,
+              "tau_cycles": 125.98940156467049,
+              "effective_samples_per_half": 3.9685877842935025,
+              "degrees_of_freedom": 5.389524481282887,
+              "critical_value": 1.983319097084186,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 6684.692171944189
             }
           },
           "BINE": {
@@ -367,6 +538,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.1538191689363071,
+              "relative_standard_error": 0.04857697245571402,
+              "upper_bound": 0.25719167345583427,
+              "tau_cycles": 161.3353254770432,
+              "effective_samples_per_half": 3.099135285602075,
+              "degrees_of_freedom": 4.025221625035073,
+              "critical_value": 2.1280145569748794,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 3159.902929951916
             }
           },
           "BNS": {
@@ -388,10 +571,23 @@
                 0.00013608400437655318,
                 0.00015533708600151756
               ],
-              "admissible": true,
+              "admissible": false,
               "ratio": 0.5839863476653686,
-              "tau_cycles": 464.7896951633492,
-              "second_estimate_cycles": null
+              "ratio_standard_error": 0.3313911669785918,
+              "lower_bound_cycles": Infinity,
+              "reason": "a contraction of 0.584 +/- 0.331 reaches one, so this record carries no curvature and the timescale it implies is a lower bound"
+            },
+            "drift": {
+              "relative_drift": 0.14640165250421613,
+              "relative_standard_error": 0.07127434794876517,
+              "upper_bound": 0.3581751486730229,
+              "tau_cycles": 267.389170546193,
+              "effective_samples_per_half": 1.869933621390333,
+              "degrees_of_freedom": 1.950416527331031,
+              "critical_value": 2.97124424513905,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 1753.1828399134852
             }
           },
           "TeNE": {
@@ -415,6 +611,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.14214688997115302,
+              "relative_standard_error": 0.08461137094490413,
+              "upper_bound": 0.2870808294611241,
+              "tau_cycles": 38.66630267494468,
+              "effective_samples_per_half": 12.931156211219394,
+              "degrees_of_freedom": 23.303210145738937,
+              "critical_value": 1.7129369004592399,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 20895.508594221596
             }
           },
           "TeBS": {
@@ -438,6 +646,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.038520683109303844,
+              "relative_standard_error": 0.018425629594946893,
+              "upper_bound": 0.07050314902350951,
+              "tau_cycles": 49.854632945780935,
+              "effective_samples_per_half": 10.029158183629024,
+              "degrees_of_freedom": 17.681072971916443,
+              "critical_value": 1.735759733440894,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "IBS": {
@@ -461,6 +681,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.06383848422938183,
+              "relative_standard_error": 0.08939601133729703,
+              "upper_bound": 0.24420584877452395,
+              "tau_cycles": 138.6837316311118,
+              "effective_samples_per_half": 3.6053255426524142,
+              "degrees_of_freedom": 4.971287861401575,
+              "critical_value": 2.017622059944086,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 14768.327607159988
             }
           },
           "TeBE": {
@@ -484,6 +716,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.012339356567553571,
+              "relative_standard_error": 0.006960555955377027,
+              "upper_bound": 0.02414867851416018,
+              "tau_cycles": 27.848145704979736,
+              "effective_samples_per_half": 17.95451680327108,
+              "degrees_of_freedom": 30.36794405262286,
+              "critical_value": 1.6966061363940208,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "TrBE": {
@@ -507,6 +751,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.04924433957087942,
+              "relative_standard_error": 0.024760471087518793,
+              "upper_bound": 0.0958494880699963,
+              "tau_cycles": 100.7113189750859,
+              "effective_samples_per_half": 4.964685251751003,
+              "degrees_of_freedom": 7.31869109470258,
+              "critical_value": 1.8822399757413943,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 2127.5850645962173
             }
           },
           "TrIBE": {
@@ -530,6 +786,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.09890701673134085,
+              "relative_standard_error": 0.05832228304887796,
+              "upper_bound": 0.22471537720508505,
+              "tau_cycles": 169.53211195021584,
+              "effective_samples_per_half": 2.949293760622932,
+              "degrees_of_freedom": 3.842970497149491,
+              "critical_value": 2.157123382298124,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 12626.785605836814
             }
           },
           "TrBR": {
@@ -553,6 +821,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.06328491345168086,
+              "relative_standard_error": 0.06507778590403897,
+              "upper_bound": 0.20484461647965943,
+              "tau_cycles": 157.9077029489854,
+              "effective_samples_per_half": 3.166406645542384,
+              "degrees_of_freedom": 3.739510742569912,
+              "critical_value": 2.1752384636551203,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 14600.888017145653
             }
           },
           "C3G": {
@@ -576,6 +856,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.04594457169286955,
+              "relative_standard_error": 0.009820402493950416,
+              "upper_bound": 0.062365618635328246,
+              "tau_cycles": 15.763061975879324,
+              "effective_samples_per_half": 31.71972556887115,
+              "degrees_of_freedom": 56.780178251748275,
+              "critical_value": 1.6721358368533692,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "C4G": {
@@ -599,6 +891,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.016061764569435186,
+              "relative_standard_error": 0.04335696688904261,
+              "upper_bound": 0.09553012128467216,
+              "tau_cycles": 90.49095010235052,
+              "effective_samples_per_half": 5.525414413645463,
+              "degrees_of_freedom": 9.009818736309935,
+              "critical_value": 1.832885517997815,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 4190.432634571837
             }
           },
           "Total": {
@@ -622,6 +926,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.005717836886478287,
+              "relative_standard_error": 0.0024435942050882874,
+              "upper_bound": 0.009830238881482274,
+              "tau_cycles": 21.541899950913365,
+              "effective_samples_per_half": 23.210580363817922,
+              "degrees_of_freedom": 40.94354702884049,
+              "critical_value": 1.6829316367016862,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           }
         }
@@ -651,6 +967,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.09656257879396027,
+              "relative_standard_error": 0.04165718236075558,
+              "upper_bound": 0.17915611784327862,
+              "tau_cycles": 121.28016118682487,
+              "effective_samples_per_half": 4.122685813632617,
+              "degrees_of_freedom": 5.397897087591995,
+              "critical_value": 1.9826962451288621,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 5594.048227110799
             }
           },
           "BINE": {
@@ -674,6 +1002,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.1848464358577223,
+              "relative_standard_error": 0.0394117154755242,
+              "upper_bound": 0.26087659665737073,
+              "tau_cycles": 119.84115720803064,
+              "effective_samples_per_half": 4.172189351710421,
+              "degrees_of_freedom": 6.254219483117494,
+              "critical_value": 1.9291258927022685,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 3810.1987800187294
             }
           },
           "BNS": {
@@ -697,6 +1037,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.1376763842908209,
+              "relative_standard_error": 0.06451537218321868,
+              "upper_bound": 0.32322885529432405,
+              "tau_cycles": 240.94322025181367,
+              "effective_samples_per_half": 2.0751777098249202,
+              "degrees_of_freedom": 2.0455774741104635,
+              "critical_value": 2.8760970405091744,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 2639.197120707303
             }
           },
           "TeNE": {
@@ -720,6 +1072,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.1478348261744706,
+              "relative_standard_error": 0.08895826406049731,
+              "upper_bound": 0.3026452330530057,
+              "tau_cycles": 52.39695683652204,
+              "effective_samples_per_half": 9.542538921868971,
+              "degrees_of_freedom": 16.88998704975717,
+              "critical_value": 1.7402588563694785,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 21720.393790201375
             }
           },
           "TeBS": {
@@ -743,6 +1107,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.04204135839175777,
+              "relative_standard_error": 0.021049436354484835,
+              "upper_bound": 0.07895311194186852,
+              "tau_cycles": 59.05659389478724,
+              "effective_samples_per_half": 8.46645509036263,
+              "degrees_of_freedom": 14.932040260245925,
+              "critical_value": 1.7535744391676436,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 1149.0380233707253
             }
           },
           "IBS": {
@@ -766,6 +1142,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.06391411852202404,
+              "relative_standard_error": 0.07799612556248159,
+              "upper_bound": 0.2187685770058957,
+              "tau_cycles": 132.95657628027175,
+              "effective_samples_per_half": 3.760626318671163,
+              "degrees_of_freedom": 5.361611018095528,
+              "critical_value": 1.9854121902480908,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 11348.640017024589
             }
           },
           "TeBE": {
@@ -789,6 +1177,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.006757229004190821,
+              "relative_standard_error": 0.007065162514746283,
+              "upper_bound": 0.018795057069175756,
+              "tau_cycles": 29.93507173894813,
+              "effective_samples_per_half": 16.702816160265172,
+              "degrees_of_freedom": 26.760957997645626,
+              "critical_value": 1.7038288984662124,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "TrBE": {
@@ -812,6 +1212,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.048668909768614065,
+              "relative_standard_error": 0.023864915970078962,
+              "upper_bound": 0.09264818767473691,
+              "tau_cycles": 93.70150675629506,
+              "effective_samples_per_half": 5.336093487807323,
+              "degrees_of_freedom": 8.600993984581542,
+              "critical_value": 1.8428423532378075,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 1824.6241306673076
             }
           },
           "TrIBE": {
@@ -835,6 +1247,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.10160211073880362,
+              "relative_standard_error": 0.0608111329709501,
+              "upper_bound": 0.2362459521483248,
+              "tau_cycles": 174.08988430395118,
+              "effective_samples_per_half": 2.872079569695319,
+              "degrees_of_freedom": 3.539300368695427,
+              "critical_value": 2.214131439942773,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 13884.923113652174
             }
           },
           "TrBR": {
@@ -858,6 +1282,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.06941759601401959,
+              "relative_standard_error": 0.0570987019904731,
+              "upper_bound": 0.1868418406216467,
+              "tau_cycles": 133.90492280317287,
+              "effective_samples_per_half": 3.733992668327445,
+              "degrees_of_freedom": 4.580733814934142,
+              "critical_value": 2.056513379712542,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 12219.324157476076
             }
           },
           "C3G": {
@@ -881,6 +1317,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.04361073680548385,
+              "relative_standard_error": 0.01165744855878664,
+              "upper_bound": 0.06352401215949584,
+              "tau_cycles": 34.35295646583333,
+              "effective_samples_per_half": 14.554788042691133,
+              "degrees_of_freedom": 24.97676787426419,
+              "critical_value": 1.7082018636919167,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "C4G": {
@@ -904,6 +1352,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.0040115371907431165,
+              "relative_standard_error": 0.044605597248686145,
+              "upper_bound": 0.08771341286532844,
+              "tau_cycles": 105.38675660096432,
+              "effective_samples_per_half": 4.744429149605548,
+              "degrees_of_freedom": 7.478803950426506,
+              "critical_value": 1.8764881727270395,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 4768.990804790284
             }
           },
           "Total": {
@@ -927,6 +1387,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.007374715352997826,
+              "relative_standard_error": 0.005723051382561052,
+              "upper_bound": 0.018169328096884256,
+              "tau_cycles": 100.77534648318824,
+              "effective_samples_per_half": 4.961530944310988,
+              "degrees_of_freedom": 7.2138233582508935,
+              "critical_value": 1.8861638699906043,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           }
         }
@@ -956,6 +1428,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.06376624049906722,
+              "relative_standard_error": 0.020681603955162477,
+              "upper_bound": 0.10730161605009145,
+              "tau_cycles": 132.29207851111642,
+              "effective_samples_per_half": 3.779515792837024,
+              "degrees_of_freedom": 4.18519684318054,
+              "critical_value": 2.10502897383629,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 1904.051312132609
             }
           },
           "LitterC": {
@@ -979,6 +1463,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.0038062205056914947,
+              "relative_standard_error": 0.026300305966800892,
+              "upper_bound": 0.052570665529567406,
+              "tau_cycles": 96.39861355777566,
+              "effective_samples_per_half": 5.186796589147305,
+              "degrees_of_freedom": 8.184094221935434,
+              "critical_value": 1.8541398372107039,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 1715.8673661239347
             }
           },
           "SoilC": {
@@ -1003,6 +1499,18 @@
               "admissible": false,
               "ratio": 1.0536178196304997,
               "reason": "a ratio of 1.054 is not a contraction"
+            },
+            "drift": {
+              "relative_drift": 0.0035365212514322417,
+              "relative_standard_error": 0.0012942225011712142,
+              "upper_bound": 0.007320930697181708,
+              "tau_cycles": 290.27297729073484,
+              "effective_samples_per_half": 1.7225165245030867,
+              "degrees_of_freedom": 1.995900829824341,
+              "critical_value": 2.924079470357487,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "Total": {
@@ -1026,6 +1534,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.012834507584398356,
+              "relative_standard_error": 0.005435360388675309,
+              "upper_bound": 0.028612289986449546,
+              "tau_cycles": 199.52787298083916,
+              "effective_samples_per_half": 2.505915552199644,
+              "degrees_of_freedom": 2.0174818106167924,
+              "critical_value": 2.9028033605507635,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           }
         }
@@ -1055,6 +1575,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.03484096838423254,
+              "relative_standard_error": 0.012463866238812139,
+              "upper_bound": 0.060640979292983614,
+              "tau_cycles": 126.60812512801118,
+              "effective_samples_per_half": 3.949193620033936,
+              "degrees_of_freedom": 4.461956280985795,
+              "critical_value": 2.0699845789752254,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "LitterN": {
@@ -1078,6 +1610,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.010142752516541783,
+              "relative_standard_error": 0.014927437326293388,
+              "upper_bound": 0.037827695671797265,
+              "tau_cycles": 95.77508172727013,
+              "effective_samples_per_half": 5.220564587183584,
+              "degrees_of_freedom": 8.166856227463555,
+              "critical_value": 1.8546346938259024,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "SoilN": {
@@ -1101,9 +1645,21 @@
               ],
               "admissible": false,
               "ratio": 0.9570518233197277,
-              "tau_cycles": 5695.054375308126,
-              "second_estimate_cycles": 17245.522139404806,
-              "reason": "the two ratios give 5695 and 17246 cycles, further than a factor of two apart, so this is not one exponential"
+              "ratio_standard_error": 0.3073255101141924,
+              "lower_bound_cycles": Infinity,
+              "reason": "a contraction of 0.957 +/- 0.307 reaches one, so this record carries no curvature and the timescale it implies is a lower bound"
+            },
+            "drift": {
+              "relative_drift": 0.006786642577077638,
+              "relative_standard_error": 0.002469932553709077,
+              "upper_bound": 0.014028917052827775,
+              "tau_cycles": 381.80983603417417,
+              "effective_samples_per_half": 1.3095524337284155,
+              "degrees_of_freedom": 1.9878680648385747,
+              "critical_value": 2.932174995982977,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "Total": {
@@ -1125,10 +1681,23 @@
                 0.0002788179825933624,
                 0.00027927991587906314
               ],
-              "admissible": true,
+              "admissible": false,
               "ratio": 0.7443565646444624,
-              "tau_cycles": 846.7827688083227,
-              "second_estimate_cycles": null
+              "ratio_standard_error": 0.2803812296287226,
+              "lower_bound_cycles": Infinity,
+              "reason": "a contraction of 0.744 +/- 0.280 reaches one, so this record carries no curvature and the timescale it implies is a lower bound"
+            },
+            "drift": {
+              "relative_drift": 0.005802003191810812,
+              "relative_standard_error": 0.0023407965172535013,
+              "upper_bound": 0.012701530218973234,
+              "tau_cycles": 379.7456003471534,
+              "effective_samples_per_half": 1.3166709490324922,
+              "degrees_of_freedom": 1.972910505753927,
+              "critical_value": 2.9475125139274225,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           }
         }
@@ -1158,6 +1727,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.11892301591541961,
+              "relative_standard_error": 0.049633639666622945,
+              "upper_bound": 0.2213347323251454,
+              "tau_cycles": 140.3191252065971,
+              "effective_samples_per_half": 3.563306137091656,
+              "degrees_of_freedom": 4.519483031041587,
+              "critical_value": 2.063352941625887,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 10864.832223757596
             }
           },
           "BINE": {
@@ -1181,6 +1762,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.1775135166424175,
+              "relative_standard_error": 0.03543696090508712,
+              "upper_bound": 0.2456696812748037,
+              "tau_cycles": 115.98255102952886,
+              "effective_samples_per_half": 4.31099329650631,
+              "degrees_of_freedom": 6.366934593396038,
+              "critical_value": 1.9233072727351772,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 5167.053360145191
             }
           },
           "BNS": {
@@ -1204,6 +1797,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.1538293133580418,
+              "relative_standard_error": 0.07505917532139844,
+              "upper_bound": 0.3701069469975326,
+              "tau_cycles": 241.97498629109646,
+              "effective_samples_per_half": 2.066329283302444,
+              "degrees_of_freedom": 2.039876275221356,
+              "critical_value": 2.881428322565552,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 3112.7884092797285
             }
           },
           "TeNE": {
@@ -1227,6 +1832,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.1269821547598877,
+              "relative_standard_error": 0.07960071834873213,
+              "upper_bound": 0.26335108400672524,
+              "tau_cycles": 38.63409809737751,
+              "effective_samples_per_half": 12.941935353059014,
+              "degrees_of_freedom": 23.229411583525145,
+              "critical_value": 1.7131620427017111,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 18479.22940399603
             }
           },
           "TeBS": {
@@ -1250,6 +1867,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.03065614008728352,
+              "relative_standard_error": 0.022894446343208384,
+              "upper_bound": 0.0716635894507335,
+              "tau_cycles": 74.95234376243062,
+              "effective_samples_per_half": 6.670905470078466,
+              "degrees_of_freedom": 11.326967766935763,
+              "critical_value": 1.7911526991616813,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 1437.5089115382377
             }
           },
           "IBS": {
@@ -1273,6 +1902,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.0811647083705209,
+              "relative_standard_error": 0.13380162780161015,
+              "upper_bound": 0.4929438720985113,
+              "tau_cycles": 262.06049670387677,
+              "effective_samples_per_half": 1.9079563928514958,
+              "degrees_of_freedom": 1.858386626681693,
+              "critical_value": 3.077534784095019,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 29991.048469731035
             }
           },
           "TeBE": {
@@ -1296,6 +1937,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.004670089870149017,
+              "relative_standard_error": 0.006613589651703893,
+              "upper_bound": 0.015923998951365724,
+              "tau_cycles": 31.19040433504437,
+              "effective_samples_per_half": 16.030571281764974,
+              "degrees_of_freedom": 27.760033745550636,
+              "critical_value": 1.7016340102560348,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "TrBE": {
@@ -1319,6 +1972,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.05528853071302696,
+              "relative_standard_error": 0.02331166212738556,
+              "upper_bound": 0.09844853305032962,
+              "tau_cycles": 95.2663767902369,
+              "effective_samples_per_half": 5.248441442261726,
+              "degrees_of_freedom": 8.279807973668508,
+              "critical_value": 1.851433934717169,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 1947.003097489011
             }
           },
           "TrIBE": {
@@ -1342,6 +2007,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.08730499801634053,
+              "relative_standard_error": 0.0509230183347075,
+              "upper_bound": 0.197868206189393,
+              "tau_cycles": 163.01881213958785,
+              "effective_samples_per_half": 3.0671306791995625,
+              "degrees_of_freedom": 3.7620612078706728,
+              "critical_value": 2.1711833231553777,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 10259.446136897703
             }
           },
           "TrBR": {
@@ -1365,6 +2042,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.038686141910270457,
+              "relative_standard_error": 0.05212083712441858,
+              "upper_bound": 0.14088299512323446,
+              "tau_cycles": 111.36629864057065,
+              "effective_samples_per_half": 4.489688587152616,
+              "degrees_of_freedom": 5.71354874166266,
+              "critical_value": 1.9607676862328223,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 9848.618380425163
             }
           },
           "C3G": {
@@ -1388,6 +2077,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.027312042680340147,
+              "relative_standard_error": 0.012150722084485407,
+              "upper_bound": 0.04759364747448526,
+              "tau_cycles": 14.461933423048261,
+              "effective_samples_per_half": 34.57352384178041,
+              "degrees_of_freedom": 63.596208868802506,
+              "critical_value": 1.669168684225079,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "C4G": {
@@ -1411,6 +2112,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.002540466428714997,
+              "relative_standard_error": 0.042615084931196354,
+              "upper_bound": 0.08062277395826381,
+              "tau_cycles": 90.12335587644583,
+              "effective_samples_per_half": 5.547951417671048,
+              "degrees_of_freedom": 9.036548065518955,
+              "critical_value": 1.832269198937785,
+              "half_cycles": 500,
+              "settled": false,
+              "record_cycles_for_bound": 4359.13105106342
             }
           },
           "Total": {
@@ -1434,6 +2147,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.006661215430250964,
+              "relative_standard_error": 0.004695961354796146,
+              "upper_bound": 0.01518619925400784,
+              "tau_cycles": 78.50230219415496,
+              "effective_samples_per_half": 6.369239958891657,
+              "degrees_of_freedom": 9.843672077858228,
+              "critical_value": 1.8153862818845432,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           }
         }
@@ -1463,6 +2188,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.002837031315003505,
+              "relative_standard_error": 0.001595407142106523,
+              "upper_bound": 0.0056249048080689226,
+              "tau_cycles": 56.166514978520794,
+              "effective_samples_per_half": 8.90210119305444,
+              "degrees_of_freedom": 15.771406596086376,
+              "critical_value": 1.7474370143438125,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "Drain": {
@@ -1486,6 +2223,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.0046343977937273444,
+              "relative_standard_error": 0.004485987706014447,
+              "upper_bound": 0.012600911644690443,
+              "tau_cycles": 66.38690730303435,
+              "effective_samples_per_half": 7.531605557669147,
+              "degrees_of_freedom": 12.544290075663804,
+              "critical_value": 1.7758661799902495,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "Base": {
@@ -1509,6 +2258,18 @@
               ],
               "admissible": false,
               "reason": "successive block differences change sign, so the series is not a monotone approach"
+            },
+            "drift": {
+              "relative_drift": 0.005853238038607076,
+              "relative_standard_error": 0.012811128416548825,
+              "upper_bound": 0.03228256950446917,
+              "tau_cycles": 153.2440057108049,
+              "effective_samples_per_half": 3.262770362082398,
+              "degrees_of_freedom": 4.522613465950903,
+              "critical_value": 2.062997934805017,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           },
           "Total": {
@@ -1532,6 +2293,18 @@
               ],
               "admissible": false,
               "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            },
+            "drift": {
+              "relative_drift": 0.003064325058691282,
+              "relative_standard_error": 0.0023276819973696086,
+              "upper_bound": 0.0072209236512089554,
+              "tau_cycles": 71.00860195539909,
+              "effective_samples_per_half": 7.041400425177402,
+              "degrees_of_freedom": 11.729039195784296,
+              "critical_value": 1.785724423359732,
+              "half_cycles": 500,
+              "settled": true,
+              "record_cycles_for_bound": 1000.0
             }
           }
         }

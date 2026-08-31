@@ -63,9 +63,9 @@ A matched arm bounds the joint effect of the entries claiming it. It does not
 assign an observed change to one edit, decide which Earth calibration belongs on
 Vesper, or make either of its runs an accepted one: both arms fail the same
 equilibrium refusal, and `world-qcse` establishes that no LPJ-GUESS run this
-project has made could have passed one, since the trend statistic is fitted
-inside one memory time of the fields it judges and the spin-up derivation asks
-for well over twice what either arm ran. So the arm is a matched difference
+project has made could have passed one. Both arms retain 100 cycles against a
+record floor of tens of thousands, so their refusal is not a close call and does
+not depend on which form of the acceptance statistic is applied. So the arm is a matched difference
 between two refused runs, and that qualifier travels with every number it
 reports. The per-entry `worth` remains coefficient arithmetic, while the paired
 report measures the fluxes after the Michaelis-Menten terms and pool clamps.
@@ -518,9 +518,11 @@ visible change in what the simulated plants take up is expected from this.
 
 None of the above is execution-verified, and it cannot be on the runs that
 exist. `world-qcse` records that every LPJ-GUESS run this project has made fails
-its own BIO-12/BIO-14 acceptance gate on an equilibrium refusal, that the trend
-statistic is fitted inside one memory time, and that the spin-up is short of
-this world's relaxation time. A run against a run in that state cannot say
+its own BIO-12/BIO-14 acceptance gate on an equilibrium refusal, and that the
+refusal is real rather than an artifact of the instrument: the longest record
+this project has bounds several woody types' drift well above the contract's
+tolerance, and the arms here retain a hundredth of the record that would resolve
+it. A run against a run in that state cannot say
 whether a substrate change is right; it can only say what two non-equilibrium
 states differ by.
 

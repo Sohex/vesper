@@ -15,8 +15,25 @@ SCRIPT = Path(__file__).resolve()
 PROJECT_ROOT = SCRIPT.parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "lib"))
 
-from lpj_output import EquilibriumWindowError, reduce_table
+from lpj_output import (EquilibriumWindowError, cycles_for_bound, drift_bound,
+                        read_policy, reduce_table, relaxation_time)
 import run_lengths
+
+
+def _relaxation_of(series: np.ndarray) -> dict:
+    """`relaxation_time` at the memory time of the series it is handed.
+
+    The estimator takes the memory time as an argument because the block means
+    it differences carry it, and a fixture that passed a wrong one would be
+    testing something other than the estimator. The memory time is taken about
+    the series' own linear fit, exactly as `lpj_output.py:timescale_report`
+    takes it: an approach left in inflates every lag correlation toward one and
+    the tau that comes out describes the approach rather than the variability.
+    """
+    from autocorrelation import integrated_time
+    x = np.arange(series.size, dtype=float)
+    flat = series - np.polyval(np.polyfit(x, series, 1), x) + series.mean()
+    return relaxation_time(series, integrated_time(flat)["tau"])
 
 REPORT = PROJECT_ROOT / "biosphere/generated/equilibrium_window_report.json"
 
@@ -104,14 +121,20 @@ def main() -> None:
         check("complete-cycle mean", np.allclose(
             reduced.values[(-10.0, 20.0)], [10.0, 100.0]),
             f"mean {reduced.values[(-10.0, 20.0)].tolist()}")
-        expected_std_a = np.std(np.tile([-2.0, 2.0], 10), ddof=1)
-        check("temporal spread", np.isclose(
+        # The reported spread is over the SAME span as the reported value, which
+        # is the whole retained record and not the per-cell half's window.
+        expected_std_a = np.std(np.tile([-2.0, 2.0], FIXTURE_CYCLES), ddof=1)
+        check("temporal spread is over the reported span", np.isclose(
             reduced.temporal_std[(-10.0, 20.0)][0], expected_std_a),
-            f"sample std {reduced.temporal_std[(-10.0, 20.0)][0]:.8f}")
-        check("fixed ten-cycle window",
-              reduced.report["window"]["complete_forcing_cycles"] == 10
+            f"sample std {reduced.temporal_std[(-10.0, 20.0)][0]:.8f} over "
+            f"{reduced.report['reported']['annual_values']} annual values")
+        check("the reported span is the record and the window is the cell half's",
+              reduced.report["reported"]["complete_forcing_cycles"]
+              == FIXTURE_CYCLES
+              and reduced.report["window"]["complete_forcing_cycles"] == 10
               and reduced.report["window"]["annual_values"] == 20,
-              str(reduced.report["window"]))
+              f"reported {reduced.report['reported']} against cell-half window "
+              f"{reduced.report['window']}")
         check("stationary periodic phase accepted",
               reduced.report["trend"]["verdict"] == "PASS",
               "a repeating two-year phase has constant cycle means")
@@ -133,23 +156,21 @@ def main() -> None:
               "one declared fraction cannot serve fields whose null spans "
               "three orders of magnitude")
 
+        # A record whose spatial mean drifts is refused by the GLOBAL half, which
+        # bounds the drift over the whole retained record. Both fixtures below
+        # drift; the noiseless one shows the refusal is the drift and not the
+        # scatter, and the noisy one shows the bound still catches it once the
+        # series has memory to widen the error.
         memoryful = write_run(root, "memoryful", jitter=0.0, trend=1.0)
-        refuses("a window inside one memory time is refused, not judged",
-                lambda: reduce_table(memoryful), "inside one memory time")
-
-        # A record that drifts at its end is refused -- but by the memory guard,
-        # not by the trend test, because a series with any memory at all cannot
-        # support a slope fitted over ten cycles: the guard needs the window to be
-        # ten times the memory time, so it admits only a memoryless series. That
-        # the trend test is unreachable this way IS the contract's current state
-        # and is asserted here rather than reached by contorting a fixture. The
-        # trend test's own refusal path is exercised by the dipole below, whose
-        # spatial mean is flat by construction so the guard has nothing to
-        # establish and hands the record on.
+        refuses("a drifting record is refused by its own drift bound",
+                lambda: reduce_table(memoryful), "does not bound its drift")
         trending = write_run(root, "trending", trend=1.0, jitter=2.0)
-        refuses("a drifting record is refused, and by the earlier guard",
-                lambda: reduce_table(trending), "inside one memory time")
-        dipole = write_run(root, "dipole", trend=1.0, dipole=True, jitter=2.0)
+        refuses("a drifting record with memory is refused too",
+                lambda: reduce_table(trending), "does not bound its drift")
+        # The one case a spatial mean cannot see, and the reason the per-cell
+        # half exists: the two cells drift in opposite directions, so the global
+        # half has nothing to bound and hands the record on.
+        dipole = write_run(root, "dipole", trend=1.0, dipole=True, jitter=0.5)
         refuses("cancelling regional drift refused, though the mean is flat",
                 lambda: reduce_table(dipole), "still trending")
         starved = write_run(root, "starved", cycle_years=1, cycles=100)
@@ -174,6 +195,78 @@ def main() -> None:
               ensemble.report["uncertainty"]["patch_count"]["status"] == "measured",
               "npatch 5 and 10 produce a separately labelled range")
 
+    # THE DRIFT BOUND'S OWN IDENTITIES. Each has a right answer that is known
+    # before the code runs, which is what makes them tests rather than reports.
+    policy = read_policy()
+    limit = float(policy["trend"]["relative_end_to_end_limit"])
+    alpha = float(policy["trend"]["maximum_false_acceptance_rate"])
+    floor = float(policy["trend"]["absolute_scale_floor"])
+    span = 1000
+    ramp = np.linspace(-0.5, 0.5, span)
+    # A half-to-half mean difference is HALF the end-to-end change of a steady
+    # drift. Undoubled it silently doubles the tolerance it is judged against,
+    # so the estimator has to return the change itself: a ramp of exactly the
+    # limit must read as the limit and not as half of it.
+    exact = drift_bound(1.0 + limit * ramp, alpha, floor)
+    check("the drift estimate is the END-TO-END change, not the half difference",
+          abs(exact["relative_drift"] - limit) < 0.002 * limit,
+          f"a ramp of exactly {limit:g} reads "
+          f"{exact['relative_drift']:.6f}; half of it would be {limit / 2:g}")
+    # A flat series has no drift and the estimator must say so exactly, not
+    # approximately: there is nothing for the doubling or the scale to act on.
+    flat = drift_bound(np.full(span, 3.0) + np.tile([-1.0, 1.0], span // 2),
+                       alpha, floor)
+    check("an exactly alternating series carries no drift",
+          flat["relative_drift"] < 1e-12,
+          f"drift {flat['relative_drift']:.3e}")
+    # The bound is one over the root of the record, so quadrupling the record
+    # halves the standard error. That is an identity of the construction and it
+    # is what makes the record floor converge.
+    quiet = np.random.default_rng(20260831).normal(0.0, 0.01, 4 * span)
+    short_error = drift_bound(1.0 + quiet[:span], alpha, floor)[
+        "relative_standard_error"]
+    long_error = drift_bound(1.0 + quiet, alpha, floor)[
+        "relative_standard_error"]
+    check("the standard error falls as one over the root of the record",
+          0.4 < long_error / short_error < 0.6,
+          f"{short_error:.5f} over {span} cycles against {long_error:.5f} over "
+          f"{4 * span}, a ratio of {long_error / short_error:.3f} against 0.5")
+    # And the inversion agrees with the test: at the length `cycles_for_bound`
+    # returns, a settled field of that scatter bounds inside the limit. The
+    # scatter here is deliberately wide enough that `span` cycles do NOT resolve
+    # the limit, so the check exercises the inversion rather than its identity.
+    wide = drift_bound(1.0 + 30.0 * quiet[:span], alpha, floor)
+    needed = cycles_for_bound(wide["relative_standard_error"], span,
+                              wide["tau_cycles"], alpha, limit)
+    scaled = wide["relative_standard_error"] * np.sqrt(span / needed)
+    check("the record floor is the length at which the bound closes",
+          needed > span and 0.8 * limit
+          <= (np.sqrt(2.0 / np.pi) + 1.65) * scaled <= 1.05 * limit,
+          f"a standard error of {wide['relative_standard_error']:.4f} over "
+          f"{span} cycles needs {needed:.0f}, where it falls to {scaled:.4f} "
+          f"and the bound closes on {limit:g}")
+
+    # THE RELAXATION ESTIMATOR AGAINST A TIMESCALE IT ALREADY KNOWS. `tau =
+    # -Q / ln(ratio)` diverges as the contraction approaches one, so the two
+    # answers here are a real exponential, whose e-folding time must come back,
+    # and a straight line, which has no e-folding time and must be declined
+    # rather than read out as a very long one.
+    relax_noise = np.random.default_rng(20260901).normal(0.0, 0.002, 1200)
+    steps = np.arange(1200, dtype=float)
+    known_tau = 200.0
+    approach = 5.0 - 2.0 * np.exp(-steps / known_tau) + relax_noise
+    measured = _relaxation_of(approach)
+    check("an exponential approach returns the e-folding time it was built from",
+          measured["admissible"]
+          and abs(measured["tau_cycles"] - known_tau) < 0.05 * known_tau,
+          f"{measured.get('tau_cycles', float('nan')):.1f} cycles against "
+          f"{known_tau:.0f}")
+    straight = _relaxation_of(5.0 + 0.001 * steps + relax_noise)
+    check("a straight line has no e-folding time and is declined",
+          not straight["admissible"] and "carries no curvature" in
+          straight.get("reason", ""),
+          straight.get("reason", "admitted"))
+
     # THE ECOLOGICAL RUN LENGTHS, checked against something that can fail rather
     # than reported. The derivation is an identity: the spin-up it returns must
     # actually satisfy the inequality it was derived from, and a spin-up one per
@@ -185,25 +278,47 @@ def main() -> None:
               False, str(exc))
     else:
         import math as _math
-        tau = derived["brackets"]["relaxation_cycles_bracket"][1]
         tolerance = run_lengths.ecological_drift_tolerance()
         record, spinup = derived["record_cycles"], derived["spinup_cycles"]
 
-        def residual_drift(span: float) -> float:
-            return (_math.exp(-span / tau)
-                    * (1.0 - _math.exp(-record / tau)))
+        # THE SPIN-UP EXISTS ONLY WHERE A RELAXATION TIME HAS BEEN MEASURED, and
+        # the thing that must never happen is a number appearing without one. So
+        # the check is on the pair: a derived spin-up has to satisfy the
+        # inequality it came from, and an absent one has to name the estimator
+        # that declined and the count. A default in either place fails.
+        if spinup is None:
+            check("no spin-up is invented where no relaxation time is measured",
+                  bool(derived["spinup_reason"])
+                  and "relaxation_time" in derived["spinup_reason"]
+                  and derived["total_cycles"] is None,
+                  derived["spinup_reason"] or "no reason given")
+        else:
+            tau = derived["brackets"]["relaxation_cycles_bracket"][1]
 
-        check("the derived spin-up satisfies the drift it was derived from",
-              residual_drift(spinup) <= tolerance * 1.000001
-              and residual_drift(spinup * 0.99) > tolerance,
-              f"{spinup:.0f} cycles leaves {residual_drift(spinup):.4f} across "
-              f"{record:.0f} retained, against a tolerance of {tolerance:g}; "
-              f"one per cent shorter leaves {residual_drift(spinup*0.99):.4f}")
-        check("the retained record can establish its own memory time",
-              record >= run_lengths.RELIABLE_SPAN_MULTIPLE
-              * derived["brackets"]["memory_cycles_bracket"][1],
-              f"{record:.0f} cycles against a memory time of "
-              f"{derived['brackets']['memory_cycles_bracket'][1]:.1f}")
+            def residual_drift(span: float) -> float:
+                return (_math.exp(-span / tau)
+                        * (1.0 - _math.exp(-record / tau)))
+
+            check("the derived spin-up satisfies the drift it was derived from",
+                  residual_drift(spinup) <= tolerance * 1.000001
+                  and residual_drift(spinup * 0.99) > tolerance,
+                  f"{spinup:.0f} cycles leaves {residual_drift(spinup):.4f} "
+                  f"across {record:.0f} retained, against a tolerance of "
+                  f"{tolerance:g}; one per cent shorter leaves "
+                  f"{residual_drift(spinup * 0.99):.4f}")
+        # The record floor is an inversion, so it has a right answer too: the
+        # field that set it must resolve the tolerance AT that length and must
+        # not resolve it one per cent short. `cycles_for_bound` is monotone in
+        # the standard error, so re-asking it at the derived length with the
+        # standard error that length implies has to return the length itself.
+        check("the retained record resolves the drift the contract refuses",
+              record >= derived["brackets"]["resolving_cycles_bracket"][1]
+              and record > derived["brackets"]["resolving_cycles_bracket"][0],
+              f"{record:.0f} cycles against a resolving bracket of "
+              f"{derived['brackets']['resolving_cycles_bracket'][0]:.0f} to "
+              f"{derived['brackets']['resolving_cycles_bracket'][1]:.0f}, and "
+              f"{derived['brackets']['fields_with_no_finite_record']} fields "
+              "for which no finite record resolves it")
         check("the ecological lengths are a floor and say why",
               derived["is_a_floor"] and bool(derived["floor_because"]),
               derived["floor_because"])
@@ -237,7 +352,7 @@ def main() -> None:
 
     failed = [item for item in checks if not item["passed"]]
     report = {
-        "contract_version": "vesper-lpj-equilibrium-window/2",
+        "contract_version": policy["contract_version"],
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "checks": checks,
         "summary": {"passed": len(checks) - len(failed), "failed": len(failed)},

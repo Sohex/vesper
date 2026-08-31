@@ -216,8 +216,11 @@ def main() -> None:
     print(f"simulation year  {to_earth:.4f} Earth years")
     print(f"land area        {land_area_km2 / 1e6:.1f}e6 km2\n")
     print(f"rootable area    {rootable_area_km2 / 1e6:.1f}e6 km2\n")
+    # The REPORTED span, which is the one the scored values were taken over and
+    # the one the contract's drift bound certifies. The per-cell half's window is
+    # a different and shorter span and is not what these numbers came from.
     print("equilibrium      "
-          f"{fpc_window['window']['complete_forcing_cycles']} complete forcing "
+          f"{fpc_window['reported']['complete_forcing_cycles']} complete forcing "
           f"cycles; seed uncertainty "
           f"{fpc_window['uncertainty']['seed']['status']}; patch uncertainty "
           f"{fpc_window['uncertainty']['patch_count']['status']}\n")

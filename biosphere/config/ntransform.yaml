@@ -66,9 +66,9 @@ mainline_divergences:
         NEITHER ARM PASSED ACCEPTANCE, and that qualifier travels with every
         number this arm reports. Both fail the same equilibrium refusal, and
         `world-qcse` and `world-rnns` establish that no LPJ-GUESS run this
-        project has made could have passed one: the trend statistic is fitted
-        inside one memory time of the fields it judges, and `world-r9nz`'s
-        spin-up derivation asks for well over twice the spin-up either arm ran.
+        project has made could have passed one: both arms retain a hundred
+        cycles against a record floor of tens of thousands, so their refusal
+        does not depend on which form of the acceptance statistic is applied.
         So this is a matched difference between two refused runs. It bounds the
         entries naming it against each other, which is what a paired arm is for,
         and it is not a statement that either arm is a Vesper result.
