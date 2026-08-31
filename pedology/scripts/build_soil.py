@@ -1344,6 +1344,32 @@ def main() -> None:
                                    + pool_p99 / q_above),
         }
 
+    # THE LEVEL PROBE. The clay coefficient's level is the one large exposure no
+    # source brackets, so the bound is re-evaluated at the endmember a second
+    # read source gives and reported beside it. If the verdict flips between
+    # them the bound is a statement about the coefficient rather than about this
+    # world, and a reader has to be able to see that without rerunning anything.
+    level_probe = {}
+    for probe in exch_cfg["clay_cec_level_probe_cmol_kg"]:
+        probe_cec = (float(probe) * texture["clay"]
+                     + exch_cfg["organic_matter_cec_cmol_kg"] * organic_fraction)
+        worst = 0.0
+        per_element = {}
+        for element in ("K", "Ca", "Mg"):
+            share = float(exch_cfg["cation_share_upper"][element])
+            field = ((probe_cec + intercept) * 0.01 * share
+                     * exchange["base_saturation"] * soil_kg_m2
+                     / CATION_CHARGE[element] * CATION_MOLAR_MASS_G[element])
+            m = (1.0 + float(root_all[element])
+                 + float(field[land].max()) / above_g_m2[element])
+            per_element[element] = m
+            worst = max(worst, m)
+        per_element["S"] = 1.0 + float(root_all["S"])
+        level_probe[f"clay_cec_{probe}"] = {
+            "by_element": per_element,
+            "multiplier_bound": max(worst, per_element["S"]),
+        }
+
     multiplier_bound = max(e["multiplier_bound"] for e in elements.values())
     multiplier_low_end = min(e["multiplier_low_end"] for e in elements.values())
     binding = max(elements, key=lambda k: elements[k]["multiplier_bound"])
@@ -1379,6 +1405,16 @@ def main() -> None:
         "multiplier_bound": multiplier_bound,
         "multiplier_low_end": multiplier_low_end,
         "binding_element": binding,
+        "level_probe": level_probe,
+        "level_probe_note": (
+            "the ANUT-8 bound re-evaluated at the clay coefficient's level "
+            "endmembers rather than at its declared value, so how much of the "
+            "bound is the coefficient and how much is this world is readable "
+            "without rerunning anything. The root term is in every entry and "
+            "carries no clay at all, which is what makes the verdict "
+            "independent of the level."),
+        "root_term_only_multiplier": {
+            el: 1.0 + float(r) for el, r in root_all.items()},
         "bracket_note": (
             "the two ends span the root term's composition (the largest ratio "
             "anywhere in Vitousek and Sanford Table 7 against the largest at a "

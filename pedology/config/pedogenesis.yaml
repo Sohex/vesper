@@ -1267,6 +1267,19 @@ exchange:
   # relation applied outside every soil it was ever measured on.
   measured_envelope_cmol_kg: [2.04, 104.64]
 
+  # THE LEVEL EXPOSURE, PROBED RATHER THAN ASSERTED. The clay coefficient's
+  # LEVEL is the one large uncertainty no source here brackets, and it is a
+  # mineralogy question: this component emits a clay FRACTION and not a clay
+  # MINERALOGY. Dahlgren et al. (2004), `10.1016/S0065-2113(03)82003-5`, give
+  # the one endmember any read source here supplies, halloysite at 2 to 10
+  # cmol(+)/kg of clay with values above 20 reported, against Sahrawat's
+  # mixed-mineralogy 38. `build_soil.py` re-evaluates the ANUT-8 bound at each
+  # of these and reports it, so a reader can see how much of that bound is the
+  # level rather than the world. They are a PROBE and not a bracket: neither is
+  # a claim about this world's clay mineralogy, and the organic-share check
+  # above is deliberately not applied to them.
+  clay_cec_level_probe_cmol_kg: [2.0, 10.0]
+
   # THE CROSS-CHECK, RUN AT EVERY CALL RATHER THAN ASSERTED IN PROSE. Sahrawat's
   # reference composition is his Table 1 mean, clay 39.6 per cent and organic
   # matter 3.06 per cent; the two coefficients above evaluated there must put
