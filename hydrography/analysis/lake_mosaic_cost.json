@@ -1,6 +1,6 @@
 {
   "title": "What the hydrologic mosaic costs at the crossing, and what the seasonal lake-energy omission is worth",
-  "measured_utc": "2026-08-31T06:33:20.015350+00:00",
+  "measured_utc": "2026-08-31T06:50:33.439284+00:00",
   "source_build": "canonical-10m-carve2",
   "rung": "T21",
   "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
@@ -109,6 +109,8 @@
     },
     "on_the_capacity_that_ran": {
       "land_mean_capacity_m": 0.15877384090570504,
+      "absent_tile_mean_log_capacity_change": -0.019815286576633562,
+      "absent_tile_mean_absolute_log_capacity_change": 0.02186481785937612,
       "over_lake_bearing_land_area": {
         "0.5": 0.01264740775349712,
         "0.75": 0.05067292697013358,
@@ -122,6 +124,8 @@
     },
     "on_the_staged_capacity": {
       "land_mean_capacity_m": 0.15219065023730313,
+      "absent_tile_mean_log_capacity_change": -0.02325865301963863,
+      "absent_tile_mean_absolute_log_capacity_change": 0.02480661747977176,
       "over_lake_bearing_land_area": {
         "0.5": 0.004753073354971521,
         "0.75": 0.0217405845987497,

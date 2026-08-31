@@ -29,6 +29,7 @@ the lake fraction.
 | the whole lake tile, absent today | **NOT MATERIAL on the planet mean, and it is the larger of the two** | 0.63 to 0.80 times the bar, one-signed, and -6.9 W m-2 on the worst cell |
 | the mixing term, if the blend were staged | NOT MATERIAL | 0.44 to 0.50 times the bar |
 | the sign of the mixing term | **NOT ONE-SIGNED, and a pre-registered invariant said it was** | 13.1% of lake-area bins carry the opposite sign |
+| the same two losses in RUNOFF | the absent tile is under 0.1 per cent of land runoff; the mixing term is NOT MEASURABLE from this tree | the chord is asked about a mean change sixty times inside its own range |
 | the capacity the flux arms stand on | the bucket the climatology's own run integrated, and it is NOT the one staged now | zero cells above capacity, maximum fill fraction 0.99997 |
 | the groundwater-fed tile | ABSENT, and refused by name rather than defaulted | no `water_table.nc` on the accepted build |
 
@@ -113,6 +114,39 @@ The signs are not symmetric and the reason is the direction defect below. The
 absent-tile loss is negative, meaning that staging the lake tile would LOWER
 the wetness factor and lower the latent heat flux. That is the opposite of what
 a lake is for.
+
+### The runoff consumer, and why only one of the two arms reaches it
+
+`world-cyu3` registers one instrument for the mass consumer: the chord
+`d ln R / d ln C = -0.0416`, from the two offline-bucket points in
+`pedology/README.md`. It converts a fractional change in the MEAN capacity into
+a fractional change in land runoff, and only one of the two arms is that.
+
+**The mixing term is not, by construction.** The blend is the area-weighted
+mean of the two-point capacity distribution, so it moves no mean capacity at
+all; the gap it leaves is Jensen's, at fixed mean. A chord in the mean has
+nothing to act on. No substitute is available either: the runoff law needs the
+per-timestep water flux, and a climatology carries bin means. So the mixing
+term's runoff half is not measurable from the artifacts in this tree, and that
+is a property of the law rather than of the effort spent.
+
+**The absent tile is a mean-capacity change** -- from the blend to the soil
+capacity alone -- and the chord applies. Land-area-weighted, dropping the lake
+tile lowers the mean log capacity by 0.0198 on the field the run integrated and
+0.0233 on the staged field, with magnitudes 0.0219 and 0.0248 when the signs
+are not allowed to cancel. Through the chord that is a land-runoff change under
+0.1 per cent on either field.
+
+**The instrument check, which is the reason no third digit is given.** The
+chord was measured across a factor 3.75 in capacity, `|d ln C| = 1.32`, and it
+is being asked here about 0.022 -- a factor of sixty inside its own range, so
+this is interpolation and not extrapolation. But the local slope at the
+operating point is unmeasured and the chord is quoted with no scatter, so what
+the arm supports is the bound `well under one per cent` that
+`exoplasim/notes/forcing-bundle-predictions.md` already states, and not a
+figure. The sign is not in doubt: a shallower bucket overflows more, so staging
+the lake tile RAISES land runoff wherever `lake_dwmax_m` is below the soil
+capacity.
 
 ### The conservation control, which is where the pairing was caught
 

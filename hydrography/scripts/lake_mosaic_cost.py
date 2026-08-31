@@ -442,9 +442,21 @@ def main() -> None:
         mixed = (1.0 - f_lake) * field + f_lake * lake_dwmax_m
         with np.errstate(invalid="ignore"):
             size = np.abs(mixed - field) / np.where(field > 0, field, np.nan)
+            # THE ABSENT TILE IS A MEAN-CAPACITY CHANGE and the mixing term is
+            # not: the blend IS the area-weighted mean of the two-point
+            # distribution, so it moves no mean at all. Only the first can be
+            # taken through a chord in the mean, which is the only instrument
+            # registered for the runoff consumer. world-cyu3.
+            log_change = (np.log(np.where(field > 0, field, np.nan))
+                          - np.log(np.where(mixed > 0, mixed, np.nan)))
+        weights = land_km2[is_land]
         return {
             "land_mean_capacity_m": float(
                 (field * land_km2)[is_land].sum() / land_km2[is_land].sum()),
+            "absent_tile_mean_log_capacity_change": float(
+                np.nansum(log_change[is_land] * weights) / weights.sum()),
+            "absent_tile_mean_absolute_log_capacity_change": float(
+                np.nansum(np.abs(log_change[is_land]) * weights) / weights.sum()),
             "over_lake_bearing_land_area": area_weighted_quantile(
                 size[has_lake], land_km2[has_lake], [0.5, 0.75, 0.9, 0.95, 0.99]),
             "max": float(np.nanmax(size[has_lake])),
