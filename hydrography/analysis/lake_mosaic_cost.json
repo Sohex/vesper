@@ -1,25 +1,32 @@
 {
   "title": "What the hydrologic mosaic costs at the crossing, and what the seasonal lake-energy omission is worth",
-  "measured_utc": "2026-08-31T06:00:19.922766+00:00",
+  "measured_utc": "2026-08-31T06:33:20.015350+00:00",
   "source_build": "canonical-10m-carve2",
   "rung": "T21",
   "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
   "baseline_climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
   "baseline_run": "run_67323a923013",
   "baseline_orbits": 57,
+  "capacity_the_flux_arms_stand_on": "exoplasim/runs/run_67323a923013/N032_surf_0229.sra",
+  "capacity_sha256": "0fd07c1c3f786537ee649126e0713c8c37c112936ea06d0ba3a30c0f393be4b5",
+  "staged_capacity": "exoplasim/inputs/t21/orogen_T21_surf_0229.sra",
   "staged_capacity_sha256": "3e3af7935614cb2c6307f2fb60d7ccc1adaa1d280bd03edab8eb729ba8461d83",
+  "staged_capacity_is_the_one_that_ran": false,
   "lake_dwmax_m": 0.2,
-  "lake_blend_is_inert": true,
+  "lake_blend_is_inert_in_the_staged_field": true,
   "bar_w_m2": 0.12,
   "bar_source": "config/partial_surface.yaml, the accepted baseline run's state-storage tolerance",
   "controls": {
     "surface_share_partition_residual": 2.9802322387695312e-08,
     "barren_partition_residual": 2.9802322387695312e-08,
     "area_partition_relative_residual": 0.0,
-    "land_cells_whose_soil_water_exceeds_the_staged_capacity": 55,
     "land_cells": 1639,
-    "worst_overshoot_m": 0.06776050458431243,
-    "note": "the partition residuals are the float32 storage precision of the shares, not a reduction error; the areas are float64 and close exactly. The overshoot population is DECLARED rather than dropped: on those cells the climatology's soil water exceeds the staged bucket, so the staged capacity is not the one that run used there, and every flux result below is reported with and without them."
+    "land_cells_whose_soil_water_exceeds_the_capacity_that_ran": 0,
+    "worst_overshoot_m": -6.571083068840355e-06,
+    "max_fill_fraction": 0.9999684128103213,
+    "land_cells_whose_soil_water_exceeds_the_STAGED_capacity": 55,
+    "worst_staged_overshoot_m": 0.06776050458431243,
+    "note": "the partition residuals are the float32 storage precision of the shares, not a reduction error; the areas are float64 and close exactly. THE OVERSHOOT COUNT IS A CONSERVATION TEST WITH A RIGHT ANSWER and the right answer is zero: bucket_step at landcolumn.f90:75-89 sets the store to min(capacity, store + flux dt) at every timestep and the layered path clips each layer at its share of the same capacity, so a bin mean of clipped values cannot exceed the clip. The maximum fill fraction is the same statement from the other side: the bucket touches its capacity and does not pass it. The STAGED count is reported beside it because it is not zero -- the staged field is a later iteration than the run and its bucket is a different bucket. world-q3p9."
   },
   "freezing_threshold": {
     "solved_lake_area": {
@@ -53,8 +60,8 @@
   },
   "curvature": {
     "finding": "the wetness factor min(1, w / (0.4 C)) is NOT convex in the capacity. It is flat below the saturation knee at C = w / 0.4 and convex above it, so the derivative jumps down at the knee and the function is concave there. A two-point capacity distribution is one-signed only when the law it is pushed through has one sign of curvature, and this one does not: a cell whose soil and lake tiles straddle the knee carries the opposite sign, and the sign can reverse within a single cell as the lake fraction is varied. The runoff consumer, max(0, w + F dt - C) / dt, IS convex in the capacity throughout and is not affected.",
-    "share_of_lake_area_bins_whose_tiles_straddle_the_knee": 16.449257048607254,
-    "share_of_lake_area_bins_with_both_tiles_unsaturated": 71.74481480595227,
+    "share_of_lake_area_bins_whose_tiles_straddle_the_knee": 13.120941592434429,
+    "share_of_lake_area_bins_with_both_tiles_unsaturated": 74.94344903587503,
     "consequence": "world-cyu3's pre-registered invariant 2 holds for runoff and fails for the wetness factor. Any tile operator chosen for this crossing has to carry the distribution rather than a corrected mean, because a correction with one sign cannot track a gap with two."
   },
   "mosaic_cost": {
@@ -62,30 +69,16 @@
       "what": "the lake tile is not staged at all, so the cell runs on the upland-soil capacity alone. This is the loss the world carries today, and it is the whole tile rather than a mixing error.",
       "all_land_cells": {
         "estimate": {
-          "planet_mean_w_m2": -0.047593674644112904,
-          "land_mean_w_m2": -0.10816054363910607,
-          "multiples_of_the_bar": 0.3966139553676076,
-          "worst_cell_w_m2": -8.663385706334982
+          "planet_mean_w_m2": -0.07595547678976795,
+          "land_mean_w_m2": -0.17126105608288358,
+          "multiples_of_the_bar": 0.6329623065813996,
+          "worst_cell_w_m2": -5.2525822478328115
         },
         "upper_bound": {
-          "planet_mean_w_m2": -0.08150290780907223,
-          "land_mean_w_m2": -0.1839556560762486,
-          "multiples_of_the_bar": 0.6791908984089352,
-          "worst_cell_w_m2": -15.974166555528956
-        }
-      },
-      "excluding_the_overshoot_population": {
-        "estimate": {
-          "planet_mean_w_m2": -0.0257161602592529,
-          "land_mean_w_m2": -0.05863298098116677,
-          "multiples_of_the_bar": 0.21430133549377417,
-          "worst_cell_w_m2": -6.075348908475936
-        },
-        "upper_bound": {
-          "planet_mean_w_m2": -0.04275398718173421,
-          "land_mean_w_m2": -0.0968465836107215,
-          "multiples_of_the_bar": 0.35628322651445177,
-          "worst_cell_w_m2": -15.974166555528956
+          "planet_mean_w_m2": -0.09554347595998063,
+          "land_mean_w_m2": -0.21451408126917404,
+          "multiples_of_the_bar": 0.7961956329998385,
+          "worst_cell_w_m2": -6.908354807063519
         }
       }
     },
@@ -93,61 +86,85 @@
       "what": "the Jensen term that would remain: the two-point capacity distribution averaged before the convex wetness law rather than after it.",
       "all_land_cells": {
         "estimate": {
-          "planet_mean_w_m2": 0.016209764318973197,
-          "land_mean_w_m2": 0.036578282492693084,
-          "multiples_of_the_bar": 0.13508136932477666,
-          "worst_cell_w_m2": 3.872915449246708
+          "planet_mean_w_m2": 0.05232981330860328,
+          "land_mean_w_m2": 0.11745507960326115,
+          "multiples_of_the_bar": 0.436081777571694,
+          "worst_cell_w_m2": 4.850970432689044
         },
         "upper_bound": {
-          "planet_mean_w_m2": 0.027514007989480296,
-          "land_mean_w_m2": 0.06105665310332537,
-          "multiples_of_the_bar": 0.22928339991233582,
-          "worst_cell_w_m2": 9.922888258914572
-        }
-      },
-      "excluding_the_overshoot_population": {
-        "estimate": {
-          "planet_mean_w_m2": 0.015032892044589958,
-          "land_mean_w_m2": 0.033941260689591815,
-          "multiples_of_the_bar": 0.12527410037158299,
-          "worst_cell_w_m2": 3.872915449246708
-        },
-        "upper_bound": {
-          "planet_mean_w_m2": 0.02288563584059235,
-          "land_mean_w_m2": 0.05148060835451713,
-          "multiples_of_the_bar": 0.19071363200493627,
-          "worst_cell_w_m2": 9.922888258914572
+          "planet_mean_w_m2": 0.06027218857852976,
+          "land_mean_w_m2": 0.13459550588330027,
+          "multiples_of_the_bar": 0.5022682381544147,
+          "worst_cell_w_m2": 5.312388213102709
         }
       }
-    }
+    },
+    "population": "every land cell. There is no excluded population: the flux arms stand on the capacity the climatology's own run integrated, so the conservation test above passes and there is nothing to report around."
   },
   "capacity_perturbation": {
-    "over_lake_bearing_land_area": {
-      "0.5": 0.004753073354971521,
-      "0.75": 0.0217405845987497,
-      "0.9": 0.15005080104887092,
-      "0.95": 0.2805035217663199,
-      "0.99": 2.108202476697392
-    },
-    "max": 4.349362296655058,
-    "share_of_lake_bearing_land_area_above_100_percent": 2.6399381518043485,
     "f_lake_over_lake_bearing_cells": {
       "median": 0.010478198528289795,
       "mean": 0.048720927829358204,
       "max": 0.6866618990898132
     },
-    "lake_bearing_land_area_share_where_lake_dwmax_exceeds_the_soil_capacity": 55.791905699077226,
-    "direction": "where lake_dwmax_m exceeds the staged soil capacity the blend RAISES the cell's capacity, which lowers the wetness factor and lowers saturation-excess runoff. config/planet.yaml argues the opposite direction against ExoPlaSim's uniform 0.5 m default, which soil_water_source: pedology replaced. world-kvr."
+    "on_the_capacity_that_ran": {
+      "land_mean_capacity_m": 0.15877384090570504,
+      "over_lake_bearing_land_area": {
+        "0.5": 0.01264740775349712,
+        "0.75": 0.05067292697013358,
+        "0.9": 0.21283113063153497,
+        "0.95": 0.34643165900232437,
+        "0.99": 0.43998978824019386
+      },
+      "max": 0.5009945695560633,
+      "share_of_lake_bearing_land_area_above_100_percent": 0.0,
+      "lake_bearing_land_area_share_where_lake_dwmax_exceeds_the_soil_capacity": 76.07491124027308
+    },
+    "on_the_staged_capacity": {
+      "land_mean_capacity_m": 0.15219065023730313,
+      "over_lake_bearing_land_area": {
+        "0.5": 0.004753073354971521,
+        "0.75": 0.0217405845987497,
+        "0.9": 0.15005080104887092,
+        "0.95": 0.2805035217663199,
+        "0.99": 2.108202476697392
+      },
+      "max": 4.349362296655058,
+      "share_of_lake_bearing_land_area_above_100_percent": 2.6399381518043485,
+      "lake_bearing_land_area_share_where_lake_dwmax_exceeds_the_soil_capacity": 55.791905699077226
+    },
+    "direction": "where lake_dwmax_m exceeds the soil capacity the blend RAISES the cell's capacity, which raises the water needed to reach 40 per cent of it and so lowers both the wetness factor and saturation-excess runoff. config/planet.yaml argues lake_dwmax_m shallower than the capacity it is blended into, for the opposite effect. Which way the field actually goes is measured per field above rather than assumed, because the two iterations do not agree. world-kvr owns the value's derivation."
   },
   "provenance": {
     "generator": "hydrography/scripts/lake_mosaic_cost.py",
     "inputs": {
       "support": "hydrography/data/canonical-10m-carve2/support_exoplasim-T21.nc",
       "climatology": "exoplasim/analysis/climatology/baseline_regular_climatology.nc",
+      "capacity_that_ran": "exoplasim/runs/run_67323a923013/N032_surf_0229.sra",
       "staged_capacity": "exoplasim/inputs/t21/orogen_T21_surf_0229.sra"
     },
     "input_sha256": {
+      "capacity_that_ran": "0fd07c1c3f786537ee649126e0713c8c37c112936ea06d0ba3a30c0f393be4b5",
       "staged_capacity": "3e3af7935614cb2c6307f2fb60d7ccc1adaa1d280bd03edab8eb729ba8461d83"
+    },
+    "capacity_pairing": {
+      "code": 229,
+      "run": "run_67323a923013",
+      "path": "exoplasim/runs/run_67323a923013/N032_surf_0229.sra",
+      "sha256": "0fd07c1c3f786537ee649126e0713c8c37c112936ea06d0ba3a30c0f393be4b5",
+      "source_build": "canonical-10m-carve2",
+      "staged_path": "exoplasim/inputs/t21/orogen_T21_surf_0229.sra",
+      "staged_sha256": "3e3af7935614cb2c6307f2fb60d7ccc1adaa1d280bd03edab8eb729ba8461d83",
+      "matches_staged": false
+    },
+    "staged_capacity_stamp": {
+      "code": 229,
+      "path": "exoplasim/inputs/t21/orogen_T21_surf_0229.sra",
+      "sha256": "3e3af7935614cb2c6307f2fb60d7ccc1adaa1d280bd03edab8eb729ba8461d83",
+      "terrain_hash": "f496ae9fd749da592cd2f0d588f44819fcee488922e249b09b91f9310ddfc3ec",
+      "build": "canonical-10m-carve2",
+      "declared_cross_build": "canonical-10m-carve2",
+      "paired_with_run": null
     },
     "reads_only": true
   }
