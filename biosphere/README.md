@@ -405,8 +405,32 @@ python biosphere/scripts/build_vesper_header.py   # vesper.h, installed into the
 python biosphere/scripts/build_vesper_pfts.py     # degree-day limits rescaled
 python biosphere/scripts/build_rootable_fraction.py # BIO-11 effective plant area
 python biosphere/scripts/build_lpj_driver.py      # climate + soil codes + gridlist
-cmake --build vendor/lpj-guess/build --parallel 16
+scripts/lock_and_run -m "build lpj-guess" \
+  python biosphere/scripts/build_lpj_guess.py     # compile, and record what from
 ```
+
+**Build the model with `build_lpj_guess.py` and not with a bare `cmake --build`.**
+It runs the same two cmake commands and then writes
+`vendor/lpj-guess/build/guess.provenance.json`, recording the executable's sha
+beside the sha of every one of the 124 files it was compiled from -- the four
+subdirectory CMakeLists' declared lists, everything a quoted `#include` reaches
+from them (the generated `framework/vesper.h` among them), the build files
+themselves, and the compiler and cache entries that turned that source into
+those bytes. `--verify` compares the record against the tree, building nothing,
+and `run_lpj_guess.py` runs the same comparison and REFUSES a binary the tree
+has moved under.
+
+This is rule 4 for the biosphere. LPJ-GUESS reads none of its source at run
+time, so a binary built before an edit integrates the code it was built from and
+reports nothing; the one time that was caught, it was caught only because the
+new parameter reached the model through an instruction file and the parser
+refused an undefined identifier. A change confined to C++ has no parser in front
+of it. A hand-typed `cmake --build` leaves the record describing the previous
+executable, which the next run refuses -- so the failure mode of forgetting this
+script is a refusal, not a wrong number.
+
+The build replaces the executable a run in flight has already hashed into its
+manifest, so check `pgrep -x guess` before starting one.
 
 `build_lpj_driver.py --self-test` runs the interval arithmetic and header layout
 fixtures and exits: no climatology, no soil map, no model. It covers the

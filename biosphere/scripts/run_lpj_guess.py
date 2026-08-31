@@ -287,9 +287,26 @@ def main() -> None:
         if not Path(path).is_file():
             raise SystemExit(f"{path} is missing")
 
+    # THE BINARY MUST CONTAIN THE MODEL IN THIS TREE, and a run is where that is
+    # decided. LPJ-GUESS reads none of its source at run time, so a binary built
+    # before an edit integrates the code it was built from and reports nothing:
+    # the 2026-08-30 case was caught only because the missing parameter reached
+    # the model through an instruction file, so the PARSER refused it. A change
+    # confined to C++ has no parser in front of it. This refuses instead.
+    # world-w62x.
+    #
+    # It is checked HERE and not only in `scripts/check_consistency.py` because
+    # the gate is not run before every run, and the binary can move between the
+    # two -- ExoPlaSim split the same question the same way after world-anl,
+    # where `--verify` truthfully reported every installed binary current while
+    # a probe ran a copy taken from a run directory. It costs a JSON read and a
+    # sha over the source set, so it can afford to be here.
+    provenance_path = args.binary.with_suffix(".provenance.json")
     binary_provenance = None
     if args.ntransform_profile == "stock-4.1.1":
-        provenance_path = args.binary.with_suffix(".provenance.json")
+        # The comparison arm is a build of a COPY of the tree with one
+        # compilation unit substituted, so its record is a different contract
+        # and `prepare_stock_ntransform_arm.py` is what writes it.
         if not provenance_path.is_file():
             raise SystemExit(
                 f"{provenance_path} is missing; prepare the stock arm with "
@@ -299,6 +316,30 @@ def main() -> None:
             raise SystemExit(f"{provenance_path} is not a stock-4.1.1 arm")
         if binary_provenance.get("binary_sha256") != sha256(args.binary):
             raise SystemExit(f"{args.binary} changed after {provenance_path}")
+        # The arm was built from a snapshot of the vendored tree. If that tree
+        # has moved since, the arm no longer differs from the active model in
+        # `ntransform.cpp` alone, and the comparison it exists for is void.
+        from prepare_stock_ntransform_arm import source_fingerprint
+        live = source_fingerprint(GUESS_SOURCE)
+        if binary_provenance.get("base_source_fingerprint") != live:
+            raise SystemExit(
+                f"{args.binary} was built from a snapshot of vendor/lpj-guess "
+                f"that no longer matches the tree, so the stock arm and the "
+                f"active arm differ by more than modules/ntransform.cpp. "
+                f"Re-prepare it with prepare_stock_ntransform_arm.py.")
+    else:
+        from build_lpj_guess import verify as verify_binary
+        problems = verify_binary(args.binary)
+        if problems:
+            raise SystemExit("\n".join(problems) + "\n\nRefusing to run: the "
+                             "numbers would be attributed to source this "
+                             "binary does not contain.")
+        # The full source map lives beside the binary, which is untracked and
+        # gets overwritten by the next build. The run manifest is tracked and
+        # there is one per run, so it carries the digest and not the 124 shas.
+        record = json.loads(provenance_path.read_text(encoding="utf-8"))
+        binary_provenance = {k: v for k, v in record.items() if k != "sources"}
+        binary_provenance["source_count"] = len(record.get("sources") or {})
 
     config = yaml.safe_load(CONFIG.read_text())
     from stochastic_seeds import read_declaration

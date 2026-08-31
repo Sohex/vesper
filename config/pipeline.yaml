@@ -1584,6 +1584,24 @@ steps:
       property of the model calendar rather than of the climate state -- but a
       climatology has to exist, and with none named the script exits.
 
+  - id: build_lpj_guess
+    script: biosphere/scripts/build_lpj_guess.py
+    loop: B
+    cost: minutes
+    needs: [vesper_header]
+    writes: [vendor/lpj-guess/build/guess, vendor/lpj-guess/build/guess.provenance.json]
+    gate: >
+      Rule 4 for the biosphere. LPJ-GUESS compiles one executable and reads
+      none of its source at run time, so a binary built before an edit
+      integrates the code it was built from and reports nothing. This records
+      the sha of every file the executable was compiled from, `--verify`
+      compares that record against the tree without building anything, and
+      `run_lpj_guess.py` refuses a binary that does not match. It needs
+      `vesper_header` because the configured orbital year sizes arrays at
+      compile time. CPU-heavy: run it under `scripts/lock_and_run`, and check
+      `pgrep -x guess` first, because it replaces the executable a run in
+      flight has already hashed. world-w62x.
+
   - id: vesper_pfts
     script: biosphere/scripts/build_vesper_pfts.py
     loop: B
@@ -1911,7 +1929,7 @@ steps:
     script: biosphere/scripts/run_lpj_guess.py
     loop: B
     cost: hours
-    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, somdynam_gate, century_acceleration_gate, fire_gate, snow_thermal_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate, soil_restart_state_gate, stochastic_seed_gate, equilibrium_window_gate]
+    needs: [lpj_driver, build_lpj_guess, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, somdynam_gate, century_acceleration_gate, fire_gate, snow_thermal_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate, soil_restart_state_gate, stochastic_seed_gate, equilibrium_window_gate]
     writes: [biosphere/runs/]
     gate: >
       Completion includes BIO-14 assessment inside the run harness: every
