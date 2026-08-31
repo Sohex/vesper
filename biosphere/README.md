@@ -482,23 +482,34 @@ that approach; with a state file the marginal cost of more retained record, of a
 second seed, or of another patch count is the record alone.
 
 ```bash
-python biosphere/scripts/run_lpj_guess.py --nyear 8600 --save-state
-python biosphere/scripts/run_lpj_guess.py --nyear 9853 --continue-from lpj_<parent>
+python biosphere/scripts/run_lpj_guess.py --nyear 1253 --save-state
+python biosphere/scripts/run_lpj_guess.py --nyear 1253 --continue-from lpj_<parent>
 ```
 
-`--nyear` is CUMULATIVE. `vesperinput.cpp:getclimate` stops on `date.year`
-reaching `nyear_spinup + nyear` and counts from year zero whether the state was
-read or integrated, so the second command above adds 1,253 simulated years to
-the 8,600 the first one left on disk. The continuation is a NEW run with a new
-id -- rule 6, unchanged by where the state came from. Its output tables carry
-its own simulated years and not the parent's, so the retained record a consumer
-reads is the continuation's alone and the parent's years are spin-up whatever
-they were bought as. `run_manifest.json` carries a `continuation` block naming
-the parent, the chain back to bare ground,
-the year it resumed at, how many years it integrated itself and the hashes of
-the state files it read. `acceptance.json` carries that block too, on a pass and
-on a refusal, so a consumer reading a record can see that the spin-up in front
-of it was integrated by a named run rather than assumed.
+**Every instant in a state file is a `date.year`, and `date.year` counts from
+zero THROUGH the spin-up.** `--nyear` is the retained record; `nyear_spinup`, the
+derived floor `build_vesper_pfts.py` writes into the PFT file, is the spin-up in
+front of it. A run therefore ends at simulated year `nyear_spinup + nyear - 1`,
+`vesperinput.cpp:685` stops it there and `commonoutput.cpp:785` writes no annual
+row before `nyear_spinup`. Nothing that computes a save point or a resume point
+is right without it, and `run_lpj_guess.py` writes `nyear_spinup` into the
+instruction file from the value it read out of the PFT file, so the number it did
+its arithmetic with is the number the model runs.
+
+The continuation integrates `--nyear` MORE years, all of them retained, and
+declares its parent's total as its own `nyear_spinup`. That is what makes its
+output cover its own years and no others; the CENTURY accelerator window derives
+from the same parameter in the Soil constructor, but it is serialized, so the
+deserializer restores the parent's window over the constructor's and the
+accelerator does not fire again. The continuation is a NEW run with a new id --
+rule 6, unchanged by where the state came from -- and its record is its own
+years, the parent's being spin-up whatever they were bought as.
+`run_manifest.json` carries a `continuation` block naming the parent, the chain
+back to bare ground, the simulated year it resumed at, how many years it
+integrated itself and the hashes of the state files it read. `acceptance.json`
+carries that block too, on a pass and on a refusal, so a consumer reading a
+record can see that the spin-up in front of it was integrated by a named run
+rather than assumed.
 
 **What may be continued is guarded, not trusted.** A state file is a simulated
 state and not a result: read under a different forcing, a different soil map, a
@@ -514,8 +525,18 @@ derived from the cell rather than from the rank.
 
 That a resumed run reproduces the run it continues is a separate question with a
 right answer, and `verify_lpj_restart_continuity.py` is where it is asked. Its
-three modes and what each can see are below, under what a restarted soil column
-inherits.
+three model modes and what each can see are below, under what a restarted soil
+column inherits; `--self-test` is the fourth and needs no model, holding the two
+integers the runner decides against the arithmetic `framework/framework.cpp`
+performs on them. That test exists because the first version of `--save-state`
+computed its save point from `nyear` alone and named a simulated year thousands
+of years before the end of the run, so it reads the spin-up out of the PFT file
+the runs import rather than carrying a copy of the number.
+
+The fixture's own `--nyear-spinup` defaults to ZERO, which is what makes it
+runnable: inheriting the derived floor turns a twelve-year bed into a
+twelve-thousand-year one, and zero also puts every simulated year in the output
+tables the annual mode compares.
 
 ### The volatile organic source is off, and off is a decision
 

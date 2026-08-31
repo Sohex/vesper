@@ -309,8 +309,25 @@ def self_test() -> None:
 
     It is checked through `run_lpj_guess.build_instruction`, so what is tested
     is the text the model will actually parse and not a second copy of the rule.
+
+    THE SPIN-UP IS THE PART THAT BITES, and this test exists because it did.
+    The model counts `date.year` from zero THROUGH `nyear_spinup`, so a run of
+    `--nyear N` ends at simulated year `nyear_spinup + N - 1`. The first version
+    of `--save-state` computed its save point from `nyear` alone and named a
+    year in the middle of the run -- with the derived floor in
+    `vesper_pfts.ins` that is thousands of simulated years early, and the state
+    would have been written, accepted and continued from without anything
+    objecting. So the spin-up here is READ FROM THE PFT FILE the runs actually
+    import, never from a constant written into this test: a test that carries
+    its own copy of the number cannot catch the number being wrong.
     """
     year_length = model_year_days(yaml.safe_load(CONFIG.read_text()))
+    pfts = GENERATED / "vesper_pfts.ins"
+    if not pfts.is_file():
+        raise SystemExit(
+            f"{rel(pfts)} is absent, so the spin-up this test has to reckon "
+            "with is not known. Build it with build_vesper_pfts.py.")
+    spinup = run_lpj_guess.spinup_years(pfts)
 
     framework = (GUESS_SOURCE / "framework" / "framework.cpp").read_text(
         encoding="utf-8")
@@ -324,50 +341,83 @@ def self_test() -> None:
                 "the model does not do. Re-read framework.cpp and update it.")
 
     failures: list[str] = []
-    parent_nyear, child_nyear = 8600, 9853
+    parent_nyear, child_nyear = 1253, 1253
+    parent_total = spinup + parent_nyear
+    child_total = parent_total + child_nyear
 
     parent = {"restart": False, "save_state": True,
-              "state_year": parent_nyear, "state_day": -1,
-              "save_year": parent_nyear, "save_day": -1,
+              "state_year": parent_total, "state_day": -1,
+              "save_year": parent_total, "save_day": -1,
               "state_path": "/parent/state", "save_path": "/parent/state"}
     child = {"restart": True, "save_state": True,
-             "state_year": parent_nyear, "state_day": -1,
-             "save_year": child_nyear, "save_day": -1,
+             "state_year": parent_total, "state_day": -1,
+             "save_year": child_total, "save_day": -1,
              "state_path": "/parent/state", "save_path": "/child/state"}
 
     parent_instants = resume_and_save_instants(parent, year_length)
     child_instants = resume_and_save_instants(child, year_length)
 
-    # A run of nyear years simulates years 0 .. nyear-1, so the state a saving
-    # run writes has to cover the last day of year nyear-1.
-    if parent_instants["state_written_covers"] != (parent_nyear - 1, year_length - 1):
+    # A run simulates years 0 .. nyear_spinup + nyear - 1, so the state a saving
+    # run writes has to cover the last day of the last of those.
+    if parent_instants["state_written_covers"] != (parent_total - 1, year_length - 1):
         failures.append(
-            f"a run of {parent_nyear} years writes a state covering "
+            f"a run of {parent_nyear} retained years behind a {spinup}-year "
+            f"spin-up writes a state covering "
             f"{parent_instants['state_written_covers']}, not the last day of "
-            f"year {parent_nyear - 1}")
-    if child_instants["first_simulated"] != (parent_nyear, 0):
+            f"year {parent_total - 1}")
+    if child_instants["first_simulated"] != (parent_total, 0):
         failures.append(
             f"the continuation's first simulated day is "
             f"{child_instants['first_simulated']}, not day 0 of year "
-            f"{parent_nyear}: it would "
-            + ("repeat" if child_instants["first_simulated"][0] < parent_nyear
-               else "skip") + " a simulated year")
-    if child_instants["state_written_covers"] != (child_nyear - 1, year_length - 1):
+            f"{parent_total}: it would "
+            + ("repeat" if child_instants["first_simulated"][0] < parent_total
+               else "skip") + " simulated years")
+    if child_instants["state_written_covers"] != (child_total - 1, year_length - 1):
         failures.append(
             f"the continuation writes a state covering "
             f"{child_instants['state_written_covers']}, not the last day of "
-            f"year {child_nyear - 1}, so a third run could not continue it")
+            f"year {child_total - 1}, so a third run could not continue it")
+
+    # THE RUNNER'S OWN ARITHMETIC, not a restatement of it. The dicts above say
+    # what a correct state block contains; these are the ones run_lpj_guess.py
+    # actually builds from a parent manifest, and the two have to agree.
+    built_parent = run_lpj_guess.state_block(
+        spinup, parent_nyear, Path("/parent"), None)
+    parent_manifest = {
+        "run_id": "lpj_parent", "physical": {"nyear": parent_nyear,
+                                             "nyear_spinup": spinup},
+        "saved_state": {"covers_year": parent_total - 1},
+    }
+    built_child = run_lpj_guess.state_block(
+        spinup, child_nyear, Path("/child"), parent_manifest,
+        parent_state=Path("/parent/state"))
+    for label, built, wanted in (("--save-state", built_parent, parent),
+                                 ("--continue-from", built_child, child)):
+        for key in ("state_year", "state_day", "save_year", "save_day"):
+            if built[key] != wanted[key]:
+                failures.append(
+                    f"{label} builds {key} {built[key]}, and the instant a "
+                    f"correct block names is {wanted[key]}")
+
+    refusals = run_lpj_guess.continuation_refusals(
+        parent_manifest, {}, {"nyear_spinup": spinup}, child_nyear)
+    if any("save point" in r for r in refusals):
+        failures.append(
+            "continuation_refusals rejects a parent whose recorded save point "
+            f"is the end of its own run: {refusals}")
 
     # The text the model parses, not a third copy of the rule.
     settings = {"title": "self_test", "nyear": child_nyear, "npatch": 1,
+                "nyear_spinup": parent_total,
                 "root_seed": 1, "nfix_a": 0.0, "nfix_b": 0.0, "ifbvoc": 0,
                 "outputs": ("cmass.out",), "state": child,
                 **wetland_gate.switches(False)}
     text = run_lpj_guess.build_instruction(
         {"driver": Path("/d"), "soilmap": Path("/s"), "pfts": Path("/p")},
         settings)
-    for line in (f"state_year {parent_nyear}", "state_day -1",
-                 f"save_year {child_nyear}", "restart 1", "save_state 1",
+    for line in (f"state_year {parent_total}", "state_day -1",
+                 f"save_year {child_total}", "restart 1", "save_state 1",
+                 f"nyear_spinup {parent_total}", f"nyear {child_nyear}",
                  'state_path "/parent/state"', 'save_path "/child/state"'):
         if line not in text:
             failures.append(f"the generated instruction file omits {line!r}")
@@ -384,9 +434,11 @@ def self_test() -> None:
             f"\n{len(failures)} failures. A continuation that resumes at the "
             "wrong simulated year reports the spin-up it was asked for and "
             "integrates a different one.")
-    print(f"restart instants agree over a {year_length}-day simulation year: a "
-          f"run of N years writes a state covering year N-1, and a "
-          f"continuation's first simulated day is day 0 of year N")
+    print(f"restart instants agree over a {year_length}-day simulation year "
+          f"and the {spinup}-year spin-up {rel(pfts)} declares: a run of "
+          f"{parent_nyear} retained years writes a state covering year "
+          f"{parent_total - 1}, a continuation resumes at day 0 of year "
+          f"{parent_total} and writes its own covering year {child_total - 1}")
 
 
 def main() -> None:
@@ -410,6 +462,18 @@ def main() -> None:
     parser.add_argument("--round-trip", action="store_true",
                         help="instead: restart at --state-day and write the "
                              "state again with NO simulated day in between")
+    parser.add_argument("--nyear-spinup", type=int, default=0,
+                        help="the simulated years in front of --nyear. ZERO by "
+                             "default, and that default is what makes this "
+                             "fixture runnable at all: the PFT file declares "
+                             "the DERIVED spin-up floor, which is thousands of "
+                             "simulated years, and inheriting it turns a "
+                             "twelve-year bed into a twelve-thousand-year one. "
+                             "Zero also puts every simulated year in the "
+                             "output tables, which is what the annual mode "
+                             "compares. It disables the CENTURY accelerator "
+                             "window, so this fixture does not exercise the "
+                             "accelerator's own restart state.")
     parser.add_argument("--ranks", type=int, default=4)
     parser.add_argument("--npatch", type=int, default=5)
     parser.add_argument("--bed", type=Path, default=None,
@@ -426,11 +490,19 @@ def main() -> None:
         self_test()
         return
 
-    if not 0 < args.state_year < args.nyear:
+    # Every year here is a `date.year`, which counts from zero THROUGH the
+    # spin-up: the run covers 0 .. nyear_spinup + nyear - 1 and
+    # `commonoutput.cpp:785` writes no annual row before nyear_spinup. So the
+    # split has to leave something on both sides AND land where the annual mode
+    # has output to compare.
+    last_year = args.nyear_spinup + args.nyear - 1
+    if not args.nyear_spinup < args.state_year <= last_year:
         raise SystemExit(
-            f"--state-year {args.state_year} has to fall inside the run: a "
-            "restart at year 0 continues nothing and a restart at the last "
-            "year compares nothing.")
+            f"--state-year {args.state_year} has to fall inside the run and "
+            f"after the spin-up: this run covers simulated years 0 to "
+            f"{last_year} and writes output from {args.nyear_spinup}. A "
+            "restart at the first output year continues nothing and one after "
+            "the last compares nothing.")
 
     if args.one_day and args.round_trip:
         raise SystemExit(
@@ -490,7 +562,8 @@ def main() -> None:
                 "pfts": (bed / "vesper_pfts.ins").resolve(),
                 "pfts_source": Path(args.pfts).resolve()}
 
-    settings = {"nyear": args.nyear, "npatch": args.npatch,
+    settings = {"nyear": args.nyear, "nyear_spinup": args.nyear_spinup,
+                "npatch": args.npatch,
                 "root_seed": 20260828,
                 "nfix_a": 0.234, "nfix_b": -0.172, "ifbvoc": 0,
                 "outputs": tables, **wetland_gate.switches(active)}
@@ -580,7 +653,8 @@ def main() -> None:
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "generator": "biosphere/scripts/verify_lpj_restart_continuity.py",
         "mode": mode,
-        "nyear": args.nyear, "state_year": args.state_year,
+        "nyear": args.nyear, "nyear_spinup": args.nyear_spinup,
+        "state_year": args.state_year,
         "state_day": split_day if mode != "annual" else None,
         "ranks": args.ranks, "npatch": args.npatch,
         "wetlands_active": active,
