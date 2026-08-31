@@ -28,6 +28,7 @@ agree row for row.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -171,8 +172,13 @@ def read(path: Path) -> Table:
         raise RowParseRequired("header is not Lon Lat Year")
     width = len(fields) + 3
     try:
-        block = np.loadtxt(path, skiprows=1, dtype=np.float64,
-                           comments=None, ndmin=2)
+        with warnings.catch_warnings():
+            # A table with a header and no rows is one this reader declines and
+            # the caller then refuses in its own words, so numpy's notice of it
+            # is not the gate's verdict and does not belong in the gate's output.
+            warnings.filterwarnings("ignore", message="loadtxt: input contained no data")
+            block = np.loadtxt(path, skiprows=1, dtype=np.float64,
+                               comments=None, ndmin=2)
     except (ValueError, UnicodeDecodeError) as exc:
         raise RowParseRequired("column-wise parse failed") from exc
     if block.shape[0] == 0 or block.shape[1] != width:
