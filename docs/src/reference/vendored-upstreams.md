@@ -447,9 +447,7 @@ what a configuration costs, and it carries the guard against this host's
 a lost record. `notes/audits/cgenie-parallelism-and-coupling-support.md` is what
 it found: what fraction of the work a thread team could divide, what Amdahl's law
 then bounds, and the coupling resolution and regridding contract that budget
-supports. It builds from a `git archive` export outside the repository, because a
-worktree's ignored build products are symlinks into the main checkout and a build
-in place would write there.
+supports.
 
 `analysis/cgenie_omp.py` is the third driver and the one that CHANGES the tree
 rather than measuring it as it stands. It builds named ARMS -- the tree serial,
@@ -461,6 +459,22 @@ audit's own cost case, which is exact on a single-threaded process and is not a
 cost on a threaded one, since a thread waiting at a barrier retires
 instructions in proportion to how long it waits.
 `notes/audits/cgenie-embm-free-path-and-threading.md` is what it found.
+
+**Both of those two build from a `git archive` export outside the repository
+rather than in `vendor/cgenie`, and what they compile is the reason.** A profile
+is built at `-mcmodel=medium`, which is not the tree's code model; `cgenie_omp`
+builds an arm with uninitialised locals poisoned, and builds the arm a change is
+measured against AT A NAMED REVISION rather than at the working tree. `make`
+decides what to recompile from timestamps, so any of those objects left in
+`vendor/cgenie` is what the next build there silently links against, and a
+working tree holds one revision at a time so the reference arm has nowhere in
+place to be built at all. The export gives each arm a clean tree it is the only
+writer of, and `export_tree` empties its work root first so no arm inherits the
+one before it. `vendor/cgenie` is in `scripts/link_worktree.py`'s
+`SKIP_COMPILED`, so a worktree linked on or after 2026-08-31 owns its build
+objects outright; the worktrees standing before that keep the per-file links
+they were given, and a build in place in one of those still writes into the main
+checkout.
 
 Run output goes to `OUT_DIR = $(HOME)/cgenie_output`, outside this repository,
 which is why the ignore rules here cover only what a build leaves in the tree.
