@@ -899,6 +899,58 @@ is a single repeated elevation have no distribution -- the threshold lands on th
 table's own `Q(0)`, where the convention returns all of the cell rather than none
 -- and they are counted rather than averaged in.
 
+## What the mosaic costs at the crossing, and what a lake's ice is worth
+
+`lake_mosaic_cost.py`, HYD-21 and LSHY-6 on one instrument because both read the
+same three artifacts: the spatial support above, the baseline climatology, and
+the staged bucket capacity the climate model runs on. It writes
+`analysis/lake_mosaic_cost.json` and regenerates nothing.
+
+**The freezing term.** `notes/audits/lake-energy-omission-bound.md` bounds the
+seasonal lake-energy omission in closed form and ranks freezing first, then
+leaves the ranking's own premise open, because it was written while no baseline
+climatology existed: whether a modelled lake freezes is a threshold on the
+climate STATE. This closes it, and reports the answer as a BRACKET, because a
+climatology bin is a fifteenth of this planet's orbit and a bin mean understates
+a seasonal minimum. It takes the baseline and refuses to fall back to the
+bootstrap, which is the terrain-only-field answer to a question about the
+surface fields.
+
+**The equivalent ice thickness is what the arm reports, and it replaced a single
+figure.** The audit compared the omitted phase term against a 93 K swing of the
+soil surrogate, which is what one metre of lake ice is worth, and read that as
+larger than any seasonal range this planet can have. It is not: this planet's
+polar land carries seasonal ranges past it. So the arm inverts the comparison
+per cell and reports the depth of ice whose latent heat equals that cell's own
+seasonal sensible exchange. Above it the phase term dominates; below it the
+depth classes are back in contention.
+
+**What the mosaic costs.** The crossing itself keeps the tiles apart --
+`build_spatial_support.py` emits the upland-soil, lake and barren shares as
+distinct conservative fractions -- and the collapse happens at the CONSUMER,
+where `build_surface_soil_water.py --lakes` blends the two-tile capacity
+distribution into one scalar before two laws read it. Two losses are therefore
+priced separately: the whole lake tile, which is what the world carries while
+the blend is unstaged, and the mixing term that would remain if it were staged.
+Both are reported against `config/partial_surface.yaml`'s state-storage
+tolerance, in that bar's own units.
+
+**The potential latent heat flux is capped, never divided out.** The wetness
+factor is under 0.05 on nearly half this planet's land bins, so recovering the
+potential flux as `hfls / beta` reaches 1e17 W m-2 and is not an instrument. It
+is bounded by the surface energy available instead, and the upper end of the
+bracket gives every cell its whole net radiation.
+
+**What `--selftest` catches, and it caught one.** Eight identities, with no
+build and no climatology. The wetness factor `min(1, w / (0.4 C))` is NOT convex
+in the capacity: it is flat below the saturation knee at `C = w / 0.4` and
+convex above it, so the derivative jumps down at the knee and the function is
+concave there. A cell whose soil and lake tiles straddle that knee carries the
+opposite sign, and the sign can reverse within a single cell as the lake
+fraction varies. A two-point distribution is one-signed only when the law it is
+pushed through has one sign of curvature. The runoff consumer is convex
+throughout and is unaffected.
+
 **The chunk is the rung.** `docs/src/reference/large-data.md` binds -- the input
 is a 10M-region mesh across five rungs. Each rung is written as it finishes and
 recorded in `support_checkpoint.json` against the hashes of the inputs it was
