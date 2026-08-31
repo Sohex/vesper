@@ -2277,6 +2277,12 @@ checks:
   # rank count -- and it is not run by smoke_test. It needs a compiled model and
   # a built forcing, neither of which exists until a baseline climatology does,
   # and it exits naming what is missing rather than reporting a pass.
+  #
+  # `--self-test` is the exception and needs neither: it checks the two integers
+  # run_lpj_guess.py's --save-state and --continue-from decide against the
+  # arithmetic framework/framework.cpp performs on them, so a continuation that
+  # would silently skip or repeat a simulated year is refused before the run is
+  # bought. The three model modes test the serializer; that tests the runner.
   - id: verify_lpj_restart_continuity
     script: biosphere/scripts/verify_lpj_restart_continuity.py
   # Is the executable a function of the model source, or of where the checkout
