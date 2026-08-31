@@ -40,15 +40,15 @@ from _paths import ANALYSIS, DATA, PROJECT_ROOT  # noqa: E402
 import carve_verdict as cv  # noqa: E402
 import lake_balance as lb  # noqa: E402
 from orogen import LAND, Export  # noqa: E402
-from paths import bootstrap_climatology_path, rel  # noqa: E402
+from paths import best_available_climatology, rel  # noqa: E402
 from provenance import staged_surface_field  # noqa: E402
 
 import builds  # noqa: E402
 import climatology  # noqa: E402
 import gridding  # noqa: E402
 
-# Set by main(), from config.bootstrap_climatology or --climatology. There is
-# no module-level default on purpose; see the note in main().
+# Set by main(), from lib/paths.py:best_available_climatology or
+# --climatology. There is no module-level default on purpose; see main().
 _CLIM_FILE = None
 SECONDS_PER_DAY = 86400.0
 
@@ -102,7 +102,7 @@ def climate_fields(config, bin_index=None):
     if clim is None:
         raise RuntimeError(
             "no climatology resolved; main() sets it from "
-            "config.bootstrap_climatology or --climatology")
+            "the best available climatology or --climatology")
     with Dataset(clim) as ds:
         if bin_index is None:
             def take(name):
@@ -485,7 +485,9 @@ def main():
                          "data/<source_build>/ when it exists")
     ap.add_argument("--climatology", type=Path, default=None,
                     help="regular climatology to force the lakes with; defaults "
-                         "to the configured bootstrap_climatology")
+                         "to the best available, which is the configured "
+                         "baseline_climatology once one is named and the "
+                         "bootstrap before that")
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--selftest", action="store_true",
                     help="run the basin-to-region crossing's identity checks; "
@@ -505,11 +507,25 @@ def main():
         # per-build file is missing is the same trap one level down -- it turns
         # a missing input into a silent read of a terrain nobody chose.
         _DATA = builds.component_data("hydrography", _cfg, strict=True)
-    # THE BOOTSTRAP, not the baseline. `surface_water` declares
-    # `needs: bootstrap_climatology` in config/pipeline.yaml, and the order is
-    # why: the lakes are one of the surface fields the baseline run is run ON,
-    # so forcing them with the baseline forces them with a climate their own
-    # extent produced, and on a first pass no baseline exists to read.
+    # THE BEST AVAILABLE, which is the baseline once one is named and the
+    # bootstrap before that. A lake extent is a function of the climate STATE --
+    # it is solved from P-E, routed runoff and open-water evaporation and from
+    # nothing else -- and `lib/paths.py` makes that the test for which resolver
+    # a step takes. The `needs: bootstrap_climatology` edge in
+    # config/pipeline.yaml is unchanged and states what must EXIST for a first
+    # pass to run.
+    #
+    # THE CIRCULARITY IS THE LOOP AND NOT A DEFECT. The lakes are one of the
+    # surface fields the baseline run is run ON, so on a later pass they are
+    # forced by a climate their own extent helped produce. That is true of every
+    # derived surface field, and `build_dust.py`, `build_sea_salt.py` and
+    # `build_volcanic_sulfate.py` already read the best available for exactly
+    # this reason: a step pinned to the bootstrap forever is right on the first
+    # pass and holds the loop back on every pass after. This file was the last
+    # of the group still pinned, and the pin put it in disagreement with
+    # `build_groundwater.py` about which world it was describing -- which its
+    # own coupling guard then reported, correctly, as two climates in one water
+    # balance.
     #
     # Resolved through `lib/paths.py` rather than out of the config here. This
     # file kept a private copy of the resolution, which is how it came to still
@@ -517,16 +533,20 @@ def main():
     # spectrum -- months after pedology and biosphere had moved. The shared
     # resolver also carries `require_configured_grid`, which a hand-rolled read
     # of the config key does not.
-    if args.climatology is not None:
-        # Resolve before storing: the provenance write takes relative_to
-        # PROJECT_ROOT, which raises on a path given relative to the cwd.
-        clim_path = args.climatology.resolve()
-    else:
-        clim_path = bootstrap_climatology_path(root=PROJECT_ROOT).resolve()
-        if not clim_path.is_file():
-            raise SystemExit(
-                f"config/planet.yaml names {rel(clim_path)} as the bootstrap "
-                "climatology and it does not exist")
+    clim_path, clim_stage = best_available_climatology(
+        args.climatology, root=PROJECT_ROOT)
+    # NAMED BY WHAT WAS DECLARED, READ BY WHERE THE BYTES ARE. A worktree links
+    # the climatology payload in from the main checkout, so `resolve()` follows
+    # the link out of the project root and `rel()` can only hand back an
+    # absolute path -- which would be stamped on `surface_water.nc` as its
+    # `forcing` and would name a file that exists in no other tree.
+    _CLIM_NAME = rel(args.climatology if args.climatology is not None
+                     else clim_path)
+    clim_path = clim_path.resolve()
+    if not clim_path.is_file():
+        raise SystemExit(
+            f"config/planet.yaml names {_CLIM_NAME} as the {clim_stage} "
+            "climatology and it does not exist")
     _CLIM_FILE = clim_path
 
     build = builds.build_root()
@@ -759,7 +779,13 @@ def main():
         ds.title = f"Lakes and rivers under {_CLIM_FILE.stem}"
         ds.terrain_hash = export.terrain_hash
         ds.setncattr("vesper_source_build", build.name)
-        ds.forcing = rel(_CLIM_FILE)
+        ds.forcing = _CLIM_NAME
+        # WHICH STAGE OF THE WORLD THIS IS, recorded rather than inferred from
+        # the filename. `lib/paths.py` requires it of anything built through
+        # `best_available_climatology`: the choice between stages is defensible
+        # because a reader can tell a first-pass artifact from a later one
+        # without re-deriving it.
+        ds.climatology_stage = clim_stage
         ds.caveat = (
             "The forcing is a T42 run on the pre-carve terrain and these lakes "
             "are not fed back into it. Open-water evaporation is the Penman "
@@ -845,7 +871,8 @@ def main():
     report = {
         "source_build": build.name,
         "terrain_hash": export.terrain_hash,
-        "forcing": rel(_CLIM_FILE),
+        "forcing": _CLIM_NAME,
+        "climatology_stage": clim_stage,
         "forcing_sha256": sha256(_CLIM_FILE),
         "orbital_year_days": year_days,
         "runoff_source": {
