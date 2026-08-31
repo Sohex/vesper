@@ -268,7 +268,9 @@ const double PFRAC_MINTOMAX_CROPGREEN = 7.77;
 const double PFRAC_LEAFTOROOT = 1.16;
 
 /// Fraction between leaf and sapwood C:P ratio
-/** UNDERIVED, and three separate things block it.
+/** UNDERIVED, and TWO things block it. A third, the form, is settled: the
+ *  proportional form this constant assumes is not refuted, and the reading that
+ *  said it was rested on one site.
  *
  *  The element. 6.9 is the reciprocal of Friend et al. (1997) Table 4 p. 254,
  *  X_C:N(f/p) = 0.145, the relative C:N ratio between foliage and BARK PLUS
@@ -278,32 +280,52 @@ const double PFRAC_LEAFTOROOT = 1.16;
  *  bark, applied to every plant type. PFRAC_LEAFTOROOT's 1.16 is the reciprocal
  *  of the companion 0.86, from Pinus radiata seedlings.
  *
- *  The form. Heineman et al. (2016) regress log species mean wood on log
- *  species mean leaf concentration by type II major axis over 58 tropical
- *  species, and only nitrogen is isometric: N slope 1.25 (95% CI 0.83-1.95),
- *  1.01 (0.84-1.23) on phylogenetic contrasts, against P slope 2.10 (1.52-3.17)
- *  and 2.22 (1.85-2.67). "Significantly > 1" is that paper's own claim. So wood
- *  C:P is not a fixed multiple of leaf C:P: over their observed wood P span the
- *  implied proportion runs 25.4 down to 3.9, while nitrogen's runs 8.5 to 6.3.
- *  A forced scalar would be BRACKETED 10.1 to 15.5, the ends being their
- *  outer-annulus sample mean and that mean corrected for the 35 percent radial
- *  decline in wood P. It is recorded and NOT adopted: it rests on one tropical
- *  gradient and on a form the same measurement rejects.
+ *  The form, and it is NOT refuted. Heineman et al. (2016) regress log species
+ *  mean wood on log species mean leaf concentration by type II major axis over
+ *  58 tropical species at one lower montane site in western Panama, and find
+ *  only nitrogen isometric: N slope 1.25 (95% CI 0.83-1.95), 1.01 (0.84-1.23)
+ *  on phylogenetic contrasts, against P slope 2.10 (1.52-3.17) and 2.22
+ *  (1.85-2.67), with "significantly > 1" that paper's own claim. Read alone
+ *  that rejects the proportional form. It does not survive a second dataset.
+ *  Yan et al. (2016) run the same regression on twig stem against leaf
+ *  concentration for 335 woody species in 198 genera at 12 forest sites across
+ *  eastern China, 18.7 to 50.9 degrees north and -5.7 to 25.3 degrees mean
+ *  annual temperature: the phosphorus exponent is 1.58 in tropical forest, 0.97
+ *  in temperate and 0.80 in boreal, and by site runs 1.36 at 23.2 N down to
+ *  0.71 at 50.9 N, correlating with MAT. THE EXPONENT CROSSES 1 INSIDE THE
+ *  CLIMATE RANGE A GLOBAL MODEL SPANS, and Heineman's 2.10 is the tropical
+ *  extreme of that gradient rather than a universal rejection. A proportional
+ *  form is therefore the unbiased default over the whole range, with a residual
+ *  that is one-signed WITHIN a biome and changes sign between them: the model
+ *  under-supplies the simulated tropical plant types' sapwood P demand relative
+ *  to leaf and over-supplies the boreal ones'.
  *
- *  The level. Pft::init_ctop_limits anchors the sapwood window on the tissue
- *  mean, so canexch.cpp applies exactly this 6.9 to sapwood P demand. A forced
- *  scalar taken from the one paired leaf-and-wood phosphorus dataset would be
- *  BRACKETED 10.1 to 15.5, so the nitrogen value the constant carries sits
- *  below that bracket rather than inside it. The max-anchored form the model
- *  used to carry applied 15.30 and landed at the top of the bracket by
- *  cancellation, a nitrogen constant too low for phosphorus multiplied by a
- *  window factor of 2.22 that should not have been there; neither half was a
- *  derivation and their product was not one either.
+ *  The level, and this is what still blocks it. The leaf-to-wood P ratio is a
+ *  property of WHICH WOOD, and the three tissues measured span a factor of
+ *  twenty. Yan's leaf P over twig stem P, read off their Fig. 4a against its
+ *  own axis, runs 0.77 at 18.7 N to 2.63 at 50.9 N -- a factor of 3.4 across
+ *  the gradient, for one tissue. Heineman's outer 5 cm bole annulus gives a
+ *  forced scalar BRACKETED 10.1 to 15.5, the ends being their sample mean and
+ *  that mean corrected for the 35 percent radial decline in wood P. Friend's
+ *  nitrogen 6.9 is for bole bark PLUS sapwood over nine temperate species, and
+ *  Yan's nitrogen counterpart for terminal twigs runs 1.8 to 3.0. This model's
+ *  sapwood pool is the whole living sapwood of the simulated individual, whose
+ *  mass is overwhelmingly bole and large branches rather than terminal twigs,
+ *  so its value belongs at the bole end -- which is where the phosphorus
+ *  bracket sits and where this 6.9 does not. Pft::init_ctop_limits anchors the
+ *  sapwood window on the tissue mean, so canexch.cpp applies exactly this 6.9.
+ *  The max-anchored form the model used to carry applied 15.30 and landed at
+ *  the top of that bracket by cancellation, a nitrogen constant too low for
+ *  phosphorus multiplied by a window factor of 2.22 that should not have been
+ *  there; neither half was a derivation and their product was not one either.
  *
- *  Choosing between a refuted scalar and a nonlinear wood-leaf P relation, and
- *  what anchors the level if a scalar is kept, is a modelling decision, and it
- *  is BIO-34's remaining open item. P limitation is refused meanwhile, see
- *  parameters.cpp. The arithmetic is in
+ *  What would settle it is one measurement that does not exist in the
+ *  accessible literature: paired leaf and WHOLE-SAPWOOD phosphorus
+ *  concentrations over more than one region. Adopting 10.1 to 15.5 instead
+ *  would import one Panamanian montane site's climate into every simulated
+ *  plant type, and Yan's 3.4-fold latitudinal span of the same ratio is the
+ *  measure of what that costs. P limitation is refused meanwhile, see
+ *  parameters.cpp. BIO-34 is the row and the arithmetic is in
  *  biosphere/notes/phosphorus-cycle-parameterisation.md.
  */
 const double PFRAC_LEAFTOSAP = 6.9;

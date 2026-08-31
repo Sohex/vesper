@@ -29,10 +29,10 @@ cited measurements.
 | `PFRAC_MINTOMAX` | `guess.h` | `Pft::init_ctop_limits` and `Pft::init_ctop_min` | 3.68 | dimensionless | McGroddy et al. (2004) foliar dispersion contrast; BRACKET 3.68 to 4.41 | yes, from 2.78 |
 | `PFRAC_MINTOMAX_CROPGREEN` | `guess.h` | `Pft::init_ctop_limits` | 7.77 | dimensionless | the same transfer applied to its nitrogen counterpart 5.0; cropland is refused under BIO-27 | yes, from 5.0 |
 | `PFRAC_LEAFTOROOT` | `guess.h` | `Pft::init_ctop_limits`, then `canexch.cpp` fine-root P demand | 1.16 | dimensionless | Yuan et al. (2011); root N:P is not separable from leaf N:P, so the nitrogen proportion carries; BRACKET 1.02 to 1.35. The tissue window is mean-anchored, so the contrast the model runs on is the derived 1.0 for any leaf window width | no, and now for a reason |
-| `PFRAC_LEAFTOSAP` | `guess.h` | `Pft::init_ctop_limits`, then `canexch.cpp` sapwood P demand | 6.9 | dimensionless | UNDERIVED. Nitrogen's, for sapwood PLUS BARK, from Friend et al. (1997) Table 4 p. 254; Heineman et al. (2016) reject the proportional form for phosphorus, and the 6.9 the model applies sits below the 10.1 to 15.5 that dataset brackets a forced scalar at | no |
+| `PFRAC_LEAFTOSAP` | `guess.h` | `Pft::init_ctop_limits`, then `canexch.cpp` sapwood P demand | 6.9 | dimensionless | UNDERIVED, on the LEVEL and not the form. Nitrogen's, for sapwood PLUS BARK, from Friend et al. (1997) Table 4 p. 254. The proportional form stands: Yan et al. (2016) put the phosphorus exponent at 1.58 tropical, 0.97 temperate and 0.80 boreal over 335 species and 12 sites, so it crosses 1 inside the climate range a global model spans. The 6.9 sits below the 10.1 to 15.5 the one paired leaf-and-bole-wood phosphorus dataset brackets a scalar at | no |
 | `PFRAC_MAXTOMIN` | `guess.h` | `Pft::init_ctop_limits` | 0.9 | dimensionless | nothing to transfer: the nitrogen original is declared arbitrary in `Pft::init_cton_limits`. It sets the tissue window's WIDTH only, so it no longer moves the applied proportion | no |
 | `PMASS_SAT` | `somdynam.cpp` | `somfluxes` through `setptoc`, and the P-limitation-off pin | 0.002 * 6.6 | kgP/m2 labile P | Parton, Stewart and Cole (1988) Fig. 3 p. 115, whose labile-P axis saturates at 2.0 gP/m2, CONVERTED into this fork's Hedley-labile currency by 6.6, the low end of the 6.6 to 11.3 bracket | yes, and it is a declared divergence from the vendored 0.002 |
-| `PCONC_SAT` | `somdynam.cpp` | `somfluxes` and `equilsom` through `setptoc` | 0.02 | phosphorus fraction of litter dry mass | UNDERIVED. Nitrogen's value exactly, on a ramp the cited source does not contain. Bounded above by 7.6e-4 | no |
+| `PCONC_SAT` | was `somdynam.cpp` | nowhere | removed | -- | the ramp it was the threshold of is removed: a decomposer community's biomass C:P is homeostatic with respect to its resource's phosphorus content, so the surface microbial pool's C:P does not vary with litter P. The surface microbial pool holds the C:P `soil.cpp` initialises it to, which is `world-634q` | deleted |
 | `USORB` | `somdynam.cpp` | `somfluxes` | 0.0067 / `VESPER_EARTH_YEAR_DAYS` | per absolute day | Wang et al. (2010) Appendix D | divisor, under the time-base contract |
 | `USSORB` | `somdynam.cpp` | `somfluxes` | 0.0067 / `VESPER_EARTH_YEAR_DAYS` | per absolute day | the same, and equal to `USORB` in that source | divisor, under the time-base contract |
 | `UOCC` | was `somdynam.cpp` | nowhere | removed | -- | no citation anywhere in the tree | deleted |
@@ -185,10 +185,10 @@ what it cost the established C-N configuration, is
 
 ## Sapwood: the constant is nitrogen's, and it is not the quantity the model applies
 
-Three claims are stacked inside `PFRAC_LEAFTOSAP`, and having both papers
-separates them. The element was never phosphorus, the tissue is not the model's
-sapwood, and the proportional form the constant asserts is the one thing the only
-phosphorus measurement of this tissue rejects.
+Three claims are stacked inside `PFRAC_LEAFTOSAP`, and having the papers
+separates them. The element was never phosphorus and the tissue is not the
+model's sapwood; the proportional form the constant asserts looked refuted on one
+dataset and is not refuted on two.
 
 ### What 6.9 is in Friend et al. (1997)
 
@@ -293,11 +293,13 @@ level. Wood P falls 35 percent from the outer 5 cm to the adjacent 5 to 10 cm
 annulus, in 88 of 110 trees and in 14 of 18 species tested individually; wood N
 has no consistent radial direction.
 
-So it licenses the rejection of the fixed proportion for phosphorus, with
-nitrogen as its own control. It does not license a global exponent: these are
-tropical lower montane angiosperms, with no needleleaf, temperate or boreal type
-in the sample. It does not license a whole-sapwood tissue ratio, because the
-outer annulus is the phosphorus-rich end of a 35 percent radial gradient. It does
+So it licenses the rejection of the fixed proportion for phosphorus AT THAT
+SITE, with nitrogen as its own control. It does not license a global exponent:
+these are tropical lower montane angiosperms, with no needleleaf, temperate or
+boreal type in the sample, and the section below is what happens when a dataset
+that does span those is read. It does not license a whole-sapwood tissue ratio,
+because the outer annulus is the phosphorus-rich end of a 35 percent radial
+gradient. It does
 not license a sun-leaf level. And it does not license a scalar of any value,
 because it is the scalar form that it rejects.
 
@@ -366,36 +368,88 @@ measured form differ by a factor of 2.50 in RELATIVE sapwood phosphorus demand,
 simulated plant types on a large carbon pool, and it is the whole of what the
 proportional form removes.
 
+### Yan et al. (2016) runs the same test across 32 degrees of latitude, and the refutation does not survive
+
+The same regression, on the same pair of tissues in the sense that matters --
+woody stem against leaf, log-log, reduced major axis -- for 335 woody species in
+198 genera and 73 families at 12 forest sites across eastern China, 18.7 to
+50.9 degrees north, mean annual temperature -5.7 to 25.3 C and annual
+precipitation 423 to 2031 mm, boreal coniferous forest through tropical
+rainforest. The wood is the terminal 10 to 20 cm of the twig stems supporting the
+sampled leaves; the leaves are fully expanded SUN leaves.
+
+**The phosphorus exponent crosses 1 inside the climate range a global model
+spans.** By biome it is 1.58 in tropical forest, 0.97 in temperate and 0.80 in
+boreal. By site it runs 1.36 at Mt. Dinghu, 23.2 N, down to 0.71 at Mt. Genhe,
+50.9 N. By functional group it is 1.26 for evergreen broad-leaved, 0.96 for
+deciduous broad-leaved and 0.70 for coniferous plants, and 1.86 for legumes
+against 0.88 for non-legumes. It correlates significantly with mean annual
+temperature and not with precipitation or with soil total N or P.
+
+The nitrogen exponent behaves the same way and less steeply: 1.30, 0.97 and 0.89
+by biome, 1.45 to 0.74 by site, 1.20, 1.19 and 0.95 by group. So the phosphorus
+exponent exceeds the nitrogen one in the tropics, which is Heineman's finding,
+and falls below it towards the pole, which is the part one tropical site cannot
+show.
+
+**What that does to the form claim.** Heineman's 2.10 is the tropical extreme of
+a gradient rather than a universal rejection of isometry, and a proportional form
+is the unbiased default over the whole range a global model has to cover. Its
+residual is one-signed within a biome and changes sign between them: at a fixed
+scalar the model under-supplies the simulated tropical types' sapwood P demand
+relative to leaf and over-supplies the boreal ones'. That is a statement about
+which way the error goes, which the one-site reading could not make, and it is
+strictly better than adopting a tropical exponent everywhere.
+
+**What it does NOT do is supply the level, and it says why with a number.** The
+leaf-to-wood phosphorus ratio is a property of which wood. Read off Yan's
+Fig. 4a against its own axis, leaf P over twig stem P runs 0.77 at 18.7 N to
+2.63 at 50.9 N -- a factor of 3.4 across the gradient FOR ONE TISSUE -- while
+Heineman's outer 5 cm bole annulus brackets a forced scalar at 10.1 to 15.5. The
+nitrogen counterparts sit the same way round: Yan's leaf N over twig stem N runs
+1.8 to 3.0 where Friend's bole bark-plus-sapwood figure is 6.9. This model's
+sapwood pool is the whole living sapwood of the simulated individual, whose mass
+is overwhelmingly bole and large branches rather than terminal twigs, so its
+value belongs at the bole end of that factor of twenty -- which is where the
+phosphorus bracket sits and where the applied 6.9 does not.
+
 ### What is still open
 
-The refutation stands and is stronger than the summary that opened this row. The
-constant's own source measures a different element in a different tissue on nine
-temperate species, and the one dataset that measures phosphorus in this model's
-own tissue rejects the proportional form the constant asserts. What the model
-applies is now the number the constant names, which is world-xms4 and is the one
-of the three claims that is settled. Nothing above derives a value and nothing
-above should: a proportion kept because it is convenient is a knob.
+ONE thing, and it is the level. The form is settled: the proportional relation
+the constant asserts is not refuted, and the reading that said it was rested on
+one site. What the model applies is the number the constant names, which is
+world-xms4 and is also settled. What is left is that the constant's own source
+measures a different element in a different tissue on nine temperate species,
+and no accessible measurement gives the right element in this model's tissue.
 
-Two decisions are needed and neither of them is arithmetic.
+Nothing above derives a value and nothing above should: a proportion kept
+because it is convenient is a knob. Adopting Heineman's 10.1 to 15.5 would import
+one Panamanian lower montane site's climate into every simulated plant type, and
+Yan's 3.4-fold latitudinal span of the same ratio is the measure of what that
+costs.
 
-- Whether simulated sapwood C:P follows leaf C:P proportionally at all, or as a
-  power with an exponent measured on one tropical gradient and applied to
-  simulated boreal and temperate types.
-- What anchors the level, given that the only paired leaf-and-sapwood phosphorus
-  measurement this project holds is one Panamanian fertility gradient, and that
-  the nitrogen value the constant carries sits below the 10.1 to 15.5 that
-  gradient brackets a forced scalar at.
+What would settle it is one measurement: paired leaf and WHOLE-SAPWOOD phosphorus
+concentrations over more than one region. It is not in the accessible literature
+and it is not a decision anyone can make from what is here.
 
-`ifplim 1` keeps refusing and keeps naming `PFRAC_LEAFTOSAP` until they are
+A second finding falls out of Yan and is NOT this row: the leaf-to-wood
+phosphorus ratio, not just its exponent, varies systematically with mean annual
+temperature and by plant functional type, along the same axis the model's plant
+types already distinguish. A single scalar applied to every type is wrong in a
+direction the model could resolve. `world-3e5n` owns it.
+
+`ifplim 1` keeps refusing and keeps naming `PFRAC_LEAFTOSAP` until the level is
 answered. BIO-34.
 
-## The saturation pair: one is its source's value, and neither ramp works
+## The saturation pair: one is its source's value, and the other's ramp is gone
 
 `setptoc` ramps a soil organic matter pool's C:P from its maximum down to its
 minimum, linearly, as a driving quantity rises from `fmin` to `fmax`. `PMASS_SAT`
-and `PCONC_SAT` are the two `fmax` values. Both ramps are inert, in the opposite
-directions the audit found them in, and the reason is a different one for each
-constant.
+and `PCONC_SAT` were the two `fmax` values, and both ramps were inert in
+opposite directions. The reason was a different one for each, and so is the
+repair: `PMASS_SAT` is its source's own number in the wrong currency and is
+converted, and `PCONC_SAT` is the threshold of a ramp that should not exist and
+is removed with it.
 
 ### `PMASS_SAT` is Parton, Stewart and Cole (1988) Fig. 3, read line for line
 
@@ -593,40 +647,62 @@ pin, under `ifplim 1` because the emergent labile P was far above it. That
 coincidence is what made the two candidate changes behave differently, and it is
 argued above.
 
-### `PCONC_SAT` has no source in that paper, or anywhere in the tree
+### `PCONC_SAT` is removed, because the quantity its ramp modelled does not ramp
 
-`PCONC_SAT` is compared against `litter_pmass / (litter_cmass * 2)`, the
-phosphorus fraction of litter dry mass, and sets the surface microbial pool's
-C:P between 80 and 30.
+`PCONC_SAT` was compared against `litter_pmass / (litter_cmass * 2)`, the
+phosphorus fraction of litter dry mass, and set the surface microbial pool's C:P
+between 80 and 30.
 
-Parton, Stewart and Cole (1988) contains no counterpart to that ramp. The model
-has no surface microbial pool, and its only C:P ramps are the three soil pools
-of Fig. 3, driven by labile P. Litter P in that model is not ramped at all: the
-structural pool is fixed at C:P 500 and the metabolic pool receives the
-remainder of the plant residue P (p. 115). So the ramp `PCONC_SAT` belongs to is
-the nitrogen side's structure carried across, the pair 80 and 30 is Fig. 3's
-ACTIVE SOIL line applied to a surface pool, and the value is `NCONC_SAT`
-unchanged.
+**The measurement that was missing has been found, and it refutes the FORM.** A
+decomposer community's biomass C:P is homeostatic with respect to its resource's
+phosphorus content. Mooshammer et al. (2014) Table 2, recalculated from Xu et
+al. (2013) over n = 405: microbial biomass C:P regressed on soil C:P has a slope
+of 0.015 with R = 0.078, R2 = 0.006 and P = 0.118, and the log-log form gives
+R = 0.000 and P = 0.992; the fitted microbial C:P moves from 66.5 to 67.3 while
+the soil C:P it is regressed on moves from 156 to 1611. The same paper reports
+the litter case directly: in decomposing litter, resource C:N and C:P are
+strongly negatively correlated with the gross N and P MINERALISATION FLUXES
+while the microbial communities are homeostatic in those element ratios
+(Mooshammer et al. 2012), and Achat et al. (2010) find relatively constant
+microbial biomass C:P in forest soils with the C:P of the mineralisation flux
+varying strongly. What varies with a resource's phosphorus content is the flux
+out of the decomposer, not the stoichiometry of the decomposer.
 
-The bound stands, and the paper does not move it. Senesced-litter C:P is 660 to
-1596 by mass across forest biomes (McGroddy et al. 2004, Table 1), which is a
-litter phosphorus fraction of 7.6e-4 down to 3.1e-4. `PCONC_SAT` at 0.02 is 26
-to 64 times above the richest litter the model can produce, so `fac` never
-reaches `fmax` and the surface microbial pool sits at its MAXIMUM C:P of 80
-always. Any replacement that lets the ramp span at all is at or below 7.6e-4.
-Nothing in the cited source anchors it from below, so it stays a bound and not a
-bracket, and `parameters.cpp` keeps refusing.
+**The control that could have failed and did not** is the nitrogen row of the
+same table. Microbial C:N against soil C:N has P = 0.044 and its log-log form
+P < 0.001, where the phosphorus row is indistinguishable from flat. The table
+separates the two elements rather than being too noisy to show anything, and the
+nitrogen ramp beside the deleted one keeps its own direct source.
 
-Two things would settle it, and choosing between them is the decision:
+**What `PCONC_SAT` was is now exactly nameable.** `NCONC_SAT`, the constant it
+copied, is sourced to the character: Parton et al. (1993) p. 791 says the C:N of
+newly formed surface microbial biomass "increases from 10 to 20 as the N content
+decreases from 2.0% to 0.01%", which is the `setntoc` call's pair and its `fmax`
+as a mass fraction of litter dry mass. So `PCONC_SAT` was a sound derivation
+belonging to the other element, and no phosphorus reading could have rescued it:
+Parton, Stewart and Cole (1988) has no surface microbial pool and no C:P ramp
+driven by a litter concentration at all, its litter P being a fixed structural
+C:P of 500 with the remainder to the metabolic pool (p. 115).
 
-- A measurement of surface-litter microbial biomass C:P against litter
-  phosphorus concentration, which is what the nitrogen constant has in Parton
-  et al. (1993) Fig. 4 and what phosphorus does not.
-- Deleting the constant, by driving the surface microbial pool's C:P from the
-  same labile P the soil pools use, which is what Parton does for the active
-  pool. The reason the nitrogen code does not is real -- surface litter is not
-  in contact with the mineral soil's available nitrogen -- so this is a
-  structural argument and not a simplification.
+**What the removal is worth is nearly nothing, which is why it is safe as well
+as right.** Senesced-litter C:P is 660 to 1596 by mass across forest biomes
+(McGroddy et al. 2004, Table 1), a litter phosphorus fraction of 7.6e-4 down to
+3.1e-4. Against an `fmax` of 0.02 that drove the ramp over 1.6 to 3.8 per cent
+of its declared span, so it returned a C:P of 79.2 to 78.1 against a declared 80
+to 30, and the pool was already at the 80 `soil.cpp` initialises it to. The
+removal moves the surface microbial pool's C:P by at most 2.4 per cent and makes
+what the model runs visible where it is set.
+
+**What is not settled by this.** The 80 the pool now holds for the whole of a
+run is Fig. 3's ACTIVE SOIL line's `ctop_max` end applied to a pool that paper
+does not have, which is the standing its three neighbours in `soil.cpp`'s
+initialiser share. That is not what `PCONC_SAT` was and the removal did not
+create it; `world-634q` owns it. The obvious substitution is refused there:
+measured decomposer biomass C:P is 66.5 by MOLE, which is 25.8 by mass and the
+model's ratios are mass ratios, and CENTURY's microbial pools are conceptual SOM
+pools rather than measured biomass -- the same offset sits in the nitrogen side,
+where the pool's sourced C:N of 10 to 20 stands against a measured microbial
+biomass C:N of about 7 by mass.
 
 ### The same-relative-position transfer is refuted for one and unnecessary for both
 
@@ -636,12 +712,13 @@ mean litter concentration that the nitrogen threshold sits at. For `PMASS_SAT`
 it offered 0.03 to 0.05 kgP/m2, fifteen to twenty-five times the current value,
 by placing the threshold at the upper end of the observed labile-P distribution.
 
-That second construction is now refuted outright: the paper gives the value
+Both are now refuted, for different reasons, and NEITHER IS ADOPTED. The
+`PMASS_SAT` construction is refuted outright: the paper gives the value
 directly, it is 0.002, and a threshold fifteen times higher would have been
-wrong against its own source. The first is not refuted but is unnecessary in the
-same way -- it would calibrate a phosphorus threshold against a nitrogen
-threshold's position, and the phosphorus problem is not that the position is
-unknown but that the ramp has no source at all. NEITHER IS ADOPTED.
+wrong against its own source. The `PCONC_SAT` construction is refuted by the
+same measurement that removed the constant: it would have placed a threshold on
+a ramp whose quantity does not ramp, so the position it was calibrating did not
+exist to be found.
 
 ### The fork's published methods still cite the wrong Parton, and the right one is implemented anyway
 
@@ -844,13 +921,15 @@ break in a conservation sum.
 
 ## What is still open
 
-- `PFRAC_LEAFTOSAP`, and the modelling decision behind it: a scalar on a form
-  the measurement rejects, or a nonlinear wood-leaf phosphorus relation, and what
-  anchors the level if a scalar is kept. The applied proportion equals the
-  declared constant now, so this is a question about the constant alone.
-- `PCONC_SAT`, as WORLD-PIDX, which has no phosphorus source in the paper the
-  ramp cites or anywhere else in the tree, and whose ramp that paper does not
-  contain.
+- `PFRAC_LEAFTOSAP`'s LEVEL. The form is settled and the applied proportion
+  equals the declared constant, so this is a question about one number, and it
+  needs paired leaf and whole-sapwood phosphorus concentrations over more than
+  one region, which the accessible literature does not have.
+- The surface microbial pool's fixed C:P of 80, as WORLD-634Q. It is Fig. 3's
+  active soil line's `ctop_max` end applied to a pool that paper does not have,
+  which is what its three neighbours in the initialiser also are, and removing
+  the ramp made it load-bearing for the whole of a run rather than for the
+  fraction of a per cent the dead ramp left it.
 - Whether to represent terminal occlusion after all, now that the cited CENTURY
   submodel is held and does carry it, as WORLD-2LCW.
 - Every derived value above is BRACKETED. A run that uses them has to say which

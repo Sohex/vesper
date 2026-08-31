@@ -33,6 +33,7 @@ note is the answer, one row at a time.
 | `CKAPSN`, conductivity of the modelled snow | compile-time | **changed, HANDED.** A second statement of `landmod`'s `snowdiff`, which now follows the snow density |
 | `snowdiff`, conductivity of the modelled snow on soil | `landmod_nl` key | **changed, DERIVED from `rhosnow`.** A namelist density beside a fixed conductivity is a broken relation |
 | `Ksnow`, conductivity of the modelled snow in the vegetation model | Sturm et al. (1997), compiled | **changed, DERIVED from the same relation.** Below both arms of the bracket at every density the two components span; the relation is declared once in `lib/snow.py` and restated in both models under a check |
+| `Csnow`, volumetric heat capacity of the modelled snow in the vegetation model | ice Ih's specific heat times a local `ice_density` of 917, compiled | **changed, DERIVED from `snowdens`.** A volumetric heat capacity is a density times a specific heat and the density is the snowpack's. Pinned at solid ice's, the modelled pack's thermal mass per unit water equivalent was 917/`snowdens` too high |
 | `sicecap`, heat capacity of the modelled glacial ice | `landmod_nl` key | **changed, DERIVED from `rhoglac`.** It factorised as one thousand times ice's specific heat, which is LIQUID WATER's density; a bracket on the ice density moved the orography and left the ice's thermal mass behind |
 | `sicediff`, conductivity of the modelled glacial ice | `landmod_nl` key | **changed, DERIVED from `rhoglac`.** Pure ice from Yen's Eq. (33), reduced by his Eq. (37) for the air the density implies. Glacial ice is bubbly and the reduction is the whole difference from pure ice |
 | `rhosnow`, density of the modelled snow | `landmod_nl` key, no compaction | **unchanged, and now PRICED.** A prognostic density is worth a factor of six on the pack's conductive resistance and the gravity term inside it is worth 14 per cent, which is smaller than the vapour-kinetics bracket the conductivity already carries. On the modelled surface albedo it is worth exactly zero, because the snow-covered fraction is taken in water equivalent |
@@ -303,6 +304,68 @@ model rather than a fork quirk; mainline's own lines stand verbatim beside the
 changed one in the source, and the gate checks that the record is there, that it
 is not what the model runs, and that the changed line still is.
 
+
+## The third instance: the vegetation model's snow carried ice's heat capacity
+
+`update_snow_properties` computed the modelled snowpack's volumetric heat
+capacity as ice Ih's specific heat times a local `ice_density` of 917 kg/m3,
+with the prognostic `snowdens` declared three lines above it and not read. A
+volumetric heat capacity is a density times a specific heat, and the density in
+question is the density of the substance occupying the volume.
+
+**Only the density is wrong.** The SPECIFIC heat is ice Ih's and that is right
+for this pack: snow is ice plus air, and at every density this model's snow
+reaches the air carries under a thousandth of the mass, so a kilogram of pack
+stores what a kilogram of ice stores. This is the same sentence that makes the
+snow's melting enthalpy derivable and its conductivity not, and it is why this
+repair needs no measurement: the argument is dimensional.
+
+**What the wrong density did.** Snow enters that model as a water equivalent,
+and the layer thickness its numerical solve gets is the water equivalent divided
+by `snowdens`, so the thickness goes as 1/rho. A pack's thermal mass is its
+thickness times its volumetric heat capacity, so at fixed water equivalent it
+should not depend on the density at all: the two factors cancel. Pinning the
+capacity at solid ice's broke the cancellation and left the modelled pack's
+thermal mass per unit water equivalent a factor 917/`snowdens` too high, which
+is 3.33 at `snowdens_start`, 1.83 at `snowdens_end` and 3.67 under
+`snowdensityconstant`. `Ci[]` takes it directly for every active snow layer of
+the multilayer solve, so that was the capacity of the whole modelled pack, and
+`Dsnow = Ksnow/Csnow` carried the reciprocal into the diffusivity: at 273.15 K
+the modelled pack's thermal diffusivity rises from 1.24e-7 to 4.12e-7 m2/s at
+`snowdens_start` and from 3.50e-7 to 6.42e-7 at `snowdens_end`, so the depth a
+temperature wave of a given period penetrates rises by 1.83 and 1.35. The
+modelled pack was both too slow to warm and too slow to cool.
+
+**It is one defect at a fourth site, and this is the one it reached in a second
+component.** `snowcap` was a namelist key held fixed while `rhosnow` moved;
+`snowdiff` was a fixed conductivity beside the same moving density; `sicecap`
+factorised as ice's specific heat times LIQUID WATER's density; this one reads
+solid ice's density beside a prognostic snow density three lines above it. All
+four are now derived from the density of the substance whose volume they
+describe, at the site where that density is set. The three in `landmod` are
+`landini` and `glacierprep`; this one is `update_snow_properties`.
+
+**A check that could have failed and did not.** At `landmod`'s declared
+`rhosnow` of 330 kg/m3 the repaired vegetation-model line gives 682,111 J/m3/K
+against that column's `snowcap` of 330 * 2090 = 689,700. The 1.1 per cent
+between them is the two columns' SPECIFIC heats disagreeing and not their
+construction: `landmod` carries a fixed `CPSNOW` of 2090 J/kg/K where
+`soil.cpp` evaluates Fukusako's linear relation in absolute temperature, which
+gives 2067 at 273.15 K and 1791 at 233.15 K. The two constructions now agree;
+the specific heats differ by up to 17 per cent at the cold end of the range, and
+WORLD-A2LV owns that.
+
+**What is NOT settled by this.** Which way the simulated soil temperature moves,
+for the same reason it is not settled for the conductivity: a faster pack
+couples the modelled soil more tightly to the air above it in both directions,
+and the sign depends on the gradient. Decomposition reads the soil temperature.
+`biosphere/config/snow_thermal.yaml` names the arm that would price both
+divergences together and says why one arm cannot separate them.
+
+The divergence is declared beside the conductivity one, with mainline's own
+lines standing verbatim in the source, and `biosphere/scripts/snow_thermal_gate.py`
+checks that the record is there, that it is not what the model runs, and that
+the changed line still is. WORLD-2AIJ.
 
 ## What `CKAPSN` was, which the earlier audit had missed
 

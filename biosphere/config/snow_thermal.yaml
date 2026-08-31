@@ -1,16 +1,22 @@
-# The simulated snowpack's thermal conductivity, declared.
+# The simulated snowpack's thermal properties, declared.
 #
 # Worldbuilding. Vesper is an invented planet and this file describes the
-# vegetation model's snow as it runs on the simulation of it: the relation that
-# turns the modelled snowpack's density into a thermal conductivity, and the
-# place where this project's source departs from mainline LPJ-GUESS in order to
-# run the same relation the climate model runs.
+# vegetation model's snow as it runs on the simulation of it: the two thermal
+# properties `update_snow_properties` derives from the modelled snowpack's
+# density, and the places where this project's source departs from mainline
+# LPJ-GUESS over them.
 #
-# `biosphere/scripts/snow_thermal_gate.py` reads this file. The divergence is
+# The two are a CONDUCTIVITY, which is a material relation with a source and a
+# published bracket, and a volumetric HEAT CAPACITY, which is a density times a
+# specific heat and is settled by dimensional argument. They are different
+# quantities with different arguments and neither settles the other, which is
+# why they are two entries.
+#
+# `biosphere/scripts/snow_thermal_gate.py` reads this file. Each divergence is
 # checked on both halves -- that the release's own lines are recorded beside the
 # changed one, and that the changed one is what the model runs -- and the
-# relation itself is checked against `lib/snow.py`, which is where it is
-# DECLARED. This file records the divergence; it does not restate the
+# conductivity relation itself is checked against `lib/snow.py`, which is where
+# it is DECLARED. This file records the divergences; it does not restate the
 # polynomial, because a second copy of the coefficients is the defect the
 # declaration exists to remove.
 #
@@ -19,18 +25,18 @@
 # cross-component section under it. `analysis/ice_properties.py` evaluates all
 # three relations across the density range the two components span.
 
-# THE ONE DIVERGENCE FROM MAINLINE LPJ-GUESS 4.1.1, WITH ITS VERDICT.
+# EVERY DIVERGENCE FROM MAINLINE LPJ-GUESS 4.1.1, WITH ITS VERDICT.
 #
 # `modules/soil.cpp`'s `update_snow_properties` arrived byte-identical to
 # guess_4.1/modules/soil.cpp's (Zenodo record 8065737, SVN r10118) apart from a
 # stripped MPL-2.0 licence header: the CNP fork never touched it, and the whole
 # of the rest of that function is unchanged here. It is ON BY DEFAULT.
 # `data/ins/global.ins` sets `iftwolayersoil 0`, which is what selects the
-# multilayer soil temperature scheme, and `Ksnow` becomes `Ki[]` for every
-# active snow layer of that scheme's numerical solve whether `ifmultilayersnow`
-# is 1 or 0. So this is a change to default-on behaviour in a widely used
-# community model, live in the configuration this project runs, and not a fork
-# quirk inherited from the CNP tree.
+# multilayer soil temperature scheme, and `Ksnow` and `Csnow` become `Ki[]` and
+# `Ci[]` for every active snow layer of that scheme's numerical solve whether
+# `ifmultilayersnow` is 1 or 0. So every entry below is a change to default-on
+# behaviour in a widely used community model, live in the configuration this
+# project runs, and not a fork quirk inherited from the CNP tree.
 #
 # WHETHER A DIVERGENCE HAS BEEN EXECUTED IS A PROPERTY OF THE ENTRY AND NEVER
 # OF THE REGISTER. `execution_arms` carries the matched arms that have run, each
@@ -68,17 +74,23 @@ mainline_divergences:
   # never absent, so a gate can tell an unwritten block from an empty one.
   execution_arms: {}
   comparison_arm: >
-    What would bound what this is worth in a simulated soil temperature, which
-    arithmetic on the relation cannot reach: one stock-4.1.1 arm against one
-    Vesper arm, the same build, the same climatology and the same instruction
-    file except that the stock arm restores the Sturm block in
-    modules/soil.cpp. The quantities to compare are the simulated soil
+    What would bound what these are worth in a simulated soil temperature,
+    which arithmetic on the declared forms cannot reach: one stock-4.1.1 arm
+    against one Vesper arm, the same build, the same climatology and the same
+    instruction file except that the stock arm restores mainline's whole
+    `update_snow_properties` in modules/soil.cpp -- the Sturm conductivity block
+    and the `ice_density` heat capacity together, since one arm bounds the
+    combined effect of the entries naming it and does not attribute that effect
+    to individual edits. The quantities to compare are the simulated soil
     temperature at 25 cm under snow-covered gridcells through the cold season,
     the thaw day, and the heterotrophic respiration and net mineralisation that
     follow from them, since decomposition reads the soil temperature and not
-    the snow. It has to be run at `iftwolayersoil 0`, which is the default and
-    the only configuration in which the multilayer scheme's snow layers exist
-    at all.
+    the snow. Both divergences raise the modelled pack's thermal diffusivity, so
+    they move the soil temperature the same way and the arm cannot separate
+    them; separating them wants a third arm with one edit reverted, and nothing
+    turns on that yet. It has to be run at `iftwolayersoil 0`, which is the
+    default and the only configuration in which the multilayer scheme's snow
+    layers exist at all.
   entries:
     - id: snow_conductivity_relation
       owner: world-gjov
@@ -136,9 +148,83 @@ mainline_divergences:
         both directions. Decomposition reads the soil temperature, so
         `comparison_arm` is what prices it.
       also_changed: >
-        Nothing else. `Csnow`, `Dsnow`, the compaction ramp, the layer count and
-        the numerical solve are the release's, unchanged. The relation is the
-        only thing that moved.
+        `Csnow`, under `snow_heat_capacity_density` below, which is a different
+        quantity with a different argument and is registered separately. The
+        compaction ramp, the layer count and the numerical solve are the
+        release's, unchanged, and nothing else in `update_snow_properties`
+        moved.
+
+    - id: snow_heat_capacity_density
+      owner: world-2aij
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/soil.cpp
+      function: update_snow_properties
+      mainline_form: line
+      mainline:
+        - "static const double ice_density = 917.0;"
+        - "Csnow *= ice_density;"
+      live: "Csnow *= snowdens;"
+      live_under: iftwolayersoil_0
+      execution: none
+      why_no_execution: >
+        The same reason the entry above carries: no LPJ-GUESS run this project
+        has made has passed acceptance, so there is no run whose simulated soil
+        temperature could carry a comparison arm. The divergence has not been
+        run in either direction, and nothing that passed acceptance consumed the
+        superseded line.
+      settles: >
+        That a volumetric heat capacity is the density of the substance
+        occupying the volume times its specific heat, and the substance here is
+        the modelled snowpack rather than solid ice. The release computes the
+        specific heat from Fukusako's linear relation in absolute temperature,
+        `(0.185 + 0.689 * T * 0.01)` kJ/kg/K, and then multiplies it by a local
+        `ice_density` of 917 kg/m3 while the prognostic `snowdens` sits three
+        lines above. THE SPECIFIC HEAT IS NOT WHAT IS WRONG: the modelled pack
+        is ice Ih plus air and at every density it reaches the air carries under
+        a thousandth of the mass, so a kilogram of pack stores what a kilogram
+        of ice stores. Only the density is wrong, and the argument is
+        dimensional rather than empirical, so no measurement is being preferred
+        over another one. The climate model's `landmod.f90` had the identical
+        defect in `snowcap` and GRAV-8 repaired it the identical way, by
+        deriving it in `landini` from the density it was just given; this is the
+        third instance of that one defect and the last of the three. The check
+        that could have failed and did not: at the climate model's declared
+        `rhosnow` of 330 the repaired line here gives 682,111 J/m3/K against
+        that column's `snowcap` of 330 * 2090 = 689,700, 1.1 per cent apart,
+        which is the two columns' specific heats disagreeing and not their
+        construction.
+      worth: >
+        Snow reaches this model as a water equivalent and the thickness the
+        numerical solve gets is `snowpack / (snowdens / water_density)`, which
+        goes as 1/`snowdens`. A pack's thermal mass is that thickness times its
+        volumetric heat capacity, so at fixed water equivalent it should not
+        depend on the density at all: the two factors cancel. Pinning the
+        capacity at solid ice's broke the cancellation, and the modelled pack's
+        thermal mass per unit water equivalent was `ice_density`/`snowdens` too
+        high -- 3.33 at `snowdens_start`, 1.83 at `snowdens_end`, 3.67 under
+        `snowdensityconstant`. `Ci[]` takes `Csnow` directly for every active
+        snow layer of the multilayer solve, so that factor was the capacity of
+        the whole modelled pack. `Dsnow = Ksnow / Csnow` carries the reciprocal
+        into the diffusivity: at 273.15 K the modelled pack's thermal
+        diffusivity rises from 1.24e-7 to 4.12e-7 m2/s at `snowdens_start` and
+        from 3.50e-7 to 6.42e-7 at `snowdens_end`, so the depth a temperature
+        wave of a given period penetrates rises by 1.83 and 1.35. The modelled
+        pack was both too slow to warm and too slow to cool; it now tracks the
+        simulated air temperature above it faster in both directions. Which way
+        the simulated soil temperature moves is not settled by this, for the
+        same reason it is not settled for the conductivity: it depends on the
+        sign of the gradient across the pack. Decomposition reads the soil
+        temperature, so `comparison_arm` is what prices it.
+      also_changed: >
+        Nothing. `Ksnow` is the entry above's and moved for its own reasons; the
+        specific heat, the compaction ramp, the layer count and the numerical
+        solve are the release's. The local `ice_density` constant this line read
+        is deleted with it and had no other reader. `modules/soil.h`'s
+        `ice_density`, which is the density of the modelled SOIL ice, is
+        untouched and is a different quantity; so is `lib/snow.py`'s
+        `RHOICE_F2021`, which is part of Fourteau's fit. The three carry the same
+        number and must not be deduplicated into one another.
 
 # THE RELATION ITSELF IS NOT DECLARED HERE.
 #

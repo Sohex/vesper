@@ -85,9 +85,17 @@ void Soil::init_states() {
 	// The citation on this block was Fig. 2 of Parton, Stewart and Cole (1988),
 	// which is the P submodel's flow diagram and carries no C:P values. All
 	// four are Fig. 3's, p. 115: 80, 200, 200 and 80 are the ctop_max ends of
-	// the active, slow, slow and surface microbial lines, so each pool starts
-	// at its most phosphorus-poor end and setptoc() overwrites it on the first
-	// call to somfluxes().
+	// the active, slow, slow and active lines, so each pool starts at its most
+	// phosphorus-poor end.
+	//
+	// THREE OF THE FOUR ARE OVERWRITTEN BY setptoc() ON THE FIRST CALL TO
+	// somfluxes() AND THE SURFACE MICROBIAL ONE IS NOT. That pool's C:P ramp is
+	// removed under WORLD-PIDX, because a decomposer community's biomass C:P
+	// does not vary with its resource's phosphorus content, so the 80 below is
+	// what the surface microbial pool holds for the whole of a run. Its standing
+	// is the standing of the other three: Fig. 3's ACTIVE SOIL line's ctop_max
+	// end, applied here to a pool that paper does not have. That is not what
+	// PCONC_SAT was and the removal did not create it; WORLD-634Q owns it.
 	//
 	// DECLARED DIVERGENCE FROM MAINLINE: surfhumus_ptoc_init, owner
 	// WORLD-SHCP, registered in biosphere/config/somdynam.yaml. The vendored
@@ -110,8 +118,40 @@ void Soil::init_states() {
 	sompool[SLOWSOM].ptoc = 1.0 / 90.0;
 	sompool[SURFMICRO].ptoc = 1.0 / 35.0;*/
 
-	// passive has a fixed value (why? passive SOM should also vary.)
-	sompool[PASSIVESOM].ntoc = 1.0 / 9.0;
+	// DECLARED DIVERGENCE FROM MAINLINE: passivesom_cton_ramp, owner
+	// WORLD-XFIF, registered in biosphere/config/somdynam.yaml. Mainline
+	// LPJ-GUESS 4.1.1 and the vendored CNP fork both hold the passive pool's
+	// C:N at a fixed 9 for the whole of a run, under the fork's own unanswered
+	// question:
+	//     // passive has a fixed value (why? passive SOM should also vary.)
+	//     sompool[PASSIVESOM].ntoc = 1.0 / 9.0;
+	// It does vary, in the source the model cites for the other three pools.
+	//
+	// WHERE 9 COMES FROM, AND IT IS NOWHERE. Smith et al. (2014) Appendix C and
+	// Table C1, which is LPJ-GUESS's own documentation of this scheme, states
+	// "The soil passive pool has a fixed C:N ratio of 9 (Parton et al., 2010)".
+	// That paper is ForCent, references/pdf/parton2010-forcent.pdf, which this
+	// project holds and has read: the string "C:N" does not occur in it, and
+	// nothing in it gives a pool C:N ratio. The same paper is cited in Table C1
+	// for the soil microbial, surface humus and slow bounds, and contains those
+	// no more than it contains this one. The phosphorus side of this fork hit
+	// the identical citation and the identical paper, under SDEC-2.
+	//
+	// WHAT THE TWO PARTON PAPERS THIS PROJECT HOLDS ACTUALLY SAY. Parton,
+	// Stewart and Cole (1988) p. 114 assumes "the C:N ratio of structural
+	// (150), active (8), slow (11), and passive (11) soil fractions remain
+	// fixed", so that model fixes every pool's C:N and puts the passive one at
+	// 11; it ramps only C:P, in its Fig. 3, which is what setptoc() runs.
+	// Parton et al. (1993) Fig. 4(a) -- the figure setntoc() and NMASS_SAT both
+	// cite -- ramps the active, slow AND passive pools against the mineral N
+	// pool, and the passive line is the one this model never called setntoc()
+	// for. Its high end is 10 at zero mineral N in the figure and in the text
+	// on p. 791 alike.
+	//
+	// So this initialiser is the cton_max end of that line, and somdynam.cpp's
+	// setntoc() overwrites it on the first call to somfluxes(), which is the
+	// same construction the four C:P initialisers above have.
+	sompool[PASSIVESOM].ntoc = 1.0 / 10.0;
 
 	sompool[PASSIVESOM].ptoc = 1.0 / 200.0;
 	//sompool[PASSIVESOM].ptoc = 1.0 / 90.0;
@@ -2921,9 +2961,41 @@ void Soil::update_snow_properties(const int& daynum, const double& dailyairtemp,
 	// Note that K/C = D has units mm2/day, as above
 	// Wania values
 	// Csnow from Fukusako, Eq. 2. It's the same as for ice
-	static const double ice_density = 917.0; // kg m-3
+	//
+	// DECLARED DIVERGENCE FROM MAINLINE: snow_heat_capacity_density, owner
+	// WORLD-2AIJ, registered in biosphere/config/snow_thermal.yaml. Mainline
+	// LPJ-GUESS 4.1.1 and the vendored CNP fork both multiply the specific heat
+	// by solid ice's density rather than by the snowpack's own:
+	//     static const double ice_density = 917.0; // kg m-3
+	//     Csnow *= ice_density; // conversion to volumetric heat capacity (J m-3 K-1) - should be 1,900,000 J m-3 K-1 approx.
+	// A volumetric heat capacity is a density times a specific heat, and the
+	// density in question is the density of the substance occupying the volume,
+	// which here is snow. The SPECIFIC heat above is unchanged and is right:
+	// this modelled pack is ice Ih plus air, and at these densities the air
+	// carries under a thousandth of the mass, so a kilogram of it stores what a
+	// kilogram of ice stores.
+	//
+	// WHAT THE WRONG DENSITY DID. Snow enters this model as a water equivalent,
+	// snowpack in mm, and the layer thickness the numerical solve gets is
+	// snowpack / (snowdens / water_density), so it goes as 1/snowdens. A pack's
+	// thermal mass is its thickness times its volumetric heat capacity, so at
+	// fixed water equivalent it should not depend on the density at all: the
+	// two factors cancel. Pinning the capacity at solid ice's broke the
+	// cancellation and left the thermal mass per unit water equivalent a factor
+	// ice_density/snowdens too high -- 3.33 at snowdens_start, 1.83 at
+	// snowdens_end, 3.67 under snowdensityconstant. Ci[] takes Csnow directly
+	// for every active snow layer of the multilayer solve and Dsnow =
+	// Ksnow/Csnow carries the same factor into the diffusivity, so the modelled
+	// pack was both too slow to warm and too slow to cool.
+	//
+	// THE CLIMATE COLUMN GOT THE SAME REPAIR. landmod.f90's landini derives
+	// snowcap = rhosnow * CPSNOW from the density it was just given, under
+	// GRAV-8, for this argument; before that it was a namelist key held fixed
+	// while a bracket on rhosnow moved the pack's thermal mass. snowdiff and
+	// sicecap are the same defect at two more sites, and this is the one it
+	// reached in a second component.
 	Csnow = (0.185 + 0.689 * (K2degC + dailyairtemp) * 0.01) * J_PER_KJ; // J kg-1 K-1
-	Csnow *= ice_density; // conversion to volumetric heat capacity (J m-3 K-1) - should be 1,900,000 J m-3 K-1 approx.
+	Csnow *= snowdens; // conversion to volumetric heat capacity (J m-3 K-1)
 
 	// THE SNOW CONDUCTIVITY RELATION IS DECLARED IN lib/snow.py AND THIS IS A
 	// CHECKED RESTATEMENT OF IT. The climate model's landmod carries the same

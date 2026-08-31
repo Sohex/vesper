@@ -101,8 +101,8 @@ flux later is a change to one file. The argument is in
 Cole (1988) Fig. 3 exactly and is not a copy, but the labile P pool it gates is
 the fork's wider Hedley-labile one and not that figure's resin-extractable
 orthophosphate, so the figure's axis maximum is now CONVERTED into that currency
-by 6.6 rather than carried across; unconverted its ramp saturated everywhere. `PCONC_SAT` has no phosphorus
-source at all and its ramp can never be reached. Both are their own rows.
+by 6.6 rather than carried across; unconverted its ramp saturated everywhere. `PCONC_SAT` had no phosphorus
+source at all and its ramp could never be reached; it is REMOVED with the ramp it drove, because a decomposer community's biomass C:P is homeostatic with respect to its resource's phosphorus content. Both are their own rows.
 
 ### 3. A bulk SOM column breaks the depth, root and groundwater contracts
 

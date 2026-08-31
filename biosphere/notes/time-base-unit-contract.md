@@ -245,12 +245,11 @@ measurement.
 
 ## What is not settled here
 
-- The phosphorus route's remaining unknowns are not units, and none of them
-  needs one: `PMASS_SAT` is a mass per unit area, `PCONC_SAT` a mass fraction,
-  and the `PFRAC_*` ratios are dimensionless, so no orbit enters any of them.
-  `parameters.cpp` refuses `ifplim 1` while `PFRAC_LEAFTOSAP` has no derivable
-  scalar and `PCONC_SAT` has no source. What each one is worth, and what would
-  settle it, is in
+- The phosphorus route's remaining unknown is not a unit and does not need one:
+  `PMASS_SAT` is a mass per unit area and the `PFRAC_*` ratios are
+  dimensionless, so no orbit enters any of them. `parameters.cpp` refuses
+  `ifplim 1` while `PFRAC_LEAFTOSAP` has no derivable scalar. What it is worth,
+  and what would settle it, is in
   `biosphere/notes/phosphorus-cycle-parameterisation.md`.
 - Nothing here is verified by execution. LPJ-GUESS builds and runs on this tree,
   and no run it has made has passed acceptance, so no simulated result stands

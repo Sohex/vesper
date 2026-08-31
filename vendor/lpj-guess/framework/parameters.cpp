@@ -1299,31 +1299,55 @@ void plib_callback(int callback) {
 		// bracket in guess.h, and each is BRACKETED rather than measured, so a
 		// run that uses them has to say which end of each bracket it is on.
 		//
-		// Two are not settled at all. Two others were, and are recorded below
-		// with what settled them.
+		// ONE IS NOT SETTLED. The others were, and are recorded below with what
+		// settled them.
 		//
-		// PFRAC_LEAFTOSAP has no derivable scalar, and both papers behind it
-		// have now been read. Its 6.9 is the reciprocal of Friend et al. (1997)
-		// Table 4 p. 254, a NITROGEN ratio of foliage to bark PLUS sapwood over
-		// nine temperate species; that paper has no phosphorus in it. Heineman
-		// et al. (2016) measure the right element in nearly the right tissue
-		// over 58 tropical species and reject the proportional form for
-		// phosphorus while failing to reject it for nitrogen, which is the
-		// control that makes the phosphorus result mean something. The form is
-		// the refutation, and mean-anchoring the sapwood window under world-xms4
-		// does not touch it: canexch.cpp now applies exactly 6.9, and a forced
-		// scalar from the one paired leaf-and-wood phosphorus dataset would be
-		// BRACKETED 10.1 to 15.5, so the applied value sits below that bracket.
+		// PFRAC_LEAFTOSAP has no derivable scalar. Its 6.9 is the reciprocal of
+		// Friend et al. (1997) Table 4 p. 254, a NITROGEN ratio of foliage to
+		// bark PLUS sapwood over nine temperate species; that paper has no
+		// phosphorus in it.
 		//
-		// PCONC_SAT is the litter-P saturation threshold and carries
-		// NCONC_SAT's value exactly. Parton, Stewart and Cole (1988), which
-		// setptoc's own documentation cites, has no counterpart to it at all:
-		// no surface microbial pool and no C:P ramp driven by a litter
-		// concentration. 0.02 is 26 to 64 times above the richest litter this
-		// model can produce, so the surface microbial pool sits at its maximum
-		// C:P always.
+		// THE FORM IS NOT WHAT BLOCKS IT, and that reading is now withdrawn.
+		// Heineman et al. (2016) reject the proportional form for phosphorus
+		// over 58 species at one lower montane site in western Panama, with
+		// nitrogen as the control that fails to reject. Yan et al. (2016) run
+		// the same regression for 335 woody species at 12 forest sites across
+		// eastern China, 18.7 to 50.9 degrees north: the phosphorus exponent is
+		// 1.58 tropical, 0.97 temperate and 0.80 boreal, running 1.36 to 0.71 by
+		// site and correlating with mean annual temperature. The exponent
+		// crosses 1 inside the climate range a global model spans, so a
+		// proportional form is the unbiased default and Heineman's 2.10 is that
+		// gradient's tropical extreme.
 		//
-		// Two stood here and are settled, and no longer hold this refusal up.
+		// WHAT BLOCKS IT IS THE LEVEL, and the number on it is a factor of
+		// twenty. The leaf-to-wood phosphorus ratio is a property of which wood:
+		// Yan's terminal twigs give 0.77 to 2.63 across their 12 sites, a factor
+		// of 3.4 for one tissue, where Heineman's outer 5 cm bole annulus
+		// brackets a forced scalar at 10.1 to 15.5. This model's sapwood pool is
+		// the whole living sapwood of the simulated individual, whose mass is
+		// overwhelmingly bole and large branches, so its value belongs at the
+		// bole end -- where the phosphorus bracket sits and where the applied
+		// 6.9 does not. Mean-anchoring the sapwood window under world-xms4 does
+		// not touch that: canexch.cpp applies exactly 6.9. Adopting 10.1 to 15.5
+		// instead would import one Panamanian site's climate into every
+		// simulated plant type, and Yan's 3.4-fold span is the measure of what
+		// that costs. What would settle it is paired leaf and WHOLE-SAPWOOD
+		// phosphorus concentrations over more than one region, which is not in
+		// the accessible literature.
+		//
+		// Three stood here and are settled, and no longer hold this refusal up.
+		//
+		// WORLD-PIDX: PCONC_SAT was the litter-P saturation threshold and
+		// carried NCONC_SAT's value exactly. It and the ramp it drove are
+		// REMOVED, because the quantity does not ramp: a decomposer community's
+		// biomass C:P is homeostatic with respect to its resource's phosphorus
+		// content (Mooshammer et al. 2014 Table 2 over n = 405, P = 0.118 and
+		// P = 0.992 log-log, against P = 0.044 for the nitrogen row of the same
+		// table), and what varies with a resource's phosphorus content is the
+		// mineralisation flux out of the decomposer. The surface microbial pool
+		// now holds the C:P soil.cpp initialises it to, which is within 2.4 per
+		// cent of what that ramp returned over its driver's whole attainable
+		// range.
 		//
 		// WORLD-Z01O: PMASS_SAT is Parton, Stewart and Cole (1988) Fig. 3
 		// exactly, 2.0 gP/m2, but Parton's labile P is resin-extractable
@@ -1348,23 +1372,23 @@ void plib_callback(int callback) {
 		// Fig. 3's slow line, under the identification of surface humus with
 		// the slow pool that this fork's own nitrogen ramp already makes.
 		//
-		// Running with ifplim 1 before the remaining two are settled produces a
-		// P-limited world whose woody P demand is nitrogen's and whose surface
-		// microbial pool is pinned at its most phosphorus-poor end, and it
-		// produces it silently, which is worse than not running. Lift this
-		// refusal in the change that settles them, not before. BIO-34 and
-		// WORLD-PIDX; the evidence is in
+		// Running with ifplim 1 before the remaining one is settled produces a
+		// P-limited world whose woody phosphorus demand is nitrogen's, and it
+		// produces it silently, which is worse than not running. Sapwood is a
+		// large carbon pool and the shape of its C:P is worth a factor of 2.50
+		// in relative demand between the model's plant types, so this is not a
+		// residual that rounds away. Lift this refusal in the change that
+		// settles it, not before. BIO-34; the evidence is in
 		// biosphere/notes/phosphorus-cycle-parameterisation.md.
 		if (ifplim) {
 			sendmessage("Error", "ifplim 1 is refused: PFRAC_LEAFTOSAP in guess.h is a "
-				"nitrogen ratio for sapwood plus bark, the one phosphorus measurement of "
-				"wood against leaf rejects its proportional form, and the 6.9 the model "
-				"applies sits below the 10.1 to 15.5 that measurement brackets a forced "
-				"scalar at; and PCONC_SAT in somdynam.cpp still carries nitrogen's "
-				"saturation value and has no phosphorus source, so the surface microbial "
-				"pool's C:P never leaves its maximum. See "
-				"biosphere/notes/phosphorus-cycle-parameterisation.md, BIO-34 and "
-				"WORLD-PIDX.");
+				"nitrogen ratio for foliage against bark plus sapwood, and the 6.9 the "
+				"model applies to every plant type's sapwood P demand sits below the 10.1 "
+				"to 15.5 the one paired leaf-and-bole-wood phosphorus dataset brackets a "
+				"scalar at. The proportional form is not the problem and no longer stands "
+				"here; the level is, and the leaf-to-wood P ratio spans a factor of twenty "
+				"between terminal twigs and bole wood. See "
+				"biosphere/notes/phosphorus-cycle-parameterisation.md and BIO-34.");
 			plibabort();
 		}
 
