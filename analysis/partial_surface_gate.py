@@ -13,10 +13,15 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "analysis"))
+sys.path.insert(0, str(ROOT / "lib"))
 
-from coastline_flux_bracket import bracket_field
+import provenance                                             # noqa: E402
+import rungs                                                  # noqa: E402
+from coastline_flux_bracket import bracket_field              # noqa: E402
 
 REPORT = ROOT / "analysis/partial_surface_gate_report.json"
+# The surface code the fractional land support is carried on. SPAT-5.
+LAND_FRACTION_CODE = 1720
 
 
 def tile_combine(fraction: np.ndarray, land: np.ndarray,
@@ -73,8 +78,13 @@ def main() -> None:
     cfg = yaml.safe_load((ROOT / "config/planet.yaml").read_text())
     contract = yaml.safe_load((ROOT / "config/partial_surface.yaml").read_text())
     area = json.loads((ROOT / "analysis/coastline_threshold_cost.json").read_text())
-    boundary = json.loads((ROOT / "exoplasim/inputs/t21/"
-                           "boundary_conditions_report.json").read_text())
+    # The rung is read from the configuration, never spelled: the staged inputs
+    # are keyed by it and a gate that names one rung passes on a tree running
+    # another while reading a directory that is not the one the model starts
+    # from. SPAT-2.
+    rung, _, _ = rungs.model_grid(cfg)
+    inputs = ROOT / "exoplasim" / "inputs" / rung.lower()
+    boundary = json.loads((inputs / "boundary_conditions_report.json").read_text())
     check("active build identity", area["source_build"] == cfg["source_build"],
           f"{area['source_build']} vs {cfg['source_build']}")
     check("whole ladder measured",
@@ -93,16 +103,28 @@ def main() -> None:
           and bool(contract["selection"]["tile_model_selected"])
               != bool(contract["selection"]["model_form_bracket_selected"]),
           contract["selection"]["tile_model_status"])
-    fraction_path = (ROOT / "exoplasim/inputs/t21/"
-                     "orogen_T21_surf_1720.sra")
+    # `staged_surface_field` and not a constructed path: it is the one door onto
+    # a staged `.sra`, it refuses a field staged from another build, and it
+    # refuses an unstamped one. A gate REPORTS rather than aborts, so its
+    # refusal becomes this check's detail.
+    try:
+        staged = provenance.staged_surface_field(LAND_FRACTION_CODE, cfg)
+        staged_detail = f"staged from {staged['build']}"
+    except SystemExit as refusal:
+        staged, staged_detail = None, str(refusal)
+    # The boundary report is written for the configured rung, so the ledger row
+    # it must agree with is that rung's, chosen by name and not by position.
+    measured = next((r for r in area["rungs"] if r["rung"] == rung), None)
     check("fractional land support is emitted",
-          1720 in boundary.get("codes", [])
-          and boundary.get("land_fraction", {}).get("surface_code") == 1720
+          LAND_FRACTION_CODE in boundary.get("codes", [])
+          and boundary.get("land_fraction", {}).get("surface_code") == LAND_FRACTION_CODE
+          and measured is not None
           and boundary.get("land_fraction", {}).get("partial_cells") ==
-              area["rungs"][0]["ledger"]["partial_land_cells"]
-          and fraction_path.is_file(),
+              measured["ledger"]["partial_land_cells"]
+          and staged is not None,
           (f"code {boundary.get('land_fraction', {}).get('surface_code')}, "
-           f"{boundary.get('land_fraction', {}).get('partial_cells')} partial cells"))
+           f"{boundary.get('land_fraction', {}).get('partial_cells')} partial "
+           f"{rung} cells; {staged_detail}"))
 
     model_state = (ROOT / "vendor/exoplasim/exoplasim/plasim/src/"
                    "plasimmod.f90").read_text(encoding="utf-8").lower()

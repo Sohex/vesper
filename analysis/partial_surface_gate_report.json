@@ -1,6 +1,6 @@
 {
   "contract_version": "vesper-partial-surface-gate/1",
-  "generated": "2026-08-30T16:31:41+00:00",
+  "generated": "2026-08-31T01:53:44+00:00",
   "checks": [
     {
       "name": "active build identity",
@@ -30,7 +30,7 @@
     {
       "name": "fractional land support is emitted",
       "passed": true,
-      "detail": "code 1720, 1053 partial cells"
+      "detail": "code 1720, 1053 partial T21 cells; staged from canonical-10m-carve2"
     },
     {
       "name": "compiled endpoint-preserving tile combine exists",

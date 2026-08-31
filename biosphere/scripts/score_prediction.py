@@ -28,6 +28,7 @@ import yaml
 from _paths import CONFIG, PROJECT_ROOT, climatology_path
 from paths import rel  # noqa: E402
 
+import climatology as climatology_lib
 import orbit
 from rootable import read_rootable
 from lpj_output import reduce_table, require_lpj_acceptance
@@ -95,8 +96,12 @@ def main() -> None:
         lat = np.asarray(data["lat"][:], dtype=float)
         lon = np.asarray(data["lon"][:], dtype=float)
         land = np.asarray(data["lsm"][0], dtype=float) > 0.5
-        temperature = np.asarray(data["tas"][:], dtype=float).mean(axis=0) - 273.15
-        precip = (np.asarray(data["pr"][:], dtype=float).mean(axis=0)
+        # The bins are NOT equal length: pyburn splits the raw stream with an
+        # integer linspace, so at 182 records in twelve bins two hold sixteen
+        # records and the rest fifteen. A bare `.mean(axis=0)` asserts they are
+        # equal; `annual_mean_of` measures them off the file's own bin centres.
+        temperature = climatology_lib.annual_mean_of(data, "tas") - 273.15
+        precip = (climatology_lib.annual_mean_of(data, "pr")
                   * 1000.0 * 86400.0 * orbit.EARTH_CALENDAR_YEAR_DAYS)
 
     radius_km = 6371.0 * float(config["planet"]["radius_earth"])

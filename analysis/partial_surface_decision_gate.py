@@ -13,8 +13,15 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "exoplasim/scripts"))
+sys.path.insert(0, str(ROOT / "lib"))
+
+import provenance                                             # noqa: E402
+import rungs                                                  # noqa: E402
+
 CONTRACT = ROOT / "config/partial_surface.yaml"
 REPORT = ROOT / "analysis/partial_surface_decision_gate_report.json"
+# The surface code the fractional land support is carried on. SPAT-5.
+LAND_FRACTION_CODE = 1720
 
 
 def staged_field_populations(rung: str, nlat: int, nlon: int):
@@ -110,10 +117,22 @@ def main() -> None:
               "extensive_closure", "storage_closure", "restart"},
           str(tile.get("operator")))
 
-    boundary_report = json.loads((ROOT / "exoplasim/inputs/t21/"
-                                  "boundary_conditions_report.json").read_text())
-    fraction_path = (ROOT / "exoplasim/inputs/t21/"
-                     "orogen_T21_surf_1720.sra")
+    # The rung is read from the configuration, never spelled: the staged inputs
+    # are keyed by it and a gate that names one rung passes on a tree running
+    # another while reading a directory that is not the one the model starts
+    # from. SPAT-2. The `.sra` comes through `staged_surface_field`, the one
+    # door onto a staged field, which additionally refuses one staged from
+    # another build and one carrying no provenance at all.
+    cfg = yaml.safe_load((ROOT / "config/planet.yaml").read_text(encoding="utf-8"))
+    rung, _, _ = rungs.model_grid(cfg)
+    inputs = ROOT / "exoplasim" / "inputs" / rung.lower()
+    boundary_report = json.loads(
+        (inputs / "boundary_conditions_report.json").read_text())
+    try:
+        staged = provenance.staged_surface_field(LAND_FRACTION_CODE, cfg)
+        staged_detail = f"staged from {staged['build']}"
+    except SystemExit as refusal:
+        staged, staged_detail = None, str(refusal)
     carrier_complete = (
         "LAND_FRACTION_CODE = 1720" in carrier_sources["builder"]
         and "LAND_FRACTION_SURFACE_CODES = {1720}" in carrier_sources["runner"]
@@ -131,13 +150,15 @@ def main() -> None:
             (model_source / "oceanmod.f90").read_text()
         and "real :: xlf(NHOR)" in
             (model_source / "icemod.f90").read_text()
-        and 1720 in boundary_report.get("codes", [])
+        and LAND_FRACTION_CODE in boundary_report.get("codes", [])
         and boundary_report.get("land_fraction", {}).get("partial_cells", 0) > 0
-        and fraction_path.is_file())
+        and staged is not None)
     check("selected fractional support reaches every model start",
           carrier_complete,
-          (f"code 1720, {boundary_report.get('land_fraction', {}).get('partial_cells')} "
-           "partial T21 cells; immutable boundary is re-read on restart"))
+          (f"code {LAND_FRACTION_CODE}, "
+           f"{boundary_report.get('land_fraction', {}).get('partial_cells')} "
+           f"partial {rung} cells; {staged_detail}; immutable boundary is "
+           "re-read on restart"))
 
     # EACH MODULE BINARISES ITS OWN COPY, so there are three of these and not
     # one. landmod rounds `dls`, oceanmod `yls` and icemod `xls`, all at 0.5 and

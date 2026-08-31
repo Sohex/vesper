@@ -178,9 +178,29 @@ import symtable
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+# EVERY directory `config/pipeline.yaml` names a generator in, and the walk
+# every file-based check here shares. It is one list because a check written
+# against a private subset is a check that cannot see the file it is about:
+# world-vwqw's bin-weighting lint had to build its own whole-tree walk to reach
+# the two `aeolian/` call sites that carried the defect it exists for, and the
+# nonlinear-reduction lint's private list omitted `biosphere/scripts`, where it
+# then failed to see a climatology reduced by a bare `.mean(axis=0)`. A check
+# that cannot apply to a component says so IN THE CHECK, by name and with a
+# reason, never by the component being absent from here.
+#
+# `analysis/` is on the SAME rule as the components, and is here rather than
+# excluded for being project-level. It is flat rather than `analysis/scripts`,
+# and it holds one-off measurement drivers beside registered steps -- but that
+# is what `config/pipeline.yaml`'s `one_offs` register is for, and 26 of its
+# scripts are already named there. The two real differences are consequences,
+# not exemptions: there is no `analysis/README.md`, so
+# `check_documented_in_component` finds none and skips it, and each one-off is
+# documented instead by the `notes/audits/` document it is the driver for.
 SCRIPT_DIRS = [ROOT / "scripts", ROOT / "lib", ROOT / "exoplasim" / "scripts",
                ROOT / "hydrography" / "scripts", ROOT / "pedology" / "scripts",
-               ROOT / "biosphere" / "scripts", ROOT / "maps"]
+               ROOT / "biosphere" / "scripts", ROOT / "maps",
+               ROOT / "aeolian" / "scripts", ROOT / "ocean" / "scripts",
+               ROOT / "minerals" / "scripts", ROOT / "analysis"]
 
 # `sorted(x.glob(...))[i]`, `sorted(glob(...))[i]`, `list(...glob(...))[i]`,
 # and max/min over a glob: all of them choose one artifact by ordering.
@@ -452,15 +472,38 @@ def check_registered_in_workflow(files) -> list[str]:
     row, and the check goes red. It deliberately does NOT test the reverse,
     because a row naming a step that has not been written yet is a plan rather
     than an error.
+
+    IT ALSO CHECKS THAT IT CAN SEE THEM. A generator in a directory outside
+    `SCRIPT_DIRS` is not in `files`, so this check reads none of that
+    component's scripts and passes by being blind rather than by being
+    satisfied -- which is how `aeolian/`, `ocean/`, `minerals/` and `analysis/`
+    were absent from every file-based check in this gate at once. The graph
+    already names the directory every generator lives in, so the walk is
+    checked against the graph and a new component becomes visible on the
+    commit that registers its first step. world-6247.
     """
     import yaml
     graph = yaml.safe_load((ROOT / "config" / "pipeline.yaml").read_text(encoding="utf-8"))
+    registered = ([s["script"] for s in graph["steps"]]
+                  + [c["script"] for c in graph.get("checks", [])]
+                  + list(graph.get("one_offs", [])))
+    walked = {d.resolve() for d in SCRIPT_DIRS}
+    # By EXTENSION, because the walk globs `*.py` and `*.sh` and a row naming
+    # anything else is not a file this gate could read wherever it sat: the
+    # `orogen` step's script is the vendored tree `vendor/orogen`, run by hand,
+    # and several probes registered under `one_offs` are Fortran the model
+    # compiles rather than modules this gate parses.
+    unseen = sorted({str(Path(r).parent) for r in registered
+                     if Path(r).suffix in (".py", ".sh")
+                     and (ROOT / r).parent.resolve() not in walked})
+    missing = [f"config/pipeline.yaml names a generator in {d}/, which is not "
+               "in scripts/smoke_test.py's SCRIPT_DIRS, so every file-based "
+               "check in this gate is blind to it" for d in unseen]
     declared = {Path(s["script"]).name for s in graph["steps"]}
     declared |= {Path(s["script"]).name for s in graph.get("checks", [])}
     declared |= {Path(s).name for s in graph.get("one_offs", [])}
     writes = re.compile(r"write_text|to_netcdf|savefig|json\.dump|write_sra"
                         r"|Dataset\([^)]*['\"]w['\"]|open\([^)]*['\"]w")
-    missing = []
     for f in files:
         if f.name.startswith("_"):
             continue
@@ -4992,37 +5035,28 @@ CENTRES_ARGUMENT = {"bin_weights": 0, "infer_ntimes": 0,
 SYNTHESISED_AXIS = {"arange", "linspace", "range", "indices", "ogrid", "mgrid"}
 
 
-def _climatology_call_sites() -> list[tuple]:
+def _climatology_call_sites(files: list[Path]) -> list[tuple]:
     """Every call into `lib/climatology.py`, as (path, lineno, function, args).
 
-    Its own file list, and not `SCRIPT_DIRS`, because `SCRIPT_DIRS` does not
-    reach `aeolian/`, `ocean/`, `minerals/` or `analysis/` -- and the two call
-    sites that carried the defect below were in one of them, invisible to every
-    file-based check in this file.
+    `SCRIPT_DIRS`, like every other file-based check here. It once carried its
+    own whole-tree walk, because `SCRIPT_DIRS` did not reach `aeolian/`,
+    `ocean/`, `minerals/` or `analysis/` and the two call sites that carried
+    the defect below were in one of them. That was the workaround; widening the
+    walk is the repair, and a private list is how the next check comes to be
+    written against a subset nobody else shares.
 
     Names are resolved rather than matched: `annual_mean` is a climatology
     function in the modules that import it and a LOCAL function taking weights
     in `aeolian/scripts/build_sea_salt.py`, and a text match cannot tell those
     apart.
     """
-    # PRUNED rather than filtered: `.claude/worktrees` holds whole checkouts of
-    # this repo and `.venv` holds the installed world, so a walk that descends
-    # and then discards costs minutes and reports every other session's copy of
-    # a call site as if it were this tree's.
-    prune = {".git", ".venv", ".claude", "vendor", "archive", "__pycache__",
-             "node_modules", "build", ".mypy_cache", ".pytest_cache"}
     definitions = (ROOT / "lib" / "climatology.py").resolve()
-    paths = []
-    for parent, dirs, names in os.walk(ROOT):
-        dirs[:] = sorted(d for d in dirs if d not in prune)
-        paths.extend(Path(parent) / n for n in sorted(names)
-                     if n.endswith(".py"))
     # This file is excluded because its own fixture below calls the weighting
     # on an index ON PURPOSE: that call is the control that proves the two
     # spellings differ, and a scan that flagged it would be flagging the test.
     gate = Path(__file__).resolve()
     sites = []
-    for path in paths:
+    for path in files:
         if path.resolve() in (definitions, gate):
             continue
         try:
@@ -5059,7 +5093,7 @@ def _climatology_call_sites() -> list[tuple]:
     return sites
 
 
-def check_bin_weights_take_bin_centres() -> list[str]:
+def check_bin_weights_take_bin_centres(files: list[Path]) -> list[str]:
     """The bin weighting is handed a time coordinate, never a bin index, and it
     refuses the axes that cannot answer.
 
@@ -5101,7 +5135,7 @@ def check_bin_weights_take_bin_centres() -> list[str]:
        refusal and the answer a declared record count buys.
     """
     problems = []
-    for path, lineno, name, args in _climatology_call_sites():
+    for path, lineno, name, args in _climatology_call_sites(files):
         pos = CENTRES_ARGUMENT[name]
         if len(args) <= pos:
             continue                    # passed by keyword, or a bad call
@@ -5267,16 +5301,6 @@ def check_bin_weights_take_bin_centres() -> list[str]:
                         f"of the fixture")
     return problems
 
-
-# Directories whose scripts reduce a climatology's TIME axis. Not `SCRIPT_DIRS`:
-# the two producers this check exists for, `minerals/` and `analysis/`, are not
-# in that list, and a lint that cannot see the file it was written for is not a
-# gate.
-TIME_REDUCING_DIRS = [ROOT / "scripts", ROOT / "lib", ROOT / "maps",
-                      ROOT / "analysis", ROOT / "minerals" / "scripts",
-                      ROOT / "hydrography" / "scripts",
-                      ROOT / "pedology" / "scripts", ROOT / "aeolian" / "scripts",
-                      ROOT / "exoplasim" / "scripts", ROOT / "ocean" / "scripts"]
 
 
 def _netcdf_read_names(tree: ast.AST) -> set[str]:
@@ -5566,7 +5590,7 @@ def check_closed_basin_is_the_sump() -> list[str]:
     return problems
 
 
-def check_nonlinear_reduction_order() -> list[str]:
+def check_nonlinear_reduction_order(files: list[Path]) -> list[str]:
     """A climatology's time axis is reduced by record count, and a nonlinear
     function of it is not the same evaluated before and after that reduction.
 
@@ -5617,8 +5641,6 @@ def check_nonlinear_reduction_order() -> list[str]:
     """
     problems = []
 
-    files = sorted({f for d in TIME_REDUCING_DIRS if d.is_dir()
-                    for f in d.glob("*.py")})
     for path in files:
         allowed = ARGUED_UNWEIGHTED.get(path.name, {})
         try:
@@ -6229,7 +6251,7 @@ def main() -> None:
               ("no artifact selection by sort order", lambda: check_no_order_picks(files)),
               ("one grid convention, in lib/gridding.py",
                lambda: check_one_grid_convention(files)),
-              ("every generator is declared in config/pipeline.yaml",
+              ("every generator is declared in config/pipeline.yaml, in a walked directory",
                lambda: check_registered_in_workflow(files)),
               ("every registered script exists",
                lambda: check_registered_paths_exist()),
@@ -6296,9 +6318,9 @@ def main() -> None:
               ("the autocorrelation estimator recovers a known answer",
                lambda: check_autocorrelation_estimator()),
               ("the bin weighting is handed bin centres, never a bin index",
-               lambda: check_bin_weights_take_bin_centres()),
+               lambda: check_bin_weights_take_bin_centres(files)),
               ("no nonlinear function is evaluated on a naive time mean",
-               lambda: check_nonlinear_reduction_order()),
+               lambda: check_nonlinear_reduction_order(files)),
               ("one rock reads the same way in every table that maps it",
                lambda: check_one_rock_one_reading()),
               ("the closed basin is stated about the sump, and it relaxes",

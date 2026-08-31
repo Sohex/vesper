@@ -2295,12 +2295,33 @@ one_offs:
   - analysis/subgrid_slope_support.py
   - analysis/scarp_relief_transport.py
   - analysis/escarpment_relief_anchor.py
+  # What one EMIC ocean-year costs on this host, where its instructions go, and
+  # what the optimisation arms are worth. Each writes a JSON beside itself and
+  # nothing reads any of them: they are the evidence behind
+  # notes/audits/cgenie-build-cost-and-grid-ceiling.md,
+  # notes/audits/cgenie-parallelism-and-coupling-support.md and
+  # notes/audits/cgenie-embm-free-path-and-threading.md, which is a measurement
+  # of this MACHINE rather than a product of the world. `--purge` must never
+  # reach them: a change anywhere in the graph does not make a timing taken on
+  # this host wrong.
+  - analysis/cgenie_cost.py
+  - analysis/cgenie_profile.py
+  - analysis/cgenie_omp.py
   - hydrography/scripts/fetch_recharge.py
   - exoplasim/scripts/run_albedo_bracket.sh
   - exoplasim/scripts/finalize_existing_segment.py
   - exoplasim/scripts/continue_exoplasim.py
   - aeolian/scripts/dust_runoff_sensitivity.py
   - aeolian/scripts/extract_high_cadence_wind.py
+  # ANUT-7's elemental split and the SHARED WRITER the sea-salt and volcanic
+  # sulfate steps put their deposition mass through, so every file it writes is
+  # already declared as a write of the step that called it and a second row
+  # would give `--purge` two answers for one artifact. It is here rather than
+  # absent because it is also run directly, as `--self-test`: four identities
+  # on the composition tables and on the change of support, each shown to
+  # reject a deliberately broken input. That run writes nothing outside a
+  # temporary directory. world-hfsm.
+  - aeolian/scripts/aerosol_deposition.py
   # Which lever moves the dust intensity: the tabulated roughness, or the soil
   # texture. Outside the graph because every figure it writes is a RATIO of
   # emission totals taken against `dust_baseline.json`, so it consumes that

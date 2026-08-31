@@ -10,10 +10,14 @@
         --regions $N --out /scratch/noise_$N
     done
     python analysis/orogen_resolution_controls.py \
-      --export "2.500M=source/precarve-craton/exoplasim-T42" \
+      --export "2.500M=source/precarve-craton" \
       --export "2.600M=/scratch/noise_2600000" \
       --export "2.700M=/scratch/noise_2700000" \
-      --export "10.00M=source/precarve-craton-10m/exoplasim-T42"
+      --export "10.00M=source/precarve-craton-10m"
+
+A PATH is either a build directory under `source/` or the directory the export
+command above wrote; the mesh carrier inside a build is identified rather than
+named, so no rung appears in an export path here.
 
 Worldbuilding. Vesper is an invented planet and this measures its terrain
 generator, not a real one.
@@ -53,6 +57,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "lib"))
 
+from builds import mesh_export_at  # noqa: E402
 from lib.orogen import Export  # noqa: E402
 
 LEVELS_KM = [0.5, 1.0, 2.0]
@@ -144,11 +149,13 @@ def main() -> None:
                     default=PROJECT_ROOT / "analysis" / "orogen_resolution_controls.json")
     args = ap.parse_args()
 
-    runs = []
+    paths, labels = [], []
     for spec in args.export:
         label, path = spec.split("=", 1)
         p = Path(path)
-        runs.append(load(p if p.is_absolute() else PROJECT_ROOT / p, label))
+        paths.append(mesh_export_at(p if p.is_absolute() else PROJECT_ROOT / p))
+        labels.append(label)
+    runs = [load(path, label) for path, label in zip(paths, labels)]
 
     hdr = f"{'statistic':>34s}" + "".join(f"{r['label']:>10s}" for r in runs)
     print(hdr + f"{'noise':>10s}{'clears?':>9s}")
@@ -170,9 +177,6 @@ def main() -> None:
           "region\n  count by a few percent and so holds resolution fixed. A "
           "statistic whose\n  change across the full range does not clear it is "
           "not a resolution result.")
-    paths = [(Path(spec.split("=", 1)[1]) if Path(spec.split("=", 1)[1]).is_absolute()
-              else PROJECT_ROOT / spec.split("=", 1)[1]) for spec in args.export]
-    labels = [spec.split("=", 1)[0] for spec in args.export]
     try:
         ga = gridded_agreement(paths, labels)
         print(f"\n  gridded agreement against {labels[0]} on the shared T42 grid:")

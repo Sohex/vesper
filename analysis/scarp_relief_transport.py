@@ -2,7 +2,7 @@
 """Which scarp relief estimator survives a change of region count? WORLD-XGAJ.
 
     python analysis/scarp_relief_transport.py
-    python analysis/scarp_relief_transport.py --control <dir>/exoplasim-T42
+    python analysis/scarp_relief_transport.py --control /scratch/noise_2600000
 
 Worldbuilding. Vesper is an invented super-Earth; every quantity here is a
 modelled field of that planet, measured on World Orogen exports of the same
@@ -84,6 +84,7 @@ import scipy.sparse as sp
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "lib"))
 
+from builds import mesh_export_at                             # noqa: E402
 from orogen import Export, LAND                                # noqa: E402
 
 OUTPUT = PROJECT_ROOT / "analysis" / "scarp_relief_transport.json"
@@ -181,13 +182,19 @@ def within(bar: float, ratios: dict[str, float | None]) -> bool:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--control", type=Path, default=None,
-                    help="a T42 export a few per cent from the coarse build's "
-                         "region count, for the realisation noise floor")
+                    help="an export a few per cent from the coarse build's "
+                         "region count, for the realisation noise floor; either "
+                         "a build directory or the one the export was written to")
     args = ap.parse_args()
 
-    coarse = Mesh(PROJECT_ROOT / "source" / BUILDS[0] / "exoplasim-T42")
-    fine = Mesh(PROJECT_ROOT / "source" / BUILDS[1] / "exoplasim-T42")
-    control = Mesh(args.control, known=False) if args.control else None
+    # The mesh carrier is IDENTIFIED, never named. It happens to be called
+    # `exoplasim-T42` and this measurement has nothing to do with T42; spelling
+    # the name here is how that rung reached code about the native mesh.
+    # `lib/builds.py:mesh_export`.
+    coarse = Mesh(mesh_export_at(PROJECT_ROOT / "source" / BUILDS[0]))
+    fine = Mesh(mesh_export_at(PROJECT_ROOT / "source" / BUILDS[1]))
+    control = (Mesh(mesh_export_at(args.control), known=False)
+               if args.control else None)
 
     candidates = {}
     for outer in OUTER_KM:
