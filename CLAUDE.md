@@ -376,15 +376,20 @@ the RELAXATION time, both bracketed because neither time is measured, and the
 two never interchanged -- and TWO SUCH PAIRS, not one: the climate model's in
 ORBITS, declared with an anchor, and the biosphere model's in COMPLETE FORCING
 CYCLES, read from the acceptance artifacts and stating no number, sizing a
-retained record from the memory time and a SPIN-UP from the relaxation time), `lapse.py` (lapse rates, and the
+retained record from what the acceptance contract must be able to RESOLVE and a
+SPIN-UP from the relaxation time), `lapse.py` (lapse rates, and the
 height of the lowest model level),
 `surface_classes.py` (derived surface classes BY NAME),
 `rootable.py` (BIO-11's one per-build/per-rung effective plant-area fraction,
 its support/build checks and no-fallback reader),
 `stochastic_seeds.py` (DEMO-5's manifest-recorded LPJ root and the stable
 cell/stand/patch/process substream derivation mirrored by the vendored C++),
-`lpj_output.py` (BIO-12's strict complete-forcing-cycle equilibrium reducer,
-trend refusal, temporal spread and seed/patch ensemble uncertainty report),
+`lpj_output.py` (BIO-12's equilibrium reducer: the UPPER BOUND on a field's
+end-to-end relative drift over the whole retained record and the record length
+that would close it, the per-cell trend refusal over the reported window, the
+reduced value and its temporal spread over the span the bound certifies, the
+e-folding time of an approach measured without its asymptote, and the seed/patch
+ensemble uncertainty report),
 `sea_water.py` (the four numbers salinity reaches the model through, read
 from `icemod.f90` and the run's namelist rather than copied),
 `snow.py` (the one relation between the modelled snow's density and its thermal
