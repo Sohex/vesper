@@ -281,31 +281,51 @@ def main() -> None:
         tolerance = run_lengths.ecological_drift_tolerance()
         record, spinup = derived["record_cycles"], derived["spinup_cycles"]
 
-        # THE SPIN-UP EXISTS ONLY WHERE A RELAXATION TIME HAS BEEN MEASURED, and
-        # the thing that must never happen is a number appearing without one. So
-        # the check is on the pair: a derived spin-up has to satisfy the
-        # inequality it came from, and an absent one has to name the estimator
-        # that declined and the count. A default in either place fails.
-        if spinup is None:
-            check("no spin-up is invented where no relaxation time is measured",
-                  bool(derived["spinup_reason"])
-                  and "relaxation_time" in derived["spinup_reason"]
-                  and derived["total_cycles"] is None,
-                  derived["spinup_reason"] or "no reason given")
+        # THE SPIN-UP IS ALWAYS DERIVED, and the check is that it satisfies the
+        # inequality it came from AT THE RELAXATION TIME IT CLAIMS TO COVER --
+        # the measured one where there is one, and EVERY one where there is not.
+        # A number one per cent shorter must fail, or the derivation is loose
+        # rather than a floor. A default fails in either branch.
+        def residual_drift(span: float, tau: float) -> float:
+            return _math.exp(-span / tau) * (1.0 - _math.exp(-record / tau))
+
+        if derived["spinup_is_minimax"]:
+            multiple, worst = run_lengths.ecological_spinup_multiple(tolerance)
+            # The whole claim is "at every relaxation time", so the sweep is what
+            # tests it: decades either side of the worst case, which no single
+            # point could distinguish from a lucky choice.
+            taus = [record / (worst * factor)
+                    for factor in (0.001, 0.01, 0.1, 0.5, 1.0, 2.0, 10.0, 100.0)]
+            covered = max(residual_drift(spinup, tau) for tau in taus)
+            at_worst = record / worst
+            check("the minimax spin-up covers every relaxation time",
+                  covered <= tolerance * 1.000001
+                  and residual_drift(spinup * 0.99, at_worst) > tolerance,
+                  f"{spinup:.0f} cycles leaves at most {covered:.4f} across "
+                  f"{record:.0f} retained over relaxation times "
+                  f"{min(taus):.0f} to {max(taus):.0f}, against a tolerance of "
+                  f"{tolerance:g}; one per cent shorter leaves "
+                  f"{residual_drift(spinup * 0.99, at_worst):.4f} at the worst "
+                  f"case of {at_worst:.0f} cycles")
+            check("the minimax spin-up is a multiple of the retained record",
+                  abs(spinup - multiple * record) <= 1.0e-6 * spinup
+                  and derived["spinup_basis"].endswith(
+                      "ecological_spinup_multiple"),
+                  f"{spinup:.1f} against {multiple:.5f} x {record:.0f}")
         else:
             tau = derived["brackets"]["relaxation_cycles_bracket"][1]
-
-            def residual_drift(span: float) -> float:
-                return (_math.exp(-span / tau)
-                        * (1.0 - _math.exp(-record / tau)))
-
             check("the derived spin-up satisfies the drift it was derived from",
-                  residual_drift(spinup) <= tolerance * 1.000001
-                  and residual_drift(spinup * 0.99) > tolerance,
-                  f"{spinup:.0f} cycles leaves {residual_drift(spinup):.4f} "
+                  residual_drift(spinup, tau) <= tolerance * 1.000001
+                  and residual_drift(spinup * 0.99, tau) > tolerance,
+                  f"{spinup:.0f} cycles leaves "
+                  f"{residual_drift(spinup, tau):.4f} "
                   f"across {record:.0f} retained, against a tolerance of "
                   f"{tolerance:g}; one per cent shorter leaves "
-                  f"{residual_drift(spinup * 0.99):.4f}")
+                  f"{residual_drift(spinup * 0.99, tau):.4f}")
+        check("the spin-up names the derivation that produced it",
+              bool(derived["spinup_basis"]) and bool(derived["spinup_reason"])
+              and derived["total_cycles"] == spinup + record,
+              f"{derived['spinup_basis']}")
         # The record floor is an inversion, so it has a right answer too: the
         # field that set it must resolve the tolerance AT that length and must
         # not resolve it one per cent short. `cycles_for_bound` is monotone in
