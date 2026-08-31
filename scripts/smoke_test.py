@@ -6283,6 +6283,32 @@ def check_withdrawn_closure_has_no_consumer() -> list[str]:
     return problems
 
 
+def check_reference_index_files_exist() -> list[str]:
+    """Every filename `references/INDEX.md` asserts is a file that is there.
+
+    The index is TRACKED and the pdfs it names are NOT, so a row outlives its
+    own artifact without anything objecting. That is not hypothetical: thirteen
+    rows cited a pdf that was not on disk, eleven of them marked read and
+    several carrying extracted numbers, and eight of the thirteen are cited by
+    code or config rather than by prose alone. The mechanism is
+    `notes/audits/worktree-stranded-payload.md` -- a pdf fetched inside a
+    worktree lands in a per-file-linked directory and dies with it, while the
+    committed row survives.
+
+    A static read over one tracked file, which is what the per-commit tier is
+    for. `scripts/check_reference_index.py` owns the parse: it reads the FIRST
+    cell of each row only, so a filename appearing inside a citation is not
+    read as a claim.
+    """
+    import importlib.util as ilu
+
+    spec = ilu.spec_from_file_location(
+        "_smoke_reference_index", ROOT / "scripts" / "check_reference_index.py")
+    module = ilu.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.check_reference_index()
+
+
 def main() -> None:
     argparse.ArgumentParser(
         description="The fast static gate: every check here is a read, a parse "
@@ -6424,6 +6450,8 @@ def main() -> None:
                lambda: check_fit_tail_fraction_is_stated_once()),
               ("a rescan cannot remove a run from the index",
                lambda: check_run_index_is_a_ledger()),
+              ("every filename references/INDEX.md asserts is on disk",
+               lambda: check_reference_index_files_exist()),
               ("every commissioning row is re-read from its run record",
                lambda: check_commissioning_evidence_is_re_read()),
               ("the model's shortwave cloud tables are the papers' tables",
