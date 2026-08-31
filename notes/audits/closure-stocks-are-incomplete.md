@@ -150,10 +150,9 @@ difference and cannot grow; on the worst gridcell the residual runs +3417 mm at
 ten cycles, +30715 at a hundred and +330709 at 1252, a steady 264 mm per cycle
 on a gridcell receiving 1591 mm.
 
-That per-cycle figure is the size the two omitted fluxes should be. On that
-gridcell transpiration is 234 mm and runoff is 1021 mm, so the missing term is
-17 per cent of precipitation and would put the transpired share of total
-evaporation at 47 per cent.
+That per-cycle figure is the size the omitted losses should be. On that
+gridcell the transpiration column reads 234 mm and runoff 1021 mm, so what is
+missing is 17 per cent of precipitation.
 
 ### What the residual is once all four losses are subtracted
 
@@ -168,11 +167,12 @@ and plus what it releases, so over a gridcell year that identity is
     P = transpiration + soil evaporation + interception + runoff
         + change in (soil column water and ice) + change in snowpack
 
-The four losses are exactly the ones the repaired rule subtracts, and what is
-left is the storage change the contract's interpretation says it is. There is
-no third missing flux: the check enforcing this in the model is compiled out
-under `DEBUG_SOIL_WATER`, but the identity it states is the one the hydrology
-is written to.
+Four losses and nothing else, and they are exactly the ones the repaired rule
+subtracts; what is left is the storage change the contract's interpretation
+says it is. The check enforcing this in the model is compiled out under
+`DEBUG_SOIL_WATER`, but the identity it states is the one the hydrology is
+written to. So there is no fifth flux to look for -- what there was, on top of
+the two with no column at all, was one of the four read off the wrong column.
 
 Measured on `lpj_c0a9e36d42e54e7aaf245d211798e53d`, a diagnostic run of 1600
 spin-up cycles and 30 retained, over 1617 gridcells:
