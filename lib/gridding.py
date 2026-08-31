@@ -45,9 +45,18 @@ _FULL_TURN = 360.0
 # A label is not a coordinate correspondence: `CLAUDE.md` rule 3.
 #
 # A translation layer would be worse than the bug, because it implies there is
-# something to translate. So there is no such function here, and
-# `display_longitude` -- the only longitude arithmetic left in the project
-# outside this block -- is for the eye and says so.
+# something to translate. So there is no function here that maps one axis onto
+# the other, and `display_longitude` is a permutation for the eye and says so.
+#
+# What there IS, because artifacts do carry the model's labels, is one statement
+# of that label axis and one inverse from a label back to the INDEX it names:
+# `model_longitude_labels`, `model_label_column`, `model_label_cells` and
+# `require_model_labels`, below. A per-cell product written from a climatology
+# -- `pedology/data/<build>/land_column_states_<res>.txt` is one -- is keyed by
+# those labels, and reading it needs the index they stand for. The inverse
+# REFUSES a label that is not on the axis rather than snapping it to the nearest
+# column, which is what makes an axis handed in on the export's own centres an
+# error instead of a field rotated by half the planet.
 
 
 # The ladder registry lives in `lib/rungs.py`, which carries no dependencies so
