@@ -804,7 +804,12 @@ density the fit was made against, on any of the three halves of the divergence,
 on a compaction ramp whose ends `modules/soil.h` does not declare, and on a
 coefficient of the superseded relation live anywhere in the vendored model with
 comments stripped, so a second snow conductivity growing outside that one
-function fails here too.
+function fails here too. `execution_arms` carries the matched arms that have run
+and every entry claims one by name or says `none` and why, on the same terms as
+`ntransform.yaml` and `fire.yaml`; the block is empty because no LPJ-GUESS run
+this project has made has passed acceptance, and the gate refuses an entry with
+no claim, a claim on an arm the register does not carry, a `none` with no
+reason, and an arm no entry claims.
 
 ```bash
 python biosphere/scripts/snow_thermal_gate.py            # status, exit 0

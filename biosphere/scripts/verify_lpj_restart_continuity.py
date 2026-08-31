@@ -336,8 +336,8 @@ def main() -> None:
             "the restart continuity fixture has NOT been run. It needs a "
             "compiled model and a built forcing, and these are missing:\n  "
             + "\n  ".join(absent) +
-            "\n\nLPJ-GUESS does not build on this tree until a baseline "
-            "climatology exists. This is an absent measurement, not a pass.")
+            "\n\nBuild the model and the forcing and run this again. This is an "
+            "absent measurement, not a pass.")
 
     # The retained tables. The wetland set is included only when the gate has
     # granted activation, on exactly the terms run_lpj_guess.py includes it:

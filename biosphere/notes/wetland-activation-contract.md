@@ -3,10 +3,10 @@
 Worldbuilding. Vesper is an invented planet; everything below is about the
 simulation of it -- a vegetation model's dormant peatland and methane modules,
 the declaration file that governs them, and the output tables an activated run
-would write. No LPJ-GUESS build or simulation was performed for this document:
-the model does not build on this tree until a baseline climatology exists, so
-every claim here about the vendored source is checked by reading it, and the
-gate re-checks each one by probe on every invocation.
+would write. No LPJ-GUESS build or simulation was performed for this document,
+and no run this project has made has passed acceptance, so every claim here
+about the vendored source is checked by reading it, and the gate re-checks each
+one by probe on every invocation.
 
 The finding this rests on is `biosphere/notes/wetlands-peat-methane-audit.md`.
 That document says what is true. This one says what has to be declared before

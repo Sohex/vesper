@@ -16,7 +16,8 @@ would need, and what crosses the interface today.
 `biosphere/scripts/mineral_reactivity_gate.py` enforces it against
 `modules/somdynam.cpp` and against the soil map itself, and it can fail.
 
-Nothing here is verified by execution. LPJ-GUESS does not build on this tree.
+Nothing here is verified by execution. LPJ-GUESS builds and runs on this tree,
+and no run it has made has passed acceptance.
 
 ## The active arm is five linear functions of texture
 

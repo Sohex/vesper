@@ -436,8 +436,8 @@ ninth of 76 parameters at index 0.665 and `X_C:N(f/p)` twenty-sixth at 0.337, so
 a factor of 1.79 on them is not a detail.
 
 **What it moved, and by how much.** All arithmetic below is closed form on the
-model source and the two papers. Nothing here is execution-verified: LPJ-GUESS
-does not build on this tree and no run was made.
+model source and the two papers. Nothing here is execution-verified: no run was
+made for it, and no LPJ-GUESS run this project has made has passed acceptance.
 
 The repair divides every fine-root and sapwood C:N by 1.7905, on both tissues by
 the same factor, and leaves the leaf window untouched. Tissue nitrogen demand per

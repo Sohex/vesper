@@ -360,7 +360,7 @@ def self_test() -> int:
 
     WHAT THIS COVERS AND WHAT IT DOES NOT. `integrate_onto_days` is the
     arithmetic `vesperinput.cpp:integrate_year` runs, written out here so it can
-    be executed: LPJ-GUESS does not build on this tree, so the C++ is checked by
+    be executed: this checker does not link the model, so the C++ is checked by
     `g++ -fsyntax-only` against a synthetic header and never run. What is
     executed here is therefore the OPERATOR and the FORMAT, not the reader. A
     fixture that does not get the verdict it was built for is a defect in this
