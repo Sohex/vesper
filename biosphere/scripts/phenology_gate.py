@@ -42,9 +42,10 @@ reaches the chilling base at all.
 calendar. That is BIO-31 and is the last natural-vegetation reader of an Earth
 ordinal date.
 
-Nothing here is verified by execution. LPJ-GUESS does not build on this tree, so
-the source statements are made against the text of the source, and the fixtures
-run a Python statement of the same operator rather than the compiled one.
+Nothing here is verified by execution. LPJ-GUESS builds and runs on this tree,
+but no run it has made has passed acceptance (`world-qcse` has why), so the
+source statements are made against the text of the source, and the fixtures run
+a Python statement of the same operator rather than the compiled one.
 """
 
 from __future__ import annotations

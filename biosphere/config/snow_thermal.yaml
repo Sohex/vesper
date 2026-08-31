@@ -32,9 +32,17 @@
 # community model, live in the configuration this project runs, and not a fork
 # quirk inherited from the CNP tree.
 #
-# NONE OF IT IS EXECUTION-VERIFIED. LPJ-GUESS does not build on this tree, so
-# every statement here is arithmetic on the declared forms and on the papers.
-# `comparison_arm` names what would change that and cannot be run here.
+# WHETHER A DIVERGENCE HAS BEEN EXECUTED IS A PROPERTY OF THE ENTRY AND NEVER
+# OF THE REGISTER. `execution_arms` carries the matched arms that have run, each
+# with the report it produced and the standing that report has; every entry
+# names the arm that covers it or says `none` and why. One boolean over the
+# whole register asserted something about entries appended after the arm ran,
+# which is what a summary of a growing collection does.
+#
+# No LPJ-GUESS run this project has made has passed acceptance -- `world-qcse`
+# has why -- so the arms block is empty and every statement here is arithmetic
+# on the declared forms and on the papers. `comparison_arm` names what would
+# change that.
 #
 # `verdict` is what this project decided about the change, not what the
 # arithmetic says:
@@ -53,13 +61,12 @@
 mainline_divergences:
   release: "LPJ-GUESS 4.1.1, Zenodo record 8065737, SVN r10118, MPL-2.0"
   fork_reference: "LPJ-GUESS-CNP v1.0, mateusdp/LPJ-GUESS-NTD, subtree commit b368b893c4324840b43c56866e901c6916858afb, vendored at vendor/lpj-guess"
-  execution_verified: false
-  why_not_verified: >
-    LPJ-GUESS does not build on this tree. `framework/vesper.h` is generated,
-    and the chain to it runs through a baseline run and a baseline climatology
-    that do not exist. The divergence below has not been run, in either
-    direction. That is also what makes it cheap now: nothing has consumed the
-    superseded relation.
+  # THE MATCHED ARMS THAT HAVE RUN, by name. An entry below claims one of these
+  # by name or declares that none covers it. An arm no entry names is evidence
+  # that has outlived what it was taken for, and the gate refuses it, so this
+  # block cannot drift away from the register in either direction. Empty and
+  # never absent, so a gate can tell an unwritten block from an empty one.
+  execution_arms: {}
   comparison_arm: >
     What would bound what this is worth in a simulated soil temperature, which
     arithmetic on the relation cannot reach: one stock-4.1.1 arm against one
@@ -87,6 +94,15 @@ mainline_divergences:
         - "Ksnow = 0.023 + 0.234 * snowdens_scaled;"
       live: "Ksnow = 1.985 * snowdens_vf * snowdens_vf + 0.073 * snowdens_vf + 0.0336;"
       live_under: iftwolayersoil_0
+      execution: none
+      why_no_execution: >
+        No LPJ-GUESS run this project has made has passed acceptance, so there
+        is no run whose soil temperature could carry a comparison arm, and none
+        could have (`world-qcse`: the trend statistic was fitted inside one
+        memory time, and the spin-up is short of the derived 2318 cycles). The
+        divergence has not been run in either direction. That is also what makes
+        it cheap: nothing that has passed acceptance has consumed the superseded
+        relation.
       settles: >
         Three things, and none of them is that the release disagreed with the
         climate model. Sturm et al. (1997) is a needle-probe regression; Riche

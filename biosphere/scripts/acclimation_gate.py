@@ -63,9 +63,10 @@ acclimated path cannot be turned on without the decision moving with it.
     python biosphere/scripts/acclimation_gate.py --strict   # refuses while the
                                                             # option is unusable
 
-Nothing here is verified by execution. LPJ-GUESS does not build on this tree, so
-the source statements are made against the text of the source, and the fixtures
-run a Python statement of the same update rule rather than the compiled one.
+Nothing here is verified by execution. LPJ-GUESS builds and runs on this tree,
+but no run it has made has passed acceptance (`world-qcse` has why), so the
+source statements are made against the text of the source, and the fixtures run
+a Python statement of the same update rule rather than the compiled one.
 """
 
 from __future__ import annotations

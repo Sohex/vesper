@@ -1148,7 +1148,6 @@ a bracket something reads.
 | `vendor/lpj-guess/framework/guess.h:2552`, comment at `:2546` | `frac_maxtomin = 0.9` | `// Tighter C:N ratio range for roots and sapwood: picked out thin air.` |
 | `vendor/lpj-guess/modules/soil.cpp:111` | `sompool[PASSIVESOM].ntoc = 1.0/9.0` | `// passive has a fixed value (why? passive SOM should also vary.)` |
 | `vendor/lpj-guess/modules/somdynam.cpp:50` | `TAU_LITTER = 2.85` | `// Thonicke, Sitch, pers comm, 26/11/01` |
-| `vendor/lpj-guess/modules/vegdynam.cpp:1435` | `fireprob` floor `0.001` | `// c.f. LPJF` |
 
 The first two are live under `ifnlim 1`. `frac_maxtomin` sets the width of the
 fine-root and sapwood C:N windows, and this project has already repaired their
@@ -1158,18 +1157,66 @@ width unsourced for both elements; `guess.h:313` names that as a whole-model gap
 years, so it sets steady-state mineral nitrogen after `equilsom`.
 
 `TAU_LITTER` is on the `ifcentury 0` path and this project sets `ifcentury 1`, so
-it is dead. The fire floor is not: GLOBFIRM is the live fire model, and the floor
-puts a minimum burn of 0.1 per cent per year on every patch of the planet forever
-on the authority of "the other model does it".
+it is dead.
 
 **Disposition.** `ntoc` is REPLACEABLE NOW: Parton, Stewart and Cole (1988) is
 held and read, and it is the paper this project already used to settle the
 phosphorus analogue, `PMASS_SAT` and `SURFHUMUS`. The nitrogen side was simply
 not given the same treatment. `frac_maxtomin` is REPLACEABLE, SOURCE NEEDED and
 the source is a C:N range rather than a ratio, so it is a literature question
-rather than a fetch. The fire floor is REPLACEABLE NOW by deletion: a floor whose
-only justification is another model's floor is not a physics term, and removing
-it is a fix.
+rather than a fetch.
+
+**The GLOBFIRM burn-probability floor was audited here and is NOT tuned.** It
+belongs in this section's history because `// c.f. LPJF` reads exactly like the
+three comments above it, and the reading was wrong. The floor is IMPLICIT-EARTH,
+which is a different defect with a different repair, and misfiling it here
+taught the wrong lesson about the cleanest worked example of the other class
+this project has.
+
+Three findings settle it, and each rules out one class.
+
+- NOT TUNED. A fit residual does not arrive at exactly 1e-3 in two independent
+  codebases. LPJmL's `src/soil/fire_prob.c`, vendored at `vendor/lpjml`, returns
+  0.001 for any `fire_frac` below 0.001, and no comment in either implementation
+  claims a fit.
+- NOT OPAQUE. The repair the opaque class prescribes is to walk the chain, and
+  the chain is walked to its end. `// c.f. LPJF` points at the FORTRAN LPJ, whose
+  fire module is Thonicke, Venevsky, Sitch and Cramer (2001). That paper states
+  no minimum burned fraction anywhere. It states the opposite: its Eqn 5, `A(s) =
+  s * f(s)`, is introduced with "A is zero when fire conditions were absent
+  during the year", and its own reporting stops at "more than 900 years" for
+  regions unsuitable to carry fire. Sitch et al. (2003), the LPJ-DGVM
+  description, documents the fire terms as empirical global-Earth choices and
+  states no floor either. Two implementations and two papers; no derivation at
+  the end of the chain.
+- IMPLICIT-EARTH, and the model's own source is what says so. `commonoutput.cpp`
+  writes `firert_gridcell += 1000.0` under `// Set a limit of 1000 years` for any
+  patch whose `fireprob` is below 0.001, so 0.001 per year is a REPORTING CAP on
+  the fire return interval -- the same diagnostic ceiling Thonicke's Fig. 6
+  reports at, one round cutoff on where a diagnostic stops resolving. The code
+  applied that cap to the model STATE. And the cap is one per EARTH year: LPJF
+  and LPJmL both run `NDAYYEAR 365` against this model's 183-day year, declared
+  as `VESPER_YEAR_LENGTH_DAYS` in `framework/vesper.h`, so carrying the numeral
+  across delivered a whole Earth year of the floor every 183 days. The
+  neighbouring quantity of the same class IS converted for exactly this reason:
+  `distinterval` reaches the model as 199.594 simulation years against an Earth
+  calibration of 100.
+
+The repair is not the rescaling the implicit-Earth diagnosis usually implies.
+Rescaling would repair the unit of a number with no derivation, which is a
+tidier copy of the wrong thing, and the quantity being rescaled is a diagnostic
+cap rather than a mechanism. The line is deleted, under `world-v5j1`. The
+deletion is registered as a declared divergence from mainline LPJ-GUESS 4.1.1 in
+`biosphere/config/fire.yaml`, `biosphere/scripts/fire_gate.py` enforces the
+absence, and the argument is `biosphere/notes/fire-model-audit.md` section 8.
+
+What deleting the floor does NOT dispose of is Thonicke's Eqn 8 itself. Its four
+coefficients -- 0.45, 2.83, 2.96, 1.04 -- are a least-mean-square non-linear
+regression against observed area burnt in Portugal, southern California and
+Kakadu National Park, which is a published fit with inspectable provenance and
+an Earth domain rather than a tuning. The curve is the operator this project
+runs, and it is a separate question from the floor that was sitting on top of
+it.
 
 ---
 
@@ -1349,7 +1396,7 @@ filed.
 | 13. `zcca`, `zccb`, `rcrit` | `world-o12h`; `world-khn` closed the resolution half by declaring it |
 | 14. `a1` in the sigma quartic | none: irreducible, and a convergence sweep across it is a measurement rather than a fix |
 | 15. the unbracketed pedogenesis values | `world-9ctm` |
-| 16. `ntoc`, `frac_maxtomin`, the fire floor | `world-xfif`, `world-v5j1` |
+| 16. `ntoc`, `frac_maxtomin` | `world-xfif`. The GLOBFIRM burn-probability floor left this class rather than being repaired in it: it is implicit-Earth, `world-v5j1` deleted it, and `biosphere/config/fire.yaml` registers the deletion |
 | 17. `ntransform.yaml`'s six `unsourced` entries | already registered; the gate refuses on them |
 | 18. the dormant knobs | `world-9g8p` |
 | 19. the cgenie tier | `world-u9kg` |

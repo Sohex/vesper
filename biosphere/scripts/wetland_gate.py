@@ -51,9 +51,9 @@ non-zero on it.
 `ifsaturatewetlands 0` and `wetland_runon 0` whenever activation has not been
 granted, which is every case that exists today.
 
-LPJ-GUESS does not build on this tree until a baseline climatology exists, so
-every probe below is a STATIC read of the vendored source. Nothing here compiles
-or runs the model.
+Every probe below is a STATIC read of the vendored source. Nothing here compiles
+or runs the model, and no LPJ-GUESS run this project has made has passed
+acceptance, so nothing here rests on a simulated wetland.
 """
 
 from __future__ import annotations

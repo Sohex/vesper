@@ -60,10 +60,17 @@ that the modelled snow may conduct LESS than the model says and cannot conduct
 more. A one-signed open question that the literature holds open is reported and
 not gated.
 
-NOTHING HERE IS VERIFIED BY EXECUTION. LPJ-GUESS does not build on this tree, so
-every statement is against the source, the declaration and the papers, and the
-divergence has not been run in either direction. The declaration names the
-comparison arm that would price it in a simulated soil temperature.
+EXECUTION IS A PROPERTY OF EACH DIVERGENCE AND NEVER OF THE REGISTER. The
+declaration carries the matched arms that have run, by name, and every entry
+claims one of them or says `none` and why. No LPJ-GUESS run this project has
+made has passed acceptance, so that block is empty and every statement here is
+against the source, the declaration and the papers; an entry appended later
+therefore has to state its own standing rather than inherit an answer written
+before it existed. The gate refuses an entry with no execution claim, an entry
+claiming an arm the register does not carry, an unexecuted entry that says
+nothing about why none covers it, and an arm no entry claims. The declaration
+names the comparison arm that would price this one in a simulated soil
+temperature.
 """
 
 from __future__ import annotations
@@ -168,7 +175,7 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
     def bad(what: str, detail: str) -> None:
         findings.append({"kind": "divergence", "what": what, "detail": detail})
 
-    for field in ("release", "fork_reference", "why_not_verified", "comparison_arm"):
+    for field in ("release", "fork_reference", "comparison_arm"):
         if not register.get(field):
             bad("mainline_divergences", f"the register carries no {field}")
     release = register.get("release") or ""
@@ -177,12 +184,27 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
             "the register's release names no Zenodo record. The operator arrived "
             "byte-identical to a release, so that release is what a divergence "
             "here is measured against and it has to be nameable")
-    if register.get("execution_verified") is not False:
+    arms = register.get("execution_arms")
+    if arms is None or not isinstance(arms, dict):
         bad("mainline_divergences",
-            "execution_verified is not false, and LPJ-GUESS does not build on "
-            "this tree, so the divergence has not been run in either direction")
+            "execution_arms is not a mapping of arm name to its evidence. No "
+            "matched arm has run, so it is empty rather than absent: an absent "
+            "block cannot be told from one that was never written")
+        arms = {}
+    for name, evidence in arms.items():
+        where = f"execution_arms.{name}"
+        if not isinstance(evidence, dict):
+            bad(where, "an execution arm that is not a mapping of evidence")
+            continue
+        for field in ("report", "standing"):
+            if not evidence.get(field):
+                bad(where, f"an execution arm carrying no {field}")
+        report = evidence.get("report")
+        if report and not (PROJECT_ROOT / report).is_file():
+            bad(where, f"execution report {report} is missing")
 
     seen = set()
+    claimed: set[str] = set()
     for entry in register.get("entries", []):
         what = entry.get("id", "?")
         if what in seen:
@@ -200,6 +222,21 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
         for field in ("settles", "worth"):
             if not entry.get(field):
                 bad(what, f"a divergence saying nothing about what it {field}")
+        claim = entry.get("execution")
+        if not claim:
+            bad(what, "a divergence saying nothing about whether it has been "
+                      "executed. Each entry names the arm that covers it or "
+                      "says `none`, because one answer over the whole register "
+                      "stops being true the moment an entry is appended")
+        elif claim == "none":
+            if not entry.get("why_no_execution"):
+                bad(what, "a divergence claiming no execution arm and saying "
+                          "nothing about why none covers it")
+        elif claim not in arms:
+            bad(what, f"claims execution arm {claim!r}, which the register does "
+                      "not carry")
+        else:
+            claimed.add(claim)
 
         if entry.get("where") != "operator":
             bad(what, f"unknown divergence site {entry.get('where')!r}")
@@ -237,6 +274,11 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
         elif live not in code_only:
             bad(what, (f"declares that {source_file} runs {live!r} instead, "
                        "and it does not"))
+
+    for name in sorted(set(arms) - claimed):
+        bad("mainline_divergences",
+            f"execution arm {name!r} is claimed by no divergence, so it is "
+            "evidence that has outlived the entries it was taken for")
     return findings
 
 
@@ -354,9 +396,34 @@ def _fixtures(declaration: dict, sources: dict, guess_sources: dict,
         ("a divergence not saying which configuration it is live in",
          mutate(claim("snow_conductivity_relation", "live_under", "sometimes")),
          "divergence"),
-        ("a register that claims the divergence has been run",
-         mutate(lambda d: d["mainline_divergences"].__setitem__(
-             "execution_verified", True)),
+        ("a second divergence appended, saying nothing about whether an arm "
+         "has executed it",
+         mutate(lambda d: d["mainline_divergences"]["entries"].append(
+             {k: v for k, v in copy.deepcopy(
+                 entry(d, "snow_conductivity_relation")).items()
+              if k != "execution"} | {"id": "a_second_divergence"})),
+         "divergence"),
+        ("a divergence claiming an execution arm the register does not carry",
+         mutate(claim("snow_conductivity_relation", "execution", "no_such_arm")),
+         "divergence"),
+        ("an unexecuted divergence saying nothing about why no arm covers it",
+         mutate(lambda d: entry(d, "snow_conductivity_relation")
+                .pop("why_no_execution")),
+         "divergence"),
+        ("an execution arm no divergence claims",
+         mutate(lambda d: d["mainline_divergences"]["execution_arms"]
+                .__setitem__("an_arm_nobody_claims",
+                             {"report": "biosphere/config/snow_thermal.yaml",
+                              "standing": "a fixture"})),
+         "divergence"),
+        ("an execution arm whose report is missing",
+         mutate(lambda d: d["mainline_divergences"]["execution_arms"]
+                .__setitem__("an_arm_with_no_report",
+                             {"report": "biosphere/analysis/no_such.json",
+                              "standing": "a fixture"})),
+         "divergence"),
+        ("an execution_arms block absent rather than empty",
+         mutate(lambda d: d["mainline_divergences"].pop("execution_arms")),
          "divergence"),
         ("a register whose release names no Zenodo record",
          mutate(lambda d: d["mainline_divergences"].__setitem__(
@@ -417,9 +484,12 @@ def main() -> int:
         {"id": item.get("id", "?"), "verdict": item.get("verdict", "?"),
          "owner": item.get("owner", "?"),
          "source_file": item.get("source_file", "?"),
-         "live_under": item.get("live_under", "?")}
+         "live_under": item.get("live_under", "?"),
+         "execution": item.get("execution", "?")}
         for item in register.get("entries", [])
     ]
+    arms = register.get("execution_arms") or {}
+    executed = [d for d in divergences if d["execution"] in arms]
     gated = [d for d in divergences if d["verdict"] == "gate"]
 
     report = {
@@ -431,7 +501,10 @@ def main() -> int:
         "findings": findings,
         "release": register.get("release"),
         "divergences": divergences,
-        "execution_verified": bool(register.get("execution_verified")),
+        "execution_arms": sorted(arms),
+        "divergences_executed": [d["id"] for d in executed],
+        "divergences_unexecuted": [d["id"] for d in divergences
+                                   if d["execution"] not in arms],
         "fixtures": fixtures,
     }
     REPORT.parent.mkdir(parents=True, exist_ok=True)
@@ -463,11 +536,13 @@ def main() -> int:
         print(f"  {len(kept)} kept and {len(gated)} gated. The operator arrived")
         print("  byte-identical to it and is ON BY DEFAULT:")
         print(f"    {register.get('release')}")
-        print("  NONE IS EXECUTION-VERIFIED: LPJ-GUESS does not build on this tree,")
-        print("  so the change has not been run in either direction.")
+        print(f"  {len(executed)} of {len(divergences)} claim a matched execution "
+              "arm, per entry and not per")
+        print("  register. Each says for itself which arm covers it, or why none does.")
         for item in divergences:
             print(f"    [{item['verdict']}] {item['id']}  live under "
-                  f"{item['live_under']}  ({item['source_file']})  [{item['owner']}]")
+                  f"{item['live_under']}  ({item['source_file']})  [{item['owner']}]"
+                  f"  execution: {item['execution']}")
         print(f"\n  report: {rel(REPORT)}")
 
     if broken := [f for f in fixtures if not f["pass"]]:

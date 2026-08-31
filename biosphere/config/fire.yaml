@@ -115,10 +115,23 @@ mainline_divergences:
         0.001 for any `fire_frac` below 0.001. So the pointer is not a claim
         somebody wrote down -- two independent implementations state the number
         -- but neither states an argument for it, and walking the chain is
-        exactly the repair the OPAQUE class prescribes. The chain is walked and
-        there is no derivation at the end of it, so the number is not opaque.
-        It is not tuned either: a fit residual does not come out at exactly
-        1e-3 in two codebases, and no comment in either claims a fit.
+        exactly the repair the OPAQUE class prescribes. The chain is walked to
+        its end, past the code and into the primary description of LPJF's fire
+        module: Thonicke, Venevsky, Sitch and Cramer (2001) states no minimum
+        burned fraction anywhere, introduces its Eqn 5 with "A is zero when fire
+        conditions were absent during the year", and stops its own reporting at
+        "more than 900 years" for regions unsuitable to carry fire, which is the
+        same diagnostic ceiling rather than a floor on the state. Sitch et al.
+        (2003) documents the fire terms as empirical global-Earth choices and
+        states no floor either. Two implementations and two papers, and no
+        derivation at the end of it, so the number is not opaque. It is not
+        tuned either: a fit residual does not come out at exactly 1e-3 in two
+        codebases, and no comment in either claims a fit. What Thonicke DOES fit
+        is Eqn 8's four coefficients, by least-mean-square regression against
+        observed area burnt in Portugal, southern California and Kakadu National
+        Park; that is a published fit with an inspectable Earth domain, it is
+        the curve this project keeps, and it is a separate question from the
+        floor that sat on top of it.
 
         What the number is, mainline says in its own source.
         `modules/commonoutput.cpp` writes `firert_gridcell += 1000.0` under

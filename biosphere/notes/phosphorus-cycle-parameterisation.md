@@ -16,10 +16,10 @@ the constant is applied to. This document says, for every one of those
 constants, what it does to the modelled result, what the measured phosphorus
 value is or what its bracket is, and which of them are still nitrogen's.
 
-Nothing here is verified by execution. LPJ-GUESS does not build on this tree:
-`framework/vesper.h` is generated, and the chain to it runs through a baseline
-run and a baseline climatology that do not exist. Every figure below is hand
-arithmetic off the source and the cited measurements.
+Nothing here is verified by execution. LPJ-GUESS builds and runs on this tree,
+and no run it has made has passed acceptance, so no simulated phosphorus stands
+behind anything below. Every figure is hand arithmetic off the source and the
+cited measurements.
 
 ## The register
 
@@ -229,8 +229,8 @@ inversion is the one that makes it return the mean again, so
 `ctop_sap_avr / ctop_leaf_avr` = 6.9 exactly, for any `PFRAC_MINTOMAX` and any
 `PFRAC_MAXTOMIN`. The check that has to pass, and it passes in closed form on the
 source: after `init_ctop_limits()`, `ctop_sap_avr / ctop_leaf_avr` equals the
-constant the source measured. It is not execution-verified, because LPJ-GUESS
-does not build on this tree.
+constant the source measured. It is not execution-verified, because no
+LPJ-GUESS run this project has made has passed acceptance.
 
 It did not always pass. The earlier form anchored the maximum instead, setting
 `ctop_sap_max` to `ctop_leaf_max * PFRAC_LEAFTOSAP`, so the constant was a ratio

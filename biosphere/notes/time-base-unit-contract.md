@@ -199,9 +199,9 @@ replacing twice in a year that IS half an Earth year.
 ## What the corrections are worth
 
 Stated because a correct term that worsens an agreement is still information, and
-because none of these has been executed: the model does not build on this tree
-until a baseline climatology exists to generate `vesper.h` against, so every
-figure here is arithmetic and none is a measurement.
+because none of these has been executed: no LPJ-GUESS run this project has made
+has passed acceptance, so every figure here is arithmetic and none is a
+measurement.
 
 - **Soil carbon roughly doubles at equilibrium, on the `ifcentury 0` path only.**
   Equilibrium pool size is annual litter input over the annual decay constant.
@@ -252,11 +252,11 @@ figure here is arithmetic and none is a measurement.
   scalar and `PCONC_SAT` has no source. What each one is worth, and what would
   settle it, is in
   `biosphere/notes/phosphorus-cycle-parameterisation.md`.
-- Nothing here is verified by execution. LPJ-GUESS does not build on this tree:
-  `framework/vesper.h` is generated, and the chain to it runs through a baseline
-  run and a baseline climatology that do not exist. The regression checks BIO-22
-  asks for are therefore no-simulation checks against the generated instruction
-  file and its provenance, and belong with BIO-20.
+- Nothing here is verified by execution. LPJ-GUESS builds and runs on this tree,
+  and no run it has made has passed acceptance, so no simulated result stands
+  behind any figure above. The regression checks BIO-22 asks for are therefore
+  no-simulation checks against the generated instruction file and its
+  provenance, and belong with BIO-20.
 - The Earth PFTs themselves are unchanged and remain a declared choice. Rescaling
   their limits makes them mean on this world what they meant on Earth; it does not
   make them a prediction of this world's physiology.
