@@ -20,7 +20,7 @@ this project's source departs from what it was given.
 THERE ARE TWO REFERENCE POINTS AND EACH DIVERGENCE NAMES ITS OWN.
 `ntransform_gate.py` checks one file that is stock LPJ-GUESS 4.1.1 throughout,
 so one release covers it. This file is not one thing. Its phosphorus path --
-pmass_labile, setptoc, the sorption isotherm, PMASS_SAT and PCONC_SAT -- exists
+pmass_labile, setptoc, the sorption isotherm and PMASS_SAT -- exists
 in no LPJ-GUESS release: it arrived with the CNP fork, and the only fixed point
 a divergence in it can be measured against is the commit that subtree was
 imported at. The CENTURY carbon and nitrogen operator around it IS 4.1.1's,
@@ -46,7 +46,9 @@ It can fail:
                while the phosphorus-limitation-off pin reads the same symbol, so
                the pin going is the argument being reverted without the constant
                moving
-  divergence   a declared divergence whose recorded form the
+  divergence   a removal that names no line still holding the quantity it
+               removed the driver of, or names one the source does not run; a
+               declared divergence whose recorded form the
                model no longer records beside the changed one, which it has gone
                back to running, or whose changed line it no longer contains. All
                three are checked, because a divergence that is not recorded is a
@@ -122,7 +124,7 @@ DIVERGENCE_VERDICTS = ("keep", "gate")
 
 # What shape the fork's own version has. See the declaration's own comment: the
 # two are guarded differently, and `commented_out` is the weaker guard.
-MAINLINE_FORMS = ("line", "commented_out")
+MAINLINE_FORMS = ("line", "commented_out", "removed")
 
 # Which configuration a divergence is live in. `ifplim_1` is inert in the arm
 # this project runs and waiting in the one it does not; `neither` is an entry
@@ -342,6 +344,24 @@ def _check_divergences(declaration: dict, sources: dict) -> list[dict]:
             elif form in code_only:
                 bad(what, (f"declares a divergence from {form!r}, and "
                            f"{source_file} still runs it"))
+        if form_kind == "removed":
+            if entry.get("live"):
+                bad(what, ("a removal naming a line the model runs instead. A "
+                           "removal runs nothing in its place, and `now` is "
+                           "where it says what holds the quantity now"))
+            now = entry.get("now")
+            now_file = entry.get("now_source_file")
+            if not now or not now_file:
+                bad(what, ("a removal saying nothing about what determines the "
+                           "quantity now. Without it a deletion could leave a "
+                           "modelled quantity set by nothing and pass"))
+            elif now_file not in sources:
+                bad(what, f"names {now_file!r} as what holds the quantity now, "
+                          "and this gate does not read it")
+            elif now not in sources[now_file][1]:
+                bad(what, (f"declares that {now_file} holds the quantity with "
+                           f"{now!r}, and it does not"))
+            continue
         live = entry.get("live")
         if not live:
             bad(what, "a divergence naming no line the model runs instead")
@@ -506,7 +526,7 @@ def _fixtures(declaration: dict, sources: dict) -> list[dict]:
          "divergence"),
         ("a divergence from a form the source in fact still runs",
          mutate(divergence_claim("pmass_sat_labile_currency", "mainline",
-                                 ["static const double PCONC_SAT = 0.02;"])),
+                                 ["static const double PMASS_SAT = 0.002 * 6.6;"])),
          "divergence"),
         ("a divergence whose changed line the source no longer contains",
          mutate(divergence_claim("pmass_sat_labile_currency", "live",
@@ -545,6 +565,18 @@ def _fixtures(declaration: dict, sources: dict) -> list[dict]:
         ("a divergence measured against a release the register does not name",
          mutate(lambda d: d["mainline_divergences"].pop("release")),
          "divergence"),
+        ("a removal saying nothing about what holds the quantity now",
+         mutate(lambda d: _divergence(d, "surfmicro_ptoc_ramp_removed")
+                .pop("now")),
+         "divergence"),
+        ("a removal whose standing-in line the source does not run",
+         mutate(divergence_claim("surfmicro_ptoc_ramp_removed", "now",
+                                 "sompool[SURFMICRO].ptoc = 1.0 / 30.0;")),
+         "divergence"),
+        ("a removal whose removed form the source in fact still runs",
+         mutate(divergence_claim("surfmicro_ptoc_ramp_removed", "mainline",
+                                 ["setptoc(soil, pmin_mass, SLOWSOM, 200.0, 90.0, 0.0, PMASS_SAT);"])),
+         "divergence"),
         ("a register whose reference names no subtree commit",
          mutate(lambda d: d["mainline_divergences"].__setitem__(
              "reference", "the CNP fork")),
@@ -563,7 +595,7 @@ def _fixtures(declaration: dict, sources: dict) -> list[dict]:
          mutate(ramp_claim("slowsom_ptoc", "ctop_min", 91.0)),
          "drift"),
         ("a ramp called from fewer places than declared",
-         mutate(ramp_claim("surfmicro_ptoc", "occurrences", 3)),
+         mutate(ramp_claim("soilmicro_ptoc", "occurrences", 3)),
          "drift"),
         ("a ramp whose declared P:C range its own endpoints exceed",
          mutate(ramp_claim("slowsom_ptoc", "ptoc_range", [0.005, 0.006])),
@@ -601,6 +633,9 @@ def main() -> int:
     wanted |= {entry["source_file"]
                for entry in declaration["mainline_divergences"]["entries"]
                if entry.get("source_file")}
+    wanted |= {entry["now_source_file"]
+               for entry in declaration["mainline_divergences"]["entries"]
+               if entry.get("now_source_file")}
     sources: dict[str, tuple[str, str]] = {}
     for name in sorted(wanted):
         text = (PROJECT_ROOT / name).read_text()

@@ -761,10 +761,14 @@ python biosphere/scripts/somdynam_gate.py --strict   # refuses while a saturatio
                                                      # constant has no source
 ```
 
-`--strict` refuses on `PCONC_SAT`, which carries `NCONC_SAT`'s value and has no
-phosphorus source anywhere in the tree. That is the refusal `parameters.cpp`
-already makes on `ifplim 1`, restated where the constant is declared instead of
-living only in a C++ error string.
+`--strict` has nothing to refuse on. `PMASS_SAT` is Parton, Stewart and Cole
+(1988) Fig. 3's own axis maximum converted into the fork's labile-P currency,
+and `PCONC_SAT` is gone with the ramp it drove: a decomposer community's biomass
+C:P does not vary with its resource's phosphorus content, so the surface
+microbial pool holds the C:P its initialiser sets. The refusal kind stays
+because the next unsourced threshold needs somewhere to land, and it is the
+refusal `parameters.cpp` makes on `ifplim 1` restated where a constant is
+declared rather than living only in a C++ error string.
 
 ### The CENTURY equilibrium accelerator is the daily nutrient operator
 

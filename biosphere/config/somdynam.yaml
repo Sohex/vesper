@@ -32,9 +32,9 @@
 # structural difference from `biosphere/config/ntransform.yaml`. That operator
 # is stock LPJ-GUESS 4.1.1 throughout, so one `release` covers it.
 # `modules/somdynam.cpp` is not one thing: its phosphorus path -- pmass_labile,
-# setptoc, the sorption isotherm, PMASS_SAT and PCONC_SAT -- does not exist in
-# 4.1.1 at all and arrived with the CNP fork, while the CENTURY carbon and
-# nitrogen operator around it is 4.1.1's. A divergence in the first can be
+# setptoc, the sorption isotherm and PMASS_SAT -- does not exist in 4.1.1 at all
+# and arrived with the CNP fork, while the CENTURY carbon and nitrogen operator
+# around it is 4.1.1's. A divergence in the first can be
 # measured against nothing but the commit the subtree was imported at; a
 # divergence in the second is a change to default-on behaviour in a widely used
 # community model and is measured against the release. `measured_against` says
@@ -72,13 +72,22 @@
 #                 refuses a `commented_out` entry whose recorded form is not in
 #                 fact commented, so the weaker guard cannot be claimed for a
 #                 line that would support the stronger one
+#   removed       the fork runs a line and this project runs NOTHING in its
+#                 place, so there is no `live` and the gate refuses one. The
+#                 first two checks are unchanged -- the recorded form has to
+#                 stand in the source and be absent from it once comments are
+#                 stripped -- and the third asks a different question, because
+#                 "the changed line is present" has no meaning for a deletion:
+#                 `now_source_file` and `now` name the line that determines the
+#                 quantity instead, so a removal has to say what is left holding
+#                 it. Without that a deletion could quietly leave a modelled
+#                 quantity set by nothing.
 mainline_divergences:
   reference: "LPJ-GUESS-CNP v1.0, mateusdp/LPJ-GUESS-NTD, subtree commit b368b893c4324840b43c56866e901c6916858afb, vendored at vendor/lpj-guess"
   release: "LPJ-GUESS 4.1.1, Zenodo record 8065737, SVN r10118, MPL-2.0"
   not_a_release: >
     LPJ-GUESS 4.1.1 has no phosphorus. The whole of that path -- pmass_labile,
-    setptoc, the sorption isotherm, PMASS_SAT and PCONC_SAT -- arrived with the
-    CNP fork, so an entry measured against `fork` has no release form to compare
+    setptoc, the sorption isotherm and PMASS_SAT -- arrived with the CNP fork, so an entry measured against `fork` has no release form to compare
     against and no Zenodo record or SVN revision to name. The subtree commit is
     that entry's reference point, and
     `docs/src/reference/vendored-upstreams.md` carries the pull command that
@@ -330,6 +339,74 @@ mainline_divergences:
         no visible change in what the simulated plants take up is expected.
         None of this is execution-verified and it cannot be until an LPJ run
         reaches acceptance: `world-qcse`.
+    - id: surfmicro_ptoc_ramp_removed
+      owner: world-pidx
+      measured_against: fork
+      execution: none
+      why_no_execution: >
+        The removal is inert under `ifplim 0`, which is what this project runs,
+        and `framework/parameters.cpp` refuses `ifplim 1`, so there is no
+        configuration in which an arm could measure it today. It would need the
+        `ifplim 1` pair the comparison arm above describes.
+      verdict: keep
+      where: operator
+      source_file: vendor/lpj-guess/modules/somdynam.cpp
+      mainline_form: removed
+      mainline:
+        - "static const double PCONC_SAT = 0.02;"
+        - "setptoc(soil, litter_pmass / (litter_cmass * 2.0), SURFMICRO, 80.0, 30.0, 0.0, PCONC_SAT);"
+        - "double litter_pmass = soil.sompool[SURFSTRUCT].pmass + soil.sompool[SURFMETA].pmass +"
+      now_source_file: vendor/lpj-guess/modules/soil.cpp
+      now: "sompool[SURFMICRO].ptoc = 1.0 / 80.0;"
+      bites_under: ifplim_1
+      settles: >
+        That the surface microbial pool's C:P should not ramp against a litter
+        phosphorus concentration, which is a MEASUREMENT and not an argument
+        from a missing source. A decomposer community's biomass C:P is
+        homeostatic with respect to its resource's phosphorus content.
+        Mooshammer et al. (2014) Table 2, recalculated from Xu et al. (2013)
+        over n = 405: microbial biomass C:P against soil C:P has a slope of
+        0.015 with R = 0.078, R2 = 0.006 and P = 0.118, and its log-log form
+        gives R = 0.000 and P = 0.992, while the fitted microbial C:P moves from
+        66.5 to 67.3 over a soil C:P of 156 to 1611. The same paper reports the
+        litter case directly: in decomposing litter, resource C:N and C:P are
+        strongly negatively correlated with the gross N and P MINERALISATION
+        FLUXES while the microbial communities are homeostatic in those element
+        ratios (Mooshammer et al. 2012), and Achat et al. (2010) find relatively
+        constant microbial biomass C:P in forest soils with the C:P of the
+        mineralisation flux varying strongly. What varies with a resource's
+        phosphorus content is the flux out of the decomposer, not the
+        stoichiometry of the decomposer.
+        THE CONTROL THAT COULD HAVE FAILED AND DID NOT is the nitrogen row of
+        the same table: microbial C:N against soil C:N has P = 0.044 and its
+        log-log form P < 0.001. The table separates the two elements rather than
+        being too noisy to show anything, and the nitrogen ramp beside the
+        deleted one keeps its own direct source.
+        It also settles what PCONC_SAT was, which no phosphorus reading could
+        have. NCONC_SAT is exactly sourced: Parton et al. (1993) p. 791 says the
+        C:N of newly formed surface microbial biomass "increases from 10 to 20
+        as the N content decreases from 2.0% to 0.01%", which is the setntoc
+        call's pair and its fmax as a mass fraction of litter dry mass. So
+        PCONC_SAT was a sound derivation belonging to the other element.
+      worth: >
+        At most 2.4 per cent on the surface microbial pool's C:P, which is why
+        the removal is safe as well as right. The deleted ramp read
+        litter_pmass / (litter_cmass * 2), whose whole attainable range is
+        3.1e-4 to 7.6e-4 for senesced-litter C:P of 1596 to 660 by mass
+        (McGroddy et al. 2004, Table 1); against an fmax of 0.02 that drove it
+        over 1.6 to 3.8 per cent of its declared span, so it returned 79.2 to
+        78.1 against a declared 80 to 30 and the pool was already at the 80
+        soil.cpp initialises it to. What the removal changes is that the value
+        the model runs is now visible where it is set. It is inert under
+        `ifplim 0`.
+      also_changed: >
+        The litter phosphorus mass both call sites accumulated, which had no
+        other reader, and soil.cpp's initialiser comment, which said setptoc
+        overwrote all four C:P initialisers on the first call to somfluxes and
+        now says three. The 80 the surface microbial pool holds for the whole of
+        a run is Fig. 3's active soil line's ctop_max end applied to a pool that
+        paper does not have; that is the standing its three neighbours share, it
+        is not what PCONC_SAT was, and WORLD-634Q owns it.
     - id: passivesom_cton_ramp
       owner: world-xfif
       measured_against: release
@@ -401,24 +478,6 @@ constants:
         right-hand end, converted into this fork's Hedley-labile currency by
         6.6. Register entry pmass_sat_labile_currency.
       owner: world-z01o
-    - name: PCONC_SAT
-      declaration: "static const double PCONC_SAT = 0.02;"
-      value: 0.02
-      unit: phosphorus fraction of litter dry mass
-      sourced: false
-      source: >
-        None. It carries NCONC_SAT's 0.02 exactly, and Parton, Stewart and Cole
-        (1988) has no counterpart to the ramp it drives: that model has no
-        surface microbial pool and no C:P ramp driven by a litter concentration,
-        and its litter P is set by a fixed structural C:P of 500 with the
-        remainder going to the metabolic pool (p. 115). It is compared against
-        litter_pmass / (litter_cmass * 2), whose whole attainable range is
-        3.1e-4 to 7.6e-4 for senesced-litter C:P of 1596 to 660 by mass
-        (McGroddy et al. 2004, Table 1), so 0.02 is 26 to 64 times above the
-        richest litter the model can make and the surface microbial pool sits at
-        its maximum C:P always. That bounds a replacement from above and nothing
-        anchors it from below.
-      owner: world-pidx
 
 # Every C:P ramp the model runs, as a call the source has to contain and as a
 # function the gate re-derives.
@@ -438,9 +497,12 @@ ramps:
   citation: >
     Parton, Stewart and Cole (1988), Dynamics of C, N, P and S in grassland
     soils: a model, 10.1007/BF02180320. Fig. 3, p. 115. Read; references/INDEX.md
-    carries the row. Its three lines are the three soil pairs below; the surface
-    microbial pair is the active soil line applied to a pool that paper does not
-    have, which is what PCONC_SAT's `sourced: false` records.
+    carries the row. Its three lines are the three soil pairs below, and the
+    fourth entry is the slow line again under the identification of surface
+    humus with the slow pool. There is no surface microbial entry: that ramp is
+    removed under `surfmicro_ptoc_ramp_removed`, because a decomposer
+    community's biomass C:P does not vary with its resource's phosphorus
+    content.
   entries:
     - name: slowsom_ptoc
       pool: SLOWSOM
@@ -489,21 +551,6 @@ ramps:
         Fig. 3's slow soil P line again, under the identification of surface
         humus with the slow pool the fork's own nitrogen ramp makes. Register
         entry surfhumus_ptoc_ramp; the fork leaves this call commented out.
-    - name: surfmicro_ptoc
-      pool: SURFMICRO
-      driver: "litter_pmass / (litter_cmass * 2.0)"
-      ctop_max: 80.0
-      ctop_min: 30.0
-      fmin: 0.0
-      saturates_at: PCONC_SAT
-      occurrences: 2
-      ptoc_range: [0.0125, 0.03333333333333333]
-      reads: >
-        Fig. 3's active soil P line applied to a surface pool the paper does not
-        have, off a litter concentration it does not ramp on. Called from
-        transfer_litter and from the crop harvest path. The driver's whole
-        attainable range is three orders of magnitude below PCONC_SAT, so this
-        ramp returns 1/80 everywhere until PCONC_SAT is settled.
 
 # Lines the phosphorus argument rests on, which the model has to still contain.
 # Each is matched against modules/somdynam.cpp with comments stripped: a claim

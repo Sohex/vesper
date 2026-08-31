@@ -1299,8 +1299,8 @@ void plib_callback(int callback) {
 		// bracket in guess.h, and each is BRACKETED rather than measured, so a
 		// run that uses them has to say which end of each bracket it is on.
 		//
-		// Two are not settled at all. Two others were, and are recorded below
-		// with what settled them.
+		// ONE IS NOT SETTLED. The others were, and are recorded below with what
+		// settled them.
 		//
 		// PFRAC_LEAFTOSAP has no derivable scalar, and both papers behind it
 		// have now been read. Its 6.9 is the reciprocal of Friend et al. (1997)
@@ -1315,15 +1315,19 @@ void plib_callback(int callback) {
 		// scalar from the one paired leaf-and-wood phosphorus dataset would be
 		// BRACKETED 10.1 to 15.5, so the applied value sits below that bracket.
 		//
-		// PCONC_SAT is the litter-P saturation threshold and carries
-		// NCONC_SAT's value exactly. Parton, Stewart and Cole (1988), which
-		// setptoc's own documentation cites, has no counterpart to it at all:
-		// no surface microbial pool and no C:P ramp driven by a litter
-		// concentration. 0.02 is 26 to 64 times above the richest litter this
-		// model can produce, so the surface microbial pool sits at its maximum
-		// C:P always.
+		// Three stood here and are settled, and no longer hold this refusal up.
 		//
-		// Two stood here and are settled, and no longer hold this refusal up.
+		// WORLD-PIDX: PCONC_SAT was the litter-P saturation threshold and
+		// carried NCONC_SAT's value exactly. It and the ramp it drove are
+		// REMOVED, because the quantity does not ramp: a decomposer community's
+		// biomass C:P is homeostatic with respect to its resource's phosphorus
+		// content (Mooshammer et al. 2014 Table 2 over n = 405, P = 0.118 and
+		// P = 0.992 log-log, against P = 0.044 for the nitrogen row of the same
+		// table), and what varies with a resource's phosphorus content is the
+		// mineralisation flux out of the decomposer. The surface microbial pool
+		// now holds the C:P soil.cpp initialises it to, which is within 2.4 per
+		// cent of what that ramp returned over its driver's whole attainable
+		// range.
 		//
 		// WORLD-Z01O: PMASS_SAT is Parton, Stewart and Cole (1988) Fig. 3
 		// exactly, 2.0 gP/m2, but Parton's labile P is resin-extractable
@@ -1348,23 +1352,21 @@ void plib_callback(int callback) {
 		// Fig. 3's slow line, under the identification of surface humus with
 		// the slow pool that this fork's own nitrogen ramp already makes.
 		//
-		// Running with ifplim 1 before the remaining two are settled produces a
-		// P-limited world whose woody P demand is nitrogen's and whose surface
-		// microbial pool is pinned at its most phosphorus-poor end, and it
-		// produces it silently, which is worse than not running. Lift this
-		// refusal in the change that settles them, not before. BIO-34 and
-		// WORLD-PIDX; the evidence is in
+		// Running with ifplim 1 before the remaining one is settled produces a
+		// P-limited world whose woody phosphorus demand is nitrogen's, and it
+		// produces it silently, which is worse than not running. Sapwood is a
+		// large carbon pool and the shape of its C:P is worth a factor of 2.50
+		// in relative demand between the model's plant types, so this is not a
+		// residual that rounds away. Lift this refusal in the change that
+		// settles it, not before. BIO-34; the evidence is in
 		// biosphere/notes/phosphorus-cycle-parameterisation.md.
 		if (ifplim) {
 			sendmessage("Error", "ifplim 1 is refused: PFRAC_LEAFTOSAP in guess.h is a "
 				"nitrogen ratio for sapwood plus bark, the one phosphorus measurement of "
 				"wood against leaf rejects its proportional form, and the 6.9 the model "
 				"applies sits below the 10.1 to 15.5 that measurement brackets a forced "
-				"scalar at; and PCONC_SAT in somdynam.cpp still carries nitrogen's "
-				"saturation value and has no phosphorus source, so the surface microbial "
-				"pool's C:P never leaves its maximum. See "
-				"biosphere/notes/phosphorus-cycle-parameterisation.md, BIO-34 and "
-				"WORLD-PIDX.");
+				"scalar at. See biosphere/notes/phosphorus-cycle-parameterisation.md and "
+				"BIO-34.");
 			plibabort();
 		}
 

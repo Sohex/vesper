@@ -85,9 +85,17 @@ void Soil::init_states() {
 	// The citation on this block was Fig. 2 of Parton, Stewart and Cole (1988),
 	// which is the P submodel's flow diagram and carries no C:P values. All
 	// four are Fig. 3's, p. 115: 80, 200, 200 and 80 are the ctop_max ends of
-	// the active, slow, slow and surface microbial lines, so each pool starts
-	// at its most phosphorus-poor end and setptoc() overwrites it on the first
-	// call to somfluxes().
+	// the active, slow, slow and active lines, so each pool starts at its most
+	// phosphorus-poor end.
+	//
+	// THREE OF THE FOUR ARE OVERWRITTEN BY setptoc() ON THE FIRST CALL TO
+	// somfluxes() AND THE SURFACE MICROBIAL ONE IS NOT. That pool's C:P ramp is
+	// removed under WORLD-PIDX, because a decomposer community's biomass C:P
+	// does not vary with its resource's phosphorus content, so the 80 below is
+	// what the surface microbial pool holds for the whole of a run. Its standing
+	// is the standing of the other three: Fig. 3's ACTIVE SOIL line's ctop_max
+	// end, applied here to a pool that paper does not have. That is not what
+	// PCONC_SAT was and the removal did not create it; WORLD-634Q owns it.
 	//
 	// DECLARED DIVERGENCE FROM MAINLINE: surfhumus_ptoc_init, owner
 	// WORLD-SHCP, registered in biosphere/config/somdynam.yaml. The vendored
