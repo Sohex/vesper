@@ -413,7 +413,13 @@ def verify(binary: Path = GUESS_BINARY) -> list[str]:
 
 
 def stamp(configure: list[str], compile_command: list[str]) -> None:
-    """Write the record beside the binary.
+    """Write the record beside the binary. Reached only from `build`, deliberately.
+
+    There is no way to stamp an executable this script did not just compile, and
+    that is the point rather than a missing feature. A record written over a
+    binary of unknown origin asserts that it contains the tree's source, which is
+    the claim nothing could check and the claim this whole module exists to make
+    checkable. The cost of refusing is a two-minute rebuild.
 
     The source set is read AFTER the build, which is the only honest ordering
     for a tree edited while the compiler ran: the shas then describe the tree at
@@ -478,8 +484,6 @@ def main() -> None:
                     help="executable to verify (default: the vendored one)")
     ap.add_argument("--jobs", type=int, default=16, help="parallel compile jobs")
     ap.add_argument("--build-type", default="Release", help="CMAKE_BUILD_TYPE")
-    ap.add_argument("--stamp-only", action="store_true",
-                    help="record the existing binary's source set without building")
     args = ap.parse_args()
 
     if args.verify:
@@ -489,12 +493,6 @@ def main() -> None:
         print("the LPJ-GUESS binary is stale" if problems
               else "the LPJ-GUESS binary matches the source it was built from")
         raise SystemExit(1 if problems else 0)
-    if args.stamp_only:
-        if not GUESS_BINARY.is_file():
-            raise SystemExit(f"{GUESS_BINARY} does not exist, so there is "
-                             f"nothing to stamp")
-        stamp(["(not run: --stamp-only)"], ["(not run: --stamp-only)"])
-        return
     build(args.jobs, args.build_type)
 
 
