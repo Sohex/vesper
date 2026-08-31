@@ -14,6 +14,7 @@ required_outputs:
   - cflux.out
   - firert.out
   - tot_runoff.out
+  - maet.out
   - mevap.out
   - mintercep.out
   - nmass.out
@@ -34,6 +35,7 @@ nonnegative_outputs:
   - dens.out
   - agpp.out
   - tot_runoff.out
+  - maet.out
   - mevap.out
   - mintercep.out
   - nmass.out
@@ -120,22 +122,39 @@ closure:
     relative_throughput_limit: 0.001
   water:
     precipitation_source: manifest-pinned VESPDRV8
-    aet_output: aaet.out
-    aet_field: Total
-    # aaet.out Total IS TRANSPIRATION, not evapotranspiration: commonoutput.cpp
-    # builds it from indiv.aaet summed over individuals and patches, while the
-    # model's own annual water record is patch.aaet + patch.aevap +
-    # patch.aintercep. Bare soil evaporation and canopy interception
-    # evaporation reach no annual table at all -- commonoutput.cpp sends both
-    # only to the interactive plot() -- so these two monthly tables are the
-    # only route to them. Without them the check subtracts one of the three
-    # ways water leaves a gridcell and calls the other two storage, which is
-    # not a closure. notes/audits/closure-stocks-are-incomplete.md.
+    # THE THREE EVAPORATIVE LOSSES, NONE OF WHICH HAS AN ANNUAL COLUMN THIS
+    # CHECK CAN USE. The model's own daily identity, soil.cpp:hydrology_lpjf,
+    # is
+    #     initial water in column + rain_melt
+    #         = final water + evap + aet_total + runoff
+    # so a gridcell year is precipitation against transpiration, soil
+    # evaporation, interception and runoff, plus the change in soil water, ice
+    # and snowpack.
+    #
+    # aaet.out Total is NOT that transpiration. commonoutput.cpp builds it from
+    # indiv.aaet summed over the individuals still in patch.vegetation, and
+    # framework.cpp runs vegetation_dynamics -- establishment, mortality and
+    # disturbance by fire -- on the last day of the year BEFORE outannual. The
+    # column is therefore the transpiration of the survivors, and the water an
+    # individual moved before it died is missing from it. patch.maet is
+    # accumulated day by day alongside patch.aaet and is unaffected, so
+    # maet.out is the column that reports what left the soil.
+    #
+    # Soil evaporation and canopy interception reach no annual table at all:
+    # commonoutput.cpp accumulates patch.aevap and patch.aintercep and sends
+    # both only to the interactive plot(). mevap.out and mintercep.out are the
+    # only route to them.
+    #
+    # All three are aggregated to the gridcell by the same to_gridcell_average
+    # as tot_runoff.out, so the four losses are one accounting.
+    # notes/audits/closure-stocks-are-incomplete.md.
     #
     # `fields` is the column count each table must carry. The annual flux is
     # the sum of every column, so a table that changes shape has to refuse
     # rather than silently sum something else.
     evaporation_outputs:
+      - output: maet.out
+        fields: 12
       - output: mevap.out
         fields: 12
       - output: mintercep.out
@@ -147,6 +166,6 @@ closure:
     interpretation: >-
       Over ten complete forcing cycles, precipitation minus transpiration, soil
       evaporation, canopy interception and runoff is the implied change in
-      soil, snow and canopy stores. Those stores are not retained as annual
+      soil water, soil ice and snowpack. Those stores are not retained as annual
       endpoints, so this is an equilibrium-window closure, not a claim of
       bitwise daily hydrology closure.

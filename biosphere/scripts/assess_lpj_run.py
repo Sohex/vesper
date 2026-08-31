@@ -397,18 +397,17 @@ def closure_resolution(tables: dict, contract: dict, count: int) -> dict:
                 f"{element} floor {floor:g} is {floor / bound:.2f}x its own "
                 f"{bound:g} resolution bound, under the required {margin:g}x")
     water = closure["water"]
-    aet_q = written_quantum(tables, water["aet_output"], water["aet_field"])
     runoff_q = written_quantum(tables, water["runoff_output"], water["runoff_field"])
-    # Every monthly column summed into an annual evaporation carries its own
-    # rounding into each of the summed years, exactly as AET and runoff do.
+    # Every monthly column summed into an annual loss carries its own rounding
+    # into each of the summed years, exactly as runoff does.
     evaporation_q = {}
     for output, fields in evaporation_columns(tables, water):
         evaporation_q[output] = sum(
             written_quantum(tables, output, field) for field in fields)
-    bound = count * (aet_q + runoff_q + sum(evaporation_q.values())) / 2.0
+    bound = count * (runoff_q + sum(evaporation_q.values())) / 2.0
     floor = float(water["absolute_floor_mm"])
     resolution["water"] = {
-        "aet_quantum": aet_q, "runoff_quantum": runoff_q,
+        "runoff_quantum": runoff_q,
         "evaporation_quanta": evaporation_q,
         "resolution_bound_mm": bound, "absolute_floor_mm": floor,
         "margin": (floor / bound) if bound > 0 else None,
@@ -513,14 +512,12 @@ def closure_report(tables: dict, cells: list[tuple[float, float]],
     residuals = np.empty(len(cells))
     limits = np.empty(len(cells))
     for cell, coordinate in enumerate(cells):
-        aet = field_series(tables, water["aet_output"], water["aet_field"],
-                           cell, selected)
         runoff = field_series(tables, water["runoff_output"], water["runoff_field"],
                               cell, selected)
-        # EVERY WAY WATER LEAVES THE GRIDCELL, not the one column named Total.
-        # aaet.out Total is transpiration; the config says which tables carry
-        # the soil evaporation and canopy interception it does not.
-        losses = float(aet.sum()) + float(runoff.sum())
+        # EVERY WAY WATER LEAVES THE GRIDCELL, on one accounting. The config
+        # says which tables carry the three evaporative losses and why none of
+        # them is the annual column that shares their name.
+        losses = float(runoff.sum())
         for output, fields in evaporation:
             for field in fields:
                 losses += float(field_series(tables, output, field,
@@ -731,6 +728,7 @@ CLOSURE_DECIMALS = {
     ("aaet.out", "Total"): 4, ("tot_runoff.out", "Total"): 4,
     ("soil_npool.out", "NO2"): 4, ("soil_npool.out", "NO"): 4,
     ("soil_npool.out", "N2O"): 4, ("soil_npool.out", "N2"): 4,
+    **{("maet.out", month): 3 for month in MONTHS},
     **{("mevap.out", month): 3 for month in MONTHS},
     **{("mintercep.out", month): 3 for month in MONTHS},
 }
@@ -791,6 +789,7 @@ def _table_text(output: str, cells: list[tuple[float, float]], years: range,
         # of transpiration, 400 of runoff, and 12 each of soil evaporation and
         # canopy interception.
         "aaet.out": (["Total"], [576.0]),
+        "maet.out": (list(MONTHS), [48.0] * 12),
         "tot_runoff.out": (["Surf", "Drain", "Base", "Total"],
                             [100.0, 200.0, 100.0, 400.0]),
         "mevap.out": (list(MONTHS), [1.0] * 12),
@@ -967,8 +966,10 @@ def selftest() -> dict:
                 lambda bed: (bed / "cflux.out").write_text(
                     (bed / "cflux.out").read_text().replace("0.0", "1.0")), None),
             "water leak": (
-                lambda bed: (bed / "aaet.out").write_text(
-                    (bed / "aaet.out").read_text().replace("576.0", "476.0")), None),
+                lambda bed: _rewrite_ranks(
+                    bed, "maet.out", cells,
+                    lambda header, line: _add_to_column(header, line, "Jul", -10.0, 3)),
+                "water closure fails"),
             # Water leaving as soil evaporation with no precipitation behind it.
             # A check that subtracts only transpiration and runoff cannot see
             # this at all: it reads as more storage, which is what the water
