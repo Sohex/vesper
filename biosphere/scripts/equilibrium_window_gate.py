@@ -16,8 +16,24 @@ PROJECT_ROOT = SCRIPT.parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "lib"))
 
 from lpj_output import (EquilibriumWindowError, cycles_for_bound, drift_bound,
-                        read_policy, reduce_table)
+                        read_policy, reduce_table, relaxation_time)
 import run_lengths
+
+
+def _relaxation_of(series: np.ndarray) -> dict:
+    """`relaxation_time` at the memory time of the series it is handed.
+
+    The estimator takes the memory time as an argument because the block means
+    it differences carry it, and a fixture that passed a wrong one would be
+    testing something other than the estimator. The memory time is taken about
+    the series' own linear fit, exactly as `lpj_output.py:timescale_report`
+    takes it: an approach left in inflates every lag correlation toward one and
+    the tau that comes out describes the approach rather than the variability.
+    """
+    from autocorrelation import integrated_time
+    x = np.arange(series.size, dtype=float)
+    flat = series - np.polyval(np.polyfit(x, series, 1), x) + series.mean()
+    return relaxation_time(series, integrated_time(flat)["tau"])
 
 REPORT = PROJECT_ROOT / "biosphere/generated/equilibrium_window_report.json"
 
@@ -229,6 +245,27 @@ def main() -> None:
           f"a standard error of {wide['relative_standard_error']:.4f} over "
           f"{span} cycles needs {needed:.0f}, where it falls to {scaled:.4f} "
           f"and the bound closes on {limit:g}")
+
+    # THE RELAXATION ESTIMATOR AGAINST A TIMESCALE IT ALREADY KNOWS. `tau =
+    # -Q / ln(ratio)` diverges as the contraction approaches one, so the two
+    # answers here are a real exponential, whose e-folding time must come back,
+    # and a straight line, which has no e-folding time and must be declined
+    # rather than read out as a very long one.
+    relax_noise = np.random.default_rng(20260901).normal(0.0, 0.002, 1200)
+    steps = np.arange(1200, dtype=float)
+    known_tau = 200.0
+    approach = 5.0 - 2.0 * np.exp(-steps / known_tau) + relax_noise
+    measured = _relaxation_of(approach)
+    check("an exponential approach returns the e-folding time it was built from",
+          measured["admissible"]
+          and abs(measured["tau_cycles"] - known_tau) < 0.05 * known_tau,
+          f"{measured.get('tau_cycles', float('nan')):.1f} cycles against "
+          f"{known_tau:.0f}")
+    straight = _relaxation_of(5.0 + 0.001 * steps + relax_noise)
+    check("a straight line has no e-folding time and is declined",
+          not straight["admissible"] and "carries no curvature" in
+          straight.get("reason", ""),
+          straight.get("reason", "admitted"))
 
     # THE ECOLOGICAL RUN LENGTHS, checked against something that can fail rather
     # than reported. The derivation is an identity: the spin-up it returns must

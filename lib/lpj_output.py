@@ -437,9 +437,21 @@ def relaxation_time(series: np.ndarray, tau_memory: float,
     because a series that is not shrinking has no e-folding time; each difference
     must exceed twice its own standard error, and that error is the
     MEMORY-CORRECTED one, because these block means carry the memory this module
-    exists to respect; and the second ratio must agree with the first inside a
-    factor of two, because one exponential has one rate. A field failing any of
-    them gets NO relaxation time and is not given a default.
+    exists to respect; the contraction must be RESOLVABLY below one, because a
+    ratio whose own uncertainty reaches one is a record with no curvature in it
+    and the timescale it implies is a lower bound rather than a value; and the
+    second ratio must agree with the first inside a factor of two, because one
+    exponential has one rate. A field failing any of them gets NO relaxation time
+    and is not given a default.
+
+    THE RESOLUTION CONDITION IS THE ONE THAT BITES HARDEST, and it is the same
+    class of check as `drift_bound`'s: compare the instrument with the size of
+    the effect before believing it. `tau = -Q / ln(ratio)` diverges as the ratio
+    approaches one, so a ratio of 0.99 with an uncertainty of 0.35 spans several
+    hundred cycles to unbounded and reads out as a confident five-figure
+    timescale. On this model's simulated soil nitrogen it did exactly that, and a
+    spin-up sized from it would have been thirty times what the same record
+    supports.
     """
     n = int(series.size)
     q = n // blocks
@@ -466,6 +478,19 @@ def relaxation_time(series: np.ndarray, tau_memory: float,
     if not 0.0 < ratio < 1.0:
         return {**base, "admissible": False, "ratio": ratio,
                 "reason": f"a ratio of {ratio:.3f} is not a contraction"}
+    # The delta-method error on a ratio of two independent differences, which is
+    # what decides whether the contraction is resolved at all.
+    ratio_error = ratio * float(np.hypot(step_errors[0] / steps[0],
+                                         step_errors[1] / steps[1]))
+    if ratio + 2.0 * ratio_error >= 1.0:
+        return {**base, "admissible": False, "ratio": ratio,
+                "ratio_standard_error": ratio_error,
+                "lower_bound_cycles": -q / float(np.log(
+                    min(ratio + 2.0 * ratio_error, 1.0 - 1e-12)))
+                if ratio + 2.0 * ratio_error < 1.0 else float("inf"),
+                "reason": f"a contraction of {ratio:.3f} +/- {ratio_error:.3f} "
+                          "reaches one, so this record carries no curvature and "
+                          "the timescale it implies is a lower bound"}
     tau = -q / float(np.log(ratio))
     second = None
     if (steps[2] and (steps[2] > 0) == (steps[1] > 0)
@@ -479,7 +504,8 @@ def relaxation_time(series: np.ndarray, tau_memory: float,
                         "reason": f"the two ratios give {tau:.0f} and "
                                   f"{second:.0f} cycles, further than a factor "
                                   "of two apart, so this is not one exponential"}
-    return {**base, "admissible": True, "ratio": ratio, "tau_cycles": tau,
+    return {**base, "admissible": True, "ratio": ratio,
+            "ratio_standard_error": ratio_error, "tau_cycles": tau,
             "second_estimate_cycles": second}
 
 
