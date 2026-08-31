@@ -62,6 +62,17 @@ directory sitting where a link should go is reported and never touched. Links
 that point at a different path in the main checkout than the one they occupy --
 the deep-link bug above -- are reported too, and left for a human.
 
+It also reports IGNORED PAYLOAD THAT LIVES ONLY IN THE WORKTREE, and `--check`
+fails on it. Per-file linking has a consequence that catches people: a directory
+holding tracked content beside ignored payload cannot be one symlink, so what
+lands there is a real directory of per-file links, and a file CREATED there
+afterwards is real, in this worktree alone, and ignored -- so it is never
+committed and it is gone when the worktree is removed. `references/` lost
+thirteen PDFs that way while their `INDEX.md` rows, being tracked, survived and
+outlived their own artifacts; `exoplasim/runs/` and `source/` have the same
+shape, where the thing that dies is a climate run or an export payload. Reported
+and never moved: whether it belongs in the main checkout is a judgement.
+
 The last thing it does is check `git status` in the worktree. A symlink is a
 file, not a directory, so an ignore rule ending in `/` does not match the link
 that stands in for the directory it named -- which is why `.gitignore` carries a
@@ -244,6 +255,64 @@ def sweep(wt: Path, main: Path, dry: bool) -> tuple[list[str], list[str]]:
     return removed, misdirected
 
 
+def stranded(wt: Path, main: Path, model_binaries: bool) -> list[str]:
+    """Ignored payload that exists ONLY in the worktree, and dies with it.
+
+    A wholly-ignored directory is linked as one symlink, so a write inside it
+    lands in the main checkout. A directory holding tracked content beside
+    ignored payload CANNOT be: `references/INDEX.md` and
+    `exoplasim/runs/INDEX.json` are tracked, so git lists their payload file by
+    file and this script makes a REAL directory holding one link per EXISTING
+    file. A file created there afterwards is a real file in the worktree alone.
+    It is ignored, so it is never committed, and when the worktree is removed it
+    is gone -- while a tracked row describing it survives and outlives its own
+    artifact. That is rule 7's hazard, not a bookkeeping one: a reference PDF, a
+    climate run under `exoplasim/runs/`, an export payload under `source/`.
+
+    Reported and never moved. Where it belongs is a judgement -- the main
+    checkout, or nowhere -- and this script does not make it.
+
+    The three held-back classes are excluded, because a worktree building its
+    own `vendor/exoplasim` is the arrangement, not the failure. A directory the
+    main checkout does not have at all is reported whole and not descended: a
+    run directory is thousands of files and one line is the finding.
+    """
+    skip = SKIP_SELF + SKIP_REGENERABLE
+    if not model_binaries:
+        skip += SKIP_COMPILED
+
+    candidates: list[str] = []
+    for root, dirs, files in os.walk(wt, followlinks=False):
+        rel_root = Path(root).relative_to(wt)
+        dirs[:] = sorted(d for d in dirs
+                         if d not in (".git", ".claude", "__pycache__")
+                         and not (Path(root) / d).is_symlink())
+        for name in list(dirs):
+            rel = (rel_root / name).as_posix()
+            if any(f"{rel}/".startswith(p) for p in skip):
+                dirs.remove(name)
+            elif not (main / rel).exists():
+                candidates.append(f"{rel}/")
+                dirs.remove(name)
+        for name in files:
+            path = Path(root) / name
+            if path.is_symlink():
+                continue
+            rel = (rel_root / name).as_posix()
+            if any(rel.startswith(p) for p in skip):
+                continue
+            if not (main / rel).exists():
+                candidates.append(rel)
+
+    if not candidates:
+        return []
+    # One call, and check-ignore is the authority: a candidate git would happily
+    # commit is ordinary new work and not this failure at all.
+    out = subprocess.run(["git", "check-ignore", "--stdin"], cwd=wt, text=True,
+                         input="\n".join(candidates), capture_output=True)
+    return sorted(line.strip() for line in out.stdout.splitlines() if line.strip())
+
+
 def check_git_clean(wt: Path, created: list[str]) -> list[str]:
     """Links that git can see. Each one is a missing .gitignore pattern.
 
@@ -319,6 +388,17 @@ def main() -> None:
         for m in misdirected:
             print(f"    {m}")
 
+    orphans = stranded(wt, main_root, args.model_binaries)
+    if orphans:
+        print(f"\n{len(orphans)} ignored path(s) exist ONLY IN THIS WORKTREE and will be\n"
+              "gone when it is removed. A directory that holds tracked content beside\n"
+              "ignored payload is linked FILE BY FILE, so anything written there\n"
+              "afterwards is a real file here and nowhere else -- and being ignored, it\n"
+              "is never committed either. Copy each to the main checkout if it is worth\n"
+              "keeping, or delete it:")
+        for o in orphans:
+            print(f"    {o}")
+
     if not args.model_binaries:
         print("\nvendor/exoplasim and vendor/lpj-guess/build were NOT linked: they are\n"
               "compiled from tracked source this worktree may have edited, so a link\n"
@@ -356,13 +436,21 @@ def main() -> None:
         # no entry is absent, so the payload count came out complete and --check
         # printed the warning and then exited 0 beside it. A worktree carrying
         # one is not correctly linked, whatever the count says.
+        #
+        # STRANDED PAYLOAD COUNTS TOO, and for the same reason: nothing is
+        # absent, so every count above comes out complete while the worktree
+        # holds artifacts that die with it. That is the failure this whole
+        # arrangement produces silently, and --check is where a caller asks
+        # whether the worktree is in a state it can be thrown away from.
         missing = len(states.get("linked", [])) + len(states.get("repaired", []))
         blocked = len(states.get("conflict", [])) + len(states.get("shadowed", []))
-        if missing or blocked or misdirected:
+        if missing or blocked or misdirected or orphans:
             print(f"\nINCOMPLETE: {missing} to link or repair, {blocked} blocked, "
-                  f"{len(misdirected)} pointing somewhere else.")
+                  f"{len(misdirected)} pointing somewhere else, "
+                  f"{len(orphans)} living only here.")
             sys.exit(1)
-        print("\ncomplete: every ignored payload is linked.")
+        print("\ncomplete: every ignored payload is linked, and none of it lives "
+              "only here.")
 
 
 if __name__ == "__main__":
