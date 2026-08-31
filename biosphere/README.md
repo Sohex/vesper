@@ -533,10 +533,16 @@ computed its save point from `nyear` alone and named a simulated year thousands
 of years before the end of the run, so it reads the spin-up out of the PFT file
 the runs import rather than carrying a copy of the number.
 
-The fixture's own `--nyear-spinup` defaults to ZERO, which is what makes it
-runnable: inheriting the derived floor turns a twelve-year bed into a
-twelve-thousand-year one, and zero also puts every simulated year in the output
-tables the annual mode compares.
+The fixture takes its own `--nyear-spinup`, and that is what makes it runnable:
+inheriting the derived floor turns a twelve-year bed into a twelve-thousand-year
+one, which is why it had never been run. It cannot go arbitrarily low. The model
+refuses a spin-up at or below `freenyears`, which the generated PFT file
+declares as 200 rather than the 100 the shipped instruction files carry, so the
+fixture reads that value and refuses first, naming it -- three verification
+attempts died one second in on preconditions only plib was checking, each
+costing a host lock acquisition. A bed just above `freenyears` also puts the
+split where the simulated plants are nitrogen limited, so the nitrogen pools
+feeding that limitation are live state at the instant the state file is written.
 
 ### The volatile organic source is off, and off is a decision
 
