@@ -1294,6 +1294,13 @@ def check_held_references_are_on_disk(rep: "Report") -> None:
     this host could not get, and the check must not push anyone toward
     inventing a filename for one.
 
+    PRESENCE IS NOT IDENTITY, and this checks presence. A file under the right
+    name can be the wrong paper: `yang2013-global-soil-phosphorus-distribution`
+    held a Spanish-language review of primary-school attainment, which only
+    opening it said. Nothing here can catch that, and the row's own *read* mark
+    is what records that someone did open it -- which is the whole reason the
+    file keeps that mark rather than assuming it.
+
     HERE AND NOT IN `smoke_test.py`: `references/` holds untracked payload, so
     this reads artifacts rather than the tree, which is the line between the
     two gates.
