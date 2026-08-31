@@ -75,12 +75,13 @@ directory under the subtree to strand.
 
 ## What already protects, and what it does not reach
 
-**One write door refuses.** `exoplasim/scripts/sra.py:write_sra` is the single
-door all four staged-field builders go through, and it refuses a path that is or
-sits under a symlink. That covers `exoplasim/inputs/<rung>/` at once, and it is
+**Write doors refuse.** `lib/write_door.py` holds the one refusal and
+`exoplasim/scripts/sra.py:write_sra` was the first to call it, covering
+`exoplasim/inputs/<rung>/` for all four staged-field builders at once. That is
 the right shape of repair: a skip in the linker would be wrong there, because
 the READ is legitimate and a worktree that cannot read the staged fields cannot
-stage a run. No other writer in the tree tests `is_symlink` before writing.
+stage a run. Which groups have a door and which need none is settled at the end
+of this audit.
 
 **One artifact class has a backstop.** `build_lpj_guess.py --verify` compares
 the binary against the hash of the source it was built from, and it is what
@@ -165,9 +166,57 @@ a directory link must not; a main checkout and a worktree with no ledger must
 both be no-ops. Two mutations of the implementation were confirmed to fail it:
 blinding the comparison, and stopping the linker from re-baselining.
 
+## Which groups have a door, and which need none
+
+`lib/write_door.py` is the one refusal, and `exoplasim/scripts/sra.py` states
+only what is particular to a staged field on top of it. A door is worth putting
+on a group when it has a single Python writer, the write is a regeneration a
+worktree plausibly runs, and nothing else already refuses. Three groups meet
+that and have one; three need no door, for three different reasons; three want
+one and it has to be installed by the component that owns the writer.
+
+| group | disposition |
+| --- | --- |
+| `exoplasim/inputs/<rung>/` staged `.sra` | door, on `write_sra`, covering all four builders |
+| `vendor/lpj-guess/framework/vesper.h` | door, on `build_vesper_header.py`'s install step |
+| `aeolian/analysis/dust_baseline.nc` | door, on `build_dust.py`, refusing the report and the field together |
+| `vendor/cgenie/**` build objects | NO DOOR: nothing to refuse |
+| `source/<build>/<grid>/` regrids | NO SYMLINK DOOR: the wrong instrument |
+| `exoplasim/analysis/` prerebuild record | NO DOOR: there is no generator |
+| `exoplasim/analysis/climatology/` | door wanted, two writers, world-cgct |
+| `exoplasim/analysis/` ladder | door wanted, two writers, world-cgct |
+| `hydrography/data/<build>/` | door wanted, six writers, world-pcnd |
+
+**`vendor/cgenie` needs no door because the link is gone.** The subtree is in
+`link_worktree.py`'s `SKIP_COMPILED`, so a worktree linked after this audit gets
+no link there to write through, and a build in place stays in the worktree.
+Deleting the exposure is a better repair than guarding it, and it is the only
+one available here anyway: the writer is `make`, and both cgenie drivers already
+build from a `git archive` export outside the repository for reasons of their
+own. The worktrees standing before the change keep their links, and the ledger
+is what reaches those.
+
+**`source/<build>/<grid>` needs no symlink door because a symlink is not what is
+wrong with that write.** `source/` is read-only by rule 7: overwriting an
+existing build is a violation in the main checkout exactly as much as through a
+link, so a guard that fires only in a worktree would license the same write in
+the tree where it does most harm. The writer is also the vendored Node exporter,
+`vendor/orogen/tools/export-planet.mjs`, which takes its output directory from
+`--out` and has no Python door to hang a refusal on. The refusal that belongs
+here is by EXISTENCE and not by topology, and it is world-811b.
+
+**The prerebuild record needs no door because nothing generates it.** The
+`.x` files under `exoplasim/analysis/prerebuild_binaries_<date>/` were copied by
+hand before a rebuild, to keep an A/B reference arm; no script writes them and
+`rebuild_binaries.py` never touches `analysis/`. A door is a guard at a write
+door, and there is no door. The ledger reports a write through those links, and
+for a group whose whole purpose is to hold bytes nobody regenerates, that is the
+complete answer rather than a gap.
+
 ## What is still carried by convention
 
-Seven of the eight regenerable groups in the table have no refusal at their
-write door, so the ledger reports their write-through after the fact rather than
-preventing it. `exoplasim/inputs/` is the one that refuses, and it is the model
-for the rest: one guard on the single door a component's writers share.
+The three groups with a door prevent the write; the rest are reported by
+`scripts/check_worktree_links.py` after it lands, which names the fact and not
+the culprit. That is the honest limit: from inside a worktree, a write from here
+and a regeneration in the main checkout are indistinguishable, and the
+disposition is the same either way.

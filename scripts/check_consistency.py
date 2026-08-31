@@ -486,6 +486,16 @@ def audit_runs(rep: "Report", runs: Path, runner) -> None:
     # `surface_field_sha256` no longer matches the file on disk. That refusal
     # only ever looked at the donor of the run being prepared. This asks it of
     # every run there is, so a regenerated input cannot orphan one silently.
+    #
+    # SEEDING IS NOT THE ONLY CONSUMER, and the other one is what the orphan
+    # has actually cost. An offline calculation that reads an orphaned run's
+    # climatology against `exoplasim/inputs/<rung>/` is pairing one iteration's
+    # field with another iteration's climate: world-q3p9 read a soil water above
+    # the staged bucket on 55 land cells, which a store clipped at every
+    # timestep cannot produce, and the arm that produced it was a run this gate
+    # was already reporting orphaned at the time. The generalisation from
+    # `run_exoplasim.py` carried the population and not the consequence, so the
+    # verdict below names both consumers and the door for the second one.
     try:
         orphaned, unstamped, seen = [], [], 0
         for manifest in manifests:
@@ -516,7 +526,13 @@ def audit_runs(rep: "Report", runs: Path, runner) -> None:
                        if len(orphaned) > 4 else "")
                     + " -- the file under that code has been regenerated "
                       "since, so the run is on a surface the tree no longer "
-                      "holds and nothing can be seeded from it")
+                      "holds. TWO consumers break. Nothing can be seeded from "
+                      "this run; and any offline read that pairs its "
+                      "climatology with the staged field is reading across two "
+                      "iterations, which world-q3p9 did. Take the field the run "
+                      "consumed from lib/provenance.py:run_surface_field, or "
+                      "name the run to lib/provenance.py:staged_surface_field "
+                      "as paired_with_run and let that door refuse the pairing")
         else:
             rep.add(OK, "runs vs the surface fields they staged",
                     f"{seen} runs record per-code hashes and every one still "
@@ -883,12 +899,27 @@ def self_test() -> int:
          verdicts(no_damping)[HYPERDIFF][0], FAIL,
          "run_2b20e3324bb0 and run_8102b89a08ac are exactly this; world-1nz")
 
+    orphaned = verdicts(lambda run, root: next(
+        (root / "inputs").rglob("*.sra")).write_text("edited\n",
+                                                     encoding="ascii"))
     case("a surface field regenerated under the same code fails",
-         verdicts(lambda run, root: next(
-             (root / "inputs").rglob("*.sra")).write_text("edited\n",
-                                                          encoding="ascii")
-         )[SURFACE][0], FAIL,
+         orphaned[SURFACE][0], FAIL,
          "the name never moves, so only the digest can say the file changed")
+
+    # The VERDICT is the repair for world-4mqf, so it is asserted rather than
+    # trusted. A reader lands here with the orphan in front of them, and what
+    # it cost was the offline read rather than the seeding it used to name; a
+    # verdict that sends them to a door has to send them to a door that is
+    # there, so the names are checked against the module and not just spelled.
+    import provenance                   # noqa: E402
+    named = re.findall(r"provenance\.py:(\w+)", orphaned[SURFACE][1])
+    case("and the verdict names the offline read and doors that exist",
+         [sorted(named),
+          [name for name in named if not hasattr(provenance, name)],
+          "climatology" in orphaned[SURFACE][1],
+          "seeded" in orphaned[SURFACE][1]],
+         [["run_surface_field", "staged_surface_field"], [], True, True],
+         "naming one consumer of two sends the next reader to the wrong place")
 
     def unstamped(run, root):
         path = run / "run_manifest.json"

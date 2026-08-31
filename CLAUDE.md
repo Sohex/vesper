@@ -378,6 +378,11 @@ Rayleigh coefficient), `spatial_support.py` (the versioned identity and semantic
 spatial artifact carries: geometry, coordinates, native/effective measure,
 time support, aggregation order and provenance, plus the assessed-conversion
 envelope that binds two such identities to closure tests and loss inventories),
+`write_door.py` (the ONE refusal a generator of a linked artifact puts at its
+write door: a worktree's per-file link points into the main checkout, so writing
+one replaces bytes another tree built from. It fires on a per-file link and
+deliberately NOT on a write inside a wholly-ignored directory link, which is the
+arrangement that lets a run started in a worktree survive it; `check_worktree_links.py` reports after the fact what a door prevents),
 `sensitivity.py` (the one flux-to-kelvin conversion),
 `climatology.py` (time-bin weights),
 `autocorrelation.py` (the integrated autocorrelation time, the effective

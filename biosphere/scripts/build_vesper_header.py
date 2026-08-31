@@ -35,6 +35,7 @@ import yaml
 from _paths import (CONFIG, GENERATED, GUESS_SOURCE, PROJECT_ROOT,
                     bootstrap_climatology_path)
 from paths import rel  # noqa: E402
+from write_door import refuse_a_write_through_a_symlink  # noqa: E402
 
 import orbit  # lib/orbit.py, the single source of truth for the year length
 
@@ -358,6 +359,9 @@ def main() -> None:
 
     GENERATED.mkdir(parents=True, exist_ok=True)
     header = GENERATED / "vesper.h"
+    refuse_a_write_through_a_symlink(
+        header, what="the generated header this component keeps",
+        instead="Run the generator in the main checkout.")
     header.write_text(render(constants))
     constants["header_sha256"] = hashlib.sha256(header.read_bytes()).hexdigest()
     constants["generator"] = "biosphere/scripts/build_vesper_header.py"
@@ -369,6 +373,19 @@ def main() -> None:
         target = GUESS_SOURCE / "framework" / "vesper.h"
         if not target.parent.is_dir():
             raise SystemExit(f"{target.parent} does not exist; is LPJ-GUESS unpacked?")
+        # THE MEASURED WRITE-THROUGH. `vesper.h` is generated and ignored and
+        # sits beside tracked source, so a worktree gets a PER-FILE link to the
+        # main checkout's copy, and `shutil.copyfile` follows it. Installing
+        # from a worktree therefore replaced the header the main checkout's
+        # LPJ-GUESS binary had been compiled against, and `build_lpj_guess.py
+        # --verify` began refusing a binary nobody had touched.
+        # notes/audits/worktree-write-through.md.
+        refuse_a_write_through_a_symlink(
+            target, what="the header the LPJ-GUESS binary there was compiled "
+                         "against",
+            instead=("Pass --no-install, which still writes the header under "
+                     "biosphere/generated/, and install from the main "
+                     "checkout."))
         shutil.copyfile(header, target)
         installed = f"\ninstalled to {target}"
 
