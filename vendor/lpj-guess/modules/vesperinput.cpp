@@ -82,7 +82,10 @@ VesperInput::VesperInput()
 	  have_soilmap(false), years(1), nintervals(0), nsubdaily(0),
 	  loaded_year(-1) {
 
-	declare_parameter("nyear", &nyear, 1, 10000,
+	// Bounded at 1000000 rather than the stock 10000, on the same argument as
+	// nyear_spinup in framework/parameters.cpp: the two are added to decide
+	// when getclimate stops, so a bound on either bounds a restart chain.
+	declare_parameter("nyear", &nyear, 1, 1000000,
 		"Number of simulation years to run after spinup");
 	declare_parameter("vesper_root_seed", &root_seed, 1, 2147483646,
 		"Root of stable grid-cell, stand, replicate and process substreams");

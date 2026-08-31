@@ -462,18 +462,19 @@ def main() -> None:
     parser.add_argument("--round-trip", action="store_true",
                         help="instead: restart at --state-day and write the "
                              "state again with NO simulated day in between")
-    parser.add_argument("--nyear-spinup", type=int, default=0,
-                        help="the simulated years in front of --nyear. ZERO by "
-                             "default, and that default is what makes this "
-                             "fixture runnable at all: the PFT file declares "
-                             "the DERIVED spin-up floor, which is thousands of "
-                             "simulated years, and inheriting it turns a "
-                             "twelve-year bed into a twelve-thousand-year one. "
-                             "Zero also puts every simulated year in the "
-                             "output tables, which is what the annual mode "
-                             "compares. It disables the CENTURY accelerator "
-                             "window, so this fixture does not exercise the "
-                             "accelerator's own restart state.")
+    parser.add_argument("--nyear-spinup", type=int, default=1,
+                        help="the simulated years in front of --nyear. ONE by "
+                             "default, which is the model's own minimum and is "
+                             "what makes this fixture runnable at all: the PFT "
+                             "file declares the DERIVED spin-up floor, which is "
+                             "thousands of simulated years, and inheriting it "
+                             "turns a twelve-year bed into a "
+                             "twelve-thousand-year one. One also puts all but "
+                             "the first simulated year in the output tables, "
+                             "which is what the annual mode compares. It leaves "
+                             "the CENTURY accelerator window empty, so this "
+                             "fixture does not exercise the accelerator's own "
+                             "restart state.")
     parser.add_argument("--ranks", type=int, default=4)
     parser.add_argument("--npatch", type=int, default=5)
     parser.add_argument("--bed", type=Path, default=None,
@@ -523,6 +524,24 @@ def main() -> None:
             + "\n  ".join(absent) +
             "\n\nBuild the model and the forcing and run this again. This is an "
             "absent measurement, not a pass.")
+
+    # THE MODEL'S OWN PRECONDITION ON THE SPIN-UP, asked here rather than
+    # discovered from an abort one second into a run that has already taken the
+    # host lock. `parameters.cpp:1402` refuses nyear_spinup <= freenyears, and
+    # freenyears is 200 in the generated PFT file rather than the 100 the
+    # shipped instruction files carry, so a bed sized from the wrong one parses
+    # and then dies.
+    freenyears = run_lpj_guess.declared_int(
+        Path(args.pfts), "freenyears",
+        why="the smallest spin-up this fixture may ask for is not known")
+    if args.nyear_spinup <= freenyears:
+        raise SystemExit(
+            f"--nyear-spinup {args.nyear_spinup} is not above the "
+            f"{freenyears} simulated years {rel(Path(args.pfts))} declares as "
+            "freenyears, and the model refuses that outright: nitrogen "
+            "limitation switches on after freenyears and the CENTURY "
+            "accelerator window is derived from the difference. Ask for more "
+            f"than {freenyears}.")
 
     # THE BINARY MUST CONTAIN THE MODEL IN THIS TREE. This fixture spawns
     # LPJ-GUESS and its verdict is about the serialization code that ran, so a
@@ -659,6 +678,11 @@ def main() -> None:
         "ranks": args.ranks, "npatch": args.npatch,
         "wetlands_active": active,
         "tables_compared": list(tables) if mode == "annual" else [],
+        # WHICH EXECUTABLE THIS VERDICT IS ABOUT. A continuity verdict is a
+        # statement about serialization code, so it travels with the binary
+        # that ran it; `run_lpj_guess.py` refuses --continue-from unless a
+        # verdict here says `continuous` for the binary it is about to run.
+        "binary_sha256": run_lpj_guess.sha256(GUESS_BINARY),
         "continuous": not failures,
         "failures": failures,
     }

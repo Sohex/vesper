@@ -523,8 +523,22 @@ rather than refused: `PartitionedMapDeserializer` searches every file in the
 state directory for a cell's coordinates, and the stochastic substreams are
 derived from the cell rather than from the rank.
 
-That a resumed run reproduces the run it continues is a separate question with a
-right answer, and `verify_lpj_restart_continuity.py` is where it is asked. Its
+**A continuation is refused until the model is shown to reproduce the run it
+continues.** That is a separate question from the mechanism, it has a right
+answer, and the answer today is NO: measured over 30 retained years behind a
+201-year spin-up at npatch 5, split at simulated year 211, all 22 retained
+tables differ. `tot_runoff.out` has its three components grossly wrong for
+exactly the first resumed year while their Total matches, which is world-lus4's
+unserialized annual accumulators; separately every pool differs by around 1e-04
+relative from the first resumed year, which is world-glu7 and is not a lost pool
+but is not identity either. `run_lpj_guess.py:continuity_verdict` reads the
+fixture's report, checks it was taken against the binary about to run, and
+refuses `--continue-from` while it says otherwise or is absent -- an absent
+measurement is not a pass. `--save-state` is deliberately not gated: writing a
+state file changes no number in the run that writes it, and only reading one
+can.
+
+`verify_lpj_restart_continuity.py` is where that question is asked. Its
 three model modes and what each can see are below, under what a restarted soil
 column inherits; `--self-test` is the fourth and needs no model, holding the two
 integers the runner decides against the arithmetic `framework/framework.cpp`
@@ -533,10 +547,16 @@ computed its save point from `nyear` alone and named a simulated year thousands
 of years before the end of the run, so it reads the spin-up out of the PFT file
 the runs import rather than carrying a copy of the number.
 
-The fixture's own `--nyear-spinup` defaults to ZERO, which is what makes it
-runnable: inheriting the derived floor turns a twelve-year bed into a
-twelve-thousand-year one, and zero also puts every simulated year in the output
-tables the annual mode compares.
+The fixture takes its own `--nyear-spinup`, and that is what makes it runnable:
+inheriting the derived floor turns a twelve-year bed into a twelve-thousand-year
+one, which is why it had never been run. It cannot go arbitrarily low. The model
+refuses a spin-up at or below `freenyears`, which the generated PFT file
+declares as 200 rather than the 100 the shipped instruction files carry, so the
+fixture reads that value and refuses first, naming it -- three verification
+attempts died one second in on preconditions only plib was checking, each
+costing a host lock acquisition. A bed just above `freenyears` also puts the
+split where the simulated plants are nitrogen limited, so the nitrogen pools
+feeding that limitation are live state at the instant the state file is written.
 
 ### The volatile organic source is off, and off is a decision
 
