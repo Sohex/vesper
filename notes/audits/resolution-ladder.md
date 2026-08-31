@@ -9,6 +9,35 @@ highest resolution in the least real time. That makes two things worth
 measuring separately -- how long a rung takes to converge, and how many of
 those orbits the convergence TEST is responsible for rather than the physics.
 
+## Which of these runs can still be identified
+
+Half the runs this note cites have no identity record. `run_8044646ea7f0`,
+`run_2b20e3324bb0`, `run_aaa95662e21a` and `run_4fe5e6050df5` are in no
+`INDEX.json` row, no `INDEX_ENTRY.json` stub and no `RECONSTRUCTED.json`: they
+were created and deleted while `exoplasim/runs/INDEX.json` was a scan of what
+was on disk rather than a ledger of what had existed, so their configuration,
+executable sha, source build and orbit count went with their manifests.
+`notes/audits/run-identity.md` is that finding and
+`archive/runs/RECORDLESS.json` is the enumeration.
+
+That splits this note's conclusions into two kinds, and the split is stated here
+once so each section can be read for what it is:
+
+| conclusion | rests on | re-readable |
+| --- | --- | --- |
+| the criterion flickers after the physics settles, and window 20 removes it | `run_8044646ea7f0` | the MEASUREMENT yes, from 85 annual records in its convergence report; the run's build and executable sha, no |
+| the hyperdiffusion defect is worth 3.0 K | `run_8044646ea7f0`, `run_2b20e3324bb0` | both asymptotes, yes, from their convergence reports |
+| halving the step moves the equilibrium further than doubling the rung | `run_8044646ea7f0`, `run_aaa95662e21a`, `run_4fe5e6050df5` | two of the three; **the T42 row is not re-readable at all** |
+| a conversion may double the truncation and no more, and T170 refuses dt 30 | 900-step beds, not runs | the beds are gone and were never runs; the arms tables here are the record |
+| the controlled T42 pair, and the ice finding | `run_88ed6f9d34ae`, `run_8d0ae7e2d02c`, `run_0d41aa82c287` | all three, in full: they are in the ledger with their payloads on disk |
+
+**The load-bearing conclusion is the one that is fully checkable.** The
+controlled pair, its refutation of the cloud-state finding and the sea ice
+offset all rest on three runs that can be re-read, re-assessed and re-run. What
+rests on runs nobody can identify is the convergence-criterion timing, which
+survives as data without its provenance, and one row of the timestep table,
+which does not survive at all.
+
 ## The T21 baseline, re-run
 
 `run_8044646ea7f0`, T21, 85 orbits from cold in one segment, 13.2 s per orbit
@@ -18,9 +47,12 @@ It replaces `run_2b20e3324bb0`, which is not a baseline: under world-1nz
 `continue_exoplasim` never wrote the hyperdiffusion namelist, so 84 of that
 run's 85 orbits ran the model's compiled defaults -- `ndel` 2 rather than 4,
 grad^4 rather than grad^8, humidity damped about 7.4 times too hard. The two
-runs differ by **3.0 K** in equilibrium temperature, 294.46 K against 297.48 K.
+runs differ by **3.0 K** in the FITTED ASYMPTOTE, 294.46 K against 297.48 K.
 That is the size of the defect, and it is why every number the old run produced
-goes with it.
+goes with it. The estimator is named because it is not the one the timestep
+table below uses: both convergence reports survive their runs and both numbers
+are read back out of `temperature_asymptote_k`, where the table reads
+`temperature_mean_k` over each run's assessed window.
 
 ## The criterion decides convergence later than the physics does
 
@@ -142,22 +174,35 @@ truncation error as well as by their resolution.
 Three converged runs, 85 orbits each from cold, same build and same staged
 surface, differing one factor at a time:
 
-| run | rung | dt, min | mean T, K |
-| --- | --- | ---: | ---: |
-| `run_8044646ea7f0` | T21 | 45.0 | 297.458 |
-| `run_aaa95662e21a` | T21 | 22.5 | 295.867 |
-| `run_4fe5e6050df5` | T42 | 22.5 | 294.567 |
+| run | rung | dt, min | mean T, K | re-readable |
+| --- | --- | ---: | ---: | --- |
+| `run_8044646ea7f0` | T21 | 45.0 | 297.458 | yes, `run_8044646ea7f0_convergence.json` |
+| `run_aaa95662e21a` | T21 | 22.5 | 295.867 | yes, `run_aaa95662e21a_convergence.json` |
+| `run_4fe5e6050df5` | T42 | 22.5 | 294.567 | **no** |
 
-| factor | change |
-| --- | ---: |
-| timestep, 45 to 22.5 at T21 | **-1.591 K** |
-| resolution, T21 to T42 at dt 22.5 | **-1.300 K** |
-| both | -2.891 K |
+| factor | change | standing |
+| --- | ---: | --- |
+| timestep, 45 to 22.5 at T21 | **-1.591 K** | both endpoints re-readable |
+| resolution, T21 to T42 at dt 22.5 | **-1.300 K** | **one endpoint rests on a run nobody can check** |
+| both | -2.891 K | inherits the weaker of the two |
 
 **Halving the step moves the equilibrium by more than doubling the resolution
-does.** That is not a small correction to a resolution study; it is the larger
-of the two effects, and a ladder whose rungs each ran at their own largest
-stable step would have reported it as resolution sensitivity.
+does**, and the half of that comparison which is checkable is the half that
+carries it. The timestep difference is the larger effect and both of its
+endpoints can be re-read. The resolution difference cannot: nothing that
+survives `run_4fe5e6050df5` carries a temperature. Its row in
+`exoplasim/analysis/filter_spectral_cost_arms.json` establishes only that a run
+by that id was T42 at dt 22.5 with the filter at gamma 16, and
+`exoplasim/inputs/templates/T42_l10_p16_omp.rest.provenance.json` records that a
+restart template was cut from it. So 294.567 K is a number this note is the only
+copy of, the -1.300 K resolution step and the -2.891 K total rest on it, and
+neither can be re-measured without running a T42 arm at dt 22.5 again.
+
+What does not depend on that row: a ladder whose rungs each ran at their own
+largest stable step would report truncation error as resolution sensitivity
+whatever the two effects turn out to be worth, because the timestep effect alone
+is 1.591 K and is checkable. That is the constraint on comparison the ladder
+actually needs, and it survives intact.
 
 It is also consistent in sign and rough size with what
 `exoplasim/notes/physics-filter-stability.md` measures independently: the
@@ -266,8 +311,15 @@ from -0.609 to -1.391 dex between those same two runs. Their bounds were also
 taken before WORLD-YJ9O, from the orbit-to-orbit scatter over the root of the
 count. A better instrument on that pair would still have been comparing two
 things that differ in two ways, so the arms were cut again with the filter held
-at what `config/planet.yaml` declares. Reconstructed identity for both old arms
-is under `archive/runs/`; WORLD-WW6Z carries how their records were lost.
+at what `config/planet.yaml` declares.
+
+Both old arms have a `RECONSTRUCTED.json` under `archive/runs/`, pieced back
+together from six surviving artifacts and listing what could not be recovered.
+That the filter exponents differed is a finding OF that reconstruction: the
+namelists in `exoplasim/analysis/filter_dt_pair.json` are the only place the two
+16 and 8 survive, and this note previously said the arms differed only in where
+they started. `notes/audits/run-identity.md` carries how the records were lost
+and what closed the mechanism.
 
 ### The comparison
 
@@ -343,9 +395,18 @@ row lives.
 
 ## What is not yet measured
 
+The T42 endpoint of the resolution comparison. `run_4fe5e6050df5`'s 294.567 K
+has no surviving artifact behind it, so the -1.300 K resolution step is a number
+this note is the sole copy of. A T42 arm at dt 22.5 on the current source is
+what replaces it, and until one exists that row is evidence that cannot be
+checked rather than evidence that has been.
+
 Whether a wider window removes the flicker without moving the orbit at which a
 run first genuinely settles. The sweep above is one run at one rung, and the T42
-arms this note now carries are the dataset it should be re-taken on.
+arms this note now carries are the dataset it should be re-taken on. Those arms
+also close the provenance half of it: their convergence reports carry a
+`source_build` and their rows are in the ledger, where `run_8044646ea7f0`'s
+window sweep survives as annual records with no run behind them.
 
 Whether the converted arm's ice offset is the donor's imprint or a second margin
 the target rung reaches on its own; a third arm converted from a different donor
