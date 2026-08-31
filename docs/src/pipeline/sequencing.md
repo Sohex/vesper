@@ -53,7 +53,8 @@ python exoplasim/scripts/assess_convergence.py <run>  # NOT optional: it writes 
                                                       # run's status, and nothing may
                                                       # treat a run as settled without it
 python exoplasim/scripts/build_climatology.py <run>   # then set baseline_climatology
-python exoplasim/scripts/index_runs.py                # INDEX.json is the only record
+python exoplasim/scripts/index_runs.py                # refresh the ledger's payload flags;
+                                                      # a run registered itself at creation
 
 python hydrography/scripts/surface_water.py           # lakes, now a climate exists
 python exoplasim/scripts/build_surface_albedo.py --lakes <surface_water.nc>
