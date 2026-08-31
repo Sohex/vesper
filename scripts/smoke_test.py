@@ -2007,6 +2007,48 @@ def check_snow_conductivity_restatements() -> list[str]:
     return snow.check_restatements(ROOT)
 
 
+def check_fire_divergences_are_declared() -> list[str]:
+    """Every declared departure of the fire operators from mainline, against the
+    source the vegetation model reads.
+
+    `biosphere/config/fire.yaml` records one deletion: mainline LPJ-GUESS 4.1.1
+    and the vendored CNP fork both floor GLOBFIRM's burn probability at 0.001
+    per year, and this project's `modules/vegdynam.cpp` does not. A DELETION is
+    the shape that needs a per-commit check most, because there is no changed
+    line for an editor or a subtree pull to collide with: reintroducing the
+    floor is an addition to a file, and nothing else in the tree would notice.
+
+    `biosphere/scripts/fire_gate.py` holds the four assertions and the eighteen
+    fixtures. This runs its declaration check per commit, because it is a static
+    read -- one YAML file and the operator sources it names -- and what it
+    catches is an edit to a line that is not there.
+    """
+    import importlib.util as ilu
+    import yaml
+    bio_scripts = str(ROOT / "biosphere" / "scripts")
+    saved = sys.modules.pop("_paths", None)
+    sys.path.insert(0, bio_scripts)
+    try:
+        spec = ilu.spec_from_file_location(
+            "_smoke_fire_gate", ROOT / "biosphere" / "scripts" / "fire_gate.py")
+        module = ilu.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        declaration = yaml.safe_load(
+            (ROOT / "biosphere" / "config" / "fire.yaml")
+            .read_text(encoding="utf-8"))
+        sources = module.read_sources(declaration, ROOT)
+        return [f"biosphere/config/fire.yaml [{f['kind']}] {f['what']}: {f['detail']}"
+                for f in module.check(declaration, sources)]
+    except Exception as exc:            # noqa: BLE001 - reported, not raised
+        return [f"the fire divergence check cannot load: {exc}"]
+    finally:
+        if bio_scripts in sys.path:
+            sys.path.remove(bio_scripts)
+        sys.modules.pop("_paths", None)
+        if saved is not None:
+            sys.modules["_paths"] = saved
+
+
 def check_ladder_timestep_declarations() -> list[str]:
     """The three timestep quantities, each against what it restates.
 
@@ -6283,6 +6325,8 @@ def main() -> None:
                lambda: check_ladder_timestep_declarations()),
               ("both columns model snow from lib/snow.py's one relation",
                lambda: check_snow_conductivity_restatements()),
+              ("the fire operators' declared deletion is still deleted",
+               lambda: check_fire_divergences_are_declared()),
               ("the configured timestep is one the route runs this rung at",
                lambda: check_configured_timestep()),
               ("a resume refuses a rewritten spectrum file",

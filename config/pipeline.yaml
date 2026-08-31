@@ -1665,6 +1665,39 @@ steps:
       boundary; `--strict` is the arm that refuses. `lpj_run` needs it so the
       boundary sits on the path rather than beside it.
 
+  - id: fire_gate
+    script: biosphere/scripts/fire_gate.py
+    loop: B
+    cost: seconds
+    needs: []
+    writes: [biosphere/generated/fire_gate_report.json]
+    gate: >
+      the declaration of the simulated vegetation's fire operators, checked
+      against the source the model reads. Its scope is the OPERATORS and not one
+      source file: GLOBFIRM's burned fraction, its mortality and the BLAZE
+      effects path live in different translation units, so each entry in
+      biosphere/config/fire.yaml names its own source_file and the gate reads
+      the union. It carries the one shape the other register gates have no case
+      for, mainline_form: deleted_line -- a line the release runs that this
+      project's source does not run at all, so there is no changed line to find
+      and the third check those gates make has nothing to look at. Its work is
+      done by absent_from_stripped, the fragments a reformatted revert would
+      reintroduce, and by the recorded form with its own trailing comment
+      removed, because a recorded line carrying a // can never survive comment
+      stripping and searching for it verbatim is a check that cannot fail. It
+      fails on a mainline form the source no longer records beside the change,
+      on one the source has gone back to running, on a deletion whose forbidden
+      fragments are live in code, on a deletion that also names a changed line,
+      on an entry naming a function the source no longer runs, on an unknown
+      mainline_form, live_under or constant classification, and on the four
+      execution refusals the per-entry shape exists to make: an entry claiming
+      no arm, an entry claiming an arm the register does not carry, an
+      unexecuted entry saying nothing about why none covers it, and an arm no
+      entry claims. Eighteen fixtures run on every invocation, seventeen built
+      to be wrong in a named way. It reports and exits 0; `--strict` refuses on
+      a divergence whose verdict is `gate` and there is none. `lpj_run` needs it
+      so the declaration sits on the path rather than beside it.
+
   - id: snow_thermal_gate
     script: biosphere/scripts/snow_thermal_gate.py
     loop: B
@@ -1853,7 +1886,7 @@ steps:
     script: biosphere/scripts/run_lpj_guess.py
     loop: B
     cost: hours
-    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, somdynam_gate, century_acceleration_gate, snow_thermal_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate, soil_restart_state_gate, stochastic_seed_gate, equilibrium_window_gate]
+    needs: [lpj_driver, bvoc_gate, abiotic_nutrient_ledger, ntransform_gate, somdynam_gate, century_acceleration_gate, fire_gate, snow_thermal_gate, mineral_reactivity_gate, phenology_gate, acclimation_gate, wetland_gate, soil_restart_state_gate, stochastic_seed_gate, equilibrium_window_gate]
     writes: [biosphere/runs/]
     gate: >
       Completion includes BIO-14 assessment inside the run harness: every

@@ -915,6 +915,43 @@ a hard-coded constant that is not rescaled alongside `nyear_spinup` and
 `distinterval`. The spin-up is far longer than that, so it never reaches a
 reported year, but it does mean fire is off for the first tenth of it.
 
+### The fire operators' departures from mainline are declared and enforced
+
+`biosphere/config/fire.yaml` registers every place this project's fire source
+departs from mainline LPJ-GUESS 4.1.1, and `fire_gate.py` is the enforcement.
+Its scope is the OPERATORS and not one source file, which is the structural
+difference from `ntransform_gate.py` and `somdynam_gate.py`: GLOBFIRM's burned
+fraction is `modules/vegdynam.cpp`'s `fire()`, its mortality is the same file's
+`mortality_lpj` and `mortality_guess`, and the BLAZE effects path is
+`modules/blaze.cpp`, so each entry names its own `source_file` and the gate reads
+the union of them.
+
+It carries the one divergence shape the other register gates have no case for.
+`mainline_form: deleted_line` is a line the release runs that this project's
+source does not run at all -- the GLOBFIRM burn-probability floor, deleted under
+`world-v5j1` and argued in `notes/fire-model-audit.md` section 8. A deletion has
+no changed line, so the third check the other gates make has nothing to look at,
+and `absent_from_stripped` does its work instead: the fragments a reformatted
+revert would reintroduce, each of which has to stay out of the code. The
+recorded mainline form is searched for both verbatim and with its own trailing
+comment removed, because a recorded line carrying a `//` can never survive
+comment stripping and searching for it verbatim alone is a check that cannot
+fail.
+
+Execution is a property of each entry and never of the register.
+`execution_arms` carries the matched arms that have run, empty and never absent,
+and every entry names the arm that covers it or says `none` and why. No
+LPJ-GUESS run this project has made has passed acceptance, so the block is empty
+and the entry says so for itself; the gate refuses an entry claiming no arm, one
+claiming an arm the register does not carry, an unexecuted entry that says
+nothing about why none covers it, and an arm no entry claims.
+
+```bash
+python biosphere/scripts/fire_gate.py            # status, exit 0
+python biosphere/scripts/fire_gate.py --strict   # refuses on a divergence
+                                                 # whose verdict is `gate`
+```
+
 ## One-off tools
 
 - `scripts/score_prediction.py` -- one-off: scores a productivity prediction against an LPJ-GUESS run, the machinery behind BIO-2's nitrogen bracket. Registered under `one_offs` in `config/pipeline.yaml`; it generates nothing the pipeline reads.
