@@ -97,6 +97,60 @@ becomes a real difference on the 1053 partial cells and the flux bracket in
 `analysis/coastline_flux_bracket.json` becomes a prediction to test rather
 than a bound.
 
+## What the land tile would start from, read off the staged fields
+
+`config/partial_surface.yaml` declares eight initial-state fields and the
+decision gate now reads the ones that reach the model through a staged `.sra`
+rather than trusting their `status`. The population is the cells the binary
+ownership mask (code 172) gives to the ocean while the land fraction (code
+1720) is positive: 620 of the 1053 partial cells, matched by index off two
+fields on the same Gaussian grid.
+
+  code 173 land roughness        0.3446..3.5809 m over the 620, 610 distinct
+  code 229 field capacity        0.01654..0.26549 m over the 620, 605 distinct
+  code 174 background albedo     0.06 on all 620, one distinct value
+  codes 175/176 albedo bands     0.07028 and 0.05364 on all 620, one each
+  code 212 vegetation cover      0 on all 620
+
+against 0.003..0.7183, 0.01991..0.25679, 0.10381..0.26049, 0.072..0.197,
+0.11774..0.29979 and 0..0.5 over the 586 pure-land cells. Roughness and field
+capacity are integrated from the mesh and vary cell to cell; the albedo pair
+and the canopy fraction are one value each, which is the open-water constant
+the binary mask wrote. No staged field carries a sentinel and no cell with a
+positive land fraction is unpopulated: the roughness builder's own land
+population is 1639 cells, which is exactly 586 pure land plus 1053 partial.
+
+**Those 620 cells hold 11.578% of the mesh land area binned to the grid.** That
+is the size of what the two blocked fields cost, and it is why the seam order
+refuses the model change rather than merely preferring the fields first: a land
+tile switched on today would begin advancing an ninth of this world's land at
+open-water albedo under no canopy, and the shortwave error would be attributed
+to the tile model.
+
+### The relief statistic thins on those cells, and the thin part is immaterial
+
+`cell_moments` returns a region count beside the variance because the count is
+what says whether a spread means anything, and `build_surface_roughness.py`
+reports its median without gating on it. Over the 620 the count runs from 1,
+with a fifth percentile of 4, against a minimum of 565 over pure land and 335
+over the land-owned partial cells: the sparse support is exclusive to the cells
+the land tile newly advances on.
+
+  fewer than 30 land regions      112 cells, 0.0279% of all land area
+  exactly one land region          10 cells, relief sigma exactly 0, so the
+                                   roughness is that one region's cover class
+                                   verbatim, 0.6251..2.9698 m
+  z0 above the pure-land maximum  212 cells, 2.0547% of all land area, median
+                                   land-region count 112
+
+The sparse tail is real and is not worth a repair: 0.028% of land area cannot
+move a surface-energy term against the 0.12 W m-2 state-storage tolerance the
+tile model was selected on, which is the same materiality test the decision
+gate already applies. The 212 rough cells are not the sparse ones -- their
+median support is 112 regions -- and a coastal cell whose land runs from sea
+level to a summit genuinely holds more sub-grid relief than an interior
+plateau, so the high tail is the orographic term working rather than failing.
+
 ## The remaining seams are ordered
 
 The decision gate listed six missing seams as a set. They are not a set.
