@@ -598,6 +598,16 @@ is bounded by the band case rather than argued to be: the two erodible classes
 span 1.025 in `ln z0` where the three bands span 3.005, and the arm reports both
 spreads so the bound is checkable.
 
+**The band shares come from a build this project no longer holds, and the
+verdict does not turn on them.** `playa_roughness_mix.py` refuses to run on the
+configured build because the shares are an area-weighted measurement over the
+raw mesh and cannot be carried across a generation, so the artifact carries
+`precarve-craton` and `precarve-craton-10m` and neither is `canonical-10m-carve2`.
+The two it does carry give 1.042 and 1.049 on `u*` cubed, a spread of 0.7 per
+cent where the instrument is 62.8, and the endmember roughnesses the mixture is
+built from are measured surfaces rather than terrain and do not move at all. A
+share vector on the current build cannot bring 1.05 within reach of 1.63.
+
 The class mixture is measured over a declared share sweep rather than the
 export's own per-cell shares, and that is a deliberate limit rather than an
 omission. Per-cell shares would move the gap between the pure endpoints, where
