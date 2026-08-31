@@ -9,10 +9,24 @@ pinning every input by hash.
 
     python biosphere/scripts/run_lpj_guess.py --nyear 50
     python biosphere/scripts/run_lpj_guess.py --ranks 16 --label carved-k25v
+    python biosphere/scripts/run_lpj_guess.py --nyear 8600 --save-state
+    python biosphere/scripts/run_lpj_guess.py --nyear 9853 --continue-from lpj_...
 
 Bulk output lands in `runs/<run_id>/`, which is not tracked, in the same way
 `exoplasim/runs/` is not. The manifest and a summary go to
 `analysis/<run_id>/`, which is.
+
+**The spin-up is bought once.** The ecological spin-up in front of a retained
+record is several times the record itself, so a run refused by the acceptance
+contract used to be answerable only by a second run from bare ground that
+re-integrated the whole of it. `--save-state` leaves the simulated state of the
+last year on disk and `--continue-from` resumes from it, which makes more
+retained record, another seed or another patch count cost the record alone. The
+continuation is a NEW run with a new id whose manifest names its parent, and
+`--nyear` is CUMULATIVE: it is the simulated year the run ends at, not the years
+it adds. What may be continued is guarded rather than trusted -- see
+`continuation_refusals` -- and that the resumed run reproduces the run it
+continues is `biosphere/scripts/verify_lpj_restart_continuity.py`.
 
 Three things this handles that catch people out:
 
@@ -128,6 +142,121 @@ def require_soil_driver_climate(soilmap: Path, driver: Path) -> dict:
     }
 
 
+def soiln_instruction_text(profile: str) -> str:
+    """`global_soiln.ins` as the run will read it, for the profile asked for.
+
+    The stock comparison arm differs from the active model in the vendored
+    `ntransform.cpp` and in one instruction-file rate, so the file a run reads
+    is a function of the profile and not of the vendored tree alone. Built here
+    rather than patched in place, so `--continue-from` can hash what the parent
+    read without first laying out a run directory.
+    """
+    text = (GUESS_SOURCE / "data" / "ins" / "global_soiln.ins").read_text(
+        encoding="utf-8")
+    if profile != "stock-4.1.1":
+        return text
+    old, new = "f_nitri_gas_max \t0.022", "f_nitri_gas_max \t0.25"
+    if text.count(old) != 1:
+        raise SystemExit(
+            f"stock profile expected one live {old!r} in "
+            f"{GUESS_SOURCE / 'data' / 'ins' / 'global_soiln.ins'}")
+    return text.replace(old, new)
+
+
+# What two runs have to share for the second to be a CONTINUATION of the first
+# rather than a chimera. A state file is a simulated state, not a result: read
+# it under a different forcing, a different soil, a different binary or a
+# different ecological parameter and the run integrates from a state its own
+# inputs never produced, while every number out of it is attributed to a
+# spin-up that did not happen. That is the failure a saved state creates if it
+# is not guarded, and it is worse than having no saved state at all, because
+# nothing downstream can see it.
+#
+# Ranks are deliberately NOT here. The serializer partitions state files by the
+# writing rank, but `PartitionedMapDeserializer` searches every file in the
+# directory for a cell's coordinates and the stochastic substreams are derived
+# from the cell rather than the rank (lib/stochastic_seeds.py), so a
+# continuation at a different rank count reads the same state. It is recorded
+# rather than refused.
+CONTINUATION_INPUTS = ("driver", "soilmap", "pfts", "binary", "vesper_h",
+                       "global_soiln")
+CONTINUATION_PHYSICAL = ("npatch", "root_seed", "nfix_a", "nfix_b",
+                         "ntransform_profile", "ifbvoc", "run_peatland",
+                         "ifmethane")
+
+
+def continuation_refusals(parent: dict, inputs: dict, physical: dict,
+                          nyear: int) -> list[str]:
+    """Every way this run is not a continuation of the run it names as parent."""
+    refusals: list[str] = []
+    parent_inputs = parent.get("inputs") or {}
+    for name in CONTINUATION_INPUTS:
+        was = (parent_inputs.get(name) or {}).get("sha256")
+        now = (inputs.get(name) or {}).get("sha256")
+        if was is None:
+            refusals.append(
+                f"the parent manifest pins no {name}, so this run cannot show "
+                "it is continuing the same experiment")
+        elif was != now:
+            refusals.append(
+                f"{name} differs: the parent integrated {was[:12]}, this run "
+                f"would read {now[:12]}")
+
+    parent_physical = parent.get("physical") or {}
+    for name in CONTINUATION_PHYSICAL:
+        if name not in parent_physical:
+            refusals.append(f"the parent manifest records no {name}")
+        elif parent_physical[name] != physical[name]:
+            refusals.append(
+                f"{name} differs: the parent ran {parent_physical[name]!r}, "
+                f"this run would run {physical[name]!r}")
+
+    parent_nyear = parent_physical.get("nyear")
+    if not isinstance(parent_nyear, int):
+        refusals.append("the parent manifest records no nyear, so the "
+                        "simulated year the state covers is not known")
+    elif nyear <= parent_nyear:
+        refusals.append(
+            f"--nyear is CUMULATIVE: the parent already reached year "
+            f"{parent_nyear}, so a continuation needs --nyear greater than "
+            f"{parent_nyear} and was given {nyear}")
+    return refusals
+
+
+def serialization_block(state: dict | None) -> str:
+    """The state-file declarations, or nothing when the run neither saves nor reads one.
+
+    THE ONE PLACE THESE ARE SPELLED. `verify_lpj_restart_continuity.py` builds
+    three different save/restart arrangements and this runner builds two more,
+    and a state file written by one arrangement is read by another; two copies
+    of the block would be two chances for the fixture's meaning of `state_year`
+    to drift from the runner's while both keep parsing.
+
+    `state_year`/`state_day` name the last simulated day the state READ covers;
+    `save_year`/`save_day` name the last day the state WRITTEN covers. A day of
+    -1 is the year boundary, which is the whole of the preceding year and the
+    only save point this model had before WORLD-FUJ4. `state_path` is absolute
+    for the reason every path in a generated instruction file is: each rank
+    chdirs into its own directory before reading anything.
+    """
+    if not state:
+        return ""
+    return f"""
+! The state file. What a run saves, another run continues from: the spin-up in
+! front of a retained record is then bought once rather than once per refusal.
+! Written by biosphere/scripts/run_lpj_guess.py; the two instants and the -1
+! convention are in its serialization_block.
+restart {1 if state['restart'] else 0}
+save_state {1 if state['save_state'] else 0}
+state_year {state['state_year']}
+state_day {state['state_day']}
+save_year {state['save_year']}
+save_day {state['save_day']}
+state_path "{state['state_path']}"
+save_path "{state['save_path']}"
+"""
+
+
 def build_instruction(paths: dict, settings: dict) -> str:
     """The instruction file, with every path absolute. See the module docstring."""
     output_parameters = {
@@ -229,7 +358,7 @@ iforganicsoilproperties 1
 outputdirectory "./"
 """ + "".join(
         f'{output_parameters.get(name, "file_" + name.split(".")[0])} "{name}"\n'
-        for name in settings["outputs"])
+        for name in settings["outputs"]) + serialization_block(settings.get("state"))
 
 
 def merge_outputs(run_dir: Path, ranks: int,
@@ -285,6 +414,15 @@ def main() -> None:
     parser.add_argument("--root-seed", type=int, default=None,
                         help="root of all stable ecological random substreams; "
                              "defaults to stochastic_seeds.yaml")
+    parser.add_argument("--save-state", action="store_true",
+                        help="write a state file covering the last simulated "
+                             "year, so a later run can continue from it "
+                             "instead of re-buying the spin-up")
+    parser.add_argument("--continue-from", default=None, metavar="RUN_ID",
+                        help="resume from that run's saved state. --nyear is "
+                             "CUMULATIVE: it is the year this run ends at, not "
+                             "the years it adds. The continuation is a NEW run "
+                             "with a new id whose manifest names its parent.")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     import sys as _sys
@@ -425,6 +563,136 @@ def main() -> None:
         **wetland_gate.switches(wetland_active),
     }
 
+    physical = {
+        "nyear": args.nyear,
+        "npatch": args.npatch,
+        "root_seed": root_seed,
+        "ranks": args.ranks,
+        "nfix_a": args.nfix_a,
+        "nfix_b": args.nfix_b,
+        "label": args.label,
+        "ntransform_profile": args.ntransform_profile,
+        "ifbvoc": settings["ifbvoc"],
+        "run_peatland": settings["run_peatland"],
+        "ifmethane": settings["ifmethane"],
+    }
+
+    soiln_text = soiln_instruction_text(args.ntransform_profile)
+    inputs = {
+        "driver": {"path": str(paths["driver"]), "sha256": sha256(args.driver)},
+        "soilmap": {"path": str(paths["soilmap"]), "sha256": sha256(args.soilmap)},
+        "pfts": {"path": str(args.pfts), "sha256": sha256(args.pfts)},
+        "vesper_h": {"path": str(header), "sha256": sha256(header)},
+        "binary": {"path": str(args.binary.resolve()),
+                   "sha256": sha256(args.binary)},
+        "global_soiln": {"path": str(run_dir / "global_soiln.ins"),
+                         "sha256": hashlib.sha256(
+                             soiln_text.encode("utf-8")).hexdigest()},
+    }
+
+    # THE STATE FILE. Two arrangements, and the difference between them is which
+    # of the two instants the caller names.
+    #
+    # `--save-state` writes the state covering the END of the last simulated
+    # year, which is where every annual accumulator has flushed and where the
+    # save point sat before WORLD-FUJ4 made an arbitrary day expressible.
+    #
+    # `--continue-from` reads that state and resumes on the day after it. The
+    # continued run is a NEW run with a new id (rule 6) whose manifest names its
+    # parent, and `--nyear` is the year it ends at rather than the years it
+    # adds, because `vesperinput.cpp:getclimate` stops on `date.year` reaching
+    # `nyear_spinup + nyear` and counts from year zero whether the state was
+    # read or integrated.
+    #
+    # A run that both reads and writes needs the two directories distinct: the
+    # serializer truncates what it opens and it opens before the deserializer
+    # reads (`framework/parameters.cpp` refuses the collision).
+    continuation = None
+    state = None
+    if args.continue_from:
+        parent_dir = RUNS / args.continue_from
+        parent_manifest_path = parent_dir / "run_manifest.json"
+        parent_state = parent_dir / "state"
+        if not parent_manifest_path.is_file():
+            raise SystemExit(
+                f"{parent_manifest_path} is absent, so there is no record of "
+                f"what {args.continue_from} was and nothing to continue.")
+        if not (parent_state / "meta.bin").is_file():
+            raise SystemExit(
+                f"{parent_state} holds no state file, so {args.continue_from} "
+                "cannot be continued. A run saves one only when it is asked "
+                "with --save-state.")
+        parent = json.loads(parent_manifest_path.read_text(encoding="utf-8"))
+        refusals = continuation_refusals(parent, inputs, physical, args.nyear)
+        if refusals:
+            raise SystemExit(
+                f"Refusing to continue {args.continue_from}:\n  "
+                + "\n  ".join(refusals)
+                + "\n\nA state file is a simulated state, not a result. Read "
+                "under different inputs it integrates from a state those "
+                "inputs never produced, and every number out of it would be "
+                "attributed to a spin-up that did not happen.")
+        # THE STATE FILES HAVE TO BE THE ONES THE PARENT WROTE. `runs/` is
+        # untracked and nothing stops a directory being cleaned, half-copied
+        # from elsewhere or rewritten by a later save, and the archive is an
+        # untagged stream of raw object bytes: a truncated or substituted file
+        # is read as a simulated state without complaint. The parent recorded
+        # what it wrote, so this is an identity with a right answer rather than
+        # a plausibility check.
+        state_now = {p.name: sha256(p) for p in sorted(parent_state.iterdir())
+                     if p.is_file()}
+        state_then = (parent.get("saved_state") or {}).get("sha256")
+        if state_then is None:
+            raise SystemExit(
+                f"{parent_manifest_path} records no hashes for the state files "
+                f"it wrote, so there is nothing to show {parent_state} still "
+                "holds them. That manifest predates --save-state; re-run the "
+                "parent rather than continuing a state file of unknown "
+                "provenance.")
+        if state_then != state_now:
+            gone = sorted(set(state_then) - set(state_now))
+            extra = sorted(set(state_now) - set(state_then))
+            moved = sorted(name for name in set(state_then) & set(state_now)
+                           if state_then[name] != state_now[name])
+            raise SystemExit(
+                f"{parent_state} no longer holds the state files "
+                f"{args.continue_from} wrote"
+                + (f"; absent: {', '.join(gone)}" if gone else "")
+                + (f"; changed: {', '.join(moved)}" if moved else "")
+                + (f"; unexpected: {', '.join(extra)}" if extra else "")
+                + ". The archive is an untagged byte stream, so a substituted "
+                "file would be read as a simulated state without complaint.")
+
+        parent_nyear = parent["physical"]["nyear"]
+        continuation = {
+            "parent_run_id": parent.get("run_id", args.continue_from),
+            "parent_manifest_sha256": sha256(parent_manifest_path),
+            "parent_state_dir": str(parent_state.resolve()),
+            "parent_state_sha256": state_now,
+            "parent_nyear": parent_nyear,
+            "parent_ranks": (parent.get("physical") or {}).get("ranks"),
+            "resumed_at_year": parent_nyear,
+            "years_simulated_here": args.nyear - parent_nyear,
+            "chain": (parent.get("continuation") or {}).get("chain", [])
+                     + [parent.get("run_id", args.continue_from)],
+        }
+        state = {
+            "restart": True, "save_state": bool(args.save_state),
+            "state_year": parent_nyear, "state_day": -1,
+            "save_year": args.nyear, "save_day": -1,
+            "state_path": str(parent_state.resolve()),
+            "save_path": str((run_dir / "state").resolve()),
+        }
+    elif args.save_state:
+        state = {
+            "restart": False, "save_state": True,
+            "state_year": args.nyear, "state_day": -1,
+            "save_year": args.nyear, "save_day": -1,
+            "state_path": str((run_dir / "state").resolve()),
+            "save_path": str((run_dir / "state").resolve()),
+        }
+    settings["state"] = state
+
     if args.dry_run:
         print(build_instruction(paths, settings))
         return
@@ -438,14 +706,12 @@ def main() -> None:
             shutil.copyfile(extra, run_dir / extra.name)
 
     soiln_instruction = run_dir / "global_soiln.ins"
-    if args.ntransform_profile == "stock-4.1.1":
-        soiln_text = soiln_instruction.read_text(encoding="utf-8")
-        old = "f_nitri_gas_max \t0.022"
-        new = "f_nitri_gas_max \t0.25"
-        if soiln_text.count(old) != 1:
-            raise SystemExit(
-                f"stock profile expected one live {old!r} in {soiln_instruction}")
-        soiln_instruction.write_text(soiln_text.replace(old, new), encoding="utf-8")
+    soiln_instruction.write_text(soiln_text, encoding="utf-8")
+
+    # The serializer opens its files in its constructor and fails if the
+    # directory is absent, so a saving run makes it before the model starts.
+    if state and state["save_state"]:
+        Path(state["save_path"]).mkdir(parents=True, exist_ok=True)
 
     instruction = run_dir / "run.ins"
     instruction.write_text(build_instruction(paths, settings))
@@ -465,6 +731,20 @@ def main() -> None:
             f"LPJ-GUESS exited {result.returncode} after {elapsed:.0f} s. "
             f"See {run_dir / 'mpirun.log'} and {run_dir}/run*/guess.log")
 
+    # A run asked to save a state has to have saved one. The serializer writes
+    # at a named simulated instant and the model exits zero whether it reached
+    # that instant or not, so an empty state directory is how "the save point
+    # was never reached" arrives -- and it arrives as a run that looks complete
+    # and cannot be continued, discovered only when someone tries.
+    if state and state["save_state"]:
+        written = [p for p in Path(state["save_path"]).iterdir() if p.is_file()]
+        if not any(p.name == "meta.bin" for p in written):
+            raise SystemExit(
+                f"the run was asked to save a state covering year "
+                f"{state['save_year'] - 1} and {state['save_path']} holds "
+                f"{len(written)} files with no meta.bin. The save point was "
+                "not reached, so nothing can continue this run.")
+
     counts = merge_outputs(run_dir, args.ranks, outputs)
     cells = 0
     if (run_dir / "anpp.out").is_file():
@@ -476,19 +756,21 @@ def main() -> None:
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         # What the run id used to spell out. Ids are UUIDs now, so this block is
         # the only place a run's physical description survives.
-        "physical": {
-            "nyear": args.nyear,
-            "npatch": args.npatch,
-            "root_seed": root_seed,
-            "ranks": args.ranks,
-            "nfix_a": args.nfix_a,
-            "nfix_b": args.nfix_b,
-            "label": args.label,
-            "ntransform_profile": args.ntransform_profile,
-            "ifbvoc": settings["ifbvoc"],
-            "run_peatland": settings["run_peatland"],
-            "ifmethane": settings["ifmethane"],
-        },
+        "physical": physical,
+        # Which state this run started from and which one it left behind. A
+        # continuation's `nyear` is the year it ended at, so `resumed_at_year`
+        # and `years_simulated_here` are what say how much of the record this
+        # run actually integrated; `chain` is the whole lineage back to bare
+        # ground. Null here means bare ground.
+        "continuation": continuation,
+        "saved_state": ({
+            "dir": str(Path(state["save_path"])),
+            "covers_year": state["save_year"] - 1,
+            "covers_day": "year boundary",
+            "sha256": {p.name: sha256(p)
+                       for p in sorted(Path(state["save_path"]).iterdir())
+                       if p.is_file()},
+        } if state and state["save_state"] else None),
         "wall_seconds": round(elapsed, 1),
         "ranks": args.ranks,
         "settings": settings,
@@ -505,16 +787,7 @@ def main() -> None:
             "declaration_sha256": sha256(SEED_CONFIG),
             "invariance": "independent of MPI rank and grid-cell traversal order",
         },
-        "inputs": {
-            "driver": {"path": str(paths["driver"]), "sha256": sha256(args.driver)},
-            "soilmap": {"path": str(paths["soilmap"]), "sha256": sha256(args.soilmap)},
-            "pfts": {"path": str(args.pfts), "sha256": sha256(args.pfts)},
-            "vesper_h": {"path": str(header), "sha256": sha256(header)},
-            "binary": {"path": str(args.binary.resolve()),
-                       "sha256": sha256(args.binary)},
-            "global_soiln": {"path": str(soiln_instruction),
-                             "sha256": sha256(soiln_instruction)},
-        },
+        "inputs": inputs,
         "ntransform_comparison": {
             "profile": args.ntransform_profile,
             "binary_provenance": binary_provenance,

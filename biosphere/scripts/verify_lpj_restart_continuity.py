@@ -2,6 +2,7 @@
 """Is a continued LPJ-GUESS run the same experiment as the run it continues?
 
     python biosphere/scripts/verify_lpj_restart_continuity.py --nyear 12 --state-year 8
+    python biosphere/scripts/verify_lpj_restart_continuity.py --self-test
 
 Worldbuilding frame: this checks the Vesper project's vegetation model against
 itself. Nothing here is a claim about the simulated planet.
@@ -40,6 +41,13 @@ THREE MODES, and the last two localise what the first only detects.
                 simulated day in between. Nothing integrates between the two
                 files, so every difference is something the write-and-read of a
                 state file does not carry.
+
+`--self-test` is a fourth thing and needs neither model nor forcing: it checks
+the two integers `run_lpj_guess.py --save-state` and `--continue-from` decide
+against the arithmetic `framework/framework.cpp` performs on them, so a
+continuation that would silently skip or repeat a simulated year is refused
+before anything is bought. The three modes above test the MODEL's serializer;
+that tests the RUNNER's wiring, and neither covers the other.
 
 WHAT --round-trip CAN AND CANNOT SEE, stated because the answer is not the same
 as it is for the climate model. A record ExoPlaSim writes and then overwrites on
@@ -86,26 +94,6 @@ from orbit import model_year_days  # lib/orbit.py, the year length  # noqa: E402
 import run_lpj_guess  # noqa: E402
 import wetland_gate  # noqa: E402
 
-# The serialization block plib takes as the later declaration. `state_path` is
-# absolute for the reason every other path in a generated instruction file is:
-# each rank chdirs into its own directory before reading anything.
-#
-# state_day and save_day name the LAST simulated day the state covers, -1 being
-# the year boundary and the default this model had before WORLD-FUJ4. A run
-# resumes on the day after state_year/state_day and writes its own state at the
-# end of save_year/save_day.
-SERIALIZATION = """
-! Restart continuity fixture.
-state_year {state_year}
-state_day {state_day}
-save_year {save_year}
-save_day {save_day}
-save_state {save_state}
-restart {restart}
-state_path "{state_path}"
-save_path "{save_path}"
-"""
-
 
 def rel(path: Path) -> Path:
     try:
@@ -130,15 +118,20 @@ def build_bed(bed: Path, paths: dict, settings: dict, state_dir: Path,
         if not (bed / extra.name).exists():
             shutil.copyfile(extra, bed / extra.name)
     instruction = bed / "run.ins"
-    instruction.write_text(
-        run_lpj_guess.build_instruction(paths, settings)
-        + SERIALIZATION.format(
-            state_year=state_year, state_day=state_day,
-            save_year=state_year if save_year is None else save_year,
-            save_day=state_day if save_day is None else save_day,
-            save_state=save_state, restart=restart,
-            state_path=state_dir.resolve(),
-            save_path=(state_dir if save_dir is None else save_dir).resolve()))
+    # The serialization block is `run_lpj_guess.serialization_block`, reached
+    # through `build_instruction`, so this fixture and the production runner
+    # cannot drift on what `state_year` means while both keep parsing.
+    instruction.write_text(run_lpj_guess.build_instruction(paths, {
+        **settings,
+        "state": {
+            "restart": bool(restart), "save_state": bool(save_state),
+            "state_year": state_year, "state_day": state_day,
+            "save_year": state_year if save_year is None else save_year,
+            "save_day": state_day if save_day is None else save_day,
+            "state_path": str(state_dir.resolve()),
+            "save_path": str((state_dir if save_dir is None
+                              else save_dir).resolve()),
+        }}))
     return instruction
 
 
@@ -283,8 +276,124 @@ def compare(whole: Path, resumed: Path, first_year: int,
     return failures
 
 
+def resume_and_save_instants(state: dict, year_length: int) -> dict:
+    """The two instants `framework/framework.cpp` computes from a state block.
+
+    Mirrored from lines 214-218 rather than inferred from the parameter names,
+    and `self_test` refuses if those lines have moved out from under this. The
+    resume instant is the FIRST day the resuming run simulates; the save instant
+    is the LAST day the written state covers.
+    """
+    resume_year = state["state_year"] - 1 if state["state_day"] < 0 else state["state_year"]
+    resume_day = year_length - 1 if state["state_day"] < 0 else state["state_day"]
+    save_year = state["save_year"] - 1 if state["save_day"] < 0 else state["save_year"]
+    save_day = year_length - 1 if state["save_day"] < 0 else state["save_day"]
+    first_year, first_day = ((resume_year + 1, 0) if resume_day == year_length - 1
+                             else (resume_year, resume_day + 1))
+    return {"state_covers": (resume_year, resume_day),
+            "first_simulated": (first_year, first_day),
+            "state_written_covers": (save_year, save_day)}
+
+
+def self_test() -> None:
+    """Does the production runner's state block resume where its parent stopped?
+
+    NO MODEL, NO FORCING. `run_lpj_guess.py` decides two integers -- which
+    simulated year a saving run's state covers, and which one a continuing run
+    resumes at -- and an off-by-one in either is the failure this whole row
+    exists to avoid: a run that silently skips or repeats a simulated year while
+    reporting the spin-up it was asked for. The identity has a right answer. The
+    parent's state covers its own last simulated year, and the continuation's
+    first simulated day is the day after that, with no day repeated and none
+    skipped.
+
+    It is checked through `run_lpj_guess.build_instruction`, so what is tested
+    is the text the model will actually parse and not a second copy of the rule.
+    """
+    year_length = model_year_days(yaml.safe_load(CONFIG.read_text()))
+
+    framework = (GUESS_SOURCE / "framework" / "framework.cpp").read_text(
+        encoding="utf-8")
+    for expression in (
+            "const int resume_year = state_day < 0 ? state_year - 1 : state_year;",
+            "const int save_point_year = save_day < 0 ? save_year - 1 : save_year;"):
+        if expression not in framework:
+            raise SystemExit(
+                "framework/framework.cpp no longer computes\n  "
+                f"{expression}\nso resume_and_save_instants mirrors arithmetic "
+                "the model does not do. Re-read framework.cpp and update it.")
+
+    failures: list[str] = []
+    parent_nyear, child_nyear = 8600, 9853
+
+    parent = {"restart": False, "save_state": True,
+              "state_year": parent_nyear, "state_day": -1,
+              "save_year": parent_nyear, "save_day": -1,
+              "state_path": "/parent/state", "save_path": "/parent/state"}
+    child = {"restart": True, "save_state": True,
+             "state_year": parent_nyear, "state_day": -1,
+             "save_year": child_nyear, "save_day": -1,
+             "state_path": "/parent/state", "save_path": "/child/state"}
+
+    parent_instants = resume_and_save_instants(parent, year_length)
+    child_instants = resume_and_save_instants(child, year_length)
+
+    # A run of nyear years simulates years 0 .. nyear-1, so the state a saving
+    # run writes has to cover the last day of year nyear-1.
+    if parent_instants["state_written_covers"] != (parent_nyear - 1, year_length - 1):
+        failures.append(
+            f"a run of {parent_nyear} years writes a state covering "
+            f"{parent_instants['state_written_covers']}, not the last day of "
+            f"year {parent_nyear - 1}")
+    if child_instants["first_simulated"] != (parent_nyear, 0):
+        failures.append(
+            f"the continuation's first simulated day is "
+            f"{child_instants['first_simulated']}, not day 0 of year "
+            f"{parent_nyear}: it would "
+            + ("repeat" if child_instants["first_simulated"][0] < parent_nyear
+               else "skip") + " a simulated year")
+    if child_instants["state_written_covers"] != (child_nyear - 1, year_length - 1):
+        failures.append(
+            f"the continuation writes a state covering "
+            f"{child_instants['state_written_covers']}, not the last day of "
+            f"year {child_nyear - 1}, so a third run could not continue it")
+
+    # The text the model parses, not a third copy of the rule.
+    settings = {"title": "self_test", "nyear": child_nyear, "npatch": 1,
+                "root_seed": 1, "nfix_a": 0.0, "nfix_b": 0.0, "ifbvoc": 0,
+                "outputs": ("cmass.out",), "state": child,
+                **wetland_gate.switches(False)}
+    text = run_lpj_guess.build_instruction(
+        {"driver": Path("/d"), "soilmap": Path("/s"), "pfts": Path("/p")},
+        settings)
+    for line in (f"state_year {parent_nyear}", "state_day -1",
+                 f"save_year {child_nyear}", "restart 1", "save_state 1",
+                 'state_path "/parent/state"', 'save_path "/child/state"'):
+        if line not in text:
+            failures.append(f"the generated instruction file omits {line!r}")
+    if run_lpj_guess.build_instruction(
+            {"driver": Path("/d"), "soilmap": Path("/s"), "pfts": Path("/p")},
+            {**settings, "state": None}).count("state_path") != 0:
+        failures.append("a run that neither saves nor restarts declares a "
+                        "state_path, so the model would look for a state file")
+
+    for failure in failures:
+        print(f"  {failure}")
+    if failures:
+        raise SystemExit(
+            f"\n{len(failures)} failures. A continuation that resumes at the "
+            "wrong simulated year reports the spin-up it was asked for and "
+            "integrates a different one.")
+    print(f"restart instants agree over a {year_length}-day simulation year: a "
+          f"run of N years writes a state covering year N-1, and a "
+          f"continuation's first simulated day is day 0 of year N")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--self-test", action="store_true",
+                        help="the state-block arithmetic against the model's "
+                             "own, with no model and no forcing, and exit")
     parser.add_argument("--nyear", type=int, default=12,
                         help="simulated years in each run")
     parser.add_argument("--state-year", type=int, default=8,
@@ -312,6 +421,10 @@ def main() -> None:
     parser.add_argument("--pfts", type=Path,
                         default=GENERATED / "vesper_pfts.ins")
     args = parser.parse_args()
+
+    if args.self_test:
+        self_test()
+        return
 
     if not 0 < args.state_year < args.nyear:
         raise SystemExit(

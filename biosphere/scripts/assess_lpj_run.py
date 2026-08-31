@@ -627,6 +627,13 @@ def assess(run_dir: Path, *, contract_path: Path = CONFIG,
         "source_build": manifest.get("source_build"),
         "manifest_sha256": sha256(manifest_path),
         "contract_sha256": sha256(contract_path),
+        # Which saved state this run resumed from, and the lineage back to bare
+        # ground. Null means bare ground. A consumer reading a record has to be
+        # able to see that the spin-up in front of it was integrated by some
+        # named run and not merely assumed, and `acceptance.json` is what a
+        # consumer reads; `run_manifest.json` carries the rest of the block,
+        # including the hashes of the state files this run read.
+        "continuation": manifest.get("continuation"),
         "timescales": timescales,
         "coverage": {"ranks": ranks, "cells": len(canonical_support),
                      "years": canonical_years,
@@ -671,6 +678,9 @@ def write_failure(run_dir: Path, error: Exception, *,
         "source_build": manifest.get("source_build"),
         "manifest_sha256": sha256(manifest_path) if manifest_path.is_file() else None,
         "contract_sha256": sha256(contract_path) if contract_path.is_file() else None,
+        # On a refusal too: the run that gets bought to answer this one is a
+        # continuation of it, and that decision needs the lineage in front of it.
+        "continuation": manifest.get("continuation"),
         "verdict": "FAIL",
         "refusal": str(error),
         # A run refused for not having settled is exactly the run whose
