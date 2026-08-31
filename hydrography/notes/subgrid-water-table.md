@@ -260,9 +260,25 @@ the guard exists so that a configuration which crosses it says so.
 
 ### What must be run before this can be turned on
 
-Nothing here has touched the real mesh, and the risk in this change has always
-been convergence rather than algebra. Two solvers died on the previous attempt
-at a depth-dependent transmissivity.
+The risk in this change has always been convergence rather than algebra. Two
+solvers died on the previous attempt at a depth-dependent transmissivity.
+
+**One of the three has now been run on the real mesh, and it is the algebraic
+one.** `--unconfined --reduction-test` on `canonical-10m-carve2`, 2026-08-30, on
+its 10,000,005 regions and 30,000,009 faces with the Voronoi area closing on the
+sphere to 1.00000000: at zero permeability the unconfined assembly reproduces
+the surface-only balance BITWISE, seepage equal to recharge on every land cell
+at a worst absolute difference of 0.0 m3/s and a largest basin `Qg` of 0.0 m3/s,
+with closure at a relative residual of 1.408e-16 against a declared 1e-10. PASS.
+So the unconfined form does not disturb the identity the component is certified
+by, on this world's own mesh rather than on a synthetic.
+
+It says nothing about the question this row is actually about. Zero permeability
+pins the table at the surface on 100% of land, so there is no flow, no Picard
+iteration and no active set to converge: `saturated_column_drained` reads 0.000%
+in that run because the depth is zero everywhere by construction, and it is NOT
+the materiality measurement this section calls for. That number has to come from
+a CONFINED solve of the real case, which has not been obtained on this build.
 
     python hydrography/scripts/build_groundwater.py --unconfined --uniqueness-check
     python hydrography/scripts/build_groundwater.py --unconfined --reduction-test
