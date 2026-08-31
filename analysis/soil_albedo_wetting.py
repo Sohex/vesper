@@ -485,16 +485,47 @@ def sadeghi_mix(alb_dry, alb_wet, saturation, sigma):
     return np.where(s >= 1.0, np.asarray(alb_wet, dtype=float), out)
 
 
+def sadeghi_mix_three_point(alb_dry, alb_knee, alb_wet, saturation, knee, sigma):
+    """SPAT-7's three-point form: the same mixing, in two segments.
+
+    The two-field mixing is exact at both ends of the saturation axis and wrong
+    between them, and no other PAIR repairs it: the dry field is pinned to the
+    cell's area-mean dry albedo by the radiation reading the same field on dry
+    ground, and the saturated field is pinned at the other end by the same
+    argument. A THIRD staged field, the cell's own mixed albedo at a declared
+    saturation, makes the composition exact at three points instead of two,
+    because every one of the three is an exact area mean of a per-region
+    quantity.
+
+    `landcolumn.f90:wet_soil_albedo_3pt` is the model's copy and
+    `model_mixing_check` requires the two to agree, with all three points
+    bitwise rather than to a tolerance.
+    """
+    s = np.clip(np.asarray(saturation, dtype=float), 0.0, 1.0)
+    k = np.asarray(knee, dtype=float)
+    lower = s <= k
+    sub = np.where(lower, np.divide(s, k, out=np.zeros_like(s), where=k > 0.0),
+                   np.divide(s - k, 1.0 - k, out=np.zeros_like(s), where=k < 1.0))
+    out = np.where(lower, sadeghi_mix(alb_dry, alb_knee, sub, sigma),
+                   sadeghi_mix(alb_knee, alb_wet, sub, sigma))
+    # The model returns the two-point answer for a knee at an end, and `landini`
+    # refuses that configuration before a run can reach it. Mirrored here so the
+    # bitwise check covers the branch rather than skipping it.
+    return np.where((k <= 0.0) | (k >= 1.0),
+                    sadeghi_mix(alb_dry, alb_wet, s, sigma), out)
+
+
 MODEL_MIXING_DRIVER = """\
       program wetmix
       use landcolumn
       implicit none
-      real :: pd, pw, ps, pg
+      real :: pd, pk, pw, ps, pn, pg
       integer :: ios
       do
-       read(*,*,iostat=ios) pd, pw, ps, pg
+       read(*,*,iostat=ios) pd, pk, pw, ps, pn, pg
        if (ios /= 0) exit
-       write(*,'(ES24.16)') wet_soil_albedo(pd, pw, ps, pg)
+       write(*,'(2ES24.16)') wet_soil_albedo(pd, pw, ps, pg),               &
+     &                      wet_soil_albedo_3pt(pd, pk, pw, ps, pn, pg)
       enddo
       end program wetmix
 """
@@ -532,20 +563,36 @@ def model_mixing_check(tmp: Path) -> dict:
     wet = dry * rng.uniform(0.25, 0.90, 400)
     sat = np.concatenate([np.zeros(4), np.ones(4), rng.uniform(0.0, 1.0, 392)])
     sig = rng.uniform(0.05, 1.0, 400)
+    # The three-point form's own axes. The knee is swept over the whole open
+    # interval rather than held at the staged one, because the function has to
+    # be right wherever `landini` lets it be called, and four samples are put ON
+    # the knee so the third point's exactness is exercised and not assumed.
+    knee = rng.uniform(0.05, 0.95, 400)
+    sat[8:12] = knee[8:12]
+    kneealb = sadeghi_mix(dry, wet, knee, sig)
     stdin = "\n".join(
-        f"{float(a):.17e} {float(b):.17e} {float(c):.17e} {float(d):.17e}"
-        for a, b, c, d in zip(dry, wet, sat, sig))
+        f"{float(a):.17e} {float(k):.17e} {float(b):.17e} {float(c):.17e} "
+        f"{float(n):.17e} {float(d):.17e}"
+        for a, k, b, c, n, d in zip(dry, kneealb, wet, sat, knee, sig))
     run = subprocess.run([str(exe)], input=stdin + "\n",
                          capture_output=True, text=True)
     if run.returncode != 0:
         return {"ran": False, "why": run.stderr.strip()[-2000:]}
-    got = np.array([float(line) for line in run.stdout.split()])
+    columns = np.array([float(v) for v in run.stdout.split()]).reshape(-1, 2)
+    got, got3 = columns[:, 0], columns[:, 1]
     want = sadeghi_mix(dry, wet, sat, sig)
+    want3 = sadeghi_mix_three_point(dry, kneealb, wet, sat, knee, sig)
     worst = float(np.max(np.abs(got - want)))
+    worst3 = float(np.max(np.abs(got3 - want3)))
     ends = sat <= 0.0
     worst_dry = float(np.max(np.abs(got[ends] - dry[ends])))
     full = sat >= 1.0
     worst_wet = float(np.max(np.abs(got[full] - wet[full])))
+    # The three-point form's three boundary conditions, each required exactly.
+    at_knee = sat == knee
+    worst3_dry = float(np.max(np.abs(got3[ends] - dry[ends])))
+    worst3_wet = float(np.max(np.abs(got3[full] - wet[full])))
+    worst3_knee = float(np.max(np.abs(got3[at_knee] - kneealb[at_knee])))
     tolerance = 1.0e-12
     return {
         "ran": True,
@@ -554,12 +601,26 @@ def model_mixing_check(tmp: Path) -> dict:
         "tolerance": tolerance,
         "dry_end_exact": worst_dry == 0.0,
         "wet_end_exact": worst_wet == 0.0,
+        "three_point": {
+            "worst_disagreement": worst3,
+            "knee_samples": int(at_knee.sum()),
+            "dry_end_exact": worst3_dry == 0.0,
+            "knee_exact": worst3_knee == 0.0,
+            "wet_end_exact": worst3_wet == 0.0,
+            "what": "the compiled model's wet_soil_albedo_3pt against the same "
+                    "form evaluated here, over the same 400 samples with the "
+                    "knee swept across the open unit interval; all THREE "
+                    "staged points are required to come back BITWISE",
+        },
         "passes": bool(worst <= tolerance and worst_dry == 0.0
-                       and worst_wet == 0.0),
+                       and worst_wet == 0.0 and worst3 <= tolerance
+                       and worst3_dry == 0.0 and worst3_knee == 0.0
+                       and worst3_wet == 0.0),
         "what": "the compiled model's wet_soil_albedo against Sadeghi Eq (13) "
                 "evaluated here, over 400 random (dry, wet, saturation, sigma) "
                 "quadruples, with the two ends required to be BITWISE the "
-                "staged fields",
+                "staged fields, and its wet_soil_albedo_3pt against the "
+                "three-point form on the same samples",
     }
 
 

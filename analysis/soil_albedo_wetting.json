@@ -81,8 +81,16 @@
     "tolerance": 1e-12,
     "dry_end_exact": true,
     "wet_end_exact": true,
+    "three_point": {
+      "worst_disagreement": 0.0,
+      "knee_samples": 4,
+      "dry_end_exact": true,
+      "knee_exact": true,
+      "wet_end_exact": true,
+      "what": "the compiled model's wet_soil_albedo_3pt against the same form evaluated here, over the same 400 samples with the knee swept across the open unit interval; all THREE staged points are required to come back BITWISE"
+    },
     "passes": true,
-    "what": "the compiled model's wet_soil_albedo against Sadeghi Eq (13) evaluated here, over 400 random (dry, wet, saturation, sigma) quadruples, with the two ends required to be BITWISE the staged fields"
+    "what": "the compiled model's wet_soil_albedo against Sadeghi Eq (13) evaluated here, over 400 random (dry, wet, saturation, sigma) quadruples, with the two ends required to be BITWISE the staged fields, and its wet_soil_albedo_3pt against the three-point form on the same samples"
   },
   "held_pair_bracket": {
     "pairs": [

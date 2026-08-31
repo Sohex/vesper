@@ -445,6 +445,77 @@
       return
       end function wet_soil_albedo
 
+!     ============================
+!     FUNCTION WET_SOIL_ALBEDO_3PT
+!     ============================
+!
+!     SPAT-7. The same mixing, run through a THIRD staged albedo so that the
+!     cell's own mixture of rocks is reproduced at three saturations instead of
+!     two.
+!
+!     THE DEFECT THIS EXISTS FOR. `wet_soil_albedo` is linear in the
+!     Kubelka-Munk transform and therefore concave in the albedo, so mixing a
+!     cell's MEAN dry albedo toward its MEAN saturated one is not the mean of
+!     the mixings of the rocks the cell holds. The staged pair is exact at both
+!     ends and wrong between them, and it cannot be repaired by staging a
+!     different pair: code 174 IS the dry albedo, the radiation reads the same
+!     field on dry ground, so it is pinned to the cell's area-mean dry albedo by
+!     a boundary condition that has nothing to do with wetting, and the
+!     saturated pair is pinned at the other end by the same argument.
+!
+!     WHAT A THIRD POINT BUYS, MEASURED RATHER THAN ARGUED.
+!     `analysis/spatial_reduction_gap.py` prices the two-field form at a peak of
+!     0.147 W m-2 of global-mean absorbed shortwave against the accepted
+!     baseline's 0.12 W m-2 storage tolerance, past it over a third of the
+!     saturation range, and this form at 0.042 and inside it everywhere.
+!
+!     WHY NOT A FITTED SIGMA. A per-cell shape parameter chosen to force
+!     agreement at one saturation would be the residual of a fit, with no
+!     derivation to carry to another planet. The third albedo is not: it is the
+!     area mean of the per-region mixed albedo, the same reduction the other two
+!     staged fields already are, so all three are exact area means of per-region
+!     quantities and the agreement at three points is a construction rather than
+!     a result.
+!
+!     THE THREE POINTS ARE RETURNED EXACTLY, for the reason the two-point form's
+!     ends are: at psat = 0 this returns palbdry, at psat = pknee it returns
+!     palbknee and at psat = 1 palbwet, bit for bit, because each falls on an
+!     end of one of the two segments and `wet_soil_albedo` returns its own ends
+!     on a branch.
+!
+!     `pknee` OUTSIDE THE OPEN UNIT INTERVAL IS REFUSED IN `landini`, before a
+!     run can reach here. The branch below exists so the function is total and
+!     not because the configuration is allowed: a knee at an end is not a third
+!     point, it is the two-point form under another name, and that is what it
+!     returns.
+
+      pure function wet_soil_albedo_3pt(palbdry, palbknee, palbwet,         &
+     &                                  psat, pknee, psigma) result(palb)
+      real, intent(in) :: palbdry    ! albedo of the dry endmember
+      real, intent(in) :: palbknee   ! the cell's own mixed albedo at pknee
+      real, intent(in) :: palbwet    ! albedo of the saturated endmember
+      real, intent(in) :: psat       ! degree of saturation, 0 to 1
+      real, intent(in) :: pknee      ! saturation the third field is staged at
+      real, intent(in) :: psigma     ! s_dry / s_sat, Sadeghi's shape parameter
+      real :: palb
+      real :: zs, zsub
+
+      if (pknee <= 0.0 .or. pknee >= 1.0) then
+       palb = wet_soil_albedo(palbdry, palbwet, psat, psigma)
+       return
+      endif
+      zs = AMIN1(1., AMAX1(0., psat))
+      if (zs <= pknee) then
+       zsub = zs / pknee
+       palb = wet_soil_albedo(palbdry, palbknee, zsub, psigma)
+      else
+       zsub = (zs - pknee) / (1.0 - pknee)
+       palb = wet_soil_albedo(palbknee, palbwet, zsub, psigma)
+      endif
+
+      return
+      end function wet_soil_albedo_3pt
+
 !     ================================
 !     FUNCTION ALBEDO_FLOOR_TRANSFORM
 !     ================================
