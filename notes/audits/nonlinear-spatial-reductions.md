@@ -369,6 +369,63 @@ therefore rises by 11.8%, which is far above the 0.02 m the pedogenesis model
 distinguishes. The soil map staged before this change is worthless rather than
 stale.
 
+## 7. The wet-soil albedo mixing. Pre-registered before the measurement
+
+`build_surface_albedo.py` is affine at the crossing everywhere except here, and
+that is worth saying first because it is the larger part of the finding. Every
+nonlinear step in the builder -- the band split through `band_shapes`, the
+per-class wetting ratios, the derived evaporite threshold, the lake paint -- is
+evaluated PER MESH REGION and reduced afterwards, so the six staged albedo
+fields are area-weighted means of quantities the law has already been applied
+to. The builder's own recombination identity, `z1*175 + z2*176 == 174`, is the
+check that says so and it is asserted before the write. Snow albedo, sea-ice
+albedo and the ocean's zenith fit are all evaluated inside the compiled model on
+grid-scale prognostics with no sub-grid population at all, so GW-6's constraint
+applies to them unchanged and no operator is warranted.
+
+One composition is not affine. The builder stages a DRY albedo and a SATURATED
+albedo per cell, each an area-weighted mean over the cell's own lithology, and
+`landmod.f90:wetalb` mixes them per cell through `wet_soil_albedo`, which is
+Sadeghi, Jones and Philpot (2015) Eqs (4) and (13). That mixing is linear in the
+Kubelka-Munk transform `r = (1-R)^2 / (2R)` and therefore concave in the albedo,
+so the cell's own mixture of rocks does not give the mixed albedo of the cell's
+mean rock. The sub-grid population is real and is the mesh's `substrate_class`,
+which spans two decades of albedo between a dark basalt and a playa.
+
+**The bar.** The consuming step is the surface energy balance, and its declared
+instrument is the accepted baseline's 0.12 W m-2 state-storage tolerance --
+`config/partial_surface.yaml` selected the tile operator against it and
+`ocean/config/transport_loop.yaml` carries it as the transport loop's own
+controlling scalar. An albedo error reaches that balance as
+`delta_F = delta_alpha * S_down`, so the bar is the albedo difference worth
+0.12 W m-2 at the accepted baseline's own land-mean downward shortwave, read
+from the climatology rather than assumed.
+
+**The invariants, pre-registered.**
+
+- The gap is EXACTLY ZERO at both ends of the saturation axis. `sadeghi_mix`
+  returns the staged dry field at `s = 0` and the staged wet field at `s = 1` on
+  their own branches, and both are area-weighted means, so the two orders agree
+  to the last bit there. A nonzero gap at either end indicts the arm.
+- The gap is exactly zero in a cell of one substrate class, at every saturation.
+  This is `cell_mean`'s constant-preservation invariant reached through the
+  mixing, and it is falsifiable rather than asserted.
+- The gap is ONE-SIGNED in saturation for a fixed cell, because the mixing is
+  concave in the albedo pair and the curvature of the Kubelka-Munk inverse does
+  not change sign on the physical albedo range. The sign is therefore
+  pre-registrable HERE, unlike in the ocean arms, for the same reason the
+  regolith depth law's was: a single saturating function has one curvature.
+- Refinement must shrink it, because in the limit of one region per cell the
+  two orders are the same computation.
+
+**The correction, if the gap is material, is exact and is not an expectation
+operator.** The mixing is linear in the transform at every saturation, so
+staging the albedo whose transform is the cell's area mean of the per-region
+transforms makes the composition exact for the whole saturation axis at once,
+with no residual. That is the same shape as section 3's roughness repair --
+reduce in the quantity the model is linear in, write back the value that
+reproduces it -- and it costs one transform per staged field.
+
 ## What follows
 
 - The regolith depth law is the one reduction here that needs an expectation
