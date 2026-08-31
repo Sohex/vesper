@@ -90,8 +90,29 @@ def integrated_time(series) -> dict:
     start positive, which is how a short series returns a confident tau it has
     no basis for.
 
-    Returns tau (never below 1), the effective sample size n/tau, the lag-1
-    correlation for reporting, and `reliable`: whether the span is at least
+    IT IS BIASED LOW ON A SHORT SPAN, AND THE BIAS IS THE DANGEROUS DIRECTION.
+    The sum is truncated where the sample correlations stop being resolvable, and
+    on a span that carries few independent samples that happens before the tail
+    has been accumulated. Measured against AR(1) series whose memory time is known
+    by construction, on 1253 samples: 1.0 comes back as 1.01, 10.0 as 9.70, 40.0
+    as 34.4 and 125.0 as 86.1. A tau read too small makes every standard error
+    built on it too small, so `standard_error` and `upper` are returned beside it
+    and a caller that must not understate its error uses the upper end.
+
+    `standard_error` is the asymptotic one for a truncated-window estimator,
+    `tau * sqrt(2 * (2M + 1) / n)` with `M` the highest lag the sum reached. It
+    grows as the truncation reaches further into the series, which is exactly
+    when the estimate is least trustworthy. Madras and Sokal, "The pivot
+    algorithm: a highly efficient Monte Carlo method for the self-avoiding
+    walk", J. Stat. Phys. 50, 109-186 (1988), `10.1007/BF01022990`, section 2.2;
+    the paper is behind a publisher paywall and is NOT in `references/`, so the
+    formula is not taken on trust: `biosphere/scripts/validate_drift_statistic.py`
+    measures how often this interval covers the memory time an AR(1) series was
+    built with, which is a right answer the formula can fail against.
+
+    Returns tau (never below 1), that standard error and the upper end of one
+    interval of it, the truncation lag, the effective sample size n/tau, the
+    lag-1 correlation for reporting, and `reliable`: whether the span is at least
     `RELIABLE_SPAN_MULTIPLE` times the tau it just produced.
     """
     x = np.asarray(series, dtype=float)
@@ -104,7 +125,12 @@ def integrated_time(series) -> dict:
             break
         gammas.append(g if not gammas else min(g, gammas[-1]))
     tau = max(1.0, 1.0 + 2.0 * float(sum(gammas)))
+    truncation = 2 * len(gammas)
+    error = tau * float(np.sqrt(2.0 * (2 * truncation + 1) / n))
     return {"tau": tau,
+            "standard_error": error,
+            "upper": tau + error,
+            "truncation_lag": int(truncation),
             "effective_sample_size": n / tau,
             "lag1": float(rho[1]) if rho.size > 1 else float("nan"),
             "samples": int(n),

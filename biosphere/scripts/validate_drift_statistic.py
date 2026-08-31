@@ -162,12 +162,19 @@ def known_answer(rng, cycles: int, trials: int, alpha: float,
     accepted = sum(1 for row in series
                    if drift_bound(row, alpha, floor)["upper_bound"] <= limit)
     recovered = {}
-    for tau in (1.0, 10.0, 40.0, 125.0):
+    for tau in (1.0, 10.0, 40.0, 125.0, 213.0):
         sample = ar1_paths(rng, tau, cycles, 200)
-        taus = [integrated_time(row)["tau"] for row in sample]
-        recovered[tau] = {"median": float(np.median(taus)),
-                          "reliable_bar_cycles": 10.0 * tau,
-                          "record_cycles": cycles}
+        estimates = [integrated_time(row) for row in sample]
+        recovered[tau] = {
+            "median": float(np.median([e["tau"] for e in estimates])),
+            "median_upper": float(np.median([e["upper"] for e in estimates])),
+            # How often the upper end actually covers the memory time the series
+            # was built with. The point estimate is biased low, so this is the
+            # number that says whether the conservatism is enough.
+            "upper_covers_truth": float(np.mean(
+                [e["upper"] >= tau for e in estimates])),
+            "reliable_bar_cycles": 10.0 * tau,
+            "record_cycles": cycles}
     return {"independent_accept_rate": accepted / trials,
             "declared_alpha": alpha,
             "recovered_tau": recovered}
@@ -270,9 +277,10 @@ def main() -> int:
           f"declared {alpha:g}; Monte-Carlo standard error "
           f"{np.sqrt(alpha * (1 - alpha) / args.trials):.4f}")
     for tau, row in known["recovered_tau"].items():
-        print(f"  AR(1) tau {tau:>6.1f} recovered {row['median']:>8.2f} over "
-              f"{row['record_cycles']} cycles, reliable bar "
-              f"{row['reliable_bar_cycles']:.0f}")
+        print(f"  AR(1) tau {tau:>6.1f} recovered {row['median']:>8.2f}, upper "
+              f"{row['median_upper']:>8.2f}, upper covers the truth "
+              f"{row['upper_covers_truth']:.3f} of the time over "
+              f"{row['record_cycles']} cycles")
     print(f"\nSWEEP, {args.cycles} cycles, relative scatter {args.scatter:g}, "
           f"significance form at a family rate of {args.family_rate:g} over "
           f"{family_size} fields (per-field level {level:.2e})")

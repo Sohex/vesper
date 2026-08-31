@@ -338,7 +338,16 @@ def drift_bound(series, alpha: float, floor: float) -> dict:
         raise EquilibriumWindowError(
             "a drift bound needs at least six cycles to halve")
     first, last = x[:m], x[n - m:]
-    tau = max(integrated_time(first)["tau"], integrated_time(last)["tau"])
+    # THE UPPER END OF THE MEMORY TIME, NOT THE ESTIMATE. `integrated_time` is
+    # biased low on a span carrying few independent samples -- against AR(1)
+    # series of known memory time on 1253 samples it returns 86.1 for a true
+    # 125.0 -- and a memory time read too small makes the standard error built
+    # on it too small and the bound too narrow. On the point estimate the
+    # declared acceptance rate held to a memory time of 175 cycles and reached
+    # 0.109 at 400, which is why the upper end is used here. Taking the LARGER of
+    # the two halves on top of that is the same conservatism applied to the split.
+    # `biosphere/notes/equilibrium-trend-null.md` carries both sweeps.
+    tau = max(integrated_time(first)["upper"], integrated_time(last)["upper"])
     variances = [float(np.var(half, ddof=1)) * tau / m for half in (first, last)]
     effective = m / tau
     per_half_df = max(effective - 1.0, 1.0)
