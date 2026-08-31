@@ -69,6 +69,7 @@ checkout dies on a missing file there.
     python scripts/link_worktree.py                    # from inside the worktree
     python scripts/link_worktree.py --worktree PATH    # from the main checkout
     python scripts/link_worktree.py --check            # report only, exit 1 if incomplete
+    python scripts/check_worktree_links.py             # has anything been written through?
 
 It symlinks that set back to the main checkout. The set is DERIVED from the
 ignore rules on every run rather than listed, so a new build or a new cache is
@@ -103,14 +104,63 @@ names it, and the fix is to copy it to the main checkout before the worktree
 goes. `notes/audits/worktree-stranded-payload.md` carries the shapes and the
 evidence.
 
+THE SAME SHAPE HAS A SECOND DIRECTION, and it is the sharper one. A per-file
+link is a symlink INTO the main checkout, so a worktree that REGENERATES a
+linked file writes straight through. Losing a file costs the work that made it;
+writing through mutates a tree other agents are using, at a moment nobody chose,
+and the damage lands on an artifact -- a compiled binary, a staged surface field
+-- rather than on the file.
+`vendor/lpj-guess/framework/vesper.h` is generated, ignored, and sits beside
+tracked source, so it gets a per-file link; regenerating it in a worktree
+replaced the bytes the main checkout's LPJ-GUESS binary had been built against,
+and `build_lpj_guess.py --verify` began refusing a binary nobody had touched.
+
+A READ-ONLY LINK IS NOT AVAILABLE, which is why the repair is where it is. A
+symlink carries no permissions of its own; the only mode that decides whether a
+write lands is the TARGET's, in the main checkout, which is shared with every
+other worktree and with the main checkout's own legitimate regeneration. So
+there are two places left, and the project uses both. THE WRITE DOOR, where a
+refusal is exact: `exoplasim/scripts/sra.py:write_sra` is the single door all
+four staged-field builders go through, and it refuses a path that is or sits
+under a symlink, which covers `exoplasim/inputs/<rung>/` at once. A skip in the
+linker would be the wrong repair there, because the READ is legitimate and a
+worktree that cannot stage a run cannot do anything. AND THE LEDGER, for
+everything with no such door yet: `link_worktree.py` records what each per-file
+link pointed at, into the worktree's own `.git/worktrees/<name>/`, and reports
+any target whose bytes have moved since. `--check` fails on it, and
+`check_worktree_links.py` asks the same question at the moment an agent commits,
+which is where it reaches the agent that made the write -- an agent regenerating
+a file does not then run the linker.
+
+It names the FACT AND NOT THE CULPRIT, deliberately. From inside a worktree, a
+write from here and a regeneration in the main checkout are indistinguishable,
+and both matter: the first invalidates whatever the main checkout built from
+those bytes, the second means this worktree's results came from bytes that are
+gone. The disposition is the same either way -- settle which, rebuild what
+depended on them, re-run the linker to re-baseline -- and re-running is how a
+legitimate regeneration is accepted rather than refused.
+
+Two things are outside the ledger, both on purpose. Writes inside a DIRECTORY
+link are the arrangement and not the failure: a wholly-ignored directory is one
+symlink precisely so a worktree's new run survives the worktree. And `.beads/`
+is the issue tracker's shared state, which every `bd` command in every tree
+writes through by design. Content is compared exactly below a hash budget and by
+size and mtime above it, because a few large payload files are almost all of the
+bytes; above the budget a rewrite that produced identical bytes still reports,
+which is the instrument's honest resolution rather than a false positive, since
+what is being detected is the write and not the difference in the bytes.
+
 Two things are held back. Everything compiled from tracked source that a
-worktree may have edited -- `vendor/exoplasim` and the LPJ-GUESS build -- is not
-linked, because a link both hides the worktree's own edit behind the main
-checkout's binary and lets a rebuild in the worktree overwrite that binary,
-which is CLAUDE.md rule 4 with the safety off. Build them in the worktree, or
-pass `--model-binaries` when the worktree does not touch the model. Regenerable
-output is not linked either, for the narrower reason that the worktree's build
-would land in the main checkout.
+worktree may have edited -- `vendor/exoplasim`, the LPJ-GUESS build and
+`vendor/cgenie` -- is not linked, because a link both hides the worktree's own
+edit behind the main checkout's binary and lets a rebuild in the worktree
+overwrite that binary, which is CLAUDE.md rule 4 with the safety off. Build them
+in the worktree, or pass `--model-binaries` when the worktree does not touch the
+model. `vendor/cgenie` joined that set on 2026-08-31: every ignored path under
+it is build output and there is no ignored directory there at all, so a worktree
+that built the ocean model had been writing its objects and libraries straight
+over the main checkout's. Regenerable output is not linked either, for the
+narrower reason that the worktree's build would land in the main checkout.
 
 `exoplasim/bench` IS linked, as a wholly-ignored directory, and the transform
 gates work inside it. Each one opens by deleting its own subdirectory there, so

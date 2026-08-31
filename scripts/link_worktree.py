@@ -40,13 +40,15 @@ it:
   the main checkout. Nothing reads it across a component boundary -- the record
   each gate argues lives in `biosphere/notes/`, which is tracked.
 - Everything compiled from tracked source that a worktree may have edited:
-  `vendor/exoplasim/` and `vendor/lpj-guess/build/`. This is rule 4's failure
-  mode with the safety off. A linked binary directory means the worktree runs
+  `vendor/exoplasim/`, `vendor/lpj-guess/build/` and `vendor/cgenie/`. This is
+  rule 4's failure mode with the safety off. A linked binary directory means the worktree runs
   the model the MAIN checkout compiled, so an edit under `vendor/exoplasim`
   looks like a no-op; and a rebuild inside the worktree writes its executables
   over the main checkout's, which is the arm of any A/B this project is running.
-  `--model-binaries` links them anyway, for a worktree that does not touch the
-  model. `vendor/orogen/node_modules` is NOT in this class -- it is an install,
+  Every ignored path under `vendor/cgenie/` is build output and there is no
+  ignored directory there at all, so the whole subtree is held back by one
+  prefix. `--model-binaries` links them anyway, for a worktree that does not
+  touch the model. `vendor/orogen/node_modules` is NOT in this class -- it is an install,
   not a build of tracked source -- and is linked.
 
 `.venv` IS linked, and it carries a caveat this script prints rather than
@@ -115,8 +117,12 @@ SKIP_SELF = (".claude/",)
 SKIP_REGENERABLE = ("docs/book/", "maps/build/", "biosphere/generated/")
 
 # Held back because they are compiled from tracked source the worktree may have
-# edited. See the module docstring and CLAUDE.md rule 4.
-SKIP_COMPILED = ("vendor/exoplasim/", "vendor/lpj-guess/build/")
+# edited. See the module docstring and CLAUDE.md rule 4. `vendor/cgenie/` joined
+# on 2026-08-31: every ignored path under it is build output -- .o, .mod, .dep
+# and .a, and no ignored directory at all -- so a worktree that built the ocean
+# model wrote its objects and libraries straight over the main checkout's, which
+# is precisely what this tuple exists to prevent for the other two.
+SKIP_COMPILED = ("vendor/exoplasim/", "vendor/lpj-guess/build/", "vendor/cgenie/")
 
 # LINKED, and deliberately left out of the link ledger below. `.beads/` is the
 # issue tracker's shared state and every `bd` command in every tree writes it
@@ -503,8 +509,8 @@ def main() -> None:
     ap.add_argument("--check", action="store_true",
                     help="like --dry-run, but exit 1 if anything is missing")
     ap.add_argument("--model-binaries", action="store_true",
-                    help="also link vendor/exoplasim and the LPJ-GUESS build "
-                         "(see the warning this prints)")
+                    help="also link vendor/exoplasim, the LPJ-GUESS build and "
+                         "vendor/cgenie (see the warning this prints)")
     ap.add_argument("--verbose", "-v", action="store_true",
                     help="name every path instead of counting them")
     args = ap.parse_args()
@@ -591,15 +597,16 @@ def main() -> None:
         write_ledger(wt, main_root, ledgered_rels)
 
     if not args.model_binaries:
-        print("\nvendor/exoplasim and vendor/lpj-guess/build were NOT linked: they are\n"
-              "compiled from tracked source this worktree may have edited, so a link\n"
-              "would both hide the edit and let a rebuild here overwrite the main\n"
-              "checkout's binaries. Build them in the worktree, or pass\n"
-              "--model-binaries if this worktree does not touch the model.")
+        print("\nvendor/exoplasim, vendor/lpj-guess/build and vendor/cgenie were NOT\n"
+              "linked: they are compiled from tracked source this worktree may have\n"
+              "edited, so a link would both hide the edit and let a rebuild here\n"
+              "overwrite the main checkout's binaries. Build them in the worktree, or\n"
+              "pass --model-binaries if this worktree does not touch the model.")
     else:
-        print("\n--model-binaries: vendor/exoplasim IS linked. A rebuild in this\n"
-              "worktree now writes over the main checkout's executables, and an edit\n"
-              "to the model source here does not change what runs. Do neither.")
+        print("\n--model-binaries: vendor/exoplasim, the LPJ-GUESS build and\n"
+              "vendor/cgenie ARE linked. A rebuild in this worktree now writes over\n"
+              "the main checkout's objects and executables, and an edit to the model\n"
+              "source here does not change what runs. Do neither.")
 
     if (wt / ".venv").is_symlink():
         print("\n.venv is linked, and ExoPlaSim is installed editable from the MAIN\n"
