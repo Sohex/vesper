@@ -1341,10 +1341,11 @@ reports rms and maximum residuals into the header and the provenance JSON, and i
 re-derives per planet. That is the distinction this audit turns on, in one
 function.
 
-**`scripts/error_budget.py:108`'s `DEFAULT_ATTENUATION = 0.5`** is the one that
-looked like a fudge and is not: "A factor of 0.5 is used here as a conservative
-default and both columns are reported, because the honest claim is a factor of two
-rather than a number."
+**`scripts/error_budget.py`'s `DEFAULT_ATTENUATION`** is the one that looked like
+a fudge and was not: it was a declared 0.5 with the file saying the honest claim
+was a factor of two rather than a number. It is now measured on four paired arms
+at 0.38 with a span of 0.29 to 0.48, so it has left this audit's subject matter
+entirely; `notes/audits/albedo-attenuation.md` is the finding.
 
 **Also swept and clear**, in less detail because the pattern is the same: the
 `minerals/` prospectivity rules, which carry a declared four-value grounding

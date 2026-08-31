@@ -35,9 +35,12 @@ are supposed to be written down and to stay put. `cold_extreme_cap`,
 `lib/run_lengths.py`'s `PRODUCTION_SPAN_TAU_MULTIPLE` and `SETTLING_RESIDUAL_K`,
 `lib/gridding.py`'s `COUPLING_OCEAN_FRACTION_LIMIT`, the 32 MB per-die target,
 `aeolian/scripts/dust_intensity_levers.py`'s two tabulation criteria and
-`maps/render_projections.py`'s `cut_max` and `gross_max` are decisions. So is
-`scripts/error_budget.py`'s `DEFAULT_ATTENUATION`, which declares itself a
-conservative factor of two rather than a measurement.
+`maps/render_projections.py`'s `cut_max` and `gross_max` are decisions.
+`scripts/error_budget.py`'s `DEFAULT_ATTENUATION` WAS one, declaring itself a
+conservative factor of two rather than a measurement; it left the class on
+2026-08-30 when `notes/audits/albedo-attenuation.md` measured it on four paired
+arms, and it is now a derived quantity with `verify_attenuation` re-deriving it
+from the arms' own convergence reports.
 
 A measured figure USED AS a criterion is still a decision, provided it was fixed
 before the results it judges. `dust_intensity_levers.py` states that in its own
@@ -367,6 +370,7 @@ dispositioned**; the table records which disposition each took and what moved.
 
 | quantity | where | disposition | what moved |
 | --- | --- | --- | --- |
+| `DEFAULT_ATTENUATION` | `scripts/error_budget.py` | two. `ATTENUATION_PAIRS` names four paired arms and `verify_attenuation` re-reads both asymptotes of each from its convergence report and re-derives the attenuation from them. The albedo half is declared and cannot be re-read: PHYS-15's two arms are deleted | 0.5 declared to a factor of two, so 0.25 to 1.00, becomes 0.38 measured with a span of 0.29 to 0.48. Every albedo item falls to 0.76 of its kelvin and the ranking between them does not move |
 | `HYDROLOGICAL_RESPONSE_PER_KELVIN` | `scripts/error_budget.py` | two, partly. `HYDROLOGICAL_RESPONSE_SECANT` names the runs, the window and the build, and `verify_hydrological_response` re-reads the temperatures from the run index | nothing numeric. The pairing now REFUSES: the secant is on `precarve-craton` and the water balance it multiplies is on the configured build, so the carve columns report as unavailable |
 | `GASCON`, `CP_AIR` | `hydrography/scripts/carve_verdict.py`, `land_water_ledger.py` | one. Both come from `lib/lapse.gas_properties` on the declared composition | the carve list, 3944 to 3943 basins. R was right to 4.5e-7; the difference is cp, Earth's textbook 1005.0 against this atmosphere's 1004.897 |
 | `WATER_ALBEDO` | `hydrography/scripts/carve_verdict.py` | one. Read from the configured mesh's own rock-class legend | nothing; the export carries 0.06 exactly |

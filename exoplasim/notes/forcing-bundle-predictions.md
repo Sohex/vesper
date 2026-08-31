@@ -2418,8 +2418,8 @@ be what decides whether the dark end is open.
 one.** `lib/sensitivity.py` deliberately refuses that conversion, so it goes
 through the budget that owns the assumption:
 `scripts/error_budget.py:albedo_to_kelvin`, land fraction 0.432841 by surface
-class from the build manifest, and `DEFAULT_ATTENUATION = 0.5` with the factor of
-two that file declares for itself. The planetary albedo is 0.3173, taken from
+class from the build manifest, and `DEFAULT_ATTENUATION`, which is 0.38 with a
+measured span of 0.29 to 0.48 since `notes/audits/albedo-attenuation.md`. The planetary albedo is 0.3173, taken from
 `run_c9c24d438a94`'s own annual means over orbits 15 to 24 through
 `sensitivity.planetary_albedo_from_fluxes`, because `config/planet.yaml`'s
 `baseline_climatology` is null and this build has no climatology to read.
@@ -2456,8 +2456,12 @@ Eq (13) and then land meaned; `wetting.at_full_surface_layer` in
 `albedo_report.json` carries its last row so it does not have to be re-derived
 again.
 
-**THE CEILING IS NOW +1.25 K at attenuation 0.5, bracketed +0.62 to +2.49**, and
-the material threshold at 1.0 K moves from f above 0.0677 to **f above 0.756**.
+**THE CEILING IS +0.94 K at the measured attenuation, bracketed +0.72 to +1.19**,
+and the material threshold at 1.0 K is **not reached at any f**: the ceiling is
+the fall at a permanently saturated skin everywhere at once and it sits below
+1.0 K. AMENDED 2026-08-30, and the amendment is visible because the prediction is
+registered: this row read +1.25 K bracketed +0.62 to +2.49 with the threshold at
+f above 0.756, and what moved is the attenuation becoming measured.
 
 **THE CONSEQUENCE IS THAT THE REGISTERED BAR NO LONGER DISCRIMINATES IN `tas`,
 and that is the finding rather than a caveat.** The resolution bar fixed below is
@@ -2469,7 +2473,7 @@ reporting its own scatter and would say nothing about this term. The `alb`
 measurement below is unaffected and is now the test rather than the corroboration:
 it is set by the boundary condition and the saturation the cascade hands it, not
 by the circulation. What a temperature separation is still good for is the SIGN,
-which is hard, and the upper bound: anything above +2.5 K is not this term.
+which is hard, and the upper bound: anything above +1.2 K is not this term.
 
 **THE SIGN IS HARD AND IT IS ONE-SIGNED.** Every non-refused region's saturated
 field is darker than its dry field, `build_surface_albedo.py` refuses to write a
@@ -2482,7 +2486,7 @@ small result.
 maps to 0.7642 and not to 1, so the staged saturated endmember is an endpoint the
 mixing approaches and never reaches. Mixed per cell and then land meaned that is
 a land-mean albedo fall of 0.024633 against the 0.030156 endmember swing, worth
-+1.25 K at attenuation 0.5 and +0.62 to +2.49 across the declared factor of two.
++0.94 K at the measured attenuation and +0.72 to +1.19 across its measured span.
 That is a state the model cannot hold and it is registered as a bound, not an
 estimate. It is also far outside the regime `SLOPE_K_PER_FLUX_RATIO` was measured
 in, which is itself the finding: this term cannot be settled by prediction.
@@ -2492,15 +2496,15 @@ layer's liquid store as a fraction of its own capacity, land-area and time
 meaned; `Sr` is `skinsrad + f*(skinsrfc - skinsrad)`; the albedo is the
 Kubelka-Munk mixing at `wetsigma = 1`, taken per cell and then land meaned.
 
-| f | Sr | land-mean albedo | fall | K at 0.25 | K at 0.5 | K at 1.0 |
+| f | Sr | land-mean albedo | fall | K at 0.29 | K at 0.38 | K at 0.48 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0.02 | 0.0153 | 0.170111 | 0.000660 | +0.02 | +0.03 | +0.07 |
-| 0.05 | 0.0382 | 0.169141 | 0.001631 | +0.04 | +0.08 | +0.17 |
-| 0.10 | 0.0764 | 0.167575 | 0.003197 | +0.08 | +0.16 | +0.32 |
-| 0.15 | 0.1146 | 0.166066 | 0.004705 | +0.12 | +0.24 | +0.48 |
-| 0.25 | 0.1910 | 0.163203 | 0.007569 | +0.19 | +0.38 | +0.77 |
-| 0.50 | 0.3821 | 0.156775 | 0.013997 | +0.35 | +0.71 | +1.42 |
-| 1.00 | 0.7642 | 0.146138 | 0.024633 | +0.62 | +1.25 | +2.49 |
+| 0.02 | 0.0153 | 0.170111 | 0.000660 | +0.02 | +0.03 | +0.03 |
+| 0.05 | 0.0382 | 0.169141 | 0.001631 | +0.05 | +0.06 | +0.08 |
+| 0.10 | 0.0764 | 0.167575 | 0.003197 | +0.09 | +0.12 | +0.15 |
+| 0.15 | 0.1146 | 0.166066 | 0.004705 | +0.14 | +0.18 | +0.23 |
+| 0.25 | 0.1910 | 0.163203 | 0.007569 | +0.22 | +0.29 | +0.37 |
+| 0.50 | 0.3821 | 0.156775 | 0.013997 | +0.41 | +0.54 | +0.68 |
+| 1.00 | 0.7642 | 0.146138 | 0.024633 | +0.72 | +0.94 | +1.19 |
 
 The curve is strongly CONCAVE, which is the half of Sadeghi, Jones and Philpot
 that matters here: a skin at a tenth of its capacity has already given up an
@@ -2575,9 +2579,10 @@ only where `|diff| > 2*sqrt(2)*max(SEM)`. The same bar `vdiff_lamm` and
   mixing is checked bitwise against Sadeghi Eq (13) over 400 random quadruples in
   `analysis/soil_albedo_wetting.json:model_mixing`, so a disagreement is in the
   saturation the model hands it, not in the curve.
-- A separation resolved above the ceiling row, +1.25 K at attenuation 0.5. The
-  attenuation is declared to a factor of two and the ceiling is a bound on the
-  albedo, so anything above +2.5 K is not this term.
+- A separation resolved above the ceiling row, +0.94 K at the measured
+  attenuation. The attenuation is measured across a span of 0.29 to 0.48 and
+  the ceiling is a bound on the albedo, so anything above +1.2 K is not this
+  term.
 
 ## PHYS-15's arm: what the paired `NWETSOIL` set will measure
 
@@ -2618,10 +2623,10 @@ background after `getalb` has mixed it, so the truth is at or below the unmasked
 end, and the mask is a blend rather than a switch, so it is at or above the
 masked end.
 
-| | land-mean `alb` fall | K at 0.25 | K at 0.5 | K at 1.0 |
+| | land-mean `alb` fall | K at 0.29 | K at 0.38 | K at 0.48 |
 | --- | --- | --- | --- | --- |
-| unmasked, the upper end | 0.006745 | +0.17 | +0.34 | +0.68 |
-| snow and ice masked, the lower end | 0.003780 | +0.10 | +0.19 | +0.38 |
+| unmasked, the upper end | 0.006745 | +0.20 | +0.26 | +0.33 |
+| snow and ice masked, the lower end | 0.003780 | +0.11 | +0.14 | +0.18 |
 
 **THE INSTRUMENT, AND WHY THE TEST IS `alb` AND NOT `tas`.** A twenty-five-orbit
 paired difference in global-mean `tas` carries a standard error of 0.56 to 0.75 K
@@ -2690,13 +2695,19 @@ to 2.1 K figure against a well-settled donor is understating its instrument the
 same way.
 
 **What the separation buys.** A fall of 0.006397 reaches +0.1972 K only at an
-attenuation of 0.3045, against the 0.5 `scripts/error_budget.py` declares while
-saying the honest claim is a factor of two. That is the first MEASUREMENT this
-project has of that factor, it lands inside the declared bracket at the low end,
-and it puts this term's forcing at 0.287 W/m2 rather than 0.471. One term is not
-the budget and the attenuation is a property of the atmosphere above the surface
-rather than of the surface, so it is one point; world-ckbt carries what would
-make it more.
+attenuation of 0.3045, against the 0.5 `scripts/error_budget.py` declared while
+saying the honest claim was a factor of two. That was the first MEASUREMENT this
+project had of that factor.
+
+**AMENDED 2026-08-30: it is now one of four and the budget's constant is
+measured.** `notes/audits/albedo-attenuation.md` adds three paired endmember
+spin-ups already on disk. `DEFAULT_ATTENUATION` is 0.38 with a measured span of
+0.29 to 0.48, so every kelvin registered in this file through the albedo route
+falls to 0.76 of what it read, and the entries above are amended in place. This
+term's own row there is 0.292 rather than 0.3045, because the budget's items are
+STAGED deltas and 0.006397 is the realised fall: the staged prediction the arm
+was registered against, 0.006745, is the denominator that composes. Its forcing
+is 0.358 W/m2 at the measured constant, against the 0.471 the declared one gave.
 
 ## PHYS-15, the second of two commits: `dwmax` from `evaporable_mm`
 
