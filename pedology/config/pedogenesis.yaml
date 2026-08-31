@@ -1180,6 +1180,190 @@ organic:
   carbon_nitrogen_ratio: 12.0
 
 # ---------------------------------------------------------------------------
+# The exchange complex
+# ---------------------------------------------------------------------------
+# Cation exchange capacity of the simulated soil, and the share of it that base
+# cations occupy. This is the colloid surface a gridcell's clay and organic
+# matter present, and it is what holds this world's circulating potassium,
+# calcium and magnesium outside the plants.
+#
+# THE FORM IS ADDITIVE AND CARRIES NO INTERCEPT. Exchange sites sit on clay-size
+# mineral surfaces and on organic matter, so a soil with neither carries no
+# capacity, and the only extrapolable form is
+#
+#     CEC = clay_cec * clay_fraction + organic_matter_cec * organic_fraction
+#
+# in cmol(+) per kg of fine earth, with both fractions by mass.
+#
+# SOURCE OF THE TWO COEFFICIENTS, and the reading applied to it. Sahrawat (1983),
+# *An analysis of the contribution of organic matter and clay to cation exchange
+# capacity of some Philippine soils*, Comm. Soil Sci. Plant Anal. 14(9), 803-809,
+# `10.1080/00103628309367409`, regressed CEC on organic matter and clay over 40
+# surface soils and reports CEC = 7.98 + 3.00*OM% + 0.38*clay%, R2 = 0.60. The
+# two SLOPES are what is taken: 0.38 meq/100 g per per cent clay is 38 cmol(+)
+# per kg of clay, and 3.00 per per cent organic matter is 300 cmol(+) per kg of
+# organic matter.
+#
+# THE INTERCEPT IS DROPPED, AND THAT IS A READING RATHER THAN THE PAPER'S OWN
+# STATEMENT. 7.98 meq/100 g at zero clay and zero organic matter is a capacity
+# with no surface to sit on, so it is a regional artifact of a fit over soils
+# none of which approach either endmember. Dropping it is one-signed: at
+# Sahrawat's own mean composition the no-intercept form returns 24.2 against a
+# measured mean of 32.2, so the emitted field UNDERSTATES capacity by of order
+# 8 cmol(+)/kg wherever the fit's regime applies. `build_soil.py` reports that
+# offset beside the field rather than folding it in, and the ANUT-8 bound adds
+# it back so the bound stays one-signed in the safe direction.
+#
+# WHAT THE COEFFICIENTS ARE CHECKED AGAINST, on a test that could have failed.
+# Solly et al. (2020), *A critical evaluation of the relationship between the
+# effective cation exchange capacity and soil organic carbon content in Swiss
+# forest soils*, Front. For. Glob. Change 3, 98, `10.3389/ffgc.2020.00098`,
+# measured effective CEC on 1204 forest profiles spanning pH 2.8 to 8.1, clay
+# 0.8 to 75.6 per cent and organic carbon 0 to 377 g/kg, and partitioned it by
+# partial regression into an organic-matter share and a clay share within each
+# of nine pH classes. Organic matter carries 35 to 50 per cent of topsoil CEC.
+# Sahrawat's two slopes at his own mean composition put the organic share at
+# 37.9 per cent, INSIDE that band, on a different continent by a different
+# method. A slope pair that landed outside would have said the additive form
+# does not transfer.
+#
+# THE BRACKET IS THAT SAME MEASUREMENT, INVERTED. Holding the total at
+# Sahrawat's reference composition and letting the organic share span Solly's
+# measured 35 to 50 per cent rotates the pair between the two ends below. THEY
+# ARE ANTI-CORRELATED AND ARE SWEPT JOINTLY, low clay with high organic matter,
+# in the same way the water block's endmembers are: taking one end of each
+# independently is a composition neither source supports.
+#
+# WHAT IS NOT BRACKETED, AND IS AN EXPOSURE RATHER THAN A NUMBER. The LEVEL of
+# the pair rests on one region's fit at R2 0.60 with n = 40. The two sources
+# that would close it are a pH-resolved separation of the clay and
+# organic-matter contributions (Helling, Chesters and Corey 1964,
+# `10.2136/sssaj1964.03615995002800040020x`) and a compilation across soil
+# orders (Manrique, Jones and Dyke 1991,
+# `10.2136/sssaj1991.03615995005500030026x`); neither is reachable from this
+# host and neither is read here, so neither is cited as a source. Under this
+# project's vocabulary the LEVEL is an open exposure, and world-n4i0 owns it.
+#
+# WHAT THE FIELD IS BLIND TO, and it is this component's own pH field. Sahrawat
+# reports one fit over soils spanning pH 3.5 to 7.9 and does not resolve pH, so
+# the emitted capacity does not respond to the pH block above however far that
+# block moves a cell. Solly's own model finds pH the single largest term in
+# subsoil CEC variance, so the blindness is real and not a rounding. What pH
+# DOES reach, below, is base saturation, and that is where it matters for the
+# circulating pool: capacity that aluminium occupies holds no nutrient.
+exchange:
+  clay_cec_cmol_kg: 38.0
+  organic_matter_cec_cmol_kg: 300.0
+  # Swept jointly, ends paired: [low, high] of the clay coefficient goes with
+  # [high, low] of the organic one.
+  clay_cec_bracket_cmol_kg: [30.6, 39.8]
+  organic_matter_cec_bracket_cmol_kg: [277.0, 396.0]
+  # The dropped intercept, in the paper's own units, carried so the one-signed
+  # understatement it causes is a number a reader can see.
+  sahrawat_intercept_cmol_kg: 7.98
+  # The measured envelope the emitted field is checked against. Solly et al.
+  # (2020) Table 1, topsoil effective CEC 20.4 to 1046.4 mmol(+)/kg, in
+  # cmol(+)/kg. A land distribution outside it is not a wider world, it is a
+  # relation applied outside every soil it was ever measured on.
+  measured_envelope_cmol_kg: [2.04, 104.64]
+
+  # THE CROSS-CHECK, RUN AT EVERY CALL RATHER THAN ASSERTED IN PROSE. Sahrawat's
+  # reference composition is his Table 1 mean, clay 39.6 per cent and organic
+  # matter 3.06 per cent; the two coefficients above evaluated there must put
+  # the organic share of capacity inside the 35 to 50 per cent Solly et al.
+  # (2020) measured by partial regression over Swiss forest topsoils. The pair
+  # currently lands at 37.9 per cent. A pair edited to land outside says the
+  # additive form no longer transfers between the two datasets, which is the
+  # finding and not a reason to widen the band.
+  organic_share_check:
+    reference_clay_fraction: 0.396
+    reference_organic_matter_fraction: 0.0306
+    solly_topsoil_organic_share_bracket: [0.35, 0.50]
+
+  # BASE SATURATION AS A FUNCTION OF pH. The fraction of exchange sites holding
+  # base cations rather than aluminium and protons, which is the fraction that
+  # holds anything a plant circulates.
+  #
+  # TWO READ SOURCES, INDEPENDENT, AGREEING ON WHERE THE TRANSITION SITS.
+  # Chadwick et al. (2003), `10.1016/j.chemgeo.2002.09.001`, Table 7 pairs pH
+  # with base saturation horizon by horizon along a rainfall transect: at pH
+  # 6.7 and above, saturation is 77 to 100 per cent; between 5.9 and 6.4 it is
+  # 41 to 65; at 5.6 and below it is 1 to 12. Solly et al. (2020) reach the same
+  # threshold from the other side on a different continent: exchangeable calcium
+  # carries 59 to 83 per cent of effective CEC at pH at or above 5.5, while
+  # below pH 5 exchangeable aluminium carries 21 to 44 per cent.
+  #
+  # A RAMP AND NOT A STEP, because both sources resolve the transition rather
+  # than bracketing it. Saturation is `low_value` at or below `ph_low`, 1.0 at
+  # or above `ph_high`, linear between. The two ends are where the two sources
+  # place the transition, not a fit to either.
+  base_saturation:
+    ph_low: 5.5
+    ph_high: 6.5
+    low_value: 0.05
+
+  # THE SHARE OF THE BASE POOL EACH ELEMENT HOLDS, and the refusal that goes
+  # with it. Solly et al. (2020) resolve calcium alone: 59 to 83 per cent of
+  # effective CEC above pH 5.5. Magnesium and potassium sit inside the paper's
+  # "other cations" group with sodium, manganese, iron and protons, so no read
+  # source here separates them. What IS available for those two is the
+  # complement, which is a real upper bound and a loose one, and it is declared
+  # as an upper bound rather than fabricated into a central value.
+  #
+  # DIRECTION: UP. Each entry is the largest share the sources permit, because
+  # ANUT-8 wants an upper bound on the pool.
+  cation_share_upper:
+    Ca: 0.83
+    Mg: 0.41
+    K: 0.41
+  # Sulfur reaches plants as sulfate, an ANION. It is not held on a cation
+  # exchange complex at all, so its exchangeable term is zero by mechanism and
+  # not by a missing measurement. Andic and other variable-charge material does
+  # carry anion exchange, which is why this is named as a declared absence
+  # rather than as a proof that no sulfate is retained: what is claimed is that
+  # the CATION exchange complex this block models holds none of it.
+  sulfur_on_cation_exchange: 0.0
+
+  # THE PLANT HALF OF THE ANUT-8 MULTIPLIER, kept here beside the soil half so
+  # the two are read from one place.
+  #
+  # Vitousek and Sanford (1986), `10.1146/annurev.es.17.110186.001033`, Table 7
+  # pairs above-ground and below-ground nutrient content at twelve moist
+  # tropical forest sites. The largest root-to-shoot nutrient ratio in the table
+  # is at the Venezuelan open bana, a 5.5 T/ha heath scrub on white sand whose
+  # own above-ground potassium pool is 29 kg/ha, two orders below the Panama
+  # figure ANUT-8's above-ground maximum comes from.
+  #
+  # BOTH NUMBERS ARE DECLARED, because they answer different questions and the
+  # ledger needs to see both. `all_sites` is the maximum over the whole table
+  # and is what the config's own "maximum over the compilation" rule gives;
+  # `closed_canopy` excludes the spodosol and psamment heath sites, so it is the
+  # largest ratio at a site of the kind the above-ground maximum was taken from,
+  # and is the coherent single-ecosystem answer. The gap between them is the
+  # cost of composing maxima across ecosystem types and is not narrowable from
+  # this table.
+  root_to_shoot_nutrient_upper:
+    all_sites:
+      K: 3.24
+      Ca: 3.75
+      Mg: 5.43
+      # Sulfur is not in Table 7. It takes calcium's ratio, which is the largest
+      # of the three at every site where all three are reported, so the
+      # substitution is one-signed upward.
+      S: 3.75
+    closed_canopy:
+      K: 0.45
+      Ca: 0.47
+      Mg: 0.28
+      S: 0.47
+
+  # Depth over which the exchangeable pool is counted. The root zone ANUT-8
+  # already declares, so the two sides measure the same column; read from
+  # biosphere/config/abiotic_nutrients.yaml rather than restated, and this key
+  # names where it is read from rather than carrying a number.
+  root_zone_depth_from: biosphere/config/abiotic_nutrients.yaml:root_zone_depth_m
+
+# ---------------------------------------------------------------------------
 # Convergence of the soil-biosphere loop
 # ---------------------------------------------------------------------------
 # Fixed before any iteration has been run, in the same way the albedo bracket's
