@@ -178,8 +178,8 @@ def cloud_fraction(clt, shape):
     with rcrit = max(0.85, max(sigma, 1 - sigma)), and `hur` in a climatology is
     a mean over time bins and orbits. That square of a threshold difference is
     strongly convex, so the mean of the diagnosis is not the diagnosis of the
-    mean: run on this field it leaves 72 per cent of columns with no cloud at
-    all against a written total cover of 0.61. The convective branch is worse
+    mean: run on this field it leaves 59 per cent of columns with no cloud at
+    all against a written total cover of 0.578. The convective branch is worse
     off still, since the flags it needs are not written at any cadence.
 
     So the AMOUNT of cloud is taken from `clt`, which the model does write, and

@@ -1221,12 +1221,31 @@ from Table 1(b) at the layer's own range-1 optical depth. The control and the
 arm no longer share a coefficient fitted against the quantity being corrected,
 which was the whole reason the hold existed.
 
-**Predicted magnitude: +0.73 to +2.00 W/m2 at the top of the atmosphere, +0.59
-to +1.63 K, WARMING.** `exoplasim/scripts/cloud_optical_depth_bracket.py`,
-re-derived on the current source. It carries the model's own per-layer cloud
-water paths, its own total cloud cover with random overlap, its own zenith
-geometry integrated over the day, and the band-1 surface albedo through Stephens
-Eq. (12).
+**Predicted magnitude: +0.71 to +1.75 W/m2 at the top of the atmosphere, +0.48
+to +1.20 K, WARMING.** `exoplasim/scripts/cloud_optical_depth_bracket.py`. It
+carries the model's own per-layer cloud water paths, its own total cloud cover
+with random overlap, its own zenith geometry integrated over the day, and the
+band-1 surface albedo through Stephens Eq. (12).
+
+**AMENDED 2026-08-30, AND THE FIELD IS WHAT MOVED.** The registered figure was
++0.73 to +2.00 W/m2 and +0.59 to +1.63 K, taken on a BOOTSTRAP climatology
+because that was the only field there was. A baseline exists now and the
+instrument reads the best available climatology rather than the first, so the
+prediction is re-derived on the field the arm will actually branch from. Nothing
+in this term's physics moved: the two optical depths, the continuation below
+10 g/m2 and the Table 1(b) backscatter are unchanged.
+
+WHAT MOVED IN THE FIELD, so the direction is legible rather than asserted. The
+baseline's total cloud cover is 0.578 against the bootstrap's 0.61, and its
+planetary albedo is 0.314 against 0.270. Less cloud is less of this correction,
+and a brighter planet returns more of what the cloud now lets through through
+Stephens Eq. (12), so both push the same way and the bracket narrows from above.
+The lower end barely moves because it is set by the uniform arm, whose cover is
+spread where the water is not.
+
+The geometry check still passes on the new field: the reconstructed band-1
+incident flux is 122.96 W/m2 against the climatology's 122.95, 3.8e-5 relative,
+inside the part in ten thousand the check was set at.
 
 **The correction is not one-signed, which the issue's original hand chain got
 wrong.** Over the seven layers carrying real cloud water, 7 to 90 g/m2, band-1
@@ -1450,7 +1469,7 @@ settles: its last ten sit at 279.96 K, flat to 0.1 K, against the donor's last
 orbit at 292.26. **The drift is -12.3 K and equilibrated**, not a lower bound.
 
 **The sum of the registered predictions is about +1 K of WARMING.** `world-jgen`
-with `world-f9ig` is +0.59 to +1.63 K warming and is the largest single term;
+with `world-f9ig` is +0.48 to +1.20 K warming and is the largest single term;
 `OCN-22` is -0.02 to -0.13 K; `world-o12h` is identically zero at this rung;
 `world-2esd` and `world-trs3` are not swept in the baseline config. Nothing in
 the table predicts a term of this size and nothing predicts cooling of this size.
@@ -1644,8 +1663,8 @@ measures it at **-10.01 +/- 0.07 K**: reverting the shortwave cloud optics to
 their pre-jgen form on a binary that differs in one object file returns
 +18.43 W/m2 of top-of-atmosphere shortwave from the first orbit and +10.01 K at
 equilibrium, on the same restart. The bracket for it was already in the tree, in
-`exoplasim/analysis/stephens_tables_vs_fits.json`, at -25.35 to -6.54 W/m2 and
--20.63 to -5.32 K. What is left over after it is -0.65 K.
+`exoplasim/analysis/stephens_tables_vs_fits.json`, at -23.37 to -7.22 W/m2 and
+-15.98 to -4.94 K. What is left over after it is -0.65 K.
 
 ### `world-trs3`, the derived Kessler `gamma`: CLEARED, and worth a seventh of the drift
 
@@ -1704,10 +1723,10 @@ attached before it lands, not a qualifier.
   base of the power is clamped to 10, so `log10` is exactly 1, the power is 1,
   and what remains is `ztaua_b * zlwp/10`: linear, equal to the fit at 10, zero
   at zero water. No offset and no domain error.
-- **The offline chain still reproduces the model's own geometry.**
-  `cloud_optical_depth_bracket.py` on `run_57a43e1fc3f4` returns a reconstructed
-  band-1 incident flux of 122.97 W/m2 against the climatology's 122.97, +0.00 per
-  cent, and the bracket is unmoved at +0.73 to +2.00 W/m2.
+- **The offline chain still reproduces the model's own geometry.** On the
+  baseline climatology `cloud_optical_depth_bracket.py` returns a reconstructed
+  band-1 incident flux of 122.96 W/m2 against the climatology's 122.95, 3.8e-5
+  relative, and the bracket is +0.71 to +1.75 W/m2.
 - `smoke_test.py` gates the shortwave cloud tables against the papers' tables.
 
 **One thing the registered wording understates.** "Band 2 was getting its own
@@ -1764,11 +1783,11 @@ term of that half: `world-f9ig` (c8debdc1), which replaced `tswr1`, `tswr2` and
 
 **The number was in the tree before the bundle ran.**
 `exoplasim/analysis/stephens_tables_vs_fits.json` prices exactly this swap at
-**-25.35 to -6.54 W/m2** over the layers carrying cloud water, which it converts
-to **-20.63 to -5.32 K**, and its own `settles_it` field names the experiment
+**-23.37 to -7.22 W/m2** over the layers carrying cloud water, which it converts
+to **-15.98 to -4.94 K**, and its own `settles_it` field names the experiment
 that would close it: "a T21 commissioning pair on the adopted scheme".
 
-The bundle registered **+0.59 to +1.63 K of warming** for "world-jgen and
+The bundle registered **+0.48 to +1.20 K of warming** for "world-jgen and
 world-f9ig" jointly. That figure comes from
 `exoplasim/analysis/cloud_optical_depth_bracket.json`, which prices the OPTICAL
 DEPTH swap alone -- world-jgen -- and the tables artifact names it as its own
@@ -1805,8 +1824,8 @@ over it is the FORCING and not a response.
 
 Fluxes in W/m2, arm minus control. **+18.43 W/m2 of shortwave the current cloud
 optics reflect and the pre-jgen ones do not**, one-signed, and inside the
-artifact's -6.54 to -25.35 W/m2 bracket. The measured drift of -12.3 K is inside
-its -4.21 to -16.31 K. The bracket was right and nothing read it.
+artifact's -7.22 to -23.37 W/m2 bracket. The measured drift of -12.3 K is inside
+its -4.94 to -15.98 K. The bracket was right and nothing read it.
 
 **The modelled sea ice separates the forcing from its amplifier.** Over the same
 first six orbits the control's sea-ice fraction runs 0.0097, 0.0154, 0.0216,
