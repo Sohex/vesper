@@ -453,8 +453,14 @@ already on disk, while `anpp.out` TrBR, at 324.8 and 0.1012, does not until
 THE ASSESSED QUANTITIES ARE MUCH QUIETER THAN THE COLUMNS THEY ARE BUILT FROM,
 and that is the finding rather than an assumption. A sum over the plant
 functional types averages out the competitive shuffling between them, and the
-shuffling is most of each column's variance. Measured on the 1253-cycle record
-of `lpj_7d3c576ee4e342acb097b46fece976e0`:
+shuffling is most of each column's variance. On the 1253-cycle record the
+relative scatter of `fpc.out` tree cover about its own linear fit is 0.00807,
+against 0.0220 to 0.0290 for the individual woody columns it sums; the boreal
+sum is 0.0167 against 0.0220 to 0.0267 for its three. The sum is quieter than
+any of its parts, which is what a competitive shift looks like from the outside.
+`biosphere/analysis/drift_statistic_validation.json` prices both sets.
+
+Measured on the same record:
 
 | series | drift bound | needs |
 | --- | --- | --- |

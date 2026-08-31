@@ -1,5 +1,5 @@
 {
-  "contract_version": "vesper-lpj-equilibrium-window/4",
+  "contract_version": "vesper-lpj-equilibrium-window/5",
   "declared_alpha": 0.05,
   "relative_end_to_end_limit": 0.05,
   "synthetic": {
@@ -355,8 +355,99 @@
   ],
   "model_fields": [
     {
+      "field": "aaet.out total evapotranspiration",
+      "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
+      "relative_scatter": 0.00465558177554719,
+      "tau_cycles": 66.24543202846752,
+      "cycles_for_bound": 1253.0
+    },
+    {
+      "field": "anpp.out total productivity",
+      "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.2727,
+      "relative_scatter": 0.004150419535489678,
+      "tau_cycles": 62.21190897061571,
+      "cycles_for_bound": 1253.0
+    },
+    {
+      "field": "cpool.out soil carbon",
+      "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
+      "relative_scatter": 0.000669305842723892,
+      "tau_cycles": 89.87882518774273,
+      "cycles_for_bound": 1253.0
+    },
+    {
+      "field": "cpool.out total carbon",
+      "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
+      "relative_scatter": 0.005497644923436545,
+      "tau_cycles": 212.68499249184023,
+      "cycles_for_bound": 1253.0
+    },
+    {
+      "field": "fpc.out C4 grass cover",
+      "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.2727,
+      "relative_scatter": 0.03122273137940461,
+      "tau_cycles": 19.8557921767246,
+      "cycles_for_bound": 1253.0
+    },
+    {
+      "field": "fpc.out boreal needleleaf cover",
+      "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.2727,
+      "relative_scatter": 0.0167341382529988,
+      "tau_cycles": 50.84502106830501,
+      "cycles_for_bound": 1253.0
+    },
+    {
+      "field": "fpc.out grass cover",
+      "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
+      "relative_scatter": 0.015300894635064035,
+      "tau_cycles": 21.045128166373633,
+      "cycles_for_bound": 1253.0
+    },
+    {
+      "field": "fpc.out tree cover",
+      "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
+      "relative_scatter": 0.008068186445979416,
+      "tau_cycles": 60.47661173184945,
+      "cycles_for_bound": 1253.0
+    },
+    {
+      "field": "lai.out total leaf area",
+      "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.2727,
+      "relative_scatter": 0.0049893047530514675,
+      "tau_cycles": 43.95906460511238,
+      "cycles_for_bound": 1253.0
+    },
+    {
+      "field": "npool.out total nitrogen",
+      "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
+      "relative_scatter": 0.00016380301256511254,
+      "tau_cycles": 90.8783328581162,
+      "cycles_for_bound": 1253.0
+    },
+    {
+      "field": "tot_runoff.out total runoff",
+      "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
+      "relative_scatter": 0.001995565710876349,
+      "tau_cycles": 11.465674126102478,
+      "cycles_for_bound": 1253.0
+    }
+  ],
+  "model_columns": [
+    {
       "field": "aaet.out BINE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.021232890129572586,
       "tau_cycles": 53.92121803744678,
       "cycles_for_bound": 2643.7816972811665
@@ -364,6 +455,7 @@
     {
       "field": "aaet.out BNE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.027733700964579992,
       "tau_cycles": 63.49053967945203,
       "cycles_for_bound": 3440.7059036752116
@@ -371,6 +463,7 @@
     {
       "field": "aaet.out BNS",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.0354205146414341,
       "tau_cycles": 78.70711946581773,
       "cycles_for_bound": 8865.905802348172
@@ -378,6 +471,7 @@
     {
       "field": "aaet.out C3G",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.02419199234730747,
       "tau_cycles": 11.122551609534966,
       "cycles_for_bound": 1253.0
@@ -385,6 +479,7 @@
     {
       "field": "aaet.out C4G",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.033604601025501134,
       "tau_cycles": 17.54859795387963,
       "cycles_for_bound": 1256.6898077196772
@@ -392,6 +487,7 @@
     {
       "field": "aaet.out IBS",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.06720611623776022,
       "tau_cycles": 95.07338054880202,
       "cycles_for_bound": 26128.10214049705
@@ -399,6 +495,7 @@
     {
       "field": "aaet.out TeBE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.007772212544382188,
       "tau_cycles": 16.16236849599911,
       "cycles_for_bound": 1253.0
@@ -406,6 +503,7 @@
     {
       "field": "aaet.out TeBS",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.026055753159561306,
       "tau_cycles": 64.48257352494788,
       "cycles_for_bound": 2706.508624860576
@@ -413,6 +511,7 @@
     {
       "field": "aaet.out TeNE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.106806583147234,
       "tau_cycles": 24.679195883063425,
       "cycles_for_bound": 19698.38696384919
@@ -420,6 +519,7 @@
     {
       "field": "aaet.out Total",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.00465558177554719,
       "tau_cycles": 66.24543202846752,
       "cycles_for_bound": 1253.0
@@ -427,6 +527,7 @@
     {
       "field": "aaet.out TrBE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.023850975892732985,
       "tau_cycles": 80.30592464020243,
       "cycles_for_bound": 4594.205079436191
@@ -434,6 +535,7 @@
     {
       "field": "aaet.out TrBR",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.044514137271437104,
       "tau_cycles": 162.49713683047128,
       "cycles_for_bound": 24801.097260848288
@@ -441,6 +543,7 @@
     {
       "field": "aaet.out TrIBE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.04851469183795445,
       "tau_cycles": 82.1240878155468,
       "cycles_for_bound": 16379.19332618219
@@ -448,6 +551,7 @@
     {
       "field": "anpp.out BINE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.020072217486853762,
       "tau_cycles": 61.2053356957463,
       "cycles_for_bound": 2821.099877949296
@@ -455,6 +559,7 @@
     {
       "field": "anpp.out BNE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.024143037423992698,
       "tau_cycles": 70.19318592894611,
       "cycles_for_bound": 3039.4843893558796
@@ -462,6 +567,7 @@
     {
       "field": "anpp.out BNS",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.031412271269495896,
       "tau_cycles": 78.89589190735995,
       "cycles_for_bound": 6791.666338707041
@@ -469,6 +575,7 @@
     {
       "field": "anpp.out C3G",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.016705921467183537,
       "tau_cycles": 12.000724765974974,
       "cycles_for_bound": 1253.0
@@ -476,6 +583,7 @@
     {
       "field": "anpp.out C4G",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.03242967069736933,
       "tau_cycles": 25.24106697731441,
       "cycles_for_bound": 2643.3603171743694
@@ -483,6 +591,7 @@
     {
       "field": "anpp.out IBS",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.06377290210986494,
       "tau_cycles": 102.95479154904983,
       "cycles_for_bound": 24982.150847025456
@@ -490,6 +599,7 @@
     {
       "field": "anpp.out TeBE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.00793841201848267,
       "tau_cycles": 15.999481649341007,
       "cycles_for_bound": 1253.0
@@ -497,6 +607,7 @@
     {
       "field": "anpp.out TeBS",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.02337339695922401,
       "tau_cycles": 70.73335098374992,
       "cycles_for_bound": 2267.219804578054
@@ -504,6 +615,7 @@
     {
       "field": "anpp.out TeNE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.12076181596995199,
       "tau_cycles": 21.233276540755423,
       "cycles_for_bound": 19288.026046539795
@@ -511,6 +623,7 @@
     {
       "field": "anpp.out Total",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.004150419535489678,
       "tau_cycles": 62.21190897061571,
       "cycles_for_bound": 1253.0
@@ -518,6 +631,7 @@
     {
       "field": "anpp.out TrBE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.019809390232455953,
       "tau_cycles": 90.60593690838054,
       "cycles_for_bound": 3410.2983226135248
@@ -525,6 +639,7 @@
     {
       "field": "anpp.out TrBR",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.04852274107647531,
       "tau_cycles": 169.82889401836226,
       "cycles_for_bound": 33846.11597237604
@@ -532,6 +647,7 @@
     {
       "field": "anpp.out TrIBE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.05541224688902042,
       "tau_cycles": 94.91676741221762,
       "cycles_for_bound": 25637.486641172218
@@ -539,6 +655,7 @@
     {
       "field": "cpool.out LitterC",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.02649205740550071,
       "tau_cycles": 48.981568165708744,
       "cycles_for_bound": 3728.3116787075755
@@ -546,6 +663,7 @@
     {
       "field": "cpool.out SoilC",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.000669305842723892,
       "tau_cycles": 89.87882518774273,
       "cycles_for_bound": 1253.0
@@ -553,6 +671,7 @@
     {
       "field": "cpool.out Total",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.005497644923436545,
       "tau_cycles": 212.68499249184023,
       "cycles_for_bound": 1253.0
@@ -560,6 +679,7 @@
     {
       "field": "cpool.out VegC",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.024351437504023597,
       "tau_cycles": 184.13924314256468,
       "cycles_for_bound": 7412.091655981424
@@ -567,6 +687,7 @@
     {
       "field": "fpc.out BINE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.021990935600993047,
       "tau_cycles": 58.57025214637437,
       "cycles_for_bound": 3139.556858769657
@@ -574,6 +695,7 @@
     {
       "field": "fpc.out BNE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.026691988145767172,
       "tau_cycles": 68.48088720404611,
       "cycles_for_bound": 3606.2061676590897
@@ -581,6 +703,7 @@
     {
       "field": "fpc.out BNS",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.03339165808414458,
       "tau_cycles": 89.6747149717165,
       "cycles_for_bound": 8686.682683547093
@@ -588,6 +711,7 @@
     {
       "field": "fpc.out C3G",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.014757693371639208,
       "tau_cycles": 13.949964628461382,
       "cycles_for_bound": 1253.0
@@ -595,6 +719,7 @@
     {
       "field": "fpc.out C4G",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.03122273137940461,
       "tau_cycles": 19.8557921767246,
       "cycles_for_bound": 1275.3972703326813
@@ -602,6 +727,7 @@
     {
       "field": "fpc.out IBS",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.057920925081507056,
       "tau_cycles": 104.69276418945186,
       "cycles_for_bound": 24806.225924262853
@@ -609,6 +735,7 @@
     {
       "field": "fpc.out TeBE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.009017497548539633,
       "tau_cycles": 21.88278930397686,
       "cycles_for_bound": 1253.0
@@ -616,6 +743,7 @@
     {
       "field": "fpc.out TeBS",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.029012565276989255,
       "tau_cycles": 74.4937401365411,
       "cycles_for_bound": 3693.0496012271724
@@ -623,6 +751,7 @@
     {
       "field": "fpc.out TeNE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.10446052710484413,
       "tau_cycles": 25.66413709093511,
       "cycles_for_bound": 23260.11864210974
@@ -630,6 +759,7 @@
     {
       "field": "fpc.out Total",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.005257743630946254,
       "tau_cycles": 60.82227381388771,
       "cycles_for_bound": 1253.0
@@ -637,6 +767,7 @@
     {
       "field": "fpc.out TrBE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.022533178300445714,
       "tau_cycles": 70.63422969244985,
       "cycles_for_bound": 2634.9555404091916
@@ -644,6 +775,7 @@
     {
       "field": "fpc.out TrBR",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.04046161163585732,
       "tau_cycles": 155.16315165473486,
       "cycles_for_bound": 19555.806897189443
@@ -651,6 +783,7 @@
     {
       "field": "fpc.out TrIBE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.050487054309365925,
       "tau_cycles": 67.51035918755173,
       "cycles_for_bound": 16988.684580791574
@@ -658,6 +791,7 @@
     {
       "field": "lai.out BINE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.02388172005963808,
       "tau_cycles": 62.43131244518633,
       "cycles_for_bound": 3975.5252840949906
@@ -665,6 +799,7 @@
     {
       "field": "lai.out BNE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.025967092999240667,
       "tau_cycles": 65.38599166591516,
       "cycles_for_bound": 3408.692858928078
@@ -672,6 +807,7 @@
     {
       "field": "lai.out BNS",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.030988675381779945,
       "tau_cycles": 80.61442234336609,
       "cycles_for_bound": 6957.075064758989
@@ -679,6 +815,7 @@
     {
       "field": "lai.out C3G",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.018082796401869414,
       "tau_cycles": 11.645328483960558,
       "cycles_for_bound": 1253.0
@@ -686,6 +823,7 @@
     {
       "field": "lai.out C4G",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.03477465030459227,
       "tau_cycles": 21.151501940181547,
       "cycles_for_bound": 2326.1502071636096
@@ -693,6 +831,7 @@
     {
       "field": "lai.out IBS",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.06329261750059151,
       "tau_cycles": 102.88799154416758,
       "cycles_for_bound": 24909.755961513176
@@ -700,6 +839,7 @@
     {
       "field": "lai.out TeBE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.009475323360891456,
       "tau_cycles": 17.2765553866656,
       "cycles_for_bound": 1253.0
@@ -707,6 +847,7 @@
     {
       "field": "lai.out TeBS",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.025729946250914376,
       "tau_cycles": 63.60830146821573,
       "cycles_for_bound": 2586.1715171093815
@@ -714,6 +855,7 @@
     {
       "field": "lai.out TeNE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.11826101028787146,
       "tau_cycles": 24.248512398709178,
       "cycles_for_bound": 26294.226377508792
@@ -721,6 +863,7 @@
     {
       "field": "lai.out Total",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.0049893047530514675,
       "tau_cycles": 43.95906460511238,
       "cycles_for_bound": 1253.0
@@ -728,6 +871,7 @@
     {
       "field": "lai.out TrBE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.022212231831760194,
       "tau_cycles": 88.91654461064623,
       "cycles_for_bound": 4481.711932806143
@@ -735,6 +879,7 @@
     {
       "field": "lai.out TrBR",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.047049172743439505,
       "tau_cycles": 173.23596560217874,
       "cycles_for_bound": 31278.106216621196
@@ -742,6 +887,7 @@
     {
       "field": "lai.out TrIBE",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.05352271211604429,
       "tau_cycles": 78.68521083251338,
       "cycles_for_bound": 20528.768209016307
@@ -749,6 +895,7 @@
     {
       "field": "npool.out LitterN",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.01579739808212609,
       "tau_cycles": 42.743855349451515,
       "cycles_for_bound": 1253.0
@@ -756,6 +903,7 @@
     {
       "field": "npool.out SoilN",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.00022762584122054894,
       "tau_cycles": 114.9667179809728,
       "cycles_for_bound": 1253.0
@@ -763,6 +911,7 @@
     {
       "field": "npool.out Total",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.00016380301256511254,
       "tau_cycles": 90.8783328581162,
       "cycles_for_bound": 1253.0
@@ -770,6 +919,7 @@
     {
       "field": "npool.out VegN",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.0122625943643537,
       "tau_cycles": 148.86959270376633,
       "cycles_for_bound": 2130.6894986167563
@@ -777,6 +927,7 @@
     {
       "field": "tot_runoff.out Base",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.006950314357469739,
       "tau_cycles": 26.35005855354349,
       "cycles_for_bound": 1253.0
@@ -784,6 +935,7 @@
     {
       "field": "tot_runoff.out Drain",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.004373055550578365,
       "tau_cycles": 48.34982184192208,
       "cycles_for_bound": 1253.0
@@ -791,6 +943,7 @@
     {
       "field": "tot_runoff.out Surf",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.0017370981230936068,
       "tau_cycles": 72.02774769744242,
       "cycles_for_bound": 1253.0
@@ -798,6 +951,7 @@
     {
       "field": "tot_runoff.out Total",
       "record_cycles": 1253,
+      "relative_end_to_end_limit": 0.05,
       "relative_scatter": 0.001995565710876349,
       "tau_cycles": 11.465674126102478,
       "cycles_for_bound": 1253.0
