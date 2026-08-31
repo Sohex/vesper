@@ -74,6 +74,20 @@ half of that is what puts the links at `exoplasim/runs/<id>` rather than over
 picks up a build added since: a correct link is left alone, a stale one is
 repaired, and one whose target has been archived away is removed.
 
+Entry-by-entry linking has a consequence worth knowing before writing anything
+in a worktree. A wholly-ignored directory is one symlink, so a write inside it
+lands in the main checkout. A directory holding tracked content beside ignored
+payload CANNOT be one -- `references/INDEX.md`, `exoplasim/runs/INDEX.json` and
+the `source/` READMEs are all tracked -- so what the worktree gets is a real
+directory of one link per EXISTING file, and a file created there afterwards is
+real in the worktree alone. Being ignored, it is never committed; when the
+worktree is removed it is gone, while a tracked row describing it survives and
+outlives its own artifact. `references/` lost thirteen PDFs that way, with their
+`INDEX.md` rows still standing. `--check` now fails on payload in that state and
+names it, so the fix is to copy it to the main checkout before the worktree
+goes. `notes/audits/worktree-stranded-payload.md` carries the shapes and the
+evidence.
+
 Two things are held back. Everything compiled from tracked source that a
 worktree may have edited -- `vendor/exoplasim` and the LPJ-GUESS build -- is not
 linked, because a link both hides the worktree's own edit behind the main
