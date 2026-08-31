@@ -1404,3 +1404,72 @@ is too blunt for the effect, here the instrument is fine and its calibration was
 taken under conditions that no longer hold. Class 32 is closer still -- a value
 characterised from where it is declared rather than from where it is used --
 but the quantity here is not a value, it is a threshold.
+
+## 38. A gate asking its question through a channel that answers a different one
+
+A gate has a question. It rarely has a way of asking it directly, so it asks
+through whatever channel is available on everything it walks -- an exit status, a
+flag every command line accepts, a file that always exists. The trouble with a
+universally available channel is that it never declines to answer. It returns
+something for every unit, including the units it does not describe, and those
+answers are indistinguishable from the ones it does.
+
+**The instance.** `verify_entry_points.py` asks "does this script still start:
+does its import graph resolve, and does its argparse parser build". It asked by
+running `python <script> --help` and reading the exit status, and both halves of
+that are proxies that hold for most of the tree and not all of it.
+
+`--help` is a proxy for "start rather than run", and it holds only where there is
+a parser to short-circuit it. Twenty-seven of 212 entry points build none, so on
+them `--help` was an argument nothing read and the script did its whole job. Nine
+of those are gates and measurement drivers that write TRACKED reports, so one
+pass of the start check rewrote nine tracked artifacts -- each by exactly its
+generated timestamp, every other byte identical. Nothing about the modelled world
+was recorded and nothing downstream could tell the versions apart, which is what
+made it survive: it looked like noise rather than a defect. What it cost was
+real. An agent staging with `git add -u` after running the gate swept all nine
+into the index beside an unrelated change.
+
+The exit status is a proxy for "started", and it conflates every reason a process
+can end. Two entry points here exit non-zero on purpose: one refuses to mix a
+second build's landform composition into a roughness a dust run will consume, the
+other reports that a staging seam is open. Both start perfectly well; refusing is
+the whole point of them. The gate called them entry points that do not start,
+which is the failure it exists to catch, reported on the two scripts in the tree
+that are working exactly as designed.
+
+**Why that is worse than a wrong number.** A gate is read by people deciding
+whether to pay for a build. Two standing false reports train the reader to skip
+the output, and the thing that then goes unread is an import graph that no longer
+resolves -- invisible to every static pass, which is why rule 8 promoted this
+check to a gate in the first place. A gate with a permanent false positive has
+been switched off without anyone switching it off.
+
+**The tell.** The channel is available on units the question is not about. Ask
+what the gate would report for a unit that the proxy does not describe, and check
+whether that report is distinguishable from a real finding. If it is not, the
+gate is answering for a population wider than its question.
+
+**The repair, and the shape to avoid.** Ask nearer the thing. "Does it start" is
+answered by executing the module body under a `__name__` that is not `__main__`,
+which runs every import and no work; the parser question is a second, narrower
+question and takes `--help` only where a parser is there to catch it, so the
+probe is chosen per script from the source. "Why did it stop" is an exception
+type, and an exception type is only visible INSIDE the process, so the child
+reports a class -- `import`, `refusal`, `start` -- and the parent no longer
+infers one from a number. What NOT to do is name the exceptions: a per-script
+allowlist of "these are allowed to exit non-zero" answers the same question by
+listing names, needs maintaining per gate, and goes stale silently, which is the
+same defect class one level up.
+
+**And the probe's own precondition is checkable.** `--help` short-circuits
+because argparse exits before the rest of the start path, which is a property of
+the SCRIPT: a parser built after a read or a write short-circuits nothing. The
+gate that chooses that probe is where the choice is checked, statically, so it
+fails on the source rather than after the artifact has been rewritten.
+
+Class 17 is the neighbour and this is not it: there the check has no right answer
+at all, here it has one and reads it off an instrument that also reads other
+things. Class 34 is closer -- an instrument too blunt for the effect -- but a
+blunt instrument returns noise, and this one returns a confident wrong answer,
+which is harder to disbelieve.

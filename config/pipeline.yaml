@@ -2016,12 +2016,21 @@ checks:
   - id: smoke_test
     script: scripts/smoke_test.py
   # Does every script START: does it import on this interpreter, and does its
-  # argparse parser build without raising? `--help` on each of about 136 entry
-  # points, one fresh interpreter each, because a single process would let one
-  # script's sys.path edit make the next one's import succeed for the wrong
-  # reason. Nothing static answers this -- smoke_test's parse, pyflakes and
-  # symtable passes are all about name binding inside a source text, and an
-  # import is a dynamic act. Parallel, bounded to a quarter of the cores.
+  # argparse parser build without raising? One fresh interpreter per entry
+  # point, because a single process would let one script's sys.path edit make
+  # the next one's import succeed for the wrong reason. Nothing static answers
+  # this -- smoke_test's parse, pyflakes and symtable passes are all about name
+  # binding inside a source text, and an import is a dynamic act. Parallel,
+  # bounded to a quarter of the cores.
+  #
+  # STARTING IS NOT RUNNING. `--help` short-circuits only where there is a
+  # parser to short-circuit it, so a script that builds none does its whole job
+  # when started that way, and the ones that do are gates writing tracked
+  # reports. The probe is picked per script from the source: `--help` where it
+  # constructs an ArgumentParser, executing the module body under a `__name__`
+  # that is not `__main__` where it does not. And the child reports the CLASS of
+  # what happened rather than an exit status, so a gate that started and refused
+  # on purpose is not read as an import graph that no longer resolves.
   #
   # Run before a build or a push, not per commit: CLAUDE.md rule 8.
   - id: verify_entry_points
