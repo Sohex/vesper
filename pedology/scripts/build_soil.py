@@ -619,11 +619,14 @@ def organic_properties(soil_carbon_kg_m2: np.ndarray, params: dict
 # rather than in the config.
 CATION_MOLAR_MASS_G = {"Ca": 40.078, "Mg": 24.305, "K": 39.098}
 CATION_CHARGE = {"Ca": 2, "Mg": 2, "K": 1}
+# Sulfate, for the anion half. Divalent, so the same equivalents-to-mass step.
+SULFATE_MOLAR_MASS_G = 32.06
+SULFATE_CHARGE = 2
 
 
 def exchange_properties(clay: np.ndarray, organic_fraction: np.ndarray,
                         ph: np.ndarray, bulk_density: np.ndarray,
-                        root_zone_depth_m: float, cfg: dict
+                        andic: np.ndarray, root_zone_depth_m: float, cfg: dict
                         ) -> dict[str, np.ndarray]:
     """Cation exchange capacity, base saturation, and the exchangeable pool.
 
@@ -689,11 +692,19 @@ def exchange_properties(clay: np.ndarray, organic_fraction: np.ndarray,
                        * soil_kg_m2)
         pools[element] = (equivalents / CATION_CHARGE[element]
                           * CATION_MOLAR_MASS_G[element])
-    # Sulfate is an anion and the cation exchange complex holds none of it. Zero
-    # by mechanism, and declared in the config so a reader meets the reason.
-    pools["S"] = np.zeros_like(cec) + float(cfg["sulfur_on_cation_exchange"])
+    # Sulfate is an anion, so the CATION complex holds none of it. That is not
+    # the same as no retention: variable-charge andic material carries anion
+    # exchange, and this component emits the andic fraction, so the term has a
+    # field. Leaving it out would understate a pool the bound takes a land
+    # MAXIMUM of, which is the one direction ANUT-8 cannot afford.
+    anion = cfg["anion_exchange"]
+    aec = float(anion["andic_aec_cmol_kg"]) * andic
+    pools["S"] = (float(cfg["sulfur_on_cation_exchange"]) * cec
+                  + aec * 0.01 * float(anion["sulfate_share_upper"]) * soil_kg_m2
+                  / SULFATE_CHARGE * SULFATE_MOLAR_MASS_G)
 
     return {"cec_cmol_kg": cec, "base_saturation": base_saturation,
+            "anion_exchange_cmol_kg": aec,
             "exchangeable_pool_g_m2": pools, "soil_kg_m2": soil_kg_m2}
 
 
@@ -999,7 +1010,7 @@ def main() -> None:
     nutrients_decl = yaml.safe_load(
         (PROJECT_ROOT / ANUT_DECLARATION).read_text(encoding="utf-8"))
     exchange = exchange_properties(
-        texture["clay"], organic_fraction, ph, bulk_density,
+        texture["clay"], organic_fraction, ph, bulk_density, andisol["andic"],
         float(nutrients_decl["root_zone_depth_m"]), pedo["exchange"])
 
     # Plant-available water capacity, mm: volumetric capacity from texture times
@@ -1311,6 +1322,9 @@ def main() -> None:
     elements = {}
     for element in ("K", "Ca", "Mg", "S"):
         if element == "S":
+            # The dropped intercept is a CATION capacity and does not add here:
+            # the anion term is andic AEC, which the intercept says nothing
+            # about.
             pool_field = exchange["exchangeable_pool_g_m2"]["S"]
             bound_field = pool_field
         else:
@@ -1364,7 +1378,9 @@ def main() -> None:
                  + float(field[land].max()) / above_g_m2[element])
             per_element[element] = m
             worst = max(worst, m)
-        per_element["S"] = 1.0 + float(root_all["S"])
+        # Sulfur carries no clay term, so the probe does not move it; its
+        # anion term is andic and is the same in every entry.
+        per_element["S"] = elements["S"]["multiplier_bound"]
         level_probe[f"clay_cec_{probe}"] = {
             "by_element": per_element,
             "multiplier_bound": max(worst, per_element["S"]),
@@ -1400,6 +1416,7 @@ def main() -> None:
             "saturation instead, where two read sources do resolve it. "
             "world-n4i0 owns the pH-resolved relation that would close it"),
         "base_saturation": land_stats(exchange["base_saturation"]),
+        "anion_exchange_cmol_kg": land_stats(exchange["anion_exchange_cmol_kg"]),
         "root_zone_depth_m": float(nutrients_decl["root_zone_depth_m"]),
         "elements": elements,
         "multiplier_bound": multiplier_bound,
@@ -1547,6 +1564,8 @@ def main() -> None:
           f"(envelope {exch_cfg['measured_envelope_cmol_kg'][0]} to "
           f"{exch_cfg['measured_envelope_cmol_kg'][1]})")
     print(f"base saturation     {ex['base_saturation']['mean']:.3f} land mean")
+    print(f"anion exchange      {ex['anion_exchange_cmol_kg']['max']:.3f} "
+          f"cmol(+)/kg max, andic only; sulfate's only retention term")
     print(f"ANUT-8 multiplier   {ex['multiplier_bound']:.2f} upper bound, set by "
           f"{ex['binding_element']}; the declaration is "
           f"{ex['declared_multiplier']:.2f}")

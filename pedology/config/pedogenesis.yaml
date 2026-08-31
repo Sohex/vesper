@@ -1329,13 +1329,33 @@ exchange:
     Ca: 0.83
     Mg: 0.41
     K: 0.41
-  # Sulfur reaches plants as sulfate, an ANION. It is not held on a cation
-  # exchange complex at all, so its exchangeable term is zero by mechanism and
-  # not by a missing measurement. Andic and other variable-charge material does
-  # carry anion exchange, which is why this is named as a declared absence
-  # rather than as a proof that no sulfate is retained: what is claimed is that
-  # the CATION exchange complex this block models holds none of it.
+  # Sulfur reaches plants as sulfate, an ANION. The cation exchange complex
+  # holds none of it, and that is zero by mechanism rather than by a missing
+  # measurement.
   sulfur_on_cation_exchange: 0.0
+
+  # WHICH IS NOT THE SAME AS SAYING NO SULFATE IS RETAINED. Variable-charge
+  # material carries ANION exchange, and this component emits the andic
+  # fraction, so the term exists and has a field to hang on. Leaving it out
+  # would be anti-conservative in exactly the direction ANUT-8 cannot afford:
+  # on a strongly andic cell it is worth several times the above-ground sulfur
+  # pool, and the bound is a land maximum.
+  #
+  # SOURCE. Dahlgren, Saigusa and Ugolini (2004),
+  # `10.1016/S0065-2113(03)82003-5`: "AEC values for Andisols were generally
+  # less than 3 cmolc kg-1 at pH values greater than 5". That is a ceiling on
+  # andic material and it is taken as one.
+  #
+  # THE SULFATE SHARE OF THAT CAPACITY IS DECLARED AT 1.0 AND IS AN UPPER BOUND
+  # AND A LOOSE ONE. No read source here partitions the anion complex, and
+  # phosphate outcompetes sulfate on variable-charge surfaces decisively --
+  # which is the whole of the andic phosphorus fixation this component already
+  # models, in the `andisol` block above. So a real andic soil holds far less
+  # sulfate than this allows. Direction: up, and the looseness is the price of
+  # having no partition to be conservative WITH.
+  anion_exchange:
+    andic_aec_cmol_kg: 3.0
+    sulfate_share_upper: 1.0
 
   # THE PLANT HALF OF THE ANUT-8 MULTIPLIER, kept here beside the soil half so
   # the two are read from one place.
