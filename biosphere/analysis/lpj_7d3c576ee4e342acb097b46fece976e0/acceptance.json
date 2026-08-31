@@ -1,0 +1,1537 @@
+{
+  "contract_version": "vesper-lpj-acceptance/1",
+  "generated": "2026-08-31T02:58:33+00:00",
+  "run_id": "lpj_7d3c576ee4e342acb097b46fece976e0",
+  "source_build": "canonical-10m-carve2",
+  "manifest_sha256": "1436d7a88b8c736408c6b44a92d7b79d871280bc00a937df01e7726ffac1191c",
+  "contract_sha256": "c1a86db8be4fc40ef74d93d5a0e16e4b0d1bc3c9e4b4f804b6ab8b6d5e587e62",
+  "verdict": "FAIL",
+  "refusal": "anpp.out equilibrium refusal: /home/cfutro/docs/world/biosphere/runs/lpj_7d3c576ee4e342acb097b46fece976e0/anpp.out's retained record is too short to judge: BNE (memory time 70.2 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 702); BINE (memory time 61.2 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 612); BNS (memory time 78.9 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 789); TeNE (memory time 21.2 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 212); TeBS (memory time 70.7 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 707); IBS (memory time 103.0 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 1030); TeBE (memory time 16.0 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 160); TrBE (memory time 90.6 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 906); TrIBE (memory time 94.9 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 949); TrBR (a 1253-cycle record cannot establish a memory time of 169.8 cycles, which needs 1698); C3G (memory time 12.0 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 120); C4G (memory time 25.2 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 252); Total (memory time 62.2 cycles, so a trend over the 10-cycle window is inside one memory time; it needs 622)",
+  "timescales": {
+    "estimator": "lib/autocorrelation.py:integrated_time",
+    "relaxation_estimator": "lib/lpj_output.py:relaxation_time",
+    "reliable_span_multiple": 10.0,
+    "drift_tolerance": 0.05,
+    "contract_version": "vesper-lpj-equilibrium-window/3",
+    "tables": {
+      "anpp.out": {
+        "record_cycles": 1253,
+        "forcing_cycle_years": 1,
+        "fields": {
+          "BNE": {
+            "memory": {
+              "tau_cycles": 70.19318592894611,
+              "effective_samples": 17.85073555812617,
+              "reliable": true,
+              "lag1": 0.9803886762810056
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00011504561162251677,
+                0.00010116750737471873,
+                -9.065421114713701e-05
+              ],
+              "step_standard_errors": [
+                8.507399308496546e-05,
+                8.317244515431285e-05,
+                5.478009969541124e-05
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "BINE": {
+            "memory": {
+              "tau_cycles": 61.2053356957463,
+              "effective_samples": 20.47207136039092,
+              "reliable": true,
+              "lag1": 0.9643425793825668
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                5.266329593120976e-05,
+                -1.769537324078623e-05,
+                -9.095255877547039e-05
+              ],
+              "step_standard_errors": [
+                7.888126043625853e-05,
+                6.429884314841187e-05,
+                7.203876650226786e-05
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "BNS": {
+            "memory": {
+              "tau_cycles": 78.89589190735995,
+              "effective_samples": 15.881688763608635,
+              "reliable": true,
+              "lag1": 0.9631300053411004
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -7.366222701685947e-05,
+                -1.5595084969799835e-05,
+                -1.444318651073551e-05
+              ],
+              "step_standard_errors": [
+                3.198782787460104e-05,
+                2.0326541655265597e-05,
+                2.4963802530985607e-05
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "TeNE": {
+            "memory": {
+              "tau_cycles": 21.233276540755423,
+              "effective_samples": 59.011146847495525,
+              "reliable": true,
+              "lag1": 0.9721640344246225
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -1.1809428970542622e-05,
+                2.2761355486138675e-05,
+                -1.1969469751304553e-05
+              ],
+              "step_standard_errors": [
+                1.3068980534195572e-05,
+                1.1775766695408998e-05,
+                1.2372713770282892e-05
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "TeBS": {
+            "memory": {
+              "tau_cycles": 70.73335098374992,
+              "effective_samples": 17.714415937792353,
+              "reliable": true,
+              "lag1": 0.9675231349330387
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                8.468330695624113e-05,
+                -0.00019097014350323224,
+                4.909893088806891e-05
+              ],
+              "step_standard_errors": [
+                9.769858103970378e-05,
+                0.00010109561838170528,
+                0.00010268590126864078
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "IBS": {
+            "memory": {
+              "tau_cycles": 102.95479154904983,
+              "effective_samples": 12.170390334898055,
+              "reliable": true,
+              "lag1": 0.9882724424372484
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -1.2625439371224782e-06,
+                0.00017046318963251936,
+                -7.103242110088328e-05
+              ],
+              "step_standard_errors": [
+                0.0001099933072895989,
+                0.00010605293180052276,
+                8.115577469217757e-05
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "TeBE": {
+            "memory": {
+              "tau_cycles": 15.999481649341007,
+              "effective_samples": 78.31503716569524,
+              "reliable": true,
+              "lag1": 0.9192780666829912
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00012903633716047913,
+                2.5444508329034582e-05,
+                -1.835529448490983e-05
+              ],
+              "step_standard_errors": [
+                7.080318631899115e-05,
+                6.379571524978394e-05,
+                7.492660430674524e-05
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "TrBE": {
+            "memory": {
+              "tau_cycles": 90.60593690838054,
+              "effective_samples": 13.82911586982447,
+              "reliable": true,
+              "lag1": 0.9733144505764663
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0010887831170806953,
+                8.249608295250038e-05,
+                0.00020543506394715694
+              ],
+              "step_standard_errors": [
+                0.0004360122887002107,
+                0.00040778262480975795,
+                0.0003841941339166634
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "TrIBE": {
+            "memory": {
+              "tau_cycles": 94.91676741221762,
+              "effective_samples": 13.201039544028074,
+              "reliable": true,
+              "lag1": 0.990387472154251
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00013463183705082413,
+                -0.0007044856862291823,
+                0.0005513128283552732
+              ],
+              "step_standard_errors": [
+                0.0003205746078894248,
+                0.0004593297163339859,
+                0.0004442684673368901
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "TrBR": {
+            "memory": {
+              "tau_cycles": 169.82889401836226,
+              "effective_samples": 7.378014249239137,
+              "reliable": false,
+              "lag1": 0.991848876380844
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0016119228405855474,
+                0.0008822988969041032,
+                -0.0008754369014524234
+              ],
+              "step_standard_errors": [
+                0.000700394569042193,
+                0.0006689278993325424,
+                0.0005250946278122535
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "C3G": {
+            "memory": {
+              "tau_cycles": 12.000724765974974,
+              "effective_samples": 104.41036057693492,
+              "reliable": true,
+              "lag1": 0.8448777454273787
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -2.475099827906925e-05,
+                -4.956324673348854e-05,
+                3.8024504021764646e-05
+              ],
+              "step_standard_errors": [
+                5.9667102182306165e-05,
+                4.95509250393527e-05,
+                5.3547653577880693e-05
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "C4G": {
+            "memory": {
+              "tau_cycles": 25.24106697731441,
+              "effective_samples": 49.64132463679696,
+              "reliable": true,
+              "lag1": 0.9218127216337534
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0001880953368858431,
+                2.806048356025423e-05,
+                -0.0002513470099047444
+              ],
+              "step_standard_errors": [
+                0.0001329829238963408,
+                0.000134702116277174,
+                0.00013891907765671777
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "Total": {
+            "memory": {
+              "tau_cycles": 62.21190897061571,
+              "effective_samples": 20.140838317496804,
+              "reliable": true,
+              "lag1": 0.8359696386014194
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -1.4125080761345776e-05,
+                0.0003363187854287797,
+                -0.0005806753720947744
+              ],
+              "step_standard_errors": [
+                0.0003204636489621384,
+                0.00033477138728555685,
+                0.0003315655995228224
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          }
+        }
+      },
+      "lai.out": {
+        "record_cycles": 1253,
+        "forcing_cycle_years": 1,
+        "fields": {
+          "BNE": {
+            "memory": {
+              "tau_cycles": 65.38599166591516,
+              "effective_samples": 19.16312604696905,
+              "reliable": true,
+              "lag1": 0.9813306662723945
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.001391602600959052,
+                0.0008753766391831133,
+                -0.001037126694999807
+              ],
+              "step_standard_errors": [
+                0.0008600457345720888,
+                0.0008326256755653977,
+                0.0005543816701580152
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "BINE": {
+            "memory": {
+              "tau_cycles": 62.43131244518633,
+              "effective_samples": 20.070057010256086,
+              "reliable": true,
+              "lag1": 0.9715365937145987
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0008434285477188219,
+                -0.0001181411164523985,
+                -0.0009154360320950891
+              ],
+              "step_standard_errors": [
+                0.0008173548208823671,
+                0.0007273380384776948,
+                0.0007586977400118026
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "BNS": {
+            "memory": {
+              "tau_cycles": 80.61442234336609,
+              "effective_samples": 15.543124463052258,
+              "reliable": true,
+              "lag1": 0.9674807942274997
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0006238533868383276,
+                -0.0001313474445834087,
+                -0.00011739919900577087
+              ],
+              "step_standard_errors": [
+                0.0002646692454899263,
+                0.0001708337370722882,
+                0.0002030165048429269
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "TeNE": {
+            "memory": {
+              "tau_cycles": 24.248512398709178,
+              "effective_samples": 51.67327295783724,
+              "reliable": true,
+              "lag1": 0.9823266983485607
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0001370988360490876,
+                0.00022962414126266248,
+                -0.00013243967351680682
+              ],
+              "step_standard_errors": [
+                0.00013156412457678276,
+                0.00011984180619483731,
+                0.00012927424662980707
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "TeBS": {
+            "memory": {
+              "tau_cycles": 63.60830146821573,
+              "effective_samples": 19.698686666332513,
+              "reliable": true,
+              "lag1": 0.9700312718683146
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0010390392811205212,
+                -0.002163929771734449,
+                0.0004905159042995627
+              ],
+              "step_standard_errors": [
+                0.001248058518610377,
+                0.0013437168051024125,
+                0.0014258815993482671
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "IBS": {
+            "memory": {
+              "tau_cycles": 102.88799154416758,
+              "effective_samples": 12.178291958028108,
+              "reliable": true,
+              "lag1": 0.9889132771031257
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                4.249398859165754e-05,
+                0.0015503069424110047,
+                -0.0007439956057938707
+              ],
+              "step_standard_errors": [
+                0.0010815083720814862,
+                0.001040043396334505,
+                0.0007969412354970215
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "TeBE": {
+            "memory": {
+              "tau_cycles": 17.2765553866656,
+              "effective_samples": 72.5260314893032,
+              "reliable": true,
+              "lag1": 0.9334289143364237
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0019423290082806188,
+                0.000963167503423068,
+                -0.0005087486984337586
+              ],
+              "step_standard_errors": [
+                0.001060906374342997,
+                0.0008966805578210817,
+                0.0010722938075922708
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "TrBE": {
+            "memory": {
+              "tau_cycles": 88.91654461064623,
+              "effective_samples": 14.091865641953598,
+              "reliable": true,
+              "lag1": 0.9740457381884036
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.011794153967134346,
+                0.0017033689572256705,
+                0.0020545462448703367
+              ],
+              "step_standard_errors": [
+                0.004498243951337098,
+                0.004423851779393415,
+                0.004028899447467045
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "TrIBE": {
+            "memory": {
+              "tau_cycles": 78.68521083251338,
+              "effective_samples": 15.924212272457305,
+              "reliable": true,
+              "lag1": 0.9873481399610904
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0009207128334923903,
+                -0.005123312211901904,
+                0.003487124027653471
+              ],
+              "step_standard_errors": [
+                0.0025238652054336763,
+                0.0035954935415385986,
+                0.003389030860635932
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "TrBR": {
+            "memory": {
+              "tau_cycles": 173.23596560217874,
+              "effective_samples": 7.232909145883743,
+              "reliable": false,
+              "lag1": 0.9896883456714385
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.01163958500042478,
+                0.005061364772455612,
+                -0.006300676518065845
+              ],
+              "step_standard_errors": [
+                0.005307571240864611,
+                0.004757578329662639,
+                0.0038006556337552007
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "C3G": {
+            "memory": {
+              "tau_cycles": 11.645328483960558,
+              "effective_samples": 107.59679314549113,
+              "reliable": true,
+              "lag1": 0.8663265308171939
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00046402816717738826,
+                -0.00047934920700784533,
+                0.00036864781346754305
+              ],
+              "step_standard_errors": [
+                0.0006727096123241631,
+                0.0005658437812043019,
+                0.0006059931601097648
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "C4G": {
+            "memory": {
+              "tau_cycles": 21.151501940181547,
+              "effective_samples": 59.239292015460784,
+              "reliable": true,
+              "lag1": 0.8804947707155405
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0016290574783500295,
+                0.0002162079818857493,
+                -0.0022970684875751046
+              ],
+              "step_standard_errors": [
+                0.0010654485189935596,
+                0.00111724874969997,
+                0.0011603023693685481
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "Total": {
+            "memory": {
+              "tau_cycles": 43.95906460511238,
+              "effective_samples": 28.503791226128087,
+              "reliable": true,
+              "lag1": 0.8616114856695759
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.005338187113358206,
+                0.0025831512622476183,
+                -0.005651934221263311
+              ],
+              "step_standard_errors": [
+                0.003352796378676882,
+                0.0035042377156537866,
+                0.0032989443547023324
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          }
+        }
+      },
+      "fpc.out": {
+        "record_cycles": 1253,
+        "forcing_cycle_years": 1,
+        "fields": {
+          "BNE": {
+            "memory": {
+              "tau_cycles": 68.48088720404611,
+              "effective_samples": 18.297076033296015,
+              "reliable": true,
+              "lag1": 0.9824666333875015
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.000346124740921638,
+                0.0002459787284068461,
+                -0.00027907555703083134
+              ],
+              "step_standard_errors": [
+                0.00023491360621052937,
+                0.00024033845518543978,
+                0.0001623703187424365
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "BINE": {
+            "memory": {
+              "tau_cycles": 58.57025214637437,
+              "effective_samples": 21.39311261403821,
+              "reliable": true,
+              "lag1": 0.9694318854145892
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.00014378182292376987,
+                -3.483159165496019e-05,
+                -0.0002441767877641929
+              ],
+              "step_standard_errors": [
+                0.0002190776210361357,
+                0.0001723226536599455,
+                0.00019860257114769425
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "BNS": {
+            "memory": {
+              "tau_cycles": 89.6747149717165,
+              "effective_samples": 13.972723530765585,
+              "reliable": true,
+              "lag1": 0.9717556860371733
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0002478201852916602,
+                -5.049780586065342e-05,
+                -3.200222871605797e-05
+              ],
+              "step_standard_errors": [
+                0.00010391187067140544,
+                6.727808213128603e-05,
+                8.010338810644858e-05
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "TeNE": {
+            "memory": {
+              "tau_cycles": 25.66413709093511,
+              "effective_samples": 48.82299356336337,
+              "reliable": true,
+              "lag1": 0.9809831778411751
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -3.561006162557958e-05,
+                5.3443741713937905e-05,
+                -2.3822366588226954e-05
+              ],
+              "step_standard_errors": [
+                2.7867554458505143e-05,
+                2.5379062673608737e-05,
+                2.7792572738496218e-05
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "TeBS": {
+            "memory": {
+              "tau_cycles": 74.4937401365411,
+              "effective_samples": 16.82020526427255,
+              "reliable": true,
+              "lag1": 0.9770214349886832
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0004679434364509641,
+                -0.0006120631232452295,
+                0.00011384036623653115
+              ],
+              "step_standard_errors": [
+                0.00037467672349985074,
+                0.0004649005373454487,
+                0.0005122825159643619
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "IBS": {
+            "memory": {
+              "tau_cycles": 104.69276418945186,
+              "effective_samples": 11.96835339768633,
+              "reliable": true,
+              "lag1": 0.9879000794424214
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -2.0036710588969796e-05,
+                0.00040215086906095644,
+                -0.00015165543417483204
+              ],
+              "step_standard_errors": [
+                0.00025677390776331717,
+                0.00024740694024408933,
+                0.0001804123740164938
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "TeBE": {
+            "memory": {
+              "tau_cycles": 21.88278930397686,
+              "effective_samples": 57.25961085647736,
+              "reliable": true,
+              "lag1": 0.9331425068416073
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00021909385305093898,
+                0.0002992900907095447,
+                -0.0005682949334250426
+              ],
+              "step_standard_errors": [
+                0.000264525523630909,
+                0.00025549863706652426,
+                0.00027871237269276236
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "TrBE": {
+            "memory": {
+              "tau_cycles": 70.63422969244985,
+              "effective_samples": 17.739274647089896,
+              "reliable": true,
+              "lag1": 0.9708965271544403
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0008959260730141624,
+                0.000307013540240382,
+                0.00026307543057885185
+              ],
+              "step_standard_errors": [
+                0.0006922072147372888,
+                0.000760250066081615,
+                0.0007259142050526482
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "TrIBE": {
+            "memory": {
+              "tau_cycles": 67.51035918755173,
+              "effective_samples": 18.560114552479547,
+              "reliable": true,
+              "lag1": 0.9862573660102429
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0003267064595225272,
+                -0.0008483662997583567,
+                0.0005431784099059304
+              ],
+              "step_standard_errors": [
+                0.00046954924782433553,
+                0.0006750119605115208,
+                0.0006253109805364061
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "TrBR": {
+            "memory": {
+              "tau_cycles": 155.16315165473486,
+              "effective_samples": 8.075370902417244,
+              "reliable": false,
+              "lag1": 0.98697971484114
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0018617860155970695,
+                0.0005069558465268138,
+                -0.0008243996988862336
+              ],
+              "step_standard_errors": [
+                0.0009124033795407974,
+                0.0008031834517909235,
+                0.0006182528377234785
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "C3G": {
+            "memory": {
+              "tau_cycles": 13.949964628461382,
+              "effective_samples": 89.82101628011083,
+              "reliable": true,
+              "lag1": 0.8617243509522658
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00012374511233479574,
+                -0.00028590593948877446,
+                0.00015512693604888272
+              ],
+              "step_standard_errors": [
+                0.00022722380260201602,
+                0.0001846312523298834,
+                0.00020265414314782644
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "C4G": {
+            "memory": {
+              "tau_cycles": 19.8557921767246,
+              "effective_samples": 63.10501181961375,
+              "reliable": true,
+              "lag1": 0.9110396004082888
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0004055591449475572,
+                -5.68085497341525e-05,
+                -0.000455308118019207
+              ],
+              "step_standard_errors": [
+                0.00027973889087242306,
+                0.00028254515704022857,
+                0.0002955847713692377
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "Total": {
+            "memory": {
+              "tau_cycles": 60.82227381388771,
+              "effective_samples": 20.60100554336558,
+              "reliable": true,
+              "lag1": 0.8784347112040509
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00014669416997120655,
+                -7.363456564735138e-05,
+                -0.001503962491182953
+              ],
+              "step_standard_errors": [
+                0.0009873448789683573,
+                0.0011229047896004784,
+                0.0009878632883143477
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          }
+        }
+      },
+      "cpool.out": {
+        "record_cycles": 1253,
+        "forcing_cycle_years": 1,
+        "fields": {
+          "VegC": {
+            "memory": {
+              "tau_cycles": 184.13924314256468,
+              "effective_samples": 6.804633160297611,
+              "reliable": false,
+              "lag1": 0.9913186934938945
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.056697086269884345,
+                0.05244870692976589,
+                0.05203709587233085
+              ],
+              "step_standard_errors": [
+                0.05384451813943364,
+                0.07641833745067354,
+                0.06252475230443102
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "LitterC": {
+            "memory": {
+              "tau_cycles": 48.981568165708744,
+              "effective_samples": 25.58105113664381,
+              "reliable": true,
+              "lag1": 0.9662908890130381
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.00583788856814893,
+                -0.025609413559208205,
+                0.020229374003449596
+              ],
+              "step_standard_errors": [
+                0.017236593492654818,
+                0.014587020375299813,
+                0.010435626039389564
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "SoilC": {
+            "memory": {
+              "tau_cycles": 89.87882518774273,
+              "effective_samples": 13.940992190125762,
+              "reliable": true,
+              "lag1": 0.9989172455407254
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.011296820325575219,
+                0.00816363478298765,
+                0.013546055192334094
+              ],
+              "step_standard_errors": [
+                0.005653703886788342,
+                0.005447796529675612,
+                0.0019950998529396774
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "Total": {
+            "memory": {
+              "tau_cycles": 212.68499249184023,
+              "effective_samples": 5.891341863474791,
+              "reliable": false,
+              "lag1": 0.9971474443241286
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.03956138551848376,
+                0.03500367501052004,
+                0.08581240454357797
+              ],
+              "step_standard_errors": [
+                0.043008775303949656,
+                0.07559668368762022,
+                0.06625559431825744
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          }
+        }
+      },
+      "npool.out": {
+        "record_cycles": 1253,
+        "forcing_cycle_years": 1,
+        "fields": {
+          "VegN": {
+            "memory": {
+              "tau_cycles": 148.86959270376633,
+              "effective_samples": 8.416762464671535,
+              "reliable": false,
+              "lag1": 0.9819435935077099
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.00015377903702869233,
+                0.00021283329480499547,
+                0.0001126730564430245
+              ],
+              "step_standard_errors": [
+                0.0001592123159685093,
+                0.00021474179097299124,
+                0.00018060685805508858
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "LitterN": {
+            "memory": {
+              "tau_cycles": 42.743855349451515,
+              "effective_samples": 29.3141549763381,
+              "reliable": true,
+              "lag1": 0.9476655048572068
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                1.9237889753636293e-05,
+                -7.301139450842809e-05,
+                3.9077019131788376e-05
+              ],
+              "step_standard_errors": [
+                4.9987529326693304e-05,
+                4.3113866260919996e-05,
+                3.3314711757521634e-05
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "SoilN": {
+            "memory": {
+              "tau_cycles": 114.9667179809728,
+              "effective_samples": 10.898806385056359,
+              "reliable": true,
+              "lag1": 0.9970870814417665
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0017614001394922196,
+                0.0014732141128306342,
+                0.0016847996822895173
+              ],
+              "step_standard_errors": [
+                0.0005045338979463878,
+                0.00046046978429211457,
+                0.00033600211135546143
+              ],
+              "admissible": true,
+              "ratio": 0.8363880981951868,
+              "tau_cycles": 1751.9061224120694,
+              "second_estimate_cycles": null
+            }
+          },
+          "Total": {
+            "memory": {
+              "tau_cycles": 90.8783328581162,
+              "effective_samples": 13.78766489869754,
+              "reliable": true,
+              "lag1": 0.9895202236912662
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0016268169074192818,
+                0.0016133475986968016,
+                0.001836723431748566
+              ],
+              "step_standard_errors": [
+                0.0003782369771314801,
+                0.00041500030035777956,
+                0.0003830801075005056
+              ],
+              "admissible": true,
+              "ratio": 0.9917204519690864,
+              "tau_cycles": 37647.27906545835,
+              "second_estimate_cycles": null
+            }
+          }
+        }
+      },
+      "aaet.out": {
+        "record_cycles": 1253,
+        "forcing_cycle_years": 1,
+        "fields": {
+          "BNE": {
+            "memory": {
+              "tau_cycles": 63.49053967945203,
+              "effective_samples": 19.735223646327245,
+              "reliable": true,
+              "lag1": 0.9831865064182491
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.05196360158934343,
+                0.06505641931474893,
+                -0.06274375100025509
+              ],
+              "step_standard_errors": [
+                0.05303678885078642,
+                0.054522739862932317,
+                0.037088678737427674
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "BINE": {
+            "memory": {
+              "tau_cycles": 53.92121803744678,
+              "effective_samples": 23.237605632903666,
+              "reliable": true,
+              "lag1": 0.967518890369981
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.002133679495613716,
+                0.015754473732565444,
+                -0.047982853902525324
+              ],
+              "step_standard_errors": [
+                0.042451705218232536,
+                0.0339327375992328,
+                0.04158070220457553
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "BNS": {
+            "memory": {
+              "tau_cycles": 78.70711946581773,
+              "effective_samples": 15.919779665474536,
+              "reliable": true,
+              "lag1": 0.9753960627177571
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.03588900677901141,
+                -0.007151116037469429,
+                -0.006797366637622204
+              ],
+              "step_standard_errors": [
+                0.014880648352755503,
+                0.010253682682994165,
+                0.012629969217229923
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "TeNE": {
+            "memory": {
+              "tau_cycles": 24.679195883063425,
+              "effective_samples": 50.7715083561493,
+              "reliable": true,
+              "lag1": 0.9810378641890456
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.010789633309030905,
+                0.01650378071646902,
+                -0.006863437794519478
+              ],
+              "step_standard_errors": [
+                0.009248909057779616,
+                0.008463850041755965,
+                0.009142585714054447
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "TeBS": {
+            "memory": {
+              "tau_cycles": 64.48257352494788,
+              "effective_samples": 19.431606579957958,
+              "reliable": true,
+              "lag1": 0.9742334651540835
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.05056118991308356,
+                -0.12565858757095594,
+                0.03884515758089435
+              ],
+              "step_standard_errors": [
+                0.08758264684346105,
+                0.09221829601450719,
+                0.0999570061653351
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "IBS": {
+            "memory": {
+              "tau_cycles": 95.07338054880202,
+              "effective_samples": 13.179293644205949,
+              "reliable": true,
+              "lag1": 0.987694475997283
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0010845035080544463,
+                0.11550303188368005,
+                -0.05639293765720055
+              ],
+              "step_standard_errors": [
+                0.07311596177776272,
+                0.07267501565414776,
+                0.04951499796270103
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "TeBE": {
+            "memory": {
+              "tau_cycles": 16.16236849599911,
+              "effective_samples": 77.5257661220985,
+              "reliable": true,
+              "lag1": 0.9205742874726023
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.0744785733055835,
+                0.08207104625177664,
+                -0.14253482862793732
+              ],
+              "step_standard_errors": [
+                0.07909559171505554,
+                0.07304033947822706,
+                0.08030117633939551
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "TrBE": {
+            "memory": {
+              "tau_cycles": 80.30592464020243,
+              "effective_samples": 15.602833858321931,
+              "reliable": true,
+              "lag1": 0.9799821749323097
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.5594956146850265,
+                0.17594719444559814,
+                0.15598165260876584
+              ],
+              "step_standard_errors": [
+                0.2745696790275472,
+                0.28813642189555383,
+                0.2805291236565855
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "TrIBE": {
+            "memory": {
+              "tau_cycles": 82.1240878155468,
+              "effective_samples": 15.257399300608077,
+              "reliable": true,
+              "lag1": 0.987236477273632
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.052623937754015415,
+                -0.34502522124156165,
+                0.20385698281636166
+              ],
+              "step_standard_errors": [
+                0.15659723906683973,
+                0.2524414538790579,
+                0.24082450061127614
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "TrBR": {
+            "memory": {
+              "tau_cycles": 162.49713683047128,
+              "effective_samples": 7.710905093098471,
+              "reliable": false,
+              "lag1": 0.9895046719581055
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.8325521367420041,
+                0.3251434340799939,
+                -0.36743264950476373
+              ],
+              "step_standard_errors": [
+                0.34908900461023784,
+                0.32364204742223796,
+                0.2788638478449831
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "C3G": {
+            "memory": {
+              "tau_cycles": 11.122551609534966,
+              "effective_samples": 112.65400638157955,
+              "reliable": true,
+              "lag1": 0.8524904563293727
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.030539238640562516,
+                -0.07329012232252907,
+                0.06630072650611396
+              ],
+              "step_standard_errors": [
+                0.05695831407656149,
+                0.04893069160498447,
+                0.053352281737572636
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "C4G": {
+            "memory": {
+              "tau_cycles": 17.54859795387963,
+              "effective_samples": 71.40171558395,
+              "reliable": true,
+              "lag1": 0.9287422195798991
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.09232270544000354,
+                -0.027480622222749496,
+                -0.14355725211955228
+              ],
+              "step_standard_errors": [
+                0.08165878026092988,
+                0.0854988278197249,
+                0.09022408483039565
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "Total": {
+            "memory": {
+              "tau_cycles": 66.24543202846752,
+              "effective_samples": 18.91451171246873,
+              "reliable": true,
+              "lag1": 0.8484026257672971
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.0328646707012723,
+                0.21737833442990961,
+                -0.36932350169227846
+              ],
+              "step_standard_errors": [
+                0.2624993754136083,
+                0.31493771317761804,
+                0.297963671503764
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          }
+        }
+      },
+      "tot_runoff.out": {
+        "record_cycles": 1253,
+        "forcing_cycle_years": 1,
+        "fields": {
+          "Surf": {
+            "memory": {
+              "tau_cycles": 72.02774769744242,
+              "effective_samples": 17.396073597404627,
+              "reliable": true,
+              "lag1": 0.6141373346080207
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.02100149964138609,
+                0.02958956455077555,
+                -0.029928218746121615
+              ],
+              "step_standard_errors": [
+                0.08236136856262406,
+                0.08439202570065618,
+                0.07364114521026272
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "Drain": {
+            "memory": {
+              "tau_cycles": 48.34982184192208,
+              "effective_samples": 25.915297146215686,
+              "reliable": true,
+              "lag1": 0.7975670561999891
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.07663780005176335,
+                -0.09375366760122006,
+                0.17710290622202507
+              ],
+              "step_standard_errors": [
+                0.1126199959335375,
+                0.12702936547197466,
+                0.1306317932790809
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          },
+          "Base": {
+            "memory": {
+              "tau_cycles": 26.35005855354349,
+              "effective_samples": 47.55207649553779,
+              "reliable": true,
+              "lag1": 0.7820851596672904
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                0.03263192003493298,
+                -0.03501988654886912,
+                -0.0019351103787439428
+              ],
+              "step_standard_errors": [
+                0.0227289130908855,
+                0.021584128001099143,
+                0.019358733774800154
+              ],
+              "admissible": false,
+              "reason": "successive block differences change sign, so the series is not a monotone approach"
+            }
+          },
+          "Total": {
+            "memory": {
+              "tau_cycles": 11.465674126102478,
+              "effective_samples": 109.28271519137722,
+              "reliable": true,
+              "lag1": 0.6795444799861838
+            },
+            "relaxation": {
+              "block_cycles": 313,
+              "steps": [
+                -0.06476593541859188,
+                -0.09913894108325394,
+                0.14504416927965735
+              ],
+              "step_standard_errors": [
+                0.06364148918378326,
+                0.06461953020558857,
+                0.06959381893605425
+              ],
+              "admissible": false,
+              "reason": "a block difference is inside twice its own memory-corrected standard error, so the approach is smaller than the instrument reading it"
+            }
+          }
+        }
+      }
+    }
+  }
+}

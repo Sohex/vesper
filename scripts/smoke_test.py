@@ -6284,21 +6284,49 @@ def check_withdrawn_closure_has_no_consumer() -> list[str]:
 
 
 def check_reference_index_files_exist() -> list[str]:
-    """Every filename `references/INDEX.md` asserts is a file that is there.
+    """Every `references/INDEX.md` row that names a PDF has that PDF.
 
-    The index is TRACKED and the pdfs it names are NOT, so a row outlives its
-    own artifact without anything objecting. That is not hypothetical: thirteen
-    rows cited a pdf that was not on disk, eleven of them marked read and
-    several carrying extracted numbers, and eight of the thirteen are cited by
-    code or config rather than by prose alone. The mechanism is
-    `notes/audits/worktree-stranded-payload.md` -- a pdf fetched inside a
+    THE ROW IS THE EVIDENCE A DECISION CITES. The index marks each source
+    *read* or *held*, and its own header says the distinction is the point of
+    the file: a number taken from a citation rather than from the paper is
+    `docs/src/practice/failure-modes.md` class 9. A row naming a file that is
+    not there breaks that guarantee in the quietest way available -- the row
+    still reads as evidence, and the decision resting on it is OPAQUE by this
+    project's vocabulary, its derivation existing somewhere a reader cannot
+    reach.
+
+    It is not hypothetical. Thirteen rows named a PDF that was not on disk,
+    eleven of them marked read and several carrying extracted numbers; eight of
+    the thirteen are cited by code or config rather than by prose alone,
+    including the cumulative root-depth equation LPJ-GUESS uses and the
+    aerobic/anaerobic split `ntransform.cpp` cites. The mechanism is
+    `notes/audits/worktree-stranded-payload.md`: a PDF fetched inside a
     worktree lands in a per-file-linked directory and dies with it, while the
     committed row survives.
 
-    A static read over one tracked file, which is what the per-commit tier is
-    for. `scripts/check_reference_index.py` owns the parse: it reads the FIRST
-    cell of each row only, so a filename appearing inside a citation is not
-    read as a claim.
+    WHAT COUNTS AS A CLAIM. A table row whose first cell is a single backticked
+    `.pdf` name, which is the convention the file's header states. A source
+    sought and not reached is written as a bullet without a filename, so it is
+    not claimed and not checked -- that shape is the honest record of a paper
+    this host could not get, and the check must not push anyone toward
+    inventing a filename for one. Reading the FIRST cell only is also what
+    keeps a filename appearing inside a citation from being read as a claim.
+
+    PRESENCE IS NOT IDENTITY, and this checks presence. A file under the right
+    name can be the wrong paper: `yang2013.pdf` holds a Spanish-language review
+    of primary-school attainment, which only opening it said. Nothing here can
+    catch that, and the row's own *read* mark is what records that someone did
+    open it -- which is why the file keeps that mark rather than assuming it.
+
+    HERE AND NOT IN `check_consistency.py`, where this first landed. The
+    argument for the expensive tier is that `references/` holds untracked
+    payload, so this crosses from the tree to an artifact. Two things decide it
+    the other way. The defect is CREATED BY A COMMIT -- a row committed whose
+    payload never left a worktree -- so a gate that only runs before an
+    expensive run leaves it in history until someone happens to build. And the
+    cost is one `is_file` per row, a few hundred stat calls, which is not the
+    process-per-unit cost rule 8 moved the other two passes out for. Existence
+    is a static read even when the thing whose existence is tested is payload.
     """
     import importlib.util as ilu
 
